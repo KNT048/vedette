@@ -81,7 +81,7 @@ func sameAnswer(t *testing.T, what string, w *httptest.ResponseRecorder) {
 	}
 }
 
-// W1-28 (D-507): opening a planted URL token from a LAN machine, with no session, records a real hit with the source address and
+// Opening a planted URL token from a LAN machine, with no session, records a real hit with the source address and
 // the cleaned User-Agent, publishes it, and notify opens the Critical incident "<ip> opened the URL token <name>". The answer is a
 // plain 404, never the app.
 func TestURLTokenOpenFiresThroughTheRouter(t *testing.T) {
@@ -271,7 +271,7 @@ func TestURLTokenOpenOutlivesTheRequest(t *testing.T) {
 	}
 }
 
-// M5-190 (D-496): a trap hit that three connections folded into shows 3 times on its incident, in the list and in the detail, read from
+// M5-190: a trap hit that three connections folded into shows 3 times on its incident, in the list and in the detail, read from
 // the real honeypot; with the honeypot off notify's own count (1) shows.
 func TestTrapIncidentTimesFollowTheFoldedConnections(t *testing.T) {
 	t.Parallel()

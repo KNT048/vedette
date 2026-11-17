@@ -40,8 +40,8 @@ function Hearing({ sensor }: { sensor: Sensor }) {
   )
 }
 
-/** Appliance: SPAN is set in Settings → Box network (D-56). This dialog only shows what the sensor hears now and links there.
- *  D-403 (SPAN hidden for v1): it says the sensor listens on the management port; the SPAN lines stay only for a sensor already on a SPAN card. */
+/** Appliance: SPAN is set in Settings → Box network. This dialog only shows what the sensor hears now and links there.
+ *  SPAN hidden for v1: it says the sensor listens on the management port; the SPAN lines stay only for a sensor already on a SPAN card. */
 function StatusDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }) {
   const { t } = useTranslation('inventory')
   return (
@@ -58,22 +58,22 @@ function StatusDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void
   )
 }
 
-/** Container-only install (S-CORE-8 G6, D-387, D-393): no host to ask, so the card is chosen among the cards the sensor reported
+/** Container-only install (S-CORE-8): no host to ask, so the card is chosen among the cards the sensor reported
  *  in its heartbeat, with or without an address, and SPAN is a separate tick; the customer prepares the card on the machine.
- *  "Automatic" is the default card (D-380); `chosen` tells a stored choice from it. No card yet: say how to start the sensor, no Save. */
+ *  "Automatic" is the default card; `chosen` tells a stored choice from it. No card yet: say how to start the sensor, no Save. */
 function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }) {
   const { t } = useTranslation('inventory')
   const save = useSensorCard(sensor.id)
   const current = sensor.chosen ? (sensor.interface ?? '') : ''
   const [card, setCard] = useState(current)
   const [span, setSpan] = useState(sensor.chosen && sensor.span)
-  // D-403 (SPAN hidden for v1): the SPAN tick shows only for a card already saved as SPAN, and can then be unticked, not ticked again.
+  // SPAN hidden for v1: the SPAN tick shows only for a card already saved as SPAN, and can then be unticked, not ticked again.
   const spanKept = sensor.chosen && sensor.span
   const showSpan = SPAN_IN_UI || spanKept
   const [error, setError] = useState<string | null>(null)
   // The saved card may be missing from the last heartbeat (unplugged, renamed): keep it as an option so it can be changed.
   const cards = current && !sensor.interfaces.includes(current) ? [current, ...sensor.interfaces] : sensor.interfaces
-  // What "Automatic" gives now: known only while nothing is chosen (then `interface` is the default card, D-380).
+  // What "Automatic" gives now: known only while nothing is chosen (then `interface` is the default card).
   const autoLabel = sensor.chosen ? t('sensors.card.autoChosen') : sensor.interface ? t('sensors.card.auto', { name: sensor.interface }) : t('sensors.card.autoNone')
   const unchanged = card === current && (card !== '' && span) === (sensor.chosen && sensor.span)
   // A 400 bad_interface is about the choice: it goes next to the SPAN tick when SPAN was asked for (a SPAN card has no address), else
@@ -114,7 +114,7 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
                   <Label htmlFor="sensor-span" className="font-normal">{t('sensors.card.span')}</Label>
                 </div>
                 {error && errorAt === 'span' ? <p role="alert" id="sensor-span-error" className="max-w-lg text-meta text-danger [overflow-wrap:anywhere]">{error}</p> : null}
-                {/* "Automatic" is whatever card the sensor takes by itself: SPAN is a property of one named card, so the tick waits for one (D-393). */}
+                {/* "Automatic" is whatever card the sensor takes by itself: SPAN is a property of one named card, so the tick waits for one. */}
                 <p id="sensor-span-hint" className="max-w-lg text-meta text-muted">{(!SPAN_IN_UI ? t('sensors.card.spanKept', { name: sensor.interface ?? '' }) : t(card === '' ? 'sensors.card.spanNeedsCard' : 'sensors.card.spanHint'))}</p>
               </div> : null}
               {error && errorAt === 'form' ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
@@ -130,7 +130,7 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
   )
 }
 
-/** Cảm biến của chính hộp này: chọn cổng mạng nghe và chế độ SPAN/TAP (chỉ đọc metadata, không lưu nội dung gói tin, D-43). Chỉ nghe, không chặn traffic. Nhiều site chưa hỗ trợ. */
+/** Cảm biến của chính hộp này: chọn cổng mạng nghe và chế độ SPAN/TAP (chỉ đọc metadata, không lưu nội dung gói tin). Chỉ nghe, không chặn traffic. Nhiều site chưa hỗ trợ. */
 export function SensorsSection() {
   const { t } = useTranslation('inventory')
   const q = useSensors()

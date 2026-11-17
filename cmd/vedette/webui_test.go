@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/internal/webui"
 )
 
-// D-149: the SPA and the API share one listener. Built without the webui tag (the default for tests) the SPA side is the stub page; its
+// The SPA and the API share one listener. Built without the webui tag (the default for tests) the SPA side is the stub page; its
 // headers and the routing are the same as the release build's, and the file handling is tested in internal/webui.
 func TestTopHandlerServesSPAAndKeepsAPI(t *testing.T) {
 	t.Parallel()

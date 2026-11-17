@@ -1,4 +1,4 @@
-// "I updated <software>" (D-499, S-MIT-1): save the new version through inventory, then read the device's findings
+// "I updated <software>" (S-MIT-1): save the new version through inventory, then read the device's findings
 // until the re-match (inventory.match.changed on the event bus) shows, and say what it closed.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -6,7 +6,7 @@ import type { DeviceDetail, SoftwareView } from '@/features/inventory/types'
 import { isOpen } from './basis'
 import type { FindingRow, UncheckedItem, VersionNeeded } from './types'
 
-/** Reads of the findings list after the save, and the pause between them: about 6 s in all (D-499). */
+/** Reads of the findings list after the save, and the pause between them: about 6 s in all. */
 export const POLLS = 12
 export const POLL_MS = 500
 

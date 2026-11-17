@@ -1,4 +1,4 @@
-// Package webui serves the single-page interface from the core binary itself (D-149): same origin as /api/v1, no reverse proxy, no CDN.
+// Package webui serves the single-page interface from the core binary itself: same origin as /api/v1, no reverse proxy, no CDN.
 // The files are embedded only in a build with the `webui` tag (embed.go, over the generated internal/webui/dist); every other build
 // (dev, tests, CI) has no files and answers with a one-line page (stub.go).
 package webui
@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// CSP is the Envelope's policy (core/server) plus three additions, found by `make webui-csp-check` in a real browser on the release build (D-149):
+// CSP is the Envelope's policy (core/server) plus three additions, found by `make webui-csp-check` in a real browser on the release build:
 //   - `font-src ... data:`: Vite inlines the two smallest font files into the stylesheet as data: URIs;
 //   - `style-src 'self' 'unsafe-inline'`: libraries append <style> elements at run time (sonner; react-remove-scroll-bar, which Radix dialogs, menus
 //     and popovers use, writes the measured scrollbar width into its CSS), so no fixed hash can match. Scripts stay strict. CSS-based exfiltration

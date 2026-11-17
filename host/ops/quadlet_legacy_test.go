@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// The current templates are pinned: a change of one must keep its text before the change in legacyTemplates (D-316 (10)), or every
+// The current templates are pinned: a change of one must keep its text before the change in legacyTemplates, or every
 // box that runs the earlier host would find its units "not ours" after a self-update and refuse every container command.
 func TestUnitTemplatesArePinned(t *testing.T) {
 	t.Parallel()
@@ -120,13 +120,13 @@ func TestOurUnitAcceptsAnEarlierTemplateOnlyByteForByte(t *testing.T) {
 			}
 		}
 	}
-	// A template older than the lists (before D-318: the honeypot log was a bind of a directory) is not ours.
+	// A template older than the lists (the oldest units: the honeypot log was a bind of a directory) is not ours.
 	old := strings.Replace(string(mustRender(t, api.ServiceHoneypot, goldFill(true))), "Volume="+hpLogVolume+".volume:/var/lib/vedette/honeypot/log:U,noexec",
 		"Volume="+hpHostDir+"/log:/var/lib/vedette/honeypot/log:U", 1)
 	if _, _, _, err := o.ourUnitAge(api.ServiceHoneypot, []byte(old)); !errors.Is(err, errUnitNotOurs) {
-		t.Errorf("a pre-D-318 honeypot unit: %v", err)
+		t.Errorf("a honeypot unit older than the lists: %v", err)
 	}
-	// sensor and scan's first earlier template is the one before D-458's AppArmor module (scan has a second, before D-591's fence key
+	// sensor and scan's first earlier template is the one before the AppArmor module (scan has a second, before the fence key
 	// mount): those bytes are theirs and stale, one more byte is not.
 	for _, svc := range []string{api.ServiceSensor, api.ServiceScan} {
 		if l := legacyTemplates[svc]; len(l) < 1 {

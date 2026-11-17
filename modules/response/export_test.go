@@ -109,7 +109,7 @@ func (s *Service) ChatKeysForTest() int {
 	return len(s.chatTimes)
 }
 
-// LinkForTest records that a person proved an address on a channel (D-191), as ConfirmLink does after a right code.
+// LinkForTest records that a person proved an address on a channel, as ConfirmLink does after a right code.
 func (s *Service) LinkForTest(ctx context.Context, userID, channel, address string) error {
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `INSERT INTO resp_identity (user_id, channel, address, linked_at) VALUES (?, ?, ?, ?)
@@ -118,5 +118,5 @@ func (s *Service) LinkForTest(ctx context.Context, userID, channel, address stri
 	})
 }
 
-// SetLinkSenderForTest sets Config.LinkSender after the service was made (D-414).
+// SetLinkSenderForTest sets Config.LinkSender after the service was made.
 func (s *Service) SetLinkSenderForTest(l LinkSender) { s.cfg.LinkSender = l }

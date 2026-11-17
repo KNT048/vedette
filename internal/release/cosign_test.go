@@ -10,7 +10,7 @@ import (
 
 const sigstoreDigest = "sha256:d34db33fd34db33fd34db33fd34db33fd34db33fd34db33fd34db33fd34db33f"
 
-// D-103 (3): payloads exactly as sigstore's payload.go and payload_test.go emit them (null optional,
+// payloads exactly as sigstore's payload.go and payload_test.go emit them (null optional,
 // nested optional with numbers, booleans and null) parse, and their signatures are valid. As
 // sigstore wrote them they name example.com, so verification refuses them for the wrong repository;
 // with docker-reference set to the repository of vedette-core (what `cosign sign <repo>@<digest>`

@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-501, review H1: an operating system nmap only guessed raises no finding. A Windows 10 PC picked in Scan now (the fixture
+// An operating system nmap only guessed raises no finding. A Windows 10 PC picked in Scan now (the fixture
 // prints services without versions and the fingerprint "Microsoft Windows 10 1607") gets its OS recorded and shown, and 0
 // findings, although the CISA list has entries for Microsoft Windows; once a person adds Windows 10 with its version on the device
 // page, it is matched. Before the fix the guessed row carried the KEV key microsoft|windows: on a real box 175 findings.

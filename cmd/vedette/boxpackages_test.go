@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-470: the box's dpkg list from vedette-host becomes the box's software the way an osquery deb_packages snapshot does (mapped
+// The box's dpkg list from vedette-host becomes the box's software the way an osquery deb_packages snapshot does (mapped
 // names and upstream versions); a host older than the packages read gives no list (nil, so the inventory keeps what it has).
 func TestBoxPackagesMapsTheHostsDpkgList(t *testing.T) {
 	t.Parallel()
@@ -40,12 +40,12 @@ func TestBoxPackagesMapsTheHostsDpkgList(t *testing.T) {
 	}
 	ssh := items[slices.IndexFunc(items, func(i inventory.SoftwareItem) bool { return i.Product == "OpenSSH" })]
 	if ssh.Vendor != "OpenBSD" || ssh.Version != "9.6p1" || !slices.Equal(ssh.KevKeys, []string{"openbsd|openssh"}) ||
-		ssh.PkgVersion != "1:9.6p1-3ubuntu13.5" || ssh.PkgSource != "openssh" { // D-516: the full version and source go to findings
+		ssh.PkgVersion != "1:9.6p1-3ubuntu13.5" || ssh.PkgSource != "openssh" { // The full version and source go to findings
 		t.Errorf("openssh-server mapped to %+v", ssh)
 	}
 }
 
-// D-470: while dpkg is mid-change the host answers 409 packages_changing; that is no list (nil, nil), so the inventory keeps the
+// While dpkg is mid-change the host answers 409 packages_changing; that is no list (nil, nil), so the inventory keeps the
 // last good one instead of closing findings for the packages apt is replacing.
 func TestBoxPackagesKeepsTheListWhileDpkgIsChanging(t *testing.T) {
 	t.Parallel()
@@ -59,7 +59,7 @@ func TestBoxPackagesKeepsTheListWhileDpkgIsChanging(t *testing.T) {
 	}
 }
 
-// D-470: the host lists up to 20 000 packages; the box path never cuts the mapped list at an agent's 5 000 rows, so the inventory
+// The host lists up to 20 000 packages; the box path never cuts the mapped list at an agent's 5 000 rows, so the inventory
 // stores the whole box or refuses the list (and keeps the last one), never a part of it.
 func TestBoxPackagesAreNeverCut(t *testing.T) {
 	t.Parallel()

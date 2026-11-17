@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE nmaprun>
 <?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
-<!-- hand-written fixture shaped after the nmap DTD (the external shape, D-514); no live network was scanned. Port 10444 is not in the probed list. 8.8.8.8 stands for
+<!-- hand-written fixture shaped after the nmap DTD (the external shape); no live network was scanned. Port 10444 is not in the probed list. 8.8.8.8 stands for
      the box's own public IP. -->
 <nmaprun scanner="nmap" args="nmap --privileged -sS -sV -Pn -n --max-rate 100 --max-retries 2 --host-timeout 3m -p 21,22,... -oX - 8.8.8.8" start="1762650000" version="7.94" xmloutputversion="1.05">
 <scaninfo type="syn" protocol="tcp" numservices="98" services="21-23,25,53,80-81,88"/>

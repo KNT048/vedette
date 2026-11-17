@@ -1,6 +1,6 @@
-// SAMPLE DATA of the trial build (D-58): what a connected firewall would answer to a read tool, and the containment the AI would draft from it.
+// SAMPLE DATA of the trial build: what a connected firewall would answer to a read tool, and the containment the AI would draft from it.
 // Vendor names (FortiGate, FortiOS paths) are allowed here and nowhere in the response core. On a real box the AI reads these through the
-// customer's own connection (D-39) and drafts the change from the action template library; nothing in this file ships as logic.
+// customer's own connection and drafts the change from the action template library; nothing in this file ships as logic.
 import { connectorsStore, type Connector } from '@/mocks/connectors'
 import { assetsStore } from '@/mocks/stores'
 import type { Asset, Finding } from '@/lib/types'

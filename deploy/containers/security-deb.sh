@@ -1,7 +1,7 @@
 #!/bin/sh
 # Lays ONE Debian security update, pinned by version and SHA-256 (deploy/containers/pins.env), over the base image of DEBIAN_IMAGE when
-# the pinned base still carries the vulnerable version (D-594). Runs on the BUILD machine (a stage with --platform=$BUILDPLATFORM) for
-# the TARGET architecture, so the target stage only COPYs the result and nothing runs on a foreign CPU (D-158). The same way
+# the pinned base still carries the vulnerable version. Runs on the BUILD machine (a stage with --platform=$BUILDPLATFORM) for
+# the TARGET architecture, so the target stage only COPYs the result and nothing runs on a foreign CPU. The same way
 # distroless assembles its Debian layers: a .deb from snapshot.debian.org checked against a hash in a lock file, unpacked, no apt run.
 #
 #   security-deb.sh <package> <source> <version> <snapshot> <sha256> <arch> <target dpkg status> <out rootfs>
@@ -44,7 +44,7 @@ old=$(stanza "$pkg" "$status")
 printf '%s\n' "$old" | grep -Fqx "Architecture: $arch" || die "the base's $pkg is not for $arch"
 have=$(printf '%s\n' "$old" | sed -n 's/^Version: //p')
 dpkg --compare-versions "$have" lt "$ver" ||
-	die "the base already has $have (pinned $ver): DEBIAN_IMAGE carries the fix, so retire this update (D-594). Every place: (1) deploy/containers/pins.env, the ZLIB1G_* lines and their comment; (2) scan-base/Containerfile, the security stage, its COPY --from=security and the header line; (3) honeypot/Containerfile, the ZLIB1G_* ARGs, step 0, /target/updated-status (back to /target/status) and the header bullet; (4) Makefile PIN_ARGS; (5) deploy/compose/compose.yaml x-build-args; (6) .dockerignore (with this script, if no other update is left); (7) deploy/containers/containers_test.go, the ZLIB1G_* pin checks and the security-deb tests; (8) scripts/dev/images-check.sh and honeypot-check.sh, the zlib1g checks; (9) THIRD_PARTY_NOTICES.md, the base-images row and the honeypot Debian row"
+	die "the base already has $have (pinned $ver): DEBIAN_IMAGE carries the fix, so retire this update. Every place: (1) deploy/containers/pins.env, the ZLIB1G_* lines and their comment; (2) scan-base/Containerfile, the security stage, its COPY --from=security and the header line; (3) honeypot/Containerfile, the ZLIB1G_* ARGs, step 0, /target/updated-status (back to /target/status) and the header bullet; (4) Makefile PIN_ARGS; (5) deploy/compose/compose.yaml x-build-args; (6) .dockerignore (with this script, if no other update is left); (7) deploy/containers/containers_test.go, the ZLIB1G_* pin checks and the security-deb tests; (8) scripts/dev/images-check.sh and honeypot-check.sh, the zlib1g checks; (9) THIRD_PARTY_NOTICES.md, the base-images row and the honeypot Debian row"
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

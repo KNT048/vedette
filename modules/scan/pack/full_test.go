@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// D-527: the sets of an entry, what each needs, and the lookups of a full job.
+// The sets of an entry, what each needs, and the lookups of a full job.
 func fullIndex(t *testing.T, entries ...map[string]any) (*Index, error) {
 	t.Helper()
 	b, err := json.Marshal(map[string]any{"version": "2026.11.3", "sha256": sha, "templates": entries})
@@ -38,7 +38,7 @@ func TestParse_Sets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// the LAN and own_ip lookups see the KEV set only, as before D-527
+	// the LAN and own_ip lookups see the KEV set only
 	if len(ix.ForCVE("CVE-2024-3400")) != 1 || len(ix.ForCVE("CVE-2007-6750")) != 0 {
 		t.Error("ForCVE must see the KEV set only")
 	}
@@ -92,7 +92,7 @@ func TestParse_Sets(t *testing.T) {
 	}
 }
 
-// The limits hold the measured pack of D-527 (8260 templates, 4.3 MB of index) with room for the next releases of nuclei-templates.
+// The limits hold the measured full pack (8260 templates, 4.3 MB of index) with room for the next releases of nuclei-templates.
 func TestLimitsHoldTheMeasuredPack(t *testing.T) {
 	t.Parallel()
 	if MaxTemplates < 2*8260 || MaxSize < 2*4302648 {

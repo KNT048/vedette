@@ -10,8 +10,8 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// applyAffected stores the NVD entries of a pull (D-500): the rows of every CVE in got are replaced; a full pull
-// also drops the CVEs it did not get (NVD no longer lists them with hasKev). NVD's ranges replace CVE.org's (D-556),
+// applyAffected stores the NVD entries of a pull: the rows of every CVE in got are replaced; a full pull
+// also drops the CVEs it did not get (NVD no longer lists them with hasKev). NVD's ranges replace CVE.org's,
 // but an NVD answer without a vulnerable entry keeps the CVE.org ranges a CVE has. It returns how many CVEs changed
 // and how many CVEs have NVD's answer afterwards.
 func applyAffected(ctx context.Context, tx *sql.Tx, got map[string][]AffectedRow, full bool, now time.Time) (changed []string, total int, err error) {
@@ -60,7 +60,7 @@ func applyAffected(ctx context.Context, tx *sql.Tx, got map[string][]AffectedRow
 			return nil, 0, err
 		}
 		if src != rangesNVD && src != "" && len(rows) == 0 {
-			continue // NVD has no vulnerable entry yet: the CNA's CVE.org ranges stay (D-556)
+			continue // NVD has no vulnerable entry yet: the CNA's CVE.org ranges stay
 		}
 		same, err := sameAffected(ctx, tx, cve, rangesNVD, rows)
 		if err != nil {
@@ -80,7 +80,7 @@ func applyAffected(ctx context.Context, tx *sql.Tx, got map[string][]AffectedRow
 	return changed, total, nil
 }
 
-// Where the ranges of a CVE come from (feeds_affected_cve.source, D-556): NVD, or the CNA's CVE.org record whose list is
+// Where the ranges of a CVE come from (feeds_affected_cve.source): NVD, or the CNA's CVE.org record whose list is
 // complete (CVEOrgResult.Complete) or partial.
 const (
 	rangesNVD           = "nvd"
@@ -165,7 +165,7 @@ func readAffected(ctx context.Context, q interface {
 	return out, rows.Err()
 }
 
-// KevAffected returns the NVD affected entries of the CISA list's CVEs (D-500), for findings. A CVE NVD has not
+// KevAffected returns the NVD affected entries of the CISA list's CVEs, for findings. A CVE NVD has not
 // answered for is absent; one NVD lists without a vulnerable entry is present with an empty list.
 func (s *Store) KevAffected(ctx context.Context) (map[string][]AffectedRow, error) {
 	out, err := readAffected(ctx, s.db.Reader(), `WHERE cve IN (SELECT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`)
@@ -190,8 +190,8 @@ func (s *Store) KevAffected(ctx context.Context) (map[string][]AffectedRow, erro
 }
 
 // MatchStamp changes whenever what KevVulns, KevAffected, DistroFixes and TierRecords return may have changed: the last pull time and
-// rev (turned on or off) of the feeds that write them (cisa-kev, vulncheck-kev, first-epss, nvd-kev, cve-org, the distribution feeds of
-// D-516, and epss-all and nvd-recent for findings' "Updates to plan", D-617; each written in the pull's own transaction), and the count and
+// rev (turned on or off) of the feeds that write them (cisa-kev, vulncheck-kev, first-epss, nvd-kev, cve-org, the distribution feeds,
+// and epss-all and nvd-recent for findings' "Updates to plan"; each written in the pull's own transaction), and the count and
 // newest change of the CISA rows and of the NVD answers. findings
 // (through cmd/vedette) keeps one read of the list per stamp, instead of reading 33k NVD rows per device (review H3).
 func (s *Store) MatchStamp(ctx context.Context) (string, error) {
@@ -207,7 +207,7 @@ func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 	return stamp.String, nil
 }
 
-// TierStamp changes whenever what TierRecords and TierDistroRecords return may have changed (D-617, D-622): the last pull time and rev
+// TierStamp changes whenever what TierRecords and TierDistroRecords return may have changed: the last pull time and rev
 // (turned on or off) of epss-all, nvd-recent, nvd-kev and the distribution feeds ubuntu-osv and debian-tracker (ubuntu-vex keeps no tier
 // row). The hourly exploited-list pulls are not in it: findings' hourly full pass takes their new CVEs out of
 // the plan (review r1 #7 of #804).
@@ -231,7 +231,7 @@ func (s *Store) affectedCount(ctx context.Context) (int, error) {
 }
 
 // RangesFromCVEOrg returns the CVEs whose affected versions (KevAffected) come from the CNA's record on CVE.org, not
-// from NVD (D-556), with their source: "cve.org" (a complete list) or "cve.org-partial" (findings may raise a match on
+// from NVD, with their source: "cve.org" (a complete list) or "cve.org-partial" (findings may raise a match on
 // it, never close one), so findings names the right source and knows what the rows can prove.
 func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve, source FROM feeds_affected_cve WHERE source <> 'nvd'`)

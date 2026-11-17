@@ -1,9 +1,9 @@
-// Operating system updates on the real backend through vedette-host (S-CORE-7, core INV-18/20/21, D-53, D-55). The host is the fake machine of
+// Operating system updates on the real backend through vedette-host (S-CORE-7, core INV-18/20/21). The host is the fake machine of
 // cmd/vedette/e2ehost_test.go: the real host/ops commands over a temporary root, with a fake apt (two pending packages: libc6, and openssl from
 // the security pocket, that an install empties), a fake apt-config and systemctl that follow the automatic-updates switch, and knobs for the
 // dpkg lock, a failing install, a reboot-required flag, and the end of a reboot. The steps are those of e2e/qa/wp06-updates-os.spec.ts.
 // Global project: an install or a reboot changes the box for every other spec, and the tests below depend on each other's order.
-// Where the real box differs from what the GUI can show, the test is test.fail() with the issue and the deferred line (D-171), after it has
+// Where the real box differs from what the GUI can show, the test is test.fail() with the issue and the deferred line, after it has
 // confirmed the known symptom: a marker passes only on that symptom, any other failure is reported red (the pattern of logs-export.spec.ts).
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -52,7 +52,7 @@ test.afterAll(async () => {
   await hostKnob('lock', 'off'); await hostKnob('install_fail', 'off'); await hostKnob('reboot_required', 'off')
 })
 
-test('a box that was never checked says so in words, with os null and no 4xx, and no screen breaks (D-407)', async ({ page }) => {
+test('a box that was never checked says so in words, with os null and no 4xx, and no screen breaks', async ({ page }) => {
   const errors = collectErrors(page)
   const st = await admin((c) => api<{ os: unknown; pending: unknown[] }>(c, 'GET', '/core/updates/os'))
   expect(st.status).toBe(200)
@@ -62,7 +62,7 @@ test('a box that was never checked says so in words, with os null and no 4xx, an
   await expect(page.getByRole('status').filter({ hasText: 'The box has not looked for operating system updates yet. Click Check now.' }), 'not an error: the box just has not looked yet (#247)').toBeVisible()
   await shot(page, 'real', 'os-never-checked')
   await noVietnamese(page, 'updates before the first check')
-  noErrors(errors, /status of 4\d\d/) // other reads of the page may still answer 4xx here; the API answer above is the D-407 check
+  noErrors(errors, /status of 4\d\d/) // other reads of the page may still answer 4xx here; the API answer above is the check
 })
 
 // Issue #230 (fixed in #247): the operating system part of Settings -> Updates no longer waits for GET /core/updates (software updates, 501).
@@ -109,7 +109,7 @@ test('the page shows the system, the two pending packages with their security fl
     await expect(row.getByRole('cell').nth(3), `${p.name}: security column`).toHaveText(p.security ? 'Yes' : 'No')
   }
   const text = await page.locator('main').innerText()
-  expect(text, 'the helper is named vedette-host (D-55)').toMatch(/vedette-host/)
+  expect(text, 'the helper is named vedette-host').toMatch(/vedette-host/)
   expect(text).not.toMatch(/vedette-updater|\bupdater\b/i)
   await expect(page.getByText('Supported', { exact: true })).toBeVisible()
   await shot(page, 'real', 'os-checked')

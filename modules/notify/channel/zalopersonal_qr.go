@@ -1,6 +1,6 @@
 package channel
 
-// QR sign-in of the unofficial Zalo web client (D-447), read from zca-js v2.2.0 (MIT, github.com/RFS-ADRENO/zca-js) src/apis/loginQR.ts
+// QR sign-in of the unofficial Zalo web client, read from zca-js v2.2.0 (MIT, github.com/RFS-ADRENO/zca-js) src/apis/loginQR.ts
 // and the loginQR of src/zalo.ts, and re-implemented here with the standard library: the login page gives the version of the login
 // script, three form posts to id.zalo.me make a QR code, two long polls wait for the scan and the confirmation on the phone, then
 // checksession and jr.chat.zalo.me/jr/userinfo finish it. The cookies the browser would keep, a new device id and the user agent make the

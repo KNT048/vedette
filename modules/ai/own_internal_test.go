@@ -11,9 +11,9 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// D-446 (walk 4): a model server on the machine that runs Vedette, at the machine's LAN address and its own port, is accepted;
+// A model server on the machine that runs Vedette, at the machine's LAN address and its own port, is accepted;
 // Vedette's own ports there, loopback and localhost are refused with the one sentence for Vedette itself.
-func TestD446_ProfileOnTheMachine(t *testing.T) {
+func TestOwnAddress_ProfileOnTheMachine(t *testing.T) {
 	t.Parallel()
 	own := provider.OwnSources{Machine: func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("10.77.0.9")}, true },
 		Self: func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.89.0.5")} }} // core's container address, as the decoys come in
@@ -32,9 +32,9 @@ func TestD446_ProfileOnTheMachine(t *testing.T) {
 	}
 }
 
-// D-446 review: a profile saved at localhost before D-446 still loads (Validate does not judge Vedette itself) and its call is
+// A profile saved at localhost by an older release still loads (Validate does not judge Vedette itself) and its call is
 // refused at the dialer as ErrOwnAddress, before any packet.
-func TestD446_StoredLocalhostProfileLoadsAndIsRefusedAtCall(t *testing.T) {
+func TestOwnAddress_StoredLocalhostProfileLoadsAndIsRefusedAtCall(t *testing.T) {
 	t.Parallel()
 	p := Profile{ID: "old", Name: "Old local", Kind: "openai-compatible", BaseURL: "http://localhost:11434/v1", Model: "qwen3:8b", Location: LocationInternal, MonthlyBudget: 10_000}
 	if err := p.Validate(); err != nil {
@@ -52,7 +52,7 @@ func TestD446_StoredLocalhostProfileLoadsAndIsRefusedAtCall(t *testing.T) {
 	}
 }
 
-// D-557: the prompt names the list the entry is on; an entry of VulnCheck KEV is never called CISA's.
+// The prompt names the list the entry is on; an entry of VulnCheck KEV is never called CISA's.
 func TestFeedBlockNamesTheSourceList(t *testing.T) {
 	t.Parallel()
 	vc := feedBlock(CVEFacts{CVE: "CVE-2026-1", RequiredAction: "Reported as exploited by VulnCheck KEV.", Source: "vulncheck-kev"}).Text

@@ -39,12 +39,12 @@ func TestTopRisksCarryTheDistroCaveatAndTheNoReleaseFallback(t *testing.T) {
 	if want := "Upgrade OpenSSH on web from 8.9p1 to 9.3p2 or later — fixes 1 exploited vulnerability (if you installed it from Ubuntu's packages, install its security updates instead)"; got[1].Action != want {
 		t.Fatalf("action = %q", got[1].Action)
 	}
-	if want := "NVD names no release that fixes the exploited vulnerability of FortiGate on gw: check the vendor advisory"; got[0].Action != want { // W76-8
+	if want := "NVD names no release that fixes the exploited vulnerability of FortiGate on gw: check the vendor advisory"; got[0].Action != want {
 		t.Fatalf("action = %q", got[0].Action)
 	}
 }
 
-// Ranking is by product, as D-485: a product with the most exploited CVEs across devices takes one slot even when its devices need
+// Ranking is by product: a product with the most exploited CVEs across devices takes one slot even when its devices need
 // different steps (review M3); the sentence is the biggest step and says how many more devices need another.
 func TestTopRisksRankByProductAcrossDevices(t *testing.T) {
 	t.Parallel()
@@ -157,7 +157,7 @@ func TestTopRisksCountDevicesOnceAndPreferTheNamedRelease(t *testing.T) {
 	}
 }
 
-// A product added by hand with no device is named after the product: the step names it once (W5-2), and next to a real device
+// A product added by hand with no device is named after the product: the step names it once, and next to a real device
 // it is "the copy added manually".
 func TestTopRisksNameAHandAddedProductOnce(t *testing.T) {
 	t.Parallel()
@@ -173,7 +173,7 @@ func TestTopRisksNameAHandAddedProductOnce(t *testing.T) {
 	}
 }
 
-// D-546 (review r1 M2): a Windows release Microsoft no longer updates is told to take a feature update, not a build it cannot get;
+// A Windows release Microsoft no longer updates is told to take a feature update, not a build it cannot get;
 // a fix that needs Extended Security Updates says so.
 func TestTopRisksWindowsFeatureUpdateAndESU(t *testing.T) {
 	t.Parallel()
@@ -195,7 +195,7 @@ func TestTopRisksWindowsFeatureUpdateAndESU(t *testing.T) {
 	}
 }
 
-// D-546 (review r2 MEDIUM-1): devices that need an Extended Security Update, another ESU build, or have no fix data are separate steps:
+// devices that need an Extended Security Update, another ESU build, or have no fix data are separate steps:
 // the first device's fix never speaks for the others, and the step is a "fix", not a "verify".
 func TestTopRisksWindowsStepsAreNotMerged(t *testing.T) {
 	t.Parallel()

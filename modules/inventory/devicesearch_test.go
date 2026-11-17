@@ -232,7 +232,7 @@ func TestDevicesSearchThroughTheAPIAndTheExport(t *testing.T) {
 	}
 	a.want("GET", "/inventory/devices?type=toaster", "viewer", "", 400, "bad_filter")
 	a.want("GET", "/inventory/devices?source=nmap", "viewer", "", 400, "bad_filter")
-	a.want("GET", "/inventory/devices?approved=maybe", "viewer", "", 400, "invalid") // the schema's enum (D-73)
+	a.want("GET", "/inventory/devices?approved=maybe", "viewer", "", 400, "invalid") // the schema's enum
 	a.want("GET", "/inventory/export.csv?source=wazuh,bogus", "viewer", "", 400, "bad_filter")
 
 	_, _, raw := a.do("GET", "/inventory/export.csv?approved=true&q=other", "viewer", "")

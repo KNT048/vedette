@@ -57,7 +57,7 @@ func someBundle(t *testing.T) []byte {
 	return b
 }
 
-// D-110 (4): the writer refuses a symlink, a FIFO or a directory at the name and a symlinked directory on the way, writes
+// The writer refuses a symlink, a FIFO or a directory at the name and a symlinked directory on the way, writes
 // nothing through them, and leaves what was there alone.
 func TestWriteBundleRefusesWhatItShouldNotTouch(t *testing.T) {
 	t.Parallel()
@@ -242,7 +242,7 @@ func TestWriteBundleTakesTheGroupOfItsRoleFolder(t *testing.T) {
 	}
 }
 
-// D-110 (4): the file is replaced by a rename, so a reader that opens it at any moment sees one whole bundle, never half of
+// The file is replaced by a rename, so a reader that opens it at any moment sees one whole bundle, never half of
 // one (the sensor's reader tolerates a half file too, see sensorlink tests; this is the writer's side).
 func TestAHalfWrittenBundleIsNeverVisible(t *testing.T) {
 	t.Parallel()

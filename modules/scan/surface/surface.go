@@ -1,10 +1,10 @@
-// Package surface is the external-surface scan of the scan module (D-229), the exposure.Runner behind "Scan now" of External
-// exposure (S-EXP-1). It follows D-57 (7) and LEGAL §3: active probes only on verified assets.
+// Package surface is the external-surface scan of the scan module, the exposure.Runner behind "Scan now" of External
+// exposure (S-EXP-1). It follows LEGAL §3: active probes only on verified assets.
 //
 //   - The box's own public IP (a verified IP target): a TCP connect to a fixed list of ports (commonPorts), then one GET of "/" on
 //     the open web ports and a TLS handshake on the TLS ports (admin pages, the Server header, certificates).
 //   - A verified domain: its names from certificate-transparency logs (crt.sh), the apex's MX and NS hosts under it and the common
-//     names of content/wordlist that resolve (D-567), each resolved (A, AAAA, CNAME) through the box's resolver, classed and listed. A name that points at a
+//     names of content/wordlist that resolve, each resolved (A, AAAA, CNAME) through the box's resolver, classed and listed. A name that points at a
 //     public address gets HTTP checks by name only: one GET of "/" on port 80 and on 443 (with the certificate of 443). The
 //     addresses are never port-scanned, unless one is itself a verified IP target that may be scanned now (the caller decides,
 //     through exposure).
@@ -13,7 +13,7 @@
 // log (ProbeLog) before it goes out, and again with its answer.
 //
 // It is the Go standard library only: a TCP connect does what a port scan needs from the box's own network without raw sockets,
-// pcap or cgo, so the ProjectDiscovery libraries planned in D-8 are not needed. It runs in core (the box's outgoing HTTPS is
+// pcap or cgo, so the ProjectDiscovery libraries once planned are not needed. It runs in core (the box's outgoing HTTPS is
 // there already); the scan container stays for nmap and nuclei.
 //
 // Everything a target sends back is untrusted (SYS-6): reads are bounded in size and time, pages are matched as text, certificates
@@ -43,7 +43,7 @@ import (
 	"github.com/knt048/vedette/content/wordlist"
 )
 
-// Bounds of one scan (D-229). Nothing is cut: a domain has at most maxNames names (more is ErrTooManyNames), so at most
+// Bounds of one scan. Nothing is cut: a domain has at most maxNames names (more is ErrTooManyNames), so at most
 // 2 × maxNames HTTP checks, and the port scan covers only verified IP targets (exposure holds at most 20). The time cap is the
 // sum of the phases at their worst, so it stops a scan only when something hangs: crt.sh twice at ctTimeout (90 s), the DNS phase
 // (dnsBudget, 60 s, which cuts itself short and says so), the port scan (20 addresses × 98 ports at dialRate, about 8 s), the
@@ -144,7 +144,7 @@ func New(cfg Config) (*Scanner, error) {
 
 // The result of a scan: what exposure stores as a snapshot (exposure.Content).
 type (
-	// Host is a name under the domain (D-567, exposure INV-27): where it was found, its final CNAME, its addresses with their kind,
+	// Host is a name under the domain (exposure INV-27): where it was found, its final CNAME, its addresses with their kind,
 	// and IP, the first of its IPv4 addresses (zero when it has none: an IPv6-only name, or a CNAME that leads nowhere).
 	Host struct {
 		Name   string
@@ -187,7 +187,7 @@ type (
 	}
 )
 
-// Domain scans a verified domain (D-57 (7), D-567): its names from certificate transparency, the apex's MX and NS hosts under it
+// Domain scans a verified domain: its names from certificate transparency, the apex's MX and NS hosts under it
 // and the common names that resolve (discover), each with its addresses, CNAME and class, listed; HTTP checks by name on 80 and 443
 // for the names on a public IPv4 address; a port scan only of the addresses that mayScanPorts accepts (exposure: a verified IP
 // target that may be scanned now), which are also the ones of kind "box". One probe-log row of kind "dns" is written before the

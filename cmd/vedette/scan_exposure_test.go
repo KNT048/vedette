@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/surface"
 )
 
-// D-229, exposure INV-12, J6: exposure scans with the scan module's runner behind exposure's own switch. v1's bundles turn exposure on
+// Exposure INV-12: exposure scans with the scan module's runner behind exposure's own switch. v1's bundles turn exposure on
 // and leave the Vulnerability scans module (LAN nuclei scans, Preview) off (#841), so the external scan must run with scan off. Exposure
 // off, the runner answers 409 module_off and nothing is probed; on, it scans, and only what exposure's own public-address rule
 // allows; switched off while a scan runs, the scan stops and answers module_off (SYS-5). LAN scans still need the scan module.

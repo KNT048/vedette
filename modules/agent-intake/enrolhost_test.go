@@ -11,9 +11,9 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// W-2 (D-548, TUNE-5b walk): a machine whose system_info answer has not reached the inventory is named by the host name osquery gave at
+// W-2 (TUNE-5b walk): a machine whose system_info answer has not reached the inventory is named by the host name osquery gave at
 // enrolment, not by its network card's maker; the system_info answer then replaces it.
-func TestContract_D548_EnrolmentHostNameNamesTheDevice(t *testing.T) {
+func TestContract_EnrolmentHostNameNamesTheDevice(t *testing.T) {
 	w := newWorld(t)
 	_, secret := w.token("lab", 7)
 	key := w.enroll(secret, "WIN-LAB", peerA)
@@ -29,9 +29,9 @@ func TestContract_D548_EnrolmentHostNameNamesTheDevice(t *testing.T) {
 	}
 }
 
-// N52 W-2: a machine enrolled before D-548, or whose first hour passed without system_info, is named by its enrolment's host name too, but
+// A machine enrolled by an older version, or whose first hour passed without system_info, is named by its enrolment's host name too, but
 // once per node (review r1 #8: a node whose system_info never comes is not written to at every request); system_info still renames it.
-func TestContract_D548_EnrolmentHostNameOncePerNodeAtAnyAge(t *testing.T) {
+func TestContract_EnrolmentHostNameOncePerNodeAtAnyAge(t *testing.T) {
 	w := newWorld(t)
 	_, secret := w.token("lab", 7)
 	key := w.enroll(secret, "WIN-LAB", peerA)
@@ -78,7 +78,7 @@ func TestContract_D548_EnrolmentHostNameOncePerNodeAtAnyAge(t *testing.T) {
 
 // N52 W-2: a node whose enrolment carried no system_info host name is named by its host_identifier when that is a host name (the install
 // scripts enrol under it), never by a UUID identifier.
-func TestContract_D548_EnrolmentNameFromTheHostIdentifier(t *testing.T) {
+func TestContract_EnrolmentNameFromTheHostIdentifier(t *testing.T) {
 	for _, tc := range []struct{ id, want string }{{"WIN-SRV01", "WIN-SRV01"}, {"8c2f6a1e-3b4d-4c5e-9f60-7a8b9c0d1e2f", ""}} {
 		w := newWorld(t)
 		_, secret := w.token("lab", 7)
@@ -116,7 +116,7 @@ func (r *refuseHostname) Record(ctx context.Context, obs []observe.Observation) 
 
 // Review r1 #4 and r2 #3 of #801: a refused enrolment name goes on to the host_identifier in the same request; when every name is refused
 // the mark is set all the same, so nothing is sent again at each request.
-func TestContract_D548_EnrolmentHostNameRefusedFallsBack(t *testing.T) {
+func TestContract_EnrolmentHostNameRefusedFallsBack(t *testing.T) {
 	enrol := func(w *world, secret string) string {
 		body := enrollBody(secret, "WIN-ID")
 		body["host_details"].(map[string]any)["system_info"] = map[string]any{"hostname": "WIN-LAB"}

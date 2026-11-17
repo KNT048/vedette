@@ -128,7 +128,7 @@ func TestBatchDueAt(t *testing.T) {
 	}
 }
 
-// D-62: critical is never delayed by grouping, so INV-6 (60 minutes) holds for it
+// Critical is never delayed by grouping, so INV-6 (60 minutes) holds for it
 // whatever window is configured.
 func TestContract_INV6_CriticalIsNeverGrouped(t *testing.T) {
 	t.Parallel()

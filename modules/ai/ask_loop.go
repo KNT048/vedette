@@ -13,11 +13,11 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// The tool loop (S-AI-5, INV-14, INV-21, D-211). The model is offered read tools only (ForModel); a call by any other name is refused
+// The tool loop (S-AI-5, INV-14, INV-21). The model is offered read tools only (ForModel); a call by any other name is refused
 // by Offered and nothing runs. Each call goes through the before_tool hooks on its arguments, runs under a deadline, and its result is
 // capped, run through the before-AI hooks on its own (a result a hook stops is replaced by a short note and the call goes on, as for
 // memory and knowledge pieces) and sent back as fenced data (WrapToolResult). The loop is bounded in turns, calls, bytes, input tokens
-// and time (D-211, D-482).
+// and time.
 const (
 	askMaxRounds = 4                // turns in which tools run; the two after that only take an answer
 	askMaxTurns  = askMaxRounds + 2 // model turns in all
@@ -57,7 +57,7 @@ type toolSession struct {
 func (s *Service) newToolSession(ctx context.Context, job Job) *toolSession {
 	ts := &toolSession{svc: s, job: job, impl: map[string]toolImpl{}}
 	tools := s.productTools()
-	if job == JobAskMyData { // log investigation reads the box only (D-223): the connections are not listed, and not asked
+	if job == JobAskMyData { // log investigation reads the box only: the connections are not listed, and not asked
 		tools = append(tools, s.connectionTools(ctx)...)
 	}
 	for _, t := range tools {
@@ -139,7 +139,7 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	}
 
 	// a connection tool sends the arguments to that connection: refused when the privacy rule is on and the connection is not inside
-	// the network, even if the rule was turned on after the tools were listed (D-212)
+	// the network, even if the rule was turned on after the tools were listed
 	if impl.ConnectorID != "" && ts.svc.snap.Load().assign.InternalOnly && !impl.internal {
 		record("not available", act("skipped"))
 		return fail("That tool is not available. Use only the tools you were given.")
@@ -328,7 +328,7 @@ func (s *Service) converse(ctx context.Context, spec JobSpec, hooks *HookRunner,
 	defer cancel()
 	req.Tools = ts.defs()
 	// Providers differ on structured output together with tools (Gemini 2.x refuses the pair), so a job with a schema asks for the
-	// JSON in its task and its strict Check reads the last answer (D-223).
+	// JSON in its task and its strict Check reads the last answer.
 	req.Schema = nil
 	msgs := append([]provider.Message(nil), req.Messages...)
 	var (

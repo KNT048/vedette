@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// Publishing (WP-08k, D-457): the assets of a release go to the GitHub release v<version> (kien's tag), created as a draft, filled,
+// Publishing (WP-08k): the assets of a release go to the GitHub release v<version> (the maintainer's tag), created as a draft, filled,
 // checked, then published; index.json and its signature go to the fixed release "index" last, so a box never sees an index that
 // announces a release whose files are not there yet. A published version is never changed.
 
@@ -40,7 +40,7 @@ type fileRecord struct {
 // publishPlan is what goes where.
 type publishPlan struct {
 	Dir        string
-	Version    string // empty: an index-only refresh (D-150), nothing but the index is uploaded
+	Version    string // empty: an index-only refresh, nothing but the index is uploaded
 	Prerelease bool
 	Notes      string
 	Assets     []string // files of the release v<version>
@@ -459,7 +459,7 @@ func Publish(ctx context.Context, e publishEnv, p *publishPlan, doRun bool) erro
 		_, err := e.run(gctx, "git", "-C", e.repo, "rev-parse", "--verify", "--quiet", "refs/tags/"+tag+"^{commit}")
 		cancel()
 		if err != nil {
-			return fmt.Errorf("no tag %s: kien creates and pushes it by hand before publishing (AI creates no tag): %w", tag, err)
+			return fmt.Errorf("no tag %s: the maintainer creates and pushes it by hand before publishing: %w", tag, err)
 		}
 	}
 	notes := filepath.Join(p.Dir, "release-notes.md")
@@ -486,7 +486,7 @@ func Publish(ctx context.Context, e publishEnv, p *publishPlan, doRun bool) erro
 	index := append([]string{"gh", "release", "upload", indexTag, "--repo", ghRepo, "--clobber"}, p.Index...)
 
 	if !doRun {
-		say(e.stdout, "# D-457: run in this order; PUBLISH=1 runs them and checks every asset, the live index and anonymous pulls. Never edit a published v<version>.")
+		say(e.stdout, "# Run in this order; PUBLISH=1 runs them and checks every asset, the live index and anonymous pulls. Never edit a published v<version>.")
 		if p.Version != "" {
 			for _, c := range [][]string{create, upload, undraft} {
 				say(e.stdout, "%s", quoteArgv(c))

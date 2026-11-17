@@ -82,7 +82,7 @@ export function QueryState<T>({ query, children }: { query: { data: T | undefine
 }
 
 /** S-CORE-1: module tắt thì nói rõ vì sao thiếu dữ liệu và chỗ bật. `page`: it stands in for a whole page, so it carries the page's
- *  h1 (the module's name), as every page has one (docs/UI.md §3; n72: /settings/mcp and the module-off pages had none). */
+ *  h1 (the module's name), as every page has one (docs/UI.md §3; /settings/mcp and the module-off pages had none). */
 export function ModuleOff({ module, children, page }: { module: ModuleId; children?: ReactNode; page?: boolean }) {
   const { t } = useTranslation()
   const box = <ModuleOffBox module={module}>{children}</ModuleOffBox>
@@ -91,8 +91,8 @@ export function ModuleOff({ module, children, page }: { module: ModuleId; childr
 
 function ModuleOffBox({ module, children }: { module: ModuleId; children?: ReactNode }) {
   const { t } = useTranslation()
-  // A module this install cannot run (available false: needs vedette-host on a container-only install, D-381) cannot be
-  // turned on, so the box says so instead of inviting the user to switch it on (S-CORE-9 G5, D-420 (4)).
+  // A module this install cannot run (available false: needs vedette-host on a container-only install) cannot be
+  // turned on, so the box says so instead of inviting the user to switch it on (S-CORE-9).
   const notHere = useModules().data?.modules.find((m) => m.id === module)?.available === false
   if (notHere) {
     return (
@@ -105,7 +105,7 @@ function ModuleOffBox({ module, children }: { module: ModuleId; children?: React
       </div>
     )
   }
-  // D-624, #819: a module this build does not offer cannot be turned on from Settings → Modules, so no link there.
+  // A module this build does not offer cannot be turned on from Settings → Modules, so no link there.
   if (notOffered(module)) {
     return (
       <div className="rounded-md border border-rule bg-off-soft px-4 py-3 text-sm">

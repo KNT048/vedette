@@ -15,14 +15,14 @@ import (
 	"github.com/knt048/vedette/core/winrel"
 )
 
-// D-603: the Windows releases Microsoft lists. core/winrel holds a hand table of Windows 10, 11 and Server releases (D-546); a release
+// The Windows releases Microsoft lists. core/winrel holds a hand table of Windows 10, 11 and Server releases; a release
 // newer than it (Windows 11 26H2, build 26300, out 2026-09-29) left every Windows CVE of such a PC "could not be checked" until a code
 // change. The feed windows-releases reads Microsoft's Windows release information pages on the box once a day: for each release its
 // OS build and the history of its updates (date, build with revision, KB). From those a release gets its NVD name (Windows 11
 // "Version 26H2" is windows_11_26h2, "Windows Server 2028" windows_server_2028, the names NVD gives every release since 2021), its
 // general availability and first public build (the history's earliest row, as core/winrel's table takes it) and its line: a client release
 // whose update of a month is the same KB at the same revision as a release of the table's (KB5132061 is 26300.9974, 26200.9974 and
-// 26100.9974) is on that release's line, so NVD's rows of 24H2 and 25H2 decide for 26H2 with the device's revision (findings, D-546).
+// 26100.9974) is on that release's line, so NVD's rows of 24H2 and 25H2 decide for 26H2 with the device's revision (findings).
 // The releases go to core/winrel (Learn), which keeps the table's own facts first. The page is untrusted input: every value is checked
 // and bounded, and a page without the tables Vedette reads is a failed pull that keeps the last good list.
 
@@ -99,7 +99,7 @@ func winRelText(b []byte) string {
 	return strings.Join(strings.Fields(html.UnescapeString(winRelTagRE.ReplaceAllString(string(b), " "))), " ")
 }
 
-// winRelReleases derives the releases of the histories of both pages (D-603): the ones whose heading has a shape NVD names, with their
+// winRelReleases derives the releases of the histories of both pages: the ones whose heading has a shape NVD names, with their
 // line. Releases the hand table has are derived too (their KBs tie a new release to their line); core/winrel.Learn drops them. A
 // shared update ties a release to the line of the other release as core/winrel knows it now: the table's, or one learned by an earlier
 // pull. So a release whose updates match only another new release of the same pull, and none of the table's, is on a line of its own
@@ -265,7 +265,7 @@ func winRelRows(ctx context.Context, q winRelQuerier) ([]winrel.Release, error) 
 	return out, rows.Err()
 }
 
-// LearnWindowsReleases hands the stored releases to core/winrel (D-603): when the service is built (cmd/vedette, before any match
+// LearnWindowsReleases hands the stored releases to core/winrel: when the service is built (cmd/vedette, before any match
 // or agent report needs them), when it is first ready, and after a pull that changed them. With the feed off the
 // stored list stays in use (the last good copy); it is never deleted by turning the feed off, only replaced by a good pull.
 func (s *Service) LearnWindowsReleases(ctx context.Context) error {

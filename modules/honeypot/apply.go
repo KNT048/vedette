@@ -44,7 +44,7 @@ type hostCache struct {
 	openPorts bool
 }
 
-// portKeeper is the optional part of a Host that says whether it keeps each address to its own ports (D-466); a Host
+// portKeeper is the optional part of a Host that says whether it keeps each address to its own ports; a Host
 // without it is taken to keep them.
 type portKeeper interface {
 	KeepsPorts(ctx context.Context) bool
@@ -85,7 +85,7 @@ type linkReporter interface {
 }
 
 // startBusyFor bounds how long a start that waits only on a busy host reads "starting". An update keeps the host busy for
-// about two minutes (#889: N100, the host's install and core's restart); past this bound it is a failure the admin should see.
+// about two minutes (the host's install and core's restart); past this bound it is a failure the admin should see.
 const startBusyFor = 5 * time.Minute
 
 // busyReason is the reason once a start has waited on a busy host for longer than startBusyFor.
@@ -156,7 +156,7 @@ func (s *Service) DecoyIPs(ctx context.Context) []netip.Addr {
 	return out
 }
 
-// DecoyIPsRead is DecoyIPs that says when the record cannot be read: a caller that must fail closed (response's never-touch list, D-179 (8))
+// DecoyIPsRead is DecoyIPs that says when the record cannot be read: a caller that must fail closed (response's never-touch list)
 // must not take "unreadable" for "no decoys".
 func (s *Service) DecoyIPsRead(ctx context.Context) ([]netip.Addr, error) {
 	var applied []string
@@ -264,9 +264,9 @@ type ghostForgetter interface {
 	ForgetBoxOwned(ctx context.Context, since map[netip.Addr]time.Time) (int, error)
 }
 
-// desired is what the host should look like, from the database and the inventory (D-55: configuration comes from the
+// desired is what the host should look like, from the database and the inventory (configuration comes from the
 // database, never edited by hand): the enabled Trap IPs with at least one service, in creation order, and the services of
-// all of them (one OpenCanary process runs their union, D-90 (1); the host keeps each address to its own ports, D-466). An
+// all of them (one OpenCanary process runs their union; the host keeps each address to its own ports). An
 // address that is the box's own, outside the LAN now, or a device's is left out and listed in conflicts (INV-5, INV-6,
 // FORBID-1); so is whatever passes the host's 32 addresses, the oldest Trap IPs first.
 func (w *world) desired() (ips []netip.Addr, services []ServiceName, conflicts map[netip.Addr]string) {
@@ -290,7 +290,7 @@ func (w *world) desired() (ips []netip.Addr, services []ServiceName, conflicts m
 	return ips, inOrder(all), conflicts
 }
 
-// specs is how the host builds each wanted address (D-466).
+// specs is how the host builds each wanted address.
 func (w *world) specs(ips []netip.Addr) map[netip.Addr]DecoySpec {
 	out := make(map[netip.Addr]DecoySpec, len(ips))
 	for _, d := range w.trapIPs {
@@ -325,8 +325,8 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 			files = append(files, t.Value)
 		}
 	}
-	// One login page and one share name for the whole box (D-466 (4)): the oldest Trap IP handed to the host decides each; so
-	// for every service's banner (D-467).
+	// One login page and one share name for the whole box: the oldest Trap IP handed to the host decides each; so
+	// for every service's banner.
 	smb, http := w.boxWide()
 	looks := w.looks()
 	conf, err := RenderConfig(ConfigInput{Enabled: services, LogPath: filepath.Join(s.cfg.LogDir, defaultLogFile), NASDecoy: http != nil && http.Preset == NAS, Looks: looks})
@@ -390,7 +390,7 @@ func (s *Service) Apply(ctx context.Context) error {
 		s.doneGen = max(s.doneGen, gen)
 		s.mu.Unlock()
 	}()
-	if !s.on() { // checked under the lock the teardown also holds: an Apply that waited behind a switch-off must not bring the traps back (D-189)
+	if !s.on() { // checked under the lock the teardown also holds: an Apply that waited behind a switch-off must not bring the traps back
 		return nil
 	}
 	if g, ok := s.cfg.Inventory.(ghostForgetter); ok {
@@ -673,7 +673,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[neti
 		}
 	}
 	// The record is written with a context that a switch-off cannot cancel, and BEFORE the host is asked to add an address:
-	// an address the host took while core was being stopped must still be known, so the teardown removes it (M1, D-189).
+	// an address the host took while core was being stopped must still be known, so the teardown removes it.
 	saved := slices.Clone(prev)
 	save := func() {
 		now := make([]string, 0, len(have))
@@ -747,7 +747,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[neti
 
 // Disable is what the module does when it is switched off (SYS-5): the container stops, the decoy IPs go, nothing
 // listens. The data stays. It is idempotent and safe to repeat; a failure leaves the module saying it is still turning
-// off, and core's OffGuard calls EnsureOff again until the host has confirmed (D-189).
+// off, and core's OffGuard calls EnsureOff again until the host has confirmed.
 func (s *Service) Disable(ctx context.Context) error {
 	s.applyMu.Lock()
 	defer s.applyMu.Unlock()
@@ -828,7 +828,7 @@ func (s *Service) disable(ctx context.Context) error {
 const turningOff = "the module is turning off: the host has not confirmed yet that the container stopped and the Trap IP addresses are gone"
 
 // EnsureOff is the Teardown core's OffGuard runs while the module is off, at start and after every switch-off, with
-// backoff until it returns nil (D-189, SYS-5): a failed teardown or a restart never leaves traps listening. It does
+// backoff until it returns nil (SYS-5): a failed teardown or a restart never leaves traps listening. It does
 // nothing, and returns nil, if the module is on again.
 func (s *Service) EnsureOff(ctx context.Context) error {
 	s.applyMu.Lock()

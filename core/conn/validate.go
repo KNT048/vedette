@@ -24,9 +24,9 @@ import (
 )
 
 // The checks of a connection before it is saved. They answer exactly like the mock API of the GUI
-// (web/src/features/core/connectionsMock.ts): the same codes, fields and messages (D-93, D-94).
+// (web/src/features/core/connectionsMock.ts): the same codes, fields and messages.
 
-// Kinds of connection (D-58). mcp-stdio is in the contract but never saved (D-94 (3)).
+// Kinds of connection. mcp-stdio is in the contract but never saved.
 const (
 	KindHTTP       = "http"
 	KindSSH        = "ssh"
@@ -192,7 +192,7 @@ func check(in Input, existing *Connection, env checkEnv) (*checked, *apierr.Erro
 			}
 		}
 	}
-	for _, t := range in.Tools { // D-179 (5): a tool the server says may change something can never be marked read
+	for _, t := range in.Tools { // A tool the server says may change something can never be marked read
 		if t.Access == nil {
 			continue
 		}
@@ -230,7 +230,7 @@ func deref(s *string) string {
 	return *s
 }
 
-// checkTarget applies the form of the address (HTTPS URL, or host[:port] for SSH) and the address policy of D-94 to the
+// checkTarget applies the form of the address (HTTPS URL, or host[:port] for SSH) and the address policy to the
 // host as typed and to the host after the URL parser normalised it.
 func checkTarget(target string, ssh bool, box []netip.Prefix) *apierr.Error {
 	const notValid = "The address is not valid. Enter it in full, for example https://192.168.10.1."
@@ -307,7 +307,7 @@ func typedHost(target string, ssh bool) string {
 	return ""
 }
 
-// refusedHost says in plain words why the host may never be used, or "" when it may (D-94: loopback, link-local including
+// refusedHost says in plain words why the host may never be used, or "" when it may (loopback, link-local including
 // the cloud metadata address, multicast, unspecified, localhost, numeric names written in a non-standard way, the box
 // itself). A private range is fine, and so is a public name: the administrator declared it (privacy flow 12). The same
 // rules are applied again to the resolved address when a connection is dialled (slice 13b-5).
@@ -317,7 +317,7 @@ func refusedHost(raw string, box []netip.Prefix) string {
 	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
 		return "a loopback address"
 	}
-	if netguard.MetadataName(h) { // D-411: the metadata service's names, before any lookup
+	if netguard.MetadataName(h) { // The metadata service's names, before any lookup
 		return "a cloud metadata service"
 	}
 	if strings.Contains(h, ":") {
@@ -345,7 +345,7 @@ func refusedHost(raw string, box []netip.Prefix) string {
 const embeddedWhy = "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
 
 // embeddedV4 are the IPv6 forms that carry an IPv4 address: IPv4-mapped (checked with Is4In6), NAT64 (the well-known 64:ff9b::/96 and
-// the local-use 64:ff9b:1::/48 of RFC 8215, D-411), 6to4, IPv4-compatible, IPv4-translated and Teredo. Writing 127.0.0.1 or 169.254.169.254 in one of them must not get past the address policy.
+// the local-use 64:ff9b:1::/48 of RFC 8215), 6to4, IPv4-compatible, IPv4-translated and Teredo. Writing 127.0.0.1 or 169.254.169.254 in one of them must not get past the address policy.
 var embeddedV4 = []netip.Prefix{
 	netip.MustParsePrefix("64:ff9b::/96"), netip.MustParsePrefix("64:ff9b:1::/48"), netip.MustParsePrefix("2002::/16"), netip.MustParsePrefix("::/96"),
 	netip.MustParsePrefix("::ffff:0:0:0/96"), netip.MustParsePrefix("2001::/32"),
@@ -384,7 +384,7 @@ func refusedAddr(a netip.Addr, box []netip.Prefix) string {
 		return "a link-local address"
 	case a.IsMulticast() || a.IsLinkLocalMulticast():
 		return "a multicast address"
-	case netguard.Metadata(a): // D-411: the endpoints that are not link-local (Alibaba, Oracle, AWS and Google over IPv6)
+	case netguard.Metadata(a): // The endpoints that are not link-local (Alibaba, Oracle, AWS and Google over IPv6)
 		return "a cloud metadata service"
 	}
 	for _, b := range box {
@@ -441,7 +441,7 @@ func checkAllow(in []string, target string, ssh bool) ([]string, *apierr.Error) 
 		return nil, bad("invalid_allow", "The allow-list holds up to 30 entries of 200 characters each, one per line.", "allow")
 	}
 	if ssh {
-		for _, a := range allow { // the reader and the writer refuse these characters in every command, so such an entry could never run (D-391)
+		for _, a := range allow { // the reader and the writer refuse these characters in every command, so such an entry could never run
 			if strings.ContainsAny(a, cliban.ShellChars) {
 				return nil, bad("invalid_allow", "A command in the allow-list cannot contain the characters "+strings.Join(strings.Split(cliban.ShellChars, ""), " ")+" (a command is sent as one plain line, never to a shell).", "allow")
 			}

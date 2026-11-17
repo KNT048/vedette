@@ -239,7 +239,7 @@ func TestReadStepTextShowsTheStoredMethod(t *testing.T) {
 	}
 }
 
-// D-58: the commands a template may not contain are data, not Go literals, and the GUI mock carries the same file.
+// The commands a template may not contain are data, not Go literals, and the GUI mock carries the same file.
 func TestRefusedCommandListIsDataAndTheMockCopyMatches(t *testing.T) {
 	t.Parallel()
 	ban, err := banData()
@@ -278,7 +278,7 @@ func TestNoCommandBanLiteralsInGoSource(t *testing.T) {
 		}
 		for _, w := range []string{`"reload"`, `"write erase"`, `"configure`, `"conf t"`, `"startup`} {
 			if strings.Contains(string(src), w) {
-				t.Errorf("%s names %s: the lists belong in core/conn/cliban/cli-ban.json (D-58)", f, w)
+				t.Errorf("%s names %s: the lists belong in core/conn/cliban/cli-ban.json", f, w)
 			}
 		}
 	}

@@ -8,7 +8,7 @@ import { networkStore, SILENT_DEVICES } from '@/mocks/network'
 import { GUIDES } from './guideData'
 
 vi.setConfig({ testTimeout: 30_000 })
-// D-403: SPAN is hidden in the GUI for v1 (SPAN_IN_UI false) but its code is kept, so this file runs the SPAN pages as offered
+// SPAN is hidden in the GUI for v1 (SPAN_IN_UI false) but its code is kept, so this file runs the SPAN pages as offered
 // (post-v1); "SPAN hidden for v1" at the end runs the v1 setting.
 const span = vi.hoisted(() => ({ SPAN_IN_UI: true }))
 vi.mock('@/lib/span', () => span)
@@ -27,7 +27,7 @@ const code = (r: { json: Record<string, any> | null }) => r.json?.error.code // 
 const get = async () => (await call('GET', '')).json!
 const spanBody = async (patch: object = {}) => ({ ...(await get()).span, ...patch })
 const goodStatic = { mode: 'static', address: '192.168.10.200', prefix: 24, gateway: '192.168.10.1', dns: ['192.168.10.1'] }
-// D-519: the page has tabs Interfaces (default), Management address, Box address, Time.
+// The page has tabs Interfaces (default), Management address, Box address, Time.
 const open = async (tab?: 'management' | 'box-address' | 'time') => {
   renderApp(`/settings/network${tab ? `?tab=${tab}` : ''}`)
   await screen.findByRole('heading', { level: 1, name: 'Box network' }, T)
@@ -36,7 +36,7 @@ const open = async (tab?: 'management' | 'box-address' | 'time') => {
 }
 const spanSection = () => document.getElementById('span')!
 
-describe('box network: the API (S-CORE-8, D-56)', () => {
+describe('box network: the API (S-CORE-8)', () => {
   it('lists the interfaces from sample data: eth0 management, eth1 SPAN receiving, eth2 unused with no link', async () => {
     asAdmin()
     const d = await get()
@@ -174,7 +174,7 @@ describe('box network: the API (S-CORE-8, D-56)', () => {
     expect((await call('PUT', '/ntp', { mode: 'default' })).json!.ntp).toEqual({ mode: 'default', servers: [] })
   })
 
-  it('privacy flow 10 stays on whatever NTP servers are entered: the operating system keeps its own sources (D-166 (4))', async () => {
+  it('privacy flow 10 stays on whatever NTP servers are entered: the operating system keeps its own sources', async () => {
     asAdmin()
     const flow10 = async () => (await (await fetch(`${location.origin}/api/v1/core/privacy`)).json()).flows.find((f: { id: number }) => f.id === 10)
     expect(await flow10()).toMatchObject({ state: 'on' })
@@ -213,7 +213,7 @@ describe('box network: the page', () => {
     expect(screen.getByText(/The operating system keeps its own time sources, so time requests still reach public servers/)).toBeInTheDocument()
   })
 
-  it('D-519: one tab per area; the old #box-address and #ntp links open their tab', async () => {
+  it('one tab per area; the old #box-address and #ntp links open their tab', async () => {
     await open()
     expect(within(screen.getByRole('tablist', { name: 'Parts of Box network' })).getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Interfaces', 'Management address', 'Box address', 'Time'])
     cleanup()
@@ -244,7 +244,7 @@ describe('box network: the page', () => {
   })
 
   describe('form matrix: interface role selector', () => {
-    it('each role shows only what belongs to it; another card is never offered Management (W2-7)', async () => {
+    it('each role shows only what belongs to it; another card is never offered Management', async () => {
       const u = user()
       await open()
       const table = screen.getByRole('table', { name: 'Network interfaces of the box' })
@@ -467,7 +467,7 @@ describe('box network: the page', () => {
   })
 })
 
-describe('box network: what the host can refuse (D-99, D-100, D-101)', () => {
+describe('box network: what the host can refuse', () => {
   it('another device already answers for the address: said after the confirm, nothing waits', async () => {
     asAdmin()
     const r = await call('PUT', '/management', { ...goodStatic, address: SILENT_DEVICES[0], confirm: true })
@@ -557,7 +557,7 @@ describe('box network: the rules of the host (L1)', () => {
   })
 })
 
-describe('box network: SPAN hidden for v1 (D-403)', () => {
+describe('box network: SPAN hidden for v1', () => {
   beforeEach(() => { span.SPAN_IN_UI = false })
   afterEach(() => { span.SPAN_IN_UI = true })
   const main = () => document.getElementById('main')!
@@ -570,7 +570,7 @@ describe('box network: SPAN hidden for v1 (D-403)', () => {
     expect(screen.getByText('Its ports, management address, Trap IPs and time source.')).toBeInTheDocument()
     expect(document.getElementById('span')).toBeNull()
     expect(document.getElementById('guides')).toBeNull()
-    // W2-7: one clear role per row: Management for the management port, Unused as text for the others (no select reading "Management Unused")
+    // One clear role per row: Management for the management port, Unused as text for the others (no select reading "Management Unused")
     const table = screen.getByRole('table', { name: 'Network interfaces of the box' })
     expect(within(table).queryAllByRole('combobox')).toHaveLength(0)
     for (const n of ['eth1', 'eth2']) expect(within(table).getByText(n).closest('tr')!.textContent).toMatch(/Unused/)
@@ -594,7 +594,7 @@ describe('box network: SPAN hidden for v1 (D-403)', () => {
     expect(document.getElementById('guides')).toBeNull()
     const role = (n: string) => screen.getByRole('combobox', { name: `Role of ${n}` })
     expect(within(role('eth1')).getAllByRole('option').map((o) => o.textContent)).toEqual(['SPAN capture', 'Unused'])
-    // W2-7: a card that is not the SPAN port has one possible role, shown as text (no select whose options read "Management Unused")
+    // A card that is not the SPAN port has one possible role, shown as text (no select whose options read "Management Unused")
     const rowOf = (n: string) => within(screen.getByRole('table', { name: 'Network interfaces of the box' })).getByText(n).closest('tr')!
     expect(screen.queryByRole('combobox', { name: 'Role of eth2' })).toBeNull()
     expect(within(rowOf('eth2')).getByText('Unused')).toBeInTheDocument()

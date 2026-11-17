@@ -82,7 +82,7 @@ func TestHostAllowlistWildcardMatchesOneLabel(t *testing.T) {
 	}
 }
 
-// A browser opening a page by a refused name gets a short readable page (D-542); the API and other clients keep the JSON error.
+// A browser opening a page by a refused name gets a short readable page; the API and other clients keep the JSON error.
 // Either way it is 421 and nothing is routed.
 func TestHostAllowlistBrowserPage(t *testing.T) {
 	t.Parallel()
@@ -94,14 +94,14 @@ func TestHostAllowlistBrowserPage(t *testing.T) {
 		method, path, accept, host string
 		page                       bool
 	}{
-		{"GET", "/", browser, "Walk3.LAN:8443", true},
-		{"GET", "/devices", browser, "walk3.lan", true},
-		{"HEAD", "/", browser, "walk3.lan", true},
+		{"GET", "/", browser, "Office3.LAN:8443", true},
+		{"GET", "/devices", browser, "office3.lan", true},
+		{"HEAD", "/", browser, "office3.lan", true},
 		{"GET", "/", browser, "a<b>.example", true},
-		{"GET", "/api/v1/setup", browser, "walk3.lan", false},
-		{"GET", "/", "application/json", "walk3.lan", false},
-		{"GET", "/", "", "walk3.lan", false},
-		{"POST", "/", browser, "walk3.lan", false},
+		{"GET", "/api/v1/setup", browser, "office3.lan", false},
+		{"GET", "/", "application/json", "office3.lan", false},
+		{"GET", "/", "", "office3.lan", false},
+		{"POST", "/", browser, "office3.lan", false},
 	} {
 		req := httptest.NewRequestWithContext(t.Context(), c.method, c.path, nil)
 		req.Host = c.host
@@ -144,10 +144,10 @@ func TestHostAllowlistBrowserPage(t *testing.T) {
 	if b := rec.Body.String(); strings.Contains(b, "<b>") || !strings.Contains(b, "a&lt;b&gt;.example") {
 		t.Errorf("Host not escaped:\n%s", b)
 	}
-	req.Host = "Walk3.LAN:8443"
+	req.Host = "Office3.LAN:8443"
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
-	if !strings.Contains(rec.Body.String(), "<strong>walk3.lan</strong>") {
+	if !strings.Contains(rec.Body.String(), "<strong>office3.lan</strong>") {
 		t.Errorf("Host not shown normalised:\n%s", rec.Body)
 	}
 }

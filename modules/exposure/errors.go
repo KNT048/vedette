@@ -13,7 +13,7 @@ import (
 type APIError struct {
 	HTTP    int
 	Code    string
-	Message string // user-facing, English (D-28)
+	Message string // user-facing, English
 }
 
 func (e *APIError) Error() string { return e.Code + ": " + e.Message }
@@ -32,7 +32,7 @@ var (
 	ErrBadValue    = apiErr(400, "bad_value", "Enter only a domain name, without http://, a path, a port or spaces. Example: example.com.")
 	ErrBadDomain   = apiErr(400, "bad_value", "Not a valid domain. Example: example.com.")
 	// ErrPublicSuffix: a public suffix (co.uk, ddns.net, github.io) is where many owners register their names; no record there can
-	// prove one of them (D-628).
+	// prove one of them.
 	ErrPublicSuffix   = apiErr(400, "bad_value", "That is a public suffix, under which many owners register their own names: add your own domain (for example yourcompany.co.uk or yourname.ddns.net).")
 	ErrIPNotAllowed   = apiErr(400, "ip_not_allowed", "Public IPs are not typed in. The box finds its own public IPs: turn on auto-detect or select \"Detect now\" under Public IPs of this box.")
 	ErrTooMany        = apiErr(400, "too_many", "At most %d targets. Delete ones you no longer use.", MaxTargets)
@@ -40,17 +40,17 @@ var (
 	ErrUnreachable    = apiErr(502, "unreachable", "%s", msgOffline)
 	ErrDisagree       = apiErr(502, "unreachable", "%s", msgDisagree)
 	ErrNotImplemented = apiErr(501, "not_implemented", "This part of the box is not built yet.")
-	// ErrFenceDown (D-591, review r1 M1): on a box with vedette-host, a new domain's box-bound token comes from the host; no answer, no
+	// ErrFenceDown: on a box with vedette-host, a new domain's box-bound token comes from the host; no answer, no
 	// domain (a random token would leave it without the deep scan of its addresses).
 	ErrFenceDown = apiErr(502, "unreachable", "The domain was not added: the Vedette host did not answer when asked for the domain's verification token. Try again in a minute.")
-	// ErrFenceFull (D-591, review r1 H1): the host has issued fence tokens for its limit of domains.
+	// ErrFenceFull: the host has issued fence tokens for its limit of domains.
 	ErrFenceFull = apiErr(400, "too_many", "The domain was not added: this box's host has already issued verification tokens for its limit of 20 domains.")
 )
 
-// The answers of a scan that the runner did not do (INV-12, D-229). Nothing is stored for them.
+// The answers of a scan that the runner did not do (INV-12). Nothing is stored for them.
 var (
-	// ErrScanOff: the runner found the External exposure module off when the scan began or was switched off while it ran (J6:
-	// the runner is the scan module's code behind exposure's switch, so the Vulnerability scans module may be off).
+	// ErrScanOff: the runner found the External exposure module off when the scan began or was switched off while it ran
+	// (the runner is the scan module's code behind exposure's switch, so the Vulnerability scans module may be off).
 	ErrScanOff = apiErr(409, "module_off", "The External exposure module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.")
 	// ErrCTDown: the certificate-transparency search gave no answer; a snapshot without the subdomains would say they are gone.
 	ErrCTDown = apiErr(502, "unreachable", "The certificate-transparency search (crt.sh) did not answer, so the scan stopped and nothing was saved. Try again in a few minutes.")
@@ -67,7 +67,7 @@ var (
 	ErrNotRunning = apiErr(409, "not_running", "No scan is running now.")
 )
 
-// TooManyNames is the answer when the certificate-transparency logs list more names under domain than one scan reads (D-229):
+// TooManyNames is the answer when the certificate-transparency logs list more names under domain than one scan reads:
 // nothing is scanned rather than a part that would change from day to day.
 func TooManyNames(domain string) *APIError {
 	return apiErr(400, "too_many", "The certificate-transparency logs list more than 300 names under %s, more than one scan reads, so nothing was scanned. Add a narrower subdomain (for example shop.%s) as its own domain and scan that.", domain, domain)
@@ -111,7 +111,7 @@ func ToAPIError(err error) error {
 	return err
 }
 
-// The API errors of the Ignored list (D-79 (3)).
+// The API errors of the Ignored list.
 var (
 	ErrOnlyIPCanBeIgnored = apiErr(400, "bad_value", "Only a public IP can go on the Ignored list.")
 	ErrIgnoredFull        = apiErr(400, "too_many", "At most %d ignored IPs. Restore the ones you no longer need to block.", MaxIgnored)

@@ -67,7 +67,7 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	}
 	products := make(map[string]string, len(in.kev))
 	for _, k := range in.kev {
-		name := k.Display // the name Findings shows (D-485)
+		name := k.Display // the name Findings shows
 		if name == "" {
 			name = k.Vendor + " " + k.Product
 		}
@@ -107,7 +107,7 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		if inWeek(f.FirstSeen) {
 			newRows = append(newRows, row(f, f.Status))
 		}
-		if inWeek(f.ResolvedAt) && f.Status == "risk_accepted" { // not resolved: it comes back by itself (D-498)
+		if inWeek(f.ResolvedAt) && f.Status == "risk_accepted" { // not resolved: it comes back by itself
 			accepted++
 			if acceptedUntil.IsZero() || (!f.AcceptedUntil.IsZero() && f.AcceptedUntil.Before(acceptedUntil)) {
 				acceptedUntil = f.AcceptedUntil
@@ -185,7 +185,7 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		kevAt = now
 	}
 	sources := []Source{{ID: "inventory", At: ts(now)}, {ID: "findings", At: ts(now)}, {ID: "kev", At: ts(kevAt)}}
-	for _, f := range in.findings { // VulnCheck KEV is named among the sources when a finding of the report comes from it (D-557)
+	for _, f := range in.findings { // VulnCheck KEV is named among the sources when a finding of the report comes from it
 		if f.Source == "vulncheck-kev" && (f.ResolvedAt.IsZero() || inWeek(f.ResolvedAt) || inWeek(f.FirstSeen)) {
 			sources = append(sources, Source{ID: "vulncheck-kev", At: ts(kevAt)})
 			break

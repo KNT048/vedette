@@ -52,7 +52,7 @@ func (s *Service) view(ctx context.Context, st Settings) (SettingsView, error) {
 	return v, nil
 }
 
-// linkedCounts fills how many approvers of the channel linked their address and who has not (D-191). Notify lists approvers of a ready
+// linkedCounts fills how many approvers of the channel linked their address and who has not. Notify lists approvers of a ready
 // channel only; for another channel both stay empty.
 func (s *Service) linkedCounts(ctx context.Context, cv *ChannelView) error {
 	if s.cfg.Notifier == nil || s.cfg.Users == nil || !linkable(cv.Type) {

@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// D-511 (#714 round 2, L1): the unknown_device trigger's kind field is the kind a type acts as (an IP phone: iot), but "unknown" for a
+// #714 round 2, L1: the unknown_device trigger's kind field is the kind a type acts as (an IP phone: iot), but "unknown" for a
 // type marked no_auto_isolate (a PBX), so a rule "kind in iot" cannot reach what the device_type test leaves out.
 func TestUnknownDeviceKindFieldHonoursNoAutoIsolate(t *testing.T) {
 	t.Parallel()

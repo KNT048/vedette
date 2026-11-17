@@ -1,4 +1,4 @@
-// First-run setup on the real backend (D-75 setup code, core INV-15, S-INV-5). The wizard steps are those of e2e/qa/core.spec.ts
+// First-run setup on the real backend (setup code, core INV-15, S-INV-5). The wizard steps are those of e2e/qa/core.spec.ts
 // ("first-run setup"), with the code the box printed in its log (ready.json) instead of the mock's. Runs first and alone: it sets the box up.
 import { expect, test } from '@playwright/test'
 import { ACCOUNTS, api, box, login, password } from './box'
@@ -35,7 +35,7 @@ test('"Use sample data" is refused cleanly by the real box and creates nothing (
   await page.goto('/')
   await expect(page).toHaveURL(/\/setup/)
   await expect(page.getByRole('heading').first()).toBeVisible() // the form is drawn
-  await expect(page.getByRole('button', { name: 'Use sample data' })).toHaveCount(0) // the release GUI hides it (D-369)
+  await expect(page.getByRole('button', { name: 'Use sample data' })).toHaveCount(0) // the release GUI hides it
   await expect(page).toHaveURL(/\/setup/)
   expect((await api<{ complete: boolean }>(request, 'GET', '/setup')).body.complete).toBe(false)
   expect((await api(request, 'GET', '/core/users')).status).toBe(401) // still nobody
@@ -51,7 +51,7 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await expectAccessible(page, 'setup step 1')
   await noVietnamese(page, 'setup 1')
 
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
   // step 1: empty, weak password, mismatch, bad email
   await next(page)
@@ -83,7 +83,7 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await page.getByLabel('Range 1', { exact: true }).fill('10.0.0.0/0')
   await next(page)
   await expect(page.getByText(/is not a private range/)).toBeVisible()
-  // D-461: 100/8 outside the RFC 6598 shared address space is public; the sentence names 100.64-127.x
+  // 100/8 outside the RFC 6598 shared address space is public; the sentence names 100.64-127.x
   await page.getByLabel('Range 1', { exact: true }).fill('100.128.0.0/24')
   await next(page)
   await expect(page.getByText('100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.')).toBeVisible()
@@ -108,7 +108,7 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await page.getByRole('button', { name: 'Add range' }).click()
   await next(page)
   await expect(page.getByText('Fill in this range or remove the row.')).toBeVisible()
-  // D-461 (kien's N100): a LAN behind carrier-grade NAT (RFC 6598, 100.64/10) passes the private-range check: written twice, the
+  // A LAN behind carrier-grade NAT (RFC 6598, 100.64/10) passes the private-range check: written twice, the
   // step names the duplicate, not a public range. Not kept, so the lab's scan scope stays the two ranges below.
   await page.getByLabel('Range 3', { exact: true }).fill('100.65.254.0/24')
   await page.getByRole('button', { name: 'Add range' }).click()
@@ -133,7 +133,7 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await next(page)
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
   await shot(page, 'real', 'setup-3')
-  // D-462: three steps; Modules is the last one and finishes setup, there is no Alerts step
+  // Three steps; Modules is the last one and finishes setup, there is no Alerts step
   await expect(page.getByRole('list', { name: 'Setup steps' }).getByRole('listitem')).toHaveCount(3)
   await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(h1(page)).toBeVisible()

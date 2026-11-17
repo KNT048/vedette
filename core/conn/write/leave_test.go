@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/conn/write"
 )
 
-// D-358: after a refused SSH line, the line that leaves configuration mode without saving goes out once, then the session closes.
+// After a refused SSH line, the line that leaves configuration mode without saving goes out once, then the session closes.
 
 func refuseBad(line string) string {
 	if strings.HasPrefix(line, "bad") {
@@ -59,7 +59,7 @@ func TestLeaveLineFollowsTheNearestEnterLine(t *testing.T) {
 		{[]string{"config firewall address", "edit x", "next", "end"}, ""},
 		{[]string{"config system interface", "edit port1", "config ipv6", "set ip6-mode static", "end"}, "abort"}, // the outer block is still open
 		{[]string{"terminal length 0"}, ""},
-		{[]string{"configure"}, ""}, // ArubaOS-Switch and Junos: no rule, nothing is typed (D-358)
+		{[]string{"configure"}, ""}, // ArubaOS-Switch and Junos: no rule, nothing is typed
 		{[]string{"configuration"}, ""},
 		{nil, ""},
 	} {
@@ -228,7 +228,7 @@ func TestWriterSendsNoLeaveLineAfterATimeOut(t *testing.T) {
 	}
 }
 
-// The emergency stop pressed while the refused line is on the device: no leave line (D-179 (4)).
+// The emergency stop pressed while the refused line is on the device: no leave line.
 func TestWriterSendsNoLeaveLineAfterTheStop(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

@@ -32,7 +32,7 @@ export type NewsResult = z.infer<typeof C.NewsResult>
 export type DigestItem = z.infer<typeof C.DigestItem>
 export type LogDigest = z.infer<typeof C.LogDigest>
 
-// Harness (D-39)
+// Harness
 export type HookWhen = z.infer<typeof C.HookWhen>
 export type HookAction = z.infer<typeof C.HookAction>
 export type HookHit = z.infer<typeof C.HookHit>

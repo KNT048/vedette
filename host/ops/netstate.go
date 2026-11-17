@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// GET /v1/state/net (host-api section 5, D-101). It reports what the host can read without
+// GET /v1/state/net (host-api section 5). It reports what the host can read without
 // looking at traffic: the cards with their kernel counters, the addresses on them, the default
 // routes, the gateways' MACs, the resolvers in use (netinfra.go) and the configuration the host wrote
 // itself. Nothing here runs a program or opens a network socket: the only socket is the kernel's
@@ -42,7 +42,7 @@ type HostIface struct {
 	MAC      string
 	Loopback bool
 	Addrs    []netip.Prefix
-	// Dynamic are the addresses of Addrs that have a lease (DHCP, SLAAC): the kernel's IFA_F_PERMANENT is unset (D-405).
+	// Dynamic are the addresses of Addrs that have a lease (DHCP, SLAAC): the kernel's IFA_F_PERMANENT is unset.
 	Dynamic []netip.Prefix
 }
 

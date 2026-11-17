@@ -12,7 +12,7 @@ import (
 // fake builds a secret-looking value at run time, so no secret-shaped literal sits in the source (and none is real).
 func fake(parts ...string) string { return strings.Join(parts, "") }
 
-// Device secrets are masked and the keyword stays (INV-12, D-220).
+// Device secrets are masked and the keyword stays (INV-12).
 func TestDeviceSecretsAreMaskedAndTheKeywordStays(t *testing.T) {
 	t.Parallel()
 	r := runner(t, nil)
@@ -120,7 +120,7 @@ func TestDeviceSecretPatternsLeaveOrdinaryTextAlone(t *testing.T) {
 		"route-map Z permit 30\n set community 4200000000:1:2",
 		"The password is encrypted at rest.",
 		"auth md5 is weak, use sha",
-		// D-428: the new patterns need their marker
+		// The new patterns need their marker
 		"ntp server 10.0.0.1 key 1 prefer\nntp peer 10.0.0.2 key 2 source Lo0",
 		"line vty 0 4\n exec-timeout 5 0\n login local\nline aux 0\n no exec",
 		"the line vty has no password set",
@@ -136,7 +136,7 @@ func TestDeviceSecretPatternsLeaveOrdinaryTextAlone(t *testing.T) {
 	}
 }
 
-// The secret finders are RE2 and take time in proportion to the text (D-205): hostile input of the biggest size takes about as
+// The secret finders are RE2 and take time in proportion to the text: hostile input of the biggest size takes about as
 // long as plain text of that size.
 func TestDeviceSecretFindersAreLinear(t *testing.T) {
 	const top = hostileSize - 16
@@ -174,7 +174,7 @@ func TestDeviceSecretFindersAreLinear(t *testing.T) {
 		"every pattern runs": "password secret key md5 community psk shared private enc $ -key -server snmp-server encrypted pbkdf2 enable " +
 			"username neighbor ospf isakmp key-string private key\n" + strings.Repeat("The firewall log shows a blocked probe. ", top/40-4),
 		"asa no suffix": strings.Repeat("password 8Ry2Yj ", top/16),
-		// D-428: block walks and the line-anchored patterns
+		// Block walks and the line-anchored patterns
 		"vty headers":    strings.Repeat("line vty 0 4\n x\n", top/17),
 		"vty indented":   "line vty 0 4\n" + strings.Repeat(" exec-timeout 5 0\n", top/18-2),
 		"yaml keys":      strings.Repeat("password:\n", top/10),
@@ -302,7 +302,7 @@ func TestDeviceSecretsInMoreVendorShapesAreMasked(t *testing.T) {
 		{"asa tunnel-group psk", "tunnel-group 1.2.3.4 ipsec-attributes\n ikev1 pre-shared-key " + plainPW, "ikev1 pre-shared-key ", []string{plainPW}},
 		{"psk colon", "PSK: " + plainPW, "PSK: ", []string{plainPW}},
 		{"username type 6", "username bob password 6 " + plainPW, "username bob password 6 ", []string{plainPW}},
-		// D-428: secrets that sit where the vendor's syntax puts them
+		// secrets that sit where the vendor's syntax puts them
 		{"line vty cleartext", "line con 0\n login\nline vty 0 4\n exec-timeout 5 0\n password " + plainPW + "\n login\n", " password ", []string{plainPW}},
 		{"line vty crlf", "line vty 0 4\r\n password " + plainPW + "\r\n login\r\n", " password ", []string{plainPW}},
 		{"two vty blocks", "line vty 0 4\n password " + plainPW + "\nline vty 5 15\n password " + two + "\n", " password ", []string{plainPW, two}},

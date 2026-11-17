@@ -17,7 +17,7 @@ import (
 // SensorHandlers implements the operations of the module: GET and PATCH /inventory/sensors (admin). Embed it in the
 // composite handler of cmd/vedette. The role comes from the route table.
 //
-// PATCH /inventory/sensors/{id} (CONTRACT INV-9) serves only a container-only install (D-387): on an appliance the SPA sets
+// PATCH /inventory/sensors/{id} (CONTRACT INV-9) serves only a container-only install: on an appliance the SPA sets
 // the card and SPAN in Settings → Box network (PUT /core/network/span, host module), which calls Service.SetInterface.
 type SensorHandlers struct{ svc *Service }
 
@@ -36,7 +36,7 @@ func (h *SensorHandlers) InventoryGetInventorySensors(ctx context.Context) (*oas
 }
 
 // InventoryPatchInventorySensorsID implements PATCH /inventory/sensors/{id} (admin): the card the sensor reads and whether it is
-// the SPAN card, on a container-only install only (D-387). The answer is the sensor as GET /inventory/sensors lists it.
+// the SPAN card, on a container-only install only. The answer is the sensor as GET /inventory/sensors lists it.
 func (h *SensorHandlers) InventoryPatchInventorySensorsID(ctx context.Context, req *oas.InventoryPatchInventorySensorsIDReq, params oas.InventoryPatchInventorySensorsIDParams) (*oas.InventoryPatchInventorySensorsIDOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {

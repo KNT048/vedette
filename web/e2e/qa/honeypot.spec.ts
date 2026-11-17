@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, finishClean, sampleStart } from './clean'
 
-// QA module honeypot (S-HP-1, D-466): clean install -> add a Trap IP -> it listens on its own services -> test hit -> details;
-// form errors under their own field; where each Trap IP lives; hits name their Trap IP (W1-13).
+// QA module honeypot (S-HP-1): clean install -> add a Trap IP -> it listens on its own services -> test hit -> details;
+// form errors under their own field; where each Trap IP lives; hits name their Trap IP.
 const SMB = 'SMB (file sharing)'
 const call = (page: Page, path: string) => page.evaluate(async (p) => (await fetch(`/api/v1${p}`)).json(), path)
 const vis = (page: Page, text: string | RegExp) => page.getByText(text).locator('visible=true').first()

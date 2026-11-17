@@ -14,7 +14,7 @@ import (
 // pulled hourly, NVD's affected versions with it).
 const reachEvery = 10 * time.Minute
 
-// reachJob is findings' KEV reachability audit (#910 phase 1, kien's root-cause rule: the class check re-runs like a test): when the
+// reachJob is findings' KEV reachability audit (#910 phase 1: the class check re-runs like a test): when the
 // feeds' match stamp changed (a pull of the exploited list, NVD's or CVE.org's affected versions; and once at start), it classes
 // every entry against the software Vedette can produce (reachRows) and stores the run (fnd_reach_run) with the CVEs that became
 // unreachable. Off while findings is off; nothing while feeds is off.

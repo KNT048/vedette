@@ -7,7 +7,7 @@ import { server } from '@/test/server'
 import { sessionStore } from '@/mocks/stores'
 import { useMe } from './session'
 
-// N44-2: a release build asks /me only when the session's readable CSRF cookie is there, so a signed-out page load logs no 401.
+// A release build asks /me only when the session's readable CSRF cookie is there, so a signed-out page load logs no 401.
 describe('useMe in the release build (VITE_API_MOCK=off)', () => {
   afterEach(() => {
     vi.unstubAllEnvs()

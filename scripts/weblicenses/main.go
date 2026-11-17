@@ -1,4 +1,4 @@
-// Command weblicenses writes the third-party license file of the web interface that the core image carries (D-155 (10), Apache-2.0 4(a), MIT).
+// Command weblicenses writes the third-party license file of the web interface that the core image carries (Apache-2.0 4(a), MIT).
 // It asks pnpm for the production tree of web/ and writes, for every package, its name, versions, license, and the text of its license files.
 // A package with neither a license file nor a declared license fails the run; one with only the declared license is written as such.
 // Run it where the web dependencies are installed (make webui-dist); the output is generated, never committed.

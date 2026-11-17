@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// Part A of the release job (WP-08k, D-457): install.sh with its three baked lines and its signature, and the SemVer name of a
+// Part A of the release job (WP-08k): install.sh with its three baked lines and its signature, and the SemVer name of a
 // prerelease .deb.
 
 var sha256HexRE = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -263,7 +263,7 @@ func cmdBakeInstall(ctx context.Context, args []string, stdin io.Reader, stdout 
 	}
 	slot := "active"
 	if id == trust.Backup.KeyID() {
-		slot = "backup (only for a rescue, D-259)"
+		slot = "backup (only for a rescue)"
 	}
 	say(stdout, "wrote %s and %s: release %s, signed by %s, the %s key", filepath.Join(*dir, installer), filepath.Join(*dir, installerSig), inputs.Version, id, slot)
 	return nil
@@ -272,8 +272,8 @@ func cmdBakeInstall(ctx context.Context, args []string, stdin io.Reader, stdout 
 // errNoPrerelease: the version has no prerelease, so nfpm's names are the SemVer ones already.
 var errNoPrerelease = errors.New("no prerelease")
 
-// debianVersion is how nfpm (dpkg) spells a SemVer version: its first "-" becomes "~", so a prerelease sorts before the release
-// (D-155 (1)). A version without a prerelease is the same.
+// debianVersion is how nfpm (dpkg) spells a SemVer version: its first "-" becomes "~", so a prerelease sorts before the release.
+// A version without a prerelease is the same.
 func debianVersion(v string) string { return strings.Replace(v, "-", "~", 1) }
 
 // RenameDebs gives the two packages host-deb built for version their SemVer names (release.HostPackageName): nfpm writes

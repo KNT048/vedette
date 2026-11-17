@@ -6,14 +6,14 @@ import (
 	"strings"
 )
 
-// TopRiskCount is how many risks the management page names (W1-24, D-485).
+// TopRiskCount is how many risks the management page names.
 const TopRiskCount = 3
 
 // deviceRisk is the open findings of one installed software on one device (their CISA product names merged: one phone is one
 // group whatever CISA calls its CVEs), or of one product name when no software row is known: the unit of an upgrade.
 type deviceRisk struct {
 	asset, device, label  string
-	noDevice              bool           // a product added by hand with no device: the step does not name it twice (W5-2)
+	noDevice              bool           // a product added by hand with no device: the step does not name it twice
 	names                 map[string]int // findings by the CISA product name they carry; the label is the biggest
 	open, confirmed       int
 	severity              string
@@ -31,7 +31,7 @@ type line struct {
 	open, confirmed int
 }
 
-// product is every open finding of one product, over all devices: what the top three are ranked by (D-485).
+// product is every open finding of one product, over all devices: what the top three are ranked by.
 type product struct {
 	name            string
 	open, confirmed int
@@ -40,7 +40,7 @@ type product struct {
 	devs            []*deviceRisk
 }
 
-// topRisks ranks products (as D-485: confirmed by a scan first, then the worst severity, then the most open findings across all
+// topRisks ranks products (confirmed by a scan first, then the worst severity, then the most open findings across all
 // devices, then the name), takes the TopRiskCount biggest and writes each one action sentence. A product whose devices need
 // different steps gets the biggest step in the sentence and says how many more devices need another. open is ordered by severity,
 // newest first. kinds is "fix" or "verify" for each risk. fixes says the release for each finding (may be nil).
@@ -77,7 +77,7 @@ func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []s
 			}
 		}
 	}
-	// Rank products as D-485: the product of a group is the name most of its findings carry.
+	// Rank products: the product of a group is the name most of its findings carry.
 	byProd := map[string]*product{}
 	var prods []*product
 	for _, g := range devs {
@@ -167,8 +167,8 @@ func distinctDevices(gs []*deviceRisk) []string {
 	return out
 }
 
-// where is what the step is about and where: the product and " on " the devices. A product added by hand with no device (D-471) is
-// named after the product already, so it is not named again ("Cisco BroadWorks on Cisco BroadWorks (no device)", W5-2): alone it
+// where is what the step is about and where: the product and " on " the devices. A product added by hand with no device is
+// named after the product already, so it is not named again ("Cisco BroadWorks on Cisco BroadWorks (no device)"): alone it
 // is said once after the product; next to real devices it is "the copy added manually".
 func where(product string, gs []*deviceRisk) (what, on string) {
 	seen := map[string]bool{}
@@ -237,7 +237,7 @@ func (g *deviceRisk) class() string {
 		return "distro " + clip(g.fix.Distro, 40)
 	case "up_to":
 		return "up_to"
-	case "feature_update", "esu": // D-546: a step of its own, never merged with devices that need another build or have no fix data
+	case "feature_update", "esu": // A step of its own, never merged with devices that need another build or have no fix data
 		return g.fix.Kind + " " + clip(g.fix.Fixed, 40)
 	}
 	if g.confirmed > 0 {
@@ -297,14 +297,14 @@ func (l *line) sentence(product string) string {
 			s += fmt.Sprintf(" (if you installed it from %s's packages, install its security updates instead)", d)
 		}
 		return s
-	case "feature_update": // D-546: a Windows release Microsoft no longer updates; only a later release has the fix
+	case "feature_update": // A Windows release Microsoft no longer updates; only a later release has the fix
 		return fmt.Sprintf("Move %s%s to a Windows release Microsoft still services (a feature update): it gets no more monthly updates, and NVD names the fix only for %s — fixes %s",
 			product, on, clip(fx.Fixed, 40), plural(closed, "exploited vulnerability", "exploited vulnerabilities"))
-	case "esu": // D-546: the fixing build comes only with Extended Security Updates
+	case "esu": // The fixing build comes only with Extended Security Updates
 		return fmt.Sprintf("Install the Extended Security Update %s or later on %s%s, or move it to a Windows release Microsoft still services — fixes %s",
 			clip(fx.Fixed, 40), product, on, plural(closed, "exploited vulnerability", "exploited vulnerabilities"))
 	case "none":
-		if l.open == 1 { // W76-8: never "fixes all 1 exploited vulnerability"
+		if l.open == 1 { // Never "fixes all 1 exploited vulnerability"
 			return fmt.Sprintf("NVD names no release that fixes the exploited vulnerability of %s%s: check the vendor advisory", product, on)
 		}
 		return fmt.Sprintf("NVD names no single release that fixes all %s of %s%s: check the vendor advisory", plural(l.open, "exploited vulnerability", "exploited vulnerabilities"), product, on)

@@ -8,9 +8,9 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 )
 
-// W-1 (D-548): when the device's own agent reported the version, "How to check it yourself" does not ask for it (no About screen),
+// W-1: when the device's own agent reported the version, "How to check it yourself" does not ask for it (no About screen),
 // says the agent reports the new version by itself and the finding closes by itself. A version from a scan keeps the old steps.
-func TestGenericRecheck_D548_AgentVersionIsNotAskedFor(t *testing.T) {
+func TestGenericRecheck_AgentVersionIsNotAskedFor(t *testing.T) {
 	row := func(agent bool) findings.Row {
 		var r findings.Row
 		doc := `{"basis":"version","evidence":{"summary":"s","checked_at":"2026-11-15T00:00:00Z","agent":` + map[bool]string{true: "true", false: "false"}[agent] + `},
@@ -30,9 +30,9 @@ func TestGenericRecheck_D548_AgentVersionIsNotAskedFor(t *testing.T) {
 	}
 }
 
-// N52-2: a product-only match on a row the agent reported with its version does not ask to look the version up either: the agent gave it,
+// A product-only match on a row the agent reported with its version does not ask to look the version up either: the agent gave it,
 // and the comparison with NVD's data is what failed. A product match on a typed row keeps "Check which version".
-func TestGenericRecheck_N52_AgentRowProductMatchDoesNotAskForTheVersion(t *testing.T) {
+func TestGenericRecheck_AgentRowProductMatchDoesNotAskForTheVersion(t *testing.T) {
 	row := func(agentRow bool) findings.Row {
 		var r findings.Row
 		doc := `{"basis":"product","evidence":{"summary":"s","checked_at":"2026-11-15T00:00:00Z","agent_row":` + map[bool]string{true: "true", false: "false"}[agentRow] + `},
@@ -52,7 +52,7 @@ func TestGenericRecheck_N52_AgentRowProductMatchDoesNotAskForTheVersion(t *testi
 	}
 }
 
-// M2-3 (walk n74): a version the box has from any source (SNMP, LLDP, a scan, a person, an agent) is never asked for again: the first
+// A version the box has from any source (SNMP, LLDP, a scan, a person, an agent) is never asked for again: the first
 // step names the version and who gave it, the second how a newer one reaches Vedette. The device and the software are never glued.
 func TestGenericRecheck_M23_KnownVersionFromEverySource(t *testing.T) {
 	row := func(basis, ip string, tmpl bool, k *findings.KnownVersion) findings.Row {

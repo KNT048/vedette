@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
-// container.pull of scan builds the image with nmap on the box (host CONTRACT INV-17 and INV-19; D-113 (7), D-147): the signed base is
+// container.pull of scan builds the image with nmap on the box (host CONTRACT INV-17 and INV-19): the signed base is
 // pulled, verified and tagged like any image, then podman builds localhost/vedette-scan-nmap:<version> from the constant Containerfile with a
 // fixed argv, the host looks at the effect (nmap --version in the new image), and the record holds the built image's ID.
 
@@ -70,7 +70,7 @@ func TestContract_Scan_PullBuildsTheImageOnTheBoxAndRecordsIt(t *testing.T) {
 		t.Fatalf("builds: %v", builds)
 	}
 	f := strings.Fields(builds[0])
-	// The build's network is vedette-int and nothing else (#467: the one network Docker's FORWARD drop lets through, D-267), without NET_RAW.
+	// The build's network is vedette-int and nothing else (#467: the one network Docker's FORWARD drop lets through), without NET_RAW.
 	if len(f) != 16 || f[0] != "build" || f[1] != "--pull=never" || f[2] != "--no-cache" || f[3] != "--network" || f[4] != "vedette-int" || f[5] != "--cap-drop" ||
 		f[6] != "NET_RAW" || f[7] != "--iidfile" || f[8] != f[15]+"/iid" || f[10] != "BASE_IMAGE=ghcr.io/knt048/vedette-scan@"+scanBase || f[12] != "NMAP_MIN_VERSION=7.95" ||
 		f[14] != scanTag+v1 || !filepath.IsAbs(f[15]) {
@@ -215,7 +215,7 @@ func TestContract_Scan_ABuildThatCannotRunLeavesNoRecordOnAFirstPull(t *testing.
 }
 
 // container.start of scan runs the locally built image: the unit pins the image ID, the effect check compares the container's image ID,
-// a rollback goes back to the previous built image, and the journal and ourUnit logic recognise every unit on the way (D-105, D-138, D-147).
+// a rollback goes back to the previous built image, and the journal and ourUnit logic recognise every unit on the way.
 func TestContract_Scan_StartAndRollbackUseTheLocallyBuiltImage(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
@@ -500,7 +500,7 @@ func TestContract_Scan_ARecordWithoutTheBuiltImageIsNoRecord(t *testing.T) {
 	}
 }
 
-// D-318: a link at the honeypot log volume unit is refused in step 1 too, whichever of core and honeypot is requested, before any
+// A link at the honeypot log volume unit is refused in step 1 too, whichever of core and honeypot is requested, before any
 // credential volume or unit is written.
 func TestContract_Bootstrap_ALinkAtTheLogVolumeIsRefusedBeforeAnyWrite(t *testing.T) {
 	t.Parallel()
@@ -534,7 +534,7 @@ func TestContract_Bootstrap_ALinkAtTheLogVolumeIsRefusedBeforeAnyWrite(t *testin
 	}
 }
 
-// D-318: core and honeypot share the log volume, so one of them must not move to it while the other still binds the old directory
+// Core and honeypot share the log volume, so one of them must not move to it while the other still binds the old directory
 // (core would read an empty tmpfs while the honeypot writes to disk: every hit lost without an error).
 func TestContract_Bootstrap_CoreAndHoneypotMoveToTheLogVolumeTogether(t *testing.T) {
 	t.Parallel()

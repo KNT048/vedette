@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// D-484 (customer walk 1, W1-3): "I have this" on Home means "alert me about this product" for the ONE device it
+// "I have this" on Home means "alert me about this product" for the ONE device it
 // declared: there a version-less row of the answered key matches entries from the scope's date on. The same product on
 // any other device (found by a scan, added from the catalog) is matched as before: nothing is hidden there.
 func TestHaveScope_OnlyTheDeclaredDeviceIsScoped(t *testing.T) {
@@ -16,7 +16,7 @@ func TestHaveScope_OnlyTheDeclaredDeviceIsScoped(t *testing.T) {
 	day := func(s string) time.Time { d, _ := time.Parse(time.DateOnly, s); return d }
 	e := newEnv(t)
 	e.feeds.vulns = []Vuln{
-		{CVE: "CVE-2009-0556", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2022-03-03"), HasTemplate: true},  // a scan checks them: product matches stay findings (D-602)
+		{CVE: "CVE-2009-0556", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2022-03-03"), HasTemplate: true},  // a scan checks them: product matches stay findings
 		{CVE: "CVE-2026-21508", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2026-10-27"), HasTemplate: true}, // same week, earlier
 		{CVE: "CVE-2026-21509", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2026-11-01"), HasTemplate: true}, // the answered one
 		{CVE: "CVE-2026-30001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true},                               // no date: kept
@@ -60,7 +60,7 @@ func TestHaveScope_OnlyTheDeclaredDeviceIsScoped(t *testing.T) {
 	}
 }
 
-// W1-12: one action and one note for the open findings among many; each gets its own history, audit row and event; a
+// One action and one note for the open findings among many; each gets its own history, audit row and event; a
 // closed one is skipped with its reason kept; all or nothing.
 func TestSetStatusMany_OneRowEachAllOrNothing(t *testing.T) {
 	t.Parallel()
@@ -112,7 +112,7 @@ func TestSetStatusMany_OneRowEachAllOrNothing(t *testing.T) {
 	}
 }
 
-// W1-2, W1-32: a device with no hostname and no IP is named, never shown by its internal id, even in old evidence.
+// A device with no hostname and no IP is named, never shown by its internal id, even in old evidence.
 func TestRow_DeviceWithoutIPIsNamedNotByItsID(t *testing.T) {
 	t.Parallel()
 	r := Record{ID: "f-1", AssetID: "a-vft3", CVE: "CVE-2023-36845", Finding: Finding{Evidence: &Evidence{Summary: "a-vft3 runs Juniper Junos 15.1R7.9."}}}
@@ -126,7 +126,7 @@ func TestRow_DeviceWithoutIPIsNamedNotByItsID(t *testing.T) {
 	}
 }
 
-// Review LOW of #663: the "I have this" scope keeps the matcher's proofs (D-530): a second row of the declared
+// Review LOW of #663: the "I have this" scope keeps the matcher's proofs: a second row of the declared
 // device with a readable version outside the range still closes its finding.
 func TestHaveScope_KeepsNotAffected(t *testing.T) {
 	t.Parallel()

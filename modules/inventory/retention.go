@@ -9,9 +9,9 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Retention of agent software (DATA_MODEL inv_software; deferred sweep item 9, D-327): software an agent (osquery, Wazuh) has not
-// reported for 30 days is deleted. Services have their own retention (PruneServices, INV-23, D-350). It is a normal job, not
-// Housekeeping: while the inventory is off nothing is observed, so silence must not count (the agent-intake precedent, D-265 (8)). The
+// Retention of agent software (DATA_MODEL inv_software; deferred sweep item 9): software an agent (osquery, Wazuh) has not
+// reported for 30 days is deleted. Services have their own retention (PruneServices, INV-23). It is a normal job, not
+// Housekeeping: while the inventory is off nothing is observed, so silence must not count (the agent-intake precedent). The
 // time counts only while the job runs unbroken, and only while agent-intake is on too: agent-intake promises that turning it off keeps
 // what it delivered. An agent that keeps reporting an empty list (or a Wazuh server that stays unreachable) delivers nothing, so its last
 // list goes after 30 days: it is no longer reported.
@@ -61,7 +61,7 @@ func (s *Service) PruneAgentSoftware(ctx context.Context) error {
 // pruneAgentSoftware deletes, device by device, the agent rows not reported since cut, at most pruneBatch devices a run (the job runs
 // every hour, so a larger backlog is done over a few runs). Each device is one transaction with its audit row
 // and the software-changed event, like a sync that dropped them; rows of other sources (manual, nmap, passive) are not touched.
-// The box itself is never pruned (D-470): its rows are its own dpkg list, which only a successful read replaces; a host that
+// The box itself is never pruned: its rows are its own dpkg list, which only a successful read replaces; a host that
 // cannot be read for a month must not empty the box and close its findings.
 func (s *Service) pruneAgentSoftware(ctx context.Context, cut string) (int64, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT asset_id FROM inv_software WHERE source = 'agent' AND seen_at < ? AND asset_id NOT IN (SELECT id FROM inv_asset WHERE is_box = 1) LIMIT ?`, cut, pruneBatch)

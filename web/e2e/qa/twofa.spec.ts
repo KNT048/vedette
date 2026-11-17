@@ -1,4 +1,4 @@
-// QA as a real user for D-35: two-step sign-in with two methods (authenticator app, email code) and the admin reset.
+// QA as a real user: two-step sign-in with two methods (authenticator app, email code) and the admin reset.
 // Run: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/twofa.spec.ts --workers=1
 import { createHmac } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
@@ -72,7 +72,7 @@ test('authenticator app: QR and manual key, turn on, sign out, sign in with the 
   await page.goto('/settings/account?tab=sign-in')
   await expect(page.getByRole('heading', { name: 'Two-step sign-in' })).toBeVisible()
   await shot(page, 'twofa', 'account-choose-light')
-  // D-76: the current password comes first; the buttons stay disabled without it
+  // The current password comes first; the buttons stay disabled without it
   await expect(page.getByRole('button', { name: 'Set up authenticator app' })).toBeDisabled()
   await page.getByLabel('Your current password', { exact: true }).fill(PW)
   await page.getByRole('button', { name: 'Set up authenticator app' }).click()

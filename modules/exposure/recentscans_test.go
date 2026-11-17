@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// kien G7a: Settings › Scanning › History lists the stored scans of public targets, newest first, with their counts.
+// Settings › Scanning › History lists the stored scans of public targets, newest first, with their counts.
 func TestRecentScans_NewestFirstWithTargetAndCounts(t *testing.T) {
 	e := newEnv(t)
 	ctx := t.Context()

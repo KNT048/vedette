@@ -309,13 +309,13 @@ func TestDevice_SwitchOffOrActionDisabledDuringTheCheckBeforeStopsTheWrite(t *te
 		e.fire(e.trap("h1", "192.168.10.157"))
 		e.exec.pre = staticAccess
 		got := e.approveOnly()
-		if e.phaseList() != "precheck" || got.Items[0].Status != response.ItemFailed { // not even the read before the run (D-356) goes out
+		if e.phaseList() != "precheck" || got.Items[0].Status != response.ItemFailed { // not even the read before the run goes out
 			t.Errorf("%s: steps %s, item %+v", name, e.phaseList(), got.Items[0])
 		}
 	}
 }
 
-// H3 and D-88 (4): an undo is not blocked by the execution switch (the sweep removes a change at the end of its time with the switch off), but
+// An undo is not blocked by the execution switch (the sweep removes a change at the end of its time with the switch off), but
 // the emergency stop blocks it until an admin resumes.
 func TestDevice_UndoIsBlockedByTheEmergencyStopNotByTheExecutionSwitch(t *testing.T) {
 	t.Parallel()

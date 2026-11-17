@@ -39,12 +39,12 @@ type Config struct {
 	Findings FindingDirectory // nil = finding events are logged and skipped
 	Devices  DeviceDirectory  // nil = device events show the asset id
 	Tokens   TokenRecorder    // nil = email approvers get a message that says to open Vedette instead of a link
-	// ApproverLinks, when set, makes an approver whose address the user has not linked in My account a skipped approver
-	// (D-191); an error from it skips the approver too (fail closed). nil = no link check, as before.
+	// ApproverLinks, when set, makes an approver whose address the user has not linked in My account a skipped approver;
+	// an error from it skips the approver too (fail closed). nil = no link check, as before.
 	ApproverLinks ApproverLinks
-	Hits          HitConnections // trap incidents show the connections the trap saw (D-496); nil = notify's own count
+	Hits          HitConnections // trap incidents show the connections the trap saw; nil = notify's own count
 	Decisions     Decisions      // module response: takes decisions made in chat (13b-8); nil = chat decisions are not taken
-	// LinkCodes makes the code a Zalo personal approver replies with to prove their Zalo account (D-447); nil = no code is sent and the
+	// LinkCodes makes the code a Zalo personal approver replies with to prove their Zalo account; nil = no code is sent and the
 	// approver stays not linked.
 	LinkCodes LinkCodes
 
@@ -56,17 +56,17 @@ type Config struct {
 	// Location, when set, is the box time zone and Zone is not asked (tests).
 	Location *time.Location
 	// BaseURL is the address people open Vedette at, e.g. https://192.168.10.2:8443 (links in messages), asked at every use so a change
-	// of the box address applies at once (D-465: cmd/vedette gives the Box address of Settings → Box network). nil or "": messages
+	// of the box address applies at once (cmd/vedette gives the Box address of Settings → Box network). nil or "": messages
 	// carry no link and say to open Vedette, and approval requests are refused (ErrApprovalUnavailable): a link that
 	// approves an action is a credential and must point at the real box.
 	BaseURL func() string
 	// BoxAddrs is the machine's addresses (vedette-host, the container's gateway): no webhook or SMTP server on Vedette's own ports
-	// there (D-446; the container's own interfaces are read by the channel package, never a target). known=false means the box does not know its own addresses yet (vedette-host has not answered since the start): saving a
+	// there (the container's own interfaces are read by the channel package, never a target). known=false means the box does not know its own addresses yet (vedette-host has not answered since the start): saving a
 	// webhook is then 503 host_unreachable and no webhook connection is made (fail closed, #157). nil = only the interfaces,
 	// known (tests, a box without vedette-host).
 	BoxAddrs func() (addrs []netip.Addr, known bool)
-	// SelfAddrs lists more addresses that are Vedette itself (the honeypot's decoys): no webhook or SMTP server there on any port
-	// (D-446). nil: none.
+	// SelfAddrs lists more addresses that are Vedette itself (the honeypot's decoys): no webhook or SMTP server there on any port.
+	// Nil: none.
 	SelfAddrs func() []netip.Addr
 	// HTTPClient is given to the Slack, Telegram and Zalo adapters (not to webhooks: their client always checks the
 	// address at connect time). nil = their own clients (no redirects, timeouts). Tests pass a fake. Its Timeout should be 0: the
@@ -86,11 +86,11 @@ type Service struct {
 
 	mu        sync.Mutex
 	senders   map[channel.Type]cachedSender
-	tokens    *channel.TokenCache // OAuth2 tokens of the email channel (D-449), shared by every email sender
-	signIns   signInSet           // user sign-ins of the email channel under way (D-480)
+	tokens    *channel.TokenCache // OAuth2 tokens of the email channel, shared by every email sender
+	signIns   signInSet           // user sign-ins of the email channel under way
 	rotations sync.WaitGroup      // saves of rotated refresh tokens (rotateEmailSecret)
 	lastPrune time.Time
-	// zaloGrant is the last rotation of the Zalo OA grant (D-483): a refresh token works once, so a rotation whose save failed lives
+	// zaloGrant is the last rotation of the Zalo OA grant: a refresh token works once, so a rotation whose save failed lives
 	// here until a save succeeds, and a sender built meanwhile, or a save of the channel, starts from it (NewerZaloGrant).
 	zaloGrant secrets.Value
 	// zaloSaveFault makes rotateZaloSecret fail before writing; only export_test.go sets it (a busy database cannot be staged cheaply).
@@ -114,7 +114,7 @@ type Service struct {
 	zaloStartQR func(context.Context, *http.Client) (zaloQRFlow, error)
 	zaloSelf    func(context.Context, channel.Sender) (string, error) // the uid of the box's own Zalo account (channel.ZaloSelf)
 	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
-	// the queued notices that went stale while it was off (D-86 (7)).
+	// the queued notices that went stale while it was off.
 	reenabled atomic.Bool
 	// urlSealed is set once no webhook row is left with a plain URL (sealLegacyURL).
 	urlSealed atomic.Bool
@@ -122,7 +122,7 @@ type Service struct {
 	urlSealFailing atomic.Bool
 	// tgOffset is the next Telegram update the approval listener reads (tglisten.go).
 	tgOffset telegramOffset
-	// tgFound holds the bots whose update filter a Find my chat already reset (D-491): the first empty answer for a bot says so.
+	// tgFound holds the bots whose update filter a Find my chat already reset: the first empty answer for a bot says so.
 	tgFound struct {
 		mu   sync.Mutex
 		seen map[string]bool
@@ -201,8 +201,8 @@ func (s *Service) loc(ctx context.Context) *time.Location {
 	return time.FixedZone("ICT", 7*3600) // no tz database on the machine; Vietnam has no daylight saving
 }
 
-// boxAddrs lists the machine's addresses (Config.BoxAddrs): a webhook or an SMTP server is never on Vedette's own ports there
-// (D-446). Loopback and core's own interfaces, Vedette itself on every port, are read by the channel package at every check.
+// boxAddrs lists the machine's addresses (Config.BoxAddrs): a webhook or an SMTP server is never on Vedette's own ports there.
+// Loopback and core's own interfaces, Vedette itself on every port, are read by the channel package at every check.
 // known is false while Config.BoxAddrs says so.
 func (s *Service) boxAddrs() (out []netip.Addr, known bool) {
 	if s.cfg.BoxAddrs == nil {

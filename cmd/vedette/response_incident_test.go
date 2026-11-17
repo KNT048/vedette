@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// D-509 (W1-16): Respond on a trap incident reads the incident through notify and the source of its hit through honeypot, through the
+// Respond on a trap incident reads the incident through notify and the source of its hit through honeypot, through the
 // generated HTTP handlers, and a public source can be asked for the block list as a pending request.
 func TestResponseIncidentRespondReadsTheTrapSource(t *testing.T) {
 	t.Parallel()
@@ -83,7 +83,7 @@ func TestResponseIncidentRespondReadsTheTrapSource(t *testing.T) {
 		t.Fatalf("a scan whose source completed a connection is still unconfirmed: %v", v)
 	}
 
-	// D-467 review H1: a UDP trap hit (one datagram, no handshake) is as forgeable as a scan: nothing is offered for its source, and
+	// A UDP trap hit (one datagram, no handshake) is as forgeable as a scan: nothing is offered for its source, and
 	// it does not confirm a scan of the same source. A TCP connection of that source near it confirms both.
 	exec(`INSERT INTO hp_hits (id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, events, handshake)
 		VALUES ('hit-udp', '2026-11-13T08:00:00.000Z', 'service', 'tftp', 'TFTP', 69, '203.0.113.20', 0, '', '192.168.18.241', 'NAS', '[]', 0)`)

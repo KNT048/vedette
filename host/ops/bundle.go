@@ -20,7 +20,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// container.pull with source=bundle (spec 6.7, update-manifest.md §11, D-452): the offline path of a box with no registry.
+// container.pull with source=bundle (spec 6.7, update-manifest.md §11): the offline path of a box with no registry.
 //
 // Core streams the uploaded bundle to <core_data>/bundles/<bundle_id>.tar (bundle_id: 32 random hex chosen by core, like a snapshot
 // id) and names only that id. The host opens the file through core's tree (INV-14: os.Root, the descriptor must be a regular file of

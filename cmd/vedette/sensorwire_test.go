@@ -264,7 +264,7 @@ func TestProductionRunsNoCaptureAndNoLocalNmap(t *testing.T) {
 		}
 		ast.Inspect(af, func(n ast.Node) bool {
 			if id, ok := n.(*ast.Ident); ok && (id.Name == "NewLocalProber" || id.Name == "NmapPath" || id.Name == "OpenLive") {
-				t.Errorf("%s: %s is used in production wiring (D-141: nmap and packet capture run in the scan and sensor containers)", fset.Position(id.Pos()), id.Name)
+				t.Errorf("%s: %s is used in production wiring (nmap and packet capture run in the scan and sensor containers)", fset.Position(id.Pos()), id.Name)
 			}
 			// d.SensorPassive.Run (the in-process capture loop) must not be started from core, however it is spelled.
 			if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == "Run" {
@@ -354,7 +354,7 @@ func TestRenewJobIsScheduledAndRenews(t *testing.T) {
 		}
 		prune = prune || j.Name == "auth-prune" && j.Module == "core" && j.Run(t.Context()) == nil                     // INV-30
 		update = update || j.Name == "software-update" && j.Every == core.UpdateTickEvery                              // not run: it would reach GitHub
-		auditPrune = auditPrune || j.Name == "audit-prune" && j.Every == audit.PruneEvery && j.Run(t.Context()) == nil // INV-37, D-416
+		auditPrune = auditPrune || j.Name == "audit-prune" && j.Every == audit.PruneEvery && j.Run(t.Context()) == nil // INV-37
 	}
 	if !auditPrune {
 		t.Fatal("core does not schedule audit-prune, or it failed")

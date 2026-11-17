@@ -67,7 +67,7 @@ export function BlocklistTab() {
             <DataTable caption={t('blocklist.entries')} data={b.entries} columns={entryColumns} pageSize={b.entries.length}
               mobileRow={(e) => <div className="grid gap-0.5 text-sm"><span className="font-medium">{e.value}</span><span className="text-meta text-muted">{e.source}, {e.reason}</span><span className="text-meta text-muted">{t('blocklist.expires')}: {e.expires_at ? fmtDateTime(e.expires_at) : t('blocklist.never')}</span></div>} />
           ) : (
-            // D-469: an empty list says what fills it, what it never holds, and where the rule that fills it is turned on
+            // An empty list says what fills it, what it never holds, and where the rule that fills it is turned on
             <Card className="grid gap-2 text-sm">
               <div className="flex items-center gap-1"><p className="font-medium">{t('blocklist.empty')}</p><InfoTip topic={t('blocklist.title')}><p>{t('blocklist.emptyWhat')}</p><p>{t('blocklist.emptyPublic')}</p></InfoTip></div>
               <p className="text-muted">{t('blocklist.emptyTemplate')} <Link className="text-accent underline underline-offset-4" to="?tab=rules#templates">{t('blocklist.emptyLink')}</Link></p>

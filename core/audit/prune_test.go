@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/core/store/storetest"
 )
 
-// D-416, core INV-37: the audit log keeps 365 days, at most MaxRows lines; the oldest run goes, the newest line stays, the chain verifies
+// Core INV-37: the audit log keeps 365 days, at most MaxRows lines; the oldest run goes, the newest line stays, the chain verifies
 // after every prune, and each prune leaves one "audit.pruned" line.
 func TestPruneByAgeAndByCountKeepsTheChain(t *testing.T) {
 	t.Parallel()

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// SQL Server's own version (D-606). SQL Server setup writes one Uninstall entry for a whole release, "Microsoft SQL Server 2022
+// SQL Server's own version. SQL Server setup writes one Uninstall entry for a whole release, "Microsoft SQL Server 2022
 // (64-bit)", without a DisplayVersion: osquery's programs and Wazuh's packages give it as it is, the row maps to CISA's
 // "Microsoft | SQL Server" and findings had to ask a person for a version the machine knows. Two sources, in order:
 //
@@ -17,7 +17,7 @@ import (
 //     and client tools": "Patchlevel indicates the current build ..., Version usually shows the original version"). The programs query
 //     reads it with the list (programsQuery), so the value and the list always come in one snapshot. Several instances of one release
 //     give the lowest build: the umbrella row stands for all of them, and the lowest one is affected by everything a higher one is.
-//  2. Without it (Wazuh, an agent whose config predates D-606), the release's own components from the same list ("SQL Server 2022
+//  2. Without it (Wazuh, an agent whose config predates the setup-registry query), the release's own components from the same list ("SQL Server 2022
 //     Database Engine Services", "… Common Files", "Browser for SQL Server 2022", ...), only when the Database Engine is one of them
 //     and every one of them with a build of the release's major gives the same build of the release ("16.0.1000.6"). Components that
 //     disagree (an update that changed some of them, a service pack's "13.2.5026.0") leave the row without a version, as before.

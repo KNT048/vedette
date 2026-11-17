@@ -18,7 +18,7 @@ import (
 )
 
 // hp/decoys.json (spec 18): what the host last put in the honeypot namespace. It is the host's own
-// state, but it is read like hostile input (D-87 style): a size cap, strict decoding (unknown fields
+// state, but it is read like hostile input: a size cap, strict decoding (unknown fields
 // and trailing data refused), and every value checked, because a corrupt file would otherwise reach
 // an ip command line.
 
@@ -29,7 +29,7 @@ type decoyEntry struct {
 	MAC   string `json:"mac"`
 	Table int    `json:"table"` // the per-IP routing table, 100 to 131, kept for the life of the decoy
 	Iface string `json:"iface"` // the card the macvlan sits on when it was made
-	// Ports is the allow-list of the address in the namespace's input chain (D-466), sorted; nil =
+	// Ports is the allow-list of the address in the namespace's input chain, sorted; nil =
 	// no allow-list (the address answers every port: a decoy an older core added).
 	Ports *[]api.DecoyPort `json:"ports,omitempty"`
 }

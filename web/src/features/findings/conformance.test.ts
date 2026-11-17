@@ -1,8 +1,8 @@
 // The same script of API calls runs against the GUI mock (always) and against the real Go backend (only when
 // VITE_FINDINGS_REAL_URL is set, i.e. make dev-api REAL=core,inventory,feeds,findings,mitigation prepared with web/e2e/qa/real-box.mjs;
 // VITE_FINDINGS_QA_PASSWORD is the password of admin@qa.test, op@qa.test and view@qa.test). The mock is the approved behaviour
-// (GUI-first, D-18): every step states the status and error code the mock gives and, where the real backend deliberately differs
-// (D-73: limits that contract.ts states are refused by the generated validator as 400 `invalid`; modules/findings/CONTRACT.md,
+// (GUI-first): every step states the status and error code the mock gives and, where the real backend deliberately differs
+// (limits that contract.ts states are refused by the generated validator as 400 `invalid`; modules/findings/CONTRACT.md,
 // modules/mitigation/CONTRACT.md), what it gives instead. Every 2xx body is checked against the zod schema of contract.ts.
 // Run against the real backend:
 //   VITE_FINDINGS_REAL_URL=http://127.0.0.1:8080 VITE_FINDINGS_QA_PASSWORD=... pnpm --dir web exec vitest run src/features/findings/conformance.test.ts

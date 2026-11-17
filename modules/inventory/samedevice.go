@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// D-599 (issue #829, J2): when the join rules (join.go, D-515, D-598) cannot be sure two rows are one machine, a person decides.
+// issue #829: when the join rules (join.go) cannot be sure two rows are one machine, a person decides.
 // The device page says "Possibly the same device as X" with Merge and Keep separate; Merge joins the rows with the join rules' own
 // primitive (joinAs), Keep separate stores the pair so it is never offered again (inv_separate).
 
@@ -26,13 +26,13 @@ const maxSameGroup = 8
 // maxOffered is how many devices one device page offers, the ones seen last.
 const maxOffered = 5
 
-// PossibleSame is another device that may be the same machine as the one read (D-599): GET /inventory/devices/{id} possible_same.
+// PossibleSame is another device that may be the same machine as the one read: GET /inventory/devices/{id} possible_same.
 type PossibleSame struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Why      string `json:"why"`
 	Approved bool   `json:"approved"`
-	// Ignored: a person ignored the other device (D-630); the Merge dialog says which watch state the kept device ends with.
+	// Ignored: a person ignored the other device; the Merge dialog says which watch state the kept device ends with.
 	Ignored  bool   `json:"ignored"`
 	LastSeen string `json:"last_seen"`
 }
@@ -45,7 +45,7 @@ type SameRef struct {
 	LastSeen string `json:"last_seen"`
 }
 
-// SamePair is one pair of GET /inventory/possible-same (D-599).
+// SamePair is one pair of GET /inventory/possible-same.
 type SamePair struct {
 	A   SameRef `json:"a"`
 	B   SameRef `json:"b"`
@@ -81,7 +81,7 @@ func (r *sameRow) ref(ctx context.Context, q querier) SameRef {
 }
 
 // burnedOnly reports a row whose only MACs were burned in by a maker: a server, a printer, a switch. It never rotates its MAC, so a
-// private address that carries its name is another machine (D-598 review #831 H1: an intruder naming itself after a server).
+// private address that carries its name is another machine (an intruder naming itself after a server).
 func (r *sameRow) burnedOnly() bool { return len(r.burned) > 0 && len(r.private) == 0 }
 
 // loadSameRows reads the rows of ids (every device but the box when ids is nil), with their MACs.
@@ -221,7 +221,7 @@ func sameCandidates(ctx context.Context, q *sql.Tx, only string) ([]string, erro
 	return ids, nil
 }
 
-// keptApart reports a pair a person kept separate (D-599): no join rule and no offer takes it.
+// keptApart reports a pair a person kept separate: no join rule and no offer takes it.
 func keptApart(ctx context.Context, tx *sql.Tx, x, y string) (bool, error) {
 	var n int
 	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM inv_separate WHERE a = ? AND b = ?`, min(x, y), max(x, y)).Scan(&n); err != nil {
@@ -230,7 +230,7 @@ func keptApart(ctx context.Context, tx *sql.Tx, x, y string) (bool, error) {
 	return n > 0, nil
 }
 
-// strongConflict says, in plain words, why two rows are two machines whatever else they share (D-599, the research's identity order):
+// strongConflict says, in plain words, why two rows are two machines whatever else they share (the research's identity order):
 // two different agents report from them, or each carries a MAC its maker burned in and they share none. "" when nothing says so.
 func strongConflict(x, y *sameRow) string {
 	if x.agent != "" && y.agent != "" && x.agent != y.agent {
@@ -244,7 +244,7 @@ func strongConflict(x, y *sameRow) string {
 }
 
 // sameLabel is the part of a host name two rows of one machine share (first label, lower case), generic names included ("iPhone"
-// is what the person must decide on: the join rules never take it, D-598); "" for a name that names no machine: shorter than 3, a
+// is what the person must decide on: the join rules never take it); "" for a name that names no machine: shorter than 3, a
 // switch or router default, localhost, a UUID, made of an address.
 func sameLabel(h string) string {
 	l, _, _ := strings.Cut(strings.TrimSpace(h), ".")
@@ -265,7 +265,7 @@ const (
 	byAddress // a MAC seen at the address of a hand-added row known by that address only (#829, n71), and a row carrying that MAC
 )
 
-// samePairs lists the pairs of rows that may be one machine (D-599), only the pairs of device only when it is not "". A pair shares
+// samePairs lists the pairs of rows that may be one machine, only the pairs of device only when it is not "". A pair shares
 // a MAC (an older MAC one row still carries, an agent's claim about its card), else a host name (sameLabel), else a model the devices
 // state (not a scan's guess), else a MAC seen at the address of a hand-added row known by that address only (byAddress, addressWhy,
 // #829 n71), the name or model only between rows that may rotate a private Wi-Fi address (one carries a private MAC
@@ -442,7 +442,7 @@ func pairWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, sig signal, value s
 }
 
 // addressWhy is the reason to offer a hand-added row known by its address only and a row carrying a MAC seen at that address since
-// the person added it (#829, the N100 n71 walk: firstAtHand refused the bind because two machines were seen there, so a person
+// the person added it (#829: firstAtHand refused the bind because two machines were seen there, so a person
 // decides). Not offered when neither or both are such a pair, or when they state another model or OS. The person's name for the row
 // is a label, not the machine's own name, and the hand-added row has no life on the wire to compare: neither is held against the pair.
 func addressWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, mac string) (string, error) {
@@ -468,7 +468,7 @@ func addressWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, mac string) (str
 	return "Its MAC address " + mac + " was seen at " + x.ip + ", the address " + deviceName(ctx, tx, x.id) + " was added with.", nil
 }
 
-// PossibleSameAs lists the devices that may be the same machine as device id (D-599), the one seen last first. None for the box or
+// PossibleSameAs lists the devices that may be the same machine as device id, the one seen last first. None for the box or
 // an unknown id.
 func (s *Service) PossibleSameAs(ctx context.Context, id string) ([]PossibleSame, error) {
 	pairs, err := s.samePairs(ctx, id)
@@ -501,7 +501,7 @@ func (s *Service) PossibleSameAs(ctx context.Context, id string) ([]PossibleSame
 	return out, nil
 }
 
-// PossibleSamePairs is GET /inventory/possible-same (D-599): every pair of devices that may be one machine, the pair seen last first.
+// PossibleSamePairs is GET /inventory/possible-same: every pair of devices that may be one machine, the pair seen last first.
 // In a pair, a is the approved device when one of them is, else the one seen first: the one a merge most likely keeps.
 func (s *Service) PossibleSamePairs(ctx context.Context) (SamePairs, error) {
 	pairs, err := s.samePairs(ctx, "")
@@ -525,9 +525,9 @@ func (s *Service) PossibleSamePairs(ctx context.Context) (SamePairs, error) {
 	return out, nil
 }
 
-// Merge is a person's answer "the same device" (D-599, POST /inventory/devices/{into}/merge): device from joins device into with the
+// Merge is a person's answer "the same device" (POST /inventory/devices/{into}/merge): device from joins device into with the
 // join rules' own primitive (joinAs, a machine join): into keeps its id, its approval, its notes, its name in Vedette (from's when it has
-// none, G2) and its findings; from's MACs, address
+// none) and its findings; from's MACs, address
 // (when from was seen later and into is not a declared row known by its address only, #829), sources, software, open ports, agent binding and findings move to it; from is
 // gone. A person decides, so unlike the join rules: into is approved when from was (approved_at from from, the suspicious mark cleared
 // as Approve does), both notes are kept, and an approved into keeps its own suspicious mark only (from's mark is answered by the merge).
@@ -586,7 +586,7 @@ func (s *Service) Merge(ctx context.Context, actor, into, from string) error {
 		}
 		o.add(EventAssetMerged, MergeEvent{From: from, Into: into, Actor: actor})
 		o.add(EventAssetDeleted, AssetEvent{AssetID: from, Actor: actor})
-		if watch != "" { // D-630: the moved findings follow into's watch state
+		if watch != "" { // The moved findings follow into's watch state
 			o.add(watch, AssetEvent{AssetID: into, Actor: actor})
 		}
 		o.add(EventAssetUpdated, AssetEvent{AssetID: into, Match: true})
@@ -597,7 +597,7 @@ func (s *Service) Merge(ctx context.Context, actor, into, from string) error {
 	})
 }
 
-// KeepSeparate is a person's answer "two devices" (D-599, POST /inventory/devices/{id}/keep-separate): the pair is stored and never
+// KeepSeparate is a person's answer "two devices" (POST /inventory/devices/{id}/keep-separate): the pair is stored and never
 // offered again, until either device is deleted or merged into another. Refused like Merge (the same device twice, unknown, the box).
 // Saying it again changes nothing. One audit row inventory.keep_separate the first time.
 func (s *Service) KeepSeparate(ctx context.Context, actor, id, other string) error {

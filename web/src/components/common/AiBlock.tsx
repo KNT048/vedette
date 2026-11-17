@@ -4,7 +4,7 @@ import { fmtNumber } from '@/lib/format'
 
 /**
  * Mọi output AI: viền chấm + nhãn "AI tạo, cần người xác nhận" (S-AI-6, rule legal.md: không gỡ nhãn).
- * `origin` phân biệt AI của khách (BYOK) với gói dự án Vedette soạn bằng AI (D-21) — không bao giờ trộn.
+ * `origin` phân biệt AI của khách (BYOK) với gói dự án Vedette soạn bằng AI — không bao giờ trộn.
  */
 export function AiBlock({ children, model, tokens, origin = 'customer', citations }: { children: ReactNode; model?: string; tokens?: { input: number; output: number }; origin?: 'customer' | 'project'; citations?: { title: string; url?: string }[] }) {
   const { t } = useTranslation()

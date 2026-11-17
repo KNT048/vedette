@@ -1,4 +1,4 @@
-// Days of "Accept risk until…" (D-498, S-MIT-1), on the person's own calendar.
+// Days of "Accept risk until…" (S-MIT-1), on the person's own calendar.
 import { MAX_ACCEPT_DAYS } from './contract'
 
 /** 'YYYY-MM-DD' of the day `days` after `from`, on the person's own calendar. */
@@ -10,7 +10,7 @@ export function dayAfter(from: Date, days: number): string {
 /** CISA's deadline is a day before today, on the person's own calendar (M2-6: "passed on", not "requires action by"). */
 export const overdue = (due: string, today = new Date()) => due < dayAfter(today, 0)
 
-/** The first and the last day a risk can be accepted until: tomorrow and a year from today (D-498). */
+/** The first and the last day a risk can be accepted until: tomorrow and a year from today. */
 export const untilBounds = (today = new Date()) => ({ min: dayAfter(today, 1), max: dayAfter(today, MAX_ACCEPT_DAYS) })
 
 /** Whether `until` is a day the box takes (the dialog checks before sending; the API says bad_until otherwise). */

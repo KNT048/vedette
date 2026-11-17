@@ -24,7 +24,7 @@ import (
 const (
 	// BaselineDays is the length of the baseline (baseline_days of the digest).
 	BaselineDays = 7
-	// WarmUp is how long a source is silent after its first line: no "new", no spike and no event (the D-78 lesson: the first
+	// WarmUp is how long a source is silent after its first line: no "new", no spike and no event (the first
 	// pull is not news). A kind of line seen during it belongs to the baseline.
 	WarmUp = 24 * time.Hour
 	// SpikeFloor and SpikeFactor: a spike is at least max(SpikeFloor, SpikeFactor x baseline_per_day) lines in 24 hours.
@@ -55,7 +55,7 @@ const (
 	MaxDeviceID   = 96
 	MaxDeviceName = 253
 	// DetectEvery is how often the anomaly job looks.
-	// ponytail: a full read of the last 10 days of counters every 5 minutes (measured in TestMeasureDigestCost: see D-206);
+	// ponytail: a full read of the last 10 days of counters every 5 minutes (measured in TestMeasureDigestCost);
 	// past about 200,000 rows read only today and yesterday and keep the baseline in memory.
 	DetectEvery = 5 * time.Minute
 	// EventAnomalyDetected is the event notify opens an incident from (notify/events.go).
@@ -431,7 +431,7 @@ func (s *Service) detectSource(ctx context.Context, now time.Time, src sourceRow
 		}
 		return now.Format("2006-01-02")
 	}
-	var bounded, mined []anomaly // the two classes have a room of their own (D-206)
+	var bounded, mined []anomaly // the two classes have a room of their own
 	for _, a := range items {
 		switch {
 		case sent[sentKey(a.Kind, a.Signature, ref(a))]:

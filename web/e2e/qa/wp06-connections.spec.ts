@@ -3,7 +3,7 @@ import { collectErrors, expectAccessible } from '../helpers'
 import { begin, BRANDS, noHScroll, stepper, THEMES } from './wp06-shared'
 
 // WP-06 independent check, area 1: "As the admin I add a connection of each kind so the AI (and response actions) can reach my equipment."
-// Settings -> Connections (core, D-93). D-58: generic kinds, no vendor kinds or defaults. The command-started MCP kind is not supported (D-94): its option is locked.
+// Settings -> Connections (core). Generic kinds, no vendor kinds or defaults. The command-started MCP kind is not supported: its option is locked.
 const KINDS = [
   { label: 'HTTP API', value: 'http', auth: ['none', 'token', 'basic'], target: 'https://192.168.10.1' },
   { label: 'SSH / CLI', value: 'ssh', auth: ['ssh-key', 'basic'], target: '192.168.10.30:22' },

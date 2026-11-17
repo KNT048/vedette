@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-// Offline bundles (D-452): what core writes at <core_data>/bundles/<id>.tar, built in the test.
+// Offline bundles: what core writes at <core_data>/bundles/<id>.tar, built in the test.
 
 // TarEntry is one entry of a tar the test builds. Type defaults to a regular file.
 type TarEntry struct {

@@ -1,7 +1,7 @@
 // Package scan is the vulnerability-scan module (S-SCAN-1..4, modules/scan/CONTRACT.md): it confirms exploited
 // vulnerabilities with safe nuclei templates on devices inside the confirmed scope, inside the time window, at the
 // rate and with the exclusions the admin set, and keeps the probe log. Consent and scope stay here, in core; nuclei
-// itself is a pinned binary run by the worker in the scan container (D-113, D-125), reached through Engine.
+// itself is a pinned binary run by the worker in the scan container, reached through Engine.
 package scan
 
 import (

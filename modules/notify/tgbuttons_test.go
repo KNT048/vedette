@@ -135,7 +135,7 @@ func TestContract_POST8_TelegramButtonsRemovedWhenFinallyDecided(t *testing.T) {
 	}
 }
 
-// Events are best effort (D-144): a request whose decision event was lost still loses its buttons once it has ended.
+// Events are best effort: a request whose decision event was lost still loses its buttons once it has ended.
 func TestTelegramButtonsRemovedWhenTheRequestEnds(t *testing.T) {
 	te := newTGEnv(t)
 	te.request("act-1")

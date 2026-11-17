@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// vedette-host -bootstrap (D-142): the first install, one shot, from the installer, as root. It never
+// vedette-host -bootstrap: the first install, one shot, from the installer, as root. It never
 // listens and is not reachable through the socket. The installer reads the exit code and the one line
 // on stderr ("vedette-host: bootstrap: <code>: <message>"); nothing secret is ever printed.
 //

@@ -16,14 +16,14 @@ const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4, unkno
 export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boolean }) {
   const { t } = useTranslation('exposure')
   // A match on a distribution package (backport) weighs less: it is counted apart and shown in the neutral tone.
-  // A JavaScript library's CVE runs in the visitors' browsers, not in the service on that port (D-565, review r1 M1), and a Greenbone
+  // A JavaScript library's CVE runs in the visitors' browsers, not in the service on that port, and a Greenbone
   // row repeats a CVE, it is not one more: neither is counted on the service.
   const on = (r: ServiceRow) => s.vulns.filter((v) => v.ip === r.ip && v.port === r.port && v.basis !== 'js_library' && v.basis !== 'greenbone')
   const count = (r: ServiceRow) => on(r).filter((v) => !v.backport).length
   const maybe = (r: ServiceRow) => on(r).filter((v) => v.backport).length
   // INV-22: a service or CVE on a port kept from an earlier scan carries the port's mark
   const mark = (ip: string, port: number) => <PortMark p={s.ports.find((x) => x.ip === ip && x.port === port) ?? {}} />
-  // D-571: a domain's services and CVEs are on several addresses (its deep scan): each row says which
+  // A domain's services and CVEs are on several addresses (its deep scan): each row says which
   const ipCol = <T extends { ip: string }>(): ColumnDef<T>[] => (domain ? [{ id: 'ip', header: t('col.ip'), accessorFn: (r) => r.ip, cell: ({ row }) => <span className="font-mono text-meta">{row.original.ip}</span> }] : [])
   const portOf = (r: ServiceRow) => s.ports.find((x) => x.ip === r.ip && x.port === r.port)
   const view = (r: ServiceRow) => {
@@ -57,7 +57,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
     ) },
     { id: 'why', header: t('col.why'), enableSorting: false, accessorFn: (r) => r.summary, cell: ({ row }) => <span className="text-meta">{row.original.summary}</span> },
   ]
-  // D-527 (deep scan, testing terms accepted): what nuclei's deep templates matched (an exposed .git, an admin panel, a technology).
+  // deep scan, testing terms accepted: what nuclei's deep templates matched (an exposed .git, an admin panel, a technology).
   // A matched row of a CVE the list above already shows as "Confirmed by template" is not repeated.
   const deep = (s.templates ?? []) // a snapshot read from an older box may not carry the list
     .filter((r) => r.severity !== undefined && r.outcome === 'matched' && !(r.cve && s.vulns.some((v) => v.ip === r.ip && v.port === r.port && v.cve === r.cve)))
@@ -70,7 +70,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row }) => row.original.cve || null },
   ]
   const why = s.not_checked.find((n) => n.kind === 'services' || n.kind === 'cve')
-  // D-522 (TUNE-1a review M1): identification did not complete, so the title must not read as "nothing is there"
+  // TUNE-1a review M1: identification did not complete, so the title must not read as "nothing is there"
   const unidentified = why?.kind === 'services'
   const desc = domain ? (s.services.length > 0 ? 'vulns.descriptionDomainDeep' : 'vulns.descriptionDomain') : 'vulns.description'
   return (

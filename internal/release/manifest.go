@@ -8,11 +8,11 @@ import (
 	"github.com/knt048/vedette/internal/jsonstrict"
 )
 
-// RegistryPrefix is the only registry and repository family images come from (D-104 (1)); the host
+// RegistryPrefix is the only registry and repository family images come from; the host
 // builds pull references from it and a digest, never from the manifest's ref string.
 const RegistryPrefix = "ghcr.io/knt048/vedette-"
 
-// Services is the closed set of image services (D-55).
+// Services is the closed set of image services.
 var Services = []string{"core", "sensor", "honeypot", "scan", "greenbone"}
 
 // ImageRef is the ref a manifest must carry for service at version.
@@ -94,8 +94,8 @@ type Bundled struct {
 	Service string `json:"service"`
 	Name    string `json:"name"`
 	Version string `json:"version"`
-	// SHA256 and License are optional (D-146): the SHA-256 of the pinned file (nuclei's binary) or of the pack's index label, and the SPDX
-	// licence of what is in the signed image. nmap never appears here (D-4, D-113 (7)).
+	// SHA256 and License are optional: the SHA-256 of the pinned file (nuclei's binary) or of the pack's index label, and the SPDX
+	// licence of what is in the signed image. nmap never appears here.
 	SHA256  string `json:"sha256,omitempty"`
 	License string `json:"license,omitempty"`
 }

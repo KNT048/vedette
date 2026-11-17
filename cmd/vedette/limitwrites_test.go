@@ -14,7 +14,7 @@ import (
 )
 
 // A sensor link request gets the writer wait limit: while another transaction holds the writer, its write answers ErrBusy
-// (which the sensor backends turn into 503 store_busy) instead of waiting for the request's whole deadline (D-246).
+// (which the sensor backends turn into 503 store_busy) instead of waiting for the request's whole deadline.
 func TestLimitWritesGivesSensorRequestsTheWaitLimit(t *testing.T) {
 	db := storetest.New(t)
 	taken, free, held := make(chan struct{}), make(chan struct{}), make(chan error, 1)

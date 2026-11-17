@@ -1,6 +1,6 @@
 package channel
 
-// The reply listener of the Zalo personal channel (slice 4b, D-243): the message connection of the Zalo web client, read from zca-js
+// The reply listener of the Zalo personal channel (slice 4b): the message connection of the Zalo web client, read from zca-js
 // v2.2.0 `listen.ts` (MIT) and re-implemented here. EXPERIMENTAL: nothing in it is documented by Zalo and it has not been checked
 // against a real account yet. Everything that comes in is untrusted: frames are
 // capped, decoding fails closed, a frame that cannot be read is skipped, and only direct text messages from another account leave
@@ -66,7 +66,7 @@ type ZaloConn struct {
 }
 
 // ZaloListen opens the message connection of the Zalo personal channel whose sender is snd, over its session: same sign-in, same
-// sign-in pause, so a sign-in the listener needs is rationed with the sends (D-46). The address comes from the sign-in answer
+// sign-in pause, so a sign-in the listener needs is rationed with the sends. The address comes from the sign-in answer
 // (zpw_ws), checked like every Zalo address before any cookie goes to it.
 func ZaloListen(ctx context.Context, snd Sender) (*ZaloConn, error) {
 	z, ok := snd.(*zaloPersonalSender)

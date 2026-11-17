@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/host/ops"
 )
 
-// The gate between the unit text vedette-host writes for scan and sensor (host/ops/quadlet.go, D-123 L3) and
+// The gate between the unit text vedette-host writes for scan and sensor (host/ops/quadlet.go) and
 // this binary: the subcommand is one the binary has, its flags parse with the real flag set, and the creds path
 // it names is the container side of the unit's own read-only keys volume.
 func unitLines(t *testing.T, svc string) (execLine string, volumes []string) {
@@ -52,7 +52,7 @@ func TestScanUnitExecParsesWithTheRealFlagsAndAgreesWithItsMount(t *testing.T) {
 	if !strings.HasPrefix(*f.core, "https://127.0.0.1:8444") {
 		t.Errorf("-core %q: core's sensor listener is published on 127.0.0.1:8444 only", *f.core)
 	}
-	// two read-only mounts: the keys volume, and the domain fence key's copy (D-591) where -fence-key's default looks for it
+	// two read-only mounts: the keys volume, and the domain fence key's copy where -fence-key's default looks for it
 	if len(volumes) != 2 || !strings.HasSuffix(volumes[0], ":ro") || !strings.HasPrefix(*f.creds, strings.Split(volumes[0], ":")[1]+"/") {
 		t.Errorf("-creds %q is not under the read-only keys volume %v", *f.creds, volumes)
 	}
@@ -64,7 +64,7 @@ func TestScanUnitExecParsesWithTheRealFlagsAndAgreesWithItsMount(t *testing.T) {
 	}
 }
 
-// D-125 (2), D-136 (5): the unit's root file system is read-only, so nuclei's HOME (the worker empties it before every run) must be
+// The unit's root file system is read-only, so nuclei's HOME (the worker empties it before every run) must be
 // on the unit's tmpfs; the binary and the pack index are paths of the image, not of a volume. The unit needs no flag for them: the
 // defaults are the paths the scan image is built with (SP-5).
 func TestScanUnitLeavesNucleiToItsDefaultsOnItsTmpfs(t *testing.T) {
@@ -109,7 +109,7 @@ func TestSensorUnitExecParsesWithTheRealFlagsAndAgreesWithItsMountAndCore(t *tes
 	if len(volumes) != 1 || !strings.HasSuffix(volumes[0], ":ro") || !strings.HasPrefix(*f.creds, strings.Split(volumes[0], ":")[1]+"/") {
 		t.Errorf("-creds %q is not under the read-only keys volume %v", *f.creds, volumes)
 	}
-	// D-146: --replay is for the compose dev stack only; no production unit may pass it (it would capture a recording, not the LAN)
+	// --replay is for the compose dev stack only; no production unit may pass it (it would capture a recording, not the LAN)
 	for _, svc := range []string{"sensor", "scan", "core", "honeypot"} {
 		text, err := ops.RenderUnit(svc, "sha256:"+strings.Repeat("a", 64), true, 10001, 10002, 10003, 10004)
 		if err != nil {

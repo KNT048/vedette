@@ -15,13 +15,13 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// chassisEvidence marks the mac observation a join leaves on the device it joined into (D-515): the chassis (base) MAC an LLDP
+// chassisEvidence marks the mac observation a join leaves on the device it joined into: the chassis (base) MAC an LLDP
 // frame names. It never becomes the device's MAC (RecomputeAsset skips it), and an observation that names only this MAC finds
 // that device again instead of making a new one (resolve).
 const chassisEvidence = "chassis"
 
 // chassisBlock is how far above the base (chassis) MAC a switch numbers the MACs of its interfaces: Juniper, Cisco and HPE give
-// each interface, the management port included, a MAC from a block that starts at the base MAC (D-515).
+// each interface, the management port included, a MAC from a block that starts at the base MAC.
 const chassisBlock = 0x7f
 
 // netGear are the kinds an LLDP frame gives a network device that has a base MAC (capabilities Bridge, Router, WLAN AP), and a
@@ -32,11 +32,11 @@ var netGear = []string{"switch", "router", "ap", "firewall"}
 // not the same device (review M1 of #722).
 var defaultNames = []string{"switch", "router", "ap", "gateway", "localhost", "mikrotik", "amnesiac"}
 
-// sameDevice finds the device a device seen without an address is part of (D-515, W1-37): a switch heard by LLDP under its chassis
+// sameDevice finds the device a device seen without an address is part of: a switch heard by LLDP under its chassis
 // MAC is the device that answers ARP and scans on its management address under another MAC of the same chassis. From strongest:
 // (b) the same host name (LLDP system name), not a default name, on a device whose MAC shares the first four bytes; (c) the chassis
 // MAC is the base of a block that holds the other device's MAC: same first five bytes, within chassisBlock above. Rule (a), the LLDP
-// management address, waits for the sensor protocol to carry it (D-515). Only a discovered device with a MAC, no IP and a network
+// management address, waits for the sensor protocol to carry it. Only a discovered device with a MAC, no IP and a network
 // kind joins; only into a device with an IP that is not the box, whose name, model and OS (as stated, not guessed by a scan) do not
 // differ from its own, and that holds no chassis mark of another MAC; and only when exactly one device fits. "" when none fits.
 func sameDevice(ctx context.Context, tx *sql.Tx, id string) (into, why string, err error) {
@@ -108,7 +108,7 @@ func sameDevice(ctx context.Context, tx *sql.Tx, id string) (into, why string, e
 const statedPassiveOS = 0.5
 
 // facts is what a device says about itself: the winning kind and host name of any source, and the winning model and OS of a
-// source that states them (a scan's fingerprint is a guess: the N100 switch states JUNOS 15.1R7.9 while nmap guesses JUNOS 12; so
+// source that states them (a scan's fingerprint is a guess: a lab switch states JUNOS 15.1R7.9 while nmap guesses JUNOS 12; so
 // is the OS family a DHCP request hints at).
 func facts(ctx context.Context, tx *sql.Tx, id string) (map[string]string, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?
@@ -152,8 +152,8 @@ func differ(a, b map[string]string) bool {
 	return false
 }
 
-// joinMode says what a join keeps of the row that goes: a chassis join (D-515) keeps its MAC as a mark on the other row; a join of
-// one machine's rows (D-598) keeps its MACs as plain observations (the newest wins, as for any field) and its address when it is the
+// joinMode says what a join keeps of the row that goes: a chassis join keeps its MAC as a mark on the other row; a join of
+// one machine's rows keeps its MACs as plain observations (the newest wins, as for any field) and its address when it is the
 // newer one.
 type joinMode int
 
@@ -162,7 +162,7 @@ const (
 	joinMachine
 )
 
-// joinInto moves device from into device into and deletes from (D-515, D-598): its observations (the MAC as the chassis mark in a
+// joinInto moves device from into device into and deletes from: its observations (the MAC as the chassis mark in a
 // chassis join), software and open ports; the suspicious flag, the notes and the scan choices a person made on it when into has none;
 // the agent bound to it when into has none. The approval never moves (review H1 of #722): a device that joins an approved row would
 // otherwise be approved by a MAC anyone can pick, so a person approves the joined device. The one exception is a machine join
@@ -170,19 +170,19 @@ const (
 // a row a person declared (origin manual, review r1 L1 of #955): keptOrder keeps it first, so a watched, approved from (an agent
 // enrolment's approval, a person's) carries its approval onto it, unless a mark makes the joined row suspicious. No MAC picked a
 // declared row; without this a declared row Unignore left unapproved would drop the enrolment's approval for good. An ignored from's
-// approval never carries (review r1 M1 of #959, D-630: a device a person stopped watching approves nothing), and a chassis join never
+// approval never carries (a device a person stopped watching approves nothing), and a chassis join never
 // carries (review r1 L1 of #959: sameDevice picks into by LLDP name or MAC block, the H1 surface, not keptOrder). One audit row inventory.merge. into keeps
 // its id; in a chassis join also its address and MAC; in a machine join it takes from's address when from was seen later and into is
 // a discovered device (a person's address and the box's stay). The fields are folded again by the usual rules (RecomputeAsset).
-// A join never changes whether into is watched (D-630, review r1 M3 of #945): into keeps its own ignored_at. When the two rows
+// A join never changes whether into is watched: into keeps its own ignored_at. When the two rows
 // differ the audit row says so and the caller publishes watchEvent for into, so the findings moved from from follow into's state
 // (inventory.asset.ignored closes them on an ignored into; inventory.asset.unignored reopens on a watched into the ones Ignore closed).
 func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode) (string, error) {
 	return s.joinAs(ctx, tx, from, into, why, mode, systemActor)
 }
 
-// joinAs is joinInto with the audit row written as actor: systemActor for the join rules, the person who merged two rows (D-599). It
-// returns the event the caller publishes for into after the merge events when the two rows differed in being ignored (D-630): ""
+// joinAs is joinInto with the audit row written as actor: systemActor for the join rules, the person who merged two rows. It
+// returns the event the caller publishes for into after the merge events when the two rows differed in being ignored: ""
 // when they did not.
 func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode, actor string) (watchEvent string, err error) {
 	fromName, intoName := deviceName(ctx, tx, from), deviceName(ctx, tx, into)
@@ -354,8 +354,8 @@ func lastByte(mac string) int {
 	return int(b)
 }
 
-// joinSame runs the join rules on every device a Record batch touched and joins each pair that fits: sameDevice (D-515, the touched
-// row goes), agentOrphan and sameMachine (D-598, either row may go). It returns the devices that are gone and those that received
+// joinSame runs the join rules on every device a Record batch touched and joins each pair that fits: sameDevice (the touched
+// row goes), agentOrphan and sameMachine (either row may go). It returns the devices that are gone and those that received
 // one. A joined device created in this very batch was never announced; an older one is announced merged (findings moves its findings,
 // with their status and history, to the device that received it; review H2 of #722) and then deleted (the other listeners drop it,
 // notify closes its new-device incident; findings has nothing left to delete). The device that received it is matched again.
@@ -390,7 +390,7 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 		if created[from] == "" {
 			o.add(EventAssetMerged, MergeEvent{From: from, Into: into, Actor: systemActor})
 			o.add(EventAssetDeleted, AssetEvent{AssetID: from})
-			if watch != "" { // D-630: the moved findings follow into's watch state
+			if watch != "" { // The moved findings follow into's watch state
 				o.add(watch, AssetEvent{AssetID: into})
 			}
 		}
@@ -399,7 +399,7 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 }
 
 // sameAs finds the pair of rows a touched row is part of: from goes into into. "" when none fits. A pair a person kept separate
-// (D-599, inv_separate) is never joined by any rule.
+// (inv_separate) is never joined by any rule.
 func sameAs(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, into, why string, mode joinMode, err error) {
 	if into, why, err = sameDevice(ctx, tx, id); err != nil {
 		return "", "", "", 0, err
@@ -440,7 +440,7 @@ func sameAs(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, in
 	return from, into, why, joinMachine, err
 }
 
-// genericNames are host names many machines carry out of the box (D-598), with or without a number a name service added
+// genericNames are host names many machines carry out of the box, with or without a number a name service added
 // ("MacBook-Pro-2", Bonjour's answer to a clash): two devices that share one are not the same device.
 var genericNames = regexp.MustCompile(`^(iphone|ipad|ipod|imac|mac|macbook|macbook-air|macbook-pro|mac-mini|mac-studio|mac-pro|android|galaxy|pixel|` +
 	`pc|desktop|laptop|notebook|windows|ubuntu|debian|fedora|raspberrypi|host|client|device|unknown|none|localhost|esp32|esp8266|espressif|tasmota|` +
@@ -454,8 +454,8 @@ var defaultPrefixes = regexp.MustCompile(`^(galaxy|pixel|redmi|oneplus|xiaomi|hu
 // ipLikeName is a name made from an address ("dhcp-192-168-1-20"): it names the lease, not the machine.
 var ipLikeName = regexp.MustCompile(`\d{1,3}[-._]\d{1,3}[-._]\d{1,3}[-._]\d{1,3}`)
 
-// machineName is the part of a host name that identifies a machine (D-598): its first label, lower case ("Kiens-MacBook-Air.local" ->
-// "kiens-macbook-air"); "" for a name too short, generic or made by the system (genericNames, defaultPrefixes), made of an address,
+// machineName is the part of a host name that identifies a machine: its first label, lower case ("Annas-MacBook-Air.local" ->
+// "annas-macbook-air"); "" for a name too short, generic or made by the system (genericNames, defaultPrefixes), made of an address,
 // or only an identifier (uuidName).
 func machineName(h string) string {
 	l, _, _ := strings.Cut(strings.TrimSpace(h), ".")
@@ -483,13 +483,13 @@ func macKinds(ctx context.Context, tx *sql.Tx, id string) (burned, private bool,
 	return b > 0, p > 0, nil
 }
 
-// rotationQuiet is how long the row a private address left must have been silent before another row of its name joins it (D-598,
-// review #831 M2): a rotation never shows the old and the new address at once, two machines of one name do. It is longer than the
+// rotationQuiet is how long the row a private address left must have been silent before another row of its name joins it:
+// a rotation never shows the old and the new address at once, two machines of one name do. It is longer than the
 // passive sensor's 15 minutes between two sends of the same observation (sensor-passive repeatAfter), so a phone that is online but
 // says nothing new is not taken for gone.
 const rotationQuiet = 20 * time.Minute
 
-// sameMachine finds the other row of a machine whose Wi-Fi address is private (D-598): macOS, iOS, Android and Windows pick a locally
+// sameMachine finds the other row of a machine whose Wi-Fi address is private: macOS, iOS, Android and Windows pick a locally
 // administered MAC per network or per day, DHCP then gives a new address, and every new MAC made a new row. Two rows are one machine
 // when **both** carry a private MAC and neither a burned-in one (a row known only by address, a declared row without a MAC, a server:
 // never; review #831 H1), they carry the same host name (machineName: first label, any case; not generic or system-made) and state
@@ -543,7 +543,7 @@ func sameMachine(ctx context.Context, tx *sql.Tx, id string, now time.Time) (fro
 	if len(fits) != 1 {
 		return "", "", "", nil
 	}
-	// A pair a person kept separate (D-599) still counts above: it keeps the name ambiguous for any third row (review r2 of #871 M1).
+	// A pair a person kept separate still counts above: it keeps the name ambiguous for any third row (review r2 of #871 M1).
 	if apart, err := keptApart(ctx, tx, id, fits[0]); apart || err != nil {
 		return "", "", "", err
 	}
@@ -593,10 +593,10 @@ func onlineTogether(ctx context.Context, tx *sql.Tx, a, b string, now time.Time)
 	return earlier.Sub(start) >= rotationQuiet, nil
 }
 
-// macMemory bounds how old the other row's sighting of the shared MAC may be (D-598 (4), n69): past 30 days a MAC is a stranger's again.
+// macMemory bounds how old the other row's sighting of the shared MAC may be: past 30 days a MAC is a stranger's again.
 const macMemory = 30 * 24 * time.Hour
 
-// wireMAC selects the mac observations a sensor made on the wire: not the agent's own claim (D-265 (4)), not a chassis mark (D-515).
+// wireMAC selects the mac observations a sensor made on the wire: not the agent's own claim, not a chassis mark.
 const wireMAC = `field = 'mac' AND source <> 'agent' AND evidence IS NOT '` + chassisEvidence + `'`
 
 // macHolders lists the devices but except and the box that a sensor saw with mac since. The partial index inv_observation_mac_ix
@@ -634,11 +634,11 @@ func agentCardIs(ctx context.Context, tx *sql.Tx, id, mac string) (bool, error) 
 	return card.Valid && card.String == mac, nil
 }
 
-// sameMAC finds the other row of a machine whose newest MAC another row already owned (D-598 (4), n69). resolve finds a device by its
+// sameMAC finds the other row of a machine whose newest MAC another row already owned. resolve finds a device by its
 // MAC column, and RecomputeAsset never gives a row a MAC another row owns: so when a device's newest MAC was blocked (an older build kept
 // a scan's two-day-old MAC as the device's MAC while the name rule had joined the new private MAC into it), the next sighting of that
 // MAC made a second row. Two rows are joined only when the MAC a sensor saw **last** on each is the same locally administered MAC, the
-// other row's sighting of it is within macMemory, and no other row holds it; neither row carries a burned-in MAC (D-598: a private MAC
+// other row's sighting of it is within macMemory, and no other row holds it; neither row carries a burned-in MAC (a private MAC
 // never joins a burned-in-MAC device); they state no other name, model or OS (facts, differ); they were not online together
 // (onlineTogether); never the box. An older MAC of a device is no key (review r1 of #862 H1): a machine that takes one while the device
 // is away is a device of its own and is announced, as on main; a device that goes back to an older MAC is joined by the name rule
@@ -667,7 +667,7 @@ func sameMAC(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, i
 	if theirs, err := newestWireMAC(ctx, tx, other); err != nil || theirs != shared {
 		return "", "", "", err
 	}
-	for _, x := range []string{id, other} { // a burned-in MAC (shared or not) is a switch, a proxy or a server, never a rotation (D-515, D-598)
+	for _, x := range []string{id, other} { // a burned-in MAC (shared or not) is a switch, a proxy or a server, never a rotation
 		if burned, _, err := macKinds(ctx, tx, x); burned || err != nil {
 			return "", "", "", err
 		}
@@ -694,8 +694,8 @@ func sameMAC(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, i
 	return from, into, "a sensor saw both last with the MAC " + shared, nil
 }
 
-// keptOrder orders two rows of one machine (D-598): the row that stays is one a person declared, else an approved row a person
-// watches when the other is ignored (D-630, review r2 N2 of #945: a join never hides a watched server's findings behind an ignored
+// keptOrder orders two rows of one machine: the row that stays is one a person declared, else an approved row a person
+// watches when the other is ignored (a join never hides a watched server's findings behind an ignored
 // duplicate; a declared row that is ignored stays and joinAs watches it again, review r1 L1 of #948), else an approved one, else the
 // older one (first_seen, then the smaller id); so a person's approval, an enrolment's and a declared address stay where they are. ""
 // when both were declared (a person keeps them apart).
@@ -742,12 +742,12 @@ func keptOrder(ctx context.Context, tx *sql.Tx, x, y string) (from, into string,
 	return a.id, b.id, nil
 }
 
-// agentOrphan finds the row an agent made at an address no device held yet, which has since lost that address (D-598): the agent
+// agentOrphan finds the row an agent made at an address no device held yet, which has since lost that address: the agent
 // connected from the address and said its card there has MAC M (agent-intake INV-12 checks the address against the agent's own
 // interfaces); M could not become the row's MAC because this device owns it; and a sensor that saw a known MAC at the address took
 // the address away (claimIP: a sensor's MAC outranks an address-only row). Such a row has no address and no MAC, only the agent's
 // mac observation M, and joins the device that owns M. A row that still has its address is left alone: an agent's MAC claim on its
-// own never moves a report (INV-12, D-265 (4)). Exactly one such row; never the box. Also the other way round: a row with no address
+// own never moves a report (INV-12). Exactly one such row; never the box. Also the other way round: a row with no address
 // whose MAC is the card this device's bound agent reports now (see below).
 func agentOrphan(ctx context.Context, tx *sql.Tx, id string) (string, string, error) {
 	var mac sql.NullString

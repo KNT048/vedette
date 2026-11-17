@@ -7,7 +7,7 @@ depends: [core, inventory, feeds]
 soft_depends: [notify, ai, scan, logs, honeypot]   # notify: gửi email theo lịch (MODULES.md chưa liệt kê, xem câu hỏi mở 1); ai: nhận xét; scan/logs/honeypot: nguồn số liệu nếu có
 permissions: []
 ports: []
-container: core        # D-55; PDF do trình duyệt in (CSS @media print), không thư viện PDF phía máy chủ
+container: core        # PDF do trình duyệt in (CSS @media print), không thư viện PDF phía máy chủ
 tables_prefix: rep_
 tables: [rep_schedule, rep_history, rep_weekly_ai, rep_pdpl]
 stories: [S-REP-1, S-REP-2]

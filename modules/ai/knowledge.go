@@ -19,7 +19,7 @@ import (
 
 // Slice 4c of WP-25 (S-AI-7, INV-10): the documents an administrator gave the box (ai_knowledge_doc), their text in pieces
 // (ai_knowledge_chunk + the FTS5 index) and the profile chosen to "build the index" (ai_setting key `knowledge`). The index is built on
-// the box and sends nothing anywhere; the profile is kept for the day an embedding index needs one (D-209). The original file is
+// the box and sends nothing anywhere; the profile is kept for the day an embedding index needs one. The original file is
 // never stored. What a prompt may take from the pieces is in knowledge_rag.go.
 
 // Limits of the knowledge base (the mock is the contract).

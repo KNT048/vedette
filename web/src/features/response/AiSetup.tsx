@@ -20,13 +20,13 @@ import { errText, useAiAssignments, useBlocklist, useCatalog, usePlans, useSaveA
 import { EnableDialog } from './ResponseSettings'
 import type { Blocklist, CatalogAction, PlannerStatus, SettingsView, TriggerInfo } from './types'
 
-// "Let the AI propose actions" (item 20, S-RESP-2, D-513): one page of the five things the plan job needs before an AI proposal reaches the
+// "Let the AI propose actions" (item 20, S-RESP-2): one page of the five things the plan job needs before an AI proposal reaches the
 // inbox, each with its status, what leaves the box (PRIVACY.md rows 3, 5, 12), and the same control the settings screens have. Nothing here
 // lets the AI approve, enable or widen anything: every step is a person's setting, every action still needs a person to approve it.
 
-/** The plan job proposes only actions whose every value is the device's address (aboutTheDevice, D-181). */
+/** The plan job proposes only actions whose every value is the device's address (aboutTheDevice). */
 const aiOfferable = (a: CatalogAction) => a.params.length > 0 && a.params.every((p) => p === 'ip')
-/** The only trigger the box asks the AI about today: the plan job of critical findings (modules/response/planner.go, D-310). */
+/** The only trigger the box asks the AI about today: the plan job of critical findings (modules/response/planner.go). */
 const ASKED = ['finding']
 const link = 'text-accent underline underline-offset-4'
 
@@ -81,7 +81,7 @@ function ProfileStep({ done, admin, ready }: { done: boolean; admin: boolean; re
               {usable.map((p) => <option key={p.id} value={p.id} disabled={!allowed(p.location)}>{p.name} ({p.model}){allowed(p.location) ? '' : ` · ${t('setup.profile.cloudBlocked')}`}</option>)}
             </Select>
             <Link className={`text-meta ${link}`} to="/settings/ai#ai-routing">{t('setup.profile.toAi')}</Link>
-            {/* a plan written before steps 1, 2 and 4 is never sent (one plan per finding, D-314): the setup waits for them; the AI page still sets it */}
+            {/* a plan written before steps 1, 2 and 4 is never sent (one plan per finding): the setup waits for them; the AI page still sets it */}
             {ready ? null : <p id="setup-profile-wait" className="basis-full text-meta text-warn">{t('setup.profile.wait')}</p>}
           </div>
         ) : null}
@@ -179,7 +179,7 @@ function useSetup() {
   const ready = (a: CatalogAction) => aiOfferable(a) && a.enabled && a.available
   const pulled = blocklist.data?.last_fetch
   // Only a device action counts: the block list never publishes a LAN address, so the plan job never offers it for a device on your
-  // network (offeredFor, D-469), and a critical finding there would get a plan with no action for good. Switching the action on is step 2.
+  // network (offeredFor), and a critical finding there would get a plan with no action for good. Switching the action on is step 2.
   const device = cat.some((a) => a.device && aiOfferable(a) && a.available)
   const connected = device ? true : admin ? false : undefined // the block list read is admin-only: a non-admin cannot tell more
   const chosen = !!triggers.data.items.find((x) => x.id === 'finding')?.ai_allowed && cat.some((a) => a.device && ready(a) && a.ai_may_propose)
@@ -201,7 +201,7 @@ export function AiSetup({ compact = false }: { compact?: boolean }) {
   const steps = (
     <ol className="grid">
       {/* The profile is last: it starts the AI, which writes one plan per finding and sends its actions only if steps 1, 2 and 4 are done at
-          that moment (D-314), so the setup offers it only after steps 1, 2 and 4; a plan written earlier stays in the plan list, where a person asks for approval (D-513). */}
+          that moment, so the setup offers it only after steps 1, 2 and 4; a plan written earlier stays in the plan list, where a person asks for approval. */}
       <ConnectStep cat={x.cat} pulled={x.pulled} done={x.connected} admin={x.admin} />
       <ChooseStep cat={x.cat} s={x.s} triggers={x.triggers} done={x.chosen} admin={x.admin} />
       <ApproverStep s={x.s} />
@@ -230,7 +230,7 @@ const OUTCOME_TONE: Record<PlannerStatus['findings'][number]['outcome'], Tone> =
   proposed: 'ok', noted: 'accent', refused: 'warn', not_sent: 'warn', no_action: 'warn', plan_refused: 'warn', ai_failed: 'danger', ai_unavailable: 'danger', has_plan: 'off', backed_off: 'off', later: 'off',
 }
 
-/** Why the inbox is empty: what the plan job did on its last run, and which triggers the AI may use (D-119). */
+/** Why the inbox is empty: what the plan job did on its last run, and which triggers the AI may use. */
 export function InboxWhy() {
   const { t } = useTranslation('response')
   const plans = usePlans()

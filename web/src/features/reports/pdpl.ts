@@ -32,7 +32,7 @@ export function buildPdpl(org: PdplOrg): PdplReport {
   const rdp = assets.filter((a) => a.services.some((s) => s.port === 3389))
   const unapproved = assets.filter((a) => !a.approved)
   const m = (id: Measure['id'], status: Measure['status'], list: string[] = []): Measure => ({ id, status, n: list.length, names: list.slice(0, 4) })
-  // Mirrors modules/reports/pdpl.go (D-237): something found is "attention"; nothing found is "ok" only when the box could look.
+  // Mirrors modules/reports/pdpl.go: something found is "attention"; nothing found is "ok" only when the box could look.
   const seen = (list: string[], ...needs: ModuleId[]): Measure['status'] => (list.length ? 'attention' : assets.length === 0 || needs.some((n) => !isOn(n)) ? 'unknown' : 'ok')
   const measures: Measure[] = [
     m('firewall', assets.some((a) => actsAs(a.kind) === 'firewall') ? 'ok' : assets.length === 0 ? 'unknown' : 'attention'),

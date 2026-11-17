@@ -9,10 +9,10 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// #829 (J2): the address is an attribute of a device, never its identity.
+// #829: the address is an attribute of a device, never its identity.
 
 const (
-	xenMAC = "00:16:3e:5a:01:01" // burned in (Xensource OUI): the N100 C1 walk
+	xenMAC = "00:16:3e:5a:01:01" // burned in (Xensource OUI)
 	router = "3c:22:fb:00:00:fe" // another device the discovery sweep finds, so the sweep is known to run
 )
 
@@ -41,7 +41,7 @@ func (e *env) device(id string) inventory.Device {
 	return d
 }
 
-// C1 (the N100 walk on n70): a device added by hand with its address only binds the MAC first seen at that address, whatever the order
+// A device added by hand with its address only binds the MAC first seen at that address, whatever the order
 // of the sensor's batch, and then follows that MAC to its new address: one device, its id, approval, notes and software kept, no
 // "new device". The bind is audited (inventory.bind_mac).
 func TestContract_829_AHandAddedDeviceFollowsItsMAC(t *testing.T) {
@@ -78,11 +78,11 @@ func TestContract_829_AnApprovedDeviceMoves(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "192.168.18.20", "nas")...)
 	id := e.idOf("192.168.18.20")
-	if err := e.svc.Approve(e.ctx(), "kien", id); err != nil {
+	if err := e.svc.Approve(e.ctx(), "anna", id); err != nil {
 		t.Fatal(err)
 	}
-	notes := "kien's NAS"
-	if err := e.svc.PatchDevice(e.ctx(), "kien", id, inventory.Patch{Notes: &notes}); err != nil {
+	notes := "anna's NAS"
+	if err := e.svc.PatchDevice(e.ctx(), "anna", id, inventory.Patch{Notes: &notes}); err != nil {
 		t.Fatal(err)
 	}
 	e.ev.reset()
@@ -109,7 +109,7 @@ func TestContract_829_AReusedAddressIsANewDevice(t *testing.T) {
 		} else {
 			e.record(arp(xenMAC, "192.168.18.201")...)
 			id = e.idOf("192.168.18.201")
-			if err := e.svc.Approve(e.ctx(), "kien", id); err != nil {
+			if err := e.svc.Approve(e.ctx(), "anna", id); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -202,7 +202,7 @@ func TestContract_829_ARecentAddressOnlyDeviceAdoptsItsMAC(t *testing.T) {
 
 // Gap 6 (C3): a sensor that sees an agent-bound machine at its new address before the agent's next report is a DHCP move, not a spoof:
 // the report from that address keeps the binding. (A report from another address than the one the sensor saw is still a spoof's:
-// TestContract_D598_ASpoofedBindingIsDropped.) A report by the agent's key alone (AssetHint.From) reaches the device only at the
+// TestContract_ASpoofedBindingIsDropped.) A report by the agent's key alone (AssetHint.From) reaches the device only at the
 // address a sensor saw it at, and moves nothing.
 func TestContract_829_AnAgentFollowsADHCPMoveASensorSawFirst(t *testing.T) {
 	e := newEnv(t)
@@ -255,7 +255,7 @@ func TestContract_829_AnAgentAtAStaleAddress(t *testing.T) {
 		}
 		e.record(dhcp(burnt1, "192.168.18.20", "")...)
 		id := e.idOf("192.168.18.20")
-		if err := e.svc.Approve(e.ctx(), "kien", id); err != nil {
+		if err := e.svc.Approve(e.ctx(), "anna", id); err != nil {
 			t.Fatal(err)
 		}
 		e.tick(73 * time.Hour)
@@ -330,7 +330,7 @@ func TestContract_829_AHandAddedDeviceBindsOnlyABurnedInMACSoon(t *testing.T) {
 	}
 }
 
-// Review r1 M1 of #872 (the n70 data on the N100): the MAC of a hand-added device was seen before its address (a MAC-only hint in an
+// #872 (test box data): the MAC of a hand-added device was seen before its address (a MAC-only hint in an
 // earlier batch, an LLDP frame), so a waiting discovered device holds it with no address. The next sighting of that MAC at the
 // hand-added address folds the waiting one into the hand-added device: one device, the hand-added id, approval and name, the MAC, the
 // address; the waiting one is announced merged then deleted, so its "new device" incident closes.
@@ -358,12 +358,12 @@ func TestContract_829_AWaitingDuplicateJoinsTheHandAddedDevice(t *testing.T) {
 	if d := e.only(); d.ID != id || d.IP != "192.168.18.202" {
 		t.Errorf("after the move: id %s ip %s", d.ID, d.IP)
 	}
-	// A pair a person kept separate (D-599) is never folded.
+	// A pair a person kept separate is never folded.
 	{
 		e := newEnv(t)
 		hand := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201"})
 		e.record(arp(xenMAC, "192.168.18.201")[:1]...)
-		if err := e.svc.KeepSeparate(e.ctx(), "kien", hand, e.idByMAC(xenMAC)); err != nil {
+		if err := e.svc.KeepSeparate(e.ctx(), "anna", hand, e.idByMAC(xenMAC)); err != nil {
 			t.Fatal(err)
 		}
 		e.record(dhcp(xenMAC, "192.168.18.201", "")...)
@@ -392,7 +392,7 @@ func TestContract_829_AWaitingDuplicateJoinsTheHandAddedDevice(t *testing.T) {
 		if approved {
 			mac = xenMAC
 			e.record(arp(mac, "192.168.18.201")[:1]...)
-			if err := e.svc.Approve(e.ctx(), "kien", e.idByMAC(mac)); err != nil {
+			if err := e.svc.Approve(e.ctx(), "anna", e.idByMAC(mac)); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -440,7 +440,7 @@ func TestContract_829_ADeviceTheSweepSkipsKeepsItsFacts(t *testing.T) {
 			e.record(dhcp(burnt1, "192.168.18.21", "")...)
 			id := e.idOf("192.168.18.21")
 			kind := "printer"
-			if err := e.svc.PatchDevice(e.ctx(), "kien", id, inventory.Patch{Kind: &kind}); err != nil {
+			if err := e.svc.PatchDevice(e.ctx(), "anna", id, inventory.Patch{Kind: &kind}); err != nil {
 				e.t.Fatal(err)
 			}
 			if err := e.svc.MarkFirstScan(e.ctx(), id); err != nil {
@@ -477,13 +477,13 @@ func (e *env) updatedFor(id string) int {
 	return n
 }
 
-// #874 (D-512 (3)): a device that loses its address to another device, or moves to another address, is announced updated once, even
+// #874: a device that loses its address to another device, or moves to another address, is announced updated once, even
 // when nothing else of it changed, so a job holding the old address (an SNMP batch, an nmap run) stops; the newcomer is discovered.
 func TestContract_874_LosingOrChangingTheAddressIsAnnounced(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "192.168.18.205", "switch")...)
 	a := e.idOf("192.168.18.205")
-	if err := e.svc.Approve(e.ctx(), "kien", a); err != nil {
+	if err := e.svc.Approve(e.ctx(), "anna", a); err != nil {
 		t.Fatal(err)
 	}
 	e.ev.reset()

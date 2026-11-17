@@ -15,7 +15,7 @@ import (
 )
 
 // ZaloPersonalConfig is the stored configuration of the unofficial Zalo personal
-// channel (D-46). UserID is the numeric ID of the recipient (a person, or a group
+// channel. UserID is the numeric ID of the recipient (a person, or a group
 // when Group is true). Session is the secret: the JSON of a logged-in Zalo web
 // session, see parseZaloSession.
 //
@@ -42,7 +42,7 @@ const (
 )
 
 // BackoffError is returned while sign-ins are paused after a failed or refused
-// one (D-46: repeated sign-ins can get the account locked). Nothing was sent to
+// one (repeated sign-ins can get the account locked). Nothing was sent to
 // Zalo. Until is when the next sign-in is allowed.
 type BackoffError struct {
 	Channel Type
@@ -150,7 +150,7 @@ func ZaloPersonalTo(snd Sender, userID string) (Sender, error) {
 }
 
 // ZaloPhoneLike reports whether s has the form of a Vietnamese phone number (0 and 9 digits, or 84 and 9 digits, with or without +).
-// A reply carries the sender's user ID, never their phone number, so such an address could never match (D-242).
+// A reply carries the sender's user ID, never their phone number, so such an address could never match.
 func ZaloPhoneLike(s string) bool { return zaloPhoneRE.MatchString(s) }
 
 var zaloPhoneRE = regexp.MustCompile(`^(\+?84\d{9}|0\d{9})$`)

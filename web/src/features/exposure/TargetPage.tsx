@@ -32,7 +32,7 @@ const ANCHOR_TAB: Record<string, string> = { 'step-verify': 'ownership', 'step-c
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-// N49-1 (modules.md): the module's API is read only while the module is on.
+// modules.md: the module's API is read only while the module is on.
 export default function TargetPage() {
   return <RequireModule module="exposure" page><TargetLoader /></RequireModule>
 }
@@ -56,7 +56,7 @@ function TargetView({ target }: { target: Target }) {
   const [params, setParams] = useSearchParams()
   const running = useScanRun().data?.status === 'running'
   const admin = useCan('admin')
-  // D-473: an administrator's first Scan now is the D-26 confirmation. The sentence (version and text) comes from the API and is shown beside the button as received.
+  // An administrator's first Scan now is the scan confirmation. The sentence (version and text) comes from the API and is shown beside the button as received.
   const notice = target.blocked_reason === 'no_commitment' && admin ? target.commitment_notice : null
   // The page cannot tell an SSO sign-in (the identity provider owns MFA) from no two-step, so the server decides and the refusal is shown here with the way out.
   const needTwoStep = !!notice && scan.isError && (scan.error as { code?: string }).code === 'twofa_required'
@@ -83,7 +83,7 @@ function TargetView({ target }: { target: Target }) {
       onError: (e) => { if ((e as { code?: string }).code !== 'twofa_required') toast.error(errMsg(e)) },
     })
   }
-  // N100 finding (D-571): the line under Scan now says what the next scan really does: the deep scan once the testing terms are accepted
+  // The line under Scan now says what the next scan really does: the deep scan once the testing terms are accepted
   // (with or without the disruptive checks), else the Scan now scope
   // #824: the line stays one short sentence; what the deep scan sends is behind ⓘ
   const deepKey = `scan.deep${target.kind === 'domain' ? 'Domain' : 'Ip'}`

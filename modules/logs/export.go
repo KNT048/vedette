@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// ExportDeviceLogs is the source of the "device_logs" category of GET /core/logs/export (core INV-13, D-132): one JSON
+// ExportDeviceLogs is the source of the "device_logs" category of GET /core/logs/export (core INV-13): one JSON
 // object per received line, oldest first, {id, ts, source_id, line}. A module that is off keeps its lines, so the
 // source stays registered. The range is both ends inclusive, a zero time open. The lines are device text, untrusted;
 // they are exported as the text they are.
@@ -82,7 +82,7 @@ func (s *Service) ExportDeviceLogs(ctx context.Context, from, to time.Time, w io
 
 // ExportKnownBad is the "known_bad" source of GET /core/logs/export (core INV-13): the connections to listed destinations from through to,
 // oldest first, one JSON object per hit with the stored columns {id, ts, src_ip, dest, dest_kind, seen_via, feeds (an array), confidence,
-// blocked, listed_as (empty unless dest matched as a subdomain of it, D-425), source_id}. The device is not looked up (a download carries what was stored, INV-7 resolves it at read for the page only). The table
+// blocked, listed_as (empty unless dest matched as a subdomain of it), source_id}. The device is not looked up (a download carries what was stored, INV-7 resolves it at read for the page only). The table
 // holds at most MaxIocRows hits, so the category is bounded by that and needs no cap of its own. A zero time is open; a module that is off
 // keeps its rows, so the source stays registered.
 func (s *Service) ExportKnownBad(ctx context.Context, from, to time.Time, w io.Writer) error {

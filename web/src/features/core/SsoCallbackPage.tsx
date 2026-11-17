@@ -9,7 +9,7 @@ import { StandalonePage } from '@/components/common/StandalonePage'
 import { takeSsoFlow } from './ssoFlow'
 
 /**
- * D-194 (S-CORE-3): the identity provider sends the browser here with ?code&state (or ?error). The page posts them with the
+ * S-CORE-3: the identity provider sends the browser here with ?code&state (or ?error). The page posts them with the
  * binding this tab kept, and the box signs the person in. A link that someone else sent has no binding in this tab, so the box
  * refuses it (and writes the attempt to the audit log).
  */

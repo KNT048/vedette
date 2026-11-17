@@ -659,10 +659,10 @@ func TestCompactDropsDeletedBytes(t *testing.T) {
 	}
 }
 
-// Pins today's behaviour (D-183): goose does not refuse a database newer than the binary, and that is intended.
-// An older binary must start on a newer database: D-151 (add-only volume migrations, logs.db is never restored)
-// and D-138 (rollback.safe=true means the previous version runs on the new database). Whoever adds a refusal
-// here must revisit D-138 and D-151 first.
+// Pins today's behaviour: goose does not refuse a database newer than the binary, and that is intended.
+// An older binary must start on a newer database: volume migrations are add-only and logs.db is never restored,
+// and rollback.safe=true means the previous version runs on the new database. Whoever adds a refusal
+// here must revisit both rules first.
 func TestMigrateStartsOnADatabaseNewerThanTheBinary(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

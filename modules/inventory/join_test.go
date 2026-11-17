@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// The N100 lab switch of walk 1 (W1-37): a Juniper EX4200 whose LLDP names its chassis (base) MAC :80 while ARP and nmap see its
+// A lab switch: a Juniper EX4200 whose LLDP names its chassis (base) MAC :80 while ARP and nmap see its
 // management interface .47 with MAC :ff.
 const (
 	jnprBase = "3c:8a:b0:9c:85:80"
@@ -46,22 +46,22 @@ func seenAt(mac, ip, name string) []observe.Observation {
 
 func (e *env) devices() int { return e.count(`SELECT count(*) FROM inv_asset WHERE is_box = 0`) }
 
-// W1-37, D-515 (c): the exact N100 values. A switch first seen by LLDP (no IP, base MAC :80, approved by a person) and then by ARP
+// The exact lab values. A switch first seen by LLDP (no IP, base MAC :80, approved by a person) and then by ARP
 // and nmap at .47 (MAC :ff) is one device after the next LLDP frame: the IP device's id, address and MAC, the model and OS from
 // LLDP; one audit row; the LLDP row announced merged, then deleted. Later frames find the same device. The approval of the LLDP row
 // does not move (review H1 of #722): a person approves the joined device.
-func TestContract_D515_ASwitchSeenByLLDPAndByItsAddressIsOneDevice(t *testing.T) {
+func TestContract_ASwitchSeenByLLDPAndByItsAddressIsOneDevice(t *testing.T) {
 	e := newEnv(t)
 	e.record(lldp(jnprBase, "")...)
 	lldpID := e.idByMAC(jnprBase)
-	if err := e.svc.Approve(e.ctx(), "kien", lldpID); err != nil {
+	if err := e.svc.Approve(e.ctx(), "anna", lldpID); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(time.Minute)
 	e.record(seenAt(jnprMgmt, jnprIP, "")...)
 	ipID := e.idByMAC(jnprMgmt)
 	if e.devices() != 2 {
-		t.Fatalf("before the next frame: %d devices, want the two of the walk", e.devices())
+		t.Fatalf("before the next frame: %d devices, want the two of the lab", e.devices())
 	}
 	e.ev.reset()
 	e.tick(time.Minute)
@@ -107,8 +107,8 @@ func TestContract_D515_ASwitchSeenByLLDPAndByItsAddressIsOneDevice(t *testing.T)
 	}
 }
 
-// D-515 (c) the other way round: the address is known first, and the first LLDP frame never makes a second device.
-func TestContract_D515_TheFirstFrameJoinsAKnownSwitch(t *testing.T) {
+// The other way round: the address is known first, and the first LLDP frame never makes a second device.
+func TestContract_TheFirstFrameJoinsAKnownSwitch(t *testing.T) {
 	e := newEnv(t)
 	e.record(seenAt(jnprMgmt, jnprIP, "")...)
 	e.ev.reset()
@@ -121,8 +121,8 @@ func TestContract_D515_TheFirstFrameJoinsAKnownSwitch(t *testing.T) {
 	}
 }
 
-// D-515 (b): the same system name joins a switch whose management MAC lies outside the block.
-func TestContract_D515_TheSameNameJoins(t *testing.T) {
+// The same system name joins a switch whose management MAC lies outside the block.
+func TestContract_TheSameNameJoins(t *testing.T) {
 	const far = "3c:8a:b0:9c:00:10" // same maker, outside the block of :80
 	e := newEnv(t)
 	e.record(seenAt(far, jnprIP, "sw-office")...)
@@ -132,8 +132,8 @@ func TestContract_D515_TheSameNameJoins(t *testing.T) {
 	}
 }
 
-// D-515 negatives (and review M1, LOW of #722): rows that are not one switch stay apart.
-func TestContract_D515_DifferentDevicesStayApart(t *testing.T) {
+// Negatives (#722): rows that are not one switch stay apart.
+func TestContract_DifferentDevicesStayApart(t *testing.T) {
 	stated := func(mac, ip string, f observe.Field, v string) []observe.Observation {
 		return []observe.Observation{{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr(ip)}, Field: f, Value: v, Source: observe.SNMP, Confidence: 0.9}}
 	}
@@ -187,9 +187,9 @@ func TestContract_D515_DifferentDevicesStayApart(t *testing.T) {
 	}
 }
 
-// Review M1 of #722: a scan's fingerprint is a guess, not what the switch states: nmap calling .47 "JUNOS 12" (the walk) does not keep
+// #722: a scan's fingerprint is a guess, not what the switch states: nmap calling .47 "JUNOS 12" (as in the lab) does not keep
 // the LLDP row apart.
-func TestContract_D515_AScanGuessDoesNotKeepThemApart(t *testing.T) {
+func TestContract_AScanGuessDoesNotKeepThemApart(t *testing.T) {
 	e := newEnv(t)
 	e.record(seenAt(jnprMgmt, jnprIP, "")...)
 	e.record(observe.Observation{AssetHint: observe.AssetHint{MAC: jnprMgmt, IP: netip.MustParseAddr(jnprIP)}, Field: observe.OS, Value: "Juniper JUNOS 12.3", Source: observe.Nmap, Confidence: 0.9})
@@ -200,7 +200,7 @@ func TestContract_D515_AScanGuessDoesNotKeepThemApart(t *testing.T) {
 }
 
 // Review LOW of #722: an observation keeps its evidence when it moves.
-func TestContract_D515_AMovedObservationKeepsItsEvidence(t *testing.T) {
+func TestContract_AMovedObservationKeepsItsEvidence(t *testing.T) {
 	e := newEnv(t)
 	e.record(lldp(jnprBase, "")...)
 	e.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at, evidence) SELECT 'o-test', id, 'vendor', 'Juniper', 'passive', 0.1, last_seen, 'sysObjectID' FROM inv_asset WHERE mac = ?`, jnprBase)
@@ -214,7 +214,7 @@ func TestContract_D515_AMovedObservationKeepsItsEvidence(t *testing.T) {
 
 // Review M2 (round 2) of #722: what a device does not state itself keeps nothing apart: nmap's reverse DNS name "ex4200.lan" is the
 // LLDP system name "ex4200", and a DHCP request's OS family guess is no OS.
-func TestContract_D515_ADNSNameAndADHCPGuessDoNotKeepThemApart(t *testing.T) {
+func TestContract_ADNSNameAndADHCPGuessDoNotKeepThemApart(t *testing.T) {
 	e := newEnv(t)
 	h := observe.AssetHint{MAC: jnprMgmt, IP: netip.MustParseAddr(jnprIP)}
 	e.record(seenAt(jnprMgmt, jnprIP, "")...)

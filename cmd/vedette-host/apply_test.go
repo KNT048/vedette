@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// -self-update-apply (D-316): root only, a well-formed run id, no other flag, and only as the copy
+// -self-update-apply: root only, a well-formed run id, no other flag, and only as the copy
 // <state>/selfupdate/applier, whose folder gives the state directory (never /usr/lib/vedette/vedette-host).
 func TestSelfUpdateApplyRefusals(t *testing.T) {
 	t.Parallel()

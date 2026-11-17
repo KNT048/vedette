@@ -1,4 +1,4 @@
-// kien G5: an action, link or banner with nothing to act on is not shown ("Fix by updating the operating system" with no update,
+// An action, link or banner with nothing to act on is not shown ("Fix by updating the operating system" with no update,
 // "0 fragile devices: see them", "Select all 0"). This guard reads every non-test .tsx under features/, components/ and app/ and
 // fails on a <Link> or <Button> whose label states a count (t('…', { count: x })) when nothing near it checks that count: a
 // `x ? … : null`, `x > 0 && …`, `if (!x) return null`, or a `disabled=` that reads it. A named exception carries
@@ -85,7 +85,7 @@ function scan(files: { file: string; text: string }[]): Hit[] {
 const covers = (a: (typeof ALLOWED)[number], h: Hit) => a.file === h.file && h.count === a.text
 const allowedHit = (h: Hit) => ALLOWED.some((a) => covers(a, h))
 
-describe('empty action guard (kien G5)', () => {
+describe('empty action guard', () => {
   const files = sources()
   const hits = scan(files)
 

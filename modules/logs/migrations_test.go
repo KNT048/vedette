@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// D-151: logs.db is not in the backup, and a restore or a rollback leaves it alone, so an OLDER binary can be started
+// logs.db is not in the backup, and a restore or a rollback leaves it alone, so an OLDER binary can be started
 // against a NEWER logs.db. For that to be safe the migrations of the volume (migrations/volume) must be add-only: new
 // tables, new indexes, new nullable or defaulted columns, and nothing else. No DROP, no RENAME, no DELETE or UPDATE of
 // existing rows, nothing that changes what an existing column means. An incompatible change is a new file (logs-v2.db)
@@ -259,7 +259,7 @@ func TestAddOnlyCheckerJudgesStatements(t *testing.T) {
 	}
 }
 
-// Every migration of logs.db, now and in the future, is add-only (D-151).
+// Every migration of logs.db, now and in the future, is add-only.
 func TestVolumeMigrationsAreAddOnly(t *testing.T) {
 	t.Parallel()
 	n := 0
@@ -273,7 +273,7 @@ func TestVolumeMigrationsAreAddOnly(t *testing.T) {
 		}
 		n++
 		for _, v := range addOnlyViolations(string(b)) {
-			t.Errorf("migrations/volume/%s is not add-only (D-151: an older binary may run against a newer logs.db): %s", name, v)
+			t.Errorf("migrations/volume/%s is not add-only (an older binary may run against a newer logs.db): %s", name, v)
 		}
 		return nil
 	})

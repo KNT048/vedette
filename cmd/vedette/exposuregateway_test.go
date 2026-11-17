@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// D-492: the gateway is the host's LAN default route, matched by IP to an inventory device whose open findings are counted.
+// The gateway is the host's LAN default route, matched by IP to an inventory device whose open findings are counted.
 func TestExposureGateway(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)

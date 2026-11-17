@@ -19,8 +19,8 @@ type portSpec struct {
 	kind    kind
 }
 
-// commonPorts is the fixed list of TCP ports the scan connects to (D-229): commonports.List, the one list sensor-active's external
-// nmap shape names too (D-514). Its uses are this package's kinds, in the same order.
+// commonPorts is the fixed list of TCP ports the scan connects to: commonports.List, the one list sensor-active's external
+// nmap shape names too. Its uses are this package's kinds, in the same order.
 var commonPorts = func() []portSpec {
 	out := make([]portSpec, len(commonports.List))
 	for i, p := range commonports.List {

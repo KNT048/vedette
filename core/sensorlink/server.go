@@ -24,11 +24,11 @@ import (
 // Identity is what the server needs from the CA (core/pki.Authority implements it). It is an interface so this package never
 // imports the database or the secrets store, which the sensor binary must not link.
 type Identity interface {
-	// ClientCAs is the pool a sensor certificate must chain to: only the sensor CA (D-110 (1)).
+	// ClientCAs is the pool a sensor certificate must chain to: only the sensor CA.
 	ClientCAs() *x509.CertPool
 	// ServerCertificate is the current server leaf (EKU serverAuth only), for tls.Config.GetCertificate.
 	ServerCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error)
-	// SerialValid reports whether serial is the current or the previous serial of role (D-110 (5)).
+	// SerialValid reports whether serial is the current or the previous serial of role.
 	SerialValid(role Role, serial *big.Int) bool
 }
 
@@ -44,7 +44,7 @@ type Backend interface {
 	PassiveHeartbeat(ctx context.Context, hb *PassiveHeartbeat) (instance string, err error)
 	ActiveHeartbeat(ctx context.Context, hb *ActiveHeartbeat) (instance string, err error)
 	// Jobs holds the request open up to wait until there is a job or a cancel; running holds the jobs the worker says it runs:
-	// none, one, or two (one nmap and one nuclei, D-125 (3)), distinct ids of the form of a job id.
+	// none, one, or two (one nmap and one nuclei), distinct ids of the form of a job id.
 	Jobs(ctx context.Context, wait time.Duration, running []string) (JobsReply, error)
 	// JobRunning says whether id is the job this core handed to the active role and has not finished. It is asked before the
 	// body of a result is read, so a result for any other job costs nothing (404 unknown_job without reading).
@@ -70,7 +70,7 @@ type ProgressReceiver interface {
 type Options struct {
 	Identity Identity
 	Backend  Backend
-	// ModuleOn says whether the module of a role is on; off answers 409 module_off on every route of that role (D-111 (4)).
+	// ModuleOn says whether the module of a role is on; off answers 409 module_off on every route of that role.
 	// nil means on.
 	ModuleOn func(Role) bool
 	// Now is the clock for the TLS checks, the certificate expiry and the rate limit. nil means time.Now.
@@ -130,9 +130,9 @@ func NewServer(o Options) (*Server, error) {
 
 // TLSConfig is the listener's configuration: TLS 1.3 at least, a client certificate required and verified against the sensor
 // CA only, and VerifyConnection checking the EKU, the role URI and the serial on every handshake, resumed ones included
-// (VerifyPeerCertificate does not run on a resumed session; D-109 (2)).
+// (VerifyPeerCertificate does not run on a resumed session).
 //
-// Behind Serve each connection is also charged to its role at the handshake (D-176 (4)): GetConfigForClient hands the handshake
+// Behind Serve each connection is also charged to its role at the handshake: GetConfigForClient hands the handshake
 // a copy whose VerifyConnection fails it when the role is at its share, so a sensor holds at most its share of the slots even
 // if it never sends a byte after TLS. The copies share one explicit session-ticket key, so resumption still works.
 func (s *Server) TLSConfig() *tls.Config {
@@ -184,7 +184,7 @@ func (s *Server) verifyConnection(cs tls.ConnectionState) error {
 }
 
 // HTTPServer returns the http.Server for addr with the timeouts of the protocol: serve it with ServeTLS(listener, "", "").
-// ReadTimeout is the whole request (D-176 (3)), and Serve keeps each role to its share of the connections at the TLS handshake (D-176 (4)).
+// ReadTimeout is the whole request, and Serve keeps each role to its share of the connections at the TLS handshake.
 func (s *Server) HTTPServer(addr string) *http.Server {
 	return &http.Server{
 		Addr: addr, Handler: s.Handler(), TLSConfig: s.TLSConfig(),
@@ -270,14 +270,14 @@ func lookup(role Role, method, p string) (rt route, jobID string, ok bool) {
 
 func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	// 1. who: the certificate of the connection, checked again for every request. A keep-alive connection outlives the
-	// retirement of its serial and the expiry of its certificate; neither is a handshake event (D-110 (5)).
+	// retirement of its serial and the expiry of its certificate; neither is a handshake event.
 	role, err := s.callerRole(r)
 	if err != nil {
 		closeAfter(w, r) // a connection whose identity is no longer good is not reused (HTTP/1.1)
 		s.writeError(w, NewError(CodeCertRetired))
 		return
 	}
-	// 2. protocol version: this one or the one before it, never a newer one (D-459)
+	// 2. protocol version: this one or the one before it, never a newer one
 	if v := r.Header.Get(ProtoHeader); v != ProtoVersion && v != ProtoPrevious {
 		s.refuse(w, r, NewError(CodeProtoUnsupported))
 		return
@@ -289,7 +289,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if rt.max == 0 && r.ContentLength != 0 {
-		s.refuse(w, r, NewError(CodeInvalidRequest)) // a route without a body that is sent one (D-176 (2))
+		s.refuse(w, r, NewError(CodeInvalidRequest)) // a route without a body that is sent one
 		return
 	}
 	// 4. module switch
@@ -583,7 +583,7 @@ func (s *Server) fail(ctx context.Context, w http.ResponseWriter, err error) {
 }
 
 // refuse answers a request that is refused before its body is read. When the request may carry a body (a length other than 0,
-// chunked included) the connection is closed after the answer (D-176 (1)); see closeAfter.
+// chunked included) the connection is closed after the answer; see closeAfter.
 func (s *Server) refuse(w http.ResponseWriter, r *http.Request, e *Error) {
 	if r.ContentLength != 0 {
 		closeAfter(w, r)

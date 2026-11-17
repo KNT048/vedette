@@ -220,7 +220,7 @@ func (c *hostNetCache) SnapshotKnown() ([]netip.Prefix, bool) {
 
 // SnapshotKnownWithin is SnapshotKnown, except that while the set is still unknown it waits up to d for the lookup in flight
 // (the one it starts, or one already running): the first webhook save after core starts is checked against the host's first
-// answer instead of failing with 503 only because nothing had asked the host yet (D-408). Once the set is known it never
+// answer instead of failing with 503 only because nothing had asked the host yet. Once the set is known it never
 // waits, and in the failure backoff there is no lookup to wait for. Safe on nil.
 func (c *hostNetCache) SnapshotKnownWithin(d time.Duration) ([]netip.Prefix, bool) {
 	if c == nil {

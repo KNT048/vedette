@@ -316,7 +316,7 @@ func (f auditNamesFake) AuditNames(_ context.Context, ids []string) (map[string]
 	return map[string]string{"a-nas01": "NAS-PHOTOS", "f-1": "CVE-2026-0001 on NAS-PHOTOS", "a-other": "not asked for"}, nil
 }
 
-// D-416 (walk-1 W1-34): actor=people leaves out the lines the box writes itself ("system", "system:<part>"); the page names the devices
+// Actor=people leaves out the lines the box writes itself ("system", "system:<part>"); the page names the devices
 // and findings its rows refer to (only the ids in these rows; one the namer does not know is left out).
 func TestContract_INV17_AuditPeopleOnlyAndNames(t *testing.T) {
 	t.Parallel()

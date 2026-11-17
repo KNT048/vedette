@@ -21,7 +21,7 @@ export type TrapSuggestion = z.infer<typeof C.TrapSuggestion>
 export type TrapIPsResponse = z.infer<typeof C.TrapIPsResponse>
 export type TrapIPInput = z.infer<typeof C.TrapIPInput>
 export type TokenType = z.infer<typeof C.TokenType>
-/** The types the form offers. 'dns' stays in TokenType so older DNS tokens still list, but none is made: it could never alert (D-468). */
+/** The types the form offers. 'dns' stays in TokenType so older DNS tokens still list, but none is made: it could never alert. */
 export type OfferedTokenType = Exclude<TokenType, 'dns'>
 export const TOKEN_TYPES: OfferedTokenType[] = ['file', 'credential', 'url']
 export type Token = z.infer<typeof C.Token>

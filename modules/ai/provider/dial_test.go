@@ -11,13 +11,13 @@ import (
 
 func init() {
 	// The existing tests dial httptest servers on loopback for profiles that are not internal: that is allowed here only, from the
-	// test code of this package. TestCloudDialRefusesPrivateAndLoopback switches it off. Loopback is Vedette itself (D-446) except
+	// test code of this package. TestCloudDialRefusesPrivateAndLoopback switches it off. Loopback is Vedette itself except
 	// for the httptest servers of these tests; TestOwnAddresses switches that off.
 	cloudMayDialPrivate = true
 	ownMayDialLoopback = true
 }
 
-// D-446: Vedette itself is never a provider: loopback, the process's own interfaces, Vedette's own ports on the machine's
+// Vedette itself is never a provider: loopback, the process's own interfaces, Vedette's own ports on the machine's
 // addresses (on every address while those are unknown). Another program on the machine, at its own port, is a normal server.
 func TestOwnAddresses(t *testing.T) { //nolint:paralleltest // switches ownMayDialLoopback
 	ownMayDialLoopback = false
@@ -33,7 +33,7 @@ func TestOwnAddresses(t *testing.T) { //nolint:paralleltest // switches ownMayDi
 		{"10.77.0.9", 8443, true, true}, {"10.77.0.9", 514, true, true}, {"::ffff:10.77.0.9", 8765, true, true},
 		{"10.77.0.9", 11434, true, false}, {"10.77.0.9", 18080, false, false}, {"10.77.0.8", 8443, true, false},
 		{"10.77.0.8", 8444, false, true}, // the machine's addresses not known yet: Vedette's ports on every address
-		// Self (core's container address or a decoy, D-446 review): every port
+		// Self (core's container address or a decoy): every port
 		{"10.89.0.5", 11434, true, true}, {"10.89.0.5", 8443, true, true}, {"10.89.0.6", 11434, true, false},
 	} {
 		src := OwnSources{Machine: func() ([]netip.Addr, bool) { return machine, c.known }, Self: func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.89.0.5")} }}
@@ -116,7 +116,7 @@ func TestCloudDialRefusesPrivateAndLoopback(t *testing.T) {
 }
 
 // Review issue 2: IPv6 forms that carry an IPv4 address (NAT64, 6to4, IPv4-compatible, Teredo) must not get past the address
-// policy by writing 127.0.0.1 or 169.254.169.254 inside them, as D-94 says for connections.
+// policy by writing 127.0.0.1 or 169.254.169.254 inside them, as the connections' address policy says.
 func TestForbiddenCarriesIPv4(t *testing.T) {
 	t.Parallel()
 	for s, want := range map[string]bool{
@@ -124,7 +124,7 @@ func TestForbiddenCarriesIPv4(t *testing.T) {
 		"2002:7f00:1::1": true, "2002:a9fe:a9fe::": true, "2002:808:808::1": true,
 		"::7f00:1": true, "::a9fe:a9fe": true, "::a00:1": true,
 		"2001:0:4136:e378:8000:63bf:3fff:fdd2": true,                             // Teredo
-		"::ffff:0:7f00:1":                      true, "::ffff:0:a9fe:a9fe": true, // IPv4-translated (SIIT), forbidden by D-94 too
+		"::ffff:0:7f00:1":                      true, "::ffff:0:a9fe:a9fe": true, // IPv4-translated (SIIT), forbidden for connections too
 		"::1": false, "2606:4700::1111": false, "2001:db8::1": false, "fd12:3456::1": false, "::ffff:8.8.8.8": false,
 	} {
 		ip := netip.MustParseAddr(s)

@@ -1,4 +1,4 @@
-# Common names tried under a verified domain (D-567 (1)): at most 150, one per line, after a wildcard check.
+# Common names tried under a verified domain: at most 150, one per line, after a wildcard check.
 # Detectify's practice of a curated short list; what attackers try first. Kept by hand.
 www
 mail

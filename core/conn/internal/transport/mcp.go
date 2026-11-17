@@ -33,7 +33,7 @@ type MCPTool struct {
 	ReadOnlyHint, DestructiveHint *bool
 }
 
-// MayWrite reports whether the server says the tool may change something: destructiveHint true, or readOnlyHint stated as false (D-179 (5)).
+// MayWrite reports whether the server says the tool may change something: destructiveHint true, or readOnlyHint stated as false.
 func (t MCPTool) MayWrite() bool {
 	return (t.DestructiveHint != nil && *t.DestructiveHint) || (t.ReadOnlyHint != nil && !*t.ReadOnlyHint)
 }
@@ -49,7 +49,7 @@ type MCPResult struct {
 	Truncated bool
 }
 
-// MCP is a session with an MCP server over streamable HTTP and JSON-RPC (D-94 (3)): initialize, notifications/initialized,
+// MCP is a session with an MCP server over streamable HTTP and JSON-RPC: initialize, notifications/initialized,
 // tools/list and tools/call, one POST each, with the Mcp-Session-Id the server gave. A reply as JSON or as an event stream is
 // understood. Nothing else of the protocol is implemented: a request from the server (sampling, roots) is ignored.
 type MCP struct {

@@ -10,7 +10,7 @@ import { GUIDES, type Check, type GuideId } from './guideData'
 
 const TONE: Record<Check, 'ok' | 'warn' | 'off'> = { vendor: 'ok', partial: 'warn', general: 'off' }
 
-/** How to make the switch send a copy of traffic to the SPAN port, by switch vendor (D-56). */
+/** How to make the switch send a copy of traffic to the SPAN port, by switch vendor. */
 export function SpanGuides({ spanPort }: { spanPort: string }) {
   const { t } = useTranslation('core')
   const [id, setId] = useState<GuideId | ''>('')

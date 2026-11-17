@@ -17,12 +17,12 @@ import (
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
-// D-528 step 2 (lead decision after review kev r1 H-0 and FULL-4b r2 H1, 2026-11-14): word and destination rules cannot tell what a
+// Since 2026-11-14: word and destination rules cannot tell what a
 // request does to a product, so the KEV set (the LAN scan and the own-IP checks, no tick) is an allowlist, as Nessus's "safe
 // checks" default is: a template is in it only if a person read it and listed it in reviewed.tsv with the SHA-256 of the file they
 // read (step-2 review r1: the reviewer read every request line of the 338 of 2026.11.4). Rule (a), a read-only GET (readOnlyGET)
 // whose id and name name no state change (stateName), only puts a template in the "read first" group of the review queue
-// (scripts/scanpack/kev-review-queue.md). The D-528 step-1 rule (changeReason: denylist, tags, NoChangeText, destination, third party)
+// (scripts/scanpack/kev-review-queue.md). The step-1 no-change rule (changeReason: denylist, tags, NoChangeText, destination, third party)
 // still applies to every template, listed or not.
 
 // reviewedTSV is the reviewed allowlist: one template a line, "id<TAB>sha256<TAB>why it changes nothing", # for comments.
@@ -87,7 +87,7 @@ func stateName(id, name string) bool {
 // parameter name or value prefix (restoreAdmin.php, ?action=set_map_properties, operation=write, cmd=writeuploaddir, /submit?).
 var getVerbRE = regexp.MustCompile(`(?i)([/?&=_.-]|^)(delete|remove|purge|restore|reset|write|enable|disable|create|submit|save|import|truncate|reboot|restart|shutdown|activate|register|signup)|[?&](action|act|cmd|op|operation|do|task|func|function|mode)=(set|save|update|del|remove|add|create|write|reset|restore|enable|disable|install|upload|import|submit|apply|change|edit)`)
 
-// credHeader says whether a request header carries a credential or an identity (review r1 L-1): credName (auth, cookie, token, key,
+// credHeader says whether a request header carries a credential or an identity: credName (auth, cookie, token, key,
 // session, secret, pass, user, login, cred: Remote-User, X-Api-Token, X-Auth, User-Name too), but User-Agent.
 func credHeader(name string) bool {
 	n := strings.ToLower(strings.TrimSpace(name))
@@ -305,7 +305,7 @@ func writeQueue(path, version string, rows []reviewRow) error {
 		return strings.NewReplacer("|", "\\|", "`", "'").Replace(s)
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "# KEV templates waiting for a reviewer (pack %s, D-528 step 2)\n\n", version)
+	fmt.Fprintf(&b, "# KEV templates waiting for a reviewer (pack %s)\n\n", version)
 	b.WriteString("Written by `make scan-pack` (scripts/scanpack); do not edit by hand. Every template that runs without the disruptive tick (the LAN scan, the own-IP checks) is listed in `scripts/scanpack/reviewed.tsv` with the sha256 of the file a person read. These KEV templates passed every other rule of the pack and wait for that read: when a person has read the file, add `id<TAB>sha256<TAB>reason` to reviewed.tsv. Read the requests, not the name: a check is reviewed only if it changes nothing on the target (no account, password, setting, file, record, mail, service or login) and reaches no other host.\n\n")
 	for _, first := range []bool{true, false} {
 		var group []reviewRow
@@ -331,9 +331,9 @@ func writeQueue(path, version string, rows []reviewRow) error {
 	return os.WriteFile(path, []byte(b.String()), 0o600)
 }
 
-// noTickReason is the KEV rule of D-528 step 2 after review r1 (lead decision): "" only for a template listed in reviewed.tsv with
+// noTickReason is the step-2 KEV rule: "" only for a template listed in reviewed.tsv with
 // this file's sha256, "stale review" when its entry names another hash, else the queue group of queueReason. Every template that
-// runs without the tick has been read by a person; the own_ip mark (D-520) no longer admits one by itself (review r1 H-2).
+// runs without the tick has been read by a person; the own_ip mark does not admit one by itself.
 func noTickReason(id, name, rel, sha string, doc map[string]any, rv allowlist) (why, detail string) {
 	listed, stale := rv(id, sha)
 	switch {
@@ -345,7 +345,7 @@ func noTickReason(id, name, rel, sha string, doc map[string]any, rv allowlist) (
 	return queueReason(id, name, rel, doc)
 }
 
-// queueReason sorts a template nobody has reviewed into the review queue (lead decision, step-2 review r1): "likely read-only" when
+// queueReason sorts a template nobody has reviewed into the review queue: "likely read-only" when
 // rule (a) holds (readOnlyGET and no change in the name: read these first), else "state name" or "not reviewed" with why. Rule (a)
 // admits nothing by itself: every template without the tick is in reviewed.tsv.
 func queueReason(id, name, rel string, doc map[string]any) (why, detail string) {

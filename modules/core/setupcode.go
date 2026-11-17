@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
-// The one-time setup code (D-75). While first-run setup is open (no administrator has been created) the box
+// The one-time setup code. While first-run setup is open (no administrator has been created) the box
 // keeps a random code in core_secret and prints it in its log at every start; POST /core/setup needs it, so
 // whoever can merely reach the port cannot claim the box before its owner does. The code is deleted in the
 // transaction that creates the first administrator. It is 100 bits typed in four groups of five (letters
@@ -87,7 +87,7 @@ func (h *APIHandlers) storedSetupCode(ctx context.Context) (code string, ok bool
 	return string(b), true, nil
 }
 
-// CheckSetupCode is the gate of every first-run operation (POST /core/setup, and the restore from a backup of D-518): setup
+// CheckSetupCode is the gate of every first-run operation (POST /core/setup, and the restore from a backup): setup
 // must still be open (409 already_setup) and given must be the stored code (403 invalid_setup_code). Every judged guess counts
 // against the client address (auth.BeginSetupAttempt, 429 rate_limited); the right code gives its count back.
 func (h *APIHandlers) CheckSetupCode(ctx context.Context, given string) error {

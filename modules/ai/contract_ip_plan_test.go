@@ -10,7 +10,7 @@ import (
 )
 
 // The response planner (cmd/vedette/ai_plan.go) sends the device as "Device: <name>, IP <ip>, kind <kind>". With the personal-data hook
-// on, the model must still get the address, or no plan can propose an action about the device (D-205).
+// on, the model must still get the address, or no plan can propose an action about the device.
 func TestResponsePlanPromptKeepsTheDeviceIP(t *testing.T) {
 	for _, d := range [][3]string{{"NAS-01", "192.168.1.20", "nas"}, {"Camera-0042", "192.168.100.42", "camera"}, {"fw-edge-2", "fe80::1", "firewall"}} {
 		a := newAPI(t)

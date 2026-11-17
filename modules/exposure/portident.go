@@ -9,7 +9,7 @@ import (
 	"unicode/utf8"
 )
 
-// M2-7 (J6, S-EXP-2): each open port says how its service was named, so the page never shows nmap's usual service of a port number
+// S-EXP-2: each open port says how its service was named, so the page never shows nmap's usual service of a port number
 // as if a probe had read it, and a port nothing identified says so, with what its certificate, page title or Server header said.
 
 // The values of PortRow.Ident.
@@ -56,7 +56,7 @@ func unnamed(name string) bool {
 	return b == "" || b == "unknown" || b == "tcpwrapped"
 }
 
-// identOf is how one service row named its service. A row of a snapshot from before M2-7 has no method: "" unless it names nothing.
+// identOf is how one service row named its service. A row of a snapshot from an older release has no method: "" unless it names nothing.
 func identOf(r ServiceRow) string {
 	switch {
 	case unnamed(r.Name):
@@ -100,11 +100,11 @@ func identifyPorts(ports []PortRow, services []ServiceRow, scripts []ScriptRow, 
 			ports[i].Service = r.Name
 		case id == IdentProbed && serviceFamily(r.Name) != serviceFamily(p.Service):
 			ports[i].Service = r.Name
-			if p.Product == "" { // review r1 L4: the product follows the service the probe named, as on a row addServicePorts adds
+			if p.Product == "" { // the product follows the service the probe named, as on a row addServicePorts adds
 				ports[i].Product = strings.TrimSpace(r.Product + " " + r.Version)
 			}
 		}
-		if id == "" { // review r2 L1: nmap gave no method word: the intake's mark (a port-number guess, or a product the GET read) stays
+		if id == "" { // nmap gave no method word: the intake's mark (a port-number guess, or a product the GET read) stays
 			id = p.Ident
 		}
 		ports[i].Ident = id
@@ -151,7 +151,7 @@ func scriptHints(scripts []ScriptRow, ip string) map[int]portHints {
 	return out
 }
 
-// nmapEscape is a byte nmap's script output escaped: it prints every byte outside printable ASCII as \xNN (W76-4: a GitLab page
+// nmapEscape is a byte nmap's script output escaped: it prints every byte outside printable ASCII as \xNN (a GitLab page
 // title "Sign in \xC2\xB7 GitLab").
 var nmapEscape = regexp.MustCompile(`(?:\\x[89A-Fa-f][0-9A-Fa-f])+`)
 
@@ -205,7 +205,7 @@ func certNames(out string) []string {
 	return names
 }
 
-// sanitizePortIdent copies the M2-7 fields of p onto the sanitized row: a known Ident only, printable hints within their limits.
+// sanitizePortIdent copies the identification fields of p onto the sanitized row: a known Ident only, printable hints within their limits.
 func sanitizePortIdent(row, p PortRow) PortRow {
 	switch p.Ident {
 	case IdentProbed, IdentPort, IdentNone:
@@ -220,7 +220,7 @@ func sanitizePortIdent(row, p PortRow) PortRow {
 	return row
 }
 
-// serviceNames is a person's name for nmap's or the port list's service names (M2-7). It is the same table as LABEL in
+// serviceNames is a person's name for nmap's or the port list's service names. It is the same table as LABEL in
 // web/src/features/exposure/services.ts (TestServiceNamesMatchThePage holds them together), so the alert and the page say one name.
 var serviceNames = map[string]string{
 	"microsoft-ds": "SMB", "netbios-ssn": "NetBIOS", "ms-sql": "SQL Server", "ms-sql-s": "SQL Server", "domain": "DNS", "postgresql": "PostgreSQL", "mysql": "MySQL",
@@ -251,7 +251,7 @@ func serviceName(service string) string {
 	return name
 }
 
-// ServiceLabel is the port's service as a person reads it (M2-7: the "New open port" alert's summary and the day comparison):
+// ServiceLabel is the port's service as a person reads it (the "New open port" alert's summary and the day comparison):
 // "SIP", "HTTPS", "probably SIP" when only the port number names it, "service not identified" (or "TLS, service not identified")
 // when nothing does.
 func ServiceLabel(p PortRow) string {
@@ -275,7 +275,7 @@ func identifiedCounts(rows []ServiceRow) (probed, port, none int) {
 			port++
 		case IdentNone:
 			none++
-		default: // probed, or a row with no method word (older worker): as before M2-7
+		default: // probed, or a row with no method word (older worker): as older releases did
 			probed++
 		}
 	}

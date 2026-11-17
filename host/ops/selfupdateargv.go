@@ -11,7 +11,7 @@ import (
 	vexec "github.com/knt048/vedette/core/exec"
 )
 
-// The argv of host.self_update (docs/specs/host-api.md section 6.14 "Argv mới", D-316). There are two
+// The argv of host.self_update (docs/specs/host-api.md section 6.14 "Argv mới"). There are two
 // runners. The host runner (newRunner) gains the read-only and simulated forms and the one systemd-run that
 // starts the applier; it never accepts apt-get install of a file, dpkg -i, or a restart of vedette-host
 // itself (INV-27). The applier runner (newApplierRunner) is built only in -self-update-apply mode, outside
@@ -91,7 +91,7 @@ func validateDpkgQuery(args []string) error {
 	return nil
 }
 
-// validateHostDpkgQuery is the host runner's: the look at vedette-host, and the package list of the box (D-470).
+// validateHostDpkgQuery is the host runner's: the look at vedette-host, and the package list of the box.
 func validateHostDpkgQuery(args []string) error {
 	if validateDpkgQuery(args) != nil && !slices.Equal(args, argsDpkgQueryList) {
 		return errors.New("not the fixed dpkg-query command line")
@@ -110,7 +110,7 @@ func aptSimInstallArgv(staged string) []string {
 // and the simulated install of the staged file. It never accepts a real install of a file.
 func validateHostApt(stateDir string) func([]string) error {
 	return func(args []string) error {
-		if validateApt(args) == nil || isGreenboneAptArgv(args) { // OpenVAS's compose provider, installed on its first start (D-529)
+		if validateApt(args) == nil || isGreenboneAptArgv(args) { // OpenVAS's compose provider, installed on its first start
 			return nil
 		}
 		if len(args) == len(argsAptSimInstallPre)+1 && slices.Equal(args[:len(argsAptSimInstallPre)], argsAptSimInstallPre) && isStagedPath(stateDir, args[len(args)-1]) {
@@ -204,7 +204,7 @@ func atoiMax(s string) int {
 	return n
 }
 
-// argsDpkgInstallHead: dpkg -i decides a changed conffile (the AppArmor profile, D-458) like apt's tail does, so it never stops
+// argsDpkgInstallHead: dpkg -i decides a changed conffile (the AppArmor profile) like apt's tail does, so it never stops
 // at dpkg's conffile prompt with stdin on /dev/null (an administrator's edit is kept, an untouched file takes the new version).
 var argsDpkgInstallHead = []string{"--force-confdef", "--force-confold", "-i"}
 

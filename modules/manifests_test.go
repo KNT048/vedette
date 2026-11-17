@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/modreg"
 )
 
-// Walk-1 W1-25: Settings → Modules shows a name and a summary for every module the box lists. The names live in the GUI's
+// Settings → Modules shows a name and a summary for every module the box lists. The names live in the GUI's
 // common.json (modules.<id>.name, .summary); every module manifest (not the host component) must have both, so a new module
 // without a display name fails here, not on a customer's screen.
 func TestEveryModuleHasADisplayName(t *testing.T) {

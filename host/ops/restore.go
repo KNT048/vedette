@@ -282,7 +282,7 @@ func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id, snapshot s
 		}
 	}
 	if recovering {
-		// The way out of core_data_unrecoverable (D-142, D-138 (9)): core's data is now a backup's and core is
+		// The way out of core_data_unrecoverable: core's data is now a backup's and core is
 		// healthy on it, so the journal that kept core's commands refused has nothing left to guard, provided the
 		// versions the host recorded agree with the unit core runs (the interrupted change may have left the new
 		// unit in place): else the journal stays and core's commands keep being refused.
@@ -301,7 +301,7 @@ func (o *Ops) restore(ctx context.Context, rc *server.RunContext, id, snapshot s
 
 // coreFreeForRestore is coreFree for backup.restore: the one journal it lets through is core's own when it
 // says the host gave up putting core's data back (Unrecoverable). Nothing retries then, core is left as
-// it is, and restoring a backup is how a person gets out (D-142). A journal still being worked on, an
+// it is, and restoring a backup is how a person gets out. A journal still being worked on, an
 // invalid one or an unreadable one keeps refusing: a restore must not run on a half-swapped core.
 func (o *Ops) coreFreeForRestore() error {
 	if o.coreUnrecoverable() {
@@ -311,7 +311,7 @@ func (o *Ops) coreFreeForRestore() error {
 }
 
 // reconcileCoreVersion makes the recorded versions of core agree with the unit that is installed, and says
-// whether they do. The unit is the truth of what runs (D-123 (3)): if current already is its digest, nothing to
+// whether they do. The unit is the truth of what runs: if current already is its digest, nothing to
 // do; if it is previous (the interrupted change was a switch that stayed half done) they swap, as a rollback
 // would; if the host holds the pulled record of that digest, it becomes current, as the bootstrap's adoption
 // does. A unit that is not ours, or a release the host knows nothing about while another is recorded as
@@ -342,14 +342,14 @@ func (o *Ops) coreVersionPlan() (save *versionState, ok bool) {
 		return nil, true
 	case vs.Current != nil && vs.Previous != nil && vs.Previous.Digest == digest:
 		now := *vs.Previous
-		now.BackupID = "" // the backup of another point in time is not carried over (D-138 H1)
+		now.BackupID = "" // the backup of another point in time is not carried over
 		return &versionState{Service: api.ServiceCore, Current: &now, Previous: vs.Current}, true
 	}
 	if rec, ok := o.loadPulled(api.ServiceCore); ok && rec.Digest == digest {
 		// The release that was recorded as current stays as previous, so a rollback has somewhere to go.
 		return &versionState{Service: api.ServiceCore, Current: &versionRecord{pulledRecord: rec}, Previous: vs.Current}, true
 	}
-	return nil, vs.Current == nil // nothing recorded contradicts the unit: the running version is simply unknown (D-138 M4)
+	return nil, vs.Current == nil // nothing recorded contradicts the unit: the running version is simply unknown
 }
 
 // coreUnrecoverable says core's journal is valid and marked unrecoverable.

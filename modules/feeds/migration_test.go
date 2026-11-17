@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// Migration 0006 (D-485) on a box that ran 0001..0005: the CISA list still on the old 24-hour default moves to 1 hour, other
+// Migration 0006 on a box that ran 0001..0005: the CISA list still on the old 24-hour default moves to 1 hour, other
 // schedules and custom feeds are kept, and the validators the GitHub mirror handed out move to the mirror's own columns.
 func TestMigration0006KEVHourlyAndMirrorValidators(t *testing.T) {
 	t.Parallel()
@@ -61,7 +61,7 @@ func execSQL(t *testing.T, db *store.DB, q string) {
 	write(t, db, func(tx *sql.Tx) error { _, err := tx.ExecContext(t.Context(), q); return err })
 }
 
-// Migration 0012 (D-617) on a box that ran 0001..0011: a tier feed slice 1 seeded off and nobody edited (rev 0) is turned on; one an
+// Migration 0012 on a box that ran 0001..0011: a tier feed slice 1 seeded off and nobody edited (rev 0) is turned on; one an
 // admin turned off (rev counts the edit) stays off. The published days stored before are NVD's.
 func TestMigration0012TierFeedsOnUnlessAnAdminTurnedThemOff(t *testing.T) {
 	t.Parallel()

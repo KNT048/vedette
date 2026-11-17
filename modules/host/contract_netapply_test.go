@@ -22,8 +22,8 @@ import (
 	"github.com/knt048/vedette/host/server/servertest"
 )
 
-// net.apply, net.confirm, net.revert and the NTP sources (WP-07b part 3, slice 3-4; spec 6.5, D-100,
-// D-101, D-106; host CONTRACT INV-16, INV-18, NET-1..NET-5). The machine is the fake of opstest: a
+// net.apply, net.confirm, net.revert and the NTP sources (WP-07b part 3, slice 3-4; spec 6.5;
+// host CONTRACT INV-16, INV-18, NET-1..NET-5). The machine is the fake of opstest: a
 // temp root, fake netplan and chronyc, a fake ARP prober, and a fake network whose addresses follow
 // whichever netplan file is the effective one (the overlay in /run, else /etc).
 
@@ -608,7 +608,7 @@ func TestContract_NetApply_CheckRefusals(t *testing.T) {
 		t.Fatalf("something ran: %v %v", got, n.probe.probes())
 	}
 	n.gone(t, runNetplan)
-	// A netplan file that is not the host's (here in /etc/netplan) makes the backend unsupported (D-99).
+	// A netplan file that is not the host's (here in /etc/netplan) makes the backend unsupported.
 	n.m.WriteRoot("etc/netplan/50-cloud-init.yaml", "network:\n  version: 2\n")
 	n.refused(t, "net.apply", staticArgs("10.0.0.9/24", "10.0.0.1"), http.StatusPreconditionFailed, api.CodeNetBackendUnsupported)
 	n.m.RemoveRoot("etc/netplan/50-cloud-init.yaml")

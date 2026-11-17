@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/internal/jsonstrict"
 )
 
-// Host errors (INV-6, D-165). With -ms (matcher status) stdout has a line per template and target, but a device that
+// Host errors (INV-6). With -ms (matcher status) stdout has a line per template and target, but a device that
 // answered some templates and then died leaves lines that look like answers. The signal that says it stopped is nuclei's own error log (-elog, written to stderr): one JSON object per failed request,
 // {"template","type","input","address","error","kind"} (pkg/output JSONLogRequest, v3.11.1). The worker counts, per
 // target of the job, the lines whose kind is "network-temporary-error" (a timeout: what a device that went quiet
@@ -29,7 +29,7 @@ type HostError struct {
 }
 
 // Outcome is what a nuclei run gave core: the lines of stdout, the host errors of the worker, and the lines Read skipped
-// (about an address the job did not name, N45-1).
+// (about an address the job did not name).
 type Outcome struct {
 	Results    []Result
 	HostErrors []HostError

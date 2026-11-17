@@ -27,7 +27,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// The honeypot image (WP-08e, D-162). Its text, its locks and its unit are checked here; what a connection does to the running container is
+// The honeypot image (WP-08e). Its text, its locks and its unit are checked here; what a connection does to the running container is
 // checked by effect by scripts/dev/honeypot-check.sh (make honeypot-check), which builds it.
 
 func honeypotUnit(t *testing.T) map[string][]string {
@@ -167,7 +167,7 @@ func TestHoneypotImageFitsItsUnit(t *testing.T) {
 		switch {
 		case strings.HasSuffix(parts[0], "/config"):
 			conf = parts[1]
-		case parts[0] == "vedette-hp-log.volume": // the size-capped tmpfs volume of log/ (D-318)
+		case parts[0] == "vedette-hp-log.volume": // the size-capped tmpfs volume of log/
 			log = parts[1]
 			if len(parts) != 3 || parts[2] != "U,noexec" {
 				t.Errorf("the log volume %q needs :U,noexec so the container's user owns it under UserNS=auto", v)
@@ -226,7 +226,7 @@ func TestHoneypotImageFitsItsUnit(t *testing.T) {
 	}
 	for _, bad := range []string{"/dev/log", "setuid", "AF_UNIX", "socket"} {
 		if strings.Contains(ini, bad) {
-			t.Errorf("init.py mentions %q: the root start and the syslog socket are gone (D-162)", bad)
+			t.Errorf("init.py mentions %q: the root start and the syslog socket are gone", bad)
 		}
 	}
 	if !strings.Contains(read(t, "honeypot/smb.conf"), "full_audit:syslog = false") || !strings.Contains(read(t, "honeypot/smb.conf"), "include = /tmp/samba/audit.conf") ||
@@ -242,7 +242,7 @@ func TestHoneypotImageFitsItsUnit(t *testing.T) {
 	}
 }
 
-// hpfeeds (GPL-3) is not shipped (D-162): OpenCanary imports it at the top of logger.py but calls it only for an hpfeeds logger, which core's
+// hpfeeds (GPL-3) is not shipped: OpenCanary imports it at the top of logger.py but calls it only for an hpfeeds logger, which core's
 // configuration never names. A stub module answers the import; it is never in a hash-locked install.
 func TestHoneypotShipsNoGPLPython(t *testing.T) {
 	t.Parallel()
@@ -545,7 +545,7 @@ m.main()
 	}
 }
 
-// D-466: the share's NetBIOS name comes from honeytokens.json (the first Trap IP with SMB) and ends up as one line in Samba's include file;
+// The share's NetBIOS name comes from honeytokens.json (the first Trap IP with SMB) and ends up as one line in Samba's include file;
 // init.py writes it only when it is a plain NetBIOS name, so a newline or a second parameter can never reach smb.conf.
 func TestHoneypotNetbiosNameIsOnePlainLine(t *testing.T) {
 	t.Parallel()
@@ -599,7 +599,7 @@ func TestHoneypotWriteFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tokens, err := honeypot.RenderTokens([]string{"passwords.txt", "Q4 payroll.xlsx"}, "FILESRV-OLD") // D-466: the share takes this NetBIOS name
+	tokens, err := honeypot.RenderTokens([]string{"passwords.txt", "Q4 payroll.xlsx"}, "FILESRV-OLD") // The share takes this NetBIOS name
 	if err != nil {
 		t.Fatal(err)
 	}

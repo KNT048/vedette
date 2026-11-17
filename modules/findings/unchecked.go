@@ -19,15 +19,15 @@ import (
 type UncheckedReason string
 
 // The four reasons, in precedence order (contract.ts UncheckedReason), then the two of a platform-limited CVE only a person's answer
-// decides (D-604, MatchResult.Asked), which come from the platform rules, not uncheckedReason.
+// decides (MatchResult.Asked), which come from the platform rules, not uncheckedReason.
 const (
 	UncheckedNoNVDData     UncheckedReason = "no_nvd_data"     // NVD has no CPE configuration for the CVE yet (audit class 1)
 	UncheckedNoNVDVersions UncheckedReason = "no_nvd_versions" // NVD names products but no affected version (audit class 2)
 	UncheckedNotNamed      UncheckedReason = "not_named"       // NVD's list names none of the row's names (audit class 5, "3k")
 	UncheckedNotComparable UncheckedReason = "not_comparable"  // the row's version cannot be compared with NVD's
-	// UncheckedPlatformUnknown: the CVE affects only some platforms or builds and nothing says which this row is (D-604).
+	// UncheckedPlatformUnknown: the CVE affects only some platforms or builds and nothing says which this row is.
 	UncheckedPlatformUnknown UncheckedReason = "platform_unknown"
-	// UncheckedPackageUnknown: the platform is the one of the distribution's fixed list, and the package release is not known (D-604).
+	// UncheckedPackageUnknown: the platform is the one of the distribution's fixed list, and the package release is not known.
 	UncheckedPackageUnknown UncheckedReason = "package_unknown"
 )
 
@@ -40,7 +40,7 @@ type Unchecked struct {
 	Version    string // the row's version as stored, "" when none
 	Source     string // Software.Source: "manual" lets a person retype the version (action add_version)
 	Reason     UncheckedReason
-	// Answer: package_unknown only, the release a person gave that Vedette could not read as one (D-604); "" otherwise.
+	// Answer: package_unknown only, the release a person gave that Vedette could not read as one; "" otherwise.
 	Answer string
 	// NVDPending: no_nvd_data while NVD has not answered for the CVE (Vuln.NVDAnswered false: a new box, the NVD feed off or failing):
 	// Vedette is waiting for NVD's data, NVD has not said it has none (review r2 M1 of #939).
@@ -50,17 +50,17 @@ type Unchecked struct {
 // uncheckedRow says whether row s, read against v with outcome out (matchOne), is one the device has but Vedette could not check,
 // and why. Only two kinds of rows count, so the list never names an entry for software the device does not have:
 //   - a row CISA's key names (keyedTo, never a vendor's "Multiple Products": there NVD's list of other products says it is not this
-//     one, D-505) whose match is a No that proves nothing: NVD's ranges are for the entry's name, not for the row's;
+//     one) whose match is a No that proves nothing: NVD's ranges are for the entry's name, not for the row's;
 //   - a row only NVD's list names (#910, viaNVD) by its own CPE, name or alias (rowEntries: for a Windows release row its own
 //     release, not a sibling), with a version given, that gave neither a version match with a fix nor a proof: NVD lists only
-//     exact versions, no end or no version, or the version does not compare. Not a row whose distribution decides (D-516: its own
+//     exact versions, no end or no version, or the version does not compare. Not a row whose distribution decides (its own
 //     word, or none, as for an Android entry that also lists the Linux kernel), not an Edge Legacy row, not a Juniper model CISA
-//     leaves out (D-510).
+//     leaves out.
 //
 // Neither kind counts when NVD names the row only at exact versions older than its own (newerThanListed): NVD's list does not name
 // it at all, so it is no candidate (not a verdict: nothing closes, nothing is "not affected").
 //
-// A product match the age rule drops (D-615) and the network OS a device states without an order (NotComparable) are listed by
+// A product match the age rule drops and the network OS a device states without an order (NotComparable) are listed by
 // MatchAsset itself.
 func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, out outcome) (UncheckedReason, bool) {
 	switch {
@@ -112,10 +112,10 @@ func newerThanListed(own []Affected, ver string) bool {
 }
 
 // uncheckedReason is the reason of an unchecked row, first that applies:
-//   - no_nvd_data: Vedette has no NVD entry for it: NVD answered with none, or has not answered yet (D-602, review r1 H2 of #939:
-//     a new exploited CVE matched by name is listed at once; this replaces #920 r1 M2's "no row before NVD answered");
+//   - no_nvd_data: Vedette has no NVD entry for it: NVD answered with none, or has not answered yet (#939:
+//     a new exploited CVE matched by name is listed at once; this replaces #920's "no row before NVD answered");
 //   - no_nvd_versions: no entry gives a version (audit class 2);
-//   - not_comparable: a Windows row of a build core/winrel does not know, when NVD lists Windows rows (D-602, winUnknownBuild);
+//   - not_comparable: a Windows row of a build core/winrel does not know, when NVD lists Windows rows (winUnknownBuild);
 //   - not_named: none names the row (audit class 5 and "3k", and #919's nvd_other_product);
 //   - no_nvd_versions: those that name it give no version, or no range that decides (only exact versions, only a start, or a
 //     partial CVE.org list);
@@ -128,7 +128,7 @@ func uncheckedReason(s Software, in swInfo, v Vuln, scheme bool) (UncheckedReaso
 	if !slices.ContainsFunc(v.Affected, versionEvidence) {
 		return UncheckedNoNVDVersions, true
 	}
-	if _, ok := winUnknownBuild(s, in); ok && slices.ContainsFunc(v.Affected, func(af Affected) bool { // D-602: NVD lists Windows, and the build is not in the table
+	if _, ok := winUnknownBuild(s, in); ok && slices.ContainsFunc(v.Affected, func(af Affected) bool { // NVD lists Windows, and the build is not in the table
 		c, err := af.cpe()
 		return err == nil && winNamesWindows(c)
 	}) {
@@ -162,7 +162,7 @@ func versionEvidence(af Affected) bool {
 }
 
 // rowEntries are the entries of NVD's list for v that name the row itself (its CPE, name or alias, appliesTo), leaving out, for a
-// Chromium-based Edge, the Edge Legacy entries (D-619): microsoft:edge with no version or one below 79, or, for a CVE published
+// Chromium-based Edge, the Edge Legacy entries: microsoft:edge with no version or one below 79, or, for a CVE published
 // before the Chromium-based Edge, microsoft:edge with no version given at all (CVE-2017-0037 "Edge and Internet Explorer").
 func rowEntries(s Software, in swInfo, v Vuln) []Affected {
 	chromium := false
@@ -211,7 +211,7 @@ func replaceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []U
 // announceUnchecked records, in the match's transaction, the (device, CVE) pairs of items whose CVE is in vulns (this write's part
 // of the list: Reconcile's backlog and recent writes each announce their own) and returns those new to the device: never listed
 // before (fnd_unchecked_seen) and with no finding of any status (a finding was announced as one, and an old product finding closing
-// into the list at the upgrade is not news). Each CVE once, in item order (D-602, review r1 H2 of #939).
+// into the list at the upgrade is not news). Each CVE once, in item order.
 func announceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []Unchecked, vulns []Vuln, now time.Time) ([]UncheckedAddedCVE, error) {
 	if len(items) == 0 {
 		return nil, nil
@@ -251,8 +251,8 @@ func announceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []
 
 // uncheckedLive is the stored unchecked rows of CVEs the device has no finding for (any status but one): the list and Home count the
 // same rows (rule 1 of #910: one place per device and CVE; a finding a person or an earlier match left wins).
-// A finding Vedette closed by itself (not_relevant with the reason not_affected_version: D-602's name-only rule, the age rule) does not
-// hide the row: the CVE was not checked, and the list is where the customer now finds it. A proof that closed one (D-530) gives no row.
+// A finding Vedette closed by itself (not_relevant with the reason not_affected_version: the name-only rule, the age rule) does not
+// hide the row: the CVE was not checked, and the list is where the customer now finds it. A proof that closed one gives no row.
 const uncheckedLive = ` FROM fnd_unchecked u WHERE NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.asset_id = u.asset_id AND f.cve = u.cve
 	AND NOT (f.status = 'not_relevant' AND f.resolution_reason IS NOT NULL AND f.resolution_reason = 'not_affected_version'))`
 
@@ -367,12 +367,12 @@ type UncheckedItem struct {
 	Version    *string         `json:"version"`
 	Reason     UncheckedReason `json:"reason"`
 	CVEs       []UncheckedCVE  `json:"cves"`
-	Action     string          `json:"action"` // "add_version", "answer_platform" (D-604: Question) or "none"
-	// Question is what a person answers for reasons platform_unknown and package_unknown (D-604), nil otherwise.
+	Action     string          `json:"action"` // "add_version", "answer_platform" (Question) or "none"
+	// Question is what a person answers for reasons platform_unknown and package_unknown, nil otherwise.
 	Question *UncheckedQuestion `json:"question,omitempty"`
 }
 
-// UncheckedQuestion is contract.ts UncheckedQuestion (D-604): the question of a platform-limited CVE and the answers that settle it.
+// UncheckedQuestion is contract.ts UncheckedQuestion: the question of a platform-limited CVE and the answers that settle it.
 // Every answer is a correction of inventory (INV-41), so the next match decides.
 type UncheckedQuestion struct {
 	Text string `json:"text"`
@@ -400,7 +400,7 @@ func UncheckedItems(rows []UncheckedRow, kev map[string]KevInfo, assets map[stri
 	type key struct {
 		asset, sw string
 		reason    UncheckedReason
-		cve       string // D-604: one item per question (a platform-limited CVE), "" otherwise
+		cve       string // One item per question (a platform-limited CVE), "" otherwise
 	}
 	idx := map[key]int{}
 	out := []UncheckedItem{}

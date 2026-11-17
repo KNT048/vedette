@@ -1,4 +1,4 @@
-# The osquery packages the core image ships to the servers of the customer (WP-26 slice 3, D-169 (10)). The core Containerfile sources this
+# The osquery packages the core image ships to the servers of the customer (WP-26 slice 3). The core Containerfile sources this
 # file (KEY=VALUE only, no spaces, quotes or $: a test holds it to that), downloads the five package files from the official release, checks each
 # against the SHA-256 below BEFORE it copies it into the image, and fails the build on any mismatch. Nothing is downloaded at run time.
 #
@@ -12,9 +12,9 @@
 # downloaded over HTTPS from github.com/osquery/osquery/releases/download/5.12.1/ and hashed with sha256sum. The release publishes no checksum
 # file and no asset digest (gh api repos/osquery/osquery/releases/tags/5.12.1: digest empty), so the same three files were also downloaded from the
 # official package site (https://pkg.osquery.io/deb/, /rpm/, /windows/) and gave the same three hashes.
-# The two arm64 Linux packages (D-399, 2026-11-13: osquery_5.12.1-1.linux_arm64.deb 28510972 bytes, osquery-5.12.1-1.linux.aarch64.rpm 28457612
+# The two arm64 Linux packages (osquery_5.12.1-1.linux_arm64.deb 28510972 bytes, osquery-5.12.1-1.linux.aarch64.rpm 28457612
 # bytes) were pinned the same way: downloaded from the release and from https://pkg.osquery.io/deb/ and /rpm/, same hashes from both.
-# Measured cost (2026-11-12, make core-image): the osquery layer is 79.9 MB, the whole core image 127 MB; the two arm64 packages add 57 MB (D-399).
+# Measured cost (2026-11-12, make core-image): the osquery layer is 79.9 MB, the whole core image 127 MB; the two arm64 packages add 57 MB.
 OSQUERY_VERSION=5.12.1
 OSQUERY_DEB_AMD64_SHA256=051c287741d71b09184cb6bc53065cda972e3c27592b1e558696aaec9f0eb013
 OSQUERY_RPM_X86_64_SHA256=eb3dccd38dec8f92bfd8616fd24f1210486f5f02ffc9d6c016827ab668f67c08

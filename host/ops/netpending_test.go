@@ -20,7 +20,7 @@ func (n *awaitNotifier) AwaitingConfirm() bool                   { return n.awai
 func (*awaitNotifier) Claim(string) (*server.Claimed, error)     { return nil, server.ErrNotAwaiting }
 
 // Deps.NetPending defaults to the server's answer: os.reboot refuses with net_pending_confirm
-// while a run awaits confirmation (spec 16, D-100).
+// while a run awaits confirmation (spec 16).
 func TestNetPendingFollowsTheServersAwaitingRun(t *testing.T) {
 	t.Parallel()
 	clock := func() time.Time { return time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC) }

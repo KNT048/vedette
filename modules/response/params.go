@@ -278,7 +278,7 @@ func Fill(text string, vals Values, t Transport) (string, error) {
 	return out, nil
 }
 
-// Tpl is a template of one step of an action: a command, or an API call with a path, a JSON body and headers. Expect (D-95) only
+// Tpl is a template of one step of an action: a command, or an API call with a path, a JSON body and headers. Expect only
 // means something on the read-back (verify): after the action its output must contain the text, after the undo it must not.
 type Tpl struct {
 	CLI     string `json:"cli"`
@@ -330,7 +330,7 @@ var (
 	refuseRE     = regexp.MustCompile(`^[\x20-\x7e]{1,80}$`)                  // a refusal text: printable ASCII, no control character
 )
 
-// Limits of the check before and the read-back text (D-95).
+// Limits of the check before and the read-back text.
 const (
 	maxExpect     = 200
 	maxRefuse     = 8
@@ -338,7 +338,7 @@ const (
 )
 
 // forbiddenHeader reports whether a template may not set the header: the connection sets the credentials and the address
-// (Authorization, Cookie, Host, Proxy-*), and hop-by-hop and forwarding headers belong to the connection too (D-94). Headers that
+// (Authorization, Cookie, Host, Proxy-*), and hop-by-hop and forwarding headers belong to the connection too. Headers that
 // make a server act as another method (X-HTTP-Method-Override...) or as another client or path (X-Real-IP, X-Original-URL...) are
 // refused as well (review of 13b-2).
 func forbiddenHeader(name string) bool {
@@ -351,10 +351,10 @@ func forbiddenHeader(name string) bool {
 	return strings.HasPrefix(n, "proxy-") || strings.HasPrefix(n, "x-forwarded-")
 }
 
-// credentialWords are the parts of a header name that mark a credential (D-174), matched on the name without hyphens, in lower case.
+// credentialWords are the parts of a header name that mark a credential, matched on the name without hyphens, in lower case.
 var credentialWords = []string{"key", "token", "secret", "auth", "pass", "session"}
 
-// credentialHeader reports whether a header name carries a credential (D-174): its name, without hyphens, contains key, token, secret,
+// credentialHeader reports whether a header name carries a credential: its name, without hyphens, contains key, token, secret,
 // auth, pass or session (X-API-Key, X-ApiKey, Api-Key, X-Auth-Token, X-Password, X-Session, Proxy-Authorization, Cookie...). A template
 // may not hold a literal value for one: the connection's sign-in (a token with a header name) sends it, and the request, its log and the
 // backup never hold it. Its value in a template is exactly one placeholder.
@@ -489,7 +489,7 @@ func duplicateBodyKey(body string) string {
 // bodySentinel stands for a placeholder while a JSON body is read; a body that already holds it is refused (its value could pass for one).
 const bodySentinel = "8191919191919191919"
 
-// credentialBodyKey is the first key of a JSON body (D-179 (7), the body half of D-174) whose name marks a credential, without hyphens or
+// credentialBodyKey is the first key of a JSON body (the body half of the credential rule) whose name marks a credential, without hyphens or
 // underscores and in lower case (api_key, apiKey, token, password, secret, auth, session...), and whose value is a literal, not exactly one
 // placeholder. "" when there is none (or the body is not JSON: ValidateTpl refuses that on its own). Everything under such a key counts.
 func credentialBodyKey(body string) string {
@@ -539,7 +539,7 @@ func credentialBodyKey(body string) string {
 	return walk(v, "")
 }
 
-// precheckProblem checks the check before with its refusal texts and its required text as a group (D-95): a read-only template (a
+// precheckProblem checks the check before with its refusal texts and its required text as a group: a read-only template (a
 // command, or a GET without a body), at least one refusal text or a required text, no read-back text, at most 8 refusal texts of up
 // to 80 plain characters, a required text of up to 80 plain characters. "" when acceptable.
 func precheckProblem(t Tpl, refuse []string, expect string) string {
@@ -595,7 +595,7 @@ func usesPortLike(run, rollback, verify, pre Tpl, custom bool) bool {
 	return false
 }
 
-// needsPrecheck reports whether the templates can name a port without the check before and a refusal text that D-95 (3) requires, so
+// needsPrecheck reports whether the templates can name a port without the check before and the refusal text it requires, so
 // a trunk or uplink port is never touched. custom: the action is a customer's (see portLikeParams).
 func needsPrecheck(run, rollback, verify, pre Tpl, refuse []string, custom bool) bool {
 	return usesPortLike(run, rollback, verify, pre, custom) && (pre.Empty() || len(refuse) == 0)

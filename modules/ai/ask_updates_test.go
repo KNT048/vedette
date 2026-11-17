@@ -12,10 +12,10 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// G9 (J4, kien): "list CVE of ip 192.168.10.77 and list application affect (need upgrade)". The model names the device by its IP and
+// A real question: "list CVE of ip 192.168.10.77 and list application affect (need upgrade)". The model names the device by its IP and
 // gets, in ONE call, one action per update with the CVE count and the worst severity, the agent's version called detected (never
 // "needs confirming"), and the recommended updates.
-func TestAskDeviceUpdates_G9_OneCallByIP(t *testing.T) {
+func TestAskDeviceUpdates_OneCallByIP(t *testing.T) {
 	a := newAskAPI(t)
 	cves := func(n int) []string {
 		var out []string
@@ -68,7 +68,7 @@ func TestAskDeviceUpdates_G9_OneCallByIP(t *testing.T) {
 }
 
 // The device is found by its name too; two names that both match ask for the asset_id; an unknown IP says so.
-func TestAskDeviceUpdates_G9_FindsTheDevice(t *testing.T) {
+func TestAskDeviceUpdates_FindsTheDevice(t *testing.T) {
 	for _, c := range []struct{ arg, want string }{
 		{`{"device":"ws-07"}`, `"asset_id":"a-ws07"`},
 		{`{"device":"a-nas"}`, `"asset_id":"a-nas"`},
@@ -87,7 +87,7 @@ func TestAskDeviceUpdates_G9_FindsTheDevice(t *testing.T) {
 // Review r2 M of #935: through the real loop (12 KB of tool results a question, the input budget that stops tool turns, the sized
 // usage a provider reports), a PC with 40 applications to upgrade and 12 recommended updates is read to the end: the model follows
 // the note's offset, every one of the 40 updates reaches it, and no call is refused for the tool limit.
-func TestAskDeviceUpdates_G9_FortyUpdatesThroughTheLoop(t *testing.T) {
+func TestAskDeviceUpdates_FortyUpdatesThroughTheLoop(t *testing.T) {
 	a := newAskAPI(t)
 	a.fake.sizedUsage = true
 	apps := []string{"Mozilla Firefox", "Google Chrome", "Microsoft Edge", "Adobe Acrobat Reader DC", "7-Zip", "Notepad++", "VLC media player", "Zoom Workplace", "Microsoft Teams", "Python 3.11"}

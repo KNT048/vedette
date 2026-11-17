@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// D-469 (INV-17): the block list publishes public addresses only, so a blocklist_add on any other address is refused when it is
+// INV-17: the block list publishes public addresses only, so a blocklist_add on any other address is refused when it is
 // planned, with not_publishable and a refused line, on every path; one planned before the check is refused again before it runs.
 
 const privIP = "192.168.1.5"
@@ -16,7 +16,7 @@ func notPublishableLogged(e *env) bool {
 	return e.logHas("refused", "not_publishable: ") && e.logHas("refused", privIP+" is not a public address")
 }
 
-func TestD469_RuleRunRefusesAPrivateBlock(t *testing.T) {
+func TestRuleRunRefusesAPrivateBlock(t *testing.T) {
 	t.Parallel()
 	// (loopback, link-local, multicast and 0/8, 240/4 are already refused by the type check, invalid_target)
 	for _, ip := range []string{privIP, "10.0.0.5", "172.16.4.4", "100.64.0.1", "192.0.0.8", "198.18.0.1", "fd00::5", "2001:db8::1"} {
@@ -42,7 +42,7 @@ func TestD469_RuleRunRefusesAPrivateBlock(t *testing.T) {
 }
 
 // A block that would do nothing is not a safety refusal: only that action is dropped, the rule's other actions still go ahead.
-func TestD469_OnlyTheBlockIsDroppedTheMessageStillGoes(t *testing.T) {
+func TestOnlyTheBlockIsDroppedTheMessageStillGoes(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block and tell", "ioc_connection", append(blockAction(60), response.RuleAction{ActionID: "msg_send", Params: map[string]string{"text": "Bad connection from {{trigger.device}}"}}), nil)
@@ -53,7 +53,7 @@ func TestD469_OnlyTheBlockIsDroppedTheMessageStillGoes(t *testing.T) {
 	}
 }
 
-func TestD469_ManualRunSimulationAndSaveRefuseAPrivateBlock(t *testing.T) {
+func TestManualRunSimulationAndSaveRefuseAPrivateBlock(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.dir.devices["a-pc"] = response.DeviceInfo{ID: "a-pc", Name: "PC-HR-01", IP: privIP, Kind: "pc", Approved: true}
@@ -80,7 +80,7 @@ func TestD469_ManualRunSimulationAndSaveRefuseAPrivateBlock(t *testing.T) {
 	}
 }
 
-func TestD469_AIProposalRefusesAPrivateBlock(t *testing.T) {
+func TestAIProposalRefusesAPrivateBlock(t *testing.T) {
 	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	b := lowBody()
@@ -94,7 +94,7 @@ func TestD469_AIProposalRefusesAPrivateBlock(t *testing.T) {
 
 // The plan job does not offer the block list action for a device on a LAN address (a plan proposing it would be refused whole and
 // back the finding off), so the plan of a LAN device is still stored; a device on a public address is still offered it.
-func TestD469_AIPlanOfALANDeviceIsNotOfferedTheBlockList(t *testing.T) {
+func TestAIPlanOfALANDeviceIsNotOfferedTheBlockList(t *testing.T) {
 	t.Parallel()
 	e, fp, targets := aiPlanEnv(t)
 	e.dir.devices["a1"] = response.DeviceInfo{ID: "a1", Name: "NAS", IP: privIP, Approved: true}
@@ -136,7 +136,7 @@ func TestD469_AIPlanOfALANDeviceIsNotOfferedTheBlockList(t *testing.T) {
 }
 
 // A plan stored before the check holds a private block: requesting it is refused, and the proposal shows why.
-func TestD469_RequestFromAStoredPlanRefusesAPrivateBlock(t *testing.T) {
+func TestRequestFromAStoredPlanRefusesAPrivateBlock(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.turnOn()
@@ -158,7 +158,7 @@ func TestD469_RequestFromAStoredPlanRefusesAPrivateBlock(t *testing.T) {
 
 // A request made before the check is refused right before it runs: the item fails with not_publishable, a refused line is written,
 // the list stays empty, and nothing says "Added".
-func TestD469_AnOlderRequestIsRefusedWhenItRuns(t *testing.T) {
+func TestAnOlderRequestIsRefusedWhenItRuns(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
@@ -175,8 +175,8 @@ func TestD469_AnOlderRequestIsRefusedWhenItRuns(t *testing.T) {
 	}
 }
 
-// Entries a block made before D-469 left on private addresses are removed once, with one line giving the count; public ones stay.
-func TestD469_OldPrivateEntriesAreRemovedOnce(t *testing.T) {
+// Entries a block made by an older release left on private addresses are removed once, with one line giving the count; public ones stay.
+func TestOldPrivateEntriesAreRemovedOnce(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	for i, v := range []string{privIP, "10.9.9.9", "198.51.100.9"} {

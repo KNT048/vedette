@@ -35,7 +35,7 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		if s.ID == vulnCheckFeedID { // the customer's own key, 1,000 requests a minute: a few pages every 6 hours
 			want = 6
 		}
-		if s.ID == "cisa-kev" || s.ID == "cve-org" { // hourly: Home promises data at most an hour old (S-FEED-1, D-485); a 304 keeps it cheap
+		if s.ID == "cisa-kev" || s.ID == "cve-org" { // hourly: Home promises data at most an hour old (S-FEED-1); a 304 keeps it cheap
 			want = 1
 		}
 		if s.IntervalHours != want {

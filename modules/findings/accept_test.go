@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// D-498: accept_risk needs a note like false positive and a day from tomorrow to a year ahead (one day of slack each side
+// accept_risk needs a note like false positive and a day from tomorrow to a year ahead (one day of slack each side
 // for the person's time zone); anything else is refused and changes nothing.
 func TestFinding_AcceptRisk_NoteAndUntilBounds(t *testing.T) {
 	t.Parallel()
@@ -52,7 +52,7 @@ func TestFinding_AcceptRisk_NoteAndUntilBounds(t *testing.T) {
 	}
 }
 
-// D-498, INV-13: the acceptance holds until its last day has ended everywhere (the next day 12:00 UTC, the end of the day at
+// INV-13: the acceptance holds until its last day has ended everywhere (the next day 12:00 UTC, the end of the day at
 // UTC-12), then reopens to what a fresh match gives.
 func TestFinding_ExpireAcceptance(t *testing.T) {
 	t.Parallel()
@@ -81,7 +81,7 @@ func TestFinding_ExpireAcceptance(t *testing.T) {
 	}
 }
 
-// D-498: accepted findings stay accepted on a re-match, reopen in the hourly reconcile once the day passed (system history,
+// Accepted findings stay accepted on a re-match, reopen in the hourly reconcile once the day passed (system history,
 // audit, status_changed with its reason), and bulk accept keeps INV-10 (closed ones skipped, a bad day writes nothing).
 func TestService_AcceptRiskThenExpiresInReconcile(t *testing.T) {
 	t.Parallel()
@@ -149,7 +149,7 @@ func TestService_AcceptRiskThenExpiresInReconcile(t *testing.T) {
 	}
 }
 
-// Opus r2 LOW-2 of D-498: a risk_accepted row that cannot be read whole still reopens on its day, once, with its history,
+// A risk_accepted row that cannot be read whole still reopens on its day, once, with its history,
 // audit row and event, instead of being skipped every hour while it stays accepted.
 func TestService_ExpireAcceptanceOfAnUnreadableRow(t *testing.T) {
 	t.Parallel()

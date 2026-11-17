@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/mitigation"
 )
 
-// D-345, D-346: the release tool signs the pack set the box verifies, and refuses what the box would not load.
+// The release tool signs the pack set the box verifies, and refuses what the box would not load.
 
 func packFile(t *testing.T, cve string) []byte {
 	t.Helper()

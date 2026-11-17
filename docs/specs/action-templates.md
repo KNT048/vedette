@@ -1,11 +1,11 @@
 # Gói hành động theo hãng (action packs)
 
-> **D-58 (2026-11-09): đây là thư viện MẪU hành động ở dạng dữ liệu, không phải code.** Lõi Vedette chỉ có các kiểu kết nối chung (HTTP API, SSH/CLI, NETCONF/RESTCONF, nền tảng tự động hoá như Ansible AWX/n8n, MCP, danh sách chặn). Mỗi mục dưới đây là một template ví dụ phát hành kèm bản cập nhật; khách sửa/thêm được, AI soạn được cho thiết bị khác rồi người duyệt. Tên hãng chỉ là ví dụ.
+> **đây là thư viện MẪU hành động ở dạng dữ liệu, không phải code.** Lõi Vedette chỉ có các kiểu kết nối chung (HTTP API, SSH/CLI, NETCONF/RESTCONF, nền tảng tự động hoá như Ansible AWX/n8n, MCP, danh sách chặn). Mỗi mục dưới đây là một template ví dụ phát hành kèm bản cập nhật; khách sửa/thêm được, AI soạn được cho thiết bị khác rồi người duyệt. Tên hãng chỉ là ví dụ.
 
 
-Trạng thái: bản nháp M2-0, viết 2026-11-09. Căn cứ: D-41, D-44, D-46, D-47, D-51; danh mục hiện tại của GUI ở `web/src/features/response/data.ts`, `logic.ts`, `CatalogEditor.tsx`. Danh sách chặn cho firewall kéo: `docs/specs/blocklist-format.md` (spec riêng).
+Trạng thái: bản nháp M2-0, viết 2026-11-09. Căn cứ: danh mục hiện tại của GUI ở `web/src/features/response/data.ts`, `logic.ts`, `CatalogEditor.tsx`. Danh sách chặn cho firewall kéo: `docs/specs/blocklist-format.md` (spec riêng).
 
-Tài liệu này là hợp đồng của backend cho module `response`: mỗi hành động gồm lệnh/API chính xác, tham số có kiểu, hoàn tác, kiểm lại, quyền tối thiểu, rủi ro. Thay đổi GUI nêu ở mục 12 là việc của kien duyệt (quy tắc gui-first), không tự sửa.
+Tài liệu này là hợp đồng của backend cho module `response`: mỗi hành động gồm lệnh/API chính xác, tham số có kiểu, hoàn tác, kiểm lại, quyền tối thiểu, rủi ro. Thay đổi GUI nêu ở mục 12 cần người duy trì duyệt (quy tắc gui-first), không tự sửa.
 
 ## 0. Cách đọc nhãn xác minh
 
@@ -23,14 +23,14 @@ Hai trang tài liệu Fortinet rất dài (hàng trăm nghìn ký tự) nên cô
 | Trường | Ý nghĩa |
 |---|---|
 | `id` | định danh ổn định, chữ thường, ví dụ `fgt_addrgrp_add` |
-| `pack`, `name`, `description` | gói, tên và mô tả bằng lời người thường (D-47) |
+| `pack`, `name`, `description` | gói, tên và mô tả bằng lời người thường |
 | `connection` | loại kết nối cần (fortigate-rest, mikrotik-rest, ssh-cisco...) |
 | `params` | danh sách tham số có kiểu, xem 1.2 |
 | `run`, `rollback`, `verify` | mẫu lệnh/API cho từng bước |
 | `precheck` | bước đọc trạng thái trước khi ghi (để quyết định idempotent và để lưu giá trị cũ cho hoàn tác) |
 | `ttl` | thời hạn tự gỡ, xem 1.4 |
 | `risk` | `low`, `medium`, `high` (1.5) |
-| `ai_may_propose` | cờ D-51 |
+| `ai_may_propose` | cờ cho phép AI đề xuất |
 | `min_version` | khoảng phiên bản hỗ trợ |
 
 ### 1.2 Tham số có kiểu và cách escape
@@ -64,16 +64,16 @@ Mọi đối tượng Vedette tạo trên thiết bị phải có dấu: tiền 
 ### 1.4 TTL
 
 - Ưu tiên TTL **của thiết bị** (còn chạy khi hộp Vedette tắt): MikroTik `timeout=`, FortiGate banned `expiry`, danh sách chặn kéo (mục vào/ra theo `expires_at`).
-- Thiết bị không có TTL gốc (FortiGate address group, pfSense/OPNsense alias qua API, Cisco/Aruba ACL, Pi-hole, AdGuard): Vedette lưu `expires_at` và chạy hoàn tác khi đến hạn. Hộp tắt lúc đến hạn: chạy bù khi khởi động lại, hiện "quá hạn" trên màn hình Phản ứng. Hoàn tác tự động tới hạn cũng ghi kiểm toán và vẫn cần mục chặn nằm trong danh sách "hoàn tác được không cần duyệt" (D-51: hoàn tác không làm thêm hại).
+- Thiết bị không có TTL gốc (FortiGate address group, pfSense/OPNsense alias qua API, Cisco/Aruba ACL, Pi-hole, AdGuard): Vedette lưu `expires_at` và chạy hoàn tác khi đến hạn. Hộp tắt lúc đến hạn: chạy bù khi khởi động lại, hiện "quá hạn" trên màn hình Phản ứng. Hoàn tác tự động tới hạn cũng ghi kiểm toán và vẫn cần mục chặn nằm trong danh sách "hoàn tác được không cần duyệt" (hoàn tác không làm thêm hại).
 - TTL tối đa theo rủi ro: low 30 ngày, medium 7 ngày, high 24 giờ. Không TTL chỉ cho hành động có cờ `permanent` do quản trị viên đặt tay.
 
 ### 1.5 Mức rủi ro
 
 - **low**: thêm mục vào danh sách chặn ngoài LAN (IP/domain đích), thông báo; gỡ lại không ảnh hưởng gì khác.
 - **medium**: chặn một IP **nguồn** trong LAN hoặc trên cổng vào; tắt/bật cổng switch; thêm dòng ACL ở switch.
-- **high**: chuyển VLAN cách ly; tắt VIP/chính sách đang phục vụ người dùng thật; mọi thứ cắt dịch vụ. Cần 2 người duyệt (D-51).
+- **high**: chuyển VLAN cách ly; tắt VIP/chính sách đang phục vụ người dùng thật; mọi thứ cắt dịch vụ. Cần 2 người duyệt.
 
-Rủi ro còn tăng bậc khi nhiều mục tiêu (rule của D-51) hoặc mục tiêu là thiết bị cùng nhóm dịch vụ.
+Rủi ro còn tăng bậc khi nhiều mục tiêu (quy tắc rủi ro) hoặc mục tiêu là thiết bị cùng nhóm dịch vụ.
 
 ### 1.6 Đọc lại sau khi chạy (verify)
 
@@ -81,7 +81,7 @@ Mỗi hành động có một `verify` chỉ-đọc, chạy sau `run` và sau `r
 
 ### 1.7 Đường kéo ưu tiên
 
-Chặn IP/domain đích: ưu tiên hành động `blocklist_add` rồi để firewall kéo (D-44), vì không cần quyền ghi lên firewall. Gói bên dưới là đường đẩy, dùng khi (a) cần chặn ngay (chu kỳ kéo chậm), (b) thiết bị không kéo được, (c) cần hành động không phải danh sách (VIP, cổng, VLAN). Chu kỳ kéo khác nhau rõ rệt: FortiGate 1 đến 43200 phút [xác minh], OPNsense có "Refresh frequency" [xác minh nhưng đơn vị chưa rõ], pfSense URL Table chưa xác minh (có thể tính theo ngày), MikroTik tự viết lịch `fetch`.
+Chặn IP/domain đích: ưu tiên hành động `blocklist_add` rồi để firewall kéo, vì không cần quyền ghi lên firewall. Gói bên dưới là đường đẩy, dùng khi (a) cần chặn ngay (chu kỳ kéo chậm), (b) thiết bị không kéo được, (c) cần hành động không phải danh sách (VIP, cổng, VLAN). Chu kỳ kéo khác nhau rõ rệt: FortiGate 1 đến 43200 phút [xác minh], OPNsense có "Refresh frequency" [xác minh nhưng đơn vị chưa rõ], pfSense URL Table chưa xác minh (có thể tính theo ngày), MikroTik tự viết lịch `fetch`.
 
 ---
 
@@ -210,7 +210,7 @@ end
 
 ### 2.6 `fgt_ebl_setup`: kết nối External Block List (Threat Feed)
 
-- Mô tả: "Tạo kết nối danh sách chặn ngoài trên FortiGate trỏ tới URL danh sách chặn của hộp Vedette; FortiGate tự kéo theo chu kỳ". Đây là đường ưu tiên của D-44.
+- Mô tả: "Tạo kết nối danh sách chặn ngoài trên FortiGate trỏ tới URL danh sách chặn của hộp Vedette; FortiGate tự kéo theo chu kỳ". Đây là đường ưu tiên: firewall tự kéo.
 - Khác các hành động trên: đây là **thiết lập một lần**, không gắn sự kiện. Cấu hình `system external-resource` thuộc nhóm quyền hệ thống (chưa xác minh); Vedette **không** xin quyền đó. Mặc định hộp **hiển thị đoạn CLI để quản trị viên dán**, không gọi API.
 - Cú pháp [xác minh] (trang CLI FortiOS và bài cộng đồng Fortinet):
 
@@ -325,7 +325,7 @@ Cả hai có đường **kéo** chính thức (URL Table). Đường đẩy khá
 Vì thế Vedette xếp ba lựa chọn theo mức tin cậy:
 
 1. **Kéo (chính thức)**: alias loại URL Table (IPs) trỏ tới danh sách chặn của hộp. Mô tả loại alias nằm ở https://docs.netgate.com/pfsense/en/latest/firewall/aliases.html (trang chỉ nhắc có URL Table, chi tiết ở trang "Alias Types", chưa đọc được). **Chu kỳ cập nhật tối thiểu của pfSense URL Table chưa xác minh** (có thể theo ngày, nghĩa là quá chậm cho chặn tức thì): kiểm trước khi giới thiệu cho khách như cách chính.
-2. **Đẩy qua gói REST không chính thức**: dùng khi khách đã tự cài gói. Ghi "không chính thức" trên giao diện (tương tự cách D-46 ghi Zalo cá nhân). Gói v2: đường dẫn `/api/v2/firewall/alias` (cập nhật mảng `address` của alias) và `/api/v2/firewall/apply` (áp dụng) **chưa xác minh** (trang pfrest.org không liệt kê endpoint ở phần đọc được; Swagger tự phục vụ ở System > REST API > Documentation sau khi cài [xác minh]). GUI hiện dùng `/api/v1/firewall/alias/entry`, nhánh v1 cũ, **không** dùng trong spec này.
+2. **Đẩy qua gói REST không chính thức**: dùng khi khách đã tự cài gói. Ghi "không chính thức" trên giao diện (tương tự cách ghi Zalo cá nhân). Gói v2: đường dẫn `/api/v2/firewall/alias` (cập nhật mảng `address` của alias) và `/api/v2/firewall/apply` (áp dụng) **chưa xác minh** (trang pfrest.org không liệt kê endpoint ở phần đọc được; Swagger tự phục vụ ở System > REST API > Documentation sau khi cài [xác minh]). GUI hiện dùng `/api/v1/firewall/alias/entry`, nhánh v1 cũ, **không** dùng trong spec này.
 3. **Đẩy qua SSH + `pfctl`** (chưa xác minh trong tài liệu Netgate; `pfctl` là công cụ FreeBSD): `pfctl -t Vedette_Blocklist -T add {ip}`, `pfctl -t Vedette_Blocklist -T delete {ip}`, `pfctl -t Vedette_Blocklist -T show`. Điểm vấp: chạy `pfctl` cần quyền root nên tài khoản SSH quyền rất cao (không có quyền tối thiểu nhỏ hơn), mục thêm bằng `pfctl` thường mất khi bộ lọc được nạp lại (chưa xác minh). Chỉ cho vào danh sách "mẫu tuỳ chỉnh" với cảnh báo, không đưa vào mẫu dựng sẵn.
 
 **`pf_alias_add` / `pf_alias_remove` (cách 2, không chính thức)**
@@ -426,7 +426,7 @@ end
 - Run: `configure terminal` / `interface {interface}` / `switchport access vlan {vlan}` / `end`.
 - Hoàn tác: `switchport access vlan <giá trị cũ đã lưu>` (khi cũ là 1 mặc định: `no switchport access vlan`).
 - Kiểm lại: `show interfaces {interface} switchport`, kỳ vọng `Access Mode VLAN: {vlan}`; sau hoàn tác kỳ vọng VLAN cũ.
-- Rủi ro: `high` (2 người duyệt, D-51). Gắn nhãn `ai_may_propose` theo cờ D-51 (GUI hiện bật `true` cho hành động này).
+- Rủi ro: `high` (2 người duyệt). Gắn nhãn `ai_may_propose` (GUI hiện bật `true` cho hành động này).
 - Điểm vấp:
   - Thiết bị giữ địa chỉ DHCP của VLAN cũ tới khi liên kết nhấp nháy; VLAN cách ly vì thế có thể phải có DHCP riêng. Không tự `shutdown`/`no shutdown` trong cùng hành động.
   - 802.1X/MAB gán VLAN động có thể ghi đè giá trị tĩnh (chưa xác minh), `verify` đọc lại cả `Operational Mode`/VLAN thực tế.
@@ -554,16 +554,16 @@ exit
   - Sai sót làm mất toàn bộ luật người dùng: bắt buộc lưu bản sao trước khi ghi và có nút "khôi phục luật người dùng" trong kiểm toán.
   - Tham số `domain` phải qua kiểm tra chặt: các ký tự `||`, `^`, `$`, `*`, `/`, `@@` có nghĩa trong cú pháp luật, không được lọt vào (kiểm tra regex ở 1.2 đã loại).
   - Không có TTL gốc: Vedette tự hoàn tác.
-- Cách kéo thay thế: `POST /control/filtering/add_url` body `{"name":"Vedette","url":"https://<ip-hop>/blocklist/<token>/domains.txt","whitelist":false}` để AdGuard tự kéo danh sách của hộp [xác minh điểm cuối và các trường; `url` có thể là URL hoặc đường dẫn tệp]. Chu kỳ kéo là cài đặt chung của AdGuard (`interval` trong `filtering/status`, giờ). Định dạng tệp theo `blocklist-format.md`. Đường này là cách ưu tiên theo D-44; là thiết lập một lần.
+- Cách kéo thay thế: `POST /control/filtering/add_url` body `{"name":"Vedette","url":"https://<ip-hop>/blocklist/<token>/domains.txt","whitelist":false}` để AdGuard tự kéo danh sách của hộp [xác minh điểm cuối và các trường; `url` có thể là URL hoặc đường dẫn tệp]. Chu kỳ kéo là cài đặt chung của AdGuard (`interval` trong `filtering/status`, giờ). Định dạng tệp theo `blocklist-format.md`. Đường này là cách ưu tiên (thiết bị tự kéo); là thiết lập một lần.
 - Phiên bản: AdGuard Home 0.107 trở lên (đặc tả đã đọc).
 
 ---
 
-## 9. Hành động chung (mẫu HTTP và SSH tuỳ chỉnh, D-47)
+## 9. Hành động chung (mẫu HTTP và SSH tuỳ chỉnh)
 
 Hành động tuỳ chỉnh do khách thêm cũng bắt buộc cùng quy tắc như hành động dựng sẵn. Máy chủ kiểm khi **lưu** mẫu và lần nữa khi **chạy**; vi phạm = từ chối lưu, không có "cảnh báo rồi cho qua".
 
-> **Trạng thái 13b-6 (bộ ghi `core/conn/write`, D-94, D-95; đã làm).** Máy chủ kiểm khi lưu (`ValidateTpl`, `cliProblem`) và lần nữa khi chạy (`readOnlyProblem` cho kiểm trước và đọc lại; bộ ghi cho mọi bước). Khác với các câu bên dưới: (1) một lời gọi mỗi lần cho mỗi kết nối (và một bước thiết bị mỗi lần trên cả hộp, `execMu`); không có giới hạn 30 yêu cầu/phút riêng, hạn mức là `max_per_hour` và cầu dao. (2) Sau một dòng SSH bị thiết bị từ chối ở vị trí sau dòng đầu của một bước ghi (chạy, hoàn tác), bộ ghi gõ **đúng một** dòng rời chế độ cấu hình trên cùng phiên rồi đóng phiên (D-358; D-94 (2) "dừng chuỗi và đóng phiên" giữ nguyên, không dòng nào của mẫu được gửi tiếp). Dòng rời theo dòng gần nhất trước đó đã vào chế độ cấu hình mà chưa bị một dòng `end` sau nó đóng lại (hết khối mở thì không gõ gì), là dữ liệu `core/conn/write/leave.json`: `configure terminal`/`conf t` → `end` (Cisco IOS/IOS-XE, Aruba AOS-CX: dòng ở cấu hình toàn cục và chế độ con thường có hiệu lực khi gõ, `end` chỉ về dấu nhắc exec); `spanning-tree mst configuration` → `abort` (IOS/NX-OS: thay đổi vùng MST chờ tới khi rời chế độ con, `exit`/`end` **áp dụng** chúng); `config …` → `abort` (FortiOS: `next`/`end` **lưu** mục đang gõ dở, `abort` bỏ; thay chữ "`exit` trên FortiOS" ở 9.3). Dòng rời có hạn riêng 5 giây (`LeaveBudget`, ngoài 60 giây của phiên, trong 90 giây của bước), lỗi hay im lặng của nó bị bỏ qua. Không gửi gì khi lỗi ở dòng đầu, khi trước đó không có dòng vào cấu hình khớp luật (kể cả `configure` trơn của ArubaOS-Switch/Junos: Vedette chưa có gói Junos, Junos cần `rollback 0` chứ không phải `end`), khi dòng hết giờ hay phiên đã đóng, khi bước bị dừng (dừng khẩn cấp, D-179 (4)), và ở bước chỉ đọc. Lỗi của FortiOS (`command parse error`, `value parse error`, `Command fail. Return code -N`) nay cũng là dòng bị từ chối; trước D-358 bộ ghi không thấy chúng, gõ tiếp `next`/`end` và báo OK. Kết quả không đổi: lỗi sau khi một dòng trước đã được nhận là "State unknown" (đọc lại thiết bị, không gửi lại). Chưa thử trên thiết bị thật (LAB). (3) Bộ ghi tự đặt `Accept: application/json` và, khi có thân, `Content-Type: application/json` nếu mẫu không đặt. (4) Kiểm trước, chạy, đọc lại và hoàn tác mỗi bước mở một phiên SSH hoặc một lời gọi HTTP riêng; MCP làm `initialize` cho mỗi bước. (5) Bộ ghi từ chối dòng lệnh có ký tự điều khiển hoặc ký tự shell (`;|&$` và các ký tự trong INV-14b), dòng dài quá 512 ký tự, và quá 64 dòng mỗi bước; giới hạn số dòng lúc lưu giữ như cũ. (6) Bước kiểm trước chạy **cả khi** hành động không ghi đè giá trị cũ, nếu mẫu có `precheck`; đầu ra được `normalizeOutput` rồi so với `precheck_refuse`/`precheck_expect` (rỗng thì từ chối); đọc lại chỉ gửi khi mẫu có `expect`. (7) Kết nối chưa qua Test gần nhất (`NotReady`) không chạy được hành động và không chạy được kiểm trước; hoàn tác và đọc lại chỉ cần đã có khoá ghim. (8) **D-356:** mẫu có `expect` thì chữ đó được đọc ngay trước `run` (đầu ra của `precheck` khi nó là cùng bước với `verify`, không thì thêm một bước `verify`); chỉ giữ có/không. Lần chạy chưa rõ mà đọc lại thấy chữ chỉ tính là đã áp dụng khi chữ không có trước đó.
+> **Trạng thái 13b-6 (bộ ghi `core/conn/write`; đã làm).** Máy chủ kiểm khi lưu (`ValidateTpl`, `cliProblem`) và lần nữa khi chạy (`readOnlyProblem` cho kiểm trước và đọc lại; bộ ghi cho mọi bước). Khác với các câu bên dưới: (1) một lời gọi mỗi lần cho mỗi kết nối (và một bước thiết bị mỗi lần trên cả hộp, `execMu`); không có giới hạn 30 yêu cầu/phút riêng, hạn mức là `max_per_hour` và cầu dao. (2) Sau một dòng SSH bị thiết bị từ chối ở vị trí sau dòng đầu của một bước ghi (chạy, hoàn tác), bộ ghi gõ **đúng một** dòng rời chế độ cấu hình trên cùng phiên rồi đóng phiên (quy tắc "dừng chuỗi và đóng phiên" giữ nguyên, không dòng nào của mẫu được gửi tiếp). Dòng rời theo dòng gần nhất trước đó đã vào chế độ cấu hình mà chưa bị một dòng `end` sau nó đóng lại (hết khối mở thì không gõ gì), là dữ liệu `core/conn/write/leave.json`: `configure terminal`/`conf t` → `end` (Cisco IOS/IOS-XE, Aruba AOS-CX: dòng ở cấu hình toàn cục và chế độ con thường có hiệu lực khi gõ, `end` chỉ về dấu nhắc exec); `spanning-tree mst configuration` → `abort` (IOS/NX-OS: thay đổi vùng MST chờ tới khi rời chế độ con, `exit`/`end` **áp dụng** chúng); `config …` → `abort` (FortiOS: `next`/`end` **lưu** mục đang gõ dở, `abort` bỏ; thay chữ "`exit` trên FortiOS" ở 9.3). Dòng rời có hạn riêng 5 giây (`LeaveBudget`, ngoài 60 giây của phiên, trong 90 giây của bước), lỗi hay im lặng của nó bị bỏ qua. Không gửi gì khi lỗi ở dòng đầu, khi trước đó không có dòng vào cấu hình khớp luật (kể cả `configure` trơn của ArubaOS-Switch/Junos: Vedette chưa có gói Junos, Junos cần `rollback 0` chứ không phải `end`), khi dòng hết giờ hay phiên đã đóng, khi bước bị dừng (dừng khẩn cấp), và ở bước chỉ đọc. Lỗi của FortiOS (`command parse error`, `value parse error`, `Command fail. Return code -N`) nay cũng là dòng bị từ chối; trước đây bộ ghi không thấy chúng, gõ tiếp `next`/`end` và báo OK. Kết quả không đổi: lỗi sau khi một dòng trước đã được nhận là "State unknown" (đọc lại thiết bị, không gửi lại). Chưa thử trên thiết bị thật (LAB). (3) Bộ ghi tự đặt `Accept: application/json` và, khi có thân, `Content-Type: application/json` nếu mẫu không đặt. (4) Kiểm trước, chạy, đọc lại và hoàn tác mỗi bước mở một phiên SSH hoặc một lời gọi HTTP riêng; MCP làm `initialize` cho mỗi bước. (5) Bộ ghi từ chối dòng lệnh có ký tự điều khiển hoặc ký tự shell (`;|&$` và các ký tự trong INV-14b), dòng dài quá 512 ký tự, và quá 64 dòng mỗi bước; giới hạn số dòng lúc lưu giữ như cũ. (6) Bước kiểm trước chạy **cả khi** hành động không ghi đè giá trị cũ, nếu mẫu có `precheck`; đầu ra được `normalizeOutput` rồi so với `precheck_refuse`/`precheck_expect` (rỗng thì từ chối); đọc lại chỉ gửi khi mẫu có `expect`. (7) Kết nối chưa qua Test gần nhất (`NotReady`) không chạy được hành động và không chạy được kiểm trước; hoàn tác và đọc lại chỉ cần đã có khoá ghim. (8) Mẫu có `expect` thì chữ đó được đọc ngay trước `run` (đầu ra của `precheck` khi nó là cùng bước với `verify`, không thì thêm một bước `verify`); chỉ giữ có/không. Lần chạy chưa rõ mà đọc lại thấy chữ chỉ tính là đã áp dụng khi chữ không có trước đó.
 
 ### 9.1 Quy tắc chung
 
@@ -578,7 +578,7 @@ Hành động tuỳ chỉnh do khách thêm cũng bắt buộc cùng quy tắc n
 
 ### 9.2 HTTP tuỳ chỉnh
 
-> **D-94 (2026-11-09) thay các điểm sau của mục này**: chỉ HTTPS, không có "kết nối phòng thí nghiệm" HTTP thường (để sau); chứng chỉ không qua kho gốc hệ thống thì ghim SHA-256 chứng chỉ lá ở lần Test đầu; **không theo chuyển hướng nào** (kể cả cùng host); **không thử lại**, kể cả `GET`; header bị cấm: `Authorization`, `Cookie`, `Host`, `Proxy-*`, hop-by-hop, `Forwarded`, `X-Forwarded-*`. Các số 64 KB / 1 MB, 5 s / 15 s giữ nguyên.
+> **Cập nhật 2026-11-09, thay các điểm sau của mục này**: chỉ HTTPS, không có "kết nối phòng thí nghiệm" HTTP thường (để sau); chứng chỉ không qua kho gốc hệ thống thì ghim SHA-256 chứng chỉ lá ở lần Test đầu; **không theo chuyển hướng nào** (kể cả cùng host); **không thử lại**, kể cả `GET`; header bị cấm: `Authorization`, `Cookie`, `Host`, `Proxy-*`, hop-by-hop, `Forwarded`, `X-Forwarded-*`. Các số 64 KB / 1 MB, 5 s / 15 s giữ nguyên.
 
 - Chỉ HTTPS, kiểm chứng chỉ bật, cho phép ghim CA/vân tay. HTTP thường chỉ ở "kết nối phòng thí nghiệm" được quản trị viên đánh dấu và hiện cảnh báo.
 - Scheme, host, cổng lấy **từ kết nối**, không từ mẫu hay tham số. Mẫu chỉ có phần đường dẫn (có tham số ở đoạn riêng, `url.PathEscape`), query (`url.Values`), thân JSON.
@@ -592,19 +592,19 @@ Hành động tuỳ chỉnh do khách thêm cũng bắt buộc cùng quy tắc n
 
 ### 9.3 SSH tuỳ chỉnh
 
-> **D-94 (2026-11-09) thay**: hết giờ **20 giây mỗi dòng, 60 giây mỗi phiên** (thay 30 giây và 2 phút), cả item tối đa 90 giây; đầu ra thiết bị **không** ghi vào kiểm toán (chỉ một dòng đã làm sạch ≤ 200 ký tự trong kết quả item), không còn "ghi log đầu ra sau khi lọc bí mật"; khoá máy chủ đổi bị từ chối trước khi gửi thông tin xác thực; chỉ danh sách thuật toán **an toàn** của `x/crypto/ssh` (`ssh.SupportedAlgorithms()`: không `ssh-rsa` SHA-1, không CBC/RC4, không DH group1 hay SHA-1; hẹp hơn danh sách "mặc định" của thư viện, còn nhận cả chúng để nói chuyện với thiết bị cũ; D-94 viết "mặc định" với ý này).
+> **Cập nhật 2026-11-09, thay**: hết giờ **20 giây mỗi dòng, 60 giây mỗi phiên** (thay 30 giây và 2 phút), cả item tối đa 90 giây; đầu ra thiết bị **không** ghi vào kiểm toán (chỉ một dòng đã làm sạch ≤ 200 ký tự trong kết quả item), không còn "ghi log đầu ra sau khi lọc bí mật"; khoá máy chủ đổi bị từ chối trước khi gửi thông tin xác thực; chỉ danh sách thuật toán **an toàn** của `x/crypto/ssh` (`ssh.SupportedAlgorithms()`: không `ssh-rsa` SHA-1, không CBC/RC4, không DH group1 hay SHA-1; hẹp hơn danh sách "mặc định" của thư viện, còn nhận cả chúng để nói chuyện với thiết bị cũ; chữ "mặc định" ở đây mang ý này).
 
 - Dùng thư viện SSH của Go; không gọi `ssh` qua shell của hộp (`core/exec` allowlist, security.md). Khoá máy chủ ghim, đổi khoá thì dừng.
 - Thiết bị mạng dùng phiên tương tác có PTY; mỗi dòng lệnh gửi **riêng**, chờ dấu nhắc, có timeout mỗi dòng (30 giây) và tổng (2 phút). Mẫu lưu theo từng dòng; tham số thay vào một dòng không bao giờ làm tăng số dòng (kiểm sau thay thế).
 - Mẫu có số dòng tối đa (đề xuất 20) và danh sách lệnh **cấm** theo hãng (xem 5.1), cộng chặn chung: `reload`, `reboot`, `erase`, `format`, `delete`, `factory`, `write erase`, `no username`, `username`, `enable secret`, `crypto key`, `copy` tới đích mạng.
-- Mọi phiên cấu hình luôn kết thúc bằng lệnh thoát chế độ cấu hình (`end` trên Cisco/Aruba; khối `config` của FortiOS đóng bằng `end`), kể cả khi lỗi. Khi lỗi, lệnh thoát là dạng **không lưu** (D-358): `end` trên Cisco/Aruba, `abort` trên FortiOS và trong chế độ con MST của Cisco (`spanning-tree mst configuration`), vì ở đó `end`/`next`/`exit` **lưu** phần đang gõ dở.
-- Lỗi của thiết bị (dòng bắt đầu `%`, `Error`, `Invalid`, `Unknown command`; FortiOS `command parse error`, `value parse error`, `Command fail`, D-358) = thất bại, dừng chuỗi.
+- Mọi phiên cấu hình luôn kết thúc bằng lệnh thoát chế độ cấu hình (`end` trên Cisco/Aruba; khối `config` của FortiOS đóng bằng `end`), kể cả khi lỗi. Khi lỗi, lệnh thoát là dạng **không lưu**: `end` trên Cisco/Aruba, `abort` trên FortiOS và trong chế độ con MST của Cisco (`spanning-tree mst configuration`), vì ở đó `end`/`next`/`exit` **lưu** phần đang gõ dở.
+- Lỗi của thiết bị (dòng bắt đầu `%`, `Error`, `Invalid`, `Unknown command`; FortiOS `command parse error`, `value parse error`, `Command fail`) = thất bại, dừng chuỗi.
 - Lưu cấu hình là hành động **riêng** (5.5), không gộp vào hành động khác.
 - Ghi log đầu ra của thiết bị vào kiểm toán sau khi lọc bí mật (mật khẩu, khoá, SNMP community).
 
 ### 9.4 Bảo vệ ở tầng quy tắc và cầu dao
 
-Mẫu tuỳ chỉnh dùng chung vỏ an toàn của D-51: danh sách không đụng, gộp trùng, `max_per_hour`, cầu dao, cửa sổ bảo trì, nút dừng khẩn cấp, nhật ký chuỗi băm. Hành động tuỳ chỉnh không được tắt các bảo vệ này.
+Mẫu tuỳ chỉnh dùng chung vỏ an toàn chung: danh sách không đụng, gộp trùng, `max_per_hour`, cầu dao, cửa sổ bảo trì, nút dừng khẩn cấp, nhật ký chuỗi băm. Hành động tuỳ chỉnh không được tắt các bảo vệ này.
 
 ---
 
@@ -642,9 +642,9 @@ Mẫu tuỳ chỉnh dùng chung vỏ an toàn của D-51: danh sách không đ�
 
 ---
 
-## 12. Chênh lệch với GUI hiện tại (kien duyệt, không tự sửa)
+## 12. Chênh lệch với GUI hiện tại (người duy trì duyệt, không tự sửa)
 
-> **WP-06 (2026-11-09) đã áp dụng** 11 điểm dưới đây vào thư viện mẫu (dữ liệu, D-58) `web/src/features/response/templates/action-templates.sample.json` (kèm test `templates.test.ts`). Cách thể hiện: mỗi `{...}` là tham số có kiểu (`ip`, `cidr`, `domain`, `port`, `mac`, `vlan`, `interface`, `id`, `name`; `text` chỉ cho hành động gửi tin) hoặc **giá trị Vedette tự đọc/tính khi chạy** (`{seq}`, `{previous_vlan}`, `{found_id}`, `{expiry_s}`, `{timeout}`, `{rules_before}`; luật không cung cấp, giao diện hiện `<seq>`...). Mẫu nào spec còn ghi "chưa xác minh" mang câu "Not verified on a device yet — test in a lab first" trong mô tả. **Còn thiếu so với spec** (mô hình mẫu hiện là một lời gọi mỗi bước): chuỗi nhiều lời gọi REST (tạo đối tượng địa chỉ rồi thêm vào nhóm FortiGate; apply của pfSense; đọc-sửa-ghi AdGuard), `precheck` và `ttl` gốc của thiết bị chỉ nằm trong mô tả/giá trị runtime. Backend (WP-13) cần `steps[]`.
+> **WP-06 (2026-11-09) đã áp dụng** 11 điểm dưới đây vào thư viện mẫu (dữ liệu) `web/src/features/response/templates/action-templates.sample.json` (kèm test `templates.test.ts`). Cách thể hiện: mỗi `{...}` là tham số có kiểu (`ip`, `cidr`, `domain`, `port`, `mac`, `vlan`, `interface`, `id`, `name`; `text` chỉ cho hành động gửi tin) hoặc **giá trị Vedette tự đọc/tính khi chạy** (`{seq}`, `{previous_vlan}`, `{found_id}`, `{expiry_s}`, `{timeout}`, `{rules_before}`; luật không cung cấp, giao diện hiện `<seq>`...). Mẫu nào spec còn ghi "chưa xác minh" mang câu "Not verified on a device yet — test in a lab first" trong mô tả. **Còn thiếu so với spec** (mô hình mẫu hiện là một lời gọi mỗi bước): chuỗi nhiều lời gọi REST (tạo đối tượng địa chỉ rồi thêm vào nhóm FortiGate; apply của pfSense; đọc-sửa-ghi AdGuard), `precheck` và `ttl` gốc của thiết bị chỉ nằm trong mô tả/giá trị runtime. Backend (WP-13) cần `steps[]`.
 
 Danh mục hiện tại ở `web/src/features/response/data.ts`:
 
@@ -660,7 +660,7 @@ Danh mục hiện tại ở `web/src/features/response/data.ts`:
 10. Kiểu tham số: thiếu `id` (policyid) và `name`; `{text}` đang lẫn vào mẫu thiết bị.
 11. Thiếu hành động `cisco_save_config` (5.5) và `fgt_ebl_setup`/`opn_urltable_setup`/`adguard_add_url` (thiết lập một lần, kéo) dưới dạng hướng dẫn.
 
-### 12.1 Sửa dữ liệu ở lát 13b-2 (D-94, D-95; 13b-0 chốt) — **đã làm ở 13b-2**
+### 12.1 Sửa dữ liệu ở lát 13b-2 (13b-0 chốt) — **đã làm ở 13b-2**
 
 **Sửa sau rà soát 13b-2 (2026-11-10):** ArubaOS-Switch **bị gỡ khỏi mẫu dựng sẵn** (mục 6.2 nói không đưa vào cho tới khi lab xác nhận; ba hành động `arubasw_*` chỉ còn làm được như hành động tuỳ chỉnh); `cisco_port_shut` đọc thêm `show interfaces {interface}` và từ chối `administratively down`, `aoscx_port_shut` từ chối `Admin state is down` (hoàn tác `no shutdown` sẽ bật lại cổng mà người quản trị đã tắt); hai hành động cổng Cisco đòi `Administrative Mode: static access` (`precheck_expect`) và từ chối `Mode: trunk`, `Mode: dynamic`, `Mode: private-vlan trunk`, `Mode: tunnel`, `Switchport: Disabled`; `fgt_policy_disable` có kiểm trước đọc chính sách và từ chối `"action":"deny"` (sau khi nén JSON) hoặc `set action deny`. Chuỗi từ chối của AOS-CX và `show full-configuration firewall policy {id}` của FortiOS chưa thử trên máy; AOS-CX chưa có `precheck_expect` (cần lab xác nhận dòng `VLAN Mode: access`).
 
@@ -668,8 +668,8 @@ Danh mục hiện tại ở `web/src/features/response/data.ts`:
 
 Áp dụng cho cả `modules/response/data/action-templates.json` và bản mock `web/src/features/response/templates/action-templates.sample.json` (test lệch thư viện phải xanh). Nhãn "chưa xác minh" giữ nguyên như các mục trên.
 
-1. **`tool` chỉ dành cho kết nối MCP** (D-94). `fgt_addrgrp_add` (`block_address`), `fgt_vip_disable` (`disable_virtual_ip`), `fgt_policy_disable` (`disable_firewall_policy`) đổi thành `tool: null`. Kiểu HTTP và SSH dùng công cụ cố định của loại kết nối (`send_request`, `run_approved_command`, `apply_config`, `launch_job`); giữ tên kiểu MCP trên hành động HTTP thì hành động bị coi là không khả dụng trên kết nối HTTP thật.
-2. **Chuỗi dòng SSH đầy đủ.** Lõi không biết lệnh của hãng (D-58), nên tắt phân trang và vào/ra chế độ cấu hình nằm trong dữ liệu. Mỗi bước (`precheck`, `run`, `rollback`, `verify`) là một phiên riêng:
+1. **`tool` chỉ dành cho kết nối MCP**. `fgt_addrgrp_add` (`block_address`), `fgt_vip_disable` (`disable_virtual_ip`), `fgt_policy_disable` (`disable_firewall_policy`) đổi thành `tool: null`. Kiểu HTTP và SSH dùng công cụ cố định của loại kết nối (`send_request`, `run_approved_command`, `apply_config`, `launch_job`); giữ tên kiểu MCP trên hành động HTTP thì hành động bị coi là không khả dụng trên kết nối HTTP thật.
+2. **Chuỗi dòng SSH đầy đủ.** Lõi không biết lệnh của hãng, nên tắt phân trang và vào/ra chế độ cấu hình nằm trong dữ liệu. Mỗi bước (`precheck`, `run`, `rollback`, `verify`) là một phiên riêng:
 
 | Nền | Dòng đầu của mọi bước | Bọc `run`/`rollback` | Nhãn |
 |---|---|---|---|
@@ -678,7 +678,7 @@ Danh mục hiện tại ở `web/src/features/response/data.ts`:
 | ArubaOS-Switch | `no page` | `configure` … `end` | chưa xác minh |
 
    Ví dụ `cisco_port_shut`: `run` = `terminal length 0` / `configure terminal` / `interface {interface}` / `shutdown` / `end`; `rollback` như vậy với `no shutdown`; `verify` = `terminal length 0` / `show interfaces {interface} status`. `cisco_save_config`: `run` = `terminal length 0` / `write memory`; `verify` = `terminal length 0` / `show startup-config` (thiếu dòng đầu thì phiên dừng ở `--More--` tới hết 20 s).
-3. **Kiểm trước và chuỗi từ chối cho hành động cổng** (bảng dưới là bản ban đầu 13b-0; chuỗi hiện hành sau rà soát nằm ở đoạn "Sửa sau rà soát" phía trên) (D-95 (3); đóng M4 của rà WP-13a: không đụng cổng trunk/uplink):
+3. **Kiểm trước và chuỗi từ chối cho hành động cổng** (bảng dưới là bản ban đầu 13b-0; chuỗi hiện hành sau rà soát nằm ở đoạn "Sửa sau rà soát" phía trên) (đóng M4 của rà WP-13a: không đụng cổng trunk/uplink):
 
 | Hành động | `precheck` | `precheck_refuse` | Nhãn |
 |---|---|---|---|
@@ -687,7 +687,7 @@ Danh mục hiện tại ở `web/src/features/response/data.ts`:
 | `arubasw_port_shut`, `arubasw_vlan_quarantine` | `no page` / `show vlans ports {interface} detail` | `Tagged` (phân biệt hoa thường, không khớp `Untagged`) | chưa xác minh |
 
    Uplink ở chế độ access không bị chuỗi trên bắt: vẫn phải khai trong danh sách không bao giờ đụng (INV-10).
-4. **`expect` ở `verify`** (D-95 (2); so chuỗi con, JSON đã nén, sau hoàn tác chuỗi phải mất):
+4. **`expect` ở `verify`** (so chuỗi con, JSON đã nén, sau hoàn tác chuỗi phải mất):
 
 | Hành động | `verify.expect` | Ghi chú |
 |---|---|---|
@@ -702,15 +702,15 @@ Danh mục hiện tại ở `web/src/features/response/data.ts`:
 | `cisco_port_vlan_quarantine` | `Access Mode VLAN: {vlan} ` (dấu cách cuối) | chưa khả dụng (mục 5) |
 | `cisco_save_config`, `pf_alias_add`, ArubaOS-Switch | không đặt | `verified = null` ("not checked") |
 
-5. **Giá trị lúc chạy chưa có tới 13c** (D-94 (4)): mẫu còn `{seq}`, `{previous_vlan}`, `{found_id}`, `{rules_before}` hoặc `{timeout}` là "không khả dụng" kèm lý do: `cisco_acl_deny`, `aoscx_acl_deny`, `arubasw_acl_deny`, `cisco_port_vlan_quarantine`, `aoscx_vlan_quarantine`, `arubasw_vlan_quarantine`, `mt_addrlist_add`, `adguard_block`. Chỉ `{expiry_s}` = `ttl_min` × 60 được tính ở 13b-6 (`fgt_ban_ip`; item không có TTL thì hành động này không khả dụng).
-6. **Mẫu dựng sẵn chưa thử trên máy thì tắt mặc định** (rủi ro của kế hoạch WP-13b): `fgt_addrgrp_add`, `fgt_ban_ip`, `fgt_vip_disable` đang `enabled: true` dù `unverified: true`; đổi `enabled: false` cho bản cài mới (`enabled` của hộp đã cài vẫn là của người dùng, D-88 (1)).
+5. **Giá trị lúc chạy chưa có tới 13c**: mẫu còn `{seq}`, `{previous_vlan}`, `{found_id}`, `{rules_before}` hoặc `{timeout}` là "không khả dụng" kèm lý do: `cisco_acl_deny`, `aoscx_acl_deny`, `arubasw_acl_deny`, `cisco_port_vlan_quarantine`, `aoscx_vlan_quarantine`, `arubasw_vlan_quarantine`, `mt_addrlist_add`, `adguard_block`. Chỉ `{expiry_s}` = `ttl_min` × 60 được tính ở 13b-6 (`fgt_ban_ip`; item không có TTL thì hành động này không khả dụng).
+6. **Mẫu dựng sẵn chưa thử trên máy thì tắt mặc định** (rủi ro của kế hoạch WP-13b): `fgt_addrgrp_add`, `fgt_ban_ip`, `fgt_vip_disable` đang `enabled: true` dù `unverified: true`; đổi `enabled: false` cho bản cài mới (`enabled` của hộp đã cài vẫn là của người dùng).
 
 ## 13. Câu hỏi mở
 
 1. FortiGate: cấp `sysgrp` cho thiết lập External Block List bằng REST, hay luôn để quản trị viên dán CLI? Đề xuất: luôn dán CLI (2.6).
 2. pfSense: có chấp nhận đường dẫn không chính thức (gói REST) làm đường đẩy mặc định, hay chỉ kéo và cho khách tự bật gói?
 3. Nhóm địa chỉ FortiOS cần thành viên neo `192.0.2.1/32`: chấp nhận cách này hay dùng cách khác (đối tượng địa chỉ cô lập cho từng mục)?
-4. Kiểu tham số `id` (policyid): thêm vào danh sách `PARAM_TYPES` (story mới, kien duyệt).
+4. Kiểu tham số `id` (policyid): thêm vào danh sách `PARAM_TYPES` (story mới, người duy trì duyệt).
 5. Cisco: có cho phép hành động `cisco_save_config` tự động sau chặn kéo dài (TTL lớn) không, hay luôn là bước duyệt riêng?
 6. Hộp có tự `clear` trạng thái kết nối đang mở (OPNsense states, FortiGate session) sau khi chặn không? Đề xuất: không ở bản đầu.
 7. Thêm kiểu `regex` cho Pi-hole để chặn cả cây miền con (cần quy tắc escape regex riêng, 7.2).

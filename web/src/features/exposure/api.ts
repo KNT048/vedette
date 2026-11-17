@@ -30,7 +30,7 @@ export function useAddTarget() {
 export function useDeleteTarget() {
   const qc = useQueryClient()
   return useMutation({
-    // ignore: an IP also goes on the Ignored list (D-79).
+    // ignore: an IP also goes on the Ignored list.
     mutationFn: ({ id, ignore }: { id: string; ignore?: boolean }) => api.del<void>(`/exposure/targets/${encodeURIComponent(id)}${ignore ? '?ignore=true' : ''}`),
     // Bỏ cache của mục tiêu vừa xoá (không tải lại: tải lại sẽ ra 404 ngay trước khi chuyển trang), chỉ làm mới danh sách.
     onSuccess: (_d, { id }) => {
@@ -62,7 +62,7 @@ export function useScan() {
   const qc = useQueryClient()
   const inv = useInvalidate()
   // onError too: a refused scan may have found the IP paused, and the page must then show it (the answer is a state of the target).
-  return useMutation({ // noticeVersion: the version of the sentence shown next to the button; the server records it with the first scan of a target (D-473).
+  return useMutation({ // noticeVersion: the version of the sentence shown next to the button; the server records it with the first scan of a target.
     mutationFn: ({ id, noticeVersion }: { id: string; noticeVersion?: string }) => api.post<ScanRun>(`/exposure/targets/${encodeURIComponent(id)}/scan`, noticeVersion ? { notice_version: noticeVersion } : undefined),
     // the 202 run goes into the cache at once, so a run that ends before the first poll still ends a "running" the page has seen
     onSuccess: (run) => { qc.setQueryData(['exposure', 'scan'], run); return inv() }, onError: inv })
@@ -73,7 +73,7 @@ export function useStopScan() {
   return useMutation({ mutationFn: () => api.post<ScanRun>('/exposure/scan/stop'), onSuccess: inv, onError: inv })
 }
 
-/** D-558: Shodan's last answer about this IP of the box (null before the first check). Reading sends nothing. */
+/** Shodan's last answer about this IP of the box (null before the first check). Reading sends nothing. */
 export const useOutside = (id: string) => useQuery({ queryKey: ['exposure', 'outside', id], queryFn: () => api.get<OutsideView | null>(`/exposure/targets/${encodeURIComponent(id)}/outside`) })
 /** Sends this IP of the box to Shodan InternetDB (admin). Only called after the person confirmed what is sent. */
 export function useCheckOutside() {
@@ -86,7 +86,7 @@ export function useCheckOutside() {
   })
 }
 
-/** D-563: the optional deep scan with Greenbone. Asks again every 30 s while it starts or loads its feed (about 2 hours the first time). */
+/** The optional deep scan with Greenbone. Asks again every 30 s while it starts or loads its feed (about 2 hours the first time). */
 export const useGreenbone = () => useQuery({
   queryKey: ['exposure', 'greenbone'], queryFn: () => api.get<Greenbone>('/exposure/greenbone'),
   refetchInterval: (q) => (q.state.data?.state === 'starting' || q.state.data?.state === 'loading' ? 30_000 : false) })
@@ -96,7 +96,7 @@ export function useSetGreenbone() {
   return useMutation({ mutationFn: (enabled: boolean) => api.put<Greenbone>('/exposure/greenbone', { enabled }), onSuccess: inv, onError: inv })
 }
 
-/** FULL-1 (D-566): accept the testing terms of a target (admin with two-step), with or without the disruptive tick, or withdraw them. */
+/** Accept the testing terms of a target (admin with two-step), with or without the disruptive tick, or withdraw them. */
 export function useAcceptTerms(id: string) {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (b: { version: string; disruptive: boolean }) => api.put<Target>(`/exposure/targets/${encodeURIComponent(id)}/terms`, b), onSuccess: inv })

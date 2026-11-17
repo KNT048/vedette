@@ -1,4 +1,4 @@
-// QA như người dùng thật cho module scan (D-23, UI chỉ tiếng Anh D-28), trang Settings › Scanning (#850): IT operator watches and stops scans,
+// QA như người dùng thật cho module scan (UI chỉ tiếng Anh), trang Settings › Scanning (#850): IT operator watches and stops scans,
 // admin turns engines on and off and sets the shared safety block, director (viewer), clean install. Scan now sits where the person is:
 // Scan the LAN now is on the Network discovery card and the Devices list; Scan selected on the Devices list; Check this device now and
 // Run vulnerability checks now on the device page (slots of #849, filled by features/scanning).
@@ -14,21 +14,21 @@ async function sample(page: Page) {
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
   await expect(page).toHaveURL(/\/setup/)
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Use sample data' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
-  await turnOnModules(page, ['Vulnerability scan']) // D-624: a Preview module, off by default
+  await turnOnModules(page, ['Vulnerability scan']) // A Preview module, off by default
 }
 /** Cài sạch; `commit` = đánh dấu cam kết quét ở bước mạng (như người dùng thật chọn quét ngay). */
 async function clean(page: Page, commit = false) {
   await page.goto('/setup')
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // D-75: the code the mock accepts
+  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // The code the mock accepts
   await page.getByLabel('Organization name', { exact: true }).fill('Test Company')
   await page.getByLabel('Administrator name', { exact: true }).fill('Test Admin')
   await page.getByLabel('Sign-in email', { exact: true }).fill('admin@test.example')
@@ -41,7 +41,7 @@ async function clean(page: Page, commit = false) {
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
   await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
-  await turnOnModules(page, ['Vulnerability scan']) // D-624: no bundle turns on the scan module, a preview one
+  await turnOnModules(page, ['Vulnerability scan']) // No bundle turns on the scan module, a preview one
 }
 async function patchDb(page: Page, patch: Record<string, unknown>) {
   await page.evaluate(([k, p]) => {
@@ -143,7 +143,7 @@ test.describe('scan: IT operator', () => {
   })
 
   test('a vulnerability check to the end: progress on the Nuclei card and in History, the shell indicator, per-device results, link to the finding', async ({ page }) => {
-    expect(await startChecks(page, ['a-nas02'])).toBe(201) // fragile: only a person's own pick scans it (D-126)
+    expect(await startChecks(page, ['a-nas02'])).toBe(201) // fragile: only a person's own pick scans it
     await page.goto('/settings/scanning')
     const nuclei = engine(page, /Vulnerability checks \(Nuclei\)/)
     await expect(nuclei.getByText('Running', { exact: true })).toBeVisible()
@@ -298,7 +298,7 @@ test.describe('scan: admin sets engines and the shared safety block', () => {
     await expect(page.getByText(/Next scan:/)).toBeVisible()
   })
 
-  // D-417: v1 does not offer the credentialed scan (no backend yet); the GUI is kept for post-v1, so the walk is kept, skipped.
+  // V1 does not offer the credentialed scan (no backend yet); the GUI is kept for post-v1, so the test is kept, skipped.
   test.skip('credentialed scan: module-off message; then wrong key/port/account show errors in place; the private key never comes back', async ({ page }) => {
     await page.goto('/settings/scanning?tab=credentialed')
     await expect(page.getByText('Credentialed scan module is off')).toBeVisible()
@@ -420,7 +420,7 @@ test.describe('scan: screenshots and accessibility', () => {
         await english(page, `${tab} ${tag}`)
         await expectAccessible(page, `${tab} ${tag}`)
       }
-      // D-417: no Credentialed scan tab in v1, so no shot of it.
+      // No Credentialed scan tab in v1, so no shot of it.
       expect(only404Summary(errors, nf)).toEqual([])
     })
   }

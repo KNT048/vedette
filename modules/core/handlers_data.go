@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
-// GET /core/data/export (S-CORE-1, D-154): everything the box stores about the organization as one JSON file, except what
+// GET /core/data/export (S-CORE-1): everything the box stores about the organization as one JSON file, except what
 // is secret. core cannot read the tables of other modules by name (MODULES rule), so the file is a dump of every table of the
 // database, filtered by the explicit, fail-closed policy of export_policy.go: every column of every table is classified there
 // (export, json with secret keys dropped, url cut to scheme and host, skip), and what is not listed is not exported.

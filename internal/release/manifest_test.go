@@ -30,7 +30,7 @@ func TestVerifyManifestBasics(t *testing.T) {
 	}
 }
 
-// D-104 (3): a revoked release or image digest is refused, whatever the revocation's action.
+// A revoked release or image digest is refused, whatever the revocation's action.
 func TestManifestRevocations(t *testing.T) {
 	e := newEnv(t)
 	raw := js(t, e.manifestMap())
@@ -124,7 +124,7 @@ func TestParseManifestRejects(t *testing.T) {
 	}
 }
 
-// D-146: bundled[] lists what is inside the signed scan image (nuclei and the template pack) with version, sha256 and licence; the two
+// bundled[] lists what is inside the signed scan image (nuclei and the template pack) with version, sha256 and licence; the two
 // new fields are optional and checked when present.
 func TestManifestBundledCarriesHashAndLicence(t *testing.T) {
 	e := newEnv(t)
@@ -157,7 +157,7 @@ func TestManifestBundledCarriesHashAndLicence(t *testing.T) {
 	}
 }
 
-// D-104 (1): ref must be exactly ghcr.io/knt048/vedette-<service>:<version>.
+// Ref must be exactly ghcr.io/knt048/vedette-<service>:<version>.
 func TestManifestRefs(t *testing.T) {
 	e := newEnv(t)
 	idx := e.verifiedIndex(e.active, e.indexMap(1))

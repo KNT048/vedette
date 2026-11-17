@@ -28,7 +28,7 @@ func (e *env) auditDetails(action string) []string {
 	return out
 }
 
-// FULL-1 (D-566): the testing terms are accepted per verified target by an administrator with two-step sign-in, stored with who, when,
+// The testing terms are accepted per verified target by an administrator with two-step sign-in, stored with who, when,
 // the version, the text and the disruptive flag, and audited with the flag; accepting the same again changes nothing, the tick is a
 // new acceptance, withdrawing is always possible, and a new version asks again.
 func TestTerms_StoredAuditedWithdrawnAndAskedAgain(t *testing.T) {
@@ -91,7 +91,7 @@ func TestTerms_StoredAuditedWithdrawnAndAskedAgain(t *testing.T) {
 	}
 }
 
-// FULL-1: only a verified target can be given the terms.
+// Only a verified target can be given the terms.
 func TestTerms_OnlyAVerifiedTarget(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -111,7 +111,7 @@ func (r *modeRunner) Scan(_ context.Context, t ScanTarget) (Content, error) {
 	return Content{}, nil
 }
 
-// FULL-1: the scanner seams receive the accepted level in ScanTarget.Mode: the K-4 scope without terms, Full with them, and
+// The scanner seams receive the accepted level in ScanTarget.Mode: the K-4 scope without terms, Full with them, and
 // Disruptive only with the tick.
 func TestTerms_ModeReachesTheScanners(t *testing.T) {
 	t.Parallel()
@@ -140,7 +140,7 @@ func TestTerms_ModeReachesTheScanners(t *testing.T) {
 	}
 }
 
-// FULL-1: the terms the mock shows are the backend's: contract.ts holds the same version, text and tick.
+// The terms the mock shows are the backend's: contract.ts holds the same version, text and tick.
 func TestTermsMatchTheContractOfTheGUI(t *testing.T) {
 	t.Parallel()
 	b, err := os.ReadFile("../../web/src/features/exposure/contract.ts")
@@ -166,9 +166,9 @@ func TestTermsTextIsPinnedToItsVersion(t *testing.T) {
 	pinned := map[string]string{
 		"2026-11-14":  "e3cafa3e881a321c3ae62f23c5d6fd32ac7e34c7715dbc1138636682854bfd27",
 		"2026-11-14b": "220bd0f322cfe435686be56c09855532b3c18d92cfb2efae9d06126a96f58604",
-		"2026-11-14c": "82a9d549446ef21096cf7f035f83d30068bbc07c0f317b3fc48b164c508356e3", // D-571 review r1: the domain's own text, honest list
-		"2026-11-14d": "ec2a0df9ebbe6691d6b7b2ec0b4a7440289b25fdb027baab76287274b029e411", // D-571 review r2: OpenVAS test files, anonymous login, the tick as PRIVACY lists it
-		"2026-11-14e": "b105bdea7ef5cca8b936493a9bc1c6528ce62d517a421139f77a0a0d48a6221e", // N44-1: the web line word for word as TERMS.md says it (ZAP active, FULL-3, not built)
+		"2026-11-14c": "82a9d549446ef21096cf7f035f83d30068bbc07c0f317b3fc48b164c508356e3", // The domain's own text, honest list
+		"2026-11-14d": "ec2a0df9ebbe6691d6b7b2ec0b4a7440289b25fdb027baab76287274b029e411", // OpenVAS test files, anonymous login, the tick as PRIVACY lists it
+		"2026-11-14e": "b105bdea7ef5cca8b936493a9bc1c6528ce62d517a421139f77a0a0d48a6221e", // The web line word for word as TERMS.md says it (ZAP active, not built)
 	}
 	sum := sha256.Sum256([]byte(termsTemplate + "\x00" + termsTemplateDomain + "\x00" + termsDisruptive))
 	if got := pinned[TermsVersion]; got != hex.EncodeToString(sum[:]) {
@@ -201,7 +201,7 @@ func TestTerms_WithdrawStopsTheRunningScan(t *testing.T) {
 			})
 		}
 	})
-	e.svc.SetRunner(&fakeRunner{content: gbOpen()}) // D-595: OpenVAS runs only with an open port to check
+	e.svc.SetRunner(&fakeRunner{content: gbOpen()}) // OpenVAS runs only with an open port to check
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err == nil {
 		t.Fatal("the scan was not stopped")
 	}

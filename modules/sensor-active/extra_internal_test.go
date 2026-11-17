@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// D-592: the Extra run's open ports join the first run's host (SSH moved to 22222 is identified with the rest); a port both runs
+// The Extra run's open ports join the first run's host (SSH moved to 22222 is identified with the rest); a port both runs
 // saw keeps the first run's answer; a first run that timed out keeps its meaning; a host only the Extra run saw is left out here.
 func TestMergeExtra(t *testing.T) {
 	t.Parallel()

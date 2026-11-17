@@ -38,7 +38,7 @@ func (t Tri) String() string {
 // (class -1) < plain release (0) < post-releases (1). build metadata and
 // distribution revisions are ignored (they parse as a plain release). num2 is the
 // second number of a release qualifier: Junos "R2-S1" (service release 1 of R2) and
-// Ivanti "R2.4" order after "R2" (D-500).
+// Ivanti "R2.4" order after "R2".
 type qual struct {
 	class int
 	sub   int
@@ -393,7 +393,7 @@ func (r VersionRange) Contains(v string) Tri {
 		return ok(c)
 	}
 	if r.StartIncl != "" && buildOfRelease(v, r.StartIncl) {
-		r.StartIncl = "" // "13.1-49.13" is a build of the 13.1 release, so it is "13.1 or later" (D-500)
+		r.StartIncl = "" // "13.1-49.13" is a build of the 13.1 release, so it is "13.1 or later"
 	}
 	if !check(r.StartIncl, func(c int) bool { return c >= 0 }) ||
 		!check(r.StartExcl, func(c int) bool { return c > 0 }) ||

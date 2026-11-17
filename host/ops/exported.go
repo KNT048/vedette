@@ -63,26 +63,26 @@ const BinIP = binIP
 // BinConntrack is the name of conntrack in the command runner.
 const BinConntrack = binConntrack
 
-// BinNft is the name of nft in the command runner (zap.baseline's egress fence, D-521).
+// BinNft is the name of nft in the command runner (zap.baseline's egress fence).
 const BinNft = binNft
 
-// The names of zap.baseline's things in podman (D-521): install.sh --uninstall removes them, and a test ties the two.
+// The names of zap.baseline's things in podman: install.sh --uninstall removes them, and a test ties the two.
 const (
 	ZapNetwork   = zapNetwork
 	ZapContainer = zapContainer
 	ZapImage     = zapImage
 )
 
-// BinAppArmorParser is the name of apparmor_parser in the command runner (D-458).
+// BinAppArmorParser is the name of apparmor_parser in the command runner.
 const BinAppArmorParser = binAppArmorParser
 
-// AppArmorLoadArgs is the one argv apparmor_parser may be given (D-458).
+// AppArmorLoadArgs is the one argv apparmor_parser may be given.
 func AppArmorLoadArgs() []string { return append([]string(nil), argsAppArmorLoad...) }
 
-// ValidateAppArmorParser is the validator of apparmor_parser (D-458).
+// ValidateAppArmorParser is the validator of apparmor_parser.
 func ValidateAppArmorParser(args []string) error { return validateAppArmorParser(args) }
 
-// ValidateConntrack is the validator of the conntrack binary: the one fixed delete of the stale syslog flows (D-268).
+// ValidateConntrack is the validator of the conntrack binary: the one fixed delete of the stale syslog flows.
 func ValidateConntrack(args []string) error { return validateConntrack(args) }
 
 // ConntrackArgs is the one argv conntrack may be given.
@@ -103,7 +103,7 @@ func (o *Ops) RunStart(ctx context.Context, a api.ContainerStartArgs) (any, erro
 	return o.runContainerStart(ctx, nil, a)
 }
 
-// BinIptables is the name of iptables in the command runner (the Docker forward rules, D-267).
+// BinIptables is the name of iptables in the command runner (the Docker forward rules).
 const BinIptables = binIptables
 
 // ValidateIptables is the validator of the iptables binary: the only argv shapes it may ever be given.

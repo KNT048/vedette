@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// reachFixture is the whole CISA KEV list (1,781 entries) with NVD's affected entries of each CVE as the N100 held them on
+// reachFixture is the whole CISA KEV list (1,781 entries) with NVD's affected entries of each CVE as a test box held them on
 // 2026-11-16 (feeds_vuln, feeds_affected, feeds_affected_cve; public data, CC0 and NVD), gzipped JSON, one object per entry:
 // cve, vendor, product, name, date_added, answered (NVD answered), affected ([cpe] or [cpe, start_incl, start_excl, end_incl,
 // end_excl]).
@@ -27,7 +27,7 @@ const reachFixture = "testdata/kev-nvd-2026-11-16.json.gz"
 // reachGolden is the class of every CVE of the fixture against the software Vedette produces today (reachRows: pkgmap.json, the
 // Windows release rows of core/winrel, the curated catalog with its KEV keys, nvd-cpe.json aliases, network-os.json), one
 // "CVE class" line each, sorted. A code or map change that moves any entry turns this red and names each move ("CVE-2010-4344:
-// 3v -> 5"), so a swap (one entry lost, another gained) fails too: kien's root-cause rule, #910. A change that makes more entries
+// 3v -> 5"), so a swap (one entry lost, another gained) fails too (#910). A change that makes more entries
 // reachable regenerates it in the same PR (go test ./cmd/vedette -run TestReachability_910_Fixture -args -update-reach) and
 // states the moves.
 const reachGolden = "testdata/kev-reach-classes.txt"

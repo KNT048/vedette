@@ -1,4 +1,4 @@
-// Package transport opens the connections of core/conn to devices and services (D-94): HTTPS, SSH and MCP over streamable HTTP.
+// Package transport opens the connections of core/conn to devices and services: HTTPS, SSH and MCP over streamable HTTP.
 // Every one of them goes through Dialer, which resolves a name once and checks every address it dials against the address
 // policy; none follows a redirect or reads a proxy from the environment; all of them cap the size and the time of what they
 // send and read. Nothing here saves anything, and nothing returns device output except to the caller that asked for it: an
@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// Limits (D-94 (1), (2)).
+// Limits ((2)).
 const (
 	MaxRequest     = 64 << 10 // bytes of a request body
 	MaxResponse    = 1 << 20  // bytes read from a response
@@ -25,7 +25,7 @@ const (
 	CallTimeout    = 15 * time.Second
 	LineTimeout    = 20 * time.Second // SSH: one line
 	SessionTimeout = 60 * time.Second // SSH: the whole session
-	LeaveTimeout   = 5 * time.Second  // SSH: the line that leaves configuration mode after a refused line, on top of the session (D-358)
+	LeaveTimeout   = 5 * time.Second  // SSH: the line that leaves configuration mode after a refused line, on top of the session
 )
 
 // RefusedError is a dial the address policy stopped: no socket was opened to Addr.

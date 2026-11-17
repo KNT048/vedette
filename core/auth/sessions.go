@@ -32,7 +32,7 @@ const (
 	HeaderCSRF    = "X-CSRF-Token"
 )
 
-// Session lifetimes (decision D-71): a session ends after 4 hours without a request or 7 days after sign-in,
+// Session lifetimes: a session ends after 4 hours without a request or 7 days after sign-in,
 // whichever comes first. last_seen is refreshed at most once a minute, so a request storm does not write.
 const (
 	IdleTimeout     = 4 * time.Hour
@@ -161,7 +161,7 @@ type Found struct {
 	StartedAt time.Time
 	LastSeen  time.Time
 	ExpiresAt time.Time
-	// PasswordChangeRequired: the user's password was set by an administrator and not replaced yet (D-180).
+	// PasswordChangeRequired: the user's password was set by an administrator and not replaced yet.
 	PasswordChangeRequired bool
 	csrfHash               string
 }
@@ -187,7 +187,7 @@ func (s *Sessions) Lookup(ctx context.Context, token string) (Found, error) {
 	if r.Disabled != 0 {
 		return Found{}, apierr.New(403, CodeDisabled, "This account has been disabled.")
 	}
-	if tempExpired(r.TempPasswordExpiresAt, now) { // the temporary password ran out while this session was open (D-180)
+	if tempExpired(r.TempPasswordExpiresAt, now) { // the temporary password ran out while this session was open
 		return Found{}, server.ErrNoSession
 	}
 	role := routes.Role(r.Role)

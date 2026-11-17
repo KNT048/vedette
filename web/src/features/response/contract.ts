@@ -1,4 +1,4 @@
-// API contract for the response module. Stories S-RESP-1..4, S-AI-8. Decisions D-40, D-41, D-44, D-46, D-47, D-48, D-51 (D-51 wins).
+// API contract for the response module. Stories S-RESP-1..4, S-AI-8.
 // Rules are WHEN (trigger with typed fields) -> IF (conditions) -> THEN (ordered catalog actions with typed parameters).
 // Security: the client never sends a command. A request names a rule, a proposal or a catalog action with parameters; the server holds the
 // templates, validates every value by type, escapes it for the transport and enforces every gate (the UI only mirrors them).
@@ -23,7 +23,7 @@ export const Risk = z.enum(['low', 'medium', 'high'])
 // `id`: whole number 1 to 2147483647 (a policy number); `name`: letters, numbers, . _ - up to 64 (API_CONVENTIONS, action-templates §1.2). `text` is for message actions only.
 export const ParamType = z.enum(['ip', 'cidr', 'domain', 'port', 'mac', 'vlan', 'interface', 'id', 'name', 'text'])
 export const FieldType = z.enum(['ip', 'cidr', 'domain', 'port', 'mac', 'vlan', 'interface', 'id', 'name', 'text', 'number', 'flag', 'choice'])
-// Packs are labels from the template library (data, D-58): "box" and "generic" are built in, any other pack is named by the library or the customer.
+// Packs are labels from the template library (data): "box" and "generic" are built in, any other pack is named by the library or the customer.
 export const Pack = z.string().min(1).max(60)
 export const ConnKind = ConnectionKind
 
@@ -71,7 +71,7 @@ export const Plan = z.object({
   steps: z.array(PlanStep),
   sent_to: z.array(z.string()).describe('Report channels that received the plan, for example "Slack #security"'),
 })
-// What the plan job did on its last run (item 20, D-513): read-only, so an empty inbox says why. Reasons are the job's own decision points.
+// What the plan job did on its last run (item 20): read-only, so an empty inbox says why. Reasons are the job's own decision points.
 export const PlannerOutcome = z.enum(['proposed', 'noted', 'refused', 'not_sent', 'no_action', 'plan_refused', 'ai_failed', 'ai_unavailable', 'has_plan', 'backed_off', 'later'])
 export const PlannerStatus = z.object({
   ran_at: iso.nullable().describe('Last run of the plan job (every 5 minutes); null = not run since the box started'),
@@ -144,7 +144,7 @@ export const SettingsView = Settings.extend({
     unlinked: z.array(z.string()).describe('Names of the approvers who have not linked their address yet') })),
 })
 
-// ---- Approver identities (S-RESP-2, D-191): each approver proves the address or ID an administrator typed for them ----
+// ---- Approver identities (S-RESP-2): each approver proves the address or ID an administrator typed for them ----
 export const IdentityMethod = z.enum(['email_code', 'send_code', 'unavailable'])
 export const Identity = z.object({
   channel: z.string(), label: z.string(), address: z.string().describe('The address or ID on the approver list of the channel, as an administrator saved it'),
@@ -271,7 +271,7 @@ export const Metrics = z.object({
   rejected: z.array(z.object({ id, title: z.string(), source: RequestSource, reason: z.string(), at: iso })),
 })
 
-// ---- Respond from an incident (D-509, S-RESP-3): the incident's source and what can really be asked for it ----
+// ---- Respond from an incident (S-RESP-3): the incident's source and what can really be asked for it ----
 export const IncidentSource = z.object({
   ip: z.string().describe('Read by the server from the incident (a trap: the hit), never sent by the browser'),
   device: z.string().nullable().describe('The inventory name of the source, when known'),

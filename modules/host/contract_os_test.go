@@ -264,15 +264,15 @@ func assertEnvClean(t *testing.T, envs [][]string) {
 
 // --- the command table matches the spec ----------------------------------------------------------
 
-// documentedCommandsPart1 are the commands WP-07b has implemented so far (parts 1, 3-4, 3-5, 3-6, 3-7 and 3-8a), host.self_update (D-316)
-// and zap.baseline (D-521).
+// documentedCommandsPart1 are the commands WP-07b has implemented so far (parts 1, 3-4, 3-5, 3-6, 3-7 and 3-8a), host.self_update
+// and zap.baseline.
 var documentedCommandsPart1 = []string{
 	"backup.create", "backup.purge", "backup.restore", "container.pull", "container.rollback", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "decoy_ip.set_ports",
 	"exposure.fence_check", "exposure.token", "exposure.token_forget", "greenbone.down", "greenbone.sync_feed", "greenbone.up", "host.self_update", "logs.export", "net.apply", "net.confirm", "net.revert",
 	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel", "zap.baseline",
 }
 
-// notYetImplemented are the commands of spec section 6 that later slices bring (none since host.self_update, D-316).
+// notYetImplemented are the commands of spec section 6 that later slices bring (none since host.self_update).
 var notYetImplemented = []string{}
 
 func TestContract_Part1_TheCommandTableMatchesSection6OfTheSpec(t *testing.T) {
@@ -1079,7 +1079,7 @@ func TestContract_Reboot_CompletionIsAuditedAfterANewBoot(t *testing.T) {
 			t.Fatal("reboot_completed on the same boot")
 		}
 	}
-	// The pending reboot was dropped by that restart (audited reboot_failed host_restarted, D-453), so give the
+	// The pending reboot was dropped by that restart (audited reboot_failed host_restarted), so give the
 	// next boot a fresh one, through the restarted host: it now owns the audit chain.
 	if _, err := h2.Client.Run(context.Background(), "os.reboot", api.OSRebootArgs{When: "now"}, e.id(), "x"); err != nil {
 		t.Fatal(err)
@@ -1340,7 +1340,7 @@ func TestContract_Backup_Retention(t *testing.T) {
 	}
 }
 
-// D-87: the host copies the bytes of the snapshot core wrote. It does not open the live database
+// The host copies the bytes of the snapshot core wrote. It does not open the live database
 // (core keeps writing to it), it does not interpret the snapshot, and a large one is streamed.
 func TestContract_Backup_CopiesTheSnapshotBytesAndNeverTheLiveDatabase(t *testing.T) {
 	t.Parallel()
@@ -1378,7 +1378,7 @@ func TestContract_Backup_CopiesTheSnapshotBytesAndNeverTheLiveDatabase(t *testin
 	e.ok(t, "backup.create", api.BackupCreateArgs{Snapshot: snap, Kind: "manual"})
 }
 
-// D-87: root never takes its schema or its secrets-or-not decision from the database. db_schema is
+// Root never takes its schema or its secrets-or-not decision from the database. db_schema is
 // what core wrote in snapshot.json, and the database member is the snapshot's bytes whatever they
 // say: SQL that core defined (a generated column, a virtual table) is never evaluated by the host.
 func TestContract_Backup_NeverEvaluatesWhatCoreDefined(t *testing.T) {
@@ -1894,7 +1894,7 @@ func TestContract_Restore_UnhealthyCoreIsRevertedToTheStateBefore(t *testing.T) 
 	t.Parallel()
 	e := startSys(t, func(_ *ops.Config, d *ops.Deps) { d.CoreWait = 300 * time.Millisecond })
 	// First start: core never becomes active (it refuses the database: the check that is core's to
-	// make, D-87). Second start (the put-back): healthy.
+	// make). Second start (the put-back): healthy.
 	e.m.Rule("systemctl", "stop", "", 0, "", "stopped")
 	e.m.Rule("systemctl", "start", "", 0, "!firststart", "firststart")
 	e.m.Rule("systemctl", "start", "", 0, "firststart", "secondstart")

@@ -50,7 +50,7 @@ const (
 	CodeSnapshotInvalid     = "snapshot_invalid"
 	CodeRebooting           = "rebooting"
 	// CodeRebootInhibited is os.reboot now refused while a logind block inhibitor of shutdown is held (apt
-	// installing, D-453); the message names who holds it and why.
+	// installing); the message names who holds it and why.
 	CodeRebootInhibited = "reboot_inhibited"
 )
 
@@ -58,7 +58,7 @@ const (
 type OSInstallArgs struct {
 	Scope string `json:"scope"` // "security" | "all"
 	// Snapshot is the id (32 hex) of the snapshot core wrote to <core_data>/snapshots/<id>/ just
-	// before the call; the host copies it into the pre_os_update backup (spec 6.11, D-87).
+	// before the call; the host copies it into the pre_os_update backup (spec 6.11).
 	Snapshot string `json:"snapshot"`
 }
 
@@ -79,7 +79,7 @@ type BackupCreateArgs struct {
 	IncludeSecrets bool   `json:"include_secrets"`
 	Label          string `json:"label,omitempty"`
 	// Snapshot is the id (32 hex) of the snapshot core wrote to <core_data>/snapshots/<id>/ just
-	// before the call (spec 6.11, D-87): the host never opens core's database, it copies this one.
+	// before the call (spec 6.11): the host never opens core's database, it copies this one.
 	Snapshot string `json:"snapshot"`
 }
 
@@ -203,7 +203,7 @@ type LogsExportResult struct {
 	Lines    int    `json:"lines"`
 }
 
-// BackupPurgeResult is the result of backup.purge (D-156): how many archives were deleted.
+// BackupPurgeResult is the result of backup.purge: how many archives were deleted.
 type BackupPurgeResult struct {
 	Deleted int `json:"deleted"`
 }

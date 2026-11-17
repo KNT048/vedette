@@ -1,4 +1,4 @@
-// Vòng đệm 20 lỗi phía trình duyệt gần nhất cho gói chẩn đoán báo lỗi (D-42, S-CORE-5). Chỉ giữ trong bộ nhớ, không gửi đi đâu.
+// Vòng đệm 20 lỗi phía trình duyệt gần nhất cho gói chẩn đoán báo lỗi (S-CORE-5). Chỉ giữ trong bộ nhớ, không gửi đi đâu.
 // Xoá email và địa chỉ IP khỏi thông điệp trước khi lưu: gói chẩn đoán không được chứa chúng.
 export interface ClientError { at: string; kind: 'error' | 'unhandledrejection'; message: string }
 

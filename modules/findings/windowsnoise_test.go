@@ -28,10 +28,10 @@ var (
 		"cpe:2.3:o:microsoft:windows_vista:-:sp1:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_xp:-:sp2:*:*:*:*:*:*")
 )
 
-// N52-1 (D-610): a Windows Server 2025 VM whose agent gives its exact build (26100.1742, its GA media) had 140 open product findings of
+// A Windows Server 2025 VM whose agent gives its exact build (26100.1742, its GA media) had 140 open product findings of
 // XP-era entries. An entry NVD lists only for releases before Windows 10, with a CVE id from before Windows 10, is ruled out with a proof
-// and closes an open finding; the D-546 (d) proof also holds at 26100.1742 now that it is Server 2025's first public build.
-func TestMatchAsset_D610_XPEraEntriesDoNotApply(t *testing.T) {
+// and closes an open finding; the older-releases proof also holds at 26100.1742 now that it is Server 2025's first public build.
+func TestMatchAsset_XPEraEntriesDoNotApply(t *testing.T) {
 	srv := winPC(26100, true, "1742", "x64")
 	w, m := oneMatch(t, srv, cve0367, true, cve62215)
 	wantMatch(t, "CVE-2002-0367 open", w, m, "notaffected", "", "", "only for Windows releases before Windows 10 (Windows 2000, Windows NT 4.0 or older)", "dates from 2002", "Windows Server 2025 is not affected")
@@ -43,19 +43,19 @@ func TestMatchAsset_D610_XPEraEntriesDoNotApply(t *testing.T) {
 	wantMatch(t, "CVE-2004-0210", w, m, "notaffected", "", "", "(Windows 2000, Windows NT 4.0 or older) and Interix 2.2", "dates from 2004")
 	w, m = oneMatch(t, srv, cve4250, true, cve62215)
 	wantMatch(t, "CVE-2008-4250 (KEV 2026)", w, m, "notaffected", "", "", "dates from 2008")
-	// CVE-2019-0708 (BlueKeep) names only older releases and has stood in KEV since 2021: D-546 (d) at Server 2025's GA build.
+	// CVE-2019-0708 (BlueKeep) names only older releases and has stood in KEV since 2021: the older-releases proof at Server 2025's GA build.
 	blue := nvdRaw("CVE-2019-0708", "2021-11-03", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_server_2008:r2:sp1:*:*:*:*:x64:*",
 		"cpe:2.3:o:microsoft:windows_xp:-:sp3:*:*:*:*:*:*")
 	w, m = oneMatch(t, srv, blue, true, cve62215)
 	wantMatch(t, "CVE-2019-0708", w, m, "notaffected", "", "", "only for Windows releases older than this device's Windows Server 2025")
-	// a 2018 CVE CISA listed only this year, NVD naming only Windows 7: its list has stood since 2018 (the CVE's year, D-610)
+	// a 2018 CVE CISA listed only this year, NVD naming only Windows 7: its list has stood since 2018 (the CVE's year)
 	w, m = oneMatch(t, srv, nvdRaw("CVE-2018-3333", "2026-06-01", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_server_2016:-:*:*:*:*:*:*:*"), true, cve62215)
 	wantMatch(t, "2018 CVE listed this year", w, m, "notaffected", "", "", "the CVE dates from 2018, so NVD's list has stood for over a year")
 }
 
-// D-610 stays conservative: an entry without NVD data, one with a family row of every Windows release, one naming a release Vedette does
+// The old-list proof stays conservative: an entry without NVD data, one with a family row of every Windows release, one naming a release Vedette does
 // not know, a recent listing of a CVE of Windows 10's time naming only older releases, and a device NVD never named keep their finding.
-func TestMatchAsset_D610_StaysWhenNVDCannotTell(t *testing.T) {
+func TestMatchAsset_StaysWhenNVDCannotTell(t *testing.T) {
 	srv := winPC(26100, true, "1742", "x64")
 	for _, tc := range []struct {
 		name string
@@ -68,7 +68,7 @@ func TestMatchAsset_D610_StaysWhenNVDCannotTell(t *testing.T) {
 		{"this year's CVE listed this year", nvdRaw("CVE-2026-3333", "2026-10-01", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*")},
 		{"last year's CVE listed this year", nvdRaw("CVE-2025-3333", "2026-10-01", "cpe:2.3:o:microsoft:windows_server_2022:-:*:*:*:*:*:*:*")},
 	} {
-		if w, m := oneMatch(t, srv, tc.v, true, cve62215); w != "nameonly" || m.Basis != BasisProduct { // D-602: kept, not a finding
+		if w, m := oneMatch(t, srv, tc.v, true, cve62215); w != "nameonly" || m.Basis != BasisProduct { // Kept, not a finding
 			t.Errorf("%s: %s %s %q", tc.name, w, m.Basis, m.Evidence.Summary)
 		}
 	}
@@ -78,10 +78,10 @@ func TestMatchAsset_D610_StaysWhenNVDCannotTell(t *testing.T) {
 	}
 }
 
-// N52-2, as D-602 reads it: a product-only match on a row the device's agent reported with its version is no finding any more,
+// As the name-only rule reads it: a product-only match on a row the device's agent reported with its version is no finding any more,
 // agent row or typed row alike: only the product name matched (NVD has no data yet), so the CVE is dropped (NameOnly) and the
 // AgentRow flag still says the agent gave the version.
-func TestMatchAsset_N52_AgentRowProductMatch(t *testing.T) {
+func TestMatchAsset_AgentRowProductMatchIsNameOnly(t *testing.T) {
 	sw := func(source string) Asset {
 		return Asset{ID: "a", Name: "byn", Software: []Software{{ID: "s", Display: "Acme Server", Vendor: "acme", Product: "server", Version: "2016", Source: source, KevKeys: []string{"acme|server"}}}}
 	}
@@ -103,13 +103,13 @@ func TestMatchAsset_N52_AgentRowProductMatch(t *testing.T) {
 	}
 }
 
-// Review r1 of #801: what D-610 must never close.
-func TestMatchAsset_D610_ReviewR1NeverCloses(t *testing.T) {
+// What the old-list proof must never close (#801).
+func TestMatchAsset_OldWindowsListsThatNeverClose(t *testing.T) {
 	srv := winPC(26100, true, "1742", "x64")
 	pc24 := winPC(26100, false, "1742", "x64")
 	stays := func(name string, a Asset, v Vuln) {
 		t.Helper()
-		if w, m := oneMatch(t, a, v, true, cve62215); w != "nameonly" || m.Basis != BasisProduct { // D-602: kept, not a finding
+		if w, m := oneMatch(t, a, v, true, cve62215); w != "nameonly" || m.Basis != BasisProduct { // Kept, not a finding
 			t.Errorf("%s: %s %s %q", name, w, m.Basis, m.Evidence.Summary)
 		}
 	}
@@ -155,7 +155,7 @@ func TestMatchAsset_D610_ReviewR1NeverCloses(t *testing.T) {
 
 // Review r1 #10 of #801: a version finding the agent detected that now matches only by product takes the new sentence but stays a version
 // finding, so it does not carry agent_row (that flag describes a product-only finding).
-func TestApplyMatch_D612_AgentRowOnlyOnProductFindings(t *testing.T) {
+func TestApplyMatch_AgentRowOnlyOnProductFindings(t *testing.T) {
 	f := Finding{Status: StatusSuspected, Basis: BasisVersion, Severity: SeverityHigh, Evidence: &Evidence{Summary: "The agent reports …", Agent: true}}
 	got := f.ApplyMatch(Match{Basis: BasisProduct, Severity: SeverityMedium, Evidence: Evidence{Summary: "cannot compare", AgentRow: true}})
 	if got.Basis != BasisVersion || got.Evidence == nil || got.Evidence.Agent || got.Evidence.AgentRow || got.Evidence.Summary != "cannot compare" {
@@ -165,11 +165,11 @@ func TestApplyMatch_D612_AgentRowOnlyOnProductFindings(t *testing.T) {
 
 // Review r2 of #801: the CVE-year proof needs every listed release to be out by the CVE's year (a CVE-2010 list naming Server 2022 grew
 // later); the Interix exception is Microsoft's application only; a missing, future or VulnCheck-recent listing date closes nothing.
-func TestMatchAsset_D610_ReviewR2NeverCloses(t *testing.T) {
+func TestMatchAsset_CVEYearProofNeedsEveryListedRelease(t *testing.T) {
 	srv := winPC(26100, true, "1742", "x64")
 	stays := func(name string, v Vuln) {
 		t.Helper()
-		if w, m := oneMatch(t, srv, v, true, cve62215); w != "nameonly" || m.Basis != BasisProduct { // D-602: kept, not a finding
+		if w, m := oneMatch(t, srv, v, true, cve62215); w != "nameonly" || m.Basis != BasisProduct { // Kept, not a finding
 			t.Errorf("%s: %s %s %q", name, w, m.Basis, m.Evidence.Summary)
 		}
 	}

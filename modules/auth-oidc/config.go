@@ -23,7 +23,7 @@ import (
 // secretPurpose is the core_secret purpose of the client secret (INV-3).
 const secretPurpose = "oidc_config.client_secret" //nolint:gosec // the name of a core_secret purpose, not a credential
 
-// DefaultScopes and DefaultGroupsClaim are what an unsaved configuration shows (D-194 (7), D-195 (1)).
+// DefaultScopes and DefaultGroupsClaim are what an unsaved configuration shows.
 const (
 	DefaultScopes      = "openid email profile"
 	DefaultGroupsClaim = "groups"
@@ -44,7 +44,7 @@ type Config struct {
 	DefaultRole                   routes.Role
 	RoleMap                       []RoleRow
 	RedirectURI                   string
-	CAPEM                         string // D-378: normalised PEM of the identity provider's CA; "" = system roots only
+	CAPEM                         string // normalised PEM of the identity provider's CA; "" = system roots only
 	secretID                      string
 }
 
@@ -54,7 +54,7 @@ type Save struct {
 	Scopes, GroupsClaim            string
 	DefaultRole                    routes.Role
 	RoleMap                        []RoleRow
-	CAPEM                          *string // D-378: nil keeps the saved CA, "" removes it
+	CAPEM                          *string // Nil keeps the saved CA, "" removes it
 }
 
 var (
@@ -107,7 +107,7 @@ func (s *Service) View(ctx context.Context, origin string) (Config, int, error) 
 	return c, n, err
 }
 
-// callbackURL is the redirect URI of an origin: the SPA page the identity provider sends the browser back to (D-194 (4)).
+// callbackURL is the redirect URI of an origin: the SPA page the identity provider sends the browser back to.
 func callbackURL(origin string) string { return origin + "/sso/callback" }
 
 // validIssuer is INV-2's issuer: https, a host, no user info, query or fragment; the trailing / dropped.
@@ -141,7 +141,7 @@ func normalize(in Save, cur Config, now time.Time) (Save, *apierr.Error) {
 		}
 		in.CAPEM = &ca
 	}
-	// A new CA could make an attacker's certificate for the same issuer name trusted (D-378): like a new issuer, it needs the secret
+	// A new CA could make an attacker's certificate for the same issuer name trusted: like a new issuer, it needs the secret
 	// again. Removing the CA only narrows trust, so it keeps the secret.
 	keep := cur.secretID != "" && cur.Issuer == in.Issuer && cur.ClientID == in.ClientID && (*in.CAPEM == cur.CAPEM || *in.CAPEM == "")
 	switch {

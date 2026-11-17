@@ -1,4 +1,4 @@
-// Hợp đồng API module logs (D-18, D-43, S-LOG-1..4). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// Hợp đồng API module logs (S-LOG-1..4). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { KIND_IDS } from './kinds'

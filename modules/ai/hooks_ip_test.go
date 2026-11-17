@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// IP address literals are not phone numbers (INV-12, D-205): the phone finder must never match inside or across one,
+// IP address literals are not phone numbers (INV-12): the phone finder must never match inside or across one,
 // and a real phone number next to one is still masked, never the address.
 func TestPhoneFinderLeavesIPAddressesAlone(t *testing.T) {
 	t.Parallel()

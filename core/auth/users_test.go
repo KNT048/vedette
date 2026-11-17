@@ -316,7 +316,7 @@ func TestNamesRefuseDefaultIgnorableCharacters(t *testing.T) {
 		0x3164, 0x115F, 0x1160, 0xFFA0, 0x034F, 0x2800, 0x180B, 0x180C, 0x180D, 0x180E, 0x180F, 0x061C, 0x17B4, 0x17B5,
 		0xFE00, 0xFE0F, 0xE0000, 0xE0100, 0xE0FFF, 0x1BCA0, 0x1BCA3, 0x1D173, 0x1D17A, 0xFFF0, 0xFFF8, 0x2060, 0x206F,
 	} {
-		for _, name := range []string{"Kien" + string(r), string(r) + "Kien", "Ki" + string(r) + "en"} {
+		for _, name := range []string{"Anna" + string(r), string(r) + "Anna", "An" + string(r) + "na"} {
 			if !auth.HasInvisible(name) {
 				t.Errorf("U+%04X in %q: HasInvisible = false", r, name)
 			}
@@ -332,7 +332,7 @@ func TestNamesRefuseDefaultIgnorableCharacters(t *testing.T) {
 		}
 	}
 	u := env.User(t, "ann@acme.example", routes.Viewer)
-	wantAPI(t, env.Svc.UpdateOwnName(t.Context(), u.ID, "", "Kien\u3164"), 400, "invalid_name")
+	wantAPI(t, env.Svc.UpdateOwnName(t.Context(), u.ID, "", "Anna\u3164"), 400, "invalid_name")
 }
 
 func TestNamesAllowZWNJAndZWJOnlyBetweenLetters(t *testing.T) {

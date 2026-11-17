@@ -50,7 +50,7 @@ type auditEntry struct {
 	RunID        string
 }
 
-// auditLog is the append-only, hash-chained audit.jsonl (spec section 9, D-57 (14), SYS-3).
+// auditLog is the append-only, hash-chained audit.jsonl (spec section 9, SYS-3).
 // The chain formula is core/chain's: hash = SHA-256(prev_hash "\n" canon(entry)).
 type auditLog struct {
 	mu     sync.RWMutex

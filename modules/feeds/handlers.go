@@ -75,10 +75,10 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 	for _, r := range rows {
 		if r.ID == "cisa-kev" {
 			kevAt = r.LastSuccess
-			// kien G11: Home says how often the list is checked, when it last was, and when it last loaded
+			// Home says how often the list is checked, when it last was, and when it last loaded
 			out.Kev.IntervalHours, out.Kev.CheckedAt, out.Kev.LastSuccess = r.IntervalHours, r.LastFetch, r.LastSuccess
 			switch {
-			case !r.Enabled: // D-92: Home must not count from a list the admin turned off
+			case !r.Enabled: // Home must not count from a list the admin turned off
 				out.Kev.State = "off"
 			case r.LastSuccess != nil:
 				out.Kev.State = "loaded"
@@ -90,8 +90,8 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 			if r.CatalogVersion != nil {
 				out.KevCatalogVersion = *r.CatalogVersion
 			}
-			// kien G13: which copy answered the last good pull, and why cisa.gov did not when CISA's GitHub copy did
-			// kien G13 (D-91 as amended): the copy the catalog on the box came from, and what each copy said at its last check
+			// Which copy answered the last good pull, and why cisa.gov did not when CISA's GitHub copy did
+			// The copy the catalog on the box came from, and what each copy said at its last check
 			out.Kev.AnsweredBy, out.Kev.Copies = r.AnsweredBy, []kevCopy{}
 			if r.URL == h.s.kevPrimary() {
 				cs, _, err := h.s.st.kevCopies(ctx)
@@ -120,7 +120,7 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 		}
 		from := r.URL
 		if r.ID == "cisa-kev" && r.URL == h.s.kevPrimary() && r.AnsweredBy != nil && *r.AnsweredBy == AnsweredMirror {
-			from = h.s.kevFallback() // kien G13: the copy the catalog on the box came from
+			from = h.s.kevFallback() // The copy the catalog on the box came from
 		}
 		out.Sources = append(out.Sources, src{r.Name, from, license, *r.LastSuccess})
 		if oldest == nil || r.LastSuccess.Before(*oldest) {
@@ -152,7 +152,7 @@ func (s *Service) hot(ctx context.Context, hours int) ([]*hotRow, error) {
 	for _, v := range rows {
 		// the day counts until its last second (the GUI mock does the same)
 		day, err := parseDate(v.DateAdded)
-		// a date in the future (a feed or box clock that is off) is not "newly exploited" yet (D-485)
+		// a date in the future (a feed or box clock that is off) is not "newly exploited" yet
 		if err != nil || day.Add(24*time.Hour-time.Second).Before(cutoff) || day.After(now) {
 			continue
 		}
@@ -201,7 +201,7 @@ func (s *Service) hot(ctx context.Context, hours int) ([]*hotRow, error) {
 	return groups, nil
 }
 
-// NewlyExploited is the Home headline as numbers, for the weekly report (W1-24, D-485): the CVEs newly exploited in the last
+// NewlyExploited is the Home headline as numbers, for the weekly report: the CVEs newly exploited in the last
 // 7 days and how many of their products the inventory says are in use (you_have=yes; 0 while the inventory is off). One
 // definition for both pages: the same board as GET /feeds/hot?window=7d.
 func (s *Service) NewlyExploited(ctx context.Context) (cves, productsInUse int, err error) {
@@ -266,7 +266,7 @@ func (s *Service) matchOf(ctx context.Context, products []Product) (map[string][
 	return m, true
 }
 
-// withoutNotAffected drops the devices the platform rules prove are not affected by v (D-549, PlatformChecker). A failed check keeps
+// withoutNotAffected drops the devices the platform rules prove are not affected by v (PlatformChecker). A failed check keeps
 // the list by product (INV-10: the inventory degrades the answer, never fails it).
 func (s *Service) withoutNotAffected(ctx context.Context, v VulnRow, m []MatchedAsset) []MatchedAsset {
 	pc, ok := s.Inventory.(PlatformChecker)
@@ -413,7 +413,7 @@ func (h *FeedHandlers) FeedsPostFeedsWeeklyID(ctx context.Context, req *oas.Feed
 		default:
 			return fmt.Errorf("feeds: read answer: %w", err)
 		}
-		// The scope of "I have this" starts a week before the answered entry (HaveWindow, D-484) and is set by the
+		// The scope of "I have this" starts a week before the answered entry (HaveWindow) and is set by the
 		// first "have" only: a later answer (not relevant, have again) never moves it.
 		var since any
 		if d, err := time.Parse(time.DateOnly, v.DateAdded); answer == "have" && err == nil {
@@ -468,7 +468,7 @@ func (h *FeedHandlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsG
 		vulnDTO
 		Matched     *[]MatchedAsset `json:"matched"`
 		NotAffected int             `json:"not_affected"`
-		Published   *string         `json:"published"` // D-615
+		Published   *string         `json:"published"`
 	}{vulnDTO: toVulnDTO(v), Published: pub}
 	if on {
 		all := match[v.Key()]
@@ -481,7 +481,7 @@ func (h *FeedHandlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsG
 	return convert[oas.FeedsGetFeedsCveIDOK](out)
 }
 
-// FeedsGetFeedsCveIDTier implements GET /feeds/cve/{id}/tier (D-613, D-615, S-TIER-1): a CVE on no exploited list, from the
+// FeedsGetFeedsCveIDTier implements GET /feeds/cve/{id}/tier (S-TIER-1): a CVE on no exploited list, from the
 // tier data of the feeds that are on (epss-all, nvd-recent); 404 not_in_data when neither holds it.
 func (h *FeedHandlers) FeedsGetFeedsCveIDTier(ctx context.Context, params oas.FeedsGetFeedsCveIDTierParams) (*oas.FeedsGetFeedsCveIDTierOK, error) {
 	t, found, err := h.s.st.TierCVEOf(ctx, strings.ToUpper(params.ID), h.s.now())

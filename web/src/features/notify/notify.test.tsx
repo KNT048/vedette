@@ -15,7 +15,7 @@ import ChannelsSettings from './ChannelsSettings'
 import { ZALO_BOX_UID, zaloMessagesForTest } from './mocks'
 import { forbiddenHost, ownHost } from './types'
 
-// D-624 (#819): channel approvals belong to AI response, hidden in the v1 GUI (POST_V1_IN_UI false); the screens are kept, so this file
+// Channel approvals belong to AI response, hidden in the v1 GUI (POST_V1_IN_UI false); the screens are kept, so this file
 // runs them as offered. features/core/v1Scope.test.tsx runs the v1 view.
 const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
 vi.mock('@/lib/postV1', () => postV1)
@@ -34,7 +34,7 @@ async function press(name: string | RegExp) {
 }
 const TOKEN = '8123456789:AAHnewTokenForVedette_1234567890abcdefXY7z'
 
-describe('notify: incidents (S-ALERT-3, D-52)', () => {
+describe('notify: incidents (S-ALERT-3)', () => {
   it('the heading counts new incidents; the list has trap, bad address and log anomaly, no vulnerabilities; no a11y violations', async () => {
     renderApp('/incidents')
     expect(await screen.findByRole('heading', { level: 1, name: '3 new incidents' })).toBeInTheDocument()
@@ -59,10 +59,10 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(within(table).getByRole('link', { name: 'Respond to PC-HR-01 touched the SMB trap on FILESRV-OLD' })).toHaveAttribute('href', '/response?incident=al-4')
   })
 
-  it('D-543: Open holds new and acknowledged, Resolved the closed ones (?tab=); the kind filter narrows; the KPI cells link to the lists', async () => {
+  it('Open holds new and acknowledged, Resolved the closed ones (?tab=); the kind filter narrows; the KPI cells link to the lists', async () => {
     renderApp('/incidents')
     const strip = await screen.findByRole('list', { name: 'Incidents at a glance' })
-    // kien G5: a 0 opens nothing, so "0 Open, not sent" is plain text, not a link to an empty list
+    // A 0 opens nothing, so "0 Open, not sent" is plain text, not a link to an empty list
     expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/incidents?tab=open', '/incidents?tab=open&severity=urgent'])
     expect(strip).toHaveTextContent(/0\s*Open, not sent/)
     expect(within(within(strip).getByRole('link', { name: /High and critical open/ })).getByText('2')).toBeInTheDocument()
@@ -77,7 +77,7 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(within(screen.getByRole('table', { name: 'Incidents' })).getAllByRole('row')).toHaveLength(2)
   })
 
-  it('D-543: ?severity=urgent narrows Open to high and critical and the chip clears it', async () => {
+  it('?severity=urgent narrows Open to high and critical and the chip clears it', async () => {
     renderApp('/incidents?tab=open&severity=urgent')
     await screen.findByRole('table', { name: 'Incidents' })
     expect(within(screen.getByRole('table', { name: 'Incidents' })).getAllByRole('row')).toHaveLength(3)
@@ -85,7 +85,7 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(within(screen.getByRole('table', { name: 'Incidents' })).getAllByRole('row')).toHaveLength(5)
   })
 
-  it('an incident Vedette closed by itself says why on the list and the detail (D-550)', async () => {
+  it('an incident Vedette closed by itself says why on the list and the detail', async () => {
     renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
     await userEvent.click(screen.getByRole('tab', { name: 'Resolved' }))
@@ -94,7 +94,7 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(await screen.findByText(/Closed by Vedette: no new activity for 7 days\. Resolved at /)).toBeInTheDocument()
   })
 
-  it('a blocked connection (D-227) is said as an attempt in the list and the detail (walk 3)', async () => {
+  it('a blocked connection is said as an attempt in the list and the detail', async () => {
     const one = { id: 'in-a', kind: 'bad_address', attempt: true, link: '/logs', title: '192.168.1.50 tried to reach 185.220.101.47 (blocked by FW-HQ), which a threat feed lists', devices: [], severity: 'high', what: 'w', action: 'a',
       first_seen: '2026-11-12T08:00:00.000Z', last_seen: '2026-11-12T08:00:00.000Z', count: 1, status: 'new', handled_by: null, handled_at: null, note: null, sends: [] }
     server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [one] })),
@@ -108,7 +108,7 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(screen.getByText('Attempt to reach a known-bad address')).toBeInTheDocument()
   })
 
-  it('container-only: no "Trap touches" filter, since the honeypot cannot run on this install (D-381, walk 3)', async () => {
+  it('container-only: no "Trap touches" filter, since the honeypot cannot run on this install', async () => {
     installStore.set({ kind: 'container' })
     try {
       renderApp('/incidents')
@@ -134,7 +134,7 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(screen.queryByText('Vulnerability IDs')).not.toBeInTheDocument()
     const delivery = within(screen.getByRole('table', { name: 'Delivery log of the incident' }))
     expect(delivery.getAllByText('Sent')).toHaveLength(1)
-    // D-483: a rate-limited send is Delayed (sent again by itself), as in History, never Failed
+    // A rate-limited send is Delayed (sent again by itself), as in History, never Failed
     expect(delivery.getByText('Delayed')).toBeInTheDocument()
     expect(delivery.queryByText('Failed')).toBeNull()
     await expectNoA11yViolations()
@@ -203,7 +203,7 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Set up alert channels' })).toBeNull())
   })
 
-  it('review r1 M1 of #879: "Save and send test" from Incidents shows the test result although the save turned the channel on and the button went', async () => {
+  it('#879: "Save and send test" from Incidents shows the test result although the save turned the channel on and the button went', async () => {
     sessionStore.set({ userId: USER.admin })
     const all = (await getJson('/notify/channels')) as { channels: { type: string; configured: boolean }[] }
     for (const c of all.channels.filter((x) => x.configured)) expect((await fetch(`${location.origin}/api/v1/notify/channels/${c.type}`, { method: 'DELETE' })).status).toBe(204)
@@ -251,7 +251,7 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
   })
 })
 
-describe('notify: old /alerts links (D-52)', () => {
+describe('notify: old /alerts links', () => {
   it('/alerts goes to /incidents', async () => {
     renderApp('/alerts')
     expect(await screen.findByRole('table', { name: 'Incidents' })).toBeInTheDocument()
@@ -267,7 +267,7 @@ describe('notify: old /alerts links (D-52)', () => {
 })
 
 describe('notify: vulnerability notices on the finding (S-ALERT-1)', () => {
-  it('the finding shows where it was sent, and a failure apart, never as notified (W1-11)', async () => {
+  it('the finding shows where it was sent, and a failure apart, never as notified', async () => {
     renderApp('/findings/f-2')
     expect(await screen.findByText(/^Notified: Telegram \d\d:\d\d$/)).toBeInTheDocument()
     expect(screen.getByText(/^Not delivered: Email \(failed: The SMTP server rejected the login/)).toBeInTheDocument()
@@ -278,7 +278,7 @@ describe('notify: vulnerability notices on the finding (S-ALERT-1)', () => {
   })
 })
 
-describe('notify: delivery history (S-NOT-1, D-52)', () => {
+describe('notify: delivery history (S-NOT-1)', () => {
   it('Settings, Alert channels lists every message of every kind, with the meta line', async () => {
     renderChannels()
     const table = await screen.findByRole('table', { name: 'Sent messages' })
@@ -300,7 +300,7 @@ describe('notify: delivery history (S-NOT-1, D-52)', () => {
     expect(auditStore.get().some((e) => e.action === 'notify.resend')).toBe(true)
   })
 
-  it('a message a provider held back (HTTP 429) is Delayed, not Failed, and has no Send again (D-483)', async () => {
+  it('a message a provider held back (HTTP 429) is Delayed, not Failed, and has no Send again', async () => {
     renderChannels()
     const table = await screen.findByRole('table', { name: 'Sent messages' })
     const row = within(table).getByText(/^Delayed \(rate limited\): Telegram asked Vedette to wait/).closest('tr')!
@@ -309,7 +309,7 @@ describe('notify: delivery history (S-NOT-1, D-52)', () => {
     expect(within(row).queryByRole('button', { name: /Send again/ })).toBeNull()
   })
 
-  it('nothing skipped (a box with no device, walk 2): the meta line says only what the count proves, and that the first download is not counted (walk 3)', async () => {
+  it('nothing skipped (a box with no device): the meta line says only what the count proves, and that the first download is not counted', async () => {
     server.use(http.get('*/api/v1/notify/history', () => HttpResponse.json({ items: [], suppressed: { count: 0, days: 7 } })))
     renderChannels()
     expect(await screen.findByText('No new vulnerability was skipped in the last 7 days.')).toBeInTheDocument()
@@ -318,7 +318,7 @@ describe('notify: delivery history (S-NOT-1, D-52)', () => {
   })
 })
 
-describe('notify: retention is published (D-160, D-215)', () => {
+describe('notify: retention is published', () => {
   it('the Incidents page and the History screen say history and resolved incidents are kept for 1 year', async () => {
     const inc = renderApp('/incidents')
     expect(await screen.findByText(/History and resolved incidents are kept for 1 year\./)).toBeInTheDocument()
@@ -328,7 +328,7 @@ describe('notify: retention is published (D-160, D-215)', () => {
   })
 })
 
-describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)', () => {
+describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3)', () => {
   it('"Not sent" says why, with the fix link for an admin only; the detail says the same', async () => {
     const view = renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
@@ -362,7 +362,7 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)'
   it('select all shown, Resolve with one note: one audit row per incident, the list empties', async () => {
     renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
-    // G6: the nav badge counts the open high and critical incidents (GET /findings/summary)
+    // The nav badge counts the open high and critical incidents (GET /findings/summary)
     expect(await mainNavLink(/^Incidents \d+ high or critical open$/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 4 incidents on this page' }))
     const bar = screen.getByRole('region', { name: 'Selected incidents' })
@@ -373,7 +373,7 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)'
     await userEvent.click(within(dlg).getByRole('button', { name: 'Resolve 4 incidents' }))
     expect(await screen.findByText('4 incidents resolved')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
-    // G6 (kien, N100): every incident resolved, the badge goes at once, not after the summary's next minute
+    // Every incident resolved, the badge goes at once, not after the summary's next minute
     await waitFor(() => expect(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('link', { name: /^Incidents/ })).toHaveAccessibleName('Incidents'))
     expect(auditStore.get().filter((a) => a.action === 'notify.incident_status')).toHaveLength(4)
     const { incidents } = await getJson('/notify/incidents') as { incidents: { id: string; status: string; note: string | null }[] }
@@ -462,7 +462,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(auditStore.get().some((e) => e.action === 'notify.channel_test' && e.target === 'telegram')).toBe(true)
   })
 
-  it('Telegram Find my chat (D-491): the chats the bot saw are listed, picking one fills Chat ID; empty, refused and busy bots say what to do', async () => {
+  it('Telegram Find my chat: the chats the bot saw are listed, picking one fills Chat ID; empty, refused and busy bots say what to do', async () => {
     renderChannels()
     await press('Edit Telegram')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Telegram' })
@@ -490,7 +490,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await waitFor(() => expect(token).toHaveAccessibleDescription(/The bot token is not valid/))
   })
 
-  it('Zalo OA (D-483): App ID, Secret key and refresh token, checked field by field; the box renews the access token', async () => {
+  it('Zalo OA: App ID, Secret key and refresh token, checked field by field; the box renews the access token', async () => {
     renderChannels()
     await press('Set up Zalo OA')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Zalo OA' })
@@ -531,7 +531,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(to).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('SMTP email: the server cannot be Vedette itself (in a container 127.0.0.1 is Vedette), as for a webhook (walk 3, D-446)', async () => {
+  it('SMTP email: the server cannot be Vedette itself (in a container 127.0.0.1 is Vedette), as for a webhook', async () => {
     renderChannels()
     await press('Edit Email')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
@@ -542,7 +542,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await waitFor(() => expect(host).toHaveAccessibleDescription(/^That address is Vedette itself: .* enter the machine's LAN address and that program's port\.$/))
   })
 
-  it('server refusals of the other types show under the field the code names; a code that fits several fields stays at the top (deferred walk 2)', async () => {
+  it('server refusals of the other types show under the field the code names; a code that fits several fields stays at the top', async () => {
     renderChannels()
     await press('Edit Telegram')
     const tg = await screen.findByRole('dialog', { name: 'Channel Telegram' })
@@ -583,7 +583,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(within(dlg).queryByRole('alert')).toBeNull()
   })
 
-  it('SMTP email: the port follows the encryption; leaving SSL/TLS drops 465 for 587 (QA walk b)', async () => {
+  it('SMTP email: the port follows the encryption; leaving SSL/TLS drops 465 for 587', async () => {
     renderChannels()
     await press('Edit Email')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
@@ -612,7 +612,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(await screen.findByText(/Tested .*: failed/)).toBeInTheDocument()
   })
 
-  it('webhook (walk 2): the help names both signed headers; a bad URL and a short key show at once, each under its field, before anything is sent', async () => {
+  it('webhook: the help names both signed headers; a bad URL and a short key show at once, each under its field, before anything is sent', async () => {
     let puts = 0
     server.use(http.put('*/api/v1/notify/channels/webhook', () => { puts++ })) // counts, then falls through to the mock
     renderChannels()
@@ -658,7 +658,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(within(dlg).queryByRole('alert')).toBeNull()
   })
 
-  it('webhook (walk 3 G13): a link-local / cloud metadata URL over http gets the precise sentence, not the http rule, before anything is sent', async () => {
+  it('webhook: a link-local / cloud metadata URL over http gets the precise sentence, not the http rule, before anything is sent', async () => {
     let puts = 0
     server.use(http.put('*/api/v1/notify/channels/webhook', () => { puts++ }))
     renderChannels()
@@ -673,7 +673,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(puts).toBe(0)
   })
 
-  it('Send test (walk 3 G13): while the box waits for the far end, the row says the test is running', async () => {
+  it('Send test: while the box waits for the far end, the row says the test is running', async () => {
     let answer!: () => void
     const held = new Promise<void>((r) => { answer = r })
     server.use(http.post('*/api/v1/notify/channels/telegram/test', async () => {
@@ -684,13 +684,13 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await press('Send test Telegram')
     const table = screen.getByRole('table', { name: 'Alert channels' })
     expect(await within(table).findByText(/Sending a test message… this can take up to 45 seconds/)).toBeInTheDocument()
-    // kien G1: the pressed button shows the shared busy state
+    // The pressed button shows the shared busy state
     expect(within(table).getByRole('button', { name: 'Sending…' })).toHaveAttribute('aria-busy', 'true')
     answer()
     await waitFor(() => expect(screen.queryByText(/Sending a test message/)).toBeNull())
   })
 
-  it('Send test (walk 3 G13): a failed last test is shown as text with the reason and an "on but failed" hint', async () => {
+  it('Send test: a failed last test is shown as text with the reason and an "on but failed" hint', async () => {
     renderChannels()
     await press('Set up Webhook')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
@@ -702,7 +702,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(within(table).getByText('Alerts may not arrive: fix the settings and test again.')).toBeInTheDocument()
   })
 
-  it('narrow screen (walk 3 G13): each channel is a card with its Set up / Edit / Send test / Remove buttons in it', async () => {
+  it('narrow screen: each channel is a card with its Set up / Edit / Send test / Remove buttons in it', async () => {
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('max-width'), media: q, addEventListener: () => {}, removeEventListener: () => {} }))
     try {
       renderChannels()
@@ -824,7 +824,7 @@ async function getJsonAfterLogin(path: string) {
   return getJson(path)
 }
 
-describe('notify: forbidden webhook hosts match the box (forbiddenAddr after Unmap; G13 review L1, L5)', () => {
+describe('notify: forbidden webhook hosts match the box (forbiddenAddr after Unmap)', () => {
   it('only IP literals and localhost names are judged; an IPv4-mapped IPv6 loopback is forbidden too', () => {
     const host = (u: string) => new URL(u).hostname
     for (const u of ['https://127.0.0.1/x', 'http://169.254.169.254/latest', 'https://0.0.0.0/', 'https://224.0.0.251/', 'https://[::1]/', 'https://[::]/', 'https://[fe80::1]/', 'https://[ff02::1]/', 'http://[::ffff:127.0.0.1]/', 'https://[::ffff:169.254.1.1]/', 'https://localhost/', 'https://app.localhost./',
@@ -832,7 +832,7 @@ describe('notify: forbidden webhook hosts match the box (forbiddenAddr after Unm
       expect(forbiddenHost(host(u)), u).toBe(true)
     for (const u of ['https://224.alerts.example.com/hook', 'https://127.corp.example/x', 'https://169.254.example.net/', 'https://8.8.8.8/', 'https://10.0.0.5/', 'https://[2001:db8::1]/', 'https://[::ffff:10.0.0.1]/', 'https://hooks.company.com/', 'https://100.100.100.201/', 'https://[fd00:ec2::253]/', 'https://metadata.company.com/'])
       expect(forbiddenHost(host(u)), u).toBe(false)
-    // D-446: the page names Vedette itself apart (loopback, localhost names); everything else forbidden gets the other sentence
+    // The page names Vedette itself apart (loopback, localhost names); everything else forbidden gets the other sentence
     for (const u of ['https://127.0.0.1/x', 'https://127.8.9.10/x', 'https://[::1]/', 'http://[::ffff:127.0.0.1]/', 'https://localhost/', 'https://app.localhost./']) expect(ownHost(host(u)), u).toBe(true)
     for (const u of ['http://169.254.169.254/latest', 'https://[::]/', 'https://[::ffff:169.254.1.1]/', 'https://10.0.0.5/', 'https://127.corp.example/x']) expect(ownHost(host(u)), u).toBe(false)
   })
@@ -890,7 +890,7 @@ describe('notify: channel form matrix', () => {
     expect((await put('telegram', { ...base, fields: { chat_id: '-100123' }, approvers: [{ user_id: 'u-view', address: '123456' }] })).status).toBe(400)
   })
 
-  it('Zalo personal: an approver is a Zalo user ID, never a phone number, and one address is one approver (S-NOT-1, D-242)', async () => {
+  it('Zalo personal: an approver is a Zalo user ID, never a phone number, and one address is one approver (S-NOT-1)', async () => {
     renderChannels()
     await screen.findByRole('table')
     const put = (approvers: unknown) => fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -923,7 +923,7 @@ describe('notify: channel form matrix', () => {
     expect((await put({ ...base, approvals: false, approvers: [], fields: { chat_id: '@vedette_alerts' } })).status).toBe(200) // a @name is fine for alerts only
   })
 
-  it('Zalo personal: a real QR sign-in, the recipient picked from the groups, approvers by friend or phone, Waiting then Linked (S-NOT-1, S-RESP-2, D-447)', async () => {
+  it('Zalo personal: a real QR sign-in, the recipient picked from the groups, approvers by friend or phone, Waiting then Linked (S-NOT-1, S-RESP-2)', async () => {
     renderChannels()
     await screen.findByRole('table')
     await press(/^Set up Zalo personal$/)
@@ -985,7 +985,7 @@ describe('notify: channel form matrix', () => {
     expect(z.approvers.map((a) => [a.address, a.name])).toEqual([['2938475610293847561', 'Minh Tran'], ['4756102938475610293', 'Hoa Le']])
   })
 
-  it('the confirm link: a GET never links, another signed-in user is refused and the link stays good, then the right user confirms; a used link is refused (S-RESP-2, D-447)', async () => {
+  it('the confirm link: a GET never links, another signed-in user is refused and the link stays good, then the right user confirms; a used link is refused (S-RESP-2)', async () => {
     renderChannels()
     await screen.findByRole('table')
     const put = await fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -1017,7 +1017,7 @@ describe('notify: channel form matrix', () => {
     expect((await again.json() as { error: { code: string } }).error.code).toBe('no_code')
   })
 
-  it("an administrator links the box's own signed-in Zalo in their session: no message, the same confirm page (S-RESP-2, D-447)", async () => {
+  it("an administrator links the box's own signed-in Zalo in their session: no message, the same confirm page (S-RESP-2)", async () => {
     orgStore.update((o) => ({ ...o, setup_complete: true }))
     sessionStore.set({ userId: 'u-admin' })
     const before = zaloMessagesForTest().length
@@ -1035,7 +1035,7 @@ describe('notify: channel form matrix', () => {
     await expectNoA11yViolations()
   })
 
-  it('Zalo personal: saving with a sign-in that ended is refused, and finding needs a session (S-NOT-1, D-447)', async () => {
+  it('Zalo personal: saving with a sign-in that ended is refused, and finding needs a session (S-NOT-1)', async () => {
     renderChannels()
     await screen.findByRole('table')
     const res = await fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -1049,7 +1049,7 @@ describe('notify: channel form matrix', () => {
 })
 const APPROVE_LABEL = 'Approve actions from this channel'
 
-describe('notify: email providers (S-NOT-1, D-449)', () => {
+describe('notify: email providers (S-NOT-1)', () => {
   const put = (b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/email`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
   const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string>; secret_last4: string | null }[]).find((c) => c.type === 'email')!
   const openEmail = async () => {
@@ -1132,7 +1132,7 @@ describe('notify: email providers (S-NOT-1, D-449)', () => {
     expect((await emailOf()).fields.provider).toBe('google-workspace')
   })
 
-  it('a saved secret goes only to the method, server and port it was saved for; a save without encryption between deletes it (D-449 review)', async () => {
+  it('a saved secret goes only to the method, server and port it was saved for; a save without encryption between deletes it', async () => {
     await openEmail()
     const ms = { enabled: true, min_severity: 'high', fields: { provider: 'microsoft365', host: 'smtp.office365.com', port: '587', security: 'starttls', username: 'alerts@acme.example', tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47', client_id: '0a1b2c3d-4e5f-6789-abcd-ef0123456789', from: 'alerts@acme.example', to: 'it@acme.example' }, secret: 'Abc8Q~client.secret_value-123' }
     const code = async (b: unknown) => { const r = await put(b); return r.ok ? 'ok' : ((await r.json()) as { error: { code: string } }).error.code }
@@ -1176,7 +1176,7 @@ describe('notify: email providers (S-NOT-1, D-449)', () => {
   })
 })
 
-describe('notify: email user sign-in (S-NOT-1, D-480)', () => {
+describe('notify: email user sign-in (S-NOT-1)', () => {
   const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string> }[]).find((c) => c.type === 'email')!
   const openEmail = async (provider: string) => {
     renderChannels()

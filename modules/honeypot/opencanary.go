@@ -14,9 +14,9 @@ import (
 )
 
 // Names of the files: the first two are written by core into Config.ConfigDir (mounted read-only into the honeypot
-// container), the log is written by the container into Config.LogDir and only read by core (D-89). Nothing here is a secret of
+// container), the log is written by the container into Config.LogDir and only read by core. Nothing here is a secret of
 // the box: the files are readable by the container. The one private key among them (in CertFile) is the HTTPS trap's own, which
-// core made for it alone and which nothing trusts (https.go, D-467): the container has to read it to serve TLS.
+// core made for it alone and which nothing trusts (https.go): the container has to read it to serve TLS.
 const (
 	ConfFile   = "opencanary.conf"
 	TokensFile = "honeytokens.json"
@@ -36,7 +36,7 @@ const (
 )
 
 // Look is the Trap IP that decides how one service presents itself (its banner, its page): the first Trap IP handed to the host
-// that has the service. OpenCanary is one process, so each service has one banner for the whole box (D-466 (4), D-467).
+// that has the service. OpenCanary is one process, so each service has one banner for the whole box.
 type Look struct {
 	Name   string // host name of the Trap IP
 	Preset Preset
@@ -47,13 +47,13 @@ type Look struct {
 type ConfigInput struct {
 	Enabled   []ServiceName // services whose trap is on and may listen (INV-6, INV-7)
 	LogPath   string        // JSON-lines file the container writes (inside its writable log folder)
-	NASDecoy  bool          // the Trap IP that picks the box's one login page is a NAS (D-466 (4)): the web trap shows a NAS login page
+	NASDecoy  bool          // the Trap IP that picks the box's one login page is a NAS: the web trap shows a NAS login page
 	FileNames []string      // names of the file tokens, for the container to plant in the share
-	// Looks are the Trap IPs that decide each service's banner (D-467); a service without one gets the generic banner.
+	// Looks are the Trap IPs that decide each service's banner; a service without one gets the generic banner.
 	Looks map[ServiceName]Look
 }
 
-// unusedServices are the OpenCanary modules that must stay off (D-467, FORBID-2): snmp and llmnr need scapy (GPL-2, legal.md) and
+// unusedServices are the OpenCanary modules that must stay off (FORBID-2): snmp and llmnr need scapy (GPL-2, legal.md) and
 // raw sockets, portscan needs iptables in the container (the host records the attempts instead, INV-24).
 var unusedServices = []string{"llmnr", "portscan", "snmp"}
 
@@ -100,10 +100,10 @@ func banners(looks map[ServiceName]Look) map[string]any {
 //
 // OpenCanary has no per-service bind address (device.listen_addr is one address for every module that reads it), so the
 // services listen on every address of the container; the container has only the macvlan addresses of the enabled Trap
-// IPs, which the host assigns (D-90 (1)), and the host closes on each address the ports of the services that Trap IP does
-// not have (D-466). Enabled is the union of their services. Every service has its port key, on or off: OpenCanary refuses
+// IPs, which the host assigns, and the host closes on each address the ports of the services that Trap IP does
+// not have. Enabled is the union of their services. Every service has its port key, on or off: OpenCanary refuses
 // to start when two keys name one port. Credential tokens are not written: the services accept any login and log the user
-// name, and core recognises the bait name when it reads the log, so no password sits on the shared volume (D-90 (3)).
+// name, and core recognises the bait name when it reads the log, so no password sits on the shared volume.
 func RenderConfig(in ConfigInput) ([]byte, error) {
 	if in.LogPath == "" {
 		return nil, errors.New("honeypot: render: no log path")
@@ -161,7 +161,7 @@ func RenderConfig(in ConfigInput) ([]byte, error) {
 }
 
 // RenderTokens is honeytokens.json: the file names the container plants in the SMB share (names only) and the NetBIOS name
-// of the share (D-466 (4): the name of the first Trap IP with SMB; init.py writes it into Samba's include file, "" leaves the
+// of the share (the name of the first Trap IP with SMB; init.py writes it into Samba's include file, "" leaves the
 // image's default). Only an empty or valid NetBIOS name is written: it ends up in a Samba configuration line.
 func RenderTokens(files []string, netbiosName string) ([]byte, error) {
 	f := slices.Clone(files)
@@ -205,7 +205,7 @@ func removeInRoot(dir, name string) error {
 
 // writeInRoot replaces dir/name with data: a new file with a random name (O_EXCL) created through os.Root, so no path
 // component can leave dir, then fsync, rename over name and fsync of the directory. The directory belongs to core and
-// the container mounts it read-only (D-89, amendment of the WP-14 review); core never reads back what it wrote, it
+// the container mounts it read-only (amendment of the WP-14 review); core never reads back what it wrote, it
 // compares against the hash it keeps in memory (Service.written), so nothing a hostile container leaves is ever opened.
 func writeInRoot(dir, name string, data []byte) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // the container reads the directory; no secret in it

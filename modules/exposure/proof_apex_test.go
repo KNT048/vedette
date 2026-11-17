@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
-// D-632 (kien G10 reopen): a target is proved by its OWN token on a parent name down to its registered domain, the zone apex first:
+// A target is proved by its OWN token on a parent name down to its registered domain, the zone apex first:
 // git.beyondnetglobal.com (a CNAME, so no TXT can sit on it) is proved by vedette-verify=<git's token> at "@" of beyondnetglobal.com,
 // among the zone's other TXT records, with no second domain target. Every rule of the record still holds there.
-func TestProof_D632_OwnTokenOnAParentName(t *testing.T) {
+func TestProof_OwnTokenOnAParentName(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
 		name   string
@@ -65,13 +65,13 @@ func TestProof_D632_OwnTokenOnAParentName(t *testing.T) {
 	}
 }
 
-// D-632: the scan gate (INV-1 (c)) accepts the apex record the same way, and the scan tells the executors to check that record:
+// The scan gate (INV-1 (c)) accepts the apex record the same way, and the scan tells the executors to check that record:
 // ZAP gets the apex and this target's own token (ScanTarget.Proof); a public suffix is never asked.
-func TestProof_D632_TheGateAndTheScanUseTheApexRecord(t *testing.T) {
+func TestProof_TheGateAndTheScanUseTheApexRecord(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
 	git := e.add("admin@acme.example", "git.beyondnetglobal.com")
-	e.dns.put("beyondnetglobal.com", "v=spf1 -all", txtRecord(git.Token)) // kien's apex: nothing else changes
+	e.dns.put("beyondnetglobal.com", "v=spf1 -all", txtRecord(git.Token)) // an apex with an SPF record: nothing else changes
 	if r := e.verify(git.ID); !r.Verified {
 		t.Fatalf("%+v", r)
 	}
@@ -86,7 +86,7 @@ func TestProof_D632_TheGateAndTheScanUseTheApexRecord(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", git.ID); err != nil {
 		t.Fatal(err)
 	}
-	// review r1 M2 of #960: ZAP is told the target itself, its own token and where its record sits, never the apex as the domain
+	// ZAP is told the target itself, its own token and where its record sits, never the apex as the domain
 	if p := run.last.Proof; p == nil || p.Domain != "git.beyondnetglobal.com" || p.ProofAt != "beyondnetglobal.com" || p.Token != git.Token {
 		t.Fatalf("scan proof %+v", run.last.Proof)
 	}
@@ -115,7 +115,7 @@ func TestProof_D632_TheGateAndTheScanUseTheApexRecord(t *testing.T) {
 	}
 }
 
-// D-632: the deep step of a target proved by its own token on the apex goes out for the target itself (its box-bound token, the
+// The deep step of a target proved by its own token on the apex goes out for the target itself (its box-bound token, the
 // name the host listed) with ProofAt = the apex, so the executors' fence looks for that token there.
 func TestContract_INV28_Deep_OwnTokenOnTheApexSetsProofAt(t *testing.T) {
 	t.Parallel()
@@ -141,9 +141,9 @@ func TestContract_INV28_Deep_OwnTokenOnTheApexSetsProofAt(t *testing.T) {
 	}
 }
 
-// Review r1 M1 of #960: git proved by its own token at the apex covers nothing under it. ci.git gets no "covered by git" note, the
+// git proved by its own token at the apex covers nothing under it. ci.git gets no "covered by git" note, the
 // "@" instruction, and a failed Check that does not claim git has no record.
-func TestProof_D632_AnApexProvedTargetCoversNothingBelow(t *testing.T) {
+func TestProof_AnApexProvedTargetCoversNothingBelow(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
 	git := e.add("admin@acme.example", "git.beyondnetglobal.com")
@@ -188,9 +188,9 @@ func (d *deadlineDNS) LookupTXT(ctx context.Context, name string) ([]string, err
 	return d.cnameDNS.LookupTXT(ctx, name)
 }
 
-// Review r1 L2 of #960: a check has one DNS budget (every lookup ends by the same deadline), and as soon as the nearest valid record
+// A check has one DNS budget (every lookup ends by the same deadline), and as soon as the nearest valid record
 // is known the lookups still running are stopped.
-func TestProof_D632_OneBudgetAndTheRestStop(t *testing.T) {
+func TestProof_OneBudgetAndTheRestStop(t *testing.T) {
 	t.Parallel()
 	e, c := newProofEnv(t)
 	d := &deadlineDNS{cnameDNS: c, block: map[string]bool{}, ended: make(chan error, 8)}
@@ -224,9 +224,9 @@ func TestProof_D632_OneBudgetAndTheRestStop(t *testing.T) {
 	}
 }
 
-// Review r1 L3 of #960: a target whose stored token is older than the value the box binds to it (added before D-591, or while the
+// A target whose stored token is older than the value the box binds to it (added by an older release, or while the
 // host gave none) keeps passing Check on its stored token, and the message names the bound value the deep steps check.
-func TestProof_D632_AnOlderTokenNamesTheBoundValue(t *testing.T) {
+func TestProof_AnOlderTokenNamesTheBoundValue(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
 	git := e.add("admin@acme.example", "git.beyondnetglobal.com") // random token: no fence at add time

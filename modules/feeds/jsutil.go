@@ -168,9 +168,9 @@ func stripFormat(s string) string {
 }
 
 // quoteVal renders a feed-supplied value for a message: truncated, unprintable
-// runes (controls, format characters) turned into spaces, then quoted (D-208).
+// runes (controls, format characters) turned into spaces, then quoted.
 func quoteVal(s string) string {
-	// D-208: a feed value is a short snippet, never more: unprintable runes (controls, bidi overrides) become spaces first.
+	// A feed value is a short snippet, never more: unprintable runes (controls, bidi overrides) become spaces first.
 	return strconv.Quote(strings.Map(func(r rune) rune {
 		if unicode.IsPrint(r) {
 			return r

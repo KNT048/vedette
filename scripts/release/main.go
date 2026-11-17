@@ -1,23 +1,23 @@
-// Command release is the release builder (WP-08f, D-164): it turns a release description, the built image digests, the cosign
+// Command release is the release builder (WP-08f): it turns a release description, the built image digests, the cosign
 // signatures and the previous release into the documents the box verifies (release-manifest.json, index.json), signs them
 // with the pinned minisign tool, and verifies the result with the box-side verifier (internal/release) before anything is
-// published. It runs on the maintainer's machine, offline except push and publish (D-457); it creates no tag and holds no key.
+// published. It runs on the maintainer's machine, offline except push and publish; it creates no tag and holds no key.
 //
 //	go run ./scripts/release cosign-plan -in release.in.json -images dist/release/images.json -sbom dist/sbom -key ~/keys/cosign.key -out dist/release/cosign   (prints the sign lines, then a cosign attest --type cyclonedx line per platform SBOM)
 //	go run ./scripts/release manifest    -in release.in.json -cosign-dir dist/release/cosign -out dist/release [-gates dist/release/gates.json] [-prev-index DIR -ref v0.2.0 -baseline-ref v0.1.0 -keys-dir DIR]
-//	go run ./scripts/release container-assets -in release.in.json -out dist/release [-ref v0.2.0 -compose-dir deploy/compose/container-only]   (D-451: the compose files and the filled vedette.env, read from git at the tag; sign signs them, verify checks them)
+//	go run ./scripts/release container-assets -in release.in.json -out dist/release [-ref v0.2.0 -compose-dir deploy/compose/container-only]   (the compose files and the filled vedette.env, read from git at the tag; sign signs them, verify checks them)
 //	go run ./scripts/release index       -out dist/release -manifest dist/release/release-manifest.json [-prev-index DIR -keys-dir DIR]
 //	go run ./scripts/release index       -out dist/refresh -prev-index DIR        (the weekly refresh: no manifest; then sign and verify the same directory)
 //	go run ./scripts/release index       ... -revoke-key <key id> -revoke-reason TEXT   (a key revocation; it counts only in an index the backup key signs)
 //	go run ./scripts/release min-sequence -prev-index DIR [-keys-dir DIR]   (prints the sequence of the published index: the MIN_SEQUENCE of vedette-host; index -min-sequence N refuses a sequence not above it)
 //	go run ./scripts/release check-binaries BINARY...   (preflight: refuses a binary built with -tags releasetestkeys, the throwaway release keys)
-//	go run ./scripts/release check-image -image localhost/vedette-scan-base:check -kind scan-base [-container podman|docker] [-repo .]   (D-410: the files the gates check inside core and scan-base, on one local image; make images-check)
+//	go run ./scripts/release check-image -image localhost/vedette-scan-base:check -kind scan-base [-container podman|docker] [-repo .]   (the files the gates check inside core and scan-base, on one local image; make images-check)
 //	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup | -slot rescue -prev-index DIR -keys-dir DIR] [-passphrase-stdin]
 //	go run ./scripts/release verify      -dir dist/release [-prev-index DIR] [-keys-dir DIR]
 //	go run ./scripts/release packs       -dir content/mitigation/packs -version 2026.12.2.1 -key ~/keys/minisign.key -minisign /abs/minisign [-keys-dir DIR] [-passphrase-stdin]
-//	go run ./scripts/release push        -version 0.2.0 [-registry ghcr.io/knt048] [-platforms linux/amd64,linux/arm64] -out dist/release [-gates dist/release/gates.json]   (D-457: the lists of make images the gates checked, by digest; writes images.json)
+//	go run ./scripts/release push        -version 0.2.0 [-registry ghcr.io/knt048] [-platforms linux/amd64,linux/arm64] -out dist/release [-gates dist/release/gates.json]   (the lists of make images the gates checked, by digest; writes images.json)
 //	go run ./scripts/release in          -images dist/release/images.json -channel stable -rollback-safe false [-rollback-min-version V] [-min-upgrade-from V] [-deb-dir dist] [-gates dist/release/gates.json] -out release.in.json
-//	go run ./scripts/release gates       -version 0.2.0 -min-sequence N [-platforms ...] [-deb-dir dist] [-out dist/release] [-preflight]   (D-457 step 3, D-401: check-binaries -release inside each .deb, image labels, the files inside core and scan-base (D-410), the .deb rebuilt with the floor; writes gates.json when all passed)
+//	go run ./scripts/release gates       -version 0.2.0 -min-sequence N [-platforms ...] [-deb-dir dist] [-out dist/release] [-preflight]   (check-binaries -release inside each .deb, image labels, the files inside core and scan-base, the .deb rebuilt with the floor; writes gates.json when all passed)
 //	go run ./scripts/release publish     -dir dist/release -in release.in.json [-prev-index DIR | -first-release] [-keys-dir DIR] [-run]   (prints, or runs, the gh release commands; the index last)
 //	go run ./scripts/release deb-name    -version 1.0.0-beta.1 [-dir dist]   (part A: nfpm's vedette-host_1.0.0~beta.1_<arch>.deb to the SemVer name, before in)
 //	go run ./scripts/release bake-install -dir dist/release -in release.in.json -key ~/keys/minisign.key -minisign /abs/minisign [-ref v<version>] [-keys-dir DIR] [-passphrase-stdin]   (part A: install.sh at the tag with its three lines baked from the manifest, signed "file:install.sh version:<v>")
@@ -237,7 +237,7 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	if env.CurTree, err = GitTree(ctx, *repo, *ref); err != nil {
 		return fmt.Errorf("migrations of %s: %w", *ref, err)
 	}
-	// D-410: no box may update straight from a release whose sensors core no longer accepts (sensor-protocol.md §10)
+	// No box may update straight from a release whose sensors core no longer accepts (sensor-protocol.md §10)
 	proto, accepts, err := sensorProtoAt(ctx, *repo, *ref, true)
 	if err != nil {
 		return err
@@ -309,7 +309,7 @@ func cmdIndex(args []string, stdout io.Writer) error {
 	days := fs.Int("valid-days", 14, "days until expires_at (at most 14)")
 	now := fs.String("now", "", "RFC 3339 generated_at (default now)")
 	var revoke []string
-	fs.Func("revoke-key", "revoke this key id (repeatable; counts only once the backup key signs the index, D-108, D-259)", func(v string) error {
+	fs.Func("revoke-key", "revoke this key id (repeatable; counts only once the backup key signs the index)", func(v string) error {
 		revoke = append(revoke, v)
 		return nil
 	})
@@ -333,7 +333,7 @@ func cmdIndex(args []string, stdout io.Writer) error {
 		return err
 	}
 	if *manifest == "" {
-		// A refresh (D-150) announces nothing, so it must start from the published index and must not sit next to a manifest of
+		// A refresh announces nothing, so it must start from the published index and must not sit next to a manifest of
 		// an earlier run (sign would sign it and verify would then look for it in the index).
 		if *prev == "" {
 			return errors.New("refreshing the index needs -prev-index: the published index to carry on from")
@@ -344,7 +344,7 @@ func cmdIndex(args []string, stdout io.Writer) error {
 	}
 	var prevIndex *release.Index
 	if len(revoke) > 0 && *prev == "" {
-		return errors.New("-revoke-key needs -prev-index: a rescue index carries on from the last published index (D-259)")
+		return errors.New("-revoke-key needs -prev-index: a rescue index carries on from the last published index")
 	}
 	if *prev != "" {
 		trust, err := LoadTrust(*keys)
@@ -393,7 +393,7 @@ func cmdSign(ctx context.Context, args []string, stdin io.Reader, stdout io.Writ
 	dir := fs.String("dir", "dist/release", "directory with the documents")
 	key := fs.String("key", "", "minisign secret key file (mode 600, outside the repository)")
 	bin := fs.String("minisign", "", "absolute path of the pinned minisign (scripts/release/minisign.sh prints it)")
-	slot := fs.String("slot", slotActive, "active: index and manifest; backup: indexes only, into .backup.minisig (offline key, D-103); rescue: the backup key signs index and manifest into .minisig after the active key leaked (D-259)")
+	slot := fs.String("slot", slotActive, "active: index and manifest; backup: indexes only, into .backup.minisig (offline key); rescue: the backup key signs index and manifest into .minisig after the active key leaked")
 	pass := fs.Bool("passphrase-stdin", false, "read the key's passphrase from the first line of stdin (default: minisign asks on the terminal)")
 	prev := fs.String("prev-index", "", "-slot rescue: directory of the last index published before the rescue")
 	keys := fs.String("keys-dir", "", "-slot rescue: the public keys the installed boxes trust (the ones before the leak)")
@@ -408,7 +408,7 @@ func cmdSign(ctx context.Context, args []string, stdin io.Reader, stdout io.Writ
 	}
 	rescue := *slot == slotRescue
 	if rescue != (*prev != "" && *keys != "") || (!rescue && (*prev != "" || *keys != "")) {
-		return errors.New("-slot rescue takes -prev-index and -keys-dir, and only it does (D-259)")
+		return errors.New("-slot rescue takes -prev-index and -keys-dir, and only it does")
 	}
 	var trust release.Trust
 	if rescue {

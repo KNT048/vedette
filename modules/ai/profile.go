@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// Location says where a model runs (D-29): internal = inside the company network, cloud = a provider's servers.
+// Location says where a model runs: internal = inside the company network, cloud = a provider's servers.
 type Location string
 
 // The two places a model can run.
@@ -122,9 +122,9 @@ func (p Profile) Validate() error {
 	return nil
 }
 
-// checkOwn is the save-time half of D-446, after Validate: a base URL whose host is a literal address that is Vedette itself
+// checkOwn is the save-time half of the self-connection rule, after Validate: a base URL whose host is a literal address that is Vedette itself
 // (provider.Own: loopback, core's own container, Vedette's own ports on the machine's addresses) or a localhost name is refused. It
-// is not part of Validate, which also checks the saved profiles at start: a profile saved before D-446 stays loaded and its calls are
+// is not part of Validate, which also checks the saved profiles at start: a profile saved by an older release stays loaded and its calls are
 // refused by the dialer with the same sentence. Other names are judged on the resolved address at every connection.
 func (p Profile) checkOwn(own provider.OwnSources) error {
 	u, err := url.Parse(strings.TrimSpace(p.BaseURL))
@@ -166,7 +166,7 @@ func (p Profile) Usable() bool {
 // address (provider.OwnSources); the service builds its clients with them (Config.BoxAddrs, Config.SelfAddrs).
 func (p Profile) Provider() (provider.Provider, error) { return p.provider(provider.OwnSources{}) }
 
-// provider is Provider with the sources of the D-446 rule.
+// provider is Provider with the sources of the self-connection rule.
 func (p Profile) provider(own provider.OwnSources) (provider.Provider, error) {
 	style, err := provider.StyleForKind(p.Kind, p.APIStyle)
 	if err != nil {

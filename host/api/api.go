@@ -55,8 +55,8 @@ const (
 	CodeUnknownCommand   = "unknown_command"
 	CodeRunNotFound      = "run_not_found"
 	CodeBusy             = "busy"
-	// CodePendingConfirm is 409: a run is awaiting confirmation and holds the write lock (spec 4,
-	// D-100); the error carries that run's id. CodeNotAwaitingConfirm is 412: the run id of a
+	// CodePendingConfirm is 409: a run is awaiting confirmation and holds the write lock (spec 4);
+	// the error carries that run's id. CodeNotAwaitingConfirm is 412: the run id of a
 	// net.confirm or net.revert is not the run that is waiting (finished, expired or unknown).
 	CodePendingConfirm     = "pending_confirm"
 	CodeNotAwaitingConfirm = "not_awaiting_confirm"
@@ -110,7 +110,7 @@ type Run struct {
 	Result     json.RawMessage `json:"result,omitempty"`
 	Error      *RunError       `json:"error,omitempty"`
 	RevertAt   *time.Time      `json:"revert_at,omitempty"`
-	// ParkedDeadline is set while a running run is parked (server.Parked, D-316): the run outlives
+	// ParkedDeadline is set while a running run is parked (server.Parked): the run outlives
 	// the host process, and its command's own code ends it (server.SettleParked) by then.
 	ParkedDeadline *time.Time `json:"parked_deadline,omitempty"`
 	AuditID        string     `json:"audit_id"`

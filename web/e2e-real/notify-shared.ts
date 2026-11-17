@@ -1,7 +1,7 @@
-// Shared by notify.spec.ts and notify.global.spec.ts (WP-30, D-170): the shapes of the notify API, the texts the page derives from them, small helpers.
+// Shared by notify.spec.ts and notify.global.spec.ts (WP-30): the shapes of the notify API, the texts the page derives from them, small helpers.
 // Nothing here talks to the internet. The one send that can be tried on a box with no internet is an email channel pointed at a closed port on loopback
-// (SMTP to an internal host is allowed, INV-8); a webhook cannot point at loopback (D-86), and Telegram, Slack and Zalo have fixed internet addresses.
-// DEPENDENCY: a production box refuses a loopback SMTP server like a webhook (walk 3, INV-8); the e2e box (TestE2EBox) is built by the tests of cmd/vedette,
+// (SMTP to an internal host is allowed, INV-8); a webhook cannot point at loopback, and Telegram, Slack and Zalo have fixed internet addresses.
+// DEPENDENCY: a production box refuses a loopback SMTP server like a webhook (INV-8); the e2e box (TestE2EBox) is built by the tests of cmd/vedette,
 // which set notify's test-only Config.SMTPLoopback (notify_wiring_test.go), so the email tests here still reach loopback.
 // Not covered: DNS rebinding of a webhook name (the dial-time check needs a resolver seam); only the spelled-out addresses are tested.
 import { createServer } from 'node:net'

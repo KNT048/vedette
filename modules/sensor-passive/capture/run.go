@@ -40,7 +40,7 @@ type Config struct {
 	Interfaces func(ctx context.Context) ([]Interface, error)
 	// Open opens a Source for an interface name; default OpenLive. Tests pass a replay of a fixture.
 	Open func(iface string) (Source, error)
-	// Meta receives SPAN metadata. On the wire there is none (D-112 (7)): nil drops it.
+	// Meta receives SPAN metadata. On the wire there is none: nil drops it.
 	Meta    MetadataSink
 	Clock   func() time.Time
 	Log     *slog.Logger
@@ -54,7 +54,7 @@ type Config struct {
 }
 
 // Runner is the capture process: it asks core what to do, captures, and reports what it saw. Create it with New and call Run.
-// Its memory is the whole queue: there is no disk queue (D-112 (6)).
+// Its memory is the whole queue: there is no disk queue.
 type Runner struct {
 	link    Link
 	ifaces  func(context.Context) ([]Interface, error)
@@ -151,7 +151,7 @@ var ErrNoInterface = errors.New("capture: no such network card on this machine")
 //
 //   - interface "" in the config: capture stops at once, no last flush (sensor-protocol.md 6.1);
 //   - a different interface or filters: the old capture closes after a last flush, the new one opens;
-//   - module_off (409) from any call: capture stops, the queue is dropped, no last flush (SYS-5, D-80 (4)); core is asked again
+//   - module_off (409) from any call: capture stops, the queue is dropped, no last flush (SYS-5); core is asked again
 //     every minute;
 //   - filters that cannot be read: no capture, counted as filters_invalid in the heartbeat.
 //
@@ -497,7 +497,7 @@ const (
 // flush sends what the Engine collected: observations to core (batch by batch, each with its seq) and metadata to the
 // MetadataSink. When core cannot be reached the observations go back to the Engine and the next try waits (back-off); a
 // batch that keeps failing is split until the item that makes it fail stands alone and is dropped (the poison hunt); items
-// core rejects are dropped one by one and never offered again (D-112 (3)). A final flush (the recording ended, the settings
+// core rejects are dropped one by one and never offered again. A final flush (the recording ended, the settings
 // changed) tries once and forgets what fails.
 func (r *Runner) flush(ctx context.Context, eng *Engine, final bool) {
 	if !final && r.clock().Before(r.holdUntil) {
@@ -670,7 +670,7 @@ func (r *Runner) deliver(ctx context.Context, eng *Engine, batch []observe.Obser
 		case e.Status == 429 || e.Status == 503 || e.Status == 426 || e.Code == sensorlink.CodeCertRetired:
 			r.retryAfter = e.RetryAfter
 			r.log.WarnContext(ctx, "sensor-passive: core did not take the observations", "count", len(batch), "code", e.Code, "status", e.Status)
-			if e.Code == sensorlink.CodeStoreBusy { // 503 not_ready is core not knowing enough yet, never an item (D-385)
+			if e.Code == sensorlink.CodeStoreBusy { // 503 not_ready is core not knowing enough yet, never an item
 				return busy
 			}
 			return retry

@@ -20,7 +20,7 @@ import (
 var ownIP = netip.MustParseAddr("8.8.8.8")
 
 // readExternal is the parse of an external run as ScanExternal does it: the XML limits (INV-7), then externalOf's own bounds over
-// every host nmap reported (D-514).
+// every host nmap reported.
 func readExternal(data []byte) (External, error) {
 	all, err := parseNmapXML(data)
 	if err != nil {
@@ -29,7 +29,7 @@ func readExternal(data []byte) (External, error) {
 	return externalOf(all, ownIP, nmapargv.External)
 }
 
-// readFull is readExternal for a full shape (D-526): every TCP port and the script results.
+// readFull is readExternal for a full shape: every TCP port and the script results.
 func readFull(data []byte) (External, error) {
 	all, err := parseNmapXML(data)
 	if err != nil {
@@ -38,7 +38,7 @@ func readFull(data []byte) (External, error) {
 	return externalOf(all, ownIP, nmapargv.ExternalFull)
 }
 
-// D-526: a full run read from a fixture written by hand after nmap's documented XML (nmap.dtd; the vulns library's output of
+// A full run read from a fixture written by hand after nmap's documented XML (nmap.dtd; the vulns library's output of
 // smb-vuln-ms17-010 as nsedoc prints it; structured output per https://nmap.org/book/nse-api.html): a high port is a service, the
 // script results of open ports and of the host are kept with the findings of their structured output (state per finding, CVE
 // ids from the table key and the ids table), a text output that says "State: NOT VULNERABLE" with no structure makes no finding,
@@ -94,7 +94,7 @@ func TestFullRunReadsPortsAndScripts(t *testing.T) {
 	}
 }
 
-// INV-7 for scripts (D-526): more script results on one host than maxScriptsPerHost fail the whole run, as too many ports do; a
+// INV-7 for scripts: more script results on one host than maxScriptsPerHost fail the whole run, as too many ports do; a
 // port 0 fails a full run; a script output over maxScriptOutput is not read (its port and the run are kept); a long output is cut
 // to maxScriptText runes with only printable runes and line breaks left, and the CVE ids it prints are never findings.
 func TestFullRunScriptLimits(t *testing.T) {
@@ -189,7 +189,7 @@ func TestFullRunFindingsAreStructuredOnly(t *testing.T) {
 	}
 }
 
-// D-514: what -sV read on each open port of the box's own IP: the application CPE only, the extra info, a service with no
+// What -sV read on each open port of the box's own IP: the application CPE only, the extra info, a service with no
 // version (nginx), a tcpwrapped port; Ports is the probed list, not the open ports.
 func TestExternalServicesFromTheXML(t *testing.T) {
 	t.Parallel()
@@ -199,7 +199,7 @@ func TestExternalServicesFromTheXML(t *testing.T) {
 	}
 	want := []ExternalService{
 		{Port: 22, Name: "ssh", Product: "OpenSSH", Version: "7.4p1 Debian 10+deb9u7", CPE: "cpe:/a:openbsd:openssh:7.4p1", Extra: "protocol 2.0", Method: "probed", Conf: 10},
-		{Port: 443, Name: "ssl/http", Product: "nginx", CPE: "cpe:/a:igor_sysoev:nginx", Method: "probed", Conf: 10}, // tunnel="ssl" (D-522)
+		{Port: 443, Name: "ssl/http", Product: "nginx", CPE: "cpe:/a:igor_sysoev:nginx", Method: "probed", Conf: 10}, // tunnel="ssl"
 		{Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)", Method: "probed", Conf: 10},
 		{Port: 10443, Name: "tcpwrapped", Method: "probed", Conf: 8},
 	}
@@ -208,7 +208,7 @@ func TestExternalServicesFromTheXML(t *testing.T) {
 	}
 }
 
-// D-522 (N1, N5): an HTTPS page on 4443 (name="http" tunnel="ssl") reaches exposure as "ssl/http", so its templates speak TLS; an
+// An HTTPS page on 4443 (name="http" tunnel="ssl") reaches exposure as "ssl/http", so its templates speak TLS; an
 // address with 60 of the 98 ports open (a router or SYN proxy answering for all of them) is ErrAnswersEverywhere, never 60 services.
 func TestExternalTLSTunnelAndAnswersEverywhere(t *testing.T) {
 	t.Parallel()
@@ -235,7 +235,7 @@ func TestExternalTLSTunnelAndAnswersEverywhere(t *testing.T) {
 	}
 }
 
-// The output is untrusted (INV-7, D-514): an answer outside what was asked fails the whole run, never a part of it; a DOCTYPE with
+// The output is untrusted (INV-7): an answer outside what was asked fails the whole run, never a part of it; a DOCTYPE with
 // an internal subset (an entity) is refused before anything is read; nmap giving up on the host is said, not read as "no service".
 func TestExternalOutputFailsClosed(t *testing.T) {
 	t.Parallel()
@@ -346,7 +346,7 @@ func TestExternalSkippedWhenTooLittleTimeIsLeft(t *testing.T) {
 		if _, err := s.ScanExternal(ctx, ownIP, nmapargv.External, yesFence{}); !errors.Is(err, ErrNoTime) {
 			t.Fatalf("err = %v, want ErrNoTime", err)
 		}
-		// D-526: a full run needs its hour: what was enough for External is not enough for it
+		// A full run needs its hour: what was enough for External is not enough for it
 		full, cancel := context.WithTimeout(t.Context(), fullNeed+coreFenceTime-time.Second)
 		defer cancel()
 		if _, err := s.ScanExternal(full, ownIP, nmapargv.ExternalFull, yesFence{}); !errors.Is(err, ErrNoTime) {
@@ -358,7 +358,7 @@ func TestExternalSkippedWhenTooLittleTimeIsLeft(t *testing.T) {
 	})
 }
 
-// M2-7 (J6): how nmap named each service reaches exposure. method="probed" is a probe's answer, method="table" only nmap-services'
+// How nmap named each service reaches exposure. method="probed" is a probe's answer, method="table" only nmap-services'
 // usual name of the port number (conf 3), and any other method word is not passed on.
 func TestExternalServiceMethodAndConf(t *testing.T) {
 	t.Parallel()

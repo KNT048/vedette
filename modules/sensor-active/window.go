@@ -125,14 +125,14 @@ func mergePrefixes(ps []netip.Prefix) []netip.Prefix {
 func prefixSize(p netip.Prefix) int { return 1 << (32 - p.Bits()) }
 
 // scope is the scan scope of one settings snapshot, parsed once so that testing an address costs no storage
-// read (D-84 (6), M5). It follows the inventory's rule (SYS-7): inside a range, outside every exclusion.
+// read. It follows the inventory's rule (SYS-7): inside a range, outside every exclusion.
 type scope struct{ ranges, excl []netip.Prefix }
 
 func newScope(st Settings) scope {
 	return scope{ranges: mergePrefixes(prefixes(st.LANRanges)), excl: mergePrefixes(exclusionPrefixes(st.Exclusions))}
 }
 
-// excluded reports whether ip is on the exclusion list: the bound of every SNMP read, inside or outside lan_ranges (D-601).
+// excluded reports whether ip is on the exclusion list: the bound of every SNMP read, inside or outside lan_ranges.
 func (sc scope) excluded(ip netip.Addr) bool {
 	ip = ip.Unmap()
 	return slices.ContainsFunc(sc.excl, func(p netip.Prefix) bool { return p.Contains(ip) })

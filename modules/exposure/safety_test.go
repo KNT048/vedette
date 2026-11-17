@@ -80,7 +80,7 @@ func TestContract_INV30_ExcludedIPIsNotScanned(t *testing.T) {
 	}
 }
 
-// INV-31, D-571: a domain's address on the exclusion list gets nothing in its deep scan and says why; the others go on.
+// INV-31: a domain's address on the exclusion list gets nothing in its deep scan and says why; the others go on.
 func TestContract_INV30_DeepScanSkipsExcludedAddresses(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
@@ -96,7 +96,7 @@ func TestContract_INV30_DeepScanSkipsExcludedAddresses(t *testing.T) {
 	}
 }
 
-// INV-31 (review H5): a domain target without terms, the box's own IP and another address excluded: nothing goes to either (no ZAP page,
+// INV-31: a domain target without terms, the box's own IP and another address excluded: nothing goes to either (no ZAP page,
 // no service identification), each excluded address is said once; ScannableIP answers false for an excluded address.
 func TestContract_INV30_DomainSkipsExcludedAddresses(t *testing.T) {
 	t.Parallel()
@@ -128,7 +128,7 @@ func TestContract_INV30_DomainSkipsExcludedAddresses(t *testing.T) {
 	}
 }
 
-// INV-31 (review H5): while the shared block cannot be read, a domain's scan is refused before anything is sent (503).
+// INV-31: while the shared block cannot be read, a domain's scan is refused before anything is sent (503).
 func TestContract_INV30_DomainUnreadableBlockSendsNothing(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
@@ -145,7 +145,7 @@ func TestContract_INV30_DomainUnreadableBlockSendsNothing(t *testing.T) {
 	}
 }
 
-// INV-31 (review L4): a Full-depth job is lowered too; an address excluded after the scan started gets no templates.
+// INV-31: a Full-depth job is lowered too; an address excluded after the scan started gets no templates.
 func TestContract_INV30_FullJobsLoweredAndLateExclusion(t *testing.T) {
 	t.Parallel()
 	e, f := tplEnv(t)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prints the absolute path of the pinned cosign (D-256), downloading it first when it is not in the cache.
+# Prints the absolute path of the pinned cosign, downloading it first when it is not in the cache.
 # The pin is deploy/tools.env: COSIGN_VERSION, COSIGN_URL and the SHA-256 of the binary for each OS and architecture. The download
 # is checked against its pinned hash before it is made executable and moved into place (an atomic rename, so two runs at once
 # cannot leave a half-written binary); any mismatch is an error and nothing is left to run.

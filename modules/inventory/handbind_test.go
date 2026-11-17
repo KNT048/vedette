@@ -10,13 +10,13 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// #829 (J2), the N100 n71 walk: a device added by hand with its address only binds the MAC a sensor sees at that address only when
+// #829, on a test box: a device added by hand with its address only binds the MAC a sensor sees at that address only when
 // that MAC is the first and only one seen there since the person added it. A person adds "printer .201", the printer is off, DHCP gives
 // .201 to a laptop, then to another machine: neither may silently become the approved printer with its declared software.
 
 const (
-	xenMAC2 = "00:16:3e:5b:04:04" // the second machine of the n71 walk, burned in
-	xenMAC3 = "00:16:3e:5b:01:01" // the machine that bound on n71 (C1, verified live)
+	xenMAC2 = "00:16:3e:5b:04:04" // the second test machine, burned in
+	xenMAC3 = "00:16:3e:5b:01:01" // the machine that bound in the test (verified live)
 )
 
 // The first and only MAC at a freshly added address binds (C1); a second MAC seen there after another one does not: the newcomer is a
@@ -85,10 +85,10 @@ func offersWith(list []inventory.PossibleSame, id, why string) bool {
 	return false
 }
 
-// The n71 walk exactly, on this build: "ipchg-c1" added at .201 with no MAC at 15:02; the first machine (burned in) answers there 34 s
+// The test session exactly, on this build: "ipchg-c1" added at .201 with no MAC at 15:02; the first machine (burned in) answers there 34 s
 // later; the hand-added device binds it and follows it to .202; at 17:00:54 another machine with a burned-in MAC takes .201. It is a new,
 // announced device; the hand-added device stays the first machine, approved, notes and software kept.
-func TestContract_829_TheN71Walk(t *testing.T) {
+func TestContract_829_TheRecordedSessionKeepsTheHandAddedDevice(t *testing.T) {
 	e := newEnv(t)
 	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "ipchg-c1"})
 	notes := "C1"
@@ -113,9 +113,9 @@ func TestContract_829_TheN71Walk(t *testing.T) {
 	}
 }
 
-// The n71 data as the N100 holds it (the first machine's sighting at .201 did not bind: it was already a device of its own, which later
+// The test data as the box holds it (the first machine's sighting at .201 did not bind: it was already a device of its own, which later
 // moved to .202): the second machine at .201 within 72 h does not bind, is announced, and is offered with the hand-added device.
-func TestContract_829_TheN71DataDoesNotBindTheSecondMachine(t *testing.T) {
+func TestContract_829_TheRecordedDataDoesNotBindTheSecondMachine(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(xenMAC, "192.168.18.150", "")...) // the first machine, already known
 	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "ipchg-c1"})

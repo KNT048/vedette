@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// The confirm window of a management change (D-100, spec 6.5): what is on disk while it lasts, how
+// The confirm window of a management change (spec 6.5): what is on disk while it lasts, how
 // the host finds it again after a crash or a reboot, and the timer that ends it.
 //
 // net/pending.json in the state directory is the host's note of an unconfirmed change:
@@ -47,7 +47,7 @@ type netPending struct {
 	BootID    string    `json:"boot_id"`
 	OldSHA    string    `json:"old_sha"` // sha256 of /etc/netplan/90-vedette.yaml before the change; "" when there was none
 	NewSHA    string    `json:"new_sha"` // sha256 of the new file
-	// RebootAt is set when a revert could not be applied and the host scheduled a reboot (D-100 (8)).
+	// RebootAt is set when a revert could not be applied and the host scheduled a reboot.
 	RebootAt *time.Time `json:"reboot_at,omitempty"`
 }
 

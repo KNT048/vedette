@@ -127,7 +127,7 @@ func (c *Client) newState(b *Bundle, fi os.FileInfo, old *clientState) *clientSt
 	return &clientState{bundle: b, fi: fi, tr: tr, hc: &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
 
-// clientCert is tls.Config.GetClientCertificate: it picks up a rotated bundle before every handshake (D-110 (4)).
+// clientCert is tls.Config.GetClientCertificate: it picks up a rotated bundle before every handshake.
 func (c *Client) clientCert(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 	st := c.refresh(false)
 	return &st.bundle.Cert, nil
@@ -164,7 +164,7 @@ func sameFile(a, b os.FileInfo) bool {
 }
 
 // Backoff is the wait of a sensor that is retrying: 1 s, doubling to 60 s, each wait cut by a random share of its upper half
-// so that sensors do not retry in step (D-112 (4)).
+// so that sensors do not retry in step.
 type Backoff struct {
 	cur time.Duration
 	rnd func() float64
@@ -337,7 +337,7 @@ func (c *Client) PostProgress(ctx context.Context, id string, p *JobProgress) er
 
 // PostObservations makes one attempt to deliver one batch and returns core's answer or the error: an *Error for an answer
 // that is not a 200 (RetryAfter capped at BackoffCap), anything else when there was no usable answer. It never retries and never
-// sleeps: the capture process decides what a failure means for its queue and gives every attempt a seq of its own (D-122 (2)).
+// sleeps: the capture process decides what a failure means for its queue and gives every attempt a seq of its own.
 func (c *Client) PostObservations(ctx context.Context, req *ObservationsRequest) (ObservationsReply, error) {
 	var rep ObservationsReply
 	if _, err := c.do(ctx, http.MethodPost, PathPrefix+"/observations", nil, nil, req, &rep, MaxOtherReply, 60*time.Second); err != nil {

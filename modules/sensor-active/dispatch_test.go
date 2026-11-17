@@ -149,7 +149,7 @@ func probeCtx(t *testing.T, d time.Duration) (context.Context, context.CancelFun
 	return context.WithTimeout(t.Context(), d)
 }
 
-// D-111 (3): the job on the wire is the shape, the rate, the targets and a timeout, and no argv; the result goes back to
+// The job on the wire is the shape, the rate, the targets and a timeout, and no argv; the result goes back to
 // the probe as output.
 func TestDispatchJobWireShapeAndResult(t *testing.T) {
 	t.Parallel()
@@ -196,7 +196,7 @@ func TestJobIDsAreRandomAndUnguessable(t *testing.T) {
 	}
 }
 
-// D-113 (6): Health is unavailable without a heartbeat for 90 s, and when the heartbeat says nmap is missing; a probe then
+// Health is unavailable without a heartbeat for 90 s, and when the heartbeat says nmap is missing; a probe then
 // creates no job.
 func TestHealthFollowsTheHeartbeat(t *testing.T) {
 	t.Parallel()
@@ -253,7 +253,7 @@ func TestServiceHealthFromTheWorker(t *testing.T) {
 	}
 }
 
-// D-113 (4): a job the worker does not fetch in 60 s fails as worker_unavailable, and is not handed out afterwards.
+// A job the worker does not fetch in 60 s fails as worker_unavailable, and is not handed out afterwards.
 func TestPickupTimeout(t *testing.T) {
 	t.Parallel()
 	r := newDRig(t)
@@ -272,7 +272,7 @@ func TestPickupTimeout(t *testing.T) {
 	}
 }
 
-// D-113 (4): no heartbeat for 90 s while the job waits, or while it runs, fails it (worker_unavailable, worker_lost).
+// No heartbeat for 90 s while the job waits, or while it runs, fails it (worker_unavailable, worker_lost).
 func TestNoHeartbeatFailsTheJob(t *testing.T) {
 	t.Parallel()
 	t.Run("before pickup", func(t *testing.T) {
@@ -365,7 +365,7 @@ func TestRunningJobPastItsLimitIsLostAndCancelled(t *testing.T) {
 	_ = ch2
 }
 
-// D-113 (4): a poll that says the worker runs nothing (or something else) after the job was handed out and before a result:
+// A poll that says the worker runs nothing (or something else) after the job was handed out and before a result:
 // worker_lost; the reply that carried the job was lost, or the sensor restarted. The next job is then handed out.
 func TestWorkerLostWhenAPollSaysItRunsNothing(t *testing.T) {
 	t.Parallel()
@@ -395,7 +395,7 @@ func isCode(err error, code string) bool {
 	return errors.As(err, &e) && e.Code == code
 }
 
-// A result for an id nobody was given, for a job that has finished, or sent twice, is 404 unknown_job (D-113: job-id
+// A result for an id nobody was given, for a job that has finished, or sent twice, is 404 unknown_job (job-id
 // guessing and replay).
 func TestResultsForUnknownFinishedOrReplayedJobsAreRefused(t *testing.T) {
 	t.Parallel()
@@ -447,7 +447,7 @@ func TestPassiveRoleCannotFetchOrAnswerJobs(t *testing.T) {
 	await(t, ch)
 }
 
-// The module switch of the active role: off answers 409 module_off on the job routes (D-111 (4)).
+// The module switch of the active role: off answers 409 module_off on the job routes.
 func TestModuleOffAnswersTheWorker(t *testing.T) {
 	t.Parallel()
 	r := newDRig(t, func(o *sensorlink.Options) {
@@ -458,7 +458,7 @@ func TestModuleOffAnswersTheWorker(t *testing.T) {
 	}
 }
 
-// D-113 (5): core does not trust the worker's status. The exit code, the truncation and the XML decide.
+// Core does not trust the worker's status. The exit code, the truncation and the XML decide.
 func TestResultStatusIsNotTrusted(t *testing.T) {
 	t.Parallel()
 	for name, c := range map[string]struct {
@@ -507,7 +507,7 @@ func TestResultStatusIsNotTrusted(t *testing.T) {
 	}
 }
 
-// D-113 (5): XML of 8 MiB + 1 is 413 payload_too_large, and the probe ends failed at once (it does not wait for a lease).
+// XML of 8 MiB + 1 is 413 payload_too_large, and the probe ends failed at once (it does not wait for a lease).
 func TestOversizedResultIs413AndFailsTheProbe(t *testing.T) {
 	t.Parallel()
 	r := newDRig(t)
@@ -562,7 +562,7 @@ func TestOversizedResultEndsTheProbeRowFailed(t *testing.T) {
 	}
 }
 
-// D-113 (4): when the probe's context ends before the job is fetched, it is dropped; the worker never sees it.
+// When the probe's context ends before the job is fetched, it is dropped; the worker never sees it.
 func TestCancelBeforePickupDropsTheJob(t *testing.T) {
 	t.Parallel()
 	r := newDRig(t)
@@ -579,7 +579,7 @@ func TestCancelBeforePickupDropsTheJob(t *testing.T) {
 	}
 }
 
-// D-113 (4): after the worker has the job, the end of the probe's context sends cancel:[id] on the open long poll (which is
+// After the worker has the job, the end of the probe's context sends cancel:[id] on the open long poll (which is
 // woken); the probe returns when the worker confirms with its result.
 func TestCancelAfterPickupGoesOutOnTheLongPoll(t *testing.T) {
 	t.Parallel()
@@ -614,7 +614,7 @@ func TestCancelAfterPickupGoesOutOnTheLongPoll(t *testing.T) {
 	}
 }
 
-// D-113 (4): without a confirmation the probe counts as stopped 30 s after its context ended; the next job still waits until
+// Without a confirmation the probe counts as stopped 30 s after its context ended; the next job still waits until
 // a poll says the worker runs nothing.
 func TestUnconfirmedCancelIsStoppedAfter30sAndTheNextJobWaits(t *testing.T) {
 	t.Parallel()
@@ -650,7 +650,7 @@ func TestUnconfirmedCancelIsStoppedAfter30sAndTheNextJobWaits(t *testing.T) {
 	await(t, ch2)
 }
 
-// The instance nonce is the same on every reply of one core process and differs between processes (D-113 (4): the worker's
+// The instance nonce is the same on every reply of one core process and differs between processes (the worker's
 // lease and instance check).
 func TestInstanceNonce(t *testing.T) {
 	t.Parallel()
@@ -803,7 +803,7 @@ wait:
 	}
 }
 
-// D-168 (4), D-381: on a container-only install the project's scan image has no nmap by design, so the health text must not
+// On a container-only install the project's scan image has no nmap by design, so the health text must not
 // tell the customer to rebuild the image; the appliance text keeps saying it.
 func TestHealthAdviceFollowsTheInstallKind(t *testing.T) {
 	t.Parallel()

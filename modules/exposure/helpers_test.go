@@ -86,7 +86,7 @@ type fakeResolver struct {
 }
 
 func (r *fakeResolver) LookupTXT(_ context.Context, name string) ([]string, error) {
-	name = strings.TrimSuffix(name, ".") // the ownership rule asks rooted names (D-628)
+	name = strings.TrimSuffix(name, ".") // the ownership rule asks rooted names
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.asks = append(r.asks, name)
@@ -96,7 +96,7 @@ func (r *fakeResolver) LookupTXT(_ context.Context, name string) ([]string, erro
 	return r.txt[name], nil
 }
 
-// LookupCNAME: no name of the fake is a CNAME (cnameDNS of proof_test.go has some), so a record is the name's own (D-628).
+// LookupCNAME: no name of the fake is a CNAME (cnameDNS of proof_test.go has some), so a record is the name's own.
 func (r *fakeResolver) LookupCNAME(_ context.Context, name string) (string, error) {
 	return strings.TrimSuffix(name, ".") + ".", nil
 }
@@ -152,7 +152,7 @@ type env struct {
 	prober *fakeProber
 	dns    *fakeResolver
 	pub    *fakePub
-	terms  *bool // scanIP accepts the testing terms (FULL-1) when set, with the disruptive tick when true
+	terms  *bool // scanIP accepts the testing terms when set, with the disruptive tick when true
 }
 
 func newEnv(t *testing.T) *env {
@@ -273,7 +273,7 @@ func str(p *string) string {
 	return *p
 }
 
-// acceptTerms accepts the testing terms of a target as an administrator with two-step sign-in (FULL-1, D-566).
+// acceptTerms accepts the testing terms of a target as an administrator with two-step sign-in.
 func (e *env) acceptTerms(id string, disruptive bool) TargetView {
 	e.t.Helper()
 	if e.svc.cfg.TwoStep == nil {
@@ -286,7 +286,7 @@ func (e *env) acceptTerms(id string, disruptive bool) TargetView {
 	return v
 }
 
-// commit records the commitment the way an administrator's first Scan now does (D-473), without a scan.
+// commit records the commitment the way an administrator's first Scan now does, without a scan.
 func (e *env) commit(id string) (TargetView, error) {
 	e.t.Helper()
 	t, err := loadTarget(e.ctx(), e.db.Reader(), id)

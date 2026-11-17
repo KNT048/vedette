@@ -333,7 +333,7 @@ func (s *Service) queueRest(ctx context.Context, ids []string, why string) {
 }
 
 // manualSweep is "Scan the LAN now": the sweep from the first address of the scope, then the scans of the devices it queued (the
-// gentle scan first for fragile and unclassified ones, D-84 (1)), with the window counted open for at most manualFor. Every other
+// gentle scan first for fragile and unclassified ones), with the window counted open for at most manualFor. Every other
 // rule holds; a change of settings stops it as it stops the window's runs.
 func (s *Service) manualSweep(ctx context.Context) {
 	s.setCursor(ctx, netip.Addr{}) // the whole scope, not the rest of a pass the window cut
@@ -497,7 +497,7 @@ func (st Settings) nextOpening(t time.Time) *time.Time {
 	return nil
 }
 
-// JobRow is an sa_job row for a list of past runs, with every probe it sent (kien G7a, read only): a sweep runs in batches, an SNMP
+// JobRow is an sa_job row for a list of past runs, with every probe it sent (read only): a sweep runs in batches, an SNMP
 // read records "ok: n of m answered", so what the run found is in its probes, never only in the row's target count.
 type JobRow struct {
 	JobHead
@@ -509,7 +509,7 @@ type JobRow struct {
 type JobProbe struct{ Targets, Result string }
 
 // Jobs lists the newest sa_job rows of the LAN (sweep, device, snmp; external runs are part of exposure's scans), newest first, at
-// most limit (1..500), each with its probes. Read only: Settings › Scanning › History (kien G7a). One indexed read per kind
+// most limit (1..500), each with its probes. Read only: Settings › Scanning › History. One indexed read per kind
 // (sa_job (kind, started_at)), then the probes of the listed jobs in one read (sa_probe (job_id)).
 func (s *Service) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
 	limit = clamp(limit, 1, 500)
@@ -532,7 +532,7 @@ func (s *Service) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
 // ranges, which SQL cannot match, so they are matched here. An older read of the address is not found (the contract says so).
 const snmpReadsScanned = 1000
 
-// JobsAt lists the LAN jobs that reached addr (kien G7b/c, the device page's Last checks), newest first, at most limit (1..500) of
+// JobsAt lists the LAN jobs that reached addr (the device page's Last checks), newest first, at most limit (1..500) of
 // each kind: the identifications of that address (kind device: Check this device now, the window's queue, the first step of a
 // vulnerability check) and the SNMP reads that asked it (rounds, Read now, a credential Test) among the newest snmpReadsScanned
 // reads. No sweep: it reaches every address of the scope and identifies nothing. Read only; the probes, and so the jobs, are kept

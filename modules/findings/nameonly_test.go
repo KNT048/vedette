@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// seedNameOnly gives the device the open product findings the matcher made before D-602 for the matches it now drops (NameOnly):
+// seedNameOnly gives the device the open product findings the matcher made before the name-only rule for the matches it now drops (NameOnly):
 // suspected, basis product, with the sentence they had. It returns their CVEs.
 func seedNameOnly(t testing.TB, e *env, a Asset, vulns []Vuln) []string {
 	t.Helper()
@@ -36,8 +36,8 @@ func seedNameOnly(t testing.TB, e *env, a Asset, vulns []Vuln) []string {
 	return cves
 }
 
-// desktop55 is the N100's DESKTOP-55UKKFV (2026-11-17): Windows 11 Pro 26H2 (build 26300, out 2026-09-29) on a box that has not
-// learned it from Microsoft's list (D-603: core/winrel's table alone does not list it), as agent-intake's windowsRow writes it (no release CPE, the product names the build), with a Photo Station row whose version compares.
+// desktop55 is a test box's DESKTOP-55UKKFV (2026-11-17): Windows 11 Pro 26H2 (build 26300, out 2026-09-29) on a box that has not
+// learned it from Microsoft's list (core/winrel's table alone does not list it), as agent-intake's windowsRow writes it (no release CPE, the product names the build), with a Photo Station row whose version compares.
 func desktop55() Asset {
 	return Asset{ID: "a-desk", Name: "DESKTOP-55UKKFV", OS: "Microsoft Windows 11 Pro 10.0.26300.9974", Software: []Software{
 		{ID: "s-win", Display: "Windows 11 Pro", Vendor: "microsoft", Product: "Windows (build 26300)", Version: "10.0.26300.9974", Source: "agent",
@@ -46,9 +46,9 @@ func desktop55() Asset {
 	}}
 }
 
-// D-602: a Windows build newer than the release table cannot be placed among the releases NVD lists: every Windows KEV entry is "could
+// A Windows build newer than the release table cannot be placed among the releases NVD lists: every Windows KEV entry is "could
 // not be checked" (not_comparable), never a finding, and the sentence says why in plain words. A version match on another row stays.
-func TestMatchAsset_D602_UnknownWindowsBuildIsUnchecked(t *testing.T) {
+func TestMatchAsset_UnknownWindowsBuildIsUnchecked(t *testing.T) {
 	t.Parallel()
 	inRange := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
 	vulns := []Vuln{cve0367, cve0210, cve62215, inRange}
@@ -89,10 +89,10 @@ func TestMatchAsset_D602_UnknownWindowsBuildIsUnchecked(t *testing.T) {
 	}
 }
 
-// D-602 on CISA's key: whatever made the product-only match (no NVD data, a version NVD's ranges cannot order, NVD naming other
+// The name-only rule on CISA's key: whatever made the product-only match (no NVD data, a version NVD's ranges cannot order, NVD naming other
 // products), there is no finding; the CVE goes to the could-not-check list with #920's reason. A scannable CVE stays a finding on any
 // row, the agent's too (the scan's target, review r1 H1 of #939).
-func TestMatchAsset_D602_CISAKeyUnknownIsUnchecked(t *testing.T) {
+func TestMatchAsset_CISAKeyUnknownIsUnchecked(t *testing.T) {
 	t.Parallel()
 	noData := qnapVuln()
 	noData.NVDAnswered = true
@@ -136,11 +136,11 @@ func TestMatchAsset_D602_CISAKeyUnknownIsUnchecked(t *testing.T) {
 	}
 }
 
-// D-602, the rule change reaching findings made before it: on the next reconcile an open product finding without version evidence
+// The name-only rule reaching findings made before it: on the next reconcile an open product finding without version evidence
 // closes (not_relevant by the system, the reason in its note and history), with no notice (only a status_changed event notify does
 // not send on) and its CVE then under "Could not be checked". A risk acceptance, a person's reopen and a version finding are never
 // touched. A second pass changes nothing; a later match that compares a version reopens it.
-func TestContract_D602_ReconcileClosesNameOnlyFindings(t *testing.T) {
+func TestContract_ReconcileClosesNameOnlyFindings(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	dev := desktop55()
@@ -164,11 +164,11 @@ func TestContract_D602_ReconcileClosesNameOnlyFindings(t *testing.T) {
 		}
 		return r
 	}
-	if _, err := e.svc.setStatus(t.Context(), load(accepted.CVE).ID, ActionAcceptRisk, "until the next build", "kien@example.test", dayOf(*e.clock).AddDate(0, 0, 30)); err != nil {
+	if _, err := e.svc.setStatus(t.Context(), load(accepted.CVE).ID, ActionAcceptRisk, "until the next build", "anna@example.test", dayOf(*e.clock).AddDate(0, 0, 30)); err != nil {
 		t.Fatal(err)
 	}
 	for _, a := range []Action{ActionNotRelevant, ActionReopen} {
-		if _, err := e.svc.SetStatus(t.Context(), load(reopened.CVE).ID, a, "checked by hand", "kien@example.test"); err != nil {
+		if _, err := e.svc.SetStatus(t.Context(), load(reopened.CVE).ID, a, "checked by hand", "anna@example.test"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -239,7 +239,7 @@ func TestContract_D602_ReconcileClosesNameOnlyFindings(t *testing.T) {
 
 // Review r1 of #939, M1 and M2: NVD's "every version" is version evidence for a row whose version Vedette cannot read too, and which
 // row wins never decides whether the CVE is a finding (both orders).
-func TestMatchAsset_D602_EveryVersionAndRowOrder(t *testing.T) {
+func TestMatchAsset_EveryVersionAndRowOrder(t *testing.T) {
 	t.Parallel()
 	every := qnapVuln(Affected{CPE: qnapCPE})
 	for _, ver := range []string{"", "15.2(4)M3", "R7000-V1.0.11.100_10.2.100"} {
@@ -264,7 +264,7 @@ func TestMatchAsset_D602_EveryVersionAndRowOrder(t *testing.T) {
 
 // Review r1 of #939, M3 and H2 (a): "add the version" only where a version would decide; otherwise, and before NVD has answered at
 // all, the CVE is under "could not be checked" at once with the reason (no_nvd_data, no_nvd_versions).
-func TestMatchAsset_D602_AddTheVersionOnlyWhereItDecides(t *testing.T) {
+func TestMatchAsset_AddTheVersionOnlyWhereItDecides(t *testing.T) {
 	t.Parallel()
 	pending := qnapVuln() // NVD has not answered yet (NVDAnswered false)
 	dash := qnapVuln(Affected{CPE: "cpe:2.3:a:qnap:photo_station:-:*:*:*:*:*:*:*"})
@@ -286,7 +286,7 @@ func TestMatchAsset_D602_AddTheVersionOnlyWhereItDecides(t *testing.T) {
 // Review r1 of #939, H2 (b): a device × exploited CVE that enters "could not be checked" for the first time is announced once, in one
 // findings.unchecked.added event per device and write listing the CVEs; never again for that pair, and never for a CVE the device has
 // a finding for (the old product findings closing into the list at the upgrade stay silent).
-func TestContract_D602_NewUncheckedIsAnnouncedOnce(t *testing.T) {
+func TestContract_NewUncheckedIsAnnouncedOnce(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	dev := desktop55()
@@ -336,9 +336,9 @@ func TestContract_D602_NewUncheckedIsAnnouncedOnce(t *testing.T) {
 // Review r2 H1 of #939 and its check (lead decision): a version inside the range of every edition NVD pins for one of the row's products
 // is version evidence when NVD lists at least two editions (GitLab community and enterprise): a version finding naming them. A lone
 // edition (Acrobat "continuous", Splunk "enterprise", Jira "data_center") or a platform pin (AnyConnect for Windows only, on a Mac) is
-// not: "could not be checked", with a sentence naming the edition. NVD's real rows (N100 copy, 2026-11-16). Firefox ESR against "-"
+// not: "could not be checked", with a sentence naming the edition. NVD's real rows (a test box's copy, 2026-11-16). Firefox ESR against "-"
 // stays as #906 decided (TestNA_ApplicationEditionAsMain).
-func TestMatchAsset_D602_PinnedEditionStillDecides(t *testing.T) {
+func TestMatchAsset_PinnedEditionStillDecides(t *testing.T) {
 	t.Parallel()
 	rows := func(cve, vendor, product string, aff ...[3]string) Vuln {
 		v := Vuln{CVE: cve, Vendor: vendor, Product: product, NVDAnswered: true}
@@ -424,7 +424,7 @@ func TestMatchAsset_D602_PinnedEditionStillDecides(t *testing.T) {
 // Review r2 H2 of #939: an out-of-service Windows release (Windows 11 21H2) that NVD's list brackets with releases of its kind before
 // and after it has the flaw (no update brings it the fix): a finding with that sentence, kept by the age rule. Listed only for newer
 // releases (a feature it may not have), it stays "could not be checked".
-func TestMatchAsset_D602_EndedWindowsBracketedIsAFinding(t *testing.T) {
+func TestMatchAsset_EndedWindowsBracketedIsAFinding(t *testing.T) {
 	t.Parallel()
 	pc := winPC(22000, false, "2538", "x64")
 	clfs := nvdWindows("CVE-2025-29824", "2025-04-08", nvdRow{"windows_10_21h2", "*", "x64", "10.0.19044.5737"}, nvdRow{"windows_11_22h2", "*", "x64", "10.0.22621.5189"},
@@ -472,7 +472,7 @@ func TestMatchAsset_D602_EndedWindowsBracketedIsAFinding(t *testing.T) {
 
 // Review r2 M1 of #939: before NVD has answered for a CVE, its could-not-check row says Vedette is waiting for NVD's data (nvd_pending),
 // not that NVD has none; once NVD answered with nothing, it says that.
-func TestUnchecked_D602_WaitingForNVD(t *testing.T) {
+func TestUnchecked_WaitingForNVD(t *testing.T) {
 	t.Parallel()
 	pending := qnapVuln()
 	answered := qnapVuln()

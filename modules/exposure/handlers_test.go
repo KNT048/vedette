@@ -182,7 +182,7 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 	if code, b = e.call("POST", "/exposure/targets/"+id+"/scan", "operator", ""); code != 400 || errCode(b) != "commitment_required" {
 		t.Fatalf("scan without commitment: %d %v", code, b)
 	}
-	// an administrator's first Scan now is the confirmation (D-473): needs two-step sign-in and the version of the sentence
+	// an administrator's first Scan now is the confirmation: needs two-step sign-in and the version of the sentence
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
 	code, b = e.call("POST", "/exposure/targets/"+id+"/scan", "admin", `{"notice_version":"`+NoticeVersion+`"}`)
 	if code != 202 || b["status"] != "running" || b["target_id"] != id || b["by"] != "admin@acme.example" {

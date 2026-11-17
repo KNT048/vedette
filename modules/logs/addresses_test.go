@@ -500,7 +500,7 @@ func TestMeasureAddressCeilings(t *testing.T) {
 	}
 	b0 := size()
 	now := e.svc.now().Unix() / bucketSeconds
-	buckets := 301 // 24 hours and a bucket, and the lag of the hourly purge: the ceiling D-206 states for the other 5-minute counters
+	buckets := 301 // 24 hours and a bucket, and the lag of the hourly purge: the ceiling stated for the other 5-minute counters
 	if err := e.svc.cfg.Volume.Write(t.Context(), func(tx *sql.Tx) error {
 		for b := 0; b < buckets; b++ {
 			for k := 0; k < MaxAddrRowsPerBucket; k++ {
@@ -530,7 +530,7 @@ func addrBytes(k int) []byte {
 }
 
 // TestMeasureIngestCostOfAddresses is a batch of 500 lines of the ssh layout under three shapes of address, to compare with and without the
-// address counters (VEDETTE_MEASURE=1; see the numbers in D-210): one address, 500 different addresses (one signature), 500 addresses
+// address counters (VEDETTE_MEASURE=1): one address, 500 different addresses (one signature), 500 addresses
 // of 25 signatures.
 func TestMeasureIngestCostOfAddresses(t *testing.T) {
 	if os.Getenv("VEDETTE_MEASURE") == "" {

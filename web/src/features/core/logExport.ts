@@ -1,4 +1,4 @@
-// Download all logs (S-CORE-6, D-48). Reads each log collection of the box with peek() (absent = empty), removes secrets,
+// Download all logs (S-CORE-6). Reads each log collection of the box with peek() (absent = empty), removes secrets,
 // and returns one file. Hash-chained categories keep their `prev_hash`/`hash` fields so they can be verified offline.
 import { http, HttpResponse } from 'msw'
 import { API, audit, fail, guard } from '@/mocks/http'

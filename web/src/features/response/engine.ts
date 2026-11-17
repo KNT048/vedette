@@ -1,4 +1,4 @@
-// Rule engine of the response mock (D-51): events with typed fields -> WHEN/IF/THEN -> planned actions -> one bundled request.
+// Rule engine of the response mock: events with typed fields -> WHEN/IF/THEN -> planned actions -> one bundled request.
 // Trigger data is attacker-controlled: every parameter is resolved from the event, then checked by type before it can reach a template.
 import { collection, dataMode, daysAgo, nowIso, newId, peek } from '@/mocks/db'
 import { assetsStore, findingsStore } from '@/mocks/stores'
@@ -53,7 +53,7 @@ export function events(): Det[] {
     for (const h of hits.filter(isObj).slice(0, 200)) {
       const src = str(h.src_ip), dest = str(h.dest), kind = h.dest_kind === 'domain' ? 'domain' : 'ip'
       if (!isIpv4(src) || !str(h.id) || !dest) continue
-      const c = typeof h.confidence === 'number' && h.confidence >= 0 && h.confidence <= 1 ? h.confidence : 0 // 0 to 1 everywhere (D-57 (13))
+      const c = typeof h.confidence === 'number' && h.confidence >= 0 && h.confidence <= 1 ? h.confidence : 0 // 0 to 1 everywhere
       ioc(`det-l-${str(h.id)}`, src, dest, kind, c, Array.isArray(h.feeds) ? h.feeds.map(String).join(', ') : '', str(h.ts) || nowIso())
     }
   }
@@ -67,7 +67,7 @@ export function events(): Det[] {
     for (const h of hp.filter(isObj)) {
       const ip = str(h.src_ip) || str(h.source_ip)
       if (h.is_test === true || !isIpv4(ip) || !str(h.id)) continue
-      if (!['service', 'token', 'scan'].includes(str(h.kind))) continue // the box drops a hit of an unknown kind (D-286 (2))
+      if (!['service', 'token', 'scan'].includes(str(h.kind))) continue // the box drops a hit of an unknown kind
       touch(`det-hp-${str(h.id)}`, ip, str(h.trap_hostname) || str(h.trap_ip) || 'decoy', str(h.kind), str(h.ts) || nowIso())
     }
   } else if (sample) touch('det-s-hp-1', '192.168.10.107', 'FILESRV-OLD', 'service', daysAgo(1, 1), 'PC-HR-01')
@@ -87,7 +87,7 @@ export function events(): Det[] {
       fields: { ip: a.ip, mac: a.mac ?? '', vendor: a.vendor?.value ?? 'Unknown vendor', kind: KINDS.includes(a.kind) ? a.kind : 'unknown' } })
   }
   if (sample) {
-    // one address sent N lines: the event carries it (D-288); the SSH lines came from many addresses, none sent 20: no source_ip
+    // one address sent N lines: the event carries it; the SSH lines came from many addresses, none sent 20: no source_ip
     add({ id: 'det-s-log-1', trigger: 'log_threshold', ts: daysAgo(0, 0.4), device_kind: null, asset_id: null, summary: '12 lines of "logid=0101039426 action=ssl-login-fail" from 203.0.113.99 via FW-HQ in 5 minutes (at least 10)', fields: { source_device: 'FW-HQ', source_ip: '203.0.113.99', signature: 'logid=0101039426 action=ssl-login-fail', count: '12', window: '5', threshold: '10' } })
     add({ id: 'det-s-log-2', trigger: 'log_threshold', ts: daysAgo(0, 3), device_kind: null, asset_id: null, summary: '24 lines of "Failed password for <name> from <ip> port <n> ssh<n>" from linux-bastion in 10 minutes (at least 20)', fields: { source_device: 'linux-bastion', source_ip: '', signature: 'Failed password for <name> from <ip> port <n> ssh<n>', count: '24', window: '10', threshold: '20' } })
     add({ id: 'det-s-port-1', trigger: 'new_port', ts: daysAgo(0, 5), device_kind: 'web', asset_id: null, summary: 'New open port 8080 on public IP 203.0.113.10 (http-alt)', fields: { ip: '203.0.113.10', port: '8080', service: 'http-alt', device: 'WEB-01' } })
@@ -104,7 +104,7 @@ const sampleEvent = (t: Trigger): Det => ({ id: `example-${t}`, trigger: t, ts: 
 // ---- Checking a rule from the client ----
 const compatible = (p: ParamType, ft: string) => ft === p || p === 'text'
 
-/** The error code of a checkRule message: not_publishable for a fixed block list address the list never publishes (D-469), else invalid. */
+/** The error code of a checkRule message: not_publishable for a fixed block list address the list never publishes, else invalid. */
 export const ruleErrCode = (msg: string) => (msg.includes(' is not a public address (') ? 'not_publishable' : 'invalid')
 export function checkRule(b: Partial<RuleInput>): string | RuleInput {
   if (typeof b.name !== 'string' || !TEXT_RE.test(b.name)) return 'Name: 1 to 80 letters, numbers, spaces and . , : \' ( ) / -'
@@ -141,7 +141,7 @@ export function checkRule(b: Partial<RuleInput>): string | RuleInput {
       const refs = refsIn(spec)
       for (const r of refs) { const f = trig.fields.find((x) => x.key === r); if (!f) return `Action "${cat.name}": the trigger has no field "${oneLine(r, 30)}".`; if (trig.id === 'log_threshold' && r === 'signature') return `Action "${cat.name}": the log signature cannot be used in an action; use {{trigger.count}}, {{trigger.window}} or {{trigger.source_device}}.`; if (!compatible(p, f.type)) return `Action "${cat.name}": {${p}} needs ${p === 'text' ? 'text' : `a field of type ${p}`}, but ${r} is ${f.type}.` }
       if (refs.length) { if (p !== 'text' && !/^\{\{\s*trigger\.[a-z_]+\s*\}\}$/.test(spec)) return `Action "${cat.name}": {${p}} must be exactly one trigger field or a fixed value, not a mix.` } else if (!PARAM_CHECK[p](spec)) return `Action "${cat.name}": "${oneLine(spec, 40)}" is not a valid ${p} value.`
-      else if (cat.id === 'blocklist_add' && !isPublishable(spec)) return `Action "${cat.name}": ${notPublicMsg(spec)}` // D-469: a fixed address now, a trigger field when it runs
+      else if (cat.id === 'blocklist_add' && !isPublishable(spec)) return `Action "${cat.name}": ${notPublicMsg(spec)}` // A fixed address now, a trigger field when it runs
       params[p] = spec
     }
     const ttl = a.ttl_min == null ? null : a.ttl_min
@@ -151,8 +151,8 @@ export function checkRule(b: Partial<RuleInput>): string | RuleInput {
   if (b.pre_approved) { const bad = preApprovedProblem(actions); if (bad) return bad }
   return { name: b.name, enabled: b.enabled, live: b.live, trigger: trig.id, match: b.match, conditions: conds, actions, pre_approved: b.pre_approved, max_per_hour: b.max_per_hour!, schedule_min: trig.id === 'schedule' ? b.schedule_min! : null }
 }
-/** Pre-approved: only low-risk, reversible actions with an undo time of 24 hours or less (D-51). Checked on save and again at run time. */
-/** A port scan of a decoy is seen from a SYN alone, so its source can be forged: a person approves what it asks for (D-286 (4)). */
+/** Pre-approved: only low-risk, reversible actions with an undo time of 24 hours or less. Checked on save and again at run time. */
+/** A port scan of a decoy is seen from a SYN alone, so its source can be forged: a person approves what it asks for. */
 const forgeable = (ev: { trigger: string; fields: Record<string, string> }) => ev.trigger === 'honeypot' && ev.fields.kind === 'scan'
 const FORGEABLE_MSG = 'the source address of a port scan can be forged, so a person approves it'
 
@@ -178,7 +178,7 @@ export function planAction(a: RuleAction, ev: Det, why: string): Plan1 {
   if (!cat || !cat.enabled) return { ok: false, code: 'tool_not_allowed', error: `the action "${title}" is not enabled in the action catalog.`, title }
   const values: Partial<Record<ParamType, string>> = {}
   for (const p of paramsOf(cat)) values[p] = resolveParam(a.params[p] ?? '', ev.fields).trim()
-  // no single address reached the threshold (D-288): the count is the log source's; other triggers keep INV-10 (invalid_target)
+  // no single address reached the threshold: the count is the log source's; other triggers keep INV-10 (invalid_target)
   if (ev.trigger === 'log_threshold' && !values.ip && refsIn(a.params.ip ?? '').includes('source_ip')) {
     const n = /^[1-9][0-9]*$/.test(ev.fields.threshold ?? '') ? ev.fields.threshold : 'N'
     return { ok: false, code: 'tool_unavailable', error: `Not available: no single address sent at least ${n} lines of this signature in the window (they came from many addresses, or name none), so {{trigger.source_ip}} has no value. Nothing was changed.`, title }
@@ -189,7 +189,7 @@ export function planAction(a: RuleAction, ev: Det, why: string): Plan1 {
   const acted = [...Object.entries(values).filter(([k]) => ['ip', 'cidr', 'domain'].includes(k)).map(([, v]) => v!), ...(ev.trigger === 'finding' && ev.fields.ip ? [ev.fields.ip] : [])]
   const spared = allowStore.get().find((e) => acted.some((v) => touches(e.value, v)))
   if (spared) return { ok: false, code: 'never_touch', error: `${acted.join(' / ')} matches the never-touch list (${spared.label}, ${spared.value}). Nothing was changed.`, title }
-  // D-469: the block list publishes public addresses only, so a block on any other address is refused when it is planned (every path: rule, AI); after never-touch, like the box
+  // The block list publishes public addresses only, so a block on any other address is refused when it is planned (every path: rule, AI); after never-touch, like the box
   if (cat.id === 'blocklist_add' && !isPublishable(values.ip ?? '')) return { ok: false, code: 'not_publishable', error: notPublicMsg(values.ip ?? ''), title }
   const conn = connById(cat.connection_id)
   const why2 = unavailable(cat)
@@ -230,7 +230,7 @@ function fire(rule: Rule, ev: Det, sum: RunSummary) {
   let dropped = false
   for (const a of rule.actions) {
     const r = planAction(a, ev, ev.summary)
-    // D-469: a block the list never publishes would do nothing; only that action is dropped (with its line), the others go ahead
+    // A block the list never publishes would do nothing; only that action is dropped (with its line), the others go ahead
     if (!r.ok && r.code === 'not_publishable') { no(r.code, r.error); dropped = true; continue }
     if (!r.ok) return no(r.code, r.error) // fail closed: one bad action refuses the whole run
     planned.push(r.p)

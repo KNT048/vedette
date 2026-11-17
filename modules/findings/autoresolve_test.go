@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-// D-530: a suspected finding whose version the matcher proves outside every NVD range of its CVE is closed by Vedette
+// A suspected finding whose version the matcher proves outside every NVD range of its CVE is closed by Vedette
 // (not_relevant, system, reason not_affected_version, history, audit findings.auto_resolved, status_changed), once;
 // it reopens by itself when a later match says the device is affected again.
-func TestContract_D530_ProvedNotAffectedClosesAndReopens(t *testing.T) {
+func TestContract_ProvedNotAffectedClosesAndReopens(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	v := []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})}
@@ -55,9 +55,9 @@ func TestContract_D530_ProvedNotAffectedClosesAndReopens(t *testing.T) {
 	}
 }
 
-// D-530: only a positive proof closes. No NVD data, an unreadable version, no version, a person's own closing, a
+// Only a positive proof closes. No NVD data, an unreadable version, no version, a person's own closing, a
 // scan confirmation, and a No that rests only on the "Multiple Products" naming rule never close or reopen anything.
-func TestContract_D530_OnlyAProofCloses(t *testing.T) {
+func TestContract_OnlyAProofCloses(t *testing.T) {
 	t.Parallel()
 	ranged := []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})}
 	open := func(t *testing.T, e *env) Record {
@@ -165,9 +165,9 @@ func TestContract_D530_OnlyAProofCloses(t *testing.T) {
 	})
 }
 
-// D-530 in the matcher: a proof is listed only for a CVE the device has a finding for, and only when every software
+// Auto-resolve in the matcher: a proof is listed only for a CVE the device has a finding for, and only when every software
 // of the product is proved outside (a second copy that needs a version proves nothing).
-func TestMatchAsset_D530_NotAffectedNeedsEverySoftwareProved(t *testing.T) {
+func TestMatchAsset_NotAffectedNeedsEverySoftwareProved(t *testing.T) {
 	t.Parallel()
 	v := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
 	have := map[string]bool{v.CVE: true}
@@ -184,7 +184,7 @@ func TestMatchAsset_D530_NotAffectedNeedsEverySoftwareProved(t *testing.T) {
 	}
 }
 
-// W3-3: a product-only finding graded higher before D-500 takes the product severity (medium) at the next match, once,
+// A product-only finding graded higher by an older version takes the product severity (medium) at the next match, once,
 // with an audit line; review H2: product to version raises the severity and says so on the bus.
 func TestUpsert_SeverityFollowsTheBasis(t *testing.T) {
 	t.Parallel()
@@ -227,7 +227,7 @@ func TestUpsert_SeverityFollowsTheBasis(t *testing.T) {
 	}
 }
 
-// D-495 (review MED1 of #698): a finding Vedette closed while its basis was still the product, reopened by the same re-match
+// review MED1 of #698: a finding Vedette closed while its basis was still the product, reopened by the same re-match
 // that finds the version inside the range, is one story: status_changed matches_again, no severity_raised on top of it.
 func TestUpsert_ReopenAndRaiseInOneMatchIsOneEvent(t *testing.T) {
 	t.Parallel()

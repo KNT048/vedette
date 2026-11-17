@@ -8,16 +8,16 @@ import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { BOX_ID, inventorySettingsStore } from '@/features/inventory/mocks'
 import type { ScanRun } from '@/features/scan/types'
 
-// kien G7a: kien ran a vulnerability check and read its "0 matches" as "nothing ran"; his device checks were listed nowhere.
+// A user ran a vulnerability check and read its "0 matches" as "nothing ran"; their device checks were listed nowhere.
 // History says what each run found, in words, and lists every kind of run.
 const T = { timeout: 5000 }
 const run = (over: Partial<ScanRun>): ScanRun => ({
-  id: 'run-3sg', trigger: 'manual', trigger_note: null, started_at: '2026-11-17T03:18:00.000Z', started_by: 'kien@acme.example', ended_at: '2026-11-17T03:19:00.000Z',
+  id: 'run-3sg', trigger: 'manual', trigger_note: null, started_at: '2026-11-17T03:18:00.000Z', started_by: 'admin@acme.example', ended_at: '2026-11-17T03:19:00.000Z',
   status: 'done', total: 1, done: 1, current: null, progress: null, results: [], matched: 0, stop_reason: null, identification: [], ...over,
 })
 const row = (result: ScanRun['results'][number]['result'], cve: string) => ({ target_id: 'a-bn340', label: 'BN340', ip: '192.168.18.40', template: result === 'no_template' ? null : cve, result, finding_id: null, note: cve })
 
-describe('History says what each run found (kien G7a)', () => {
+describe('History says what each run found', () => {
   it('a vulnerability check with no template for its CVE says "no check exists (still suspected)", never "0 matches"', async () => {
     server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ items: [run({ results: [row('no_template', 'CVE-2026-1001')] })] })))
     renderApp('/settings/scanning?tab=history')

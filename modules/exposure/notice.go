@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// The sentence an administrator's first Scan now confirms (D-473, amending D-26; widened by D-559: a commitment of an older
+// The sentence an administrator's first Scan now confirms (a commitment of an older
 // version is asked again once, by the first Scan now after the upgrade). It is the only copy: the API sends it with the
 // target's name filled in, the page shows what the API sent, the scan request echoes the version, and the commitment stores the
 // sentence of that version. Changing the text means a new version, so a page that shows the old one is refused (409 notice_changed)
@@ -39,7 +39,7 @@ type Actor struct {
 	Admin bool
 }
 
-// TwoStep says how a user meets two-step sign-in: "app" or "email" (Vedette's own), "sso" (the identity provider owns MFA, D-473), or "" for none
+// TwoStep says how a user meets two-step sign-in: "app" or "email" (Vedette's own), "sso" (the identity provider owns MFA), or "" for none
 // (core/auth, wired in cmd/vedette). nil in Config means "none": the first scan
 // of a target, which records a legal confirmation, is refused.
 type TwoStep func(ctx context.Context, userID string) (method string, err error)
@@ -64,10 +64,10 @@ func errNoticeChanged() *APIError {
 	return apiErr(409, "notice_changed", "The confirmation text changed since this page loaded. Read it again, then press Scan now again.")
 }
 
-// confirmByScan records the D-26 commitment for the first Scan now of an administrator with two-step sign-in (D-473): who, when,
+// confirmByScan records the commitment for the first Scan now of an administrator with two-step sign-in: who, when,
 // which target, and the exact sentence of the version they saw, in the same transaction as the audit row (SYS-3). A target that
 // already has a commitment of this version is left alone, so a second click or a second administrator never rewrites the record;
-// one of an older version is replaced (D-559), with an audit row naming the old version.
+// one of an older version is replaced, with an audit row naming the old version.
 func (s *Service) confirmByScan(ctx context.Context, who Actor, t Target, version string) error {
 	if s.cfg.TwoStep == nil {
 		return errNeedTwoStep()
@@ -91,7 +91,7 @@ func (s *Service) confirmByScan(ctx context.Context, who Actor, t Target, versio
 }
 
 // commit stores the commitment of a verified target with the sentence it was given (INV-7). It is a no-op when one of the same
-// version exists; one of an older version (or none recorded) is replaced (D-559).
+// version exists; one of an older version (or none recorded) is replaced.
 func (s *Service) commit(ctx context.Context, who Actor, method, id string, n Notice) error {
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)

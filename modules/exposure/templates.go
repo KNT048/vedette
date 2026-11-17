@@ -14,8 +14,8 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Safe checks for exploited vulnerabilities on the services identified on the box's own public IP (S-EXP-2, CONTRACT INV-23, D-561,
-// plan exposure-real-vulns §5 slice b). After service identification and the comparison with the CISA list, the CVEs that matched a
+// Safe checks for exploited vulnerabilities on the services identified on the box's own public IP (S-EXP-2, CONTRACT INV-23).
+// After service identification and the comparison with the CISA list, the CVEs that matched a
 // service are handed to a TemplateScanner (nuclei with the safe template set, in the scan container, owned by another module) for
 // that port only. A template that matches turns the row's basis into "confirmed by template"; nothing else ever does.
 
@@ -23,7 +23,7 @@ import (
 const (
 	// TemplatesPerJob is the most CVE ids (so the most templates) one job carries; the scanner runs at most this many for it.
 	TemplatesPerJob = 32
-	// TemplateRPS is the request rate a job asks for; the scanner never goes above it (D-125/D-126 safe set).
+	// TemplateRPS is the request rate a job asks for; the scanner never goes above it (the safe set).
 	TemplateRPS = 5
 	// ScopeOwnIP is the only scope a job has: the box's own verified public IP, the address and port of the job and nothing else.
 	ScopeOwnIP = "own_ip"
@@ -39,7 +39,7 @@ const (
 	NotSetUpTemplates = "Not checked: safe exploited-vulnerability templates are not set up on this box yet."
 	notTemplatesDom   = "Safe templates for exploited vulnerabilities: they run on the box's own verified public IP only, for the services identified there."
 	notTemplatesNoSvc = "Safe templates for exploited vulnerabilities did not run: no services were identified."
-	// notTemplatesNoIdent replaces notTemplatesNoSvc when identification itself did not complete (D-522): no claim about services.
+	// notTemplatesNoIdent replaces notTemplatesNoSvc when identification itself did not complete: no claim about services.
 	notTemplatesNoIdent = "Safe templates for exploited vulnerabilities did not run: service identification did not run or did not finish."
 	notTemplatesNoCmp   = "Safe templates for exploited vulnerabilities did not run: the identified services could not be compared with the list of exploited vulnerabilities."
 	notTemplatesGate    = "Safe templates for exploited vulnerabilities did not run: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
@@ -48,7 +48,7 @@ const (
 	notTemplatesSlow    = "Safe templates for exploited vulnerabilities did not finish within 5 minutes, so the ones that had not finished are not reported."
 )
 
-// FULL-4 (Trưởng), for Mlee: the template step of a Full scan (testing terms accepted, D-527). Every identified port gets a job of
+// The template step of a Full scan (testing terms accepted). Every identified port gets a job of
 // DepthFull, CVE-matched or not; the scanner runs nuclei's own automatic scan there (the technologies templates, then the deep
 // templates of what they found, the generic ones and the KEV templates of the port's CVEs) at FullTemplateRPS, and the step is
 // bounded by FullTemplatesTimeout instead of TemplatesTimeout. A deep result may have no CVE: it keeps the template's name and
@@ -86,7 +86,7 @@ func FullTemplatesTimeout(jobs []TemplateJob) time.Duration {
 	return min(d, fullTemplatesCap)
 }
 
-// FULL-4 (Trưởng), for Mlee: the wording of a Full scan's template step.
+// The wording of a Full scan's template step.
 const (
 	fullHead = "Deep templates (nuclei, testing terms accepted, at most %d requests a second, own IP only)"
 	// notFullSlow is the line of a Full step that ran out of its bound (%s: "40 minutes").
@@ -106,7 +106,7 @@ const (
 type (
 	// TemplateJob is what the scanner is asked to check on one open port of the box's own IP: the exploited CVEs the comparison
 	// matched there. The scanner runs the safe template of each of those CVEs that has one (at most TemplatesPerJob) and nothing
-	// else: no template is chosen by tag, severity or banner words (D-561). Scheme is "http", "https" or "" (a service that is not web: the scanner decides or skips). Host
+	// else: no template is chosen by tag, severity or banner words. Scheme is "http", "https" or "" (a service that is not web: the scanner decides or skips). Host
 	// is the IP itself: never a name. Scope is always ScopeOwnIP and RPS at most TemplateRPS.
 	TemplateJob struct {
 		Port   int      `json:"port"`
@@ -115,8 +115,8 @@ type (
 		CVEs   []string `json:"cves"`
 		Scope  string   `json:"scope"`
 		RPS    int      `json:"rps"`
-		// FULL-4 (Trưởng), for Mlee: Depth is DepthFull in a Full scan (then CVEs may be empty and RPS is FullTemplateRPS); Service,
-		// Product and CPE are what identification read on the port, from which the scanner takes the product tags (D-527).
+		// Depth is DepthFull in a Full scan (then CVEs may be empty and RPS is FullTemplateRPS); Service,
+		// Product and CPE are what identification read on the port, from which the scanner takes the product tags.
 		Depth   string `json:"depth,omitempty"`
 		Service string `json:"service,omitempty"`
 		Product string `json:"product,omitempty"`
@@ -129,7 +129,7 @@ type (
 		Template string
 		CVE      string
 		Outcome  string // OutcomeMatched, OutcomeNoMatch or OutcomeError
-		// FULL-4 (Trưởng), for Mlee: a deep result (job of DepthFull) may have no CVE, or a CVE the job did not ask about; Name and
+		// A deep result (job of DepthFull) may have no CVE, or a CVE the job did not ask about; Name and
 		// Severity are the template's (from the pack index, never from nuclei's output).
 		Name     string
 		Severity string
@@ -140,7 +140,7 @@ type (
 		Results []TemplateResult
 		// Sent are the ids of the templates the scanner logged and sent (one id per template, whatever its outcome).
 		Sent []string
-		// NotChecked are sentences for "Not checked" from the scanner (D-520): the CVEs whose template may not run on a public IP,
+		// NotChecked are sentences for "Not checked" from the scanner: the CVEs whose template may not run on a public IP,
 		// and a run that failed or did not finish after earlier ones were kept. At most maxTemplateNotes, each cut to maxLineText.
 		NotChecked []string
 	}
@@ -151,7 +151,7 @@ type (
 		CVE      string `json:"cve"`
 		Template string `json:"template"`
 		Outcome  string `json:"outcome"`
-		// FULL-4 (Trưởng), for Mlee: set on a deep row (Full scan, D-527): the template's name and severity (info, low, medium,
+		// Set on a deep row (Full scan): the template's name and severity (info, low, medium,
 		// high, critical, unknown). CVE is "" when the template is not about one (an exposed .git, an admin panel).
 		Name     string `json:"name,omitempty"`
 		Severity string `json:"severity,omitempty"`
@@ -167,13 +167,13 @@ type (
 )
 
 // TemplateScanner runs safe nuclei templates for exploited CVEs on the box's own verified public IP (S-EXP-2). The scan calls it
-// after service identification, only for an IP target that passed the gate of that run (INV-1, INV-13, the commitment sentence of
-// D-559 K-4/K-5), only for the ports of jobs, and only after every probe is in the probe log. ip is that target. The implementation
+// after service identification, only for an IP target that passed the gate of that run (INV-1, INV-13, the commitment sentence),
+// only for the ports of jobs, and only after every probe is in the probe log. ip is that target. The implementation
 // keeps its own fences (scope own_ip, the worker checks again that ip is the box's own egress, at most TemplateRPS requests a
-// second, no template that sends a credential or changes anything, D-125/D-126, D-559 K-6). A step that could not run for a reason
+// second, no template that sends a credential or changes anything). A step that could not run for a reason
 // the page may show returns *Unavailable.
 //
-// Obligations of the implementation (D-561, LEGAL §3): (1) it re-runs the gate exactly as the service scanner does (ScannableIP with
+// Obligations of the implementation (LEGAL §3): (1) it re-runs the gate exactly as the service scanner does (ScannableIP with
 // the actor ScanTarget.User) right before sending; (2) it resolves each CVE of a job to its template id in the verified index and
 // writes a probe-log row with that template id, the target and the time BEFORE it sends the template, and returns the ids it sent
 // in TemplateScan.Sent (exposure keeps them in the "what was checked" list); exposure's own pre-call rows name the CVEs planned,
@@ -221,11 +221,11 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		return c, nil
 	}
 	jobs, skipped := buildJobs(ip, c.Services, m.Vulns)
-	if st.Mode.Full { // FULL-4 (Trưởng), for Mlee: every identified port, CVE-matched or not (D-527)
+	if st.Mode.Full { // every identified port, CVE-matched or not
 		jobs, skipped = buildFullJobs(ip, c.Services, m.Vulns)
 	}
 	switch {
-	case skipped > 0 && st.Mode.Full: // FULL-4 (Trưởng), for Mlee: buildFullJobs counts ports (review r1 L4)
+	case skipped > 0 && st.Mode.Full: // buildFullJobs counts ports
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: fmt.Sprintf("Deep templates: %s not scanned, over the limit of %d jobs a scan.", map[bool]string{true: "1 port was", false: fmt.Sprintf("%d ports were", skipped)}[skipped == 1], maxTemplateJobs)})
 	case skipped > 0:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: fmt.Sprintf("Safe templates for exploited vulnerabilities: %s were not run, over the limit of %d jobs a scan.", plural(skipped, "exploited CVE"), maxTemplateJobs)})
@@ -240,7 +240,7 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notSafetyRead})
 		return c, nil
 	}
-	if ip.IsValid() && sf.excluded(ip) { // excluded while the scan ran (review L3): nothing more goes to it
+	if ip.IsValid() && sf.excluded(ip) { // excluded while the scan ran: nothing more goes to it
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: clipText(fmt.Sprintf(notDeepExcluded, ip), maxLineText)})
 		return c, nil
 	}
@@ -253,7 +253,7 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		return c, nil
 	}
 	// M1: the gate of the run is minutes old (the runner and nmap came first): the target must still be verified, committed to the
-	// sentence in force, not paused and still the box's own IP right before anything is logged or sent. D-571: an address of a
+	// sentence in force, not paused and still the box's own IP right before anything is logged or sent. An address of a
 	// domain gets the core half of the domain fence again (deepGate), with the terms and the scope as they are now.
 	if st.Kind == KindDomain {
 		var line string
@@ -290,7 +290,7 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		return c, nil
 	}
 	bound, slow := TemplatesTimeout, notTemplatesSlow
-	if st.Mode.Full { // FULL-4 (Trưởng), for Mlee: the bound of a Full step follows its ports (D-527)
+	if st.Mode.Full { // the bound of a Full step follows its ports
 		bound = FullTemplatesTimeout(jobs)
 		slow = fmt.Sprintf(notFullSlow, minutes(bound))
 	}
@@ -318,8 +318,8 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 			line = fullLine(jobs, rows, sentIDs(res.Sent))
 		}
 		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()), Text: line})
-		notes := res.NotChecked            // D-520: why some CVEs have no result
-		if len(notes) > maxTemplateNotes { // the last line says how many were left out (review round 2 L3)
+		notes := res.NotChecked            // Why some CVEs have no result
+		if len(notes) > maxTemplateNotes { // the last line says how many were left out
 			notes = append(notes[:maxTemplateNotes-1:maxTemplateNotes-1], fmt.Sprintf("Safe templates for exploited vulnerabilities: and %d more lines like these.", len(notes)-maxTemplateNotes+1))
 		}
 		for _, n := range notes {
@@ -377,7 +377,7 @@ func buildJobs(ip netip.Addr, services []ServiceRow, vulns []VulnRow) (jobs []Te
 	return jobs, skipped
 }
 
-// buildFullJobs is buildJobs of a Full scan (FULL-4 (Trưởng), for Mlee; D-527): one or more jobs of DepthFull for every port
+// buildFullJobs is buildJobs of a Full scan: one or more jobs of DepthFull for every port
 // identified on ip in this scan, with the exploited CVEs matched there (none is fine) and what identification read, in port order.
 func buildFullJobs(ip netip.Addr, services []ServiceRow, vulns []VulnRow) (jobs []TemplateJob, skipped int) {
 	byPort := map[int][]string{}
@@ -398,7 +398,7 @@ func buildFullJobs(ip netip.Addr, services []ServiceRow, vulns []VulnRow) (jobs 
 		sort.Strings(cves)
 		for i := 0; i == 0 || i < len(cves); i += TemplatesPerJob {
 			chunk := cves[min(i, len(cves)):min(i+TemplatesPerJob, len(cves))]
-			if len(jobs) >= maxTemplateJobs { // skipped counts ports here (review r1 L4)
+			if len(jobs) >= maxTemplateJobs { // skipped counts ports here
 				if i == 0 {
 					skipped++
 				}
@@ -424,7 +424,7 @@ func dedupe(in []string) []string {
 }
 
 // schemeOf says how to speak to a web service. The sensor-active parser carries nmap's tunnel="ssl" as the "ssl/" prefix nmap's own
-// text output prints (D-522, N1; TUNE-1a, a change to Mlee's module by the scan side), so a name with "https" ("https",
+// text output prints, so a name with "https" ("https",
 // "https-alt", "ssl/https") or "ssl/http" is https on any port (FortiGate 10443, Proxmox 8006, 4443…). Any other "http…" is https
 // on the well-known TLS ports 443, 8443 and 9443 and http elsewhere: a TLS server answers nmap's plain GET with its plaintext error
 // page ("The plain HTTP request was sent to HTTPS port"), which nmap can match as plain "http" with a product and no tunnel, so on
@@ -460,7 +460,7 @@ func probesOf(ip netip.Addr, jobs []TemplateJob) []TemplateProbe {
 			Request: fmt.Sprintf("planned: asked the scanner to check %s with its safe template, if it has one, on %s:%d (own IP, at most %d requests a second)", name, ip, port, rps)})
 	}
 	for _, j := range jobs {
-		if j.Depth == DepthFull { // FULL-4 (Trưởng), for Mlee: one planned row per port; the scanner logs each template before it sends it
+		if j.Depth == DepthFull { // one planned row per port; the scanner logs each template before it sends it
 			out = append(out, TemplateProbe{ID: store.NewID("tp"), IP: ip.String(), Label: fmt.Sprintf("%s:%d", ip, j.Port), Template: "exposure: deep templates",
 				Request: fmt.Sprintf("planned: asked the scanner for the deep templates (testing terms accepted) of %s:%d, %d exploited CVEs among them (own IP, at most %d requests a second)", ip, j.Port, len(j.CVEs), j.RPS)})
 			continue
@@ -484,7 +484,7 @@ func sanitizeTemplateResults(in []TemplateResult, jobs []TemplateJob) (out []Tem
 			cves[j.Port][c] = true
 		}
 	}
-	full := map[int]bool{} // FULL-4 (Trưởng), for Mlee: the ports of jobs of DepthFull
+	full := map[int]bool{} // the ports of jobs of DepthFull
 	for _, j := range jobs {
 		full[j.Port] = full[j.Port] || j.Depth == DepthFull
 	}
@@ -531,7 +531,7 @@ var (
 	deepSeverities = []string{"info", "low", "medium", "high", "critical", "unknown"}
 )
 
-// deepMeta says whether a name and a severity are of a deep result's shape (FULL-4 (Trưởng), for Mlee): one printable line of at
+// deepMeta says whether a name and a severity are of a deep result's shape: one printable line of at
 // most 120 bytes, and one of nuclei's severities.
 func deepMeta(name, severity string) bool {
 	return deepName.MatchString(name) && slices.Contains(deepSeverities, severity)
@@ -593,7 +593,7 @@ func templatesLine(jobs []TemplateJob, rs []TemplateResult, sent []string, notKe
 	return clipText(text+". "+strings.Join(names, ", ")+".", maxLineText) // sanitizeChecks drops a longer line
 }
 
-// fullLine is templatesLine of a Full scan (FULL-4 (Trưởng), for Mlee): how many templates were sent on how many ports, how many
+// fullLine is templatesLine of a Full scan: how many templates were sent on how many ports, how many
 // found something, and the names of the first findings (else of the templates sent).
 func fullLine(jobs []TemplateJob, rs []TemplateResult, sent []string) string {
 	ports := map[int]bool{}
@@ -639,7 +639,7 @@ func sanitizeTemplates(in []TemplateRow, services []ServiceRow) []TemplateRow {
 			continue
 		}
 		k := netip.AddrPortFrom(ip, uint16(r.Port))
-		meta := deepMeta(r.Name, r.Severity) // FULL-4 (Trưởng), for Mlee: a deep row has a name and a severity, and may have no CVE
+		meta := deepMeta(r.Name, r.Severity) // a deep row has a name and a severity, and may have no CVE
 		if have[k] && n[k] < maxTemplateRows && templateID.MatchString(r.Template) && (cveID.MatchString(r.CVE) || r.CVE == "" && meta) &&
 			(r.Outcome == OutcomeMatched || r.Outcome == OutcomeNoMatch || r.Outcome == OutcomeError) {
 			n[k]++
@@ -698,7 +698,7 @@ func sentIDs(in []string) []string {
 	out := []string{}
 	seen := map[string]bool{}
 	for _, id := range in {
-		if templateID.MatchString(id) && !seen[id] && len(out) < FullTemplatesPerPort*16 { // FULL-4 (Trưởng), for Mlee: a deep step sends thousands (was 4 jobs' worth)
+		if templateID.MatchString(id) && !seen[id] && len(out) < FullTemplatesPerPort*16 { // a deep step sends thousands (was 4 jobs' worth)
 			seen[id] = true
 			out = append(out, id)
 		}

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// INV-22 (D-560): a port the last observation had open and a scan that checked its address did not report is "missed once" and still
+// INV-22: a port the last observation had open and a scan that checked its address did not report is "missed once" and still
 // counts as open; the second scan in a row that misses it closes it (scans counted, not days); a scan that sees it resets it.
 type nsEnv struct {
 	*env

@@ -19,7 +19,7 @@ import (
 	sensorpassive "github.com/knt048/vedette/modules/sensor-passive"
 )
 
-// sensorBackend is the one sensorlink.Backend of core (D-141): the passive half (Config, Observations, PassiveHeartbeat) from
+// sensorBackend is the one sensorlink.Backend of core: the passive half (Config, Observations, PassiveHeartbeat) from
 // sensor-passive and the active half (Jobs, JobRunning, JobResult, ActiveHeartbeat) from the Dispatcher. Both are embedded, so every
 // method of either is promoted as it is: the Server finds sensorlink.ResultRejector (the Dispatcher's JobResultRejected) by type
 // assertion on this value, and a wrapper that restated the seven methods would hide it. A method added to both types at once makes
@@ -35,7 +35,7 @@ var (
 	_ sensorlink.ProgressReceiver = sensorBackend{}
 )
 
-// sensorModule is the module a role talks to: the switch behind module_off (D-111 (4)).
+// sensorModule is the module a role talks to: the switch behind module_off.
 func sensorModule(r sensorlink.Role) string {
 	if r == sensorlink.Active {
 		return "sensor-active"
@@ -43,13 +43,13 @@ func sensorModule(r sensorlink.Role) string {
 	return "sensor-passive"
 }
 
-// sensorLink is core's second listener, for the two sensor containers (D-109): mutual TLS, TLS 1.3, its own CA.
+// sensorLink is core's second listener, for the two sensor containers: mutual TLS, TLS 1.3, its own CA.
 type sensorLink struct {
 	srv *http.Server
 	ln  net.Listener
 }
 
-// openSensorLink opens the PKI once, issues the server leaf and the two bundles into creds, and only then listens on addr (D-110 (4)):
+// openSensorLink opens the PKI once, issues the server leaf and the two bundles into creds, and only then listens on addr:
 // a sensor that finds its bundle never meets a closed port, and a core that cannot write the bundles does not listen at all. It sets
 // d.Authority and d.SensorCreds, which the daily renew job (coreJobs) reads, so call it before the jobs are added.
 func openSensorLink(ctx context.Context, d *deps, addr, creds string) (*sensorLink, error) {
@@ -82,7 +82,7 @@ func openSensorLink(ctx context.Context, d *deps, addr, creds string) (*sensorLi
 	return &sensorLink{srv: hs, ln: ln}, nil
 }
 
-// limitWrites gives every request the database writer wait limit d (D-246): past it a write answers store.ErrBusy, which the
+// limitWrites gives every request the database writer wait limit d: past it a write answers store.ErrBusy, which the
 // sensor backends answer with 503 store_busy, instead of holding the sensor's request for its whole deadline. It sits here
 // because core/sensorlink imports nothing of core.
 func limitWrites(next http.Handler, d time.Duration) http.Handler {
@@ -103,7 +103,7 @@ func (l *sensorLink) serve() error {
 // close cuts the connections at once: a long poll would otherwise hold the shutdown for its whole wait, and a sensor retries by design.
 func (l *sensorLink) close() error { return l.srv.Close() }
 
-// renewEvery is how often the certificates are looked at: Renew replaces only what has a third of its life or less left (D-110 (3)).
+// renewEvery is how often the certificates are looked at: Renew replaces only what has a third of its life or less left.
 const renewEvery = 24 * time.Hour
 
 // coreJobs is the Jobs func of the core entry in wiredModules: the sign-in tables' and the audit log's retention, the software update check and
@@ -116,13 +116,13 @@ func coreJobs(d deps) []jobs.Job {
 			return err
 		}})
 	}
-	if d.Audit != nil && d.DB != nil { // the audit log's retention: 365 days, at most 200,000 lines (core INV-37, D-416)
+	if d.Audit != nil && d.DB != nil { // the audit log's retention: 365 days, at most 200,000 lines (core INV-37)
 		js = append(js, jobs.Job{Module: "core", Name: "audit-prune", Every: audit.PruneEvery, Run: func(ctx context.Context) error {
 			_, err := d.Audit.Prune(ctx, d.DB)
 			return err
 		}})
 	}
-	if d.OS != nil { // the periodic software update check and the automatic mode (core INV-34, INV-35, D-388)
+	if d.OS != nil { // the periodic software update check and the automatic mode (core INV-34, INV-35)
 		js = append(js, jobs.Job{Module: "core", Name: "software-update", Every: core.UpdateTickEvery, Run: d.OS.UpdateTick})
 	}
 	if d.Authority != nil {

@@ -43,9 +43,9 @@ var ErrInvalid = errors.New("host config: invalid")
 type Config struct {
 	CoreUID int
 	CoreGID int // group that restored files in core_data get (never taken from a file in core's tree)
-	// SensorUID and SensorGID run the sensor and scan containers (D-114): User=<sensor_uid>:<sensor_gid>
+	// SensorUID and SensorGID run the sensor and scan containers: User=<sensor_uid>:<sensor_gid>
 	// in their units, and --group-add=<sensor_gid> in core's. Optional as a pair: without them the host
-	// still starts and only the units that need them answer host_conf_incomplete (D-123).
+	// still starts and only the units that need them answer host_conf_incomplete.
 	SensorUID int
 	SensorGID int
 	CoreUnit  string
@@ -115,7 +115,7 @@ func Parse(r io.Reader) (Config, error) {
 		return Config{}, fmt.Errorf("%w: sensor_uid must differ from core_uid", ErrInvalid)
 	case seen["sensor_gid"] && (c.SensorGID == c.CoreGID || c.SensorGID == c.SocketGID):
 		return Config{}, fmt.Errorf("%w: sensor_gid must differ from core_gid and socket_gid", ErrInvalid)
-	// core's unit has no group-add for the socket (D-123 L4): the socket is 0660 root:<socket_gid>, so core
+	// core's unit has no group-add for the socket: the socket is 0660 root:<socket_gid>, so core
 	// reaches it through its own group.
 	case c.CoreGID != c.SocketGID:
 		return Config{}, fmt.Errorf("%w: core_gid must equal socket_gid (core reaches the socket through its own group)", ErrInvalid)

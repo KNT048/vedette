@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// resetAdminCommand reports whether args ask for `reset-admin` (D-389): the box console's way back in for an administrator who
+// resetAdminCommand reports whether args ask for `reset-admin`: the box console's way back in for an administrator who
 // lost the two-step device or the password when no other administrator can help. It runs next to the serving process, in the
 // same container (`docker exec vedette-core /vedette reset-admin <email>`, `sudo podman exec ...` on an appliance): SQLite in
 // WAL mode takes the second writer, and every account fact core checks (password, cred_version, two-step method, sessions) is

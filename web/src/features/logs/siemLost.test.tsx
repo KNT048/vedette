@@ -1,4 +1,4 @@
-// #847 (J7 #812): after a backup restored without its decryption key, the box cannot open the saved SIEM signing key. The SIEM page says
+// #847 (#812): after a backup restored without its decryption key, the box cannot open the saved SIEM signing key. The SIEM page says
 // forwarding is stopped and opens on the key field; Save with the field blank shows the box's sentence; the key typed again clears it.
 import { describe, expect, it } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'

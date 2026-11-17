@@ -1,4 +1,4 @@
-// Loại thiết bị hai cấp (D-511): một danh sách duy nhất, content/devicetypes/types.json, Go nhúng cùng tệp này. Hợp đồng zod, OpenAPI
+// Loại thiết bị hai cấp: một danh sách duy nhất, content/devicetypes/types.json, Go nhúng cùng tệp này. Hợp đồng zod, OpenAPI
 // và nhãn hiển thị đều đọc từ đây, không chép tay.
 import data from '../../../content/devicetypes/types.json'
 
@@ -20,11 +20,11 @@ export const kindLabel = (id: string): string => BY_ID.get(id)?.label ?? id
 /** Nhóm của một loại; id lạ thuộc "unknown". */
 export const categoryOf = (id: string): string => BY_ID.get(id)?.category ?? 'unknown'
 export const categoryLabel = (id: string): string => CAT_BY_ID.get(id)?.label ?? id
-/** Loại mà hành vi coi id là (D-511). */
+/** Loại mà hành vi coi id là. */
 export const actsAs = (id: string): string => BY_ID.get(id)?.acts_as ?? 'unknown'
 /** Luật response theo loại (device_type, chỉ nêu 13 loại) phủ thiết bị loại id: id là một trong các loại nêu, hoặc loại nó hành xử
  * như có trong danh sách và loại đó không đánh dấu no_auto_isolate; loại no_auto_isolate (tổng đài, OT, y tế, nguồn điện) không bao
- * giờ bị luật device_type tự cô lập (D-511, rà #714). Như devicetypes.MatchesKind của Go. */
+ * giờ bị luật device_type tự cô lập (rà #714). Như devicetypes.MatchesKind của Go. */
 export const matchesKind = (kinds: string[], id: string): boolean => {
   if (kinds.includes(id)) return true
   const t = BY_ID.get(id)

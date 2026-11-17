@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// device_updates (J4, kien G9): "what do I upgrade on this device to clear its CVEs" in ONE call. The owner asked for the CVEs of a
+// device_updates: "what do I upgrade on this device to clear its CVEs" in ONE call. The owner asked for the CVEs of a
 // Windows PC with an osquery agent and the applications to upgrade; the model paged through 178 findings with get_finding until the
 // tool limit, then guessed from the software list and said all of them "need confirming". The box already groups the findings by the
 // update that fixes them (findings.DeviceUpdates: the Findings page's fix groups and "Recommended updates"), so the tool hands that
@@ -23,7 +23,7 @@ import (
 // The loop's caps are unchanged.
 
 const (
-	// Every turn sends the descriptions again (D-482, TestAskBetaBoxQuestionStaysInBudget): the words are few, statusWords in the
+	// Every turn sends the descriptions again (TestAskBetaBoxQuestionStaysInBudget): the words are few, statusWords in the
 	// result says the rest.
 	deviceUpdatesDesc   = "What to install on one device to clear its CVEs, in one call (device: IP, name or asset_id): open exploited findings grouped by the update that fixes them, those with no named update, and recommended updates. Use it for what to upgrade; part and offset page one list. status: detected = the agent reported the version (never say it needs confirming); suspected = a network guess."
 	deviceUpdatesSchema = `{"type":"object","properties":{"device":{"type":"string","minLength":1,"maxLength":96},"part":{"type":"string","enum":["exploited","no_named_update","recommended"]},"offset":{"type":"integer","minimum":0,"maximum":1000}},"required":["device"],"additionalProperties":false}`
@@ -281,7 +281,7 @@ func (s *Service) toolDeviceUpdates(ctx context.Context, d Data, up Updates, raw
 
 // fitUpdates returns the JSON of build with as many rows as fit askResultBytes, and the lists as kept. On a first call the recommended
 // rows go first, then those with no named update, then the exploited updates, each down to its floor (updateFloors), then to none;
-// a page has one list. The totals and the note, which says where the next call starts, are never cut (W1-27).
+// a page has one list. The totals and the note, which says where the next call starts, are never cut.
 func fitUpdates(lists []updateList, first bool, build func([]updateList) any) (string, []updateList) {
 	floor := updateFloors
 	if !first {

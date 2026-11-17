@@ -15,7 +15,7 @@ export const useEvents = (p: { window: EventWindow; source: string; q: string })
     queryFn: () => api.get<EventsResponse>(eventsUrl(p)),
     placeholderData: (prev) => prev,
   })
-// The next step of a keyword search that stopped before the start of the window (S-LOG-1, D-441): the lines older than `cursor`.
+// The next step of a keyword search that stopped before the start of the window (S-LOG-1): the lines older than `cursor`.
 export const fetchOlderEvents = (p: { window: EventWindow; source: string; q: string }, cursor: string) => api.get<EventsResponse>(eventsUrl(p, cursor))
 
 function useInvalidating<V, R>(fn: (v: V) => Promise<R>) {

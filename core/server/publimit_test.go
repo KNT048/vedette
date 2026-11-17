@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/server/servertest"
 )
 
-// D-320 (API_CONVENTIONS §8): public requests without a session are limited per client address (IPv6 per /64). A signed-in request
+// API_CONVENTIONS §8: public requests without a session are limited per client address (IPv6 per /64). A signed-in request
 // (also to a public route), a 401 of a protected route, the osquery agents' routes and loopback are not counted. Past the limit: 429
 // rate_limited with Retry-After.
 func TestPublicRequestsAreLimitedPerAddress(t *testing.T) {

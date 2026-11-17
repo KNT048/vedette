@@ -57,7 +57,7 @@ function RefuseText({ id, value, onChange }: { id: string; value: string[]; onCh
 function TplFields({ id, legend, info, kind, value, onChange, tools, tool, onTool, hint, readOnly, expect, error, children }: { id: string; legend: string; info?: string; kind: ConnKind; value: Tpl; onChange: (t: Tpl) => void; tools: string[]; tool: string | null; onTool: (v: string | null) => void; hint?: string; readOnly?: boolean; expect?: boolean; error?: string; children?: React.ReactNode }) {
   const { t } = useTranslation('response')
   const has = (f: TplField) => KIND_FIELDS[kind].includes(f)
-  const bad = error ? { 'aria-invalid': true, 'aria-describedby': `${id}-error` } : {} // the error of the group is under it (D-390)
+  const bad = error ? { 'aria-invalid': true, 'aria-describedby': `${id}-error` } : {} // the error of the group is under it
   return (
     <fieldset id={id} tabIndex={-1} className="grid gap-3 rounded-md border border-rule p-3">
       <legend className="flex items-center gap-1 px-1 text-sm font-medium">{legend}{info ? <InfoTip topic={legend}>{info}</InfoTip> : null}</legend>
@@ -98,7 +98,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
     ? { name: action.name, description: action.description, connection_id: action.connection_id ?? '', tool: action.tool, rollback_tool: action.rollback_tool, run: action.run, rollback: action.rollback, verify: action.verify, precheck: action.precheck, precheck_refuse: action.precheck_refuse, precheck_expect: action.precheck_expect, risk: action.risk, enabled: action.enabled, ai_may_propose: action.ai_may_propose }
     : { name: '', description: '', risk: 'medium', enabled: false, ai_may_propose: false, ...start(usable.find((c) => c.enabled) ?? usable[0]) })
   const [error, setError] = useState<string | undefined>()
-  const [errs, setErrs] = useState<Record<string, string>>({}) // by the id of the field or group they belong to (D-390)
+  const [errs, setErrs] = useState<Record<string, string>>({}) // by the id of the field or group they belong to
   const conn = cat.connections.find((c) => c.id === f.connection_id)
   const kind = conn?.kind as ConnKind | undefined
   const set = (p: Partial<CatalogInput>) => { setF({ ...f, ...p }); setError(undefined); setErrs({}) }

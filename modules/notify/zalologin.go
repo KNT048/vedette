@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// Zalo personal set-up (D-447): a real QR sign-in, the account's friends and groups for the recipient and the approvers, and the code
+// Zalo personal set-up: a real QR sign-in, the account's friends and groups for the recipient and the approvers, and the code
 // an approver replies with to prove their Zalo account. The sign-in lives in memory, one at a time for the whole box (each sign-in is a
 // new web session of the account, and Zalo may lock an account that signs in often): it waits ZaloQRLife for the scan and the
 // confirmation, and a finished one waits zaloLoginKeep for Save, then it is dropped. Starts are rationed per box.
@@ -30,8 +30,8 @@ const (
 	zaloLoginsPerHour = 5
 	zaloLookups       = 20 // contact lists and look-ups per zaloLookupEvery, per box
 	zaloLookupEvery   = 10 * time.Minute
-	zaloCodeDMs       = 10               // link-code messages per zaloLookupEvery, per box: a save that adds many approvers does not burst them (D-46)
-	zaloCodeLife      = 10 * time.Minute // response keeps the code that long (D-191)
+	zaloCodeDMs       = 10               // link-code messages per zaloLookupEvery, per box: a save that adds many approvers does not burst them
+	zaloCodeLife      = 10 * time.Minute // response keeps the code that long
 	zaloCodeSendWait  = 30 * time.Second
 	zaloQueryMax      = 200
 )
@@ -62,7 +62,7 @@ type ZaloFound struct {
 // link is on its way), waiting (sent, not confirmed yet), not_sent (never sent, failed, or expired; Error says which). Self marks the
 // administrator asking; BoxAccount, that the address is the box's own signed-in Zalo account (the QR sign-in proved it is theirs, as far
 // as the box last signed in). Only when both hold is no message sent: the answer of POST …/code carries the confirm page (Link) and they
-// confirm it in their session. Any other address of their own gets the message like everyone's (D-447 review round 2).
+// confirm it in their session. Any other address of their own gets the message like everyone's.
 type LinkApprover struct {
 	UserID     string  `json:"user_id"`
 	Address    string  `json:"address"`
@@ -118,7 +118,7 @@ type zaloCodeSent struct {
 }
 
 // zaloSetup is the in-memory state of the set-up: the one sign-in, the rations, the confirm links sent per approver (codeKey: channel and
-// user ID; Telegram's are kept here too, D-414).
+// user ID; Telegram's are kept here too).
 type zaloSetup struct {
 	mu      sync.Mutex
 	cur     *zaloLoginRun
@@ -145,7 +145,7 @@ func retryErr(status int, code, msg string, wait time.Duration) error {
 }
 
 // StartZaloLogin starts a QR sign-in for the administrator who (POST /notify/zalo/login). Another administrator's sign-in in progress is
-// 409 login_busy; more than one start in 30 s or 5 in an hour is 429 (repeated sign-ins can get the account locked, D-46).
+// 409 login_busy; more than one start in 30 s or 5 in an hour is 429 (repeated sign-ins can get the account locked).
 func (s *Service) StartZaloLogin(ctx context.Context, who string) (ZaloLogin, error) {
 	st, now := &s.zalo, s.now() // the rations run on the service clock; the timers of a sign-in on the wall clock
 	st.mu.Lock()
@@ -445,7 +445,7 @@ func (s *Service) isBoxAccount(ctx context.Context, c channelRow, address string
 }
 
 // isUser says whether the user userID is the administrator who (an email); an error, no such user or a user who is not an administrator
-// is no (D-414 review: Send again from My account reaches SendZaloCode as an operator, who never gets the box-account shortcut).
+// is no (Send again from My account reaches SendZaloCode as an operator, who never gets the box-account shortcut).
 func (s *Service) isUser(ctx context.Context, userID, who string) bool {
 	u, ok, err := s.cfg.Users.Lookup(ctx, userID)
 	return err == nil && ok && u.Role == "admin" && strings.EqualFold(u.Email, who)
@@ -454,7 +454,7 @@ func (s *Service) isUser(ctx context.Context, userID, who string) bool {
 // codeKey is the key of an approver's confirm-link state: the channel and the user ID.
 func codeKey(t channel.Type, userID string) string { return string(t) + "|" + userID }
 
-// approverState is the link state of one approver of a confirm-link channel (Zalo personal, D-447; Telegram, D-414). box is the box's own
+// approverState is the link state of one approver of a confirm-link channel (Zalo personal; Telegram). box is the box's own
 // account on Zalo ("" elsewhere).
 func (s *Service) approverState(ctx context.Context, t channel.Type, a Approver, who, box string) LinkApprover {
 	v := LinkApprover{UserID: a.UserID, Address: a.Address, Name: a.Name, State: "not_sent", Self: s.isUser(ctx, a.UserID, who), BoxAccount: box != "" && box == a.Address}
@@ -489,7 +489,7 @@ func (s *Service) approverState(ctx context.Context, t channel.Type, a Approver,
 
 // SendZaloCode is POST /notify/zalo/approvers/{user_id}/code: a new confirm link for that approver (the old one stops working), sent to
 // their Zalo. Only for the administrator's own row whose address is the box's own signed-in Zalo account is nothing sent: the answer
-// carries the link (Link) and they confirm it in this session, through the same page and check as anyone (D-447). Their own row with any
+// carries the link (Link) and they confirm it in this session, through the same page and check as anyone. Their own row with any
 // other Zalo gets the message, so a wrongly picked friend never becomes their identity without that account's link being opened.
 func (s *Service) SendZaloCode(ctx context.Context, actor, userID string) (LinkApprover, error) {
 	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.ZaloPersonal)
@@ -530,7 +530,7 @@ func (s *Service) SendZaloCode(ctx context.Context, actor, userID string) (LinkA
 
 func zaloLinkPath(token string) string { return "/link/zalo?c=" + url.QueryEscape(token) }
 
-// linkToken asks response for the token of a new confirm link (D-191: single use, 10 minutes, five wrong tries; a new one replaces the
+// linkToken asks response for the token of a new confirm link (single use, 10 minutes, five wrong tries; a new one replaces the
 // old). A refusal of response (a new link too soon, already linked, Response off) is returned as it is.
 func (s *Service) linkToken(ctx context.Context, a Approver) (string, error) {
 	if s.cfg.LinkCodes == nil {

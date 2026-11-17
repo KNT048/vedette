@@ -184,15 +184,15 @@ func TestBoxRowIsMadeWhileTheHostIsDown(t *testing.T) {
 	}
 }
 
-// W3-8: the box's device carries the OS the host reads from /etc/os-release (GET /v1/info), as an agent host's does, so the
+// The box's device carries the OS the host reads from /etc/os-release (GET /v1/info), as an agent host's does, so the
 // findings matcher judges OS-release NVD entries by it: CVE-2021-3493 (OverlayFS, NVD lists only Ubuntu releases before
 // 20.10) is no finding on an Ubuntu 26.04 box, and its old product finding is proved not affected.
 func TestBoxCarriesItsOSForTheMatcher(t *testing.T) {
-	f := &fakeInfo{name: "boxkien", os: api.OSInfo{Distro: "ubuntu", Release: "26.04", Kernel: "7.0.0-15-generic"}}
+	f := &fakeInfo{name: "boxanna", os: api.OSInfo{Distro: "ubuntu", Release: "26.04", Kernel: "7.0.0-15-generic"}}
 	s := newStackWith(t, func(d *deps) { d.BoxName = newBoxHostNameFrom(f.Info, time.Now) })
 	ctx := t.Context()
 	runBoxJob(t, *s.d)
-	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "boxkien"}) // the id; no OS given keeps the row's
+	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "boxanna"}) // the id; no OS given keeps the row's
 	if err != nil {
 		t.Fatal(err)
 	}

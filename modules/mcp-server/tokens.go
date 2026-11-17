@@ -20,8 +20,8 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// MaxTokens is how many tokens a box holds (D-231): one per tool that connects, few on a small appliance. It also bounds the
-// audit rows the call limits allow (D-232).
+// MaxTokens is how many tokens a box holds: one per tool that connects, few on a small appliance. It also bounds the
+// audit rows the call limits allow.
 const MaxTokens = 10
 
 var (
@@ -209,7 +209,7 @@ func (s *Service) touch(ctx context.Context, t Token) error {
 	})
 }
 
-// recordCall writes last_used and one audit row for a tool call (D-232): the token's name, the tool and the outcome. The
+// recordCall writes last_used and one audit row for a tool call: the token's name, the tool and the outcome. The
 // arguments are never written (INV-8): they are what the agent asked about.
 func (s *Service) recordCall(ctx context.Context, t Token, tool, outcome string, rows int) error {
 	detail := fmt.Sprintf("tool %s, %s", tool, outcome)

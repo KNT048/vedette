@@ -62,7 +62,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 			}
 		}
 		due := r.state().Due(now, r.IntervalHours)
-		if r.ID == recentFeedID && r.Enabled { // N55-2: a fill the cursor says is unfinished (a migration reset it) goes on now, not a day after the last success
+		if r.ID == recentFeedID && r.Enabled { // A fill the cursor says is unfinished (a migration reset it) goes on now, not a day after the last success
 			cur, err := s.st.recentCursor(ctx)
 			if err != nil { // the plain schedule this tick, as the re-read above falls back (review 1 #4 of #805)
 				s.Log.ErrorContext(ctx, "reading where the NVD pull of recent CVEs stands failed", "error", err)
@@ -77,18 +77,18 @@ func (s *Service) RunPull(ctx context.Context) error {
 				s.Log.ErrorContext(ctx, "reading whether the NVD affected versions need a full pull failed", "error", err)
 			} else if full {
 				st := r.state()
-				st.LastSuccess = time.Time{} // only the back-off after failures holds it back (as N55-2)
+				st.LastSuccess = time.Time{} // only the back-off after failures holds it back
 				due = st.Due(now, r.IntervalHours)
 			}
 		}
 		if at, paused := s.nvdResumeAt(); paused && r.ID == nvdFeedID {
-			due = !now.Before(at) // a paused NVD pull goes on when it said it would (W3-1)
+			due = !now.Before(at) // a paused NVD pull goes on when it said it would
 		}
 		if r.ID == recentFeedID && now.Before(s.recentResumeAt()) {
 			due = false // nvd-recent waits out NVD's busy answer as its progress line says (review r2 #6 of #802)
 		}
 		if !due && r.Enabled && distroFeeds[r.ID] && r.Failures == 0 && !s.busy(r.ID) && s.distroBehind(ctx, r) {
-			due = true // D-622: a device runs a package its tier rows were not kept for (6 h floor); a failing feed keeps its back-off
+			due = true // A device runs a package its tier rows were not kept for (6 h floor); a failing feed keeps its back-off
 		}
 		if !r.Enabled || !due || s.busy(r.ID) { // busy: a "Fetch now" is pulling it; never a second pull
 			continue
@@ -96,7 +96,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 		pulled = true
 		row, err := s.pull(ctx, r.ID, "") // pull brings the EPSS scores after a CISA list load
 		if r.ID == kevFeedID && err == nil {
-			kevPulled = &row // D-629: only the job's own checks count toward the run of both-failed checks
+			kevPulled = &row // Only the job's own checks count toward the run of both-failed checks
 		}
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -109,7 +109,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 			continue
 		}
 	}
-	if err := s.watchKEV(ctx, kevPulled); err != nil && ctx.Err() == nil { // D-629: after the pulls, so a box that was off pulls before it judges
+	if err := s.watchKEV(ctx, kevPulled); err != nil && ctx.Err() == nil { // After the pulls, so a box that was off pulls before it judges
 		s.Log.ErrorContext(ctx, "the stale watch of the CISA list failed", "error", err)
 	}
 	if err := s.reconcileDevices(ctx); err != nil && ctx.Err() == nil {
@@ -142,31 +142,31 @@ type pullPlan struct {
 	epssLatest, epssAgo map[string]float64
 	hasEPSS             bool
 
-	affected     map[string][]AffectedRow // nvd-kev (D-500)
+	affected     map[string][]AffectedRow // nvd-kev
 	affectedFull bool                     // a full pull: CVEs not in affected are dropped
-	published    map[string]string        // nvd-kev: the day NVD published each CVE (D-615)
+	published    map[string]string        // nvd-kev: the day NVD published each CVE
 	cvss         map[string]CVSS          // nvd-kev: the CVSS base score of each CVE that has one (INV-28)
 	cvssSeen     map[string]bool          // nvd-kev: every CVE NVD answered for (INV-28)
 	hasAffected  bool
 
-	cveOrg        map[string]CVEOrgResult // cve-org (D-556): the CVEs whose record gave ranges
+	cveOrg        map[string]CVEOrgResult // cve-org: the CVEs whose record gave ranges
 	cveOrgChecked []string                // every CVE whose record was read
 	cveOrgUnread  []string                // CVEs whose record could not be read this time: stamped, stored ranges kept
-	cveOrgDays    map[string]string       // the day each record read says the CVE was published (D-615 (2), D-617)
+	cveOrgDays    map[string]string       // the day each record read says the CVE was published
 	hasCVEOrg     bool
 
 	iocs    []iocInput
 	hasIOCs bool
 
 	distro     []DistroFix     // ubuntu-osv, ubuntu-vex, debian-tracker, alpine-osv: the feed's rows, replaced whole
-	distroKEV  map[string]bool // the CISA list's CVEs: only their changed rows are news for findings (D-622)
+	distroKEV  map[string]bool // the CISA list's CVEs: only their changed rows are news for findings
 	distroKeep []string        // the packages the tier rows were kept for (distroKeep); nil: no tier row
 	hasDistro  bool
 
-	epssAll    []EPSSAllScore // epss-all (D-614): every CVE's score, written in chunks (applyEPSSAll)
+	epssAll    []EPSSAllScore // epss-all: every CVE's score, written in chunks (applyEPSSAll)
 	hasEPSSAll bool
 
-	winRel    []winrel.Release // windows-releases (D-603): the releases Microsoft's pages list, replaced whole
+	winRel    []winrel.Release // windows-releases: the releases Microsoft's pages list, replaced whole
 	hasWinRel bool
 }
 
@@ -203,7 +203,7 @@ func (s *Service) authFor(ctx context.Context, src sourceRow) (Auth, error) {
 	return a, nil
 }
 
-// userError is the sentence stored on a feed after a failed pull and shown in Settings -> Feeds (D-37): what
+// userError is the sentence stored on a feed after a failed pull and shown in Settings -> Feeds: what
 // went wrong, without addresses (they may carry a token) or internals.
 func userError(err error, rawURL string) string {
 	host := ""
@@ -259,7 +259,7 @@ func note(st Stats) string {
 }
 
 // mostOften is a reason for the status line: its first row with the value shown (quoteVal: at most 40 UTF-16 units,
-// unprintable runes as spaces, quoted), so the admin sees what was rejected (D-420 (3)); the masked template when
+// unprintable runes as spaces, quoted), so the admin sees what was rejected; the masked template when
 // there is no example ("other").
 func mostOften(r Reason) string {
 	if r.Example != "" {
@@ -316,10 +316,10 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 	if err != nil {
 		return p, err
 	}
-	if src.ID == kevFeedID && src.URL == s.kevPrimary() { // D-91 as amended (kien G13): both copies of the CISA list, every check
+	if src.ID == kevFeedID && src.URL == s.kevPrimary() { // Both copies of the CISA list, every check
 		return s.buildKEVBoth(ctx, src, p)
 	}
-	// Conditional only after a good pull (D-485): a list pulled every hour stays cheap with a 304.
+	// Conditional only after a good pull: a list pulled every hour stays cheap with a 304.
 	req := Request{URL: src.URL, Auth: auth}
 	if src.Status == "ok" {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
@@ -499,7 +499,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	if err != nil {
 		return sourceRow{}, 0, nil, err
 	}
-	if joined { // another pull of this feed ran while this one waited: its result is the answer, not a second pull (W3-1)
+	if joined { // another pull of this feed ran while this one waited: its result is the answer, not a second pull
 		row, err := s.st.source(ctx, id)
 		return s.live(ctx, row), 0, nil, err
 	}
@@ -518,21 +518,21 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	if perr != nil && ctx.Err() != nil {
 		return sourceRow{}, 0, nil, ctx.Err() // cancelled (module turned off, shutdown): not a failure of the feed
 	}
-	if errors.Is(perr, ErrBoxAddrsUnknown) { // D-208: not a failure of the feed: nothing is recorded, no back-off, the feed stays due
+	if errors.Is(perr, ErrBoxAddrsUnknown) { // Not a failure of the feed: nothing is recorded, no back-off, the feed stays due
 		if s.unknownLogged.CompareAndSwap(false, true) {
 			s.Log.DebugContext(ctx, "feed pull waits: the box's own addresses are not known yet", "feed", src.ID)
 		}
 		return src, 0, nil, nil
 	}
-	if errors.Is(perr, errNVDPaused) { // W3-1: the pages so far are kept and the pull goes on later; nothing is written
+	if errors.Is(perr, errNVDPaused) { // The pages so far are kept and the pull goes on later; nothing is written
 		return s.live(ctx, src), 0, nil, nil
 	}
-	if errors.Is(perr, errDistroWaits) || errors.Is(perr, errDistroNoDevice) { // D-516: no CISA list yet; D-570: no device needs it. Nothing to keep; the feed stays due
+	if errors.Is(perr, errDistroWaits) || errors.Is(perr, errDistroNoDevice) { // No CISA list yet; no device needs it. Nothing to keep; the feed stays due
 		return s.live(ctx, src), 0, nil, nil
 	}
 	if perr != nil {
-		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it (D-420 (2))
-		p = pullPlan{out: outcome{Err: userError(perr, src.URL), Copies: p.out.Copies}}             // what each copy of the CISA list said is kept (kien G13)
+		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it
+		p = pullPlan{out: outcome{Err: userError(perr, src.URL), Copies: p.out.Copies}}             // what each copy of the CISA list said is kept
 	}
 	p.out.Started, p.out.Finished = started, s.now()
 
@@ -541,7 +541,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		changed        []string
 		added, removed int
 		stale          bool
-		baseline       bool // the CISA list filled an empty table: one baseline event, not one per CVE (D-78)
+		baseline       bool // the CISA list filled an empty table: one baseline event, not one per CVE
 		rangesChanged  []string
 		rangesFirst    bool
 	)
@@ -595,7 +595,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if fresh, updated, err = applyVulns(ctx, tx, p.out.Finished, src.ID, p.vulns, p.replaceVulns); err != nil {
 					return err
 				}
-				// the entries this pull announces as new (below, after the commit) are recorded with it (D-144)
+				// the entries this pull announces as new (below, after the commit) are recorded with it
 				if src.ID == "cisa-kev" && !baseline {
 					if err := markAnnounced(ctx, tx, fresh, p.out.Finished); err != nil {
 						return err
@@ -633,7 +633,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				}
 				p.out.Records = total // the CVEs the box has versions for, not only those this (incremental) pull got
 			case p.hasCVEOrg:
-				// ranges of CVEs read for the first time are backlog, like NVD's first fill (D-78); a new CISA entry still
+				// ranges of CVEs read for the first time are backlog, like NVD's first fill; a new CISA entry still
 				// alerts, by its own new_kev event, published before this one and matched against these ranges
 				var total int
 				if rangesChanged, rangesFirst, total, err = applyCVEOrg(ctx, tx, p.cveOrg, p.cveOrgChecked, p.cveOrgUnread, p.out.Finished); err != nil {
@@ -647,7 +647,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if rangesChanged, rangesFirst, err = applyDistro(ctx, tx, src.ID, p.distro); err != nil {
 					return err
 				}
-				// a tier CVE's rows change only "Updates to plan", which TierStamp reaches (D-622): findings rematches as before
+				// a tier CVE's rows change only "Updates to plan", which TierStamp reaches: findings rematches as before
 				rangesChanged = slices.DeleteFunc(rangesChanged, func(c string) bool { return !p.distroKEV[c] })
 				var kept any // the packages the rows were kept for, with the rows (distroBehind, covered of TierDistroRecords)
 				if p.distroKeep != nil {
@@ -660,7 +660,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if _, err = tx.ExecContext(ctx, `UPDATE feeds_source SET distro_packages = ? WHERE id = ?`, kept, src.ID); err != nil {
 					return fmt.Errorf("feeds: distro print: %w", err)
 				}
-			case p.hasWinRel: // D-603: findings matches the Windows entries again when the releases changed
+			case p.hasWinRel: // findings matches the Windows entries again when the releases changed
 				if rangesChanged, err = applyWinRel(ctx, tx, p.winRel); err != nil {
 					return err
 				}
@@ -696,7 +696,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	var evs []events.Event
 	emit := func(name string, data any) { evs = append(evs, events.Event{Name: name, Data: data}) }
 	kev := 0
-	if isKEVSource(src.ID) { // only the CISA list and VulnCheck KEV (D-557) make KEV events; a custom feed's CVEs are not KEV entries
+	if isKEVSource(src.ID) { // only the CISA list and VulnCheck KEV make KEV events; a custom feed's CVEs are not KEV entries
 		kev = len(fresh)
 		if baseline {
 			if kev > 0 {
@@ -729,16 +729,16 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 // day, and a box whose EPSS feed ran before the list existed ("OK, 0 records") is filled. A feed that is off is left
 // alone; EPSS or NVD failing is its own feed's status, not the list's.
 //
-// The events of the CISA list (new_kev, baseline, updated) go out only after those two pulls (D-500, review H2): the
+// The events of the CISA list (new_kev, baseline, updated) go out only after those two pulls: the
 // devices are matched once, against the new entry's NVD versions and EPSS score, so a ransomware CVE inside the
 // range alerts as critical at once, and a device outside every range gets no alert at all. The events of the
 // two pulls follow those of the list.
 func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error) {
 	row, fresh, evs, err := s.pullOne(ctx, id, actor)
 	if err == nil && isKEVSource(id) && row.Status == "ok" {
-		deps := []string{"first-epss", "nvd-kev", cveOrgFeedID} // CVE.org after NVD: only what NVD left without ranges (D-556)
+		deps := []string{"first-epss", "nvd-kev", cveOrgFeedID} // CVE.org after NVD: only what NVD left without ranges
 		if id == vulnCheckFeedID {
-			deps = []string{cveOrgFeedID} // VulnCheck's entries get the CNA's ranges at once (D-557); EPSS and NVD answer for the CISA list only
+			deps = []string{cveOrgFeedID} // VulnCheck's entries get the CNA's ranges at once; EPSS and NVD answer for the CISA list only
 		}
 		for _, dep := range deps {
 			if s.busy(dep) {
@@ -748,7 +748,7 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 			if err != nil || !e.Enabled || (fresh == 0 && e.Records != nil && *e.Records > 0) {
 				continue
 			}
-			// EPSS keeps its own back-off (D-485): with the list pulled every hour, a failing EPSS would otherwise be asked every hour.
+			// EPSS keeps its own back-off: with the list pulled every hour, a failing EPSS would otherwise be asked every hour.
 			if dep == "first-epss" && e.Failures > 0 && !e.state().Due(s.now(), e.IntervalHours) {
 				continue
 			}

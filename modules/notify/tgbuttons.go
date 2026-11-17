@@ -15,7 +15,7 @@ import (
 
 // Removing the Approve/Reject buttons of a Telegram approval message once its request is finally decided or has ended (slice 13b-8
 // (2), spec approval-tokens.md 6). The event handler only marks the row (handlers write the database, the deliver job does the
-// network); requests that ended are also marked by the job itself, because events are best effort (D-144).
+// network); requests that ended are also marked by the job itself, because events are best effort.
 
 // EventDecisionMade is the decision event of the response module (CONTRACT "Events": received).
 const EventDecisionMade = "response.decision.made"

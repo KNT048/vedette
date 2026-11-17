@@ -31,7 +31,7 @@ func normalizeDomain(raw string) (string, error) {
 	if len(v) > 253 || !domainRE.MatchString(v) {
 		return "", ErrBadDomain
 	}
-	if _, ok := registered(v); !ok { // D-628: a public suffix (co.uk, ddns.net) is never a target
+	if _, ok := registered(v); !ok { // A public suffix (co.uk, ddns.net) is never a target
 		return "", ErrPublicSuffix
 	}
 	return v, nil
@@ -47,5 +47,5 @@ func isIPv6(v string) bool {
 }
 
 // IsPublicIPv4 reports whether a is a global unicast IPv4 address the box may verify (INV-3): egressip.IsPublicIPv4, the rule the
-// scan container's own-IP fence and nmapargv's external shape use too (D-514).
+// scan container's own-IP fence and nmapargv's external shape use too.
 func IsPublicIPv4(a netip.Addr) bool { return egressip.IsPublicIPv4(a) }

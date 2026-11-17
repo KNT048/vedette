@@ -23,7 +23,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// The run side of the software update (S-CORE-2, D-340, D-342) through the real HTTP stack, against updHost: a
+// The run side of the software update (S-CORE-2) through the real HTTP stack, against updHost: a
 // fake vedette-host that records the container calls, keeps their runs (idempotent by request id like the real
 // one) and changes the versions it reports as the calls succeed. The check side is the real one, checking against a
 // releaseServer (updates_check_test.go) that offers 1.4.0 with an image of every service.
@@ -54,7 +54,7 @@ type updHost struct {
 	now    func() time.Time
 	seq    int
 
-	// The system helper (host.self_update, D-316): its version and commands in /v1/info, where core writes the
+	// The system helper (host.self_update): its version and commands in /v1/info, where core writes the
 	// package (core_data) and the SHA-256 the package must have; lost: the next self_update is taken but its answer
 	// is lost (the host restarts); down: ListRuns answers that many times as a host that is not up yet.
 	hostVersion string
@@ -462,7 +462,7 @@ func TestUpdateApplyPullsEveryServiceSwitchesCoreFirstThenTheOthers(t *testing.T
 	if run["status"] != "done" || run["error"] != nil || run["step"] != nil || run["user"] != "admin@acme.example" {
 		t.Fatalf("run = %v", run)
 	}
-	// Every installed service is pulled (honeypot too, though off); core switches first, with a snapshot (D-459: a
+	// Every installed service is pulled (honeypot too, though off); core switches first, with a snapshot (a
 	// sensor is never newer than core); then the running ones start; honeypot, which is off, does not (SYS-5);
 	// greenbone is not installed.
 	want := []string{"pull core 1.4.0", "pull sensor 1.4.0", "pull honeypot 1.4.0", "pull scan 1.4.0", "start core 1.4.0 snap", "start sensor 1.4.0", "start scan 1.4.0"}
@@ -481,7 +481,7 @@ func TestUpdateApplyPullsEveryServiceSwitchesCoreFirstThenTheOthers(t *testing.T
 }
 
 // core's own switch restarts core: the next process (the new release) finds the stored run, asks the host about the
-// stored run id, switches the other services only then (D-459: the host judges them by core taking their heartbeat)
+// stored run id, switches the other services only then (the host judges them by core taking their heartbeat)
 // and settles it once, with the user who started it.
 func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 	t.Parallel()
@@ -524,7 +524,7 @@ func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 }
 
 // After a restart, a switch of core that the host never took is not sent again: the run stops, and no other service
-// switched before it (D-459).
+// switched before it.
 func TestUpdateCoreSwitchIsNotSentAgainAfterARestart(t *testing.T) {
 	t.Parallel()
 	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
@@ -586,7 +586,7 @@ func TestUpdatePullRefusedEndsTheRunBeforeAnythingSwitches(t *testing.T) {
 	}
 }
 
-// A port the new unit publishes is taken (D-455): the run says which port and which program, from the host's message (D-412);
+// A port the new unit publishes is taken: the run says which port and which program, from the host's message;
 // a message of another shape still gives a sentence that says what to do.
 func TestUpdatePortInUseNamesTheProgram(t *testing.T) {
 	t.Parallel()
@@ -614,7 +614,7 @@ func TestUpdatePortInUseNamesTheProgram(t *testing.T) {
 	}
 }
 
-// core did not become healthy: the host put it back; nothing else was switched (core goes first, D-459).
+// core did not become healthy: the host put it back; nothing else was switched (core goes first).
 func TestUpdateCoreRevertedSwitchesNothingElse(t *testing.T) {
 	t.Parallel()
 	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
@@ -639,7 +639,7 @@ func TestUpdateCoreRevertedSwitchesNothingElse(t *testing.T) {
 }
 
 // A sensor that does not become healthy after core switched went back by itself; core stays on the new release (it
-// takes the sensor's older protocol, D-459), the scanner after it is not switched, nothing is rolled back, and the run
+// takes the sensor's older protocol), the scanner after it is not switched, nothing is rolled back, and the run
 // fails saying so. Core moved, so the history has the update.
 func TestUpdateServiceFailingAfterCoreLeavesCoreOnTheNewRelease(t *testing.T) {
 	t.Parallel()
@@ -779,7 +779,7 @@ func TestUpdateRollbackLostToARestoredDatabaseIsRebuiltFromTheHost(t *testing.T)
 		t.Errorf("history = %v", hist)
 	}
 	// The restored copy is of the run at core's switch, before the sensor's and the scanner's: core no longer runs
-	// 1.4.0, so they are not switched up after the rollback (D-459).
+	// 1.4.0, so they are not switched up after the rollback.
 	if c := fh.callList(); slices.ContainsFunc(c, func(x string) bool { return strings.HasPrefix(x, "start sensor") || strings.HasPrefix(x, "start scan") }) {
 		t.Errorf("calls = %q", c)
 	}
@@ -989,7 +989,7 @@ func TestUpdateRunIsHiddenADayAfterItEnded(t *testing.T) {
 
 // The rollback after an Apply asks for the confirmation when the release now running (the one that was offered, not
 // yet stored as running by a check) says rollback.safe=false, and does not when it says true; a running release whose
-// manifest is unknown asks too (D-342 (8)). The real check side, no stand-in.
+// manifest is unknown asks too. The real check side, no stand-in.
 func TestUpdateRollbackAfterAnApplyReadsTheReleaseItInstalled(t *testing.T) {
 	t.Parallel()
 	for _, safe := range []bool{false, true} {
@@ -1061,7 +1061,7 @@ func TestUpdateRunThatTheHostKeepsRefusingMeetsTheSixHourRule(t *testing.T) {
 		t.Fatalf("run = %v, want it ended by the 6-hour rule", run)
 	}
 
-	// The same after core switched (D-459): core runs the new release, so the end says so and the history has it.
+	// The same after core switched: core runs the new release, so the end says so and the history has it.
 	m, fm := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
 	fm.refuse["start sensor"] = api.CodeBusy
 	wantOK(t, m.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)

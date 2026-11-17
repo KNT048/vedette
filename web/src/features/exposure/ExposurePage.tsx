@@ -30,7 +30,7 @@ import { blockedKey } from './types'
 // Old #anchor → tab (before the tabs these were stacked blocks of one page).
 const ANCHOR_TAB: Record<string, string> = { targets: 'targets', 'box-ip': 'targets', 'box-ignored': 'targets', open: 'open', 'outside-list': 'outside' }
 
-// N49-1 (modules.md): the module's API is read only while the module is on; off, the page says so and calls nothing.
+// modules.md: the module's API is read only while the module is on; off, the page says so and calls nothing.
 export default function ExposurePage() {
   return <RequireModule module="exposure" page><ExposureView /></RequireModule>
 }
@@ -45,7 +45,7 @@ function ExposureView() {
   const admin = scanned.reduce((n, x) => n + (x.latest?.admin_panels ?? 0), 0)
   const certs = scanned.reduce((n, x) => n + (x.latest?.certs_expiring ?? 0), 0)
   const pending = items?.filter((x) => !x.scannable).length ?? 0
-  // W1-23: say what is open before saying what is not (the open ports of each target's newest scan).
+  // Say what is open before saying what is not (the open ports of each target's newest scan).
   const ports = scanned.reduce((n, x) => n + (x.latest?.ports ?? 0), 0)
   const open = scanned.flatMap((x) => (x.open_ports ?? []).map((p) => ({ ...p, target: x })))
   const shown = open.slice(0, 3).map(portLabel).join(', ')
@@ -94,7 +94,7 @@ function ExposureView() {
   )
 }
 
-/** W1-23: every open port of the newest scans, the commonly attacked ones called out, with "is that on purpose?" (S-EXP-1, D-485). */
+/** Every open port of the newest scans, the commonly attacked ones called out, with "is that on purpose?" (S-EXP-1). */
 function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Target })[]; total: number; gateway: Gateway | null }) {
   const { t } = useTranslation('exposure')
   return (
@@ -130,7 +130,7 @@ function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Targ
 /** The gateway as the note names it: "name (ip)", or the IP alone when the device is named by its IP or has no name (M2-8). */
 const gatewayLabel = (name: string, ip: string) => (name && name !== ip ? `${name} (${ip})` : ip)
 
-/** D-492: which device probably answers the open ports, and what is exploited on it. Never says for sure (a router can forward a port to another device). */
+/** Which device probably answers the open ports, and what is exploited on it. Never says for sure (a router can forward a port to another device). */
 function GatewayNote({ g }: { g: Gateway }) {
   const { t } = useTranslation('exposure')
   const name = g.name ?? ''

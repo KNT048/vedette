@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// The Containerfile the host builds with is a copy, in the binary, of the file under deploy/ (D-147): a test keeps them equal, and the
+// The Containerfile the host builds with is a copy, in the binary, of the file under deploy/: a test keeps them equal, and the
 // floor the host enforces is the one pins.env gives to `make scan-image`.
 func TestScanContainerfileIsTheDeployFileAndTheFloorIsThePin(t *testing.T) {
 	t.Parallel()
@@ -242,7 +242,7 @@ func FuzzParseNmapVersion(f *testing.F) {
 	})
 }
 
-// The two credential volumes are written from constant text (D-147): owner core_uid, group sensor_gid, nothing else.
+// The two credential volumes are written from constant text: owner core_uid, group sensor_gid, nothing else.
 func TestVolumeUnitsAreConstantTextWithTheHostConfIds(t *testing.T) {
 	t.Parallel()
 	for _, role := range credsRoles {
@@ -274,7 +274,7 @@ func TestVolumeUnitsAreConstantTextWithTheHostConfIds(t *testing.T) {
 	}
 }
 
-// The effect looks of a scan container and image read the image ID (D-147): the container's "Image", the image's "Id".
+// The effect looks of a scan container and image read the image ID: the container's "Image", the image's "Id".
 func TestScanLooksReadTheImageID(t *testing.T) {
 	t.Parallel()
 	insp := func(svc string) string {
@@ -320,7 +320,7 @@ func TestScanLooksReadTheImageID(t *testing.T) {
 	}
 }
 
-// Retention treats the built image like the service's other images: owned by its name, kept by its ID (D-147).
+// Retention treats the built image like the service's other images: owned by its name, kept by its ID.
 func TestRetentionKnowsTheBuiltScanImage(t *testing.T) {
 	t.Parallel()
 	list := `[{"Id":"` + buildID + `","Digest":"` + goldA + `","Names":["localhost/vedette-scan-nmap:1.4.0"],"RepoDigests":[],"Containers":0},
@@ -359,7 +359,7 @@ func TestAVolumeWithBadIdsIsHostConfIncomplete(t *testing.T) {
 	}
 }
 
-// A scan unit pins the image by its ID: the unit text, the digest the host reads back, and the retention name all agree (D-147).
+// A scan unit pins the image by its ID: the unit text, the digest the host reads back, and the retention name all agree.
 func TestScanUnitPinsTheImageByIDAndReadsItBack(t *testing.T) {
 	t.Parallel()
 	f := goldFill(true)

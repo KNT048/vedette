@@ -1,4 +1,4 @@
-// Hợp đồng API module reports (D-18). Kiểu UI suy ra từ schema ở đây (types.ts).
+// Hợp đồng API module reports. Kiểu UI suy ra từ schema ở đây (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 

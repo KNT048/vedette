@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// D-520: the own_ip decision of the builder. Only http checks whose every request is GET or HEAD without a body, with no
+// The own_ip decision of the builder. Only http checks whose every request is GET or HEAD without a body, with no
 // credential, command or refused tag, may run on the box's own public IP; anything the builder cannot judge is refused.
 func TestOwnIPDecision(t *testing.T) {
 	t.Parallel()

@@ -20,7 +20,7 @@ func sshCfg() transport.SSHConfig {
 	return transport.SSHConfig{Dialer: dialer(), Username: "vedette", Password: secrets.NewValue("pw-0123456789"), TOFU: true}
 }
 
-// D-94 (2): PTY session, one line at a time, the prompt waited for, a device error stops the chain and closes the session.
+// PTY session, one line at a time, the prompt waited for, a device error stops the chain and closes the session.
 func TestSSHSessionOneLineAtATime(t *testing.T) {
 	t.Parallel()
 	f := conntest.NewSSH(t, conntest.SSHOpts{Respond: func(line string) string {
@@ -63,7 +63,7 @@ func TestSSHSessionOneLineAtATime(t *testing.T) {
 	}
 }
 
-// D-358: Leave types its line only into a session that a refused line stopped, and closes the session in every case.
+// Leave types its line only into a session that a refused line stopped, and closes the session in every case.
 func TestSSHLeaveOnlyAfterARefusedLine(t *testing.T) {
 	t.Parallel()
 	f := conntest.NewSSH(t, conntest.SSHOpts{})
@@ -96,7 +96,7 @@ func TestSSHLeaveOnlyAfterARefusedLine(t *testing.T) {
 	}
 }
 
-// D-358: a line that did not come back in time closes the session; Leave, even with a live context, types nothing after it.
+// A line that did not come back in time closes the session; Leave, even with a live context, types nothing after it.
 func TestSSHLeaveTypesNothingAfterATimeOut(t *testing.T) {
 	t.Parallel()
 	release := make(chan struct{})
@@ -161,7 +161,7 @@ func TestSSHKeyAuth(t *testing.T) {
 	}
 }
 
-// D-94 (2): a host key that is not the pinned one is refused before any credential is sent.
+// A host key that is not the pinned one is refused before any credential is sent.
 func TestSSHChangedHostKeySendsNoCredential(t *testing.T) {
 	t.Parallel()
 	f := conntest.NewSSH(t, conntest.SSHOpts{})
@@ -205,7 +205,7 @@ func TestSSHWrongPassword(t *testing.T) {
 	}
 }
 
-// D-94 (2): only secure algorithms: a server that offers only CBC, SHA-1 key exchange or SHA-1 MACs is not talked to.
+// Only secure algorithms: a server that offers only CBC, SHA-1 key exchange or SHA-1 MACs is not talked to.
 func TestSSHRefusesWeakAlgorithms(t *testing.T) {
 	t.Parallel()
 	for name, o := range map[string]conntest.SSHOpts{

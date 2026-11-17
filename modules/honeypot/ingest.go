@@ -86,7 +86,7 @@ type tailItem struct {
 	end int64 // offset just after the line in the log
 }
 
-// Poll reads the new lines of the OpenCanary log and turns them into hits (D-89). Every byte is untrusted: lines are
+// Poll reads the new lines of the OpenCanary log and turns them into hits. Every byte is untrusted: lines are
 // cut, decoded strictly into the few fields used, and stored as text. Each batch of lines is stored together with the
 // read position after it in one transaction, and its hit events are published right after that commit, so a failing
 // batch never loses the alerts of the batches before it and never makes them twice. It never blocks on the file.
@@ -177,7 +177,7 @@ type ingestEnv struct {
 	files   map[string]Token // lower-case bait file name → token
 	now     time.Time
 	trapIPs map[netip.Addr]bool // the addresses the traps listen on now
-	// at is the Trap IP at each of those addresses and order the addresses in creation order (D-466: a hit carries the name
+	// at is the Trap IP at each of those addresses and order the addresses in creation order (a hit carries the name
 	// of the Trap IP that was hit); openPorts says the host cannot keep an address to its own services (every address answers them all).
 	at        map[netip.Addr]*trapIPRow
 	order     []netip.Addr
@@ -270,7 +270,7 @@ func (s *Service) afterBatch(ctx context.Context, env *ingestEnv) {
 		s.touchHourNew += len(created) // their own budget: never the listener's (B2 review M2)
 	} else {
 		s.hourNew += listener        // a delta: a URL token hit stored meanwhile is not lost (B2 review L3)
-		s.udpHourNew += env.batchUDP // their own budget (D-467 review M1)
+		s.udpHourNew += env.batchUDP // their own budget
 	}
 	s.stats.Lines += env.st.Lines
 	s.stats.Ignored += env.st.Ignored
@@ -466,7 +466,7 @@ func (env *ingestEnv) plausible(r Record, svc ServiceName, scan bool) bool {
 }
 
 // serves says whether a connection to svc on dst can be real: the Trap IP at dst has the service (the host closes the other
-// ports, D-466). A line without a target address needs some Trap IP with the service; a host that cannot close ports
+// ports). A line without a target address needs some Trap IP with the service; a host that cannot close ports
 // (openPorts) lets every address answer every service that runs.
 func (env *ingestEnv) serves(dst netip.Addr, svc ServiceName) bool {
 	if dst.IsValid() && !env.openPorts {
@@ -566,7 +566,7 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 	}
 	svcCopy := svc
 	// A UDP service (TFTP, NTP, SIP) has no handshake: one datagram with any source address makes the line, so the hit confirms nothing
-	// about its source and says so (D-467 review H1).
+	// about its source and says so.
 	handshake := svc.Proto() == "tcp"
 	excerpt := det
 	if !handshake {
@@ -615,11 +615,11 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 	}, line, "")
 }
 
-// sweepWindow: one source that touches two or more Trap IPs within this time is scanning the network (W1-13, S-HP-2).
+// sweepWindow: one source that touches two or more Trap IPs within this time is scanning the network (S-HP-2).
 const sweepWindow = time.Minute
 
-// connectedWindow: a completed connection from a source vouches for its address on scan hits this close to it, before or after (W6-4;
-// the window response uses to confirm a scan source, D-509).
+// connectedWindow: a completed connection from a source vouches for its address on scan hits this close to it, before or after (the
+// window response uses to confirm a scan source).
 const connectedWindow = time.Hour
 
 // maxSweepSources bounds the memory of who touched what: past it the record starts over. ponytail: a flood of sources
@@ -631,7 +631,7 @@ const maxSweepSources = 4096
 // hit, not a new alert). The record is memory only: a sweep that a restart of core cuts in two is not seen as one.
 func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src netip.Addr, trapIP string, ts time.Time) error {
 	from, to := store.FormatTS(ts.Add(-connectedWindow)), store.FormatTS(ts.Add(connectedWindow))
-	if !env.touch { // a real connection from src proves its address: no scan hit of src near it calls it forged, whichever came first (W6-4)
+	if !env.touch { // a real connection from src proves its address: no scan hit of src near it calls it forged, whichever came first
 		if _, err := tx.ExecContext(ctx, `UPDATE hp_hits SET excerpt = REPLACE(excerpt, ?, '') WHERE kind = 'scan' AND src_ip = ? AND ts BETWEEN ? AND ?`,
 			forgedNote, src.String(), from, to); err != nil {
 			return fmt.Errorf("honeypot: update scan hit: %w", err)
@@ -674,7 +674,7 @@ func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src net
 	line := src.String() + " touched " + env.nameAt(trapIP) + " (" + trapIP + ")"
 	key := connKey("sweep", src.String(), strconv.FormatInt(ts.Truncate(hitWindow).Unix(), 10))
 	note := ""
-	if env.touch { // only attempts: forged unless src completed a connection near it (the rule response uses, SourceConnected, D-509)
+	if env.touch { // only attempts: forged unless src completed a connection near it (the rule response uses, SourceConnected)
 		var n int
 		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM hp_hits WHERE src_ip = ? AND is_test = 0 AND kind = 'service' AND handshake = 1 AND ts BETWEEN ? AND ?`,
 			src.String(), from, to).Scan(&n); err != nil {
@@ -867,12 +867,12 @@ const maxTouchScansPerHour = 20
 // forgedNote ends the excerpt of a scan hit made from attempts the host recorded.
 const forgedNote = " The handshake was not completed, so the source address may be forged."
 
-// udpNote ends the excerpt of a UDP service hit (D-467 review H1).
+// udpNote ends the excerpt of a UDP service hit.
 const udpNote = " UDP has no handshake, so the source address may be forged."
 
 // maxUDPHitsPerHour is the budget of new UDP service hits (TFTP, NTP, SIP) in a clock hour: their source can be forged, so a flood of
 // datagrams with rotating sources stops here and never draws from maxNewPerPoll or maxNewPerHour, which the hits of real connections
-// keep (D-467 review M1).
+// keep.
 const maxUDPHitsPerHour = 20
 
 // PollTouches feeds the host's record of new TCP/UDP attempts to the Trap IPs into the sweep detection (B2 review M2: a SYN scan,

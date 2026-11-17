@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// The netplan side of the network commands (D-99). The host owns exactly one netplan file,
+// The netplan side of the network commands. The host owns exactly one netplan file,
 // 90-vedette.yaml, and renders it from the typed structs below with yaml.v3: no string is ever
 // pasted into YAML, and every value is validated first. This file only renders and reads back
 // what the host itself rendered; writing and applying belong to net.apply (slice 3-4).
@@ -306,7 +306,7 @@ func mgmtFromEth(name string, e netplanEth) (NetplanMgmt, error) {
 // and only the file 90-vedette.yaml in them.
 var netplanDirs = []string{"etc/netplan", "run/netplan", "lib/netplan"}
 
-// CheckBackend is the backend half of the Check of net.apply (D-99): 412 net_backend_unsupported
+// CheckBackend is the backend half of the Check of net.apply: 412 net_backend_unsupported
 // when netplan is missing or when any netplan file other than the host's own exists. The host
 // never reads the other files; it only lists the directories. Its own file must be a regular
 // file: a symlink at that name is refused too. It only reads.

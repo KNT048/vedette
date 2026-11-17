@@ -12,7 +12,7 @@ import type { Target } from './types'
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /**
- * Remove a public IP (S-EXP-1, D-79). One dialog for the list and for the IP's own page, so both offer the same choice with the same default:
+ * Remove a public IP (S-EXP-1). One dialog for the list and for the IP's own page, so both offer the same choice with the same default:
  * "Don't add it again if detected" is ticked, because an address the box uses but that is not the company's must not come back.
  * `target` null = closed. `onDone` runs after the IP is gone (the page of a removed IP goes back to the list).
  */

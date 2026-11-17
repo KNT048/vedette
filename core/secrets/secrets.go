@@ -214,7 +214,7 @@ type Store struct {
 
 // reserved holds the purposes that no Store.Open may read in this process, whichever Store it is called on and whether or not
 // the holder has called Restrict yet. A holder package reserves its purpose in an init function, so the purpose is closed from the
-// start of the process and not only after the holder's own start-up code has run (core/pki, D-110).
+// start of the process and not only after the holder's own start-up code has run (core/pki).
 var reserved sync.Map
 
 // Reserve closes purpose to Store.Open in this process (ErrRestricted for every caller), for every Store. It does not give
@@ -234,7 +234,7 @@ type Opener struct {
 }
 
 // Restrict makes purpose readable only through the returned Opener: from now on Store.Open(purpose) answers ErrRestricted. It is
-// for secrets that a single package must be the only one to decrypt (the credentials of device connections, D-93); sealing,
+// for secrets that a single package must be the only one to decrypt (the credentials of device connections); sealing,
 // replacing and deleting stay open to every caller. A purpose can be restricted once, so there is exactly one holder.
 func (s *Store) Restrict(purpose string) (*Opener, error) {
 	if err := checkPurpose(purpose); err != nil {
@@ -378,8 +378,8 @@ func (s *Store) open(ctx context.Context, q coredb.DBTX, id, purpose string) ([]
 const maxCheckedRows = 10000
 
 // CountOpenable reports how many rows of core_secret in q this store's key decrypts (opened) out of how many it tried
-// (total, at most 10000). It is for a key file checked against a backup's database before a restore puts it on the box
-// (D-518): no plaintext leaves it, and Restrict and Reserve do not apply, since nothing is read out.
+// (total, at most 10000). It is for a key file checked against a backup's database before a restore puts it on the box:
+// no plaintext leaves it, and Restrict and Reserve do not apply, since nothing is read out.
 func (s *Store) CountOpenable(ctx context.Context, q coredb.DBTX) (opened, total int, err error) {
 	// ponytail: a hand-written query (sqlc has no list of every secret); move it to core/store/queries if a second caller needs it.
 	rows, err := q.QueryContext(ctx, `SELECT id, purpose FROM core_secret LIMIT ?`, maxCheckedRows)

@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/sensorlink"
 )
 
-// D-512: what the common answers say. Shapes from recordings of real devices (LibreNMS snmprec of a FortiGate 1500D and a Juniper EX,
+// What the common answers say. Shapes from recordings of real devices (LibreNMS snmprec of a FortiGate 1500D and a Juniper EX,
 // a Cisco IOS switch) and from the vendors' MIBs.
 func TestIdentifySNMP(t *testing.T) {
 	t.Parallel()
@@ -24,10 +24,10 @@ func TestIdentifySNMP(t *testing.T) {
 				SysObjectID: ".1.3.6.1.4.1.2636.1.1.1.2.31", SysName: "SW-CORE-01"},
 			SNMPFacts{Vendor: "Juniper Networks", Product: "Junos", Model: "EX4200-48T", OS: "JUNOS 15.1R7.9", Kind: "switch", Hostname: "SW-CORE-01"},
 		},
-		"net-snmp on Alpine (BN340, n82): the uname layout names the distribution": {
-			sensorlink.SNMPValues{SysDescr: "Linux BN340 6.18.63-0-lts #1-Alpine SMP PREEMPT_DYNAMIC 2026-11-11 01:31:28 x86_64",
-				SysObjectID: ".1.3.6.1.4.1.8072.3.2.10", SysName: "BN340"},
-			SNMPFacts{OS: "Alpine Linux", Hostname: "BN340"},
+		"net-snmp on Alpine: the uname layout names the distribution": {
+			sensorlink.SNMPValues{SysDescr: "Linux gw-lab01 6.18.63-0-lts #1-Alpine SMP PREEMPT_DYNAMIC 2026-11-11 01:31:28 x86_64",
+				SysObjectID: ".1.3.6.1.4.1.8072.3.2.10", SysName: "gw-lab01"},
+			SNMPFacts{OS: "Alpine Linux", Hostname: "gw-lab01"},
 		},
 		"fortigate: empty sysDescr, the model and FortiOS from ENTITY-MIB": {
 			sensorlink.SNMPValues{SysObjectID: "1.3.6.1.4.1.12356.101.1.15000", SysName: "FGT-HQ", EntClass: "3", EntModel: "FGT_1500D",

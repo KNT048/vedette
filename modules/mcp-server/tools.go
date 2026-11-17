@@ -23,7 +23,7 @@ const (
 // AllScopes in the order the GUI shows them.
 var AllScopes = []string{ScopeAssets, ScopeFindings, ScopeFeeds}
 
-// Caps of one answer (SYS-6, D-232). A list is paged with offset and limit; one page and every text field are bounded, so an
+// Caps of one answer (SYS-6). A list is paged with offset and limit; one page and every text field are bounded, so an
 // answer stays well under maxResult whatever the box holds.
 const (
 	defaultLimit = 25

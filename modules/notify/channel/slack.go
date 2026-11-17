@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// SlackConfig configures an Incoming Webhook channel (D-38).
+// SlackConfig configures an Incoming Webhook channel.
 type SlackConfig struct {
 	Webhook secrets.Value // https://hooks.slack.com/services/T…/B…/… ; the path is the credential
 	Label   string        // optional display label such as "#it-alerts" (not a secret)

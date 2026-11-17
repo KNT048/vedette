@@ -52,7 +52,7 @@ func TestToolOutputsAreNotIDNumbers(t *testing.T) {
 		{ID: store.NewID("dev"), Name: "PC-ACCOUNTS-03", IP: "fe80::1c2b:3a4d:5e6f:7081", Kind: "workstation", Vendor: "Dell", Model: "OptiPlex 7010", OS: "Windows 11 Pro 10.0.22631.4460",
 			Ports: []string{"135/tcp msrpc", "445/tcp microsoft-ds", "3389/tcp ms-wbt-server"}, Software: []string{"Microsoft Visual C++ 2015-2022 Redistributable (x64) 14.38.33135", "Google Chrome 131.0.6778.86", "KB5034441"},
 			FirstSeen: "2026-10-30T23:59:59.999Z", LastSeen: "2026-11-13T05:20:00.000Z", Origin: "manual", SeenBy: "osquery"},
-		{ID: store.NewID("dev"), Name: "Vedette", IP: "10.0.0.5", Kind: "server", Model: "N100", OS: "Ubuntu 24.04.1 LTS", Approved: true, IsBox: true,
+		{ID: store.NewID("dev"), Name: "Vedette", IP: "10.0.0.5", Kind: "server", Model: "NUC", OS: "Ubuntu 24.04.1 LTS", Approved: true, IsBox: true,
 			Software: []string{"vedette 0.1.0-beta.1", "linux-image 6.8.0-48-generic"}, FirstSeen: "2026-11-01T00:00:00.000Z", LastSeen: "2026-11-13T05:23:30.000Z", Origin: "discovered", SeenBy: "box"},
 	}}
 	var outs []string
@@ -109,7 +109,7 @@ func TestIDNumbersAndTheFormsTheyAreNot(t *testing.T) {
 		`{"note":"CCCD 079012345678"}`, `"079012345678"`, "CVE-2023-36844 belongs to citizen 079012345678",
 		"0790.1234.5678", "device 192.168.1.20 owner 123456789", "2026-11-13 CMND 123456789",
 		"https://kb.example.com/a 079012345678",
-		// the Opus review of D-481: each was blocked before the forms were blanked, and must still be
+		// found in review: each was blocked before the forms were blanked, and must still be
 		"CCCD079201234567", "CMND 123456789abcdef0", "CMND 2012-34567", "CMND 1912-34567", "CCCD 0792-2012-3456", "CMND AS 201234567",
 		"referer https://x.vn/a,CCCD:079201234567", "passport https://x.vn/?so=123456789", "https://kb.example.com/view?id=123456789012",
 		"2023-36844", "AS 201234567", "cccd079201234567abcdef", "căn cước công dân số 079201234567", "can cuoc: 079201234567", "số định danh 079201234567",

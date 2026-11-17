@@ -24,7 +24,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [needCode, setNeedCode] = useState(false)
-  // Bước hai: ứng dụng xác thực hay mã gửi qua email (D-35); với email thì biết mã đã gửi tới đâu.
+  // Bước hai: ứng dụng xác thực hay mã gửi qua email; với email thì biết mã đã gửi tới đâu.
   const [second, setSecond] = useState<{ method: 'app' | 'email'; sentTo?: string; preview?: string; resent?: boolean }>({ method: 'app' })
   const cooldown = useCountdown()
   // Which request is waiting on the box: signing in, sending a new code, or starting single sign-on (one at a time).
@@ -79,7 +79,7 @@ export default function LoginPage() {
     }
   }
 
-  // D-194: the box returns the identity provider's address and a binding; the binding stays in this tab's session storage until
+  // The box returns the identity provider's address and a binding; the binding stays in this tab's session storage until
   // /sso/callback posts it back, so a sign-in can only finish in the tab that started it. No cookie is added.
   async function signInSso() {
     setWait('sso')

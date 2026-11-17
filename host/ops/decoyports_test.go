@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// D-466: the per-address ports of the decoys in the namespace's input chain.
+// The per-address ports of the decoys in the namespace's input chain.
 
 func dp(proto string, port int) api.DecoyPort { return api.DecoyPort{Proto: proto, Port: port} }
 
@@ -230,7 +230,7 @@ func TestSameSets(t *testing.T) {
 	}
 }
 
-// kien's N100 rule (B2): the decoys never touch the box's network. The ruleset the host loads names one table, inet
+// The box-network rule: the decoys never touch the box's network. The ruleset the host loads names one table, inet
 // vedette_hp; it is loaded and listed only inside the namespace vedette-hp (its "flush ruleset" empties that namespace's
 // ruleset, never the box's own firewall); every address in it is a decoy's; it names no interface but lo and hooks only
 // input, output and forward of that namespace (no NAT, no prerouting). The effect check refuses a listing with any other

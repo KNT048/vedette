@@ -20,7 +20,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// User sign-ins (D-480): the mailbox's own user signs in once, without a redirect to the box, and the box keeps the refresh token.
+// User sign-ins: the mailbox's own user signs in once, without a redirect to the box, and the box keeps the refresh token.
 const (
 	AuthMicrosoftUser = "microsoft_user" // device authorization grant (RFC 8628) with the customer's own public client
 	AuthGoogleUser    = "google_user"    // the customer's own Desktop OAuth client: loopback redirect + PKCE, the address pasted back
@@ -57,7 +57,7 @@ type userGrant struct {
 	ClientSecret string `json:"client_secret,omitempty"`
 }
 
-// GrantID is the sign-in id of a user grant (the channel secret of a D-480 preset); "" when secret is not one.
+// GrantID is the sign-in id of a user grant (the channel secret of a sign-in preset); "" when secret is not one.
 func GrantID(secret string) string {
 	var g userGrant
 	if json.Unmarshal([]byte(secret), &g) != nil || !grantIDRE.MatchString(g.ID) {
@@ -141,7 +141,7 @@ type MicrosoftDevice struct {
 	deviceCode      secrets.Value
 }
 
-// StartMicrosoftDevice asks Microsoft for a device code for the customer's own public client (D-480).
+// StartMicrosoftDevice asks Microsoft for a device code for the customer's own public client.
 func StartMicrosoftDevice(ctx context.Context, hc *http.Client, tenant, clientID string) (*MicrosoftDevice, error) {
 	if !validTenant(tenant) {
 		return nil, cfgErr("bad_tenant_id", "The tenant ID is the Directory (tenant) ID of the app registration, a domain such as company.onmicrosoft.com, or organizations.")

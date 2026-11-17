@@ -33,7 +33,7 @@ func TestParse(t *testing.T) {
 }
 
 // The sensor ids are optional as a pair: the host starts without them, and only the units that
-// need them answer host_conf_incomplete (D-123).
+// need them answer host_conf_incomplete.
 func TestParseSensorIdsAreOptionalAsAPair(t *testing.T) {
 	t.Parallel()
 	bare := strings.Replace(strings.Replace(good, "sensor_uid = 10003\n", "", 1), "sensor_gid = 10004\n", "", 1)

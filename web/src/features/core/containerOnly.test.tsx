@@ -1,4 +1,4 @@
-// A container-only install (no vedette-host, D-168) as the GUI sees it (D-381, the 2026-11-12 walk on Docker Desktop):
+// A container-only install (no vedette-host) as the GUI sees it (as tested on Docker Desktop):
 // install comes from GET /modules, host pages show what the customer does instead and never call the host endpoints,
 // the honeypot cannot be turned on and its page claims no coverage, the setup code hint names vedette-core.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -15,10 +15,10 @@ import { installStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { containerSensorStore } from '@/features/inventory/mocks'
 import { MOCK_SETUP_CODE } from './mocks'
 
-// D-403: SPAN is hidden in the GUI for v1 (SPAN_IN_UI false); the SPAN tick of Configure is kept, and one test runs it as offered (post-v1).
+// SPAN is hidden in the GUI for v1 (SPAN_IN_UI false); the SPAN tick of Configure is kept, and one test runs it as offered (post-v1).
 const span = vi.hoisted(() => ({ SPAN_IN_UI: false }))
 vi.mock('@/lib/span', () => span)
-// D-624 (#819): the MCP server is hidden in the GUI for v1 (POST_V1_IN_UI false); its page is kept, so this file runs it as offered.
+// The MCP server is hidden in the GUI for v1 (POST_V1_IN_UI false); its page is kept, so this file runs it as offered.
 const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
 vi.mock('@/lib/postV1', () => postV1)
 
@@ -33,7 +33,7 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); span.SPAN_IN_UI = false })
 const hostCalls = () => calls.filter((u) => HOST_PATHS.some((p) => new URL(u, location.origin).pathname === `/api/v1${p}`))
 
-describe('container-only install (D-381)', () => {
+describe('container-only install', () => {
   it('Updates shows the compose commands and no appliance control; Data shows the volume backup; neither calls the host', async () => {
     renderApp('/settings/updates')
     expect(await screen.findByText('Update Vedette')).toBeInTheDocument()
@@ -45,11 +45,11 @@ describe('container-only install (D-381)', () => {
     expect(screen.queryByText('Backups on this box')).toBeNull()
     renderApp('/settings/network')
     expect(await screen.findByText('Start the sensor with compose.sensors.yaml, then choose the card it listens on under Sensors. The address, extra IP and time server of the machine are set with its own tools.')).toBeInTheDocument()
-    expect(document.getElementById('main')!.textContent).not.toMatch(/SPAN|mirror/i) // D-403
+    expect(document.getElementById('main')!.textContent).not.toMatch(/SPAN|mirror/i)
     expect(hostCalls()).toEqual([])
   })
 
-  it('Data backup and restore follow the Docker / Podman switch, with the SELinux note for Podman (S-CORE-9 G2)', async () => {
+  it('Data backup and restore follow the Docker / Podman switch, with the SELinux note for Podman (S-CORE-9)', async () => {
     const u = userEvent.setup()
     renderApp('/settings/data')
     expect(await screen.findByText(/^docker compose --env-file vedette.env stop core/)).toBeInTheDocument()
@@ -62,7 +62,7 @@ describe('container-only install (D-381)', () => {
     expect(screen.getByText(/add :Z to the "\$PWD":\/backup mount of the backup command and :ro,Z to the same mount of the restore command/)).toBeInTheDocument() // the detail, behind ⓘ (#824)
   })
 
-  it('Updates names the offered release and its notes, with the update and cosign blocks for Docker or Podman and no Apply (S-CORE-9 G4)', async () => {
+  it('Updates names the offered release and its notes, with the update and cosign blocks for Docker or Podman and no Apply (S-CORE-9)', async () => {
     const u = userEvent.setup()
     renderApp('/settings/updates')
     expect(await screen.findByText('Vedette 0.9.4 is available. This machine runs 0.9.3.')).toBeInTheDocument()
@@ -73,7 +73,7 @@ describe('container-only install (D-381)', () => {
     for (const li of items) expect(li.className).toBe('')
     const steps = items.map((li) => li.querySelector('code')!.textContent!)
     expect(steps.map((c) => c.split(/[ =]/)[0])).toEqual(['mkdir', 'u', 'cosign', 'docker'])
-    // all four files of the running release go to a NEW folder named after it: mkdir without -p refuses an existing one (D-451)
+    // all four files of the running release go to a NEW folder named after it: mkdir without -p refuses an existing one
     const four = 'vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml'
     expect(steps[0]).toBe(`mkdir vedette-0.9.3 && mv -n ${four} vedette-0.9.3/`)
     // a kept folder already there holds the good files: put them back before moving it aside (QA r2), never rename it alone
@@ -129,7 +129,7 @@ describe('container-only install (D-381)', () => {
     ['an offered version with a shell character', '0.9.4;rm', '0.9.3', /The version offered \(0\.9\.4;rm\) or the version this machine runs \(0\.9\.3\) cannot be put into a command as it is/],
     ['a running version that cannot name a folder', '0.9.4', '0.9.3 beta', /or the version this machine runs \(0\.9\.3 beta\) cannot be put into a command/],
     ['an unknown running version', '0.9.4', '', /^This machine's version is not known, so no commands are shown here/],
-  ])('Updates shows no command at all for %s, only where the steps are (D-451)', async (_, version, running, said) => {
+  ])('Updates shows no command at all for %s, only where the steps are', async (_, version, running, said) => {
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(offerState(version, running, [good('core')]))))
     renderApp('/settings/updates')
     expect(await screen.findByText(said)).toBeInTheDocument()
@@ -143,7 +143,7 @@ describe('container-only install (D-381)', () => {
     expect(screen.queryByText(/mkdir|curl|minisign|cosign verify|grep -cF/)).toBeNull()
   })
 
-  it('Updates puts only a known service with a well-formed digest into a command (D-451)', async () => {
+  it('Updates puts only a known service with a well-formed digest into a command', async () => {
     const images = [good('core'), good('sensor'), { service: 'scan', digest: "sha256:x' ; rm -rf ~ '" }, { service: 'evil', digest: `sha256:${'e'.repeat(64)}` }]
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(offerState('0.9.4', '0.9.3', images))))
     renderApp('/settings/updates')
@@ -163,7 +163,7 @@ describe('container-only install (D-381)', () => {
     renderApp('/settings/updates')
     expect(await screen.findByText(said)).toBeInTheDocument()
     expect(screen.getByText(/Running version 0\.9\.3\. (Update information last read|No check has run yet\.)/)).toBeInTheDocument()
-    expect(screen.queryByText(/cannot reach github\.com/)).toBeNull() // D-398: no cause is guessed for a check that never ran
+    expect(screen.queryByText(/cannot reach github\.com/)).toBeNull() // No cause is guessed for a check that never ran
     expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
     expect(screen.queryByText(/minisign|cosign verify/)).toBeNull()
     // the block says what it does and does not do; no "kept files" that this state never made (QA M3)
@@ -171,7 +171,7 @@ describe('container-only install (D-381)', () => {
     expect(screen.queryByText(/kept|go back/)).toBeNull()
   })
 
-  it('Updates: a failed check says when and why, without guessing the cause (S-CORE-2 D-392)', async () => {
+  it('Updates: a failed check says when and why, without guessing the cause (S-CORE-2)', async () => {
     const message = "The update information did not pass Vedette's signature checks, so nothing new is offered and nothing was installed. The details are in the box log."
     const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, last_check_error: { at: new Date(Date.now() - 3600e3).toISOString(), code: 'update_check_failed', message }, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null }
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
@@ -195,7 +195,7 @@ describe('container-only install (D-381)', () => {
     const on = await screen.findByRole('switch', { name: 'Turn off module Internal traps' })
     expect(on).toBeEnabled()
     expect(within(on.closest('tr')!).getByText('Not on this install')).toBeInTheDocument()
-    expect(screen.queryByText('Credentialed scan')).toBeNull() // not offered in v1 at all (D-417)
+    expect(screen.queryByText('Credentialed scan')).toBeNull() // not offered in v1 at all
     modulesStore.update((l) => l.map((m) => (m.id === 'honeypot' ? { ...m, enabled: false } : m)))
     renderApp('/settings/modules')
     const off = await screen.findByRole('switch', { name: 'Turn on module Internal traps' })
@@ -207,16 +207,16 @@ describe('container-only install (D-381)', () => {
     renderApp('/settings/modules')
     expect(await screen.findByText('Light scans of your network inside the allowed time window.')).toBeInTheDocument()
     expect(screen.queryByText(/nmap/)).toBeNull()
-    renderApp('/response?tab=rules') // the inbox opens first (D-513); the gallery is on Rules
+    renderApp('/response?tab=rules') // the inbox opens first; the gallery is on Rules
     const clone = await screen.findByRole('button', { name: /^Clone Trap touched: block the source on FortiGate/ })
     expect(clone).toBeDisabled()
     expect(within(clone.closest('li')!).getByText(/Not available on this install/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Clone Known-bad connection: add the destination to the block list/ })).toBeEnabled()
   })
 
-  it('Response: Add a rule does not offer the honeypot trigger and Recent events does not promise honeypot touches (D-390)', async () => {
+  it('Response: Add a rule does not offer the honeypot trigger and Recent events does not promise honeypot touches', async () => {
     const u = userEvent.setup()
-    renderApp('/response?tab=rules') // the inbox opens first (D-513)
+    renderApp('/response?tab=rules') // the inbox opens first
     expect(await screen.findByText(/^What the triggers watch for: known-bad connections/)).toBeInTheDocument()
     expect(screen.queryByText(/honeypot touches/)).toBeNull()
     await u.click(screen.getByRole('button', { name: 'Add a rule' }))
@@ -229,7 +229,7 @@ describe('container-only install (D-381)', () => {
   it('setup: the code hint names vedette-core and the bundles leave the honeypot out', async () => {
     const u = userEvent.setup()
     renderApp('/setup', { role: null, setupComplete: false })
-    await u.click(await screen.findByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' })) // D-544: the first step
+    await u.click(await screen.findByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' })) // The first step
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/docker logs vedette-core/)).toBeInTheDocument()
     await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
@@ -244,11 +244,11 @@ describe('container-only install (D-381)', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     const small = (await screen.findByRole('radio', { name: /Small business/ })).closest('div')!
     expect(within(small).getByText(/Mitigation/)).toBeInTheDocument()
-    expect(within(small).queryByText(/internal traps/i)).toBeNull() // D-624: no bundle has a preview module, on any install
+    expect(within(small).queryByText(/internal traps/i)).toBeNull() // No bundle has a preview module, on any install
     expect(screen.getByText(/Not on this install: .*Internal traps/)).toBeInTheDocument()
   })
-  it('module-off notice of a module this install cannot run: not on this install, never invites turning it on (S-CORE-9 G5, D-420)', async () => {
-    // The credentialed scan was the page that showed it; v1 does not offer that tab (D-417), so the notice is rendered on its own.
+  it('module-off notice of a module this install cannot run: not on this install, never invites turning it on (S-CORE-9)', async () => {
+    // The credentialed scan was the page that showed it; v1 does not offer that tab, so the notice is rendered on its own.
     sessionStore.set({ userId: 'u-admin' })
     render(<QueryClientProvider client={makeQueryClient()}><MemoryRouter><ModuleOff module="scan-credentialed" /></MemoryRouter></QueryClientProvider>)
     expect(await screen.findByText('Credentialed scan is not on this install')).toBeInTheDocument()
@@ -257,14 +257,14 @@ describe('container-only install (D-381)', () => {
     expect(screen.queryByRole('link', { name: 'Open module settings' })).toBeNull()
   })
 
-  it('Scans: v1 offers no Credentialed scan tab, so nothing on this install invites it either (D-417, S-SCAN-5)', async () => {
+  it('Scans: v1 offers no Credentialed scan tab, so nothing on this install invites it either (S-SCAN-5)', async () => {
     renderApp('/scans?tab=credentialed')
     expect(await screen.findByRole('tab', { name: 'Engines' })).toBeInTheDocument() // #850: /scans lands on Settings › Scanning
     expect(screen.queryByRole('tab', { name: 'Credentialed scan' })).toBeNull()
     expect(screen.queryByText(/Credentialed scan is not on this install/)).toBeNull()
   })
 
-  it('MCP: on the localhost of the machine that runs the container, an SSH tunnel to that machine, update an older compose.yaml (S-MCP-1, D-395)', async () => {
+  it('MCP: on the localhost of the machine that runs the container, an SSH tunnel to that machine, update an older compose.yaml (S-MCP-1)', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'mcp-server' ? { ...m, enabled: true } : m)))
     renderApp('/settings/mcp')
     expect(await screen.findByText(/publishes the port on 127\.0\.0\.1 of the machine that runs Docker or Podman, never on the LAN/)).toBeInTheDocument()
@@ -275,7 +275,7 @@ describe('container-only install (D-381)', () => {
     expect(screen.queryByText(/not published/)).toBeNull()
   })
 
-  it('SIEM forwarding: "Honeypot touches" cannot be ticked and says why (S-LOG-3, D-420)', async () => {
+  it('SIEM forwarding: "Honeypot touches" cannot be ticked and says why (S-LOG-3)', async () => {
     renderApp('/settings/siem')
     const box = await screen.findByRole('checkbox', { name: 'Honeypot touches' })
     expect(box).toBeDisabled()
@@ -289,7 +289,7 @@ describe('container-only install (D-381)', () => {
     await screen.findByRole('button', { name: 'Configure sensor vedette-hq' }, { timeout: 5000 })
     await waitFor(async () => { await u.click(screen.getByRole('button', { name: 'Configure sensor vedette-hq' })); screen.getByRole('dialog') }, { timeout: 8000 })
   }
-  // S-CORE-8 G6, D-387, D-393: the card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
+  // S-CORE-8: the card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
   it('Sensors (SPAN offered, post-v1): Configure picks the SPAN card among the reported cards; the box refuses SPAN on a card with an address', async () => {
     span.SPAN_IN_UI = true
     const u = userEvent.setup()
@@ -300,13 +300,13 @@ describe('container-only install (D-381)', () => {
     const pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
     expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(['Automatic (eno1)', 'eno1', 'eno2', 'wlp2s0'])
     const spanBox = within(dlg).getByRole('checkbox', { name: /SPAN port/ })
-    expect(spanBox).toBeDisabled() // Automatic: no SPAN, and the hint says why (walk 4)
+    expect(spanBox).toBeDisabled() // Automatic: no SPAN, and the hint says why
     expect(spanBox).toHaveAccessibleDescription(/Choose a card under Listen on first/)
     await u.selectOptions(pick, 'eno1')
     expect(spanBox).toHaveAccessibleDescription(/Prepare the card on this machine first/)
     await u.click(spanBox)
     await u.click(within(dlg).getByRole('button', { name: 'Save' }))
-    // the refusal sits under the SPAN tick it is about, not in a toast (walk 4)
+    // the refusal sits under the SPAN tick it is about, not in a toast
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('"eno1" has an IP address; a SPAN port has none.')
     expect(spanBox).toHaveAttribute('aria-invalid', 'true')
     expect(spanBox).toHaveAccessibleDescription(/"eno1" has an IP address; a SPAN port has none\./)
@@ -327,7 +327,7 @@ describe('container-only install (D-381)', () => {
     expect(calls.some((u) => new URL(u, location.origin).pathname.startsWith('/api/v1/core/network'))).toBe(false)
   })
 
-  // D-403: SPAN hidden for v1. "Listen on" stays (D-393: which card of a machine with two addresses), the SPAN tick goes.
+  // SPAN hidden for v1. "Listen on" stays (which card of a machine with two addresses), the SPAN tick goes.
   it('Sensors (SPAN hidden for v1): Configure chooses the card to listen on with no SPAN tick and no word about SPAN or mirrored traffic', async () => {
     const u = userEvent.setup()
     renderApp('/devices/setup?tab=sensor')
@@ -363,7 +363,7 @@ describe('container-only install (D-381)', () => {
     expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: false })
   })
 
-  it('Sensors: a refused card shows under Listen on; an answer that is not about a field stays under the form (walk 4)', async () => {
+  it('Sensors: a refused card shows under Listen on; an answer that is not about a field stays under the form', async () => {
     let answer = { status: 400, code: 'bad_interface', message: 'The sensor has not reported its network cards in the last 90 seconds.' }
     server.use(http.patch('*/api/v1/inventory/sensors/:id', () => HttpResponse.json({ error: { code: answer.code, message: answer.message } }, { status: answer.status })))
     const u = userEvent.setup()
@@ -382,7 +382,7 @@ describe('container-only install (D-381)', () => {
     expect(pick).not.toHaveAttribute('aria-invalid')
   })
 
-  // D-399 (3), walk 4: a rootless sensor reports, but its capture socket cannot open; the row must not look healthy.
+  // A rootless sensor reports, but its capture socket cannot open; the row must not look healthy.
   it('Sensors: a sensor that reports but cannot capture says so and why, in the row and in Configure', async () => {
     containerSensorStore.set({ ...containerSensorStore.get(), capture_error: 'no_permission' })
     const u = userEvent.setup()
@@ -411,7 +411,7 @@ describe('container-only install (D-381)', () => {
     expect(within(dlg).queryByRole('button', { name: 'Save' })).toBeNull()
   })
 
-  // D-393 (M3): two cards with an address and no SPAN card: no default (D-380), so the admin picks the card to listen on.
+  // Two cards with an address and no SPAN card: no default, so the admin picks the card to listen on.
   it('Sensors: two cards with an address: the dialog says the sensor is not listening, the admin picks one, then back to Automatic', async () => {
     containerSensorStore.set({ connected: true, chosen: null, span: false, cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: '10.0.0.2/24', link: true }, { name: 'eno3', ipv4: null, link: true }] })
     const u = userEvent.setup()
@@ -438,14 +438,14 @@ describe('container-only install (D-381)', () => {
     expect(containerSensorStore.get()).toMatchObject({ chosen: null, span: false })
   })
 
-  it('the honeypot page says once why traps cannot run and reads no honeypot route (walk 4)', async () => {
+  it('the honeypot page says once why traps cannot run and reads no honeypot route', async () => {
     renderApp('/honeypot')
     expect(await screen.findByRole('heading', { level: 1, name: 'Honeypot' })).toBeInTheDocument()
     expect(screen.getAllByText('Traps need the appliance install')).toHaveLength(1)
     expect(calls.filter((u) => new URL(u, location.origin).pathname.startsWith('/api/v1/honeypot'))).toEqual([])
   })
 
-  it('Download logs greys "Honeypot hits" and leaves it out of the export (S-CORE-6, walk 4)', async () => {
+  it('Download logs greys "Honeypot hits" and leaves it out of the export (S-CORE-6)', async () => {
     renderApp('/settings/data')
     const box = await screen.findByRole('checkbox', { name: /Honeypot hits/ })
     await waitFor(() => expect(box).toBeDisabled())
@@ -453,7 +453,7 @@ describe('container-only install (D-381)', () => {
     expect(screen.getByText('(traps need the appliance install)')).toBeInTheDocument()
   })
 
-  it('Privacy shows the container-only rows of flows 6 and 10, with no helper, apt, nmap or chrony (S-CORE-4, walk 4)', async () => {
+  it('Privacy shows the container-only rows of flows 6 and 10, with no helper, apt, nmap or chrony (S-CORE-4)', async () => {
     renderApp('/settings/privacy')
     expect((await screen.findAllByText(/a container-only install has no `vedette-host`, so the box runs no `apt`/)).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/A container-only install sets no time source/).length).toBeGreaterThan(0)

@@ -54,7 +54,7 @@ func TestSignedDocumentsVerifyWithTheProductionVerifiers(t *testing.T) {
 	if err := spec.check(idx, idxSig, man, manSig); err != nil {
 		t.Fatal(err)
 	}
-	// the keys of this build (the real release keys, D-256) must NOT verify the same documents
+	// the keys of this build (the real release keys) must NOT verify the same documents
 	if prod, err := release.Embedded(); err == nil {
 		if _, err := release.VerifyIndex(idx, idxSig, prod, nil); err == nil {
 			t.Fatal("documents signed by throwaway keys verified under this build's keys")

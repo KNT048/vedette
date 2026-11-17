@@ -94,7 +94,7 @@ func logEnv(t *testing.T) (*env, *fakeLogs) {
 	return newEnv(t, func(c *response.Config) { c.LogCounts = l }), l
 }
 
-// #332, D-287, D-288: a log_threshold rule fires when a declared log source reached N lines of the signature in W minutes, once per
+// A log_threshold rule fires when a declared log source reached N lines of the signature in W minutes, once per
 // burst; when no single address sent N of them (spread over many, or lines that name none) the event names the log source only,
 // so an action that needs {{trigger.source_ip}} is not available.
 func TestLogThresholdFiresFromTheLogCounts(t *testing.T) {
@@ -229,7 +229,7 @@ func TestLogThresholdRuleChecks(t *testing.T) {
 	wantCode(t, err, 400, "invalid")
 }
 
-// #348, D-288: every address that alone sent N lines of the signature in the window is an event of its own with source_ip, so
+// Every address that alone sent N lines of the signature in the window is an event of its own with source_ip, so
 // a ban rule bans each attacker (fail2ban maxretry, Wazuh same_srcip); an address under N is never banned for the others' lines.
 // One burst of one address is one event; a second address reaching N in the same burst is a new event.
 func TestLogThresholdBansEachAddressThatReachedTheThreshold(t *testing.T) {

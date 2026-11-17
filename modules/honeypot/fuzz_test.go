@@ -19,7 +19,7 @@ func FuzzParseLine(f *testing.F) {
 	} {
 		f.Add([]byte(s))
 	}
-	// the real lines of every service B3 adds (D-467), as the pinned OpenCanary writes them
+	// the real lines of every service B3 adds, as the pinned OpenCanary writes them
 	if lines, err := os.Open(filepath.Join("testdata", "opencanary-0.9.10-lines.jsonl")); err == nil {
 		sc := bufio.NewScanner(lines)
 		for sc.Scan() {

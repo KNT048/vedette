@@ -16,13 +16,13 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// The EPSS score of every CVE (D-614): FIRST publishes the scores of all CVEs once a day as one gzip CSV
+// The EPSS score of every CVE: FIRST publishes the scores of all CVEs once a day as one gzip CSV
 // ("#model_version:…,score_date:…", "cve,epss,percentile", then one row per CVE). Measured 2026-11-15: 2,849,094 bytes
-// for 406,543 CVEs, about 12 MB once unpacked; 15.5 MB in SQLite. The scores feed tier 2 (D-613, D-615: EPSS at or above
+// for 406,543 CVEs, about 12 MB once unpacked; 15.5 MB in SQLite. The scores feed tier 2 (EPSS at or above
 // EPSSLikely, published in the last 12 months) and are kept for every CVE (CVE pages, scan-found older CVEs).
 const (
 	epssAllFeedID = "epss-all"
-	// EPSSLikely is the score from which a CVE is "likely to be exploited" (tier 2, D-613): FIRST's own example
+	// EPSSLikely is the score from which a CVE is "likely to be exploited" (tier 2): FIRST's own example
 	// threshold, 17,562 CVEs on 2026-11-14.
 	EPSSLikely = 0.1
 	// epssAllMaxBytes caps the download (the gzip file); epssAllMaxUnpacked caps what it unpacks to, so a hostile

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Vendor version schemes the NVD data uses besides plain dotted numbers (D-500). Each rule only turns a
+// Vendor version schemes the NVD data uses besides plain dotted numbers. Each rule only turns a
 // comparison into Unknown or into a No that is certain; none of them guesses "affected".
 
 // officeMajors maps the edition names NVD gives Microsoft Office and its apps ("cpe:...:microsoft:office:2010")
@@ -71,7 +71,7 @@ func officeEdition(c CPE, r VersionRange, exact bool, ver string) (Tri, bool) {
 // sqlServerMajors maps the release names NVD gives SQL Server ("cpe:...:microsoft:sql_server:2014:sp3") to the major of
 // the builds a computer reports (12.0.6024.0 is SQL Server 2014; 2008 R2 is 10.50, so 2008 and 2008 R2 share 10). One
 // release per major, unlike Office. Source: Microsoft Learn, "Latest updates and version history for SQL Server"
-// (https://support.microsoft.com/servicing/sql/kb321185-download-and-install-latest-updates); D-606.
+// (https://support.microsoft.com/servicing/sql/kb321185-download-and-install-latest-updates).
 var sqlServerMajors = map[string]uint64{"2000": 8, "2005": 9, "2008": 10, "2012": 11, "2014": 12, "2016": 13, "2017": 14, "2019": 15,
 	"2022": 16, "2025": 17}
 
@@ -80,7 +80,7 @@ var sqlServerMajors = map[string]uint64{"2000": 8, "2005": 9, "2008": 10, "2012"
 // write the release in the version ("sql_server_2008:r2:sp1") and are neither.
 var sqlServerProducts = map[string]bool{"2016": true, "2017": true, "2019": true, "2022": true, "2025": true}
 
-// sqlServerRelease reads the two ways NVD names a SQL Server release against the software version (D-606):
+// sqlServerRelease reads the two ways NVD names a SQL Server release against the software version:
 //   - an exact release configuration of microsoft:sql_server ("sql_server:2014:sp3"), as officeEdition does for Office: a release
 //     typed by a person ("2014") must be that release; a build a computer reports ("16.0.4135.4") is compared by major: another
 //     major is No (SQL Server 2022 is not SQL Server 2014), the same major is Unknown (the build does not say which service pack);
@@ -280,7 +280,7 @@ func laterRelease(c CPE, lit, ver string) bool {
 	return false // the same release, or a version inside it
 }
 
-// sqlServerLater is laterThan for an exact release configuration of microsoft:sql_server ("sql_server:2008:sp3", D-606): a build a
+// sqlServerLater is laterThan for an exact release configuration of microsoft:sql_server ("sql_server:2008:sp3"): a build a
 // computer reports or a release a person typed is later when its major is higher. ok is false when the rule does not apply.
 func sqlServerLater(c CPE, lit, ver string) (later, ok bool) {
 	v, okV := c.Vendor.Literal()

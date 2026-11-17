@@ -19,9 +19,9 @@ type gate struct {
 func (g *gate) Enabled(id string) bool { g.mu.Lock(); defer g.mu.Unlock(); return g.on[id] }
 func (g *gate) set(id string, on bool) { g.mu.Lock(); g.on[id] = on; g.mu.Unlock() }
 
-// D-327 (deferred sweep item 9): agent software not reported for 30 days is deleted with an audit row and a software-changed event; rows of
+// deferred sweep item 9: agent software not reported for 30 days is deleted with an audit row and a software-changed event; rows of
 // other sources stay; the time counts only while the job runs unbroken and agent-intake is on. (Services: PruneServices, INV-23.)
-func TestD327_RetentionOfAgentSoftware(t *testing.T) {
+func TestRetentionOfAgentSoftware(t *testing.T) {
 	g := &gate{on: map[string]bool{"agent-intake": true}}
 	e := newEnv(t, func(c *inventory.Config) { c.Modules = g })
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.30")}
@@ -52,7 +52,7 @@ func TestD327_RetentionOfAgentSoftware(t *testing.T) {
 		t.Fatal("the prune of agent software left no audit row or no software-changed event")
 	}
 }
-func TestD327_TimeCountsOnlyWhileTheModulesAreOn(t *testing.T) {
+func TestTimeCountsOnlyWhileTheModulesAreOn(t *testing.T) {
 	g := &gate{on: map[string]bool{"agent-intake": false}}
 	e := newEnv(t, func(c *inventory.Config) { c.Modules = g })
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.31")}
@@ -92,8 +92,8 @@ func TestD327_TimeCountsOnlyWhileTheModulesAreOn(t *testing.T) {
 	}
 }
 
-// D-327 review: an agent that keeps reporting keeps its list (seen_at is refreshed by every report, even an unchanged one).
-func TestD327_ReportedSoftwareStays(t *testing.T) {
+// An agent that keeps reporting keeps its list (seen_at is refreshed by every report, even an unchanged one).
+func TestReportedSoftwareStays(t *testing.T) {
 	g := &gate{on: map[string]bool{"agent-intake": true}}
 	e := newEnv(t, func(c *inventory.Config) { c.Modules = g })
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.32")}
@@ -114,9 +114,9 @@ func TestD327_ReportedSoftwareStays(t *testing.T) {
 	}
 }
 
-// D-470: the box's own dpkg rows are never pruned, even when the host cannot be read for more than 30 days: only a successful read
+// The box's own dpkg rows are never pruned, even when the host cannot be read for more than 30 days: only a successful read
 // replaces them. Another device's stale agent rows still go.
-func TestD470_TheBoxSoftwareIsNeverPruned(t *testing.T) {
+func TestTheBoxSoftwareIsNeverPruned(t *testing.T) {
 	g := &gate{on: map[string]bool{"agent-intake": true}}
 	items := []inventory.SoftwareItem{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1"}}
 	e := newEnv(t, func(c *inventory.Config) { c.Modules = g }, withBox(swapBox{&items}))

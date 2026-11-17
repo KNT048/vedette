@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// INV-9 (D-470): GET /v1/state/packages lists the packages whose files are on the box, from one fixed dpkg-query, read-only:
+// INV-9: GET /v1/state/packages lists the packages whose files are on the box, from one fixed dpkg-query, read-only:
 // no lock, no command, no argument from the request. The output is parsed fail-closed.
 func TestContract_INV9_PackagesAreTheBoxsDpkgList(t *testing.T) {
 	t.Parallel()
@@ -75,7 +75,7 @@ func TestContract_INV9_PackagesFailClosed(t *testing.T) {
 	}
 }
 
-// One installed package whose name or version breaks dpkg's rules is left out (and logged), not the whole box (D-470).
+// One installed package whose name or version breaks dpkg's rules is left out (and logged), not the whole box.
 func TestContract_INV9_AnOddPackageDoesNotHideTheRest(t *testing.T) {
 	t.Parallel()
 	e := startSys(t)
@@ -87,7 +87,7 @@ func TestContract_INV9_AnOddPackageDoesNotHideTheRest(t *testing.T) {
 }
 
 // While apt runs (or after an interrupted run) a package is half-installed, unpacked or half-configured: the list is no
-// snapshot of the box, so the read answers 409 packages_changing (no list, no 500) and core keeps the last good one (D-470).
+// snapshot of the box, so the read answers 409 packages_changing (no list, no 500) and core keeps the last good one.
 func TestContract_INV9_PackagesMidChangeAreRetryable(t *testing.T) {
 	t.Parallel()
 	for _, st := range []string{"half-installed", "unpacked", "half-configured"} {

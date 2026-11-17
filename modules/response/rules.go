@@ -21,7 +21,7 @@ const maxRules = 30
 
 var (
 	condValueRE = regexp.MustCompile(`^[\w .,:/@#-]{0,200}$`)
-	decimalRE   = regexp.MustCompile(`^[-+]?(\d+\.?\d*|\.\d+)$`) // a plain decimal number: no hex, exponent, Inf or NaN (D-390)
+	decimalRE   = regexp.MustCompile(`^[-+]?(\d+\.?\d*|\.\d+)$`) // a plain decimal number: no hex, exponent, Inf or NaN
 	triggerRef  = regexp.MustCompile(`\{\{\s*trigger\.([a-z_]+)\s*\}\}`)
 	oneRef      = regexp.MustCompile(`^\{\{\s*trigger\.[a-z_]+\s*\}\}$`)
 )
@@ -31,7 +31,7 @@ var conditionOps = []string{"eq", "in", "in_cidr", "gte", "lte", "device_type", 
 // logMinWindow is the shortest window of a log_threshold rule: the logs counters are 5-minute buckets (logs.CountsMinWindow).
 const logMinWindow = 5
 
-// logSignature reports whether c is the counted signature of a log_threshold rule (D-287): its value is a signature of the
+// logSignature reports whether c is the counted signature of a log_threshold rule: its value is a signature of the
 // Logs digest, compared and counted, never filled into an action.
 func logSignature(trigger string, c Condition) bool {
 	return trigger == "log_threshold" && c.Op == "count_window" && c.Field == "signature"
@@ -61,7 +61,7 @@ func compatible(p ParamType, fieldType string) bool { return fieldType == string
 // fmtNum writes a bound the way the GUI does (0, 1, 65535, 1000000): the messages of the box and the mock are the same text.
 func fmtNum(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 
-// condValueProblem is "" when the value of a condition fits its field (D-390): "at least" and "at most" only on a field with a
+// condValueProblem is "" when the value of a condition fits its field: "at least" and "at most" only on a field with a
 // range (number, port) and inside it; "equals" and "is one of" on such a field take numbers inside it, and on a field with
 // choices one of them (compared without case, like evalCondition). A value outside would match every event (-3) or none (7).
 func condValueProblem(f TriggerField, op, value string) string {
@@ -102,7 +102,7 @@ func condValueProblem(f TriggerField, op, value string) string {
 	return ""
 }
 
-// storedCondsOK is false when a stored rule has a condition the save check now refuses (a rule saved before D-390, such as
+// storedCondsOK is false when a stored rule has a condition the save check now refuses (a rule saved by an older release, such as
 // "confidence at most -3", which would match every event): such a rule matches nothing until it is saved again (fail closed).
 func (s *Service) storedCondsOK(r RuleInput) bool {
 	trig := s.trigger(r.Trigger)
@@ -184,7 +184,7 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 				return b, invalid("In range: give a CIDR range such as 192.168.10.0/24.")
 			}
 		case "gte", "lte":
-			if !decimalRE.MatchString(c.Value) { // the same pattern as the GUI: no spaces, hex, exponent, Inf or NaN (D-390)
+			if !decimalRE.MatchString(c.Value) { // the same pattern as the GUI: no spaces, hex, exponent, Inf or NaN
 				return b, invalid("At least / at most: give a number.")
 			}
 		case "count_window":
@@ -245,7 +245,7 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 				if i < 0 {
 					return b, invalid("Action \"" + cat.Name + "\": the trigger has no field \"" + oneLine(r, 30) + "\".")
 				}
-				if b.Trigger == "log_threshold" && r == "signature" { // a signature is device text (=, <ip>): compared, never sent (D-287)
+				if b.Trigger == "log_threshold" && r == "signature" { // a signature is device text (=, <ip>): compared, never sent
 					return b, invalid("Action \"" + cat.Name + "\": the log signature cannot be used in an action; use {{trigger.count}}, {{trigger.window}} or {{trigger.source_device}}.")
 				}
 				if ft := trig.Fields[i].Type; !compatible(p, ft) {
@@ -263,7 +263,7 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 					return b, invalid("Action \"" + cat.Name + "\": \"" + oneLine(spec, 40) + "\" is not a valid " + string(p) + " value.")
 				}
 				spec = v
-				if cat.ID == "blocklist_add" { // D-469: a fixed address the list never publishes is refused now; a trigger field only when it runs
+				if cat.ID == "blocklist_add" { // A fixed address the list never publishes is refused now; a trigger field only when it runs
 					if why := notPublicMsg(v); why != "" {
 						return b, fail(http.StatusBadRequest, codeNotPublishable, "Action \""+cat.Name+"\": "+why)
 					}
@@ -361,8 +361,8 @@ func evalCondition(c Condition, ev Det, others []Det) bool {
 		}
 		return (c.Op == "gte" && x >= y) || (c.Op == "lte" && x <= y)
 	case "device_type":
-		// A device type matches as itself or as the kind it acts as (D-511): "iot" still covers an IP phone, but never a type marked
-		// no_auto_isolate (a PBX, a PLC, a medical device): cutting those off harms more than it helps (#714 review M1).
+		// A device type matches as itself or as the kind it acts as: "iot" still covers an IP phone, but never a type marked
+		// no_auto_isolate (a PBX, a PLC, a medical device): cutting those off harms more than it helps.
 		return ev.DeviceKind != "" && devicetypes.MatchesKind(csvList(c.Value), lc(ev.DeviceKind))
 	case "count_window":
 		if logSignature(ev.Trigger, c) { // the event is the count itself, made by PollLogs for this signature, window and threshold
@@ -666,7 +666,7 @@ func (s *Service) Allowlist(ctx context.Context) ([]AllowEntry, error) {
 
 // SetAllowlist is PUT /response/allowlist: replace the declared entries. The entries that count without being listed (the box's own
 // addresses and MACs, its gateway and DNS servers, the inventory's routers and firewalls) are not stored when they come back as GET showed
-// them (same value and label): the GUI sends back the whole list, and a stored copy would outlive a gateway that changed (D-325 review).
+// them (same value and label): the GUI sends back the whole list, and a stored copy would outlive a gateway that changed.
 // The same value under a label the administrator wrote is a declared entry and is kept.
 func (s *Service) SetAllowlist(ctx context.Context, who Actor, in []AllowEntry) ([]AllowEntry, error) {
 	derived, err := s.derivedNeverTouch(ctx)

@@ -1,4 +1,4 @@
-// Shared test vectors for the tamper-evident logs (DATA_MODEL §5.3, D-57 (14)). Built from the mock implementation in ./chain.ts and written to
+// Shared test vectors for the tamper-evident logs (DATA_MODEL §5.3). Built from the mock implementation in ./chain.ts and written to
 // `modules/core/testdata/chain_vectors.json` by `pnpm chain-vectors`; `chain.test.ts` fails when the committed file is out of date.
 // The Go side (`core/audit`) must reproduce every `hash` below and report `broken_at` the same way (1-based, first bad entry).
 import { canonHash, canonical, firstBrokenCanon, GENESIS, sha256 } from './chain'
@@ -45,7 +45,7 @@ export function chainVectors() {
     version: 2,
     notes: [
       'genesis: prev_hash of the first entry of a chain.',
-      'ONE formula for core_audit, ai_activity and resp_log (D-57 (14)): hash = lowercase hex SHA-256( prev_hash + "\\n" + canon(entry) ) over UTF-8 bytes, where entry = every field of the row except `hash` (prev_hash stays inside the entry; the DB-only `seq` is never part of it).',
+      'ONE formula for core_audit, ai_activity and resp_log: hash = lowercase hex SHA-256( prev_hash + "\\n" + canon(entry) ) over UTF-8 bytes, where entry = every field of the row except `hash` (prev_hash stays inside the entry; the DB-only `seq` is never part of it).',
       'canon: JSON, object keys sorted ascending by Unicode code point (same as UTF-8 byte order, NOT UTF-16 order: U+1F600 sorts after U+FF5E) at every depth, no whitespace, strings escaped like JS JSON.stringify (so \\u0000-\\u001f as \\u00XX or short form, `"` and `\\` escaped, U+007F, U+2028, U+2029, <, >, & and non-ASCII written raw: Go must disable HTML escaping and keep U+2028/2029 raw), null kept, absent keys omitted, integers without a decimal point.',
       'vectors: entries of one chain are in order; each `prev` equals the previous entry hash (genesis for the first) and also appears inside `entry.prev_hash`.',
       'tampered cases: broken_at is the 1-based index of the first entry whose prev_hash does not equal the previous hash, or whose hash does not match its recomputation; the first entry is only checked against its own hash (it may follow pruned entries).',

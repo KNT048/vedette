@@ -1,6 +1,6 @@
 // Package reports is the reports module (S-REP-1, S-REP-2, modules/reports/CONTRACT.md): the one-page weekly report, sent by
 // email on a schedule through notify, and the personal-data-protection self-assessment under Law 91/2025/QH15 and Decree
-// 356/2025/NĐ-CP. PDF is made by the browser from the print pages (D-55); the server renders no PDF and no HTML.
+// 356/2025/NĐ-CP. PDF is made by the browser from the print pages; the server renders no PDF and no HTML.
 package reports
 
 import (

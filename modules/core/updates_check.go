@@ -31,7 +31,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The check side of the software update (S-CORE-2, D-340, D-341, update-manifest.md §5.3, §6): fetch the signed
+// The check side of the software update (S-CORE-2, update-manifest.md §5.3): fetch the signed
 // index and the offered manifest from the project's GitHub releases, verify them with internal/release, keep the
 // newest verified index (sequence floor, revocations) and the offered manifest in core_setting, and build
 // UpdatesState. Nothing here installs anything: the run side (updates_run.go) takes offered() to the host, which
@@ -41,7 +41,7 @@ import (
 // <base>/index/index.json and a release's manifest at <base>/v<version>/release-manifest.json, each with .minisig.
 const DefaultReleaseBase = "https://github.com/KNT048/vedette/releases/download"
 
-// Error codes of the update check (API_CONVENTIONS 3.3, D-341).
+// Error codes of the update check (API_CONVENTIONS 3.3).
 const (
 	CodeUpdateSourceUnreachable = "update_source_unreachable"
 	CodeUpdateCheckFailed       = "update_check_failed"
@@ -77,14 +77,14 @@ type updCheck struct {
 	next    time.Time   // when the periodic check is due (updates_auto.go); zero until the job first looks; guarded by checkMu
 	wake    func()      // OSConfig.Wake; nil: none
 	wakeMu  sync.Mutex  // guards wakeT alone, so Close never waits for a check in flight
-	wakeT   *time.Timer // the early run of a box that never checked (D-398)
-	failed  atomic.Bool // the latest check of this process failed: the automatic mode installs nothing (D-388)
+	wakeT   *time.Timer // the early run of a box that never checked
+	failed  atomic.Bool // the latest check of this process failed: the automatic mode installs nothing
 
 	contMu sync.Mutex // the cached state/containers and /v1/info (the page polls every second during a run; the host allows 60 a minute)
 	contAt time.Time
 	cont   api.ContainersState
 	contEr error
-	info   api.Info // the system helper's version and commands (the host component, D-316)
+	info   api.Info // the system helper's version and commands (the host component)
 	infoEr error
 
 	warned sync.Map // log lines already written once (key -> struct{})
@@ -108,7 +108,7 @@ func (u *updCheck) init(c OSConfig, now time.Time) error {
 	return nil
 }
 
-// testBaseFile is the one-line file in core_data that points a TEST-CHANNEL box at a local release source (#469, D-382),
+// testBaseFile is the one-line file in core_data that points a TEST-CHANNEL box at a local release source,
 // so that an install of 0.0.1-test.1 can be updated to test.2 from the GUI. It is read only by a build whose own version has
 // a -test. prerelease (the version of `make install-artifacts`; release-manifest and the release preflight refuse that version,
 // so no published release ever has it) and only when it names an http(s) address of this machine or its LAN. Nothing else
@@ -207,7 +207,7 @@ type updateSettings struct {
 	Channel   string    `json:"channel"` // stable | beta
 	Mode      string    `json:"mode"`    // auto | manual
 	LastCheck time.Time `json:"last_check"`
-	// LastCheckError is the latest check's failure, kept across restarts and cleared by the next good check (D-392).
+	// LastCheckError is the latest check's failure, kept across restarts and cleared by the next good check.
 	LastCheckError *checkErrorView `json:"last_check_error,omitempty"`
 }
 
@@ -215,7 +215,7 @@ type updateSettings struct {
 // for it (checkFailure's message, never text received from the network).
 type checkErrorView struct {
 	At      time.Time `json:"at"`
-	Code    string    `json:"code"` // CodeUpdateSourceUnreachable | CodeUpdateCheckFailed ("update_not_published" only in a record of an older version, D-540)
+	Code    string    `json:"code"` // CodeUpdateSourceUnreachable | CodeUpdateCheckFailed ("update_not_published" only in a record of an older version)
 	Message string    `json:"message"`
 }
 
@@ -241,7 +241,7 @@ func updSettingsTx(ctx context.Context, tx *sql.Tx) (updateSettings, error) {
 	return s, nil
 }
 
-// setManual turns the automatic mode off (a rollback does, D-340 (4)); the caller's transaction writes it.
+// setManual turns the automatic mode off (a rollback does); the caller's transaction writes it.
 func (h *OSHandlers) setManual(ctx context.Context, tx *sql.Tx, by string) error {
 	s, err := updSettingsTx(ctx, tx)
 	if err != nil {
@@ -346,8 +346,8 @@ func (h *OSHandlers) acceptable(m *release.Manifest, latest string) string {
 	if h.host != nil && m.CheckInstallMode("appliance") != nil {
 		return "the release is not for appliance installs"
 	}
-	// Without a host this is a container-only install (D-381): the customer pulls the release's images, so it must say
-	// it is built for that (S-CORE-9 G4).
+	// Without a host this is a container-only install: the customer pulls the release's images, so it must say
+	// it is built for that (S-CORE-9).
 	if h.host == nil && m.CheckInstallMode("container") != nil {
 		return "the release is not for container-only installs"
 	}
@@ -446,8 +446,8 @@ func (h *OSHandlers) offered(ctx context.Context) (*verifiedRelease, error) {
 
 // runningRestoresData: the running release's manifest says rollback.safe=false, so a rollback also puts back the
 // database. When the manifest is unknown (never fetched, a dev build, or it does not verify) an appliance assumes it
-// does: the host decides from its own record, and a database put back without the confirmation is the worse mistake
-// (D-342 (8)); without a host there is no rollback at all.
+// does: the host decides from its own record, and a database put back without the confirmation is the worse mistake;
+// without a host there is no rollback at all.
 func (h *OSHandlers) runningRestoresData(ctx context.Context) (bool, error) {
 	r, err := h.releaseNow(ctx)
 	if err != nil {
@@ -527,7 +527,7 @@ func (h *OSHandlers) fetchPair(ctx context.Context, docURL string) (doc, sig []b
 	return doc, sig, nil
 }
 
-// manifestURL is (under the fixed base, never the test source) the only place a release's manifest is accepted from (D-341): the index names it, and it must be
+// manifestURL is (under the fixed base, never the test source) the only place a release's manifest is accepted from: the index names it, and it must be
 // exactly this (case-insensitive, as GitHub owners are), so a signed index cannot send the box to another host.
 func (h *OSHandlers) manifestURL(version string) string {
 	return h.upd.base + "/v" + version + "/release-manifest.json"
@@ -546,7 +546,7 @@ func sourceHost(src, base string) string {
 	return "the update source"
 }
 
-// unreachableReason names, in fixed words, why the source could not be reached (M5-181, D-540). It classifies the error;
+// unreachableReason names, in fixed words, why the source could not be reached. It classifies the error;
 // it never copies text received from the network (INV-34), and leaves out the status number.
 func unreachableReason(err error) string {
 	var src errSource
@@ -655,7 +655,7 @@ func (h *OSHandlers) check(ctx context.Context, c caller) error {
 		code := "error"
 		if ae, ok := apierr.As(cerr); ok {
 			code = ae.Code
-			// Kept for the page and for the automatic mode after a restart (D-392); a cancelled request is not a
+			// Kept for the page and for the automatic mode after a restart; a cancelled request is not a
 			// failure of the source and leaves the record as it was. Not written = the in-memory flag still holds.
 			if err := h.putCheckError(context.WithoutCancel(ctx), c.Email, &checkErrorView{At: h.now().UTC(), Code: ae.Code, Message: ae.Message}); err != nil {
 				h.log.ErrorContext(ctx, "core: the failed update check could not be recorded", "error", err)
@@ -688,7 +688,7 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 	raw, sig, err := h.fetchPair(ctx, h.upd.base+"/index/index.json")
 	var src errSource
 	if errors.As(err, &src) && src.status == http.StatusNotFound && !src.sig && len(st.Index) == 0 {
-		// M5-181, D-540: the source answered 404 for the index itself and this box never stored one, so no release was
+		// The source answered 404 for the index itself and this box never stored one, so no release was
 		// ever published there: nothing is newer than this build, a good check (Home Assistant, Grafana: "you're on the
 		// latest version"), not a 502. Not this (each stays 503 update_source_unreachable, last_check does not move, so
 		// the automatic mode installs nothing): a 404 once an index was stored (a withdrawn source or a proxy must not
@@ -877,9 +877,9 @@ type updateAvailableView struct {
 	Channel     string `json:"channel"`
 	SizeKB      int64  `json:"size_kb"`
 	Note        string `json:"note"`
-	HostVersion string `json:"host_version,omitempty"` // the release's system helper when it is above the running one (D-316)
+	HostVersion string `json:"host_version,omitempty"` // the release's system helper when it is above the running one
 	// Images are the release's images by digest from the verified manifest: a container-only install shows one
-	// cosign verify per image it runs (S-CORE-9 G4).
+	// cosign verify per image it runs (S-CORE-9).
 	Images []releaseImageView `json:"images"`
 }
 
@@ -911,14 +911,14 @@ type updatesStateView struct {
 	Mode         string                `json:"mode"`
 	CheckEnabled bool                  `json:"check_enabled"`
 	LastCheck    *time.Time            `json:"last_check"`       // null until the first check
-	LastCheckErr *checkErrorView       `json:"last_check_error"` // null unless the latest check failed (D-392)
+	LastCheckErr *checkErrorView       `json:"last_check_error"` // null unless the latest check failed
 	Components   []updateComponentView `json:"components"`
 	Available    []updateAvailableView `json:"available"`
 	History      []updateHistoryView   `json:"history"`
 	Advisories   []advisoryView        `json:"advisories"`
 	Run          *updateRunView        `json:"run"`
 	Managed      []managedView         `json:"managed"`
-	// RunningRevoked and StaleSince are D-386: what the stored index says about the running release and itself.
+	// RunningRevoked and StaleSince: what the stored index says about the running release and itself.
 	RunningRevoked *runningRevokedView `json:"running_revoked"`
 	StaleSince     *time.Time          `json:"stale_since"` // expires_at of the stored index once it has passed
 }
@@ -1004,12 +1004,12 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 	}, nil
 }
 
-// warnsRunning: the revocation actions that tell a box running the release, on every page (D-386 (2)).
+// warnsRunning: the revocation actions that tell a box running the release, on every page.
 func warnsRunning(action string) bool {
 	return action == "block_install_and_warn" || action == "rollback_if_possible"
 }
 
-// runningRevokedOf is the revocation in idx that hits the running release (update-manifest §8, D-386 (1)): its version,
+// runningRevokedOf is the revocation in idx that hits the running release (update-manifest §8): its version,
 // or a digest of its manifest when that is known; one with a warning action wins. A key revocation is not one: the box
 // keeps the software and only stops trusting new documents signed by that key.
 func runningRevokedOf(idx *release.Index, running *release.Manifest, version string) *runningRevokedView {
@@ -1039,7 +1039,7 @@ func runningRevokedOf(idx *release.Index, running *release.Manifest, version str
 	return &runningRevokedView{Version: version, Reason: hit.Reason, Since: hit.Since.UTC(), Action: hit.Action}
 }
 
-// staleSince is the stored index's expires_at once now is past it (§4.1, §13 (d), D-386 (3)); nil while it is current
+// staleSince is the stored index's expires_at once now is past it (§13 (d)); nil while it is current
 // or none is stored. It only warns: nothing is blocked by it.
 func staleSince(idx *release.Index, now time.Time) *time.Time {
 	if idx == nil || !idx.Expired(now) {
@@ -1117,7 +1117,7 @@ func (h *OSHandlers) coreContainer(ctx context.Context) (api.ContainerState, boo
 }
 
 // availableOf is the offered release; with the running helper known (helper), host_version names the release's system
-// helper when it is above the running one, and its package counts in the size (the run downloads it, D-316).
+// helper when it is above the running one, and its package counts in the size (the run downloads it).
 func availableOf(v *verifiedRelease, channel string, helper *api.Info) []updateAvailableView {
 	if v == nil {
 		return []updateAvailableView{}

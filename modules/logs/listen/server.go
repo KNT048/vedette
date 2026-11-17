@@ -21,16 +21,16 @@ import (
 	"time"
 )
 
-// Limits are the bounds of the listener (S-LOG-1, SYS-6; measured on the lab box in D-222, ponytail). A zero field takes its default.
+// Limits are the bounds of the listener (S-LOG-1, SYS-6; measured on a lab box, ponytail). A zero field takes its default.
 type Limits struct {
 	MaxLine          int           // bytes of one message kept (8 KiB, the rsyslog default); a longer one is cut and counted
 	MaxFrame         int           // largest datagram, octet count or newline-less line read (64 KiB)
 	MaxConns         int           // TCP connections at once, all sources (1,000)
 	MaxConnsIP       int           // TCP connections at once from one source (256)
-	MaxConnsIPOther  int           // of those, the ones over a protocol the source was not declared with: TCP to a UDP source (8, D-444), so such a source cannot take the share of the others
+	MaxConnsIPOther  int           // of those, the ones over a protocol the source was not declared with: TCP to a UDP source (8), so such a source cannot take the share of the others
 	Idle             time.Duration // a connection that sends nothing for this long is closed (5 min)
 	HandshakeTimeout time.Duration // a TLS connection must finish its handshake within this (10 s): a half-open or silent one cannot hold a slot
-	HandshakeRate    float64       // TLS connections a second one declared sender may start (20): a handshake costs the box CPU (about 0.5 ms with ECDSA, D-436); a connection above it is closed before any handshake and counted in ConnRejected
+	HandshakeRate    float64       // TLS connections a second one declared sender may start (20): a handshake costs the box CPU (about 0.5 ms with ECDSA); a connection above it is closed before any handshake and counted in ConnRejected
 	HandshakeBurst   int           // and the burst of them it may start at once (100): a fleet of devices reconnecting after a restart of the box
 	FrameTimeout     time.Duration // once a frame has started, the rest must arrive within this (30 s): slow-loris
 	Rate             float64       // lines a second one source may send (2,000)
@@ -82,12 +82,12 @@ func (l Limits) withDefaults() Limits {
 }
 
 // Source is a declared sender: the line's source id and the protocol it was declared with ("udp", "tcp" or "tls"; "tls" is served only
-// when Config.TLS is set). The sender is identified by its IP address, also over TLS; a TLS source may also pin a client certificate (D-214, D-435).
+// when Config.TLS is set). The sender is identified by its IP address, also over TLS; a TLS source may also pin a client certificate.
 type Source struct {
 	ID    string
 	Proto string
 	// ClientCertSHA256 (a "tls" source only; 64 lowercase hex characters of the SHA-256 of the DER certificate, "" = none) is the pin of
-	// the sender's client certificate (RFC 5425 4.2.1, D-435): the connection must present exactly that certificate. It is a pin, not a
+	// the sender's client certificate (RFC 5425 4.2.1): the connection must present exactly that certificate. It is a pin, not a
 	// chain check: whoever holds the private key of the pinned certificate is the sender, as with rsyslog's x509/fingerprint.
 	ClientCertSHA256 string
 }
@@ -119,8 +119,8 @@ type Config struct {
 	TLS *tls.Config
 }
 
-// Server owns the sockets. While it runs it keeps a UDP and a TCP socket open, and a TLS one when Config.TLS is set, whatever the sources
-// (D-443): a sender that is not declared is then counted (Stats.UnknownSender) and dropped, instead of meeting a closed port that leaves no
+// Server owns the sockets. While it runs it keeps a UDP and a TCP socket open, and a TLS one when Config.TLS is set, whatever the sources:
+// a sender that is not declared is then counted (Stats.UnknownSender) and dropped, instead of meeting a closed port that leaves no
 // trace. The sources decide only whose messages are kept (lookup, Accepts).
 type Server struct {
 	cfg Config
@@ -225,7 +225,7 @@ func (s *Server) lookup(ip netip.Addr, proto string) (Source, bool) {
 	return src, ok && Accepts(src.Proto, proto)
 }
 
-// Accepts says whether a source declared with protocol declared takes a message that arrived over arrived (D-444): its own protocol, and a
+// Accepts says whether a source declared with protocol declared takes a message that arrived over arrived: its own protocol, and a
 // UDP source also TCP from its address, so one device that sends over both is one source (TCP is no easier to forge than UDP, so nothing
 // gets in that the UDP source would not take anyway). A TCP source takes no UDP (a forged datagram cannot pass as it), and TLS takes only
 // TLS and is taken by nothing else: its certificate and its optional pin are the point of declaring it.
@@ -233,7 +233,7 @@ func Accepts(declared, arrived string) bool {
 	return declared == arrived || (declared == "udp" && arrived == "tcp")
 }
 
-// Run serves until ctx ends: it opens the sockets (D-443), then closes everything and flushes the last batch. A socket
+// Run serves until ctx ends: it opens the sockets, then closes everything and flushes the last batch. A socket
 // that cannot be opened does not end it: Status says why, and the caller retries with SetSources. It returns ctx.Err().
 func (s *Server) Run(ctx context.Context) error {
 	s.mu.Lock()
@@ -260,7 +260,7 @@ func (s *Server) Run(ctx context.Context) error {
 	return ctx.Err()
 }
 
-// applyLocked opens the sockets that are not open (all of them, D-443: UDP, TCP, and TLS when the box has a TLS configuration) and cuts
+// applyLocked opens the sockets that are not open (all of them: UDP, TCP, and TLS when the box has a TLS configuration) and cuts
 // the connections whose sender is no longer a source of their protocol.
 func (s *Server) applyLocked() error {
 	needTLS := s.cfg.TLS != nil
@@ -335,7 +335,7 @@ func (w wrapListener) Accept() (net.Conn, error) {
 	return w.wrap(c), nil
 }
 
-// tlsConfig is Config.TLS plus the request for a client certificate from a sender whose source pins one (D-435): the certificate is
+// tlsConfig is Config.TLS plus the request for a client certificate from a sender whose source pins one: the certificate is
 // asked for only then, so a device with no certificate configured is never offered a request it cannot answer. The pin itself is
 // checked in serveConn, with the connection's source at that moment. Resumption is off for such a connection: the pin is checked on
 // the certificate of this handshake, never on a remembered one.
@@ -535,7 +535,7 @@ type Stats struct {
 	BadFrames       int64 // connections closed for a bad octet count, an oversized frame or a stream that ended inside one
 	SinkLost        int64 // lines in batches the Sink refused
 	HandshakeFailed int64 // TLS connections that did not complete the handshake (not TLS, a bad version, too slow)
-	CertRejected    int64 // TLS connections whose source pins a client certificate and that presented none or another (D-435)
+	CertRejected    int64 // TLS connections whose source pins a client certificate and that presented none or another
 	// Formats counts accepted lines by what their header was: rfc5424, rfc3164, cef, leef, raw.
 	Formats       map[string]int64
 	UnknownSender []UnknownSender // most recent first, at most Limits.UnknownKept

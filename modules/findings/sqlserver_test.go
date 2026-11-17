@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// D-606: NVD names SQL Server releases by year ("sql_server:2014:sp3"); a computer reports a build ("16.0.4135.4", agent-intake's
+// NVD names SQL Server releases by year ("sql_server:2014:sp3"); a computer reports a build ("16.0.4135.4", agent-intake's
 // release row). Another major is not affected, the same major cannot be told (the service pack), a typed release is that release.
 // Only NVD's own sql_server product: sql_server_2016's build ranges are compared as ranges, and other products are not touched.
 func TestSQLServerRelease(t *testing.T) {
@@ -52,7 +52,7 @@ func TestSQLServerRelease(t *testing.T) {
 	if _, ok := sqlServerRelease(c, VersionRange{StartIncl: "2014", EndExcl: "2016"}, false, "16.0.1000.6"); ok {
 		t.Error("a range took the release rule")
 	}
-	// through evalAffected: SQL Server 2022 is outside both CISA entries' NVD lists of the N100 (CVE-2019-1068, CVE-2020-0618)
+	// through evalAffected: SQL Server 2022 is outside both CISA entries' NVD lists on a test box (CVE-2019-1068, CVE-2020-0618)
 	for _, cfg := range []struct{ cpe, start, end string }{
 		{"cpe:2.3:a:microsoft:sql_server:2014:sp2:*:*:*:*:*:*", "", ""},
 		{"cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "13.0.4001.0", "13.0.4259.0"},
@@ -75,7 +75,7 @@ func sqlVerdicts(t *testing.T, vulns []Vuln, ver, source string) map[string]stri
 	t.Helper()
 	sw := Software{ID: "s-sql", Display: "Microsoft SQL Server (64-bit)", Vendor: "Microsoft", Product: "SQL Server", Version: ver,
 		KevKeys: []string{"microsoft|sql server"}, Source: source}
-	have := map[string]bool{} // every pair has a finding already: "not affected" is what would close it (D-530)
+	have := map[string]bool{} // every pair has a finding already: "not affected" is what would close it
 	for _, v := range vulns {
 		have[v.CVE] = true
 	}
@@ -105,13 +105,13 @@ func sqlVerdicts(t *testing.T, vulns []Vuln, ver, source string) map[string]stri
 	return out
 }
 
-// PR #967 review r1 H1: every KEV entry whose NVD list names microsoft:sql_server* (N100, 2026-11-17), against SQL Server rows of
+// PR #967 review r1 H1: every KEV entry whose NVD list names microsoft:sql_server*, against SQL Server rows of
 // every release, at RTM and at an update. NVD lists CVE-2019-1068 for 2016 and 2017 under their own products with build ranges
 // (sql_server_2016, sql_server_2017): those builds are findings by version, never "not affected" from the 2014 release rows
 // (the year rule answers sql_server:2014 alone). 2019 and 2022 are outside both CISA entries; 2014 cannot be told (the build does
 // not say the service pack); a service pack's 13.2.x form is not compared with NVD's 13.0.x ranges. Typed releases: "2016" and
 // "2017" are not "not affected" for CVE-2019-1068 (on main they were, review r1), "2022" is.
-func TestSQLServer_D606_EveryReleaseAgainstNVD(t *testing.T) {
+func TestSQLServer_EveryReleaseAgainstNVD(t *testing.T) {
 	// the aliases are NVD's per-release products by exact name: no sql_server* prefix (Reporting Services, Management Studio)
 	ids := cpeAliases[identity{vendor: "microsoft", product: "sqlserver"}]
 	if len(ids) != 5 || slices.ContainsFunc(ids, func(id identity) bool {
@@ -125,7 +125,7 @@ func TestSQLServer_D606_EveryReleaseAgainstNVD(t *testing.T) {
 		ver, source  string
 		v1068, v0618 string
 	}{
-		{"16.0.1000.6", "agent", "not affected", "not affected"},      // 2022 RTM (N100)
+		{"16.0.1000.6", "agent", "not affected", "not affected"},      // 2022 RTM
 		{"16.0.4135.4", "agent", "not affected", "not affected"},      // 2022 CU14
 		{"15.0.2000.5", "agent", "not affected", "not affected"},      // 2019 RTM
 		{"15.0.4385.2", "agent", "not affected", "not affected"},      // 2019 CU

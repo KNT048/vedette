@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test of lab-vm.sh (D-315) without QEMU, root or network: shellcheck, argument parsing, the one-VM rule, the memory guard and the
+# Test of lab-vm.sh without QEMU, root or network: shellcheck, argument parsing, the one-VM rule, the memory guard and the
 # lan-up refusals (fake sysfs), all with --dry-run or before any change. HOME points at a private temp dir, so nothing touches
 # ~/.cache/vedette-lab. Linux only (lab-vm.sh reads /proc). Run by `make check` when scripts/dev/lab-vm* changes and by
 # `make verify-go-static` (CI), where shellcheck is required.

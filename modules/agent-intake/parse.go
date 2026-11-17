@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// The parsers of the four public operations (INV-7, D-169 (8)). The ogen server has already decoded the JSON envelope; what is parsed
+// The parsers of the four public operations (INV-7). The ogen server has already decoded the JSON envelope; what is parsed
 // here is the content: it is hostile (SYS-6), so every parser is fail-closed (anything that does not fit is dropped or refused, never
 // guessed), bounded, and reads only the allow-listed columns of the allow-listed queries. Unknown outer keys (decorations, epoch,
 // counter, numerics, action, ...) are ignored and never stored.
@@ -35,17 +35,17 @@ var (
 type row map[string]string
 
 // columns is the allow-list: the queries of the schedule and the columns of each that are read. Anything else in a result is never
-// looked at (D-169 (8)).
+// looked at.
 var columns = map[string][]string{
 	"os_version":   {"name", "version", "major", "minor", "patch", "build", "platform", "arch"},
 	"system_info":  {"hostname", "hardware_vendor", "hardware_model"},
 	"interfaces":   {"mac", "address"},
 	"deb_packages": {"name", "version", "arch", "source"},
-	"kernel_info":  {"version"}, // the running kernel release (D-516)
+	"kernel_info":  {"version"}, // the running kernel release
 	"rpm_packages": {"name", "version", "release", "arch", "epoch"},
-	// sql_setup: the key of a SQL Server instance's PatchLevel row the programs query reads with the list (D-606); '' on a program
+	// sql_setup: the key of a SQL Server instance's PatchLevel row the programs query reads with the list; '' on a program
 	"programs":    {"name", "version", "publisher", "install_date", "sql_setup"},
-	"os_revision": {"name", "version", "revision", "arch"}, // Windows's update revision (D-524)
+	"os_revision": {"name", "version", "revision", "arch"}, // Windows's update revision
 	// the listening sockets and their program (INV-22)
 	"listening_ports":         {"port", "protocol", "address", "name"},
 	"listening_ports_windows": {"port", "protocol", "address", "name"},

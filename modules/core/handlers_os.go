@@ -43,10 +43,10 @@ type OSHandlers struct {
 	// installed is OSConfig.Installed (nil: none).
 	installed func()
 	// pkgDir is <core_data>/host-packages: the system helper package a software run downloads for the host
-	// (host.self_update, D-316); empty without a host.
+	// (host.self_update); empty without a host.
 	pkgDir string
 	// termsMarker is <core_data>/first-run-terms.json: the acceptance of the terms by the operator of a first-run restore,
-	// outside the database the restore replaces (D-544, restore_upload.go).
+	// outside the database the restore replaces (restore_upload.go).
 	termsMarker string
 	zone        func(context.Context) (string, error)
 	log         *slog.Logger
@@ -122,7 +122,7 @@ type OSConfig struct {
 	// UpdateRetry is the software update follower's wait between two tries; 0 = followRetry (tests shorten it).
 	UpdateRetry time.Duration
 
-	// Software update check (updates_check.go, D-341). Version is the running release (main.version); ReleaseBase
+	// Software update check (updates_check.go). Version is the running release (main.version); ReleaseBase
 	// is where the signed release documents are downloaded from ("" = DefaultReleaseBase; tests: a local server);
 	// HTTPClient nil = a client with timeouts that follows redirects only to the GitHub hosts of PRIVACY.md flow 6;
 	// Trust nil = release.Embedded.
@@ -131,13 +131,13 @@ type OSConfig struct {
 	HTTPClient  *http.Client
 	Trust       func() (release.Trust, error)
 	// Wake runs the core/software-update job now (core/jobs Scheduler.Wake): a box that never checked checks
-	// firstCheckAfter after its process started, not at the next tick (D-398). nil: no early run (tests).
+	// firstCheckAfter after its process started, not at the next tick. nil: no early run (tests).
 	Wake func()
-	// Setup is the first-run gate of the restore from an uploaded backup (D-518): the setup code and whether setup is done.
+	// Setup is the first-run gate of the restore from an uploaded backup: the setup code and whether setup is done.
 	// Required.
 	Setup *APIHandlers
 	// Installed is called once after an OS update run that succeeded has been audited: the box's packages changed, so its
-	// package list is read again now (wiring: the inventory/box job, D-470) instead of at the next hourly run. nil: nothing.
+	// package list is read again now (wiring: the inventory/box job) instead of at the next hourly run. nil: nothing.
 	Installed func()
 }
 
@@ -282,7 +282,7 @@ const keyPrivacy = "core_privacy"
 type privacySetting struct {
 	// UpdateCheck is the switch of update checks (PRIVACY.md flow 6); nil, an absent row included, means on.
 	UpdateCheck *bool `json:"update_check,omitempty"`
-	// Telemetry is the switch of the anonymous signal (PRIVACY.md flow 2); nil means on. D-82: nothing is sent whatever it says.
+	// Telemetry is the switch of the anonymous signal (PRIVACY.md flow 2); nil means on. Nothing is sent whatever it says.
 	Telemetry *bool `json:"telemetry,omitempty"`
 }
 
@@ -369,7 +369,7 @@ func isNoCheck(err error) bool {
 }
 
 // stateNow reads the host's view and adds what core owns. A box that has never checked answers like stateAfter:
-// core's settings with an empty host part (os null), not 409 no_check_yet (D-407: every open of the page logged it).
+// core's settings with an empty host part (os null), not 409 no_check_yet (every open of the page logged it).
 func (h *OSHandlers) stateNow(ctx context.Context) (osStateView, error) {
 	hs, err := h.hostState(ctx)
 	if isNoCheck(err) {

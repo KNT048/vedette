@@ -37,7 +37,7 @@ type Resolver interface {
 	LookupTXT(ctx context.Context, name string) ([]string, error)
 }
 
-// EgressProber asks the three public "what is my IP" services once each (one round, D-81) and returns the
+// EgressProber asks the three public "what is my IP" services once each (one round) and returns the
 // address that at least two of them agree on, or ErrNoAgreement or ErrServicesDown. The answers are untrusted;
 // the implementation parses them with net/netip. PublicServiceProber is the real one.
 type EgressProber interface {
@@ -51,58 +51,58 @@ type ScanTarget struct {
 	Kind  Kind
 	Value string
 	User  string
-	// Mode is what this scan may do (FULL-1, D-566): Full once the target's testing terms are accepted, else the K-4 scope. Every
+	// Mode is what this scan may do: Full once the target's testing terms are accepted, else the basic scope. Every
 	// scanner seam reads it here, and only here.
 	Mode ScanMode
-	// Domain is set on a deep step of a domain's scan sent to a public address that is not the box's own verified IP (FULL-5 slice 3,
-	// D-571): the domain, the name under it that resolved to the address at the core-side re-check right before the step, and the
+	// Domain is set on a deep step of a domain's scan sent to a public address that is not the box's own verified IP:
+	// the domain, the name under it that resolved to the address at the core-side re-check right before the step, and the
 	// domain's box-bound token from DomainFence. The scanner then runs the job with scope domain_ip and its executor checks the fence
-	// itself (plan 2026-11-14 §5). nil on every other step: an IP target, a domain's by-name checks, or a deep step to the box's own IP.
+	// itself. nil on every other step: an IP target, a domain's by-name checks, or a deep step to the box's own IP.
 	Domain *DomainScope
 	// Proof is, on a domain's scan, the domain target whose record proved it at the gate (the target itself, or a parent of the box
-	// that covers it, D-628) with that target's stored token: the host's re-check of a web page asks that domain's record (ZAP).
+	// that covers it) with that target's stored token: the host's re-check of a web page asks that domain's record (ZAP).
 	Proof *ProofOwner
 }
 
-// ProofOwner is the domain whose record proves a scanned domain, and that domain's stored token. ProofAt (D-632) is set when the
+// ProofOwner is the domain whose record proves a scanned domain, and that domain's stored token. ProofAt is set when the
 // record is the domain's own on a parent name of it (the zone apex): Domain is then the scanned target itself.
 type ProofOwner struct{ Domain, Token, ProofAt string }
 
-// DomainScope is the domain_ip scope of one deep step (D-571, plan 2026-11-14 §5): the job fields {domain, name, ip, token} without the
+// DomainScope is the domain_ip scope of one deep step: the job fields {domain, name, ip, token} without the
 // address and ports, which the seam call carries.
 type DomainScope struct {
 	Domain string // the verified domain (the target's value)
 	Name   string // the domain itself or a name under it that resolved to the address right before the step
-	Token  string // the domain's box-bound token (16 hex, D-591), from DomainFence
-	// ProofAt (D-632) is the parent name of Domain (the zone apex) where Domain's own record sits, which the executors check instead
+	Token  string // the domain's box-bound token (16 hex), from DomainFence
+	// ProofAt is the parent name of Domain (the zone apex) where Domain's own record sits, which the executors check instead
 	// of Domain; "" when the record is on Domain (or on _vedette-verify.<Domain>).
 	ProofAt string
 	// Chain is Name's CNAME chain as core saw it right before the step ("www.acme.example -> acme.edge.example.net"; just the name
-	// without a CNAME; "" when the lookup failed), written in the step's probe-log row (review r1 M4, D-591).
+	// without a CNAME; "" when the lookup failed), written in the step's probe-log row.
 	Chain string
 }
 
-// DomainFence gives the box-bound token of a verified domain (FULL-5 slice 2, Trưởng's host op exposure.token: hex HMAC-SHA256 of the
-// host's fence key over the domain, first 16 characters (D-591), plan 2026-11-14 §5). Core never holds the key. Config.DomainFence nil means
-// this box has no domain fence: no deep step goes to a public address that is not the box's own verified IP (D-571).
+// DomainFence gives the box-bound token of a verified domain (host op exposure.token: hex HMAC-SHA256 of the
+// host's fence key over the domain, first 16 characters). Core never holds the key. Config.DomainFence nil means
+// this box has no domain fence: no deep step goes to a public address that is not the box's own verified IP.
 type DomainFence interface {
 	Token(ctx context.Context, domain string) (string, error)
 }
 
 // HostResolver looks up a name's addresses; *net.Resolver satisfies it. The core-side re-check of a deep step to a domain's address
-// asks it through Config.Resolver (D-571): a Resolver that does not implement it fails closed. Tests pass a fake: no test asks real DNS.
+// asks it through Config.Resolver: a Resolver that does not implement it fails closed. Tests pass a fake: no test asks real DNS.
 type HostResolver interface {
 	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
 }
 
-// Runner does the scan itself. It belongs to the scan module (D-55), which registers it with
+// Runner does the scan itself. It belongs to the scan module, which registers it with
 // Service.SetRunner; exposure only decides whether a scan may happen (INV-1) and keeps the result.
 // What it returns came from other hosts, so the service limits it before storing it (INV-10).
 type Runner interface {
 	Scan(ctx context.Context, t ScanTarget) (Content, error)
 }
 
-// Gateway tells the page which device probably answers the open ports of the box's public IP (S-EXP-1, D-492). cmd/vedette
+// Gateway tells the page which device probably answers the open ports of the box's public IP (S-EXP-1). cmd/vedette
 // implements it from the host's default route, the inventory and the findings; exposure reads no other module's tables.
 type Gateway interface {
 	Gateway(ctx context.Context) (GatewayDevice, error)

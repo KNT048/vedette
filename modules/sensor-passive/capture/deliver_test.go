@@ -147,8 +147,8 @@ func hasVendor(obs []observe.Observation) bool {
 	return false
 }
 
-// One call carries the whole batch. Core names the items it rejects in rejected[]: they are dropped and counted, never sent again
-// (D-112 (3)); the rest was taken. There is no second call for the rest: core already recorded it.
+// One call carries the whole batch. Core names the items it rejects in rejected[]: they are dropped and counted, never sent again;
+// the rest was taken. There is no second call for the rest: core already recorded it.
 func TestDeliverDropsTheRejectedItemsAndTheRestIsTaken(t *testing.T) {
 	t.Parallel()
 	e := newDeliverEnv(t)
@@ -395,7 +395,7 @@ func TestFinalFlushForgetsWhatFails(t *testing.T) {
 	}
 }
 
-// The memory queue is the only queue (D-112 (6)) and it is bounded: when it is full the oldest observations go, and are counted.
+// The memory queue is the only queue and it is bounded: when it is full the oldest observations go, and are counted.
 func TestRequeueIsBoundedAndDropsTheOldest(t *testing.T) {
 	t.Parallel()
 	e, _ := newEngine(engineConfig{})
@@ -523,7 +523,7 @@ func TestNothingButABusyStoreSplitsOrBlames(t *testing.T) {
 		"429":              &sensorlink.Error{Status: 429, Code: sensorlink.CodeRateLimited, RetryAfter: time.Second},
 		"426":              sensorlink.NewError(sensorlink.CodeProtoUnsupported),
 		"cert_retired":     sensorlink.NewError(sensorlink.CodeCertRetired),
-		"503 not_ready":    &sensorlink.Error{Status: 503, Code: sensorlink.CodeNotReady, RetryAfter: 5 * time.Second}, // D-385
+		"503 not_ready":    &sensorlink.Error{Status: 503, Code: sensorlink.CodeNotReady, RetryAfter: 5 * time.Second},
 		"no answer at all": errors.New("connection refused"),
 	} {
 		t.Run(name, func(t *testing.T) {

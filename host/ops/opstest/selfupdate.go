@@ -26,7 +26,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// The fake world of host.self_update (D-316, plan slice 2): the kept package of the running version,
+// The fake world of host.self_update (plan slice 2): the kept package of the running version,
 // core's downloaded file, a manifest with a host part, and the answers of dpkg-query, dpkg-deb,
 // systemctl is-active and the simulated apt install. Slice 2a covers Check and Run up to the park; the
 // applier, the fake systemd-run and the restart markers come with slice 2b.

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// D-484 (W1-3): "I have this" scopes the one device it declared, from a week before the answered entry (the "This week"
+// "I have this" scopes the one device it declared, from a week before the answered entry (the "This week"
 // window, so that week's other entries of the product count). The first "have" sets the date; a later answer never moves
 // it, and while the answer is "not relevant" there is no scope.
 func TestHaveSince_FirstHaveScopesTheDeclaredDevice(t *testing.T) {

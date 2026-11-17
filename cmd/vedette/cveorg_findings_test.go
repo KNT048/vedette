@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 )
 
-// D-556 (review H1, H2, M1, M2, L7 of F6a): a CNA record goes through feeds' conversion and the wiring's source mapping
+// review H1, H2, M1, M2, L7 of F6a: a CNA record goes through feeds' conversion and the wiring's source mapping
 // into findings' matcher, as on the box. CVE.org ranges may raise a match, and close one only when the record is
 // unambiguous: a complete list, sane ranges, no holes, a product without a comparator of its own.
 func TestCVEOrgRecordsThroughTheMatcher(t *testing.T) {
@@ -66,7 +66,7 @@ func TestCVEOrgRecordsThroughTheMatcher(t *testing.T) {
 			got = "closed"
 		case len(all) == 1 && all[0].Basis == findings.BasisVersion:
 			got = "version"
-		case len(all) == 1, len(all) == 0 && len(m.NameOnly) == 1: // D-602: undecided is no finding but "could not be checked" (NameOnly)
+		case len(all) == 1, len(all) == 0 && len(m.NameOnly) == 1: // Undecided is no finding but "could not be checked" (NameOnly)
 			got = "product"
 		}
 		if got != c.want {

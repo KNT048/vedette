@@ -123,7 +123,7 @@ func TestContract_INV3_AskTurnNeverReachesCloudWhenTheRuleComesOnWithAFallbackAs
 	}
 }
 
-// The citation of search_assets counts what Devices and Reports count: the box itself is named apart, never as "1 device" (walk 3).
+// The citation of search_assets counts what Devices and Reports count: the box itself is named apart, never as "1 device".
 func TestInventoryCiteNamesTheBoxApart(t *testing.T) {
 	t.Parallel()
 	box, pc := AssetRow{ID: "a-box", IsBox: true}, AssetRow{ID: "a-1"}
@@ -173,7 +173,7 @@ func TestTakeRememberKeepsWholeSentencesOnly(t *testing.T) {
 	}
 }
 
-// linkDevices and hasWord: a name or an address counts as a whole word, and an item with two devices has no link (D-428).
+// linkDevices and hasWord: a name or an address counts as a whole word, and an item with two devices has no link.
 func TestLinkDevicesNamesWholeWordsAndOneDevice(t *testing.T) {
 	t.Parallel()
 	s := func(v string) *string { return &v }
@@ -205,7 +205,7 @@ func TestLinkDevicesNamesWholeWordsAndOneDevice(t *testing.T) {
 	}
 }
 
-// D-445: each document name is quoted, so a name with a comma still reads as one.
+// Each document name is quoted, so a name with a comma still reads as one.
 func TestDocNamesAreQuoted(t *testing.T) {
 	if got := docNames([]string{"a, b.md", `say "hi".txt`}); got != `"a, b.md", "say \"hi\".txt"` {
 		t.Fatalf("docNames = %s", got)

@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Trap IPs (D-466): one list of profiles replaces the secondary IP and the decoy personalities. Each has a name (its host
+// Trap IPs: one list of profiles replaces the secondary IP and the decoy personalities. Each has a name (its host
 // name), an address, a preset, a vendor for its MAC prefix and its own services; the host lets the address answer only those.
 
 // checkIP applies INV-5 and FORBID-1 to an address the owner typed: IPv4 without leading zeros, inside the network of the
@@ -196,7 +196,7 @@ func (s *Service) lastHits(ctx context.Context) (map[string]string, error) {
 	return out, rows.Err()
 }
 
-// macVendor is the company the IEEE registered the prefix of mac to (D-83), nil when it has none (locally administered).
+// macVendor is the company the IEEE registered the prefix of mac to, nil when it has none (locally administered).
 func macVendor(mac string) *string {
 	hw, err := hex.DecodeString(strings.NewReplacer(":", "", "-", "").Replace(mac)) // not net.ParseMAC: the module imports no net (INV-1)
 	if err != nil || len(hw) != 6 {
@@ -209,7 +209,7 @@ func macVendor(mac string) *string {
 	return ptr(v)
 }
 
-// AddTrapIP is POST /honeypot/trap-ips (INV-5, INV-13, D-466). A new Trap IP is on.
+// AddTrapIP is POST /honeypot/trap-ips (INV-5, INV-13). A new Trap IP is on.
 func (s *Service) AddTrapIP(ctx context.Context, actor string, in TrapIPInput) (TrapIP, error) {
 	w, err := s.load(ctx)
 	if err != nil {

@@ -78,7 +78,7 @@ func (liveUsers) Lookup(context.Context, string) (response.User, bool, error) {
 	return response.User{}, false, nil
 }
 
-// TestLiveResponsePlan asks a real model once (kien's machine only: VEDETTE_LIVE_AI=1, never CI). The key is read from ANTHROPIC_API_KEY,
+// TestLiveResponsePlan asks a real model once (local only: VEDETTE_LIVE_AI=1, never CI). The key is read from ANTHROPIC_API_KEY,
 // held in memory for the call, and never printed or stored. It proves the prompt, the schema, the parser and the checks of response fit
 // a real answer.
 func TestLiveResponsePlan(t *testing.T) {
@@ -148,7 +148,7 @@ func (p *planProvider) Complete(_ context.Context, req provider.Request) (provid
 	return provider.Response{Text: text, Usage: provider.Usage{InputTokens: 10, OutputTokens: 5}, Stop: provider.StopEnd}, nil
 }
 
-// ai 7 (D-312, D-313): the plan prompt lists the box's reads of the connections of the offered actions, and only those; the activity row
+// ai 7: the plan prompt lists the box's reads of the connections of the offered actions, and only those; the activity row
 // of what was sent links the proposals and the requests.
 func TestPlannerListsTheBoxReadsAndRecordsWhatWasSent(t *testing.T) {
 	ctx := t.Context()

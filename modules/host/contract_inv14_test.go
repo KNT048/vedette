@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-// INV-14 (D-87): every operation on core's tree goes through an os.Root handle and a descriptor;
+// INV-14: every operation on core's tree goes through an os.Root handle and a descriptor;
 // the host never names a path inside core's tree. The scanner type-checks host/ops (stdlib
 // go/types, no new dependency) and enforces three rules:
 //
@@ -40,7 +40,7 @@ var (
 		"Mkdir", "Mkdirat", "Mkfifo", "Mknod", "Unlink", "Unlinkat", "Rmdir", "Stat", "Lstat", "Statfs", "Symlink", "Link",
 		"Readlink", "Truncate", "Utimes", "UtimesNano", "Access", "Chdir", "Chroot"}
 	inv14RootRacy = []string{"Chmod", "Chown", "Lchown", "Chtimes"}
-	// ensureCoreData (the bootstrap, D-142) makes core_data only when it is absent, before core has ever run: it
+	// ensureCoreData (the bootstrap) makes core_data only when it is absent, before core has ever run: it
 	// reads no entry of core's tree, and what it makes is closed to everyone but core (0700) and checked by checkChain at the next command.
 	inv14CoreFns = []string{"openCore", "checkChain", "checkCoreAtStart", "NewWithDeps", "ensureCoreData", "fillFor", "coreDataUsable", "renderUnitFor"}
 	inv14PathFns = []string{"openCore", "checkChain", "checkParents"}

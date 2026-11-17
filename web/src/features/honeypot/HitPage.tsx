@@ -19,7 +19,7 @@ export default function HitPage() {
   const { t } = useTranslation('honeypot')
   const { id = '' } = useParams()
   const hit = useHit(id)
-  const respond = useScope('response') !== 'hidden' // D-624 (#819): no Respond link while the response module is hidden
+  const respond = useScope('response') !== 'hidden' // No Respond link while the response module is hidden
   // UI.md §3: the parent above the title, also while the hit loads or fails, so the way back is always there.
   const crumbs = [{ label: t('nav'), to: '/honeypot' }]
   return (

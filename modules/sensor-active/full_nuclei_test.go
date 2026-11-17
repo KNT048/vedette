@@ -10,7 +10,7 @@ import (
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// FULL-4 (D-527): a nuclei job of depth full goes only to a worker whose heartbeat said full, and carries its depth and tick on the
+// A nuclei job of depth full goes only to a worker whose heartbeat said full, and carries its depth and tick on the
 // wire. The Dispatcher is driven directly: nothing reaches a network.
 func TestFullNucleiOnlyToAWorkerThatSaidFull(t *testing.T) {
 	t.Parallel()

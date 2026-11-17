@@ -23,9 +23,9 @@ import (
 type ZaloConfig struct {
 	OAID   string // Official Account ID, 6 to 20 digits
 	UserID string // recipient: the Zalo user_id of a person who followed or messaged the OA
-	// AppID is the Zalo app of the refresh-token flow (D-483); "" for a channel that only has a pasted access token.
+	// AppID is the Zalo app of the refresh-token flow; "" for a channel that only has a pasted access token.
 	AppID string
-	// Token is the channel secret: a ZaloGrant (JSON, the refresh-token flow, D-483), or, saved before it, a plain access token.
+	// Token is the channel secret: a ZaloGrant (JSON, the refresh-token flow), or, saved before it, a plain access token.
 	Token  secrets.Value
 	Client *http.Client // nil = NewHTTPClient()
 	Now    func() time.Time
@@ -61,7 +61,7 @@ const (
 	zaloDefaultLife = 25 * time.Hour
 )
 
-// ZaloGrant is the secret of a Zalo OA channel with the refresh-token flow (D-483), JSON in core/secrets. ID is random per grant the
+// ZaloGrant is the secret of a Zalo OA channel with the refresh-token flow, JSON in core/secrets. ID is random per grant the
 // admin saved; it stays through rotations, so a rotation is written back only while the saved grant is the same one.
 type ZaloGrant struct {
 	ID           string    `json:"id"`
@@ -73,7 +73,7 @@ type ZaloGrant struct {
 }
 
 // NewerZaloGrant returns whichever of two saved Zalo OA secrets is the newer rotation of the same grant (same ID, higher Rotation),
-// else a: the service keeps the last rotation in memory while the saved channel may still have the one before (D-483).
+// else a: the service keeps the last rotation in memory while the saved channel may still have the one before.
 func NewerZaloGrant(a, b string) string {
 	ga, okA := ParseZaloGrant(a)
 	gb, okB := ParseZaloGrant(b)
@@ -88,7 +88,7 @@ func (g ZaloGrant) secret() secrets.Value {
 	return secrets.NewValue(string(b))
 }
 
-// ParseZaloGrant reads a saved Zalo OA secret; ok is false for a plain access token (saved before D-483) or anything else.
+// ParseZaloGrant reads a saved Zalo OA secret; ok is false for a plain access token (saved by an older release) or anything else.
 func ParseZaloGrant(raw string) (ZaloGrant, bool) {
 	var g ZaloGrant
 	if !strings.HasPrefix(strings.TrimSpace(raw), "{") || len(raw) > 3*zaloMaxToken+zaloMaxKey+256 || json.Unmarshal([]byte(raw), &g) != nil || !grantIDRE.MatchString(g.ID) {
@@ -110,7 +110,7 @@ func zaloTokenText(s string, lo, hi int) bool {
 	return true
 }
 
-// ZaloOASecret is the secret to save for a Zalo OA channel (D-483) from what the admin typed and what is saved: an empty field keeps
+// ZaloOASecret is the secret to save for a Zalo OA channel from what the admin typed and what is saved: an empty field keeps
 // the saved value. With a refresh token (typed or saved) the result is a ZaloGrant, with a new id whenever something was typed, so
 // a rotation in flight of the old grant is not written over it; with only an access token it stays a plain token, as before.
 // It returns "" when nothing was typed and nothing changes.
@@ -121,7 +121,7 @@ func ZaloOASecret(saved, secretKey, refresh, access string) (string, error) {
 	}
 	g, isGrant := ParseZaloGrant(saved)
 	if !isGrant && refresh == "" && secretKey == "" {
-		return access, nil // a pasted access token only, as before D-483
+		return access, nil // a pasted access token only, as older releases saved it
 	}
 	if secretKey != "" {
 		g.SecretKey = secretKey
@@ -323,7 +323,7 @@ func (z *zaloSender) post(ctx context.Context, body []byte, tok secrets.Value) (
 	}
 	if *out.Error != 0 {
 		pe := &ProviderError{Channel: Zalo, Code: *out.Error, Reason: reasonFrom([]byte(out.Message), tok)}
-		if *out.Error == -32 { // "the app or the OA called Zalo too often": a rate limit that names no wait (D-483)
+		if *out.Error == -32 { // "the app or the OA called Zalo too often": a rate limit that names no wait
 			return Receipt{}, &RateLimitError{Channel: Zalo, Err: pe}
 		}
 		return Receipt{}, pe

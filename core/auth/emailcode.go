@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
-// Email two-step codes (D-35, INV-8).
+// Email two-step codes (INV-8).
 const (
 	CodeTTL          = 10 * time.Minute
 	MaxCodeTries     = 5
@@ -83,7 +83,7 @@ func (c *EmailCodes) hmacKey(ctx context.Context) ([]byte, error) {
 // A 6-digit code has only a million values, so a plain hash would fall to a table lookup if the database
 // leaked; with the key (which is sealed under the master key, never in the database in the clear) it does not.
 //
-// domain binds the code to what it was issued for: "" for sign-in, "stepup:<purpose>" for VerifyTwoStep (D-98).
+// domain binds the code to what it was issued for: "" for sign-in, "stepup:<purpose>" for VerifyTwoStep.
 // The row of a user holds one code, and a code checked under another domain hashes differently, so a sign-in
 // code never passes step-up and a step-up code never signs anyone in. The code is 6 digits and a domain
 // never is, so the two byte strings cannot collide.

@@ -8,7 +8,7 @@ import { verifyChain as verifyResp } from '@/features/response/logic'
 
 const hexOf = async (s: string) => [...new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map((b) => b.toString(16).padStart(2, '0')).join('')
 
-describe('hash chains (D-57 (14), DATA_MODEL §5.3)', () => {
+describe('hash chains (DATA_MODEL §5.3)', () => {
   it('the committed vector file is the mock output (run `pnpm chain-vectors` after a change)', () => {
     expect(vectorsFile).toEqual(JSON.parse(JSON.stringify(chainVectors())))
   })

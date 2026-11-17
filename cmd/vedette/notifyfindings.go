@@ -53,7 +53,7 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 	info.Title = plainText(info.Product+" is being exploited ("+info.CVE+")", noticeTitleMax)
 	list := "CISA"
 	if kev.Source == findings.SourceVulnCheck {
-		list = "VulnCheck KEV" // its entries are never called CISA's, and VulnCheck asks for its name wherever its data is shown (D-557)
+		list = "VulnCheck KEV" // its entries are never called CISA's, and VulnCheck asks for its name wherever its data is shown
 	}
 	what := list + " lists " + info.CVE + " as exploited in real attacks."
 	if name := plainText(kev.Name, noticeNameMax); name != "" {
@@ -84,7 +84,7 @@ func plainText(s string, limit int) string {
 		switch {
 		case unicode.IsControl(r) || r == utf8.RuneError:
 			return ' '
-		case unicode.Is(unicode.Cf, r): // invisible format characters: bidi overrides (U+202E), zero-width ones (D-552 review LOW-4)
+		case unicode.Is(unicode.Cf, r): // invisible format characters: bidi overrides (U+202E), zero-width ones
 			return -1
 		}
 		return r

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# make install-check (WP-08h, D-166): run install.sh end to end, TEST channel, in a systemd container per target OS (Ubuntu 24.04,
+# make install-check (WP-08h): run install.sh end to end, TEST channel, in a systemd container per target OS (Ubuntu 24.04,
 # Ubuntu 26.04, Debian 13; the pinned images of deploy/deb/check-pins.env and deploy/containers/pins.env) and check the EFFECTS:
 # refusals that change nothing; a fresh install (vedette-host active, socket, core healthy, interface answers, host.conf from getent,
 # a non-clashing container network, chrony sources, no leftover mirror or registry); a second run that changes nothing; --uninstall
 # without --yes that changes nothing; --uninstall --yes that leaves the box as before (users, groups, units, listening ports,
 # ip link, packages, files); a box set up through the API, uninstalled with --keep-data and installed again (core healthy, setup still
-# done, the administrator signs in, an older release refused), then repaired with vedette-host running (W2-9, W2-10, D-418). Needs dist/install from `make install-artifacts` (FAST=1 is enough). ROOTLESS podman only: the
+# done, the administrator signs in, an older release refused), then repaired with vedette-host running. Needs dist/install from `make install-artifacts` (FAST=1 is enough). ROOTLESS podman only: the
 # container is privileged inside the user namespace; the script refuses to run as root. Opt-in, pulls base images and runs apt in
 # them, never in `make check` or CI. Never scans or probes anything outside the containers.
 # What a container cannot show (macvlan decoys on a real wire, netplan, a reboot, a real second NIC) is the on-box plan,
@@ -152,7 +152,7 @@ EOT
 	code=$(sed -n 's/.*setup code:  \([A-Z0-9-]*\).*/\1/p' "$work/install.log" | head -n 1)
 	printf '%s' "$code" | grep -Eq '^[A-HJ-NP-Z2-9]{5}(-[A-HJ-NP-Z2-9]{5}){3}$' || { tail -15 "$work/install.log" >&2; fail "no setup code in the output"; }
 	grep -q 'open:        https://' "$work/install.log" || fail "no address in the output"
-	# the JSON log lines of vedette-host -bootstrap go to the journal, not to the person's terminal (N100)
+	# the JSON log lines of vedette-host -bootstrap go to the journal, not to the person's terminal
 	! grep -n '^{"time"' "$work/install.log" >&2 || fail "the installer output has raw log lines of vedette-host (above); they belong in the journal"
 	# through the syslog socket: the bootstrap's own line, not one of the daemon (stdout of vedette-host.service)
 	x 'journalctl -t vedette-host _TRANSPORT=syslog --no-pager -o cat | grep -q "\"msg\":\"release index stored\""' || fail "the WARN 'release index stored' of the bootstrap is not in the journal (journalctl -t vedette-host _TRANSPORT=syslog)"
@@ -173,17 +173,17 @@ EOT
 	x 'grep -qx "Subnet=172.30.77.0/24" /etc/containers/systemd/vedette-int.network' || fail "vedette-int.network has no subnet"
 	[ "$(x 'podman network inspect vedette-int --format "{{range .Subnets}}{{.Subnet}}{{end}}"')" = 172.30.77.0/24 ] || fail "podman's vedette-int is not on the subnet of the file"
 	ok "vedette-int on 172.30.77.0/24 (no clash on this box); the file and podman agree"
-	x '/usr/sbin/conntrack --version >/dev/null 2>&1' || fail "conntrack does not run at /usr/sbin/conntrack (vedette-host clears stale syslog UDP flows with it, D-268)"
+	x '/usr/sbin/conntrack --version >/dev/null 2>&1' || fail "conntrack does not run at /usr/sbin/conntrack (vedette-host clears stale syslog UDP flows with it)"
 	ok "conntrack runs at /usr/sbin/conntrack"
-	# D-316: the installed .deb is kept under its SemVer name (the self-update's way back) and vedette-host adopted it when it started
+	# The installed .deb is kept under its SemVer name (the self-update's way back) and vedette-host adopted it when it started
 	rel=$(sed -n 's/^VERSION=//p' "$art/test-channel.env")
 	kdir=/var/lib/vedette-host/selfupdate/packages
-	[ "$(x "ls -A $kdir")" = "vedette-host_${rel}_${native}.deb" ] || { x "ls -la $kdir" >&2; fail "D-316: $kdir does not hold exactly vedette-host_${rel}_${native}.deb"; }
-	x "[ \"\$(stat -c '%a %U:%G %F' $kdir/vedette-host_${rel}_${native}.deb $kdir /var/lib/vedette-host/selfupdate | tr '\n' ';')\" = '600 root:root regular file;700 root:root directory;700 root:root directory;' ]" || fail "D-316: the kept package is not 0600 root or its folders are not 0700 root"
+	[ "$(x "ls -A $kdir")" = "vedette-host_${rel}_${native}.deb" ] || { x "ls -la $kdir" >&2; fail "$kdir does not hold exactly vedette-host_${rel}_${native}.deb"; }
+	x "[ \"\$(stat -c '%a %U:%G %F' $kdir/vedette-host_${rel}_${native}.deb $kdir /var/lib/vedette-host/selfupdate | tr '\n' ';')\" = '600 root:root regular file;700 root:root directory;700 root:root directory;' ]" || fail "the kept package is not 0600 root or its folders are not 0700 root"
 	ksum=$(sha256sum "$art/vedette-host_${rel}_${native}.deb" | cut -d' ' -f1)
-	[ "$(x "sha256sum $kdir/vedette-host_${rel}_${native}.deb" | cut -d' ' -f1)" = "$ksum" ] || fail "D-316: the kept package is not the .deb of the release"
-	x "grep -q '$ksum' /var/lib/vedette-host/selfupdate/versions.json" || { x 'cat /var/lib/vedette-host/selfupdate/versions.json' >&2; fail "D-316: vedette-host did not adopt the kept package (its sha256 is not in versions.json)"; }
-	ok "D-316: vedette-host_${rel}_${native}.deb kept (0600 root, folders 0700, the release's sha256) and adopted by vedette-host (versions.json)"
+	[ "$(x "sha256sum $kdir/vedette-host_${rel}_${native}.deb" | cut -d' ' -f1)" = "$ksum" ] || fail "the kept package is not the .deb of the release"
+	x "grep -q '$ksum' /var/lib/vedette-host/selfupdate/versions.json" || { x 'cat /var/lib/vedette-host/selfupdate/versions.json' >&2; fail "vedette-host did not adopt the kept package (its sha256 is not in versions.json)"; }
+	ok "vedette-host_${rel}_${native}.deb kept (0600 root, folders 0700, the release's sha256) and adopted by vedette-host (versions.json)"
 	[ "$(conf_sum)" != none ] || fail "no chrony.conf after the install"
 	if [ -n "$prechrony" ]; then
 		[ "$(conf_sum)" = "$chrony_conf_before" ] || fail "the administrator's chrony.conf was changed (M1)"
@@ -229,11 +229,11 @@ EOT
 	ok "--uninstall without --yes only says what it would do"
 	x 'sh /root/art/install.sh --uninstall --yes' >"$work/un.log" 2>&1 || { tail -40 "$work/un.log" >&2; fail "--uninstall --yes failed"; }
 	snap_files "$work/$n.after"
-	# the folders the package and podman made for vedette-int (N100), named before the whole-box diff below
+	# the folders the package and podman made for vedette-int, named before the whole-box diff below
 	for d in /etc/containers /etc/containers/networks /var/lib/cni /etc/apparmor.d/disable; do
 		b=$(grep -c "^$d " "$work/$n.before" || true)
 		a=$(grep -c "^$d " "$work/$n.after" || true)
-		[ "$b" = "$a" ] || fail "N100: $d is not as before after --uninstall (there before: $b, there after: $a)"
+		[ "$b" = "$a" ] || fail "$d is not as before after --uninstall (there before: $b, there after: $a)"
 	done
 	same "$work/$n.before" "$work/$n.after" "after --uninstall the box is not as before (diff above)"
 	x '! ss -H -ltn | grep -Eq "[:.](8443|8444)\$" && ! getent passwd vedette vedette-sensor >/dev/null && ! getent group vedette vedette-sensor >/dev/null && ! test -e /etc/vedette && ! test -e /var/lib/vedette && ! test -e /etc/containers/systemd/vedette-core.container' || fail "something of Vedette is left"
@@ -243,10 +243,10 @@ EOT
 	pkgnames() { x 'dpkg-query -W -f="\${binary:Package}\n"' | sort; }
 	before_pkgs() { awk '/^## packages/ {f = 1; next} /^## / {f = 0} f {print $1}' "$work/$n.before" | sort; }
 	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install2.log" 2>&1 || { tail -40 "$work/install2.log" >&2; fail "the second fresh install (H2 cycle) failed"; }
-	# the bridge of vedette-int has the fixed name vedette0 on this Podman (PodmanArgs=--interface-name; D-267): by effect, in the kernel
-	x 'ip link show vedette0 >/dev/null 2>&1' || { x 'cat /etc/containers/systemd/vedette-int.network; podman network inspect vedette-int; ip -br link' >&2; fail "D-267: there is no bridge vedette0 (the network file's PodmanArgs=--interface-name=vedette0 did not take effect on this Podman: $(x 'podman --version'))"; }
-	[ "$(x "podman network inspect vedette-int --format '{{.NetworkInterface}}'")" = vedette0 ] || fail "D-267: podman does not report vedette0 as the interface of vedette-int"
-	ok "D-267: the bridge of vedette-int is named vedette0 by $(x 'podman --version') (PodmanArgs=--interface-name; the link exists in the kernel)"
+	# the bridge of vedette-int has the fixed name vedette0 on this Podman (PodmanArgs=--interface-name): by effect, in the kernel
+	x 'ip link show vedette0 >/dev/null 2>&1' || { x 'cat /etc/containers/systemd/vedette-int.network; podman network inspect vedette-int; ip -br link' >&2; fail "there is no bridge vedette0 (the network file's PodmanArgs=--interface-name=vedette0 did not take effect on this Podman: $(x 'podman --version'))"; }
+	[ "$(x "podman network inspect vedette-int --format '{{.NetworkInterface}}'")" = vedette0 ] || fail "podman does not report vedette0 as the interface of vedette-int"
+	ok "the bridge of vedette-int is named vedette0 by $(x 'podman --version') (PodmanArgs=--interface-name; the link exists in the kernel)"
 	# ---- images: --uninstall removes every image of Vedette's (registry names, the localhost/vedette-<service> tags bootstrap makes, the
 	# unnamed leftover of the on-box scan build, found by its label) and nothing else. The storage goes with podman afterwards, so a
 	# podman wrapper records what --uninstall asks it to remove, and the images are looked up by ID in that record.
@@ -260,43 +260,43 @@ EOT
 	   rm -f /root/rmi.log; cd /; rm -rf "$d"' >/dev/null 2>&1 || fail "cannot make the test images of the image case"
 	x 'podman images -a --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep -q "localhost/vedette-core:0.0.1"' || fail "the image case did not make its images"
 	ok "image case: five test images made (a localhost/vedette-core tag, a ghcr.io/knt048/vedette- tag, an unrelated tag, a dangling image with the scan label, a dangling one without)"
-	# ---- D-267, D-396: a Docker-like box (a DOCKER-USER chain and FORWARD DROP): vedette-host puts its rules in, --uninstall takes them out.
+	# ---- a Docker-like box (a DOCKER-USER chain and FORWARD DROP): vedette-host puts its rules in, --uninstall takes them out.
 	# Before the chain, the box gets an uplink bridge br-lan (its port a VLAN or, without the 8021q module, a macvlan on a veth: both have
 	# a lower_* link, as the host looks for) and a bridge br-app holding only a veth (a custom-named Docker network): the first must get its
 	# ACCEPT above the RETURNs, the second none. The bridges are read here the way the host reads them (host/ops/dockerfwd.go boxBridges).
 	if x 'command -v iptables >/dev/null 2>&1'; then
 		fwd_subnet=$(x "sed -n 's/^Subnet=//p' /etc/containers/systemd/vedette-int.network")
 		x 'ip link add br-app type bridge && ip link add vic-app type veth peer name vic-app-p && ip link set vic-app master br-app && ip link add br-lan type bridge && ip link add vic-up type veth peer name vic-up-p' ||
-			fail "D-396: cannot make the test bridges br-app and br-lan in the check container"
+			fail "cannot make the test bridges br-app and br-lan in the check container"
 		if x 'ip link add link vic-up name vic-up.7 type vlan id 7 2>/dev/null && ip link set vic-up.7 master br-lan || { ip link add link vic-up name vic-upm type macvlan mode bridge && ip link set vic-upm master br-lan; }'; then
 			fwd_uplink=1
 		else
 			fwd_uplink=
-			echo "install-check: note [$name] D-396: neither a VLAN nor a macvlan could be made here (8021q and macvlan modules not loaded on this machine): br-lan has no uplink port, so it must get no ACCEPT" >&2
+			echo "install-check: note [$name]: neither a VLAN nor a macvlan could be made here (8021q and macvlan modules not loaded on this machine): br-lan has no uplink port, so it must get no ACCEPT" >&2
 		fi
 		# boxBridges in sh: br- + 1-12 of [A-Za-z0-9_.-], not br- + 12 hex (Docker's), with a port that has device, bonding or a lower_* link
 		# (lstat: -e or -L); sorted bytewise like Go's os.ReadDir
 		# shellcheck disable=SC2016 # the $ expand in the container's sh, not here
 		fwd_box=$(x 'export LC_ALL=C; for d in /sys/class/net/br-*; do b=${d##*/}; printf "%s\n" "$b" | grep -Eqx "br-[A-Za-z0-9_.-]{1,12}" || continue; ! printf "%s\n" "$b" | grep -Eqx "br-[0-9a-f]{12}" || continue; for p in "$d"/brif/*; do p=/sys/class/net/${p##*/}; up=; for f in "$p/device" "$p/bonding" "$p"/lower_*; do if [ -e "$f" ] || [ -L "$f" ]; then up=1; fi; done; if [ -n "$up" ]; then echo "$b"; break; fi; done; done | sort' | tr '\n' ' ')
-		case " $fwd_box" in *" br-app "*) fail "D-396: the bridge reader of this check calls br-app (only a veth) an uplink" ;; esac
+		case " $fwd_box" in *" br-app "*) fail "the bridge reader of this check calls br-app (only a veth) an uplink" ;; esac
 		if [ -n "$fwd_uplink" ]; then
-			case " $fwd_box" in *" br-lan "*) ;; *) fail "D-396: the bridge reader of this check does not see br-lan, which holds a VLAN or macvlan port" ;; esac
+			case " $fwd_box" in *" br-lan "*) ;; *) fail "the bridge reader of this check does not see br-lan, which holds a VLAN or macvlan port" ;; esac
 		fi
 		fwd_want=
 		for b in $fwd_box; do fwd_want="${fwd_want}ACCEPT:$b "; done
 		fwd_want="${fwd_want}RETURN RETURN ACCEPT ACCEPT DROP "
 		# the whole sequence of our lines in -S: a bridge's ACCEPT as ACCEPT:<bridge>, every other line by its target
 		fwd_seq() { x 'iptables -S DOCKER-USER | grep -- "--comment vedette-int" | sed -e "s/.* -o \(br-[^ +]*\) .* -j ACCEPT\$/ACCEPT:\1/" -e "s/.* -j //" | tr "\n" " "'; }
-		x 'iptables -N DOCKER-USER && iptables -P FORWARD DROP' || fail "D-267: cannot make a fake DOCKER-USER chain in the check container (needs NET_ADMIN)"
+		x 'iptables -N DOCKER-USER && iptables -P FORWARD DROP' || fail "cannot make a fake DOCKER-USER chain in the check container (needs NET_ADMIN)"
 		# the host looks every 30 s
-		x "i=0; while [ \$i -lt 40 ]; do iptables -w 5 -C DOCKER-USER -i vedette0 -o docker0 -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -o 'br-+' -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -o vedette0 -d $fwd_subnet -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -m comment --comment vedette-int -j ACCEPT 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -s $fwd_subnet -m comment --comment vedette-int -j ACCEPT 2>/dev/null && iptables -w 5 -C DOCKER-USER ! -i vedette0 -o vedette0 -m comment --comment vedette-int -j DROP 2>/dev/null && exit 0; sleep 2; i=\$((i + 1)); done; exit 1" || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: vedette-host did not put its five fixed rules in DOCKER-USER within 80 s"; }
-		[ "$(fwd_seq)" = "$fwd_want" ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-396: DOCKER-USER holds '$(fwd_seq)', want exactly '$fwd_want'"; }
+		x "i=0; while [ \$i -lt 40 ]; do iptables -w 5 -C DOCKER-USER -i vedette0 -o docker0 -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -o 'br-+' -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -o vedette0 -d $fwd_subnet -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -m comment --comment vedette-int -j ACCEPT 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -s $fwd_subnet -m comment --comment vedette-int -j ACCEPT 2>/dev/null && iptables -w 5 -C DOCKER-USER ! -i vedette0 -o vedette0 -m comment --comment vedette-int -j DROP 2>/dev/null && exit 0; sleep 2; i=\$((i + 1)); done; exit 1" || { x 'iptables -S DOCKER-USER' >&2; fail "vedette-host did not put its five fixed rules in DOCKER-USER within 80 s"; }
+		[ "$(fwd_seq)" = "$fwd_want" ] || { x 'iptables -S DOCKER-USER' >&2; fail "DOCKER-USER holds '$(fwd_seq)', want exactly '$fwd_want'"; }
 		# one more look of the host (30 s): nothing is added, so -C finds the rules as the host writes them
 		sleep 35
-		[ "$(fwd_seq)" = "$fwd_want" ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-396: after another look DOCKER-USER holds '$(fwd_seq)', want exactly '$fwd_want'"; }
+		[ "$(fwd_seq)" = "$fwd_want" ] || { x 'iptables -S DOCKER-USER' >&2; fail "after another look DOCKER-USER holds '$(fwd_seq)', want exactly '$fwd_want'"; }
 		# an unrelated rule of the administrator in the same chain must survive the uninstall
 		x 'iptables -A DOCKER-USER -s 192.0.2.0/24 -j RETURN'
-		ok "D-267, D-396: with a DOCKER-USER chain and FORWARD DROP, vedette-host keeps exactly '${fwd_want% }' for vedette0 and $fwd_subnet (uplink bridges of the box: ${fwd_box:-none})"
+		ok "with a DOCKER-USER chain and FORWARD DROP, vedette-host keeps exactly '${fwd_want% }' for vedette0 and $fwd_subnet (uplink bridges of the box: ${fwd_box:-none})"
 		fwd_checked=1
 	fi
 	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ufw >/tmp/ufw.log 2>&1 || { tail -20 /tmp/ufw.log; exit 1; }' >&2 || fail "cannot install ufw (it depends on iptables, which the installer added)"
@@ -310,9 +310,9 @@ EOT
 	x 'rm -f /usr/local/bin/podman /root/rmi.log /root/img.*'
 	ok "image case: --uninstall removed the localhost/vedette-*, the ghcr.io/knt048/vedette-* and the dangling scan-labelled image, and left the unrelated tag and the dangling image without the label"
 	if [ -n "${fwd_checked:-}" ]; then
-		[ "$(x 'iptables -S DOCKER-USER | grep -c -- "--comment vedette-int"')" = 0 ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: --uninstall left a vedette-int rule in DOCKER-USER"; }
-		x 'iptables -S DOCKER-USER | grep -q -- "-s 192.0.2.0/24 -j RETURN"' || fail "D-267: --uninstall removed a rule that is not Vedette's"
-		ok "D-267, D-396: --uninstall removed every vedette-int rule (the five fixed ones, the DROP among them, and the bridge ACCEPTs) and left the administrator's own rule"
+		[ "$(x 'iptables -S DOCKER-USER | grep -c -- "--comment vedette-int"')" = 0 ] || { x 'iptables -S DOCKER-USER' >&2; fail "--uninstall left a vedette-int rule in DOCKER-USER"; }
+		x 'iptables -S DOCKER-USER | grep -q -- "-s 192.0.2.0/24 -j RETURN"' || fail "--uninstall removed a rule that is not Vedette's"
+		ok "--uninstall removed every vedette-int rule (the five fixed ones, the DROP among them, and the bridge ACCEPTs) and left the administrator's own rule"
 		# the fake Docker and the test bridges go again, so that the checks below see the box as it was (a veth takes its peer and the
 		# VLAN or macvlan on it along)
 		x 'iptables -P FORWARD ACCEPT; iptables -F DOCKER-USER; iptables -X DOCKER-USER; ip link del vic-up; ip link del vic-app; ip link del br-lan; ip link del br-app; true'
@@ -323,22 +323,22 @@ EOT
 	fi
 	x 'dpkg -s ufw >/dev/null 2>&1 && dpkg -s iptables >/dev/null 2>&1' || { tail -20 "$work/un2.log" >&2; fail "H2: the uninstall removed ufw or the iptables it needs"; }
 	x '! dpkg -s vedette-host >/dev/null 2>&1' || fail "H2: the uninstall left vedette-host"
-	# W4-1, D-508: the image case left localhost/other-app in podman, which is not Vedette's: podman, its packages and its storage stay
+	# The image case left localhost/other-app in podman, which is not Vedette's: podman, its packages and its storage stay
 	# and the summary says why (the first uninstall above, with nothing else in podman, proved the purge of podman and its storage)
-	x 'dpkg -s podman >/dev/null 2>&1 && podman image exists localhost/other-app:1' || { tail -20 "$work/un2.log" >&2; fail "W4-1: the uninstall removed podman or the image localhost/other-app that is not Vedette's"; }
-	grep -qF "kept podman, the packages it runs with and /var/lib/containers: 1 image that is not Vedette's uses it (localhost/other-app)" "$work/un2.log" || { tail -20 "$work/un2.log" >&2; fail "W4-1: the uninstall did not say it kept podman for localhost/other-app"; }
-	ok "H2: ufw (needs iptables) was installed after ours; --uninstall kept ufw and iptables, removed vedette-host, and kept podman with the image localhost/other-app (W4-1)"
+	x 'dpkg -s podman >/dev/null 2>&1 && podman image exists localhost/other-app:1' || { tail -20 "$work/un2.log" >&2; fail "the uninstall removed podman or the image localhost/other-app that is not Vedette's"; }
+	grep -qF "kept podman, the packages it runs with and /var/lib/containers: 1 image that is not Vedette's uses it (localhost/other-app)" "$work/un2.log" || { tail -20 "$work/un2.log" >&2; fail "the uninstall did not say it kept podman for localhost/other-app"; }
+	ok "H2: ufw (needs iptables) was installed after ours; --uninstall kept ufw and iptables, removed vedette-host, and kept podman with the image localhost/other-app"
 	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends nftables >/dev/null 2>&1' || fail "cannot install nftables to look at the tables"
 	if [ -n "${fwd_table:-}" ]; then
-		grep -q "left the nft table ip filter" "$work/un2.log" || fail "D-267: the uninstall did not say it left the table of the fake Docker chain"
+		grep -q "left the nft table ip filter" "$work/un2.log" || fail "the uninstall did not say it left the table of the fake Docker chain"
 		x 'nft delete table ip filter' || fail "cannot remove the nft table of the fake Docker chain"
 		fwd_table=
 	fi
 	[ -z "$(x 'nft list tables')" ] || { x 'nft list ruleset' >&2; fail "nft tables were left behind by the uninstall"; }
 	ok "no nft table is left behind by the uninstall (looked at with nft after it)"
 	# put the box back the way it was, by the names that were not there before, then it must equal the first snapshot; the podman the
-	# uninstall kept goes (a lab box holds nothing else, so the reset is safe here; the summary no longer suggests it, D-529), and so do the folders the uninstall
-	# removes when it purges podman itself (install.sh, D-463)
+	# uninstall kept goes (a lab box holds nothing else, so the reset is safe here; the summary no longer suggests it), and so do the folders the uninstall
+	# removes when it purges podman itself (install.sh)
 	x 'podman system reset -f >/dev/null 2>&1' || fail "cannot reset the podman the uninstall kept"
 	# shellcheck disable=SC2046 # package names, one word each
 	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1" || fail "cannot remove the test packages again"
@@ -365,28 +365,28 @@ EOT
 	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install3.log" 2>&1 || { tail -40 "$work/install3.log" >&2; fail "the N1 install failed"; }
 	[ "$(x 'dpkg-query -W -f="\${Version}" vic-lib')" = 2.0 ] || fail "N1: apt did not upgrade vic-lib as a dependency of catatonit, the case does not reproduce an upgrade"
 	x '! grep -qx vic-lib /var/lib/vedette-install/installed-by-us' || fail "N1: an upgraded package is recorded as installed by us"
-	# D-316 (9), same uninstall: vic-dep stands for a Depends that a self-update of vedette-host had apt install (automatic, listed by
+	# same uninstall: vic-dep stands for a Depends that a self-update of vedette-host had apt install (automatic, listed by
 	# the host in its selfupdate/installed-by-us before it installs); vic-orphan is automatic and unneeded too, but on no list (N2)
 	x 'set -e; DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends vic-dep vic-orphan >/dev/null 2>&1
-	   apt-mark auto vic-dep vic-orphan >/dev/null; echo vic-dep >>/var/lib/vedette-host/selfupdate/installed-by-us' || fail "D-316 (9): cannot set up the self-update dependency case"
+	   apt-mark auto vic-dep vic-orphan >/dev/null; echo vic-dep >>/var/lib/vedette-host/selfupdate/installed-by-us' || fail "cannot set up the self-update dependency case"
 	x 'sh /root/art/install.sh --uninstall' >"$work/o3.txt" 2>&1 && fail "--uninstall without --yes removed something"
-	grep -qF '/var/lib/vedette-host/selfupdate/installed-by-us' "$work/o3.txt" || fail "D-316 (9): --uninstall without --yes does not name the host's list"
+	grep -qF '/var/lib/vedette-host/selfupdate/installed-by-us' "$work/o3.txt" || fail "--uninstall without --yes does not name the host's list"
 	x 'sh /root/art/install.sh --uninstall --yes' >"$work/un3.log" 2>&1 || { tail -40 "$work/un3.log" >&2; fail "--uninstall --yes failed in the N1 case"; }
 	x 'dpkg -s vic-lib >/dev/null 2>&1' || fail "N1: the uninstall removed a package that was only upgraded"
 	! x 'dpkg -s catatonit >/dev/null 2>&1' || fail "N1: the uninstall left the package it asked for"
 	ok "N1: vic-lib was upgraded 1.0 -> 2.0 as a dependency of catatonit (ours) and survived the uninstall; catatonit went"
-	! x 'dpkg -s vic-dep >/dev/null 2>&1' || fail "D-316 (9): the uninstall left a package a self-update of vedette-host installed"
-	x 'dpkg -s vic-orphan >/dev/null 2>&1' || fail "D-316 (9): the uninstall removed an automatic package that is on no list of ours"
-	ok "D-316 (9): the dependency on the host's list went with the uninstall; the unlisted automatic package stayed"
+	! x 'dpkg -s vic-dep >/dev/null 2>&1' || fail "the uninstall left a package a self-update of vedette-host installed"
+	x 'dpkg -s vic-orphan >/dev/null 2>&1' || fail "the uninstall removed an automatic package that is on no list of ours"
+	ok "the dependency on the host's list went with the uninstall; the unlisted automatic package stayed"
 	# the box is not compared again after this case (an upgrade is never undone); only the test's own leftovers are removed
 	x 'rm -rf /etc/apt/sources.list.d/vic.list /opt/vicrepo; dpkg --purge vic-lib vic-orphan vic-dep >/dev/null 2>&1; true'
 	# shellcheck disable=SC2046 # package names, one word each
 	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1; true"
 
-	# ---- W2-9, W2-10 (D-418): --uninstall --keep-data, then install again: Vedette comes back with its data and its users -----------
+	# ---- --uninstall --keep-data, then install again: Vedette comes back with its data and its users -----------
 	# A box set up by a person (first-run setup done, an administrator), uninstalled keeping the data, then installed again: core healthy,
 	# setup still complete, the same administrator signs in, the same key and ids. Then the repair path with vedette-host running: core's
-	# unit removed by hand, install.sh run again (it must stop vedette-host for the bootstrap, W2-10).
+	# unit removed by hand, install.sh run again (it must stop vedette-host for the bootstrap).
 	kd_healthy() { # kd_healthy <what>
 		[ "$(x 'podman inspect --format "{{.State.Health.Status}}" vedette-core')" = healthy ] || fail "$1: core is not healthy"
 		x 'curl -ksf --max-time 10 https://127.0.0.1:8443/api/v1/setup | grep -Eq "\"complete\" *: *true"' || fail "$1: first-run setup is not complete any more (the data was not kept)"
@@ -408,40 +408,40 @@ EOT
 	x 'sh /root/art/install.sh --uninstall --yes --keep-data' >"$work/kd-un.log" 2>&1 || { tail -40 "$work/kd-un.log" >&2; fail "--uninstall --yes --keep-data failed"; }
 	x '! test -e /etc/containers/systemd/vedette-core.container && ! dpkg -s vedette-host >/dev/null 2>&1 && ! systemctl is-active -q vedette-host.service' || fail "--uninstall --keep-data left core's unit, the package or a running vedette-host"
 	x 'test -s /var/lib/vedette/vedette.key && test -f /etc/vedette/host.conf && test -f /var/lib/vedette-host/containers/versions-core.json' || fail "--uninstall --keep-data did not keep the key, host.conf or the record of the release that ran"
-	x 'dpkg -s podman >/dev/null 2>&1 && test -d /var/lib/containers/storage' || fail "D-508: --uninstall --keep-data purged podman or its storage"
-	grep -qF -- "/var/lib/containers: --keep-data was given" "$work/kd-un.log" || { tail -20 "$work/kd-un.log" >&2; fail "D-508: --uninstall --keep-data did not say it kept podman"; }
+	x 'dpkg -s podman >/dev/null 2>&1 && test -d /var/lib/containers/storage' || fail "--uninstall --keep-data purged podman or its storage"
+	grep -qF -- "/var/lib/containers: --keep-data was given" "$work/kd-un.log" || { tail -20 "$work/kd-un.log" >&2; fail "--uninstall --keep-data did not say it kept podman"; }
 	ok "--uninstall --keep-data: Vedette is stopped and its units and package are gone; the key, host.conf, the record of the release that ran, podman and its storage are kept"
-	# an older release than the one that ran on the kept data is refused before any change (D-418): the record says 99.0.0 for a moment
+	# an older release than the one that ran on the kept data is refused before any change: the record says 99.0.0 for a moment
 	x 'cp -p /var/lib/vedette-host/containers/versions-core.json /root/kd-versions.bak && sed -i "s/\"current\":{\"service\":\"core\",\"version\":\"[^\"]*\"/\"current\":{\"service\":\"core\",\"version\":\"99.0.0\"/" /var/lib/vedette-host/containers/versions-core.json'
-	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/o.txt" 2>&1 && fail "D-418: an install older than the release that ran on the kept data was accepted"
-	grep -q 'keeps the data of Vedette 99.0.0' "$work/o.txt" || { tail -20 "$work/o.txt" >&2; fail "D-418: no 'keeps the data of Vedette 99.0.0' refusal"; }
-	x '! dpkg -s vedette-host >/dev/null 2>&1 && ! test -e /etc/containers/systemd/vedette-core.container' || fail "D-418: the refused install changed the box"
+	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/o.txt" 2>&1 && fail "an install older than the release that ran on the kept data was accepted"
+	grep -q 'keeps the data of Vedette 99.0.0' "$work/o.txt" || { tail -20 "$work/o.txt" >&2; fail "no 'keeps the data of Vedette 99.0.0' refusal"; }
+	x '! dpkg -s vedette-host >/dev/null 2>&1 && ! test -e /etc/containers/systemd/vedette-core.container' || fail "the refused install changed the box"
 	x 'cp -p /root/kd-versions.bak /var/lib/vedette-host/containers/versions-core.json && rm -f /root/kd-versions.bak'
-	ok "D-418: an install older than the release that last ran on the kept data is refused and changes nothing"
-	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/kd2.log" 2>&1 || { tail -40 "$work/kd2.log" >&2; fail "W2-9: the install after --uninstall --keep-data failed"; }
-	grep -q 'none of its containers: installing release' "$work/kd2.log" || { tail -30 "$work/kd2.log" >&2; fail "W2-9: the install did not see the kept data without containers"; }
-	! grep -q 'already bootstrapped' "$work/kd2.log" || fail "W2-9: the install skipped the bootstrap over the kept data"
-	grep -q 'first-run setup was completed already' "$work/kd2.log" || { tail -15 "$work/kd2.log" >&2; fail "W2-9: the summary does not say setup was done"; }
-	kd_healthy "W2-9, install after --uninstall --keep-data"
-	[ "$(x 'sha256sum /var/lib/vedette/vedette.key')" = "$kkey" ] && [ "$(x 'id vedette; id vedette-sensor')" = "$kids" ] || fail "W2-9: the key or the ids of the users changed"
-	x '! test -e /var/lib/vedette-install/kept-release' || fail "W2-9: the note of the release that ran is still there after the bootstrap"
-	ok "W2-9: install after --uninstall --keep-data: core healthy, setup still complete, the administrator signs in, same key and user ids"
-	# W2-10: the repair path with vedette-host running: core's unit removed by hand, then install.sh again
+	ok "an install older than the release that last ran on the kept data is refused and changes nothing"
+	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/kd2.log" 2>&1 || { tail -40 "$work/kd2.log" >&2; fail "the install after --uninstall --keep-data failed"; }
+	grep -q 'none of its containers: installing release' "$work/kd2.log" || { tail -30 "$work/kd2.log" >&2; fail "the install did not see the kept data without containers"; }
+	! grep -q 'already bootstrapped' "$work/kd2.log" || fail "the install skipped the bootstrap over the kept data"
+	grep -q 'first-run setup was completed already' "$work/kd2.log" || { tail -15 "$work/kd2.log" >&2; fail "the summary does not say setup was done"; }
+	kd_healthy "install after --uninstall --keep-data"
+	[ "$(x 'sha256sum /var/lib/vedette/vedette.key')" = "$kkey" ] && [ "$(x 'id vedette; id vedette-sensor')" = "$kids" ] || fail "the key or the ids of the users changed"
+	x '! test -e /var/lib/vedette-install/kept-release' || fail "the note of the release that ran is still there after the bootstrap"
+	ok "install after --uninstall --keep-data: core healthy, setup still complete, the administrator signs in, same key and user ids"
+	# The repair path with vedette-host running: core's unit removed by hand, then install.sh again
 	# the honeypot Requires= the host: it stops with it for the bootstrap and must be running again afterwards when it was before
 	hp_before=$(x 'systemctl is-active vedette-honeypot.service' || true)
-	x 'systemctl is-active -q vedette-host.service && systemctl stop vedette-core.service && rm -f /etc/containers/systemd/vedette-core.container && systemctl daemon-reload' || fail "W2-10: cannot set up the case (vedette-host not running?)"
-	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/kd3.log" 2>&1 || { tail -40 "$work/kd3.log" >&2; fail "W2-10: the re-run with vedette-host running and core's unit missing failed"; }
-	grep -q 'stopping vedette-host for the bootstrap' "$work/kd3.log" || { tail -30 "$work/kd3.log" >&2; fail "W2-10: the re-run did not stop vedette-host before the bootstrap"; }
-	! grep -q 'daemon_running' "$work/kd3.log" || fail "W2-10: the bootstrap still met a running vedette-host"
-	[ "$(x 'systemctl is-active vedette-host.service')" = active ] || fail "W2-10: vedette-host is not running after the re-run"
-	[ "$hp_before" != active ] || [ "$(x 'systemctl is-active vedette-honeypot.service' || true)" = active ] || fail "W2-10: the honeypot ran before the re-run and does not after it"
-	kd_healthy "W2-10, re-run with vedette-host running"
-	ok "W2-10: the re-run stopped vedette-host for the bootstrap, wrote core's unit again and started both; the data is still there"
+	x 'systemctl is-active -q vedette-host.service && systemctl stop vedette-core.service && rm -f /etc/containers/systemd/vedette-core.container && systemctl daemon-reload' || fail "cannot set up the case (vedette-host not running?)"
+	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/kd3.log" 2>&1 || { tail -40 "$work/kd3.log" >&2; fail "the re-run with vedette-host running and core's unit missing failed"; }
+	grep -q 'stopping vedette-host for the bootstrap' "$work/kd3.log" || { tail -30 "$work/kd3.log" >&2; fail "the re-run did not stop vedette-host before the bootstrap"; }
+	! grep -q 'daemon_running' "$work/kd3.log" || fail "the bootstrap still met a running vedette-host"
+	[ "$(x 'systemctl is-active vedette-host.service')" = active ] || fail "vedette-host is not running after the re-run"
+	[ "$hp_before" != active ] || [ "$(x 'systemctl is-active vedette-honeypot.service' || true)" = active ] || fail "the honeypot ran before the re-run and does not after it"
+	kd_healthy "re-run with vedette-host running"
+	ok "the re-run stopped vedette-host for the bootstrap, wrote core's unit again and started both; the data is still there"
 	x 'rm -f /root/kd-setup.json /root/kd-setup.out /root/kd-login.json'
 	x 'sh /root/art/install.sh --uninstall --yes' >"$work/kd-un2.log" 2>&1 || { tail -40 "$work/kd-un2.log" >&2; fail "--uninstall --yes after the keep-data case failed"; }
 	x '! getent passwd vedette >/dev/null && ! test -e /var/lib/vedette && ! test -e /var/lib/vedette-host && ! test -e /etc/vedette' || fail "--uninstall --yes after the keep-data case left Vedette's users or data"
-	# D-508: the kept podman stayed on the installer's lists, so the full uninstall (nothing else in podman) still purges it
-	x '! dpkg -s podman >/dev/null 2>&1 && ! test -e /var/lib/containers' || fail "D-508: the full --uninstall after the keep-data case left podman or /var/lib/containers"
+	# The kept podman stayed on the installer's lists, so the full uninstall (nothing else in podman) still purges it
+	x '! dpkg -s podman >/dev/null 2>&1 && ! test -e /var/lib/containers' || fail "the full --uninstall after the keep-data case left podman or /var/lib/containers"
 	ok "keep-data case: a full --uninstall --yes afterwards removes the data, the users, podman and its storage"
 
 	"$c" rm -f -t 0 "$ctr" >/dev/null

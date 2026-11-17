@@ -1,7 +1,7 @@
-// Settings -> Privacy on the real backend (S-CORE-4, D-153, PRIVACY.md): the page lists the fourteen flows that leave the box, their state is what
-// GET /core/privacy says (flow 2, the anonymous signal, is shown as "Not sent" whatever the API reports: D-153), the one switch of the page
+// Settings -> Privacy on the real backend (S-CORE-4, PRIVACY.md): the page lists the fourteen flows that leave the box, their state is what
+// GET /core/privacy says (flow 2, the anonymous signal, is shown as "Not sent" whatever the API reports), the one switch of the page
 // (flow 6, the update check) is the API's `update_check` and a change survives a reload, and the signal is not offered as a choice.
-// The backend agrees with PRIVACY.md since D-154: GET reports the signal as off and PATCH refuses `telemetry: true` (400).
+// The backend agrees with PRIVACY.md: GET reports the signal as off and PATCH refuses `telemetry: true` (400).
 import { expect, request, test, type Page } from '@playwright/test'
 import { api, authFile, box } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
@@ -26,7 +26,7 @@ test('the page lists the fourteen flows with the state the API reports, and no c
   for (const f of got.body.flows) {
     const row = table(page).getByRole('row').filter({ has: page.getByRole('cell', { name: new RegExp(`^${f.id}\\. `) }) })
     await expect(row, `flow ${f.id} has one row`).toHaveCount(1)
-    // column 4 is "Now". Flow 2 is never sent (D-82, D-153): the page ignores what the API says for it.
+    // column 4 is "Now". Flow 2 is never sent: the page ignores what the API says for it.
     await expect(row.getByRole('cell').nth(3), `flow ${f.id}`).toHaveText(f.id === 2 ? 'Not sent' : SHOWN[f.state])
   }
   await expect(page.getByText(/Anonymous signal: not sent\./)).toBeVisible()
@@ -73,7 +73,7 @@ test('a viewer and an operator read the page and cannot change it', async () => 
   }
 })
 
-// D-154 (was test.fail under D-171 until the backend fixed both): one test for the GET, one for the PATCH.
+// was test.fail until the backend fixed both: one test for the GET, one for the PATCH.
 test('GET /core/privacy reports the anonymous signal as not sent, like PRIVACY.md flow 2 and the page', async ({ page }) => {
   const got = (await api<Privacy>(page.request, 'GET', '/core/privacy')).body
   expect(got.flows.find((f) => f.id === 2)?.state).toBe('off')

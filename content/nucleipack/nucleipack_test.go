@@ -38,7 +38,7 @@ func keyValues(t *testing.T, path, sep string) map[string]string {
 
 // The committed copy is the one `make scan-pack` writes for the image: the same source (nuclei-templates version and
 // archive sha256) and the same pack version as deploy/containers/pins.env, and an index whose sha256 is its own label.
-// Otherwise core and the image drift and every job is refused as pack_mismatch (D-133 (4)).
+// Otherwise core and the image drift and every job is refused as pack_mismatch.
 func TestTheCommittedIndexIsThePinnedPack(t *testing.T) {
 	t.Parallel()
 	pins := keyValues(t, "../../deploy/containers/pins.env", "=")
@@ -59,8 +59,8 @@ func TestTheCommittedIndexIsThePinnedPack(t *testing.T) {
 	if ix.Version != pins["SCAN_PACK_VERSION"] {
 		t.Errorf("index version %s, pins.env SCAN_PACK_VERSION %s", ix.Version, pins["SCAN_PACK_VERSION"])
 	}
-	// the label of scripts/scanpack: sha256 of the version line, then "path<TAB>sha256" (with "<TAB>own_ip" when marked, D-520), then
-	// "<TAB>" and the sets (D-527) per template sorted by path
+	// the label of scripts/scanpack: sha256 of the version line, then "path<TAB>sha256" (with "<TAB>own_ip" when marked), then
+	// "<TAB>" and the sets per template sorted by path
 	lines := make([]string, 0, len(ix.Templates))
 	for _, tpl := range ix.Templates {
 		mark := ""

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// What the plan job did on its last run (item 20, S-RESP-2, D-513): read-only, so an empty inbox of proposals says why. Every reason is
+// What the plan job did on its last run (item 20, S-RESP-2): read-only, so an empty inbox of proposals says why. Every reason is
 // one of the job's own decision points in PlanOpen and sendPlan; nothing here changes what the job does.
 // ponytail: kept in memory, so a restart shows "not run yet" until the next run (at most planEvery later); a table is the upgrade if
 // people need the history.
@@ -90,7 +90,7 @@ func (s *Service) backoffReason(id string) string {
 	return "The AI's last plan for it failed or was refused; it is asked again after " + f.at.Add(planBackoff[max(f.n, 1)-1]).UTC().Format("2006-01-02 15:04 UTC") + "."
 }
 
-// notSentReason is why the proposals of a stored plan were not sent (D-314).
+// notSentReason is why the proposals of a stored plan were not sent.
 func notSentReason(st Settings) string {
 	if !st.Execution {
 		return "The plan was stored, but the execution switch is off, so the AI sends no request. Turn it on in Response, Settings (high risk), or ask for approval of its actions from the plan."
@@ -149,7 +149,7 @@ func (s *Service) noActionReason(ctx context.Context, t PlanTarget, offered []AI
 	}
 	out := "No action the AI may propose can be used for this device."
 	if lan {
-		out += " The block list publishes public addresses only, and this device is on your network (D-469)."
+		out += " The block list publishes public addresses only, and this device is on your network."
 	}
 	if len(gaps) > 0 {
 		return out + " " + strings.Join(gaps, " ")

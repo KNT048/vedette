@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// G2 (kien, J2): the name a person gives a device in Vedette reaches every module that names devices (findings, notify, the audit
+// The name a person gives a device in Vedette reaches every module that names devices (findings, notify, the audit
 // log, reports, honeypot, sensor-active, the CVE page, response (devices, plan targets, gateways), MCP, the AI (facts, ask, affected
 // devices)), and an empty name gives the default back.
 func TestTheNameInVedetteReachesEveryReader(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
-// D-528 step 2: the KEV set (no tick) takes only templates a person reviewed (reviewed.tsv, id + sha256); rule (a) sorts the queue.
+// The KEV set (no tick) takes only templates a person reviewed (reviewed.tsv, id + sha256); rule (a) sorts the queue.
 
 func getKEV(id, name, req string) string {
 	return "id: " + id + "\n\ninfo:\n  name: " + name + "\n  classification:\n    cve-id: CVE-2024-0001\n  tags: cve,kev\n\nhttp:\n  - raw:\n      - |\n" +
@@ -43,23 +43,23 @@ func TestNoTickRule(t *testing.T) {
 			t.Errorf("%s: left out by the step-1 rule as %q", name, why)
 			continue
 		}
-		// step-2 review r1: nothing that is not in reviewed.tsv runs without the tick; rule (a) only sorts the queue
+		// nothing that is not in reviewed.tsv runs without the tick; rule (a) only sorts the queue
 		if why, d := noTickReason(id, n, "http/cves/2024/x.yaml", sum(c.text), doc, reviewedState); why != c.why {
 			t.Errorf("%s: %q (%s), want %q", name, why, d, c.why)
 		}
 	}
 }
 
-// Review r1 H-2: an own_ip-shaped GET that restores an admin password is not admitted by its shape; only reviewed.tsv admits.
+// An own_ip-shaped GET that restores an admin password is not admitted by its shape; only reviewed.tsv admits.
 func TestOnlyTheReviewedListAdmits(t *testing.T) {
 	t.Parallel()
 	text := getKEV("CVE-2024-0003", "X - Info", "GET /OS/startup/restore/restoreAdmin.php HTTP/1.1\nHost: {{Hostname}}")
 	doc := mustYAML(t, text)
 	if !ownIPSafe("http/cves/2024/x.yaml", doc, []string{"cve", "kev"}, []byte(text)) {
-		t.Fatal("the fixture is meant to pass the D-520 own_ip rule")
+		t.Fatal("the fixture is meant to pass the own_ip rule")
 	}
 	if tp, why := qualify("http/cves/2024/x.yaml", []byte(text)); why == "" && (tp.InKEV() || tp.FullSet() == pack.SetDeep) {
-		t.Fatalf("runs without the tick: %+v", tp) // (in a full category it may run behind the tick: D-527)
+		t.Fatalf("runs without the tick: %+v", tp) // (in a full category it may run behind the tick)
 	}
 	for id, e := range reviewed {
 		if listed, stale := reviewedState(id, e.sha); !listed || stale {
@@ -90,7 +90,7 @@ func TestReviewedListFormat(t *testing.T) {
 // lists the POST nobody reviewed, with its method.
 func TestReviewedNeedsTheSameFile(t *testing.T) {
 	t.Parallel()
-	// review r1 M-4: a reviewed GET whose file changed (a new request line), and a reviewed POST whose new text also fails the
+	// A reviewed GET whose file changed (a new request line), and a reviewed POST whose new text also fails the
 	// step-1 rule (a password change), both stop the build: drift is checked before anything else
 	for name, text := range map[string]string{
 		"a reviewed GET changed":  getKEV("CVE-2018-13379", "Fortinet - Path Traversal", "GET /remote/fgt_lang?lang=/../../../..//////////dev/cmdb/sslvpn_websession HTTP/1.1\nHost: {{Hostname}}\nX-New: 1"),
@@ -105,7 +105,7 @@ func TestReviewedNeedsTheSameFile(t *testing.T) {
 	// a reviewed POST ships; an unreviewed read-only GET waits in the "read first" group, an unreviewed POST in the rest
 	src, out := t.TempDir(), t.TempDir()
 	post := getKEV("CVE-2024-0002", "X - RCE", "POST /a HTTP/1.1\nHost: {{Hostname}}\n\nq=1")
-	// (a folder of no full set, so only the KEV rule decides: D-527's deep set would take the read-only GET)
+	// (a folder of no full set, so only the KEV rule decides: the deep set would take the read-only GET)
 	write(t, src, "http/left/read.yaml", getKEV("CVE-2024-0001", "X - Path Traversal", "GET /a/../../etc/passwd HTTP/1.1\nHost: {{Hostname}}"))
 	write(t, src, "http/left/post.yaml", post)
 	write(t, src, "http/left/post2.yaml", strings.ReplaceAll(post, "CVE-2024-0002", "CVE-2024-0003"))

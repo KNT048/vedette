@@ -1,4 +1,4 @@
-// Types of Settings › Scanning, from the contract (contract.ts, AI-Trưởng's #857, D-627).
+// Types of Settings › Scanning, from the contract (contract.ts, #857).
 import type { z } from 'zod'
 import type * as C from './contract'
 

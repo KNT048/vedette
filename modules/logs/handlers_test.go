@@ -159,7 +159,7 @@ func TestSourcesOverHTTPCarryTheMocksShapeAndCodes(t *testing.T) {
 	if code, b := e.call("POST", "/logs/sources", "admin", goodSource); code != 409 || errCode(b) != "duplicate" {
 		t.Fatalf("duplicate: %d %v", code, b)
 	}
-	// limits that contract.ts states are refused by the generated validator first (D-73)
+	// limits that contract.ts states are refused by the generated validator first
 	if code, b := e.call("POST", "/logs/sources", "admin", `{"kind":"fortigate","name":"bad name","sender_ip":"192.168.10.2","proto":"udp","port":514}`); code != 400 || errCode(b) != "invalid" {
 		t.Fatalf("name pattern: %d %v", code, b)
 	}

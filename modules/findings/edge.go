@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Microsoft Edge Legacy (D-619, customer walk 3 N53-1 and n57). Two different browsers have been called "Microsoft Edge": the EdgeHTML
+// Microsoft Edge Legacy. Two different browsers have been called "Microsoft Edge": the EdgeHTML
 // one built into Windows 10 (version 20 to 44, NVD product microsoft:edge) and the Chromium-based one Microsoft released on
 // 15 January 2020 (version 79 and later, NVD product microsoft:edge_chromium). CISA's "Microsoft | Edge" entries from before that day
 // (CVE-2016-7200, CVE-2016-7201: Chakra, Edge Legacy's script engine) are about the first; NVD lists them as microsoft:edge with no
@@ -22,7 +22,7 @@ import (
 //   - Edge Legacy is not left unpatched beside it (review r1 #1 of #807): Microsoft removed Edge Legacy only with April 2021's update
 //     and only from Windows 10 1803 and later, so an older Windows 10 keeps it next to Chromium Edge. The device runs a system that never
 //     shipped it (Windows Server, Windows 11, another OS: edgeHost.other), or every Windows 10 client release row of it carries a monthly
-//     update of a month after the one NVD published the CVE in (Edge Legacy was fixed by Windows' own cumulative update, D-618's
+//     update of a month after the one NVD published the CVE in (Edge Legacy was fixed by Windows' own cumulative update: the
 //     build month). A Windows 10 client whose month is not known, or a device whose system is not known, keeps the finding.
 // Anything else keeps the finding as before: hiding a real exploited CVE is the worse mistake.
 
@@ -65,7 +65,7 @@ func edgeMajor(v string) (int, bool) {
 	return n, err == nil && n >= 0
 }
 
-// edgeLegacyOnly says whether the CVE is about Edge Legacy only and the row is a Chromium Edge build (D-619). why names the proof for
+// edgeLegacyOnly says whether the CVE is about Edge Legacy only and the row is a Chromium Edge build. why names the proof for
 // the page.
 func edgeLegacyOnly(s Software, in swInfo, v Vuln) (why string, out bool) {
 	if KevKey(v.Vendor, v.Product) != "microsoft|edge" {
@@ -120,7 +120,7 @@ func edgeLegacyOnly(s Software, in swInfo, v Vuln) (why string, out bool) {
 		v.CVE, clean(s.Display), clean(in.ver), after), true
 }
 
-// edgeHost is what the device's own system says about Edge Legacy (D-619): other when it runs one that never shipped it (a Windows
+// edgeHost is what the device's own system says about Edge Legacy: other when it runs one that never shipped it (a Windows
 // Server or Windows 11 release row, or an OS name of Windows 11, Windows Server, macOS, Linux, a phone or Junos, with no Windows 10
 // client); win10 the Windows 10 client release rows with the monthly update each carries (month 0: not known), or one entry of unknown
 // month when only the OS name says Windows 10.

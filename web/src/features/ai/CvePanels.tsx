@@ -33,7 +33,7 @@ function Panels({ id }: { id: string }) {
     <>
       <Section title={t('cve.explainTitle')} description={t('cve.explainDesc')} info={t('cve.explainDescInfo')} stories={['S-AI-3']}
         actions={<Button onClick={() => explain.mutate()} disabled={!gateExplain.canRun} busy={explain.isPending} busyLabel={t('common:busy.asking')} title={gateExplain.reason}>{ex ? t('cve.explainAgain') : t('cve.explain')}</Button>}>
-        {/* kien G1: an AI answer takes 10–90 s; say so while it runs */}
+        {/* An AI answer takes 10–90 s; say so while it runs */}
         <BusyNote busy={explain.isPending}>{t('cve.explainWaiting')}</BusyNote>
         {blocked(gateExplain.state) ? <EmptyState title={t(`gate.${gateExplain.text}`)} info={t(`gate.${gateExplain.text}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gateExplain.text}Body`)} <ToSettings state={gateExplain.text} job="explain-finding" /></EmptyState> : null}
         <ActionError error={explain.error} />

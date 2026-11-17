@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
-// A unit change that adds a host port (D-455). An update in place does not run install.sh, so before it restarts a service on a
+// A unit change that adds a host port. An update in place does not run install.sh, so before it restarts a service on a
 // unit that publishes a port the earlier unit did not, the host looks at who listens there and refuses (412 port_in_use) with the
 // running release untouched. A change that would only take effect at a later restart (the migration at start, a start without
 // restart of a running service) never adds a port. The fake /proc of the machine has a socket table and the process that holds
@@ -49,7 +49,7 @@ func holdPort8765(t *testing.T, m *opstest.Machine, cg string) {
 	}
 }
 
-// legacyCore3 is core's unit as host releases before D-395 wrote it (core-3: no 127.0.0.1:8765).
+// legacyCore3 is core's unit as older host releases wrote it (core-3: no 127.0.0.1:8765).
 func legacyCore3(t *testing.T, m *opstest.Machine, digest string, install bool) string {
 	t.Helper()
 	cfg := m.Config()
@@ -251,7 +251,7 @@ func TestContract_PortInUse_APortTakenDuringTheBackupRefusesTheSwitchBeforeTheUn
 	}
 }
 
-// The unit migration at start (D-316 (10)) never adds a host port (it runs at boot, before other programs bind theirs): core's
+// The unit migration at start never adds a host port (it runs at boot, before other programs bind theirs): core's
 // earlier unit stays, busy port or not, with one unit_migration_deferred line per start; the restart of a container.start moves it.
 func TestContract_PortInUse_TheMigrationAtStartNeverAddsAPort(t *testing.T) {
 	t.Parallel()

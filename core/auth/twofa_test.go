@@ -277,7 +277,7 @@ func TestConfirmTOTPGuessesShareTheAccountsTwoStepLimiter(t *testing.T) {
 	}
 }
 
-// D-389: the sole administrator lost the phone; `vedette reset-admin` on the box console gives a temporary password,
+// The sole administrator lost the phone; `vedette reset-admin` on the box console gives a temporary password,
 // turns two-step sign-in off and ends every session, in one transaction with its audit row.
 func TestConsoleReset(t *testing.T) {
 	t.Parallel()
@@ -324,7 +324,7 @@ func TestConsoleReset(t *testing.T) {
 		t.Fatalf("sign-in with the temporary password: %v", err)
 	}
 	if !res.User.PasswordChangeRequired {
-		t.Fatal("the console password must be replaced at sign-in (D-180)")
+		t.Fatal("the console password must be replaced at sign-in")
 	}
 	if _, err := env.Login(t, admin.Email, ""); err == nil {
 		t.Fatal("the old password still signs in")

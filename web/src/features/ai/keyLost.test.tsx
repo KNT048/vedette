@@ -1,4 +1,4 @@
-// #847 (J7 #812): after a backup restored without its decryption key, the box cannot open a profile's saved API key. The profile is
+// #847 (#812): after a backup restored without its decryption key, the box cannot open a profile's saved API key. The profile is
 // listed with the state and an action to enter the key right there; Test answers secret_lost and opens Edit on the key field; Save with
 // the key blank is refused; the key typed again makes the profile usable.
 import { describe, expect, it } from 'vitest'
@@ -71,7 +71,7 @@ describe('AI profiles after a restore without the decryption key', () => {
   })
 })
 
-// J7 (#875 r1): with every key lost the box reads "not configured", but the profiles (and their tasks) are still there. The AI panels
+// #875: with every key lost the box reads "not configured", but the profiles (and their tasks) are still there. The AI panels
 // send the customer to the lost profile's key, never to "Add AI profile" (a duplicate that leaves the lost one assigned).
 describe('AI panels after a restore without the decryption key', () => {
   const lostProfiles = () => {

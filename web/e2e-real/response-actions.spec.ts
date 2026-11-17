@@ -1,4 +1,4 @@
-// Response actions on the real backend (S-RESP-4, D-93, D-94, D-95, D-97; WP-30 slice 9a): the administrator adds an action of her own for each kind of
+// Response actions on the real backend (S-RESP-4; WP-30 slice 9a): the administrator adds an action of her own for each kind of
 // connection. The form matrix is that of e2e/qa/wp06-response-actions.spec.ts (the steps and the selectors are the same: the GUI is the same). What
 // only a real box shows is new: the connections are real rows (the loopback devices of the box for HTTP, SSH and MCP), the server refuses `{text}` and
 // shell characters whatever the page does, a refused action is not stored, what is saved comes back from GET /response/catalog exactly as typed, the
@@ -11,8 +11,8 @@ import { collectErrors, shot } from '../e2e/helpers'
 import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
-// D-624 (#819): AI response is read-only in the v1 GUI (a box that has it on can only turn it off), and this walk acts on its screens.
-test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
+// AI response is read-only in the v1 GUI (a box that has it on can only turn it off), and this walk acts on its screens.
+test.skip(!POST_V1_IN_UI, 'post-v1 hidden')
 
 const BRANDS = /forti|pfsense|cisco|mikrotik|palo ?alto|juniper|ubiquiti|unifi|aruba|sophos|opnsense|checkpoint|sonicwall|huawei|tp-?link|omada/i
 const EMPTY = { cli: '', method: '', path: '', body: '', headers: '' }
@@ -104,7 +104,7 @@ test('the add-an-action form follows the connection kind, a read-only connection
     expect(await present(dlg.locator('#ca-run-headers')), `${k.value}: headers`).toBe(f.headers)
     expect(await present(dlg.locator('#ca-run-body')), `${k.value}: body`).toBe(f.body)
     expect(await present(dlg.locator('#ca-run-tool')), `${k.value}: tool picker`).toBe(f.tool)
-    expect(await present(dlg.locator('#ca-vf-method, #ca-vf-cli')), `${k.value}: read-back`).toBe(!f.tool) // an MCP tool cannot be read back (D-95)
+    expect(await present(dlg.locator('#ca-vf-method, #ca-vf-cli')), `${k.value}: read-back`).toBe(!f.tool) // an MCP tool cannot be read back
     expect(await present(dlg.locator('#ca-pc-refuse')), `${k.value}: check before`).toBe(!f.tool)
     for (const id of ['cli', 'path', 'headers', 'body']) { const el = dlg.locator(`#ca-run-${id}`); if (await el.count()) await expect(el, `${k.value}: ${id} empty`).toHaveValue('') }
     if (f.method) await expect(dlg.locator('#ca-run-method')).toHaveValue('')
@@ -134,7 +134,7 @@ test('the add-an-action form follows the connection kind, a read-only connection
   await dlg.locator('#ca-run-method').selectOption('POST')
   await dlg.locator('#ca-run-path').fill('/api/jobs/{id}/launch')
   await dlg.locator('#ca-run-body').fill('{"limit":"{text}"}')
-  await dlg.locator('#ca-pc-method').selectOption('GET') // {id} and {name} need a check before (D-95): the form is complete but for {text}
+  await dlg.locator('#ca-pc-method').selectOption('GET') // {id} and {name} need a check before: the form is complete but for {text}
   await dlg.locator('#ca-pc-path').fill('/api/jobs/{id}')
   await dlg.locator('#ca-pc-refuse').fill('locked')
   await dlg.getByRole('button', { name: 'Save' }).click()
@@ -215,7 +215,7 @@ test('an HTTP action with a check before and a read-back is saved as typed, show
   await expect(page.getByText(name).first()).toBeVisible()
   await shot(page, 'real-response-actions', 'http-saved')
 
-  // the server's own rules (D-95, INV-13), whatever the page lets through
+  // the server's own rules (INV-13), whatever the page lets through
   const base = { name: `${tag} api`, description: 'x', connection_id: connId, tool: null, rollback_tool: null, risk: 'medium', enabled: false, ai_may_propose: false,
     run: { ...EMPTY, method: 'POST', path: '/api/e2e/ban', body: '{"ip":"{ip}"}' }, rollback: { ...EMPTY, method: 'POST', path: '/api/e2e/unban', body: '{"ip":"{ip}"}' }, verify: EMPTY }
   const post = (over: object) => api<{ code?: string; message?: string }>(page.request, 'POST', '/response/catalog', { ...base, ...over })

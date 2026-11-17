@@ -19,7 +19,7 @@ import (
 // Scope is what the inventory says about the scan scope (INV-11: scan only reads it, never writes the commitment).
 type Scope struct {
 	Networks    []string // lan_ranges
-	ConfirmedAt string   // ISO time of the commitment (D-26); "" when it is not ticked
+	ConfirmedAt string   // ISO time of the commitment; "" when it is not ticked
 	ConfirmedBy string
 }
 
@@ -27,9 +27,9 @@ type Scope struct {
 type Inventory interface {
 	Scope(ctx context.Context) (Scope, error)
 	Devices(ctx context.Context) ([]Device, error)
-	// VulnScanPolicy is inventory.VulnScanPolicy (D-126): explicit is true for a device a person picked in Scan now.
+	// VulnScanPolicy is inventory.VulnScanPolicy: explicit is true for a device a person picked in Scan now.
 	VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (Decision, error)
-	// VulnScanPolicies is VulnScanPolicy for many devices in one inventory read (D-472). A device that no longer
+	// VulnScanPolicies is VulnScanPolicy for many devices in one inventory read. A device that no longer
 	// exists is absent from the map.
 	VulnScanPolicies(ctx context.Context, assetIDs []string, explicit bool) (map[string]Decision, error)
 }
@@ -40,12 +40,12 @@ type Config struct {
 	Audit     *audit.Log
 	Inventory Inventory
 	Engine    Engine                                   // nil: the scanner is unavailable (INV-2), nothing is ever sent
-	Pack      *pack.Index                              // the safe template pack of the scan image (D-125 (4)); nil: the scanner is unavailable
+	Pack      *pack.Index                              // the safe template pack of the scan image; nil: the scanner is unavailable
 	Findings  Findings                                 // nil: results stay in the run, nothing is confirmed
-	Identify  Identifier                               // nil: Scan now does not identify devices first; each says why (D-501)
+	Identify  Identifier                               // nil: Scan now does not identify devices first; each says why
 	External  External                                 // nil: the list has no external targets
 	Publisher Publisher                                // nil: no events
-	KEV       KEVFeed                                  // nil: no catch-up of missed new_kev (D-144)
+	KEV       KEVFeed                                  // nil: no catch-up of missed new_kev
 	Location  func(ctx context.Context) *time.Location // the organization's time zone, the one the window and the schedule are read in (review H1); nil: UTC; a nil result: unknown, nothing automated starts
 	Log       *slog.Logger
 	Clock     func() time.Time // nil: time.Now
@@ -59,7 +59,7 @@ type Service struct {
 	mu   sync.Mutex
 	live *live // the run this process executes; one at a time (INV-3)
 	// dev is the device whose vulnerability check is running now (nil between devices): DeviceChanged stops that part alone when
-	// the device may no longer be scanned (D-601: its network scan turned off).
+	// the device may no longer be scanned (its network scan turned off).
 	dev *devRun
 
 	// busy counts Engine.Run calls that have not returned. After Stop now the run may show stopped before the worker
@@ -117,7 +117,7 @@ type ConfigView struct {
 	BlockReason     *string   `json:"block_reason"`
 	DangerousChecks bool      `json:"dangerous_checks"` // always false (INV-4)
 	// ScheduleBlockedReason is set while the schedule is on but nothing automated can start because the organization
-	// zone cannot be read; NextRun is nil then (D-261 (3)).
+	// zone cannot be read; NextRun is nil then.
 	ScheduleBlockedReason *string `json:"schedule_blocked_reason"`
 	// Version is the shared safety block's (INV-16, inventory INV-32): a PUT that sends it back is refused with 409 safety_changed
 	// when the block changed since (review #860 M1). "" without SharedChecks.
@@ -161,7 +161,7 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 		}
 	}
 	if loc, ok := s.loc(ctx); ok { // the zone unknown: no next run is shown, as none would start
-		first, err := firstPending(ctx, s.cfg.DB.Reader()) // the rule RunSchedule uses (W3-9)
+		first, err := firstPending(ctx, s.cfg.DB.Reader()) // the rule RunSchedule uses
 		if err != nil {
 			return ConfigView{}, err
 		}

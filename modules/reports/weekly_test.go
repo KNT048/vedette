@@ -67,7 +67,7 @@ func TestWeeklyActionsOrderAndCap(t *testing.T) {
 	if r.Actions[2].Count != 1 || r.Actions[3].Count != 2 { // one unapproved device; two end-of-life systems
 		t.Fatalf("action counts = %+v", r.Actions)
 	}
-	// W1-24: 20 findings of one product on two devices are one risk and one action, not 20 rows (D-485)
+	// 20 findings of one product on two devices are one risk and one action, not 20 rows
 	in := sampleInput()
 	for i := 0; i < 20; i++ {
 		in.findings = append(in.findings, Finding{ID: fmt.Sprintf("x%02d", i), AssetID: []string{"a1", "a3"}[i%2], CVE: fmt.Sprintf("CVE-2026-1%02d", i), Status: "suspected", Severity: "critical", FirstSeen: day0(3)})
@@ -141,7 +141,7 @@ func TestWeeklyEmptyBoxHasEmptyListsNotNull(t *testing.T) {
 	}
 }
 
-// D-485 review: a product's risk keeps the worst severity of its open findings even when the one a scan confirmed is milder;
+// A product's risk keeps the worst severity of its open findings even when the one a scan confirmed is milder;
 // the finding it names is the confirmed one. Closed rows say who closed them.
 func TestWeeklyTopRiskKeepsTheWorstSeverityAndClosedRowsSayWho(t *testing.T) {
 	t.Parallel()
@@ -172,7 +172,7 @@ func TestWeeklyTopRiskKeepsTheWorstSeverityAndClosedRowsSayWho(t *testing.T) {
 	}
 }
 
-// D-498: a risk accepted this week is not "resolved" (it comes back by itself); it is counted apart with its earliest end.
+// A risk accepted this week is not "resolved" (it comes back by itself); it is counted apart with its earliest end.
 func TestWeeklyAcceptedRiskIsNotResolved(t *testing.T) {
 	t.Parallel()
 	in := sampleInput()
@@ -185,7 +185,7 @@ func TestWeeklyAcceptedRiskIsNotResolved(t *testing.T) {
 	}
 }
 
-// Opus r2 LOW-3 of D-498: "Risk accepted: N" counts the same findings as the report's other rows: a hand-added product
+// "Risk accepted: N" counts the same findings as the report's other rows: a hand-added product
 // with no device is listed and counted like any device (its flag only changes wording), and a finding stamped after the
 // report's time is in neither.
 func TestWeeklyAcceptedCountsWhatTheRowsShow(t *testing.T) {
@@ -211,7 +211,7 @@ func TestWeeklyAcceptedCountsWhatTheRowsShow(t *testing.T) {
 	}
 }
 
-// D-548 (deferred from #800): an open finding the device's agent detected says so in the weekly and PDPL tables, not "Suspected".
+// deferred from #800: an open finding the device's agent detected says so in the weekly and PDPL tables, not "Suspected".
 func TestWeeklyOpenRowSaysTheAgentDetectedIt(t *testing.T) {
 	t.Parallel()
 	in := sampleInput()

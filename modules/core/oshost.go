@@ -17,8 +17,8 @@ import (
 )
 
 // Host is what core needs of vedette-host (docs/specs/host-api.md). *client.Client implements it; tests run the
-// real client against an in-process host. A nil Host is an install without the helper ("container only",
-// D-55): every OS endpoint then answers 409 not_appliance.
+// real client against an in-process host. A nil Host is an install without the helper ("container only"):
+// every OS endpoint then answers 409 not_appliance.
 type Host interface {
 	StateOS(ctx context.Context) (api.OSState, error)
 	OSCheck(ctx context.Context, requestID, actor string) (api.Run, error)
@@ -38,7 +38,7 @@ type Host interface {
 	ContainerPull(ctx context.Context, args api.ContainerPullArgs, requestID, actor string) (api.Run, error)
 	ContainerStart(ctx context.Context, args api.ContainerStartArgs, requestID, actor string) (api.Run, error)
 	ContainerRollback(ctx context.Context, args api.ContainerRollbackArgs, requestID, actor string) (api.Run, error)
-	// The system helper's own update, the first step of a software run (S-CORE-2 criterion D-316, host-api 6.14).
+	// The system helper's own update, the first step of a software run (S-CORE-2, host-api 6.14).
 	Info(ctx context.Context) (api.Info, error)
 	SelfUpdate(ctx context.Context, args api.HostSelfUpdateArgs, requestID, actor string) (api.Run, error)
 }
@@ -165,10 +165,10 @@ func mapHostCode(ctx context.Context, log *slog.Logger, code, hostMsg string, re
 	case api.CodeCurrentVersionUnknown:
 		return apierr.New(409, CodeCurrentVersionUnknown, "The box has no record of which version it runs, so it cannot switch versions yet. See the RUNBOOK (first version record).")
 	case api.CodeTransitionPending:
-		// Also every write after a system helper update that stopped half way (D-316 (e)): the host keeps its journal
+		// Also every write after a system helper update that stopped half way: the host keeps its journal
 		// and refuses until the operator follows the RUNBOOK.
 		return apierr.New(409, CodeTransitionPending, "An earlier version change on the box has not been completed yet. Wait a few minutes; if it stays, see the RUNBOOK (update journal, or \"vedette-host self-update stopped half way\").")
-	case api.CodeBackupUnknown: // restore (S-CORE-1, D-377)
+	case api.CodeBackupUnknown: // restore (S-CORE-1)
 		return apierr.New(404, api.CodeBackupUnknown, "This backup is no longer on the box. Reload the list.")
 	case api.CodeChecksumMismatch:
 		return apierr.New(502, api.CodeChecksumMismatch, "The backup file on the box is damaged: it no longer matches its checksum. Choose another backup.")
@@ -181,7 +181,7 @@ func mapHostCode(ctx context.Context, log *slog.Logger, code, hostMsg string, re
 	case api.CodeShuttingDown:
 		return apierr.New(503, CodeHostUnreachable, "The operating system helper is restarting. Try again in a minute.")
 	}
-	if e := mapNetCode(code); e != nil { // the network commands (S-CORE-8, D-99, D-100)
+	if e := mapNetCode(code); e != nil { // the network commands (S-CORE-8)
 		return e
 	}
 	log.ErrorContext(ctx, "vedette-host refused or failed a call", "code", code, "message", hostMsg)
@@ -226,7 +226,7 @@ func waitRun(ctx context.Context, log *slog.Logger, h runWaiter, run api.Run, li
 }
 
 // waitRunTo is waitRun that may also stop at awaiting_confirm (a net.apply that changed the management address
-// waits there for net.confirm, D-100): the run is then returned as it is, with no error.
+// waits there for net.confirm): the run is then returned as it is, with no error.
 func waitRunTo(ctx context.Context, log *slog.Logger, h runWaiter, run api.Run, limit time.Duration, stopAtAwaiting bool) (api.Run, error) {
 	done := func(r api.Run) bool {
 		return r.Status.Terminal() || (stopAtAwaiting && r.Status == api.StatusAwaitingConfirm)

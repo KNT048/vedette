@@ -30,7 +30,7 @@ export function useTestProfile() {
   // a failed test of a saved profile is its last test too (S-AI-1): refresh the list either way
   return useMutation({ mutationFn: (b: TestInput) => api.post<TestResult>('/ai/profiles/test', b), onSettled: done, gcTime: 0 })
 }
-/** The box asks the provider which models it offers (D-475). gcTime 0: the variables hold the API key. */
+/** The box asks the provider which models it offers. gcTime 0: the variables hold the API key. */
 export const useListModels = () => useMutation({ mutationFn: (b: ModelsInput) => api.post<ModelsResult>('/ai/profiles/models', b), gcTime: 0 })
 export const useAssignments = () => useQuery({ queryKey: ['ai', 'assignments'], queryFn: () => api.get<Assignments>('/ai/assignments') })
 export function useSaveAssignments() {

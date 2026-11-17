@@ -11,7 +11,7 @@ import (
 	"unicode/utf8"
 )
 
-// MaxLine is the longest line of device text that is ever kept (D-94 (5)).
+// MaxLine is the longest line of device text that is ever kept.
 const MaxLine = 200
 
 // minSecret is the shortest secret that is looked for: a shorter string would match ordinary text.

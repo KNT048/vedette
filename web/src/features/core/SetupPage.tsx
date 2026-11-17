@@ -25,8 +25,8 @@ import type { BundleId, SetupPayload } from './types'
 import { SetupRestore } from './SetupRestore'
 import { TermsText } from './TermsText'
 
-// D-462: no alert channel step. Alert channels need credentials the admin often lacks at install time: Settings → Alert channels, and Home reminds until one is on.
-// D-544: the terms of use come first, before anything is typed, as UniFi OS, Synology DSM and the pfSense installer do; the
+// No alert channel step. Alert channels need credentials the admin often lacks at install time: Settings → Alert channels, and Home reminds until one is on.
+// The terms of use come first, before anything is typed, as UniFi OS, Synology DSM and the pfSense installer do; the
 // restore from a backup is offered on the Account step, so it is reached only after the tick too.
 const STEPS = ['terms', 'account', 'network', 'modules'] as const
 type Step = (typeof STEPS)[number]
@@ -52,15 +52,15 @@ export default function SetupPage() {
   const status = useSetupStatus()
   const submit = useSubmitSetup()
   const setupModules = useSetupModules().data
-  const install = setupModules?.install // D-381: the setup code hint names the log of this install
-  const boxLan = setupModules?.lan ?? null // D-405: the box's own network, offered as the first range
+  const install = setupModules?.install // The setup code hint names the log of this install
+  const boxLan = setupModules?.lan ?? null // The box's own network, offered as the first range
   const [step, setStep] = useState<Step>('terms')
   const [s, setS] = useState<State>(INIT)
   useEffect(() => { if (boxLan) setS((x) => (x.lan.length === 1 && !x.lan[0]?.trim() ? { ...x, lan: [boxLan] } : x)) }, [boxLan])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [finished, setFinished] = useState(false)
-  const [restoring, setRestoring] = useState(false) // D-518: restore from a backup instead of a new organization
+  const [restoring, setRestoring] = useState(false) // Restore from a backup instead of a new organization
   const heading = useRef<HTMLHeadingElement>(null)
   const idx = STEPS.indexOf(step)
   const stepInfo = t(`setup.${step}.descInfo`, { defaultValue: '' })
@@ -135,9 +135,9 @@ export default function SetupPage() {
       setFinished(false)
       // A wrong setup code belongs on the first step, next to its field.
       if (err instanceof ApiError && err.code === 'invalid_setup_code') { setErrors({ code: errMsg(err, t) }); setStep('account'); return }
-      // The terms the box says were not accepted belong on their step, next to the tick (D-544).
+      // The terms the box says were not accepted belong on their step, next to the tick.
       if (err instanceof ApiError && err.code === 'terms_not_accepted') { setErrors({ terms: errMsg(err, t) }); set({ terms: false }); setStep('terms'); return }
-      // So does a password the box refuses (D-389: too easy to guess), next to the password field.
+      // So does a password the box refuses (too easy to guess), next to the password field.
       if (err instanceof ApiError && err.code === 'weak_password') { setErrors({ password: errMsg(err, t) }); setStep('account'); return }
       // Ranges the box refuses belong on the Network step, under the list.
       if (err instanceof ApiError && LAN_ERRORS.has(err.code)) { setErrors({ lanAll: errMsg(err, t) }); setStep('network'); return }
@@ -271,7 +271,7 @@ export default function SetupPage() {
                 <Checkbox id="s-commit" checked={s.commitment} onCheckedChange={(v) => set({ commitment: v === true })} className="mt-0.5" />
                 <label htmlFor="s-commit" className="text-sm">{t('setup.network.commitment')}</label>
               </div>
-              <div className="flex items-center gap-1">{/* D-501 */}
+              <div className="flex items-center gap-1">
                 <p className="text-meta text-muted">{t(s.commitment ? 'setup.network.firstPass' : 'setup.network.passiveOnly')}</p>
                 <InfoTip topic={t('setup.network.scanTopic')}>{t(s.commitment ? 'setup.network.firstPassInfo' : 'setup.network.passiveOnlyInfo')}</InfoTip>
               </div>
@@ -285,7 +285,7 @@ export default function SetupPage() {
         {formError ? <Notice tone="danger" role="alert" className="mb-0 mt-4" title={formError} /> : null}
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-          {/* W2-8: the first step has nowhere to go back to, so it has no Back (the span keeps Continue on the right). */}
+          {/* The first step has nowhere to go back to, so it has no Back (the span keeps Continue on the right). */}
           {idx === 0 ? <span /> : <Button onClick={() => { setErrors({}); setStep(STEPS[idx - 1] ?? step) }} disabled={finished}>{t('setup.back')}</Button>}
           {/* Different keys: Continue and Finish are separate buttons. A click that is the 2nd or 3rd of a double/triple click
               (detail > 1, counted by the browser whichever button is under the pointer) never submits, so a double-click on
@@ -293,7 +293,7 @@ export default function SetupPage() {
           {step === 'modules'
             ? <Button key="finish" type="submit" variant="primary" busy={finished} busyLabel={t('setup.finishing')} onClick={noRepeat}>{t('setup.finish')}</Button>
             : <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-                {/* D-544: Continue waits for the tick, and says so next to it. */}
+                {/* Continue waits for the tick, and says so next to it. */}
                 {step === 'terms' && !s.terms ? <p id="s-terms-why" className="text-meta text-muted">{t('setup.terms.needTick')}</p> : null}
                 {/* busy-guard: Continue only moves to the next step; Finish (busy) is the step that calls the server */}
                 <Button key="next" type="submit" variant="primary" onClick={noRepeat} disabled={step === 'terms' && !s.terms} aria-describedby={step === 'terms' && !s.terms ? 's-terms-why' : undefined}>{t('setup.next')}</Button>
@@ -311,8 +311,8 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
   const name = (id: ModuleId) => t(`modules.${id}.name`, { ns: 'common' })
   if (q.isPending) return <Loading />
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-  const all = q.data.modules.filter((m) => !notOffered(m.id)) // D-624 (#819), D-417: not offered in this build
-  // D-381: a bundle leaves out what this install cannot run (the honeypot on a container-only install), as the box does.
+  const all = q.data.modules.filter((m) => !notOffered(m.id)) // #819: not offered in this build
+  // A bundle leaves out what this install cannot run (the honeypot on a container-only install), as the box does.
   const here = (id: ModuleId) => all.find((m) => m.id === id)?.available !== false
   const bundle = (b: Exclude<BundleId, 'custom'>) => BUNDLES[b].filter(here)
   const notHere = all.filter((m) => !m.available).map((m) => m.id)

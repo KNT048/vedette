@@ -1,7 +1,6 @@
-// Package nmapargv builds and checks the only eleven nmap command lines Vedette ever runs (D-84 (7), D-113, D-501, D-511, D-514,
-// D-526, D-592).
-// It is a leaf: standard library only (plus core/localnet and core/egressip for which addresses are local or public, D-461,
-// D-514, and modules/scan/commonports for the external shape's ports, all standard library only), no database and
+// Package nmapargv builds and checks the only eleven nmap command lines Vedette ever runs.
+// It is a leaf: standard library only (plus core/localnet and core/egressip for which addresses are local or public,
+// and modules/scan/commonports for the external shape's ports, all standard library only), no database and
 // no core/exec, because the sensor binary links it and
 // both sides (core before it hands a job over, the worker before it starts nmap) use the same code (SYS-2).
 package nmapargv
@@ -20,41 +19,41 @@ import (
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
-// Kind says which of the eleven nmap command lines is built (D-84 (7), D-501, D-511, D-514, D-526, D-592).
+// Kind says which of the eleven nmap command lines is built.
 type Kind int
 
 // The eleven kinds, one per command shape.
 const (
 	Sweep    Kind = iota // host discovery: -sn
 	Normal               // service and OS identification
-	Gentle               // the one gentle scan of a fragile device (D-45)
-	Versions             // service identification without OS detection: a person's pick of a device of unknown kind (D-501)
-	// GentleTitles is the gentle scan of a device whose kind is unknown and that nobody made fragile (D-511, lead decision on #714):
+	Gentle               // the one gentle scan of a fragile device
+	Versions             // service identification without OS detection: a person's pick of a device of unknown kind
+	// GentleTitles is the gentle scan of a device whose kind is unknown and that nobody made fragile (lead decision on #714):
 	// the gentle command line plus http-title and ssl-cert on the web and TLS ports it finds open (one GET of / and one TLS
 	// handshake per port), each script capped by --script-timeout. A fragile device keeps Gentle exactly.
 	GentleTitles
-	// External is service identification on the box's own verified public IP for exposure (D-514, exposure INV-19): -sV over the
+	// External is service identification on the box's own verified public IP for exposure (exposure INV-19): -sV over the
 	// fixed TCP list of the surface scan (commonports), at ExternalRate, with no -O and no --script (only what -sV runs itself). It
 	// is the only shape whose target is public, and it takes exactly one; every other shape takes local addresses only. Whether
 	// the address is the box's own is not grammar: core checks it before it hands the job out, the worker again before nmap.
 	External
 	// ExternalFull is the deep scan of the box's own verified public IP once an administrator accepted the target's testing terms
-	// (FULL-4, D-526, exposure FULL-1): every TCP port (-p-), -sV, and nmap's "default", "safe" and "vuln" scripts without the
+	// (exposure FULL-1): every TCP port (-p-), -sV, and nmap's "default", "safe" and "vuln" scripts without the
 	// "dos", "brute", "external" and "broadcast" ones (FullScripts), at FullRate, bounded by FullHostTimeout. Same target rule
 	// and the same two own-IP fences as External.
 	ExternalFull
 	// ExternalDisruptive is ExternalFull with the "dos" and "brute" scripts too (DisruptiveScripts): only with the terms' extra
 	// tick, off by default.
 	ExternalDisruptive
-	// AllPorts is the weekly scan of every TCP port of one LAN device that is not fragile (D-592, review r1 H2): port discovery only
+	// AllPorts is the weekly scan of every TCP port of one LAN device that is not fragile: port discovery only
 	// (-sS -p-, no -sV, no script, no -O), at most AllPortsMaxRate packets a second, --max-retries 1, bounded by AllPortsHostTimeout.
 	// The open ports it finds that the normal scan does not cover get one PortVersions run. Local targets only, like every LAN shape.
 	AllPorts
-	// Extra follows every normal or versions scan of a LAN device (D-592): -sS -sV and the four scripts over ExtraPorts (the surface
+	// Extra follows every normal or versions scan of a LAN device: -sS -sV and the four scripts over ExtraPorts (the surface
 	// list and the reviewed admin ports, ports.go), at the same rate, so a service moved off its usual port is identified too. The
 	// device's result is the two runs together.
 	Extra
-	// PortVersions is the follow-up of an AllPorts run (D-592, review r1 H2): -sS -sV and the four scripts on 1..MaxPortVersions
+	// PortVersions is the follow-up of an AllPorts run: -sS -sV and the four scripts on 1..MaxPortVersions
 	// ports the weekly run found open that the normal scan does not cover, at the normal LAN rate. It is the only shape whose -p
 	// list varies: the job carries the ports (sensor protocol, nmap jobs, "ports").
 	PortVersions
@@ -63,11 +62,11 @@ const (
 // kinds is every Kind, in the order Validate and KindOf try them.
 var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External, ExternalFull, ExternalDisruptive, AllPorts, Extra}
 
-// MaxPortVersions is the most ports one PortVersions run reads (D-592): -sV and the scripts time themselves (--max-rate does not
+// MaxPortVersions is the most ports one PortVersions run reads: -sV and the scripts time themselves (--max-rate does not
 // bound them), so the weekly follow-up stays as small as a normal scan of a device with a few services.
 const MaxPortVersions = 20
 
-// The weekly scan of every port of a LAN device (D-592). 65535 SYNs, half-open (-sS: no connection is completed); a port that
+// The weekly scan of every port of a LAN device. 65535 SYNs, half-open (-sS: no connection is completed); a port that
 // answers (open, or closed with an RST: the usual case on a LAN host) costs one probe, a port a host firewall drops costs two
 // (--max-retries 1), so at AllPortsMaxRate one run sends at most 131,070 probes: 11 minutes when the device answers, at most 22
 // when it drops everything. No -sV and no script (review r1 H2: those time themselves and open full connections; a device that
@@ -100,7 +99,7 @@ var ExternalPorts = func() string {
 	return strings.Join(ss, ",")
 }()
 
-// The host discovery probes of the sweep (D-523). nmap's own -sn default for an address outside the box's segment is an ICMP
+// The host discovery probes of the sweep. nmap's own -sn default for an address outside the box's segment is an ICMP
 // echo, a SYN to 443, an ACK to 80 and an ICMP timestamp request (https://nmap.org/book/man-host-discovery.html); a Windows PC
 // with its firewall on drops all four. The Nmap book's strategy chapter asks for a diverse set and ranks 80, 443, 21, 23, 22 and
 // 3389 among the SYN ports most likely to answer (https://nmap.org/book/host-discovery-strategies.html); 135, 139 and 445 are
@@ -116,7 +115,7 @@ const (
 // address another round, so it is the least an address that never answers costs.
 var SweepProbes = 2 + strings.Count(sweepSYNPorts, ",") + 1 + strings.Count(sweepACKPorts, ",") + 1
 
-// lanMaxRetries caps the retransmissions of a normal or versions scan's port probes (D-523): nmap's default allows ten, -T4 six
+// lanMaxRetries caps the retransmissions of a normal or versions scan's port probes: nmap's default allows ten, -T4 six
 // (https://nmap.org/book/man-performance.html); a LAN loses few packets, and a lossy Wi-Fi client stops stretching a run.
 const lanMaxRetries = "3"
 
@@ -124,7 +123,7 @@ const lanMaxRetries = "3"
 // wait for the nmap slot and the own-IP checks.
 const externalHostTimeout = "3m"
 
-// The two full shapes (FULL-4, D-526), tuned from nmap's reference guide:
+// The two full shapes, tuned from nmap's reference guide:
 // https://nmap.org/book/man-performance.html (--max-rate "only affect[s] port scans and host discovery"; version detection and
 // scripts time themselves; "A host that times out is skipped. No port table, OS detection, or version detection results are
 // printed for that host"; the default allows ten retransmissions, -T5 two), https://nmap.org/book/man-nse.html and
@@ -138,7 +137,7 @@ const externalHostTimeout = "3m"
 // 33 minutes for the port scan alone. Then -sV on the open ports (at most commonports.MaxBelievableOpen are believed) and the
 // scripts, which nmap runs in parallel, each capped by fullScriptTimeout. FullHostTimeout leaves room for both: an address nmap
 // gives up on prints no port table at all (ErrHostTimedOut in sensor-active), so the bound is generous rather than tight.
-// What the N100 must measure (D-526): the wall time of a full run on kien's own IP (port scan, -sV and scripts apart: the probe
+// What a test box must measure: the wall time of a full run on its own public IP (port scan, -sV and scripts apart: the probe
 // row's start and end, nmap's own <finished elapsed>), whether the router stays usable during it, and how many scripts printed.
 const (
 	// FullRate is the fixed --max-rate of the full shapes (packets a second): three times ExternalRate, so the worst case of the
@@ -176,7 +175,7 @@ var DisruptiveScripts = func() string {
 // ExternalFull, ExternalDisruptive): the own-IP fences apply to all three.
 func (k Kind) IsExternal() bool { return k == External || k.IsFull() }
 
-// IsFull reports whether the shape is one of the two deep scans of an accepted target (D-526).
+// IsFull reports whether the shape is one of the two deep scans of an accepted target.
 func (k Kind) IsFull() bool { return k == ExternalFull || k == ExternalDisruptive }
 
 // ExternalRateOf is the one rate an external shape runs at: FullRate for the full shapes, ExternalRate for External.
@@ -188,17 +187,17 @@ func ExternalRateOf(k Kind) int {
 }
 
 // IsGentle reports whether the shape is one of the gentle scans (Gentle, GentleTitles): rate 1, top 100 ports, no -sV or -O, so it
-// never says anything about software and only adds ports (D-45, D-350 (5)).
+// never says anything about software and only adds ports.
 func (k Kind) IsGentle() bool { return k == Gentle || k == GentleTitles }
 
-// MaxBatch is the most addresses one nmap run gets, so its XML stays small (D-84 (7)).
+// MaxBatch is the most addresses one nmap run gets, so its XML stays small.
 const MaxBatch = 64
 
 // MaxOutput caps what one nmap run may print; more means the run is discarded (INV-7).
 const MaxOutput = 8 << 20
 
 const (
-	flagPrivileged    = "--privileged" // use raw sockets granted by CAP_NET_RAW instead of checking for uid 0 (D-84 (8))
+	flagPrivileged    = "--privileged" // use raw sockets granted by CAP_NET_RAW instead of checking for uid 0
 	flagNoDNS         = "-n"           // never resolve names: no packet may reach a resolver outside the scope (INV-1)
 	flagMaxRate       = "--max-rate"   // limits port scanning and host discovery only; OS and version detection time themselves
 	flagTopPorts      = "--top-ports"
@@ -210,33 +209,33 @@ const (
 	flagScript        = "--script"
 	flagScriptTimeout = "--script-timeout"
 	// flagVersionAll (--version-intensity 9) makes -sV try every probe of nmap-service-probes on a port no earlier probe matched
-	// (M2-7, J6): only the two full shapes have it. nmap stops at a port's first hard match, so a service a probe named costs what
+	// (in the full shapes): only the two full shapes have it. nmap stops at a port's first hard match, so a service a probe named costs what
 	// it did; a port with no match, or with only a soft match (a bare "http" of an unrecognised web app: service_scan.cc nextProbe
 	// skips other probes only below intensity 9), gets every remaining probe: 104 TCP probes in all instead of 30 (nmap-service-probes
 	// of nmap 7.95/master), 534 s of totalwaitms instead of 156 s for a port that holds every probe open without answering. nmap
 	// reads 20 ports at once at the default timing (desired_par), so the worst case (40 such ports, commonports.MaxBelievableOpen)
 	// is about 18 minutes of -sV, which with the port scan (at most 11) and the scripts (each at most fullScriptTimeout, in
 	// parallel) stays inside FullHostTimeout. A typical deep scan gets longer by its soft-matched ports: compare sa_probe's p50/p95
-	// of external_full on the N100 before and after (as D-523 did). The External shape keeps the default: its host timeout is 3
+	// of external_full on a test box before and after. The External shape keeps the default: its host timeout is 3
 	// minutes. https://nmap.org/book/man-version-detection.html, https://nmap.org/book/vscan-technique.html
 	flagVersionAll = "--version-all"
 )
 
-// Scripts is the exact NSE script list of the normal and versions shapes. D-504: two scripts that send an NTLM NEGOTIATE (type 1)
+// Scripts is the exact NSE script list of the normal and versions shapes. Two scripts that send an NTLM NEGOTIATE (type 1)
 // with no credentials and read the CHALLENGE (type 2) the device answers with: its own Windows version and build, and its names.
 // Neither ever sends an AUTHENTICATE (type 3), so nothing logs in. rdp-ntlm-info runs only on an open RDP port, http-ntlm-info only
 // on an open HTTP port, with a GET of "/" (nmap's http library follows a few redirects, only on the same host, port and scheme,
-// never with credentials). D-511: http-title (the same GET of "/", read for its <title>) and ssl-cert (one TLS handshake on a port
+// never with credentials). http-title (the same GET of "/", read for its <title>) and ssl-cert (one TLS handshake on a port
 // -sV found TLS on, read for the certificate's subject), both in nmap's "default, safe" categories: what the device states about
 // itself (a FortiGate's certificate names its model, J-Web's title the switch). A fixed list, never a category or a wildcard;
 // smb-os-discovery is left out because it opens an anonymous, then a guest, SMB session (a logon attempt).
 const Scripts = "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert"
 
-// TitleScripts is the exact NSE script list of the GentleTitles shape (D-511): the page title and the certificate subject, both in
+// TitleScripts is the exact NSE script list of the GentleTitles shape: the page title and the certificate subject, both in
 // nmap's "default, safe" categories, read only from ports their portrules match (web and TLS ports).
 const TitleScripts = "http-title,ssl-cert"
 
-// titleScriptTimeout caps each script of GentleTitles, so a device that answers slowly cannot stretch the gentle scan (D-511).
+// titleScriptTimeout caps each script of GentleTitles, so a device that answers slowly cannot stretch the gentle scan.
 const titleScriptTimeout = "20s"
 
 // StatsEvery is how often nmap writes its progress into the XML (--stats-every, #830): the phase it is in, how far, and its own
@@ -247,7 +246,7 @@ const StatsEvery = "5s"
 // (INV-9: the row shows what was run).
 func StatsFlags() []string { return []string{flagStats, StatsEvery} }
 
-// Host time limits (D-84 (7)): a gentle scan is slow by design, a normal one has -sV and -O to finish.
+// Host time limits: a gentle scan is slow by design, a normal one has -sV and -O to finish.
 const (
 	gentleHostTimeout = "15m"
 	normalHostTimeout = "30m"
@@ -286,12 +285,12 @@ func (k Kind) Name() string {
 // varies, is FlagsFor's). The external shape takes
 // only ExternalRate, the full ones only FullRate (any other rate is an error, so a job can never carry a faster one).
 // -sV makes nmap run the scripts of its "version" category, -O has its own timing; the only other scripts are the fixed
-// Scripts list of the normal and versions shapes (D-504) and the two fixed category expressions of the full shapes, which
-// only ever name the box's own public IP after its testing terms were accepted (D-526); no other category, no -A, no -sC and no
+// Scripts list of the normal and versions shapes and the two fixed category expressions of the full shapes, which
+// only ever name the box's own public IP after its testing terms were accepted; no other category, no -A, no -sC and no
 // --script-args exists (FORBID-3, FORBID-6). The gentle
 // shape has neither -sV, -O nor a script: on a fragile device even the version scripts are too much (PLC protocol probes). The
 // versions shape is the normal one without -O: OS detection sends malformed probes that are the riskiest part for an OT stack,
-// and a device of unknown kind may be one (D-501). D-523 tuned the shapes to nmap's own guidance: the sweep's discovery probes
+// and a device of unknown kind may be one. The shapes are tuned to nmap's own guidance: the sweep's discovery probes
 // (SweepProbes) and --max-retries 3 on normal and versions. No
 // shape names --allports (version detection then also probes TCP 9100, where some printers print whatever they are sent,
 // https://nmap.org/book/man-version-detection.html).
@@ -334,7 +333,7 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		if kind == ExternalDisruptive {
 			scripts = DisruptiveScripts
 		}
-		// The reviewed explicit script lists of scripts.go, never a category expression (FORBID-3, D-526); one argv element, never through a shell.
+		// The reviewed explicit script lists of scripts.go, never a category expression (FORBID-3); one argv element, never through a shell.
 		return []string{flagPrivileged, "-sS", "-sV", flagVersionAll, "-Pn", flagNoDNS, "-p-", flagScript, scripts, flagScriptTimeout, fullScriptTimeout,
 			flagMaxRate, r, flagMaxRetries, fullRetries, flagHostTimeout, fullHostTimeout}, nil
 	}
@@ -356,12 +355,12 @@ func atoi(s string) (int, bool) {
 }
 
 // validTarget: a LAN range can only hold local IPv4 addresses (RFC 1918 or the RFC 6598 shared space 100.64/10,
-// localnet.Addr, D-461), so nothing else may ever be named, whatever the caller says (0/8, 127/8, 169.254/16, the
+// localnet.Addr), so nothing else may ever be named, whatever the caller says (0/8, 127/8, 169.254/16, the
 // rest of 100/8, multicast, reserved and broadcast are all outside 10/8, 172.16/12, 192.168/16 and 100.64/10).
 func validTarget(a netip.Addr) bool { return a.IsValid() && a.Zone() == "" && localnet.Addr(a) }
 
 // validExternal: the external shape names one public IPv4 address (egressip.IsPublicIPv4: not private, CGNAT, loopback,
-// link-local, documentation, multicast or reserved), written as plain IPv4 (D-514).
+// link-local, documentation, multicast or reserved), written as plain IPv4.
 func validExternal(a netip.Addr) bool { return a.Is4() && a.Zone() == "" && egressip.IsPublicIPv4(a) }
 
 // targetRule checks the targets of a kind: one public address for the external shapes, 1..MaxBatch local ones for the others.
@@ -553,7 +552,7 @@ func KindOf(shape string) (Kind, bool) {
 
 // Parse is the inverse of Build: it takes a whole argv that Validate accepts and returns the kind, the rate and the
 // targets it was built from (the rate of a gentle line is its fixed 1). It lets the dispatcher turn the argv core
-// has already checked into a job that carries no argv (D-111 (3)).
+// has already checked into a job that carries no argv.
 func Parse(args []string) (Kind, int, []netip.Addr, error) {
 	k, rate, _, targets, err := ParseFor(args)
 	return k, rate, targets, err

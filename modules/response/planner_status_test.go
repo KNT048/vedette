@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// Item 20 (S-RESP-2, D-513): GET /response/plans carries what the plan job did on its last run and, per finding, why nothing was
+// Item 20 (S-RESP-2): GET /response/plans carries what the plan job did on its last run and, per finding, why nothing was
 // proposed, so an empty inbox is explained. The reasons are the job's own decision points; the status is read-only and in memory.
 
 func (e *env) planner() response.PlannerStatus {
@@ -123,7 +123,7 @@ func TestPlannerStatusAFailedAICallBacksOff(t *testing.T) {
 func TestPlannerStatusNamesWhyNoActionWasOffered(t *testing.T) {
 	t.Parallel()
 	e, fp, targets := aiPlanEnv(t)
-	// A device on the LAN: the block list never publishes its address (D-469), and no device action is ready.
+	// A device on the LAN: the block list never publishes its address, and no device action is ready.
 	for i := range *targets {
 		(*targets)[i].AssetIP = "192.168.1.20"
 	}

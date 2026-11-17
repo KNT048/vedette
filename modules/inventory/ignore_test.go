@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-630 (kien 2026-11-17: "some devices need no watching, a staff phone"): Ignore keeps a device known but unwatched. The N100's
+// Some devices need no watching (a staff phone): Ignore keeps a device known but unwatched. A test box's
 // "iPhone" at 192.168.18.129 with its private MAC.
 const phoneMAC = "c2:31:86:3f:8c:a0"
 
@@ -35,7 +35,7 @@ func ids(l inventory.DeviceList) []string {
 	return out
 }
 
-func TestContract_D630_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
+func TestContract_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.confirmScope("192.168.18.0/24")
@@ -156,7 +156,7 @@ func TestContract_D630_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
 }
 
 // An approved device a person ignores (from its page) and then stops ignoring goes through review again; the box cannot be ignored.
-func TestContract_D630_UndoSendsAnApprovedDeviceBackToReview(t *testing.T) {
+func TestContract_UndoSendsAnApprovedDeviceBackToReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.record(obs(netip.MustParseAddr("192.168.18.20"), macA, observe.Hostname, "laptop-ha", observe.Passive, 0.7))
@@ -185,7 +185,7 @@ func TestContract_D630_UndoSendsAnApprovedDeviceBackToReview(t *testing.T) {
 }
 
 // An osquery enrolment never approves a device a person ignored: a person's choice wins, as a suspicious mark does (INV-25).
-func TestContract_D630_AnOsqueryEnrolmentDoesNotApproveAnIgnoredDevice(t *testing.T) {
+func TestContract_AnOsqueryEnrolmentDoesNotApproveAnIgnoredDevice(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ip := netip.MustParseAddr("192.168.18.30")
@@ -204,7 +204,7 @@ func TestContract_D630_AnOsqueryEnrolmentDoesNotApproveAnIgnoredDevice(t *testin
 
 // Review r1 M1, L4 of #945: Ignore keeps what people set on the device: an admin's scan and SNMP choice and the unknown mark. While it
 // is ignored the policies and the API read both sources as off; once watched again the admin's off holds (no scan queued).
-func TestContract_D630_IgnoreKeepsTheSourcesAndTheMark(t *testing.T) {
+func TestContract_IgnoreKeepsTheSourcesAndTheMark(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.confirmScope("192.168.18.0/24")
@@ -248,7 +248,7 @@ func TestContract_D630_IgnoreKeepsTheSourcesAndTheMark(t *testing.T) {
 // Review r1 M3 of #945: a join never changes whether the kept device is watched. Merging an ignored row into a watched device keeps
 // it watched, says so in the audit row and publishes unignored so the findings that move reopen; the other way round it stays ignored
 // and publishes ignored so they close.
-func TestContract_D630_AJoinKeepsTheWatchStateOfTheKeptDevice(t *testing.T) {
+func TestContract_AJoinKeepsTheWatchStateOfTheKeptDevice(t *testing.T) {
 	t.Parallel()
 	const admin = "admin@acme.example"
 	for _, c := range []struct {
@@ -311,7 +311,7 @@ func TestContract_D630_AJoinKeepsTheWatchStateOfTheKeptDevice(t *testing.T) {
 // at the agent's address, and agentOrphan joins the agent's row into the hand-added one. The hand-added row stays (its id and origin),
 // is watched again, and keeps the enrolment's approval: not a watched device in To review whose approval nobody gives again. The
 // merge audit row says so; no inventory.asset.approved goes out (no person approved it).
-func TestContract_D630_AnEnrolmentsApprovalSurvivesAJoinIntoADeclaredRow(t *testing.T) {
+func TestContract_AnEnrolmentsApprovalSurvivesAJoinIntoADeclaredRow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	const who = "it@acme.example"

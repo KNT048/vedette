@@ -13,13 +13,13 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// Approvals by Zalo personal reply codes, the receive half (slice 4b, D-243; docs/specs/approval-tokens.md 7, 7.1). EXPERIMENTAL: the
+// Approvals by Zalo personal reply codes, the receive half (slice 4b; docs/specs/approval-tokens.md 7, 7.1). EXPERIMENTAL: the
 // message connection of the Zalo web client is reverse-engineered and not yet checked against a real account. The job "zalo-listen"
 // opens it OUT over the channel's session (no inbound port, FORBID-4) while the module is on, the Zalo personal channel is configured,
 // enabled and takes approvals, and the Decisions port and the token recorder are wired (the conditions under which codes are sent at
 // all, replycode.go; while it is disconnected or waiting, replies are not read). A direct text that has the form of a reply code goes
 // to Decisions with the sender's user ID; response matches the code against the records of that sender and keeps every gate. Nothing
-// else a sender writes decides or links anything: a Zalo account becomes an approver's only through the confirm link (D-447).
+// else a sender writes decides or links anything: a Zalo account becomes an approver's only through the confirm link.
 // notify answers privately, only a listed approver, and only a few times per approver.
 
 const (
@@ -28,7 +28,7 @@ const (
 	zaloWatchEvery   = 30 * time.Second // how often a live connection checks that its channel is unchanged
 	zaloWorkers      = telegramWorkers
 	zaloHealthy      = 10 * time.Minute // a connection that lived this long clears the failure count
-	zaloRetryMax     = 30 * time.Minute // the longest wait between failed connections (D-46: an account that misbehaves can be locked)
+	zaloRetryMax     = 30 * time.Minute // the longest wait between failed connections (an account that misbehaves can be locked)
 	zaloReplacedWait = 10 * time.Minute // after another client took the account over: do not take it back at once
 	zaloAnswerWait   = 20 * time.Second // one private answer: it may wait for a send in progress and sign in
 	zaloNotesPerHour = 20               // audit rows for messages from non-approvers, in all
@@ -127,7 +127,7 @@ func (s *Service) takeZaloText(ctx context.Context, snd channel.Sender, c channe
 		return
 	}
 	code, approve, isCode := normReplyCode(m.Text)
-	if !isCode { // nothing else decides or links anything (D-447: a Zalo account is linked by a confirm link, never by a reply)
+	if !isCode { // nothing else decides or links anything (a Zalo account is linked by a confirm link, never by a reply)
 		if !listed {
 			s.noteZaloStranger(ctx, m)
 		}
@@ -174,7 +174,7 @@ func (s *Service) decideZaloCode(ctx context.Context, snd channel.Sender, from, 
 
 // answerZalo sends the private answer to the approver who replied, through the channel's session; it still runs when ctx ended. A
 // "rate_limited" refusal is not answered, nor more than zaloAnswers answers per approver in zaloAnswerEvery: each answer is a real
-// message from the box's account, and a flood of them is what gets a personal account locked (D-46).
+// message from the box's account, and a flood of them is what gets a personal account locked.
 func (s *Service) answerZalo(ctx context.Context, snd channel.Sender, to, text, status string) {
 	if status == "rate_limited" || !s.zaloAnswerBudget.due(to, time.Now()) {
 		return

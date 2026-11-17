@@ -54,7 +54,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     await expectNoA11yViolations()
   })
 
-  it('n73: Fix first leads with the software the device runs, the list\'s group after it; the trend line says the change since the first day', async () => {
+  it('Fix first leads with the software the device runs, the list\'s group after it; the trend line says the change since the first day', async () => {
     const { summary } = await import('@/features/findings/mocks')
     server.use(http.get('*/api/v1/findings/summary', () => {
       const v = summary()
@@ -211,7 +211,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     }
   })
 
-  it('D-92: on a box that never fetched a feed, Home at a glance claims nothing: no green 0, no "nothing exploited" (#825)', async () => {
+  it('on a box that never fetched a feed, Home at a glance claims nothing: no green 0, no "nothing exploited" (#825)', async () => {
     findingsStore.set([])
     server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '1970-01-01T00:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true })))
     renderApp('/')
@@ -279,7 +279,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
-  it('no Vietnamese text on the page (D-28)', async () => {
+  it('no Vietnamese text on the page', async () => {
     renderApp('/')
     await screen.findByRole('table', { name: 'Newly exploited' })
     expect(document.body.textContent).not.toMatch(/[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i)
@@ -351,7 +351,7 @@ describe('feeds: custom feed form matrix', () => {
     expect(within(dlg).getByLabelText('Password')).toHaveValue('')
   })
 
-  it('a user name or header name typed for one type does not come back with it (walk 2026-11-12)', async () => {
+  it('a user name or header name typed for one type does not come back with it', async () => {
     const dlg = await openAdd()
     await pick(dlg, 'Authentication')('Basic (user and password)')
     await userEvent.type(within(dlg).getByLabelText('User name'), 'alice')
@@ -418,7 +418,7 @@ describe('feeds: what the real backend needs from the GUI (mock → real)', () =
     expect(document.body.textContent).not.toMatch(/1970/)
   })
 
-  it('D-92: Home never says 0 newly exploited when the CISA list never loaded: it says why and links to Settings, Feeds', async () => {
+  it('Home never says 0 newly exploited when the CISA list never loaded: it says why and links to Settings, Feeds', async () => {
     const status = (kev: unknown) => server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev })))
     server.use(http.get('*/api/v1/feeds/hot', () => HttpResponse.json({ window: '7d', rows: [], latest: null })))
     status({ state: 'never_loaded', error: 'cisa.gov answered HTTP 403' })
@@ -428,7 +428,7 @@ describe('feeds: what the real backend needs from the GUI (mock → real)', () =
     expect(h1.textContent).not.toMatch(/\b0 vulnerabilit/)
   })
 
-  it('D-92: a turned-off CISA list says so; a loaded one keeps its count even when the last pull failed', async () => {
+  it('a turned-off CISA list says so; a loaded one keeps its count even when the last pull failed', async () => {
     server.use(http.get('*/api/v1/feeds/hot', () => HttpResponse.json({ window: '7d', rows: [], latest: null })))
     server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev: { state: 'off', error: null } })))
     const first = renderApp('/')
@@ -440,7 +440,7 @@ describe('feeds: what the real backend needs from the GUI (mock → real)', () =
     expect(await screen.findByRole('heading', { level: 1, name: /^Today: \d+ of your devices runs? software being exploited$/ })).toBeInTheDocument()
   })
 
-  it('D-134 (4): the hot board does not read as "none" when the CISA list never loaded; it says why and links to Settings, Feeds', async () => {
+  it('the hot board does not read as "none" when the CISA list never loaded; it says why and links to Settings, Feeds', async () => {
     server.use(http.get('*/api/v1/feeds/hot', () => HttpResponse.json({ window: '7d', rows: [], latest: null })))
     server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev: { state: 'never_loaded', error: 'cisa.gov answered HTTP 403' } })))
     renderApp('/')
@@ -451,7 +451,7 @@ describe('feeds: what the real backend needs from the GUI (mock → real)', () =
     expect(hot.queryByText(/No newly exploited/)).toBeNull()
   })
 
-  it('D-134 (4): the hot board of a turned-off CISA list says so; a loaded, enabled one keeps the empty sentence', async () => {
+  it('the hot board of a turned-off CISA list says so; a loaded, enabled one keeps the empty sentence', async () => {
     server.use(http.get('*/api/v1/feeds/hot', () => HttpResponse.json({ window: '7d', rows: [], latest: null })))
     server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev: { state: 'off', error: null } })))
     const first = renderApp('/')
@@ -485,7 +485,7 @@ describe('feeds: CVE links (contract.ts: http(s) only)', () => {
   })
 })
 
-describe('feeds: CVE page agrees with the findings (D-549, KF-CVEPAGE)', () => {
+describe('feeds: CVE page agrees with the findings (KF-CVEPAGE)', () => {
   it('devices the platform rules prove not affected are counted, not invited to be added again', async () => {
     server.use(http.get('*/api/v1/feeds/cve/:id', () => HttpResponse.json({
       cve: 'CVE-2026-123158', vendor: 'OpenBSD', product: 'OpenSSH', name: 'n', description: 'd', required_action: 'a', display: 'OpenSSH',
@@ -575,7 +575,7 @@ describe('feeds: plain words for what is not a CVE, and dates that mean one thin
   })
 })
 
-describe('feeds: which address answered the CISA list (D-91)', () => {
+describe('feeds: which address answered the CISA list', () => {
   it('Settings -> Feeds says who answered; the CISA GitHub mirror is named as such', async () => {
     renderApp('/settings/feeds')
     expect(await screen.findAllByText('Newest list from CISA')).toHaveLength(1) // the mock's own list: only the CISA list has an answer
@@ -587,7 +587,7 @@ describe('feeds: which address answered the CISA list (D-91)', () => {
     expect(await screen.findByText('Newest list from CISA GitHub mirror')).toBeInTheDocument()
   })
 
-  it('W3-1: the NVD versions still loading say how far they got, not "fetched at the next check"; Fetch now shows it as progress', async () => {
+  it('the NVD versions still loading say how far they got, not "fetched at the next check"; Fetch now shows it as progress', async () => {
     const line = 'Loading version ranges from NVD: page 8 of 18. NVD was busy (HTTP 503); trying page 8 again in 30 s.'
     const feed = { id: 'nvd-kev', builtin: true, name: 'NVD affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', default_url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', enabled: true, interval_hours: 24,
       auth: { type: 'none', header_name: null, username: null, secret_last4: null }, parser: null, last_fetch: null, records: null, status: 'never', error: line, license: null, answered_by: null }
@@ -601,7 +601,7 @@ describe('feeds: which address answered the CISA list (D-91)', () => {
   })
 })
 
-describe('feeds: a distribution feed no device needs is not pulled (D-570, LEAN)', () => {
+describe('feeds: a distribution feed no device needs is not pulled (LEAN)', () => {
   it('the Debian tracker says why it is not pulled, Fetch now fetches nothing and shows the same note, the Ubuntu feeds are pulled', async () => {
     const note = 'Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device.'
     renderApp('/settings/feeds')
@@ -612,7 +612,7 @@ describe('feeds: a distribution feed no device needs is not pulled (D-570, LEAN)
   })
 })
 
-describe('feeds: a custom vulnerability feed does not drive matching (S-FEED-4, D-218)', () => {
+describe('feeds: a custom vulnerability feed does not drive matching (S-FEED-4)', () => {
   const feed = (kind: 'ioc' | 'vulnerabilities') => ({ id: 'cf-x', builtin: false, name: 'Partner list', kind, format: 'json', url: 'https://feeds.partner.example/x.json', default_url: null, enabled: true, interval_hours: 24, auth: { type: 'none' }, parser: null, last_fetch: null, records: null, status: 'never', error: null, license: null, answered_by: null })
   const note = /does not create findings or alerts: only the exploited lists/
 
@@ -657,7 +657,7 @@ describe('feeds: Settings -> Feeds lists every host the box pulls from (INV-13, 
   })
 })
 
-describe('feeds: parser preview form matrix (QA walk 2026-11-12)', () => {
+describe('feeds: parser preview form matrix', () => {
   it('a preview belongs to the type and format it ran with: changing either hides it', async () => {
     renderApp('/settings/feeds')
     await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
@@ -675,7 +675,7 @@ describe('feeds: parser preview form matrix (QA walk 2026-11-12)', () => {
   })
 })
 
-describe('feeds: Settings -> Feeds walk 2026-11-12 (S-FEED-4)', () => {
+describe('feeds: Settings -> Feeds (S-FEED-4)', () => {
   it('the header names GitHub-hosted lists, and long schedules read in days and weeks', async () => {
     renderApp('/settings/feeds')
     expect(await screen.findByText(/Some sources publish their lists on GitHub, so those come from raw\.githubusercontent\.com/)).toBeInTheDocument()
@@ -686,7 +686,7 @@ describe('feeds: Settings -> Feeds walk 2026-11-12 (S-FEED-4)', () => {
   })
 })
 
-describe('feeds: Add a feed walk 2, 2026-11-12 (S-FEED-5)', () => {
+describe('feeds: Add a feed (S-FEED-5)', () => {
   it('the JSON Source hint gives an example that fits the field and the feed type', async () => {
     renderApp('/settings/feeds')
     await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
@@ -716,7 +716,7 @@ describe('feeds: Add a feed walk 2, 2026-11-12 (S-FEED-5)', () => {
   })
 })
 
-describe('feeds: an address Vedette never pulls from is refused when the feed is saved (D-420)', () => {
+describe('feeds: an address Vedette never pulls from is refused when the feed is saved', () => {
   async function openAdd() {
     renderApp('/settings/feeds')
     await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
@@ -729,7 +729,7 @@ describe('feeds: an address Vedette never pulls from is refused when the feed is
     await userEvent.type(within(dlg).getByLabelText('Name'), 'Metadata')
     for (const [url, text] of [['https://169.254.169.254/latest/meta-data', 'Vedette does not pull feeds from link-local, multicast, unspecified or cloud metadata addresses.'],
       ['https://localhost:8443/x', "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."],
-      ['https://127.0.0.1/list.txt', 'That address is Vedette itself']] as const) { // D-446: Vedette itself has its own sentence
+      ['https://127.0.0.1/list.txt', 'That address is Vedette itself']] as const) { // Vedette itself has its own sentence
       await userEvent.clear(within(dlg).getByLabelText('Address')); await userEvent.type(within(dlg).getByLabelText('Address'), url)
       await add(dlg)
       expect(within(dlg).getByLabelText('Address')).toHaveFocus()
@@ -744,7 +744,7 @@ describe('feeds: an address Vedette never pulls from is refused when the feed is
   it('a new feed that has not been fetched says when it will be; the name field says its limit', async () => {
     const dlg = await openAdd()
     expect(within(dlg).getByText('Up to 60 characters.')).toBeInTheDocument()
-    // walk 3: an IOC feed in JSON gets an IOC example for the records path, not the vulnerability one (D-420 (8))
+    // An IOC feed in JSON gets an IOC example for the records path, not the vulnerability one
     expect(within(dlg).getByText(/for example \$\.data\[\*\] or \$\.indicators\[\*\]/)).toBeInTheDocument()
     expect(within(dlg).queryByText(/\$\.vulnerabilities\[\*\]/)).toBeNull()
     await userEvent.type(within(dlg).getByLabelText('Name'), 'Partner IOC')
@@ -754,7 +754,7 @@ describe('feeds: an address Vedette never pulls from is refused when the feed is
   })
 })
 
-describe('feeds: Fetch now shows the shared busy state while the pull runs (kien G1)', () => {
+describe('feeds: Fetch now shows the shared busy state while the pull runs', () => {
   it('the row\'s button is busy and the row says a large feed can take minutes', async () => {
     let release!: () => void
     const gate = new Promise<void>((r) => { release = r })

@@ -15,12 +15,12 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// Service identification on the box's own verified public IP, for exposure (D-514, exposure INV-19, plan exposure-real-vulns
-// §1.3): nmap -sV in the scan container over the fixed TCP list of the surface scan (nmapargv.External). The consent is exposure's
+// Service identification on the box's own verified public IP, for exposure (exposure INV-19):
+// nmap -sV in the scan container over the fixed TCP list of the surface scan (nmapargv.External). The consent is exposure's
 // (a verified, committed, current IP target), not the LAN scope's: the LAN settings, window and scope do not apply, and nothing
 // is written to the inventory. What holds: one nmap at a time on the box (runMu), the own-IP fence right before the job is handed
 // out (and again in the worker), the probe row before the job (INV-9, LEGAL §3), the XML limits (INV-7) and a tighter port bound.
-// A target whose testing terms are accepted gets the deep scan instead (D-526, sensor-active INV-19): nmapargv.ExternalFull or
+// A target whose testing terms are accepted gets the deep scan instead (sensor-active INV-19): nmapargv.ExternalFull or
 // ExternalDisruptive, every TCP port with nmap's scripts, sent only after core's DeepGate said the terms still allow it.
 
 // KindExternal is the sa_job kind of an external run (migration 0005).
@@ -31,7 +31,7 @@ const KindExternal = "external"
 // address) or ErrEgressUnverified (the worker could not reach the public IP services to check). ErrHostTimedOut: nmap ran and
 // gave up on the host at its --host-timeout, so it printed no port table and nothing can be said of the services.
 // ErrAnswersEverywhere: nmap saw more than commonports.MaxBelievableOpen ports open, the shape of a router or firewall that
-// answers for every port (D-522, N5): its -sV rows describe that device, not services, so they are discarded.
+// answers for every port: its -sV rows describe that device, not services, so they are discarded.
 var (
 	ErrBusy              = errors.New("sensoractive: the scan container's nmap is busy with another scan")
 	ErrNoTime            = errors.New("sensoractive: too little time was left for service identification")
@@ -39,14 +39,14 @@ var (
 	ErrEgressUnverified  = errors.New("sensoractive: the public IP services could not be reached to check the address")
 	ErrHostTimedOut      = errors.New("sensoractive: nmap gave up on the address before it finished")
 	ErrAnswersEverywhere = errors.New("sensoractive: the address answers on almost every port")
-	// ErrNotDeep (D-526): a full shape was asked, and right before the job is handed out the target's testing terms no longer
+	// ErrNotDeep: a full shape was asked, and right before the job is handed out the target's testing terms no longer
 	// allow a deep scan (withdrawn, or of an older version), or the fence cannot tell (no DeepGate). Nothing was sent: the run was
 	// asked as deep, so it never falls back to the External shape by itself.
 	ErrNotDeep = errors.New("sensoractive: the target's testing terms no longer allow a deep scan")
-	// ErrFullUnsupported (D-526): the worker's latest heartbeat does not say it runs the full shapes (an older worker, while an
+	// ErrFullUnsupported: the worker's latest heartbeat does not say it runs the full shapes (an older worker, while an
 	// update runs). Nothing was sent.
 	ErrFullUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no deep nmap scan")
-	// ErrPortsUnsupported: the worker is older than D-592 and takes no port list, so the -sV follow-up of the weekly scan of every
+	// ErrPortsUnsupported: the worker is older and takes no port list, so the -sV follow-up of the weekly scan of every
 	// port is not sent (its open ports are recorded without versions).
 	ErrPortsUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no port_versions job")
 	// ErrStoppedMidRun (review r1 H1, r2 LOW-5): the worker's re-check during a full run found the address no longer the box's own
@@ -61,7 +61,7 @@ type OwnEgress interface {
 	OwnEgress(ctx context.Context, ip netip.Addr) (bool, error)
 }
 
-// DeepGate is the second half of core's fence of a full run (FULL-4, D-526), asked right after OwnEgress, right before the job is
+// DeepGate is the second half of core's fence of a full run, asked right after OwnEgress, right before the job is
 // handed out: which external shape the target's testing terms allow now, given the one asked. A full run is sent only through an
 // OwnEgress that implements it (fail closed). An answer that is not a full shape is ErrNotDeep; ExternalFull for an asked
 // ExternalDisruptive (the disruptive tick taken back) runs the full shape without the disruptive scripts; the run never gets more
@@ -85,7 +85,7 @@ type ExternalService struct {
 	Conf    int
 }
 
-// ExternalScript is one NSE script result of a full run (D-526): Port is the open TCP port it ran on, 0 for a host script
+// ExternalScript is one NSE script result of a full run: Port is the open TCP port it ran on, 0 for a host script
 // (<hostscript>, such as smb-vuln-ms17-010); ID nmap's script name; Output its text, printable runes and line breaks only, at
 // most 2000 runes (scriptText), or "Output not stored: it can hold credentials." for a script nmapargv.StoresOutput names
 // (review r1 M4); Findings the vulns library's findings, read only from the structured output (review r1 M1, L3). Everything
@@ -150,8 +150,8 @@ func left(ctx context.Context, def time.Duration) time.Duration {
 // externalPorts are the port numbers the external shape names (-p); a port outside them in the XML fails the run (INV-7).
 var externalPorts = commonports.Numbers()
 
-// ScanExternal identifies the services on the open TCP ports of ip, the box's own verified public IP, for exposure (D-514), with
-// the shape kind: External, or one of the full shapes of a target whose testing terms are accepted (D-526).
+// ScanExternal identifies the services on the open TCP ports of ip, the box's own verified public IP, for exposure, with
+// the shape kind: External, or one of the full shapes of a target whose testing terms are accepted.
 // Order: wait for the nmap slot at most busyWait, and never so long that less than the run's need plus coreFenceTime would be left
 // (else ErrBusy, or ErrNoTime when no wait at all fits); a Stop that came during the wait ends it (ErrStopped); the worker must be
 // there (ErrUnavailable); a job row; then, right before the job is handed out, own says whether ip is still the box's own egress
@@ -162,7 +162,7 @@ func (s *Service) ScanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 	return s.scanExternal(ctx, ip, kind, own, nil)
 }
 
-// DomainIP is a domain_ip run of ScanDomainIP (D-591): the fence fields the worker checks and the CNAME chain core saw for the name
+// DomainIP is a domain_ip run of ScanDomainIP: the fence fields the worker checks and the CNAME chain core saw for the name
 // (for the probe log row; "" when core did not look it up).
 type DomainIP struct {
 	Scope sensorlink.DomainScope
@@ -175,7 +175,7 @@ type DomainProber interface {
 }
 
 // ScanDomainIP is ScanExternal of a full shape on a public address that is not the box's own egress, reached because a name under a
-// verified domain resolves to it (FULL-5 slice 2, D-591, plan 2026-11-14 §5): a domain_ip job. Core's half of the fence is exposure's
+// verified domain resolves to it: a domain_ip job. Core's half of the fence is exposure's
 // deepGate (just before the step) and gate's DeepGate (the terms, right before the job leaves, like a full run of the box's own IP);
 // own-egress is not asked, the worker's domain fence is: its key, the TXT record, the name's address now, again every 3 minutes while
 // nmap runs. The probe row names the domain, the name and its CNAME chain. A worker that does not say domain_ip gets nothing
@@ -337,8 +337,8 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 // externalOf reads the services of an external run from every host nmap reported up. Beyond the limits of parseNmapXML (INV-7)
 // it fails closed on anything but exactly one host, the asked address (-Pn reports it up; none means nmap printed nothing usable
 // for it, never "no open port", #723 review L3), a port that is not TCP or not in the probed list, and a port twice: an answer
-// outside what was asked is not believed in part (D-514). More than commonports.MaxBelievableOpen open ports is
-// ErrAnswersEverywhere (D-522). A full shape probed every TCP port (-p-, D-526): any port 1..65535 is in the list, and its script
+// outside what was asked is not believed in part. More than commonports.MaxBelievableOpen open ports is
+// ErrAnswersEverywhere. A full shape probed every TCP port (-p-): any port 1..65535 is in the list, and its script
 // results (of an open port of the list, or of the host) are kept.
 func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind) (External, error) {
 	probed := func(p int) bool { return slices.Contains(externalPorts, p) }
@@ -370,7 +370,7 @@ func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind) (External, erro
 		}
 		ext.Services = append(ext.Services, ExternalService{Port: p.number, Name: p.name, Product: p.product, Version: p.version, CPE: cpe, Extra: p.info, Method: p.method, Conf: p.conf})
 	}
-	if len(ext.Services) > commonports.MaxBelievableOpen { // D-522 (N5): a router or SYN proxy answering for every port
+	if len(ext.Services) > commonports.MaxBelievableOpen { // A router or SYN proxy answering for every port
 		return External{}, ErrAnswersEverywhere
 	}
 	if kind.IsFull() {
@@ -388,7 +388,7 @@ func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind) (External, erro
 	return ext, nil
 }
 
-// deepNow is the DeepGate half of core's fence of a full run (D-526): the shape the target's terms allow now, never more than
+// deepNow is the DeepGate half of core's fence of a full run: the shape the target's terms allow now, never more than
 // asked; ErrNotDeep when they no longer allow a deep scan or own has no DeepGate (fail closed). Nothing has been sent yet.
 func (s *Service) deepNow(ctx context.Context, ip netip.Addr, asked nmapargv.Kind, own OwnEgress) (nmapargv.Kind, error) {
 	g, ok := own.(DeepGate)
@@ -414,7 +414,7 @@ func (s *Service) deepNow(ctx context.Context, ip netip.Addr, asked nmapargv.Kin
 // maxProbeResult is sa_probe.result's CHECK (length(result) <= 200, migration 0006).
 const maxProbeResult = 200
 
-// probeNote is the front of a domain_ip probe row's result (D-591, review r1 M4): why the address was chosen, with the CNAME chain of
+// probeNote is the front of a domain_ip probe row's result: why the address was chosen, with the CNAME chain of
 // the name as core saw it. The zero value (no domain) adds nothing.
 type probeNote struct{ d *DomainIP }
 

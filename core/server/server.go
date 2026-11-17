@@ -40,7 +40,7 @@ type Config struct {
 	// BodyLimits raises (or lowers) the cap for single operations, by operationId, e.g. a 5 MiB
 	// sample upload (issue #39). Every other operation keeps MaxBody.
 	BodyLimits map[string]int64
-	// PublicPerMinute is the limit of public requests without a session per client address and minute (publimit.go, D-320): 429
+	// PublicPerMinute is the limit of public requests without a session per client address and minute (publimit.go): 429
 	// rate_limited past it. 0 = no limit (tests that are not about it, and a container-only install, where the port proxy may show
 	// every client as one address); cmd/vedette sets PublicPerMinuteDefault on an appliance.
 	PublicPerMinute int
@@ -109,7 +109,7 @@ func Envelope(log *slog.Logger, next http.Handler) http.Handler {
 }
 
 // limitWrites gives every request the database writer wait limit: a request never waits for the writer longer than
-// store.RequestWriteWait; past it, 503 server_busy (D-246).
+// store.RequestWriteWait; past it, 503 server_busy.
 func limitWrites(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r.WithContext(store.LimitWriteWait(r.Context(), store.RequestWriteWait)))

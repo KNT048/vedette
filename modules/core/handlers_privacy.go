@@ -23,14 +23,14 @@ type PrivacyFacts interface {
 	AIConfigured(ctx context.Context) bool   // flow 3: a provider is configured
 	NTPPublic(ctx context.Context) bool      // flow 10: time requests leave the LAN
 	OIDCConfigured(ctx context.Context) bool // flow 11: an issuer is configured
-	// ConnectionsConfigured: flow 12 (D-93), at least one enabled connection exists, so requests may go to the
+	// ConnectionsConfigured: flow 12, at least one enabled connection exists, so requests may go to the
 	// address an administrator typed. Core stores the connections itself from slice 13b-4; until then the binary says false.
 	ConnectionsConfigured(ctx context.Context) bool
-	// WazuhConnected: flow 14 (D-169 (12), D-309), a Wazuh server is saved in agent-intake, so the box pulls from it while the module is on.
+	// WazuhConnected: flow 14, a Wazuh server is saved in agent-intake, so the box pulls from it while the module is on.
 	WazuhConnected(ctx context.Context) bool
 }
 
-// The update check is on when absent from the stored setting. The anonymous signal is never on (D-82, D-154): nothing sends
+// The update check is on when absent from the stored setting. The anonymous signal is never on: nothing sends
 // it, so whatever an older box stored, the answer is off, and a request to turn it on is refused (CodeTelemetryUnavailable).
 func (p privacySetting) updateCheck() bool { return p.UpdateCheck == nil || *p.UpdateCheck }
 func (p privacySetting) telemetry() bool   { return false }
@@ -87,30 +87,30 @@ func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.
 		{ID: 7, State: always, Control: rs},
 		{ID: 8, State: cond(h.reg.Enabled("ai")), Control: rs},
 		{ID: 9, State: state(h.reg.Enabled("exposure")), Control: rs},
-		// A container-only install sets no time source: the container keeps the clock of the machine that runs it (D-381, S-CORE-4).
+		// A container-only install sets no time source: the container keeps the clock of the machine that runs it (S-CORE-4).
 		{ID: 10, State: state(ntpPub && !h.reg.ContainerOnly()), Control: rs},
 		{ID: 11, State: cond(h.reg.Enabled("auth-oidc") && oidcConf), Control: rs},
 		{ID: 12, State: state(connConf), Control: rs}, // core cannot be turned off, so there is no module condition
-		// D-233: the box sends nothing itself; an agent the administrator connects reads by token, and where it sends that is its own business
+		// The box sends nothing itself; an agent the administrator connects reads by token, and where it sends that is its own business
 		{ID: 13, State: cond(h.reg.Enabled("mcp-server")), Control: rs},
-		// D-309: the pull runs only while agent-intake is on and a Wazuh server is saved; disconnect or turn the module off to stop it
+		// The pull runs only while agent-intake is on and a Wazuh server is saved; disconnect or turn the module off to stop it
 		{ID: 14, State: state(wazuh && h.reg.Enabled("agent-intake")), Control: rs},
-		// D-558: Shodan InternetDB is asked only when an administrator clicks in External exposure (no job)
+		// Shodan InternetDB is asked only when an administrator clicks in External exposure (no job)
 		{ID: 15, State: cond(h.reg.Enabled("exposure")), Control: rs},
-		// D-563: Greenbone's own containers download its images and feed only while an administrator has it enabled in External
+		// Greenbone's own containers download its images and feed only while an administrator has it enabled in External
 		// exposure, whether the module is on or not; the binary answers through an optional GreenboneEnabled on PrivacyFacts (no answer: off)
 		{ID: 16, State: state(greenboneOn(ctx, h.facts)), Control: rs},
 	}
 }
 
-// greenboneOn is flow 16's state (D-563): on while Greenbone is enabled. Core does not read exposure's tables; the binary's
+// greenboneOn is flow 16's state: on while Greenbone is enabled. Core does not read exposure's tables; the binary's
 // PrivacyFacts may answer it, and a binary that does not (no Greenbone wired, so nothing can be enabled) means off.
 func greenboneOn(ctx context.Context, f PrivacyFacts) bool {
 	g, ok := f.(interface{ GreenboneEnabled(context.Context) bool })
 	return ok && g.GreenboneEnabled(ctx)
 }
 
-// privacyView builds the answer of GET and PATCH /core/privacy. D-82: the anonymous signal is never sent, so
+// privacyView builds the answer of GET and PATCH /core/privacy. The anonymous signal is never sent, so
 // last_sent is null and the payload is empty whatever the switch says.
 func (h *APIHandlers) privacyView(ctx context.Context, p privacySetting) *oas.CoreGetCorePrivacyOK {
 	return &oas.CoreGetCorePrivacyOK{

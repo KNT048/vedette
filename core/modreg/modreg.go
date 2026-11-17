@@ -32,8 +32,8 @@ type Config struct {
 	Version   string           // stored in core_module.version for rows created now
 	Clock     func() time.Time // nil: time.Now
 	Log       *slog.Logger
-	// ContainerOnly: core runs without vedette-host (started with an empty -host-socket, D-55, D-168). The install
-	// kind of the whole box comes from here (D-381): modules with needs_host cannot be turned on, and GET /modules says so.
+	// ContainerOnly: core runs without vedette-host (started with an empty -host-socket). The install
+	// kind of the whole box comes from here: modules with needs_host cannot be turned on, and GET /modules says so.
 	ContainerOnly bool
 }
 
@@ -44,7 +44,7 @@ type State struct {
 	Depends   []string
 	Enabled   bool
 	EnabledAt *time.Time // nil while off
-	// Available is false for a module this install cannot run (needs_host on a container-only install, D-381).
+	// Available is false for a module this install cannot run (needs_host on a container-only install).
 	Available bool
 }
 
@@ -191,7 +191,7 @@ func (r *Registry) List() []State {
 	return out
 }
 
-// ContainerOnly reports the install kind (D-381): true when core runs without vedette-host. It is the one place the
+// ContainerOnly reports the install kind: true when core runs without vedette-host. It is the one place the
 // API and the GUI learn it from (GET /modules, GET /core/setup/modules).
 func (r *Registry) ContainerOnly() bool { return r.containerOnly }
 
@@ -274,7 +274,7 @@ func (r *Registry) toggleable(id string) error {
 	return nil
 }
 
-// notHere refuses to turn on a module this install cannot run (D-381), with the code the OS endpoints of a
+// notHere refuses to turn on a module this install cannot run, with the code the OS endpoints of a
 // container-only install already use.
 func (r *Registry) notHere(id string) error {
 	if e := r.mods[id]; r.containerOnly && e != nil && e.NeedsHost {
@@ -300,7 +300,7 @@ func (r *Registry) Enable(ctx context.Context, tx *sql.Tx, actor, id string, wit
 	}
 	var missing []string
 	r.collectMissing(id, on, map[string]bool{id: true}, &missing)
-	for _, m := range missing { // a dependency switched on with it must be runnable here too (D-381)
+	for _, m := range missing { // a dependency switched on with it must be runnable here too
 		if err := r.notHere(m); err != nil {
 			return Change{}, err
 		}

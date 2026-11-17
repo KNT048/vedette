@@ -25,6 +25,6 @@ export function stepper(page: Page, info: TestInfo, area: string, theme: Theme) 
 export const noHScroll = async (page: Page, where: string) =>
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `horizontal scroll: ${where}`).toBeLessThanOrEqual(1)
 
-/** Words that must not appear in the core UI (D-58). Template data and examples are allowed to carry brand names, so callers scope this. */
+/** Words that must not appear in the core UI. Template data and examples are allowed to carry brand names, so callers scope this. */
 export const BRANDS = /forti|pfsense|cisco|mikrotik|palo ?alto|juniper|ubiquiti|unifi|aruba|sophos|opnsense|checkpoint|sonicwall|huawei|tp-?link|omada/i
 export const VENDOR_PATHS = /\/api\/v2\/cmdb|\/api\/v2\/monitor|cmdb\/firewall|config firewall|ip access-list/i

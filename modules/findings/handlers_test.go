@@ -239,7 +239,7 @@ func TestContract_POST4_StatusEndpoint(t *testing.T) {
 	}
 }
 
-// INV-10 (W1-12): the bulk route is the operator's, refuses what the one-finding route refuses, and says what it skipped.
+// INV-10: the bulk route is the operator's, refuses what the one-finding route refuses, and says what it skipped.
 func TestBulkStatusEndpoint(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
@@ -287,7 +287,7 @@ func TestModuleOffMeansNoRoutes(t *testing.T) {
 	}
 }
 
-// D-488: GET /findings/{id} says the fixed release for the device when NVD's range gives one, and null when it does not.
+// GET /findings/{id} says the fixed release for the device when NVD's range gives one, and null when it does not.
 func TestFindingDetail_FixedIn(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
@@ -303,7 +303,7 @@ func TestFindingDetail_FixedIn(t *testing.T) {
 	}
 }
 
-// D-498: accept_risk goes through the API with its day: a bad day is 400 bad_until, a good one answers the finding with
+// accept_risk goes through the API with its day: a bad day is 400 bad_until, a good one answers the finding with
 // accepted_until.
 func TestAcceptRiskEndpoint(t *testing.T) {
 	t.Parallel()

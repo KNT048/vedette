@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/content/devicetypes"
 )
 
-// The law behind the assessment (checked against the official text on 2026-11-06, D-23): Law 91/2025/QH15 on personal data
+// The law behind the assessment (checked against the official text on 2026-11-06): Law 91/2025/QH15 on personal data
 // protection and Decree 356/2025/NĐ-CP. Article 41 of the decree decides which enterprises are exempt from, or may choose to do,
 // what Articles 21, 22 and 33(2) of the law require.
 
@@ -57,7 +57,7 @@ func buildPdpl(in pdplInput) PdplReport {
 		if d.Fragile {
 			fragile++
 		}
-		if devicetypes.ActsAs(d.Kind) == "firewall" { // a VPN gateway acts as a firewall (D-511)
+		if devicetypes.ActsAs(d.Kind) == "firewall" { // a VPN gateway acts as a firewall
 			hasFirewall = true
 		}
 		if eolOS.MatchString(d.OS) {
@@ -98,7 +98,7 @@ func buildPdpl(in pdplInput) PdplReport {
 		fw = "ok"
 	}
 	// Something found is "attention" whatever the sources; "nothing found" is "ok" only when the box could look: with no devices, or
-	// with the module that supplies the data off, nothing found means nothing seen (INV-8, D-237).
+	// with the module that supplies the data off, nothing found means nothing seen (INV-8).
 	seen := func(list []string, needs ...string) string {
 		if len(list) > 0 {
 			return "attention"

@@ -1,4 +1,4 @@
-// S-NOT-1 criterion D-462: the setup wizard has no alert channel step, so Home reminds an administrator until a channel is on.
+// S-NOT-1: the setup wizard has no alert channel step, so Home reminds an administrator until a channel is on.
 import { describe, expect, it } from 'vitest'
 import { act, cleanup, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
@@ -34,7 +34,7 @@ async function renderHome(paths: string[], role?: 'operator') {
   } finally { server.events.removeListener('response:mocked', seen) }
 }
 
-describe('alert channel reminder on Home (D-462)', () => {
+describe('alert channel reminder on Home', () => {
   it('no channel: an administrator sees it with a link to Settings, Alert channels; it is gone once a channel is on', async () => {
     await removeAll()
     renderApp('/')

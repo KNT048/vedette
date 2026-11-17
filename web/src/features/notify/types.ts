@@ -40,13 +40,13 @@ export const INCIDENT_KINDS: IncidentKind[] = ['trap', 'bad_address', 'log_anoma
 export const FIELDS: Record<ChannelType, string[]> = {
   telegram: ['chat_id'],
   slack: ['label'], // channel_id chỉ hiện khi bật duyệt trong chat
-  zalo: ['oa_id', 'user_id', 'app_id'], // app_id: the refresh-token flow (D-483); secret key and refresh token are secrets
+  zalo: ['oa_id', 'user_id', 'app_id'], // app_id: the refresh-token flow; secret key and refresh token are secrets
   'zalo-personal': ['user_id'],
-  email: ['provider', 'host', 'port', 'security', 'username', 'tenant_id', 'client_id', 'from', 'to'], // provider: preset (D-449); tenant_id, client_id: Microsoft 365 only
+  email: ['provider', 'host', 'port', 'security', 'username', 'tenant_id', 'client_id', 'from', 'to'], // provider: preset; tenant_id, client_id: Microsoft 365 only
   webhook: ['url'],
 }
 
-/** Kênh có thể nhận duyệt hành động (D-38, D-46). Zalo OA và webhook chỉ gửi tin kèm liên kết mở Vedette. */
+/** Kênh có thể nhận duyệt hành động. Zalo OA và webhook chỉ gửi tin kèm liên kết mở Vedette. */
 export const APPROVAL_CHANNELS: ChannelType[] = ['slack', 'telegram', 'email', 'zalo-personal']
 
 const v4Forbidden = (a: number, b: number, c: number, d: number) =>
@@ -56,11 +56,11 @@ const v4Forbidden = (a: number, b: number, c: number, d: number) =>
 /** Names of the cloud metadata service (Google Cloud), refused by the box before any lookup (metadataName). */
 const METADATA_NAMES = ['metadata', 'metadata.google.internal', 'metadata.goog']
 
-/** The box's sentence for Vedette itself (modules/notify/channel OwnText, D-446): the same in feeds, notify, logs and ai. */
+/** The box's sentence for Vedette itself (modules/notify/channel OwnText): the same in feeds, notify, logs and ai. */
 export const OWN_TEXT = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
 
 /**
- * Vedette itself as the page can judge it (channel ownAddr, D-446): loopback and *.localhost, also inside an IPv4-mapped IPv6 address.
+ * Vedette itself as the page can judge it (channel ownAddr): loopback and *.localhost, also inside an IPv4-mapped IPv6 address.
  * The machine's own addresses and the container's are the box's to judge (the page does not know them). forbiddenHost is true for
  * these too; ask this first for the sentence.
  */

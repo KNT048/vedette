@@ -79,7 +79,7 @@ type Rule struct {
 	SrcField string            `json:"src_field,omitempty"` // key that holds the source address
 	DstField string            `json:"dst_field,omitempty"` // key that holds the destination address
 	// RemoteFields are the keys that hold the address of the remote peer the line is about (the client of a login, the source of a
-	// blocked connection), in order of preference: the first that holds a countable address wins (D-210). Not the sender of the log.
+	// blocked connection), in order of preference: the first that holds a countable address wins. Not the sender of the log.
 	RemoteFields []string `json:"remote_fields,omitempty"`
 	// event_id
 	Patterns []string          `json:"patterns,omitempty"` // each with a named group "id"; tried in order
@@ -93,7 +93,7 @@ type Rule struct {
 	// RemotePatterns (any type) find the remote peer's address by a pattern with a named group "addr"; tried in order after RemoteFields.
 	// A line the profile does not settle goes to the generic reader (ParseAddr over the usual daemon layouts).
 	RemotePatterns []string `json:"remote_patterns,omitempty"`
-	// The connection a line is about (L4, D-213; conn.go). A kv rule: LocalField is the key of the LAN device that made it, DestIPField the key
+	// The connection a line is about (conn.go). A kv rule: LocalField is the key of the LAN device that made it, DestIPField the key
 	// of the address it went to, DestHostFields the keys of the names it asked for (a DNS query, a web host); each is read only when it is
 	// written exactly once outside quotes. A template rule: ConnPattern has the named groups "local" and "dest" (addresses) and must match
 	// exactly once. Not the sender of the log; a line that these do not settle has no connection.
@@ -119,7 +119,7 @@ type Rule struct {
 	ConnRefuse string              `json:"conn_refuse,omitempty"`
 	// ConnBlocked (kv): the connection of a line was stopped by the device that logged it (the line records an attempt) when any key
 	// listed is written once and holds one of the values (FortiGate: action deny, dropped, blocked, block, reset). A line it does not settle
-	// is not blocked: "connected" is said unless the format says otherwise, never guessed (D-227).
+	// is not blocked: "connected" is said unless the format says otherwise, never guessed.
 	ConnBlocked map[string][]string `json:"conn_blocked,omitempty"`
 }
 
@@ -176,10 +176,10 @@ type Set struct {
 type Result struct {
 	Signature string // never empty
 	Src, Dest string // a plain address or name, or empty
-	// Remote is the address of the remote peer the line is about (D-210): never the device that sent the log. Unmapped, no zone,
+	// Remote is the address of the remote peer the line is about: never the device that sent the log. Unmapped, no zone,
 	// Countable; the zero Addr when the line has none or the text is not an address.
 	Remote netip.Addr
-	// Conn is the connection the line is about (D-213): zero when the line has none.
+	// Conn is the connection the line is about: zero when the line has none.
 	Conn    Conn
 	Profile string // the profile id, or GenericProfile
 	// Bounded says that the signature comes from a vocabulary that shipped data bounds (a known log id, a known event id): the number
@@ -599,7 +599,7 @@ func (p *profile) read(msg, app string, facility int) (Result, bool) {
 		}
 		r.Signature = strings.Join(parts, " ")
 		r.Src, r.Dest = addr(kv[p.Rule.SrcField]), addr(kv[p.Rule.DstField])
-		for _, k := range p.Rule.RemoteFields { // in order of preference; a key written twice with two values is ambiguous: no address (D-210)
+		for _, k := range p.Rule.RemoteFields { // in order of preference; a key written twice with two values is ambiguous: no address
 			if dup[k] {
 				settled = true
 				break
@@ -711,7 +711,7 @@ func (p *profile) compileConnFields(r Rule) error {
 func (p *profile) hasRemote() bool { return len(p.Rule.RemoteFields)+len(p.remote) > 0 }
 
 // remoteByPatterns counts the SITES of the remote patterns in the line, whatever the value (a "-" is a site too). Exactly one site and
-// an address in it is the address; two or more sites, or none, is no address (D-210): a user name or a workstation name that an
+// an address in it is the address; two or more sites, or none, is no address: a user name or a workstation name that an
 // attacker writes ("x Source Network Address: 8.8.8.8") makes a second site, and one unparseable site ("-") next to it is enough to say
 // that the line has a field the attacker could have written.
 func (p *profile) remoteByPatterns(msg string) netip.Addr {

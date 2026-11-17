@@ -51,7 +51,7 @@ func TestErrRejectedWithoutReasonPrints(t *testing.T) {
 	}
 }
 
-// D-503: the kind of an agent's OS, from its platform (a new report) or from the OS text the inventory stored (the upgrade path); both
+// The kind of an agent's OS, from its platform (a new report) or from the OS text the inventory stored (the upgrade path); both
 // give the same kind for the same system.
 func TestAgentKind(t *testing.T) {
 	for _, c := range []struct{ platform, name, stored, want string }{

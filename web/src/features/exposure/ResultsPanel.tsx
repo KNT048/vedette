@@ -109,15 +109,15 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       {target.kind === 'domain' ? (
         <Section title={t('hosts.title')} description={t('hosts.description')}><DataTable caption={t('hosts.caption')} data={s.hosts} columns={hostCols} pageSize={20} empty={t('hosts.empty')} /></Section>
       ) : null}
-      <Section title={t('ports.title')} description={t('ports.description')} info={t('ports.descriptionInfo')}><DataTable caption={t('ports.caption')} data={s.ports} columns={portCols} rowTone={(r) => (riskOf(r) && identOf(r) !== 'port' ? 'warn' : undefined)} /* review r1 L5: a port-number guess is not tinted as a fact */ pageSize={20} empty={t('ports.empty')} filterPlaceholder={t('ports.filter')} /></Section>
+      <Section title={t('ports.title')} description={t('ports.description')} info={t('ports.descriptionInfo')}><DataTable caption={t('ports.caption')} data={s.ports} columns={portCols} rowTone={(r) => (riskOf(r) && identOf(r) !== 'port' ? 'warn' : undefined)} /* a port-number guess is not tinted as a fact */ pageSize={20} empty={t('ports.empty')} filterPlaceholder={t('ports.filter')} /></Section>
       <Section title={t('admin.title')} description={t('admin.description')} info={t('admin.descriptionInfo')}>
         <DataTable caption={t('admin.caption')} data={s.admin_panels} columns={adminCols} pageSize={20} rowTone={(r) => (r.risk === 'danger' ? 'danger' : 'warn')} empty={<EmptyState title={t('admin.emptyTitle')}>{t('admin.emptyBody')}</EmptyState>} />
       </Section>
       <Section title={t('cert.title')} description={t('cert.description', { days: CERT_WARN_DAYS })} info={t('cert.descriptionInfo')}>
         <DataTable caption={t('cert.caption')} data={s.certs} columns={certCols} pageSize={20} initialSort={[{ id: 'expires', desc: false }]} empty={t('cert.empty')} />
       </Section>
-      {target.kind === 'domain' ? <DeepSection s={s} /> : null /* D-571: the deep scan per address, with the names that led to it */}
-      {target.kind === 'ip' || s.vulns.length > 0 || s.services.length > 0 ? <VulnSection s={s} domain={target.kind === 'domain'} /> : null /* D-565: a domain's page can carry versions ZAP read; D-571: and its addresses' services */}
+      {target.kind === 'domain' ? <DeepSection s={s} /> : null /* the deep scan per address, with the names that led to it */}
+      {target.kind === 'ip' || s.vulns.length > 0 || s.services.length > 0 ? <VulnSection s={s} domain={target.kind === 'domain'} /> : null /* a domain's page can carry versions ZAP read; and its addresses' services */}
       <WebSection s={s} />
       {target.kind === 'ip' || (s.greenbone ?? []).length > 0 ? <GreenboneSection s={s} /> : null}
       <ChecksSection s={s} />

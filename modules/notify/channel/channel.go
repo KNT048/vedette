@@ -48,7 +48,7 @@ type Message struct {
 	What         string      // what happened and how urgent
 	Action       string      // what to do first
 	Items        []string    // optional detail lines, e.g. the CVEs of a grouped notice
-	// More counts further detail lines that are not listed (a digest of many findings, D-483): the last line says "and N more". The
+	// More counts further detail lines that are not listed (a digest of many findings): the last line says "and N more". The
 	// chat adapters also drop whole Items lines that do not fit their text limit and count them here, so every listed line is whole.
 	More int    `json:"more,omitempty"`
 	Link string // absolute http(s) URL that opens the item in Vedette
@@ -170,7 +170,7 @@ func (e *ProviderError) Error() string {
 
 // RateLimitError is a provider asking the box to slow down (HTTP 429, or Zalo OA error -32). Wait is how long it asked for (Telegram
 // parameters.retry_after, the Retry-After header of Slack and webhooks), 0 when it did not say. Err is the refusal underneath, so
-// errors.As still finds the StatusError or ProviderError (D-483).
+// errors.As still finds the StatusError or ProviderError.
 type RateLimitError struct {
 	Channel Type
 	Wait    time.Duration
@@ -310,7 +310,7 @@ func doLimit(c *http.Client, ch Type, req *http.Request, limit int64, hide ...se
 	if err != nil {
 		return resp.StatusCode, nil, fmt.Errorf("notify: %s: read answer: %s", ch, transportReason(err, hide))
 	}
-	if resp.StatusCode == http.StatusTooManyRequests { // every HTTP adapter: wait as asked, never treat it as a final refusal (D-483)
+	if resp.StatusCode == http.StatusTooManyRequests { // every HTTP adapter: wait as asked, never treat it as a final refusal
 		reason := body
 		if ch == Telegram {
 			reason = telegramDescription(body)

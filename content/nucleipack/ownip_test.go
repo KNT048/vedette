@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
-// D-520 over the real committed index: every template marked own_ip is an http GET or HEAD check without a refused tag, and the
+// Over the real committed index: every template marked own_ip is an http GET or HEAD check without a refused tag, and the
 // known state-changing, credential and command templates of the pack are not marked (review H1). CVE-2021-41773 is not marked
 // either: its template ends with a POST that runs a command on the server when the read-only GETs did not match.
 func TestOwnIPTemplatesOfTheCommittedPack(t *testing.T) {
@@ -31,7 +31,7 @@ func TestOwnIPTemplatesOfTheCommittedPack(t *testing.T) {
 			}
 		}
 	}
-	// D-528 step 2: most of the pack is read-only GETs now, so most is own_ip (185 of 327); a share over 70% means the rule loosened
+	// Most of the pack is read-only GETs now, so most is own_ip (185 of 327); a share over 70% means the rule loosened
 	if n < 100 || n*10 > len(ix.Templates)*7 {
 		t.Errorf("%d of %d templates marked own_ip: the rule changed, look again before shipping", n, len(ix.Templates))
 	}
@@ -46,7 +46,7 @@ func TestOwnIPTemplatesOfTheCommittedPack(t *testing.T) {
 			t.Errorf("%s: in the pack %t, own_ip %t: want in the pack and not own_ip", id, ok, tp.OwnIP)
 		}
 	}
-	for _, id := range []string{ // (the PATCH/PUT password resets and the file write of this list left the pack with D-528)
+	for _, id := range []string{ // (the PATCH/PUT password resets and the file write of this list left the pack earlier)
 		"CVE-2020-9043", "CVE-2025-2075", "CVE-2018-7602", "CVE-2022-37061", // log in with credentials (wp-login, user/login, dologin)
 		"CVE-2019-9733",                    // tag login
 		"CVE-2025-4396",                    // time-based-sqli
@@ -59,7 +59,7 @@ func TestOwnIPTemplatesOfTheCommittedPack(t *testing.T) {
 		"CVE-2024-52875", // a CRLF header injection and a base64 <script> by GET
 		"CVE-2024-11740", // a shortcode injection through %27 by GET
 	} {
-		if tp, ok := byID[id]; ok && tp.OwnIP { // D-528 step 2 left most of them out of the pack altogether
+		if tp, ok := byID[id]; ok && tp.OwnIP { // most of them were left out of the pack altogether
 			t.Errorf("%s is marked own_ip", id)
 		}
 	}

@@ -18,12 +18,12 @@ import ResponseSettings from './ResponseSettings'
 import { Frozen, TurnOffResponse } from './Leaving'
 import { FrozenCtx, useLeaving } from './frozen'
 
-/** What the AI and the rules may do (the action catalog), what they may never touch, and the block list firewalls pull (D-513). */
+/** What the AI and the rules may do (the action catalog), what they may never touch, and the block list firewalls pull. */
 function ActionsTab() {
   return <div className="grid grid-cols-[minmax(0,1fr)] gap-8"><CatalogEditor /><NeverTouch /><BlocklistTab /></div>
 }
 
-// Tabs before D-513: Block list moved into Actions, Metrics into Log.
+// Old tabs: Block list moved into Actions, Metrics into Log.
 const OLD_HASH = ['rules', 'requests', 'blocklist', 'log', 'metrics']
 const MOVED: Record<string, string> = { blocklist: 'actions', metrics: 'log' }
 
@@ -35,8 +35,8 @@ function Content() {
   const plans = usePlans()
   const actions = useActions()
   const settings = useSettings(admin)
-  const leaving = useLeaving() // D-624 (#819): on here but not offered in v1 → no new action, every way back stays (frozen.ts)
-  // Liên kết cũ /response#requests (trước D-464) → /response?tab=requests; #ai là tên cũ của Requests.
+  const leaving = useLeaving() // On here but not offered in v1 → no new action, every way back stays (frozen.ts)
+  // Liên kết cũ /response#requests (trước khi có khung trang) → /response?tab=requests; #ai là tên cũ của Requests.
   // Hash khác (ví dụ #main của liên kết "Skip to content") để nguyên.
   const old = hash.slice(1) === 'ai' ? 'requests' : hash.slice(1)
   if (OLD_HASH.includes(old)) {
@@ -55,7 +55,7 @@ function Content() {
   const { execution } = plans.data
   const pending = actions.data.items.filter((a) => a.status === 'pending').length
   const s = settings.data
-  const incident = new URLSearchParams(search).get('incident') // Respond on an incident (D-509)
+  const incident = new URLSearchParams(search).get('incident') // Respond on an incident
   return (
     <FrozenCtx.Provider value={leaving}>
       <PageHeader title={t('page.title')} stories={['S-RESP-1', 'S-RESP-2', 'S-RESP-3', 'S-RESP-4']}
@@ -72,7 +72,7 @@ function Content() {
         <Notice tone="off" title={<>{t('blocked.execution_off')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response#resp-exec">{t('blocked.toSettings')}</Link> : null}</>} />
       )}
       {incident ? <Frozen on={leaving}><IncidentRespond id={incident} /></Frozen> : null}
-      {/* D-513: the inbox first, then how requests are made (Rules, Actions), what happened (Log), and the switch and limits (Settings). */}
+      {/* The inbox first, then how requests are made (Rules, Actions), what happened (Log), and the switch and limits (Settings). */}
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'requests', label: t('tabs.requests'), panel: <RequestsTab />, badge: { count: pending, label: t('tabs.pending') } },
         { id: 'rules', label: t('tabs.rules'), panel: <RulesTab /> },
@@ -86,6 +86,6 @@ function Content() {
 
 export default function ResponsePage() {
   const incident = new URLSearchParams(useLocation().search).get('incident')
-  // Respond on an incident while response is off (the default): the manual steps still help (W7-1, S-RESP-3)
+  // Respond on an incident while response is off (the default): the manual steps still help (S-RESP-3)
   return <RequireModule module="response" page fallback={incident ? <IncidentRespondOff id={incident} /> : undefined}><Content /></RequireModule>
 }

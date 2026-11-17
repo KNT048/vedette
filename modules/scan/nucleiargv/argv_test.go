@@ -88,7 +88,7 @@ func TestBuild_Refuses(t *testing.T) {
 		"loopback":            host("127.0.0.1"),
 		"unspecified":         host("0.0.0.0"),
 		"link-local metadata": host("169.254.169.254"),
-		"Alibaba metadata":    host("100.100.100.200"), // inside 100.64/10, refused anyway (D-461 (5))
+		"Alibaba metadata":    host("100.100.100.200"), // inside 100.64/10, refused anyway
 		"multicast":           host("224.0.0.1"),
 		"broadcast":           host("255.255.255.255"),
 		"private .255":        host("192.168.10.255"),
@@ -119,7 +119,7 @@ func TestBuild_Refuses(t *testing.T) {
 			t.Errorf("%s: built %q", name, args)
 		}
 	}
-	for _, h := range []string{"10.0.0.1", "172.16.5.4", "172.31.255.254", "192.168.10.21", "100.64.0.1", "100.65.254.7", "100.100.100.199", "100.127.255.254"} { // RFC 6598 too (D-461)
+	for _, h := range []string{"10.0.0.1", "172.16.5.4", "172.31.255.254", "192.168.10.21", "100.64.0.1", "100.65.254.7", "100.100.100.199", "100.127.255.254"} { // RFC 6598 too
 		if _, err := Build(host(h)); err != nil {
 			t.Errorf("private %s refused: %v", h, err)
 		}
@@ -192,7 +192,7 @@ func TestTarget_Input(t *testing.T) {
 var approvedFixed = []string{"-jsonl", "-silent", "-nc", "-duc", "-ni", "-ms", "-dr", "-nh", "-etags", "dos,intrusive,fuzz", "-pt", "http,tcp,ssl", "-elog", "/dev/stderr", "-c", "1", "-bs", "1", "-timeout", "10", "-retries", "1"}
 
 // rfc1918Literal is written apart from validHost: a dotted IPv4 literal in 10/8, 172.16/12, 192.168/16 or the RFC 6598 shared space
-// 100.64/10 (D-461), last octet 1..254.
+// 100.64/10, last octet 1..254.
 func rfc1918Literal(s string) bool {
 	parts := strings.Split(s, ".")
 	if len(parts) != 4 {
@@ -223,7 +223,7 @@ func independentTargetOf(s string, hostOK func(string) bool) bool {
 }
 
 // L5: whatever Validate accepts has these properties, checked without its code: the approved fixed part, then -rl
-// 1..20, -mhe 2..20, then only -t pairs under TemplatesDir, then only -u pairs of private literal targets; or (D-520) the
+// 1..20, -mhe 2..20, then only -t pairs under TemplatesDir, then only -u pairs of private literal targets; or the
 // approved own_ip fixed part, -rl 5, and exactly one -u of a public literal target.
 func FuzzValidate(f *testing.F) {
 	good, _ := Build(job())

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// PublishedOf (D-615) answers every CVE asked for that NVD dated, across more than one chunk, and leaves the others out (#825: one query
+// PublishedOf answers every CVE asked for that NVD dated, across more than one chunk, and leaves the others out (#825: one query
 // per chunk, not one per CVE).
 func TestPublishedOfReadsEveryAskedCVEAcrossChunks(t *testing.T) {
 	t.Parallel()

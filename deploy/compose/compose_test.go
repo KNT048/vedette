@@ -1,4 +1,4 @@
-// Package compose checks the text of the container-only compose files (D-168). It starts nothing: the effect (the stack runs, refuses a
+// Package compose checks the text of the container-only compose files. It starts nothing: the effect (the stack runs, refuses a
 // wrong Host, keeps its data) is the smoke of a later slice and the lab. These tests keep the hardening of DEPLOYMENT.md (Hardening) true
 // of the files a customer is given.
 package compose
@@ -109,10 +109,10 @@ func TestEveryServiceIsHardenedLikeTheAppliance(t *testing.T) {
 			where := name + " " + sname
 			seen++
 			if m := imageRef.FindStringSubmatch(s.Image); m == nil || !strings.EqualFold(m[1], sname) {
-				t.Errorf("%s: image %q must be ${VEDETTE_%s_IMAGE:?message}: the release fills the digest, the repository copy refuses to start (D-166 (2))", where, s.Image, strings.ToUpper(sname))
+				t.Errorf("%s: image %q must be ${VEDETTE_%s_IMAGE:?message}: the release fills the digest, the repository copy refuses to start", where, s.Image, strings.ToUpper(sname))
 			}
 			// uid 0 only for the host-network sensor with exactly NET_RAW: Docker gives an added capability only to root, Podman to any user
-			// (measured, D-168 (3)); D-114 (3) planned this fallback. Everything else runs as a non-root uid.
+			// (measured); this is the planned fallback. Everything else runs as a non-root uid.
 			rootSensor := sname == "sensor" && s.NetworkMode == "host" && slices.Equal(s.CapAdd, []string{"NET_RAW"})
 			u, g, _ := strings.Cut(s.User, ":")
 			if u == "" || ((u == "0" || u == "root") && !rootSensor) {
@@ -146,14 +146,14 @@ func TestEveryServiceIsHardenedLikeTheAppliance(t *testing.T) {
 				t.Errorf("%s: security_opt must be exactly [no-new-privileges:true] (no seccomp=unconfined, no apparmor opt-out), got %v", where, s.SecurityOpt)
 			}
 			if s.Restart != "unless-stopped" {
-				t.Errorf("%s: restart must be unless-stopped (a purge makes core exit and expects a supervisor, D-154), got %q", where, s.Restart)
+				t.Errorf("%s: restart must be unless-stopped (a purge makes core exit and expects a supervisor), got %q", where, s.Restart)
 			}
 			if s.MemLimit == "" || s.PidsLimit == 0 {
 				t.Errorf("%s: mem_limit and pids_limit are set (DEPLOYMENT.md 2.5)", where)
 			}
 			for _, c := range s.CapAdd {
 				if c != "NET_RAW" || s.NetworkMode != "host" {
-					t.Errorf("%s: cap_add %q: only NET_RAW, only on the host network (D-114)", where, c)
+					t.Errorf("%s: cap_add %q: only NET_RAW, only on the host network", where, c)
 				}
 			}
 			if s.NetworkMode != "" && (s.NetworkMode != "host" || (sname != "sensor" && sname != "scan")) {
@@ -189,7 +189,7 @@ func TestCoreServiceIsTheOneThingTheCustomerMustSet(t *testing.T) {
 			t.Errorf("core command lacks %q: %s", want, cmd)
 		}
 	}
-	// 8444 and the MCP server's 8765 on the machine's loopback only (D-395): never on a LAN address
+	// 8444 and the MCP server's 8765 on the machine's loopback only: never on a LAN address
 	if len(core.Ports) != 3 || !strings.HasSuffix(core.Ports[0], ":8443:8443") || core.Ports[1] != "127.0.0.1:8444:8444" || core.Ports[2] != "127.0.0.1:8765:8765" {
 		t.Errorf("core publishes 8443 on the address given, 8444 and 8765 on loopback only, got %v", core.Ports)
 	}
@@ -200,7 +200,7 @@ func TestCoreServiceIsTheOneThingTheCustomerMustSet(t *testing.T) {
 	sys := load(t, "compose.syslog.yaml").Services["core"]
 	if len(sys.Ports) != 3 || !strings.HasSuffix(sys.Ports[0], ":514:5514/udp") || !strings.HasSuffix(sys.Ports[1], ":514:5514/tcp") ||
 		!strings.HasSuffix(sys.Ports[2], ":6514:5515/tcp") {
-		t.Errorf("compose.syslog.yaml publishes 514 udp and tcp to core's 5514 and TLS 6514 tcp to 5515 (D-214), got %v", sys.Ports)
+		t.Errorf("compose.syslog.yaml publishes 514 udp and tcp to core's 5514 and TLS 6514 tcp to 5515, got %v", sys.Ports)
 	}
 }
 
@@ -298,7 +298,7 @@ func TestInstallGuideUsesThePinnedDebianImage(t *testing.T) {
 	if strings.Contains(string(guide), "alpine") {
 		t.Error("docs/INSTALL-CONTAINER.md: no unpinned third-party image")
 	}
-	// The Data page of a container-only install shows the same two commands (D-381).
+	// The Data page of a container-only install shows the same two commands.
 	page, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "features", "core", "ContainerOnly.tsx"))
 	if err != nil {
 		t.Fatal(err)

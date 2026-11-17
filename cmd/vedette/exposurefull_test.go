@@ -16,7 +16,7 @@ import (
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// FULL-4 (D-527): the deep scan of a target whose testing terms are accepted, over the fakes of exposuretemplates_test.go and the
+// The deep scan of a target whose testing terms are accepted, over the fakes of exposuretemplates_test.go and the
 // committed pack. No process runs and no packet leaves.
 
 func fullTarget(disruptive bool) exposure.ScanTarget {
@@ -203,7 +203,7 @@ func TestExposureFullDisruptiveOnlyWhileTicked(t *testing.T) {
 }
 
 // A port that is not web runs the network templates of its service and, when nmap saw TLS, the TLS checks; never an http one. (Pack
-// 2026.11.5 has no network template without the tick: they all name a fixed port or wait for a reviewer, D-528 step 2.)
+// 2026.11.5 has no network template without the tick: they all name a fixed port or wait for a reviewer.)
 func TestExposureFullOtherPortRunsItsNetworkTemplates(t *testing.T) {
 	t.Parallel()
 	ix, err := nucleipack.Index()

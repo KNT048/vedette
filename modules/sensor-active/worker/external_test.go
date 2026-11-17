@@ -45,7 +45,7 @@ func externalJob(id, target string) sensorlink.Job {
 	return sensorlink.Job{ID: id, Kind: sensorlink.KindNmap, Shape: "external", Rate: nmapargv.ExternalRate, Targets: []string{target}, TimeoutS: 60}
 }
 
-// D-514: the worker runs the external shape only after it saw by itself that the box leaves the Internet through the address. A
+// The worker runs the external shape only after it saw by itself that the box leaves the Internet through the address. A
 // load-balanced uplink may show another address first: the fence asks again, up to EgressRounds rounds, and stops at the first yes;
 // a yes stands for EgressFresh, so the next job of the same address asks nobody.
 func TestExternalJobRunsOnlyOnTheBoxsOwnIP(t *testing.T) {
@@ -114,7 +114,7 @@ func TestExternalJobRefusedWhenTheAddressIsNotTheBoxs(t *testing.T) {
 	}
 }
 
-// D-526: the two full shapes run behind the same own-IP fence as the external one, with the argv nmapargv builds; another address
+// The two full shapes run behind the same own-IP fence as the external one, with the argv nmapargv builds; another address
 // is refused before nmap, and a full job at another rate or on a LAN address is invalid_job before the fence is asked.
 func TestFullJobsRunOnlyOnTheBoxsOwnIP(t *testing.T) {
 	t.Parallel()
@@ -166,7 +166,7 @@ func TestFullJobsRunOnlyOnTheBoxsOwnIP(t *testing.T) {
 	}
 }
 
-// D-526, review r1 H1, r2 LOW-4: a full job re-checks the fence while nmap runs, on each tick (every EgressRecheck in production;
+// A full job re-checks the fence while nmap runs, on each tick (every EgressRecheck in production;
 // here the test sends one tick once nmap is running). The fake nmap never finishes by itself (sleeper), so a result can only come
 // from the kill: the box's address changes mid-run (a forced reconnect), or the public IP services can no longer be reached, and
 // the job is "stopped" with the fence's reason and no output (review r2 LOW-5: "refused" is for a job that never ran). Review r2

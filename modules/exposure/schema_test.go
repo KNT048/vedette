@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/api/oas"
 )
 
-// N44-3: the snapshot of a deep scan (testing terms accepted, nuclei deep rows with a name and a severity and no CVE) is read
+// The snapshot of a deep scan (testing terms accepted, nuclei deep rows with a name and a severity and no CVE) is read
 // through the real handler and the generated encoder: 200 with the rows, not 500 "does not fit the API schema".
 func TestSnapshotOfADeepScanFitsTheAPISchema(t *testing.T) {
 	t.Parallel()
@@ -43,7 +43,7 @@ func TestSnapshotOfADeepScanFitsTheAPISchema(t *testing.T) {
 }
 
 // Every field a stored snapshot or a target can carry fits the API schema: a field added on the Go side without contract.ts,
-// api/openapi.json and core/api/oas (the drift of N44-3) fails here, not as a 500 on the customer's box.
+// api/openapi.json and core/api/oas fails here, not as a 500 on the customer's box.
 func TestEveryFieldFitsTheAPISchema(t *testing.T) {
 	t.Parallel()
 	var s Snapshot

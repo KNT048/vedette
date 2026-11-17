@@ -259,7 +259,7 @@ func (o *Ops) commitBackup(archive string, rec backupRecord) error {
 	ix.Backups = append(ix.Backups, rec)
 	keep, known := o.referencedBackups()
 	if !known {
-		// A record of what needs a backup cannot be read: fail closed (D-157). Only a pre_update backup is ever
+		// A record of what needs a backup cannot be read: fail closed. Only a pre_update backup is ever
 		// referenced (a version's backup_id, the rollback journal's), so every pre_update is kept this time and
 		// the other kinds age out as usual: the store does not grow without bound while the file stays damaged.
 		o.log.Warn("could not tell which backups are still needed; keeping every pre_update backup")
@@ -286,7 +286,7 @@ func (o *Ops) commitBackup(archive string, rec backupRecord) error {
 // referencedBackups is the set of backup ids that something still needs: the pre_update backup a service's
 // current or previous version was entered with (container.rollback restores it for rollback.safe=false), and
 // the backup of a transition journal (the revert after a failed or interrupted start). Retention never drops
-// these (D-157, WP-31 M4). known is false when a versions file or a journal exists but cannot be read or
+// these (WP-31 M4). known is false when a versions file or a journal exists but cannot be read or
 // parsed: then the set is incomplete and the caller must not drop anything.
 func (o *Ops) referencedBackups() (ref map[string]bool, known bool) {
 	ref, known = map[string]bool{}, true
@@ -316,8 +316,8 @@ func (o *Ops) referencedBackups() (ref map[string]bool, known bool) {
 // pre_update/pre_os_update backups, the newest 3 pre_restore ones, at most 10 manual ones (oldest dropped
 // first). A backup in keep is never dropped and does not count toward the quota; keep is bounded (three ids per service), so the total stays bounded.
 // The backup just made (newest) is always kept and does count, even when a clock stepped back makes it
-// look the oldest: it is sorted first, so it is the oldest other backup that ages out (D-157). Refusing
-// it instead would stop backup.restore, the way out of core_data_unrecoverable (D-142).
+// look the oldest: it is sorted first, so it is the oldest other backup that ages out. Refusing
+// it instead would stop backup.restore, the way out of core_data_unrecoverable.
 func retain(ix *backupIndex, keep map[string]bool, newest string) []string {
 	byAge := func(a, b backupRecord) int {
 		if a.ID != b.ID && (a.ID == newest || b.ID == newest) {
@@ -438,8 +438,8 @@ func (o *Ops) sweepBackups() {
 	}
 }
 
-// cmdBackupPurge is backup.purge (spec 6.11a, D-156): delete every archive and the index. There is
-// still no way to delete one archive (D-85). It is a run like every command (the framework has no
+// cmdBackupPurge is backup.purge (spec 6.11a): delete every archive and the index. There is
+// still no way to delete one archive. It is a run like every command (the framework has no
 // synchronous kind), so it holds the write lock and a second write is busy.
 func (o *Ops) cmdBackupPurge() server.Command {
 	return server.Define(server.Spec[struct{}]{

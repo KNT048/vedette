@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// #847 (J7 #812): after a backup is restored without its decryption key, a connection's credential is sealed under another master key.
+// #847 (#812): after a backup is restored without its decryption key, a connection's credential is sealed under another master key.
 // Test is 409 secret_lost with a sentence that says to enter it again, never a 500; nothing is sent to the device; the failure is saved
 // like any other (status error, a connection.test audit row). Typing the credential again in Edit makes Test work.
 func TestTestOfACredentialSealedUnderAnotherKeyIsSecretLost(t *testing.T) {

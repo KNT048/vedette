@@ -2,7 +2,7 @@
 // cannot be removed), the CSV round trip (INV-13), software add and remove (INV-10 match), approve / mark unknown (S-INV-3), removing a device
 // with its findings (INV-11), and the viewer's locked buttons. The form steps are those of e2e/qa/inventory.spec.ts; what only a real box shows is new:
 // the row is in the database after a reload, the audit log has the line, the duplicate IP is a real 409, the CSV that comes back is the real export.
-// Every device gets its own name and its own address (D-172), and counts are read as "contains my row", never as a total: other specs add devices too.
+// Every device gets its own name and its own address, and counts are read as "contains my row", never as a total: other specs add devices too.
 // Known gap (S-INV-5): the box has no package list yet (cmd/vedette/inventory.go, ponytail), so no spec asserts one.
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'

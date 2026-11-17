@@ -109,7 +109,7 @@ func TestAdminActionsRecheckTheActorInTheWriteTransaction(t *testing.T) {
 	}
 }
 
-// D-76: turning two-step on needs the current password; a wrong one is refused and counted like a wrong
+// Turning two-step on needs the current password; a wrong one is refused and counted like a wrong
 // sign-in password (the same account limiter as DisableTwoFA).
 func TestEnablingTwoStepNeedsThePassword(t *testing.T) {
 	t.Parallel()

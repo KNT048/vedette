@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// The scan image is built on the box (D-57 (2), D-113 (7), D-147). Vedette never builds or publishes an image with nmap in it (D-4,
+// The scan image is built on the box. Vedette never builds or publishes an image with nmap in it (see
 // docs/LEGAL.md): the signed image ghcr.io/knt048/vedette-scan is a base (Debian slim, vedette-sensor, nuclei, the template pack), and
 // after container.pull has pulled it by the verified digest and tagged it, the host runs one podman build over a context that holds only
 // the Containerfile below, with the fixed argv of podmanargv.go. The result is localhost/vedette-scan-nmap:<version>; the unit pins it by
@@ -25,7 +25,7 @@ import (
 //
 // The build runs the RUN step as the root of the container, with the network (apt needs it: the host's apt mirror does not apply, the
 // container contacts deb.debian.org; PRIVACY.md flow 6), on vedette-int and no other (#467: on a box with Docker the FORWARD policy is
-// DROP and only vedette-int is let through, by the DOCKER-USER rules of D-267; install.sh starts the network before -bootstrap, and the
+// DROP and only vedette-int is let through, by Vedette's DOCKER-USER rules; install.sh starts the network before -bootstrap, and the
 // bootstrap puts those rules in place before it builds, since the daemon that keeps them is not running yet), and with trust in the apt
 // keys of the base image: the base is signed by us, the package index is signed by Debian. It is the one place where the host runs code
 // that a third party's package archive supplies, which is why it is a constant text, a fixed argv, a context made for this run and

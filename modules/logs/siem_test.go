@@ -246,7 +246,7 @@ func TestSiemSaveValidation(t *testing.T) {
 	if n := count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.siem_save'`); n != 0 {
 		t.Errorf("%d audit rows for refused saves", n)
 	}
-	// an internal address and a name are fine, and so is a SIEM on the machine at a port that is not Vedette's (D-446)
+	// an internal address and a name are fine, and so is a SIEM on the machine at a port that is not Vedette's
 	for _, h := range []string{"192.168.10.50", "siem.example.com", "10.0.0.7", "192.168.10.2"} {
 		in := ok
 		in.Host = h
@@ -275,7 +275,7 @@ func TestSiemForbiddenTable(t *testing.T) {
 			t.Errorf("%s: forbidden=%v, want %v", c.ip, got, c.denied)
 		}
 	}
-	// D-446: Vedette itself: loopback on every port, the machine's addresses on Vedette's own ports, in every transition form
+	// Vedette itself: loopback on every port, the machine's addresses on Vedette's own ports, in every transition form
 	for _, c := range []struct {
 		ip   string
 		port uint16
@@ -667,7 +667,7 @@ func TestSiemRecordsFromEventsAreClean(t *testing.T) {
 	}
 }
 
-// A bad connection the device blocked says so in every format (D-227): CEF act=blocked, syslog and JSON blocked="true"; one that went
+// A bad connection the device blocked says so in every format: CEF act=blocked, syslog and JSON blocked="true"; one that went
 // through, or an event without the key, is blocked="false" and has no act.
 func TestSiemBadConnCarriesBlocked(t *testing.T) {
 	e := newSiemEnv(t)
@@ -690,7 +690,7 @@ func TestSiemBadConnCarriesBlocked(t *testing.T) {
 	}
 	for i, want := range []string{"true", "false", "false"} {
 		cef, sl, js := string(formatCEF(recs[i], "box")), string(formatSyslog(recs[i], "box")), string(formatJSON(recs[i], "box"))
-		// D-433: listed_as goes out in every format when a parent name is the one listed; an empty field is left out (as asset_id is)
+		// listed_as goes out in every format when a parent name is the one listed; an empty field is left out (as asset_id is)
 		has := strings.Contains(sl, ` listed_as="bad.example.net"`) && strings.Contains(js, `"listed_as":"bad.example.net"`) && strings.Contains(cef, "Label=listed_as cs4=bad.example.net")
 		if has != (i == 0) || (i != 0 && (strings.Contains(sl, "listed_as") || strings.Contains(js, "listed_as") || strings.Contains(cef, "listed_as"))) {
 			t.Errorf("record %d listed_as: cef %s syslog %s json %s", i, cef, sl, js)
@@ -911,9 +911,9 @@ func TestSiemSaveInvalidatesInFlightRecords(t *testing.T) {
 	}
 }
 
-// D-446 review: an address of core's own container (here given as Config.SelfAddrs, as the decoys are) is refused on every port,
+// An address of core's own container (here given as Config.SelfAddrs, as the decoys are) is refused on every port,
 // at save and on the socket, on a Vedette port and on another one alike.
-func TestD446_SiemSelfOnEveryPort(t *testing.T) {
+func TestOwnAddress_SiemSelfOnEveryPort(t *testing.T) {
 	e := newSiemEnv(t)
 	e.svc.allowLoopback = false
 	e.svc.cfg.BoxAddrs = func() ([]netip.Addr, bool) { return nil, true }

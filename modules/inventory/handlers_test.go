@@ -142,7 +142,7 @@ func TestHandlersRolesAndShapes(t *testing.T) {
 	}
 	a.want("POST", "/inventory/devices/"+id+"/approve", "operator", "", 200, "")
 
-	// D-601: the sources of a device, admin only; the device says them, the default resolved
+	// The sources of a device, admin only; the device says them, the default resolved
 	if asset["scan_source"] != "off" || asset["snmp_source"] != "off" {
 		t.Fatalf("a hand-added device's sources = %v/%v", asset["scan_source"], asset["snmp_source"])
 	}

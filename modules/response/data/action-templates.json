@@ -1,6 +1,6 @@
 {
   "library": "Vedette sample action templates",
-  "notice": "Device knowledge as data (D-58): commands, API paths, undo and read-back per device. Nothing here is code; the core only knows generic connection kinds. Shipped with signed updates; customers edit and add their own. Source: docs/specs/action-templates.md.",
+  "notice": "Device knowledge as data: commands, API paths, undo and read-back per device. Nothing here is code; the core only knows generic connection kinds. Shipped with signed updates; customers edit and add their own. Source: docs/specs/action-templates.md.",
   "unverified_note": "Not verified on a device yet — test in a lab first",
   "actions": [
     {

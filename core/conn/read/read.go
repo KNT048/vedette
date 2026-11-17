@@ -1,4 +1,4 @@
-// Package read is the only way the AI reaches a device through a connection (D-93 (3), core INV-23, ai INV-14): the read tools of a
+// Package read is the only way the AI reaches a device through a connection (core INV-23, ai INV-14): the read tools of a
 // connection, listed and called. It is a reader, not a writer: nothing here can send anything but a GET, one allow-listed command
 // line or a call of an MCP tool the administrator marked read, and the `ai` module imports this package and nothing else of
 // core/conn that holds a credential (a contract test walks the imports).
@@ -36,7 +36,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// Limits of one call (D-94).
+// Limits of one call.
 const (
 	// CallBudget is the time of one call in all: waiting for the connection's turn, dialling, the device's answer, closing.
 	CallBudget = transport.CallTimeout
@@ -565,7 +565,7 @@ type entry struct{ rel, raw string }
 
 // httpEntries are the addresses of c that a read may use: each entry of the allow-list that is under the target and has plain
 // segments. A read of an HTTP kind is exactly one of them: some devices change state on a GET, so the administrator names every
-// address that is safe to read, and nothing is built from what the AI writes (D-127, H1). The host is the connection's.
+// address that is safe to read, and nothing is built from what the AI writes. The host is the connection's.
 func httpEntries(c conn.Connection) []entry {
 	t, err := url.Parse(c.Target)
 	if err != nil || t.Host == "" {
@@ -747,7 +747,7 @@ func (r *Reader) mcp(ctx context.Context, c conn.Connection, secret secrets.Valu
 		return "", false, ErrUnavailable
 	}
 	if found.MayWrite() {
-		return "", false, ErrUnavailable // the server says the tool may change something: never a read tool (D-179 (5))
+		return "", false, ErrUnavailable // the server says the tool may change something: never a read tool
 	}
 	for _, t := range c.Tools {
 		if t.Name == tool && t.Ident != conn.ToolIdent(found.Description, found.Schema, found.MayWrite()) {

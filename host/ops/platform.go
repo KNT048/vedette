@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// support is the static table of supported releases and their end dates (D-57 (1): Ubuntu
+// support is the static table of supported releases and their end dates (Ubuntu
 // 24.04 and 26.04 LTS, Debian 13). Dates are the end of standard security support and of the
 // extended program (Ubuntu Pro ESM, Debian LTS). A new release means a new host version (spec 6.1).
 // Exact days from distro-info-data 2026.10.12 (/usr/share/distro-info/{ubuntu,debian}.csv, the data Ubuntu's and Debian's own tools

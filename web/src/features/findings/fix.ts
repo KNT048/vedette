@@ -1,5 +1,5 @@
-// D-545 (W-3, S-MIT-1): what to install, in words. The grouping by fix is the server's (findings.DeviceUpdates, GET /findings/to-fix,
-// kien G8): the page shows it as To fix, one action per update.
+// W-3, S-MIT-1: what to install, in words. The grouping by fix is the server's (findings.DeviceUpdates, GET /findings/to-fix):
+// the page shows it as To fix, one action per update.
 import { useTranslation } from 'react-i18next'
 import type { PlanItem, RowFix } from './types'
 
@@ -19,14 +19,14 @@ export function useFixAction() {
   }
 }
 
-/** Updates to plan (D-613): what to install for one item, as a sentence. */
+/** Updates to plan: what to install for one item, as a sentence. */
 export function usePlanAction() {
   const { t } = useTranslation('findings')
   return (i: PlanItem) => {
     const v = { software: i.software, version: i.version, fixed: i.kind === 'windows' || i.kind === 'esu' ? build(i.fixed) : i.fixed }
-    if (i.kind === 'distro') return t(!i.fixed ? 'plan.action.distro' : i.pro ? 'plan.action.distroPro' : 'plan.action.distroFixed', v) // D-622
+    if (i.kind === 'distro') return t(!i.fixed ? 'plan.action.distro' : i.pro ? 'plan.action.distroPro' : 'plan.action.distroFixed', v)
     if (i.kind === 'windows') return t('plan.action.windows', v)
-    if (i.kind === 'esu') return t('fix.windowsEsu', v) // review r1 #5 of #804: never a plain "install the latest cumulative update"
+    if (i.kind === 'esu') return t('fix.windowsEsu', v) // #804: never a plain "install the latest cumulative update"
     return t('plan.action.fixed', v)
   }
 }

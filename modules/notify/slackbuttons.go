@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// Removing the Approve/Reject buttons of a Slack approval message once its request is finally decided or has ended (slice 3b, D-241,
+// Removing the Approve/Reject buttons of a Slack approval message once its request is finally decided or has ended (slice 3b,
 // spec approval-tokens.md 5 "cập nhật tin gốc (chat.update) để bỏ nút"). The Slack analogue of tgbuttons.go: the event handler only
 // marks rows; the deliver job rewrites the messages with the bot token, keeping their text and adding one fixed line saying how the
 // request ended. Who decided is not written: it would put a Vedette user's email into the Slack channel (the audit log has it).
@@ -58,7 +58,7 @@ type slackButtonRow struct {
 // clearSlackButtons is the part of the deliver job that removes Slack buttons: it marks the messages of requests that ended, then
 // rewrites at most buttonsPerRun marked messages. Slack refusing this edit (channel.SlackEditFinal) is final for the message. Any
 // other failure (no answer, 429, 5xx, busy, the token or app refused) counts one try of that message, at most buttonTries in all,
-// and stops the run (review of #198, L1: a Slack that swallows or slows the requests holds the deliver job for one request, not one
+// and stops the run (a Slack that swallows or slows the requests holds the deliver job for one request, not one
 // per message, and a dead token does not use up every message at once). Without the bot token nothing is sent (the rows are pruned
 // a week after their request).
 func (s *Service) clearSlackButtons(ctx context.Context, now time.Time) error {

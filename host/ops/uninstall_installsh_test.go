@@ -25,7 +25,7 @@ func runInstallShFns(t *testing.T, bin string, env []string, fns []string, call 
 		script += installShFunc(t, f)
 	}
 	cmd := exec.CommandContext(t.Context(), "sh", "-c", script+call) //nolint:gosec // the sh functions of install.sh under test
-	// PROC: an empty /proc by default, so the box that runs the test never shows its own containers to running_conmons (D-600)
+	// PROC: an empty /proc by default, so the box that runs the test never shows its own containers to running_conmons
 	cmd.Env = append(append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"), "PROC="+t.TempDir(), "CONMON_WAIT=0", "RUNNING="), env...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
@@ -38,7 +38,7 @@ func fakeProgram(t *testing.T, dir, name, body string) {
 	}
 }
 
-// D-409 (L7 of D-267's review): --uninstall removes Vedette's images by their exact names only. A customer's own
+// --uninstall removes Vedette's images by their exact names only. A customer's own
 // localhost/vedette-foo (or a name that merely starts like ours) is never removed, and an image of ours that the customer
 // also tagged is left in place with a warning: rmi -f by ID would take the customer's name and its containers with it.
 func TestInstallSh_UninstallRemovesOnlyVedettesImages(t *testing.T) {
@@ -79,7 +79,7 @@ esac
 	}
 }
 
-// D-409 (Opus r2 N4 of D-267): forward_check warns when the bridge vedette0 is not there although the network file names it
+// forward_check warns when the bridge vedette0 is not there although the network file names it
 // (a network vedette-int left by an earlier install keeps its old bridge, the DOCKER-USER rules never match), instead of
 // reporting the rules as in place; with the bridge there it goes on to the rules as before.
 func TestInstallSh_ForwardCheckNeedsTheBridge(t *testing.T) {
@@ -112,7 +112,7 @@ func TestInstallSh_ForwardCheckNeedsTheBridge(t *testing.T) {
 	}
 }
 
-// D-463, D-508: --uninstall wipes podman's storage and runtime files, and removes the folders podman made, only when the script added
+// --uninstall wipes podman's storage and runtime files, and removes the folders podman made, only when the script added
 // podman, nothing decided to keep it (KEEP_PODMAN: someone else's containers, no answer, --keep-data) and apt then purged it. A podman
 // that apt kept is the administrator's: nothing of it is wiped, not even by --keep-data.
 func TestInstallSh_UninstallWipesPodmanOnlyWhenPodmanIsGone(t *testing.T) {
@@ -170,12 +170,12 @@ grep -qx "$p" "$FAKE/installed" && printf installed
 exit 0
 `
 
-// W4-1, D-508: on kien's N100 an uninstall with --keep-data purged the podman the installer had added and wiped /var/lib/containers
+// On a test box an uninstall with --keep-data purged the podman the installer had added and wiped /var/lib/containers
 // with 21 Greenbone containers in it. podman_stays reads what the rootful podman holds after Vedette's own things are gone: anything
 // that is not Vedette's (a stopped container, a pod, a network, a volume, a named image) keeps podman and says why, with at most five
 // names and a count (images counted by ID); a podman that cannot be asked, or that hung, is kept (fail closed); --keep-data always
 // keeps it, also its storage when podman is not installed (review M3); only a podman that holds nothing else, without --keep-data, is
-// left to the purge as before (D-463). Nothing is read through a file, so a $TMP that cannot be written changes nothing (review M2).
+// left to the purge as before. Nothing is read through a file, so a $TMP that cannot be written changes nothing (review M2).
 // Names from podman are cut to printable characters and 64 bytes.
 func TestInstallSh_UninstallKeepsAPodmanThatHoldsOthers(t *testing.T) {
 	var greenbone []string
@@ -212,7 +212,7 @@ func TestInstallSh_UninstallKeepsAPodmanThatHoldsOthers(t *testing.T) {
 			wantKeep:  "kept? 21 containers, 1 network, 1 volume and 1 image that are not Vedette's use it (greenbone-a, greenbone-b, greenbone-c, greenbone-d, greenbone-e, and 19 more)",
 			wantInUse: true,
 		},
-		// D-529: OpenVAS as vedette-host runs it (docker-compose's names, the project's volumes, Greenbone's images) is not Vedette's
+		// OpenVAS as vedette-host runs it (docker-compose's names, the project's volumes, Greenbone's images) is not Vedette's
 		"OpenVAS of greenbone.up": {
 			lists: map[string]string{
 				"ctr": "vedette-core\ngreenbone-community-edition-gvmd-1\ngreenbone-community-edition-pg-gvm-1\n", "pod": "",
@@ -308,10 +308,10 @@ printf 'keep=%s\nuse=%s\nours=%s\n' "$KEEP_PODMAN" "$PODMAN_IN_USE" "$PODMAN_OUR
 	}
 }
 
-// W4-1, D-508: purge_added_packages with a podman that stays purges none of the packages podman runs with (by name, and its Depends
+// purge_added_packages with a podman that stays purges none of the packages podman runs with (by name, and its Depends
 // and Recommends down the tree as apt-cache gives them: netavark Recommends nftables, which it drives; review H1), marks the ones the
 // script asked for manual again, and still purges what else the script added. The same holds for the administrator's own podman, which
-// the script did not add (D-463). With nothing keeping podman it purges podman and its dependencies as before. apt is a small fake:
+// the script did not add. With nothing keeping podman it purges podman and its dependencies as before. apt is a small fake:
 // apt-cache honours --recurse, --installed and --no-recommends; autoremove offers an auto-marked package that no installed package
 // Depends on, a purge also removes what Depends on the package.
 func TestInstallSh_PurgeKeepsThePackagesOfAPodmanThatStays(t *testing.T) {
@@ -429,14 +429,14 @@ const fakePodmanUsers = `echo "$*" >>"$FAKE/calls"
 case "$1 $2" in
 "ps -a") f=$(printf '%s' "$4" | tr '=/' '__'); cat "$FAKE/users.$f" 2>/dev/null; exit 0 ;;
 "network exists" | "volume exists") exit 0 ;;
-"container exists") exit 1 ;; # no ZAP container (D-521)
+"container exists") exit 1 ;; # no ZAP container
 "images --format") cat "$FAKE/images" ;;
 "images -a") ;;
 esac
 exit 0
 `
 
-// D-508 review M1: Vedette's network and volumes are removed without -f, and an image of ours only when no container runs it: a
+// Vedette's network and volumes are removed without -f, and an image of ours only when no container runs it: a
 // container that is not Vedette's and is attached to vedette-int, mounts one of our volumes or runs one of our images keeps that thing
 // (with a warning), so podman_others still sees the container and podman stays. A leftover container of Vedette's is not a reason to
 // keep anything. This runs do_uninstall's own lines, from the network up to podman_stays.
@@ -456,7 +456,7 @@ func TestInstallSh_UninstallNeverForcesOutSomeoneElsesContainer(t *testing.T) {
 	}
 	fakeProgram(t, dir, "podman", fakePodmanUsers)
 	fakeProgram(t, dir, "nft", `echo "nft $*" >>"$FAKE/calls"
-`) // the ZAP fence of D-521 (never the real nft)
+`) // the ZAP fence (never the real nft)
 	body := installShFunc(t, "do_uninstall")
 	i := strings.Index(body, "\tif have podman; then\n\t\tremove_ours network vedette-int\n")
 	j := strings.Index(body, "\tpodman_stays\n")
@@ -486,7 +486,7 @@ func TestInstallSh_UninstallNeverForcesOutSomeoneElsesContainer(t *testing.T) {
 	}
 }
 
-// D-508 review M4 and LOW: every podman call of the uninstall goes through pm: the variables that point podman at another instance or
+// Every podman call of the uninstall goes through pm: the variables that point podman at another instance or
 // store are unset, and a call that hangs (timeout's 124 or 137) makes every later call fail at once and keeps podman, while the
 // uninstall goes on. Here the first rm hangs: nothing else reaches podman, and podman_stays keeps it.
 func TestInstallSh_UninstallKeepsAPodmanThatHangs(t *testing.T) {
@@ -525,8 +525,8 @@ printf 'keep=%s\nuse=%s\n' "$KEEP_PODMAN" "$PODMAN_IN_USE"
 	}
 }
 
-// D-508 review: do_uninstall removes Vedette's own things first, then decides about podman (podman_stays), and only then restores the
-// runtime and purges packages, so KEEP_PODMAN and PODMAN_IN_USE are known when they are read; the D-463 wipe comes last. Every podman
+// do_uninstall removes Vedette's own things first, then decides about podman (podman_stays), and only then restores the
+// runtime and purges packages, so KEEP_PODMAN and PODMAN_IN_USE are known when they are read; the storage wipe comes last. Every podman
 // call of the uninstall goes through pm (timeout, no environment), and nothing of ours is removed with -f but an image after its check.
 func TestInstallSh_UninstallDecidesAboutPodmanBeforeThePurge(t *testing.T) {
 	body := installShFunc(t, "do_uninstall")
@@ -561,10 +561,10 @@ func TestInstallSh_UninstallDecidesAboutPodmanBeforeThePurge(t *testing.T) {
 	}
 }
 
-// D-508 review LOW: the names install.sh --uninstall treats as Vedette's (the containers it removes by name, the network and volumes,
+// The names install.sh --uninstall treats as Vedette's (the containers it removes by name, the network and volumes,
 // the images, and the lists of podman_others and others_use that do not keep podman) are the ones the host makes: every service of
 // host/api.Services, every volume and network the units mount, the registry and local image names and the scan build's. A new name in
-// Go that the script does not know would keep podman on every box (a silent D-463 regression), so it fails here.
+// Go that the script does not know would keep podman on every box (a silent regression), so it fails here.
 func TestInstallSh_UninstallKnowsVedettesPodmanNames(t *testing.T) {
 	var ctrs, vols, imgs []string
 	nets := []string{ops.IntNetwork}
@@ -573,7 +573,7 @@ func TestInstallSh_UninstallKnowsVedettesPodmanNames(t *testing.T) {
 		imgs = append(imgs, release.RegistryPrefix+s, ops.LocalPrefix+s)
 		unit, err := ops.RenderUnit(s, "sha256:"+strings.Repeat("ab", 32), true, 1000, 1000, 1001, 1001)
 		if err != nil {
-			continue // greenbone has no unit (D-123 (2))
+			continue // greenbone has no unit
 		}
 		for l := range strings.Lines(string(unit)) {
 			l = strings.TrimSpace(l)
@@ -638,7 +638,7 @@ remove_images
 		}
 	}
 	if !strings.Contains(string(calls), "rmi -f zapimg\n") {
-		t.Errorf("remove_images leaves the ZAP image (D-521):\n%s", calls)
+		t.Errorf("remove_images leaves the ZAP image:\n%s", calls)
 	}
 	body := installShFunc(t, "do_uninstall")
 	for _, c := range ctrs {
@@ -656,12 +656,12 @@ remove_images
 			t.Errorf("do_uninstall does not remove the network %s", n)
 		}
 	}
-	if !strings.Contains(body, "\t\tremove_zap\n") { // the container and network of zap.baseline, by their label (D-521)
+	if !strings.Contains(body, "\t\tremove_zap\n") { // the container and network of zap.baseline, by their label
 		t.Error("do_uninstall does not call remove_zap")
 	}
 }
 
-// D-521 (review L3, L11): --uninstall removes the container and the network vedette-zap only when they carry the label vedette-host
+// --uninstall removes the container and the network vedette-zap only when they carry the label vedette-host
 // gives them; one of that name without it is someone else's and stays, with a warning.
 func TestInstallSh_RemoveZapOnlyTakesWhatCarriesTheLabel(t *testing.T) {
 	for name, tc := range map[string]struct {
@@ -761,8 +761,8 @@ echo "stuck=[$ZAP_STUCK]"`)
 	}
 }
 
-// D-600: podman, the packages it runs with and its storage stay while any container still runs, read from the kernel (a conmon in
-// /proc), not from podman's database: on kien's N100 an uninstall wiped /var/lib/containers under fourteen running Greenbone containers
+// podman, the packages it runs with and its storage stay while any container still runs, read from the kernel (a conmon in
+// /proc), not from podman's database: on a test box an uninstall wiped /var/lib/containers under fourteen running Greenbone containers
 // that podman no longer listed. A running container podman does not list keeps podman (also with no podman installed, and without
 // --keep-data), the summary names it; the wipe itself looks again; with no conmon left the decision is podman_others' as before.
 func TestInstallSh_UninstallKeepsPodmanUnderARunningContainer(t *testing.T) {

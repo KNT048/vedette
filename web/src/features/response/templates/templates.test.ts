@@ -1,4 +1,4 @@
-// The action template library is data (D-58) and carries the fixes of action-templates.md §12. These tests read the JSON through the loader.
+// The action template library is data and carries the fixes of action-templates.md §12. These tests read the JSON through the loader.
 import { describe, expect, it } from 'vitest'
 import { needsPrecheck, PARAM_TYPES, RUNTIME_VALUES, tplParams, validatePrecheck, validateTpl, type Tpl } from '../logic'
 import { guides } from './guides'
@@ -8,7 +8,7 @@ const cat = seedCatalog()
 const get = (id: string) => cat.find((a) => a.id === id)!
 const shape = (t: Tpl) => [t.cli, t.path, t.body, t.headers].join('\n')
 
-describe('action template library (data, D-58)', () => {
+describe('action template library (data)', () => {
   it('ids are unique; every placeholder is a typed parameter or a value read at run time; message actions are the only ones using {text}', () => {
     expect(new Set(cat.map((a) => a.id)).size).toBe(cat.length)
     for (const a of cat) {
@@ -194,7 +194,7 @@ describe('action template library (data, D-58)', () => {
   })
 })
 
-describe('no brand in code (D-58): vendor names live only in the template data, the seeds and the examples', () => {
+describe('no brand in code: vendor names live only in the template data, the seeds and the examples', () => {
   const sources = import.meta.glob<string>(['../*.{ts,tsx}', '../../ai/*.{ts,tsx}', '../../ai/harness/*.{ts,tsx}', '../../core/ConnectionsSection.tsx', '../../core/connectionsMock.ts', '../../../mocks/connectors.ts', '../../../lib/connections.ts'], { query: '?raw', import: 'default', eager: true })
   const BRAND = /fortigate|fortios|fortinet|mikrotik|routeros|pfsense|opnsense|cisco|aruba|pi-hole|pihole|adguard|palo ?alto/i
   it('no code file under response or ai names a brand', () => {

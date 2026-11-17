@@ -1,4 +1,4 @@
-// Hợp đồng API module findings (D-18). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// Hợp đồng API module findings. Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { TYPE_IDS } from '@/lib/deviceTypes'
@@ -8,15 +8,15 @@ const findingId = z.string().min(1).max(64)
 
 export const FindingStatus = z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant', 'risk_accepted'])
 export const Severity = z.enum(['critical', 'high', 'medium', 'low', 'info'])
-export const AssetKind = z.enum(TYPE_IDS) // the inventory's device types (D-511)
+export const AssetKind = z.enum(TYPE_IDS) // the inventory's device types
 export const FirewallVendor = z.enum(['fortigate', 'mikrotik', 'generic'])
 export const ApplyItem = z.enum(['patch', 'workaround', 'fortigate', 'mikrotik', 'generic'])
 export const StatusAction = z.enum(['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk', 'reopen'])
 export const BulkAction = z.enum(['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk'])
-/** How far ahead a risk can be accepted (D-498). */
+/** How far ahead a risk can be accepted. */
 export const MAX_ACCEPT_DAYS = 365
 const until = z.iso.date().optional().describe('accept_risk only (D-498): the last day the risk is accepted, from tomorrow to 365 days ahead; the finding reopens by itself after it')
-/** Most findings one bulk status change may touch (INV-10 of findings, D-484). */
+/** Most findings one bulk status change may touch (INV-10 of findings). */
 export const MAX_BULK = 500
 
 export const Finding = z.object({
@@ -152,8 +152,8 @@ export const UncheckedReason = z.enum([
   'no_nvd_versions', // NVD names the product but gives no affected versions
   'not_named',       // NVD's data for the CVE names other products, not this row (#920 rule 2)
   'not_comparable',  // the device's version exists but cannot be compared with NVD's ranges (version scheme)
-  'platform_unknown', // D-604: the CVE affects only some platforms or builds and nothing says which this one is (UncheckedItem.question)
-  'package_unknown',  // D-604: the platform is the distribution of the fixed list; its package release decides (UncheckedItem.question)
+  'platform_unknown', // The CVE affects only some platforms or builds and nothing says which this one is (UncheckedItem.question)
+  'package_unknown',  // The platform is the distribution of the fixed list; its package release decides (UncheckedItem.question)
 ])
 export const UncheckedCve = z.object({
   cve: z.string(), name: z.string(), date_added: z.iso.date(), ransomware: z.boolean(), advisory: z.string().url().nullable(),
@@ -181,9 +181,9 @@ export const UncheckedItem = z.object({
 }).describe('#910 phase 1: exploited CVEs of software the box has that it could not check; one item per device x software x reason. No finding is created from it')
 export const FindingList = z.object({ items: z.array(FindingRow), version_needed: z.array(VersionNeeded), unchecked: z.array(UncheckedItem) })
 
-// ---------- Updates to plan: CVE tiers 2 and 3 (S-TIER-1, S-TIER-2; D-613, D-615, D-616). Not findings: no status, no
+// ---------- Updates to plan: CVE tiers 2 and 3 (S-TIER-1, S-TIER-2). Not findings: no status, no
 // alert, no mitigation pack; one item per update on one device, each CVE one click away.
-/** FIRST's EPSS probability from which a CVE is "likely to be exploited" (tier 2, D-613); feeds.EPSSLikely on the box. */
+/** FIRST's EPSS probability from which a CVE is "likely to be exploited" (tier 2); feeds.EPSSLikely on the box. */
 export const EPSS_LIKELY = 0.1
 export const PlanTier = z.enum(['likely', 'recent'])
 export const PlanFilter = z.enum(['likely', 'recent', 'all'])
@@ -197,7 +197,7 @@ export const PlanCve = z.object({
   epss: z.number().min(0).max(1).nullable(),
   percentile: z.number().min(0).max(1).nullable(),
 })
-/** G4: a device's risk marker (the same value as GET /inventory/devices gives, findings.RiskMap); null when clean, for the Vedette box
+/** A device's risk marker (the same value as GET /inventory/devices gives, findings.RiskMap); null when clean, for the Vedette box
  * itself, or when the marker could not be read. */
 export const DeviceRiskView = z.object({ level: z.enum(['exploited', 'update']), exploited: z.number().int(), updates: z.number().int() }).nullable()
   .describe('The device\'s risk marker (G4): exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read')
@@ -265,7 +265,7 @@ export const HomeSummary = z.object({
 
 const idParams = z.object({ id: findingId })
 
-/** kien G8: one update or action on one device, from findings.DeviceUpdates (the same groupings as FindingRow.fix and the plan). */
+/** One update or action on one device, from findings.DeviceUpdates (the same groupings as FindingRow.fix and the plan). */
 export const ToFixAction = z.object({
   group: z.string().describe('The key of the action on its device: FindingRow.fix.group of an exploited update ("<device>/<software>", the ?fix= filter of the list), PlanItem.group of a planned one, "<device>/<software>" for findings no update is named for. Per device: "By fix" groups by product and release instead'),
   source: z.string().describe('Who reported the software row (agent, manual, scan, a sensor; "" when none): "I updated it" follows it (kien G12)'),

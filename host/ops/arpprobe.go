@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// The ARP checks of net.apply (D-101): is a new static address already taken, and does the gateway
+// The ARP checks of net.apply: is a new static address already taken, and does the gateway
 // answer from the new address. The logic is here and runs over arpSocket; arp_linux.go opens the
 // real socket. Tests never open one.
 
@@ -67,7 +67,7 @@ type arpProber struct {
 	gwTotal time.Duration
 }
 
-// newARPProber is the production prober: the timings of RFC 5227 as D-101 fixes them, on the real socket.
+// newARPProber is the production prober: the timings of RFC 5227, on the real socket.
 func newARPProber() *arpProber {
 	return &arpProber{dial: dialARP, probes: 3, gap: time.Second, wait: 2 * time.Second, gwEvery: time.Second, gwTotal: 15 * time.Second}
 }

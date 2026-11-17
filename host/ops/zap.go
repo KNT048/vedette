@@ -26,14 +26,14 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// zap.baseline (host-api §6.15, D-521, exposure INV-24 / D-562): ZAP's passive baseline scan of one page of a verified exposure
+// zap.baseline (host-api §6.15, exposure INV-24): ZAP's passive baseline scan of one page of a verified exposure
 // target, in a one-shot container the host starts with a fixed argv. The fences, in the order a run takes them:
 //
 //  1. The arguments (Validate): the URL is exactly http(s)://Host[:Port]/ (no user, query or fragment), IP is a public IPv4 address
 //     (egressip.IsPublicIPv4), Port 1-65535, Host is the IP itself (kind ip) or the verified domain or a name under it (kind domain).
 //     Everything of one page up to the end of the run fits in zapPageLimit, inside exposure's 8 minutes.
 //  2. One run at a time (busy otherwise), and the image is on the box: when it is not, the host starts its download by digest in the
-//     background and refuses (zap_image_pulling): the ~1.2 GB download happens only for a box whose owner pressed Scan now (D-521).
+//     background and refuses (zap_image_pulling): the ~1.2 GB download happens only for a box whose owner pressed Scan now.
 //  3. The host's own re-check of ownership, right before the run: kind ip, the box leaves the Internet through IP now (core/egressip,
 //     two of three services agree); kind domain, the domain still has its TXT record vedette-verify=<token> AND the page's name
 //     resolves (A records, system resolver) to the IP ZAP is pinned to. Core asked the same moments before (exposure INV-13); the
@@ -44,9 +44,9 @@ import (
 //     IP:Port. The container gets no resolver (--dns none) and, for a domain, the one name pinned to IP (--add-host), so a redirect to
 //     another host or port, a DNS lookup or a call home to zaproxy.org fails at the network layer.
 //  5. The container: --rm, --read-only (tmpfs for ZAP's home, podman's own for /tmp and /run), --cap-drop ALL, no-new-privileges,
-//     Vedette's AppArmor profile (D-458), 1 GiB without swap, 256 pids, the image's zap user, a JVM heap of 512 MiB, -silent (no
-//     update check, no call home), spider 1 minute, passive rules 5 minutes, no form posted (the traditional runner, --autooff,
-//     D-525), never -a (active scan), -j (AJAX spider) or -u.
+//     Vedette's AppArmor profile, 1 GiB without swap, 256 pids, the image's zap user, a JVM heap of 512 MiB, -silent (no
+//     update check, no call home), spider 1 minute, passive rules 5 minutes, no form posted (the traditional runner, --autooff),
+//     never -a (active scan), -j (AJAX spider) or -u.
 //  6. After the run, on every path: the container is removed (only one that carries zapLabel) and must then be proven gone, and only
 //     then is the nft table deleted (a ZAP that may still run keeps its fence); then the work directory and the marker zap/active go.
 //     What cannot be proven gone keeps the table and the marker, is audited (zap_cleanup_incomplete), and is tried again by the next
@@ -54,7 +54,7 @@ import (
 //
 // The report is read from the work directory (a bind mount, 0700, owned by the image's zap user; a symlink, a FIFO or a file over
 // MaxZapReport is refused), kept as zap/<id>.json until the next run or host start, and served by GET /v1/zap/{id}/content. It is
-// untrusted: exposure's ParseZAPReport reads it (D-562 (4)).
+// untrusted: exposure's ParseZAPReport reads it.
 
 const (
 	binNft = "nft"
@@ -69,7 +69,7 @@ const (
 
 	// zapImage is ZAP_IMAGE of deploy/containers/pins.env without its tag (a test keeps them equal; install.sh --uninstall names it
 	// too): ZAP 2.17.0 ("stable"), the digest of the multi-architecture index. Upstream does not sign it with our key: integrity is the
-	// digest (D-521, an exception to D-57 (3)).
+	// digest.
 	zapImage = "ghcr.io/zaproxy/zaproxy@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af"
 
 	// zapUID is the zap user of the image (useradd -u 1000 in its Dockerfile): the container runs as it, and the work directory is its.
@@ -79,18 +79,18 @@ const (
 	zapReportName = "out.json"
 	// zapTmpfs is ZAP's home: podman copies the image's /home/zap into it (tmpcopyup, its default, keeping the zap user's own files
 	// its), and it counts against --memory. mode=1777 (sticky, like /tmp) lets the zap user write in it: podman refuses the tmpfs
-	// options uid= and gid= ("unknown mount option", podman 5.7 on the N100, n39: ZAP never started), and the tmpfs belongs to this
+	// options uid= and gid= ("unknown mount option", podman 5.7 on a test box: ZAP never started), and the tmpfs belongs to this
 	// one container. Plain tmpfs options only, so every podman the installer supports accepts it.
 	zapTmpfs = "/home/zap:rw,size=256m,mode=1777"
 	// zapCwd is the container's working directory: zap-baseline.py's traditional runner (--autooff) writes ZAP's own log to zap.out
-	// in the current directory (zap_common.start_zap), and the image's WORKDIR /zap is on the read-only root (D-525). It is the work
+	// in the current directory (zap_common.start_zap), and the image's WORKDIR /zap is on the read-only root. It is the work
 	// mount, so zap.out outlives the container and the host logs its last lines when ZAP fails (zaptmpfs review M: on the tmpfs
 	// ZAP's own reason for a failed start was lost with the container).
 	zapCwd = zapWorkDir
 	// zapOptions are ZAP's own options (-z): -silent (no update check, no unsolicited request), a heap of half the container's memory
-	// (zap.sh reads -Xmx from its arguments; without it it takes a quarter of the HOST's memory on cgroup v2, 1.75 GiB on the N100),
-	// no form handled or posted by the spider and one spider thread, gentle on a fragile site (D-562 (1), exposure INV-24). The spider
-	// options hold only because the run is --autooff (D-525): the traditional runner starts the spider through ZAP's API with these
+	// (zap.sh reads -Xmx from its arguments; without it it takes a quarter of the HOST's memory on cgroup v2, 1.75 GiB on a test box),
+	// no form handled or posted by the spider and one spider thread, gentle on a fragile site (exposure INV-24). The spider
+	// options hold only because the run is --autooff: the traditional runner starts the spider through ZAP's API with these
 	// options, while the Automation Framework runner (2.17.0's default) gives its spider job the job's own defaults (processForm and
 	// postForm true, two threads per core), which replace them. The cap of 10 alerts per rule is zap-baseline.py's own (zap_tune).
 	zapOptions = "-silent -Xmx512m -config spider.processform=false -config spider.postform=false -config spider.thread=1"
@@ -124,7 +124,7 @@ type zapPage struct {
 	kind    string
 	domain  string
 	token   string
-	proofAt string // D-632: the parent name where the domain's own record sits; "" = on the domain
+	proofAt string // The parent name where the domain's own record sits; "" = on the domain
 }
 
 // zapURL checks that raw is exactly http(s)://host[:port]/ as exposure writes it (the port only when it is not the scheme's own) and
@@ -226,7 +226,7 @@ func zapRmArgv() []string         { return []string{"rm", "--force", "--ignore",
 const zapMountOpts = ":rw,nosuid,nodev,noexec"
 
 // zapRunArgv is the one podman run. addHost is "<name>:<ip>" for a domain's page and "" for an IP's; wrk is the work directory.
-// --autooff pins zap-baseline.py's traditional runner, where the -z spider options apply (D-525).
+// --autooff pins zap-baseline.py's traditional runner, where the -z spider options apply.
 func zapRunArgv(pageURL, addHost, wrk string) []string {
 	a := []string{"--module", AppArmorConfModule, "run", "--rm", "--pull=never", "--name", zapContainer, "--label", zapLabel, "--network", zapNetwork, "--dns", "none"}
 	if addHost != "" {
@@ -297,7 +297,7 @@ func isZapPodmanArgv(args []string) bool {
 // with its work folder under this state directory.
 func validatePodmanIn(stateDir string) func([]string) error {
 	return func(args []string) error {
-		if isZapRunArgv(stateDir, args) || isGreenbonePodmanArgv(args) { // OpenVAS: greenbone.go (D-529)
+		if isZapRunArgv(stateDir, args) || isGreenbonePodmanArgv(args) { // OpenVAS: greenbone.go
 			return nil
 		}
 		return validatePodman(args)
@@ -321,7 +321,7 @@ func validateNft(args []string) error {
 }
 
 // The two base chains of the table. Not "fwd" or "in": both are words of nft's grammar, and nft 1.1 refuses them as chain names
-// with a syntax error, so no fence could ever load (n38, the N100: "nft could not load the egress rule").
+// with a syntax error, so no fence could ever load (seen on a test box: "nft could not load the egress rule").
 const (
 	zapFwdChain = "zapfwd"
 	zapInChain  = "zapin"
@@ -520,7 +520,7 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 			"stdout", lastLines(res.Stdout, 10, 2000), "truncated", res.Truncated, "zap_out", zapOutTail(wrk))
 		msg := "ZAP ended without a report (exit code " + strconv.Itoa(code) + ")."
 		switch {
-		case code == 3: // the traditional runner ends so when it cannot reach the page, finds no URL there, or cannot start (D-525)
+		case code == 3: // the traditional runner ends so when it cannot reach the page, finds no URL there, or cannot start
 			msg = "ZAP ended without a report (exit code 3): it could not reach the page from this box, found no page there, or could not start."
 		case code == 137:
 			msg = "ZAP was stopped, most likely because it reached the 1 GiB memory limit (exit code 137)."
@@ -545,7 +545,7 @@ func (o *Ops) zapOwner() int {
 	return zapUID
 }
 
-// zapImageReady refuses while the image is not on the box, and starts its download when none runs (D-521: pulled when first needed).
+// zapImageReady refuses while the image is not on the box, and starts its download when none runs (pulled when first needed).
 func (o *Ops) zapImageReady(ctx context.Context) error {
 	_, code, err := o.zapStep(ctx, binPodman, nil, zapImageExistsArgv()...)
 	if err == nil && code == 0 {
@@ -614,15 +614,15 @@ func (o *Ops) zapOwned(ctx context.Context, logf func(string), p zapPage) error 
 		}
 		return nil
 	}
-	// D-591: a page of a domain whose token is the box-bound one (a domain added since the fence) goes through the domain fence: the
+	// A page of a domain whose token is the box-bound one (a domain added since the fence) goes through the domain fence: the
 	// host's list, the TXT record, the name's address. A domain verified before it keeps its own token for this passive scan, exactly as
-	// before D-591 (review r1 H2: the plan keeps today's scope on the old token; only the new domain_ip jobs need the box-bound one).
+	// in older releases (the old token keeps its scope; only the new domain_ip jobs need the box-bound one).
 	bound := o.fence != nil && p.token == o.fence.Token(p.domain)
 	switch {
 	case !bound && p.proofAt != "": // review r1 M2 of #960: a record on a parent name proves a page only through the fence, never the legacy path
 		return refuse412(api.CodeTokenForeign, p.domain+"'s token is not the one this box binds to it, so its record on "+p.proofAt+" cannot prove its pages, and they were not scanned.")
 	case !bound:
-		logf("legacy_token: " + p.domain + "'s token is not the box-bound one; checked as before D-591 (TXT record and the name's address)")
+		logf("legacy_token: " + p.domain + "'s token is not the box-bound one; checked the older way (TXT record and the name's address)")
 		return o.zapOwnedLegacy(cctx, p)
 	}
 	res := o.fence.Check(cctx, domainfence.Job{Domain: p.domain, Name: p.host, IP: p.ip, Token: p.token, ProofAt: p.proofAt}, true)
@@ -642,11 +642,11 @@ func (o *Ops) zapOwned(ctx context.Context, logf func(string), p zapPage) error 
 	return refuse412(api.CodeTargetNotOwned, "The domain fence refused "+p.host+" ("+res.Reason+"), so this page was not scanned.")
 }
 
-// zapOwnedLegacy is the check of a domain page before D-591: the domain still has its TXT record vedette-verify=<token> (domainfence.Owned)
+// zapOwnedLegacy is the older check of a domain page: the domain still has its TXT record vedette-verify=<token> (domainfence.Owned)
 // AND the page's name resolves (A records, system resolver) to the IP ZAP is pinned to. Core's word for the address is not enough
 // (review M1): a name that now answers with other addresses stops this page only (zap_name_moved).
 func (o *Ops) zapOwnedLegacy(ctx context.Context, p zapPage) error {
-	// D-628: the one ownership rule of core/domainfence (on the domain or on _vedette-verify.<domain>, never through a CNAME or a
+	// The one ownership rule of core/domainfence (on the domain or on _vedette-verify.<domain>, never through a CNAME or a
 	// wildcard), with the token core sends for a domain verified before the fence.
 	switch pr := domainfence.Owned(ctx, fenceResolver{o}, p.domain, p.token, domainfence.LookupTimeout); {
 	case pr.Unchecked:

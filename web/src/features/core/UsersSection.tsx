@@ -95,7 +95,7 @@ function OidcPanel({ leaving }: { leaving: boolean }) {
   return (
     <>
       {leaving ? <OidcLocked cfg={q.data} onDisable={() => setAskOff(true)} busy={toggle.isPending} /> : <OidcForm cfg={q.data} onDisable={() => setAskOff(true)} />}
-      {/* D-196 (5): turning SSO off locks out the people who only sign in through it, so say how many first. */}
+      {/* Turning SSO off locks out the people who only sign in through it, so say how many first. */}
       <Dialog open={askOff} onOpenChange={setAskOff}>
         <DialogContent title={t('oidc.offAsk.title')} info={t('oidc.offAsk.keptInfo')}
           description={leaving ? (n > 0 ? t('oidc.offAsk.bodyUsersHidden', { count: n }) : t('oidc.offAsk.bodyHidden')) : n > 0 ? t('oidc.offAsk.bodyUsers', { count: n }) : t('oidc.offAsk.body')}>
@@ -106,7 +106,7 @@ function OidcPanel({ leaving }: { leaving: boolean }) {
   )
 }
 
-/** D-624 (#819): SSO is left out of v1. A box that has it on keeps signing people in through it; the settings are shown, not
+/** SSO is left out of v1. A box that has it on keeps signing people in through it; the settings are shown, not
  *  edited, and the one action left is turning it off (with the same lock-out warning). */
 function OidcLocked({ cfg, onDisable, busy }: { cfg: OidcConfig; onDisable: () => void; busy: boolean }) {
   const { t } = useTranslation('core')

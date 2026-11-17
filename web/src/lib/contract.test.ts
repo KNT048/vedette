@@ -1,4 +1,4 @@
-// Test hợp đồng (D-18), chạy riêng một module: `pnpm exec vitest run src/lib/contract.test.ts -t "<module>"`.
+// Test hợp đồng, chạy riêng một module: `pnpm exec vitest run src/lib/contract.test.ts -t "<module>"`.
 // 1) Mọi handler mock có endpoint trong contract.ts và ngược lại. 2) Mọi GET gọi thử được trả dữ liệu khớp schema.
 // 3) api/openapi.json khớp hợp đồng hiện tại (sinh lại bằng `pnpm openapi`).
 import { describe, expect, it } from 'vitest'
@@ -29,7 +29,7 @@ describe.each(modules)('hợp đồng %s', (mod) => {
 
   it('GET trả dữ liệu khớp schema', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: true }))
-    // an off module's paths are 404 by design (SYS-5; /core/mcp of mcp-server, D-230): the schema is checked with every module on
+    // an off module's paths are 404 by design (SYS-5; /core/mcp of mcp-server): the schema is checked with every module on
     modulesStore.update((l) => l.map((m) => ({ ...m, enabled: true })))
     for (const e of eps.filter((x) => x.method === 'get' && x.response && x.response !== 'file' && x.response !== 'text')) {
       if (e.path.includes('{') && !e.example?.params) continue

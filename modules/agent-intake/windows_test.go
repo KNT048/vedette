@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// D-524: Windows's update revision is asked of Windows nodes only, from os_version (not the registry table), and is first-report data.
+// Windows's update revision is asked of Windows nodes only, from os_version (not the registry table), and is first-report data.
 func TestScheduleAsksTheWindowsRevisionOfWindowsOnly(t *testing.T) {
 	i := slices.IndexFunc(schedule, func(q scheduleQuery) bool { return q.name == "os_revision" })
 	if i < 0 {
@@ -22,7 +22,7 @@ func TestScheduleAsksTheWindowsRevisionOfWindowsOnly(t *testing.T) {
 		t.Fatalf("os_revision is an answer of its own of the first report: %q", firstReport["os_revision"])
 	}
 	for _, q := range schedule {
-		// the registry table is read by the Windows programs query only, for one value of one key pattern (D-606)
+		// the registry table is read by the Windows programs query only, for one value of one key pattern
 		if strings.Contains(strings.ToLower(q.query), "registry") && (q.name != "programs" || q.platform != "windows" || q.query != programsQuery) {
 			t.Fatalf("query %s reads the registry table", q.name)
 		}
@@ -76,7 +76,7 @@ func TestParseWinOS(t *testing.T) {
 	}
 }
 
-// D-546: the OS row names the release as NVD's ranges do (core/winrel), client or server by the name, with the full version, the
+// The OS row names the release as NVD's ranges do (core/winrel), client or server by the name, with the full version, the
 // machine's target and CISA's key. A build the table does not list, no revision, or a 6.x release give no row, as before.
 func TestWindowsRow(t *testing.T) {
 	s, ok := windowsRow(winOS{name: "Microsoft Windows 11 Pro", version: "10.0.22631.4460", target: "x64"})
@@ -128,7 +128,7 @@ func TestWindowsRow(t *testing.T) {
 }
 
 // The node's release shows on the OS: on the request's os_version row of the same build, or from the revision's own row alone. A
-// Windows package list carries the operating system's row first (D-546), unless the request's os_version is of another build (a
+// Windows package list carries the operating system's row first, unless the request's os_version is of another build (a
 // feature update whose revision is not reported yet: the stored release is stale, review M2). Linux or no release leave the
 // snapshots as they are.
 func TestWithWindows(t *testing.T) {
@@ -182,7 +182,7 @@ func TestWithWindows(t *testing.T) {
 	}
 }
 
-// D-546: a Wazuh Windows agent whose os version carries the revision gets the same row, with the target of its os.arch (review M1).
+// A Wazuh Windows agent whose os version carries the revision gets the same row, with the target of its os.arch (review M1).
 func TestWazuhWindows(t *testing.T) {
 	var a wzAgent
 	a.OS.Name, a.OS.Version, a.OS.Platform, a.OS.Arch = "Microsoft Windows Server 2022 Standard", "10.0.20348.2700", "windows", "x86_64"

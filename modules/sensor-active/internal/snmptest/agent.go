@@ -1,4 +1,4 @@
-// Package snmptest is a fake SNMP agent on loopback for the tests of the worker and of core's SNMP round (D-512): no test sends a
+// Package snmptest is a fake SNMP agent on loopback for the tests of the worker and of core's SNMP round: no test sends a
 // packet to a real device. It answers GET requests from a table of values, built and parsed with gosnmp itself; a v2c request with
 // another community is dropped without a word, as a real agent drops it (RFC 1157 4.1). A v3 user, when set, is served with the USM
 // exchange a real agent has: the engine discovery report, then authenticated (and encrypted) answers; an unknown user or a message

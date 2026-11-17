@@ -67,7 +67,7 @@ func wantCode(t *testing.T, err error, code string) {
 	}
 }
 
-// A role's certificate opens the routes of that role only (D-111): an active certificate gets 403 on the passive routes and the
+// A role's certificate opens the routes of that role only: an active certificate gets 403 on the passive routes and the
 // reverse; the heartbeat route is shared but its body is the role's (the other role's fields are unknown fields).
 func TestRolesAreSeparate(t *testing.T) {
 	t.Parallel()
@@ -98,7 +98,7 @@ func TestRolesAreSeparate(t *testing.T) {
 
 // A sensor that has been taken over and floods new devices gets at most 60 in a minute and 200 in an hour into the inventory; the
 // rest is rejected budget_exhausted, and the work core does for one batch is bounded by the batch (500 items), not by what the
-// sensor wanted (D-111 (2), SYS-6).
+// sensor wanted (SYS-6).
 func TestBudgetsStopAFloodOfNewDevices(t *testing.T) {
 	t.Parallel()
 	backendOnly(t)
@@ -417,7 +417,7 @@ func TestEpochsAreKeptTwoAtATime(t *testing.T) {
 	}
 }
 
-// The card of the capture is chosen against the cards of the box as the host reports them (D-118), never against a list a
+// The card of the capture is chosen against the cards of the box as the host reports them, never against a list a
 // sensor sent: it can be chosen before the sensor has said anything and while the module is off (the capture uses it once it
 // runs), a sensor that lists cards the box does not have steers nothing, and a SPAN card has no IP in the host's list.
 func TestTheCardIsChosenAgainstTheHostNotTheSensor(t *testing.T) {
@@ -473,7 +473,7 @@ func TestTheCardIsChosenAgainstTheHostNotTheSensor(t *testing.T) {
 	}
 }
 
-// Container-only install (D-168): no host answers, so the card is chosen against the cards in the sensor's latest heartbeat
+// Container-only install: no host answers, so the card is chosen against the cards in the sensor's latest heartbeat
 // (the real SPAN card of the host network), not against the container's own interfaces. Before the first heartbeat a card
 // cannot be chosen (bad_interface with a plain sentence); stopping the capture needs no heartbeat; a SPAN card with an IP in
 // the heartbeat is refused; the card in the heartbeat the host would have refused is accepted only because there is no host.
@@ -532,7 +532,7 @@ func TestNoHostTheCardIsChosenAgainstTheHeartbeat(t *testing.T) {
 	}
 }
 
-// What GET /inventory/sensors and the SPAN card show comes from the heartbeat, nothing else (D-112 (5)): online within 90 seconds,
+// What GET /inventory/sensors and the SPAN card show comes from the heartbeat, nothing else: online within 90 seconds,
 // version, devices, cards, the verdicts off / no_link / no_traffic / own_only / ok.
 func TestHeartbeatDrivesTheViews(t *testing.T) {
 	t.Parallel()
@@ -614,7 +614,7 @@ func TestHeartbeatDrivesTheViews(t *testing.T) {
 }
 
 // GET /config is a long poll on the ETag: at once when it differs, 304 after the wait when it does not, and SetInterface wakes
-// it. When the filters cannot be read it says "do not capture" (D-80 (3)).
+// it. When the filters cannot be read it says "do not capture".
 func TestConfigLongPoll(t *testing.T) {
 	t.Parallel()
 	backendOnly(t)
@@ -877,9 +877,9 @@ func TestItemsAboutTheBoxAreRefused(t *testing.T) {
 	}
 }
 
-// Container-only (D-385): without a host the box's own cards are those of the sensor's heartbeat of the last 90 s, never the
+// Container-only: without a host the box's own cards are those of the sensor's heartbeat of the last 90 s, never the
 // core container's. No such heartbeat → the batch is not applied (503 not_ready: the sensor sends it again whole), and an old
-// heartbeat lets no card be chosen either. With a host, the host's cards decide and the heartbeat's do not (D-118).
+// heartbeat lets no card be chosen either. With a host, the host's cards decide and the heartbeat's do not.
 func TestNoHostTheBoxIsWhatTheFreshHeartbeatReports(t *testing.T) {
 	t.Parallel()
 	backendOnly(t)
@@ -1163,7 +1163,7 @@ func TestUnknownDropCountersAreIgnoredAndLoggedOnce(t *testing.T) {
 	wantCode(t, err, sensorlink.CodeInvalidRequest)
 }
 
-// D-399 (3), walk 4: a sensor that beats but cannot capture (no CAP_NET_RAW in a rootless container) must not look healthy. Its
+// A sensor that beats but cannot capture (no CAP_NET_RAW in a rootless container) must not look healthy. Its
 // heartbeat's reason reaches GET /inventory/sensors while it is online; a reason this core does not know is shown as capture_failed
 // (logged once); an offline sensor's old reason says nothing about now.
 func TestCaptureErrorShowsWhileOnline(t *testing.T) {
@@ -1212,7 +1212,7 @@ func TestCaptureErrorShowsWhileOnline(t *testing.T) {
 	}
 }
 
-// D-380 (#471): with no card chosen the sensor listens on the management card the host reports, with no setup (S-INV-1);
+// With no card chosen the sensor listens on the management card the host reports, with no setup (S-INV-1);
 // a chosen card wins and the default comes back when the choice is cleared. A name that is not an interface name is never
 // passed on. Without a host the default is the one wired card with an address in the sensor's heartbeat.
 func TestDefaultCardIsTheManagementCard(t *testing.T) {
@@ -1270,7 +1270,7 @@ func TestDefaultCardIsTheManagementCard(t *testing.T) {
 		"the wired card with an address": {[]sensorlink.HeartbeatIface{card("enp2s0", "192.168.18.141/24"), card("wlp3s0", "192.168.18.142/24"), card("enp3s0"), card("eno2", "169.254.3.4/16")}, "enp2s0"},
 		"only a wireless card":           {[]sensorlink.HeartbeatIface{card("wlp3s0", "192.168.18.142/24"), card("enp3s0")}, "wlp3s0"},
 		"two wired cards: not clear":     {[]sensorlink.HeartbeatIface{card("enp2s0", "192.168.18.141/24"), card("eno1", "10.0.0.5/24")}, ""},
-		// D-393 (SYS-6): the sensor leaves container bridges, veth and lo out of its heartbeat, but the heartbeat is untrusted;
+		// SYS-6: the sensor leaves container bridges, veth and lo out of its heartbeat, but the heartbeat is untrusted;
 		// an older or compromised sensor that lists them up with an address never makes them a candidate.
 		"container bridges are not cards": {[]sensorlink.HeartbeatIface{card("lo", "127.0.0.1/8"), card("docker0", "172.17.0.1/16"), card("br-1a2b3c4d5e6f", "172.18.0.1/16"), card("veth12ab"), card("podman0", "10.88.0.1/16"), card("enp2s0", "192.168.18.141/24")}, "enp2s0"},
 	} {
@@ -1282,7 +1282,7 @@ func TestDefaultCardIsTheManagementCard(t *testing.T) {
 		}
 	}
 
-	// D-393 (M3): two wired cards with an address give no default; the admin chooses one of them, without SPAN, and the sensor
+	// Two wired cards with an address give no default; the admin chooses one of them, without SPAN, and the sensor
 	// listens there. Chosen tells that choice from the default; clearing it brings the default rule back (here: no card).
 	two := []sensorlink.HeartbeatIface{card("enp2s0", "192.168.18.141/24"), card("eno1", "10.0.0.5/24")}
 	if _, err := e.svc.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: two, Drops: map[string]int64{}}); err != nil {

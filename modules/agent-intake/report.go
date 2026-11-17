@@ -14,10 +14,10 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// "I updated it: ask the agent now" (S-MIT-1, kien G12 follow-up, INV-23). A person who updated software an osquery agent reads asks
+// "I updated it: ask the agent now" (S-MIT-1, INV-23). A person who updated software an osquery agent reads asks
 // that device's node to send its software again now instead of within the hour. Nothing new is sent to the node: the ask only makes
 // config hand the software queries of the schedule the first-report interval (60 s) while it is open (nodeSchedule), the way the
-// first report does (D-503). Same queries, same columns, no distributed query (INV-13, INV-15, TestScheduleIsReadOnly).
+// first report does. Same queries, same columns, no distributed query (INV-13, INV-15, TestScheduleIsReadOnly).
 const (
 	// reportWindow ends an ask by itself: osquery fetches its config every 300 s (--config_refresh), runs a 60 s query within the
 	// minute, and one source address replaces a software list at most once per sourceWindow, so a list arrives well within it.
@@ -40,8 +40,8 @@ func askOpen(n nodeRow, now time.Time) bool {
 }
 
 // osAnswer says whether an ask of this node waits for its own operating-system answer, and whether this request carries it: a usable
-// os_revision on Windows (the update revision the Windows row of the list is built from, D-546), a usable kernel_info elsewhere (the
-// running kernel the Kernel row is built from, D-516). A node that never gave one (an osquery older than 5.12 on Windows) is not waited
+// os_revision on Windows (the update revision the Windows row of the list is built from), a usable kernel_info elsewhere (the
+// running kernel the Kernel row is built from). A node that never gave one (an osquery older than 5.12 on Windows) is not waited
 // for: the list alone answers its ask.
 func osAnswer(n nodeRow, in logIn) (needed, got bool) {
 	if n.platform == "windows" || n.win.version != "" {

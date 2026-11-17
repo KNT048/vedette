@@ -39,7 +39,7 @@ func newClockedSender(t *testing.T, f *zaloFake) (*zaloPersonalSender, *zpClock)
 }
 
 // M1: a service address that is not a name below chat.zalo.me never gets cookies.
-func TestContract_D46_ZaloPersonalServiceHostIsStrict(t *testing.T) {
+func TestContract_ZaloPersonalServiceHostIsStrict(t *testing.T) {
 	t.Parallel()
 	for _, raw := range []string{
 		"https://[::1%25.zalo.me]", "https://[::ffff:c0a8:101%2525.zalo.me]", "https://[::ffff:7f00:1%25.zalo.me]",
@@ -66,7 +66,7 @@ func TestContract_D46_ZaloPersonalServiceHostIsStrict(t *testing.T) {
 	}
 }
 
-func TestContract_D46_ZaloPersonalCallChecksTheHostBeforeCookies(t *testing.T) {
+func TestContract_ZaloPersonalCallChecksTheHostBeforeCookies(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
 	var dialed []string
@@ -102,8 +102,8 @@ func TestContract_D46_ZaloPersonalCallChecksTheHostBeforeCookies(t *testing.T) {
 	mu.Unlock()
 }
 
-// M2: a refused sign-in is not repeated for every alert (D-46: the account can be locked).
-func TestContract_D46_ZaloPersonalSignInsAreRationed(t *testing.T) {
+// M2: a refused sign-in is not repeated for every alert (the account can be locked).
+func TestContract_ZaloPersonalSignInsAreRationed(t *testing.T) {
 	t.Parallel()
 	f := newZaloFake(t)
 	f.loginErr = -1357
@@ -229,7 +229,7 @@ func TestZaloPersonalForbiddenSessionIsDroppedAndPaused(t *testing.T) {
 }
 
 // M3: an answer that cannot be read may hide a delivered message: never post again.
-func TestContract_D46_ZaloPersonalNeverPostsTwiceOnAnUnreadableAnswer(t *testing.T) {
+func TestContract_ZaloPersonalNeverPostsTwiceOnAnUnreadableAnswer(t *testing.T) {
 	t.Parallel()
 	f := newZaloFake(t)
 	s, _ := newClockedSender(t, f)

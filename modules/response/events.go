@@ -72,9 +72,9 @@ type BreakerEvent struct {
 //	findings.finding.created, findings.finding.status_changed (to confirmed) -> trigger finding
 //	inventory.asset.discovered (a device that is not approved)               -> trigger unknown_device
 //	honeypot.hit.created (a real hit; a test hit publishes nothing)          -> trigger honeypot
-//	logs.ioc_hit.detected (logs L4, D-213)                                   -> trigger ioc_connection (D-335)
-//	(no event) logs.Counts read by PollLogs every minute                    -> trigger log_threshold (#332, D-287)
-//	exposure.port.opened (cmd/vedette, from exposure's own Diff, D-384)     -> trigger new_port
+//	logs.ioc_hit.detected (logs L4)                                   -> trigger ioc_connection
+//	(no event) logs.Counts read by PollLogs every minute                    -> trigger log_threshold
+//	exposure.port.opened (cmd/vedette, from exposure's own Diff)     -> trigger new_port
 const (
 	EventFindingCreated       = "findings.finding.created"
 	EventFindingStatusChanged = "findings.finding.status_changed"
@@ -84,7 +84,7 @@ const (
 	EventPortOpened           = "exposure.port.opened"
 )
 
-// PortOpenedEvent is the payload of exposure.port.opened (D-384): one port that a scan of an exposure target saw open and the
+// PortOpenedEvent is the payload of exposure.port.opened: one port that a scan of an exposure target saw open and the
 // previous scan day of that target did not. cmd/vedette publishes it from exposure's own Diff; the exposure module does not know
 // the name.
 type PortOpenedEvent struct {
@@ -93,7 +93,7 @@ type PortOpenedEvent struct {
 	IP       string `json:"ip"`
 	Port     int    `json:"port"`
 	Service  string `json:"service"`
-	// M2-7 (#899 review r2 M1): Service stays nmap's or the port list's name (rules compare it, "service eq sip"); Label is the
+	// Service stays nmap's or the port list's name (rules compare it, "service eq sip"); Label is the
 	// person's wording for the summary ("probably SIP", "service not identified"), Identified how the name was read: probed (a
 	// probe's answer or the page's Server header), port (only the port number: not confirmed), none; "" from an older producer.
 	Label      string `json:"label,omitempty"`
@@ -197,8 +197,8 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 		vendor = "Unknown vendor"
 	}
 	if !s.isDeviceKind(kind) {
-		// A type of D-511 as the kind it acts as; anything else, and a type marked no_auto_isolate (a PBX, a PLC), unknown, so no
-		// "kind in iot" rule covers what the device_type test leaves out (#714 round 2, L1).
+		// A device type as the kind it acts as; anything else, and a type marked no_auto_isolate (a PBX, a PLC), unknown, so no
+		// "kind in iot" rule covers what the device_type test leaves out.
 		kind = devicetypes.ActsAs(kind)
 		if !devicetypes.MatchesKind([]string{kind}, d.Kind) {
 			kind = devicetypes.Unknown
@@ -228,7 +228,7 @@ func (s *Service) honeypotEvent(ctx context.Context, data any) error {
 		SrcIP      string `json:"src_ip"`
 		Decoy      string `json:"decoy"`
 		SrcAssetID string `json:"src_asset_id"`
-		// Unconfirmed: the hit completed no handshake (a UDP trap, honeypot D-467), so its source may be forged, as a scan's.
+		// Unconfirmed: the hit completed no handshake (a UDP trap), so its source may be forged, as a scan's.
 		Unconfirmed bool `json:"unconfirmed"`
 	}
 	if err := decode(data, &e); err != nil {
@@ -244,7 +244,7 @@ func (s *Service) honeypotEvent(ctx context.Context, data any) error {
 		return nil
 	}
 	ip = ip.Unmap()
-	if (e.Kind == "scan" || e.Unconfirmed) && !s.scanRoom(ctx) { // forgeable hits share the scan budget (honeypot D-467 review M1)
+	if (e.Kind == "scan" || e.Unconfirmed) && !s.scanRoom(ctx) { // forgeable hits share the scan budget
 		return nil
 	}
 	var dev DeviceInfo
@@ -356,13 +356,13 @@ func (s *Service) Jobs() []jobs.Job {
 	}
 }
 
-// maxIocPerHour bounds the known-bad connection hits that reach the rules in one clock hour (D-339). A hit is read from a syslog line,
+// maxIocPerHour bounds the known-bad connection hits that reach the rules in one clock hour. A hit is read from a syslog line,
 // which any LAN host can forge over UDP; logs makes one hit per device and destination per 24 hours, but a forger can vary the
 // destination over every listed address, and each hit a rule sees writes permanent lines to the append-only logs. The first hit over
 // the cap writes one line to the response log; the hits stay on the Logs page. ponytail: a flat cap per hour, as maxScansPerHour.
 const maxIocPerHour = 60
 
-// iocEvent records a logs.ioc_hit.detected (the IocHit of logs, D-213) as an ioc_connection event (D-335). Every field is checked at
+// iocEvent records a logs.ioc_hit.detected (the IocHit of logs) as an ioc_connection event. Every field is checked at
 // the edge, as the honeypot hit is: an id, a private source address, a destination of its kind (an address or a domain), a
 // public destination address, a confidence from 0 to 1. Anything else is skipped with a warning. Of the line's text only the
 // destination reaches a rule, after that check; the feed names and the device name come from feeds and the inventory.
@@ -396,7 +396,7 @@ func (s *Service) iocEvent(ctx context.Context, data any) error {
 	case e.ID == "" || len(e.ID) > 64 || cleanLine(e.ID) != e.ID:
 		s.cfg.Log.WarnContext(ctx, "response: known-bad connection skipped: no valid id")
 		return nil
-	case !srcOK || !signature.LocalOK(addrOf(src).Unmap()): // logs' own LAN-device rule: RFC 1918 or 100.64/10 (D-461)
+	case !srcOK || !signature.LocalOK(addrOf(src).Unmap()): // logs' own LAN-device rule: RFC 1918 or 100.64/10
 		s.cfg.Log.WarnContext(ctx, "response: known-bad connection skipped: the device address is not a private address")
 		return nil
 	case !destOK:
@@ -471,7 +471,7 @@ func (s *Service) iocRoom(ctx context.Context) bool {
 	return false
 }
 
-// portEvent records an exposure.port.opened as a new_port event (D-384). The scan was of the customer's own verified target, but its
+// portEvent records an exposure.port.opened as a new_port event. The scan was of the customer's own verified target, but its
 // text came from the network (the service guess is read from a banner), so every field is checked at the edge as for the other
 // triggers: an id-like target, a scan day, a public address, a port 1..65535, a one-line service guess. Anything
 // else is skipped with a warning. The event id is the target, the day, the address and the port, so a second scan on the same day
@@ -490,7 +490,7 @@ func (s *Service) portEvent(ctx context.Context, data any) error {
 	case dateErr != nil:
 		s.cfg.Log.WarnContext(ctx, "response: new port skipped: no valid scan day")
 		return nil
-	case !ipOK || !publishable(addrOf(ip)): // the block list's own "public": not CGNAT, 198.18/15, 6to4…; IPv4 documentation kept (D-88 L4)
+	case !ipOK || !publishable(addrOf(ip)): // the block list's own "public": not CGNAT, 198.18/15, 6to4…; IPv4 documentation kept
 		s.cfg.Log.WarnContext(ctx, "response: new port skipped: the address is not a public address")
 		return nil
 	case e.Port < 1 || e.Port > 65535:

@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// container.start with a version and container.rollback (spec 6.8, 6.10, D-104, D-105, D-138).
+// container.start with a version and container.rollback (spec 6.8, 6.10).
 //
 // Both are one unit swap, journaled like every unit change (containers.go): the journal first, then
 // for core the pre_update backup (start) or the moving aside of core's database files (rollback),
@@ -28,13 +28,13 @@ import (
 // cosign), and nothing is believed because the host wrote it earlier.
 
 const (
-	// backupLimit bounds the pre_update backup inside a start: at least backup.create's own 15 minutes (D-138 L2).
+	// backupLimit bounds the pre_update backup inside a start: at least backup.create's own 15 minutes.
 	backupLimit = 15 * time.Minute
 	// dbWork covers the file work on core's database in one step (unpacking a backup, moving files).
 	dbWork = 3 * time.Minute
 
-	// startTimeout and rollbackTimeout are the Spec.Timeout of the two commands: one number each
-	// (D-138); TestTimeLimitsAreConsistent checks they cover the worst run.
+	// startTimeout and rollbackTimeout are the Spec.Timeout of the two commands: one number each;
+	// TestTimeLimitsAreConsistent checks they cover the worst run.
 	//
 	// ponytail: unpackBackup, extract and swap do not watch the run's context, so a run's timeout cuts
 	// the commands around them but not a copy in progress; their time is bounded by dbWork (3 min) in
@@ -85,7 +85,7 @@ func (o *Ops) archiveThere(id string) bool {
 var errRecord = errors.New("ops: a recorded manifest does not match its record")
 
 // loadStoredIndex re-verifies the stored index. nil, nil is "none was ever stored". A stored index that
-// no longer verifies is refused (release_state_invalid), never taken as "none" (D-130 (2)).
+// no longer verifies is refused (release_state_invalid), never taken as "none".
 func (o *Ops) loadStoredIndex(trust release.Trust) (*release.Index, error) {
 	idx, err := o.loadIndex(trust)
 	if err != nil {
@@ -146,7 +146,7 @@ type startPlan struct {
 	expired   bool // the index is past its expires_at
 }
 
-// planStartVersion is every refusal of container.start with a version except the snapshot ones (D-104 (4)).
+// planStartVersion is every refusal of container.start with a version except the snapshot ones.
 func (o *Ops) planStartVersion(ctx context.Context, a api.ContainerStartArgs) (*startPlan, error) {
 	old, digest, err := o.currentUnit(a.Service)
 	if err != nil {
@@ -180,7 +180,7 @@ func (o *Ops) planStartVersion(ctx context.Context, a api.ContainerStartArgs) (*
 		running = cur.Version
 	}
 	if running == "" {
-		// Fail closed (D-138 M4): without the running version the downgrade and min_upgrade_from rules have
+		// Fail closed: without the running version the downgrade and min_upgrade_from rules have
 		// nothing to compare, so a replayed old release would pass. The bootstrap (3-8b) writes the first record;
 		// a start with the version of the digest the unit already pins records it (no switch).
 		return nil, refuse412(api.CodeCurrentVersionUnknown, "The host does not know which version is running, so it cannot judge this change. Start the version that is running first (container.start with its version), or reinstall.")
@@ -197,12 +197,12 @@ func (o *Ops) planStartVersion(ctx context.Context, a api.ContainerStartArgs) (*
 }
 
 // noteExpired says, in the run's log and the audit trail, that the index a version was checked
-// against is past its expiry (D-104: an old index only warns; the result carries it too).
+// against is past its expiry (an old index only warns; the result carries it too).
 func (o *Ops) noteExpired(rc *server.RunContext, command string, p *startPlan) {
 	if !p.expired {
 		return
 	}
-	rcLog(rc, "the index is past its expiry; going on, an old index only warns (D-104)")
+	rcLog(rc, "the index is past its expiry; going on, an old index only warns")
 	o.note(command, "index_expired", map[string]any{"sequence": p.idx.Sequence, "expires_at": p.idx.ExpiresAt.UTC().Format(time.RFC3339), "run_id": rcID(rc)})
 }
 
@@ -226,15 +226,15 @@ func (o *Ops) putUnitBack(ctx context.Context, rc *server.RunContext, service st
 
 // revertDatabase stops core and puts its database back as the change found it: "backup" restores the
 // pre_update backup of the change, "aside" brings back the files the change moved aside. It is the same
-// descriptor path as backup.restore (extract, swap; D-87).
+// descriptor path as backup.restore (extract, swap).
 func (o *Ops) revertDatabase(ctx context.Context, t transition) error {
 	var ex extracted
 	if t.DBRevert == dbBackup {
 		// The backup is unpacked and verified BEFORE core is stopped (as container.rollback does), so a revert
-		// that cannot work does not stop core. What no retry can cure is errUnrecoverable (the loop stops; D-142's
+		// that cannot work does not stop core. What no retry can cure is errUnrecoverable (the loop stops; the
 		// way out is backup.restore): the index was read and has no such backup, the archive file does not
 		// exist, or it does not match its checksum or is not a valid archive. An I/O error, a full disk or an
-		// unreadable index may pass: those stay plain errors and the loop tries again (D-157, WP-31 M4).
+		// unreadable index may pass: those stay plain errors and the loop tries again (WP-31 M4).
 		rec, ok, err := o.lookupBackup(t.BackupID)
 		if err != nil {
 			return fmt.Errorf("ops: read the backup index: %w", err)
@@ -288,7 +288,7 @@ func (o *Ops) runSwitch(ctx context.Context, rc *server.RunContext, a api.Contai
 	}
 	state := o.unitActive(ctx, svc)
 	wasActive := state == api.UnitActive
-	if err := o.portsFreeToStart(ctx, svc, p.oldUnit, want, state); err != nil { // before the journal and the backup: the old release keeps running (D-455)
+	if err := o.portsFreeToStart(ctx, svc, p.oldUnit, want, state); err != nil { // before the journal and the backup: the old release keeps running
 		return nil, err
 	}
 	ver, from := rec.Version, p.oldDigest
@@ -323,7 +323,7 @@ func (o *Ops) runSwitch(ctx context.Context, rc *server.RunContext, a api.Contai
 		id := bk.BackupID
 		res.BackupID = &id
 	}
-	// Once more after the backup, which can take minutes (D-455): a port taken meanwhile still refuses before the unit changes. The
+	// Once more after the backup, which can take minutes: a port taken meanwhile still refuses before the unit changes. The
 	// pre_update backup stays, like any backup (retention ages it).
 	if err := o.portsFreeToStart(ctx, svc, p.oldUnit, want, state); err != nil {
 		o.removeJournal(svc)
@@ -376,7 +376,7 @@ type rollbackPlan struct {
 	backup    backupRecord
 }
 
-// planRollback is every refusal of container.rollback (spec 6.10, D-104 (5)).
+// planRollback is every refusal of container.rollback (spec 6.10).
 func (o *Ops) planRollback(ctx context.Context, service string) (*rollbackPlan, error) {
 	if err := o.checkCommon(service); err != nil {
 		return nil, err
@@ -417,7 +417,7 @@ func (o *Ops) planRollback(ctx context.Context, service string) (*rollbackPlan, 
 		return nil, refusePull(err, "manifest")
 	}
 	// core never rolls forward: the backup a roll-forward would need is the one made when the running release
-	// was installed, which belongs to another point in time (D-138 H1). Moving core up is container.start with a
+	// was installed, which belongs to another point in time. Moving core up is container.start with a
 	// version and a snapshot, which makes a fresh pre_update backup. Other services keep roll-forward (no data).
 	if c, err := release.CompareVersions(p.prev.Version, p.cur.Version); service == api.ServiceCore && (err != nil || c >= 0) {
 		return nil, refuse412(api.CodeRollbackIsUpgrade, "The previous version of core is newer than the one running. Use container.start with that version and a snapshot (it makes a fresh backup first).")
@@ -459,7 +459,7 @@ func (o *Ops) planRollback(ctx context.Context, service string) (*rollbackPlan, 
 	if err != nil || !o.imageIs(ctx, ref, service, p.prev.Digest) {
 		return nil, refuse412(api.CodeNoPrevious, "The image of the previous version is no longer on this machine.")
 	}
-	if err := o.portsFreeFor(ctx, service, old, p.prev.Digest); err != nil { // the rollback writes the current template (D-455)
+	if err := o.portsFreeFor(ctx, service, old, p.prev.Digest); err != nil { // the rollback writes the current template
 		return nil, err
 	}
 	return p, nil
@@ -555,7 +555,7 @@ func (o *Ops) rollbackSteps(ctx context.Context, rc *server.RunContext, p *rollb
 			return err
 		}
 		defer tree.close()
-		// Clear the stale asides, journal exactly the names about to move, and only then move them (D-138 M1): a
+		// Clear the stale asides, journal exactly the names about to move, and only then move them: a
 		// crash is undone for these names and no others.
 		names, err := tree.planAside(ex.HasKey)
 		if err != nil {

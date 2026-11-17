@@ -420,7 +420,7 @@ func TestContract_INV3_ACommandThatIgnoresItsDeadlineStillHoldsTheLock(t *testin
 	waitIdleLock(t, h)
 }
 
-// A parked run (server.Parked, D-316) keeps the write lock across the host's own restart when
+// A parked run (server.Parked) keeps the write lock across the host's own restart when
 // Options.Resume keeps it, and releases it when Resume does not.
 func TestContract_INV3_AParkedRunHoldsTheLockAcrossAHostRestart(t *testing.T) {
 	t.Parallel()
@@ -676,7 +676,7 @@ func TestContract_INV12_EveryCommandLeavesOneChainedAuditLine(t *testing.T) {
 			t.Fatalf("run %s has no matching audit line (%+v)", r.RunID, a)
 		}
 	}
-	// The lines are chained (D-57 (14)) and the file verifies independently of the server.
+	// The lines are chained and the file verifies independently of the server.
 	data, err := os.ReadFile(h.AuditPath)
 	if err != nil {
 		t.Fatal(err)
@@ -790,14 +790,14 @@ func TestContract_FORBID1_NoShellNoGenericExec(t *testing.T) {
 var bannedNetworks = []string{"tcp", "tcp4", "tcp6", "udp", "udp4", "udp6", "ip", "unixgram"}
 
 // networkLiteralExceptions are the reviewed places where a banned word is an argv word or a binary name, never a
-// socket network: "<file>:<top-level declaration>" -> why. Nothing else may carry one (D-268).
+// socket network: "<file>:<top-level declaration>" -> why. Nothing else may carry one.
 var networkLiteralExceptions = map[string]string{
 	"host/ops/conntrack.go:argsConntrackSyslog": `"-p", "udp" of the one fixed conntrack argv`,
 	"host/ops/bins.go:binIP":                    `"ip" is the name of iproute2's binary in the command runner`,
 	"host/ops/decoy.go:fieldIP":                 `"ip" names the ip argument in errors and audit lines`,
-	"host/api/decoy.go:ProtoTCP":                `"tcp" names the protocol of a decoy port in the nft allow-list (D-466) and of a port in GET /v1/state/ports (INV-9b); nothing listens or dials`,
-	"host/api/decoy.go:ProtoUDP":                `"udp" names the protocol of a decoy port in the nft allow-list (D-466) and of a port in GET /v1/state/ports (INV-9b); nothing listens or dials`,
-	"host/api/zap.go:ZapKindIP":                 `"ip" names exposure's target kind in a zap.baseline request (D-521); nothing listens or dials`,
+	"host/api/decoy.go:ProtoTCP":                `"tcp" names the protocol of a decoy port in the nft allow-list and of a port in GET /v1/state/ports (INV-9b); nothing listens or dials`,
+	"host/api/decoy.go:ProtoUDP":                `"udp" names the protocol of a decoy port in the nft allow-list and of a port in GET /v1/state/ports (INV-9b); nothing listens or dials`,
+	"host/api/zap.go:ZapKindIP":                 `"ip" names exposure's target kind in a zap.baseline request; nothing listens or dials`,
 	"cmd/vedette-host/notify.go:unixDatagram":   `the sd_notify client sends one datagram on the unix socket systemd gave (no listener, no IP network)`,
 }
 

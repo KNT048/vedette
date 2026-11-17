@@ -35,8 +35,8 @@ type evidenceDoc struct {
 	Request   string    `json:"request,omitempty"`
 	Response  string    `json:"response,omitempty"`
 	CheckedAt time.Time `json:"checked_at"`
-	Agent     bool      `json:"agent,omitempty"`     // D-548: the version compared is the one the device's agent reports
-	AgentRow  bool      `json:"agent_row,omitempty"` // N52-2: a product-only match on a row the agent reported with its version
+	Agent     bool      `json:"agent,omitempty"`     // The version compared is the one the device's agent reports
+	AgentRow  bool      `json:"agent_row,omitempty"` // A product-only match on a row the agent reported with its version
 }
 
 func newEvidenceDoc(e *Evidence) *evidenceDoc {

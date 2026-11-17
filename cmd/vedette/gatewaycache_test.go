@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// D-511: the inventory's gateway signal is the host's IPv4 default gateway, read again after a minute; a failed read is unknown, and
+// The inventory's gateway signal is the host's IPv4 default gateway, read again after a minute; a failed read is unknown, and
 // kept for that minute too, so a host that does not answer costs one timeout a minute, not one per page (#714 M3).
 func TestGatewayCache(t *testing.T) {
 	t.Parallel()

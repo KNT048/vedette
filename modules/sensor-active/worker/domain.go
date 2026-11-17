@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// The domain fence of domain_ip jobs (D-591, FULL-5 slice 2, plan 2026-11-14 §5): an nmap job of a full shape or a nuclei job of depth
+// The domain fence of domain_ip jobs: an nmap job of a full shape or a nuclei job of depth
 // full whose one public target is not the box's own egress, sent because a name under a verified domain resolves to it. Right before
 // the tool starts the worker checks on its own (core/domainfence): the grammar, that the token is the one this box's fence key gives
 // for the domain (core's word is not taken: a TXT value is public), that the domain's TXT record carries it now, that the name resolves
@@ -54,7 +54,7 @@ func (w *Worker) domainFence(ctx, rctx, jctx context.Context, cur *activeJob, dj
 		w.log.ErrorContext(ctx, "sensor_active_domain_job_refused", "id", cur.job.ID, "tool", tool, "reason", domainfence.InvalidJob, "error", "this worker has no fence key")
 		return refusal(domainfence.InvalidJob)
 	}
-	if dj.ProofAt != "" && !proofat.Within(dj.Domain, dj.ProofAt) { // D-632: the bound core and vedette-host apply (review r1 L1 of #960)
+	if dj.ProofAt != "" && !proofat.Within(dj.Domain, dj.ProofAt) { // The bound core and vedette-host apply (review r1 L1 of #960)
 		w.log.ErrorContext(ctx, "sensor_active_domain_job_refused", "id", cur.job.ID, "tool", tool, "reason", domainfence.InvalidJob, "error", "proof_at is not between the domain and its registered domain")
 		return refusal(domainfence.InvalidJob)
 	}

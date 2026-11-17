@@ -250,7 +250,7 @@ func hexN(n int) string {
 	return string(b)
 }
 
-// D-104 (2): the sequence never goes back; equal is allowed only for the same bytes (M2).
+// The sequence never goes back; equal is allowed only for the same bytes (M2).
 func TestIndexSequence(t *testing.T) {
 	e := newEnv(t)
 	stored := e.verifiedIndex(e.active, e.indexMap(10))
@@ -296,7 +296,7 @@ func TestSameSequenceNeedsSameBytes(t *testing.T) {
 	}
 }
 
-// M2 / D-108 residual risk: the leaked active key sets sequence to MaxUint64. A backup-signed index that
+// Residual risk: the leaked active key sets sequence to MaxUint64. A backup-signed index that
 // revokes the signer of the stored index may go back in sequence; the revocation is sticky, so it
 // works once per leaked key.
 func TestBackupRecoversFromSequenceFreeze(t *testing.T) {

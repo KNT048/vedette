@@ -503,7 +503,7 @@ func digest(r WeeklyReport) Mail {
 		switch a.Kind {
 		case "fix", "verify":
 			t := a.Text
-			if t == "" { // a report built before D-490
+			if t == "" { // a report built by an older release
 				t = fmt.Sprintf("Check %s on %s (%d open, first %s)", a.Product, a.Device, a.Count, a.CVE)
 			}
 			items = append(items, t)
@@ -618,7 +618,7 @@ func (s *Service) GeneratePdpl(ctx context.Context, actor string) (PdplReport, e
 func pdplFacts(r PdplReport) string {
 	var b strings.Builder
 	o := r.Org
-	// The organisation's name, tax code, address and contact person do not go to the AI (data minimisation, D-238).
+	// The organisation's name, tax code, address and contact person do not go to the AI (data minimisation).
 	fmt.Fprintf(&b, "Organisation: size %s, sector %s, %d employees, personal data of %s people; sensitive data: %t; cross-border transfer: %t; uses processors: %t; provides processing services: %t\n",
 		o.Size, clip(o.Sector, 80), o.Employees, o.DataVolume, o.Sensitive, o.CrossBorder, o.Processors, o.ProcessingService)
 	i := r.Inventory

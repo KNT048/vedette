@@ -8,9 +8,9 @@ import (
 )
 
 // cpeAliases maps the identity of an inventory product (vendor and product as the catalog and the osquery
-// package map store them) to the NVD CPE products that name the same thing (D-500): "Apple iOS" is
+// package map store them) to the NVD CPE products that name the same thing: "Apple iOS" is
 // "apple:iphone_os" and "apple:ipados" in NVD, "GNU Bash" is "gnu:bash", so without this the version of an
-// iPhone or of bash is never compared with the ranges. The data is content/catalog/nvd-cpe.json (D-58:
+// iPhone or of bash is never compared with the ranges. The data is content/catalog/nvd-cpe.json (
 // knowledge about products is data). A trailing "*" in the product matches a prefix ("f5:big-ip_*").
 var cpeAliases, cpeAliasErr = loadAliases(catalogdata.NVDCPE)
 

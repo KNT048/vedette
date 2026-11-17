@@ -1,4 +1,4 @@
-// Hợp đồng API module feeds (D-18). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// Hợp đồng API module feeds. Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 
@@ -67,7 +67,7 @@ export const CveDetail = Vuln.extend({
   not_affected: z.number().int().min(0).optional().describe('D-549: devices that run the product but that the platform rules of the findings prove are not affected; left out of matched'),
   published: isoDate.nullable().describe('D-615: the day NVD published the CVE (never CISA\'s date_added); null when NVD has not answered for it. Older than 12 months: a device that matches by the product name only (no version compared) is not a finding (D-616), so matched may list devices that are not findings'),
 })
-// D-613, D-615 (S-TIER-1): a CVE that is on no exploited list, from the tier data (feeds epss-all and nvd-recent).
+// S-TIER-1: a CVE that is on no exploited list, from the tier data (feeds epss-all and nvd-recent).
 export const TierCve = z.object({
   cve: cveId,
   tier: z.enum(['likely', 'recent']).nullable().describe('likely = EPSS 10 % or more and published in the last 12 months; recent = published in the last 12 months; null = older, or no published date in the data (only a scan engine that finds it lists it, D-615)'),
@@ -94,7 +94,7 @@ export const SearchResult = z.discriminatedUnion('kind', [
 export const HotResponse = z.object({ window: z.enum(['24h', '7d']), rows: z.array(HotRow), latest: z.object({ cve: cveId, date_added: isoDate, display: z.string() }).nullable() })
 export const WeeklyResponse = z.object({ items: z.array(WeeklyItem) })
 
-// ---------- Feed sources and custom parsing (S-FEED-4, S-FEED-5; D-36, D-37)
+// ---------- Feed sources and custom parsing (S-FEED-4, S-FEED-5)
 export const FeedKind = z.enum(['vulnerabilities', 'ioc'])
 export const FeedFormat = z.enum(['json', 'csv', 'rss', 'stix', 'lines'])
 export const DateFormat = z.enum(['auto', 'dmy', 'mdy', 'epoch'])

@@ -7,8 +7,8 @@ import { LastChecks } from './LastChecks'
 
 const ScanningPage = lazy(() => import('./ScanningPage'))
 
-// Settings › Scanning (#850, D-627): a core section (GET /scanning is core's), so it never disappears with an engine's module.
-// The page owner is the UI (AI-Mlee); contract.ts and the first mocks came with the backend (AI-Trưởng, #857).
+// Settings › Scanning: a core section (GET /scanning is core's), so it never disappears with an engine's module.
+// contract.ts and the first mocks came with the backend (#857).
 export const feature: Feature = {
   id: 'scanning',
   routes: [],
@@ -18,7 +18,7 @@ export const feature: Feature = {
     'shell.status': ScansRunningIndicator as ComponentType<Record<string, unknown>>,
     'devices.actions': DevicesActions as unknown as ComponentType<Record<string, unknown>>,
     'device.actions': DeviceActions as unknown as ComponentType<Record<string, unknown>>,
-    // kien G7b/c: the last device check, vulnerability check and SNMP read of the device, on its Overview tab
+    // The last device check, vulnerability check and SNMP read of the device, on its Overview tab
     'device.panels': LastChecks as ComponentType<Record<string, unknown>>,
   },
   settings: [{ id: 'scanning', label: 'scanning:nav', module: 'core', minRole: 'viewer', order: 22, element: <Suspense fallback={<Loading />}><ScanningPage /></Suspense> }],

@@ -1,5 +1,5 @@
 // The same script of API calls runs against the GUI mock (always) and against the real Go backend (only when
-// VITE_FEEDS_REAL_URL is set, i.e. make dev-api REAL=core,feeds; VITE_FEEDS_QA_PASSWORD is the password of admin@qa.test, op@qa.test and view@qa.test). The mock is the approved behaviour (GUI-first, D-18), so every
+// VITE_FEEDS_REAL_URL is set, i.e. make dev-api REAL=core,feeds; VITE_FEEDS_QA_PASSWORD is the password of admin@qa.test, op@qa.test and view@qa.test). The mock is the approved behaviour (GUI-first), so every
 // step states the status and error code the mock gives and, where the real backend deliberately differs
 // (modules/feeds/CONTRACT.md, "Khác contract.ts/mock"), what it gives instead. Every 2xx body is checked against the
 // zod schema of contract.ts. Run against the real backend:
@@ -156,14 +156,14 @@ const steps: Step[] = [
   { name: 'name of 61 characters', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'n'.repeat(61) }), status: 400, code: 'invalid_body', real: { code: 'invalid' } },
   { name: 'address that is not a URL', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'U1', url: 'not a url' }), status: 400, code: 'invalid_url' },
   { name: 'http to a public host', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'U2', url: 'http://threat-share.example.net/a.csv' }), status: 400, code: 'invalid_url' },
-  // D-420 (1): an address the pull would refuse (link-local, cloud metadata, unspecified) is refused at save, with the pull's sentence
+  // An address the pull would refuse (link-local, cloud metadata, unspecified) is refused at save, with the pull's sentence
   ...(['https://169.254.169.254/latest/meta-data', 'https://[fe80::1]/x', 'https://0.0.0.0/x', 'https://100.100.100.200/x'] as const).map((url, i): Step => ({ name: `blocked address ${url}`, role: 'admin', method: 'POST', path: FEED, body: input({ name: `B${i}`, url }), status: 400, code: 'blocked_host',
     check: (b) => expect(b.error.message).toBe('Vedette does not pull feeds from link-local, multicast, unspecified or cloud metadata addresses.') })),
-  // D-446: Vedette itself (loopback, localhost) has the one sentence of every module
+  // Vedette itself (loopback, localhost) has the one sentence of every module
   ...(['https://localhost:8443/x', 'http://127.0.0.1/list.txt', 'https://feeds.localhost/x', 'https://[::1]/x', 'https://[::ffff:127.0.0.1]/x'] as const).map((url, i): Step => ({ name: `Vedette itself ${url}`, role: 'admin', method: 'POST', path: FEED, body: input({ name: `O${i}`, url }), status: 400, code: 'blocked_host',
     check: (b) => expect(b.error.message).toBe("That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port.") })),
   { name: 'mirror at the cloud metadata address', role: 'admin', method: 'PUT', path: '/feeds/sources/ipsum', body: { url: 'https://169.254.169.254/ipsum.txt' }, status: 400, code: 'blocked_host' },
-  // D-420 (2): an address another feed already pulls (a built-in one, or the custom feed above), case and default port aside
+  // An address another feed already pulls (a built-in one, or the custom feed above), case and default port aside
   { name: 'address of a built-in feed', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'Copy of a built-in', url: 'https://check.torproject.org:443/torbulkexitlist' }), status: 400, code: 'duplicate_url', check: (b) => expect(b.error.message).toBe('The feed "Tor exit list" already uses this address.') },
   { name: 'address of another custom feed', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'Copy', url: 'HTTPS://Threat-Share.example.net/list.csv' }), status: 400, code: 'duplicate_url', check: (b) => expect(b.error.message).toBe('The feed "Partner blocklist" already uses this address.') },
   { name: 'http to an internal host is fine', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'Internal', url: 'http://feeds.lan/a.csv' }), status: 201, schema: Feed, keep: (b, c) => { c.internal = b.id } },

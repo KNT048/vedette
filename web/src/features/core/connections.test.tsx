@@ -1,4 +1,4 @@
-// Settings → Connections (D-93, D-94; S-AI-7, S-RESP-4): list, add, edit, delete, test, the errors, the pin, roles, and privacy flow 12.
+// Settings → Connections (S-AI-7, S-RESP-4): list, add, edit, delete, test, the errors, the pin, roles, and privacy flow 12.
 // The form matrix: every kind of connection x every sign-in it can use.
 import { describe, expect, it } from 'vitest'
 import { http } from 'msw'
@@ -46,7 +46,7 @@ describe('Settings → Connections: the page', () => {
     await expectNoA11yViolations()
   })
 
-  it('D-127: a new HTTP connection starts with its read tool off and warns that a GET can change a device', async () => {
+  it('a new HTTP connection starts with its read tool off and warns that a GET can change a device', async () => {
     as('u-admin')
     await post('/core/connections', HTTP)
     await post('/core/connections', SSH)
@@ -82,7 +82,7 @@ describe('Settings → Connections: the page', () => {
     expect((await post('/core/connections', { ...HTTP, name: 'Another one' })).status).toBe(201)
   })
 
-  it('a change of sign-in type clears the typed secret only, and the hint says so (G14, walk 4)', async () => {
+  it('a change of sign-in type clears the typed secret only, and the hint says so', async () => {
     const u = user()
     renderApp('/settings/connections')
     await u.click(await screen.findByRole('button', { name: 'Add connection' }))
@@ -288,7 +288,7 @@ describe('Settings → Connections: form matrix: every kind x every sign-in it c
       { option: KIND_LABEL['mcp-http']!, shown: [TARGET['mcp-http']!, 'Secret'], hidden: [...others('mcp-http'), 'User name'] },
       { option: KIND_LABEL.http!, shown: [TARGET.http!], hidden: [...others('http'), 'Secret', 'User name'] },
     ], pick, dlg)
-    // the command kind cannot be chosen any more (D-94), and no brand is asked for
+    // the command kind cannot be chosen any more, and no brand is asked for
     const opts = within(kind).getAllByRole('option') as HTMLOptionElement[]
     expect(opts.map((o) => o.textContent)).toEqual(['HTTP API', 'SSH / CLI', 'NETCONF / RESTCONF', 'Automation platform', 'MCP server (URL)', 'MCP server (command) (not supported)'])
     expect(opts.find((o) => o.value === 'mcp-stdio')).toBeDisabled()
@@ -357,7 +357,7 @@ describe('Settings → Connections: form matrix: every kind x every sign-in it c
     expect(tools[2]).toEqual(['get_config:read', 'apply_config:write'])
     expect(tools[3]).toEqual(['list_jobs:read', 'launch_job:write'])
     for (const r of made) for (const t of r.json.tools) if (t.access === 'write') expect(t.enabled, t.name).toBe(false)
-    // D-127: a read tool of an HTTP kind starts off too (a GET can change a device); an SSH read tool is an exact command and stays on
+    // A read tool of an HTTP kind starts off too (a GET can change a device); an SSH read tool is an exact command and stays on
     expect(made.map((r) => r.json.tools[0]!.enabled)).toEqual([false, true, false, false, false])
     expect(made[2]!.json.username).toBe('admin')
     expect(made[0]!.json.username).toBeNull() // a token has no user name, even when one is sent
@@ -410,13 +410,13 @@ describe('Settings → Privacy: flow 12, Connections you add', () => {
   })
 })
 
-// ---- Independent QA of 13b-1 (D-94, D-73, PRIVACY flow 12): what the mock must refuse so the real box and the mock answer alike ----
+// ---- Independent QA of 13b-1 (PRIVACY flow 12): what the mock must refuse so the real box and the mock answer alike ----
 type Err = { error?: { code: string; message: string; field?: string } }
 const answer = async (r: Promise<Response>) => { const res = await r; return { status: res.status, body: (await res.json().catch(() => ({}))) as Err & Record<string, unknown> } }
 const create = (b: unknown) => answer(post('/core/connections', b))
 const OPENSSH_NONE = '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZWQyNTUxOQAAACBkZXZpY2Uta2V5\n-----END OPENSSH PRIVATE KEY-----\n'
 
-describe('Connections: D-94 address policy and HTTPS only', () => {
+describe('Connections: address policy and HTTPS only', () => {
   it('every HTTP kind refuses an http:// target: 400 invalid_target on the field target, with the reason', async () => {
     as('u-admin')
     for (const kind of ['http', 'netconf-restconf', 'automation', 'mcp-http']) {
@@ -512,7 +512,7 @@ describe('Connections: SSH keys', () => {
   })
 })
 
-describe('Connections: MCP tools (D-94 (3), D-93 (4))', () => {
+describe('Connections: MCP tools', () => {
   const MCP = { ...HTTP, name: 'Cloud MCP', kind: 'mcp-http', target: 'https://mcp.example.com/mcp', auth_type: 'none', secret: undefined, allow: ['https://mcp.example.com/mcp'] }
   it('every tool found on the server starts as write and off; the input can mark one read; other kinds refuse an access (400 invalid_tool_access)', async () => {
     as('u-admin')
@@ -548,7 +548,7 @@ describe('Connections: MCP tools (D-94 (3), D-93 (4))', () => {
   })
 })
 
-describe('Connections: the pin is the identity of the server (D-94)', () => {
+describe('Connections: the pin is the identity of the server', () => {
   const ssh = () => connectorsStore.get().find((c) => c.id === 'cn-ssh')!
   const sshBody = (over: Record<string, unknown> = {}) => ({ name: ssh().name, kind: 'ssh', target: ssh().target, auth_type: 'ssh-key', username: ssh().username, allow: ssh().allow, enabled: true, ...over })
   it('changing only the sign-in method keeps the pin', async () => {
@@ -576,7 +576,7 @@ describe('Connections: the pin is the identity of the server (D-94)', () => {
   })
 })
 
-describe('Connections: D-73 the mock answers like the generated backend', () => {
+describe('Connections: the mock answers like the generated backend', () => {
   it('a user name that breaks the schema pattern is 400 invalid on the field username; a missing one is username_required; clear_pin that is not a boolean names its field', async () => {
     as('u-admin')
     const msg = 'The user name is 1 to 64 characters, with no spaces, colons or control characters.'
@@ -683,7 +683,7 @@ describe('Connections: the dialog', () => {
     expect((await create({ ...HTTP, kind: 'netconf-restconf', target: '192.168.10.2:830', allow: ['192.168.10.2'] })).status).toBe(400)
   })
 
-  it('the automation kind label has no product names; they are in its hint (D-58)', async () => {
+  it('the automation kind label has no product names; they are in its hint', async () => {
     const { u, dlg } = await open()
     expect(within(within(dlg).getByLabelText('Kind')).getByRole('option', { name: 'Automation platform' })).toBeInTheDocument()
     await u.selectOptions(within(dlg).getByLabelText('Kind'), 'automation')
@@ -749,7 +749,7 @@ describe('Connections: the dialog', () => {
     expect(within(within(dlg).getByLabelText('Sign-in')).getByRole('option', { name: 'SSH key (not for this kind)' })).toBeDisabled()
   })
 
-  it('D-174: a token can name the header it is sent in; a bad name is refused at its field; the form has the optional field', async () => {
+  it('a token can name the header it is sent in; a bad name is refused at its field; the form has the optional field', async () => {
     as('u-admin')
     const ok = await create({ ...HTTP, name: 'Key API', auth_header: 'X-API-Key' })
     expect(ok.status).toBe(201)
@@ -775,7 +775,7 @@ describe('Connections: the dialog', () => {
     expect(within(dlg).getByText('Leave empty to send Authorization: Bearer')).toBeInTheDocument()
   })
 
-  it('D-174: the mock refuses the same header names as Go (shared list)', () => {
+  it('the mock refuses the same header names as Go (shared list)', () => {
     for (const n of refusedList.refused) expect(validAuthHeader(n), n).toBe(false)
     for (const n of refusedList.valid) expect(validAuthHeader(n), n).toBe(true)
   })

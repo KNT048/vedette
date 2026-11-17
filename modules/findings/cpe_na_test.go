@@ -6,11 +6,11 @@ import (
 )
 
 // #901: NVD writes NA ("-", not applicable) in the attributes after the version. A software row's ANY means "not stated". NA covers
-// it only on the Windows release rows (winUnpinned) and in the update of the D-500 rule (evalUpdate); an application row keeps NA
+// it only on the Windows release rows (winUnpinned) and in the update attribute (evalUpdate); an application row keeps NA
 // pinned as origin/main did, because "-" there often means "not ESR" or "not LTS" (reviews H1 of #906 r1 and r2; NISTIR 7696 itself
 // gives NA against ANY as SUBSET, not a match). These tests use NVD's real shapes.
 
-// cve202626111 is NVD's list for CVE-2026-26111 as the N100's nvd-recent copy stores it (2026-11-16): the server releases with
+// cve202626111 is NVD's list for CVE-2026-26111 as a test box's nvd-recent copy stores it (2026-11-16): the server releases with
 // software edition "-" and target x64.
 func cve202626111() []Affected {
 	return []Affected{
@@ -68,7 +68,7 @@ func TestNA_CVE202626111_WindowsServer2025(t *testing.T) {
 }
 
 // Updates to plan: the M2-10 shapes of #898 still count as before, and CVE-2026-26111 joins the same monthly update (its fix build is
-// below the group's). On the N100's copy this takes WINLAB01's plan from 2786 to 2787 CVEs and changes nothing else.
+// below the group's). On a test box's copy this takes WINLAB01's plan from 2786 to 2787 CVEs and changes nothing else.
 func TestNA_PlanCountsCVE202626111(t *testing.T) {
 	t.Parallel()
 	osEntry := func(product, hw, end string) Affected {
@@ -100,7 +100,7 @@ func TestNA_PlanCountsCVE202626111(t *testing.T) {
 }
 
 // The ordinary matcher (any product): NA after the version stays pinned as on origin/main (it matches NA, an unstated attribute lowers
-// Yes to Unknown, a value gives No); only the update's NA reads the version string (D-500). Real shapes: Jenkins (CVE-2024-23897,
+// Yes to Unknown, a value gives No); only the update's NA reads the version string. Real shapes: Jenkins (CVE-2024-23897,
 // software edition "-") and OpenSSH's release without an update ("9.8:-").
 func TestNA_EvalAffected(t *testing.T) {
 	t.Parallel()
@@ -131,8 +131,8 @@ func TestNA_EvalAffected(t *testing.T) {
 		{"value, row states none (unchanged)", lts, upTo, "2.441", "cpe:2.3:a:jenkins:jenkins:2.441:*:*:*:*:*:*:*", Unknown},
 		{"value, name-only row (unchanged)", lts, upTo, "2.441", "", Unknown},
 		{"value, row states it (unchanged)", lts, upTo, "2.441", "cpe:2.3:a:jenkins:jenkins:2.441:*:*:*:lts:*:*:*", Yes},
-		{"update NA, name-only release (unchanged, D-500)", ssh, VersionRange{}, "9.8", "", Yes},
-		{"update NA, name-only p1 (unchanged, D-500)", ssh, VersionRange{}, "9.8p1", "", No},
+		{"update NA, name-only release (unchanged)", ssh, VersionRange{}, "9.8", "", Yes},
+		{"update NA, name-only p1 (unchanged)", ssh, VersionRange{}, "9.8p1", "", No},
 		{"update NA, row's CPE leaves it ANY", ssh, VersionRange{}, "9.8", "cpe:2.3:a:openbsd:openssh:9.8:*:*:*:*:*:*:*", Yes},
 		{"update NA, row's CPE leaves it ANY, p1", ssh, VersionRange{}, "9.8p1", "cpe:2.3:a:openbsd:openssh:9.8p1:*:*:*:*:*:*:*", No},
 		{"update NA, row states p1", ssh, VersionRange{}, "9.8", "cpe:2.3:a:openbsd:openssh:9.8:p1:*:*:*:*:*:*", No},
@@ -155,7 +155,7 @@ func TestNA_EvalAffected(t *testing.T) {
 // product finding, no plan item, no fix of the other channel.
 func TestNA_ApplicationEditionAsMain(t *testing.T) {
 	t.Parallel()
-	firefox := Vuln{CVE: "CVE-2024-9680", Vendor: "Mozilla", Product: "Firefox", Affected: []Affected{ // the N100's feeds_affected, 2026-11-16
+	firefox := Vuln{CVE: "CVE-2024-9680", Vendor: "Mozilla", Product: "Firefox", Affected: []Affected{ // a test box's feeds_affected, 2026-11-16
 		{CPE: "cpe:2.3:a:mozilla:firefox:*:*:*:*:esr:*:*:*", Range: VersionRange{EndExcl: "115.16.1"}},
 		{CPE: "cpe:2.3:a:mozilla:firefox:*:*:*:*:-:*:*:*", Range: VersionRange{EndExcl: "131.0.2"}},
 		{CPE: "cpe:2.3:a:mozilla:firefox:*:*:*:*:esr:*:*:*", Range: VersionRange{StartIncl: "128.1.0", EndExcl: "128.3.1"}},
@@ -168,7 +168,7 @@ func TestNA_ApplicationEditionAsMain(t *testing.T) {
 		{CPE: "cpe:2.3:a:jenkins:jenkins:*:*:*:*:lts:*:*:*", Range: VersionRange{EndExcl: "2.426.3"}},
 		{CPE: "cpe:2.3:a:jenkins:jenkins:*:*:*:*:-:*:*:*", Range: VersionRange{EndExcl: "2.442"}},
 	}}
-	// CVE-2025-14326 as the N100's feeds_recent_affected stores it: "-" rows only, ESR not affected.
+	// CVE-2025-14326 as a test box's feeds_recent_affected stores it: "-" rows only, ESR not affected.
 	release := []Affected{
 		{CPE: "cpe:2.3:a:mozilla:firefox:*:*:*:*:-:*:*:*", Range: VersionRange{EndExcl: "146.0"}},
 		{CPE: "cpe:2.3:a:mozilla:thunderbird:*:*:*:*:-:*:*:*", Range: VersionRange{EndExcl: "146.0"}},
@@ -199,7 +199,7 @@ func TestNA_ApplicationEditionAsMain(t *testing.T) {
 		a := dev(tt.v, tt.display, tt.vendor, tt.product, tt.ver)
 		where, m := oneMatch(t, a, tt.v, false)
 		if tt.want == "product" {
-			wantMatch(t, tt.name, where, m, "nameonly", BasisProduct, SeverityMedium) // D-602: no finding
+			wantMatch(t, tt.name, where, m, "nameonly", BasisProduct, SeverityMedium) // No finding
 		} else if where != "none" {
 			t.Errorf("%s: %s %s/%s %q", tt.name, where, m.Basis, m.Severity, m.Evidence.Summary)
 		}
@@ -228,7 +228,7 @@ func TestNA_FixedInReadsUpdateNARange(t *testing.T) {
 	}
 }
 
-// The month rule (D-618) reads a fix revision from a row whose NA attributes the device leaves unstated, and never from one whose
+// The month rule reads a fix revision from a row whose NA attributes the device leaves unstated, and never from one whose
 // update or edition is pinned, or whose NA the device's row contradicts.
 func TestNA_WinFixRev(t *testing.T) {
 	t.Parallel()

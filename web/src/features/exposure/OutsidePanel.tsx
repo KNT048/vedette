@@ -16,7 +16,7 @@ import { dateTimeText } from './dates'
 import { useCheckOutside, useOutside } from './api'
 import type { OutsideView, Target } from './types'
 
-/** S-EXP-1, D-558: "What the Internet sees". Our scan runs from inside the network (NAT loopback); Shodan sees the IP from outside.
+/** S-EXP-1: "What the Internet sees". Our scan runs from inside the network (NAT loopback); Shodan sees the IP from outside.
  * Nothing is sent until an administrator clicks and then confirms what is sent; every check is a click (no job, no polling). */
 export function OutsidePanel({ target }: { target: Target }) {
   const { t } = useTranslation('exposure')
@@ -41,7 +41,7 @@ export function OutsidePanel({ target }: { target: Target }) {
       {!eligible ? <p className="mt-2 max-w-3xl text-meta text-muted">{t('outside.notEligible')}</p> : null}
       <Dialog open={confirm} onOpenChange={(o) => { if (!check.isPending) setConfirm(o) }}>
         <DialogContent title={t('outside.confirmTitle', { ip: target.value })} description={t('outside.confirmBody', { ip: target.value })} info={t('outside.confirmBodyInfo', { ip: target.value })}>
-          {/* kien G1: the box may re-check its IP first (5 rounds, 5 s each at most), then Shodan answers within 10 s */}
+          {/* The box may re-check its IP first (5 rounds, 5 s each at most), then Shodan answers within 10 s */}
           <BusyNote busy={check.isPending}>{t('outside.waiting')}</BusyNote>
           <DialogFooter>
             <Button onClick={() => setConfirm(false)} disabled={check.isPending}>{t('common:cancel')}</Button>

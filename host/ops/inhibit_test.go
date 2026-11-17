@@ -130,7 +130,7 @@ func TestBusctlOnlyListsInhibitors(t *testing.T) {
 	if ValidateApplierArgv("/var/lib/vedette-host", binBusctl, argsListInhibitors) == nil {
 		t.Error("the applier runner has busctl")
 	}
-	// systemctl never gets a way past an inhibitor (D-453).
+	// systemctl never gets a way past an inhibitor.
 	for _, a := range [][]string{{"reboot", "--check-inhibitors=no"}, {"reboot", "--force"}, {"reboot", "-i"}, {"--check-inhibitors=no", "reboot"}, {"reboot", "-ff"}} {
 		if ValidateHostArgv("/var/lib/vedette-host", "vedette-core.service", binSystemctl, a) == nil {
 			t.Errorf("systemctl %q accepted", a)

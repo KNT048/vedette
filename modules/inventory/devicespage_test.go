@@ -10,8 +10,8 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-471: approving sets approved_at once (approving again does not move it); a hand-added device has none.
-func TestContract_D471_ApprovedAtIsTheFirstApproval(t *testing.T) {
+// approving sets approved_at once (approving again does not move it); a hand-added device has none.
+func TestContract_ApprovedAtIsTheFirstApproval(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.record(obs(netip.MustParseAddr("192.168.10.77"), "", observe.Hostname, "laptop", observe.Passive, 0.7))
@@ -41,9 +41,9 @@ func TestContract_D471_ApprovedAtIsTheFirstApproval(t *testing.T) {
 	}
 }
 
-// D-471: one naming rule. A product added by hand with no name and no IP is "<product> (no device)", never nameless or
+// One naming rule. A product added by hand with no name and no IP is "<product> (no device)", never nameless or
 // its id; with an IP it is the product; a name typed by hand wins; a discovered device keeps make and model, then IP.
-func TestContract_D471_OneNamingRule(t *testing.T) {
+func TestContract_OneNamingRule(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	office := e.addDevice(inventory.AddInput{Vendor: "Microsoft", Product: "Office"})
@@ -81,8 +81,8 @@ func TestContract_D471_OneNamingRule(t *testing.T) {
 	}
 }
 
-// D-471 "edit version": only manual software; bad version 400; same version no-op; a change re-matches the device.
-func TestContract_D471_SetSoftwareVersion(t *testing.T) {
+// "Edit version": only manual software; bad version 400; same version no-op; a change re-matches the device.
+func TestContract_SetSoftwareVersion(t *testing.T) {
 	t.Parallel()
 	kev := fakeKEV{cves: map[string][]string{"fortinet|fortios": {"CVE-2024-0001"}}}
 	e := newEnv(t, withKEV(kev))
@@ -137,9 +137,9 @@ func TestContract_D471_SetSoftwareVersion(t *testing.T) {
 	}
 }
 
-// W1-3, M5-177: "I have this" (feeds) gets the declared device's id, and that product-only device is named
+// "I have this" (feeds) gets the declared device's id, and that product-only device is named
 // "<product> (no device)", not a nameless row.
-func TestContract_D471_AddManualDeviceReturnsTheNamedDevice(t *testing.T) {
+func TestContract_AddManualDeviceReturnsTheNamedDevice(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	var id string
@@ -160,15 +160,15 @@ func TestContract_D471_AddManualDeviceReturnsTheNamedDevice(t *testing.T) {
 	}
 }
 
-// M5-186 (walk 1 W1-10): a readable host name beats a UUID-looking one whatever their source; a person's name still wins.
+// M5-186: a readable host name beats a UUID-looking one whatever their source; a person's name still wins.
 func TestContract_INV1_AReadableHostnameBeatsAUUID(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ip := netip.MustParseAddr("192.168.18.40")
-	e.record(obs(ip, "aa:bb:cc:00:00:40", observe.Hostname, "kiens-macbook-air", observe.Passive, 0.6))
+	e.record(obs(ip, "aa:bb:cc:00:00:40", observe.Hostname, "annas-macbook-air", observe.Passive, 0.6))
 	e.record(obs(ip, "aa:bb:cc:00:00:40", observe.Hostname, "FBAF5191-CC17-4626-A85B-812BC3D7B83B", observe.Agent, 0.95))
 	id := e.idByMAC("aa:bb:cc:00:00:40")
-	if h := e.detail(id).Asset.Hostname; h == nil || *h != "kiens-macbook-air" {
+	if h := e.detail(id).Asset.Hostname; h == nil || *h != "annas-macbook-air" {
 		t.Fatalf("hostname = %v, want the readable one", h)
 	}
 }

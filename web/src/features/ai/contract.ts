@@ -1,4 +1,4 @@
-// Hợp đồng API module ai (D-18). Kiểu UI suy ra từ schema ở đây (types.ts).
+// Hợp đồng API module ai. Kiểu UI suy ra từ schema ở đây (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 
@@ -47,7 +47,7 @@ export const Usage = z.object({
   downgrades: z.array(z.object({ id: z.string(), ts: iso, from: AiTier, to: AiTier, reason: z.string() })),
 })
 export const AiRun = z.object({ id: z.string(), ts: iso, skill: z.string(), model: z.string(), tokens_in: z.number(), tokens_out: z.number(), status: z.enum(['ok', 'schema_error', 'capped', 'failed']), target: z.string().optional(), profile: z.string().optional().describe('AI profile that answered'), fallback: z.boolean().optional().describe('true = ran on the fallback profile') })
-// ---- Activity log (S-AI-8, D-48): guaranteed record of what the AI did, hash-chained
+// ---- Activity log (S-AI-8): guaranteed record of what the AI did, hash-chained
 export const ActivityResult = z.enum(['ok', 'blocked_by_hook', 'fallback_used', 'error'])
 export const ActivityTool = z.object({ name: z.string(), access: z.enum(['read', 'write']), args: z.string().describe('Arguments summarised, never secrets') })
 export const ActivityEntry = z.object({
@@ -94,7 +94,7 @@ export const LogDigest = z.object({
   memories_suggested: z.number().int().min(0).describe('memories the AI suggested while making this digest (0 when read back); they wait for an administrator (S-AI-7, D-223)'),
 })
 
-// ---- AI harness (D-39, S-AI-7): rules, memory, skills, knowledge, hooks (connections moved to core, D-93)
+// ---- AI harness (S-AI-7): rules, memory, skills, knowledge, hooks (connections moved to core)
 export const BuiltinRule = z.object({ id: z.string(), text: z.string() })
 export const Rule = z.object({ id: z.string(), text: z.string(), jobs: z.array(AiJob).describe('Empty = applies to every job'), enabled: z.boolean() })
 export const RuleInput = z.object({ text: z.string().min(3).max(300), jobs: z.array(AiJob), enabled: z.boolean() })
@@ -146,7 +146,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/ai/activity/verify', summary: 'Check the hash chain of the activity log: intact, or the first broken entry', stories: ['S-AI-8'], role: 'operator', response: ActivityVerify },
   { method: 'get', path: '/ai/activity/settings', summary: 'Activity log retention (days)', stories: ['S-AI-8'], role: 'admin', response: ActivitySettings },
   { method: 'put', path: '/ai/activity/settings', summary: 'Set retention: default 365 days, minimum 90', stories: ['S-AI-8'], role: 'admin', body: ActivitySettings, response: ActivitySettings },
-  // ---- AI harness (D-39)
+  // ---- AI harness
   { method: 'get', path: '/ai/rules', summary: 'Rules sent with every AI call: built-in (read-only) and custom', stories: ['S-AI-7'], role: 'admin', response: RulesView },
   { method: 'post', path: '/ai/rules', summary: 'Add a custom rule for all jobs or chosen jobs', stories: ['S-AI-7'], role: 'admin', body: RuleInput, response: Rule },
   { method: 'put', path: '/ai/rules/{id}', summary: 'Edit or enable/disable a custom rule', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), body: RuleInput, response: Rule },

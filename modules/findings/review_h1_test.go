@@ -69,7 +69,7 @@ func TestMatchAsset_VendorReleaseSchemes(t *testing.T) {
 				t.Fatalf("sent to add the version: %+v", res.NeedVersion)
 			}
 			got, sev := Basis(""), Severity("")
-			if all := slices.Concat(res.New, res.NameOnly); len(all) == 1 { // D-602: a product match is in NameOnly
+			if all := slices.Concat(res.New, res.NameOnly); len(all) == 1 { // A product match is in NameOnly
 				got, sev = all[0].Basis, all[0].Severity
 			}
 			if got != tc.want || sev != tc.sev {

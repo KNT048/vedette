@@ -54,7 +54,7 @@ function Form({ initial }: { initial: GeneralSettings }) {
   )
 }
 
-/** D-544: who accepted the terms of use on this box, when and which version, and the text to read again. */
+/** Who accepted the terms of use on this box, when and which version, and the text to read again. */
 function Terms({ s }: { s: TermsState }) {
   const { t } = useTranslation('core')
   const [open, setOpen] = useState(false)

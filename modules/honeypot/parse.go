@@ -38,7 +38,7 @@ const (
 	ltSSHLogin     = 4002
 	ltSMBFile      = 5000
 	ltPortSYN      = 5001
-	ltPortNmapEnd  = 5005 // 5001..5005: the portscan module; it is off (D-90 (5), D-467), the mapping is ready for when it is on
+	ltPortNmapEnd  = 5005 // 5001..5005: the portscan module; it is off, the mapping is ready for when it is on
 	ltHTTPGet      = 3000 // 3000..3003 are the HTTPS trap's too: its port tells them apart
 	ltHTTPLogin    = 3001
 	ltHTTPOther    = 3002 // a method the fake page refuses (HEAD, PUT ...); needs http.log_unimplemented_method_requests

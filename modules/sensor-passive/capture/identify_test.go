@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-passive/internal/pktgen"
 )
 
-// D-501: the vendor class (DHCP option 60) of a known DHCP client gives an OS hint; anything else gives nothing.
+// The vendor class (DHCP option 60) of a known DHCP client gives an OS hint; anything else gives nothing.
 func TestDHCPVendorClassGivesAnOSHint(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{
@@ -41,7 +41,7 @@ func TestDHCPVendorClassGivesAnOSHint(t *testing.T) {
 	}
 }
 
-// D-501: an LLDP Telephone capability (an IP desk phone, which also bridges its PC port) says iot, before Bridge says switch.
+// An LLDP Telephone capability (an IP desk phone, which also bridges its PC port) says iot, before Bridge says switch.
 func TestLLDPTelephoneIsIot(t *testing.T) {
 	t.Parallel()
 	e, _ := newEngine(own)
@@ -68,9 +68,9 @@ func TestIdentifiersAndNumberListsAreNoNameOrModel(t *testing.T) {
 	e.Handle(Packet{At: pktgen.T0, Data: pktgen.UDPFrame(pktgen.Mcast4, pktgen.Laptop, pktgen.LaptopIP, mdns, 5353, 5353, pktgen.DNSMessage(0, true, nil, []pktgen.DNSRecord{
 		pktgen.RR("6a3d1565-2a3d-4d87-afe3-9e59546c8acc.local", dnsTypeA, pktgen.A(pktgen.LaptopIP)),
 		pktgen.RR("0123456789abcdef0123456789ABCDEF.local", dnsTypeA, pktgen.A(pktgen.LaptopIP)),
-		pktgen.RR("Kiens-MacBook-Air.local", dnsTypeA, pktgen.A(pktgen.LaptopIP)),
-		pktgen.RR("Kiens-MacBook-Air._companion-link._tcp.local", dnsTypeTXT, pktgen.TXT("model=0,1,2")),
-		pktgen.RR("Kiens-MacBook-Air._device-info._tcp.local", dnsTypeTXT, pktgen.TXT("model=Mac14,2")),
+		pktgen.RR("Annas-MacBook-Air.local", dnsTypeA, pktgen.A(pktgen.LaptopIP)),
+		pktgen.RR("Annas-MacBook-Air._companion-link._tcp.local", dnsTypeTXT, pktgen.TXT("model=0,1,2")),
+		pktgen.RR("Annas-MacBook-Air._device-info._tcp.local", dnsTypeTXT, pktgen.TXT("model=Mac14,2")),
 	}))})
 	req := pktgen.DHCP(1, pktgen.Phone, netip.Addr{}, netip.Addr{}, pktgen.DHCPOpts{Type: 1, Hostname: "fbaf5191-cc17-4626-a85b-812bc3d7b83b"})
 	e.Handle(frameDHCP(pktgen.Phone, pktgen.Bcast, zeroIP, bcastIP, 68, 67, req))
@@ -84,8 +84,8 @@ func TestIdentifiersAndNumberListsAreNoNameOrModel(t *testing.T) {
 			models = append(models, o.Value)
 		}
 	}
-	if len(names) != 1 || names[0] != "kiens-macbook-air" || len(models) != 1 || models[0] != "Mac14,2" {
-		t.Errorf("names %v models %v; want [kiens-macbook-air] [Mac14,2]", names, models)
+	if len(names) != 1 || names[0] != "annas-macbook-air" || len(models) != 1 || models[0] != "Mac14,2" {
+		t.Errorf("names %v models %v; want [annas-macbook-air] [Mac14,2]", names, models)
 	}
 	if got := e.Counters()["value_meaningless"]; got != 4 {
 		t.Errorf("value_meaningless = %d, want 4 (two UUID names, a number list, a DHCP UUID)", got)

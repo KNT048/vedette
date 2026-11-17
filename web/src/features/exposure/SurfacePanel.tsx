@@ -8,8 +8,8 @@ import { useSnapshot, useSnapshots } from './api'
 import { InfoLine } from './InfoLine'
 import type { HostClass, HostIp, HostRow, Snapshot, Target } from './types'
 
-// S-EXP-1, INV-27 (D-567): the surface of a verified domain from its newest scan: names, then their addresses, CNAME and where each
-// name was found. What serves a name (a CDN or not) does not matter (kien 2026-11-14); each address says what the scan does with it.
+// S-EXP-1, INV-27: the surface of a verified domain from its newest scan: names, then their addresses, CNAME and where each
+// name was found. What serves a name (a CDN or not) does not matter; each address says what the scan does with it.
 const CLASSES: HostClass[] = ['box', 'public', 'private']
 const TONE: Record<HostClass, Tone> = { box: 'ok', public: 'accent', private: 'off' }
 const SURFACE_LINES = new Set(['wordlist', 'by_name', 'address_family', 'lookup', 'deep'])
@@ -57,7 +57,7 @@ function SurfaceView({ s }: { s: Snapshot }) {
           { label: t('count.ips'), value: s.counts.ips },
           ...CLASSES.map((c) => ({ label: t(`surface.count.${c}`), value: names((a) => a.class === c && a.family === 'ipv4') })),
           { label: t('surface.count.ipv6'), value: names((a) => a.family === 'ipv6') },
-          // D-571: addresses, not names: many names on one address are one deep scan
+          // addresses, not names: many names on one address are one deep scan
           ...(deep ? [{ label: t('surface.count.deep'), value: addrs((a) => a.deep === 'scanned') }, { label: t('surface.count.waiting'), value: addrs((a) => a.deep === 'waiting') }] : []),
         ]} />
       </Panel>
@@ -81,10 +81,10 @@ function Addresses({ h }: { h: HostRow }) {
   return <ul className="grid gap-1.5">{h.ips.map((a) => <li key={a.ip} className="grid gap-0.5"><Address a={a} used={used} /></li>)}</ul>
 }
 
-/** The note says what happened to this address: what the deep scan did with it (D-571), else the check by name went to one address of a name only (`contacted`). */
+/** The note says what happened to this address: what the deep scan did with it, else the check by name went to one address of a name only (`contacted`). */
 function Address({ a, used }: { a: HostIp; used: string | undefined }) {
   const { t } = useTranslation('exposure')
-  // D-571: what this run's deep scan did with the address: scanned, next in line (with when it was last scanned), or why not
+  // What this run's deep scan did with the address: scanned, next in line (with when it was last scanned), or why not
   const last = a.last_deep ? t('surface.deep.last', { time: dateTimeText(a.last_deep) }) : t('surface.deep.never')
   const deepNote = (x: HostIp) => x.deep === 'scanned' ? t('surface.deep.scanned', { time: dateTimeText(x.last_deep ?? '') })
     : x.deep === 'waiting' ? t('surface.deep.waiting', { n: x.next_in_line ?? 1, last })

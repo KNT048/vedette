@@ -5,7 +5,7 @@ import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
 import { fmtWhen } from './dates'
 
-// kien G11: Home's "Newly exploited" board read as a list that ran once at install. It says how often the box checks CISA's list,
+// Home's "Newly exploited" board read as a list that ran once at install. It says how often the box checks CISA's list,
 // when it last did (the reader's time), CISA's own last addition, a failed check with the last good pull, and a list never pulled.
 // #938 review r1: a fixed zone (Ho Chi Minh, UTC+7) and a fixed "now", so the run never straddles midnight or depends on the runner.
 const ZONE = 'Asia/Ho_Chi_Minh'
@@ -26,7 +26,7 @@ function status(kev: Record<string, unknown>, generatedAt = '2026-11-17T03:54:00
 }
 const latest = () => server.use(http.get('*/api/v1/feeds/hot', ({ request }) => HttpResponse.json({ window: new URL(request.url).searchParams.get('window'), rows: [], latest: { cve: 'CVE-2026-99001', date_added: '2026-11-13', display: 'Check Point Multiple Products' } })))
 
-describe('Home: how fresh the exploited list is (kien G11)', () => {
+describe('Home: how fresh the exploited list is', () => {
   it('times are the reader\'s: the hour alone today, the date otherwise', () => {
     expect(fmtWhen('2026-11-17T03:54:00Z', NOW)).toBe('10:54') // 03:54 UTC is 10:54 in Ho Chi Minh
     expect(fmtWhen('2026-11-16T17:30:00Z', NOW)).toBe('00:30') // still today there, yesterday in UTC
@@ -49,7 +49,7 @@ describe('Home: how fresh the exploited list is (kien G11)', () => {
     expect(line.querySelector('a')).toHaveAttribute('href', '/settings/feeds#feed-cisa-kev')
   })
 
-  // kien G13 (D-91 as amended): both copies of the CISA list are asked every check; Home says which one the newest list came from, and a
+  // Both copies of the CISA list are asked every check; Home says which one the newest list came from, and a
   // copy that failed alone is a quiet note (cisa.gov answers 403 to Vietnamese addresses)
   const copies = (cisa: string | null, mirror: string | null) => [
     { name: 'CISA', url: 'https://www.cisa.gov/kev.json', checked_at: '2026-11-17T03:54:00Z', error: cisa, catalog_version: cisa ? null : '2026.11.17' },

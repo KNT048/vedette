@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Vedette's ZAP rule list and the versions ZAP reads (D-565, CONTRACT INV-24). content/zap/vedette-baseline.conf is the one list:
+// Vedette's ZAP rule list and the versions ZAP reads (CONTRACT INV-24). content/zap/vedette-baseline.conf is the one list:
 // the host hands it to ZAP with -c, and exposure applies it itself when it reads a report (so it holds before -c is wired, and on
 // snapshots stored before it): an IGNORE rule's alert is dropped, a FAIL rule's alert is "Fix this" (shown first), any other alert is
 // "Hardening" with ZAP's own risk, except that an unlisted rule ZAP rates high or medium is "Fix this". Three rules carry a version: 10003 (a JavaScript library and the CVEs Retire.js lists for it),
@@ -122,7 +122,7 @@ func sortWebGroups(rows []WebFindingRow) {
 	})
 }
 
-// parseZAPWithRules is ParseZAPReport with the rule list applied (D-565): IGNORE alerts dropped, each row's group set, the versions of
+// parseZAPWithRules is ParseZAPReport with the rule list applied: IGNORE alerts dropped, each row's group set, the versions of
 // 10003, 10036 and 10037 read, "Fix this" first. A report ParseZAPReport refuses is refused the same way.
 func parseZAPWithRules(raw []byte, page string) ([]WebFindingRow, error) {
 	rows, err := ParseZAPReport(raw, page)
@@ -326,14 +326,14 @@ func webOnRead(rows []WebFindingRow) (out []WebFindingRow, dropped int) {
 	return out, dropped
 }
 
-// The lines of the version comparison of the web scan (INV-24, D-565).
+// The lines of the version comparison of the web scan (INV-24).
 const (
 	notWebVersionsMatcher = "Versions ZAP read on the web pages were not compared with exploited vulnerabilities: the comparison is not set up on this box yet."
 	notWebVersionsFail    = "Versions ZAP read on the web pages could not be compared with the list of exploited vulnerabilities. Try again later."
 )
 
-// withWebVersions applies the rule list to the snapshot's web findings and compares the versions ZAP read with today's exploited CVEs
-// (D-565), when the snapshot is read, like withVulns. A CVE Retire.js names for a JavaScript library that CISA lists is a VulnRow with
+// withWebVersions applies the rule list to the snapshot's web findings and compares the versions ZAP read with today's exploited CVEs,
+// when the snapshot is read, like withVulns. A CVE Retire.js names for a JavaScript library that CISA lists is a VulnRow with
 // basis "js_library"; a product and version of a Server or X-Powered-By header go through the Matcher like a service nmap identified,
 // unless nmap already read a version of that product on that port. A row never replaces one already there for the same address, port
 // and CVE. A failed comparison is a "Not checked" line, never "no exploited CVE".
@@ -399,7 +399,7 @@ func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
 	}
 	matched, failed := 0, "" // failed: the "Not checked" line of a comparison that did not run
 	if len(js) > 0 {
-		var listed map[string]KEVEntry // ExploitedLookup (greenbone.go): the CVEs Retire.js names that today's list carries (D-565)
+		var listed map[string]KEVEntry // ExploitedLookup (greenbone.go): the CVEs Retire.js names that today's list carries
 		var err error
 		look, ok := s.cfg.Matcher.(ExploitedLookup)
 		if ok {

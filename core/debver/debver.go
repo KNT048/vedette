@@ -1,4 +1,4 @@
-// Package debver compares Debian package versions ("1:9.6p1-3ubuntu13.5") the way dpkg does (D-516): Debian Policy
+// Package debver compares Debian package versions ("1:9.6p1-3ubuntu13.5") the way dpkg does: Debian Policy
 // §5.6.12, https://www.debian.org/doc/debian-policy/ch-controlfields.html#version . It is a pure function on text a
 // device or a feed sent, so a version that is not well formed is refused, never guessed.
 package debver

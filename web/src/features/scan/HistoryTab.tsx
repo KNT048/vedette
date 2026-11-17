@@ -46,7 +46,7 @@ function Progress({ run }: { run: ScanRun }) {
   )
 }
 
-/** D-501: what Scan now identified on each device before checking it, or exactly why it could not (the box's own sentence). */
+/** What Scan now identified on each device before checking it, or exactly why it could not (the box's own sentence). */
 function Identification({ rows }: { rows: RunIdentRow[] }) {
   const { t } = useTranslation('scan')
   if (!rows.length) return null
@@ -100,7 +100,7 @@ function ResultDialog({ run, onClose, opener }: { run: ScanRun | null; onClose: 
 function History({ runs }: { runs: ScanRun[] }) {
   const { t } = useTranslation('scan')
   const [params] = useSearchParams()
-  // ?run= opens that run's results: the "see the run" link of a stopped rescan (D-145 (7))
+  // ?run= opens that run's results: the "see the run" link of a stopped rescan
   const [open, setOpen] = useState<string | null>(() => params.get('run'))
   const opener = useRef<HTMLElement | null>(null)
   const view = useCallback((e: React.MouseEvent<HTMLElement>, id: string) => { opener.current = e.currentTarget; setOpen(id) }, [])
@@ -110,7 +110,7 @@ function History({ runs }: { runs: ScanRun[] }) {
     { id: 'trigger', header: t('hist.trigger'), accessorFn: (r) => r.trigger, cell: ({ row: { original: r } }) => <div className="grid text-meta"><span>{t(`trigger.${r.trigger}`)}</span>{r.trigger_note ? <span className="text-muted">{r.trigger_note}</span> : <span className="text-muted">{r.started_by === 'system' ? t('hist.bySystem') : r.started_by}</span>}</div> },
     { id: 'total', header: t('hist.devices'), accessorFn: (r) => r.total, cell: ({ row: { original: r } }) => <span>{r.done === r.total ? r.total : t('hist.partial', { done: r.done, total: r.total })}</span> },
     { id: 'status', header: t('hist.status'), accessorFn: (r) => r.status, cell: ({ row: { original: r } }) => <RunStatusChip run={r} /> },
-    // kien G7a: what the run found in words, from its results (never "0 matches" when nothing could be checked)
+    // What the run found in words, from its results (never "0 matches" when nothing could be checked)
     { id: 'found', header: t('hist.found'), accessorFn: (r) => r.matched, cell: ({ row: { original: r } }) => <span className={r.matched ? 'text-meta font-medium text-danger' : 'text-meta'}>{runOutcome(r, t)}</span> },
     { id: 'actions', header: () => <span className="sr-only">{t('hist.actions')}</span>, enableSorting: false, cell: ({ row: { original: r } }) => (
       <Button size="sm" disabled={isLive(r)} aria-label={t('hist.viewAria', { time: fmtDateTime(r.started_at) })} onClick={(e) => view(e, r.id)}>{t('hist.view')}</Button>

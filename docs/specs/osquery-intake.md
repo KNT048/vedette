@@ -1,7 +1,7 @@
 # osquery intake: hộp là máy chủ TLS của osquery, và kéo Wazuh qua API
 
 Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09. Văn xuôi tiếng Việt; tên trường, thông điệp, đường dẫn bằng tiếng Anh.
-Truy vết: D-33, D-34, D-8, D-28; story S-INV-4; GUI mock `web/src/features/inventory` (`contract.ts`, `installScripts.ts`, `agentConfig.ts`, `scripts/osquery.{sh,ps1}`). Đường dẫn `/api/v1/install/*` và `/api/v1/intake/*` là tên của mock; spec này chốt chúng, backend phải khớp.
+Truy vết: story S-INV-4; GUI mock `web/src/features/inventory` (`contract.ts`, `installScripts.ts`, `agentConfig.ts`, `scripts/osquery.{sh,ps1}`). Đường dẫn `/api/v1/install/*` và `/api/v1/intake/*` là tên của mock; spec này chốt chúng, backend phải khớp.
 
 ## 1. Mục đích
 
@@ -10,7 +10,7 @@ Cho phép máy chủ Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux) và Windows 
 1. **osquery** (mặc định): Vedette làm máy chủ TLS của osquery (remote plugins `tls`), cài bằng một dòng lệnh phục vụ từ chính hộp.
 2. **Wazuh**: hộp tự kéo qua Wazuh server API bằng tài khoản chỉ đọc; không cài gì lên máy agent.
 
-Chỉ hệ điều hành máy chủ; không macOS, không Trivy (D-33).
+Chỉ hệ điều hành máy chủ; không macOS, không Trivy.
 
 ## 2. Actors
 
@@ -23,7 +23,7 @@ Chỉ hệ điều hành máy chủ; không macOS, không Trivy (D-33).
 
 ## 3. Transport và xác thực
 
-- Mọi thứ phục vụ trên `https://<IP hộp>:8443` (cùng cổng với UI/API, D-33). Hộp dùng **CA nội bộ tự ký**; hộp không có tên miền công khai, nên không dùng CA công cộng.
+- Mọi thứ phục vụ trên `https://<IP hộp>:8443` (cùng cổng với UI/API). Hộp dùng **CA nội bộ tự ký**; hộp không có tên miền công khai, nên không dùng CA công cộng.
 - Ba lớp thông tin xác thực khác nhau, không dùng lẫn:
 
 | Lớp | Dùng cho | Đặc tính |
@@ -42,7 +42,7 @@ Chỉ hệ điều hành máy chủ; không macOS, không Trivy (D-33).
 | GET | `/api/v1/install/osquery.sh` | public (không chứa secret) | script cài Linux |
 | GET | `/api/v1/install/osquery.ps1` | public | script cài Windows Server |
 | GET | `/api/v1/install/osquery/SHA256SUMS` | public | checksum các gói do hộp phản chiếu |
-| GET | `/api/v1/install/osquery/<file>` | public | gói `osquery_<ver>-1.linux_amd64.deb`, `osquery-<ver>-1.linux.x86_64.rpm`, `osquery_<ver>-1.linux_arm64.deb`, `osquery-<ver>-1.linux.aarch64.rpm` (D-399), `osquery-<ver>.msi` |
+| GET | `/api/v1/install/osquery/<file>` | public | gói `osquery_<ver>-1.linux_amd64.deb`, `osquery-<ver>-1.linux.x86_64.rpm`, `osquery_<ver>-1.linux_arm64.deb`, `osquery-<ver>-1.linux.aarch64.rpm`, `osquery-<ver>.msi` |
 | GET | `/api/v1/intake/ca.pem` | public | CA của hộp |
 | POST | `/api/v1/intake/osquery/status` | Bearer token | script hỏi "máy này đã báo về chưa" → `{ "enrolled": bool, "hosts": int }` |
 | POST | `/api/v1/intake/osquery/enroll` | `enroll_secret` | đăng ký |
@@ -76,33 +76,33 @@ Tất cả `snapshot: true`. Đổi lịch = đổi mã + `THIRD_PARTY_NOTICES`/
 
 ### 4.3 `log`
 
-Request `{ "node_key": "…", "log_type": "result"|"status", "data": [ … ] }`. Core chỉ xử lý `result` có `name` ∈ lịch ở §4.2, `action: "snapshot"` và cột đúng tên/số cột; mọi `result` khác bị bỏ và đếm. `status` (log của chính osqueryd) giữ tối đa 100 dòng gần nhất mỗi host để chẩn đoán (không vào gói báo lỗi trừ khi người dùng xem trước, D-42).
+Request `{ "node_key": "…", "log_type": "result"|"status", "data": [ … ] }`. Core chỉ xử lý `result` có `name` ∈ lịch ở §4.2, `action: "snapshot"` và cột đúng tên/số cột; mọi `result` khác bị bỏ và đếm. `status` (log của chính osqueryd) giữ tối đa 100 dòng gần nhất mỗi host để chẩn đoán (không vào gói báo lỗi trừ khi người dùng xem trước).
 
 Map vào kho: mỗi dòng gói → `inv_software` (`vendor`, `product`, `version`, `cpe`/`purl` suy ra, `source=agent`, `confidence=1.0`); `os_version`/`system_info` → `inv_observation` (`source=agent`). Ưu tiên nguồn manual > agent > snmp > nmap > passive (ARCH §4). Host báo về được ghép vào asset theo hostname/IP đã thấy; không khớp thì tạo asset `chưa duyệt` (S-INV-3).
 
 Phản hồi: `200 {}`; sai `node_key` → `{ "node_invalid": true }`.
 
-## 5. Script cài một dòng và kiểm SHA-256 (D-34)
+## 5. Script cài một dòng và kiểm SHA-256
 
 Hộp phục vụ hai script (`osquery.sh`, `osquery.ps1`) có chèn sẵn: địa chỉ hộp, phiên bản osquery, và **nội dung CA** (nhúng thẳng vào script). Script **không chứa secret**; token đi qua tham số dòng lệnh.
 
 Lệnh người dùng sao chép từ GUI (admin đã đăng nhập) chứa `sha256` của script:
 
-- Linux: `(f=$(mktemp) && curl -fsSLk <box>/api/v1/install/osquery.sh -o "$f" && echo "<sha256>  $f" | sha256sum -c - && sudo sh "$f" --token <token>; r=$?; rm -f "$f"; exit $r)` (subshell: mã thoát của tải/kiểm/cài giữ nguyên sau khi dọn, `exit` không đóng terminal) (tệp tạm mới mỗi lần rồi xoá: tên cố định trong `/tmp` do người dùng khác để lại không ghi đè được khi `fs.protected_regular=2`, lượt đi thật 2 W2-3)
+- Linux: `(f=$(mktemp) && curl -fsSLk <box>/api/v1/install/osquery.sh -o "$f" && echo "<sha256>  $f" | sha256sum -c - && sudo sh "$f" --token <token>; r=$?; rm -f "$f"; exit $r)` (subshell: mã thoát của tải/kiểm/cài giữ nguyên sau khi dọn, `exit` không đóng terminal) (tệp tạm mới mỗi lần rồi xoá: tên cố định trong `/tmp` do người dùng khác để lại không ghi đè được khi `fs.protected_regular=2`)
 - Windows (PowerShell 5.1): tải bằng `curl.exe -fsSLk` vào `%TEMP%\vedette-osquery-<GUID>.ps1`, so `Get-FileHash -Algorithm SHA256` với giá trị trong lệnh, sai thì xoá tệp và `throw`, đúng thì chạy `-File … -Token '<token>'` rồi xoá tệp.
-- Script in các dòng của Vedette thôi: đầu ra của `dpkg`/`rpm` (kể cả dòng số do script của gói osquery in) vào log tạm, chỉ in ra khi cài lỗi; `systemctl enable --quiet` (W2-2).
+- Script in các dòng của Vedette thôi: đầu ra của `dpkg`/`rpm` (kể cả dòng số do script của gói osquery in) vào log tạm, chỉ in ra khi cài lỗi; `systemctl enable --quiet`.
 - Gỡ: `--uninstall` / `-Uninstall`.
 
 Chuỗi tin cậy (viết rõ vì lần tải đầu dùng `-k`):
 
 1. Admin tin GUI (phiên đã đăng nhập, TLS tới hộp) → vân tay SHA-256 của script nằm trong lệnh sao chép.
 2. Lần tải đầu bỏ kiểm chứng chỉ (`-k`) vì chưa có CA; rủi ro (kẻ MITM thay script) bị chặn bởi bước so SHA-256 **trước khi chạy**.
-3. Script được so đúng hash → CA nhúng trong script là CA thật → **mọi lần tải sau** (gói osquery, `SHA256SUMS`, `status`) ghim CA đó, không còn `-k`: Linux bằng `curl --cacert`; Windows bằng .NET (`HttpWebRequest` với hàm kiểm chứng chỉ riêng từng yêu cầu: chuỗi phải chứa đúng chứng chỉ nhúng, không kiểm thu hồi vì CA của hộp không có CRL/OCSP, tên/IP phải khớp; không thêm gì vào kho chứng chỉ Windows), vì `curl.exe --cacert` (Schannel) không kiểm được CA của hộp (D-596).
+3. Script được so đúng hash → CA nhúng trong script là CA thật → **mọi lần tải sau** (gói osquery, `SHA256SUMS`, `status`) ghim CA đó, không còn `-k`: Linux bằng `curl --cacert`; Windows bằng .NET (`HttpWebRequest` với hàm kiểm chứng chỉ riêng từng yêu cầu: chuỗi phải chứa đúng chứng chỉ nhúng, không kiểm thu hồi vì CA của hộp không có CRL/OCSP, tên/IP phải khớp; không thêm gì vào kho chứng chỉ Windows), vì `curl.exe --cacert` (Schannel) không kiểm được CA của hộp.
 4. Gói osquery do hộp **phản chiếu từ bản phát hành chính thức** và đã kiểm checksum phía hộp; máy chủ đích kiểm lại SHA-256 gói theo `SHA256SUMS` (ba file `.deb/.rpm/.msi`) trước khi cài, nên không cần Internet.
 
 Sha256 là của **chính byte script hộp phục vụ** (đã chèn CA, địa chỉ, phiên bản): hộp phải phục vụ byte-giống-nhau cho cùng (địa chỉ, phiên bản, CA); đổi bất kỳ thứ nào đổi hash và GUI hiện hash mới. Script phải **deterministic** (không nhúng thời gian/nonce).
 
-Hành vi script (đã có ở mock, spec giữ): chạy với quyền root/Administrator, idempotent (chạy lại = nâng cấp/sửa), Linux `x86_64` hoặc `arm64`/`aarch64` (D-399, theo `dpkg --print-architecture`, không có thì `uname -m`); ghi `enroll.secret` mode 600/ACL tương đương; ghi cờ `--config_plugin=tls --logger_plugin=tls --host_identifier=hostname --enroll_secret_path --tls_server_certs --tls_hostname=<host:port> --enroll_tls_endpoint --config_tls_endpoint --logger_tls_endpoint`; bật dịch vụ `osqueryd`; chờ tối đa 2 phút bằng cách gọi `status` (24 lần cách 5 s). Mã thoát `3` = đã cài nhưng chưa thấy check-in.
+Hành vi script (đã có ở mock, spec giữ): chạy với quyền root/Administrator, idempotent (chạy lại = nâng cấp/sửa), Linux `x86_64` hoặc `arm64`/`aarch64` (theo `dpkg --print-architecture`, không có thì `uname -m`); ghi `enroll.secret` mode 600/ACL tương đương; ghi cờ `--config_plugin=tls --logger_plugin=tls --host_identifier=hostname --enroll_secret_path --tls_server_certs --tls_hostname=<host:port> --enroll_tls_endpoint --config_tls_endpoint --logger_tls_endpoint`; bật dịch vụ `osqueryd`; chờ tối đa 2 phút bằng cách gọi `status` (24 lần cách 5 s). Mã thoát `3` = đã cài nhưng chưa thấy check-in.
 
 Cài thủ công ("Advanced") dùng kho `pkg.osquery.io` và các bước trong `agentConfig.ts`; bắt buộc người dùng tự đối chiếu vân tay CA (`openssl x509 -fingerprint -sha256`).
 
@@ -112,7 +112,7 @@ osquery chạy với `--tls_server_certs=<đường dẫn CA của hộp>`, **kh
 
 CA có thời hạn dài (đề xuất 10 năm) và chứng chỉ máy chủ ký bởi CA, thời hạn ngắn hơn (tham số) để xoay không buộc phải cài lại agent. Xoay CA yêu cầu chạy lại script (idempotent).
 
-## 7. Wazuh qua API (D-33)
+## 7. Wazuh qua API
 
 Hộp là **client**: `PUT /inventory/agents/wazuh` (admin) lưu kết nối sau khi xác thực.
 
@@ -170,7 +170,7 @@ sequenceDiagram
 | Dòng/kiểu `result` lạ | bỏ, đếm, hiện ở trang Agents |
 | Thân quá lớn | `413` |
 
-Giới hạn (mặc định, chưa đo): thân `log` ≤ 5 MiB; mỗi host ≤ 30 000 dòng gói mỗi snapshot; `enroll` ≤ 10 lần/phút/IP và 5 lần sai/phút/IP trước khi `429`; tối đa 500 host mỗi hộp (ARCH §8 nhắm 1.000 asset); mỗi token tạo ≤ 100 host. Gói phản chiếu: hộp chỉ phục vụ **năm tệp gói + `SHA256SUMS`** (sáu tên cố định, agent-intake INV-17 (d), D-399) liệt kê ở §4, tên khớp regex cố định; không phục vụ tệp theo đường dẫn tuỳ ý (chống path traversal).
+Giới hạn (mặc định, chưa đo): thân `log` ≤ 5 MiB; mỗi host ≤ 30 000 dòng gói mỗi snapshot; `enroll` ≤ 10 lần/phút/IP và 5 lần sai/phút/IP trước khi `429`; tối đa 500 host mỗi hộp (ARCH §8 nhắm 1.000 asset); mỗi token tạo ≤ 100 host. Gói phản chiếu: hộp chỉ phục vụ **năm tệp gói + `SHA256SUMS`** (sáu tên cố định, agent-intake INV-17 (d)) liệt kê ở §4, tên khớp regex cố định; không phục vụ tệp theo đường dẫn tuỳ ý (chống path traversal).
 
 ## 10. Cân nhắc bảo mật (ánh xạ SYS)
 
@@ -199,5 +199,5 @@ Rủi ro đáng nêu: (a) token nằm trên dòng lệnh, lộ qua `ps`/lịch s
 3. Hộp có nên kiểm chữ ký GPG của gói osquery khi phản chiếu (và ghi vào `THIRD_PARTY_NOTICES`/PRIVACY: kéo từ GitHub release/`pkg.osquery.io` là luồng ra mới)? PRIVACY hiện chưa liệt kê nguồn này.
 4. Thời hạn CA/chứng chỉ máy chủ và cơ chế xoay.
 5. Trường CA hoặc vân tay cho kết nối Wazuh chưa có trong mock (`WazuhInput`).
-6. ~~Chỉ `x86_64` Linux cho script hiện tại (mock): ARM có hỗ trợ không?~~ Đóng (D-399): hộp phục vụ cả gói arm64 chính thức (deb, rpm), ghim như gói x86_64.
+6. ~~Chỉ `x86_64` Linux cho script hiện tại (mock): ARM có hỗ trợ không?~~ Đóng: hộp phục vụ cả gói arm64 chính thức (deb, rpm), ghim như gói x86_64.
 7. Các giới hạn số (§9) là điểm xuất phát, chưa đo.

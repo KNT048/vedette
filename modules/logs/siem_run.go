@@ -24,7 +24,7 @@ const (
 	siemEventBadAddress     = "logs.bad_address.detected"
 )
 
-// SIEM queue and retry bounds (D-292).
+// SIEM queue and retry bounds.
 const (
 	SiemQueueMax   = 1000             // records waiting; past it the oldest goes
 	siemBatch      = 50               // records per connection
@@ -160,7 +160,7 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 			}
 			// A bad connection reaches notify as an incident of kind bad_address and this forwarder directly as logs.bad_address.detected: with
 			// both "alerts" and "bad_conn" chosen it would be sent twice, so the alert class leaves out the incident that the bad_conn
-			// record already stands for (D-213).
+			// record already stands for.
 			if name == siemEventIncident && str(m, "kind") == "bad_address" && slices.Contains(cfg.Events, "bad_conn") {
 				return nil
 			}
@@ -177,9 +177,9 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 	on(siemEventFindingStatus, "findings", func(m map[string]any) siemRecord {
 		return newSiemRecord("finding.status_changed", "info", now(),
 			siemField{Key: "id", CEF: "externalId", Val: str(m, "finding_id")}, siemField{Key: "from", Val: str(m, "from")}, siemField{Key: "to", Val: str(m, "to")},
-			siemField{Key: "reason", Val: str(m, "reason")}) // D-530/D-495/D-498: "matches_again", "not_affected_version" or "acceptance_expired" when Vedette changed it itself, else ""
+			siemField{Key: "reason", Val: str(m, "reason")}) // "matches_again", "not_affected_version" or "acceptance_expired" when Vedette changed it itself, else ""
 	})
-	on(siemEventFindingRaised, "findings", func(m map[string]any) siemRecord { // D-495: the event severity is the new one, so a SIEM rule on severity sees it
+	on(siemEventFindingRaised, "findings", func(m map[string]any) siemRecord { // The event severity is the new one, so a SIEM rule on severity sees it
 		return newSiemRecord("finding.severity_raised", sevOr(str(m, "to_severity"), "medium"), now(),
 			siemField{Key: "id", CEF: "externalId", Val: str(m, "finding_id")}, siemField{Key: "asset_id", Val: str(m, "asset_id")},
 			siemField{Key: "cve", Val: str(m, "cve")}, siemField{Key: "basis", Val: str(m, "basis")},
@@ -200,8 +200,8 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 			siemField{Key: "id", CEF: "externalId", Val: str(m, "id")}, siemField{Key: "src_ip", CEF: "src", Val: str(m, "src_ip")},
 			siemField{Key: "dest", CEF: "dst", Val: str(m, "dest")}, siemField{Key: "dest_kind", Val: str(m, "dest_kind")},
 			siemField{Key: "seen_via", Val: str(m, "seen_via")}, siemField{Key: "asset_id", Val: str(m, "asset_id")},
-			siemField{Key: "blocked", CEF: "act", Val: strconv.FormatBool(m["blocked"] == true)}, // D-227; an event without the key is "false"
-			siemField{Key: "listed_as", Val: str(m, "listed_as")})                                // D-433: the listed parent name, "" when a feed lists dest itself
+			siemField{Key: "blocked", CEF: "act", Val: strconv.FormatBool(m["blocked"] == true)}, // an event without the key is "false"
+			siemField{Key: "listed_as", Val: str(m, "listed_as")})                                // The listed parent name, "" when a feed lists dest itself
 	})
 	return func() {
 		for _, u := range undo {

@@ -130,7 +130,7 @@ func TestTightenDataDir(t *testing.T) {
 	})
 }
 
-// D-409: serve tightens the credentials directory and its two role folders only at the path of the images
+// Serve tightens the credentials directory and its two role folders only at the path of the images
 // (/var/lib/vedette-creds); a dev -sensor-creds elsewhere, and its role folders, keep their mode.
 func TestTightenContainerDataDir_OnlyTheImageCredsPath(t *testing.T) {
 	log := slog.New(slog.DiscardHandler)

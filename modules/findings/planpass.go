@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// PlanEvery is the pause between two runs of the plan job (D-617): a run does a full pass when the feeds' match stamp changed (a pull
+// PlanEvery is the pause between two runs of the plan job: a run does a full pass when the feeds' match stamp changed (a pull
 // of epss-all, nvd-recent or an exploited list), on its first run and at least every ReconcileEvery, else it compares again only the
 // devices marked since (MarkPlan: every software change, a device discovered or updated, a match event), else nothing. A device
 // change reaches the page within PlanEvery. The stamp is the tier data's (Feeds.TierStamp: epss-all, nvd-recent, nvd-kev, the feeds
@@ -61,7 +61,7 @@ func (s *Service) Plan() PlanView {
 	return v
 }
 
-// MarkPlan asks the next plan run to compare the device again (D-617): cmd/vedette calls it on inventory.software.changed and on a
+// MarkPlan asks the next plan run to compare the device again: cmd/vedette calls it on inventory.software.changed and on a
 // device discovered or updated, so a version upgrade or a new product reaches "Updates to plan" within PlanEvery (review r1 #1 of
 // #804: inventory.match.changed fires only for exploited-list keys).
 func (s *Service) MarkPlan(assetID string) { s.markPlan(assetID) }
@@ -159,7 +159,7 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 			return fmt.Errorf("findings: plan: reading the tier data: %w", err)
 		}
 	}
-	var pkgs []DistroPackage // D-622: the Ubuntu and Debian packages, compared with the distribution's own data
+	var pkgs []DistroPackage // The Ubuntu and Debian packages, compared with the distribution's own data
 	for _, a := range assets {
 		d, rel, ps := DevicePackages(a)
 		for _, p := range ps {

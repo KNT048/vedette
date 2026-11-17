@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// The AI log digest (S-AI-4, INV-3, INV-6, INV-12, D-221).
+// The AI log digest (S-AI-4, INV-3, INV-6, INV-12).
 
 // fakeLogs is the digest of the logs module as the port hands it over.
 type fakeLogs struct {
@@ -143,7 +143,7 @@ func TestLogDigestSendsKindsAndCountsNeverLines(t *testing.T) {
 	}
 }
 
-// A connection the firewall blocked reaches the AI as a blocked attempt, not as a connection (D-227): the answer of logs carries the mark.
+// A connection the firewall blocked reaches the AI as a blocked attempt, not as a connection: the answer of logs carries the mark.
 // An unmarked hit is not claimed to have gone through (the line may not say), and a SPAN DNS answer is a lookup.
 func TestLogDigestSaysABlockedAttempt(t *testing.T) {
 	a := newAPI(t)
@@ -290,7 +290,7 @@ func TestLogDigestAnswerGoesThroughTheAfterAIHooks(t *testing.T) {
 	}
 }
 
-// The documents of the knowledge base the call would carry are part of the inputs of a stored digest (INV-6b, D-221): adding one makes
+// The documents of the knowledge base the call would carry are part of the inputs of a stored digest (INV-6b): adding one makes
 // the next POST ask again, and the document reaches the request.
 func TestLogDigestCacheKeyFollowsTheDocuments(t *testing.T) {
 	a := newAPI(t)
@@ -348,7 +348,7 @@ func TestLogDigestBigCountsAreNotBlockedAsIDNumbers(t *testing.T) {
 	}
 }
 
-// Log investigation (S-AI-4 at the maximum level, D-223): the model may check points with read-only tools, one of which counts what
+// Log investigation (S-AI-4 at the maximum level): the model may check points with read-only tools, one of which counts what
 // the logs say about an address; the calls are shown with the digest and recorded in the activity row.
 func TestLogInvestigateAtMaxChecksPointsWithReadTools(t *testing.T) {
 	a := newAPI(t)
@@ -404,7 +404,7 @@ func TestLogInvestigateAtMaxChecksPointsWithReadTools(t *testing.T) {
 	}
 }
 
-// The log digest is the first maker of memory suggestions (INV-8, D-223): only while an administrator allows them, at most two, and
+// The log digest is the first maker of memory suggestions (INV-8): only while an administrator allows them, at most two, and
 // each waits in the list for an accept.
 func TestLogDigestSuggestsMemoriesOnlyWhenAllowed(t *testing.T) {
 	a := newAPI(t)
@@ -432,7 +432,7 @@ func TestLogDigestSuggestsMemoriesOnlyWhenAllowed(t *testing.T) {
 	}
 }
 
-// An item that names exactly one device of the bad connections sent gets the box's id of that device; the model never makes one (D-428).
+// An item that names exactly one device of the bad connections sent gets the box's id of that device; the model never makes one.
 func TestLogDigestLinksItemsToDevicesFromTheBoxOwnIds(t *testing.T) {
 	a := newAPI(t)
 	a.addProfile(cloudBody("Claude", keyA))

@@ -24,7 +24,7 @@ func testIPs(n int) string {
 // is not stable: under -race a chunk takes up to seconds. Ten chunks (iocChunkRows is smaller in the tests, TestMain), so the
 // wait is about a tenth of the pull; in one transaction it was the whole pull. Not parallel: other tests would load the writer
 // and the box. The deterministic check is TestIOCWriteGetsInBetweenChunks; this one depends on the speed of the machine (it failed on a
-// loaded CI runner: a 118 ms wait in a 227 ms pull), so it is a measurement (VEDETTE_MEASURE=1), not part of the gate (D-373, D-376).
+// loaded CI runner: a 118 ms wait in a 227 ms pull), so it is a measurement (VEDETTE_MEASURE=1), not part of the gate.
 func TestIOCPullDoesNotHoldTheWriterForTheWholeList(t *testing.T) {
 	if os.Getenv("VEDETTE_MEASURE") == "" {
 		t.Skip("set VEDETTE_MEASURE=1 to measure")

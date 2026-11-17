@@ -1,7 +1,7 @@
 package api
 
-// GET /v1/state/packages (docs/specs/host-api.md section 5, D-470): the Debian packages installed on the box, read with
-// one fixed dpkg-query. Read-only, no lock, no audit line, like the other state reads. A host older than D-470 answers
+// GET /v1/state/packages (docs/specs/host-api.md section 5): the Debian packages installed on the box, read with
+// one fixed dpkg-query. Read-only, no lock, no audit line, like the other state reads. An older host answers
 // 404 unknown_command; core then reports no packages for the box (the device page says so).
 
 // Package is one installed package as dpkg lists it. Version is the full Debian version (epoch and revision kept);

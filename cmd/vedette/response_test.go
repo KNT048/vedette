@@ -56,7 +56,7 @@ func TestWiringResponseModule(t *testing.T) {
 	if c, v := s.do("POST", "/response/actions/act-1/chat-decision", "admin", `{"channel":"slack","external_id":"U1","decision":"approve"}`); c != 404 || at(v, "error", "code") != "not_found" {
 		t.Errorf("chat-decision: %d %v", c, v)
 	}
-	// FORBID-5 (D-97): the AI proposals route is preview-only too. The AI calls the Go port in the process, never this route.
+	// FORBID-5: the AI proposals route is preview-only too. The AI calls the Go port in the process, never this route.
 	for _, role := range []string{"admin", "operator"} {
 		if c, v := s.do("POST", "/response/ai/proposals", role, `{"trigger":"finding","action_id":"blocklist_add","params":{},"confidence":0.9,"evidence":[],"why":"x"}`); c != 404 || at(v, "error", "code") != "not_found" {
 			t.Errorf("POST /response/ai/proposals as %s: %d %v", role, c, v)

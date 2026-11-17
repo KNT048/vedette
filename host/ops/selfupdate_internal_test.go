@@ -14,7 +14,7 @@ import (
 )
 
 // host.self_update, slice 2a: the argv validators of the two runners, the strict readers of the state
-// files and the time limits (spec 6.14, D-316). Small and table-driven; fuzz targets keep them honest.
+// files and the time limits (spec 6.14). Small and table-driven; fuzz targets keep them honest.
 
 const suState = "/var/lib/vedette-host"
 
@@ -114,7 +114,7 @@ func TestTheHostRunnerNeverInstallsAndTheApplierRunnerDoes(t *testing.T) {
 			}
 		}
 	}
-	// The package list of the box (D-470) is the host's read only.
+	// The package list of the box is the host's read only.
 	if ValidateApplierArgv(suState, binDpkgQuery, argsDpkgQueryList) == nil {
 		t.Error("the applier runner accepts the package list")
 	}
@@ -148,7 +148,7 @@ func TestTheHostRunnerNeverInstallsAndTheApplierRunnerDoes(t *testing.T) {
 	}
 }
 
-// The package has a conffile (the AppArmor profile, D-458): dpkg -i, like apt, decides it with confdef + confold, so the applier never
+// The package has a conffile (the AppArmor profile): dpkg -i, like apt, decides it with confdef + confold, so the applier never
 // stops at dpkg's conffile prompt with stdin on /dev/null; the bare "-i <file>" form, or the options in another order, is refused.
 func TestDpkgInstallDecidesConffilesItself(t *testing.T) {
 	t.Parallel()
@@ -427,7 +427,7 @@ func FuzzSelfUpdateSim(f *testing.F) {
 	})
 }
 
-// D-316 (9): the packages a self-update adds are merged into selfupdate/installed-by-us (sorted, unique, 0600)
+// The packages a self-update adds are merged into selfupdate/installed-by-us (sorted, unique, 0600)
 // before anything is installed; nothing new writes nothing; a link in its place stops the run.
 func TestRecordAddedPackages(t *testing.T) {
 	t.Parallel()
@@ -537,7 +537,7 @@ func TestTheStateFormatsOfEachReleaseRead(t *testing.T) {
 	}
 }
 
-// A test build of vedette-host is refused on a release host and taken by a test host (slice 6 lab, D-382).
+// A test build of vedette-host is refused on a release host and taken by a test host (slice 6 lab).
 func TestRefuseTestBuild(t *testing.T) {
 	for _, c := range []struct {
 		target, running string

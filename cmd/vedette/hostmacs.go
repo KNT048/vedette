@@ -19,7 +19,7 @@ import (
 )
 
 // hostMACs is the MAC addresses vedette-host reports for the box (state/net): its cards and the macvlan links of the honeypot's decoys, which have
-// MACs of their own. response puts them on the never-touch list (D-179 (8)). The last good answer is served for hostNetTTL; a failed refresh keeps it;
+// MACs of their own. response puts them on the never-touch list. The last good answer is served for hostNetTTL; a failed refresh keeps it;
 // before the first answer the set is unknown (an error), as for the addresses. A nil reader (no host) is an empty, known set.
 type hostMACs struct {
 	r   netStateReader
@@ -31,14 +31,14 @@ type hostMACs struct {
 	forcedAt time.Time // the last ask that skipped the TTL (Fresh)
 	last     []string
 	decoys   map[netip.Addr]string // the decoys of the same answer: address → MAC (lower case)
-	infra    []response.HostInfra  // the trusted gateways (with their pinned MACs) and DNS servers of the same answer (D-325, D-450)
+	infra    []response.HostInfra  // the trusted gateways (with their pinned MACs) and DNS servers of the same answer
 	vetted   map[netip.Addr]*infraVet
 	// report is told what an answer changed in the box's gateways and resolvers (action, address, detail; see vet and observe), at most
 	// once per infraSettle per address and event. It runs under mu and must not block. nil = nobody is told.
 	report func(action string, addr netip.Addr, detail string)
 }
 
-// D-450 review: the default gateways and the resolvers come from the box's routes, its neighbour table and resolv.conf, all of which a
+// The default gateways and the resolvers come from the box's routes, its neighbour table and resolv.conf, all of which a
 // host on the LAN can steer (a rogue router advertisement or DHCP server, ARP/ND poisoning). Seeding what it steers at once would make
 // that host never-touch during exactly the attack. So only the addresses of core's first answer after start are trusted at once; an
 // address first seen later is a candidate, seeded neither by IP nor by MAC until it has been in infraAnswers answers in a row spanning
@@ -139,7 +139,7 @@ func (h *hostMACs) Decoys(ctx context.Context, fresh bool) (map[netip.Addr]strin
 	return maps.Clone(h.decoys), nil
 }
 
-// Infra returns the gateway and DNS servers of the last answer (response's never-touch list, D-325), with the same freshness and the same
+// Infra returns the gateway and DNS servers of the last answer (response's never-touch list), with the same freshness and the same
 // "unknown before the first answer" as Get. A nil reader (no host) is an empty, known set.
 func (h *hostMACs) Infra(ctx context.Context) ([]response.HostInfra, error) {
 	if _, err := h.Get(ctx); err != nil {
@@ -313,7 +313,7 @@ func auditInfra(ctx context.Context, d *deps, action string, a netip.Addr, detai
 
 // hostInfraOf reads, as dynamic, what the network can steer: the kernel's IPv4 and IPv6 default gateways with their MACs and the DNS
 // servers the box uses (a DHCP lease's, a router advertisement's); and, as saved, the gateway and DNS servers the administrator saved for
-// the management card (D-325, D-450). A host older than D-450 sends no IPv6 route, MAC or resolver: only the rest is read.
+// the management card. An older host sends no IPv6 route, MAC or resolver: only the rest is read.
 func hostInfraOf(st api.NetState) (dynamic, saved []response.HostInfra) {
 	var out []response.HostInfra
 	add := func(s, kind, mac string) {

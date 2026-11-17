@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// GET /findings/summary (#825): Home at a glance in one read. Home is opened many times a day on a small box (the N100 shares four
+// GET /findings/summary (#825): Home at a glance in one read. Home is opened many times a day on a small box (it may share four
 // cores with the scanners), so the answer is computed from what the box already holds, kept in memory, and dropped at every change of a
 // finding (Service.gen) or after summaryTTL (the device and alert counts and the feeds data change outside this module).
 
@@ -152,7 +152,7 @@ func (h *FindingHandlers) Summary(ctx context.Context) (*Summary, error) {
 	return h.withIncidents(ctx, s, src, notifyOn)
 }
 
-// withIncidents is the summary with notify's open incidents read now, never from the cache (G6: the nav badge said 9 urgent incidents
+// withIncidents is the summary with notify's open incidents read now, never from the cache (the nav badge once said 9 urgent incidents
 // after every incident was resolved, because the cache follows changes of findings only). It is one count query, the same one notify
 // uses for its own list (OpenIncidents), so the Incidents page, Home and the badge agree. The cached answer is not changed.
 func (h *FindingHandlers) withIncidents(ctx context.Context, cached *Summary, src HomeSources, notifyOn bool) (*Summary, error) {

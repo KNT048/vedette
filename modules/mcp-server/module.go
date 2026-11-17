@@ -1,6 +1,6 @@
 // Package mcpserver is the read-only MCP server of the box (S-MCP-1, modules/mcp-server/CONTRACT.md): external agents and SIEMs
 // look up devices, findings and the vulnerability feeds with scoped, revocable tokens, over MCP's Streamable HTTP transport on
-// a loopback address (D-230..D-234). It has no write tool and no path into response (SYS-8, D-41).
+// a loopback address. It has no write tool and no path into response (SYS-8).
 package mcpserver
 
 import (

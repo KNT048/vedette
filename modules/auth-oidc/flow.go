@@ -96,7 +96,7 @@ func sha(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToSt
 // Started is the answer of POST /auth/oidc/start.
 type Started struct{ AuthorizeURL, Binding string }
 
-// Start begins a sign-in (D-194, INV-5, INV-6): origin is scheme://host of the request; it must be the origin of the pinned
+// Start begins a sign-in (INV-5, INV-6): origin is scheme://host of the request; it must be the origin of the pinned
 // redirect URI (409 sso_wrong_address). The flow is stored with SHA-256 of state and binding; the page keeps the binding.
 func (s *Service) Start(ctx context.Context, origin string, ip netip.Addr) (Started, error) {
 	if ok, wait, site := s.limit.allowStart(ip); !ok {
@@ -195,7 +195,7 @@ type CallbackRequest struct {
 	UserAgent            string
 }
 
-// Callback finishes a sign-in (D-194, D-195, INV-1, INV-5, INV-7, INV-8): the flow must exist, be fresh, belong to the
+// Callback finishes a sign-in (INV-1, INV-5, INV-7, INV-8): the flow must exist, be fresh, belong to the
 // configuration of now and to this tab (binding); the code is exchanged with the PKCE verifier and the client secret; the ID token
 // is verified (signature with the issuer's keys, alg, iss, aud, azp, exp, nonce); the groups give the role; core/auth signs the
 // person in. An unknown state answers sso_expired and writes nothing (anyone can send one, INV-5); every other refusal is audited.
@@ -248,7 +248,7 @@ func (s *Service) Callback(ctx context.Context, in CallbackRequest) (auth.Issued
 		return auth.Issued{}, err
 	}
 	ep := d.provider.Endpoint()
-	ep.AuthStyle = d.authStyle // D-194 (1): the method the provider names, never a retry with the secret in another place
+	ep.AuthStyle = d.authStyle // The method the provider names, never a retry with the secret in another place
 	oc := oauth2.Config{ClientID: c.ClientID, ClientSecret: string(secret), Endpoint: ep, RedirectURL: f.redirectURI}
 	tok, err := oc.Exchange(oidc.ClientContext(ctx, d.client), in.Code, oauth2.VerifierOption(f.verifier))
 	if err != nil {
@@ -335,7 +335,7 @@ func (s *Service) verify(ctx context.Context, d *idp, clientID, nonce, raw strin
 	return c, ""
 }
 
-// groups reads the groups claim (D-195 (4)): a top-level claim named exactly claim (not a path), a string or an array of strings;
+// groups reads the groups claim: a top-level claim named exactly claim (not a path), a string or an array of strings;
 // only the first maxGroups entries count, and an entry longer than maxGroupLen is dropped, never cut.
 func (c idClaims) groups(claim string) []string {
 	raw, ok := c.all[claim]
@@ -360,7 +360,7 @@ func (c idClaims) groups(claim string) []string {
 	return out
 }
 
-// MapRole is D-195 (1): the highest role among the rows whose group the person is in; no row → def ("" = no access).
+// MapRole gives the highest role among the rows whose group the person is in; no row → def ("" = no access).
 func MapRole(groups []string, rows []RoleRow, def routes.Role) routes.Role {
 	best := routes.Role("")
 	for _, r := range rows {

@@ -32,14 +32,14 @@ import (
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
-// The box CA (WP-26 slice 1, D-262): a CA of its own, never the 8443 leaf (Firefox refuses a CA certificate as the server's
+// The box CA (WP-26 slice 1): a CA of its own, never the 8443 leaf (Firefox refuses a CA certificate as the server's
 // end-entity certificate), signs the self-made leaf, so an agent that pins the CA (GET /intake/ca.pem) keeps trusting the box
-// through every leaf re-issue (D-139). Made once, never rotated by a renewal; only an expired CA, or one that cannot cover a new
+// through every leaf re-issue. Made once, never rotated by a renewal; only an expired CA, or one that cannot cover a new
 // leaf, is replaced.
 //
-// Its key and certificate are one core_secret row of purpose core_box_ca (D-351): vedette.db and vedette.key carry it, so a backup
+// Its key and certificate are one core_secret row of purpose core_box_ca: vedette.db and vedette.key carry it, so a backup
 // restored with its master key keeps every enrolment, and the JSON export never holds it (core_secret is skipAll). Reading the
-// purpose is restricted to boxCAStore. A box from before D-351 had the pair as two files next to the leaf: they are sealed once
+// purpose is restricted to boxCAStore. An older box had the pair as two files next to the leaf: they are sealed once
 // and removed, so no plaintext CA key stays on disk.
 const (
 	boxCALifetime = 20 * 365 * 24 * time.Hour
@@ -62,7 +62,7 @@ type boxCAStore struct {
 	sec *secrets.Store
 	op  *secrets.Opener
 	aud *audit.Log
-	// legacyCrt and legacyKey are the files of a box before D-351, next to the leaf: read only while nothing is sealed.
+	// legacyCrt and legacyKey are the files of an older box, next to the leaf: read only while nothing is sealed.
 	legacyCrt, legacyKey string
 
 	mu    sync.Mutex
@@ -218,7 +218,7 @@ func (s *boxCAStore) ensure(ctx context.Context, now time.Time, log *slog.Logger
 		return nil, err
 	}
 	if event == "box-ca.migrate" {
-		log.InfoContext(ctx, "the box CA was moved into the database (core_secret, D-351); its files are removed")
+		log.InfoContext(ctx, "the box CA was moved into the database (core_secret); its files are removed")
 	}
 	switch {
 	case why != "" && event == "box-ca.migrate": // the sealed CA does not decrypt, but the old files hold a CA that does
@@ -235,7 +235,7 @@ func (s *boxCAStore) ensure(ctx context.Context, now time.Time, log *slog.Logger
 }
 
 // keep remembers ca for current and, once per process, removes the legacy files a sealed CA makes useless: the copy that was just
-// migrated, a key left alone by an interrupted first start before D-351, or a crash between the migration's commit and its removal.
+// migrated, a key left alone by an interrupted first start of an older release, or a crash between the migration's commit and its removal.
 func (s *boxCAStore) keep(ctx context.Context, ca *boxCA, log *slog.Logger) {
 	s.mu.Lock()
 	s.cur = ca
@@ -263,9 +263,9 @@ func (s *boxCAStore) current(ctx context.Context) (*boxCA, error) {
 	return s.ensure(ctx, time.Now(), nil, false)
 }
 
-// migrateLegacy seals the legacy files of a box before D-351 and removes them, whatever the TLS mode (L1): a box on -tls-cert or on
+// migrateLegacy seals the legacy files of an older box and removes them, whatever the TLS mode (L1): a box on -tls-cert or on
 // loopback HTTP, which never asks for the CA, must not keep a plaintext CA key on disk either. A key alone (an interrupted first
-// start before D-351) is removed. Nothing is made when there are no files.
+// start of an older release) is removed. Nothing is made when there are no files.
 func (s *boxCAStore) migrateLegacy(ctx context.Context, log *slog.Logger) error {
 	if _, err := os.Lstat(s.legacyCrt); err == nil {
 		_, err := s.ensure(ctx, time.Now(), log, false)
@@ -277,7 +277,7 @@ func (s *boxCAStore) migrateLegacy(ctx context.Context, log *slog.Logger) error 
 	return nil
 }
 
-// legacyCA is what the files of a box before D-351 hold.
+// legacyCA is what the files of an older box hold.
 type legacyCA struct {
 	found  bool   // the certificate file exists
 	ca     *boxCA // the pair, when it loads

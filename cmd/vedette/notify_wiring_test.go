@@ -160,7 +160,7 @@ func newManualClock(t time.Time) *manualClock {
 func (c *manualClock) now() time.Time          { return time.Unix(0, c.ns.Load()).UTC() }
 func (c *manualClock) advance(d time.Duration) { c.ns.Add(int64(d)) }
 
-// The fake SMTP servers of these tests and of the e2e box listen on 127.0.0.1, which a production box refuses (walk 3).
+// The fake SMTP servers of these tests and of the e2e box listen on 127.0.0.1, which a production box refuses.
 func init() { notifySMTPLoopback = true }
 
 var codeRE = regexp.MustCompile(`sign-in code is (\d{6})`)
@@ -276,7 +276,7 @@ func TestWiringApprovalLinkCarriesBaseURL(t *testing.T) {
 			op := s.addUser("op@acme.example", routes.Operator)
 			sink := newSMTPSink(t)
 			s.email(sink, notify.Approver{UserID: op.ID, Address: "op@acme.example"})
-			s.exec(`INSERT INTO resp_identity (user_id, channel, address, linked_at) VALUES (?, 'email', 'op@acme.example', '2026-11-10T09:00:00.000Z')`, op.ID) // proved in My account (D-191)
+			s.exec(`INSERT INTO resp_identity (user_id, channel, address, linked_at) VALUES (?, 'email', 'op@acme.example', '2026-11-10T09:00:00.000Z')`, op.ID) // proved in My account
 			_, err := newNotify(s.d).SendApprovalRequest(t.Context(), notify.ApprovalRequest{ID: "req-1", Title: "Block 203.0.113.9", What: "w", Action: "a",
 				Severity: notify.High, Expires: time.Now().Add(time.Hour), Channels: []channel.Type{channel.Email}})
 			if tc.base == "" {
@@ -296,7 +296,7 @@ func TestWiringApprovalLinkCarriesBaseURL(t *testing.T) {
 	}
 }
 
-// (c2) The mailer given to core/auth is the one of notify and it can mail step-up codes (D-98): a mailer without
+// (c2) The mailer given to core/auth is the one of notify and it can mail step-up codes: a mailer without
 // SendStepUpCode would make email two-step approval answer 503 twofa_email_unavailable. Without an email channel
 // it is not available and refuses to send, so a step-up never falls back to nothing.
 func TestWiringCodeMailerIsAStepUpMailer(t *testing.T) {
@@ -338,12 +338,12 @@ func TestWiringDeviceNoticeNamesTheDeviceFromInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// On a fresh box the first 36 hours give one summary incident (D-483) that lists the devices; either way the name, never the id.
+	// On a fresh box the first 36 hours give one summary incident that lists the devices; either way the name, never the id.
 	named := false
 	for _, d := range list[0:min(len(list), 1)] {
 		named = strings.Contains(d.Title, "fw-hanoi")
 		for _, dev := range d.Devices {
-			named = named || dev.Name == "fw-hanoi (192.168.30.1)" // D-552: the Devices name, then the address
+			named = named || dev.Name == "fw-hanoi (192.168.30.1)" // The Devices name, then the address
 		}
 	}
 	if len(list) != 1 || !named || strings.Contains(list[0].Title, r.ID) {
@@ -351,7 +351,7 @@ func TestWiringDeviceNoticeNamesTheDeviceFromInventory(t *testing.T) {
 	}
 }
 
-// D-552 (W8-1, N100 walk n27): approving a device in Devices closes its "A new unknown device appeared" incident through the real
+// approving a device in Devices closes its "A new unknown device appeared" incident through the real
 // bus: inventory's Approve publishes inventory.asset.updated (B9's inventory.asset.approved is not published yet), and notify reads
 // the device back through notifyDevices. Before this, the incident stayed New.
 func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
@@ -367,7 +367,7 @@ func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	})
 	s.enableNotify()
 	ctx := t.Context()
-	// not a fresh box, and the passive sensor is past its learning (inventory INV-28, D-554): the device gets its own incident, not the
+	// not a fresh box, and the passive sensor is past its learning (inventory INV-28): the device gets its own incident, not the
 	// first-discovery summary. The sensor's first contact is made through the inventory (inv_* tables are its own, INV-2): a month
 	// ago it saw the box, which records the contact and creates no device.
 	monthAgo := time.Now().AddDate(0, -1, 0).UTC()
@@ -389,7 +389,7 @@ func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	}
 	const mac = "aa:bb:cc:00:01:45"
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{
-		{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr("192.168.18.145")}, Field: observe.Hostname, Value: "kiens-macbook-air", Source: observe.Passive, Confidence: 0.7},
+		{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr("192.168.18.145")}, Field: observe.Hostname, Value: "annas-macbook-air", Source: observe.Passive, Confidence: 0.7},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -408,7 +408,7 @@ func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	}
 	svc := newNotify(s.d)
 	list, err := svc.Incidents(ctx)
-	if err != nil || len(list) != 1 || list[0].Status != notify.StatusNew || list[0].Title != "A new unknown device appeared: kiens-macbook-air (192.168.18.145)" {
+	if err != nil || len(list) != 1 || list[0].Status != notify.StatusNew || list[0].Title != "A new unknown device appeared: annas-macbook-air (192.168.18.145)" {
 		t.Fatalf("before approving = %+v, %v", list, err)
 	}
 	if err := s.d.Inventory.Approve(ctx, "it@acme.example", id); err != nil {
@@ -416,12 +416,12 @@ func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	}
 	d, err := svc.IncidentDetail(ctx, list[0].ID)
 	if err != nil || d.Incident.Status != notify.StatusResolved || d.Incident.ResolvedReason == nil ||
-		*d.Incident.ResolvedReason != "Closed by Vedette: the device was approved by it@acme.example." { // B9 (D-474): inventory.asset.approved names the person
+		*d.Incident.ResolvedReason != "Closed by Vedette: the device was approved by it@acme.example." { // B9: inventory.asset.approved names the person
 		t.Fatalf("after approving = %+v, %v", d.Incident, err)
 	}
 }
 
-// baseURL (D-465): https://<Box address>, with the listen port unless 443; no link on loopback or without an address. flagAddress (the
+// baseURL: https://<Box address>, with the listen port unless 443; no link on loopback or without an address. flagAddress (the
 // Box address of an install without a host) is the first -hosts entry another machine can reach.
 func TestBaseURL(t *testing.T) {
 	t.Parallel()
@@ -485,7 +485,7 @@ func TestWiringScanWindowFollowsTheOrganizationTimeZone(t *testing.T) {
 		}
 	}
 	setZone(`INSERT INTO core_org (id, name, timezone, data_mode, install_id) VALUES (1, 'Acme', 'America/New_York', 'clean', 'ins-test')`) // 15:00 there
-	// not a new box: its first pass, which runs outside the window once (D-501), is behind it
+	// not a new box: its first pass, which runs outside the window once, is behind it
 	setZone(`INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES ('saj_old', 'sweep', '2026-11-02T02:00:00.000Z', '2026-11-02T02:01:00.000Z', 'done')`)
 	if z := svc.Health(ctx).Zone; z != "America/New_York" {
 		t.Fatalf("zone %q", z)
@@ -508,7 +508,7 @@ func TestWiringScanWindowFollowsTheOrganizationTimeZone(t *testing.T) {
 	}
 }
 
-// D-554 (MK-1): on a box notify has run on for a month, the first report of a new source (here the passive sensor) is a learning one:
+// MK-1: on a box notify has run on for a month, the first report of a new source (here the passive sensor) is a learning one:
 // inventory's Record sends learning:true and notify folds the device into the one discovery summary, not an incident of its own.
 func TestWiringALearningSensorFoldsItsDevicesIntoTheSummary(t *testing.T) {
 	t.Parallel()

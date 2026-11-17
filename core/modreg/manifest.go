@@ -36,7 +36,7 @@ type Manifest struct {
 	Default   bool // on at first start
 	Depends   []string
 	// NeedsHost: the module runs only where vedette-host is (the appliance): on a container-only install it cannot be
-	// turned on (D-381).
+	// turned on.
 	NeedsHost bool
 }
 
@@ -117,7 +117,7 @@ func parse(dir string, b []byte) (Manifest, error) {
 		return Manifest{}, errors.New("a core module cannot default to off")
 	}
 	m.Default = def
-	if m.NeedsHost && def { // D-381: a container-only install could not run it, yet would start with it on
+	if m.NeedsHost && def { // A container-only install could not run it, yet would start with it on
 		return Manifest{}, errors.New("a module that needs vedette-host (needs_host) cannot default to on")
 	}
 	seen := map[string]bool{}

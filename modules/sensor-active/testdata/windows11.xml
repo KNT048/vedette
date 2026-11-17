@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE nmaprun>
-<!-- hand-written fixture shaped after nmap 7.95 output of the versions shape (D-501, D-504: -sV and the two NTLM scripts, no -O)
-     for a Windows 11 23H2 PC, the .49 of customer walk 3 (W3-4), here at .20; no live network was scanned. RDP answered rdp-ntlm-info's NTLM
+<!-- hand-written fixture shaped after nmap 7.95 output of the versions shape (-sV and the two NTLM scripts, no -O)
+     for a Windows 11 23H2 PC, the .49 of a test network, here at .20; no live network was scanned. RDP answered rdp-ntlm-info's NTLM
      NEGOTIATE with its CHALLENGE: computer name and Product_Version 10.0.22631. The script on the closed port 80 and the one of
      another id must be ignored. -->
 <nmaprun scanner="nmap" args="nmap --privileged -sS -sV --script rdp-ntlm-info,http-ntlm-info -n --max-rate 25 --top-ports 1000 --host-timeout 30m -oX - 192.168.10.20" start="1762650000" version="7.95" xmloutputversion="1.05">

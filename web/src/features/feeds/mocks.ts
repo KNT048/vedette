@@ -16,7 +16,7 @@ import type { CveDetail, FeedStatus, HotRow, IocHit, MatchedAsset, SearchResult,
 
 const data = kev as { generated_at: string; kev_catalog_version: string; sources: FeedStatus['sources']; vulns: Vuln[] }
 const ref = new Date(data.generated_at).getTime()
-const inWindow = (v: Vuln, hours: number, end: number) => new Date(`${v.date_added}T23:59:59Z`).getTime() >= end - hours * 36e5 && new Date(`${v.date_added}T00:00:00Z`).getTime() <= end // a date after now is not counted (D-485)
+const inWindow = (v: Vuln, hours: number, end: number) => new Date(`${v.date_added}T23:59:59Z`).getTime() >= end - hours * 36e5 && new Date(`${v.date_added}T00:00:00Z`).getTime() <= end // a date after now is not counted
 
 const weeklyAnswers = collection<Record<string, 'have' | 'not_relevant'>>('feeds_weekly_answers', () => ({}))
 
@@ -59,7 +59,7 @@ function matchAssets(vendor: string, product: string): MatchedAsset[] {
   return out
 }
 
-/** The newly exploited board (Home, S-FEED-1); the weekly report mock counts from it too (D-485). `end` moves the window back for older weeks. */
+/** The newly exploited board (Home, S-FEED-1); the weekly report mock counts from it too. `end` moves the window back for older weeks. */
 export function hotRows(hours: number, end = ref): HotRow[] {
   const youHave = (matched: MatchedAsset[]): YouHave => (matched.some((m) => m.how === 'yes') ? 'yes' : matched.length ? 'maybe' : 'no')
   const inv = isOn('inventory')
@@ -87,7 +87,7 @@ export function hotRows(hours: number, end = ref): HotRow[] {
   }).sort((a, b) => Number(b.you_have === 'yes') - Number(a.you_have === 'yes') || b.cves.length - a.cves.length || (b.max_epss ?? 0) - (a.max_epss ?? 0))
 }
 
-/** Câu sinh bằng template, không cần AI (DATA_PIPELINE §3, S-FEED-2). Tiếng Anh (D-28). */
+/** Câu sinh bằng template, không cần AI (DATA_PIPELINE §3, S-FEED-2). Tiếng Anh. */
 function weekly(): WeeklyItem[] {
   const answers = weeklyAnswers.get()
   const seen = new Set<string>()
@@ -137,7 +137,7 @@ export const handlers = [
       const v = data.vulns.find((x) => x.cve === item.cve)!
       const now = nowIso()
       const asset: Asset = {
-        id: newId('a'), site: 'hq', ip: '—', mac: null, hostname: null, kind: (['pc', 'server', 'web'].includes(actsAs(kindOf(item.key))) ? 'unknown' : kindOf(item.key)) as AssetKind /* no device, no computer type (W9-1, D-515) */, vendor: { value: v.vendor, source: 'manual', confidence: 1, seen_at: now },
+        id: newId('a'), site: 'hq', ip: '—', mac: null, hostname: null, kind: (['pc', 'server', 'web'].includes(actsAs(kindOf(item.key))) ? 'unknown' : kindOf(item.key)) as AssetKind /* no device, no computer type */, vendor: { value: v.vendor, source: 'manual', confidence: 1, seen_at: now },
         model: null, os: null, services: [], first_seen: now, last_seen: now, approved: true, fragile: false, origin: 'manual',
         software: [{ id: newId('s'), display: displayOf(v.vendor, v.product), vendor: v.vendor, product: v.product, version: null, kev: [item.key], source: 'manual', confidence: 1 }],
       }
@@ -154,7 +154,7 @@ export const handlers = [
     return HttpResponse.json({ ...v, display: displayOf(v.vendor, v.product), matched: isOn('inventory') ? matchAssets(v.vendor, v.product) : null, published: kevPublished(v.cve) } satisfies CveDetail)
   }),
 
-  // D-613, D-615 (S-TIER-1): a CVE on no exploited list, from the tier data (epss-all, nvd-recent).
+  // S-TIER-1: a CVE on no exploited list, from the tier data (epss-all, nvd-recent).
   http.get(`${API}/feeds/cve/:id/tier`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
     const id = String(params.id).toUpperCase()

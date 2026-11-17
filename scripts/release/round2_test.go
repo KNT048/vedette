@@ -115,7 +115,7 @@ func writeIndex(t *testing.T, r *rig, dir string, x release.Index) {
 	must(t, os.WriteFile(filepath.Join(dir, indexFile+".minisig"), r.active.SignComment(b, "t"), 0o600))
 }
 
-// M5: the weekly refresh of the index (D-150) has no manifest: it is signed and verified like a release.
+// M5: the weekly refresh of the index has no manifest: it is signed and verified like a release.
 func TestRefreshIndexSignsAndVerifies(t *testing.T) {
 	r := newRig(t)
 	pub, err := r.build(buildOpts{version: "0.1.0", channel: "stable", cur: addOnlyTree})
@@ -510,7 +510,7 @@ func TestManifestCommandReadsGit(t *testing.T) {
 		gitT(t, repo, "tag", "v"+tag)
 	}
 	gitT(t, repo, "init", "-q")
-	putProto(t, repo, "4") // D-410: the sensor protocol gate reads it at each tag
+	putProto(t, repo, "4") // The sensor protocol gate reads it at each tag
 	put("0001_a.sql", "CREATE TABLE a (id INT);")
 	commit("0.1.0")
 	put("0002_a.sql", "DROP TABLE a;")

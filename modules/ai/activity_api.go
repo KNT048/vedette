@@ -83,8 +83,8 @@ func (s *Service) PruneActivity(ctx context.Context) (int, error) {
 const verifyEvery = 24 * time.Hour
 
 // Jobs are the scheduled jobs of the module. "activity-prune" is offered only when core's ChainPruner is wired; it only deletes rows
-// past the retention, so it is housekeeping (D-160) and keeps its timer while the module is off. "activity-verify" is offered only
-// when Alert is wired, and so is "budget-watch" (D-531); they call out to notify, so they are no housekeeping and run only while the
+// past the retention, so it is housekeeping and keeps its timer while the module is off. "activity-verify" is offered only
+// when Alert is wired, and so is "budget-watch"; they call out to notify, so they are no housekeeping and run only while the
 // module is on.
 func (s *Service) Jobs() []jobs.Job {
 	var out []jobs.Job
@@ -100,7 +100,7 @@ func (s *Service) Jobs() []jobs.Job {
 	return append(out, s.budgetJobs()...)
 }
 
-// verifyAndAlert checks the chain (INV-18) and, when it is broken, raises one incident notice (S-AI-8, D-430). The text names the
+// verifyAndAlert checks the chain (INV-18) and, when it is broken, raises one incident notice (S-AI-8). The text names the
 // count and the first bad row, never the content of a row. The same break (the first bad row, or "tail" when rows are missing at the end) is raised once per process: the
 // box does not repeat a notice every day, and a restart raises a break that is still there once more. A chain that verifies again
 // (the log was restored) clears the memory, so a new break is raised.
@@ -134,7 +134,7 @@ func (s *Service) verifyAndAlert(ctx context.Context) error {
 // exportCols are the columns of the hash and nothing else: no seq, no profile_id, so an export verifies offline.
 const exportCols = `id, ts, job, profile, model, trigger, hooks, tools, input_hash, output_hash, summary, tokens_in, tokens_out, result, links, prev_hash, hash`
 
-// ExportActivity is the ai_activity source of GET /core/logs/export (core INV-13, D-132): JSON lines of the rows in the range, oldest
+// ExportActivity is the ai_activity source of GET /core/logs/export (core INV-13): JSON lines of the rows in the range, oldest
 // first, with the chain fields unchanged. Core adds the anchor and the head so the file says whether the chain is complete.
 func (s *Service) ExportActivity(ctx context.Context, from, to time.Time, w io.Writer) error {
 	q := logexport.ChainRows("ai_activity", activityChain, exportCols, from, to)

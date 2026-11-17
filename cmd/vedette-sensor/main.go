@@ -1,6 +1,6 @@
-// Command vedette-sensor is the binary of the sensor and scan containers on the appliance (D-114). `passive` is the packet capture
-// of the sensor container (the capture half of sensor-passive, SP-4), `active` the worker of the scan container: nmap (D-113,
-// SP-3) and nuclei (D-125, SP-3b). Both talk to core over the mutual-TLS sensor link (docs/specs/sensor-protocol.md), hold no database and no consent, and
+// Command vedette-sensor is the binary of the sensor and scan containers on the appliance. `passive` is the packet capture
+// of the sensor container (the capture half of sensor-passive, SP-4), `active` the worker of the scan container: nmap
+// (SP-3) and nuclei (SP-3b). Both talk to core over the mutual-TLS sensor link (docs/specs/sensor-protocol.md), hold no database and no consent, and
 // link neither database/sql, SQLite nor the generated API (main_test.go checks).
 package main
 
@@ -64,7 +64,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, logger *slog.Logg
 type activeFlags struct{ core, creds, nmap, nuclei, nucleiIndex, nucleiHome, fenceKey *string }
 
 // newActiveFlags builds the flag set of `active`. The test that checks the Exec= line of the scan Quadlet unit
-// (host/ops owns the unit text, D-123) parses it with this same constructor, so a flag renamed here without the
+// (host/ops owns the unit text) parses it with this same constructor, so a flag renamed here without the
 // unit following fails a test.
 func newActiveFlags(stdout io.Writer) (*flag.FlagSet, activeFlags) {
 	fs := flag.NewFlagSet("vedette-sensor active", flag.ContinueOnError)
@@ -73,12 +73,12 @@ func newActiveFlags(stdout io.Writer) (*flag.FlagSet, activeFlags) {
 		core:  fs.String("core", "https://127.0.0.1:8444", "address of core's sensor listener"),
 		creds: fs.String("creds", "/var/lib/vedette-creds/sensor.pem", "credentials bundle written by core (read only)"),
 		nmap:  fs.String("nmap", "/usr/bin/nmap", "the OS package's nmap"),
-		// nuclei is the pinned binary of the scan image (D-125 (4)); its home is a directory on the unit's tmpfs, emptied before
-		// every run, so the read-only root file system is never written and no ~/.config of the image is read (D-136 (5)).
+		// nuclei is the pinned binary of the scan image; its home is a directory on the unit's tmpfs, emptied before
+		// every run, so the read-only root file system is never written and no ~/.config of the image is read.
 		nuclei:      fs.String("nuclei", "/usr/local/bin/nuclei", "the pinned nuclei of the scan image"),
 		nucleiIndex: fs.String("nuclei-index", "/usr/local/share/vedette/nuclei-pack/index.json", "the index of the template pack baked into the scan image"),
 		nucleiHome:  fs.String("nuclei-home", "/tmp/vedette-nuclei", "a directory on a tmpfs that becomes nuclei's HOME"),
-		// D-591: the box's fence key, which vedette-host mounts read-only into the scan container only (never into core). Missing: this
+		// The box's fence key, which vedette-host mounts read-only into the scan container only (never into core). Missing: this
 		// worker runs no domain_ip job and its heartbeat does not say domain_ip (a remote sensor, a container-only install).
 		fenceKey: fs.String("fence-key", fenceKeyPath, "the domain fence key vedette-host mounts read-only (optional)"),
 	}
@@ -109,7 +109,7 @@ func runActive(ctx context.Context, args []string, stdout io.Writer, logger *slo
 	if err != nil {
 		return err
 	}
-	// The own-IP fence of the external shape (D-514): the three public services of exposure, asked only when an external job comes.
+	// The own-IP fence of the external shape: the three public services of exposure, asked only when an external job comes.
 	egress, err := egressip.New(nil, egressTransport(), 0)
 	if err != nil {
 		return err
@@ -134,7 +134,7 @@ func egressTransport() *http.Transport {
 	return t
 }
 
-// fenceKeyPath is where vedette-host's scan unit mounts the fence key (host/ops scanUnitText, D-591).
+// fenceKeyPath is where vedette-host's scan unit mounts the fence key (host/ops scanUnitText).
 const fenceKeyPath = "/var/lib/vedette-fence/fence.key"
 
 // loadFence is the worker's domain fence over the key at path and the system resolver, or nil (no domain_ip jobs) when there is no

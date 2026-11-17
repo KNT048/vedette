@@ -9,10 +9,10 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// The surface of a verified domain (INV-27, D-567): every name with where it was found, its CNAME and each address with its kind.
-// What serves a name (a CDN or the customer's own server) does not matter (kien 2026-11-14): the customer verified the domain. Until
-// the deep scan of each name comes (after the fence, plan 2026-11-14 §5), a name on another public address gets the D-229 check by
-// name only, as before. With the domain's testing terms accepted (D-571, FULL-5 slice 3), each public IPv4 address of its names gets
+// The surface of a verified domain (INV-27): every name with where it was found, its CNAME and each address with its kind.
+// What serves a name (a CDN or the customer's own server) does not matter: the customer verified the domain. Until
+// the deep scan of each name comes (after the fence), a name on another public address gets the check by
+// name only, as before. With the domain's testing terms accepted, each public IPv4 address of its names gets
 // the deep scan at the terms depth (deep.go), whatever serves it.
 
 // Kinds of a name's address (contract.ts HostIp.class).
@@ -65,7 +65,7 @@ func sanitizeHost(h HostRow, txt func(string) string) HostRow {
 			fam = "ipv6"
 		}
 		row := HostIP{IP: ip.String(), Family: fam, Class: a.Class, Contacted: a.Contacted && ip.Is4() && a.Class != ClassPrivate}
-		if slices.Contains(deepStates, a.Deep) && ip.Is4() { // D-571: what the deep scan did with the address this run
+		if slices.Contains(deepStates, a.Deep) && ip.Is4() { // What the deep scan did with the address this run
 			row.Deep = a.Deep
 			if a.Deep == DeepWaiting && a.NextInLine > 0 && a.NextInLine <= maxContentRows {
 				row.NextInLine = a.NextInLine
@@ -102,7 +102,7 @@ func carryHosts(c Content, prev Snapshot, hasPrev bool) Content {
 			if failed[h.Name] && !have[h.Name] && len(c.Hosts) < maxContentRows {
 				h.LookupFailed = true
 				h.IPs = slices.Clone(h.IPs)
-				for i := range h.IPs { // D-571: what the last run's deep scan did is not this run's; when it last ran stays
+				for i := range h.IPs { // What the last run's deep scan did is not this run's; when it last ran stays
 					h.IPs[i].Deep, h.IPs[i].NextInLine = "", 0
 				}
 				have[h.Name] = true

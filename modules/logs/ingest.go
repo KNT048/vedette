@@ -174,7 +174,7 @@ func (s *Service) startPurge() {
 }
 
 // sourceKinds maps the id of every declared source to its device kind, and to the address that it sends from (one small read on the main
-// database): the sender is the log sender, never the peer a line is about (D-210).
+// database): the sender is the log sender, never the peer a line is about.
 func (s *Service) sourceKinds(ctx context.Context) (kinds map[string]string, senders map[string]netip.Addr, names map[string]string, err error) {
 	rows, err := s.cfg.Config.Reader().QueryContext(ctx, `SELECT id, kind, sender_ip, name FROM logs_sources`)
 	if err != nil {

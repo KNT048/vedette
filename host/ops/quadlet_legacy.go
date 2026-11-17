@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// Unit migration between host releases (D-316 (10)). vedette-host updates itself (host.self_update), so a new host can find on disk
+// Unit migration between host releases. vedette-host updates itself (host.self_update), so a new host can find on disk
 // a unit that an earlier host wrote from an earlier template. Such a unit is still the host's own: ourUnit accepts it when its bytes
 // are exactly what one of the earlier templates below makes for the same digest, the same [Install] state and the host.conf ids of
 // now, the way dpkg replaces a conffile silently only while it still has the bytes of the version that shipped it. A unit edited by
@@ -16,30 +16,30 @@ import (
 //
 // A unit on an earlier template is rewritten to the current one once per host start (migrateUnits, inside the one daemon-reload of
 // Start's recoverTransitions, never in the retries after READY) or by the next command that writes the unit; the running container is never restarted for it: the new text
-// takes effect at the next restart of the service (the image step of the same software run, D-340 (8), or a reboot).
+// takes effect at the next restart of the service (the image step of the same software run, or a reboot).
 //
 // When a template changes, its text before the change is appended to its service's list here (TestUnitTemplatesArePinned fails
 // until that is done), and the golden file the old test kept goes to testdata/units/legacy. A change that two units must make
-// together (as D-318 did for core and honeypot) is never listed: migrating one without the other would be wrong, so such a change
-// needs its own migration step. The lists start after D-318; a box with older units needs -bootstrap -force-units (RUNBOOK).
+// together (as happened once for core and honeypot) is never listed: migrating one without the other would be wrong, so such a change
+// needs its own migration step. The lists start after that change; a box with older units needs -bootstrap -force-units (RUNBOOK).
 var legacyTemplates = map[string][]*template.Template{
 	api.ServiceCore: {
-		mustTemplate("core-1", coreUnitTextD318),       // D-318 (2026-11-12): the honeypot log volume, 514 only
-		mustTemplate("core-2", coreUnitTextD214),       // D-214 (2026-11-12): 6514:5515/tcp published, no HostName yet
-		mustTemplate("core-3", coreUnitTextHostName),   // #489 (2026-11-12): HostName=vedette, no 127.0.0.1:8765 publish yet (D-395)
-		mustTemplate("core-4", coreUnitTextBeforeD458), // D-395 (2026-11-12): Podman's default AppArmor profile (D-458)
-		mustTemplate("core-5", coreUnitTextBeforeD529), // D-458 (2026-11-12): no mount of OpenVAS's socket directory (D-529)
+		mustTemplate("core-1", coreUnitTextLogVolume),         // The honeypot log volume, 514 only
+		mustTemplate("core-2", coreUnitTextSyslogTLS),         // 6514:5515/tcp published, no HostName yet
+		mustTemplate("core-3", coreUnitTextHostName),          // #489 (2026-11-12): HostName=vedette, no 127.0.0.1:8765 publish yet
+		mustTemplate("core-4", coreUnitTextDefaultAppArmor),   // Podman's default AppArmor profile
+		mustTemplate("core-5", coreUnitTextNoGreenboneSocket), // No mount of OpenVAS's socket directory
 	},
 	api.ServiceSensor: {
-		mustTemplate("sensor-1", sensorUnitTextBeforeD458), // before D-458 (2026-11-12): Podman's default AppArmor profile
+		mustTemplate("sensor-1", sensorUnitTextDefaultAppArmor), // before 2026-11-12: Podman's default AppArmor profile
 	},
 	api.ServiceHoneypot: {
-		mustTemplate("honeypot-1", honeypotUnitTextD318),       // D-318 (2026-11-12): before ContainersConfModule (#486)
-		mustTemplate("honeypot-2", honeypotUnitTextBeforeD458), // #486 (2026-11-12): Podman's default AppArmor profile (D-458)
+		mustTemplate("honeypot-1", honeypotUnitTextLogVolume),       // Before ContainersConfModule (#486)
+		mustTemplate("honeypot-2", honeypotUnitTextDefaultAppArmor), // #486 (2026-11-12): Podman's default AppArmor profile
 	},
 	api.ServiceScan: {
-		mustTemplate("scan-1", scanUnitTextBeforeD458), // before D-458 (2026-11-12): Podman's default AppArmor profile
-		mustTemplate("scan-2", scanUnitTextBeforeD591), // D-458 (2026-11-12): no read-only mount of the domain fence key (D-591)
+		mustTemplate("scan-1", scanUnitTextDefaultAppArmor), // before 2026-11-12: Podman's default AppArmor profile
+		mustTemplate("scan-2", scanUnitTextNoFenceKey),      // No read-only mount of the domain fence key
 	},
 }
 
@@ -48,10 +48,10 @@ var legacyTemplates = map[string][]*template.Template{
 // it wrote one: recoverTransitions then makes its one daemon-reload, before READY. It restarts nothing: systemd keeps a running
 // service as it is until its next restart, which is where the new text takes effect. It skips:
 //   - everything while a self-update journal is there: the new host is not committed and the previous one may be put back, which must
-//     find the units it wrote (D-316 (6b)); the image steps of the run, after the commit, rewrite the units they start, and the next
+//     find the units it wrote; the image steps of the run, after the commit, rewrite the units they start, and the next
 //     host start the rest;
 //   - a service whose unit change is still being recovered (a transition journal): that is the recovery's to settle;
-//   - a unit whose current template publishes a host port the earlier one did not (D-455), busy or not: the earlier unit stays, one
+//   - a unit whose current template publishes a host port the earlier one did not, busy or not: the earlier unit stays, one
 //     unit_migration_deferred line per start names the ports, and the container.start that next restarts the service checks the
 //     ports and writes the current template.
 //
@@ -76,7 +76,7 @@ func (o *Ops) migrateUnits(ctx context.Context) (wrote bool) {
 		detail := map[string]any{"service": svc, "digest": digest}
 		want, err := renderUnit(svc, o.fillFor(digest, install))
 		if added := addedPorts(text, want); len(added) > 0 { // want is nil after an error: it adds no port
-			// The migration never adds a host port (D-455): it runs at boot, before the programs that may hold the port have bound
+			// The migration never adds a host port: it runs at boot, before the programs that may hold the port have bound
 			// it, and its text takes effect at the next restart with no health revert behind it. The container.start that restarts
 			// the service checks the port and writes the current template.
 			o.noteUnitDeferred(ctx, svc, digest, "", added)
@@ -97,7 +97,7 @@ func (o *Ops) migrateUnits(ctx context.Context) (wrote bool) {
 }
 
 // ownTemplate renders text's own template (the current one, or the earlier one an earlier host wrote it from) again for the same
-// digest with install, so a change of [Install] alone never moves a unit to another template (D-455: the current one may add host
+// digest with install, so a change of [Install] alone never moves a unit to another template (the current one may add host
 // ports). text must be ours with the [Install] state had.
 func (o *Ops) ownTemplate(service string, text []byte, digest string, had, install bool) ([]byte, error) {
 	s, ok := services[service]
@@ -142,7 +142,7 @@ func legacyUnit(service string, f unitFill, text []byte) bool {
 	return false
 }
 
-const coreUnitTextD318 = `[Unit]
+const coreUnitTextLogVolume = `[Unit]
 Description=Vedette core
 After=network-online.target vedette-host.service
 Wants=network-online.target
@@ -181,7 +181,7 @@ Restart=always
 TimeoutStartSec=300
 `
 
-const coreUnitTextD214 = `[Unit]
+const coreUnitTextSyslogTLS = `[Unit]
 Description=Vedette core
 After=network-online.target vedette-host.service
 Wants=network-online.target
@@ -221,7 +221,7 @@ Restart=always
 TimeoutStartSec=300
 `
 
-const honeypotUnitTextD318 = `[Unit]
+const honeypotUnitTextLogVolume = `[Unit]
 Description=Vedette honeypot (all decoys, namespace vedette-hp)
 After=vedette-host.service
 Requires=vedette-host.service
@@ -249,9 +249,9 @@ HealthRetries=3
 Restart=always
 `
 
-// The four templates before D-458 (each unit loads the containers.conf module that selects the AppArmor profile vedette-container).
+// The four templates before the AppArmor change of 2026-11-12 (each unit loads the containers.conf module that selects the AppArmor profile vedette-container).
 
-const coreUnitTextBeforeD458 = `[Unit]
+const coreUnitTextDefaultAppArmor = `[Unit]
 Description=Vedette core
 After=network-online.target vedette-host.service
 Wants=network-online.target
@@ -293,7 +293,7 @@ Restart=always
 TimeoutStartSec=300
 `
 
-const sensorUnitTextBeforeD458 = `[Unit]
+const sensorUnitTextDefaultAppArmor = `[Unit]
 Description=Vedette sensor (passive capture)
 After=vedette-core.service
 Wants=vedette-core.service
@@ -322,7 +322,7 @@ Exec=passive --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor
 Restart=always
 `
 
-const honeypotUnitTextBeforeD458 = `[Unit]
+const honeypotUnitTextDefaultAppArmor = `[Unit]
 Description=Vedette honeypot (all decoys, namespace vedette-hp)
 After=vedette-host.service
 Requires=vedette-host.service
@@ -351,7 +351,7 @@ HealthRetries=3
 Restart=always
 `
 
-const scanUnitTextBeforeD458 = `[Unit]
+const scanUnitTextDefaultAppArmor = `[Unit]
 Description=Vedette scan (active scanning)
 After=vedette-core.service
 Wants=vedette-core.service
@@ -381,8 +381,8 @@ Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.
 Restart=always
 `
 
-// coreUnitTextBeforeD529 is core's template before D-529 (2026-11-14): no mount of /run/vedette-greenbone, OpenVAS's socket directory.
-const coreUnitTextBeforeD529 = `[Unit]
+// coreUnitTextNoGreenboneSocket is core's template before 2026-11-14: no mount of /run/vedette-greenbone, OpenVAS's socket directory.
+const coreUnitTextNoGreenboneSocket = `[Unit]
 Description=Vedette core
 After=network-online.target vedette-host.service
 Wants=network-online.target
@@ -466,8 +466,8 @@ Restart=always
 TimeoutStartSec=300
 `
 
-// scanUnitTextBeforeD591 is the scan unit from D-458 until D-591 (2026-11-14): no mount of the domain fence key's copy.
-const scanUnitTextBeforeD591 = `[Unit]
+// scanUnitTextNoFenceKey is the scan unit from 2026-11-12 until 2026-11-14: no mount of the domain fence key's copy.
+const scanUnitTextNoFenceKey = `[Unit]
 Description=Vedette scan (active scanning)
 After=vedette-core.service
 Wants=vedette-core.service

@@ -9,10 +9,10 @@ import (
 	"github.com/knt048/vedette/core/debver"
 )
 
-// "Updates to plan" (S-TIER-1, S-TIER-2; D-613, D-615, D-616, D-617): CVEs on no exploited list, published in the last 12 months,
+// "Updates to plan" (S-TIER-1, S-TIER-2): CVEs on no exploited list, published in the last 12 months,
 // that a device's own version is proved to be inside, one item per update. Not findings: nothing here is stored, alerts or counts.
 
-// TierVuln is one CVE of the tier data (feeds epss-all and nvd-recent, D-614) as the plan reads it: an NVD record of the last 12
+// TierVuln is one CVE of the tier data (feeds epss-all and nvd-recent) as the plan reads it: an NVD record of the last 12
 // months with the affected entries of the products the devices run (TierScope), and its EPSS score.
 type TierVuln struct {
 	CVE              string
@@ -22,10 +22,10 @@ type TierVuln struct {
 	Score            *float64
 	EPSS, Percentile *float64 // nil when epss-all is not ready or has no score for the CVE
 	Affected         []Affected
-	// Distro is, for Feeds.TierDistro, the distributions' fixed rows of the packages asked for (D-622); nil otherwise.
+	// Distro is, for Feeds.TierDistro, the distributions' fixed rows of the packages asked for; nil otherwise.
 	Distro []DistroFix
 	// Platforms is, per entry of Affected, the operating systems NVD says it affects only when running on ("microsoft:windows"); nil
-	// or empty for none; ["?"] when the record was stored before Vedette kept that (not known: the entry never counts). D-617.
+	// or empty for none; ["?"] when the record was stored before Vedette kept that (not known: the entry never counts).
 	Platforms [][]string
 }
 
@@ -33,7 +33,7 @@ type TierVuln struct {
 type PlanCVE struct {
 	CVE        string   `json:"cve"`
 	Tier       string   `json:"tier"`
-	Basis      string   `json:"basis"` // agent, version or distro (D-617, D-622): scan has no source yet
+	Basis      string   `json:"basis"` // agent, version or distro: scan has no source yet
 	Severity   *string  `json:"severity"`
 	Score      *float64 `json:"score"`
 	Published  string   `json:"published"`
@@ -46,27 +46,27 @@ type PlanItem struct {
 	Group   string `json:"group"`
 	AssetID string `json:"-"`
 	// SoftwareID is the device's software row the item is about (for a distribution's package, the first row of that source
-	// package), so a page can show the item on the row (G8, DeviceUpdates). Not in the API.
+	// package), so a page can show the item on the row (DeviceUpdates). Not in the API.
 	SoftwareID string    `json:"-"`
 	Software   string    `json:"software"`
 	Version    string    `json:"version"`
 	Fixed      string    `json:"fixed"`
-	Kind       string    `json:"kind"` // fixed, windows, esu, distro (D-617, D-622)
+	Kind       string    `json:"kind"` // fixed, windows, esu, distro
 	Pro        bool      `json:"pro"`  // distro: the fixed version is in Ubuntu Pro (ESM) only
 	CVEs       []PlanCVE `json:"cves"`
 }
 
-// Basis values of a plan CVE (D-615 (8)).
+// Basis values of a plan CVE.
 const (
 	planAgent   = "agent"
 	planVersion = "version"
 	planDistro  = "distro"
 )
 
-// DistroPackage is a source package of one release as the distributions' security data names it, for Feeds.TierDistro (D-622).
+// DistroPackage is a source package of one release as the distributions' security data names it, for Feeds.TierDistro.
 type DistroPackage struct{ Distro, Release, Package string }
 
-// tierSource says whether a row's version may confirm a tier CVE (D-613 (2), D-617): the device's agent, a person, the device's own
+// tierSource says whether a row's version may confirm a tier CVE: the device's agent, a person, the device's own
 // SNMP answer, or the network OS the device states (deviceSoftware's OS row). Never a version read from a banner (nmap, the scan, the
 // passive sensor) or a row of unknown origin: for CVEs nobody exploits yet a guess is noise, so it is dropped (the brief's worst case).
 func tierSource(s Software) bool {
@@ -79,8 +79,8 @@ func tierSource(s Software) bool {
 
 // tierInfo is the swInfo of a row the plan compares with NVD's ranges, false when it compares none: a source tierSource refuses, no
 // readable version, or a distribution's package (an agent's deb/rpm row, or a version with a distribution's mark): the distributions
-// backport fixes, so NVD's upstream ranges would put a patched package inside (D-617). An agent's deb row on Ubuntu or Debian is
-// compared with the distribution's own data instead (distroTierItems, D-622).
+// backport fixes, so NVD's upstream ranges would put a patched package inside. An agent's deb row on Ubuntu or Debian is
+// compared with the distribution's own data instead (distroTierItems).
 func tierInfo(a Asset, s Software) (swInfo, bool) {
 	if !tierSource(s) {
 		return swInfo{}, false
@@ -122,11 +122,11 @@ func normed(s string) string {
 	return s
 }
 
-// isWindowsKey says whether a key is a Microsoft Windows release (windows_11_23h2): a Windows row is read with every one of them (D-546).
+// isWindowsKey says whether a key is a Microsoft Windows release (windows_11_23h2): a Windows row is read with every one of them.
 func isWindowsKey(k string) bool { return strings.HasPrefix(k, "microsoft|windows") }
 
 // TierScope is the set of products the devices run, as the tier data is asked for them (Feeds.TierVulns): only the NVD entries of
-// these products are read, so a pass holds the CVEs of the devices, not the 100,000 of the year (D-617).
+// these products are read, so a pass holds the CVEs of the devices, not the 100,000 of the year.
 type TierScope struct {
 	keys    map[string]bool
 	prefix  []identity // aliases that match every product starting with them (cpeAliases)
@@ -192,7 +192,7 @@ type tierIndex struct {
 	byKey  map[string][]int
 	byName map[string]int  // CVE -> index
 	named  map[string]bool // Windows release -> NVD names it in some entry of the pass (winNamed, computed once)
-	// The distributions' fixed rows of the tier CVEs for the devices' packages (D-622, withDistro): dtier by CVE, its indexes by
+	// The distributions' fixed rows of the tier CVEs for the devices' packages (withDistro): dtier by CVE, its indexes by
 	// "distro/release/package", and the releases ("ubuntu/24.04") the feeds hold rows for.
 	dtier   []TierVuln
 	dby     map[string][]int
@@ -277,7 +277,7 @@ func (x *tierIndex) candidates(in swInfo, win bool) []int {
 
 // platformIDs are the platform ids (platformWords) an NVD "running on" operating-system CPE ("microsoft:windows",
 // "linux:linux_kernel") stands for; none for a platform Vedette does not recognise (or "?": NVD's condition is not known), which no
-// device evidence can then satisfy (D-617, review r1 #6 of #804: drop when unsure).
+// device evidence can then satisfy (review r1 #6 of #804: drop when unsure).
 func platformIDs(vendorProduct string) []string {
 	v, p, _ := strings.Cut(vendorProduct, ":")
 	switch v, p = norm(v), norm(p); {
@@ -305,7 +305,7 @@ func platformIDs(vendorProduct string) []string {
 	return nil
 }
 
-// onPlatform keeps the entries of a tier CVE whose platform condition the row's evidence satisfies (D-617, review r1 #6 of #804): an
+// onPlatform keeps the entries of a tier CVE whose platform condition the row's evidence satisfies: an
 // entry NVD lists "running on" some operating systems counts only when the device's OS is known (evidenceOf: the agent's OS, the
 // device's SNMP statement, the software's own text; a Windows release row is Windows) and is one of them. Entries without a condition
 // stay. ok is false when no entry is left.
@@ -327,12 +327,12 @@ func onPlatform(v Vuln, t TierVuln, in swInfo, win bool) (Vuln, bool) {
 	return v, len(keep) > 0
 }
 
-// matchTiers is the plan of one device (D-613, D-615, D-617): every tier CVE (not on an exploited list, published since now minus
+// matchTiers is the plan of one device: every tier CVE (not on an exploited list, published since now minus
 // AgeLimit) whose NVD range a compared row's version is proved inside, with a range that ends (a fix exists), grouped by the update
-// that fixes them (D-545 GroupFix, Ranged only). Windows release rows read NVD's entries by their monthly update (D-546, D-610).
-// Platform-limited CVEs count only when the row names a platform they affect (D-547, and NVD's own "running on" conditions,
+// that fixes them (GroupFix, Ranged only). Windows release rows read NVD's entries by their monthly update.
+// Platform-limited CVEs count only when the row names a platform they affect (the platform rules, and NVD's own "running on" conditions,
 // onPlatform). A CVE two rows of the device match at the same version is listed once, under the agent's row first (review r1 #10 of
-// #804). Ubuntu and Debian packages go by the distribution's data (distroTierItems, D-622). compared says the device has a row the
+// #804). Ubuntu and Debian packages go by the distribution's data (distroTierItems). compared says the device has a row the
 // plan compares. Nothing is a guess: an Unknown, a product-only match or a range with no end gives no item.
 func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (items []PlanItem, compared bool) {
 	cut := now.Add(-AgeLimit)
@@ -349,7 +349,7 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 		compared = true
 		d, win := winDevice(in)
 		if win {
-			in.winNamed = x.winNamed(d.rel.Product) // D-546, review H2: every Windows entry of the pass is in x
+			in.winNamed = x.winNamed(d.rel.Product) // Every Windows entry of the pass is in x
 		}
 		var mine []Vuln
 		for _, i := range x.candidates(in, win) {
@@ -387,13 +387,13 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 	return append(items, its...), compared || dc
 }
 
-// distroTierItems is the plan of a device's Ubuntu or Debian packages (D-622): an agent's deb row (full version and source package)
+// distroTierItems is the plan of a device's Ubuntu or Debian packages: an agent's deb row (full version and source package)
 // on a device whose OS names the release is compared with the distribution's own first fixed version for that release and source
-// package (D-516 semantics: the feeds keep only fixed rows of tier CVEs; a public fix over one only Ubuntu Pro has). Below it, and
+// package (the feeds keep only fixed rows of tier CVEs; a public fix over one only Ubuntu Pro has). Below it, and
 // the installed revision is the distribution's own build (ownBuild: never a PPA or a vendor's .deb), the CVE is listed with basis
 // distro. A CVE the distribution's data does not name for that release and package is left out (drop when unsure). One item per
 // source package (and per Pro-only fixes), naming the highest fixed version: a distribution's updates within a release are
-// cumulative, so that one version fixes every CVE of the item (D-545's one update that fixes them all). A kernel's packages count
+// cumulative, so that one version fixes every CVE of the item (the one update that fixes them all). A kernel's packages count
 // only for the running kernel (distroRows). compared says the device has such a row of a release the feeds stored tier rows for.
 func distroTierItems(a Asset, x *tierIndex, kev map[string]bool, cut time.Time) (items []PlanItem, compared bool) {
 	if len(x.dtier) == 0 && len(x.covered) == 0 {
@@ -545,8 +545,8 @@ func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []V
 	return out
 }
 
-// namesFix says the group names an update a person can install (D-545 RowFix kinds; a distribution's package is planned by
-// distroTierItems, D-622).
+// namesFix says the group names an update a person can install (RowFix kinds; a distribution's package is planned by
+// distroTierItems).
 func namesFix(g *GroupFix) bool {
 	switch g.Kind {
 	case "fixed", "esu", "feature_update":
@@ -564,7 +564,7 @@ func planCVE(t TierVuln, basis string) PlanCVE {
 	return c
 }
 
-// sortPlanCVEs orders an item's CVEs as the contract says (D-623): likely first, by EPSS; then the recent ones by CVSS score (the
+// sortPlanCVEs orders an item's CVEs as the contract says: likely first, by EPSS; then the recent ones by CVSS score (the
 // severity a customer reads; their EPSS is under 10 % and close together), then EPSS; then newest. A list of thousands (the
 // cumulative update of a Windows release) opens on what matters.
 func sortPlanCVEs(cs []PlanCVE) {

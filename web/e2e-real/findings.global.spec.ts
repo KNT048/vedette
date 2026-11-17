@@ -110,7 +110,7 @@ test.describe('a finding made through the CISA list and a device (S-MIT-1, S-INV
     expect(d.pack).toBeNull()
     expect(d.applied).toEqual([])
     expect(d.ai).toEqual({ explain: null, config: null })
-    expect(d.ai_available).toEqual({ explain: false, config: false }) // no AI profile on a fresh box (D-29)
+    expect(d.ai_available).toEqual({ explain: false, config: false }) // no AI profile on a fresh box
     expect(d.kev).not.toBeNull()
 
     await page.goto(`/findings/${s.findingId}`)
@@ -128,7 +128,7 @@ test.describe('a finding made through the CISA list and a device (S-MIT-1, S-INV
     const hist = page.getByRole('region', { name: 'History' }).or(page.locator('section[aria-labelledby="hist-title"]'))
     await expect(hist).toContainText('Finding created')
     await expect(hist).toContainText('system')
-    // What to do (mitigation): no pack, so it says so instead of inventing steps, and shows the source information (D-21)
+    // What to do (mitigation): no pack, so it says so instead of inventing steps, and shows the source information
     await expect(page.getByText('No confirmed recommendation yet')).toBeVisible()
     await expect(page.getByText('Confirmed by Vedette maintainers', { exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Source information' })).toBeVisible()

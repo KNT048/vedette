@@ -1,5 +1,5 @@
-// Package worker is the worker of the scan container (`vedette-sensor active`, D-113, D-125, sensor-protocol.md section 6.4). It
-// long-polls core for jobs, at most one nmap job, one nuclei job and one snmp job at a time (three slots, D-125 (3), D-512; the
+// Package worker is the worker of the scan container (`vedette-sensor active`, sensor-protocol.md section 6.4). It
+// long-polls core for jobs, at most one nmap job, one nuclei job and one snmp job at a time (three slots; the
 // snmp job is read-only GETs through gosnmp in this process, snmp.go), builds the command line
 // itself from the job's fields (nmapargv for nmap; nucleiargv, the pack index and the pinned nuclei for nuclei: the same code
 // core used before it handed the job over), runs the program through core/exec in its own process group and posts the
@@ -7,7 +7,7 @@
 // and it kills the program whenever core can no longer be listening for the answer.
 //
 // The package is linked into the sensor binary: standard library, core/exec, core/sensorlink, the nmapargv leaf and the
-// nucleiargv and pack leaves and github.com/gosnmp/gosnmp (D-512) only, never the database or the generated API
+// nucleiargv and pack leaves and github.com/gosnmp/gosnmp only, never the database or the generated API
 // (TestBinaryDependencies).
 package worker
 
@@ -37,7 +37,7 @@ const (
 	Lease = 60 * time.Second
 	// MaxTimeout is the longest job it accepts.
 	MaxTimeout = 7200
-	// MaxNucleiTimeout is the longest nuclei job it accepts (D-125 (1)).
+	// MaxNucleiTimeout is the longest nuclei job it accepts.
 	MaxNucleiTimeout = 3600
 	// HeartbeatEvery is the heartbeat period.
 	HeartbeatEvery = 30 * time.Second
@@ -91,13 +91,13 @@ type Config struct {
 	// SNMPTimeout is how long one SNMP request waits for its answer (default SNMPTimeout; tests make it short).
 	SNMPTimeout time.Duration
 
-	// Egress is the public-IP check of the own-IP fence of the external shape (D-514): *egressip.Prober in production, a fake in
+	// Egress is the public-IP check of the own-IP fence of the external shape: *egressip.Prober in production, a fake in
 	// tests. nil: every external job is refused (not_own_ip).
 	Egress EgressProber
 	// EgressTicks, when set, drives the re-check of a running full job instead of a ticker of EgressRecheck (tests send one tick
 	// at a time).
 	EgressTicks <-chan time.Time
-	// Fence is the domain fence of domain_ip jobs (D-591, core/domainfence): the box's fence key, mounted read-only into the scan
+	// Fence is the domain fence of domain_ip jobs (core/domainfence): the box's fence key, mounted read-only into the scan
 	// container by vedette-host, and the system resolver. nil: the heartbeat does not say domain_ip and every domain_ip job is
 	// refused (invalid_job). The re-check of a running domain_ip full job is driven by EgressTicks too.
 	Fence *domainfence.Fence
@@ -242,7 +242,7 @@ func (w *Worker) Run(ctx context.Context) error {
 			}
 			var e *sensorlink.Error
 			if errors.As(err, &e) && e.Code == sensorlink.CodeModuleOff {
-				// Stop at once, no last result, ask again later (SYS-5, D-80 (4)).
+				// Stop at once, no last result, ask again later (SYS-5).
 				w.killCurrent(errModuleOff)
 				w.log.InfoContext(ctx, "sensor_active_module_off")
 				_ = w.sleep(ctx, moduleOffEvery)
@@ -307,7 +307,7 @@ func (w *Worker) killCurrent(cause error) {
 }
 
 // noteInstance records the nonce of core. A change while a job is in hand means core restarted: whoever was waiting for the
-// result is gone, so the program stops now and its result is dropped (D-113 (4)).
+// result is gone, so the program stops now and its result is dropped.
 func (w *Worker) noteInstance(inst string) {
 	for _, cur := range w.current() {
 		if cur.instance != inst {
@@ -442,7 +442,7 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 			return &sensorlink.JobResult{Status: "refused", Reason: "invalid_job", ExitCode: -1}
 		}
 	}
-	if cur.job.Scope == sensorlink.ScopeDomainIP { // argvOf proved it is a full shape with one public target: the domain fence (D-591)
+	if cur.job.Scope == sensorlink.ScopeDomainIP { // argvOf proved it is a full shape with one public target: the domain fence
 		if res := w.domainFence(ctx, rctx, jctx, cur, w.domainJob(cur.job), "nmap"); res != nil {
 			return res
 		}
@@ -459,7 +459,7 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 		out, err := w.runNmap(rctx, cur.job.ID, argv)
 		return w.finish(ctx, jctx, rctx, cur, out, err, "nmap_missing", (*sensorlink.JobResult).SetXML)
 	}
-	// A full job runs up to an hour: the fence is asked again every EgressRecheck while nmap runs (D-526, review r1 H1). The first
+	// A full job runs up to an hour: the fence is asked again every EgressRecheck while nmap runs. The first
 	// answer that is not a yes kills nmap, and the whole result is dropped: the job is "stopped" with the fence's reason (at the
 	// start it is "refused": nothing ran).
 	ticks := w.egressTicks
@@ -471,7 +471,7 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 	nctx, kill := context.WithCancel(rctx)
 	defer kill()
 	lost := make(chan string, 1)
-	if cur.job.Scope == sensorlink.ScopeDomainIP { // D-591, review r1 L2: TXT and name -> address again every Recheck while nmap runs
+	if cur.job.Scope == sensorlink.ScopeDomainIP { // TXT and name -> address again every Recheck while nmap runs
 		dj := w.domainJob(cur.job)
 		go func() { lost <- w.watchDomain(nctx, dj, ticks, kill) }()
 	} else {
@@ -568,7 +568,7 @@ func (w *Worker) post(ctx context.Context, id string, res *sensorlink.JobResult)
 // canonical unique private IPv4 targets (the three external shapes: exactly one public one; nmapargv.Build and Validate refuse
 // anything else), a timeout of 1..7200
 // seconds. The argv is built here from
-// those fields; no argv comes over the wire (D-111 (3)).
+// those fields; no argv comes over the wire.
 func argvOf(j sensorlink.Job) ([]string, error) {
 	kind, ok := nmapargv.KindOf(j.Shape)
 	if !ok {
@@ -580,7 +580,7 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if kind.IsGentle() && j.Rate != 1 {
 		return nil, fmt.Errorf("a gentle job carries rate 1, got %d", j.Rate)
 	}
-	switch { // D-591: a domain_ip job is a full shape with its fence fields; no other job carries any
+	switch { // A domain_ip job is a full shape with its fence fields; no other job carries any
 	case j.Scope == "" && j.Domain == nil:
 	case j.Scope == sensorlink.ScopeDomainIP && j.Domain != nil && kind.IsFull():
 	default:
@@ -593,7 +593,7 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if len(j.Ports) > 0 && kind != nmapargv.PortVersions {
 		return nil, fmt.Errorf("a %s job carries no ports", j.Shape)
 	}
-	argv, err := nmapargv.BuildFor(kind, j.Rate, j.Ports, targets) // port_versions: its 1..20 ports (D-592)
+	argv, err := nmapargv.BuildFor(kind, j.Rate, j.Ports, targets) // port_versions: its 1..20 ports
 	if err != nil {
 		return nil, err
 	}
@@ -616,7 +616,7 @@ func (w *Worker) heartbeats(ctx context.Context) {
 
 func (w *Worker) beat(ctx context.Context) {
 	present, ver := w.nmapVersion(ctx)
-	// SNMP is in this binary (gosnmp, D-512): a worker of protocol 5 always runs snmp jobs. So are the full nmap shapes (D-526):
+	// SNMP is in this binary (gosnmp): a worker of protocol 5 always runs snmp jobs. So are the full nmap shapes:
 	// their grammar is nmapargv's, and the own-IP fence covers them like the external shape; they are advertised only with the
 	// nmap version their script lists were reviewed against (review r2 LOW-3).
 	full := present && ver == nmapargv.ReviewedNmapVersion

@@ -12,7 +12,7 @@ import (
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// INV-8: a device scan sends the ports nmap saw open, as one nmap list for the device (D-350); closed ports are not services.
+// INV-8: a device scan sends the ports nmap saw open, as one nmap list for the device; closed ports are not services.
 func TestContract_INV8_OpenPortsFromTheScan(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})
@@ -78,7 +78,7 @@ func hasField(obs []observe.Observation, f observe.Field, v string) bool {
 }
 
 // A normal scan replaces the device's nmap services; a later gentle scan (top 100 ports, no -sV) only adds what it saw and never
-// wipes the normal scan's list or its product and version (D-350 (5)).
+// wipes the normal scan's list or its product and version.
 func TestGentleScanAfterANormalOneKeepsItsServices(t *testing.T) {
 	t.Parallel()
 	b, err := os.ReadFile(filepath.Join("testdata", "device.xml"))
@@ -118,7 +118,7 @@ func TestGentleScanAfterANormalOneKeepsItsServices(t *testing.T) {
 	}
 }
 
-// D-511 (lead decision on #714): the one gentle scan of a device whose kind is unknown and that nobody made fragile also reads the
+// lead decision on #714: the one gentle scan of a device whose kind is unknown and that nobody made fragile also reads the
 // page title and the certificate (http-title, ssl-cert, each capped by --script-timeout); a fragile device keeps the gentle command
 // line exactly, with no script.
 func TestGentleScanReadsTitlesOnlyOfUnknownNotFragile(t *testing.T) {

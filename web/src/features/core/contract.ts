@@ -1,4 +1,4 @@
-// Hợp đồng API module core (D-18), gồm cả các endpoint nền ở src/mocks/core.ts: /me, /setup, /auth/*, /modules.
+// Hợp đồng API module core, gồm cả các endpoint nền ở src/mocks/core.ts: /me, /setup, /auth/*, /modules.
 // Kiểu UI suy ra từ schema ở đây (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
@@ -39,7 +39,7 @@ export const SetupPayload = z.object({
   setup_code: z.string().optional().describe('The one-time setup code the box prints in its log while setup is open (D-75). Required to create the first administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated wrong tries'),
   accept_terms: z.boolean().optional().describe('true = the administrator read, understood and agrees to the terms of use (TERMS.md, D-544). Required to create the first administrator: anything else gives 400 terms_not_accepted, judged right after the setup code'),
 })
-/** D-544: the terms of use accepted on this box (Settings -> General). */
+/** The terms of use accepted on this box (Settings -> General). */
 export const TermsState = z.object({
   version: z.string().describe('The version of TERMS.md this box ships: its Version date and the first 8 hex digits of its SHA-256, like 2026-11-14.3f2a9c1b'),
   accepted: z.object({
@@ -138,7 +138,7 @@ export const UpdatesState = z.object({
   stale_since: ts.nullable().describe('The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle'),
 })
 
-// ---- hệ điều hành của hộp (D-53). Chạy qua trình trợ giúp đặc quyền `vedette-host`: danh sách lệnh apt cố định, web không bao giờ chạy shell (SYS-1). ----
+// ---- hệ điều hành của hộp. Chạy qua trình trợ giúp đặc quyền `vedette-host`: danh sách lệnh apt cố định, web không bao giờ chạy shell (SYS-1). ----
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
 export const MaintenanceWindow = z.object({
   mode: z.enum(['always', 'window']).describe('"always" = no restriction; "window" = only on the days and hours below'),
@@ -203,8 +203,8 @@ export const PrivacyState = z.object({
   update_check: z.boolean(),
 })
 
-// ---- kết nối tới thiết bị (D-93, D-94; S-AI-7, S-RESP-4) ----
-// Generic kinds only (D-58): src/lib/connections.ts. No vendor field: brand knowledge is template data.
+// ---- kết nối tới thiết bị (S-AI-7, S-RESP-4) ----
+// Generic kinds only: src/lib/connections.ts. No vendor field: brand knowledge is template data.
 export const ConnectorKind = ConnectionKind
 export const CONNECTOR_AUTH = KIND_AUTH
 const ConnectorAuthType = z.enum(['none', 'token', 'basic', 'ssh-key'])
@@ -248,7 +248,7 @@ export const McpTokenCreated = z.object({ token: z.string().describe('Returned o
 const id = z.object({ id: z.string() })
 
 
-// ---- mạng của hộp (D-56, S-CORE-8) ----
+// ---- mạng của hộp (S-CORE-8) ----
 export const IfaceRole = z.enum(['management', 'span', 'unused'])
 export const NetInterface = z.object({ name: z.string(), role: IfaceRole, link: z.boolean(), speed: z.string().nullable(), mac: z.string(), address: z.string().nullable().describe('address/prefix, only on the management interface') })
 export const Management = z.object({ mode: z.enum(['dhcp', 'static']), address: z.string().nullable(), prefix: z.number().int().nullable(), gateway: z.string().nullable(), dns: z.array(z.string()) })

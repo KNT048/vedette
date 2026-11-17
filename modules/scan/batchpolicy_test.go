@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-// D-472: the target list of 500 devices reads the inventory's policy in two batches (when picked, and for an
+// The target list of 500 devices reads the inventory's policy in two batches (when picked, and for an
 // automatic run), never once per device; a pick of many devices starts with the same two batches, and only the
 // re-check right before each job (INV-1) reads one device. The picker's search fields come with each target.
-func TestContract_D472_TargetsReadThePolicyInOneBatch(t *testing.T) {
+func TestContract_TargetsReadThePolicyInOneBatch(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	devs := sampleDevices()
@@ -59,7 +59,7 @@ func TestContract_D472_TargetsReadThePolicyInOneBatch(t *testing.T) {
 	}
 }
 
-// Beta item 27, D-484: a product added by hand without an address is listed with the reason no_ip, not out_of_scope,
+// A product added by hand without an address is listed with the reason no_ip, not out_of_scope,
 // and Scan now refuses it with that reason.
 func TestContract_INV1_NoIPIsItsOwnReason(t *testing.T) {
 	t.Parallel()
@@ -89,9 +89,9 @@ func TestContract_INV1_NoIPIsItsOwnReason(t *testing.T) {
 	}
 }
 
-// D-472: the batch read used by the list, the schedule and the KEV rescan decides exactly as the per-device consent
-// (with explicit=false, D-126 (2)), and a device deleted since the list was read is gone.
-func TestContract_D472_BatchDecidesAsPerDevice(t *testing.T) {
+// The batch read used by the list, the schedule and the KEV rescan decides exactly as the per-device consent
+// (with explicit=false), and a device deleted since the list was read is gone.
+func TestContract_BatchDecidesAsPerDevice(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	st, err := loadSettings(r.ctx(), r.db.Reader())

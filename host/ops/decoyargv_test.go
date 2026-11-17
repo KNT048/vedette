@@ -93,7 +93,7 @@ func TestValidateIPRefusesEverythingElse(t *testing.T) {
 		{"-b", "-"}, {"-batch", "/etc/passwd"}, {"-force", "link", "del", name}, {"-n", "vedette-hp", "-force", "link", "del", name},
 		{"addr", "show"}, {"route", "show"}, {"monitor"}, {"-n", "vedette-hp", "monitor"}, {"-n", "vedette-hp", "netns", "exec", "x"},
 		{"-n", "vedette-hp", "exec", "x"}, {"-n", "vedette-hp", "-n", "vedette-hp", "-j", "addr", "show"},
-		// kien's N100 rule (B2): nothing outside the namespace but the decoy's own link: never the management card's addresses,
+		// The box-network rule: nothing outside the namespace but the decoy's own link: never the management card's addresses,
 		// routes or state, never the box's own firewall.
 		{"addr", "add", "192.168.1.50/32", "dev", "eth0"}, {"addr", "del", "192.168.1.2/24", "dev", "eth0"}, {"addr", "flush", "dev", "eth0"},
 		{"route", "replace", "default", "via", "192.168.1.1", "dev", "eth0"}, {"route", "del", "default"}, {"rule", "add", "from", "192.168.1.50", "lookup", "100"},

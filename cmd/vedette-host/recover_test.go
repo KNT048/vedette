@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/host/ops"
 )
 
-// vedette-host -recover-core-data (D-317): the flags, the refusal beside a running daemon, the exit lines. What
+// vedette-host -recover-core-data: the flags, the refusal beside a running daemon, the exit lines. What
 // it does to core_data is tested in modules/host (TestContract_Recover_*).
 
 type recoverBox struct {

@@ -45,7 +45,7 @@ type workerEgress struct{ addr netip.Addr }
 
 func (w workerEgress) Round(context.Context) (netip.Addr, error) { return w.addr, nil }
 
-// externalEnv is an env whose Service hands nmap jobs to a real worker over the real mutual-TLS link (D-113), with the fake nmap
+// externalEnv is an env whose Service hands nmap jobs to a real worker over the real mutual-TLS link, with the fake nmap
 // printing testdata/external.xml and the worker's own-IP fence seeing egress.
 func externalEnv(t *testing.T, egress netip.Addr) *env {
 	t.Helper()
@@ -79,7 +79,7 @@ func externalEnvWith(t *testing.T, egress netip.Addr, name string) *env {
 	return e
 }
 
-// D-514: -sV on the box's own public IP through the scan container: the fence asked right before the job, the probe row written
+// -sV on the box's own public IP through the scan container: the fence asked right before the job, the probe row written
 // with the external shape and its -p list, the job of kind external, the services read from the XML and nothing written to the
 // inventory. The LAN settings do not bind it: scanning switched off and an empty scope change nothing.
 func TestScanExternalThroughTheWorker(t *testing.T) {
@@ -115,7 +115,7 @@ func TestScanExternalThroughTheWorker(t *testing.T) {
 	}
 }
 
-// deepFence is ownFence with the DeepGate of a full run (D-526): the shape the target's terms allow now, as exposure's ModeNow
+// deepFence is ownFence with the DeepGate of a full run: the shape the target's terms allow now, as exposure's ModeNow
 // says it in production; err fails the check.
 type deepFence struct {
 	ownFence
@@ -131,7 +131,7 @@ func (f *deepFence) ShapeNow(_ context.Context, asked nmapargv.Kind) (nmapargv.K
 	return f.now, f.err
 }
 
-// D-526: the deep scan of an accepted target through the real worker: both fences asked right before the job, the probe row with
+// The deep scan of an accepted target through the real worker: both fences asked right before the job, the probe row with
 // the full shape and its flags (migration 0006), every TCP port and the scripts read. The disruptive tick taken back meanwhile runs
 // the full shape without the disruptive scripts; a gate that allows more than asked never widens the run.
 func TestScanExternalFullThroughTheWorker(t *testing.T) {
@@ -169,7 +169,7 @@ func TestScanExternalFullThroughTheWorker(t *testing.T) {
 	}
 }
 
-// D-526: the terms withdrawn or of an older version right before the job (the gate says External), a gate that fails, or a fence
+// The terms withdrawn or of an older version right before the job (the gate says External), a gate that fails, or a fence
 // without a DeepGate: nothing is sent, no probe row, and the run never falls back to the External shape by itself.
 func TestScanExternalFullRefusedByTheDeepGate(t *testing.T) {
 	t.Parallel()
@@ -192,7 +192,7 @@ func TestScanExternalFullRefusedByTheDeepGate(t *testing.T) {
 	}
 }
 
-// D-526: a worker whose heartbeat does not say it runs the full shapes (older than protocol 5's field) never gets one: Probe refuses
+// A worker whose heartbeat does not say it runs the full shapes (older than protocol 5's field) never gets one: Probe refuses
 // before anything is queued (pollLocked holds a pending one back the same way for a worker that stopped saying it since).
 func TestFullShapeNeedsAWorkerThatSaysSo(t *testing.T) {
 	t.Parallel()
@@ -262,7 +262,7 @@ func TestScanExternalRefusesANonPublicAddress(t *testing.T) {
 	}
 }
 
-// D-514: migration 0005 keeps the probe log's counter and every earlier shape, and takes the external shape with its 540-character
+// Migration 0005 keeps the probe log's counter and every earlier shape, and takes the external shape with its 540-character
 // flags (the -p list).
 func TestMigration0005KeepsTheProbeCounter(t *testing.T) {
 	t.Parallel()
@@ -312,7 +312,7 @@ func TestMigration0005KeepsTheProbeCounter(t *testing.T) {
 	}
 }
 
-// D-592: a worker whose heartbeat does not say it takes a job's ports never gets a port_versions job: Probe refuses before anything is
+// A worker whose heartbeat does not say it takes a job's ports never gets a port_versions job: Probe refuses before anything is
 // queued, and the weekly scan records the open ports without versions.
 func TestPortVersionsNeedsAWorkerThatSaysSo(t *testing.T) {
 	t.Parallel()

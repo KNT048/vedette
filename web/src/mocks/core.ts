@@ -45,7 +45,7 @@ export const coreHandlers = [
       return fail(400, 'invalid_credentials', 'Wrong email or password.')
     }
     loginFailures.update((m) => Object.fromEntries(Object.entries(m).filter(([k]) => k !== email)))
-    // D-180: a temporary password past its 72 hours is refused once it is proven right (before the two-step code, like the backend).
+    // A temporary password past its 72 hours is refused once it is proven right (before the two-step code, like the backend).
     if (u.temp_password_expires_at && Date.parse(u.temp_password_expires_at) <= Date.now()) {
       audit('auth.login_failed', u.email, 'temporary password expired')
       return fail(400, 'temp_password_expired', 'This temporary password has expired. Ask an administrator for a new one.')
@@ -54,7 +54,7 @@ export const coreHandlers = [
     if (u.twofa) {
       const code = String(b.code ?? '').replace(/\s/g, '')
       if (twofaMethodOf(u) === 'email') {
-        // Không bao giờ lùi về "chỉ mật khẩu": kênh email không gửi được thì từ chối đăng nhập (D-35).
+        // Không bao giờ lùi về "chỉ mật khẩu": kênh email không gửi được thì từ chối đăng nhập.
         if (!emailChannelReady()) {
           audit('auth.login_failed', u.email, 'email channel unavailable for two-step code')
           return fail(503, 'twofa_email_unavailable', EMAIL_UNAVAILABLE)

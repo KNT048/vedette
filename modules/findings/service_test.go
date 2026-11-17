@@ -24,7 +24,7 @@ type fakeInv struct {
 	assets map[string]AssetView
 	match  map[string]Asset
 	idsErr error
-	// ignored are the devices a person ignored (D-630); the test also removes them from match, as the inventory does.
+	// ignored are the devices a person ignored; the test also removes them from match, as the inventory does.
 	ignored    map[string]bool
 	ignoredErr error // IgnoredIDs fails with it (review r2 N1 of #945)
 	// onMatch runs (without the lock) when MatchInput reads a device: a test can change the world while a pass reads it.
@@ -288,7 +288,7 @@ func TestContract_POST1_UpsertCreatesFindingWithHistoryAuditAndEvent(t *testing.
 	if got := e.auditActions(); len(got) != 1 || got[0] != "findings.created" {
 		t.Fatalf("audit = %v", got)
 	}
-	var detail string // the audit page prints the stored text under the named one: an id in it showed each line twice (W2-13)
+	var detail string // the audit page prints the stored text under the named one: an id in it showed each line twice
 	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT detail FROM core_audit WHERE action = 'findings.created'`).Scan(&detail); err != nil || detail != "CVE-2022-27593 on nas01, basis product, medium" {
 		t.Fatalf("detail = %q err=%v", detail, err)
 	}
@@ -721,7 +721,7 @@ func (f failingInv) Assets(ctx context.Context, ids []string) (map[string]AssetV
 	return f.fakeInv.Assets(ctx, ids)
 }
 
-// D-439: when CISA changes the product of an entry, the finding of the old product stays open and says so once in its
+// When CISA changes the product of an entry, the finding of the old product stays open and says so once in its
 // history; a list without the CVE judges nothing.
 func TestUpsert_NoLongerMatchesIsNotedOnceAndNeverClosed(t *testing.T) {
 	t.Parallel()
@@ -745,7 +745,7 @@ func TestUpsert_NoLongerMatchesIsNotedOnceAndNeverClosed(t *testing.T) {
 	}
 }
 
-// D-439: match, no longer match, match again: one history row each way, none added by repeated runs.
+// Match, no longer match, match again: one history row each way, none added by repeated runs.
 func TestUpsert_NoLongerMatchesThenMatchesAgain(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -773,7 +773,7 @@ func TestUpsert_NoLongerMatchesThenMatchesAgain(t *testing.T) {
 	}
 }
 
-// D-500 on kien's box: the product findings of a software without a version stay open (FORBID-2) with a note that
+// On a test box: the product findings of a software without a version stay open (FORBID-2) with a note that
 // says why, the device gets ONE "add the version" item, and the item goes away with the version or the device.
 func TestUpsert_NoVersionIsOneItemAndOldFindingsGetANote(t *testing.T) {
 	t.Parallel()

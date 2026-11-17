@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The container-only install (D-168, D-451): every release that lists install mode "container" publishes these four files of
+// The container-only install: every release that lists install mode "container" publishes these four files of
 // deploy/compose/container-only/, each with a .minisig signed by the key that signs the manifest. The compose files are copied
 // unchanged; vedette.env gets its three image lines filled and nothing else. The customer fetches and checks all four on every
 // update (docs/INSTALL-CONTAINER.md section 5), so a release that changes a compose file reaches them.
@@ -47,7 +47,7 @@ var anyImageLineRE = regexp.MustCompile(`^[\s\x{FEFF}]*(export\s+)?[A-Za-z_][A-Z
 // container, a repeat), so the maintainer hears it from the builder.
 func checkInstallModes(modes []string) error {
 	if len(modes) == 0 {
-		return errors.New(`install_modes is empty: list "appliance" and "container" (D-451)`)
+		return errors.New(`install_modes is empty: list "appliance" and "container"`)
 	}
 	for i, m := range modes {
 		if m != installAppliance && m != installContainer {
@@ -60,7 +60,7 @@ func checkInstallModes(modes []string) error {
 	return nil
 }
 
-// BuildContainerAssets turns the four files of the repository (src, by name) into the release's (D-451). It refuses:
+// BuildContainerAssets turns the four files of the repository (src, by name) into the release's. It refuses:
 //   - install_modes that are empty, unknown, or without "container" (the assets would be published for a release no container
 //     install is offered);
 //   - a missing file, one that does not start with a "#" comment line (nothing signed with the release key may look like a JSON
@@ -73,7 +73,7 @@ func BuildContainerAssets(in Inputs, src map[string][]byte) (map[string][]byte, 
 		return nil, err
 	}
 	if !slices.Contains(in.InstallModes, installContainer) {
-		return nil, errors.New(`install_modes does not list "container": no container-only install would be offered this release, so its compose files are not published (D-451)`)
+		return nil, errors.New(`install_modes does not list "container": no container-only install would be offered this release, so its compose files are not published`)
 	}
 	out := map[string][]byte{}
 	for _, n := range containerAssets {
@@ -253,7 +253,7 @@ func containerAssetsToSign(dir string) (paths []string, comments map[string]stri
 	return paths, comments, nil
 }
 
-// verifyContainerAssets is VerifyDir's check of the assets (D-451): a manifest that lists "container" must have all four, each
+// verifyContainerAssets is VerifyDir's check of the assets: a manifest that lists "container" must have all four, each
 // signed by the key that signed the manifest with the trusted comment of this release, and vedette.env must name exactly the
 // manifest's core, sensor and scan digests; a manifest without "container" must have none. It returns whether they were there.
 func verifyContainerAssets(dir string, m *release.Manifest, trust release.Trust) (bool, error) {

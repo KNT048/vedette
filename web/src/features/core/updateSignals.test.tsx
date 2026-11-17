@@ -1,4 +1,4 @@
-// A withdrawn running release and stale update information are shown (S-CORE-2 criterion D-386).
+// A withdrawn running release and stale update information are shown (S-CORE-2).
 import { describe, expect, it } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -14,7 +14,7 @@ const revoke = (action: 'block_install' | 'block_install_and_warn' | 'rollback_i
   updIndex.update((x) => ({ ...x, revoked: [{ kind: 'release', id, reason: 'the log receiver can lose data.', since: SINCE, action }] })) // its own period is not doubled
 const WARN_TITLE = 'Vedette 0.9.3, which this box runs, has been withdrawn'
 
-describe('core: withdrawn running release and stale update information (S-CORE-2 criterion D-386)', () => {
+describe('core: withdrawn running release and stale update information (S-CORE-2)', () => {
   it.each(['block_install_and_warn', 'rollback_if_possible'] as const)('%s: a banner on every page, for a viewer too, linking to Updates', async (action) => {
     revoke(action)
     renderApp('/', { role: 'viewer' })
@@ -49,7 +49,7 @@ describe('core: withdrawn running release and stale update information (S-CORE-2
     await expect.poll(() => screen.queryByText('The update information on this box is out of date')).toBeNull()
   })
 
-  it('stale information with update checks off: says to turn them on, and no offline bundle in v1 (D-408)', async () => {
+  it('stale information with update checks off: says to turn them on, and no offline bundle in v1', async () => {
     updIndex.update((x) => ({ ...x, expires_at: SINCE }))
     collection<{ update_check: boolean }>('core_privacy', () => ({ update_check: true })).update((p) => ({ ...p, update_check: false }))
     renderApp('/settings/updates')
@@ -57,7 +57,7 @@ describe('core: withdrawn running release and stale update information (S-CORE-2
     expect(screen.queryByText(/bundle/i)).toBeNull()
   })
 
-  it('stale information and no advisory: does not say there is no known vulnerability (D-408)', async () => {
+  it('stale information and no advisory: does not say there is no known vulnerability', async () => {
     sessionStore.set({ userId: 'u-admin' })
     const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...s, advisories: [], stale_since: SINCE })))

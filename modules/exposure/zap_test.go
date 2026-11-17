@@ -437,7 +437,7 @@ func TestContract_INV24_PlainTextAndWebServices(t *testing.T) {
 	}
 }
 
-// INV-24, D-521: a page the scanner skipped for a reason of its own (its name now points elsewhere) gets its own line, and the next
+// INV-24: a page the scanner skipped for a reason of its own (its name now points elsewhere) gets its own line, and the next
 // pages still run; nothing is counted as "not scanned".
 func TestContract_INV24_ASkippedPageDoesNotStopTheOthers(t *testing.T) {
 	t.Parallel()

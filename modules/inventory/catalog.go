@@ -14,7 +14,7 @@ import (
 	catalogdata "github.com/knt048/vedette/content/catalog"
 )
 
-// Catalog is the list of products a person can pick when declaring a device (INV-12, D-30): curated
+// Catalog is the list of products a person can pick when declaring a device (INV-12): curated
 // products by commercial name plus every vendor/product pair of KEV. It is a port of web/.../catalog.ts;
 // content/catalog/search-golden.json keeps the two giving the same answers.
 type Catalog struct {
@@ -69,7 +69,7 @@ type curatedRow struct {
 	VersionHint string   `json:"version_hint"`
 	KevMatch    []string `json:"kev_match"`
 	// CPE names the product the way nmap's CPE output does, "part:vendor:product" (an OS CPE such as o:apple:iphone_os), so
-	// software nmap identified gets this entry's KEV keys rather than a key no KEV row has (D-501).
+	// software nmap identified gets this entry's KEV keys rather than a key no KEV row has.
 	CPE []string `json:"cpe"`
 }
 
@@ -199,7 +199,7 @@ func (c *Catalog) keysFor(matches []string, fallback string) []string {
 }
 
 // keysForCPE is the KEV keys of the curated entry that names the product of a CPE 2.2 URI ("cpe:/o:apple:iphone_os:17" ->
-// the keys of iOS / iPadOS), nil when no entry names it (D-501). Only part, vendor and product are compared.
+// the keys of iOS / iPadOS), nil when no entry names it. Only part, vendor and product are compared.
 func (c *Catalog) keysForCPE(cpe string) []string {
 	f := strings.SplitN(strings.ToLower(strings.TrimPrefix(cpe, "cpe:/")), ":", 4)
 	if len(f) < 3 {

@@ -88,7 +88,7 @@ func (h *AdminHandlers) InventoryGetInventoryAgents(ctx context.Context) (*oas.I
 }
 
 // InventoryPostInventoryAgentsTokens implements POST /inventory/agents/tokens: the secret is in this answer and nowhere else, and never in the
-// audit line or the log (INV-3, INV-4). The default expiry is 7 days (D-34).
+// audit line or the log (INV-3, INV-4). The default expiry is 7 days.
 func (h *AdminHandlers) InventoryPostInventoryAgentsTokens(ctx context.Context, req *oas.InventoryPostInventoryAgentsTokensReq) (*oas.InventoryPostInventoryAgentsTokensCreated, error) {
 	if h.s == nil {
 		return nil, apierr.NotImplemented()

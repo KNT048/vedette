@@ -10,8 +10,8 @@ import (
 	"github.com/knt048/vedette/core/conn/cliban"
 )
 
-// The steps that must not change anything (D-95): the check before and the read-back. The rules here are generic: no command of a
-// vendor is named in code (D-58); the lists of commands a template may not contain are data (core/conn/cliban/cli-ban.json).
+// The steps that must not change anything: the check before and the read-back. The rules here are generic: no command of a
+// vendor is named in code; the lists of commands a template may not contain are data (core/conn/cliban/cli-ban.json).
 
 // The lists of refused commands are data and live in one place, core/conn/cliban (data: cli-ban.json), which the writer reads too.
 type banRules = cliban.Rules
@@ -101,7 +101,7 @@ func readBackProblem(t Tpl) string {
 	return ""
 }
 
-// ---- reading what the device printed (D-95 (2), amended 2026-11-10) ----
+// ---- reading what the device printed ----
 
 var ansiRE = regexp.MustCompile(`\x1b(\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(\x07|\x1b\\)|[@-Z\\-_])`)
 
@@ -138,7 +138,7 @@ func containsText(normalized, text string) bool {
 		return true
 	}
 	// JSON output was compacted (no whitespace outside strings), so a text written the way a device pretty-prints ("mode": "trunk") is
-	// compacted the same way before it is looked for, or a refusal text could never match and an expect would always fail (D-95 (1c)).
+	// compacted the same way before it is looked for, or a refusal text could never match and an expect would always fail.
 	return looksJSON(normalized) && strings.Contains(normalized, normalizePattern(text, true))
 }
 
@@ -216,7 +216,7 @@ func precheckVerdict(output string, refuse []string, expect string) string {
 	return ""
 }
 
-// readBackHolds is the read-back judgement of D-95 (2): after the action the output must contain expect, after the undo it must not.
+// readBackHolds is the read-back judgement: after the action the output must contain expect, after the undo it must not.
 func readBackHolds(output, expect string, afterUndo bool) bool {
 	return containsText(normalizeOutput(output), expect) != afterUndo
 }

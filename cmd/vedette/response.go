@@ -26,7 +26,7 @@ import (
 
 // Adapters between the response module's ports and the modules that provide them. They live here because only the binary
 // knows both sides (modules/response imports no other module's service; only the stdlib-only address check
-// modules/logs/signature, D-384).
+// modules/logs/signature).
 
 // ---- core/auth -> response.Users ----
 
@@ -45,7 +45,7 @@ func (u responseUsers) Lookup(ctx context.Context, id string) (response.User, bo
 
 // ---- core/auth -> response.TwoStep ----
 
-// responseTwoStep checks the two-step code of the person approving (core/auth.VerifyTwoStep, D-98); its errors pass through unchanged.
+// responseTwoStep checks the two-step code of the person approving (core/auth.VerifyTwoStep); its errors pass through unchanged.
 type responseTwoStep struct{ d *deps }
 
 func (t responseTwoStep) Verify(ctx context.Context, userID, code, purpose, summary string) error {
@@ -109,7 +109,7 @@ func (r responseNotifier) Approvers(ctx context.Context, ch string) ([]response.
 	return out, nil
 }
 
-// RequestApproval hands the request to notify.SendApprovalRequest (D-96 (2)) and returns the labels of the channels where at least one
+// RequestApproval hands the request to notify.SendApprovalRequest and returns the labels of the channels where at least one
 // message arrived. A message that failed is an error as well, so response can say so in its log line; the request itself stays open.
 func (r responseNotifier) RequestApproval(ctx context.Context, m response.ApprovalMessage) ([]string, error) {
 	types := make([]channel.Type, len(m.Channels))
@@ -180,7 +180,7 @@ func (l responseLinks) Verify(ctx context.Context, token string, b response.Link
 	return err
 }
 
-// notifyTokens is notify.TokenRecorder over the response service: the record of every link and reply code is kept by response (D-96 (1)).
+// notifyTokens is notify.TokenRecorder over the response service: the record of every link and reply code is kept by response.
 // d.Response is read when asked: notify is built before response.
 type notifyTokens struct{ d *deps }
 
@@ -201,7 +201,7 @@ func (t notifyTokens) RecordReplyCode(ctx context.Context, c notify.ReplyCode) e
 }
 
 // responseDecisions is notify.Decisions over the response service: a chat listener of notify calls it after it checked the platform, and response
-// maps the sender and keeps every gate (D-96 (5), INV-3). d.Response is read when asked: notify is built before response. A refusal comes back as
+// maps the sender and keeps every gate (INV-3). d.Response is read when asked: notify is built before response. A refusal comes back as
 // a DecisionResult whose Status is the code of the refusal (approver_not_listed, in_app_required ...) and whose Message is the reply for the
 // person; only "approved", "pending" and "rejected" are decisions that were recorded (notify CONTRACT POST-8).
 type responseDecisions struct{ d *deps }
@@ -260,14 +260,14 @@ func (r responseDirectory) DevicesOfKind(ctx context.Context, kinds ...string) (
 	}
 	out := make([]response.DeviceInfo, 0, len(l))
 	for _, d := range l {
-		if !d.TrustedKind() { // D-177: a kind only a passive frame claimed (SSDP, LLDP, DHCP, mDNS) is a hint, not a gateway nobody may block
+		if !d.TrustedKind() { // A kind only a passive frame claimed (SSDP, LLDP, DHCP, mDNS) is a hint, not a gateway nobody may block
 			continue
 		}
 		i := response.DeviceInfo{ID: d.ID, IP: d.IP, Kind: d.Kind}
 		if d.IP == "—" { // unknown address
 			i.IP = ""
 		}
-		if i.Name = i.IP; d.NameOrHost() != nil { // the name in Vedette, else the host name (G2)
+		if i.Name = i.IP; d.NameOrHost() != nil { // the name in Vedette, else the host name
 			i.Name = *d.NameOrHost()
 		}
 		if d.MAC != nil {
@@ -284,7 +284,7 @@ func deviceInfo(d inventory.Device) response.DeviceInfo {
 		out.IP = ""
 	}
 	out.Name = out.IP
-	if n := d.NameOrHost(); n != nil { // the name in Vedette, else the host name (G2)
+	if n := d.NameOrHost(); n != nil { // the name in Vedette, else the host name
 		out.Name = *n
 	}
 	if d.MAC != nil {
@@ -325,7 +325,7 @@ func (e responseExecutor) Execute(ctx context.Context, s response.DeviceStep) (r
 
 // newResponse builds the response service. serve calls it once, in buildServices, after the services it reads (core/auth, notify,
 // inventory, findings, core/conn). Device actions run through core/conn/write: an approved item reaches its device over the
-// connection, with a check before and a read-back (D-94, D-95).
+// connection, with a check before and a read-back.
 func newResponse(d *deps) (*response.Service, error) {
 	cfg, err := responseConfig(d)
 	if err != nil {
@@ -358,9 +358,9 @@ func (l lateDecoys) DecoyIPsRead(ctx context.Context) ([]netip.Addr, error) {
 
 var errHostNetUnknown = errors.New("vedette-host has not reported the addresses of the box yet")
 
-// responseBoxAddrs is response's Config.BoxAddrs: what vedette-host reports for the appliance (the shared cache: read without waiting once the host has answered, else up to firstAnswerWait, D-408) and the
+// responseBoxAddrs is response's Config.BoxAddrs: what vedette-host reports for the appliance (the shared cache: read without waiting once the host has answered, else up to firstAnswerWait) and the
 // decoy addresses of the honeypot, the same sources as core/conn's boxSources. A set that is not known (a configured host that has never answered,
-// an unreadable honeypot record) is an error, so response refuses instead of checking against a smaller set (D-179 (8), as notify since #157).
+// an unreadable honeypot record) is an error, so response refuses instead of checking against a smaller set (as notify since #157).
 func responseBoxAddrs(host func() ([]netip.Addr, bool), decoys decoyIPs) func() ([]netip.Addr, error) {
 	return func() ([]netip.Addr, error) {
 		out, known := host()
@@ -396,7 +396,7 @@ func responseBoxMACs(h *hostMACs) func() ([]string, error) {
 	}
 }
 
-// responseMailer is response's Config.Mailer (D-191): a link code goes out through notify's code mailer, the SMTP path of the sign-in and
+// responseMailer is response's Config.Mailer: a link code goes out through notify's code mailer, the SMTP path of the sign-in and
 // step-up codes. The step-up message says what is asked, so the code cannot be taken for a sign-in code.
 type responseMailer struct{ m notify.CodeMailer }
 
@@ -406,7 +406,7 @@ func (r responseMailer) SendLinkCode(ctx context.Context, to, code string) error
 	return r.m.SendStepUpCode(ctx, to, code, "link this email address to your Vedette account, so approval links sent to it count as you")
 }
 
-// responseLinkSender is response's Config.LinkSender (D-414): Send again in My account sends the person's own chat ID a new confirm link
+// responseLinkSender is response's Config.LinkSender: Send again in My account sends the person's own chat ID a new confirm link
 // through notify (Telegram by the bot, Zalo personal by the box's account). With notify off nothing can be sent.
 type responseLinkSender struct {
 	n   *notify.Service
@@ -420,7 +420,7 @@ func (r responseLinkSender) SendApproverLink(ctx context.Context, actor, ch, use
 	return r.n.SendApproverLink(ctx, actor, channel.Type(ch), userID)
 }
 
-// responseIncidents is response's Config.Incidents (D-509): Respond on an incident reads the incident through notify's public
+// responseIncidents is response's Config.Incidents: Respond on an incident reads the incident through notify's public
 // IncidentDetail and, for a trap, the source of its hit through honeypot's HitDetail. A test hit, another kind or a link that is not
 // a hit names no source. With notify off there is no incident.
 // scanConfirmWindow is how near a scan hit a service hit of the same source must be to confirm it: the hour around a hit that the
@@ -464,8 +464,8 @@ func (r responseIncidents) Incident(ctx context.Context, id string) (response.In
 	if h.SrcAssetID != nil {
 		out.AssetID = *h.SrcAssetID
 	}
-	// A scan's source may be forged, and so may a UDP trap's (no handshake, D-467 review H1): confirmed only by a completed
-	// connection near it (D-509).
+	// A scan's source may be forged, and so may a UDP trap's (no handshake): confirmed only by a completed
+	// connection near it.
 	if h.Kind == honeypot.KindScan || h.NoHandshake {
 		confirmed := false // a time that does not parse confirms nothing
 		if at, err := time.Parse(time.RFC3339, h.TS); err == nil {
@@ -484,15 +484,15 @@ func responseConfig(d *deps) (response.Config, error) {
 	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
 		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings},
 		Mailer: responseMailer{n.CodeMailer()}, LinkSender: responseLinkSender{n: n, reg: d.Reg}, Incidents: responseIncidents{n: n, d: d, reg: d.Reg}, BaseURL: d.BaseURL} // the block list address a firewall pulls (empty on loopback: a relative path)
-	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d})        // D-179 (6), (8): the decoys and the host's addresses are the box too, so an action aimed at one is never_touch
-	cfg.MachineAddrs, cfg.SelfAddrs = machineAddrs(d), responseDecoys(lateDecoys{d}) // D-446 for webhook_call; an unreadable decoy record refuses (D-179 (8))
+	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d})        // the decoys and the host's addresses are the box too, so an action aimed at one is never_touch
+	cfg.MachineAddrs, cfg.SelfAddrs = machineAddrs(d), responseDecoys(lateDecoys{d}) // the self-connection rule for webhook_call; an unreadable decoy record refuses
 	var hostState netStateReader
 	if d.HostSocket != "" {
 		hostState = hostclient.New(d.HostSocket)
 	}
-	hm := &hostMACs{r: hostState, now: d.Clock, report: infraReport(d)} // D-450 review: new gateways, resolvers and gateway MACs are reported
+	hm := &hostMACs{r: hostState, now: d.Clock, report: infraReport(d)} // New gateways, resolvers and gateway MACs are reported
 	cfg.BoxMACs = responseBoxMACs(hm)
-	cfg.HostInfra = func() ([]response.HostInfra, error) { // D-325: the box's gateway and DNS servers are never-touch too
+	cfg.HostInfra = func() ([]response.HostInfra, error) { // The box's gateway and DNS servers are never-touch too
 		ctx, cancel := context.WithTimeout(context.Background(), hostNetTimeout)
 		defer cancel()
 		return hm.Infra(ctx)
@@ -509,10 +509,10 @@ func responseConfig(d *deps) (response.Config, error) {
 		cfg.Planner = responsePlanner{svc: d.AI, facts: d.AIFacts, log: d.Log}
 		cfg.Critical = responseCritical{fnd: d.Findings, inv: findingsInventory{d.Inventory}}.list
 	}
-	if d.AI != nil { // config_read evidence: a read the box itself recorded, at most 24 hours old, through the connection it names (D-311)
+	if d.AI != nil { // config_read evidence: a read the box itself recorded, at most 24 hours old, through the connection it names
 		cfg.Evidence.ConfigRead = aiConfigRead(d.AI)
 	}
-	// ioc_hit evidence: a known-bad connection the Logs module recorded (L4, D-213), with no connection (D-337); Logs off = not found
+	// ioc_hit evidence: a known-bad connection the Logs module recorded, with no connection; Logs off = not found
 	if lg := logsService(*d); lg != nil {
 		cfg.Evidence.IocHit = logsIocEvidence(lg, func() bool { return d.Reg == nil || d.Reg.Enabled("logs") })
 	}
@@ -528,7 +528,7 @@ func responseConfig(d *deps) (response.Config, error) {
 	return cfg, nil
 }
 
-// responseLogCounts is response's read port of the Logs module for the log_threshold trigger (#332, D-287, D-288): the declared
+// responseLogCounts is response's read port of the Logs module for the log_threshold trigger: the declared
 // sources (logs.Service.SourceNames, the narrow read of logs_sources), logs.Service.Counts and logs.Service.TopAddresses. The
 // Logs module off answers no source (and Counts, TopAddresses an error), so the trigger makes no event (SYS-5), like any trigger
 // whose module is off.

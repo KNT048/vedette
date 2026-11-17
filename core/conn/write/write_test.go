@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// The writer (D-94, response FORBID-1): every refusal stops a step before a byte is sent, and what is sent is what the step says.
+// The writer (response FORBID-1): every refusal stops a step before a byte is sent, and what is sent is what the step says.
 
 const (
 	admin  = "admin@acme.example"
@@ -332,7 +332,7 @@ func TestWriterStatusFollowsTheAnswer(t *testing.T) {
 	}
 }
 
-// One call at a time per connection (D-94 (6)): four steps sent together reach the device one after the other.
+// One call at a time per connection: four steps sent together reach the device one after the other.
 func TestWriterRunsOneCallAtATimePerConnection(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -573,7 +573,7 @@ func TestWriterCallsAnMCPToolWithTypedArguments(t *testing.T) {
 	}
 }
 
-// D-174: a token connection with a header name sends the token in that header and no Authorization; the secret stays in the vault.
+// A token connection with a header name sends the token in that header and no Authorization; the secret stays in the vault.
 func TestWriterSendsTheTokenInTheNamedHeader(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

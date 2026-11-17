@@ -156,22 +156,22 @@ type itemRec struct {
 	RunningAt string `json:"running_at,omitempty"`
 
 	// SentAt is when the step was claimed to go out (the same moment as RunningAt, which the finish clears). MaxPerHour counts a step by it, so a
-	// step whose outcome is not known (a time-out, a 5xx) uses up the budget like one that ran (D-179 (2)).
+	// step whose outcome is not known (a time-out, a 5xx) uses up the budget like one that ran.
 	SentAt string `json:"sent_at,omitempty"`
 
 	// ExecHash is the SHA-256 of Exec as it was rendered when the request was made. An undo, which the TTL sweep sends unattended, compares
-	// it before it sends the stored rollback (D-179 (3)).
+	// it before it sends the stored rollback.
 	ExecHash string `json:"exec_hash,omitempty"`
 
 	// ConnIdent is conn.Identity of the connection (id, kind, address) when the request was made: an undo is held to it instead of to ConnFP,
-	// so a rotated token or a renewed pin does not strand a change that is in force (D-88 (4)).
+	// so a rotated token or a renewed pin does not strand a change that is in force.
 	ConnIdent string `json:"conn_ident,omitempty"`
 
 	// UndoUnclear is set when an undo was sent and its outcome is not known (no answer, or a read-back that could not tell): the next try
 	// reads the device first and sends the rollback again only when the change is still there.
 	UndoUnclear bool `json:"undo_unclear,omitempty"`
 
-	// PresentBefore is whether the read-back text was there when the device was read right before the run (D-356): the check before when it
+	// PresentBefore is whether the read-back text was there when the device was read right before the run: the check before when it
 	// is the same read, otherwise one read-only step. Only this bool is kept, never what the device printed (INV-22). A read-back that settles
 	// an unclear run counts the change as this step's only when it is false; nil (not read: an older item, or a run cut short by a restart) or
 	// true leaves the change uncounted. Kept in the items JSON, so it needs no migration.
@@ -243,7 +243,7 @@ type ApprovalItem struct {
 // ActionRequest is a bundled request: one per rule run or AI proposal.
 type ActionRequest struct {
 	ID                string        `json:"id"`
-	Source            string        `json:"source"` // "rule", "ai", or "person" (asked from an incident, D-509)
+	Source            string        `json:"source"` // "rule", "ai", or "person" (asked from an incident)
 	ProposalID        string        `json:"proposal_id"`
 	RuleID            *string       `json:"rule_id"`
 	RuleName          *string       `json:"rule_name"`
@@ -279,7 +279,7 @@ type request struct {
 // hiddenHeader is what stands in for a header value a reader may not see.
 const hiddenHeader = "(hidden)"
 
-// maskRest returns a copy of the call with header values hidden (D-174): every value for all, otherwise only those whose name carries
+// maskRest returns a copy of the call with header values hidden: every value for all, otherwise only those whose name carries
 // a credential (requests made before credential headers were refused keep running, but no read shows them).
 func maskRest(r *RestCall, all bool) *RestCall {
 	if r == nil {
@@ -314,7 +314,7 @@ func (a ActionRequest) masked(full bool) ActionRequest {
 // masked hides the header values of every proposal of every plan (a plan's proposal holds the exact change, like a request does).
 func (l PlanList) masked(full bool) PlanList {
 	// The planner's sentences quote the operator log (a refused plan's reason, Propose's answer): a viewer gets the counts and the
-	// outcome codes only (D-513).
+	// outcome codes only.
 	l.Planner.Findings = slices.Clone(l.Planner.Findings)
 	for i := range l.Planner.Findings {
 		if !full {
@@ -405,7 +405,7 @@ type ChannelView struct {
 	Ready     bool     `json:"ready"`
 	Approvers int      `json:"approvers"`
 	Link      bool     `json:"link"`
-	Linked    int      `json:"linked"`   // approvers who linked their address (D-191)
+	Linked    int      `json:"linked"`   // approvers who linked their address
 	Unlinked  []string `json:"unlinked"` // names of the approvers who have not
 }
 
@@ -437,7 +437,7 @@ type TriggerField struct {
 	Type    string   `json:"type"`
 	Example string   `json:"example"`
 	Choices []string `json:"choices"`
-	// Min and Max bound a number or port field (D-390): a condition value outside them is refused when the rule is saved.
+	// Min and Max bound a number or port field: a condition value outside them is refused when the rule is saved.
 	Min *float64 `json:"min"`
 	Max *float64 `json:"max"`
 }
@@ -449,7 +449,7 @@ type TriggerInfo struct {
 	Description string         `json:"description"`
 	Fields      []TriggerField `json:"fields"`
 	AIAllowed   bool           `json:"ai_allowed"`
-	AIEvidence  []string       `json:"ai_evidence"` // what proves it to the AI (D-119); empty = the AI may never use it
+	AIEvidence  []string       `json:"ai_evidence"` // what proves it to the AI; empty = the AI may never use it
 }
 
 // Condition is one IF test.
@@ -720,7 +720,7 @@ type CatalogInput struct {
 	Run          Tpl     `json:"run"`
 	Rollback     Tpl     `json:"rollback"`
 	Verify       Tpl     `json:"verify"`
-	// Precheck and PrecheckRefuse (D-95) are optional: a read-only template that runs right before the action, and up to 5
+	// Precheck and PrecheckRefuse are optional: a read-only template that runs right before the action, and up to 5
 	// texts that make it refuse. Both or neither.
 	Precheck       Tpl      `json:"precheck"`
 	PrecheckRefuse []string `json:"precheck_refuse"`

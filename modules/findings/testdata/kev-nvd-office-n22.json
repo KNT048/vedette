@@ -1,5 +1,5 @@
 {
-"source": "W6-1: the 30 CISA KEV entries Microsoft|Office with their NVD affected configurations, as the N100 box n22 stored them (feeds_vuln + feeds_affected, exported 2026-11-13)",
+"source": "The 30 CISA KEV entries Microsoft|Office with their NVD affected configurations, as a test box stored them (feeds_vuln + feeds_affected, exported 2026-11-13)",
 "vulns": [
 {"cve": "CVE-2026-124194", "vendor": "Microsoft", "product": "Office", "ransomware": false, "date_added": "2026-11-10", "affected": [
   {"cpe": "cpe:2.3:a:microsoft:365_apps:-:*:*:*:enterprise:*:x64:*"},

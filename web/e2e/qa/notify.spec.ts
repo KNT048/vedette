@@ -3,8 +3,8 @@ import { collectErrors, expectAccessible, shot } from '../helpers'
 import { finishClean, sampleStart } from './clean'
 import { POST_V1_IN_UI } from '../../src/lib/postV1'
 
-// QA as a real user for the notify module: Incidents (D-52, S-ALERT-3), Alert channels with per-channel approvers and Zalo personal (D-46, S-NOT-1) and the History section.
-// The UI is English only (D-28). Every test builds its own data and does not depend on the order. No multi-site or MSP digests (owner decision).
+// QA as a real user for the notify module: Incidents (S-ALERT-3), Alert channels with per-channel approvers and Zalo personal (S-NOT-1) and the History section.
+// The UI is English only. Every test builds its own data and does not depend on the order. No multi-site or MSP digests (owner decision).
 // The shared dev machine runs HMR for other agents, which can reload the page mid-test: retry once.
 test.describe.configure({ retries: 1 })
 const VI = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i
@@ -26,7 +26,7 @@ const noHorizontalScroll = async (page: Page) => expect(await page.evaluate(() =
 const visible = (l: ReturnType<Page['locator']>) => l.locator('visible=true').first()
 const APPROVE = 'Approve actions from this channel'
 
-test.describe('notify: incidents (S-ALERT-3, D-52)', () => {
+test.describe('notify: incidents (S-ALERT-3)', () => {
   test('list, filter by kind and status, open the detail, come back with Back', async ({ page }) => {
     const errors = collectErrors(page)
     await startWithSample(page)
@@ -149,7 +149,7 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
   })
 
   test('Telegram: approvals need the numeric chat ID; a public @name is refused at the field with the reason, and is fine for alerts only', async ({ page }) => {
-    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819): channel approvals belong to AI response, which v1 does not offer')
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden: channel approvals belong to AI response, which v1 does not offer')
     const errors = collectErrors(page)
     await startWithSample(page)
     await page.goto('/settings/channels')
@@ -184,7 +184,7 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
     await expect(visible(page.getByText(/Tested .*: failed/))).toBeVisible()
   })
 
-  test('Zalo OA: needs OA ID, recipient and a refresh token with its Secret key and App ID (D-483); each missing piece is reported at its field', async ({ page }) => {
+  test('Zalo OA: needs OA ID, recipient and a refresh token with its Secret key and App ID; each missing piece is reported at its field', async ({ page }) => {
     await startWithSample(page)
     await page.goto('/settings/channels')
     await page.getByRole('button', { name: 'Set up Zalo OA' }).click()
@@ -225,7 +225,7 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
     await expect(d.getByLabel('Send to', { exact: true })).toHaveAccessibleDescription(/not-an-email is not a valid email address/)
     await d.getByLabel('Send to', { exact: true }).fill('it@acme.example; director@acme.example')
     await d.getByLabel('SMTP server', { exact: true }).fill('smtp.no-such-host.invalid')
-    // a saved password stays only with the server it was saved for (D-449): the new server needs it typed again
+    // a saved password stays only with the server it was saved for: the new server needs it typed again
     await d.getByLabel('SMTP password', { exact: true }).fill('app-password-1234')
     await d.getByRole('button', { name: 'Save and send test' }).click()
     await expect(page.getByText(/Could not connect to smtp\.no-such-host\.invalid/).first()).toBeVisible()
@@ -294,9 +294,9 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
 })
 
 
-test.describe('notify: approvers per channel and Zalo personal (D-46)', () => {
+test.describe('notify: approvers per channel and Zalo personal', () => {
   test('each channel type shows its own fields; Zalo OA and webhook say they only send a link', async ({ page }) => {
-    // D-624 (#819): v1 does not offer AI response, so a channel without approvals has no Approvals section at all; Slack (approvals on
+    // V1 does not offer AI response, so a channel without approvals has no Approvals section at all; Slack (approvals on
     // in the sample data) can still turn them off
     const noApprovals = (d: ReturnType<Page['getByRole']>) => POST_V1_IN_UI ? expect(d.getByText(/This channel cannot take approvals/)).toBeVisible() : expect(d.getByText('Approvals', { exact: true })).toHaveCount(0)
     await startWithSample(page)
@@ -321,7 +321,7 @@ test.describe('notify: approvers per channel and Zalo personal (D-46)', () => {
   })
 
   test('Zalo personal: warning, sign in by QR, approvals on, two approvers with their own Zalo IDs, a bad ID is refused at the field', async ({ page }) => {
-    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819): channel approvals belong to AI response, which v1 does not offer')
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden: channel approvals belong to AI response, which v1 does not offer')
     const errors = collectErrors(page)
     await startWithSample(page)
     await page.goto('/settings/channels')
@@ -332,7 +332,7 @@ test.describe('notify: approvers per channel and Zalo personal (D-46)', () => {
     await expect(d.getByText(/Sign in to pick from the account's groups/)).toBeVisible()
     await d.getByRole('button', { name: 'Sign in with a QR code' }).click()
     await expect(d.getByRole('img', { name: /QR code/ })).toBeVisible()
-    await expect(d.getByText(/Signed in as Vedette Box/)).toBeVisible({ timeout: 15_000 }) // the sample account scans by itself (D-447)
+    await expect(d.getByText(/Signed in as Vedette Box/)).toBeVisible({ timeout: 15_000 }) // the sample account scans by itself
     await d.getByLabel('Group or friend', { exact: true }).selectOption('8000000002')
     await expect(d.getByText('Alerts go to the group Night shift (ID 8000000002).')).toBeVisible()
     // a bad recipient is refused at the field that took it
@@ -360,7 +360,7 @@ test.describe('notify: approvers per channel and Zalo personal (D-46)', () => {
   })
 
   test('Slack: approvals need at least one approver, and a viewer cannot be added', async ({ page }) => {
-    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819): channel approvals belong to AI response, which v1 does not offer')
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden: channel approvals belong to AI response, which v1 does not offer')
     await startWithSample(page)
     await page.goto('/settings/channels')
     await page.getByRole('button', { name: 'Edit Slack' }).click()
@@ -397,7 +397,7 @@ test.describe('notify: clean install', () => {
     await expectAccessible(page, 'channels clean')
     await page.getByRole('button', { name: 'Set up Telegram' }).click()
     const d = page.getByRole('dialog')
-    // D-624 (#819): channel approvals belong to AI response, which v1 does not offer
+    // Channel approvals belong to AI response, which v1 does not offer
     if (POST_V1_IN_UI) {
       await d.getByRole('switch', { name: APPROVE }).click()
       await expect(d.getByText(/Add at least one approver|Who can approve/).first()).toBeVisible()

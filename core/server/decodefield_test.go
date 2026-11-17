@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// D-73: a body that does not decode names the failing field, from contract names only.
+// A body that does not decode names the failing field, from contract names only.
 func TestDecodeErrorsNameTheField(t *testing.T) {
 	t.Parallel()
 	const osSettings = "/core/updates/os/settings"

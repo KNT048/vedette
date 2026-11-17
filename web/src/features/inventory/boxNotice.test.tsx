@@ -5,7 +5,7 @@ import { collection } from '@/mocks/db'
 import { findingsStore } from '@/mocks/stores'
 import { BOX_ID, ensureBox } from './mocks'
 
-// kien G5: the box page offered "Fix by updating the operating system" with nothing to install. The fix line is shown only when an
+// The box page offered "Fix by updating the operating system" with nothing to install. The fix line is shown only when an
 // update exists; open findings without one get one honest line; not relevant findings are not counted.
 vi.setConfig({ testTimeout: 30_000 })
 beforeEach(() => ensureBox())
@@ -23,7 +23,7 @@ function boxFindings(open: string[], notRelevant: string[]) {
   })
 }
 
-describe('box notice: a fix is offered only when there is one (kien G5)', () => {
+describe('box notice: a fix is offered only when there is one', () => {
   it('no OS update waiting: no fix link, one honest line, and the open count leaves not relevant out', async () => {
     setPending([])
     boxFindings(['CVE-2025-0001', 'CVE-2025-0002'], ['CVE-2024-0001', 'CVE-2024-0002', 'CVE-2024-0003'])

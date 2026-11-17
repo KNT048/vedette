@@ -10,11 +10,11 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The argv of podman (spec 6.7, D-104 (1), D-130, D-138). These shapes and no others:
+// The argv of podman (spec 6.7). These shapes and no others:
 //
 //	container inspect vedette-<service>
 //	pull -q ghcr.io/knt048/vedette-<service>@sha256:<64 hex>
-//	                                           (or, from a bundle, pull -q oci:<dir>:<image ref>: see ociPullArgv, D-452)
+//	                                           (or, from a bundle, pull -q oci:<dir>:<image ref>: see ociPullArgv)
 //	image inspect --format json <ref>          ref: the pull reference or localhost/vedette-<service>:<version>
 //	tag <pull reference> localhost/vedette-<service>:<version>
 //	image ls --format json                     what retention reads (slice 3-8a)
@@ -23,7 +23,7 @@ import (
 //	                                           (exit 125, Podman 4.9.3 in the lab, 2026-11-12), and a pulled release has two (its
 //	                                           local tag and its pull reference); local tag: localhost/vedette-<service>:<version>
 //	                                           or localhost/vedette-scan-nmap:<version>
-//	container exists <64 hex>                  is a running container one podman knows, or an orphan (orphans.go, D-600)
+//	container exists <64 hex>                  is a running container one podman knows, or an orphan (orphans.go)
 //
 // Every shape is built here from the closed service list, a digest that passed digestRE and a version
 // that passed tagVersionRE; the registry part is the compile-time constant release.RegistryPrefix. Nothing
@@ -54,7 +54,7 @@ func pullRef(service, digest string) (string, error) {
 
 // localRef is how the host asks podman about an image it holds, given the digest it keeps for it (the "digest" of units, versions and
 // records): the pull reference by digest, except for scan, whose image is built on the box and has no registry digest: its "digest" is
-// "sha256:" + the image ID and it is asked about by that bare ID (D-147).
+// "sha256:" + the image ID and it is asked about by that bare ID.
 func localRef(service, digest string) (string, error) {
 	if service == api.ServiceScan {
 		id, ok := strings.CutPrefix(digest, "sha256:")
@@ -82,7 +82,7 @@ func pullArgv(service, digest string) ([]string, error) {
 	return []string{"pull", "-q", ref}, nil
 }
 
-// The pull of a bundle (D-452) adds one shape:
+// The pull of a bundle adds one shape:
 //
 //	pull -q oci:<layout dir>:ghcr.io/knt048/vedette-<service>:<version>
 //
@@ -159,7 +159,7 @@ func untagArgv(id, tag string) ([]string, error) {
 // listImagesArgv lists every image in Podman's storage as JSON (read only).
 func listImagesArgv() []string { return []string{"image", "ls", "--format", "json"} }
 
-// volumeExistsArgv is "volume exists vedette-creds-<role>" for a role of the closed list (D-316 (10)): exit 0 there, 1 not there.
+// volumeExistsArgv is "volume exists vedette-creds-<role>" for a role of the closed list: exit 0 there, 1 not there.
 func volumeExistsArgv(role string) ([]string, error) {
 	if !slices.Contains(credsRoles, role) {
 		return nil, errPodmanArgs
@@ -196,7 +196,7 @@ func isLocalTag(s string) bool {
 	return ok && knownService(svc) && len(version) <= 64 && tagVersionRE.MatchString(version)
 }
 
-// The build of the scan image on the box (D-147) adds four shapes (podman builds as root, so each is as closed as the rest):
+// The build of the scan image on the box adds four shapes (podman builds as root, so each is as closed as the rest):
 //
 //	build --pull=never --no-cache --network vedette-int --cap-drop NET_RAW --iidfile <context dir>/iid --build-arg BASE_IMAGE=<pull ref of scan> --build-arg NMAP_MIN_VERSION=<floor> --tag localhost/vedette-scan-nmap:<version> <context dir>
 //	run --rm --pull=never --network none --cap-drop ALL --read-only --security-opt no-new-privileges --memory=256m --pids-limit=64 --entrypoint nmap <image id> --version
@@ -207,7 +207,7 @@ func isLocalTag(s string) bool {
 // passed tagVersionRE, the context is a directory the host made (a plain absolute path), and the Containerfile in it is a constant of the
 // binary. Nothing a request carried is text in any of them. --no-cache because a cached apt layer would never see a newer nmap.
 // --network vedette-int (#467): the RUN step needs the internet, and on a box with Docker (FORWARD policy DROP) only Vedette's own network
-// is let through, by the DOCKER-USER rules of dockerfwd.go (D-267); podman's default network would be dropped. Never host, never another.
+// is let through, by the DOCKER-USER rules of dockerfwd.go; podman's default network would be dropped. Never host, never another.
 // --cap-drop NET_RAW: the build shares that bridge with core, and apt needs no raw socket (even if a containers.conf grants NET_RAW).
 
 const (
@@ -305,7 +305,7 @@ func validatePodman(args []string) error {
 		return nil
 	case len(args) == 2 && args[0] == "rmi" && imageIDRE.MatchString(args[1]):
 		return nil
-	case len(args) == 3 && args[0] == "container" && args[1] == "exists" && imageIDRE.MatchString(args[2]): // orphans.go (D-600)
+	case len(args) == 3 && args[0] == "container" && args[1] == "exists" && imageIDRE.MatchString(args[2]): // orphans.go
 		return nil
 	case len(args) == 3 && args[0] == "untag" && imageIDRE.MatchString(args[1]) && (isLocalTag(args[2]) || isNmapTag(args[2])):
 		return nil

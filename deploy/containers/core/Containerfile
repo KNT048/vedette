@@ -1,12 +1,12 @@
-# The `core` image (D-146): the server, statically linked (modernc SQLite is pure Go), on a base with no shell.
-# Build from the repository root: `make core-image` (it builds the web interface first and embeds it with -tags webui, D-149; without the files the build fails). Used by the compose dev profile now; the release job (WP-08) signs and publishes it.
+# The `core` image: the server, statically linked (modernc SQLite is pure Go), on a base with no shell.
+# Build from the repository root: `make core-image` (it builds the web interface first and embeds it with -tags webui; without the files the build fails). Used by the compose dev profile now; the release job (WP-08) signs and publishes it.
 # Health: the unit's HealthCmd is the exec form ["/vedette","healthcheck"].
 ARG GOLANG_IMAGE
 ARG DEBIAN_IMAGE
 ARG DISTROLESS_IMAGE
 
-# Multi-arch (D-158): this stage runs on the BUILD machine and cross-compiles; the final stage has no RUN, so no CPU emulation is needed.
-# MIN_SEQUENCE: core links internal/release for the signed mitigation packs (D-347), so it takes the index sequence floor like vedette-host.
+# Multi-arch: this stage runs on the BUILD machine and cross-compiles; the final stage has no RUN, so no CPU emulation is needed.
+# MIN_SEQUENCE: core links internal/release for the signed mitigation packs, so it takes the index sequence floor like vedette-host.
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS build
 ARG VERSION
 ARG MIN_SEQUENCE
@@ -32,15 +32,15 @@ RUN set -eu; \
     install -D -m 0644 internal/webui/licenses/web-third-party-licenses.txt /out/licenses/web-third-party-licenses.txt; \
     CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette -name vedette-core -tags webui -out /out/licenses/third-party-licenses
 # /var/lib/vedette-creds stays 0755: it only holds the two mount points, and on the appliance core runs as core_uid (not 65532,
-# host/ops/quadlet.go), which must traverse it to reach the creds volumes mounted below it (D-409).
+# host/ops/quadlet.go), which must traverse it to reach the creds volumes mounted below it.
 RUN set -eu; mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/passive /out/dirs/var/lib/vedette-creds/active; \
     chmod 0755 /out/dirs/var/lib/vedette-creds /out/dirs/var/lib
-# The signed confirmed mitigation packs (D-345): the regular files of content/mitigation/packs, hidden ones left out (a Finder .DS_Store
+# The signed confirmed mitigation packs: the regular files of content/mitigation/packs, hidden ones left out (a Finder .DS_Store
 # would make the box refuse the folder), modes set here and not by COPY --chmod (podman applies it to folders too, scan-base).
 RUN set -eu; install -d -m 0755 /out/content/mitigation; \
     find content/mitigation/packs -maxdepth 1 -type f ! -name '.*' -exec install -m 0644 {} /out/content/mitigation/ \;
 
-# The osquery packages the box serves to the servers of the customer under /install/osquery/ (WP-26 slice 3, D-169 (10), agent-intake INV-5).
+# The osquery packages the box serves to the servers of the customer under /install/osquery/ (WP-26 slice 3, agent-intake INV-5).
 # deploy/osquery/PINS holds the version and the SHA-256 of each file. Each file is downloaded from the official release and checked against its
 # pinned SHA-256 BEFORE it is copied anywhere; a missing pin or a mismatch fails the build (set -e). SHA256SUMS is made here from the pins, so the
 # list the servers check against is exactly what was verified. Nothing is downloaded when the box runs. Files are unmodified (Apache-2.0 / GPL-2.0, THIRD_PARTY_NOTICES.md).
@@ -80,10 +80,10 @@ RUN set -eu; \
 FROM ${DISTROLESS_IMAGE}
 ARG VERSION
 ARG MIN_SEQUENCE
-# The floor linked into /vedette above, as a label: a stripped binary does not show it, and make release-gates compares it with the release floor (D-401).
+# The floor linked into /vedette above, as a label: a stripped binary does not show it, and make release-gates compares it with the release floor.
 LABEL org.opencontainers.image.title="vedette-core" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0" io.github.knt048.vedette.min-sequence="${MIN_SEQUENCE}"
 COPY --from=build /out/vedette /vedette
-# The third-party licenses (D-155 (10)): the Go license and the license file of every Go module linked into /vedette, made by scripts/hostlicenses
+# The third-party licenses: the Go license and the license file of every Go module linked into /vedette, made by scripts/hostlicenses
 # from the same module graph as the binary (a linked module with no license file fails the build); the licenses of the npm packages of the
 # embedded web interface (made by make webui-dist, scripts/weblicenses) and the osquery license texts sit next to it.
 COPY --from=build /out/licenses/ /usr/share/doc/vedette/
@@ -92,14 +92,14 @@ COPY --from=osquery /lic/ /usr/share/doc/vedette/osquery/
 COPY --from=osquery /out/ /usr/share/vedette/osquery/
 # The data and credentials directories exist in the image, owned by the user below, so a NEW named volume mounted on one of them
 # starts with that owner (Docker and Podman copy the image's directory into an empty volume): the container-only compose needs no
-# root step (D-168 (5)). The appliance bind-mounts /var/lib/vedette, and its two creds volumes are Quadlet volumes with an explicit
+# root step. The appliance bind-mounts /var/lib/vedette, and its two creds volumes are Quadlet volumes with an explicit
 # User=/Group= (host/ops/testdata/units/vedette-creds-*.volume), which Podman keeps; the lab confirms it (deferred line).
-# One COPY of the CONTENTS of /out/dirs/var/lib/ into the existing /var/lib (D-409): the three directories are entries of the copy,
+# One COPY of the CONTENTS of /out/dirs/var/lib/ into the existing /var/lib: the three directories are entries of the copy,
 # so they keep the 0750 the build stage gave them, and /var/lib, the destination itself, keeps its owner root (BuildKit and buildah
 # both, measured 2026-11-13 by export of the image). Not a COPY of /out/dirs/ to / (it would give /var and /var/lib to 65532), and
 # not a COPY --chmod=0750 per leaf to a new destination: buildah makes that destination 0755 (world-listable data folder).
 COPY --from=build --chown=65532:65532 /out/dirs/var/lib/ /var/lib/
-# The confirmed mitigation packs of this release, signed with the release minisign key (D-345, `make release-packs`); owned by root
+# The confirmed mitigation packs of this release, signed with the release minisign key (`make release-packs`); owned by root
 # and read-only for core, which loads them only when the signature holds (job mitigation/load-packs). Modes come from the build stage.
 COPY --from=build /out/content/mitigation/ /opt/vedette/content/mitigation/
 USER 65532:65532

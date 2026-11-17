@@ -69,7 +69,7 @@ func TestGUIReal_ParseTestTakesTheSampleSizeTheGUIPromises(t *testing.T) {
 	}
 }
 
-// Only https links are ever stored (D-484), so only https links can reach the GUI (contract.ts: links match ^https?://).
+// Only https links are ever stored, so only https links can reach the GUI (contract.ts: links match ^https?://).
 func TestGUIReal_OnlyHTTPSLinksAreStored(t *testing.T) {
 	t.Parallel()
 	got := kevLinks("javascript:alert(1) ; data:text/html,x ; https://example.com/a#frag ; http://example.com/b ; HTTPS://example.com/c")

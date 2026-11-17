@@ -1,8 +1,8 @@
 package main
 
-// The fakes of the real-backend run that stand for the machine around the box (WP-30 slice 4, D-163): an in-process vedette-host on a
+// The fakes of the real-backend run that stand for the machine around the box (WP-30 slice 4): an in-process vedette-host on a
 // fake machine (the real host/ops commands on a temporary root, as modules/core/os_test.go and network_test.go build it), a small
-// control endpoint to make that host fail, and a second box with no host at all (D-55). Test binary only: the product never imports them.
+// control endpoint to make that host fail, and a second box with no host at all. Test binary only: the product never imports them.
 // Opt-in: VEDETTE_E2E_HOST=1 (make e2e-real sets it), so the plain harness test and the other slices are not slowed down.
 
 import (
@@ -179,7 +179,7 @@ func startE2EHost(t testing.TB) *e2eHost {
 	o := h.m.Ops(time.Now, func(_ *ops.Config, d *ops.Deps) {
 		d.LockHeld = func(string) (bool, error) { return h.lock.Load(), nil }
 		d.FreeBytes = func(string) (uint64, error) { return 100 << 30, nil }
-		// no timer fires during a run: a scheduled reboot never happens, and the 5-minute network revert is a Go test (D-118)
+		// no timer fires during a run: a scheduled reboot never happens, and the 5-minute network revert is a Go test
 		d.AfterFunc = func(time.Duration, func()) func() bool { return func() bool { return true } }
 		d.Interfaces, d.Probe = h.interfaces, e2eProber{}
 		d.NetPoll, d.NetWait, d.NetRetryGap = time.Millisecond, 30*time.Millisecond, time.Millisecond
@@ -288,7 +288,7 @@ func (h *e2eHost) control() http.Handler {
 	return mux
 }
 
-// startE2EBare runs a second box with no vedette-host (-host-socket "": a container-only install, D-55) in dir/bare and returns its
+// startE2EBare runs a second box with no vedette-host (-host-socket "": a container-only install) in dir/bare and returns its
 // ready.json. It stops with ctx; t waits for it.
 func startE2EBare(ctx context.Context, t testing.TB, dir string) e2eReady {
 	t.Helper()

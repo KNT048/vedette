@@ -33,7 +33,7 @@ type TestResult struct {
 	Connection Connection
 }
 
-// dialer is the one way out of the box for a connection (D-94, core INV-23): every address is checked against the policy at the
+// dialer is the one way out of the box for a connection (core INV-23): every address is checked against the policy at the
 // moment it is dialled, with the addresses of the box as they are then.
 func (s *Service) dialer() *transport.Dialer {
 	return &transport.Dialer{Refuse: func(ctx context.Context, a netip.Addr) string {
@@ -51,7 +51,7 @@ type outcome struct {
 	tools []Tool // MCP: the tools found
 }
 
-// Test reaches the device with one harmless read, over the transport of its kind, and saves what it learned (D-94):
+// Test reaches the device with one harmless read, over the transport of its kind, and saves what it learned:
 //
 //	http        GET the address
 //	restconf    GET the RESTCONF root under the address
@@ -386,7 +386,7 @@ func (s *Service) probeSSH(ctx context.Context, c Connection, secret secrets.Val
 
 var toolNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$`)
 
-// discovered turns what an MCP server lists into tools: write tools that start off (D-94 (3)). The names and descriptions are the
+// discovered turns what an MCP server lists into tools: write tools that start off. The names and descriptions are the
 // server's own words, so a name that is not a plain identifier is dropped, a description is cut to a line of 200 characters.
 func discovered(found []transport.MCPTool) []Tool {
 	var out []Tool
@@ -415,7 +415,7 @@ func cleanDescription(s string) string {
 // "" for no schema, or one that is not an object or too large). The reader computes the same from what the server says now.
 //
 // mayWrite is whether the server's annotations say the tool may change something (destructiveHint, or readOnlyHint false): it is part of the
-// identity, so a tool that starts to say so is a new tool, and a tool that says so can never be marked read (Tool.MayWrite, D-179 (5)).
+// identity, so a tool that starts to say so is a new tool, and a tool that says so can never be marked read (Tool.MayWrite).
 func ToolIdent(description string, schema json.RawMessage, mayWrite bool) string {
 	canon := ""
 	var v map[string]any
@@ -451,7 +451,7 @@ func mergeFound(have, found []Tool) []Tool {
 			kept.Description = f.Description
 			if kept.Ident != f.Ident {
 				// The server now describes the tool differently from the one that an administrator vouched for: it is a new tool, and
-				// a new tool is write and off until somebody sets it again (D-127, M1).
+				// a new tool is write and off until somebody sets it again.
 				kept.Access, kept.Enabled, kept.Ident = "write", false, f.Ident
 			}
 			f = kept

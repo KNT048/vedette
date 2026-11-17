@@ -1,13 +1,13 @@
 // Package winrel is the table of Windows 10, 11 and Server (2016 and later) releases: the build a machine reports
 // ("10.0.22631"), the name NVD's configurations give the release ("windows_11_23h2", with ranges that end at the patched build,
-// "< 10.0.22631.5189"), its general availability and the releases that take the same monthly update (D-546). agent-intake reads
+// "< 10.0.22631.5189"), its general availability and the releases that take the same monthly update. agent-intake reads
 // it to give a Windows PC its operating-system row, findings to read NVD's Windows entries against that row.
 //
 // Sources: Microsoft's release information pages (https://learn.microsoft.com/en-us/windows/release-health/release-information,
 // .../windows11-release-information, https://learn.microsoft.com/en-us/windows-server/get-started/windows-server-release-info)
 // for builds and dates; NVD's CPE dictionary for the names (checked 2026-11-14, lists which).
 //
-// D-603: a release newer than this table (Windows 11 26H2, build 26300, out 2026-09-29) needs no code change. The feeds module reads
+// A release newer than this table (Windows 11 26H2, build 26300, out 2026-09-29) needs no code change. The feeds module reads
 // Microsoft's release information pages on the box and hands the releases it finds to Learn; ByBuild, ByProduct and Releases answer
 // from this table first, then from those. The table's hand facts (Ended, LTSC, LastFreeRev, the NVD names Microsoft's pages do not
 // spell out) always win: a learned release never replaces or changes one of the table.
@@ -34,7 +34,7 @@ type Release struct {
 	GA   time.Time // general availability of the release
 	// GARev is the update revision of the first public build at general availability (26100.1742 for 24H2); 0 when the table does
 	// not know it. A machine below it runs a preview or OEM build of the code base, older than the date says (findings' "shipped
-	// after CISA listed it" proof needs revision >= GARev, D-546 review r1 M1).
+	// after CISA listed it" proof needs revision >= GARev).
 	GARev int
 	// LastFreeRev is the last update revision Windows Update gives without Extended Security Updates (19045.6456, October 2025, for
 	// Windows 10 22H2); 0 when the release is still serviced or the table does not know it. A fix above it needs ESU.
@@ -88,17 +88,17 @@ var releases = []Release{
 	{19042, "windows_server_20h2", "Windows Server 20H2", true, 19042, day("2020-10-20"), 0, 0, true, false},
 	{20348, "windows_server_2022", "Windows Server 2022", true, 20348, day("2021-08-18"), 169, 0, false, false},
 	{25398, "windows_server_2022_23h2", "Windows Server 2022 23H2", true, 25398, day("2023-10-24"), 0, 0, true, false},
-	{26100, "windows_server_2025", "Windows Server 2025", true, 26100, day("2024-11-01"), 1742, 0, false, false}, // GA media 26100.1742 (Microsoft's table, "2024-10 A"; D-610)
+	{26100, "windows_server_2025", "Windows Server 2025", true, 26100, day("2024-11-01"), 1742, 0, false, false}, // GA media 26100.1742 (Microsoft's table, "2024-10 A")
 }
 
-// learned are the releases Learn was last given that the table does not have (D-603); nil before the first call.
+// learned are the releases Learn was last given that the table does not have; nil before the first call.
 var learned atomic.Pointer[[]Release]
 
 // learnedProduct is the NVD name a learned release may have: Windows 11 by its version ("windows_11_26h2") or a Windows Server by
 // its year ("windows_server_2028"), the two shapes NVD gives every release of the table since 2021.
 var learnedProduct = regexp.MustCompile(`^windows_(11_[0-9]{2}h[12]|server_20[2-9][0-9])$`)
 
-// Learn sets the releases Microsoft's release information lists (D-603) and returns how many it kept. It keeps a release only when
+// Learn sets the releases Microsoft's release information lists and returns how many it kept. It keeps a release only when
 // it is valid and the table has neither its build (of its kind) nor its NVD name: the table's hand facts win. A kept release is one
 // Microsoft still services (Ended, LTSC and LastFreeRev are the table's facts, never learned) and is on its own line unless that line
 // is the line of a client release of the table (24H2's 26100 for 26H2) or its own build; a server release is always its own line.

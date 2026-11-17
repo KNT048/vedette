@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// The software update check (D-341) against a local TLS server that plays GitHub releases, with documents signed by
+// The software update check against a local TLS server that plays GitHub releases, with documents signed by
 // throwaway keys (opstest.Release); nothing reaches the internet. The running release is 1.3.0, the offered 1.4.0.
 
 const runningVersion = "1.3.0"
@@ -215,7 +215,7 @@ func TestUpdateCheckOffersTheNewRelease(t *testing.T) {
 	if a["component"] != "software" || a["version"] != "1.4.0" || a["channel"] != "stable" || a["size_kb"] != float64(4096) || len([]rune(a["note"].(string))) != 500 {
 		t.Errorf("available[0] = %v", a)
 	}
-	// S-CORE-9 G4: the digests of the verified manifest, for the cosign lines of a container-only install.
+	// S-CORE-9: the digests of the verified manifest, for the cosign lines of a container-only install.
 	if im := fmt.Sprint(a["images"]); im != "[map[digest:sha256:"+strings.Repeat("a", 64)+" service:core] map[digest:sha256:"+strings.Repeat("b", 64)+" service:sensor]]" {
 		t.Errorf("available[0].images = %s", im)
 	}
@@ -347,7 +347,7 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 			e.srv.down = true
 			e.srv.mu.Unlock()
 		}},
-		// D-540 review: a missing signature next to a present index is never "nothing published".
+		// A missing signature next to a present index is never "nothing published".
 		"index signature 404": {503, core.CodeUpdateSourceUnreachable, func(_ *testing.T, e *updEnv) {
 			e.srv.mu.Lock()
 			delete(e.srv.files, "/index/index.json.minisig")
@@ -375,7 +375,7 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 			if g.JSON["last_check"] != nil {
 				t.Errorf("last_check moved after a failed check: %v", g.JSON["last_check"])
 			}
-			// The page shows the failure with the box's own sentence, never the remote details (D-392).
+			// The page shows the failure with the box's own sentence, never the remote details.
 			if ce, _ := g.JSON["last_check_error"].(map[string]any); ce["code"] != tc.code2 || ce["at"] == nil || ce["message"] != r.JSON["error"].(map[string]any)["message"] {
 				t.Errorf("last_check_error = %v, want code %s and the message of %s", g.JSON["last_check_error"], tc.code2, r.Raw)
 			}
@@ -396,7 +396,7 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 	}
 }
 
-// M5-181, D-540: a source that answers 404 for the index publishes no release, so nothing is newer than this build:
+// A source that answers 404 for the index publishes no release, so nothing is newer than this build:
 // 200, last_check moves, an earlier failure is cleared, nothing offered. A source that is down still says why (503).
 func TestUpdateCheckNothingPublishedIsUpToDate(t *testing.T) {
 	t.Parallel()
@@ -421,7 +421,7 @@ func TestUpdateCheckNothingPublishedIsUpToDate(t *testing.T) {
 	if acts := e.actions(); !slices.Contains(acts, "update.check") {
 		t.Errorf("the check has no audit row: %v", acts)
 	}
-	// Once an index was stored, a 404 for it is a broken or withdrawn source: 503, last_check stays (D-540 review).
+	// Once an index was stored, a 404 for it is a broken or withdrawn source: 503, last_check stays.
 	e.srv.standard(t, 5)
 	good := e.oper.post("/core/updates/check", nil)
 	wantOK(t, good, 200)
@@ -510,8 +510,8 @@ func TestUpdateStateWithAHost(t *testing.T) {
 	}
 }
 
-// Without vedette-host (a container-only install, D-381) a release that is not for container installs is not offered
-// (S-CORE-9 G4).
+// Without vedette-host (a container-only install) a release that is not for container installs is not offered
+// (S-CORE-9).
 func TestUpdateCheckContainerOnlyNeedsAContainerRelease(t *testing.T) {
 	t.Parallel()
 	e := newUpdEnv(t, osOpts{noHost: true})
@@ -549,7 +549,7 @@ func TestUpdateCheckTestChannelSource(t *testing.T) {
 	}
 }
 
-// D-386: a revocation that hits the running release and an index past expires_at are in GET /core/updates.
+// A revocation that hits the running release and an index past expires_at are in GET /core/updates.
 func TestUpdateStateRevokedRunningAndStale(t *testing.T) {
 	t.Parallel()
 	e := newUpdEnv(t, osOpts{noHost: true})

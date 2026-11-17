@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { Card } from '@/components/common/Card'
 
-/** Connections live in core now (D-93): this tab only points to them, so old links with ?tab=connections still land somewhere useful. */
+/** Connections live in core now: this tab only points to them, so old links with ?tab=connections still land somewhere useful. */
 export default function ConnectionsMoved() {
   const { t } = useTranslation('ai')
   return (

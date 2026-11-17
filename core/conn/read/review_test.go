@@ -20,8 +20,8 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// Review fixes (D-127 amendments): H1 exact addresses and tools off by default, M1 the identity of an MCP tool, M2 redaction, M4 the
-// budget of a listing, M5 SSH reads, L2, L3, L5, L7.
+// Hardening: exact addresses and tools off by default, the identity of an MCP tool, redaction, the
+// budget of a listing, SSH reads.
 
 func schemaOf(t *testing.T, rt read.ReadTool) map[string]any {
 	t.Helper()
@@ -519,7 +519,7 @@ func TestListReadTools_SSHOffersTheRunnableCommands(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
 	ssh := conntest.NewSSH(t, conntest.SSHOpts{})
-	r.sw(ssh, "show version", "reload", "show interfaces") // an entry with a shell character is refused at save since D-391 (the reader still drops one saved before that)
+	r.sw(ssh, "show version", "reload", "show interfaces") // an entry with a shell character is refused at save (the reader still drops one saved by an older release)
 	l := r.list()
 	if len(l) != 1 {
 		t.Fatalf("tools %v", toolNames(l))
@@ -529,7 +529,7 @@ func TestListReadTools_SSHOffersTheRunnableCommands(t *testing.T) {
 	}
 }
 
-// D-391: save refuses a shell character in an SSH entry, but a connection saved before that may hold one: the reader still drops it.
+// Save refuses a shell character in an SSH entry, but a connection saved before that may hold one: the reader still drops it.
 func TestListReadTools_SSHDropsALegacyEntryWithAShellCharacter(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

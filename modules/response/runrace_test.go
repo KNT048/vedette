@@ -215,7 +215,7 @@ type hangExec struct {
 }
 
 func (h *hangExec) Execute(_ context.Context, s response.DeviceStep) (response.DeviceResult, error) {
-	if s.Phase != "run" { // the read before the run answers (D-356); only the write hangs
+	if s.Phase != "run" { // the read before the run answers; only the write hangs
 		return response.DeviceResult{Status: response.StepOK, Detail: "read"}, nil
 	}
 	h.mu.Lock()
@@ -232,7 +232,7 @@ func (h *hangExec) Execute(_ context.Context, s response.DeviceStep) (response.D
 // INV-19 (L6): runItem stops waiting at the item's deadline even when the executor does not: the item is recorded "State unknown",
 // the approver gets an answer and the device-step lock is released, so the next item (here: a second request) is not stuck behind it.
 // The item's 100 ms and the 10 s guard run on the clock of a synctest bubble, which moves only while every goroutine of the test waits:
-// the read before the run, its record and the recheck (inside the item's time since D-356) never use them up, and the 100 ms run out
+// the read before the run, its record and the recheck (inside the item's time) never use them up, and the 100 ms run out
 // only once the run step is with the executor, which ignores its context. On the wall clock a loaded runner spent the 100 ms before the
 // send ("Held: the step ended before it could be sent").
 func TestContract_INV19_ExecutorThatIgnoresItsContextCannotHoldTheRun(t *testing.T) {

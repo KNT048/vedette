@@ -7,7 +7,7 @@ import { useFindTelegramChats } from './api'
 import type { TelegramChat } from './types'
 
 /**
- * "Find my chat" under the Telegram Chat ID (D-491): after the token is typed and a message was sent to the bot, the box asks Telegram
+ * "Find my chat" under the Telegram Chat ID: after the token is typed and a message was sent to the bot, the box asks Telegram
  * which chats it saw; picking one fills the Chat ID. With no token typed it uses the saved one (it never leaves the box).
  */
 export function TelegramFind({ token, hasSaved, chatId, onPick, onTokenError }: { token: string; hasSaved: boolean; chatId: string; onPick: (id: string) => void; onTokenError: (msg: string) => void }) {
@@ -38,7 +38,7 @@ export function TelegramFind({ token, hasSaved, chatId, onPick, onTokenError }: 
         </Button>
         {!ready ? <span className="text-meta text-muted">{t('tgFind.needToken')}</span> : null}
       </div>
-      {/* kien G1: one getUpdates call to Telegram, 15 s at most */}
+      {/* One getUpdates call to Telegram, 15 s at most */}
       <BusyNote busy={find.isPending}>{t('tgFind.waiting')}</BusyNote>
       {error ? <p role="alert" className="text-meta text-danger">{error}</p> : null}
       {chats && chats.length === 0 ? <p role="status" className="text-meta text-muted">{t(fresh ? 'tgFind.fresh' : 'tgFind.none')}</p> : null}

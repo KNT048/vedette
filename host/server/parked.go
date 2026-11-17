@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// Runs parked across the host's own restart (D-316, docs/specs/host-api.md section 6.14,
+// Runs parked across the host's own restart (docs/specs/host-api.md section 6.14,
 // slice 1).
 //
 // A command declared Spec.Parks returns Parked from Run: the run stays running with
@@ -25,7 +25,7 @@ var ErrNotParked = errors.New("host: that run is not parked")
 const resultParked = "parked"
 
 // maxParkWindow is the longest a run may stay parked, from the start of the run: host.self_update
-// needs at most 10 min before it parks plus its journal deadline of 130 min (D-316 (6)), and the
+// needs at most 10 min before it parks plus its journal deadline of 130 min, and the
 // rest is slack. A Deadline further away is invalid. ponytail: one ceiling for the one command
 // that parks; raise it with the command that needs more.
 const maxParkWindow = 3 * time.Hour

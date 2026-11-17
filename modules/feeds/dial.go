@@ -16,7 +16,7 @@ import (
 // ErrBlockedAddress is a connection the dialer refuses by address.
 var ErrBlockedAddress = errors.New("feeds: connection to this address is refused")
 
-// ErrOwnAddress is ErrBlockedAddress for Vedette itself (D-446): loopback, an address of core's own container, or one of
+// ErrOwnAddress is ErrBlockedAddress for Vedette itself: loopback, an address of core's own container, or one of
 // Vedette's own ports on the machine's addresses (vedette-host's, the container's gateway). userError says so in plain words.
 var ErrOwnAddress = fmt.Errorf("%w: it is Vedette itself", ErrBlockedAddress)
 
@@ -33,21 +33,21 @@ type schemeKey struct{}
 type guardKey struct{}
 
 // ErrBoxAddrsUnknown means the box does not know its own addresses yet (vedette-host has not answered since the start), so no
-// destination can be checked against them: the connection is refused, as notify does (D-86 (2), D-208). The next pull retries.
+// destination can be checked against them: the connection is refused, as notify does. The next pull retries.
 var ErrBoxAddrsUnknown = errors.New("feeds: the box's own addresses are not known yet")
 
-// vedettePorts are the ports Vedette itself answers on at the machine's addresses (D-446): the interface 8443, the sensor link 8444,
+// vedettePorts are the ports Vedette itself answers on at the machine's addresses: the interface 8443, the sensor link 8444,
 // MCP 8765, syslog 514 and syslog over TLS 6514 (install.sh preflight, the core unit's PublishPort lines, the container-only compose).
 // Same list in notify, logs and ai.
 var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
 
-// ownAddrs is Vedette itself (D-446): self, the addresses of core's own container and the honeypot's decoys, on every port (loopback
+// ownAddrs is Vedette itself: self, the addresses of core's own container and the honeypot's decoys, on every port (loopback
 // is judged apart), and
 // machine, the addresses of the machine it runs on (what vedette-host reports, the container's default gateway), on vedettePorts only:
 // another program on the machine is a normal source. Every address is unmapped and without zone.
 type ownAddrs struct{ self, machine []netip.Addr }
 
-// destGuard refuses Vedette itself (D-208, D-446), never the LAN subnets around it.
+// destGuard refuses Vedette itself, never the LAN subnets around it.
 type destGuard struct {
 	box           func() ([]netip.Addr, bool)                                       // the machine's addresses (vedette-host); nil: none
 	gateway       func() (netip.Addr, bool)                                         // the container's default gateway: the machine too
@@ -164,7 +164,7 @@ func nat64Embed(b [16]byte, at [4]int) [4]byte {
 }
 
 // nat64Always is what a guard never allows whatever the box's own addresses are (loopback, link-local, multicast, unspecified,
-// broadcast, cloud metadata): a reading of such an address is judged in every layout, learned or not (D-442 (2)).
+// broadcast, cloud metadata): a reading of such an address is judged in every layout, learned or not.
 func nat64Always(a netip.Addr) bool {
 	return a.IsLoopback() || a.IsLinkLocalUnicast() || a.IsMulticast() || a.IsUnspecified() || a == netip.AddrFrom4([4]byte{255, 255, 255, 255}) || slices.Contains(metadataAddrs, a)
 }
@@ -255,7 +255,7 @@ func learnNAT64(answers []netip.Addr) []netip.Prefix {
 // nat64Cache asks the system resolver for ipv4only.arpa only when a 64:ff9b:1::/48 address is judged, for at most 2 s, and keeps the
 // answer 6 hours (10 minutes when nothing was learned or the lookup failed, so a missing DNS64 costs one lookup per 10 minutes).
 // One lookup runs at a time and nobody waits for it: a caller that finds it running (or a fresh cache) gets what is known, which is
-// nothing at first, and nothing means every layout. The query carries no customer data (D-442).
+// nothing at first, and nothing means every layout. The query carries no customer data.
 type nat64Cache struct {
 	mu       sync.Mutex
 	lookup   func(ctx context.Context) ([]netip.Addr, error)
@@ -379,7 +379,7 @@ func dialControl(_, address string, _ syscall.RawConn) error {
 	return destControl(nil, nil, false)("", address, nil)
 }
 
-// destControl is dialControl plus the rule of Vedette itself (D-208, D-446): the same check again on the socket, after resolution.
+// destControl is dialControl plus the rule of Vedette itself: the same check again on the socket, after resolution.
 // strict is the rule while the box's addresses are unknown: only global unicast (globalOnly). own nil: dialControl, no own rule.
 func destControl(g *destGuard, own *ownAddrs, strict bool) func(_, address string, _ syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {
@@ -419,7 +419,7 @@ func guardedDial(res resolver) func(ctx context.Context, network, addr string) (
 		scheme, _ := ctx.Value(schemeKey{}).(string)
 		g, _ := ctx.Value(guardKey{}).(*destGuard)
 		own, known := g.ownAddrs()
-		strict := !known // D-208: unknown addresses: a public address only; the rest waits for the answer
+		strict := !known // Unknown addresses: a public address only; the rest waits for the answer
 		d := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second, Control: destControl(g, &own, strict)}
 		var last error
 		waiting, self := false, false

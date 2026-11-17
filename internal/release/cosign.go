@@ -22,7 +22,7 @@ const cosignType = "cosign container image signature"
 var digestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 // payload is the simple-signing document exactly as sigstore's payload.go emits it. The cosign
-// spec says a verifier ignores docker-reference unless it cares; we do care (D-108): see verifyCosign.
+// spec says a verifier ignores docker-reference unless it cares; we do care: see verifyCosign.
 // optional is free-form annotations.
 type payload struct {
 	Critical struct {

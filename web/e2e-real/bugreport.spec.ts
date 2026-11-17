@@ -1,4 +1,4 @@
-// "Report a problem" on the real box (S-CORE-5, D-42): the box sends nothing itself. The dialog shows the text that would be sent (the filled-in
+// "Report a problem" on the real box (S-CORE-5): the box sends nothing itself. The dialog shows the text that would be sent (the filled-in
 // GitHub issue and the diagnostic bundle, with emails and IP addresses removed) so the person can copy it, download it, or open GitHub in
 // their own browser. The browser context aborts every request that is not for the box: the only one that is ever tried is the GitHub page the
 // person asked for with "Open GitHub issue", and it is aborted here, so nothing leaves this machine.

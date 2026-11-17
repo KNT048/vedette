@@ -8,18 +8,18 @@ import (
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
-// The extra ports of a LAN identification (D-592, kf-scan item 1). The normal and versions shapes scan nmap's --top-ports 1000, which
-// misses services moved off their usual port: the N100 walk's firewall answered SSH on 22222 and nothing found it. So every normal
+// The extra ports of a LAN identification (kf-scan item 1). The normal and versions shapes scan nmap's --top-ports 1000, which
+// misses services moved off their usual port: a test network's firewall answered SSH on 22222 and nothing found it. So every normal
 // or versions scan of a device is followed by an Extra run (-sS -sV and the same four scripts) over ExtraPorts, the union of:
 //
-//   - commonports.List: the 98 ports often exposed to the Internet (exposure's surface scan, D-514); 33 of them are not in nmap's
+//   - commonports.List: the 98 ports often exposed to the Internet (exposure's surface scan); 33 of them are not in nmap's
 //     top 1000 (9443, 10443, 6379, 27017, the MikroTik API…);
 //   - AdminPortList: alternate remote-access and management ports, reviewed one by one below.
 //
-// nmap's top 1000 is not copied here: it comes from nmap-services (NPSL), which the project does not ship or embed (D-4,
+// nmap's top 1000 is not copied here: it comes from nmap-services (NPSL), which the project does not ship or embed (see
 // THIRD_PARTY_NOTICES: "The GPL/NPSL lists of Wireshark and Nmap are not used"); --top-ports reads it from the nmap the box
 // installed. A port in both lists is probed twice (about 80 SYNs more per device). Nessus scans about 4,790 ports by default,
-// Greenbone about 5,000, Qualys' standard list about 2,800 (D-592 has the sources), and all three offer every port as an option;
+// Greenbone about 5,000, Qualys' standard list about 2,800, and all three offer every port as an option;
 // this stays near nmap's 1000, and the weekly AllPorts run of each device that is not fragile finds the rest.
 
 // AdminPort is one port of AdminPorts and why it is there.
@@ -28,7 +28,7 @@ type AdminPort struct {
 	Why    string // what usually listens there, and the source
 }
 
-// AdminPortList is the alternate remote-access and management ports scanned after nmap's top 1000, with commonports (D-592). A
+// AdminPortList is the alternate remote-access and management ports scanned after nmap's top 1000, with commonports. A
 // device's administrator moves SSH, RDP or a web console to one of these to keep it off the default port; an attacker scans them
 // anyway. Sources: IANA's service registry (https://www.iana.org/assignments/service-names-port-numbers), the vendors' own port
 // lists named in each line, and CISA KEV entries for management services that ship on these ports.
@@ -87,10 +87,10 @@ var AdminPortList = []AdminPort{
 	{9444, "HTTPS admin moved off 443"},
 	{9990, "WildFly / JBoss EAP management console (Red Hat documentation)"},
 	{10000, "Webmin (Webmin documentation; also in commonports)"},
-	{10022, "SSH moved off 22 (the N100 walk's Outside view had it open)"},
+	{10022, "SSH moved off 22 (seen open from outside on a test network)"},
 	{10443, "HTTPS admin and SSL-VPN moved off 443 (Fortinet documentation; also in commonports)"},
-	{11080, "HTTP admin moved off 80 (the N100 walk: a deep scan found it, a LAN scan did not)"},
-	{11443, "HTTPS admin moved off 443 (the N100 walk: a deep scan found it, a LAN scan did not)"},
+	{11080, "HTTP admin moved off 80 (seen in testing: a deep scan found it, a LAN scan did not)"},
+	{11443, "HTTPS admin moved off 443 (seen in testing: a deep scan found it, a LAN scan did not)"},
 	{12443, "HTTPS admin moved off 443"},
 	{13389, "RDP moved off 3389 (common alternate)"},
 	{16992, "Intel AMT web console over HTTP (Intel documentation; CISA KEV CVE-2017-5689)"},
@@ -99,7 +99,7 @@ var AdminPortList = []AdminPort{
 	{17990, "HPE iLO remote console (HPE iLO port list)"},
 	{18080, "HTTP admin moved off 80"},
 	{18443, "HTTPS admin moved off 443"},
-	{22222, "SSH moved off 22 (the N100 walk: the firewall's own SSH listened here and no LAN scan found it)"},
+	{22222, "SSH moved off 22 (seen in testing: a firewall's own SSH listened here and no LAN scan found it)"},
 	{33890, "RDP moved off 3389 (common alternate)"},
 	{61616, "Apache ActiveMQ OpenWire broker (ActiveMQ documentation; CISA KEV CVE-2023-46604)"},
 }

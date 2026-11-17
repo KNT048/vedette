@@ -189,7 +189,7 @@ type ListAuditFilteredRow struct {
 // The audit screen and its CSV export (GET /core/audit, /core/audit/export): newest first, keyset on seq
 // (seq < before_seq), every filter optional. The text filter is a case-insensitive substring over the
 // same four columns the screen shows; lower() folds ASCII only. The group is the part of the action before
-// the first dot. people (D-416), when set, leaves out the automatic lines: user "system" or "system:<part>".
+// the first dot. people, when set, leaves out the automatic lines: user "system" or "system:<part>".
 func (q *Queries) ListAuditFiltered(ctx context.Context, arg ListAuditFilteredParams) ([]ListAuditFilteredRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAuditFiltered,
 		arg.BeforeSeq,

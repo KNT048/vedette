@@ -2,11 +2,11 @@ package api
 
 import "time"
 
-// The body of GET /v1/state/net (docs/specs/host-api.md section 5, D-101). It reports what the host can
+// The body of GET /v1/state/net (docs/specs/host-api.md section 5). It reports what the host can
 // read without looking at traffic: interface counters from /sys/class/net, addresses, the default
 // routes from /proc/net/route and /proc/net/ipv6_route with their gateways' MACs from the kernel's
 // neighbour table, the resolvers of resolv.conf and what the host itself wrote to netplan. The number of foreign MACs
-// and the time of the last packet on the SPAN card are not here: the sensor measures them (D-101).
+// and the time of the last packet on the SPAN card are not here: the sensor measures them.
 
 // Interface roles.
 const (
@@ -48,7 +48,7 @@ type NetInterface struct {
 	// Addresses are the IPv4 and IPv6 addresses of the card as CIDR text, "10.0.0.5/24".
 	Addresses []string `json:"addresses"`
 	// Dynamic are the addresses of Addresses that have a lease (a DHCP lease, an IPv6 SLAAC address): the kernel's IFA_F_PERMANENT
-	// flag is unset, what `ip address` prints as "dynamic" (D-405). [] when none; absent from a host older than D-405.
+	// flag is unset, what `ip address` prints as "dynamic". [] when none; absent from an older host.
 	Dynamic  []string    `json:"dynamic"`
 	Counters NetCounters `json:"counters"`
 }
@@ -68,7 +68,7 @@ type NetMgmt struct {
 type NetConfig struct {
 	Mgmt *NetMgmt `json:"mgmt"`
 	SPAN *string  `json:"span"` // name of the SPAN card, or null
-	NTP  []string `json:"ntp"`  // the servers of vedette.sources; empty when the file is absent or holds the default pool.ntp.org line (the distribution's own sources stay either way, D-166)
+	NTP  []string `json:"ntp"`  // the servers of vedette.sources; empty when the file is absent or holds the default pool.ntp.org line (the distribution's own sources stay either way)
 }
 
 // NetRoute is a default route the kernel has: IPv4 from /proc/net/route, IPv6 from /proc/net/ipv6_route.
@@ -76,25 +76,25 @@ type NetRoute struct {
 	Iface string `json:"iface"`
 	// Gateway is the next hop as plain address text, never with a zone: an IPv6 link-local next hop ("fe80::1") is on Iface.
 	Gateway string `json:"gateway"`
-	// MAC is the gateway's link-layer address from the kernel's neighbour table (D-450); absent when the table has no usable entry for it
-	// on Iface (no traffic yet, or a resolution that failed). Absent from a host older than D-450.
+	// MAC is the gateway's link-layer address from the kernel's neighbour table; absent when the table has no usable entry for it
+	// on Iface (no traffic yet, or a resolution that failed). Absent from an older host.
 	MAC string `json:"mac,omitempty"`
 }
 
-// NetPending is a network change that waits for confirmation (D-100). Null when none waits.
+// NetPending is a network change that waits for confirmation. Null when none waits.
 type NetPending struct {
 	RunID    string    `json:"run_id"`
 	RevertAt time.Time `json:"revert_at"`
 	// RebootAt is set when a revert could not be applied: the host has scheduled a reboot at this
-	// time, because the saved configuration on disk is the old one (D-100 (8)). Not set otherwise.
+	// time, because the saved configuration on disk is the old one. Not set otherwise.
 	RebootAt *time.Time `json:"reboot_at,omitempty"`
 }
 
-// NetDecoy is a secondary address the honeypot answers on (D-102): what hp/decoys.json holds.
+// NetDecoy is a secondary address the honeypot answers on: what hp/decoys.json holds.
 type NetDecoy struct {
 	IP  string `json:"ip"`
 	MAC string `json:"mac"`
-	// Ports is the allow-list of the address (D-466); nil (absent) = no allow-list, the address
+	// Ports is the allow-list of the address; nil (absent) = no allow-list, the address
 	// answers every port the honeypot listens on. An older host never sends it.
 	Ports *[]DecoyPort `json:"ports,omitempty"`
 }
@@ -105,12 +105,12 @@ type NetState struct {
 	Config       NetConfig      `json:"config"`
 	DefaultRoute *NetRoute      `json:"default_route"`
 	// DefaultRoutes6 are the IPv6 default routes of every routing table, each next hop of an equal-cost route on its own, lowest metric
-	// first; [] when there is none (D-450; absent from an older host).
+	// first; [] when there is none (absent from an older host).
 	DefaultRoutes6 []NetRoute  `json:"default_routes6"`
 	Pending        *NetPending `json:"pending"`
 	Decoys         []NetDecoy  `json:"decoys"`
 	// Resolvers are the DNS servers the box's resolver uses now, whoever set them (a DHCP lease, netplan, an administrator): the
-	// nameserver lines of /run/systemd/resolve/resolv.conf and /etc/resolv.conf, without loopback stubs (D-450). An older host does not
+	// nameserver lines of /run/systemd/resolve/resolv.conf and /etc/resolv.conf, without loopback stubs. An older host does not
 	// send the field.
 	Resolvers []string `json:"resolvers"`
 }
@@ -167,7 +167,7 @@ type NetApplySPAN struct {
 type NetApplyArgs struct {
 	Mgmt NetApplyMgmt `json:"mgmt"`
 	SPAN NetApplySPAN `json:"span"`
-	// NTP holds up to four IPv4 addresses or names, added to the sources of the distribution's own chrony configuration (D-106, D-166); empty writes the default `pool pool.ntp.org` into vedette.sources.
+	// NTP holds up to four IPv4 addresses or names, added to the sources of the distribution's own chrony configuration; empty writes the default `pool pool.ntp.org` into vedette.sources.
 	NTP []string `json:"ntp"`
 	// ConfirmTimeoutS is the confirm window of a management change, 30 to 600; 0 means 120.
 	ConfirmTimeoutS int `json:"confirm_timeout_s"`

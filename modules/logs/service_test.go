@@ -162,7 +162,7 @@ func TestContract_INV3_SourceValidationFollowsTheMock(t *testing.T) {
 		"ipv4 in ipv6":                       {func(i *Input) { i.SenderIP = "::ffff:10.0.0.1" }, "bad_ip"},
 		"tcp for a udp-only kind":            {func(i *Input) { i.Kind, i.Proto = "sophos", "tcp" }, "bad_proto"},
 		"unknown protocol":                   {func(i *Input) { i.Proto = "sctp" }, "bad_proto"},
-		"tls on a box without a certificate": {func(i *Input) { i.Proto, i.Port = "tls", 6514 }, "tls_unavailable"}, // D-203
+		"tls on a box without a certificate": {func(i *Input) { i.Proto, i.Port = "tls", 6514 }, "tls_unavailable"},
 		"port 0":                             {func(i *Input) { i.Port = 0 }, "bad_port"},
 		"port 65536":                         {func(i *Input) { i.Port = 65536 }, "bad_port"},
 		"another source has the ip":          {func(i *Input) { i.SenderIP = "192.168.10.9" }, "duplicate"},
@@ -489,7 +489,7 @@ func TestDigestCountsTheLast24Hours(t *testing.T) {
 }
 
 // history_days counts whole days from the first line of the oldest source, at most BaselineDays: the page says it is still learning below
-// that (QA walk 2026-11-12: day 0 said "logs look normal").
+// that (day 0 said "logs look normal").
 func TestDigestSaysHowManyDaysOfLogsItHas(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -1264,7 +1264,7 @@ func TestThePurgeRunsEveryPurgeEvery(t *testing.T) {
 	})
 }
 
-// D-201: with the module off the scheduler still runs the job, and a store that was left over the bound (by an earlier process:
+// With the module off the scheduler still runs the job, and a store that was left over the bound (by an earlier process:
 // it is seeded, not ingested through this one) is purged by the pass at the start.
 func TestAnOverBoundVolumeIsPurgedWhileTheModuleIsOff(t *testing.T) {
 	t.Parallel()
@@ -1495,7 +1495,7 @@ type offGate struct{}
 
 func (offGate) Enabled(string) bool { return false }
 
-// L5 (D-160): the purge job is housekeeping: with the module off the scheduler still runs it, and it deletes the lines past
+// L5: the purge job is housekeeping: with the module off the scheduler still runs it, and it deletes the lines past
 // the retention.
 func TestThePurgeJobRunsWhileTheModuleIsOff(t *testing.T) {
 	t.Parallel()
@@ -1520,7 +1520,7 @@ func TestThePurgeJobRunsWhileTheModuleIsOff(t *testing.T) {
 	}
 }
 
-// D-203, D-214: on a box with no TLS configuration (loopback, dev) a source over TLS is refused on create and on edit, with a message that says why and names the way out.
+// On a box with no TLS configuration (loopback, dev) a source over TLS is refused on create and on edit, with a message that says why and names the way out.
 func TestASourceOverTLSIsRefusedOnCreateAndEdit(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -1538,7 +1538,7 @@ func TestASourceOverTLSIsRefusedOnCreateAndEdit(t *testing.T) {
 	}
 }
 
-// D-441: a keyword search walks back from the newest line in steps; when its time is up (or 200 matches are found) it answers with
+// A keyword search walks back from the newest line in steps; when its time is up (or 200 matches are found) it answers with
 // what it found, how far back it looked and a cursor, and the cursor continues where it stopped with no line twice and none missed.
 func TestEventsKeywordSearchContinuesWhereItStopped(t *testing.T) {
 	t.Parallel()
@@ -1659,7 +1659,7 @@ func TestEventsFullPageOnTheLastStepStillHasACursor(t *testing.T) {
 	}
 }
 
-// W1-22: a listed line is read through its syslog header (D-485): no "<38>Nov 13 …" in the message; a line without a header
+// A listed line is read through its syslog header: no "<38>Nov 13 …" in the message; a line without a header
 // is all message.
 func TestEventHeaderIsReadForDisplay(t *testing.T) {
 	t.Parallel()

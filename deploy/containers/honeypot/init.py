@@ -1,11 +1,11 @@
 #!/usr/bin/python3 -I
-"""The honeypot container's process 1 (WP-08e, D-162): sets the container up and keeps the traps alive. It runs as the image's own user,
+"""The honeypot container's process 1 (WP-08e): sets the container up and keeps the traps alive. It runs as the image's own user,
 uid 1000 gid 0, from the first instruction: no root, no capability (the unit adds none), nothing to drop.
 
-1. log/ (a volume the container writes and core reads, D-89): podman's `:U` gives it to this user; the mode is made 0755 so core, which
+1. log/ (a volume the container writes and core reads): podman's `:U` gives it to this user; the mode is made 0755 so core, which
    reads through the "other" bits, can list it.
 2. plant the file tokens of config/honeytokens.json in the SMB share (a tmpfs folder), give the share the NetBIOS name of honeytokens.json
-   (D-466: the name of the first Trap IP with SMB), start Samba (only when smb is enabled in opencanary.conf) and OpenCanary (twistd, the config found through /etc/opencanaryd -> config/).
+   (the name of the first Trap IP with SMB), start Samba (only when smb is enabled in opencanary.conf) and OpenCanary (twistd, the config found through /etc/opencanaryd -> config/).
 3. read smbd's standard output. Samba's audit module is told not to use syslog (`full_audit:syslog = false`), so its audit lines are
    printed on stdout, among Samba's own few log lines. init.py writes smb.conf's include file at start with a fresh random token as the
    first field of the audit prefix: only a line that begins with that token is an audit line, so nothing a client can make Samba print
@@ -141,7 +141,7 @@ def audit_line(line, nonce):
 
 
 def netbios_conf(name):
-    """The smb.conf line that gives the share the NetBIOS name core chose (D-466: the name of the first Trap IP with SMB), or "" to keep
+    """The smb.conf line that gives the share the NetBIOS name core chose (the name of the first Trap IP with SMB), or "" to keep
     the image's default. Pure: the tests drive it. Anything but a plain NetBIOS name (a newline would add a Samba parameter) is refused."""
     if not isinstance(name, str) or not NETBIOS.fullmatch(name) or name.isdigit():
         return ""

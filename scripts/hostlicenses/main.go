@@ -1,14 +1,14 @@
 // Command hostlicenses writes the third-party license file that the vedette-host .deb ships as
-// /usr/share/doc/vedette-host/third-party-licenses (WP-08g, D-155): the Go license for the standard library and runtime that
+// /usr/share/doc/vedette-host/third-party-licenses (WP-08g): the Go license for the standard library and runtime that
 // the static binary contains, then the license files of every module linked into ./cmd/vedette-host (the main module
 // included), found with `go list -deps` in the module cache. A linked module without a license file is an error, so a new
-// dependency cannot ship unlicensed (one recorded exception at one exact version: noLicenseFile, D-454). Run by `make host-deb`; the file is generated into dist/, never committed.
+// dependency cannot ship unlicensed (one recorded exception at one exact version: noLicenseFile). Run by `make host-deb`; the file is generated into dist/, never committed.
 //
 //	go run ./scripts/hostlicenses -goos linux -goarch amd64 -out dist/host-deb/amd64/third-party-licenses
 //
 // The container images use the same program over their own main package (-pkg, -name, -tags): each Containerfile build stage
-// runs it and the image carries the result as /usr/share/doc/vedette/third-party-licenses (D-155 (10)). The scan-base image
-// also runs it inside the nuclei source tree over ./cmd/nuclei (nuclei-third-party-licenses, D-454).
+// runs it and the image carries the result as /usr/share/doc/vedette/third-party-licenses. The scan-base image
+// also runs it inside the nuclei source tree over ./cmd/nuclei (nuclei-third-party-licenses).
 package main
 
 import (
@@ -34,12 +34,12 @@ const defaultPkg = "github.com/knt048/vedette/cmd/vedette-host"
 
 type module struct{ path, version, dir string }
 
-// noLicenseFile is the one exception to "a linked module without a license file is an error" (D-454): a module at ONE exact
+// noLicenseFile is the one exception to "a linked module without a license file is an error": a module at ONE exact
 // version whose author states the license elsewhere, shipped with the standard text of that license, as Debian and Fedora
 // package such modules. A new version of the module fails again until someone re-reads its source and updates this entry.
 var noLicenseFile = map[string]struct{ heading, text string }{
-	// nuclei (scan-base image, D-319) links it. The README at the tag shows the MIT badge, linked to opensource.org/licenses/MIT;
-	// the repository has no LICENSE file (main neither, 2026-11-12) and its issues are disabled (D-454).
+	// nuclei (scan-base image) links it. The README at the tag shows the MIT badge, linked to opensource.org/licenses/MIT;
+	// the repository has no LICENSE file (main neither, 2026-11-12) and its issues are disabled.
 	"github.com/censys/censys-sdk-go@v0.19.1": {
 		heading: "MIT per the README, https://github.com/censys/censys-sdk-go/blob/v0.19.1/README.md; upstream has no LICENSE file",
 		text:    mitCensys,

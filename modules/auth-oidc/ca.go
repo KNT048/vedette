@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 )
 
-// Limits of the identity provider's CA (D-378, INV-12).
+// Limits of the identity provider's CA (INV-12).
 const (
 	maxCAPEM  = 64 << 10
 	maxCACert = 5
@@ -71,7 +71,7 @@ func parseCA(raw string, now time.Time) (string, *apierr.Error) {
 	return out.String(), nil
 }
 
-// caChange is the oidc.update audit detail of a CA change (D-378): "" when unchanged, else what happened with the SHA-256
+// caChange is the oidc.update audit detail of a CA change: "" when unchanged, else what happened with the SHA-256
 // fingerprints of the certificates, so the log says which CA was trusted when.
 func caChange(old, cur string) string {
 	fp := func(text string) string {
@@ -127,7 +127,7 @@ func certsOf(pemText string) []*x509.Certificate {
 	}
 }
 
-// CACerts lists the saved certificates for the API (subject and expiry, D-378).
+// CACerts lists the saved certificates for the API (subject and expiry).
 func (c Config) CACerts() []CACert {
 	var out []CACert
 	for _, x := range certsOf(c.CAPEM) {
@@ -137,7 +137,7 @@ func (c Config) CACerts() []CACert {
 }
 
 // clientFor is the HTTP client for an identity provider with these saved CA certificates: the module's client when there are none;
-// otherwise the same limits (newClient) with RootCAs = the system roots + these certificates, for this client only (D-378). Never
+// otherwise the same limits (newClient) with RootCAs = the system roots + these certificates, for this client only. Never
 // InsecureSkipVerify. From the save on, expiry is the TLS handshake's business.
 func (s *Service) clientFor(caPEM string) *http.Client {
 	if caPEM == "" {

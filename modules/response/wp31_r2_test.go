@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-31 review, slice R2: the execution path (D-179).
+// WP-31 review, slice R2: the execution path.
 
 // L1: when the second approval completes a request, the first approver is read again. A first approver who was disabled since does not count:
 // the second approval stays one approval and the request waits for another person.
@@ -125,7 +125,7 @@ func TestWP31_L5_EmergencyStopCancelsAStepInFlight(t *testing.T) {
 		got, err := e.svc.Approve(e.ctx(), oper, id, nil, "")
 		done <- result{got, err}
 	}()
-	select { // the write itself is in flight, not only the read before it (D-356)
+	select { // the write itself is in flight, not only the read before it
 	case <-e.exec.inRun:
 	case <-time.After(5 * time.Second):
 		t.Fatal("the run step never started")
@@ -148,7 +148,7 @@ func TestWP31_L5_EmergencyStopCancelsAStepInFlight(t *testing.T) {
 	}
 }
 
-// Body credentials: D-174 covers headers; a JSON body key that names a credential may only hold exactly one placeholder (D-179 (7)).
+// Body credentials: headers are covered elsewhere; a JSON body key that names a credential may only hold exactly one placeholder.
 func TestWP31_BodyCredentialKeyWithALiteralValueIsRefused(t *testing.T) {
 	t.Parallel()
 	refused := []string{
@@ -181,7 +181,7 @@ func TestWP31_BodyCredentialKeyWithALiteralValueIsRefused(t *testing.T) {
 	}
 }
 
-// D-179 (8): the never-touch list fails closed. A box address source that cannot say (a host that never answered, an unreadable honeypot record)
+// The never-touch list fails closed. A box address source that cannot say (a host that never answered, an unreadable honeypot record)
 // is a refusal, not a smaller list.
 func TestWP31_L9_AnUnknownBoxAddressSetRefuses(t *testing.T) {
 	t.Parallel()
@@ -206,7 +206,7 @@ func TestWP31_L9_AnUnknownBoxAddressSetRefuses(t *testing.T) {
 	}
 }
 
-// D-179 (8): the MACs of the decoys and of the cards are on the never-touch list (the MAC side), and an unreadable source refuses.
+// The MACs of the decoys and of the cards are on the never-touch list (the MAC side), and an unreadable source refuses.
 func TestWP31_L9_DecoyAndCardMACsAreNeverTouch(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, func(c *response.Config) {
@@ -238,7 +238,7 @@ func TestWP31_L9_CardMACsAreNeverTouch(t *testing.T) {
 	}
 }
 
-// D-179 (3): a change made before the steps were hashed still expires while its catalog entry is unchanged (the steps are re-rendered and
+// A change made before the steps were hashed still expires while its catalog entry is unchanged (the steps are re-rendered and
 // compared, as before); once the entry was edited there is nothing to hold them to and the undo is not sent.
 func TestWP31_L3_AChangeWithoutAHashUndoesWhileTheCatalogIsUnchanged(t *testing.T) {
 	t.Parallel()
@@ -262,7 +262,7 @@ func TestWP31_L3_AChangeWithoutAHashUndoesWhileTheCatalogIsUnchanged(t *testing.
 	}
 }
 
-// D-179 (4): a step whose context ended while the check before ran is not sent. The re-check right before the write refuses it as "not sent"
+// A step whose context ended while the check before ran is not sent. The re-check right before the write refuses it as "not sent"
 // (never "state unknown", and nothing is charged to the hourly limit); the stop flag still comes first.
 func TestWP31_L5_AStepThatEndedBeforeItWasSentIsNotSent(t *testing.T) {
 	t.Parallel()
@@ -284,7 +284,7 @@ func TestWP31_L5_AStepThatEndedBeforeItWasSentIsNotSent(t *testing.T) {
 	}
 }
 
-// D-179 (6): the emergency stop cancels a run in flight but lets an undo already in flight finish (an undo is the safe direction, D-88 (4)).
+// The emergency stop cancels a run in flight but lets an undo already in flight finish (an undo is the safe direction).
 func TestWP31_L5_AnUndoInFlightFinishesWhenTheStopIsPressed(t *testing.T) {
 	t.Parallel()
 	var e *env

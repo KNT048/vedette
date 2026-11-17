@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// D-446 review: on a container-only install (no host) the machine's addresses are the gateway, the -hosts literals, VEDETTE_BIND_IP
+// On a container-only install (no host) the machine's addresses are the gateway, the -hosts literals, VEDETTE_BIND_IP
 // and the host-alias names, so https://<LAN IP>:8443 cannot reach core through the published port.
-func TestD446_MachineSourcesOfAContainerOnlyInstall(t *testing.T) {
+func TestOwnAddress_MachineSourcesOfAContainerOnlyInstall(t *testing.T) {
 	t.Parallel()
 	m := machineSources{
 		gateways: func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("172.18.0.1")} },
@@ -37,7 +37,7 @@ func TestD446_MachineSourcesOfAContainerOnlyInstall(t *testing.T) {
 }
 
 // The alias names resolve in place once, then a stale answer is served while one refresh runs; a name that fails adds nothing.
-func TestD446_HostAliasCache(t *testing.T) {
+func TestOwnAddress_HostAliasCache(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int32
 	var clock atomic.Int64

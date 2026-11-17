@@ -118,14 +118,14 @@ func TestContract_INV2_NothingWithoutScopeAndSwitch(t *testing.T) {
 	}
 }
 
-// INV-3: only inside the window; D-84 (1): even the one gentle scan of a fragile device waits for it.
+// INV-3: only inside the window; even the one gentle scan of a fragile device waits for it.
 func TestContract_INV3_OnlyInsideTheWindow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) {
 		e.base = local(9, 12, 0) // Monday noon, window is 01:00-05:00
 		e.inv.decision["a-printer"] = sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true}
 	})
-	e.sweptBefore() // not a new box: its first pass is behind it (D-501)
+	e.sweptBefore() // not a new box: its first pass is behind it
 	if _, err := e.svc.DiscoverRanges(e.ctx()); !errors.Is(err, sa.ErrOutsideWindow) {
 		t.Fatalf("sweep err = %v, want ErrOutsideWindow", err)
 	}
@@ -248,7 +248,7 @@ func TestContract_INV4_RateAndFlags(t *testing.T) {
 	if len(calls) != 4 {
 		t.Fatalf("%d runs, want 4", len(calls))
 	}
-	// D-592: the normal scan is followed by the extra ports at the same rate; the gentle scan never
+	// The normal scan is followed by the extra ports at the same rate; the gentle scan never
 	if x := calls[2]; !slices.Contains(x, "-p") || x[slices.Index(x, "--max-rate")+1] != "100" || x[len(x)-1] != "192.168.10.20" {
 		t.Errorf("extra run argv = %q", x)
 	}
@@ -269,7 +269,7 @@ func TestContract_INV4_RateAndFlags(t *testing.T) {
 	}
 	for _, c := range calls {
 		for i, a := range c {
-			// FORBID-6 (D-504): the only scripts are the two pinned NTLM ones, after a bare --script; never a category or -A/-sC.
+			// FORBID-6: the only scripts are the two pinned NTLM ones, after a bare --script; never a category or -A/-sC.
 			pinned := a == "--script" && i+1 < len(c) && c[i+1] == "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert"
 			if strings.HasPrefix(a, "--script") && !pinned || a == "-A" || a == "-sC" {
 				t.Errorf("NSE flag %q in %q (FORBID-6)", a, c)
@@ -490,7 +490,7 @@ func TestContract_INV9_ProbeLog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(probes) != len(calls) || len(probes) != 3 { // the sweep, the device's top 1000 and its extra ports (D-592)
+	if len(probes) != len(calls) || len(probes) != 3 { // the sweep, the device's top 1000 and its extra ports
 		t.Fatalf("%d probe rows for %d runs", len(probes), len(calls))
 	}
 	for i, p := range probes {
@@ -570,7 +570,7 @@ func TestEventPayloads(t *testing.T) {
 func TestQueueSurvivesARestart(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) { e.base = local(9, 12, 0) }) // outside the window: it only queues
-	e.sweptBefore()                                                       // not a new box: no first pass (D-501)
+	e.sweptBefore()                                                       // not a new box: no first pass
 	if err := e.svc.Enqueue(e.ctx(), "a-web", "discovered"); err != nil {
 		t.Fatal(err)
 	}
@@ -592,7 +592,7 @@ func TestQueueSurvivesARestart(t *testing.T) {
 	for _, c := range e.nm.calls(t) {
 		kinds = append(kinds, c[1])
 	}
-	if !slices.Equal(kinds, []string{"-sn", "-sS", "-sS"}) { // the day's sweep, then the queued device (top 1000, then the extra ports, D-592)
+	if !slices.Equal(kinds, []string{"-sn", "-sS", "-sS"}) { // the day's sweep, then the queued device (top 1000, then the extra ports)
 		t.Fatalf("runs = %v", kinds)
 	}
 	if n, _ := e.svc.QueueLen(e.ctx()); n != 0 {
@@ -603,7 +603,7 @@ func TestQueueSurvivesARestart(t *testing.T) {
 	}
 }
 
-// D-84 (6): one sweep per window; a new window day sweeps again; a stopped sweep is repeated when the window is open.
+// One sweep per window; a new window day sweeps again; a stopped sweep is repeated when the window is open.
 func TestTickSweepsOncePerWindow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})

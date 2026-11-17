@@ -19,7 +19,7 @@ func absFixture(t *testing.T, name string) string {
 	return p
 }
 
-// D-501: a device known only by its address, picked in Scan now outside the discovery window, is identified at once with the
+// A device known only by its address, picked in Scan now outside the discovery window, is identified at once with the
 // versions scan (-sV, no -O: OS detection is the riskiest probe for an OT stack, review M4) at a quarter of the rate; what nmap
 // found is recorded (software with its CPE) and said in words; the run is in the probe log like any other.
 func TestIdentifyDevice_UnknownDeviceOutsideTheWindow(t *testing.T) {
@@ -36,7 +36,7 @@ func TestIdentifyDevice_UnknownDeviceOutsideTheWindow(t *testing.T) {
 	calls := e.nm.calls(t)
 	if len(calls) != 2 || !slices.Contains(calls[0], "-sV") || slices.Contains(calls[0], "-O") || calls[0][slices.Index(calls[0], "--max-rate")+1] != "25" ||
 		slices.Contains(calls[1], "-O") || calls[1][slices.Index(calls[1], "--max-rate")+1] != "25" {
-		t.Fatalf("nmap argv = %v, want one versions scan (no -O) at 25 packets/s, then its extra ports at the same rate (D-592)", calls)
+		t.Fatalf("nmap argv = %v, want one versions scan (no -O) at 25 packets/s, then its extra ports at the same rate", calls)
 	}
 	if shape := e.str(`SELECT group_concat(shape, ',') FROM sa_probe`); shape != "versions,extra_ports" {
 		t.Fatalf("probe shape %q", shape)
@@ -78,7 +78,7 @@ func TestIdentifyDevice_FragileGetsTheGentleScanOnly(t *testing.T) {
 	}
 }
 
-// D-501 (walk 1 W1-6): a box that has never swept does not wait for the window: the next Tick sweeps and scans the queued devices
+// A box that has never swept does not wait for the window: the next Tick sweeps and scans the queued devices
 // at once, then a later Tick outside the window does nothing more.
 func TestFirstPassOfANewBoxRunsOutsideTheWindow(t *testing.T) {
 	t.Parallel()
@@ -94,7 +94,7 @@ func TestFirstPassOfANewBoxRunsOutsideTheWindow(t *testing.T) {
 		kinds = append(kinds, c[1])
 	}
 	if !slices.Equal(kinds, []string{"-sn", "-sS", "-sS"}) {
-		t.Fatalf("first pass runs = %v, want the sweep then the queued device (top 1000 and the extra ports, D-592)", kinds)
+		t.Fatalf("first pass runs = %v, want the sweep then the queued device (top 1000 and the extra ports)", kinds)
 	}
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
@@ -108,7 +108,7 @@ func TestFirstPassOfANewBoxRunsOutsideTheWindow(t *testing.T) {
 	}
 }
 
-// D-501 (review H3): the first pass runs exactly once. One cut short (here the job's context ends while nmap runs, as at its
+// The first pass runs exactly once. One cut short (here the job's context ends while nmap runs, as at its
 // deadline or on a stop) is not run again: the next Tick outside the window sends nothing; the sweep goes on from its cursor in the
 // next window.
 func TestFirstPassRunsOnceEvenWhenItWasCut(t *testing.T) {

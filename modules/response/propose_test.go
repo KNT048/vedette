@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-10 (D-97, INV-15, INV-16, FORBID-5): AI proposals through the Go port as the service identity ai:response.
+// WP-13b slice 13b-10 (INV-15, INV-16, FORBID-5): AI proposals through the Go port as the service identity ai:response.
 
 // evFake stands in for the logs and core/conn lookups. Ids it does not know are not found.
 type evFake struct {
@@ -480,7 +480,7 @@ func TestPropose_EvidenceIsLookedUpNeverTrusted(t *testing.T) {
 	})
 	t.Run("addresses compare in their canonical spelling", func(t *testing.T) {
 		e, _, ev := propEnv(t, true)
-		ev.add("ioc-v6", "2606:4700::0:A1") // a public IPv6 address (2001:db8::/32 is never published, D-469), upper-case hex and a zero group
+		ev.add("ioc-v6", "2606:4700::0:A1") // a public IPv6 address (2001:db8::/32 is never published), upper-case hex and a zero group
 		b := iocBody("ioc-v6")
 		b.Params = map[string]string{"ip": "2606:4700::a1"}
 		if r := e.mustPropose(b); r.Outcome != "request" {
@@ -506,7 +506,7 @@ func TestPropose_EvidenceIsLookedUpNeverTrusted(t *testing.T) {
 	})
 }
 
-// A read of the AI relates to a device action through that same connection and to nothing else (D-119).
+// A read of the AI relates to a device action through that same connection and to nothing else.
 func TestPropose_ConfigReadsAreEvidenceOnlyOfTheirOwnConnection(t *testing.T) {
 	t.Parallel()
 	t.Run("two reads through the connection of the action pass the second check", func(t *testing.T) {
@@ -554,7 +554,7 @@ func TestPropose_ConfigReadsAreEvidenceOnlyOfTheirOwnConnection(t *testing.T) {
 	})
 }
 
-// A finding gives the trigger and the device; the trigger has to be proven by a kind of evidence that can prove it (D-119).
+// A finding gives the trigger and the device; the trigger has to be proven by a kind of evidence that can prove it.
 func TestPropose_TriggerMustBeProvenByEvidence(t *testing.T) {
 	t.Parallel()
 	e, _, _ := propEnv(t, true)
@@ -789,7 +789,7 @@ func TestProposeBodyHasNoCommandField(t *testing.T) {
 		return out
 	}
 	if got, want := names(response.ProposeBody{}), []string{"Trigger:string", "ActionID:string", "Params:map[string]string", "Confidence:float64", "Evidence:[]response.ProposedEvidence", "Why:string"}; !slices.Equal(got, want) {
-		t.Fatalf("ProposeBody fields changed: %v. A new field needs a decision (D-97, INV-15) and a review of what it can carry into a command", got)
+		t.Fatalf("ProposeBody fields changed: %v. A new field needs a decision (INV-15) and a review of what it can carry into a command", got)
 	}
 	if got, want := names(response.ProposedEvidence{}), []string{"Kind:string", "ID:string"}; !slices.Equal(got, want) {
 		t.Fatalf("ProposedEvidence fields changed: %v", got)

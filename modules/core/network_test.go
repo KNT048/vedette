@@ -27,7 +27,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// The Box network routes (S-CORE-8, D-56, D-99, D-100, D-106) through the real stack (server.New, sessions,
+// The Box network routes (S-CORE-8) through the real stack (server.New, sessions,
 // SQLite) and a real host/client talking to an in-process vedette-host that runs the real net.* commands of
 // host/ops on the fake machine of opstest: a temporary root, fake netplan and chronyc, a fake ARP prober and a
 // fake network whose addresses follow whichever netplan file is the effective one. Timers are held back and fired
@@ -112,8 +112,8 @@ func (p *nwProber) probes() int           { p.mu.Lock(); defer p.mu.Unlock(); re
 type nwBox struct {
 	m        *opstest.Machine
 	spanAddr atomic.Bool // eth1 holds an address
-	leased   atomic.Bool // eth0's 192.168.1.50 is a DHCP lease (D-405)
-	wifi     atomic.Bool // wlan0 is a card with a leased 192.168.1.40 (walk 4)
+	leased   atomic.Bool // eth0's 192.168.1.50 is a DHCP lease
+	wifi     atomic.Bool // wlan0 is a card with a leased 192.168.1.40
 }
 
 var nwAddrRE = regexp.MustCompile(`\d+\.\d+\.\d+\.\d+/\d+`)
@@ -446,7 +446,7 @@ func TestNetworkPageShowsTheCardsOfTheHostAndNotTheVirtualLinks(t *testing.T) {
 	}
 }
 
-// D-405, walk 4: a box the host has not configured whose management address is a DHCP lease shows "dhcp" with the DNS its
+// A box the host has not configured whose management address is a DHCP lease shows "dhcp" with the DNS its
 // resolver uses, not "static" with no DNS (one Save would have made it static); an installer's fixed address stays "static"
 // and its form starts with those DNS servers. Every card with an address shows it (a Wi-Fi card's lease).
 func TestNetworkPageReadsDHCPAndTheDNSInUseFromTheHost(t *testing.T) {
@@ -1256,7 +1256,7 @@ func TestNetworkSettleWaitsForTheRunToEnd(t *testing.T) {
 }
 
 // M1: the passive sensor reads its cards through Cards. No socket file: ok false (cmd/vedette's HostCards makes it an
-// error, D-385); a host that does not answer: the last good list, or ok false before there is one; never an error.
+// error); a host that does not answer: the last good list, or ok false before there is one; never an error.
 func TestNetworkCardsSurviveAMissingOrFailingHost(t *testing.T) {
 	t.Parallel()
 	t.Run("socket file absent", func(t *testing.T) {
@@ -1494,7 +1494,7 @@ func TestNetworkDemotedAdminIsRefusedBeforeTheHostIsCalled(t *testing.T) {
 	}
 }
 
-// D-405: the network first-run setup offers is the management card's (host bits cleared); a second ask within the read window
+// The network first-run setup offers is the management card's (host bits cleared); a second ask within the read window
 // does not read the host again, whatever the first answer was; no host → none.
 func TestNetworkManagementLANForSetup(t *testing.T) {
 	t.Parallel()
@@ -1513,13 +1513,13 @@ func TestNetworkManagementLANForSetup(t *testing.T) {
 	}
 }
 
-// ---- the Box address (D-465) ----
+// ---- the Box address ----
 
-// TestNetworkBoxAddress pins D-465: the Box address defaults to the management IPv4 the host reports, an administrator may set a host
+// TestNetworkBoxAddress: the Box address defaults to the management IPv4 the host reports, an administrator may set a host
 // name or an IPv4 address (normal form: lower case, no trailing dot), anything that is not one (a URL, a port, a path, a space, IPv6,
 // loopback, localhost, an all-number name) is 400 bad_box_address with nothing saved or audited (a body without address: the generic 400
 // invalid of the schema), a save is audited and tells cmd/vedette (AddressesChanged), and an empty address goes back to the default.
-// Review M1: the saved address a change replaces stays in previous (the box keeps answering to it) until "forget", which is audited;
+// the saved address a change replaces stays in previous (the box keeps answering to it) until "forget", which is audited;
 // saving a previous address again takes it out of the list; previous survives a restart of core (it is the setting).
 func TestNetworkBoxAddress(t *testing.T) {
 	t.Parallel()

@@ -2,7 +2,7 @@ package worker_test
 
 import "testing"
 
-// D-528: in every job, a LAN one too, a template file that writes, uploads or goes to another host is invalid_job, even when the
+// In every job, a LAN one too, a template file that writes, uploads or goes to another host is invalid_job, even when the
 // image's index lists it with its hash; nuclei never starts.
 func TestNucleiRefusesATemplateThatChangesTheTarget(t *testing.T) {
 	t.Parallel()

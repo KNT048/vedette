@@ -37,9 +37,9 @@ const (
 	logExportChunkDeadline = 60 * time.Second // a client that takes longer than this for one chunk is cut off
 )
 
-// CoreGetCoreLogsExport implements GET /core/logs/export (admin, S-CORE-6, D-48): the chosen log categories
+// CoreGetCoreLogsExport implements GET /core/logs/export (admin, S-CORE-6): the chosen log categories
 // as one JSON or CSV file. Each category comes from the source its module registered (core/logexport); one
-// without a source is empty and listed as missing. The download is itself a row of core_audit (D-72).
+// without a source is empty and listed as missing. The download is itself a row of core_audit.
 func (h *APIHandlers) CoreGetCoreLogsExport(ctx context.Context, params oas.CoreGetCoreLogsExportParams) (oas.CoreGetCoreLogsExportOK, error) {
 	none := oas.CoreGetCoreLogsExportOK{}
 	c, err := h.caller(ctx)
@@ -183,7 +183,7 @@ func (h *APIHandlers) startLogExport() (retry int, ok bool) {
 }
 
 // logsRefused records an export that was asked for and refused (busy, rate limited, over the cap), so a refusal
-// leaves a trace like a download does (D-72). It re-checks the caller as every admin write does.
+// leaves a trace like a download does. It re-checks the caller as every admin write does.
 func (h *APIHandlers) logsRefused(ctx context.Context, c caller, ids []string, format, reason string) error {
 	return h.db.Write(ctx, func(tx *sql.Tx) error {
 		if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {

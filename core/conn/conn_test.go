@@ -133,7 +133,7 @@ func TestFingerprintVector(t *testing.T) {
 	}
 }
 
-// D-93 (4): editing a secret moves updated_at; the name, the status, the last test and the connection's own switch do not.
+// editing a secret moves updated_at; the name, the status, the last test and the connection's own switch do not.
 func TestUpdatedAtMovesOnSecurityFieldsOnly(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -625,7 +625,7 @@ func TestNotReadyAndWriteTools(t *testing.T) {
 	}
 }
 
-// D-94: the address policy, on the host as typed and as normalised. The 17 URL forms and 8 SSH forms of the mock.
+// The address policy, on the host as typed and as normalised. The 17 URL forms and 8 SSH forms of the mock.
 func TestTargetPolicy(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

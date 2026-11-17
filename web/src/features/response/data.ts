@@ -1,5 +1,5 @@
-// Static catalogs of the response module (D-51): the trigger catalog and the shape of catalog actions and templates. Used by the mock server;
-// the UI reads all of it through the API. The action and rule template libraries are DATA (D-58): see ./templates/.
+// Static catalogs of the response module: the trigger catalog and the shape of catalog actions and templates. Used by the mock server;
+// the UI reads all of it through the API. The action and rule template libraries are DATA: see ./templates/.
 import type { Pack, Risk, RuleInput, Trigger, TriggerField } from './types'
 import type { Tpl } from './logic'
 
@@ -8,9 +8,9 @@ export const NONE: Tpl = T('')
 
 // ---- Triggers (WHEN) ----
 const F = (key: string, label: string, type: TriggerField['type'], example: string, choices: string[] = []): TriggerField => ({ key, label, type, example, choices, min: null, max: null })
-/** A number or port field with its range (D-390): a condition value outside it is refused when the rule is saved. */
+/** A number or port field with its range: a condition value outside it is refused when the rule is saved. */
 const N = (key: string, label: string, type: 'number' | 'port', example: string, min: number, max: number): TriggerField => ({ ...F(key, label, type, example), min, max })
-/** The kinds of evidence that prove a trigger to the AI (D-119). A trigger that is not here cannot be used by the AI: no evidence kind can show it happened. */
+/** The kinds of evidence that prove a trigger to the AI. A trigger that is not here cannot be used by the AI: no evidence kind can show it happened. */
 export const AI_PROOF: Partial<Record<Trigger, ('finding' | 'ioc_hit' | 'config_read')[]>> = { finding: ['finding'], ioc_connection: ['ioc_hit'] }
 export const KINDS = ['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown']
 export const TRIGGERS: { id: Trigger; name: string; description: string; fields: TriggerField[] }[] = [

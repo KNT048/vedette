@@ -12,7 +12,7 @@ const warns = (s: UpdatesState | undefined) => !!s?.running_revoked && WARNS.has
 const reasonOf = (r: string) => r.trim().replace(/\.$/, '')
 
 /**
- * S-CORE-2 criterion D-386 (1a): the running release is withdrawn with a warning, on every page for every role. A failed read shows nothing.
+ * S-CORE-2: the running release is withdrawn with a warning, on every page for every role. A failed read shows nothing.
  * Rendered outside the page's keyed <main> so it is not mounted (and announced) again on every navigation.
  */
 export function RevokedBanner() {
@@ -30,7 +30,7 @@ export function RevokedBanner() {
 }
 
 /**
- * S-CORE-2 criterion D-407: the running Vedette version under the account menu of every page (as Grafana and Home Assistant
+ * S-CORE-2: the running Vedette version under the account menu of every page (as Grafana and Home Assistant
  * show theirs), from the same read as the banner; links to Settings → Updates. Nothing while it loads or fails.
  */
 export function RunningVersion({ onNavigate }: { onNavigate?: () => void }) {
@@ -41,7 +41,7 @@ export function RunningVersion({ onNavigate }: { onNavigate?: () => void }) {
   return <Link to="/settings/updates" onClick={onNavigate} className="truncate px-2.5 text-caption text-muted underline-offset-4 hover:text-ink hover:underline">{t('updates.footerVersion', { version })}</Link>
 }
 
-/** D-386 (1b), (2): on the Updates page only, a withdrawn release with block_install and stale update information. `bundle`: the install can import an offline bundle (appliance, and only while BUNDLE_IN_UI, D-408). */
+/** On the Updates page only, a withdrawn release with block_install and stale update information. `bundle`: the install can import an offline bundle (appliance, and only while BUNDLE_IN_UI). */
 export function UpdateNotices({ s, bundle = BUNDLE_IN_UI }: { s: UpdatesState; bundle?: boolean }) {
   const { t } = useTranslation('core')
   const quiet = s.running_revoked && !warns(s) ? s.running_revoked : null

@@ -12,7 +12,7 @@ import (
 
 // The checks of the Box network inputs (S-CORE-8). The mock (web/src/features/core/networkMock.ts and
 // networkRules.ts) is the contract: the codes and sentences below are its, word for word. vedette-host checks
-// everything again before it touches the system (D-55); these exist so a person gets the sentence of the form
+// everything again before it touches the system; these exist so a person gets the sentence of the form
 // and not a refusal of the host.
 
 // Error codes of the Box network screen. The host's own refusals and run endings come through mapNetCode.
@@ -150,7 +150,7 @@ type staticSettings struct {
 func (s staticSettings) CIDR() string { return netip.PrefixFrom(s.Addr, s.Prefix).String() }
 
 // checkStatic is staticProblem of networkRules.ts: the sentences of the form for a static configuration. The
-// gateway outside the range is its own code (D-100).
+// gateway outside the range is its own code.
 func checkStatic(address string, prefix *int, gateway string, dns []string) (staticSettings, *apierr.Error) {
 	var out staticSettings
 	a, ok := bareIPv4(address)
@@ -237,7 +237,7 @@ func checkNTP(servers []string) *apierr.Error {
 // msgBadBoxAddress is boxAddressProblem's sentence in networkRules.ts.
 const msgBadBoxAddress = "Enter a host name like vedette.office.lan or an IPv4 address like 192.168.1.10, without https:// and without a port."
 
-// checkBoxAddress is boxAddressProblem of networkRules.ts (D-465): the Box address in its normal form (trimmed, lower case, no trailing
+// checkBoxAddress is boxAddressProblem of networkRules.ts: the Box address in its normal form (trimmed, lower case, no trailing
 // dot), "" for "use the default". It is a host name (hostName: the NTP rule) or a unicast IPv4 address (unicast4); a URL, a port, a
 // path, a space or an IPv6 address is refused, so what is saved can go into a link, a certificate and an install command as is.
 func checkBoxAddress(s string) (string, *apierr.Error) {

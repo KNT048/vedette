@@ -1,6 +1,6 @@
 package honeypot_test
 
-// The log folder belongs to the honeypot container, which faces attackers and may be compromised (D-89): whatever it puts at
+// The log folder belongs to the honeypot container, which faces attackers and may be compromised: whatever it puts at
 // the log name must never block, redirect or overload core.
 
 import (

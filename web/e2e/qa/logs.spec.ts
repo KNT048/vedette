@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot, turnOnModules } from '../helpers'
 
-// QA như người dùng thật cho module logs (S-LOG-1..3). Giao diện chỉ có tiếng Anh (D-28). Mỗi test tự dựng dữ liệu, không phụ thuộc thứ tự.
+// QA như người dùng thật cho module logs (S-LOG-1..3). Giao diện chỉ có tiếng Anh. Mỗi test tự dựng dữ liệu, không phụ thuộc thứ tự.
 // Máy dev dùng chung với agent khác (HMR có thể tải lại trang giữa chừng): cho thử lại một lần.
 test.describe.configure({ retries: 1 })
 const VI = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i
@@ -23,7 +23,7 @@ async function resetStorage(page: Page) {
 }
 async function startWithSample(page: Page) {
   await resetStorage(page)
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Use sample data' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
@@ -32,9 +32,9 @@ async function startWithSample(page: Page) {
 /** Cài sạch đi hết các bước, chọn gói "Mid-size business" (có logs), bỏ qua kênh. */
 async function cleanInstall(page: Page, lan = '192.168.10.0/24') {
   await resetStorage(page)
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // D-75: the code the mock accepts
+  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // The code the mock accepts
   await page.getByLabel('Organization name', { exact: true }).fill('Test Company')
   await page.getByLabel('Administrator name', { exact: true }).fill('Test Admin')
   await page.getByLabel('Sign-in email', { exact: true }).fill('admin@test-company.example')
@@ -47,7 +47,7 @@ async function cleanInstall(page: Page, lan = '192.168.10.0/24') {
   await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
-  await turnOnModules(page, ['Logs']) // D-624: a bundle turns on v1 modules only
+  await turnOnModules(page, ['Logs']) // A bundle turns on v1 modules only
 }
 /** Đổi phiên mock sang tài khoản khác (u-view = chỉ xem). */
 async function asUser(page: Page, userId: string) {

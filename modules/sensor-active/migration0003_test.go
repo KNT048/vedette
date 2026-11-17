@@ -13,7 +13,7 @@ import (
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// D-511 (migration 0003): the rebuild of sa_probe for the gentle_titles shape keeps the AUTOINCREMENT counter, so the id of a pruned
+// migration 0003: the rebuild of sa_probe for the gentle_titles shape keeps the AUTOINCREMENT counter, so the id of a pruned
 // probe row is never handed out again (an export of the probe log is keyed by it), and the table takes the new shape.
 func TestMigration0003KeepsTheProbeCounter(t *testing.T) {
 	t.Parallel()

@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// INV-12 (D-229): the external-surface scan logs its probes in the probe log before they go out and completes them after; the
+// INV-12: the external-surface scan logs its probes in the probe log before they go out and completes them after; the
 // rows read like any other probe (GET /scans/probes, the CSV, the 90-day retention).
 func TestExternalProbesAreInTheProbeLog(t *testing.T) {
 	t.Parallel()
@@ -33,7 +33,7 @@ func TestExternalProbesAreInTheProbeLog(t *testing.T) {
 	}
 }
 
-// D-520: a template probe of exposure's safe checks is completed with its outcome (matched, not_matched); any other result is not
+// A template probe of exposure's safe checks is completed with its outcome (matched, not_matched); any other result is not
 // written (the row keeps the meaning of Answered).
 func TestExternalTemplateProbeResult(t *testing.T) {
 	t.Parallel()

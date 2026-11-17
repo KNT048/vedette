@@ -13,17 +13,17 @@ import { InfoLine } from './InfoLine'
 import { useGreenbone, useSetGreenbone } from './api'
 import type { Greenbone, GreenboneResult, GreenboneRun, Snapshot } from './types'
 
-/** D-569: under 8 GB (decimal) the first feed load uses swap, so the box then needs 2 GB of swap; it passes from 6 GB. */
+/** Under 8 GB (decimal) the first feed load uses swap, so the box then needs 2 GB of swap; it passes from 6 GB. */
 const SWAP_BELOW = 8e9
 
 const STATE_TONE: Record<Greenbone['state'], Tone> = { unavailable: 'off', off: 'off', starting: 'accent', loading: 'accent', ready: 'ok', error: 'danger' }
-/** Decimal GB with one decimal, as the box measures it (8 GB = 8e9 bytes, D-563). */
-/** Greenbone's own classes: Low is 0.1 to 3.9 (D-564 G3: a hardening note). */
+/** Decimal GB with one decimal, as the box measures it (8 GB = 8e9 bytes). */
+/** Greenbone's own classes: Low is 0.1 to 3.9 (a hardening note). */
 const LOW_BELOW = 4
 const gb = (n: number | null) => (n === null ? null : `${(Math.floor(n / 1e8) / 10).toFixed(1)} GB`) // rounded down, as the box says it
 
 /**
- * S-EXP-2 (INV-25, D-563): the optional deep scan with Greenbone (OpenVAS), off by default, admin only. The box measures its memory and
+ * S-EXP-2 (INV-25): the optional deep scan with Greenbone (OpenVAS), off by default, admin only. The box measures its memory and
  * free disk first and refuses with the numbers; the first start loads Greenbone's feed for about 2 hours, shown as a phase.
  */
 export function GreenboneSetting({ embedded = false }: { embedded?: boolean }) {
@@ -46,7 +46,7 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
   const set = useSetGreenbone()
   const locked = !can ? t('common:needRole', { role: t('common:role.admin') }) : undefined
   const on = g.state !== 'off' && g.state !== 'unavailable'
-  // D-564: held back after it was turned on, its containers may still run: Turn off stays offered (review r1 M1)
+  // held back after it was turned on, its containers may still run: Turn off stays offered
   const heldOn = g.state === 'unavailable' && g.enabled
   const change = (enabled: boolean) => set.mutate(enabled, {
     onSuccess: () => toast.success(enabled ? t('greenbone.toastOn') : t('greenbone.toastOff')),
@@ -73,10 +73,10 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
             { label: t('greenbone.memory'), value: gb(p.memory_bytes) ?? t('common:unknown') },
             { label: t('greenbone.disk'), value: gb(p.disk_free_bytes) ?? t('common:unknown') },
             // T10: the date of the tests OpenVAS itself reports (get_feeds), there from the first load at Enable on.
-            // N45-4: a ready scanner whose feed was not read yet has its feed all the same (never "not yet"); before the first read
-            // after a start the line is left out (review L2).
+            // A ready scanner whose feed was not read yet has its feed all the same (never "not yet"); before the first read
+            // after a start the line is left out.
             ...(on && (g.feed?.nvt_version || g.state === 'ready') ? [{ label: t('greenbone.feedTests'), value: <FeedTests g={g} /> }] : []),
-            // D-564 G6: the weekly feed update, its last outcome (only once one ran) and when the next one is due
+            // The weekly feed update, its last outcome (only once one ran) and when the next one is due
             ...(f.last_at ? [{ label: t('greenbone.feedLast'), value: `${dateTimeText(f.last_at)}. ${f.note ?? ''}` }] : []),
             ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
           ]} />
@@ -90,7 +90,7 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
               <Button variant="primary" onClick={() => change(true)} disabled={!can || !p.ok} busy={set.isPending} busyLabel={t('common:busy.turningOn')} title={locked ?? (p.ok ? undefined : p.reason ?? undefined)}>{t('greenbone.enable')}</Button>
             )}
             {g.changed_by && g.changed_at ? <span className="text-caption text-muted">{t(on ? 'greenbone.changedOn' : 'greenbone.changedOff', { by: g.changed_by, time: dateTimeText(g.changed_at) })}</span> : null}
-            {/* kien G1: Turn off stops the OpenVAS containers and waits for them (up to 5 minutes); Enable only starts them in the background */}
+            {/* Turn off stops the OpenVAS containers and waits for them (up to 5 minutes); Enable only starts them in the background */}
             <BusyNote busy={set.isPending && set.variables === false} className="basis-full">{t('greenbone.offWaiting')}</BusyNote>
           </div>}
           {locked && !embedded ? <p className="text-meta text-muted">{locked}</p> : null}
@@ -125,14 +125,14 @@ function runOf(s: Snapshot): GreenboneRun {
   return { state: s.checks.some((c) => c.kind === 'greenbone') ? 'done' : 'not_run', started_at: null, addresses: [] }
 }
 
-/** N49-3 (D-595): the heading of a state that has no table to show. */
+/** The heading of a state that has no table to show. */
 const EMPTY_TITLE: Record<GreenboneRun['state'], string> = {
   running: 'greenbone.results.runningTitle', done: 'greenbone.results.noneTitle', partial: 'greenbone.results.partialNoneTitle',
   not_run: 'greenbone.results.notRunTitle', failed: 'greenbone.results.failedTitle', stopped: 'greenbone.results.stoppedTitle',
   ended: 'greenbone.results.endedTitle',
 }
 
-/** D-595 review M1, M3: the line above the table when its rows are not those of a finished scan. A domain's state is that of one of
+/** The line above the table when its rows are not those of a finished scan. A domain's state is that of one of
  *  its addresses, so its line speaks of the addresses (review round 2 N2: another address may have finished with full rows). */
 const ROWS_LINE: Partial<Record<GreenboneRun['state'], string>> = {
   partial: 'greenbone.results.partialLine', ended: 'greenbone.results.endedLine',
@@ -142,11 +142,11 @@ const rowsLine = (run: GreenboneRun) => (run.addresses ?? []).length > 0
   : ROWS_LINE[run.state]
 
 /**
- * S-EXP-2 (INV-25): what Greenbone reported on this IP. Apart from the exploited CVEs, and never "nothing found = not affected". D-564 G3:
+ * S-EXP-2 (INV-25): what Greenbone reported on this IP. Apart from the exploited CVEs, and never "nothing found = not affected".
  * High and Medium results are its findings; Low results are hardening notes in their own group, not alerts and not counted anywhere.
- * N49-3 (D-595): the heading follows the step's one state (greenbone_run): scanning, finished, stopped at the 90-minute cap with what it
+ * The heading follows the step's one state (greenbone_run): scanning, finished, stopped at the 90-minute cap with what it
  * had found by then, not run, failed, stopped, ended by OpenVAS or the domain fence. The rows it stored are shown whatever the state, with
- * a line when they are not those of a finished scan (review M1). N49-2: its start is shown in the viewer's time zone, like every other
+ * a line when they are not those of a finished scan. Its start is shown in the viewer's time zone, like every other
  * time of the page. Every OpenVAS line is also in the "Not checked" list below.
  */
 export function GreenboneSection({ s }: { s: Snapshot }) {
@@ -155,11 +155,11 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
   const run = runOf(s)
   const findings = rows.filter((r) => r.severity >= LOW_BELOW)
   const notes = rows.filter((r) => r.severity < LOW_BELOW)
-  // D-595 review L2: a domain's lines carry the address in front; the body is the line of an address in the run's state
+  // A domain's lines carry the address in front; the body is the line of an address in the run's state
   const lines = s.not_checked.filter((n) => n.kind === 'greenbone')
   const addr = (run.addresses ?? []).find((a) => a.state === run.state)
   const why = (addr ? lines.find((n) => n.text.startsWith(`${addr.ip} `) || n.text.startsWith(`${addr.ip}:`)) : undefined) ?? lines[0]
-  // D-595 review M1: rows OpenVAS stored are shown whatever the state (a domain stopped on its second address keeps the first's)
+  // rows OpenVAS stored are shown whatever the state (a domain stopped on its second address keeps the first's)
   const shown = run.state !== 'running' && findings.length > 0
   // rows were read: the table, or "found none"; review round 2 N3: stored Low rows (hardening notes) show in any state too
   const read = rows.length > 0 || run.state === 'done' || run.state === 'partial'

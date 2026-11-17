@@ -5,7 +5,7 @@ import { renderApp } from '@/test/render'
 import { modulesStore, sessionStore } from '@/mocks/stores'
 import { linkUrl } from '@/features/response/state'
 
-// D-465: Settings → Box network → Box address. The default is the management address; every link the box makes carries the
+// Settings → Box network → Box address. The default is the management address; every link the box makes carries the
 // address in use (approval links, the block list URL, agent install commands); the fixed name "vedette" never appears. Review M1: the
 // address a change replaces keeps answering until an administrator stops it. Review M2: the agent setup says which address it uses.
 vi.setConfig({ testTimeout: 30_000 })
@@ -18,7 +18,7 @@ async function call(method: string, path: string, body?: unknown) {
 const links = async () => [(await call('GET', '/response/blocklist')).json!.url as string, (await call('GET', '/inventory/agents')).json!.server_url as string, linkUrl('tok123')]
 const section = () => document.getElementById('box-address')!
 
-describe('Box address: the API (D-465)', () => {
+describe('Box address: the API', () => {
   it('defaults to the management address, and every link uses it', async () => {
     asAdmin()
     const d = (await call('GET', '/core/network')).json!
@@ -63,7 +63,7 @@ describe('Box address: the API (D-465)', () => {
   })
 })
 
-describe('Box address: the form (D-465)', () => {
+describe('Box address: the form', () => {
   it('shows the default, refuses a URL under the field, saves, and says how links start', async () => {
     asAdmin()
     const u = userEvent.setup()

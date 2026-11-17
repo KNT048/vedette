@@ -11,8 +11,8 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// D-629 (kien G13): a failing CISA list is never silent. The admins get one alert (critical) when both copies of the list failed at two
-// scheduled checks in a row at least one interval apart (D-91 as amended: cisa.gov and CISA's GitHub copy are both asked every check;
+// A failing CISA list is never silent. The admins get one alert (critical) when both copies of the list failed at two
+// scheduled checks in a row at least one interval apart (cisa.gov and CISA's GitHub copy are both asked every check;
 // one failed check, a blip of the box's own network, stays quiet; a person's "Fetch now" does not count), or when the list has not been
 // refreshed for six of its checks (six hours at the hourly default; a list at an admin's own address has only this rule), whichever
 // comes first; and one "up to date again" when a pull works after that. One copy failing alone is a note on the feed, never an alert.
@@ -22,11 +22,11 @@ import (
 // kevFeedID is the CISA list.
 const kevFeedID = "cisa-kev"
 
-// KEVStaleChecks is how many checks of the CISA list may pass without a good pull before the admins are told (D-629).
+// KEVStaleChecks is how many checks of the CISA list may pass without a good pull before the admins are told.
 const KEVStaleChecks = 6
 
 // kevBothFailedChecks is how many scheduled checks in a row both copies of the CISA list must fail, at least one interval apart, before
-// the admins are told (D-629).
+// the admins are told.
 const kevBothFailedChecks = 2
 
 // ErrAlertOff is what Deps.Alert answers while nothing can be sent (the notify module is off): the watch tries again at its next run,

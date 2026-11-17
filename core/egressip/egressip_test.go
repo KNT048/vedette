@@ -368,7 +368,7 @@ func FuzzParseAnswer(f *testing.F) {
 	})
 }
 
-// IsPublicIPv4 refuses every address that is not on the Internet (exposure INV-3, nmapargv's external shape, D-514).
+// IsPublicIPv4 refuses every address that is not on the Internet (exposure INV-3, nmapargv's external shape).
 func TestIsPublicIPv4(t *testing.T) {
 	t.Parallel()
 	for _, s := range []string{"8.8.8.8", "1.1.1.1", "100.128.0.1", "::ffff:8.8.8.8"} {
@@ -384,8 +384,8 @@ func TestIsPublicIPv4(t *testing.T) {
 	}
 }
 
-// The sensor binary links this package (the worker's own-IP fence, D-514): standard library only, plus core/localnet (itself
-// net/netip and slices only, its own TestIsALeaf), which holds the public-address rule (D-520).
+// The sensor binary links this package (the worker's own-IP fence): standard library only, plus core/localnet (itself
+// net/netip and slices only, its own TestIsALeaf), which holds the public-address rule.
 func TestIsALeaf(t *testing.T) {
 	t.Parallel()
 	files, err := filepath.Glob("*.go")

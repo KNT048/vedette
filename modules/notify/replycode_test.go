@@ -172,7 +172,7 @@ func TestContract_PRE8_ZaloReplyCodesPerApprover(t *testing.T) {
 	}
 }
 
-// No code is made for a high-risk or in-app-only request, one without chat buttons (the change does not fit one message, D-175) or
+// No code is made for a high-risk or in-app-only request, one without chat buttons (the change does not fit one message) or
 // without a recorder: the configured recipient gets the "open Vedette" message, as before.
 func TestContract_PRE8_ZaloNoCodesWhenNotAllowed(t *testing.T) {
 	cases := map[string]struct {
@@ -242,7 +242,7 @@ func TestZaloReplyCodeSendFailureIsRecorded(t *testing.T) {
 	}
 }
 
-// D-242: the Zalo approver is the user ID (a reply carries it), never a phone number; one address is one approver (UNIQUE).
+// The Zalo approver is the user ID (a reply carries it), never a phone number; one address is one approver (UNIQUE).
 func TestContract_INV7_ZaloApproverIsAUserIDAndUnique(t *testing.T) {
 	e := newZaloEnv(t)
 	in := func(a ...notify.Approver) notify.ChannelInput {
@@ -351,7 +351,7 @@ func TestZaloApprovalResendWithAnUnreadableDirectoryIsATransientError(t *testing
 	}
 }
 
-// An approver who still qualifies gets the copy again (the test above's counterpart), also on an address the user linked (D-191).
+// An approver who still qualifies gets the copy again (the test above's counterpart), also on an address the user linked.
 func TestZaloApprovalResendStillWorksForAQualifyingApprover(t *testing.T) {
 	links := &fakeLinks{linked: true}
 	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks = links })

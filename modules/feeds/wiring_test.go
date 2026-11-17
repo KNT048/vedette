@@ -60,7 +60,7 @@ func TestIHaveItSettlesTheInventoryTransaction(t *testing.T) {
 	}
 }
 
-// D-78: a custom feed's rows do not make the first pull of the CISA list a normal one.
+// A custom feed's rows do not make the first pull of the CISA list a normal one.
 func TestBaselineIsAboutTheCISAListOnly(t *testing.T) {
 	t.Parallel()
 	e, o := pullEnv(t)

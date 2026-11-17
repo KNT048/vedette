@@ -1,6 +1,6 @@
 package main
 
-// The fake internet of the CVE news spec in web/e2e-real (S-AI-3, D-426): NVD, the GitHub search, one vendor page and the six blogs answered by
+// The fake internet of the CVE news spec in web/e2e-real (S-AI-3): NVD, the GitHub search, one vendor page and the six blogs answered by
 // an HTTPS server on loopback of this test binary. The fetcher of the box (modules/ai/news_fetch.go) keeps every check (host list, port 443, a
 // public resolved address, sizes); only the name lookup and the final connect are replaced, so a run sends nothing out. Only TestE2EBox sets
 // testNewsNetwork, so CI and the release binary use the real network.

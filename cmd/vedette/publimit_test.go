@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// D-320: the per-address limit is on only where core sees each client's own address, an appliance with vedette-host's socket; a
+// The per-address limit is on only where core sees each client's own address, an appliance with vedette-host's socket; a
 // container-only install (no socket path, or no socket there) may see every client as the port proxy's address.
 func TestPublicLimitOnlyOnAnAppliance(t *testing.T) {
 	t.Parallel()

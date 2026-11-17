@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-416: Settings → Audit log names a device by its host name and a finding as "<CVE> on <device>"; ids the box does not have are left out.
+// Settings → Audit log names a device by its host name and a finding as "<CVE> on <device>"; ids the box does not have are left out.
 func TestAuditNamerNamesDevicesAndFindings(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)

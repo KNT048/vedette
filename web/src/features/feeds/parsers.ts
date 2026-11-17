@@ -1,4 +1,4 @@
-// Feed parsers (S-FEED-5, D-37). Run inside the mock so the preview is real; the Go box later implements the same rules.
+// Feed parsers (S-FEED-5). Run inside the mock so the preview is real; the Go box later implements the same rules.
 // Fail closed: size and row limits, bad rows are counted with a reason (never crash), regexes are length-limited and compile-checked.
 import { IPV4_RE } from '@/mocks/http'
 import { FIELDS, ROW_LIMIT, SIZE_LIMIT } from './defaults'

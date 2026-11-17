@@ -18,8 +18,8 @@ import { TOKEN_TYPES, type OfferedTokenType, type Token } from './types'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-/** S-HP-2: honey tokens. Each says where to plant it and what triggers it. A preset fills a believable token, every field stays editable
- * (D-468). No DNS token is offered: the box answers no DNS, so it could never alert; an older one still lists, saying so (D-507). */
+/** S-HP-2: honey tokens. Each says where to plant it and what triggers it. A preset fills a believable token, every field stays editable.
+ * No DNS token is offered: the box answers no DNS, so it could never alert; an older one still lists, saying so. */
 export default function TokensSection() {
   const { t } = useTranslation('honeypot')
   const q = useTokens()

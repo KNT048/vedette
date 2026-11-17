@@ -23,8 +23,8 @@ import (
 )
 
 // webhook_call: a generic HTTPS POST of a short text (a ticket system, an automation tool). Same guard as the webhook
-// channel of notify, from core/netguard (D-411): never Vedette itself (loopback, core's container, the decoys; the machine's
-// addresses on Vedette's own ports, D-446), never link-local, multicast, unspecified or cloud metadata, in any transition form,
+// channel of notify, from core/netguard: never Vedette itself (loopback, core's container, the decoys; the machine's
+// addresses on Vedette's own ports), never link-local, multicast, unspecified or cloud metadata, in any transition form,
 // checked on the resolved address at connect time (so a name that resolves to one, or rebinds to one, is refused too), no
 // redirects, no proxy, timeouts and size caps. Nothing on the customer's network changes (INV-1: a box action), and the URL is a secret that never reaches
 // the log or the API.
@@ -53,7 +53,7 @@ func forbiddenAddr(a netip.Addr, allowLoopback bool) bool {
 	return false
 }
 
-// webhookOwn is Vedette itself for the webhook (D-446, core/netguard): the machine's addresses (Config.MachineAddrs) on Vedette's own
+// webhookOwn is Vedette itself for the webhook (core/netguard): the machine's addresses (Config.MachineAddrs) on Vedette's own
 // ports, and on every port the addresses of core's own container (its interfaces, read at every check) and Config.SelfAddrs (the
 // honeypot's decoys). An interface list or a decoy record that cannot be read is an error: the webhook is refused, not checked against less.
 func (s *Service) webhookOwn() (netguard.Own, error) {

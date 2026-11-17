@@ -26,7 +26,7 @@ export default function LogsPanel() {
   return (
     <Section title={t('logs.title')} description={t('logs.description')} info={t('logs.descriptionInfo')} stories={['S-AI-4']}
       actions={<Button onClick={() => refresh.mutate()} disabled={!gate.canRun || d?.empty === true} busy={refresh.isPending} busyLabel={t('logs.working')} title={gate.reason ?? (d?.empty ? d.summary : undefined)}>{t('logs.refresh')}</Button>}>
-      {/* kien G1: the digest reads the logs and asks the AI (up to a minute or two); say so while it runs */}
+      {/* The digest reads the logs and asks the AI (up to a minute or two); say so while it runs */}
       <BusyNote busy={refresh.isPending}>{t('logs.waiting')}</BusyNote>
       {gate.state === 'unconfigured' || gate.state === 'unassigned' ? <EmptyState title={t(`gate.${gate.text}`)} info={t(`gate.${gate.text}Info`)}>{t(`gate.${gate.text}Body`)} <ToSettings state={gate.text} job="log-digest" /></EmptyState> : null}
       <ActionError error={refresh.error} />

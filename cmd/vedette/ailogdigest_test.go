@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/logs"
 )
 
-// The log-digest job reads the digest of the logs module through aiLogDigest (S-AI-4, D-221): signatures and counts, never a line.
+// The log-digest job reads the digest of the logs module through aiLogDigest (S-AI-4): signatures and counts, never a line.
 func TestAILogDigestReadsKindsAndCountsNotLines(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -42,7 +42,7 @@ func TestAILogDigestReadsKindsAndCountsNotLines(t *testing.T) {
 	if raw, _ := json.Marshal(d); strings.Contains(string(raw), mark) || strings.Contains(string(raw), "sample") {
 		t.Fatalf("the digest handed to the AI carries a line: %s", raw)
 	}
-	// events_around of log investigation (D-223): the kinds and counts of the address the line named, never the line
+	// events_around of log investigation: the kinds and counts of the address the line named, never the line
 	vpn := `logid="0101039426" type="event" subtype="vpn" action="ssl-login-fail" user="bob" remip=203.0.113.2 ` + mark
 	if res, err := svc.Ingest(ctx, []logs.Line{{SourceID: src.ID, At: time.Now().Add(-time.Second), Text: vpn}}); err != nil || res.Stored != 1 {
 		t.Fatalf("%+v %v", res, err)
@@ -70,7 +70,7 @@ func TestAILogDigestReadsKindsAndCountsNotLines(t *testing.T) {
 	}
 }
 
-// The box's own device row reaches ai marked, so Ask and Explain name it apart in their citations (D-422).
+// The box's own device row reaches ai marked, so Ask and Explain name it apart in their citations.
 func TestAIReadsMarkTheBoxItself(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)

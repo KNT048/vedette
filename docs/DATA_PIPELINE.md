@@ -1,6 +1,6 @@
-# Pipeline dữ liệu — hộp tự lấy feed (D-36)
+# Pipeline dữ liệu — hộp tự lấy feed
 
-> **Mô hình hiện hành (kien, 2026-11-09, D-36):** mỗi hộp **tự kéo và tự phân tích** feed trực tiếp từ nguồn (CISA KEV, FIRST EPSS, NVD, khuyến cáo hãng, feed IOC, feed tuỳ chỉnh của khách — D-37). **Không còn builder trung tâm, không phân phối dữ liệu qua GitHub/Cloudflare.** GitHub chỉ còn **một việc: phát hành bản cập nhật phần mềm đã ký** (`docs/UPDATES.md`); gói khuyến nghị đã xác nhận (§5b) đi kèm bản cập nhật đó. Mục 1, 4, 5 bên dưới là mô hình cũ (2026-11-06), giữ để tham khảo lịch sử; mục 2 (nguồn) và 3 (chuẩn hoá, chấm điểm) nay chạy **trên hộp**.
+> **Mô hình hiện hành:** mỗi hộp **tự kéo và tự phân tích** feed trực tiếp từ nguồn (CISA KEV, FIRST EPSS, NVD, khuyến cáo hãng, feed IOC, feed tuỳ chỉnh của khách). **Không còn builder trung tâm, không phân phối dữ liệu qua GitHub/Cloudflare.** GitHub chỉ còn **một việc: phát hành bản cập nhật phần mềm đã ký** (`docs/UPDATES.md`); gói khuyến nghị đã xác nhận (§5b) đi kèm bản cập nhật đó. Mục 1, 4, 5 bên dưới là mô hình cũ (2026-11-06), giữ để tham khảo lịch sử; mục 2 (nguồn) và 3 (chuẩn hoá, chấm điểm) nay chạy **trên hộp**.
 
 ## 0. Luồng hiện hành
 
@@ -8,15 +8,15 @@
 nguồn feed (cisa.gov, api.first.org, services.nvd.nist.gov, RSS/advisory hãng, abuse.ch…, feed tuỳ chỉnh)
      │  hộp kéo theo lịch từng feed (ETag/If-Modified-Since, giới hạn kích thước + thời gian)
      ▼
-parser trên hộp (fail-closed; ánh xạ trường/regex do khách chỉnh cho feed riêng — D-37)
+parser trên hộp (fail-closed; ánh xạ trường/regex do khách chỉnh cho feed riêng)
      ▼
 chuẩn hoá → lọc trùng → chấm điểm (mục 3) → feeds_* → khớp kho thiết bị → phát hiện/cảnh báo
 ```
 
 - Mỗi nguồn feed là một luồng dữ liệu ra (chỉ là yêu cầu tải về, không gửi dữ liệu khách) → liệt kê trong `PRIVACY.md` và Cài đặt → Quyền riêng tư; feed tuỳ chỉnh do khách thêm hiện tên host trong cùng danh sách.
-- Nguồn bị chặn theo địa lý/giới hạn tốc độ: hộp lùi thời gian và hiện lỗi ở Cài đặt → Feed; người dùng sửa địa chỉ sang mirror (D-37).
+- Nguồn bị chặn theo địa lý/giới hạn tốc độ: hộp lùi thời gian và hiện lỗi ở Cài đặt → Feed; người dùng sửa địa chỉ sang mirror.
 
-## Mô hình cũ (2026-11-06, đã thay bằng D-36)
+## Mô hình cũ (2026-11-06, đã thay)
 
 Quyết định cũ: một VM builder (đặt tại Việt Nam) chỉ để **chuẩn bị** dữ liệu; lưu lên GitHub; phân phối qua Cloudflare; mọi thứ tĩnh; không state theo khách.
 
@@ -42,16 +42,16 @@ Giới hạn free đo 2026-11-06: GitHub Actions không giới hạn cho repo pu
 
 | Nguồn | Cách kéo | Chu kỳ | Giấy phép | Tín hiệu |
 |---|---|---|---|---|
-| CISA KEV | JSON, ETag + If-Modified-Since (304 khi không đổi) | 1 giờ (mặc định, D-485) | CC0 | exploited, ransomware flag, dueDate |
+| CISA KEV | JSON, ETag + If-Modified-Since (304 khi không đổi) | 1 giờ (mặc định) | CC0 | exploited, ransomware flag, dueDate |
 | cisagov/vulnrichment | git | giờ | CC0 | SSVC, CWE, CPE bổ sung |
 | CVE.org cvelistV5 | git pull | giờ | public | bản ghi nhanh nhất, `affected[]` |
 | FIRST EPSS | CSV ngày | ngày | ghi nguồn | epss, Δ7 ngày |
-| **FIRST EPSS, mọi CVE (đang dùng, feed `epss-all`, D-614)** | tệp CSV gzip hằng ngày `epss.empiricalsecurity.com`, một GET có điều kiện (~2,8 MB, 406.543 CVE ngày 2026-11-14) | ngày | ghi nguồn | điểm + phân vị mọi CVE → tầng 2 (EPSS ≥ 0.1, D-613) |
+| **FIRST EPSS, mọi CVE (đang dùng, feed `epss-all`)** | tệp CSV gzip hằng ngày `epss.empiricalsecurity.com`, một GET có điều kiện (~2,8 MB, 406.543 CVE ngày 2026-11-14) | ngày | ghi nguồn | điểm + phân vị mọi CVE → tầng 2 (EPSS ≥ 0.1) |
 | nuclei-templates | git log | giờ | MIT | template mới = có check; subset `kev,vkev` vào content pack |
 | GHSA, OSV | git/API | giờ | CC-BY / Apache | PURL cho gói |
 | NVD 2.0 | API key | 2 giờ | free | CPE/CVSS bổ sung (chậm) |
-| **NVD 2.0 `?hasKev` (đang dùng, feed `nvd-kev`, D-500)** | API không key, 100 CVE/request, 6 s/request; lần đầu đủ (~18 request, ~19 MB), sau đó `lastModStartDate` | ngày (và ngay sau CVE KEV mới) | public domain + câu NVD yêu cầu | mục CPE `vulnerable` + khoảng phiên bản của mọi CVE trong KEV → findings so phiên bản |
-| **NVD 2.0 CVE 12 tháng (đang dùng, feed `nvd-recent`, D-614)** | API không key, 1.000 CVE/request, 6 s/request; lần đầu theo cửa sổ `pubStartDate` 120 ngày (~105 request, ~60 MB, ~25 phút, chia nhiều lượt kéo có con trỏ), sau đó `lastModStartDate` (~2 request/ngày) | ngày | public domain + câu NVD yêu cầu | ngày, trạng thái, mức CVSS, mục CPE `vulnerable` của mọi CVE công bố trong 12 tháng → tầng 3 (D-613) |
+| **NVD 2.0 `?hasKev` (đang dùng, feed `nvd-kev`)** | API không key, 100 CVE/request, 6 s/request; lần đầu đủ (~18 request, ~19 MB), sau đó `lastModStartDate` | ngày (và ngay sau CVE KEV mới) | public domain + câu NVD yêu cầu | mục CPE `vulnerable` + khoảng phiên bản của mọi CVE trong KEV → findings so phiên bản |
+| **NVD 2.0 CVE 12 tháng (đang dùng, feed `nvd-recent`)** | API không key, 1.000 CVE/request, 6 s/request; lần đầu theo cửa sổ `pubStartDate` 120 ngày (~105 request, ~60 MB, ~25 phút, chia nhiều lượt kéo có con trỏ), sau đó `lastModStartDate` (~2 request/ngày) | ngày | public domain + câu NVD yêu cầu | ngày, trạng thái, mức CVSS, mục CPE `vulnerable` của mọi CVE công bố trong 12 tháng → tầng 3 |
 | PSIRT: MSRC CSAF, Cisco openVuln, Fortinet RSS, Synology RSS, PAN CSAF, QNAP/Ivanti RSS | poll | giờ | free | "exploited in the wild" sớm hơn KEV |
 | NCSC VN (alert.khonggianmang.vn), chongluadao | HTML, **cần IP VN** | tuần/ngày | — | ngữ cảnh VN |
 | VulnCheck KEV Community | API key của **dự án** | giờ | ⚠ redistribution chưa xác nhận → tạm để hộp tự kéo bằng key khách | sớm hơn CISA, canary, PoC |
@@ -91,7 +91,7 @@ content-packs/<name>-<ver>.tar.zst   skill, mitigation pack, nuclei subset, reco
 - Chạy trên VM builder (cron 30 phút, IP VN cho nguồn geo-fence) **và** GitHub Actions (cron 60 phút, publish chỉ khi VM trễ >3 giờ) — hai nơi cùng khoá công khai, khoá riêng khác nhau (`builder-vn`, `builder-gh`), cả hai trong danh sách tin cậy của hộp.
 - Web công khai = Pages tĩnh: bảng nóng, tra CVE/IP/domain, trạng thái pipeline. Không server, không tài khoản.
 
-## 5b. Khuyến nghị giảm thiểu: dự án soạn bằng AI, người duy trì xác nhận qua GitHub (D-21, S-MIT-4) — vẫn áp dụng; từ D-36 gói đã xác nhận đi kèm **bản cập nhật phần mềm đã ký**, không qua builder
+## 5b. Khuyến nghị giảm thiểu: dự án soạn bằng AI, người duy trì xác nhận qua GitHub (S-MIT-4) — vẫn áp dụng; từ khi bỏ builder trung tâm, gói đã xác nhận đi kèm **bản cập nhật phần mềm đã ký**, không qua builder
 
 ```
 KEV mới (hot_score cao, chưa có gói) ─► vedette-author draft <CVE>   (CLI, key AI của dự án, skill mitigation-config)
@@ -99,7 +99,7 @@ KEV mới (hot_score cao, chưa có gói) ─► vedette-author draft <CVE>   (C
    ▼
 người duy trì sửa, đặt confirmed_by / confirmed_at, status: confirmed → PR → CODEOWNERS duyệt → merge
    ▼
-release: chỉ nhận status: confirmed → đóng vào bản cập nhật đã ký (GitHub Releases) → hộp khách (D-36)
+release: chỉ nhận status: confirmed → đóng vào bản cập nhật đã ký (GitHub Releases) → hộp khách
 ```
 
 - Gói ghi `drafted_with` (model), `confirmed_by`, `confirmed_at`, `sources[]`; UI hiện "Vedette đã xác nhận, soạn với AI".
@@ -107,10 +107,10 @@ release: chỉ nhận status: confirmed → đóng vào bản cập nhật đã 
 - Không có dữ liệu khách nào trong luồng này; `PRIVACY.md` không đổi.
 - `ponytail: content/ trong repo mã + CODEOWNERS; nâng cấp: tách repo vedette-content khi PR nội dung nhiều.`
 
-## 6. Quyết định (kien, 2026-11-06)
+## 6. Quyết định
 
-1. **Không** host instance Vedette dùng chung (D-15). Trung tâm chỉ là dữ liệu tĩnh; khách tự host hoặc thuê triển khai instance riêng. Xem lại khi dự án phát triển tốt.
-2. **Tín hiệu fleet ẩn danh: bật mặc định** (D-16), tắt được một bấm. Hộp gửi mỗi giờ về `telemetry.vedette.<domain>` (service nhỏ của dự án, không qua GitHub) một gói **không có tên khách, không IP nội bộ, không log thô**:
+1. **Không** host instance Vedette dùng chung. Trung tâm chỉ là dữ liệu tĩnh; khách tự host hoặc thuê triển khai instance riêng. Xem lại khi dự án phát triển tốt.
+2. **Tín hiệu fleet ẩn danh: bật mặc định**, tắt được một bấm. Hộp gửi mỗi giờ về `telemetry.vedette.<domain>` (service nhỏ của dự án, không qua GitHub) một gói **không có tên khách, không IP nội bộ, không log thô**:
    ```json
    {"install_id": "<sha256 ngẫu nhiên lúc cài>", "country": "VN", "version": "1.2.0",
     "hits": [{"kind": "honeypot/smb", "count": 1}, {"kind": "ioc/ip", "count": 3}, {"kind": "suricata/CVE-2026-109618", "count": 7}],

@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-// kien G8: "To fix" lists every device with something to fix or plan, the most urgent first: a device with an exploited update to
+// "To fix" lists every device with something to fix or plan, the most urgent first: a device with an exploited update to
 // install before one with only a recommended update; a device with nothing is not listed.
-func TestToFix_G8_MostUrgentDeviceFirst(t *testing.T) {
+func TestToFix_MostUrgentDeviceFirst(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ranged := func(cve, end string, ransom bool) Vuln {
@@ -53,7 +53,7 @@ func TestToFix_G8_MostUrgentDeviceFirst(t *testing.T) {
 	if p := tf.Devices[0].Exploited[0].Product; p != "qnap|photo station" {
 		t.Errorf("exploited product %q", p)
 	}
-	// kien G12: the row's source too, so the page's "I updated it" follows who reports the version
+	// The row's source too, so the page's "I updated it" follows who reports the version
 	if src := tf.Devices[0].Exploited[0].Source; src != "agent" {
 		t.Errorf("exploited source %q", src)
 	}
@@ -79,7 +79,7 @@ func TestToFix_G8_MostUrgentDeviceFirst(t *testing.T) {
 
 // An unproved product match (no named update, nothing confirmed or detected) is the person's to check, not "to fix": its device
 // comes after one with a proved action.
-func TestToFix_G8_UnprovedIsNotUrgent(t *testing.T) {
+func TestToFix_UnprovedIsNotUrgent(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t) // qnapVuln: a product match, no range
 	pc := nas("6.1.1")
@@ -96,7 +96,7 @@ func TestToFix_G8_UnprovedIsNotUrgent(t *testing.T) {
 
 // Review r1 of #943: the order field by field, each step deciding where the ones before it tie: something to fix, the worst
 // severity, ransomware, proved findings, CVEs, then the plan; a full tie by id.
-func TestToFix_G8_UrgencyFieldByField(t *testing.T) {
+func TestToFix_UrgencyFieldByField(t *testing.T) {
 	t.Parallel()
 	ex := func(worst string, ransom, proved, cves int) UpdateAction {
 		u := UpdateAction{Kind: "fixed", Worst: worst, Ransomware: ransom, Detected: proved, Suspected: cves - proved}
@@ -132,12 +132,12 @@ func TestToFix_G8_UrgencyFieldByField(t *testing.T) {
 
 // Review r2 of #943: the cap keeps the devices To fix lists. Versionless product-only guesses (Critical, ransomware) on many devices
 // never push out a PC with a proved exploited CVE and a named update.
-func TestToFix_G8_CapKeepsTheProvedDevice(t *testing.T) {
+func TestToFix_CapKeepsTheProvedDevice(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	// two ransomware product-only guesses on Surveillance Station (no range) on four devices; the PC has one ranged CVE, no ransomware
 	guess := func(cve string) Vuln {
-		return Vuln{CVE: cve, Vendor: "QNAP", Product: "Surveillance Station", Ransomware: true, HasTemplate: true} // a scan checks it: a product finding stays (D-602)
+		return Vuln{CVE: cve, Vendor: "QNAP", Product: "Surveillance Station", Ransomware: true, HasTemplate: true} // a scan checks it: a product finding stays
 	}
 	ranged := Vuln{CVE: "CVE-2099-0001", Vendor: "QNAP", Product: "Photo Station",
 		Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "6.1.2"}}}}

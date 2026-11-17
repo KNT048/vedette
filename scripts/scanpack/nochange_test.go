@@ -9,7 +9,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// D-528 on fixture KEV templates: a template that changes state, goes to another host or port, or makes anyone reach a third party
+// The no-change rule on fixture KEV templates: a template that changes state, goes to another host or port, or makes anyone reach a third party
 // is left out with its reason; the reviewed ones that only look like it stay; and every denylisted id is out of the committed pack.
 func TestBuildLeavesOutStateChangesAndOtherDestinations(t *testing.T) {
 	t.Parallel()

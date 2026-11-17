@@ -9,10 +9,10 @@ import { UnderlineNav } from '@/components/common/UnderlineNav'
 
 const RANK: Record<Role, number> = { viewer: 0, operator: 1, admin: 2 }
 
-/** The module a section belongs to for D-624: the one whose switch it holds (switchOf), else its own. */
+/** The module a section belongs to for the v1 scope: the one whose switch it holds (switchOf), else its own. */
 const ownerOf = (s: SettingsSection) => s.switchOf ?? s.module
 
-/** Mục cài đặt người này được xem: đủ vai, module của mục đang bật, và không thuộc module bản này không đưa ra (D-624, #819). */
+/** Mục cài đặt người này được xem: đủ vai, module của mục đang bật, và không thuộc module bản này không đưa ra. */
 function useAllowed() {
   const me = useMe()
   const mods = useModules()
@@ -28,7 +28,7 @@ export function SettingsLayout() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-6">
       <aside className="grid min-w-0 content-start gap-3">
-        {/* D-543, docs/UI.md §4: a row like the tab row below lg, the vertical menu from lg (D-464: Settings keeps its menu). */}
+        {/* docs/UI.md §4: a row like the tab row below lg, the vertical menu from lg (Settings keeps its menu). */}
         <UnderlineNav label={t('settings.nav')} verticalFrom="lg" items={a.list.map((s) => ({ to: `/settings/${s.id}`, label: t(s.label) }))} />
       </aside>
       <div className="min-w-0"><Outlet /></div>
@@ -69,7 +69,7 @@ export function SettingsRoute() {
   return <PageModule.Provider value={ownerOf(s)}>{s.element}</PageModule.Provider>
 }
 
-/** W1-26, D-540: My account is a Settings section; the old /account (links, bookmarks, SSO `next`) lands there with its ?query and #anchor. */
+/** My account is a Settings section; the old /account (links, bookmarks, SSO `next`) lands there with its ?query and #anchor. */
 export function AccountMoved() {
   const l = useLocation()
   return <Navigate to={{ pathname: '/settings/account', search: l.search, hash: l.hash }} replace />

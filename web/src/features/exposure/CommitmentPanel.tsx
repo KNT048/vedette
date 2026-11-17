@@ -4,7 +4,7 @@ import { dateTimeText } from './dates'
 import { InfoLine } from './InfoLine'
 import type { Target } from './types'
 
-/** The record of D-26, written by an administrator's first Scan now (D-473): who, when and the exact sentence that was shown. Nothing to tick here. */
+/** The scan confirmation record, written by an administrator's first Scan now: who, when and the exact sentence that was shown. Nothing to tick here. */
 export function CommitmentPanel({ target }: { target: Target }) {
   const { t } = useTranslation('exposure')
   const c = target.commitment

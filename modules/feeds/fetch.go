@@ -65,9 +65,9 @@ type Request struct {
 	LastModified string // sent as If-Modified-Since
 	MaxBytes     int64  // 0 means MaxBodyBytes
 	// HeaderTimeout, when longer than the client's, is how long the source may take before it starts to answer
-	// (NVD: W3-1). The whole request is then bounded by the context deadline only.
+	// (NVD). The whole request is then bounded by the context deadline only.
 	HeaderTimeout time.Duration
-	// Stream, when set, reads the body as it arrives instead of Response.Body (D-516: the distribution archives are
+	// Stream, when set, reads the body as it arrives instead of Response.Body (the distribution archives are
 	// tens of megabytes and are parsed while they download). The reader stops with ErrTooLarge past MaxBytes, counted
 	// after the transport's gzip decoding; the client's whole-request timeout is lifted, so the context deadline is the
 	// bound. Its error is the error of the fetch.
@@ -89,15 +89,15 @@ type Fetcher struct {
 	Client  *http.Client // nil uses NewClient(DefaultFetchTimeout)
 	Version string       // product version for the User-Agent
 	// BoxAddrs lists the machine's addresses (vedette-host), asked again at every connection: a pull never connects to Vedette's
-	// own ports on one of them, nor to loopback or the container's own interfaces on any port (D-208, D-446). known false
-	// (vedette-host has never answered) allows only global unicast destinations (D-208 (2)). nil: none.
+	// own ports on one of them, nor to loopback or the container's own interfaces on any port. known false
+	// (vedette-host has never answered) allows only global unicast destinations. nil: none.
 	BoxAddrs func() (addrs []netip.Addr, known bool)
 
 	// Gateway is the container's default gateway, which is the machine too (set by wiring; nil: not asked).
 	Gateway func() (netip.Addr, bool)
 
 	// Self lists addresses that are Vedette itself beyond this process's own interfaces (the honeypot's decoys): refused on every
-	// port, like loopback (D-446). nil: none.
+	// port, like loopback. nil: none.
 	Self func() []netip.Addr
 
 	dialOverride func(ctx context.Context, network, addr string) (net.Conn, error) // tests only (unexported)

@@ -62,7 +62,7 @@ function Preview() {
         <>
           <Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !weekly.data.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={needRole ?? (weekly.data.ai_available ? undefined : t('weekly.ai.unavailable'))} aria-describedby="weekly-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button>
           <Link to="/reports/print/weekly" className={buttonVariants({ variant: 'secondary' })}><Printer aria-hidden />{t('print.button')}</Link>
-          {/* kien G5: no Send with nobody to send to; one line says what is missing instead */}
+          {/* No Send with nobody to send to; one line says what is missing instead */}
           {/* #936 review r1: the line only once the schedule says there is no recipient (no flash while it loads; Send stays on an error) */}
           {sched.data && recipients.length === 0
             ? <span className="self-center text-meta text-muted">{t('weekly.send.noRecipients')}</span>
@@ -74,7 +74,7 @@ function Preview() {
       {operator && weekly.data && !noData && !weekly.data.ai_available ? (aiOn && !admin
         ? <p className="mb-3 text-meta text-muted">{t('weekly.ai.why')} {t('weekly.ai.askAdmin')}</p>
         : <DependencyLink className="mb-3" reason={t('weekly.ai.why')} to={aiOn ? '/settings/ai#ai-profiles' : '/settings/modules'} label={t(aiOn ? 'weekly.ai.openAi' : 'weekly.ai.openModules')} />) : null}
-      {/* kien G1: an AI answer takes a while; say so while it runs */}
+      {/* An AI answer takes a while; say so while it runs */}
       <BusyNote id="weekly-ai-wait" className="mb-3" busy={ai.isPending}>{t('weekly.ai.waiting')}</BusyNote>
       <ActionError error={ai.error} />
       <QueryState query={weekly}>

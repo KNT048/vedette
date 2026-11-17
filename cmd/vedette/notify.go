@@ -55,8 +55,8 @@ func (u notifyUsers) EmailCodeUsers(ctx context.Context) (int, error) {
 	return n, nil
 }
 
-// notifyDevices implements notify.DeviceDirectory over the inventory: the device as the Devices page names it (D-471), with its
-// address when that is not the name already (W8-2, D-552), so a notice says "byn (192.168.18.181)" and not an asset id.
+// notifyDevices implements notify.DeviceDirectory over the inventory: the device as the Devices page names it, with its
+// address when that is not the name already, so a notice says "byn (192.168.18.181)" and not an asset id.
 type notifyDevices struct{ inv *inventory.Service }
 
 func (a notifyDevices) DeviceName(ctx context.Context, assetID string) (string, bool, error) {
@@ -71,7 +71,7 @@ func (a notifyDevices) DeviceName(ctx context.Context, assetID string) (string, 
 	return labelled(d.Name, d.Address), true, nil
 }
 
-// labelled is a device's name with its address in brackets when that is not the name already (notify's deviceLabel, D-552).
+// labelled is a device's name with its address in brackets when that is not the name already (notify's deviceLabel).
 func labelled(name, addr string) string {
 	switch {
 	case name == "":
@@ -82,10 +82,10 @@ func labelled(name, addr string) string {
 	return name
 }
 
-// DeviceStates is notify's view of devices for their unknown_device incidents (D-552, W8-2): the name of the Devices page
-// (inventory.DisplayName, the one naming rule of D-471), else the MAC, else the kind; the IP, else the MAC, as the address; whether
+// DeviceStates is notify's view of devices for their unknown_device incidents: the name of the Devices page
+// (inventory.DisplayName, the one naming rule), else the MAC, else the kind; the IP, else the MAC, as the address; whether
 // and when it was approved (notify closes the device's incident on it). The values come from the network: plainText cleans them.
-// One light batch read of inventory (DeviceRefs: no findings count, no software list, D-554) for one id (notify's handler of
+// One light batch read of inventory (DeviceRefs: no findings count, no software list) for one id (notify's handler of
 // inventory.asset.updated, only for a device on an open new-device incident) or many (the hourly autoclose job).
 func (a notifyDevices) DeviceStates(ctx context.Context, ids []string) (map[string]notify.DeviceState, error) {
 	out := make(map[string]notify.DeviceState, len(ids))
@@ -167,7 +167,7 @@ func orgZone(d *deps) func(context.Context) string {
 	}
 }
 
-// notifyApproverLinks is notify's Config.ApproverLinks (D-191, notify INV-13): whether the person proved this address in My account, as the
+// notifyApproverLinks is notify's Config.ApproverLinks (notify INV-13): whether the person proved this address in My account, as the
 // response module keeps it. d.Response is read when asked (response is built after notify); a response that does not exist yet is an error, so
 // notify skips the approver (fail closed). The error never holds the address.
 type notifyApproverLinks struct{ d *deps }
@@ -179,7 +179,7 @@ func (l notifyApproverLinks) Linked(ctx context.Context, userID string, ch chann
 	return l.d.Response.Linked(ctx, userID, string(ch), address)
 }
 
-// ChatLinkToken is notify's Config.LinkCodes (D-447): response makes the token of the confirm link sent to a Zalo personal approver.
+// ChatLinkToken is notify's Config.LinkCodes: response makes the token of the confirm link sent to a Zalo personal approver.
 func (l notifyApproverLinks) ChatLinkToken(ctx context.Context, userID string, ch channel.Type, address string) (token, name string, err error) {
 	if l.d.Response == nil {
 		return "", "", errResponseNotReady
@@ -187,7 +187,7 @@ func (l notifyApproverLinks) ChatLinkToken(ctx context.Context, userID string, c
 	return l.d.Response.ChatLinkToken(ctx, userID, string(ch), address)
 }
 
-// DropChatLink is the other half of notify's Config.LinkCodes (D-447): an approver removed or given another Zalo loses the old proof.
+// DropChatLink is the other half of notify's Config.LinkCodes: an approver removed or given another Zalo loses the old proof.
 func (l notifyApproverLinks) DropChatLink(ctx context.Context, actor, userID string, ch channel.Type, address string) error {
 	if l.d.Response == nil {
 		return errResponseNotReady
@@ -197,7 +197,7 @@ func (l notifyApproverLinks) DropChatLink(ctx context.Context, actor, userID str
 
 // notifyHits implements notify.HitConnections over the honeypot's export of hits (the one public read that carries conn_count; honeypot
 // is built after notify, so it is read when asked). A hit is found by its time: the incident's first_seen is the hit's ts, so one
-// narrow window per hit (D-496).
+// narrow window per hit.
 type notifyHits struct{ d *deps }
 
 func (h notifyHits) HitConnections(ctx context.Context, hits []notify.HitRef) (map[string]int, error) {
@@ -298,14 +298,14 @@ func newNotify(d *deps) *notify.Service {
 	return svc
 }
 
-// firstAnswerWait is how long a caller of notifyBoxAddrs waits for vedette-host's first answer since core started (D-408). The host
+// firstAnswerWait is how long a caller of notifyBoxAddrs waits for vedette-host's first answer since core started. The host
 // answers state/net in milliseconds; one that does not answer within it leaves the set unknown.
 const firstAnswerWait = 2 * time.Second
 
 // notifyBoxAddrs is notify's Config.BoxAddrs over the shared cache of what vedette-host reports (feeds and logs use it too). Once the
 // host has answered it reads the last known set and never waits for the host (notify asks at every webhook connection and save); a
 // stale set is refreshed in the background, and a host that does not answer leaves the previous set in place. Before a configured
-// host's first answer it waits up to firstAnswerWait for that answer (D-408: else the first webhook save after a start is a 503 only
+// host's first answer it waits up to firstAnswerWait for that answer (else the first webhook save after a start is a 503 only
 // because nothing had asked the host yet); still unknown (known=false), notify refuses every webhook save and connection until it is
 // known (fail closed, #157). Without a host (nil cache) the set is empty and known: the container's own interfaces, which notify
 // reads itself, are all the box has.

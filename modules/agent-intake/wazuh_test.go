@@ -378,7 +378,7 @@ func TestWazuh_PullFillsTheInventory(t *testing.T) {
 	r.save()
 	r.pull()
 	st, e, agents, pkgs := r.state()
-	if st != "connected" || e != "" || agents != 4 || pkgs != 4 { // openssh, htop (the snap is dropped), 7-Zip and the Windows row (D-546); the NAT'd agent's openssl is not written
+	if st != "connected" || e != "" || agents != 4 || pkgs != 4 { // openssh, htop (the snap is dropped), 7-Zip and the Windows row; the NAT'd agent's openssl is not written
 		t.Fatalf("state %s %q agents=%d packages=%d", st, e, agents, pkgs)
 	}
 	d, ok := r.device(ipLinux)
@@ -406,7 +406,7 @@ func TestWazuh_PullFillsTheInventory(t *testing.T) {
 	if z, ok := swByProduct(win, "7-Zip"); !ok || z.Vendor != "7-Zip" || *z.Version != "23.01" {
 		t.Fatalf("7-zip %+v", win.Software)
 	}
-	// D-546: the operating system's own row, by the update revision Wazuh's os version carries
+	// The operating system's own row, by the update revision Wazuh's os version carries
 	if os, ok := swByProduct(win, "Windows Server 2022"); !ok || os.Vendor != "microsoft" || *os.Version != "10.0.20348.2700" || !slices.Equal(os.Kev, []string{"microsoft|windows"}) {
 		t.Fatalf("Windows row %+v", win.Software)
 	}
@@ -513,7 +513,7 @@ func TestWazuh_FORBID4_ReadOnlyCalls(t *testing.T) {
 	}
 }
 
-// A certificate that changed stops the pull before the password is sent; Save is the act of trusting the new one (D-308).
+// A certificate that changed stops the pull before the password is sent; Save is the act of trusting the new one.
 func TestWazuh_PinMismatchStopsThePull(t *testing.T) {
 	r := newWzRig(t)
 	r.save()
@@ -568,7 +568,7 @@ func TestWazuh_PublicRootsAreKeptAsTheRule(t *testing.T) {
 	}
 }
 
-// An agent whose package list comes back empty (syscollector off) keeps what is known (D-169 (13)).
+// An agent whose package list comes back empty (syscollector off) keeps what is known.
 func TestWazuh_EmptyPackageListNeverWipes(t *testing.T) {
 	r := newWzRig(t)
 	r.save()
@@ -770,7 +770,7 @@ func TestWazuh_ALongPassGoesOnAtTheNextTick(t *testing.T) {
 	r.clock.Advance(time.Minute) // the next tick, not the next interval
 	r.pull()
 	st, _, agents, pkgs := r.state()
-	if st != "connected" || agents != 4 || pkgs != 4 { // with the Windows agent's operating-system row (D-546)
+	if st != "connected" || agents != 4 || pkgs != 4 { // with the Windows agent's operating-system row
 		t.Fatalf("after the pass ended: %s agents=%d packages=%d", st, agents, pkgs)
 	}
 	n := 0

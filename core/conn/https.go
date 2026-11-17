@@ -11,10 +11,10 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// The HTTPS facade (D-305): a module that talks to one server of its own, outside the saved connections of this package (agent-intake's
-// Wazuh pull, D-169 (12)), gets the same client the connections use instead of a second TLS and address-policy implementation: TLS 1.2
+// The HTTPS facade: a module that talks to one server of its own, outside the saved connections of this package (agent-intake's
+// Wazuh pull), gets the same client the connections use instead of a second TLS and address-policy implementation: TLS 1.2
 // or later, the pin or the public roots decide, trust on first use only when asked, no redirect, no proxy, no retry, a request of at most
-// 64 KiB, an answer of at most 1 MiB, 15 seconds a call, and every address checked against the policy of D-94 (RefusedAddr with the
+// 64 KiB, an answer of at most 1 MiB, 15 seconds a call, and every address checked against the address policy (RefusedAddr with the
 // box's addresses) when it is dialled. Errors carry one cleaned line and never the credential.
 
 // Errors of an HTTPSClient call, to tell the administrator what happened. Anything else is "could not be reached".

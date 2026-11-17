@@ -46,11 +46,11 @@ func (b *tgBot) last() (chat, text string, n int) {
 	return chat, text, len(b.sent)
 }
 
-// D-414: saving a Telegram approver makes the bot send them one confirm link, privately; the dialog shows them waiting; Send again sends a
+// Saving a Telegram approver makes the bot send them one confirm link, privately; the dialog shows them waiting; Send again sends a
 // new one. When the bot may not write to them first, the token never goes into the shared chat: a note there asks them to press Start, the
 // undelivered link is dropped and Send again answers send_failed. Removing a linked approver drops their proof and is audited. The token
 // is never in the audit log.
-func TestContract_D414_TelegramApproverConfirmLink(t *testing.T) {
+func TestContract_TelegramApproverConfirmLink(t *testing.T) {
 	links, codes, bot := &fakeLinks{}, &fakeLinkCodes{}, &tgBot{closed: map[string]bool{}}
 	e := newEnv(t, func(c *notify.Config) {
 		c.ApproverLinks, c.LinkCodes, c.HTTPClient = links, codes, &http.Client{Transport: bot}

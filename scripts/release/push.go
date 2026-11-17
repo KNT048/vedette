@@ -21,7 +21,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The release job's registry and GitHub steps (WP-08k, D-457): push the manifest lists of `make images` by digest and record them
+// The release job's registry and GitHub steps (WP-08k): push the manifest lists of `make images` by digest and record them
 // (images.json), turn that into the release description (release.in.json), and publish the signed documents and packages as
 // GitHub release assets. Every external command is a fixed argv through runFunc; the tests replace it.
 
@@ -56,13 +56,13 @@ func execRun(ctx context.Context, argv ...string) ([]byte, error) {
 }
 
 // publishedImages are the manifest lists `make images` builds (localhost/vedette-<local>:<version>) and the service each one is
-// published as (release.Services). scan-base is published as vedette-scan: the box builds its scan image FROM it (D-147), and
+// published as (release.Services). scan-base is published as vedette-scan: the box builds its scan image FROM it, and
 // the manifest, cosign identity and vedette.env all name it "scan".
 var publishedImages = []struct{ local, service string }{
 	{"core", "core"}, {"sensor", "sensor"}, {"scan-base", "scan"}, {"honeypot", "honeypot"},
 }
 
-// realRegistry is the one registry a release is pushed to (D-104 (1)).
+// realRegistry is the one registry a release is pushed to.
 var realRegistry = strings.TrimSuffix(release.RegistryPrefix, "/vedette-")
 
 // ImagesDoc is dist/release/images.json: what was pushed, by digest. cosign-plan/attest (part C) and `release in` read it.
@@ -175,7 +175,7 @@ func absentRemote(err error) bool {
 
 // sameRemote compares a list that already exists in the registry under repo:<version> with the local one, platform by platform, by
 // config digest (the image content; the manifest digests differ because layers are compressed on push). It returns the remote
-// index digest when they are the same images, and refuses when they are not: a pushed version is never replaced (D-457).
+// index digest when they are the same images, and refuses when they are not: a pushed version is never replaced.
 func sameRemote(ctx context.Context, h registryHTTP, repoPath, version string, local []localPlatform, want []string) (string, error) {
 	raw, err := h.manifest(ctx, "GET", repoPath, version, acceptList)
 	if err != nil {
@@ -224,7 +224,7 @@ func platformDigests(raw []byte, want []string, what string) ([]PlatformDigest, 
 	switch x.MediaType {
 	case "application/vnd.oci.image.index.v1+json", "application/vnd.docker.distribution.manifest.list.v2+json":
 	default:
-		return nil, fmt.Errorf("%s: media type %q is not a manifest list: make images builds one list per image (D-158)", what, x.MediaType)
+		return nil, fmt.Errorf("%s: media type %q is not a manifest list: make images builds one list per image", what, x.MediaType)
 	}
 	var got []PlatformDigest
 	for _, m := range x.Manifests {
@@ -265,7 +265,7 @@ func localList(ctx context.Context, run runFunc, name string) ([]byte, error) {
 }
 
 // checkReleaseTree refuses to push from a tree with uncommitted changes to tracked files, or from a commit that is not v<version>:
-// the images were built from this tree, and what is pushed under a release version must be that tag (kien tags it, D-457).
+// the images were built from this tree, and what is pushed under a release version must be that tag (the maintainer tags it).
 func checkReleaseTree(ctx context.Context, run runFunc, repo, version string) error {
 	out, err := run(ctx, "git", "-C", repo, "status", "--porcelain", "--untracked-files=no")
 	if err != nil {
@@ -280,7 +280,7 @@ func checkReleaseTree(ctx context.Context, run runFunc, repo, version string) er
 	}
 	tag, err := run(ctx, "git", "-C", repo, "rev-parse", "--verify", "--quiet", "refs/tags/v"+version+"^{commit}")
 	if err != nil {
-		return fmt.Errorf("no tag v%s here: kien tags the release commit by hand before images are pushed (AI creates no tag): %w", version, err)
+		return fmt.Errorf("no tag v%s here: the maintainer tags the release commit by hand before images are pushed: %w", version, err)
 	}
 	if strings.TrimSpace(string(head)) != strings.TrimSpace(string(tag)) {
 		return fmt.Errorf("HEAD %s is not v%s (%s): build and push the images from the tagged commit", strings.TrimSpace(string(head)), version, strings.TrimSpace(string(tag)))
@@ -302,7 +302,7 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 	}
 	rehearsal := loopbackRegistry(o.Registry)
 	if o.Registry != realRegistry && !rehearsal {
-		return nil, fmt.Errorf("registry %q: a release is pushed to %s only (the box pulls nothing else, D-104); a rehearsal uses a registry on 127.0.0.1", o.Registry, realRegistry)
+		return nil, fmt.Errorf("registry %q: a release is pushed to %s only (the box pulls nothing else); a rehearsal uses a registry on 127.0.0.1", o.Registry, realRegistry)
 	}
 	if len(o.Platforms) == 0 {
 		return nil, errors.New("no platforms")
@@ -392,7 +392,7 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 			return nil, fmt.Errorf("does %s:%s exist? %w", repo, o.Version, err)
 		}
 		// Read back by digest: podman refuses a manifest whose bytes do not hash to the digest asked for ("Manifest does not match
-		// provided manifest digest", measured with podman 5.7, D-457), so a list read here is the one the boxes will pull.
+		// provided manifest digest", measured with podman 5.7), so a list read here is the one the boxes will pull.
 		raw, err := short(ctx, append(append([]string{"podman", "manifest", "inspect"}, tls...), repo+"@"+digest)...)
 		if err != nil {
 			return nil, fmt.Errorf("read back %s@%s: %w", repo, digest, err)
@@ -541,7 +541,7 @@ func readImages(p string) (*ImagesDoc, error) {
 }
 
 // localImageSizes returns, for each service, the largest unpacked size of its platforms in the local lists of `make images`:
-// images[].size of the manifest, used by the box only for its free-space check (low_disk below 2 x size, D-104) and never compared
+// images[].size of the manifest, used by the box only for its free-space check (low_disk below 2 x size) and never compared
 // with what it downloads. The registry digests differ from the local ones (layers are compressed on push), so the size comes from
 // the platforms of the local list, which must be the platforms that were pushed.
 // The local lists must still be the images the gates checked (and so the ones pushed), or the sizes would be of others.
@@ -580,10 +580,10 @@ type inputsOpts struct {
 	Repo           string // the git repository: bundled[] is read from pins.env and the pack index at tag v<version>
 }
 
-// bundledOf is bundled[] of the release (D-410): the pinned third-party software inside the signed images, as Settings → Updates →
+// bundledOf is bundled[] of the release: the pinned third-party software inside the signed images, as Settings → Updates →
 // Managed packages lists it, read from git at tag v<version> (what the images were built from): nuclei and the template pack in scan,
-// OpenCanary in honeypot. nmap is never here (D-4): the box installs it from Debian. nuclei has no sha256: it is built from source per
-// platform (D-319), so no one hash names it; the signed image digest does.
+// OpenCanary in honeypot. nmap is never here: the box installs it from Debian. nuclei has no sha256: it is built from source per
+// platform, so no one hash names it; the signed image digest does.
 func bundledOf(ctx context.Context, run runFunc, repo, version string) ([]release.Bundled, error) {
 	show := func(p string) ([]byte, error) {
 		ctx, cancel := context.WithTimeout(ctx, time.Minute)
@@ -622,8 +622,8 @@ func bundledOf(ctx context.Context, run runFunc, repo, version string) ([]releas
 }
 
 // BuildInputs writes the release description from what was pushed and built: the images of images.json with their index digests,
-// platforms and local sizes; the two vedette-host packages; install_modes appliance and container (D-451); bundled[] from the pins at
-// the tag (bundledOf, D-410); released_at empty (the builder fills it). Channel and rollback come from the maintainer.
+// platforms and local sizes; the two vedette-host packages; install_modes appliance and container; bundled[] from the pins at
+// the tag (bundledOf); released_at empty (the builder fills it). Channel and rollback come from the maintainer.
 func BuildInputs(ctx context.Context, run runFunc, doc *ImagesDoc, o inputsOpts) (Inputs, error) {
 	var in Inputs
 	if _, err := release.CompareVersions(doc.Version, doc.Version); err != nil {
@@ -644,7 +644,7 @@ func BuildInputs(ctx context.Context, run runFunc, doc *ImagesDoc, o inputsOpts)
 		}
 	case "false":
 	default:
-		return in, fmt.Errorf("say whether a box may roll back across this release: RELEASE_ROLLBACK_SAFE=true or false (got %q); the builder proves true from the migrations (D-183)", o.RollbackSafe)
+		return in, fmt.Errorf("say whether a box may roll back across this release: RELEASE_ROLLBACK_SAFE=true or false (got %q); the builder proves true from the migrations", o.RollbackSafe)
 	}
 	for _, v := range []string{o.RollbackMin, o.MinUpgradeFrom} {
 		if v == "" {
@@ -716,7 +716,7 @@ func cmdInputs(ctx context.Context, args []string, stdout io.Writer) error {
 	out := fs.String("out", "release.in.json", "release description to write (refused when it exists: it may hold your notes)")
 	var o inputsOpts
 	fs.StringVar(&o.Channel, "channel", "", "stable or beta (required)")
-	fs.StringVar(&o.RollbackSafe, "rollback-safe", "", "true or false (required): may a box roll back across this release (D-183)")
+	fs.StringVar(&o.RollbackSafe, "rollback-safe", "", "true or false (required): may a box roll back across this release")
 	fs.StringVar(&o.RollbackMin, "rollback-min-version", "", "rollback.min_version: the oldest release a box may roll back to (required with true)")
 	fs.StringVar(&o.MinUpgradeFrom, "min-upgrade-from", "", "min_upgrade_from (empty: none)")
 	fs.StringVar(&o.DebDir, "deb-dir", "dist", "directory with vedette-host_<version>_<amd64|arm64>.deb")

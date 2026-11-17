@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
-// Codes of an SSO sign-in that core/auth decides (D-195); the protocol's own (sso_expired, sso_failed) are auth-oidc's.
+// Codes of an SSO sign-in that core/auth decides; the protocol's own (sso_expired, sso_failed) are auth-oidc's.
 const (
 	CodeNoAccess        = "no_access"
 	CodeEmailInUse      = "email_in_use"
@@ -35,8 +35,8 @@ type SSOIdentity struct {
 	UserAgent       string
 }
 
-// SSOSignIn finds or creates the account of an SSO identity and starts a session like a password sign-in (D-71), in one write
-// transaction (D-195, D-196):
+// SSOSignIn finds or creates the account of an SSO identity and starts a session like a password sign-in, in one write
+// transaction:
 //   - the account is keyed by (iss, sub), never by email;
 //   - Role "" → 403 no_access, and an existing account's sessions end (leaving the group at the IdP takes effect now);
 //   - a new identity: no email or email_verified=false → 403 email_unverified; an email that belongs to a password account, or to
@@ -46,7 +46,7 @@ type SSOIdentity struct {
 //   - the role follows the groups at every sign-in; a change ends the account's other sessions (user.role "… (SSO groups)");
 //   - email and name never change after creation.
 //
-// Every refusal writes auth.login_failed "SSO: <reason>" in the same transaction as what it changed. No device cookie (D-196 (2)).
+// Every refusal writes auth.login_failed "SSO: <reason>" in the same transaction as what it changed. No device cookie.
 func (s *Service) SSOSignIn(ctx context.Context, in SSOIdentity) (Issued, error) {
 	if !in.IP.IsValid() {
 		return Issued{}, errNoIP()

@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// observe runs rounds rounds of the probe (INV-2, D-81). A round asks the three public services once each and
+// observe runs rounds rounds of the probe (INV-2). A round asks the three public services once each and
 // accepts an address only when at least two of them agree (EgressProber.Round). The rule over rounds: every
 // address that was accepted in at least one round is seen, in the order it was first accepted; a round without
 // agreement adds nothing. So a load balancer in front of several uplinks, which gives a new connection a new

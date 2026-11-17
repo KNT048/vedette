@@ -1,5 +1,5 @@
 #!/bin/sh
-# A fake nmap for the compose dev stack (D-146): it scans nothing and sends nothing. --version answers like nmap, anything else prints a
+# A fake nmap for the compose dev stack: it scans nothing and sends nothing. --version answers like nmap, anything else prints a
 # canned XML result with no host up.
 if [ "$1" = "--version" ]; then
 	echo "Nmap version 7.95 ( https://nmap.org )"

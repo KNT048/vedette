@@ -332,7 +332,7 @@ func newZPSender(t *testing.T, f *zaloFake, mod func(*ZaloPersonalConfig)) *zalo
 	return s.(*zaloPersonalSender)
 }
 
-func TestContract_D46_ZaloPersonalSendsToTheUser(t *testing.T) {
+func TestContract_ZaloPersonalSendsToTheUser(t *testing.T) {
 	t.Parallel()
 	f := newZaloFake(t)
 	s := newZPSender(t, f, nil)

@@ -11,7 +11,7 @@ import (
 
 func TestContract_INV4_TokenMeterMonthlyBudget(t *testing.T) {
 	t.Parallel()
-	// Budget range for the shared budget and for a profile (1,000..150,000,000 tokens a month, D-531).
+	// Budget range for the shared budget and for a profile (1,000..150,000,000 tokens a month).
 	for n, ok := range map[int]bool{0: false, 999: false, 1000: true, 6_000_000: true, 150_000_000: true, 150_000_001: false, -5: false} {
 		if ValidMonthlyBudget(n) != ok {
 			t.Errorf("ValidMonthlyBudget(%d) != %v", n, ok)
@@ -55,7 +55,7 @@ func TestContract_INV4_TokenMeterMonthlyBudget(t *testing.T) {
 	}
 	m2.Record("b", 2500, 0)
 	if m2.Tier() != TierMax {
-		t.Fatalf("far over the budget the level still stays (D-531): %v", m2.Tier())
+		t.Fatalf("far over the budget the level still stays: %v", m2.Tier())
 	}
 	if m2.ProfileUsed("a") != 1000 || m2.ProfileUsed("b") != 2500 || m2.ProfileUsed("none") != 0 {
 		t.Fatalf("per profile: a=%d b=%d", m2.ProfileUsed("a"), m2.ProfileUsed("b"))
@@ -136,7 +136,7 @@ func TestMeterHoldsAreNotUsedUp(t *testing.T) {
 }
 
 // The month is the box's local month, not UTC: 16:59 UTC on 30 November is 23:59 in Ho Chi Minh City, 17:01 UTC is 1 December. A
-// day boundary inside a month resets nothing (no daily cap, D-531).
+// day boundary inside a month resets nothing (no daily cap).
 func TestMeterMonthBoundaryInBoxTimeZone(t *testing.T) {
 	t.Parallel()
 	c := &clock{time.Date(2026, 11, 9, 16, 59, 0, 0, time.UTC)}

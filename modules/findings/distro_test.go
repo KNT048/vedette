@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// D-516: on a packaged deb row the distribution's word on its own package decides before NVD's upstream ranges.
+// On a packaged deb row the distribution's word on its own package decides before NVD's upstream ranges.
 func TestDistroDecidesForAPackagedRow(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC)
@@ -29,7 +29,7 @@ func TestDistroDecidesForAPackagedRow(t *testing.T) {
 		return MatchAsset(Asset{ID: "a", Name: "web-01", OS: osName, Software: []Software{s}}, []Vuln{v}, map[string]bool{v.CVE: have}, now)
 	}
 
-	// installed at or above the fixed version: no new finding; an open one is proved not affected (D-530 closes it)
+	// installed at or above the fixed version: no new finding; an open one is proved not affected (auto-resolve closes it)
 	if r := on("Ubuntu 24.04.1 LTS", ssh("1:9.6p1-3ubuntu13.14", "agent"), false); len(r.New) != 0 {
 		t.Fatalf("a patched package made a finding: %+v", r.New)
 	}
@@ -46,7 +46,7 @@ func TestDistroDecidesForAPackagedRow(t *testing.T) {
 	// installed below the fixed version: a version finding that names the distribution's fix
 	r = on("Ubuntu 24.04.1 LTS", ssh("1:9.6p1-3ubuntu13.4", "agent"), false)
 	if len(r.New) != 1 || r.New[0].Basis != BasisVersion || r.New[0].Severity != SeverityHigh ||
-		!r.New[0].Evidence.Agent || // D-548: the agent read the installed package: a detection, no "only suspected"
+		!r.New[0].Evidence.Agent || // The agent read the installed package: a detection, no "only suspected"
 		r.New[0].Evidence.Summary != "The agent on web-01 reports OpenSSH 1:9.6p1-3ubuntu13.4 installed from Ubuntu 24.04's packages. Ubuntu fixed CVE-2026-10001 in openssh 1:9.6p1-3ubuntu13.5 (Ubuntu security data), so this device has the flaw until it installs Ubuntu's security updates." {
 		t.Fatalf("unpatched: %+v", r.New)
 	}
@@ -81,7 +81,7 @@ func TestDistroDecidesForAPackagedRow(t *testing.T) {
 	}
 }
 
-// D-516: kernel images come from a signing source package; the security data lists the kernel's own source.
+// Kernel images come from a signing source package; the security data lists the kernel's own source.
 func TestSecuritySourceOfSignedKernels(t *testing.T) {
 	t.Parallel()
 	for _, c := range [][3]string{
@@ -201,7 +201,7 @@ func TestDistroHWEKernel(t *testing.T) {
 	}
 }
 
-// D-570: the feeds module pulls a distribution's files only for a device the distribution's word can apply to.
+// The feeds module pulls a distribution's files only for a device the distribution's word can apply to.
 func TestDeviceDistro(t *testing.T) {
 	t.Parallel()
 	deb := Software{Source: "agent", Packaged: true, PkgVersion: "1:9.6p1-3ubuntu13.14", PkgSource: "openssh"}

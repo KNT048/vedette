@@ -26,7 +26,7 @@ export function VerifyPanel({ target }: { target: Target }) {
   const verified = target.status !== 'unverified'
   // The box was just checked and no longer goes out through this IP: the green result of an earlier check would say the opposite, so it is not shown.
   const paused = target.blocked_reason === 'ip_not_current'
-  // D-628: the Name to type in the domain's zone (@ for the zone itself, "git" for git.example.com), the dedicated name for a CNAME,
+  // The Name to type in the domain's zone (@ for the zone itself, "git" for git.example.com), the dedicated name for a CNAME,
   // and a verified parent that covers this name already.
   const proof = target.proof
 
@@ -44,7 +44,7 @@ export function VerifyPanel({ target }: { target: Target }) {
       </Button>
       {domain ? <span className="max-w-xl text-meta text-muted">{t('verify.recheckHint')}</span>
         : <InfoLine className="max-w-xl text-meta text-muted" topic={t('verify.ipRecheck')} info={t('verify.ipRecheckHintInfo')}>{t('verify.ipRecheckHint', { value: target.value })}</InfoLine>}
-      {/* kien G1: Verify again of an IP is a full check, 5 rounds of three public services (5 s each at most); a DNS lookup is quick */}
+      {/* Verify again of an IP is a full check, 5 rounds of three public services (5 s each at most); a DNS lookup is quick */}
       {domain ? null : <BusyNote busy={verify.isPending} className="basis-full">{t('verify.ipWaiting')}</BusyNote>}
     </div>
   )
@@ -68,7 +68,7 @@ export function VerifyPanel({ target }: { target: Target }) {
               ]} />
               <CodeBlock code={`vedette-verify=${target.token}`} label={t('verify.dns.valueLabel')} />
               <InfoLine className="max-w-3xl text-meta text-muted" topic={t('verify.dns.valueLabel')} info={t('verify.dnsHintInfo')}>{t('verify.dnsHint')}</InfoLine>
-              {/* D-632: the zone apex is the main path for every target; the dedicated name is the alternative for a subdomain */}
+              {/* The zone apex is the main path for every target; the dedicated name is the alternative for a subdomain */}
               {proof && proof.zone !== target.value && proof.alt_host ? <p className="max-w-3xl text-meta text-muted" data-testid="proof-cname">{t('verify.cnameHint', { zone: proof.zone, value: target.value, alt: proof.alt_host })}</p> : null}
               {/* review r1 L4 of #960: a delegated sub-zone takes the record at its own @ (prove accepts any parent name) */}
               {proof && proof.zone !== target.value ? <p className="max-w-3xl text-meta text-muted" data-testid="proof-delegated">{t('verify.delegatedHint', { zone: proof.zone, value: target.value })}</p> : null}

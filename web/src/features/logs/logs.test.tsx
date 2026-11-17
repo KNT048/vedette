@@ -57,7 +57,7 @@ describe('logs: source catalog (S-LOG-1)', () => {
     // honesty: only the kinds that have a profile (modules/logs/data/profiles) say parsed; everyone else says stored, and the digest reads them with the generic pattern finder
     expect(ENTRIES.filter((e) => e.reads === 'parsed').map((e) => e.id).sort()).toEqual(['cisco-asa', 'fortigate', 'linux-journald', 'linux-rsyslog', 'mikrotik', 'opnsense', 'paloalto', 'pfsense', 'sonicwall', 'sophos', 'ubiquiti', 'windows'])
     expect(CATALOG.nginx.readsNote).toMatch(/Stored and searchable\./)
-    // W3-10 (D-487): a Linux source says its failed logins are read, not "Stored only".
+    // A Linux source says its failed logins are read, not "Stored only".
     expect(CATALOG['linux-rsyslog'].logins).toBe(true)
     expect(CATALOG['linux-rsyslog'].readsNote).toMatch(/^Failed logins: 5 failed SSH or PAM logins/)
   })
@@ -151,7 +151,7 @@ async function openAdd(pick: RegExp | string) {
   return form
 }
 
-describe('logs: the syslog header of a listed line (W1-22, D-485)', () => {
+describe('logs: the syslog header of a listed line', () => {
   it('reads RFC 3164 and 5424 like the box (service_test.go TestEventHeaderIsReadForDisplay); a line without a header is all message', () => {
     expect(syslogHeader('<38>Nov 13 14:15:02 laptop-it sshd[2211]: Failed password for invalid user admin from 45.155.205.233 port 51122 ssh2'))
       .toEqual({ host: 'laptop-it', app: 'sshd', message: 'Failed password for invalid user admin from 45.155.205.233 port 51122 ssh2' })
@@ -176,7 +176,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     const sources = await screen.findByRole('table', { name: 'Log sources currently received' })
     expect(within(sources).getAllByRole('row')).toHaveLength(5)
     expect(within(sources).getAllByText('Receiving')).toHaveLength(3)
-    // Walk 5: a UDP source's TCP lines are kept too, so the column says both; the mock's sources are UDP
+    // A UDP source's TCP lines are kept too, so the column says both; the mock's sources are UDP
     expect(within(sources).getAllByText(/^UDP and TCP \d+$/).length).toBeGreaterThan(0)
     expect(within(sources).queryByText(/^UDP \d+$/)).toBeNull()
     expect(within(sources).getByText('Silent')).toBeInTheDocument()
@@ -184,7 +184,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     await expectNoA11yViolations()
   })
 
-  it('the KPI strip links to the tabs; the old #anchors land on their tab; other query parameters stay (D-543)', async () => {
+  it('the KPI strip links to the tabs; the old #anchors land on their tab; other query parameters stay', async () => {
     const view = renderApp('/logs')
     const strip = await screen.findByRole('list', { name: 'Logs at a glance' })
     const links = within(strip).getAllByRole('link')
@@ -213,7 +213,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(table).getByRole('link', { name: 'Look up 185.220.101.47' })).toHaveAttribute('href', '/lookup?q=185.220.101.47')
   })
 
-  it('a subdomain of a name listed with all of its subdomains says the listed name, and Look up goes to it (D-228, D-425)', async () => {
+  it('a subdomain of a name listed with all of its subdomains says the listed name, and Look up goes to it', async () => {
     renderApp('/logs')
     const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
     expect(within(table).getByText('a7k2q.update-dsm-synology.com')).toBeInTheDocument()
@@ -282,7 +282,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(form).getByLabelText('Find your device or software')).toBeInTheDocument()
   })
 
-  it('walk 5: the generic syslog form offers UDP, TCP and TLS, as its port hint says', async () => {
+  it('the generic syslog form offers UDP, TCP and TLS, as its port hint says', async () => {
     renderApp('/logs?tab=sources')
     const form = await openAdd(/Other device \(standard syslog/)
     expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option').map((o) => o.textContent)).toEqual(['UDP', 'TCP', 'TLS'])
@@ -292,7 +292,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     renderApp('/logs?tab=sources')
     const form = await openAdd(/MikroTik/)
     expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option')).toHaveLength(1)
-    // D-443, D-444 (walk 4): the box listens on UDP and TCP whatever the sources; a UDP source takes TCP too, a TCP source no UDP
+    // The box listens on UDP and TCP whatever the sources; a UDP source takes TCP too, a TCP source no UDP
     expect(within(form).getByLabelText('Protocol')).toHaveAccessibleDescription("Keeps this device's lines over UDP or TCP.")
     expect(within(form).getByRole('button', { name: 'About Protocol' })).toHaveAccessibleDescription("The box listens on UDP and TCP and keeps this device's lines from either.") // #824: the why is behind the field's ⓘ
     await userEvent.type(within(form).getByLabelText('Name'), 'RT-NEW')
@@ -310,7 +310,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(form).getByLabelText('Port the box listens on')).toHaveValue(6514)
   })
 
-  it('the box certificate of the TLS port is shown with its fingerprint and a download (S-LOG-1, D-434)', async () => {
+  it('the box certificate of the TLS port is shown with its fingerprint and a download (S-LOG-1)', async () => {
     renderApp('/logs?tab=sources')
     const card = (await screen.findByRole('heading', { name: 'Box certificate for syslog over TLS' })).closest('section')!
     expect(within(card).getByText(/box's own certificate authority.*port 6514.*Do not pin the server certificate/)).toBeInTheDocument()
@@ -318,7 +318,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(card).getByRole('button', { name: 'Download certificate (.pem)' })).toBeEnabled()
   })
 
-  it('a TLS source can pin the device client certificate: pasted as AB:CD..., stored as lowercase hex; a bad one is refused under the field (D-435)', async () => {
+  it('a TLS source can pin the device client certificate: pasted as AB:CD..., stored as lowercase hex; a bad one is refused under the field', async () => {
     renderApp('/logs?tab=sources')
     const form = await openAdd(/^FortiGate/)
     expect(within(form).queryByLabelText('Client certificate fingerprint (optional)')).not.toBeInTheDocument() // UDP: no pin
@@ -373,7 +373,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(input).toHaveValue('')
   })
 
-  it('a keyword search that stopped early says how far back it looked and Search older lines continues it (S-LOG-1, D-441)', async () => {
+  it('a keyword search that stopped early says how far back it looked and Search older lines continues it (S-LOG-1)', async () => {
     const ev = (id: string, ts: string) => ({ id, ts, source_id: 'ls-1', source_name: 'FW-HQ', line: `needle ${id}` })
     let cursor: string | null = 'unset'
     server.use(http.get('*/api/v1/logs/events', ({ request }) => {
@@ -429,7 +429,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(screen.queryByLabelText('Keyword')).not.toBeInTheDocument()
   })
 
-  it('no sources yet, but syslog arrives: the sender is named once with every protocol it used, a way to add it and a forgery warning (walk 4, D-443)', async () => {
+  it('no sources yet, but syslog arrives: the sender is named once with every protocol it used, a way to add it and a forgery warning', async () => {
     server.use(
       http.get('*/api/v1/logs/sources', () => HttpResponse.json({ box: { ip: '192.168.18.141', hostname: 'vedette' }, sources: [], retention_days: 30 })),
       http.get('*/api/v1/logs/unknown-senders', () => HttpResponse.json({ items: [
@@ -445,7 +445,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     await userEvent.click(within(hint).getByRole('button', { name: 'Add as source: 192.168.18.145' }))
     const form = await screen.findByRole('dialog', { name: 'Add log source' })
     await userEvent.click(within(form).getByRole('button', { name: /^FortiGate/ }))
-    expect(within(form).getByLabelText('Protocol')).toHaveValue('udp') // a UDP source takes TCP too (D-444)
+    expect(within(form).getByLabelText('Protocol')).toHaveValue('udp') // a UDP source takes TCP too
   })
 
   it('the box address is unknown (no LAN range yet): the page says so and the setup shows a clear placeholder', async () => {
@@ -465,7 +465,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(dialog).not.toHaveTextContent('192.168.10.250')
   })
 
-  it('the box address is unknown and the reader is not an administrator: no link to the administrator\'s Devices setup, who to ask instead (#875 r1)', async () => {
+  it('the box address is unknown and the reader is not an administrator: no link to the administrator\'s Devices setup, who to ask instead (#875)', async () => {
     server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
       box: { ip: null, hostname: 'vedette', lan: null, iface: 'eth0' }, retention_days: 30,
       sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '10.0.0.5', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
@@ -479,7 +479,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(dialog).queryByRole('link', { name: 'Add the LAN range in Devices, Scope and sensors' })).toBeNull()
   })
 
-  it('a container that cannot see its own address in the declared LAN range says to use the address of the machine, not to add a range (user walk)', async () => {
+  it('a container that cannot see its own address in the declared LAN range says to use the address of the machine, not to add a range', async () => {
     server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
       box: { ip: null, hostname: 'vedette', lan: '192.168.50.0/24', iface: 'eth0' }, retention_days: 30,
       sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '192.168.50.5', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
@@ -487,7 +487,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     renderApp('/logs?tab=sources')
     expect(await screen.findByText(/cannot see its own address in your LAN range 192\.168\.50\.0\/24.*the one you open this page on/)).toBeInTheDocument()
     expect(screen.queryByText(/add your LAN range first/)).not.toBeInTheDocument()
-    // no line yet: no size estimate for the retention (QA walk 2026-11-12)
+    // no line yet: no size estimate for the retention
     await userEvent.click(screen.getByRole('tab', { name: 'Retention' }))
     expect(await screen.findByText(/no size estimate yet/)).toBeInTheDocument()
     expect(screen.queryByText(/take about/)).not.toBeInTheDocument()
@@ -498,7 +498,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(alert).not.toHaveTextContent('Add your LAN range first')
   })
 
-  it('Refresh in Log sources refreshes the headline, the digest and the event search too (user walk)', async () => {
+  it('Refresh in Log sources refreshes the headline, the digest and the event search too', async () => {
     let lines = 0
     server.use(
       http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: lines, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: true })),
@@ -513,7 +513,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(await screen.findByText(/0 of 34 matching lines/)).toBeInTheDocument()
   })
 
-  it('less than the baseline of logs: the page says it is still learning, not that logs look normal (QA walk)', async () => {
+  it('less than the baseline of logs: the page says it is still learning, not that logs look normal', async () => {
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 34, baseline_days: 7, history_days: 0, new: [], spikes: [], bad_connections: [], ioc_matching: true })))
     renderApp('/logs')
     expect(await screen.findByRole('heading', { level: 1, name: 'Learning what is normal: 0 of 7 days of logs so far.' })).toBeInTheDocument()
@@ -521,7 +521,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(screen.queryByText(/look normal|compared with 7 days ago|compared with the previous/)).not.toBeInTheDocument()
   })
 
-  it('Feeds off: the headline does not count bad connections and the empty list links to Settings, Modules (QA walk)', async () => {
+  it('Feeds off: the headline does not count bad connections and the empty list links to Settings, Modules', async () => {
     const item = { id: 'n-1', signature: 'x', source_id: 'ls-1', source_name: 'FW-HQ', count: 1, first_seen: '2026-11-12T00:00:00Z', sample: 'x' }
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [item], spikes: [], bad_connections: [], ioc_matching: false })))
     modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
@@ -530,7 +530,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(await screen.findByRole('link', { name: 'Open Settings, Modules' })).toHaveAttribute('href', '/settings/modules#module-feeds')
   })
 
-  it('the headline says one connection, and counts a blocked attempt apart (D-227, QA walk 3)', async () => {
+  it('the headline says one connection, and counts a blocked attempt apart', async () => {
     const hit = (id: string, blocked: boolean) => ({ id, ts: '2026-11-12T00:00:00Z', asset_id: null, asset_name: null, src_ip: '192.168.1.50', dest: '185.220.101.47', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['IPsum'], confidence: 0.6, blocked, listed_as: null })
     let hits = [hit('h-1', true)]
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: hits, ioc_matching: true })))
@@ -541,7 +541,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 connection and 1 blocked attempt to bad destinations, 0 new log types, 0 spikes.' })).toBeInTheDocument()
   })
 
-  it('syslog from an address that is not a source is named, with a way to add it; a viewer does not see addresses (S-LOG-1, QA walk 3)', async () => {
+  it('syslog from an address that is not a source is named, with a way to add it; a viewer does not see addresses (S-LOG-1)', async () => {
     server.use(
       http.get('*/api/v1/logs/sources', () => HttpResponse.json({
         box: { ip: null, hostname: 'vedette', lan: '192.168.1.0/24', iface: 'eth0' }, retention_days: 30,
@@ -550,7 +550,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
       })),
       http.get('*/api/v1/logs/unknown-senders', () => HttpResponse.json({ items: [
         { ip: '172.18.0.1', proto: 'udp', count: 5, last_seen: new Date().toISOString() },
-        { ip: '192.168.1.2', proto: 'udp', count: 1, last_seen: new Date().toISOString() }, // a TCP source takes no UDP (D-444)
+        { ip: '192.168.1.2', proto: 'udp', count: 1, last_seen: new Date().toISOString() }, // a TCP source takes no UDP
       ] })),
     )
     const view = renderApp('/logs?tab=sources')
@@ -587,11 +587,11 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
     renderApp('/logs')
     expect(await screen.findByText(/The Feeds module is off, so no connection can be matched/)).toBeInTheDocument()
-    // with Feeds off nothing was matched, so the list must not read as "no device connected" (D-300; QA walk 2026-11-12)
+    // with Feeds off nothing was matched, so the list must not read as "no device connected"
     expect(screen.queryByText(/None of your devices connected/)).not.toBeInTheDocument()
   })
 
-  it('Feeds on but no switched-on feed lists an indicator: the empty list says nothing could be matched (QA walk a)', async () => {
+  it('Feeds on but no switched-on feed lists an indicator: the empty list says nothing could be matched', async () => {
     const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: false }
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)))
     renderApp('/logs')
@@ -608,7 +608,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(table).getAllByRole('link', { name: /^Look up / }).map((a) => a.textContent)).toEqual(['Look up 203.0.113.50', 'Look up 203.0.113.51'])
     const nas = assetsStore.get().find((a) => a.ip === '192.168.10.20')!
     expect(within(table).getAllByRole('link', { name: nas.hostname! })).toHaveLength(2)
-    // D-227: a line the firewall blocked is an attempt, marked Blocked; the one that went through is not
+    // A line the firewall blocked is an attempt, marked Blocked; the one that went through is not
     const [newest, older] = within(table).getAllByRole('row').slice(1)
     expect(within(older!).getByText('Blocked')).toBeInTheDocument()
     expect(within(newest!).queryByText('Blocked')).not.toBeInTheDocument()
@@ -650,7 +650,7 @@ describe('logs: SIEM forwarding (S-LOG-3)', () => {
     expect(await screen.findByText(/^Test at .*: failed/)).toHaveAttribute('role', 'status')
   })
 
-  // kien G1: the test waits on the SIEM (up to 30 s); the button spins and a note says what is happening
+  // The test waits on the SIEM (up to 30 s); the button spins and a note says what is happening
   it('Save and send test shows the busy state and the waiting note while the test runs', async () => {
     let release!: () => void
     const held = new Promise<void>((r) => { release = r })
@@ -736,7 +736,7 @@ describe('logs: Add log source form matrix', () => {
   })
 })
 
-describe('logs: Add log source form matrix (QA walk 2026-11-12)', () => {
+describe('logs: Add log source form matrix', () => {
   it('a refused value is told under its own field, which takes focus; fixing the field clears it', async () => {
     renderApp('/logs?tab=sources')
     const form = await openAdd(/^FortiGate/)

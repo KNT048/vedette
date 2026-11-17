@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// findings' reconcile job (D-144) is wired for the module, and its device list is every device of the real inventory.
+// findings' reconcile job is wired for the module, and its device list is every device of the real inventory.
 func TestFindingsReconcileJobAndDeviceList(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -44,7 +44,7 @@ func TestFindingsReconcileJobAndDeviceList(t *testing.T) {
 }
 
 // kevAdded stores a CISA entry with the date CISA added it.
-// It has a scan template: a product match on a device a person added stays a finding, the scan's target (D-602).
+// It has a scan template: a product match on a device a person added stays a finding, the scan's target.
 func (s *stack) kevAdded(cve, vendor, product string, added time.Time) {
 	s.t.Helper()
 	now := time.Now().UTC()
@@ -79,7 +79,7 @@ func (s *stack) setFindings(on bool) {
 }
 
 // The baseline events of the first CISA pull were lost (findings was off, or the re-match was cut by its timeout), so no
-// finding exists. The reconcile then creates them all; notify must stay silent for the old entries (D-78: backlog is
+// finding exists. The reconcile then creates them all; notify must stay silent for the old entries (backlog is
 // silent) and announce the one CISA added two days ago, once.
 func TestWiringReconcileAfterALostBaselineIsSilentForBacklogAndAnnouncesRecentNews(t *testing.T) {
 	t.Parallel()
@@ -123,12 +123,12 @@ func TestWiringReconcileAfterALostBaselineIsSilentForBacklogAndAnnouncesRecentNe
 	}
 }
 
-// D-488 follow-up: the findings adapter carries where a software row came from, so "What to do" tells a package of the
+// The findings adapter carries where a software row came from, so "What to do" tells a package of the
 // distribution to take its security updates and keeps the upstream number for a row a person typed.
 func TestFindingsInputCarriesWhereSoftwareCameFrom(t *testing.T) {
 	s := newStack(t)
 	ctx := t.Context()
-	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "boxkien"})
+	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "boxanna"})
 	if err != nil {
 		t.Fatal(err)
 	}

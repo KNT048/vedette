@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// D-180: a session opened with an administrator-set password may only read /me and change the password. Every other
+// A session opened with an administrator-set password may only read /me and change the password. Every other
 // non-public operation of the route table answers 403 password_change_required, whatever its method or role.
 func TestLimitedSessionReachesOnlyMeAndThePasswordChange(t *testing.T) {
 	t.Parallel()

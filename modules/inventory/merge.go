@@ -40,8 +40,8 @@ var uuidName = regexp.MustCompile(`^(?i:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
 
 // better reports whether a wins over b: source rank, then higher confidence, then newer seen_at, then the
 // smaller id, so the result is deterministic (DATA_MODEL 5.1 (2)). Two exceptions before all that, both unless a person
-// stated the value: of two host names a readable one beats a UUID-looking one (M5-186, walk 1 W1-10); of two MACs the
-// one seen last wins, whoever saw it (D-598 (4), n69): a MAC is not more true for a stronger source, it is where the
+// stated the value: of two host names a readable one beats a UUID-looking one (M5-186); of two MACs the
+// one seen last wins, whoever saw it: a MAC is not more true for a stronger source, it is where the
 // device answers now. A private Wi-Fi address that rotates would otherwise stay behind a scan's MAC of days ago, and
 // the next sighting of the new address, found by MAC, would make a second device.
 func better(a, b obs) bool {

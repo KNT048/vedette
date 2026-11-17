@@ -218,7 +218,7 @@ func validPort(p string) bool {
 	return n >= 1 && n <= 65535
 }
 
-// checkHost refuses, at save time, what no destination may be: a literal address the guard forbids (Vedette itself at port, D-446,
+// checkHost refuses, at save time, what no destination may be: a literal address the guard forbids (Vedette itself at port,
 // first, for its own sentence), a name that is an address in disguise (2130706433, 0x7f.1) and localhost. Names are resolved only on
 // the socket.
 func (s *Service) checkHost(host string, port uint16) error {

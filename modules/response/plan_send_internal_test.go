@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// D-313 after review: a read the AI cites is sent only for an action on a device through that read's connection, and never for a
+// A read the AI cites is sent only for an action on a device through that read's connection, and never for a
 // high-risk action, where it would make the second check out of one finding and a read that is not about the target.
 func TestCitedReadsOnlyForTheActionsConnectionAndNeverHighRisk(t *testing.T) {
 	reads := map[string]EvidenceRef{"rd-fw": {Connection: "cn-fw"}, "rd-other": {Connection: "cn-other"}}

@@ -21,7 +21,7 @@ const ModuleID = "mcp-server"
 // startRetry is how long Follow waits before it tries a failed start again.
 const startRetry = 15 * time.Second
 
-// DefaultListen is where the server listens: loopback only (INV-5, D-230).
+// DefaultListen is where the server listens: loopback only (INV-5).
 var DefaultListen = netip.MustParseAddrPort("127.0.0.1:8765")
 
 // Enabler says whether a module is on (the module registry).
@@ -39,7 +39,7 @@ type Config struct {
 	// Port 0 picks a free port (tests). In a container (InContainer) it may also be the unspecified address, 0.0.0.0 or [::].
 	Listen netip.AddrPort
 	// InContainer says the process runs in its own container network namespace, whose unit publishes the port on the host's
-	// 127.0.0.1 only (D-395): the core Quadlet unit and the container-only compose.yaml. The runtime forwards that publish to the
+	// 127.0.0.1 only: the core Quadlet unit and the container-only compose.yaml. The runtime forwards that publish to the
 	// container's own address, never to its loopback, so there the listener takes the unspecified address of the container's
 	// namespace, which is not the LAN; the endpoint shown stays http://127.0.0.1:<port>/mcp, the host's side of the publish.
 	InContainer bool
@@ -96,7 +96,7 @@ func (s *Service) Listening() (bool, error) {
 }
 
 // Endpoint is the address agents use, and bind its listen address: the running listener's when there is one. A listener on the
-// unspecified address of a container is reached through the host's 127.0.0.1 publish of the same port (D-395), so that is what it
+// unspecified address of a container is reached through the host's 127.0.0.1 publish of the same port, so that is what it
 // reports.
 func (s *Service) Endpoint() (bind netip.AddrPort, url string) {
 	s.mu.Lock()

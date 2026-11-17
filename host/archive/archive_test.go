@@ -38,7 +38,7 @@ func backup(t *testing.T) []byte {
 
 func drain(string, io.Reader, int64) error { return nil }
 
-// A whole archive reads; one whose gzip trailer (CRC-32) is damaged is refused, though every member read fine (D-518, L4).
+// A whole archive reads; one whose gzip trailer (CRC-32) is damaged is refused, though every member read fine.
 func TestReadChecksTheGzipTrailer(t *testing.T) {
 	t.Parallel()
 	good := backup(t)

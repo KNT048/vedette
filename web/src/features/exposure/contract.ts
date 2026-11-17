@@ -1,5 +1,5 @@
-// API contract of module exposure (D-18, S-EXP-1). UI types are inferred from here (types.ts).
-// Hard rule (LEGAL §3): POST .../scan returns 409 unless ownership is verified (IPs: not more than 30 days since the box last saw them) and the DNS TXT record is still there, and 400 `commitment_required` (D-57) until the commitment is recorded.
+// API contract of module exposure (S-EXP-1). UI types are inferred from here (types.ts).
+// Hard rule (LEGAL §3): POST .../scan returns 409 unless ownership is verified (IPs: not more than 30 days since the box last saw them) and the DNS TXT record is still there, and 400 `commitment_required` until the commitment is recorded.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { JobProgress } from '@/lib/progress'
@@ -22,16 +22,16 @@ export const PortRow = z.object({ ip: z.string(), port: z.number().int(), servic
   title: z.string().optional().describe('M2-7: the title of the web page on the port (deep scan, http-title)'),
   server: z.string().optional().describe('M2-7: the HTTP Server header on the port (deep scan, http-server-header)') })
 
-/** The sentence an administrator's first Scan now confirms (D-473). The backend owns the text (modules/exposure/notice.go) and sends it with the target's name in it; the page shows what it received. These two constants are the mock's copy, held equal to the backend's by a Go test. */
+/** The sentence an administrator's first Scan now confirms. The backend owns the text (modules/exposure/notice.go) and sends it with the target's name in it; the page shows what it received. These two constants are the mock's copy, held equal to the backend's by a Go test. */
 export const NOTICE_VERSION = '2026-11-14'
 export const NOTICE_TEMPLATE = 'By choosing Scan now I confirm that my company owns {value} and that I am authorized to scan it, including identifying its services and versions, safe checks for known exploited vulnerabilities and a passive web scan. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.'
 export const Notice = z.object({ version: z.string(), text: z.string() })
-/** FULL-1 (D-566): the testing terms of a verified target, one paragraph per line, and the one extra tick (off by default). The backend
+/** The testing terms of a verified target, one paragraph per line, and the one extra tick (off by default). The backend
  * owns the text (modules/exposure/terms.go) and sends it with the target in it; these are the mock's copy, held equal by a Go test. */
 export const TERMS_VERSION = '2026-11-14e'
 export const TERMS_TEMPLATE = 'I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette\'s tools may send it:\nAll ports: every TCP port, and the service and version behind each one.\nVulnerability checks: tests for known vulnerabilities, including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command). Some checks, OpenVAS\'s in particular, may write a harmless test file or record to confirm a flaw and then try to remove it. Checks that can crash a service, guess passwords or sign in with default passwords, and the exploit checks of nuclei and nmap that send more than a harmless read, run only with the disruptive checks below.\nWeb scanning: a scan of the web pages that follows links and may submit forms.\nAuthentication checks: whether login pages, admin interfaces and services let anyone in without a password, through a known authentication bypass or with weak settings, including the public anonymous login a service may offer (for example anonymous FTP). Passwords are not guessed and default or well-known passwords are not tried unless the disruptive checks below are ticked.\nAccept only if {value} is yours alone: not an address shared through your Internet provider (carrier-grade NAT), a hosting provider\'s NAT or proxy, or a CDN or hosted service that serves your names. Their servers are not yours to test. The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.'
-// D-571 (FULL-5 slice 3, LEGAL-2): a domain's terms: the IP text with the "yours alone" sentence replaced by what reaches every address
-// its names resolve to and who answers for a provider's permission (TERMS.md's own sentences, D-544). modules/exposure/terms.go termsTemplateDomain, held equal by a test.
+// LEGAL-2: a domain's terms: the IP text with the "yours alone" sentence replaced by what reaches every address
+// its names resolve to and who answers for a provider's permission (TERMS.md's own sentences). modules/exposure/terms.go termsTemplateDomain, held equal by a test.
 export const TERMS_TEMPLATE_DOMAIN = 'I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette\'s tools may send it:\nAll ports: every TCP port, and the service and version behind each one.\nVulnerability checks: tests for known vulnerabilities, including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command). Some checks, OpenVAS\'s in particular, may write a harmless test file or record to confirm a flaw and then try to remove it. Checks that can crash a service, guess passwords or sign in with default passwords, and the exploit checks of nuclei and nmap that send more than a harmless read, run only with the disruptive checks below.\nWeb scanning: a scan of the web pages that follows links and may submit forms.\nAuthentication checks: whether login pages, admin interfaces and services let anyone in without a password, through a known authentication bypass or with weak settings, including the public anonymous login a service may offer (for example anonymous FTP). Passwords are not guessed and default or well-known passwords are not tried unless the disruptive checks below are ticked.\nEvery name under {value} that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN. If a provider serves a name, its testing policy applies to you (for example, Cloudflare and AWS forbid denial-of-service tests); leave the disruptive checks off unless that provider allows them. Vedette\'s tools reach each address a name under {value} resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the web scan (ZAP). Verifying a name proves you control its DNS, not that you own the machines behind it or may test them. With shared or cloud hosting, a CDN or a proxy, that address can also serve other people\'s systems: you are responsible for having the provider\'s permission. Vedette does not check who owns those addresses. A name that points (CNAME) to a name outside {value} is scanned at whatever address the owner of that other name sets, so the disruptive checks never run on an address reached only that way. The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.'
 export const TERMS_DISRUPTIVE = 'Include disruptive checks (denial of service, password guessing, sign-in attempts with default or well-known passwords, and exploit checks that send more than a harmless read, such as nuclei\'s POST exploit requests that may create or change data and nmap\'s SQL injection probes): these can crash a service, lock accounts, change data or take a device offline.'
 export const TermsNotice = z.object({ version: z.string(), text: z.string().describe('The terms with the target in them, one paragraph per line'), disruptive: z.string().describe('The sentence of the extra tick, off by default') })
@@ -46,7 +46,7 @@ export const Commitment = z.object({
   sentence: z.string().nullable().describe('The exact sentence, with the target in it, kept with who and when; null on a commitment recorded before D-473'),
 })
 
-// D-628, D-632 (J6, kien G10): where a domain's ownership record goes. The target's own record at "@" of its zone (the registered
+// Where a domain's ownership record goes. The target's own record at "@" of its zone (the registered
 // domain, Public Suffix List, both sections: never across co.uk or ddns.net) proves it, as on its own name or on _vedette-verify.<name>;
 // a box domain's record on its own name covers every name under it. Never through a CNAME or a wildcard.
 export const ProofHint = z.object({
@@ -82,8 +82,8 @@ export const Target = z.object({
   proof: ProofHint.nullable().describe('Domains: where the TXT record goes and which verified domain covers this one already (D-628); null for an IP'),
 })
 
-// INV-27 (D-567, S-EXP-1): the surface of a verified domain. Every (name, address) has one kind; what serves a name (a CDN or not)
-// does not matter (kien 2026-11-14). With the domain's testing terms accepted, each public IPv4 address gets the deep scan (D-571, at most 3 a run).
+// INV-27 (S-EXP-1): the surface of a verified domain. Every (name, address) has one kind; what serves a name (a CDN or not)
+// does not matter. With the domain's testing terms accepted, each public IPv4 address gets the deep scan (at most 3 a run).
 export const HostClass = z.enum(['box', 'public', 'private'])
 export const HostIp = z.object({
   ip: z.string(), family: z.enum(['ipv4', 'ipv6']).describe('IPv6 is listed, not scanned yet'),
@@ -104,7 +104,7 @@ export const HostRow = z.object({
 export const AdminRow = z.object({ url: z.string(), product: z.string(), ip: z.string(), port: z.number().int(), risk: z.enum(['danger', 'warn']) })
 export const CertRow = z.object({ host: z.string(), issuer: z.string(), expires_at: z.iso.datetime() })
 
-// S-EXP-2 (INV-19, INV-20, D-553): what service identification (nmap -sV) read on the box's own public IP, what the scan checked and
+// S-EXP-2 (INV-19, INV-20): what service identification (nmap -sV) read on the box's own public IP, what the scan checked and
 // did not, and the exploited CVEs (CISA KEV) of the identified services, computed when the snapshot is read (not stored).
 export const ServiceRow = z.object({
   ip: z.string(), port: z.number().int(),
@@ -135,7 +135,7 @@ export const TemplateRow = z.object({
 })
 export const GapRow = z.object({ ip: z.string(), port: z.number().int(), software: z.string(), cves: z.array(z.string()).describe('Exploited CVEs of the product that only a version would decide') })
 
-// S-EXP-2 (INV-24, D-562): what ZAP's passive web scan (spider and passive rules, no form sent) noticed on a scanned page. Not exploited CVEs.
+// S-EXP-2 (INV-24): what ZAP's passive web scan (spider and passive rules, no form sent) noticed on a scanned page. Not exploited CVEs.
 export const WebRisk = z.enum(['high', 'medium', 'low', 'info'])
 export const WebSoftware = z.object({
   product: z.string(), version: z.string(),
@@ -151,7 +151,7 @@ export const WebFinding = z.object({
   software: z.array(WebSoftware).describe('D-565: versions ZAP read (10003 JavaScript library, 10036 Server header, 10037 X-Powered-By); [] for other rules'),
 })
 
-// S-EXP-2 (INV-25, D-563): the optional deep scan. Greenbone looked at the IP from outside without logging in; QoD >= 70 only.
+// S-EXP-2 (INV-25): the optional deep scan. Greenbone looked at the IP from outside without logging in; QoD >= 70 only.
 export const GreenboneResult = z.object({
   ip: z.string(), port: z.string().describe('"443/tcp", "general/tcp"; "" when Greenbone gave none'),
   severity: z.number().describe('CVSS score, 0.1 to 10. Below 4.0 (Low) it is a hardening note, shown apart and never counted as an alert (D-564)'), name: z.string().describe('Name of Greenbone\'s test; plain text'),
@@ -159,7 +159,7 @@ export const GreenboneResult = z.object({
   solution: z.string().describe('Greenbone\'s advice, plain text, clipped'), oid: z.string().describe('OID of the test; "" when not read'),
 })
 
-// N49-3, N49-2 (D-595): the one state of the snapshot's OpenVAS step, which its heading follows, and when it started (shown in the viewer's
+// The one state of the snapshot's OpenVAS step, which its heading follows, and when it started (shown in the viewer's
 // time zone like every other time of the page).
 export const GreenboneRunState = z.enum(['running', 'done', 'partial', 'not_run', 'failed', 'stopped', 'ended'])
 export const GreenboneRun = z.object({
@@ -189,7 +189,7 @@ export const Diff = z.object({ from: isoDate, to: isoDate, added: z.array(DiffIt
 
 export const VerifyResult = z.object({ verified: z.boolean(), message: z.string(), target: Target })
 
-/** Auto-detect of the box's public IPs (kien 2026-11-09). interval_min is 1 to 1440 (one minute to 24 hours); the server checks it (400 bad_interval). */
+/** Auto-detect of the box's public IPs. interval_min is 1 to 1440 (one minute to 24 hours); the server checks it (400 bad_interval). */
 export const BoxIpRun = z.object({ at: z.iso.datetime(), ok: z.boolean(), message: z.string().describe('What the last check saw, or why it failed') })
 export const BoxIpSettings = z.object({
   auto: z.boolean().describe('On: the box detects its public IPs at first start and then every interval_min minutes. Off: only "Detect now". Default on'),
@@ -197,9 +197,9 @@ export const BoxIpSettings = z.object({
   last_run: BoxIpRun.nullable().describe('The last automatic or manual detection; null before the first one'),
   retry_in_min: z.number().int().nullable().describe('null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more'),
 })
-/** An IP the customer removed and told Vedette not to add again (D-79). The list only blocks, it never allows: restoring only lets detection add the IP again. */
+/** An IP the customer removed and told Vedette not to add again. The list only blocks, it never allows: restoring only lets detection add the IP again. */
 export const IgnoredIp = z.object({ value: z.string().describe('A public IPv4 address'), ignored_by: z.string(), ignored_at: z.iso.datetime() })
-/** D-492: the device that probably answers the open ports of the box's own public IP. Never a sure claim: NAT may forward the port to another device. */
+/** The device that probably answers the open ports of the box's own public IP. Never a sure claim: NAT may forward the port to another device. */
 export const Gateway = z.object({
   ip: z.string().nullable().describe('The LAN default gateway the host reports; null when the box cannot tell'),
   device_id: z.string().nullable().describe('The inventory device with that IP; null when the gateway is not in the device list'),
@@ -219,7 +219,7 @@ export const ScanRun = z.object({
   progress: JobProgress.nullable().describe('How far the step that runs now is (#830): the port scan, service detection and vulnerability checks as the scan worker reports them, the passive web checks, and OpenVAS\'s own percent during the greenbone phase. Set while status is running; null otherwise'),
 })
 
-/** D-558: what Shodan InternetDB says about one of the box's own verified public IPs, next to Vedette's own scan. It is Shodan's claim, never Vedette's finding. */
+/** What Shodan InternetDB says about one of the box's own verified public IPs, next to Vedette's own scan. It is Shodan's claim, never Vedette's finding. */
 export const OutsideView = z.object({
   ip: z.string().describe('The public IP that was sent to Shodan'),
   checked_at: z.iso.datetime().describe('When the box asked Shodan (InternetDB itself gives no date; its data is updated about once a week)'),
@@ -234,7 +234,7 @@ export const OutsideView = z.object({
   scan_at: z.iso.datetime().nullable().describe('When that scan ran; null when never'),
 })
 
-/** D-563: the optional deep scan with Greenbone (OpenVAS), off by default. Greenbone runs as its own containers next to Vedette. */
+/** The optional deep scan with Greenbone (OpenVAS), off by default. Greenbone runs as its own containers next to Vedette. */
 export const GreenboneState = z.enum(['unavailable', 'off', 'starting', 'loading', 'ready', 'error'])
 export const Greenbone = z.object({
   state: GreenboneState.describe('unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes about 2 hours) or its weekly feed update, a phase and not a hang'),

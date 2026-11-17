@@ -26,7 +26,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// container.pull (WP-07b part 3, slice 3-7; spec 6.7, D-103, D-104, D-130; host CONTRACT INV-7 and INV-19).
+// container.pull (WP-07b part 3, slice 3-7; spec 6.7; host CONTRACT INV-7 and INV-19).
 // The machine is the fake of opstest with a fake podman that remembers images (StatefulImages) and
 // signing keys made for the test (opstest.Release, handed to the host through Deps.Keys). A refusal
 // must leave no podman call behind; the happy path asserts the argv of every call in order.
@@ -488,7 +488,7 @@ func TestContract_Pull_ASignatureOfAnotherDocumentOrAnUntrustedKeyIsSignatureInv
 func TestContract_Pull_NotAnApplianceIsRefused(t *testing.T) {
 	t.Parallel()
 	e := startPull(t)
-	// A bundle that core never wrote (D-452: the bundle pulls are in contract_bundle_test.go).
+	// A bundle that core never wrote (the bundle pulls are in contract_bundle_test.go).
 	e.refuse(t, "bundle", api.ContainerPullArgs{Service: "core", Version: pullVersion, Source: api.PullSourceBundle, BundleID: strings.Repeat("a", 32)}, api.CodeBundleNotFound)
 	e.m.OSRelease("ubuntu", "20.04", "Ubuntu 20.04")
 	e.refuse(t, "old ubuntu", e.std(t, 5), api.CodeNotAppliance)
@@ -883,7 +883,7 @@ func TestContract_Pull_AHostWithoutKeysRefusesEveryPullAndStoresNothing(t *testi
 }
 
 // The keys of this very build (production seam: Deps.Keys unset). A production build embeds the real
-// release keys (D-256), so the committed vectors, signed by the throwaway test keys, are refused as not
+// release keys, so the committed vectors, signed by the throwaway test keys, are refused as not
 // signed by a trusted key; a build with the releasetestkeys tag (CI runs the tests both ways) embeds the
 // throwaway keys of internal/release/testdata and then accepts them, which is the end-to-end check of the
 // format; a build with no usable keys refuses everything.
@@ -951,7 +951,7 @@ func TestContract_Pull_TheIndexDirectoryIsPrivateAndTheCommandIsInTheTable(t *te
 	e.pull(t, e.argsFor(t, api.ServiceCore, pullVersion, idx, man))
 }
 
-// --- review fixes of slice 3-7 (D-130 amendments) -----------------------------------------------------
+// --- review fixes of slice 3-7 -----------------------------------------------------
 
 type syncBuf struct {
 	mu sync.Mutex

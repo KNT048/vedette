@@ -28,7 +28,7 @@ func (v Vuln) Key() string { return ProductKey(v.Vendor, v.Product) }
 type KEVCatalog struct {
 	Version  string // catalogVersion, "" when absent or odd
 	Released string // dateReleased as YYYY-MM-DD, "" when absent or odd
-	// ReleasedAt is dateReleased to the second (zero when absent or odd): the tie-breaker of two copies with one catalogVersion (D-91)
+	// ReleasedAt is dateReleased to the second (zero when absent or odd): the tie-breaker of two copies with one catalogVersion
 	ReleasedAt time.Time
 	Vulns      []Vuln
 	Stats
@@ -81,7 +81,7 @@ func clip(s string, runes int) string {
 }
 
 // kevLinks splits the KEV "notes" field (URLs separated by ";") into valid https links. A plain http link is dropped:
-// the finding page offers these as the vendor advisory to act on (D-484), and a link anyone on the path can rewrite is no
+// the finding page offers these as the vendor advisory to act on, and a link anyone on the path can rewrite is no
 // advisory.
 func kevLinks(notes string) []string {
 	links := []string{}

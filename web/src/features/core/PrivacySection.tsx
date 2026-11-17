@@ -29,11 +29,11 @@ function Body({ d }: { d: PrivacyState }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const feedsOn = useModuleEnabled('feeds')
-  // S-CORE-4 (walk 4): a container-only install has no vedette-host, apt, scan image build or chrony; flows 6 and 10 then
-  // read as the container-only rows of PRIVACY.md (D-381). undefined while GET /modules loads: the appliance text.
+  // S-CORE-4: a container-only install has no vedette-host, apt, scan image build or chrony; flows 6 and 10 then
+  // read as the container-only rows of PRIVACY.md. undefined while GET /modules loads: the appliance text.
   const container = useInstallKind() === 'container'
   const oidcShown = useScope('auth-oidc') !== 'hidden' // post-v1: its switch is not on Settings, Modules in a v1 build
-  const mcpShown = useScope('mcp-server') !== 'hidden' // D-624 (#819): no link to a Settings page this build does not offer
+  const mcpShown = useScope('mcp-server') !== 'hidden' // No link to a Settings page this build does not offer
   const txt = (id: number, part: 'what' | 'to' | 'control') => t(container && (id === 6 || id === 10) ? `privacy.flow.${id}.container.${part}` : `privacy.flow.${id}.${part}`)
   // #824: a long cell shows its one-line summary (privacy.flowShort) and the full PRIVACY.md text behind ⓘ; the full text stays
   // word for word as PRIVACY.md (privacyFlows.test.ts) and is also the button's accessible description.
@@ -47,7 +47,7 @@ function Body({ d }: { d: PrivacyState }) {
       </span>
     )
   }
-  // A flow with an "items" list (flow 3, one item per AI job, D-407) shows its lead sentence and then the list, as PRIVACY.md does.
+  // A flow with an "items" list (flow 3, one item per AI job) shows its lead sentence and then the list, as PRIVACY.md does.
   const whatCell = (f: PrivacyFlow) => {
     const items = t(`privacy.flow.${f.id}.items`, { returnObjects: true, defaultValue: null }) as unknown
     return brief(f.id, 'what', <>{txt(f.id, 'what')}{Array.isArray(items) ? <ul className="mt-1 grid list-disc gap-1 pl-4">{items.map((i: string) => <li key={i}>{i}</li>)}</ul> : null}</>)
@@ -56,7 +56,7 @@ function Body({ d }: { d: PrivacyState }) {
   const save = useSavePrivacy()
   async function set(v: { update_check?: boolean }) {
     try { await save.mutateAsync(v); toast.success(t('common:saved')) } catch (e) { toast.error(errMsg(e, t)) }
-  }  // Flow 2 is never sent (D-82, D-153): ignore the state the API reports for it.
+  }  // Flow 2 is never sent: ignore the state the API reports for it.
   const stateChip = (f: PrivacyFlow) => (f.id === 2 ? <Chip tone="off">{t('privacy.state.notSent')}</Chip> : f.state === 'on' ? <Chip tone="ok">{t('privacy.state.on')}</Chip> : f.state === 'off' ? <Chip tone="off">{t('privacy.state.off')}</Chip> : <Chip tone="off">{t('privacy.state.conditional')}</Chip>)
   const control = (f: PrivacyFlow) => {
       if (f.id === 6) return (

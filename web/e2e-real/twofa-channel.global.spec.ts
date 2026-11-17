@@ -1,4 +1,4 @@
-// Email channel off, on the real backend (S-CORE-3, D-35): the email-code method is refused, never answered with a password-only sign-in.
+// Email channel off, on the real backend (S-CORE-3): the email-code method is refused, never answered with a password-only sign-in.
 // Global project: the email channel is one setting of the whole box, and the specs of the parallel project save it as a precondition.
 // The channel is saved again at the end, so the box is left the way the other specs expect it.
 import { expect, test } from '@playwright/test'
@@ -56,7 +56,7 @@ test('email channel off: choosing email codes is refused, and an email-code user
     expect((await api(page.request, 'GET', '/me')).status, 'no session was opened').toBe(401)
     expect((await codesFor(who.email)).length, 'nothing was mailed').toBe(sent)
 
-    // the administrator's way out: reset the user's two-step sign-in (D-35)
+    // the administrator's way out: reset the user's two-step sign-in
     expect((await api(admin, 'GET', '/core/users')).status).toBe(200)
     const list = await api<{ items: { id: string; email: string }[] }>(admin, 'GET', '/core/users')
     const id = list.body.items.find((u) => u.email === who.email)!.id

@@ -11,14 +11,14 @@ import (
 )
 
 // anyFinding answers for every finding id: the real directory is not wired in cmd yet, and this test is about
-// whether an event reaches notify with the D-78 marker, not about what the notice says.
+// whether an event reaches notify with the baseline marker, not about what the notice says.
 type anyFinding struct{}
 
 func (anyFinding) Finding(context.Context, string) (notify.FindingInfo, bool, error) {
 	return notify.FindingInfo{Severity: notify.Critical, Title: "is being exploited", What: "w", Action: "a", Devices: []string{"FortiGate"}}, true, nil
 }
 
-// The first CISA pull is silent (D-78) end to end on the real bus and a real SQLite file: the baseline event makes
+// The first CISA pull is silent end to end on the real bus and a real SQLite file: the baseline event makes
 // inventory re-match every device, findings creates findings, and notify queues nothing for them. A pull after that
 // (feeds.vuln.new_kev) is not silenced: its finding is one queued notice.
 func TestWiringBaselinePullQueuesNoNotice(t *testing.T) {

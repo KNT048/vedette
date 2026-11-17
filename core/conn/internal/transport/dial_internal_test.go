@@ -41,7 +41,7 @@ func recorder() (*[]netip.AddrPort, func(context.Context, netip.AddrPort) (net.C
 	}
 }
 
-// D-94 (1), INV-23: the address policy applies to the address that is dialled, not to the name that was typed.
+// INV-23: the address policy applies to the address that is dialled, not to the name that was typed.
 func TestDialerRefusesWhatThePolicyRefuses(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct{ name, host, why string }{

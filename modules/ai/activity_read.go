@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
-// The activity log as people read it (S-AI-8, D-48): the list, the check that nobody edited it, and how long it is kept.
+// The activity log as people read it (S-AI-8): the list, the check that nobody edited it, and how long it is kept.
 
 // The retention of the log in days (INV-19).
 const (

@@ -100,7 +100,7 @@ func newItems(d Digest) []string {
 }
 
 // INV-6: "new" is a signature that was not in the baseline, counted from the end of the source's 24 h warm-up; the first day of
-// a source is silent (the D-78 lesson: the first pull must not raise a flood).
+// a source is silent (the first pull must not raise a flood).
 func TestContract_INV6_WarmUpIsSilent(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -944,7 +944,7 @@ func TestContract_INV1_FloodThroughIngestIsOneRow(t *testing.T) {
 }
 
 // M3: the reads of one source use the index, and a digest and a detect over 10 sources with every quota full for the 10 days that are
-// kept are measured (the numbers go to D-206).
+// kept are measured.
 func TestMeasureDigestCost(t *testing.T) {
 	t.Parallel()
 	t.Run("a busy box", func(t *testing.T) { // the plan only, on a few rows: seconds under -race otherwise
@@ -1016,7 +1016,7 @@ func measureDigest(t *testing.T, perDay int) {
 	}
 }
 
-// L1: the cost of one Ingest batch of 500 lines (the numbers go to D-206): identical lines, distinct lines under the quota, distinct lines with the quota full.
+// L1: the cost of one Ingest batch of 500 lines: identical lines, distinct lines under the quota, distinct lines with the quota full.
 func TestMeasureIngestCost(t *testing.T) {
 	t.Parallel()
 	if os.Getenv("VEDETTE_MEASURE") == "" {
@@ -1215,7 +1215,7 @@ func minedFlood(e *env, src Source, n int) {
 	ingestAll(e, src, n, func(i int) string { return "aaa" + letters(i) + " hello" }, 1)
 }
 
-// The design of D-206: bounded signatures (shipped vocabulary) have a room of their own and are never put in a mined summary; a flood of mined
+// The design: bounded signatures (shipped vocabulary) have a room of their own and are never put in a mined summary; a flood of mined
 // kinds is itself reported by a summary whose target is different every hour (notify opens a new incident), which lists the rarest
 // items; what the summary covers is not recorded as announced, and the next summary leaves it out (M-1).
 func TestContract_Events_MinedFloodIsOneSummaryAnHour(t *testing.T) {
@@ -1567,7 +1567,7 @@ func TestPurgeBlanksSamplesByRange(t *testing.T) {
 	}
 }
 
-// M-1: what the counters of one source can take at most, in bytes of logs.db (the numbers go to D-206): every quota full, every value
+// M-1: what the counters of one source can take at most, in bytes of logs.db: every quota full, every value
 // at its largest, for the 10 days of daily rows and the 289 buckets of the 5-minute counters. VEDETTE_MEASURE=1.
 func TestMeasureCeilings(t *testing.T) {
 	if os.Getenv("VEDETTE_MEASURE") == "" {
@@ -1618,9 +1618,9 @@ func TestMeasureCeilings(t *testing.T) {
 	t.Logf("Counts 24h: %d in %v %v", n, time.Since(start), err)
 }
 
-// L1 (D-432): the cost of the writer and of a search with 5 million stored lines (a flood at the byte cap is about this many rows): the
-// batch of 500 through Ingest, and Events with no keyword, a common one, a rare one and one that matches nothing, per window. The numbers
-// go to D-432. One run, not a gate: VEDETTE_MEASURE=1.
+// L1: the cost of the writer and of a search with 5 million stored lines (a flood at the byte cap is about this many rows): the
+// batch of 500 through Ingest, and Events with no keyword, a common one, a rare one and one that matches nothing, per window.
+// One run, not a gate: VEDETTE_MEASURE=1.
 func TestMeasureFiveMillionLines(t *testing.T) {
 	if os.Getenv("VEDETTE_MEASURE") == "" {
 		t.Skip("set VEDETTE_MEASURE=1 to measure")

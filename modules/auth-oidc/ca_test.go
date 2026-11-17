@@ -36,7 +36,7 @@ func certPEM(t *testing.T, cn string, isCA bool, notAfter time.Time) string {
 
 func ptr(s string) *string { return &s }
 
-// INV-12 (D-378): an identity provider whose certificate the system roots do not trust works once its CA is saved, for discovery,
+// INV-12: an identity provider whose certificate the system roots do not trust works once its CA is saved, for discovery,
 // keys and the token exchange; removing the CA stops it again; a CA saved before is kept when a save leaves the field out.
 func TestContract_INV12_PrivateCA(t *testing.T) {
 	w := newWorldBase(t, http.DefaultTransport.(*http.Transport).Clone()) // system roots only: the fake IdP's CA is unknown

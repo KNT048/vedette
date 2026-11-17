@@ -1,6 +1,6 @@
-// Approver identities (S-RESP-2, D-191), mock side. An administrator types each approver's address or ID on a notify channel;
+// Approver identities (S-RESP-2), mock side. An administrator types each approver's address or ID on a notify channel;
 // it counts for buttons and links only after that person proved it: a code mailed to the address (email), or a confirm link the box sends
-// to that chat ID which the person confirms signed in as themself (Zalo personal D-447, Telegram D-414). The code is entered in My account,
+// to that chat ID which the person confirms signed in as themself (Zalo personal, Telegram). The code is entered in My account,
 // the link confirmed on /link/<telegram|zalo>, by the signed-in person.
 // Rules (same as the real box): 10 minutes, single use, 5 wrong tries cancel it, a new one replaces the old one, a new one after 60 seconds
 // and 5 an hour per person and channel.
@@ -16,9 +16,9 @@ const MAX_TRIES = 5
 const RESEND_S = 60
 const PER_HOUR = 5
 const CHAT_NAME: Record<string, string> = { slack: 'Slack', telegram: 'Telegram', 'zalo-personal': 'Zalo' }
-const SEND_LINK = ['zalo-personal', 'telegram'] // a confirm link goes TO the ID and is confirmed by the person signed in (D-447, D-414)
+const SEND_LINK = ['zalo-personal', 'telegram'] // a confirm link goes TO the ID and is confirmed by the person signed in
 type Refusal = { status: number; code: string; message: string }
-/** How the notify mock sends a new confirm link to a listed person's own chat ID (My account, Send again; D-414). link: the page to open when
+/** How the notify mock sends a new confirm link to a listed person's own chat ID (My account, Send again). link: the page to open when
  * nothing was sent (your own row with the box's own Zalo account). notify registers these; response never imports notify. */
 export const chatLinkSenders: Partial<Record<string, (userId: string) => { link?: string } | Refusal>> = {}
 
@@ -63,7 +63,7 @@ function mine(userId: string): Identity[] {
 
 /**
  * The refusal for a button press from a listed approver who has not linked this ID yet: nothing is decided, and the answer, which only the
- * person who pressed sees, says how to link (D-414: no code any more; a confirm link is sent to the ID).
+ * person who pressed sees, says how to link (no code any more; a confirm link is sent to the ID).
  */
 export function chatNotLinked(channel: string, address: string, target: string) {
   const name = CHAT_NAME[channel] ?? channel
@@ -76,8 +76,8 @@ export function chatNotLinked(channel: string, address: string, target: string) 
 }
 
 /**
- * The token of a confirm link for a listed approver's chat ID (the notify mock sends it to that ID when an administrator saves them,
- * D-447): one a minute, five an hour, a new one replaces the old. Only that person, signed in, confirms it (POST …/confirm).
+ * The token of a confirm link for a listed approver's chat ID (the notify mock sends it to that ID when an administrator saves them):
+ * one a minute, five an hour, a new one replaces the old. Only that person, signed in, confirms it (POST …/confirm).
  */
 export function newLinkToken(userId: string, channel: string, address: string): { token: string } | Refusal {
   const row = mine(userId).find((r) => r.channel === channel && r.address === address)
@@ -101,7 +101,7 @@ export const identityHandlers = [
     const u = currentUser()!, channel = String(params.channel)
     const row = mine(u.id).find((r) => r.channel === channel)
     if (!row) return fail(404, 'not_listed', 'You are not on the approver list of this channel.')
-    if (row.method === 'send_code') { // D-414: Send again sends my own listed ID a new confirm link through notify
+    if (row.method === 'send_code') { // Send again sends my own listed ID a new confirm link through notify
       if (row.linked) return fail(409, 'already_linked', 'This address is already linked.')
       const sender = chatLinkSenders[channel]
       if (!sender) return fail(400, 'chat_channel', `An administrator sends a link to your ${CHAT_NAME[channel]} account when they list you; open it and confirm while signed in to Vedette.`)

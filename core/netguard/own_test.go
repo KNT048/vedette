@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// D-446: Vedette itself is refused on every port, the machine only on Vedette's own ports, and every address on those ports while the
+// Vedette itself is refused on every port, the machine only on Vedette's own ports, and every address on those ports while the
 // machine's addresses are not known.
 func TestOwnRefuses(t *testing.T) {
 	ip := netip.MustParseAddr

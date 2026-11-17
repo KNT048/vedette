@@ -52,18 +52,18 @@ type Config struct {
 	// Events receives logs.anomaly.detected (see AnomalyEvent). Nil: no event is sent.
 	Events Publisher
 	// NeverCount lists the addresses that the address counters (TopAddresses) never count: the box's own addresses, its gateway and the
-	// honeypot's decoys, whatever an untrusted line says (D-210). Wiring passes the sources the box already has for "is this the box"
+	// honeypot's decoys, whatever an untrusted line says. Wiring passes the sources the box already has for "is this the box"
 	// (cmd/vedette). It is asked at most every 30 seconds with a short timeout. An error (a set that is not known yet, an unreadable decoy
 	// record) keeps the last set that was known, and the addresses it returned with the error are used only while there is none. Nil: none is
 	// listed (the loopback, unspecified, multicast, link-local and broadcast addresses are never counted in any case).
 	NeverCount func(ctx context.Context) ([]netip.Addr, error)
 	// Secrets seals the SIEM signing key (SYS-4). Required to save or read the SIEM configuration.
 	Secrets *secrets.Store
-	// BoxAddrs is the machine's addresses (vedette-host, the container's gateway): no SIEM on Vedette's own ports there (D-446; loopback
+	// BoxAddrs is the machine's addresses (vedette-host, the container's gateway): no SIEM on Vedette's own ports there (loopback
 	// and the container's own interfaces are refused on every port, read at every check); known=false means the box does not know them
 	// yet, and then no connection is made (fail closed). Nil: none (tests).
 	BoxAddrs func() (addrs []netip.Addr, known bool)
-	// SelfAddrs lists more addresses that are Vedette itself (the honeypot's decoys): no SIEM there on any port (D-446). nil: none.
+	// SelfAddrs lists more addresses that are Vedette itself (the honeypot's decoys): no SIEM there on any port. nil: none.
 	SelfAddrs func() []netip.Addr
 	// Hostname is the box's name, the HOSTNAME of every syslog record, the dvchost of every CEF record (sent with no syslog header) and
 	// the "box" of every JSON record sent to the SIEM (#471). Wiring passes the OS host name vedette-host reports (core runs in a container, whose own name is not the machine's),
@@ -287,7 +287,7 @@ func (s *Service) box(ctx context.Context) (BoxInfo, error) {
 	return b, nil
 }
 
-// boxTLS describes the certificate the syslog TLS port presents (what a device must trust, D-434): nil when the box has no TLS
+// boxTLS describes the certificate the syslog TLS port presents (what a device must trust): nil when the box has no TLS
 // configuration or its certificate cannot be read (logged; the page then simply shows nothing). It asks GetCertificate as a handshake
 // would, so a renewed certificate shows at once.
 func (s *Service) boxTLS(ctx context.Context) *BoxTLS {
@@ -347,7 +347,7 @@ func (s *Service) boxTLS(ctx context.Context) *BoxTLS {
 	return out
 }
 
-// boxCAName is the common name of the box's own certificate authority (cmd/vedette boxca.go, D-262).
+// boxCAName is the common name of the box's own certificate authority (cmd/vedette boxca.go).
 const boxCAName = "Vedette box CA"
 
 // trustAnchors are the CERTIFICATE blocks of Config.TrustAnchor (a private key in an owner's combined file is never kept); none when it

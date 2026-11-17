@@ -125,7 +125,7 @@ func (p responsePlanner) Plan(ctx context.Context, a response.PlanAsk) (response
 	return d, nil
 }
 
-// readsOf lists, as text, the reads the box made in the last 24 hours through the connections of the offered actions (D-313): the only
+// readsOf lists, as text, the reads the box made in the last 24 hours through the connections of the offered actions: the only
 // ids the model may cite as evidence. Each line is the box's own record (ai.ReadRecord), not text a device or the model wrote. A failed
 // lookup lists none: the plan is made without them.
 func (p responsePlanner) readsOf(ctx context.Context, conns []string) string {
@@ -140,7 +140,7 @@ func (p responsePlanner) readsOf(ctx context.Context, conns []string) string {
 	return b.String()
 }
 
-// Proposed writes the activity row that links the plan to what the box sent to response for it (D-312). A failed write is logged:
+// Proposed writes the activity row that links the plan to what the box sent to response for it. A failed write is logged:
 // the proposals and requests themselves are in the response log already.
 func (p responsePlanner) Proposed(ctx context.Context, t response.PlanTarget, sent []response.SentProposal) {
 	var links []ai.ActivityLink
@@ -160,7 +160,7 @@ func (p responsePlanner) Proposed(ctx context.Context, t response.PlanTarget, se
 }
 
 // aiConfigRead is response's Evidence.ConfigRead: the ai module's record of a read, with the connection it went through. The summary is
-// the box's own line; a read relates to an action only through that connection (D-119), so Relates stays empty.
+// the box's own line; a read relates to an action only through that connection, so Relates stays empty.
 func aiConfigRead(svc *ai.Service) func(ctx context.Context, id string) (response.EvidenceRef, bool, error) {
 	return func(ctx context.Context, id string) (response.EvidenceRef, bool, error) {
 		r, ok, err := svc.ConfigRead(ctx, id)
@@ -172,7 +172,7 @@ func aiConfigRead(svc *ai.Service) func(ctx context.Context, id string) (respons
 }
 
 // planError sorts a failure of RunJob. The AI is unavailable (the run stops) when no profile can run the job (ready != nil) or this
-// month's AI budget is spent (budget_reached), or the runaway fuse of the ai module tripped (rate_limited, D-531). Anything else (ai_cut_off, ai_bad_format, blocked_by_hook, provider_error, unreachable, ai_timeout) is about this finding
+// month's AI budget is spent (budget_reached), or the runaway fuse of the ai module tripped (rate_limited). Anything else (ai_cut_off, ai_bad_format, blocked_by_hook, provider_error, unreachable, ai_timeout) is about this finding
 // only: the caller backs the finding off and goes on.
 func planError(err, ready error) error {
 	if ae, ok := apierr.As(err); ok && (ready != nil || ae.Code == "budget_reached" || ae.Code == "rate_limited") {
@@ -224,7 +224,7 @@ func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, erro
 			continue
 		}
 		name := a.IP
-		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first, G2), as the AI gets text
+		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first), as the AI gets text
 			name = n
 		}
 		t := response.PlanTarget{FindingID: f.ID, CVE: f.CVE, AssetID: f.AssetID, AssetName: name, AssetIP: a.IP, AssetKind: a.Kind}

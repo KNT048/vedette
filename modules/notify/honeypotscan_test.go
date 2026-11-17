@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/modules/notify"
 )
 
-// W1-13 (honeypot INV-24): the hits of one source make one Critical trap incident per Trap IP service it touched and one High
+// honeypot INV-24: the hits of one source make one Critical trap incident per Trap IP service it touched and one High
 // scan incident per source while it is open; a later scan hit of the same source repeats that incident (count), it opens no
 // other. The source device the honeypot named is on the incident.
 func TestHoneypotScanIsOneHighIncidentPerSourceWithTheDevice(t *testing.T) {
@@ -22,11 +22,11 @@ func TestHoneypotScanIsOneHighIncidentPerSourceWithTheDevice(t *testing.T) {
 	src := "192.168.10.145"
 	touch := func(id, svc, decoy string) map[string]any {
 		return map[string]any{"id": id, "ts": "2026-11-13T07:10:58Z", "kind": "service", "service": svc, "port": 80, "src_ip": src, "label": svc,
-			"decoy": decoy, "src_asset_id": "a-laptop", "src_name": "LAPTOP-KIEN"}
+			"decoy": decoy, "src_asset_id": "a-laptop", "src_name": "LAPTOP-ANNA"}
 	}
 	scan := func(id, decoys string) map[string]any {
 		return map[string]any{"id": id, "ts": "2026-11-13T07:10:59Z", "kind": "scan", "service": "", "src_ip": src, "label": "Scan across the Trap IPs",
-			"decoy": decoys, "src_asset_id": "a-laptop", "src_name": "LAPTOP-KIEN"}
+			"decoy": decoys, "src_asset_id": "a-laptop", "src_name": "LAPTOP-ANNA"}
 	}
 	pub(touch("hit-1", "http", "BUILD-SRV-02"))
 	pub(touch("hit-2", "ssh", "BUILD-SRV-02"))
@@ -53,7 +53,7 @@ func TestHoneypotScanIsOneHighIncidentPerSourceWithTheDevice(t *testing.T) {
 		t.Fatalf("the touches are %d Critical incidents, want one per service: %+v", len(critical), critical)
 	}
 	for _, i := range append(scans, critical...) {
-		if len(i.Devices) != 1 || i.Devices[0].ID != "a-laptop" || i.Devices[0].Name != "LAPTOP-KIEN" {
+		if len(i.Devices) != 1 || i.Devices[0].ID != "a-laptop" || i.Devices[0].Name != "LAPTOP-ANNA" {
 			t.Fatalf("%q does not name the source device: %+v", i.Title, i.Devices)
 		}
 	}

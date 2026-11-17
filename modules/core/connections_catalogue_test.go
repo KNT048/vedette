@@ -8,7 +8,7 @@ import (
 )
 
 // API_CONVENTIONS rule 3.2.4: a new error code goes into the §3.3 catalogue in the same commit. The connection
-// endpoints (D-93, D-94) return codes of their own, and the shared rows must name the endpoints that return them.
+// endpoints return codes of their own, and the shared rows must name the endpoints that return them.
 func TestConnections_ErrorCodesAreCatalogued(t *testing.T) {
 	raw, err := os.ReadFile("../../docs/API_CONVENTIONS.md")
 	if err != nil {
@@ -21,7 +21,7 @@ func TestConnections_ErrorCodesAreCatalogued(t *testing.T) {
 		}
 	}
 	if strings.Contains(doc, "| `invalid_username` |") {
-		t.Error("invalid_username was replaced by invalid on the field username (D-73); it must not be catalogued")
+		t.Error("invalid_username was replaced by invalid on the field username; it must not be catalogued")
 	}
 	want := map[string]string{ //nolint:gosec // error code names, not credentials
 		"in_use":              "DELETE /core/connections/{id}",

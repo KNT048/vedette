@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// Slice 13b-8: decisions from chat (INV-3, INV-2, INV-16, FORBID-4, D-96 (5), D-135). notify's listeners are not built yet: these tests call
+// Slice 13b-8: decisions from chat (INV-3, INV-2, INV-16, FORBID-4). notify's listeners are not built yet: these tests call
 // DecideFromChat the way the adapter in cmd/vedette does, after the platform was checked.
 
 // codeHashOf is spec 7.1 written out again, independent of the module: the tests mint codes the way notify will.
@@ -66,7 +66,7 @@ func newChatEnv(t *testing.T) *chatEnv {
 	return &chatEnv{l}
 }
 
-// button and typed wait for the items of a completing approval: they run in the background after the call returned (D-135 (9)).
+// button and typed wait for the items of a completing approval: they run in the background after the call returned.
 func (c *chatEnv) button(channel, ext, reqID string, approve bool) (response.ChatOutcome, error) {
 	out, err := c.svc.DecideFromChat(c.ctx(), response.ChatDecision{Channel: channel, ExternalID: ext, RequestID: reqID, Approve: approve})
 	c.svc.WaitSendsForTest()
@@ -314,13 +314,13 @@ func (c *chatEnv) highRiskAIFor(ch string) response.ActionRequest {
 }
 
 // twoPersonMedium makes the request one that needs two people without being high risk (a request over the multi-target limit looks like
-// this): chat may take it, since only the risk and the length of the text decide the buttons (D-175).
+// this): chat may take it, since only the risk and the length of the text decide the buttons.
 func (c *chatEnv) twoPersonMedium(a response.ActionRequest) {
 	c.t.Helper()
 	c.exec1(`UPDATE resp_actions SET risk = 'medium' WHERE id = ?`, a.ID)
 }
 
-// D-175: a high-risk request is never decided from chat (no button is attached, and an old button or a forged callback is refused).
+// A high-risk request is never decided from chat (no button is attached, and an old button or a forged callback is refused).
 func TestChat_SlackAndTelegramRefuseHighRisk(t *testing.T) {
 	t.Parallel()
 	for _, ch := range [][2]string{{"slack", slackOp}, {"telegram", tgOp}} {
@@ -336,7 +336,7 @@ func TestChat_SlackAndTelegramRefuseHighRisk(t *testing.T) {
 	}
 }
 
-// D-175: a change too long to read in one message is not decided from chat either, whatever its risk.
+// A change too long to read in one message is not decided from chat either, whatever its risk.
 func TestChat_AnOverLengthChangeIsNotDecidedFromChat(t *testing.T) {
 	t.Parallel()
 	c := newChatEnv(t)
@@ -676,7 +676,7 @@ func TestChat_TheSamePersonByAppAndChatCountsOnce(t *testing.T) {
 	}
 }
 
-// D-135: a chat approval may be the second approval when the first came by email link (and the other way round); two links are still one too many.
+// A chat approval may be the second approval when the first came by email link (and the other way round); two links are still one too many.
 func TestChat_LinkPlusChatIsTwoPeople(t *testing.T) {
 	t.Parallel()
 	t.Run("link then chat", func(t *testing.T) {

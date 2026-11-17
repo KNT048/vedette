@@ -27,7 +27,7 @@ func littleEndianOnly(t *testing.T) {
 	}
 }
 
-// Every PublishPort= line of every template, current and earlier, is read: a form the parser skipped would never be checked (D-455).
+// Every PublishPort= line of every template, current and earlier, is read: a form the parser skipped would never be checked.
 func TestPublishedPortsReadsEveryLineOfEveryTemplate(t *testing.T) {
 	t.Parallel()
 	f := goldFill(true)
@@ -88,7 +88,7 @@ func TestPublishedPortsForms(t *testing.T) {
 	}
 }
 
-// The ports a change adds: core-3 (#489) → current adds 127.0.0.1:8765 (D-395); core-1 (D-318) adds 6514 too; the same template
+// The ports a change adds: core-3 (#489) → current adds 127.0.0.1:8765; core-1 adds 6514 too; the same template
 // adds nothing; no unit at all adds every port. The address of a port already published does not make it new.
 func TestAddedPortsBetweenTemplates(t *testing.T) {
 	t.Parallel()
@@ -381,7 +381,7 @@ func TestPortsFreeRefusesWith412PortInUse(t *testing.T) {
 			t.Errorf("message %q lacks %q", ref.Message, s)
 		}
 	}
-	// core reads the ports and programs out of the message to show them (D-412)
+	// core reads the ports and programs out of the message to show them
 	if list, plural, ok := api.PortsInUse(ref.Message); !ok || !plural || list != "8765/tcp (python3, pid 4242), 6514/tcp (rsyslogd, pid 600)" {
 		t.Errorf("api.PortsInUse(%q) = %q %v %v", ref.Message, list, plural, ok)
 	}

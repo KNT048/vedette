@@ -44,10 +44,10 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
         </p>
         <SameHint id={d.id} others={sameAs} />
       </div>
-      {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (D-471: the toast links the device). */}
+      {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (the toast links the device). */}
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="primary" disabled={!can || busy} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} title={title} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
-        {/* kien 2026-11-17 (D-630): Ignore replaces "Remove unknown mark" here; marking stays on the device page. */}
+        {/* Ignore replaces "Remove unknown mark" here; marking stays on the device page. */}
         <Button size="sm" disabled={!can || busy} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={title} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
         <Button size="sm" disabled={!can || busy} busy={act.remove.isPending} busyLabel={t('common:busy.deleting')} title={title} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </div>
@@ -60,11 +60,11 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
   )
 }
 
-/** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, ignore (D-630) or remove.
+/** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, ignore or remove.
  *  The switch "notify me about new devices". `items` is the list after the search; `total` before it. */
 export function PendingPanel({ items, total, notifyNew, notifyAvailable, search, filtered, onClear, sameAs }: {
   items: DeviceRow[]; total: number; notifyNew: boolean; notifyAvailable: boolean; search?: ReactNode; filtered?: boolean; onClear?: () => void
-  /** D-599: the names of the devices each row may be the same machine as (GET /inventory/possible-same). */
+  /** The names of the devices each row may be the same machine as (GET /inventory/possible-same). */
   sameAs?: ReadonlyMap<string, string[]>
 }) {
   const { t } = useTranslation('inventory')
@@ -89,7 +89,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
         </div>
       </div>
       {notifyNew && !notifyAvailable ? <TurnOnModule id="notify" reason={t('pending.notifyOff2')} /> : null}
-      {/* kien G5: the channels page is an administrator's: others get the sentence without a link they cannot open */}
+      {/* The channels page is an administrator's: others get the sentence without a link they cannot open */}
       {notifyNew && notifyAvailable ? <p className="text-meta text-muted">{t('pending.notifyVia')}{admin ? <> <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></> : null}</p> : null}
       {total ? search : null}
       {pending.length ? (

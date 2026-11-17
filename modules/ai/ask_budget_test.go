@@ -9,9 +9,9 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// betaBox is the data of kien's beta box on 13 Nov 2026 (customer walk 1, W1-27): 24 devices, 126 open findings, 88 of them on one
+// busyBox is the data of a beta box on 13 Nov 2026: 24 devices, 126 open findings, 88 of them on one
 // iPhone, 20 on a hand-added "Microsoft" device without an IP.
-func betaBox() ([]ai.AssetRow, []ai.FindingRow) {
+func busyBox() ([]ai.AssetRow, []ai.FindingRow) {
 	var assets []ai.AssetRow
 	add := func(id, name, ip, kind, vendor, model, os string, ports, sw []string) {
 		assets = append(assets, ai.AssetRow{ID: id, Name: name, IP: ip, Kind: kind, Vendor: vendor, Model: model, OS: os, Approved: true, Ports: ports, Software: sw,
@@ -75,14 +75,14 @@ func inputTokens(reqs []provider.Request) (perTurn []int, total int) {
 	return perTurn, total
 }
 
-// W1-27: one question on the beta box sent 25,579 input tokens and used up the day's cap. Measured here with the same data: a
+// One question on the beta box sent 25,579 input tokens and used up the day's cap. Measured here with the same data: a
 // typical question (the findings and the devices, one finding in detail, the answer) was about 10,400 and a model that asks for 50
 // rows twice about 28,300; now they are under 8,000 and 20,000, and the counts say 126 and 88, not the length of a page.
 func TestAskBetaBoxQuestionStaysInBudget(t *testing.T) {
 	const q = "Which of my devices is most at risk right now, and what should I do first?"
 	a := newAskAPI(t)
 	a.fake.sizedUsage = true
-	a.data.assets, a.data.findings = betaBox()
+	a.data.assets, a.data.findings = busyBox()
 	a.fake.play(
 		turn{calls: []provider.ToolCall{call("list_findings", `{}`), call("search_assets", `{}`)}},
 		turn{calls: []provider.ToolCall{call("get_finding", `{"id":"f-iphoneqv2kq7x000"}`)}},
@@ -109,7 +109,7 @@ func TestAskBetaBoxQuestionStaysInBudget(t *testing.T) {
 	// a model that asks for everything: the input budget stops the tools of the third turn and the answer comes from what it has
 	b := newAskAPI(t)
 	b.fake.sizedUsage = true
-	b.data.assets, b.data.findings = betaBox()
+	b.data.assets, b.data.findings = busyBox()
 	b.fake.play(
 		turn{calls: []provider.ToolCall{call("list_findings", `{}`), call("search_assets", `{}`)}},
 		turn{calls: []provider.ToolCall{call("list_findings", `{"severity":"critical","limit":50}`), call("search_assets", `{"limit":50}`)}},
@@ -127,7 +127,7 @@ func TestAskBetaBoxQuestionStaysInBudget(t *testing.T) {
 	t.Logf("input tokens per turn %v, total %d", per, total)
 }
 
-// W1-27: the question itself used the cap up partway through. The person is told that, with the tokens it used, not "the cap is used
+// The question itself used the cap up partway through. The person is told that, with the tokens it used, not "the cap is used
 // up" as if it had been refused before it was sent; the run log says the cap stopped it, not "Bad format".
 func TestAskTheCapRunningOutPartwaySaysSo(t *testing.T) {
 	a := newAskAPI(t)
@@ -195,7 +195,7 @@ func TestAskTheProfileCapRunningOutPartwaySaysSo(t *testing.T) {
 	}
 }
 
-// D-531: a question the budget stopped partway lowers no level: the budget is a stop rule at 100 %, not a slide through the levels,
+// A question the budget stopped partway lowers no level: the budget is a stop rule at 100 %, not a slide through the levels,
 // for the shared budget and for a profile's own one alike; no ai_downgrade row, no ai.downgrade audit line, the tier stays.
 func TestAskStoppedPartwayLowersNoLevel(t *testing.T) {
 	c := call("list_findings", `{}`)
@@ -282,7 +282,7 @@ func TestAskListFindingsPutsOpenOnesFirst(t *testing.T) {
 func TestAskSaysWhenDataWasLeftOut(t *testing.T) {
 	a := newAskAPI(t)
 	a.fake.sizedUsage = true
-	a.data.assets, a.data.findings = betaBox()
+	a.data.assets, a.data.findings = busyBox()
 	big := []provider.ToolCall{call("list_findings", `{"limit":50}`), call("search_assets", `{"limit":50}`)}
 	a.fake.play(turn{calls: big}, turn{calls: big}, turn{calls: big}, turn{text: "The iPhone has the most findings."})
 	got := a.ask("Which of my devices is most at risk?", 200, "")

@@ -1,8 +1,8 @@
 // The same script of API calls runs against the GUI mock (always) and against the real Go backend (only when
 // VITE_LOGS_REAL_URL is set: make dev-api REAL=core,inventory,feeds,logs on a box prepared like web/e2e/qa/real-box.mjs with the
 // logs module on; VITE_LOGS_QA_PASSWORD is the password of admin@qa.test, op@qa.test and view@qa.test). The mock is the approved
-// behaviour (GUI-first, D-18): every step states the status and error code the mock gives and, where the real backend
-// deliberately differs (D-73: limits that contract.ts states are refused by the generated validator as 400 `invalid`), what
+// behaviour (GUI-first): every step states the status and error code the mock gives and, where the real backend
+// deliberately differs (limits that contract.ts states are refused by the generated validator as 400 `invalid`), what
 // it gives instead. Every 2xx body is checked against the zod schema of contract.ts. Run against the real backend:
 //   VITE_LOGS_REAL_URL=http://127.0.0.1:8080 VITE_LOGS_QA_PASSWORD=... pnpm --dir web exec vitest run src/features/logs/conformance.test.ts
 // Covers sources, events, retention, the digest and the SIEM configuration (L1, L5, L4): the checks and their order are those of modules/logs/siem.go.
@@ -94,7 +94,7 @@ const steps: Step[] = [
   { name: 'add a source', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC(), status: 201, schema: LogSource, keep: (b, c) => { c.id = b.id },
     check: (b) => expect([b.state, b.last_received, b.lines_per_hour, b.name, b.proto, b.port]).toEqual(['never', null, 0, 'conf-fw', 'udp', 514]) },
   { name: 'the name is trimmed', role: 'admin', method: 'PUT', path: ID, body: SRC({ name: '  conf-fw2  ' }), status: 200, schema: LogSource, check: (b) => expect(b.name).toBe('conf-fw2'),
-    real: { status: 400, code: 'invalid' } }, // D-73: contract.ts's name pattern is checked before the handler can trim; the GUI sends the trimmed name
+    real: { status: 400, code: 'invalid' } }, // contract.ts's name pattern is checked before the handler can trim; the GUI sends the trimmed name
   { name: 'the new source is listed', role: 'viewer', method: 'GET', path: '/logs/sources', status: 200, schema: SourcesResponse,
     check: (b, c) => expect(b.sources.some((s: { id: string }) => s.id === c.id)).toBe(true) },
   { name: 'duplicate sender IP', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ name: 'other' }), status: 409, code: 'duplicate' },
@@ -105,7 +105,7 @@ const steps: Step[] = [
   { name: 'port 0', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ port: 0, sender_ip: '192.168.77.6' }), status: 400, code: 'bad_port', real: { code: 'invalid' } },
   { name: 'port 65536', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ port: 65536, sender_ip: '192.168.77.6' }), status: 400, code: 'bad_port', real: { code: 'invalid' } },
   { name: 'proto tls', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ proto: 'tls', port: 6514, sender_ip: '192.168.77.8' }), status: 201, schema: LogSource,
-    real: { status: 400, code: 'tls_unavailable' } }, // D-203, D-214: a real box accepts TLS only when it has a certificate (HTTPS); the e2e box serves plain HTTP, so it refuses with tls_unavailable; the catalog and the mock offer it, and the form shows the server's message
+    real: { status: 400, code: 'tls_unavailable' } }, // A real box accepts TLS only when it has a certificate (HTTPS); the e2e box serves plain HTTP, so it refuses with tls_unavailable; the catalog and the mock offer it, and the form shows the server's message
   { name: 'add a second source', role: 'admin', method: 'POST', path: '/logs/sources', body: SRC({ name: 'conf-fw-b', sender_ip: '192.168.77.7' }), status: 201, schema: LogSource, keep: (b, c) => { c.id2 = b.id } },
   { name: 'edit takes the second source\'s IP', role: 'admin', method: 'PUT', path: ID, body: SRC({ sender_ip: '192.168.77.7' }), status: 409, code: 'duplicate' },
   { name: 'edit an unknown source', role: 'admin', method: 'PUT', path: '/logs/sources/ls-nope', body: SRC({ sender_ip: '192.168.77.9' }), status: 404, code: 'not_found' },
@@ -150,7 +150,7 @@ const steps: Step[] = [
   { name: 'siem: no events', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ events: [] }), status: 400, code: 'bad_events', real: { code: 'invalid' } },
   { name: 'siem: an event twice', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ events: ['findings', 'findings'] }), status: 400, code: 'bad_events' },
   { name: 'siem: the events are judged before the key', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ events: ['findings', 'findings'], secret: 'short' }), status: 400, code: 'bad_events' },
-  { name: 'siem: a short key on syslog too', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ secret: 'short' }), status: 400, code: 'bad_secret', real: { code: 'invalid' } }, // D-73: contract.ts's min(16)
+  { name: 'siem: a short key on syslog too', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ secret: 'short' }), status: 400, code: 'bad_secret', real: { code: 'invalid' } }, // contract.ts's min(16)
   { name: 'siem: a key with a control character', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ secret: `${KEY}\n` }), status: 400, code: 'bad_secret' },
   { name: 'siem: a webhook with no saved key and none sent', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ format: 'json', url: 'https://siem.example.com/hooks/vedette' }), status: 400, code: 'secret_required', only: 'mock' },
   { name: 'siem: save syslog (disabled)', role: 'admin', method: 'PUT', path: '/logs/siem', body: SIEM({ host: ' 192.168.77.50 ' }), status: 200, schema: SiemConfig,

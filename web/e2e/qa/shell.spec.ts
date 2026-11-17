@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { collectErrors, expectAccessible, shot, startWithSample } from '../helpers'
 
-// QA khung ứng dụng + feeds (supervisor): như người dùng thật, desktop + điện thoại, sáng/tối, vi/en.
+// QA khung ứng dụng + feeds: như người dùng thật, desktop + điện thoại, sáng/tối, vi/en.
 test('trang chủ, tra cứu, CVE, 404: đọc được, bấm được', async ({ page }, info) => {
   const tag = info.project.name
   const errors = collectErrors(page)

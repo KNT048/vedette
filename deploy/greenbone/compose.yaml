@@ -1,4 +1,4 @@
-# Greenbone Community Edition's official compose file (shown to customers as OpenVAS; D-529, FULL-2), from
+# Greenbone Community Edition's official compose file (shown to customers as OpenVAS), from
 # https://greenbone.github.io/docs/latest/_static/compose.yaml (SHA-256 5b5117a7c200491de13bc7b79c97dc858c016c51017982d8f1de7ca077c1a868,
 # fetched 2026-11-14), byte for byte apart from this comment and the "@sha256:" pins of the image lines (deploy/greenbone's test holds
 # both). Vedette's changes are in compose.vedette.yaml, never here. vedette-host runs it as the project greenbone-community-edition.
@@ -9,12 +9,12 @@
 #
 # Pins: every image that runs Greenbone's code is pinned by the digest of its multi-architecture index: its GREENBONE_* key in
 # deploy/containers/pins.env with Greenbone's tag kept before the digest (the test keeps them equal). To bump: the Docker-Content-Digest of the tag's index from
-# registry.community.greenbone.net (a registry manifest request, no pull), here and in pins.env, then the N100 walk of D-529.
+# registry.community.greenbone.net (a registry manifest request, no pull), here and in pins.env, then a run on a test box.
 # The seven feed data images (vulnerability-tests, notus-data, scap-data, cert-bund-data, dfn-cert-data, data-objects, report-formats)
 # keep Greenbone's tag on purpose: the weekly feed update (greenbone.sync_feed) pulls their new versions, and a digest would freeze the
 # feed. They are trusted as upstream's own install trusts them: Greenbone's registry over TLS, nothing more. They run their own entry
 # point and write the vulnerability tests (NASL) that ospd-openvas runs; whether openvas checks the tests' signatures (with the key of the
-# pinned gpg-data image) depends on its nasl_no_signature_check setting, which is still to be read on a box (D-529, deferred).
+# pinned gpg-data image) depends on its nasl_no_signature_check setting, which is still to be read on a box (deferred).
 name: greenbone-community-edition
 
 services:

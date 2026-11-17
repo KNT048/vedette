@@ -56,7 +56,7 @@ func (p *Provider) Guidance(ctx context.Context, r findings.Row) (findings.Guide
 		}
 	}
 	g.Pack, g.Compromise = pack, compromise
-	g.Hardening = hardening(r, compromise) // INV-8: the general checks, when the pack has no signs of its own (D-631: no firewall config)
+	g.Hardening = hardening(r, compromise) // INV-8: the general checks, when the pack has no signs of its own (no firewall config)
 	g.Recheck = genericRecheck(r)
 	if recheck != nil {
 		g.Recheck = *recheck
@@ -154,7 +154,7 @@ func (p *Provider) aiOutputs(ctx context.Context, findingID string) (findings.AI
 }
 
 // genericRecheck is the "check again" text when the pack carries none (the mock's wording). The device is named as the
-// Devices page names it, never by its id, and "Rescan this device" is only offered for a device with an IP (D-484).
+// Devices page names it, never by its id, and "Rescan this device" is only offered for a device with an IP.
 func genericRecheck(r findings.Row) findings.Recheck {
 	reachable := r.Asset.HasIP()
 	if r.Basis == findings.BasisScan && reachable {
@@ -170,7 +170,7 @@ func genericRecheck(r findings.Row) findings.Recheck {
 			software = r.Kev.Vendor + " " + r.Kev.Product
 		}
 	}
-	if r.Evidence != nil && r.Evidence.Agent { // D-548: the agent reports the installed version; nothing to look up
+	if r.Evidence != nil && r.Evidence.Agent { // The agent reports the installed version; nothing to look up
 		steps := []string{
 			fmt.Sprintf("Nothing to look up: the agent on %s reports the installed version of %s, and Vedette compared it with the affected versions (Evidence above).", device, software),
 			"Install the update (What to do below). The agent reports the new version by itself, usually within two hours (after the restart the update needs), and Vedette then closes this finding by itself.",
@@ -180,13 +180,13 @@ func genericRecheck(r findings.Row) findings.Recheck {
 		}
 		return findings.Recheck{Steps: steps}
 	}
-	// M2-3: the box has the version, whoever gave it; never "find which version". A product match on an agent row keeps D-612's words.
+	// The box has the version, whoever gave it; never "find which version". A product match on an agent row keeps its own words.
 	if k := r.Known; k != nil && k.Version != "" && (r.Evidence == nil || !r.Evidence.AgentRow) {
 		return knownRecheck(r, k, device, hasTemplate, reachable)
 	}
 	last := "This CVE has no safe scan template yet, so Vedette can only conclude from the version. Check by hand as above."
 	first := fmt.Sprintf("Check which version of %s runs on %s (in its settings, its admin page or its About screen).", software, device)
-	if r.Evidence != nil && r.Evidence.AgentRow { // N52-2: the agent reported the installed version; it is the comparison that failed
+	if r.Evidence != nil && r.Evidence.AgentRow { // The agent reported the installed version; it is the comparison that failed
 		first = fmt.Sprintf("Nothing to look up on %s: its agent reports the installed version of %s (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE.", device, software)
 	}
 	switch {
@@ -202,7 +202,7 @@ func genericRecheck(r findings.Row) findings.Recheck {
 	}}
 }
 
-// knownRecheck is genericRecheck for a finding whose software has a version on the box (M2-3, widening D-548/D-612 to every
+// knownRecheck is genericRecheck for a finding whose software has a version on the box (any
 // source): it says the version, who gave it, and how a newer one reaches Vedette, then what a scan template adds.
 func knownRecheck(r findings.Row, k *findings.KnownVersion, device string, hasTemplate, reachable bool) findings.Recheck {
 	sw := k.Software + " " + k.Version

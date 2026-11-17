@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// Slice 4c of WP-25: the knowledge base (S-AI-7, INV-10, D-209). The GUI mock is the contract; the upload carries the file as base64.
+// Slice 4c of WP-25: the knowledge base (S-AI-7, INV-10). The GUI mock is the contract; the upload carries the file as base64.
 
 const (
 	mdFirewall = "# Firewall changes\n\nMọi thay đổi cấu hình tường lửa phải có phiếu duyệt. Tường lửa FortiGate đặt tại phòng server tầng 2.\n"
@@ -630,7 +630,7 @@ func TestExplainCacheKeyFollowsTheDocuments(t *testing.T) {
 		t.Fatalf("not asked again: %v", made)
 	}
 	if c := fmt.Sprint(made["citations"]); !strings.Contains(c, `Documents: "photo.md"`) || strings.Contains(fmt.Sprint(got["citations"]), "Documents") {
-		t.Fatalf("the sources do not name the document only when it was sent (D-445): %s / %v", c, got["citations"])
+		t.Fatalf("the sources do not name the document only when it was sent: %s / %v", c, got["citations"])
 	}
 	if user := a.fake.lastRequest(t).Messages[0].Text; !strings.Contains(user, "first Monday") {
 		t.Fatalf("the document did not reach the explanation: %s", user)
@@ -661,7 +661,7 @@ func TestKnowledgePrivacyTextsSayWhatIsSent(t *testing.T) {
 		Privacy struct {
 			Flow map[string]struct {
 				What  string   `json:"what"`
-				Items []string `json:"items"` // one per AI job (D-407)
+				Items []string `json:"items"` // one per AI job
 			} `json:"flow"`
 		} `json:"privacy"`
 	}

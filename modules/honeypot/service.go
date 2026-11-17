@@ -30,7 +30,7 @@ type Config struct {
 	Modules   ModuleGate
 
 	// ConfigDir is the folder core writes opencanary.conf and honeytokens.json into. It belongs to core: the honeypot
-	// container mounts it read-only (WP-08), and core never reads a file back from it (D-89, amendment of the WP-14 review).
+	// container mounts it read-only (WP-08), and core never reads a file back from it (amendment of the WP-14 review).
 	// Empty means the module is not wired to a container: nothing is written, no trap can listen.
 	ConfigDir string
 	// LogDir is the folder the container writes the JSON-lines log opencanary.jsonl into (writable for the container,
@@ -41,7 +41,7 @@ type Config struct {
 	Clock    func() time.Time
 	Log      *slog.Logger
 	Location func(ctx context.Context) *time.Location // organization time zone for "today" and the daily ignored count; nil means UTC
-	// BoxURL is the Box address as https://host[:port] (D-465), the start of a URL token; asked at every create. nil or "": the
+	// BoxURL is the Box address as https://host[:port], the start of a URL token; asked at every create. nil or "": the
 	// box's IP from the inventory on port 8443; neither known: a URL token cannot be made (409 no_box_address).
 	BoxURL func() string
 
@@ -212,7 +212,7 @@ type trapIPRow struct {
 
 func (d trapIPRow) has(svc ServiceName) bool { return slices.Contains(d.Services, svc) }
 
-// spec is how the host builds the address: the vendor's MAC prefix and the ports of its services (D-466).
+// spec is how the host builds the address: the vendor's MAC prefix and the ports of its services.
 func (d trapIPRow) spec() DecoySpec {
 	var oui string
 	if d.Vendor != nil {
@@ -226,7 +226,7 @@ const trapIPCols = `id, name, ip, preset, vendor, services, enabled, created_at`
 // loadTrapIPCols are trapIPCols and the remembered MAC (a column no write of the API touches).
 const loadTrapIPCols = trapIPCols + `, ifnull(mac, ''), ifnull(enabled_at, created_at)`
 
-// loadTrapIPs reads the Trap IPs in creation order, the order that decides which one names the SMB share (D-466 (4)).
+// loadTrapIPs reads the Trap IPs in creation order, the order that decides which one names the SMB share.
 func loadTrapIPs(ctx context.Context, q querier) ([]trapIPRow, error) {
 	rows, err := q.QueryContext(ctx, `SELECT `+loadTrapIPCols+` FROM hp_trap_ips ORDER BY created_at, id`)
 	if err != nil {
@@ -488,7 +488,7 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 // stateRank orders the states for a service across its Trap IPs: it shows the best one (listening when one listens).
 var stateRank = map[string]int{StateOff: 0, StateConflict: 1, StateFailed: 2, StateStopping: 3, StateStarting: 4, StateListening: 5}
 
-// boxWide are the Trap IPs that decide what the whole box shows (D-466 (4)): of those handed to the host, in creation order,
+// boxWide are the Trap IPs that decide what the whole box shows: of those handed to the host, in creation order,
 // the first with SMB names the share and the first with HTTP picks the login page. nil when none has it.
 func (w *world) boxWide() (smb, http *trapIPRow) {
 	ips, _, _ := w.desired()
@@ -507,7 +507,7 @@ func (w *world) boxWide() (smb, http *trapIPRow) {
 	return smb, http
 }
 
-// looks are the Trap IPs that decide how each service presents itself (D-467): of those handed to the host, in creation
+// looks are the Trap IPs that decide how each service presents itself: of those handed to the host, in creation
 // order, the first that has it.
 func (w *world) looks() map[ServiceName]Look {
 	ips, _, _ := w.desired()

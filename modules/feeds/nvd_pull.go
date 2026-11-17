@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// NVD pull robustness (W3-1, D-500). Measured from the N100 on 2026-11-13: one page answered in 3.1 s, the next
+// NVD pull robustness. Measured from a test box on 2026-11-13: one page answered in 3.1 s, the next
 // only started its answer after 20.6 s, an earlier one after more than 30 s, and NVD answers 503 when it is busy (its
 // documentation asks clients to retry with a back-off). So one page waits longer, is tried again, and a pull that
 // could not finish keeps its pages and goes on from there at the next tick instead of starting over.
@@ -44,7 +44,7 @@ type nvdRun struct {
 	full      bool
 	from, to  time.Time
 	affected  map[string][]AffectedRow
-	published map[string]string // D-615: CVE -> the day NVD published it
+	published map[string]string // CVE -> the day NVD published it
 	cvss      map[string]CVSS   // INV-28: CVE -> its CVSS base score
 	seen      map[string]bool   // INV-28: every CVE NVD answered for with a valid id (a score it took away goes)
 	st        Stats
@@ -86,13 +86,13 @@ func (s *Service) nvdResumeAt() (time.Time, bool) {
 }
 
 // live is the feed row as the GUI shows it: while the NVD versions load (or wait to go on), the row says how far
-// the pull got and why it waits, instead of the last error or "not fetched yet" alone (W3-1). A feed that never
-// finished a pull stays "never": its versions are not loaded yet. A distribution feed no device needs says so (D-570).
+// the pull got and why it waits, instead of the last error or "not fetched yet" alone. A feed that never
+// finished a pull stays "never": its versions are not loaded yet. A distribution feed no device needs says so.
 // nvd-recent between pulls of an unfinished fill (after a restart, or a migration that reset its cursor) says where the
-// next pull goes on, read from its cursor (N55-1), as /findings/plan says it is loading.
+// next pull goes on, read from its cursor, as /findings/plan says it is loading.
 func (s *Service) live(ctx context.Context, r sourceRow) sourceRow {
 	if distroFeeds[r.ID] && r.Enabled {
-		if note := s.distroNote(r.ID); note != "" { // D-570: the rows of an earlier pull stay; a real error keeps its text, then says why it waits
+		if note := s.distroNote(r.ID); note != "" { // The rows of an earlier pull stay; a real error keeps its text, then says why it waits
 			if r.Status == "error" && r.Error != nil {
 				note = *r.Error + " " + note
 			}
@@ -100,7 +100,7 @@ func (s *Service) live(ctx context.Context, r sourceRow) sourceRow {
 		}
 		return r
 	}
-	if r.ID == recentFeedID { // D-614: how far the paged pull of the last 12 months got
+	if r.ID == recentFeedID { // How far the paged pull of the last 12 months got
 		s.nvdMu.Lock()
 		text := ""
 		p := s.recent
@@ -247,7 +247,7 @@ func (s *Service) nvdSlot(ctx context.Context) error {
 
 // nvdPage fetches one page, trying again after nvdRetryWaits (or NVD's Retry-After when longer) while NVD is busy or
 // slow. A wait that would not end before the pull's deadline is not started: the pull pauses and goes on later.
-// maxBytes caps the answer (0: MaxBodyBytes); nvd-recent's pages of 1,000 records need more (D-614). start is the record
+// maxBytes caps the answer (0: MaxBodyBytes); nvd-recent's pages of 1,000 records need more. start is the record
 // number the page starts at, for the log (review r2 #12 of #802).
 func (s *Service) nvdPage(ctx context.Context, run *nvdRun, u string, start int, maxBytes int64) (*Response, error) {
 	for try := 0; ; try++ {
@@ -287,13 +287,13 @@ func (s *Service) nvdPage(ctx context.Context, run *nvdRun, u string, start int,
 	}
 }
 
-// buildNVD asks the NVD CVE API 2.0 for the affected versions of the CVEs CISA lists (?hasKev, D-500), NVDPageSize
+// buildNVD asks the NVD CVE API 2.0 for the affected versions of the CVEs CISA lists (?hasKev), NVDPageSize
 // per request with nvdPause between requests. After a good pull less than nvdIncrementalDays old, only the CVEs NVD
 // changed since one day before that pull are asked for; otherwise everything, and CVEs NVD no longer lists go.
 //
 // Nothing is written until every page is in, so a pull that never finished never deletes or half updates anything.
 // A pull that got some pages and then stopped (NVD busy after every try, its Retry-After, the pull budget) keeps
-// them and returns errNVDPaused; the next pull goes on from the next page (W3-1). One that got no page fails.
+// them and returns errNVDPaused; the next pull goes on from the next page. One that got no page fails.
 func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pullPlan, error) {
 	now := s.now()
 	run := s.nvdState()
@@ -316,7 +316,7 @@ func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pull
 			return p, err
 		}
 		var from, to time.Time
-		// pub == 0: no published date yet (a box from before D-615): one full pull gives every KEV CVE its date, which an
+		// pub == 0: no published date yet (a box from before published dates were kept): one full pull gives every KEV CVE its date, which an
 		// update (lastMod window) would give only to the CVEs NVD changed since; fullDue: migration 0015 asks for one full pull so every
 		// KEV CVE gets its CVSS score (INV-28), cleared by the first full pull that is stored
 		if have > 0 && pub > 0 && !fullDue && src.Status == "ok" && src.LastSuccess != nil && now.Sub(*src.LastSuccess) < nvdIncrementalDays*24*time.Hour {

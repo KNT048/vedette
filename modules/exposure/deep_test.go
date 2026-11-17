@@ -1,6 +1,6 @@
 package exposure
 
-// FULL-5 slice 3 (D-571, INV-27 depth): the deep scan of each address of a verified domain's names, at the domain's terms depth.
+// INV-27 depth: the deep scan of each address of a verified domain's names, at the domain's terms depth.
 
 import (
 	"context"
@@ -42,7 +42,7 @@ func (d *deepDNS) LookupCNAME(_ context.Context, host string) (string, error) {
 	return host + ".", nil
 }
 
-// LookupTXT marks the name: the ownership rule (D-628) asks the CNAME of the name whose record it just found, and cnameErr is about
+// LookupTXT marks the name: the ownership rule asks the CNAME of the name whose record it just found, and cnameErr is about
 // the names a step resolves, not that check.
 func (d *deepDNS) LookupTXT(ctx context.Context, name string) ([]string, error) {
 	name = strings.TrimSuffix(name, ".")
@@ -273,7 +273,7 @@ func hasLine(s Snapshot, sub string) bool {
 	return slices.ContainsFunc(s.NotChecked, func(n NotCheckedRow) bool { return strings.Contains(n.Text, sub) })
 }
 
-// D-571: without accepted terms nothing new goes to any address: no deep seam is called (not even for the box's own IP, which is a
+// Without accepted terms nothing new goes to any address: no deep seam is called (not even for the box's own IP, which is a
 // domain's name here), the fence is not asked, the by-name passive pass is in the K-4 scope, and the lines are the K-4 lines.
 func TestContract_INV28_Deep_WithoutTermsNothingNewIsSent(t *testing.T) {
 	t.Parallel()
@@ -307,7 +307,7 @@ func TestContract_INV28_Deep_WithoutTermsNothingNewIsSent(t *testing.T) {
 	}
 }
 
-// D-571: with the terms but no domain fence on this box, only the box's own IP gets the deep scan (its own pipeline, no scope); every
+// With the terms but no domain fence on this box, only the box's own IP gets the deep scan (its own pipeline, no scope); every
 // other public address gets the "needs the fence" line and nothing more than the by-name checks.
 func TestContract_INV28_Deep_NoFenceOnlyTheBoxIP(t *testing.T) {
 	t.Parallel()
@@ -334,7 +334,7 @@ func TestContract_INV28_Deep_NoFenceOnlyTheBoxIP(t *testing.T) {
 	}
 }
 
-// D-571: with the terms and a domain fence, each public address gets the deep seams once (however many names point at it), with the
+// With the terms and a domain fence, each public address gets the deep seams once (however many names point at it), with the
 // run's mode and the domain's scope {domain, name, token}; the box's own IP takes its pipeline without a scope; private and IPv6
 // addresses are never dialed and have their lines; the web scan by name goes to the names of the deep addresses, re-checked.
 func TestContract_INV28_Deep_WithFenceEveryAddressOnce(t *testing.T) {
@@ -400,7 +400,7 @@ func TestContract_INV28_Deep_WithFenceEveryAddressOnce(t *testing.T) {
 	}
 }
 
-// D-571: a name that no longer resolves to the address at the core-side re-check gets no call and a line; a DNS failure is its own line.
+// A name that no longer resolves to the address at the core-side re-check gets no call and a line; a DNS failure is its own line.
 func TestContract_INV28_Deep_NameMovedOrNoAnswer(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
@@ -425,7 +425,7 @@ func TestContract_INV28_Deep_NameMovedOrNoAnswer(t *testing.T) {
 	}
 }
 
-// D-571 (plan §4): with 5 addresses and MaxDeepIPs 3, three are scanned and two get "not scanned this run … next in line" lines; the
+// With 5 addresses and MaxDeepIPs 3, three are scanned and two get "not scanned this run … next in line" lines; the
 // next run takes the two left first (never scanned), then the least recently scanned.
 func TestContract_INV28_Deep_CapAndRotation(t *testing.T) {
 	t.Parallel()
@@ -464,7 +464,7 @@ func TestContract_INV28_Deep_CapAndRotation(t *testing.T) {
 	}
 }
 
-// D-571: withdrawing the domain's terms while a deep step runs stops the run (FULL-1's mechanism), and no further address is scanned.
+// Withdrawing the domain's terms while a deep step runs stops the run (FULL-1's mechanism), and no further address is scanned.
 func TestContract_INV28_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
@@ -489,7 +489,7 @@ func TestContract_INV28_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
 	}
 }
 
-// D-571 (LEGAL-2, reviews r1 H1 and r2): a domain's terms say the scan reaches third-party hosting, CDN and proxies, name the IP-level
+// LEGAL-2, reviews r1 H1 and r2: a domain's terms say the scan reaches third-party hosting, CDN and proxies, name the IP-level
 // tools, the customer's responsibility and the CNAME rule; an IP keeps its "yours alone" sentence; both say what runs without the tick
 // and what the tick adds; the version is 2026-11-14e.
 func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
@@ -504,7 +504,7 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 		"Vedette's tools reach each address a name under acme.example resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the web scan (ZAP).",
 		// review r1 M4
 		"A name that points (CNAME) to a name outside acme.example is scanned at whatever address the owner of that other name sets, so the disruptive checks never run on an address reached only that way.",
-		// TERMS.md (D-544) word for word, so the two texts never disagree
+		// TERMS.md word for word, so the two texts never disagree
 		"Verifying a name proves you control its DNS, not that you own the machines behind it or may test them. With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission. Vedette does not check who owns those addresses.",
 	} {
 		if !strings.Contains(dom, want) {
@@ -518,7 +518,7 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 	if !strings.Contains(ip, "Accept only if "+ipA+" is yours alone") || strings.Contains(ip, "Verifying a name") {
 		t.Errorf("IP terms = %q", ip)
 	}
-	// review r1 H1: the texts say what the deep scan sends without the tick (D-526, D-527, OpenVAS deep config), and what waits for it
+	// review r1 H1: the texts say what the deep scan sends without the tick (OpenVAS deep config), and what waits for it
 	for _, text := range []string{dom, ip} {
 		for _, want := range []string{
 			"including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command)",
@@ -555,7 +555,7 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 	}
 }
 
-// D-571: OpenVAS, when it is on, runs on the addresses a domain's deep scan reached: the box's own IP in its pipeline; an address that
+// OpenVAS, when it is on, runs on the addresses a domain's deep scan reached: the box's own IP in its pipeline; an address that
 // is not the box's only through a host that checks the domain fence for OpenVAS (GreenboneFence), else a line and nothing sent.
 func TestContract_INV28_Deep_OpenVASOnTheDeepAddresses(t *testing.T) {
 	t.Parallel()
@@ -784,7 +784,7 @@ type allowGB struct{ *fakeGB }
 
 func (allowGB) CheckDomainIP(context.Context, DomainScope, netip.Addr, FenceCheck) error { return nil }
 
-// D-595 review M1, L6: a domain's OpenVAS checks each address's own open ports; a Stop while the second address scans keeps the rows
+// A domain's OpenVAS checks each address's own open ports; a Stop while the second address scans keeps the rows
 // the first one stored, with each address's state, and the run reads as stopped (the page shows those rows under that heading).
 func TestContract_INV28_Deep_OpenVASStoppedKeepsTheFinishedAddress(t *testing.T) {
 	t.Parallel()
@@ -842,7 +842,7 @@ func TestContract_INV28_Deep_OpenVASStoppedKeepsTheFinishedAddress(t *testing.T)
 	}
 }
 
-// D-628 (review r2 L1 of #941): the deep step of a child covered only by its parent (git.acme.example under the verified
+// The deep step of a child covered only by its parent (git.acme.example under the verified
 // acme.example, no record of its own) carries the parent's domain and the parent's box-bound token, so the executors' fence checks
 // the record that proves it; the step's name stays the child's.
 func TestContract_INV28_Deep_ACoveredChildUsesItsParentsDomain(t *testing.T) {

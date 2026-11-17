@@ -16,7 +16,7 @@ const (
 	// MaxLineBytes is the longest line kept: longer ones are cut on a character boundary (the listener, L2, already bounds
 	// the wire at 8 KiB; this is the second bound on the consumer's side).
 	MaxLineBytes = 2048
-	// MaxBatch is the most lines one Ingest call takes (like the 500 items of the observation wire, D-112).
+	// MaxBatch is the most lines one Ingest call takes (like the 500 items of the observation wire).
 	MaxBatch = 500
 	// MaxEventBytes is how many bytes of line text the module keeps at most, whatever the retention: the disk guard against a
 	// flood. Ingest starts a purge when it is passed, and the purge goes down to 90% of it so a purge is not started by every
@@ -26,7 +26,7 @@ const (
 	// maxIngestLineBytes is where a line is cut before it is sanitized: the sanitizer walks the whole string, and a line of
 	// megabytes would be walked for 2,048 bytes of result.
 	maxIngestLineBytes = 4 * MaxLineBytes
-	// ExportMaxBytes caps what the device_logs export source writes: core caps the whole export at 128 MiB (D-132) and one
+	// ExportMaxBytes caps what the device_logs export source writes: core caps the whole export at 128 MiB and one
 	// source must not use it all. A line is counted as 2 x its bytes + 128, which is an upper bound of what it writes: the JSON
 	// object is {"id":"le-<up to 19 digits>","ts":<24>,"source_id":"ls-<26>"=29 characters,"line":"..."} plus a newline, a fixed
 	// part of at most 118 bytes, and the line text, already sanitized (no control character but the tab), at most doubles when it
@@ -45,7 +45,7 @@ const (
 	SearchTimeout = 5 * time.Second
 	MaxSearches   = 2
 	// scanChunk is how many rows (by the ts index, newest first) one step of a keyword search reads: the time budget is checked between
-	// steps, and a step of this size costs well under a second on a 5 million line box (D-441).
+	// steps, and a step of this size costs well under a second on a 5 million line box.
 	scanChunk = 20_000
 	// bucketSeconds is the width of a counter bucket.
 	bucketSeconds = 300
@@ -61,7 +61,7 @@ type Input struct {
 	SenderIP string
 	Proto    string
 	Port     int
-	// ClientCertSHA256 pins the client certificate of a tls source (64 lowercase hex characters); "" = no pin (D-435).
+	// ClientCertSHA256 pins the client certificate of a tls source (64 lowercase hex characters); "" = no pin.
 	ClientCertSHA256 string
 }
 
@@ -92,7 +92,7 @@ type BoxInfo struct {
 }
 
 // BoxTLS is what a device must trust to send syslog over TLS (BoxTls of contract.ts), public data. PEM, Fingerprint, Subject and NotAfter
-// describe the certificate to import: the box CA that signed the box's own (re-issued) certificate (Kind box_ca, D-262, D-351), the
+// describe the certificate to import: the box CA that signed the box's own (re-issued) certificate (Kind box_ca), the
 // certificate itself when it is self-signed, or the certificates the owner gave the box when another authority issued it.
 type BoxTLS struct {
 	Kind        string    `json:"kind"`   // box_ca | self_signed | issued: which certificate PEM holds and why
@@ -131,8 +131,8 @@ type Event struct {
 	SourceID   string    `json:"source_id"`
 	SourceName string    `json:"source_name"`
 	Line       string    `json:"line"`
-	// Host, App and Message are the line read through its syslog header (RFC 5424 or RFC 3164, listen.ParseSyslog) for display
-	// (W1-22, D-485): no "<38>Nov 13 …" prefix. Host and App are nil when the header does not say; Message is the whole line
+	// Host, App and Message are the line read through its syslog header (RFC 5424 or RFC 3164, listen.ParseSyslog) for display:
+	// no "<38>Nov 13 …" prefix. Host and App are nil when the header does not say; Message is the whole line
 	// when there is no header. Line stays the stored text: it is what search and evidence use.
 	Host    *string `json:"host"`
 	App     *string `json:"app"`
@@ -241,7 +241,7 @@ type IngestResult struct {
 // Device is an inventory device as the sources list names it.
 type Device struct{ ID, Name string }
 
-// Inventory is what logs reads from the inventory (Kien's): the device with a given IP, to name the sender of a source.
+// Inventory is what logs reads from the inventory: the device with a given IP, to name the sender of a source.
 type Inventory interface {
 	// DevicesByIP returns the devices with these IPv4 addresses; an address with no device is absent.
 	DevicesByIP(ctx context.Context, ips []string) (map[string]Device, error)

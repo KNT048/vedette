@@ -1,8 +1,8 @@
-// API contract of Settings › Scanning (#850, J2 J6): one read of every scanning engine, one writer of the shared safety block, the
+// API contract of Settings › Scanning (#850): one read of every scanning engine, one writer of the shared safety block, the
 // engine switches and "Scan the LAN now" / "Check this device now". Served by core (always on), so the page answers while any
 // engine's module is off; core/server/modules.go maps /scanning to core and core reads each engine through a port wired in
 // cmd/vedette (core imports no module). Every value here already lives in a module's store: the shared window, check rate and
-// exclusions live in inventory, which the scan module reads instead of its own copy (modules/core/CONTRACT.md INV-40, D-627).
+// exclusions live in inventory, which the scan module reads instead of its own copy (modules/core/CONTRACT.md INV-40).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { BEHAVIOUR_KINDS } from '@/lib/deviceTypes'

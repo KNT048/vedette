@@ -51,7 +51,7 @@ func TestVersionAndFlags(t *testing.T) {
 	}
 }
 
-// A -syslog-port whose plain or TLS (+1) port is the one -listen or -sensor-listen serves on is refused (D-214 review L2).
+// A -syslog-port whose plain or TLS (+1) port is the one -listen or -sensor-listen serves on is refused.
 func TestSyslogPortClash(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
@@ -385,7 +385,7 @@ func TestHeadersOnResponsesOutsideTheAPIHandler(t *testing.T) {
 		"//":                     http.StatusTemporaryRedirect, // cleaned path
 		"/api/v1/../x":           http.StatusTemporaryRedirect,
 		"/api//v1/modules":       http.StatusTemporaryRedirect,
-		"/elsewhere":             http.StatusOK, // the interface (D-149; the stub page in this build)
+		"/elsewhere":             http.StatusOK, // the interface (the stub page in this build)
 		"/":                      http.StatusOK,
 		"/api/v1x/modules":       http.StatusNotFound,     // under /api/ but not the API's prefix: the interface's handler refuses it, never index.html
 		"/api/v1/modules":        http.StatusUnauthorized, // inside the API: the same headers
@@ -396,7 +396,7 @@ func TestHeadersOnResponsesOutsideTheAPIHandler(t *testing.T) {
 			t.Errorf("GET %s = %d, want %d", target, code, status)
 		}
 		csp := "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
-		if status == http.StatusOK || target == "/api/v1x/modules" { // the interface's own policy: the same plus font-src for Vite's inlined fonts (D-149)
+		if status == http.StatusOK || target == "/api/v1x/modules" { // the interface's own policy: the same plus font-src for Vite's inlined fonts
 			csp = webui.CSP
 		}
 		for h, want := range map[string]string{

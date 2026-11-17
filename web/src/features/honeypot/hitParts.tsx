@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { fmtDateTime } from '@/lib/format'
 import type { Hit } from './types'
 
-/** "Respond" opens the response module, where rules and approvals for trap hits live (D-44). Not offered for tests. */
+/** "Respond" opens the response module, where rules and approvals for trap hits live. Not offered for tests. */
 export function RespondLink({ h }: { h: Hit }) {
   const { t } = useTranslation('honeypot')
   if (h.is_test) return <span className="text-meta text-muted">-</span>

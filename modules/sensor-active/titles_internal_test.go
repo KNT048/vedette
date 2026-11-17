@@ -15,7 +15,7 @@ type policyOnly struct {
 
 func (p policyOnly) ScanPolicy(context.Context, string) (Decision, error) { return p.dec, nil }
 
-// D-511 (#714 round 2, M2, FORBID-6): a gentle scan with titles stops when the device is made fragile while it runs; the plain gentle
+// #714 round 2, M2, FORBID-6: a gentle scan with titles stops when the device is made fragile while it runs; the plain gentle
 // scan of the same device goes on, and so does a titles scan whose device stays unknown and not fragile.
 func TestTitlesScanStopsWhenTheDeviceTurnsFragile(t *testing.T) {
 	t.Parallel()

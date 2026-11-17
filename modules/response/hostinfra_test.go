@@ -8,9 +8,9 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// D-325 (deferred sweep item 4): the gateway and DNS servers the box uses are never-touch without being listed (INV-10), and a source that cannot
+// deferred sweep item 4: the gateway and DNS servers the box uses are never-touch without being listed (INV-10), and a source that cannot
 // be read refuses, like the box's own addresses.
-func TestD325_TheBoxGatewayAndDNSAreNeverTouch(t *testing.T) {
+func TestTheBoxGatewayAndDNSAreNeverTouch(t *testing.T) {
 	infra := []response.HostInfra{
 		{Addr: netip.MustParseAddr("192.168.10.1"), Kind: "gateway"},
 		{Addr: netip.MustParseAddr("192.168.10.53"), Kind: "dns"},
@@ -39,10 +39,10 @@ func TestD325_TheBoxGatewayAndDNSAreNeverTouch(t *testing.T) {
 	}
 }
 
-// D-450: the gateway's MAC is never-touch without the gateway being an inventory router: an action that names only the device's switch
+// The gateway's MAC is never-touch without the gateway being an inventory router: an action that names only the device's switch
 // port, aimed at an event whose subject is the gateway's MAC (no gateway address in it), is refused. An IPv6 link-local gateway, which
 // no action can name by address, is protected by its MAC alone.
-func TestD450_TheBoxGatewayMACIsNeverTouch(t *testing.T) {
+func TestTheBoxGatewayMACIsNeverTouch(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, func(c *response.Config) {
 		c.HostInfra = func() ([]response.HostInfra, error) {
@@ -84,10 +84,10 @@ func TestD450_TheBoxGatewayMACIsNeverTouch(t *testing.T) {
 	}
 }
 
-// D-325 review (MEDIUM): the GUI sends back the whole list GET showed. The seeded entries come back unchanged and are not stored (a stored
+// MEDIUM: the GUI sends back the whole list GET showed. The seeded entries come back unchanged and are not stored (a stored
 // copy would outlive a gateway that changed); GET shows one row per value; the same address under the administrator's own label is a
 // declared entry and stays.
-func TestD325_SavingTheShownListDoesNotStoreTheSeededEntries(t *testing.T) {
+func TestSavingTheShownListDoesNotStoreTheSeededEntries(t *testing.T) {
 	gw := netip.MustParseAddr("192.168.10.1")
 	e := newEnv(t, func(c *response.Config) {
 		c.HostInfra = func() ([]response.HostInfra, error) {

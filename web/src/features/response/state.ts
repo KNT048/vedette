@@ -1,5 +1,5 @@
 // Server side of the response mock: stores, the hash-chained log, the action catalog, and the lifecycle of a request
-// (create, approve, reject, execute, verify, roll back, expire). Every gate is enforced HERE, never only in the UI (D-41, D-51).
+// (create, approve, reject, execute, verify, roll back, expire). Every gate is enforced HERE, never only in the UI.
 // A request carries stored templates + validated values; the client can never send its own command.
 import { audit, currentUser, fail } from '@/mocks/http'
 import { collection, daysAgo, newId, nowIso, peek } from '@/mocks/db'
@@ -41,7 +41,7 @@ export const allowStore = collection<Allow[]>('resp_allowlist', () => [
   { value: '1.1.1.1', label: 'Public DNS (Cloudflare)' }, { value: 'mail.acme.example', label: 'Declared service: company mail' },
 ], () => [{ value: boxInfo().ip ?? '127.0.0.1', label: 'This Vedette box' }])
 
-// ---- Tamper-evident log (D-48): collection `resp_log`, oldest first; the core agent reads it for "download all logs" ----
+// ---- Tamper-evident log: collection `resp_log`, oldest first; the core agent reads it for "download all logs" ----
 export const logStore = collection<LogEntry[]>('resp_log', () => {
   const rows: [string, LogKind, string, string][] = [
     [daysAgo(0, 2), 'rule_fired', 'rule:Block destinations of known-bad connections', 'Block destinations of known-bad connections: PC-SALES-02 connected to 185.220.101.47 (Tor exit list, confidence 0.92)'],
@@ -73,7 +73,7 @@ export function refuse(status: number, code: string, message: string, target = '
 }
 export const OFF_MSG = 'Execution is off. Turn it on in Settings, AI response (high risk).'
 
-// ---- Notify data (read across modules with peek; may be absent). Approvers live in each channel (D-46). ----
+// ---- Notify data (read across modules with peek; may be absent). Approvers live in each channel. ----
 interface NChan { type: string; configured: boolean; enabled: boolean; approvals?: boolean; approvers?: { user_id: string; address: string }[]; fields?: Record<string, string> }
 const CH_NAME: Record<string, string> = { slack: 'Slack', telegram: 'Telegram', zalo: 'Zalo OA', 'zalo-personal': 'Zalo (personal)', email: 'Email', webhook: 'Webhook' }
 export const APPROVAL_TYPES = ['slack', 'telegram', 'email', 'zalo', 'zalo-personal']
@@ -86,7 +86,7 @@ export const chanReady = (c: NChan) => c.configured && c.enabled && c.approvals 
 export const readyChan = (type: string) => rawChans().find((c) => c.type === type && chanReady(c))
 export const userCanApprove = (id: string) => { const u = usersStore.get().find((x) => x.id === id); return !!u && !u.disabled && (u.role === 'operator' || u.role === 'admin') ? u : undefined }
 
-// ---- Approver identities (D-191): the person proved the address or ID an administrator typed for them ----
+// ---- Approver identities: the person proved the address or ID an administrator typed for them ----
 export interface LinkedId { user_id: string; channel: string; address: string; linked_at: string }
 // Sample data: the administrator linked Slack and email; the operator (U04OPS00001) has not linked Slack yet.
 export const identityStore = collection<LinkedId[]>('resp_identity', () => [
@@ -103,13 +103,13 @@ export const isLinked = (userId: string, channel: string, address: string) => {
   return identityStore.get().some((x) => x.user_id === userId && x.channel === channel && sameAddress(channel, x.address, address))
 }
 
-// ---- Email approval links (D-46): one token per approver, single use, 30 minutes, bound to request and approver ----
+// ---- Email approval links: one token per approver, single use, 30 minutes, bound to request and approver ----
 export interface Token { token: string; action_id: string; user_id: string; address: string; channel: string; expires_at: string; used_at: string | null }
 export const tokensStore = collection<Token[]>('resp_tokens', () => [])
 export const TOKEN_MIN = 30
 export const linkUrl = (t: string) => `https://${boxAddress() ?? '<box ip>'}:8443/approve/${t}`
 
-// ---- Action catalog (D-47, D-51) ----
+// ---- Action catalog ----
 export const catalogStore = collection<StoredCat[]>('resp_catalog', seedCatalog)
 export const catById = (id: string | null | undefined) => (id ? catalogStore.get().find((c) => c.id === id) : undefined)
 export const connById = (id: string | null | undefined) => (id ? connectorsStore.get().find((c) => c.id === id) : undefined)
@@ -331,7 +331,7 @@ export function newRequest(o: ReqInit, notify: boolean): ActionRequest {
   const id = newId('act')
   const sending = notify ? rawChans().filter((c) => c.configured && c.enabled && s.approval_channels.includes(c.type) && chanReady(c)) : []
   for (const c of sending.filter((x) => LINK_TYPES.includes(x.type))) {
-    for (const ap of approversOf(c).filter((x) => userCanApprove(x.user_id) && isLinked(x.user_id, c.type, x.address))) { // notify INV-13: no mail, no link for an unproved address (D-191)
+    for (const ap of approversOf(c).filter((x) => userCanApprove(x.user_id) && isLinked(x.user_id, c.type, x.address))) { // notify INV-13: no mail, no link for an unproved address
       tokensStore.update((l) => [...l, { token: approvalToken(), action_id: id, user_id: ap.user_id, address: ap.address, channel: c.type, expires_at: new Date(now + TOKEN_MIN * 60e3).toISOString(), used_at: null }])
     }
   }
@@ -371,7 +371,7 @@ function gate(a: ActionRequest, i: RequestItem): Response | null {
   if (device && !settings().execution) return refuse(409, 'execution_off', OFF_MSG, a.id)
   const cat = catById(i.action_id)
   if (!cat || !cat.enabled) return refuse(403, 'tool_not_allowed', `The action "${cat?.name ?? i.tool}" is not enabled in the action catalog (Settings, AI response).`, a.id)
-  // A request made from a sample plan names the write tool of the sample connection (a built-in HTTP action has no tool of its own, D-94): that tool must still be on.
+  // A request made from a sample plan names the write tool of the sample connection (a built-in HTTP action has no tool of its own): that tool must still be on.
   const conn = connById(i.connector_id), planTool = device && i.tool !== cat.id && i.tool !== cat.tool ? i.tool : null
   const why = unavailable(cat) ?? (device && cat.connection_id !== i.connector_id ? 'The connection for this action was changed after the request was made.' : null)
     ?? (planTool && conn && !writeToolsOf(conn).includes(planTool) ? `The write tool ${planTool} on ${conn.name} is turned off or missing.` : null)
@@ -420,7 +420,7 @@ export function approve(a: ActionRequest, w: Who, pick?: string[], code?: string
   if (chosen.some((i) => i.connector_id !== null) && !settings().execution) return refuse(409, 'execution_off', OFF_MSG, a.id)
   if (first && pick && pick.length && (pick.length !== first.items.length || !pick.every((p) => first.items.includes(p)))) return refuse(409, 'selection_differs', 'The second approver must approve the same actions as the first.', a.id)
   if (a.approvals.some((x) => x.user_id === w.id)) return refuse(409, 'same_approver', 'You already approved this request. A second, different person must approve it.', a.id)
-  // D-124: when two people must approve, at most one of them may come by email link, so one person with two forwarded mails or a shared mailbox cannot satisfy the two-person rule
+  // When two people must approve, at most one of them may come by email link, so one person with two forwarded mails or a shared mailbox cannot satisfy the two-person rule
   if (w.via === 'email' && requiredApprovals(chosen).n > 1 && a.approvals.some((x) => x.via === 'email')) return refuse(403, 'in_app_required', 'This request needs two people, and only one of them may approve by email link. The second approval must be given in the app.', a.id)
   if (a.ai?.in_app_only && w.via !== 'auto') {
     if (w.via !== 'app') return refuse(403, 'in_app_required', 'A high-risk AI request can only be approved in the app with your two-step code, not from chat or email.', a.id)

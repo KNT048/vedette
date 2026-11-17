@@ -19,14 +19,14 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/worker"
 )
 
-// D-591 (FULL-5 slice 2): a deep nmap of an address a verified domain's name resolves to goes out as a domain_ip job, only to a worker
+// A deep nmap of an address a verified domain's name resolves to goes out as a domain_ip job, only to a worker
 // that holds the fence key, and the worker's own fence decides; the probe row says which domain and name chose the address, with the
 // CNAME chain. The fake nmap prints testdata/external_full.xml (address 8.8.8.8); the DNS is a fake.
 
 var testFenceKey = []byte(strings.Repeat("k", domainfence.KeySize))
 
 // zoneDNS: acme.example carries this box's token, www.acme.example points at 8.8.8.8 through a CNAME inside the domain. Only
-// acme.example has the TXT record and it is no CNAME: D-628's ownership rule reads a record only at the name asked itself.
+// acme.example has the TXT record and it is no CNAME: the ownership rule reads a record only at the name asked itself.
 type zoneDNS struct{ txt string }
 
 func (z zoneDNS) LookupTXT(_ context.Context, name string) ([]string, error) {

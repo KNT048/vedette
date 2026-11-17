@@ -1,4 +1,4 @@
-// Contract tests of D-453: os.reboot and logind's shutdown inhibitors (apt installing). The host never forces
+// Contract tests of os.reboot and logind's shutdown inhibitors (apt installing). The host never forces
 // past a block lock: "now" is refused while one is held, a scheduled reboot waits for it, and a lock taken
 // between the check and systemctl reboot is waited for (bounded) with the write gate still raised.
 package host_test

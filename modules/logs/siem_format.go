@@ -151,7 +151,7 @@ func formatCEF(r siemRecord, host string) []byte {
 	n := 0
 	for _, f := range r.Fields {
 		std := f.CEF
-		// A flag (blocked, D-227): the CEF deviceAction says "blocked" when it is true and nothing when it is not (never "allowed": a
+		// A flag (blocked): the CEF deviceAction says "blocked" when it is true and nothing when it is not (never "allowed": a
 		// line that does not say the device stopped the connection is not known to have gone through).
 		if std == "act" {
 			if f.Val == "true" {

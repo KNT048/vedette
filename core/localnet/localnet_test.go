@@ -9,7 +9,7 @@ func TestAddr(t *testing.T) {
 	t.Parallel()
 	for s, want := range map[string]bool{
 		"10.0.0.1": true, "172.16.0.1": true, "172.31.255.254": true, "192.168.1.1": true,
-		"100.64.0.0": true, "100.65.254.7": true, "100.127.255.255": true, // RFC 6598 (D-461)
+		"100.64.0.0": true, "100.65.254.7": true, "100.127.255.255": true, // RFC 6598
 		"100.63.255.255": false, "100.128.0.0": false, "100.1.2.3": false, "172.32.0.1": false, "11.0.0.1": false, "8.8.8.8": false,
 		"127.0.0.1": false, "169.254.1.1": false, "0.0.0.0": false, "255.255.255.255": false, "224.0.0.1": false,
 		"::ffff:10.0.0.1": false, "::ffff:100.64.0.1": false, "fd00::1": false,

@@ -65,8 +65,8 @@ func (s *fakeSock) Close() error {
 
 func (s *fakeSock) push(f []byte) { s.mu.Lock(); s.inbox = append(s.inbox, f); s.mu.Unlock() }
 
-// testProber is the real prober (the timings of D-101) on the fake socket. Every test that runs it does so inside a
-// synctest bubble: the clock is the bubble's, so the timings are exact and cost no real time (D-373: no test depends on
+// testProber is the real prober (the RFC 5227 timings) on the fake socket. Every test that runs it does so inside a
+// synctest bubble: the clock is the bubble's, so the timings are exact and cost no real time (no test depends on
 // the speed of the machine).
 func testProber(s *fakeSock) *arpProber {
 	p := newARPProber()
@@ -350,7 +350,7 @@ func TestGatewayCheckTimesOutAndIgnoresOurOwnFrames(t *testing.T) {
 		s := &fakeSock{mac: macA}
 		s.push(reply(macA, gwIP, probed)) // our MAC claiming the gateway's address
 		s.push(reply(macB, probed, gwIP)) // someone else
-		// D-101: one request a second for 15 seconds. The bubble's clock makes both numbers exact.
+		// One request a second for 15 seconds. The bubble's clock makes both numbers exact.
 		p := testProber(s)
 		start := time.Now()
 		err := p.GatewayCheck(context.Background(), "eth0", probed, gwIP)
@@ -383,7 +383,7 @@ func TestGatewayCheckContextCancel(t *testing.T) {
 	})
 }
 
-func TestRealTimingsAreTheOnesOfD101(t *testing.T) {
+func TestRealTimingsAreTheOnesOfRFC5227(t *testing.T) {
 	t.Parallel()
 	p := newARPProber()
 	if p.probes != 3 || p.gap != time.Second || p.wait != 2*time.Second || p.gwEvery != time.Second || p.gwTotal != 15*time.Second {

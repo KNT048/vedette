@@ -8,18 +8,18 @@ import { modulesStore, sessionStore } from '@/mocks/stores'
 import type { ScanRun } from '@/features/scan/types'
 import { historyStore, markReached } from './mocks'
 
-// kien G7b/c (BN340 walk): he could not tell what the device page's two check buttons do, nor whether a check had run.
+// He could not tell what the device page's two check buttons do, nor whether a check had run.
 const T = { timeout: 5000 }
 const IDENT = 'Device check: ports, services, software'
 const VULN = 'Vulnerability check: does a known exploit work'
 const SNMP = 'SNMP read: model and firmware'
 const run = (over: Partial<ScanRun>): ScanRun => ({
-  id: 'run-nas', trigger: 'manual', trigger_note: null, started_at: '2026-11-17T03:18:00.000Z', started_by: 'kien@acme.example', ended_at: '2026-11-17T03:25:00.000Z',
+  id: 'run-nas', trigger: 'manual', trigger_note: null, started_at: '2026-11-17T03:18:00.000Z', started_by: 'admin@acme.example', ended_at: '2026-11-17T03:25:00.000Z',
   status: 'done', total: 1, done: 1, current: null, progress: null, results: [], matched: 0, stop_reason: null, identification: [], ...over,
 })
 const result = (target: string, cve: string) => ({ target_id: target, label: target, ip: '192.168.10.21', template: null, result: 'no_template' as const, finding_id: null, note: cve })
 
-describe('the device page says what each check does and when each last ran (kien G7b/c)', () => {
+describe('the device page says what each check does and when each last ran', () => {
   it('each check button has a line under it: what it does, what it does not, how long', async () => {
     sessionStore.set({ userId: 'u-admin' })
     renderApp('/devices/a-nas02')
@@ -30,7 +30,7 @@ describe('the device page says what each check does and when each last ran (kien
   })
 
   it('Last checks: each kind with when, the History sentence and a link; the vulnerability check counts only this device', async () => {
-    // review r1 of #965 M2: the device's runs come by ?asset=, so a run older than the newest 100 of the LAN is still found
+    // #965: the device's runs come by ?asset=, so a run older than the newest 100 of the LAN is still found
     server.use(http.get('*/api/v1/scans/runs', ({ request }) => new URL(request.url).searchParams.get('asset') === 'a-nas02'
       ? HttpResponse.json({ engine_busy: false, items: [run({ total: 2, results: [result('a-nas02', 'CVE-2026-1001'), result('a-other', 'CVE-2026-1002'), result('a-other', 'CVE-2026-1003')] })] })
       : HttpResponse.json({ engine_busy: false, items: Array.from({ length: 100 }, (_, i) => run({ id: `run-other-${i}`, results: [result('a-other', 'CVE-2026-1002')] })) })))
@@ -87,7 +87,7 @@ describe('the device page says what each check does and when each last ran (kien
     expect(within(table).getByText('2 of 3 devices answered over SNMP')).toBeInTheDocument()
   })
 
-  // review r1 of #965 M1, M3: a read that failed or has not answered is never shown as "Never"
+  // #965: a read that failed or has not answered is never shown as "Never"
   it('History failing shows the error with Try again, never "Never"', async () => {
     server.use(http.get('*/api/v1/scanning/history', () => HttpResponse.json({ error: { code: 'internal', message: 'The box could not read its runs.' } }, { status: 500 })))
     renderApp('/devices/a-nas02')

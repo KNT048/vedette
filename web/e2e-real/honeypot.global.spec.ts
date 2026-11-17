@@ -1,12 +1,12 @@
-// Internal traps on the real backend through vedette-host (S-HP-1, S-HP-2, D-102, D-161, D-89, WP-30 slice 8b). The host is the fake machine of
+// Internal traps on the real backend through vedette-host (S-HP-1, S-HP-2, WP-30). The host is the fake machine of
 // cmd/vedette/e2ehost_test.go: the real decoy_ip.* and container.* commands of host/ops over a temporary root, with a systemctl and a podman that
 // remember what start and stop did. No container runs: the spec plays the container and appends OpenCanary JSON lines to <honeypot_dir>/log/opencanary.jsonl,
 // the way the container would (append, newline), and the real run job reads them (poll every 15 s, honeypot.go).
 // Global project: the decoy address, the traps, the LAN range and the host's decoys are box-wide state; the last step puts back what it can
 // (traps off, tokens and devices deleted, LAN ranges and module switch as they were). Steps from e2e/qa/honeypot.spec.ts, minus the mock-only parts.
-// One run on a fresh box (D-172): this spec cannot be re-run on a HOLD=1 box. The secondary IP cannot be cleared once set (so the "clean box" check fails),
+// One run on a fresh box: this spec cannot be re-run on a HOLD=1 box. The secondary IP cannot be cleared once set (so the "clean box" check fails),
 // and lines written in the same 10-minute window join the hits of the earlier run instead of making new ones.
-// What the GUI does not show: the decoy's MAC (D-102 gives each decoy IP its own MAC, but neither GET /honeypot nor the page carries it), so the MAC
+// What the GUI does not show: the decoy's MAC (each decoy IP gets its own MAC, but neither GET /honeypot nor the page carries it), so the MAC
 // is checked on the host's side (GET /v1/state/net through the control endpoint) and the page is checked for the IP.
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -195,7 +195,7 @@ test('the broadcast address is refused as the secondary IP, in the page and by t
   await admin.dispose()
 })
 
-test('a host that cannot start the container never makes a trap "Listening"; once it can, the GUI follows the host (S-HP-1, D-161)', async ({ page }) => {
+test('a host that cannot start the container never makes a trap "Listening"; once it can, the GUI follows the host (S-HP-1)', async ({ page }) => {
   test.setTimeout(180_000)
   const errors = collectErrors(page)
   const server = watch5xx(page)
@@ -244,7 +244,7 @@ test('a host that cannot start the container never makes a trap "Listening"; onc
   expect(server, 'the API answered 5xx').toEqual([])
 })
 
-test('the decoy IP and its MAC are on the host, the written files match what the GUI set (D-102, D-89, S-HP-1)', async ({ page }) => {
+test('the decoy IP and its MAC are on the host, the written files match what the GUI set (S-HP-1)', async ({ page }) => {
   test.setTimeout(120_000)
   const errors = collectErrors(page)
   const server = watch5xx(page)
@@ -256,11 +256,11 @@ test('the decoy IP and its MAC are on the host, the written files match what the
     await page.reload()
     await expect(trapRow(page, SVC.smb)).toContainText('Listening', { timeout: 3_000 })
   }, 'SMB is Listening once the host restarted the container with the new file').toPass({ timeout: 60_000 })
-  // a new configuration file makes a running container restart (D-161): the host was asked once more
+  // a new configuration file makes a running container restart: the host was asked once more
   await expect.poll(async () => (await hostHoneypot()).restarts, { message: 'switching SMB on restarted the container' }).toBeGreaterThan(restartsBefore)
   await expect(page.getByLabel('Trap secondary IP', { exact: true })).toHaveValue(DECOY_IP)
 
-  // D-102: one decoy IP, one MAC of its own: locally administered, unicast
+  // One decoy IP, one MAC of its own: locally administered, unicast
   const hs = await hostHoneypot()
   expect(hs.decoys).toHaveLength(1)
   expect(hs.decoys[0].ip).toBe(DECOY_IP)
@@ -268,7 +268,7 @@ test('the decoy IP and its MAC are on the host, the written files match what the
   const first = parseInt(hs.decoys[0].mac.slice(0, 2), 16)
   expect(first & 0x02, 'locally administered bit').toBe(0x02)
   expect(first & 0x01, 'unicast').toBe(0)
-  expect(hs.decoys[0].mac, 'not the MAC of the box card (D-102 (7))').not.toBe('02:00:00:00:00:01')
+  expect(hs.decoys[0].mac, 'not the MAC of the box card').not.toBe('02:00:00:00:00:01')
 
   // the files the container reads (read-only mount in production): core wrote them, in the config folder only
   const conf = () => JSON.parse(readFileSync(join(confDir(), 'opencanary.conf'), 'utf8')) as Record<string, unknown>
@@ -322,7 +322,7 @@ test('plant a file token and a credential token, and test them (S-HP-2)', async 
   await expect(li(credName)).toContainText(`user: ${tokens.cred!.value}`)
   await expectAccessible(page, 'honeypot with tokens')
 
-  // the file token goes into honeytokens.json (names only), the credential token never goes to the shared folder (D-90 (3))
+  // the file token goes into honeytokens.json (names only), the credential token never goes to the shared folder
   await expect.poll(() => (JSON.parse(readFileSync(join(confDir(), 'honeytokens.json'), 'utf8')) as { files: string[] }).files, { message: 'honeytokens.json lists the file', timeout: 30_000 }).toEqual([tokens.file!.value])
   const shared = readFileSync(join(confDir(), 'honeytokens.json'), 'utf8') + readFileSync(join(confDir(), 'opencanary.conf'), 'utf8')
   expect(shared, 'no password on the shared folder').not.toContain(tokens.cred!.password!)

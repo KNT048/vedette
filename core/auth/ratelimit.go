@@ -34,7 +34,7 @@ const (
 	// password a signed-in user types for a sensitive change.
 	twofaKey   = "twofa"
 	accountKey = "account"
-	// deviceKeyPrefix starts the "IP" part of a limiter key that belongs to one device cookie (D-77).
+	// deviceKeyPrefix starts the "IP" part of a limiter key that belongs to one device cookie.
 	deviceKeyPrefix = "dev:"
 	// netKeySuffix marks a per-/64 key (made by ipLimitKeys); it gets the higher limit.
 	netKeySuffix = "/64"
@@ -274,7 +274,7 @@ func humanWait(secs int) string {
 	return fmt.Sprintf("%d minutes", m)
 }
 
-// BeginSetupAttempt counts one guess of the first-run setup code (D-75) before it is judged: per client
+// BeginSetupAttempt counts one guess of the first-run setup code before it is judged: per client
 // address like a sign-in (the address, and for IPv6 its /64, with the same limits and growing wait). There
 // is deliberately no counter for the whole box: any shared ceiling is a lever a stranger with a few dozen
 // addresses (ten IPv6 /64s, a hundred IPv4 addresses) pulls to keep setup closed for the owner, and a 100-bit

@@ -54,19 +54,19 @@ type deps struct {
 	Clock   func() time.Time
 	Bus     *events.Bus       // in-process event bus (core/events); modules publish after commit and subscribe here
 	Auth    *auth.Service     // sessions, sign-in and two-step (core/auth)
-	OIDC    *authoidc.Service // SSO sign-in (auth-oidc, D-194); its accounts and sessions are core/auth's
+	OIDC    *authoidc.Service // SSO sign-in (auth-oidc); its accounts and sessions are core/auth's
 	// Argon2 is the password hashing of core/auth (auth.Config.Argon2): zero, the production parameters, in serve. The wiring tests set
 	// authtest.Cheap, a real argon2id that is fast: at 64 MiB and three passes under -race, the build of each stack alone hashed for a while.
 	Argon2 auth.Params
-	// BaseURL is the address people open Vedette at, https://<Box address>[:port] (D-465: links in notify messages, the block list URL,
+	// BaseURL is the address people open Vedette at, https://<Box address>[:port] (links in notify messages, the block list URL,
 	// URL honey tokens, the agent install commands), read at every use so a save in Settings → Box network applies at once; it answers ""
 	// on loopback and while the box knows no address (see baseURL). nil: no address (tests). BoxAddr is what it reads; nil in tests.
 	BaseURL func() string
 	BoxAddr *boxAddr
 	// SelfSigned: the box serves its own certificate (no -tls-cert), so it adds the Box address itself; the Box network page says so.
 	SelfSigned bool
-	Conn       *conn.Service // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
-	// ConnReader lists and calls the read tools of the connections (core/conn/read, D-93 (3)). The ai module (WP-25) is given this and nothing
+	Conn       *conn.Service // connections to devices (core/conn): core's handlers, response and the Privacy page share it
+	// ConnReader lists and calls the read tools of the connections (core/conn/read). The ai module (WP-25) is given this and nothing
 	// else of core/conn: not the *conn.Service and not the writer, which only response gets. nil when there is no Conn.
 	ConnReader *read.Reader
 	Logs       *logexport.Registry   // the sources of /core/logs/export (INV-13): core adds "audit", registerLogSources the rest
@@ -78,10 +78,10 @@ type deps struct {
 	HostSocket, DataDir, KeyPath string
 	// PurgeGate is shut while a factory reset runs; the core, OS and network handlers share it (N4). Set by buildServices.
 	PurgeGate *core.PurgeGate
-	// Restart ends the process after a data purge (POST /core/data/purge, D-154) so that the supervisor starts it on a fresh box; nil in tests.
+	// Restart ends the process after a data purge (POST /core/data/purge) so that the supervisor starts it on a fresh box; nil in tests.
 	Restart func()
 	// Hosts are the names and addresses the box answers to (-hosts or the certificate): the IP literals among them are the box itself
-	// for core/conn (D-94). HostNet is the one cached provider of every address vedette-host reports for the appliance's interfaces and its decoys
+	// for core/conn. HostNet is the one cached provider of every address vedette-host reports for the appliance's interfaces and its decoys
 	// (host-api state/net, as single-address prefixes); nil when this install has no host. conn, sensor-active and the honeypot's box
 	// address share it, so they agree and a host that blinks does not make the box vanish from one of them.
 	Hosts   []string
@@ -94,7 +94,7 @@ type deps struct {
 	TrustAnchor func() ([]byte, error)
 	HostAllowed func(host string) bool
 	OsqueryDir  string
-	// CertKick asks the TLS certificate watcher to look at the box's addresses now (D-139); never nil in serve.
+	// CertKick asks the TLS certificate watcher to look at the box's addresses now; never nil in serve.
 	CertKick func()
 	// SyslogPort is -syslog-port: the port of the logs module's syslog listener; 0 = 514, then 5514.
 	SyslogPort int
@@ -103,9 +103,9 @@ type deps struct {
 	SyslogTLS *tls.Config
 	// MCPListen is -mcp-listen: the loopback address of the MCP server (zero = mcpserver.DefaultListen); in a container also 0.0.0.0.
 	MCPListen netip.AddrPort
-	// MCPInContainer says the process runs in a container (inContainer, D-395).
+	// MCPInContainer says the process runs in a container (inContainer).
 	MCPInContainer bool
-	// Wake runs a module's job now instead of at its next tick (core/jobs Scheduler.Wake, D-160 (5)); a no-op while the
+	// Wake runs a module's job now instead of at its next tick (core/jobs Scheduler.Wake); a no-op while the
 	// module is off or the job runs. Never nil in serve.
 	Wake func(module, job string)
 
@@ -118,26 +118,26 @@ type deps struct {
 	MitigationHandlers *mitigation.ActionHandlers
 	Honeypot           *honeypot.Service // the run job, the HTTP handler and the inventory subscription share it
 	HoneypotDir        string            // shared volume with the honeypot container (-honeypot-dir); empty = no container wired
-	// PackDir is the directory of the signed confirmed mitigation packs shipped in the core image (D-345); "" = defaultPackDir.
+	// PackDir is the directory of the signed confirmed mitigation packs shipped in the core image; "" = defaultPackDir.
 	// PackTrust gives the release keys that sign them; nil = release.Embedded (tests pass throwaway keys).
 	PackDir   string
 	PackTrust func() (release.Trust, error)
 	// PackLoader loads them into mitigation (the job load-packs). Set by buildServices.
 	PackLoader    *mitigation.Loader
 	SensorPassive *sensorpassive.Service // the sensor link and the HTTP handler share it: the SPAN measurement lives in its memory
-	// SensorStart is the start of the sensor container as its guard sees it (W2-6): the guard (addContainerGuards) writes it and
+	// SensorStart is the start of the sensor container as its guard sees it: the guard (addContainerGuards) writes it and
 	// GET /inventory/sensors reads it to say "starting". Set by buildServices when there is a host; nil otherwise.
 	SensorStart *startWatch
 	// ScanStart is the same for the scan container (sensor-active), busy host only: Settings › Scanning says "starting", not
 	// "unavailable", while the host refuses its start as busy, for at most 5 minutes (#889, after an update). Set by buildServices
 	// when there is a host.
 	ScanStart *startWatch
-	// SensorDispatcher is the Prober of sensor-active and the active half of the sensor link's Backend (D-113): one instance, so the
-	// job the service queues is the job the worker polls. Authority and SensorCreds exist only when -sensor-listen is set (D-141).
+	// SensorDispatcher is the Prober of sensor-active and the active half of the sensor link's Backend: one instance, so the
+	// job the service queues is the job the worker polls. Authority and SensorCreds exist only when -sensor-listen is set.
 	SensorDispatcher *sensoractive.Dispatcher
 	Authority        *pki.Authority
 	SensorCreds      string
-	Response         *response.Service // the only module that may change another device (D-41): handler, jobs and bus subscriptions share it
+	Response         *response.Service // the only module that may change another device: handler, jobs and bus subscriptions share it
 	AIFacts          ai.Facts          // the data ai explains from (feeds, findings, inventory); response's plan job reads the same
 	AI               *ai.Service       // profiles, keys, assignments and token settings (S-AI-1); one instance holds the router and the meter
 }
@@ -150,7 +150,7 @@ type moduleWiring struct {
 	Jobs       func(d deps) []jobs.Job // nil when it has none; a job runs only while its module is on
 	BodyLimits map[string]int64        // operationId → request body cap in bytes, for operations over 1 MiB
 	// EnsureOff is the module's idempotent teardown, run by core's OffGuard at start and after every switch-off, retried with
-	// backoff until it succeeds (SYS-5, D-189). nil when nothing of the module can outlive its jobs.
+	// backoff until it succeeds (SYS-5). nil when nothing of the module can outlive its jobs.
 	EnsureOff func(d deps) modreg.Teardown
 }
 
@@ -162,13 +162,13 @@ func wiredModules() []moduleWiring {
 		{ID: "auth-oidc", Migrations: authoidc.Migrations}, // depends on core only (MANIFEST); no job: a pending flow is pruned at the next start
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs, BodyLimits: feeds.BodyLimits},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},
-		{ID: "agent-intake", Migrations: agentintake.Migrations, Jobs: agentIntakeJobs, BodyLimits: agentintake.BodyLimits}, // depends on core and inventory (MANIFEST); node-prune is a normal job (D-265 (8))
+		{ID: "agent-intake", Migrations: agentintake.Migrations, Jobs: agentIntakeJobs, BodyLimits: agentintake.BodyLimits}, // depends on core and inventory (MANIFEST); node-prune is a normal job
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
 		{ID: "honeypot", Migrations: honeypot.Migrations, Jobs: honeypotJobs, EnsureOff: honeypotEnsureOff},
 		{ID: "findings", Migrations: findings.Migrations, Jobs: findingsJobs},
 		{ID: "mitigation", Migrations: mitigation.Migrations, Jobs: mitigationJobs},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
-		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},                   // no capture job: packets are read in the sensor container only (D-141)
+		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},                   // no capture job: packets are read in the sensor container only
 		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs},          // after notify and inventory (manifest depends)
 		{ID: "exposure", Migrations: exposure.Migrations, Jobs: exposureJobs},          // depends on core and inventory (MANIFEST)
 		{ID: "scan", Migrations: scan.Migrations, Jobs: scanJobs},                      // depends on core, inventory and feeds (MANIFEST)
@@ -180,7 +180,7 @@ func wiredModules() []moduleWiring {
 }
 
 // moduleDataFiles are the data files modules keep in core_data besides vedette.db: plain names, which POST /core/data/purge removes
-// with their -wal, -shm and -journal files (D-151 (3), D-154). Add a name here when a module opens a file of its own; the logs module's
+// with their -wal, -shm and -journal files. Add a name here when a module opens a file of its own; the logs module's
 // logs.db is listed before it exists so that no purge can leave log lines behind once it does.
 var moduleDataFiles = []string{"logs.db"}
 
@@ -240,8 +240,8 @@ func addOffGuards(g *modreg.OffGuard, d deps, wired []moduleWiring) {
 }
 
 // startGuards is how serve makes "off means off" and "on means running" for what lives outside the process: the OffGuard
-// (the modules' EnsureOff: honeypot, D-189, and the stop of the sensor and scan containers) and the OnGuard (the start of
-// those two containers, D-260), both subscribed to the registry and handed their funcs, which converge at once for a module
+// (the modules' EnsureOff: honeypot, and the stop of the sensor and scan containers) and the OnGuard (the start of
+// those two containers), both subscribed to the registry and handed their funcs, which converge at once for a module
 // that is already in the state they act on. stop cancels the retries and waits for them; the containers are left as they are.
 func startGuards(ctx context.Context, reg *modreg.Registry, log *slog.Logger, d deps, wired []moduleWiring) (stop func()) {
 	gctx, cancel := context.WithCancel(ctx)

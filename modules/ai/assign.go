@@ -119,7 +119,7 @@ func (s *Service) Suggestion(internalOnly bool) AssignmentsView {
 	for _, j := range Jobs() {
 		var ok []Profile
 		for _, p := range sn.profiles {
-			// response-plan is opt-in (D-181): Suggest then Save must not switch it on, as AddProfile does not.
+			// response-plan is opt-in: Suggest then Save must not switch it on, as AddProfile does not.
 			if j != JobResponsePlan && asg.Allowed(j, p.Profile) {
 				ok = append(ok, p.Profile)
 			}
@@ -153,14 +153,14 @@ type ConfigView struct {
 	Configured    bool            `json:"configured"`
 	Tier          Tier            `json:"tier"`
 	MonthlyBudget int             `json:"monthly_budget"`
-	MonthUsed     int             `json:"month_used"` // tokens this month, all profiles (D-531)
+	MonthUsed     int             `json:"month_used"` // tokens this month, all profiles
 	RenewsOn      string          `json:"renews_on"`  // the local date the budgets start again (YYYY-MM-DD)
 	RedactPII     bool            `json:"redact_pii"`
 	TierEstimates map[Tier]*int   `json:"tier_estimates"`
 	JobsReady     map[string]bool `json:"jobs_ready"`
 }
 
-// Config returns the settings. Tier is the configured level (the monthly budget never lowers it, D-531).
+// Config returns the settings. Tier is the configured level (the monthly budget never lowers it).
 func (s *Service) Config() ConfigView {
 	sn := s.snap.Load()
 	v := ConfigView{Tier: s.meter.Tier(), MonthlyBudget: sn.cfg.MonthlyBudget, MonthUsed: s.meter.Used(), RenewsOn: s.meter.Renews().Format("2006-01-02"), RedactPII: s.redactPII(),

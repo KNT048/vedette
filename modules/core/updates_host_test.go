@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// The system helper step of the software run (S-CORE-2 criterion D-316, plan slice 5), against updHost: core and the
+// The system helper step of the software run (S-CORE-2), against updHost: core and the
 // helper run 1.3.0, and release 1.4.0 brings helper 1.4.0 whose package the release server serves as served.
 
 const hostPkgPath = "/v1.4.0/vedette-host_1.4.0_amd64.deb"
@@ -103,7 +103,7 @@ func TestUpdateHostStepGoesFirstThenTheImages(t *testing.T) {
 func TestUpdateHostStaysNewWhenAnImageFailsLater(t *testing.T) {
 	t.Parallel()
 	e, fh := newHostRunEnv(t, "1.3.0", nil)
-	fh.ends["start core"] = api.RunError{Code: api.CodeUnitFailed} // the first image switched (D-459)
+	fh.ends["start core"] = api.RunError{Code: api.CodeUnitFailed} // the first image switched
 	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
 	if run := endedRun(t, e); run["status"] != "reverted" {
 		t.Fatalf("run = %v", run)

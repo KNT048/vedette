@@ -9,14 +9,14 @@ describe('isNever', () => {
   })
 })
 
-describe('one date format (D-389)', () => {
+describe('one date format', () => {
   it('writes the month as a word, never 12/11/2026', () => {
     expect(fmtDate('2026-11-12')).toBe('12 Nov 2026')
     expect(fmtDateTime(new Date(2026, 10, 12, 20, 51).toISOString())).toBe('12 Nov 2026, 20:51')
   })
 })
 
-describe('rawProductLine (walk 4)', () => {
+describe('rawProductLine', () => {
   it('hides the vendor/product line when it only repeats the display name', () => {
     expect(rawProductLine('OpenBSD OpenSSH', 'OpenBSD', 'OpenSSH')).toBeNull()
     expect(rawProductLine('openbsd openssh ', 'OpenBSD', 'OpenSSH')).toBeNull()

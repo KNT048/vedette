@@ -1,6 +1,6 @@
 package exposure
 
-// FULL-4 (Trưởng), for Mlee: the service step of a deep scan (D-526).
+// The service step of a deep scan.
 
 import (
 	"context"
@@ -24,7 +24,7 @@ func (b *boundServices) ScanServices(ctx context.Context, t ScanTarget, ip netip
 	return b.fakeServices.ScanServices(ctx, t, ip)
 }
 
-// D-526: the service step's bound follows the scan mode: 5 minutes without accepted terms, FullServicesTimeout for a deep scan,
+// The service step's bound follows the scan mode: 5 minutes without accepted terms, FullServicesTimeout for a deep scan,
 // which the scanner reads from ScanTarget.Mode.
 func TestFullScanStepBoundFollowsTheMode(t *testing.T) {
 	t.Parallel()
@@ -50,7 +50,7 @@ func TestFullScanStepBoundFollowsTheMode(t *testing.T) {
 	}
 }
 
-// D-526: a deep scan stores its script results (sanitized, findings first, rows of another address dropped), says how many and how
+// A deep scan stores its script results (sanitized, findings first, rows of another address dropped), says how many and how
 // many say VULNERABLE, and has no "TCP ports outside the fixed list" line; when its nmap run did not finish, the lines say so with
 // the deep scan's own numbers.
 func TestFullScanScriptsAndLines(t *testing.T) {
@@ -101,7 +101,7 @@ func TestFullScanScriptsAndLines(t *testing.T) {
 	}
 }
 
-// D-526: the script rows are bounded: at most maxScripts, findings kept first, each output cut to maxScriptOutput runes.
+// The script rows are bounded: at most maxScripts, findings kept first, each output cut to maxScriptOutput runes.
 func TestFullScanSanitizeScripts(t *testing.T) {
 	t.Parallel()
 	in := make([]ScriptRow, 0, maxScripts+10)

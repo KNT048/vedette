@@ -88,7 +88,7 @@ func TestCookiePrefixesAndStaleRequestAfterRenewal(t *testing.T) {
 	}
 }
 
-// D-77: the owner has just proved the old password, so a browser that came with a valid device cookie gets a
+// The owner has just proved the old password, so a browser that came with a valid device cookie gets a
 // new one for the new password (the old one died with the credential version); a browser without one gets
 // none.
 // A password change proves the current password in this browser, as a sign-in does, so the browser gets a device

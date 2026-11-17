@@ -15,7 +15,7 @@ import (
 	"unicode"
 )
 
-// D-208: a pull never connects to loopback or to the box's own addresses, and never reads past a short snippet of a feed value.
+// A pull never connects to loopback or to the box's own addresses, and never reads past a short snippet of a feed value.
 
 func boxOf(addrs ...string) func() ([]netip.Addr, bool) {
 	var out []netip.Addr
@@ -35,7 +35,7 @@ func countingServer(t *testing.T, tls bool) (*httptest.Server, *atomic.Int32) {
 	return httptest.NewServer(h), &served
 }
 
-func TestD208_LoopbackRefusedForHTTPAndHTTPS(t *testing.T) {
+func TestDialGuard_LoopbackRefusedForHTTPAndHTTPS(t *testing.T) {
 	t.Parallel()
 	for _, tls := range []bool{false, true} {
 		srv, served := countingServer(t, tls)
@@ -56,7 +56,7 @@ func TestD208_LoopbackRefusedForHTTPAndHTTPS(t *testing.T) {
 	}
 }
 
-func TestD446_MachineAddressRefusedOnVedettePortsOnly(t *testing.T) {
+func TestOwnAddress_MachineAddressRefusedOnVedettePortsOnly(t *testing.T) {
 	t.Parallel()
 	var calls, dialled atomic.Int32
 	c := newClient(2*time.Second, fixedResolver(&calls, map[string][]string{"api.lan": {"10.9.9.9"}, "v6.lan": {"fd00::9"}, "mapped.lan": {"::ffff:10.9.9.9"}}))
@@ -83,7 +83,7 @@ func TestD446_MachineAddressRefusedOnVedettePortsOnly(t *testing.T) {
 	}
 }
 
-func TestD446_LoopbackAndOwnInterfacesOnEveryPort(t *testing.T) {
+func TestOwnAddress_LoopbackAndOwnInterfacesOnEveryPort(t *testing.T) {
 	t.Parallel()
 	g := &destGuard{}
 	own := ownAddrs{self: []netip.Addr{netip.MustParseAddr("10.89.0.5")}, machine: []netip.Addr{netip.MustParseAddr("192.168.18.141")}}
@@ -116,7 +116,7 @@ func TestD446_LoopbackAndOwnInterfacesOnEveryPort(t *testing.T) {
 	}
 }
 
-func TestD208_RedirectHopIsDialledThroughTheGuard(t *testing.T) {
+func TestDialGuard_RedirectHopIsDialledThroughTheGuard(t *testing.T) {
 	t.Parallel()
 	var next atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -143,7 +143,7 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-func TestD208_UnknownBoxAddressesFailClosed(t *testing.T) {
+func TestDialGuard_UnknownBoxAddressesFailClosed(t *testing.T) {
 	t.Parallel()
 	srv, served := countingServer(t, false)
 	defer srv.Close()
@@ -164,7 +164,7 @@ func TestD208_UnknownBoxAddressesFailClosed(t *testing.T) {
 	}
 }
 
-func TestD208_HostileFieldValueIsCappedInRowErrors(t *testing.T) {
+func TestDialGuard_HostileFieldValueIsCappedInRowErrors(t *testing.T) {
 	t.Parallel()
 	hostile := strings.Repeat("A\x00\n\r\u202e", 4000) // control characters and a bidi override, 20k runes
 	body := `{"status":"OK","data":[{"cve":` + jsonQuote(hostile) + `,"epss":"0.5","percentile":"0.5"},{"cve":"CVE-2026-1","epss":` + jsonQuote(hostile) + `,"percentile":"0.5"}]}`
@@ -218,7 +218,7 @@ func deref(p *string) string {
 	return *p
 }
 
-// lanAddr is a private address this machine does not hold. The guard refuses the box's own interface addresses (D-208) whether the
+// lanAddr is a private address this machine does not hold. The guard refuses the box's own interface addresses whether the
 // host has answered or not, and a CI runner's eth0 is itself a 10.x address: a fixed LAN address can be the runner, and its pull is
 // then refused as the box, not left waiting.
 func lanAddr(t *testing.T) string {
@@ -244,7 +244,7 @@ func lanAddr(t *testing.T) string {
 	return ""
 }
 
-func TestD208_ColdStartPullsPublicFeedsAndWaitsForLANOnes(t *testing.T) {
+func TestDialGuard_ColdStartPullsPublicFeedsAndWaitsForLANOnes(t *testing.T) {
 	t.Parallel()
 	plain, plainHits := countingServer(t, false)
 	defer plain.Close()
@@ -287,7 +287,7 @@ func TestD208_ColdStartPullsPublicFeedsAndWaitsForLANOnes(t *testing.T) {
 	}
 }
 
-func TestD208_TransitionFormsAreCheckedByTheirIPv4(t *testing.T) {
+func TestDialGuard_TransitionFormsAreCheckedByTheirIPv4(t *testing.T) {
 	t.Parallel()
 	g := &destGuard{}
 	box := ownAddrs{machine: []netip.Addr{netip.MustParseAddr("10.9.9.9")}}
@@ -312,7 +312,7 @@ func TestD208_TransitionFormsAreCheckedByTheirIPv4(t *testing.T) {
 	}
 }
 
-func TestD446_GatewayIsTheMachineAndRefusedPullsHaveOneMessage(t *testing.T) {
+func TestOwnAddress_GatewayIsTheMachineAndRefusedPullsHaveOneMessage(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int32
 	c := newClient(2*time.Second, fixedResolver(&calls, map[string][]string{"gw.lan": {"172.17.0.1"}}))
@@ -321,7 +321,7 @@ func TestD446_GatewayIsTheMachineAndRefusedPullsHaveOneMessage(t *testing.T) {
 	if !errors.Is(err, ErrBlockedAddress) || !errors.Is(err, ErrOwnAddress) {
 		t.Fatalf("%v", err)
 	}
-	// D-446: one sentence for Vedette itself, loopback included; it points at the machine's LAN address
+	// One sentence for Vedette itself, loopback included; it points at the machine's LAN address
 	for _, e := range []error{err, ErrOwnAddress} {
 		if msg := userError(e, "http://gw.lan/"); msg != ownText || !strings.Contains(msg, "enter the machine's LAN address") {
 			t.Errorf("message = %q", msg)
@@ -332,7 +332,7 @@ func TestD446_GatewayIsTheMachineAndRefusedPullsHaveOneMessage(t *testing.T) {
 	}
 }
 
-func TestD208_RedirectHostIsQuoted(t *testing.T) {
+func TestDialGuard_RedirectHostIsQuoted(t *testing.T) {
 	t.Parallel()
 	a := &http.Request{URL: mustURL(t, "http://evil\u202e.example/")}
 	b := &http.Request{URL: mustURL(t, "http://feed.lan/")}
@@ -351,8 +351,8 @@ func mustURL(t *testing.T, s string) *url.URL {
 	return u
 }
 
-// D-446 review: a honeypot decoy (Fetcher.Self) is Vedette itself on every port, on a Vedette port and on another one alike.
-func TestD446_DecoyRefusedOnEveryPort(t *testing.T) {
+// A honeypot decoy (Fetcher.Self) is Vedette itself on every port, on a Vedette port and on another one alike.
+func TestOwnAddress_DecoyRefusedOnEveryPort(t *testing.T) {
 	t.Parallel()
 	var dialled atomic.Int32
 	f := Fetcher{Client: newClient(2*time.Second, systemResolver), BoxAddrs: boxOf("10.9.9.9"),

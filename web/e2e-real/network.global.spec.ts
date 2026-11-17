@@ -1,4 +1,4 @@
-// Settings -> Box network on the real backend through vedette-host (S-CORE-8, D-56, D-100, D-118, core INV-25). The host is the fake machine
+// Settings -> Box network on the real backend through vedette-host (S-CORE-8, core INV-25). The host is the fake machine
 // of cmd/vedette/e2ehost_test.go: the real net.* commands of host/ops over a temporary root, a fake ARP prober and a fake network whose
 // addresses follow the netplan file the host writes. Click paths only: apply -> the confirm window -> confirm, and apply -> cancel. The
 // 5-minute expiry (the host's timer) stays in the Go tests (modules/core/network_test.go: TestNetworkRevertAndTheTimerGoBackToTheOldSettings).
@@ -49,7 +49,7 @@ test.afterAll(async () => { // whatever a failed test left: cancel a waiting cha
   if (back.status === 200) await api(c, 'POST', '/core/network/management/confirm')
   expect((await api(c, 'PUT', '/core/network/ntp', { mode: 'default', servers: [] })).status, 'NTP put back').toBe(200)
   expect((await api(c, 'PUT', '/core/network/span', { enabled: false, interface: null, extract: { dns: true, tls_sni: true, http_host: false, flows: true }, filters: [], cpu_percent: 25, memory_mb: 512 })).status, 'SPAN off').toBe(200)
-  // eth1 back to unused, so a later global spec (sensor-active, slice 7) starts from the box as it came
+  // eth1 back to unused, so a later global spec (sensor-active) starts from the box as it came
   const roles = Object.fromEntries((await api<Net>(c, 'GET', '/core/network')).body.interfaces.map((i) => [i.name, i.name === 'eth1' ? 'unused' : i.role]))
   expect((await api(c, 'PUT', '/core/network/interfaces', { roles })).status, 'eth1 unused').toBe(200)
   await c.dispose()
@@ -62,7 +62,7 @@ test('the page lists the cards of the host, names vedette-host, and leaves out t
   await page.goto('/settings/network')
   await expect(h1(page)).toBeVisible()
   await expect(page.getByText(/applied by vedette-host/), 'the page names the helper').toBeVisible()
-  await expect(page.getByText('If the box restarts before you confirm, it comes back on the old address.'), 'D-100: the help next to Save').toBeVisible()
+  await expect(page.getByText('If the box restarts before you confirm, it comes back on the old address.'), 'the help next to Save').toBeVisible()
   const table = page.getByRole('table', { name: 'Network interfaces of the box' })
   await expect(table.getByRole('row').filter({ has: page.getByRole('cell', { name: 'eth0', exact: true }) })).toContainText('Management')
   await expect(table.getByRole('cell', { name: 'eth1', exact: true })).toBeVisible()
@@ -85,14 +85,14 @@ test('a viewer and an operator read the page and cannot change it', async ({ bro
     const page = await ctx.newPage()
     await page.goto('/settings/network')
     await expect(save(page)).toBeDisabled()
-    if (SPAN_IN_UI) await expect(page.getByRole('combobox', { name: 'Role of eth1' })).toBeDisabled() // v1 (D-403): an unused card's role is text, W2-7
+    if (SPAN_IN_UI) await expect(page.getByRole('combobox', { name: 'Role of eth1' })).toBeDisabled() // v1: an unused card's role is text
     await ctx.close()
     await c.dispose()
   }
   expect((await net()).body.pending).toBeNull()
 })
 
-test('before any management address is saved the host refuses other network changes in words (management_not_set, D-118)', async ({ page }) => {
+test('before any management address is saved the host refuses other network changes in words (management_not_set)', async ({ page }) => {
   const errors = collectErrors(page)
   const said = "Vedette has not set up this box's network yet. Save the management address first, then change the other settings."
   await page.goto('/settings/network')
@@ -198,7 +198,7 @@ test('a mistake is told in words and sends nothing: a gateway outside the range,
 })
 
 test('SPAN: eth1 gets the role, the port, what is read and an exclusion are saved and survive a reload, and the switch guide shows steps', async ({ page }) => {
-  test.skip(!SPAN_IN_UI, 'D-403: SPAN is hidden in the GUI for v1; the backend and its tests are kept')
+  test.skip(!SPAN_IN_UI, 'SPAN is hidden in the GUI for v1; the backend and its tests are kept')
   test.setTimeout(90_000)
   const errors = collectErrors(page)
   await page.goto('/settings/network')
@@ -238,7 +238,7 @@ test('SPAN: eth1 gets the role, the port, what is read and an exclusion are save
   noErrors(errors, /status of 4\d\d/)
 })
 
-test('DHCP: the confirm dialog says where to find the new address instead of showing one (D-118), and Cancel changes nothing', async ({ page }) => {
+test('DHCP: the confirm dialog says where to find the new address instead of showing one, and Cancel changes nothing', async ({ page }) => {
   const errors = collectErrors(page)
   const before = (await net()).body
   await page.goto('/settings/network')

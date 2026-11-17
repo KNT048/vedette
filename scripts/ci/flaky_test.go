@@ -6,7 +6,7 @@ import (
 )
 
 // The daily run's failed jobs' logs become one line per package with its failed tests; a timeout names the running test, a build
-// failure names the package alone, and a run with nothing failed prints nothing (D-365).
+// failure names the package alone, and a run with nothing failed prints nothing.
 func TestFailuresListsEachFailedTestByPackage(t *testing.T) {
 	t.Parallel()
 	log := strings.Join([]string{

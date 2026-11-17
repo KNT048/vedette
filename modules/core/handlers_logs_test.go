@@ -300,7 +300,7 @@ func TestLogsExport_TheDownloadIsAuditedAndTheChainVerifiesOffline(t *testing.T)
 		t.Fatal("a tampered row verified")
 	}
 
-	// The download is one core_audit row (D-72): who, which categories, what format, how many rows.
+	// The download is one core_audit row: who, which categories, what format, how many rows.
 	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'logs.export'"); n != 1 {
 		t.Fatalf("logs.export rows = %d, want 1", n)
 	}

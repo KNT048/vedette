@@ -3,7 +3,7 @@ package findings
 import "testing"
 
 // The release named for a device is outside the affected range of EVERY vulnerability of the product, not just the highest of the
-// ones that each name a fix (D-490 review H1: 26.3 fixes one iOS CVE and is inside the range of another).
+// ones that each name a fix (26.3 fixes one iOS CVE and is inside the range of another).
 func TestFixedInForAllNamesAReleaseNoVulnerabilityStillAffects(t *testing.T) {
 	vulns := goldenVulns(t)
 	type mk func([]Vuln, string) Software

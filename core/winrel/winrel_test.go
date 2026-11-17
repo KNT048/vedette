@@ -46,7 +46,7 @@ func TestReleasesTable(t *testing.T) {
 	}
 }
 
-// D-603: a release Microsoft's release information lists and the table does not is answered after the table's; the table's facts win,
+// A release Microsoft's release information lists and the table does not is answered after the table's; the table's facts win,
 // and a release with a bad name, line or kind is dropped.
 func TestLearn(t *testing.T) {
 	t.Cleanup(func() { Learn(nil) })

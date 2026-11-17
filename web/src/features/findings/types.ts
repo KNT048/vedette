@@ -8,9 +8,9 @@ export type Cvss = z.infer<typeof C.Cvss>
 export type FindingAsset = z.infer<typeof C.FindingAsset>
 /** Phát hiện + thiết bị + thông tin KEV (đọc từ KEV thật, không phải từ gói khuyến nghị của dự án). */
 export type FindingRow = z.infer<typeof C.FindingRow>
-/** D-545: the update that fixes several open findings of one software on one device. */
+/** The update that fixes several open findings of one software on one device. */
 export type RowFix = z.infer<typeof C.RowFix>
-/** D-500: a software without a usable version: one item, not one finding per CVE. */
+/** A software without a usable version: one item, not one finding per CVE. */
 export type VersionNeeded = z.infer<typeof C.VersionNeeded>
 /** #910 phase 1: exploited CVEs of software the box has that it could not check. */
 export type UncheckedItem = z.infer<typeof C.UncheckedItem>
@@ -22,7 +22,7 @@ export type FirewallGuide = z.infer<typeof C.FirewallGuide>
 export type MitigationPack = z.infer<typeof C.MitigationPack>
 export type Indicator = z.infer<typeof C.Indicator>
 export type CompromiseCheck = z.infer<typeof C.CompromiseCheck>
-/** M2-1: the general compromise checks, not a recommendation for the CVE (mitigation INV-8; no firewall config, D-631). */
+/** M2-1: the general compromise checks, not a recommendation for the CVE (mitigation INV-8; no firewall config). */
 export type GeneralHardening = z.infer<typeof C.GeneralHardening>
 export type AiResult = z.infer<typeof C.AiResult>
 export type AppliedEntry = z.infer<typeof C.AppliedEntry>
@@ -31,7 +31,7 @@ export type KnownVersion = z.infer<typeof C.KnownVersion>
 export type StatusAction = z.infer<typeof C.StatusAction>
 export type BulkAction = z.infer<typeof C.BulkAction>
 export type ApplyItem = z.infer<typeof C.ApplyItem>
-/** Updates to plan (D-613, D-615): tier 2 and 3 CVEs grouped by the update that fixes them. */
+/** Updates to plan: tier 2 and 3 CVEs grouped by the update that fixes them. */
 export type Plan = z.infer<typeof C.Plan>
 export type PlanItem = z.infer<typeof C.PlanItem>
 export type ToFix = z.infer<typeof C.ToFix>

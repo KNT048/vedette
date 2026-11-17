@@ -1,4 +1,4 @@
-// Package domainfence is the executors' half of the domain fence (FULL-5 slice 2, D-591, plan 2026-11-14 §5): the check the scan
+// Package domainfence is the executors' half of the domain fence: the check the scan
 // container's worker (nmap, nuclei) and vedette-host (ZAP, OpenVAS) make on their own, right before a tool starts on a public address
 // that is not the box's own egress, because a name under a verified domain resolves to it. Core is not trusted for any of it: the
 // token it sends must be the one this box derives from its fence key (a TXT value is public, so another customer's visible token
@@ -33,7 +33,7 @@ const (
 	// KeySize is the length of the fence key: 32 random bytes.
 	KeySize = 32
 	// TokenLen is the length of a box-bound token: the first 16 hex digits of the HMAC (64 bits), the length of every domain token
-	// exposure stores (exp_target's CHECK since migration 0001; D-591 says why not 32).
+	// exposure stores (exp_target's CHECK since migration 0001).
 	TokenLen = 16
 	// CacheFor is how long a yes stands for one (domain, name, ip): a run of many nuclei jobs or ZAP pages asks DNS once in it.
 	CacheFor = 5 * time.Minute
@@ -41,7 +41,7 @@ const (
 	LookupTimeout = 10 * time.Second
 	// Recheck is how often a long run (a deep nmap, an OpenVAS task) checks again while it runs: the own_ip re-check's period.
 	Recheck = 3 * time.Minute
-	// VerifyLabel is the label of a domain's dedicated proof name, _vedette-verify.<domain> (D-628): the record may sit there when
+	// VerifyLabel is the label of a domain's dedicated proof name, _vedette-verify.<domain>: the record may sit there when
 	// the domain is a CNAME.
 	VerifyLabel = "_vedette-verify"
 	// tokenLabel is what the HMAC is taken over, before the domain (plan §5).
@@ -89,7 +89,7 @@ type Job struct {
 	IP         netip.Addr
 	Token      string
 	Disruptive bool
-	// ProofAt (D-632) is a parent name of Domain where Domain's own record sits (the zone apex: a name that is a CNAME can hold no
+	// ProofAt is a parent name of Domain where Domain's own record sits (the zone apex: a name that is a CNAME can hold no
 	// TXT, and control of the apex proves every name of the zone, the Google Workspace and Microsoft 365 model): the record
 	// vedette-verify=<Token> is looked for there instead of on Domain, with the same rules (Owned). "" = on Domain. The token stays
 	// Domain's; ProofAt is never Domain itself, and never a name of one label (vedette-host also refuses a public suffix there).
@@ -220,7 +220,7 @@ func (f *Fence) check(ctx context.Context, j Job) (Outcome, cacheEntry) {
 		return fn(lctx)
 	}
 	owner := j.Domain
-	if j.ProofAt != "" { // D-632: Domain's own record on a parent name
+	if j.ProofAt != "" { // Domain's own record on a parent name
 		owner = j.ProofAt
 	}
 	switch pr := Owned(ctx, f.r, owner, j.Token, LookupTimeout); {
@@ -271,14 +271,14 @@ type Proof struct {
 	Detail    string
 }
 
-// Owned is THE ownership rule of a domain's record (D-628), the one every party applies: exposure (Check and the scan gate, for the
+// Owned is THE ownership rule of a domain's record, the one every party applies: exposure (Check and the scan gate, for the
 // target itself and for a parent target that covers it), the scan container's worker (deep steps) and vedette-host (ZAP pages,
 // OpenVAS). domain is owned when the TXT record vedette-verify=<token> is answered at the name asked itself:
 //
 //   - on domain, or on _vedette-verify.<domain> (a domain that is a CNAME can hold no other record; skipped when that name would
 //     pass 253 characters);
 //   - never through a CNAME: the name asked must not be one (its LookupCNAME answers itself, or "no such host" for a name with no
-//     address), else the TXT belongs to whoever runs the CNAME's target (a dangling CNAME, a vendor's name; review r1 High of #941);
+//     address), else the TXT belongs to whoever runs the CNAME's target (a dangling CNAME, a vendor's name);
 //   - on _vedette-verify.<domain>, never a wildcard: a random sibling under domain must not answer the same value. A wildcard
 //     "*.domain" answers every name under it, the dedicated one included; a wildcard CNAME there is already refused by the rule
 //     above, a wildcard TXT by this one. On domain itself a wildcard of its parent answers only when domain has no record of its

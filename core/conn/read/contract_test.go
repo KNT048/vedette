@@ -57,7 +57,7 @@ func importsOf(t *testing.T, dir string, withTests bool, match func(string) bool
 	return hits, scanned
 }
 
-// ai INV-14, FORBID-5, D-41: the `ai` module reaches a device only through this reader. No file of it, a test included, imports the
+// ai INV-14, FORBID-5: the `ai` module reaches a device only through this reader. No file of it, a test included, imports the
 // writer or anything under core/conn/internal (the vault, the dialer), and its import graph does not reach the writer.
 func TestContract_AIImportsNeitherTheWriterNorTheInternals(t *testing.T) {
 	t.Parallel()

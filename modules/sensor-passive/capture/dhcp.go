@@ -88,7 +88,7 @@ func parseDHCP(b []byte) (dhcpMessage, error) {
 	return m, nil
 }
 
-// dhcpOS reads the OS family from the vendor class (option 60) of a DHCP client whose format is known (D-501): Windows ("MSFT 5.0"),
+// dhcpOS reads the OS family from the vendor class (option 60) of a DHCP client whose format is known: Windows ("MSFT 5.0"),
 // Android ("android-dhcp-13"), dhcpcd ("dhcpcd-9.4.1:Linux-6.1.21:aarch64:..."), BusyBox udhcpc ("udhcp 1.36.1"). Option 60 names
 // the DHCP client, so it says the operating system, not who made the device or which version runs: a hint, never a version to
 // match. Anything else gives "".

@@ -236,7 +236,7 @@ func TestContract_INV23_SummaryCacheAndInvalidation(t *testing.T) {
 	}
 }
 
-// G6 (kien, N100): every incident resolved, yet the nav badge said 9 urgent: the cached answer kept notify's counts until a finding
+// Every incident resolved, yet the nav badge said 9 urgent: the cached answer kept notify's counts until a finding
 // changed or the TTL ran out. The open and urgent incidents are read at every call, from the cached answer too, without
 // computing the rest again; the cached answer itself is not changed.
 func TestSummaryIncidentsAreNeverCached(t *testing.T) {
@@ -408,7 +408,7 @@ func BenchmarkSummaryCold(b *testing.B) {
 	}
 }
 
-// INV-23, D-484: "Fix first" shows a device as GET /findings does (shownAsset): never the internal id, a kind outside the device types is
+// INV-23: "Fix first" shows a device as GET /findings does (shownAsset): never the internal id, a kind outside the device types is
 // "unknown".
 func TestContract_INV23_SummaryDeviceAsTheListShowsIt(t *testing.T) {
 	t.Parallel()

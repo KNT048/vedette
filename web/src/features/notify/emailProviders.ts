@@ -1,5 +1,5 @@
-// Presets of the email channel (S-NOT-1, D-449). Choosing one fills host, port and encryption; the box knows only how each one signs in
-// (modules/notify/channel/smtpauth.go emailProviders). Every value is checked against the provider's own page in `doc` (D-449).
+// Presets of the email channel (S-NOT-1). Choosing one fills host, port and encryption; the box knows only how each one signs in
+// (modules/notify/channel/smtpauth.go emailProviders). Every value is checked against the provider's own page in `doc`.
 
 /** How a preset signs in: SMTP AUTH PLAIN/LOGIN with a password or API key, the secret as both username and password (Postmark), or OAuth2. */
 export type EmailAuth = 'password' | 'token_as_user' | 'microsoft_oauth' | 'google_oauth' | 'microsoft_user' | 'google_user'
@@ -29,7 +29,7 @@ export const EMAIL_PROVIDERS: EmailProvider[] = [
   { id: 'ses', group: 'service', auth: 'password', host: 'email-smtp.us-east-1.amazonaws.com', port: '587', security: 'starttls', doc: 'https://docs.aws.amazon.com/ses/latest/dg/smtp-credentials.html' },
   { id: 'postmark', group: 'service', auth: 'token_as_user', host: 'smtp.postmarkapp.com', port: '587', security: 'starttls', doc: 'https://postmarkapp.com/developer/user-guide/send-email-with-smtp' },
   { id: 'brevo', group: 'service', auth: 'password', host: 'smtp-relay.brevo.com', port: '587', security: 'starttls', doc: 'https://help.brevo.com/hc/en-us/articles/7924908994450' },
-  // D-480: the user signs in once (Microsoft device code; Google with the customer's own Desktop client, address pasted back)
+  // The user signs in once (Microsoft device code; Google with the customer's own Desktop client, address pasted back)
   { id: 'microsoft365-user', group: 'oauth', auth: 'microsoft_user', host: 'smtp.office365.com', port: '587', security: 'starttls', doc: 'https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code' },
   { id: 'outlook', group: 'oauth', auth: 'microsoft_user', host: 'smtp-mail.outlook.com', port: '587', security: 'starttls', doc: 'https://support.microsoft.com/en-us/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040' },
   { id: 'gmail-oauth', group: 'oauth', auth: 'google_user', host: 'smtp.gmail.com', port: '587', security: 'starttls', doc: 'https://developers.google.com/identity/protocols/oauth2/native-app' },
@@ -40,11 +40,11 @@ export const EMAIL_PROVIDERS: EmailProvider[] = [
 /** The preset of a saved channel: a channel saved before the presets has none and is Custom SMTP. */
 export const emailProvider = (id: string | undefined) => EMAIL_PROVIDERS.find((p) => p.id === (id || 'custom'))
 export const isOAuth = (a: EmailAuth) => a !== 'password' && a !== 'token_as_user'
-/** A preset where the mailbox's user signs in (D-480): the secret is a sign-in, not something typed. */
+/** A preset where the mailbox's user signs in: the secret is a sign-in, not something typed. */
 export const isUserSignin = (a: EmailAuth) => a === 'microsoft_user' || a === 'google_user'
 
 /**
- * What a saved email secret was saved for: sign-in method, server and port (channels.go emailBinding, D-449 review). The box sends a
+ * What a saved email secret was saved for: sign-in method, server and port (channels.go emailBinding). The box sends a
  * saved secret only there and returns the binding as `fields.secret_for`; a channel saved before it is bound to its own fields.
  */
 export const emailBinding = (f: Record<string, string | undefined>) => {

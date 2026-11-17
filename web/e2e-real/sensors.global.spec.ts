@@ -1,14 +1,14 @@
-// The sensors on the real backend (S-INV-1, S-INV-3, D-80, D-84, D-111 (4)/SYS-5, sensor-passive and sensor-active invariants): the REAL `vedette-sensor` binary, started
+// The sensors on the real backend (S-INV-1, S-INV-3, SYS-5, sensor-passive and sensor-active invariants): the REAL `vedette-sensor` binary, started
 // by the box harness (cmd/vedette/e2esensor_test.go), talks to core over the real mutual-TLS sensor link.
 //   - passive: replays modules/sensor-passive/testdata/lan-discovery.pcap (the recording stands in for the network; the process needs no capture rights);
 //   - active: long-polls jobs and runs a FAKE nmap that scans nothing, appends its argv to a file and answers from the fixtures of modules/sensor-active/testdata by the
 //     shape of that argv. What these tests prove is what the BOX decided to send (which addresses, which flags, when) and what it made of the answers.
 //     sweep.xml also holds 203.0.113.9, a host outside every private range: it must never reach the inventory.
-// One file, one order: core remembers an observation it wrote for 15 minutes (D-80 (1), modules/sensor-passive/repeat.go), so the recording can be delivered once per run, and
+// One file, one order: core remembers an observation it wrote for 15 minutes (modules/sensor-passive/repeat.go), so the recording can be delivered once per run, and
 // the active tests scan the devices the passive ones made. Global project: devices, scope and window are box-wide; afterAll stops the sensors, removes the devices and puts the
 // settings back, checking every status. The window tick is one minute (cmd/vedette/sensoractive.go), so the active waits are 75 s each: the file takes about eight minutes.
-// Not proved here: choosing the card and SPAN (network.global.spec.ts), the OUI make (D-83, not built), the passive budget of new devices and the dispatcher's lease, cancel and
-// lost-worker paths (Go tests of the two modules), SNMP (D-84 (3): not built), nuclei (scan).
+// Not proved here: choosing the card and SPAN (network.global.spec.ts), the OUI make (not built), the passive budget of new devices and the dispatcher's lease, cancel and
+// lost-worker paths (Go tests of the two modules), SNMP (not built), nuclei (scan).
 import { expect, test, type Page } from '@playwright/test'
 import { api, authFile, nmapRuns, sensorCtl } from './box'
 import { as, device, devices, expectNoSensorDevices, giveBack, made, PC, ROUTER, type Dev } from './sensor-shared'
@@ -51,7 +51,7 @@ const orgClock = (hours: number) => new Intl.DateTimeFormat('en-GB', { timeZone:
 const shape = (line: string) => (line.includes(' -sn ') ? 'sweep' : line.includes(' -T2 ') ? 'gentle' : 'normal')
 const targetsOf = (line: string) => line.slice(line.indexOf('-oX - ') + 6).split(' ')
 const GENTLE = '--privileged -sS -n -T2 --max-retries 1 --max-rate 1 --host-timeout 15m --top-ports 100 -oX - '
-// D-523: the sweep's discovery probes; the normal line bounds retransmissions
+// The sweep's discovery probes; the normal line bounds retransmissions
 const SWEEP = '--privileged -sn -PE -PP -PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100 -PA80,443 -n --max-rate 50'
 const NORMAL = '--privileged -sS -sV -O --script rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert -n --max-rate 50 --max-retries 3 --top-ports 1000 --host-timeout 30m -oX - '
 
@@ -96,7 +96,7 @@ test('a malformed recording makes no device and does not stop the sensor (fail c
   } finally { await c.dispose() }
 })
 
-test('with the module off nothing is recorded and the sensors route is gone; on again the sensor delivers (SYS-5, D-111 (4))', async ({ page }) => {
+test('with the module off nothing is recorded and the sensors route is gone; on again the sensor delivers (SYS-5)', async ({ page }) => {
   test.setTimeout(180_000)
   const errors = collectErrors(page)
   const c = await as('admin')
@@ -261,7 +261,7 @@ test('the Sensors section says the sensor is reporting, with its version, after 
   } finally { await c.dispose() }
 })
 
-test('the sensor started again on the same recording makes no second device and no second value in use (D-80 (1))', async () => {
+test('the sensor started again on the same recording makes no second device and no second value in use', async () => {
   const c = await as('admin')
   try {
     const before = made(await devices(c)).map((d) => d.id).sort()
@@ -289,7 +289,7 @@ test('scope that is not attested cannot be saved with scanning on (INV-2): the r
   } finally { await c.dispose() }
 })
 
-test('with the active switch off, or the window closed, the box sends nothing to the sensor (INV-2, INV-3, D-84 (1))', async () => {
+test('with the active switch off, or the window closed, the box sends nothing to the sensor (INV-2, INV-3)', async () => {
   test.setTimeout(240_000)
   const c = await as('admin')
   try {
@@ -305,7 +305,7 @@ test('with the active switch off, or the window closed, the box sends nothing to
   } finally { await c.dispose() }
 })
 
-test('window open: a sweep of the confirmed range only, then one scan per device in the shapes of INV-5 (D-84, INV-1, INV-4, INV-5)', async () => {
+test('window open: a sweep of the confirmed range only, then one scan per device in the shapes of INV-5 (INV-1, INV-4, INV-5)', async () => {
   test.setTimeout(240_000)
   const c = await as('admin')
   try {
@@ -321,7 +321,7 @@ test('window open: a sweep of the confirmed range only, then one scan per device
     expect(swept.sort((a, b) => Number(a.split('.')[3]) - Number(b.split('.')[3])), 'the sweep covers the range minus the exclusion, once').toEqual(allowed)
     expect(runs.join('\n'), 'no address outside the range is ever an argument').not.toContain('203.0.113.9')
     for (const l of sweeps) expect(l.startsWith(`${SWEEP} -oX - `), `sweep flags: ${l.slice(0, 60)}`).toBe(true)
-    // INV-5 / D-84: the unclassified devices got the gentle scan, one target each, no -O, no -sV, no --script; the router (classified) the normal one
+    // INV-5: the unclassified devices got the gentle scan, one target each, no -O, no -sV, no --script; the router (classified) the normal one
     const scans = runs.filter((l) => shape(l) !== 'sweep')
     const gentle = scans.filter((l) => shape(l) === 'gentle')
     expect(gentle.map((l) => l.slice(GENTLE.length)).sort(), 'gentle: the three unclassified devices, each once').toEqual(['192.168.10.2', '192.168.10.21', '192.168.10.5'])
@@ -346,7 +346,7 @@ test('window open: a sweep of the confirmed range only, then one scan per device
   } finally { await c.dispose() }
 })
 
-test('what the scan found is added beside the passive values, with its source and confidence (D-84, INV-8)', async ({ page }) => {
+test('what the scan found is added beside the passive values, with its source and confidence (INV-8)', async ({ page }) => {
   const errors = collectErrors(page)
   const c = await as('admin')
   try {
@@ -384,8 +384,8 @@ test('what the scan found is added beside the passive values, with its source an
 })
 
 // The open ports of the normal scan (device.xml, re-addressed to the router: 22, 80 and 8080 open, 23 closed) reach inv_service through
-// observe.ServiceSink (D-350) and the "Open services" table of the device.
-test('the open ports of the scan are listed under Open services (S-INV-1, D-350)', async ({ page }) => {
+// observe.ServiceSink and the "Open services" table of the device.
+test('the open ports of the scan are listed under Open services (S-INV-1)', async ({ page }) => {
   const errors = collectErrors(page)
   const c = await as('admin')
   try {
@@ -420,7 +420,7 @@ test('the probe log has one row per nmap run, written with the shape, the flags 
   } finally { await c.dispose() }
 })
 
-test('a device scanned once is not scanned again, and the sweep does not repeat on the next tick (INV-5, D-84 (6))', async () => {
+test('a device scanned once is not scanned again, and the sweep does not repeat on the next tick (INV-5)', async () => {
   test.setTimeout(150_000)
   const before = await nmapRuns()
   await wait(TICK)

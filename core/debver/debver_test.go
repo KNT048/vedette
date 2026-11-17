@@ -3,7 +3,7 @@ package debver
 import "testing"
 
 // The vectors are written for this package from Debian Policy §5.6.12 and from the versions the Ubuntu and Debian
-// security data name (D-516); each was checked once against "dpkg --compare-versions" on Ubuntu 26.04.
+// security data name; each was checked once against "dpkg --compare-versions" on Ubuntu 26.04.
 func TestCompare(t *testing.T) {
 	for _, c := range []struct {
 		a, b string

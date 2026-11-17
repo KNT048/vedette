@@ -22,7 +22,7 @@ func TestMigrations_Defaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// kien 2026-11-09: on by default, every 60 minutes, no check yet
+	// On by default, every 60 minutes, no check yet
 	if !b.Auto || b.IntervalMin != 60 || b.LastRun != nil {
 		t.Fatalf("defaults = %+v", b)
 	}

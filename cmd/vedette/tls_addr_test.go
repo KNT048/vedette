@@ -23,7 +23,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// D-139: the box's self-signed certificate follows its management address.
+// The box's self-signed certificate follows its management address.
 
 type fakeMgmt struct {
 	mu    sync.Mutex
@@ -471,7 +471,7 @@ func TestHostOutageIsWarnedOnce(t *testing.T) {
 	}
 }
 
-// J7 (#812): a restart of core (a new container with a new address of its own) keeps the certificate byte for byte while the
+// #812: a restart of core (a new container with a new address of its own) keeps the certificate byte for byte while the
 // management addresses, -hosts and the box CA are the same, so a browser that accepted it does not warn again; a management
 // address the box gained while core was down still re-issues it.
 func TestRestartWithANewContainerAddressKeepsTheCertificate(t *testing.T) {

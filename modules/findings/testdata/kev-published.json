@@ -1,5 +1,5 @@
 {
-"source": "CVE.org cveMetadata.datePublished (cveawg.mitre.org/api/cve), fetched 2026-11-15 for the CVEs of kev-nvd-golden.json, kev-nvd-junos-n23.json and kev-nvd-office-n22.json; NVD's API answered 503 that day. D-615 allows CVE.org's date when NVD's is missing; on the three CVEs of feeds' NVD fixture (nvd-kev-page.json) the two agree to the day.",
+"source": "CVE.org cveMetadata.datePublished (cveawg.mitre.org/api/cve), fetched 2026-11-15 for the CVEs of kev-nvd-golden.json, kev-nvd-junos-n23.json and kev-nvd-office-n22.json; NVD's API answered 503 that day. The age rule takes CVE.org's date when NVD's is missing; on the three CVEs of feeds' NVD fixture (nvd-kev-page.json) the two agree to the day.",
 "published": {
 "CVE-2007-0671": "2007-02-03",
 "CVE-2009-0238": "2009-02-25",

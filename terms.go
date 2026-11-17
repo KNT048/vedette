@@ -1,5 +1,5 @@
 // Package vedette holds TERMS.md, the terms of use the first-run setup and the first-run restore ask the operator to
-// accept (D-544). TERMS.md is the one source: the web interface shows the same file, and this package gives core its
+// accept. TERMS.md is the one source: the web interface shows the same file, and this package gives core its
 // version.
 package vedette
 

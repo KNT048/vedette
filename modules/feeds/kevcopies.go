@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
-// D-91 as amended 2026-11-17 (kien G13): there is no single primary address for the CISA list any more. Every check asks both copies,
+// There is no single primary address for the CISA list any more. Every check asks both copies,
 // cisa.gov and CISA's GitHub copy (cisagov/kev-data, which follows cisa.gov within about an hour), each with its own conditional
 // validators, and keeps the newer catalog (a plausible catalogVersion, then dateReleased); it never rolls back and never freezes. One copy failing is a quiet note
-// on the feed; both failing is a failed pull (and the alert of D-629).
+// on the feed; both failing is a failed pull (and an alert).
 
 // kevCopyState is what one copy of the CISA list said at its last check, and what the box knows of the body it last read from it
 // (version, release, entries): a 304 is judged again from these under the rules of the day (#946 r2), never from a stored verdict.
@@ -150,7 +150,7 @@ func (k kevKey) newer(o kevKey) bool {
 	return day(k).After(day(o))
 }
 
-// buildKEVBoth is one check of the CISA list at its built-in address: both copies asked, the newer catalog kept (D-91 as amended).
+// buildKEVBoth is one check of the CISA list at its built-in address: both copies asked, the newer catalog kept.
 // Never a freeze or a roll back (#946 r1, r2): a copy without a plausible version or release date is not used (a note; it counts as a
 // failed copy); a held version that is not plausible counts as none. Plausible is judged against the answering server's clock, so a
 // box whose clock is days off still loads the list (and says its clock is off). Of two copies with the same catalog the fuller one is

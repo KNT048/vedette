@@ -90,7 +90,7 @@ func TestEndToEndNucleiRun(t *testing.T) {
 	}
 }
 
-// D-125 (3): an nmap sweep and a nuclei run are on the box at once, and a Stop of the nuclei run lands within 5 s: the long poll
+// An nmap sweep and a nuclei run are on the box at once, and a Stop of the nuclei run lands within 5 s: the long poll
 // is woken, the worker kills nuclei's whole process group (its SIGTERM-ignoring child too), and the sweep is not touched.
 func TestEndToEndStopLandsWithinFiveSecondsAndLeavesNoOrphan(t *testing.T) {
 	t.Parallel()

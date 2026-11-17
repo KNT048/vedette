@@ -1,5 +1,5 @@
 {
-"source": "CISA KEV catalog + NVD CVE API 2.0 (hasKev) as the N100 box held them on 2026-11-17 (public data only: feeds_vuln, feeds_affected); every KEV entry whose NVD list names microsoft:sql_server*, PR #967 review r1 H1",
+"source": "CISA KEV catalog + NVD CVE API 2.0 (hasKev) as a test box held them on 2026-11-17 (public data only: feeds_vuln, feeds_affected); every KEV entry whose NVD list names microsoft:sql_server*, #967",
 "vulns": [
 {"cve": "CVE-2012-0158", "vendor": "Microsoft", "product": "MSCOMCTL.OCX", "ransomware": true, "date_added": "2021-11-03", "affected": [
   {"cpe": "cpe:2.3:a:microsoft:office:2003:sp3:*:*:*:*:*:*"},

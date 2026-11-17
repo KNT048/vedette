@@ -23,7 +23,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The system helper step of a software run (S-CORE-2 criterion D-316, host-api 6.14, plan slice 5): when the release
+// The system helper step of a software run (S-CORE-2, host-api 6.14): when the release
 // brings a vedette-host newer than the running one, the run's first call is host.self_update. Core downloads the
 // package named in the signed manifest from the same release files as the manifest (PRIVACY.md flow 6, no new
 // destination), checks its size and SHA-256 before the call, and the host verifies everything again. A step that does
@@ -321,7 +321,7 @@ func (h *OSHandlers) hostUpdated(ctx context.Context, rec *updateRunRec, run api
 	return nil
 }
 
-// hostWhy is the sentence of S-CORE-2 criterion D-316 for the end code of the host step; the GUI mock's hostError
+// hostWhy is the S-CORE-2 sentence for the end code of the host step; the GUI mock's hostError
 // (web/src/features/core/mocks.ts) holds the same words.
 func hostWhy(ctx context.Context, rec *updateRunRec, code string) string {
 	v, running := rec.To, ""

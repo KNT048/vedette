@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// events_around of ai (D-223): the kinds of line that named one address, with counts and the source's name, never a line; and the
+// events_around of ai: the kinds of line that named one address, with counts and the source's name, never a line; and the
 // connections to listed destinations of that address.
 func TestContract_EventsAroundCountsKindsOfOneAddress(t *testing.T) {
 	t.Parallel()

@@ -184,7 +184,7 @@ function Aside({ f }: { f: FindingDetail }) {
   )
 }
 
-/** S-MIT-1 (W12-1): a closed finding opens with why it was closed (GitHub's dismissed-alert banner, Snyk's ignore reason): who or what closed it, when, the reason, and the one action that undoes it. */
+/** S-MIT-1: a closed finding opens with why it was closed (GitHub's dismissed-alert banner, Snyk's ignore reason): who or what closed it, when, the reason, and the one action that undoes it. */
 function ClosedNotice({ f, reopen }: { f: FindingDetail; reopen: ReactNode }) {
   const { t } = useTranslation('findings')
   const system = f.resolved_by === 'system'

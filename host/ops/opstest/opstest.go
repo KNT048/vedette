@@ -6,7 +6,7 @@
 // support: the binary never imports it (a contract test asserts that).
 //
 // Core's database here is plain bytes, and so is a snapshot: the host never opens, parses or runs
-// SQL on core's data (D-87), and no package under host/ imports a SQL driver (a contract test
+// SQL on core's data, and no package under host/ imports a SQL driver (a contract test
 // asserts that too), so the fake machine does not either.
 package opstest
 
@@ -357,7 +357,7 @@ func (m *Machine) DockerRules() []string {
 }
 
 // AppArmor makes the machine's kernel have AppArmor enabled (module parameter Y, securityfs, /usr/sbin/apparmor_parser present)
-// with the given profile lines listed (D-458), the packaged profile
+// with the given profile lines listed, the packaged profile
 // file in /etc/apparmor.d, and an apparmor_parser that adds "vedette-container (enforce)" to the kernel's list when it is run
 // (unless the marker "aa-noload" is set: it then exits 0 and lists nothing; Rule can make it fail first).
 func (m *Machine) AppArmor(listed ...string) {
@@ -531,7 +531,7 @@ func (m *Machine) Deps(now func() time.Time) ops.Deps {
 		// The waits between two looks at a container take no time; they are still counted, so the
 		// 120 s of the health wait are 60 looks.
 		Sleep: func(ctx context.Context, _ time.Duration) bool { return ctx.Err() == nil },
-		// A fixed fence key (D-591): with none the host makes its own and chowns the scan container's copy to SensorUID, which a
+		// A fixed fence key: with none the host makes its own and chowns the scan container's copy to SensorUID, which a
 		// test cannot do. The key's creation and the copy are tested apart, with their own deps (host/ops/fence_test.go).
 		FenceKey: bytes.Repeat([]byte{7}, 32),
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/core/conn"
 )
 
-// What is sent to a device (INV-22, D-94, D-95). buildExec renders the four steps of an action once, when the request is made, from
+// What is sent to a device (INV-22). buildExec renders the four steps of an action once, when the request is made, from
 // the stored templates and the checked values; the item keeps them (itemRec.Exec) and the executor gets exactly them. Nothing is
 // rendered again at run time, so an edit of the catalog after the approval cannot change what is sent (it also fails the
 // fingerprint, INV-9), and a value that came from a client never reaches a device in any other way than through Fill.
@@ -57,7 +57,7 @@ func (c catRow) usesRuntime(name string) bool {
 	return false
 }
 
-// expanded makes the filled text final: {expiry_s} becomes the time to live in seconds (D-94 (4)); any other runtime value that is still
+// expanded makes the filled text final: {expiry_s} becomes the time to live in seconds; any other runtime value that is still
 // there is an error, because nothing here can know it.
 func expanded(text string, ttlMin *int) (string, error) {
 	if ttlMin != nil {
@@ -186,7 +186,7 @@ func (s *Service) buildExec(c catRow, vals Values, conn *ConnectionInfo, ttlMin 
 }
 
 // deviceStep is the step as the executor gets it. safe marks a step held to the identity of the connection instead of its fingerprint: an
-// undo and the read-backs that settle an unclear outcome (the safe direction, D-88 (4)).
+// undo and the read-backs that settle an unclear outcome (the safe direction).
 func deviceStep(reqID string, it itemRec, conn ConnectionInfo, phase string, st *execStep, safe bool) DeviceStep {
 	d := DeviceStep{ConnectionID: conn.ID, ConnFP: it.ConnFP, Phase: phase, Tool: st.Tool, Lines: st.Lines, Method: st.Method, URL: st.URL, Body: st.Body,
 		Headers: st.Headers, Args: st.Args, RequestID: reqID, ItemID: it.ID}

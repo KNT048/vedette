@@ -27,7 +27,7 @@ const (
 	ConfMDNSKind    = 0.5 // mDNS service type that only one kind of device advertises
 	ConfSSDPKind    = 0.5 // SSDP device type InternetGatewayDevice
 	ConfMDNSIotKind = 0.3
-	ConfOUIVendor   = 0.4 // vendor from the IEEE OUI table (D-83): says who made the card, not what the device is
+	ConfOUIVendor   = 0.4 // vendor from the IEEE OUI table: says who made the card, not what the device is
 )
 
 // Bounds on what one Engine holds between two drains (SYS-6: the network is untrusted, a flood must not
@@ -435,7 +435,7 @@ func (e *Engine) handleLLDP(f frame, now time.Time) {
 	if l.sysName != "" {
 		e.add(now, who, netip.Addr{}, observe.Hostname, l.sysName, ConfLLDPName)
 	}
-	// Only a model and an OS read from a known layout, never the description itself (walk 4, sysdesc.go).
+	// Only a model and an OS read from a known layout, never the description itself (sysdesc.go).
 	if model, os := parseSysDesc(l.sysDesc); model != "" || os != "" {
 		if model != "" {
 			e.add(now, who, netip.Addr{}, observe.Model, model, ConfLLDPDesc)
@@ -445,7 +445,7 @@ func (e *Engine) handleLLDP(f frame, now time.Time) {
 		}
 	}
 	switch {
-	case l.caps&lldpCapTelephone != 0: // an IP phone also bridges its PC port, so Telephone is read before Bridge (D-501)
+	case l.caps&lldpCapTelephone != 0: // an IP phone also bridges its PC port, so Telephone is read before Bridge
 		e.add(now, who, netip.Addr{}, observe.Kind, "iot", ConfLLDPKind)
 	case l.caps&lldpCapAP != 0:
 		e.add(now, who, netip.Addr{}, observe.Kind, "ap", ConfLLDPKind)
@@ -619,7 +619,7 @@ func (e *Engine) handleSSDP(f frame, ip ipv4, b []byte, now time.Time) {
 	if !f.src.usable() {
 		return
 	}
-	// Only a model read from a known layout, never the header itself (ssdp.go, D-411).
+	// Only a model read from a known layout, never the header itself (ssdp.go).
 	if model := parseSSDPServer(m.server); model != "" {
 		e.add(now, f.src, ip.src, observe.Model, model, ConfSSDPModel)
 	}
@@ -754,7 +754,7 @@ func (e *Engine) Delivered(obs []observe.Observation) {
 
 // Requeue puts observations whose delivery failed back at the head of the queue, to be sent as one batch later.
 // They stay marked as sent, so a repeat of the same frame does not queue them twice. When the queue would exceed
-// maxPending the oldest observations are dropped and counted (D-112 (4): the memory queue is the only queue).
+// maxPending the oldest observations are dropped and counted (the memory queue is the only queue).
 func (e *Engine) Requeue(obs []observe.Observation) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

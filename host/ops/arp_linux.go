@@ -14,7 +14,7 @@ import (
 )
 
 // packetARP is an AF_PACKET socket bound to one interface and to the ARP ethertype, so the kernel
-// delivers nothing else (D-101). It is the only code that opens a raw socket in the host. It sends
+// delivers nothing else. It is the only code that opens a raw socket in the host. It sends
 // frames built by encodeARP and returns raw frames; it never interprets them.
 type packetARP struct {
 	mu     sync.Mutex

@@ -179,7 +179,7 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		if ver == "" {
 			ver = "202611140611"
 		}
-		// as gvmd answers without the SCAP and CERT data (D-593): a feed whose feed.xml is missing is left out
+		// as gvmd answers without the SCAP and CERT data: a feed whose feed.xml is missing is left out
 		return ok("<feed><type>NVT</type><name>Greenbone Community Feed</name><version>" + ver + "</version>" + sync +
 			"</feed><feed><type>GVMD_DATA</type><name>Greenbone Community gvmd Data Feed</name><version>202611130507</version>" + lock + "</feed>")
 	case "get_info", "get_resource_names": // gvmd 26.43.0 without SCAP/CERT (gmp.c)
@@ -297,9 +297,9 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 			return `<get_preferences_response status="404" status_text="Failed to find config"/>`
 		}
 		if strings.Contains(body, "preference=") && !strings.Contains(body, "nvt_oid=") {
-			return ok("") // N45-5, as the N100's gvmd answers: preference= without nvt_oid matches NVT preferences only
+			return ok("") // as a real gvmd answers: preference= without nvt_oid matches NVT preferences only
 		}
-		if !strings.Contains(body, "nvt_oid=") { // the whole list: scanner preferences (empty nvt oid) and NVT ones, as the N100's gvmd prints them
+		if !strings.Contains(body, "nvt_oid=") { // the whole list: scanner preferences (empty nvt oid) and NVT ones, as a real gvmd prints them
 			return ok(`<preference><nvt oid="1.3.6.1.4.1.25623.1.0.100315"><name>Ping Host</name></nvt><id>5</id><hr_name>safe_checks</hr_name><name>safe_checks</name><type>checkbox</type><value>no</value></preference>` +
 				`<preference><nvt oid=""><name></name></nvt><id></id><hr_name>safe_checks</hr_name><name>safe_checks</name><type></type><value>` + c.prefs["safe_checks"] + `</value><default>1</default></preference>`)
 		}
@@ -407,7 +407,7 @@ type fakeGB struct {
 	syncs   int
 	syncErr error
 	onSync  func() // runs (without the lock) inside SyncFeed
-	// syncStarted, when set, makes SyncFeed say it started and then run until its context is cancelled (review r1 L2)
+	// syncStarted, when set, makes SyncFeed say it started and then run until its context is cancelled
 	syncStarted   chan struct{}
 	syncEnded     bool
 	downAfterSync bool // Down came after the feed update had returned
@@ -502,12 +502,12 @@ func (l *gbLog) RecordGreenboneProbe(_ context.Context, p GreenboneProbe) error 
 
 const gib = 1 << 30
 
-// gbOpen is the content of a scan that found ports 22 and 443 open on ipA: OpenVAS checks those (N49-4, D-595).
+// gbOpen is the content of a scan that found ports 22 and 443 open on ipA: OpenVAS checks those.
 func gbOpen() Content {
 	return Content{Ports: []PortRow{{IP: ipA, Port: 443, Service: "https"}, {IP: ipA, Port: 22, Service: "ssh"}}}
 }
 
-// gbEnv is an env with Greenbone wired, two-step sign-in on, and the IP of scanIP with its testing terms accepted (D-566), without the
+// gbEnv is an env with Greenbone wired, two-step sign-in on, and the IP of scanIP with its testing terms accepted, without the
 // disruptive tick: 16 GiB of memory, 200 GB free, a ready gvmd with the fixture report, a probe log, and no waiting between polls.
 func gbEnv(t *testing.T) (*env, *fakeGB) {
 	t.Helper()
@@ -650,7 +650,7 @@ func FuzzDecodeGMPReport(f *testing.F) {
 // ---- the setting ----
 
 // INV-25: the preflight refuses below 6 GB (decimal) of memory or 60 GB free, with the measured number in plain English, and accepts
-// the 7 GB box of the trial (D-569).
+// the 7 GB box of the trial.
 func TestContract_INV25_Preflight(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -745,7 +745,7 @@ func TestContract_INV25_StateMachine(t *testing.T) {
 		t.Fatalf("ready = %+v", v)
 	}
 	h.gvm.with(func(g *fakeGVM) { g.authFail = true })
-	if v := e.gbState(); v.State != GBLoading || str(v.Reason) != gbLoginPending { // N42-4: an old volume's password, until the host sets it
+	if v := e.gbState(); v.State != GBLoading || str(v.Reason) != gbLoginPending { // An old volume's password, until the host sets it
 		t.Fatalf("login refused soon after Up = %+v", v)
 	}
 	h.with(func(h *fakeGB) { h.dialErr = errors.New("no socket") })
@@ -807,7 +807,7 @@ func TestContract_INV25_SeamNilWording(t *testing.T) {
 
 // ---- when it runs ----
 
-// INV-25, D-566: an enabled, ready Greenbone scans the verified, committed IP with accepted testing terms after the other steps: the
+// INV-25: an enabled, ready Greenbone scans the verified, committed IP with accepted testing terms after the other steps: the
 // deep config (every family but brute force, default accounts and DoS; generic web scanning and the web-root traversal NVT off; brute-force options off; safe checks
 // on), the probe log row before the task starts, results stored, the task and target cleaned up.
 func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
@@ -848,7 +848,7 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	}
 }
 
-// N49-4 (D-595): OpenVAS checks only the ports the run found open: a port list "T:<those ports>" of its own made before the target,
+// OpenVAS checks only the ports the run found open: a port list "T:<those ports>" of its own made before the target,
 // the target on that list with alive test "Consider Alive" (no ping, no IANA list), and the list deleted after the target.
 func TestContract_INV25_PortListOfTheOpenPorts(t *testing.T) {
 	t.Parallel()
@@ -880,7 +880,7 @@ func TestContract_INV25_PortListOfTheOpenPorts(t *testing.T) {
 	}
 }
 
-// N49-4 (D-595): a scan that found no open port does not start OpenVAS (no pending line, nothing sent) and says why; more
+// A scan that found no open port does not start OpenVAS (no pending line, nothing sent) and says why; more
 // than the believable number of open ports (a box that answers on every port) is not sent either.
 func TestContract_INV25_NoOpenPortNoOpenVAS(t *testing.T) {
 	t.Parallel()
@@ -995,10 +995,10 @@ func (e *env) gbAudit() string {
 	return detail
 }
 
-// INV-25, D-595: what the 90-minute cap leaves, on the bubble's clock (testing/synctest: the cap and the polls are the real 90 minutes and
+// INV-25: what the 90-minute cap leaves, on the bubble's clock (testing/synctest: the cap and the polls are the real 90 minutes and
 // 15 seconds, and no test waits for them). A task that scanned is stopped and what it had found is shown with the line that says so;
-// one that never left Requested did not run (review M2); one that reached Done after the stop is done; a report the cap cut while gvmd
-// had finished, or a task still stopping when the 5-minute budget ends, is read again over a new session (review L5); only a report
+// one that never left Requested did not run; one that reached Done after the stop is done; a report the cap cut while gvmd
+// had finished, or a task still stopping when the 5-minute budget ends, is read again over a new session; only a report
 // that cannot be read at all says "not shown".
 func TestContract_INV25_Timeout(t *testing.T) {
 	t.Parallel()
@@ -1067,7 +1067,7 @@ func TestContract_INV25_Timeout(t *testing.T) {
 	}
 }
 
-// review L6: a Stop while the task is being stopped at the cap reads nothing more: the step is stopped, the task stopped and deleted.
+// A Stop while the task is being stopped at the cap reads nothing more: the step is stopped, the task stopped and deleted.
 func TestContract_INV25_StopDuringTheCap(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
@@ -1099,9 +1099,9 @@ func TestContract_INV25_StopDuringTheCap(t *testing.T) {
 	})
 }
 
-// review M3 of D-595: a scan OpenVAS ended without Vedette's stop (Stopped or Interrupted: a crash, a gvmd restart, a person in
+// A scan OpenVAS ended without Vedette's stop (Stopped or Interrupted: a crash, a gvmd restart, a person in
 // OpenVAS's own interface) is "ended", never "did not scan": the line says so, and the rows its report holds are shown; a report that
-// cannot be read claims no count. Review round 2 N1, N4: a task it ended before it was ever seen scanning (Requested -> Interrupted at
+// cannot be read claims no count. A task it ended before it was ever seen scanning (Requested -> Interrupted at
 // 0 %, its scanner not connected) did not run: no "partly scanned" check line, and no line says it ended "by itself".
 func TestContract_INV25_EndedByOpenVAS(t *testing.T) {
 	t.Parallel()
@@ -1144,7 +1144,7 @@ func TestContract_INV25_EndedByOpenVAS(t *testing.T) {
 	}
 }
 
-// review M4 of D-595: the probe row's port list is clipped with its count, so a row of 40 five-digit ports keeps what follows it.
+// The probe row's port list is clipped with its count, so a row of 40 five-digit ports keeps what follows it.
 func TestGreenboneProbePortsAreClipped(t *testing.T) {
 	t.Parallel()
 	var ports []int
@@ -1241,9 +1241,9 @@ func entriesOf(s Snapshot) []string {
 	return out
 }
 
-// ---- review r1 ----
+// ---- more Greenbone cases ----
 
-// M2, L2, M4: the brute-force and default-account checkboxes must be read back "yes", a config of another GMP user is not taken, and a
+// The brute-force and default-account checkboxes must be read back "yes", a config of another GMP user is not taken, and a
 // config a foreign task uses is said as such; in each case no task is started.
 func TestContract_INV25_SafeConfigFailsClosed(t *testing.T) {
 	t.Parallel()
@@ -1256,7 +1256,7 @@ func TestContract_INV25_SafeConfigFailsClosed(t *testing.T) {
 		{"option not kept", func(g *fakeGVM) { g.keepNo = true }, `OpenVAS did not scan: OpenVAS did not keep "Disable brute force checks" on`},
 		{"config of another user", func(g *fakeGVM) { g.foreign = gbDeep.name }, "belongs to another OpenVAS user"},
 		{"config in use", func(g *fakeGVM) { g.inUse = true }, "is used by a task Vedette did not start"},
-		// D-564 G2, D-566: generic web application scanning, safe_checks and the families are read back too
+		// Generic web application scanning, safe_checks and the families are read back too
 		{"web scanning option missing", func(g *fakeGVM) { g.noWebPref = true }, `the OpenVAS feed has no "Enable generic web application scanning" option`},
 		{"web scanning not kept off", func(g *fakeGVM) { g.keepWeb = true }, `OpenVAS did not keep "Enable generic web application scanning" off`},
 		{"families not kept", func(g *fakeGVM) { g.keepFamily = true }, `OpenVAS did not keep the family "Brute force attacks" off`},
@@ -1287,7 +1287,7 @@ func TestContract_INV25_LeftoversAndCleanup(t *testing.T) {
 	if len(s.Greenbone) != 4 || h.gvm.leftoverState() != "" || h.gvm.touched("eeeeeeee-ffff-4000-8111-222222222222") {
 		t.Fatalf("rows %d, leftover %q, cmds %q", len(s.Greenbone), h.gvm.leftoverState(), h.gvm.cmds)
 	}
-	// N49-4: its leftover port list too (after the targets), never another user's
+	// Its leftover port list too (after the targets), never another user's
 	if !h.gvm.touched("99999999-eeee-4fff-8000-111111111111") || h.gvm.touched("88888888-eeee-4fff-8000-111111111111") {
 		t.Fatalf("cmds %q, bodies %q", h.gvm.cmds, h.gvm.bodies)
 	}
@@ -1345,7 +1345,7 @@ func TestContract_INV25_SnapshotFirstThenGreenbone(t *testing.T) {
 		}
 	})
 	s := e.scanIP(gbOpen())
-	// W76-5: "Last scanned" is when the scan ended, not when its other steps were stored
+	// "Last scanned" is when the scan ended, not when its other steps were stored
 	var last string
 	if err := e.db.Reader().QueryRowContext(context.Background(), `SELECT last_scan_at FROM exp_target`).Scan(&last); err != nil ||
 		last != store.FormatTS(e.clock.Now()) || last == s.ScannedAt {
@@ -1354,7 +1354,7 @@ func TestContract_INV25_SnapshotFirstThenGreenbone(t *testing.T) {
 	if stored != 1 || phase != PhaseGreenbone {
 		t.Fatalf("stored before Greenbone = %d, phase %q", stored, phase)
 	}
-	// N49-3, N49-2 (D-595): while it scans, the snapshot says so, with the start as a timestamp (the page formats it), and no box-time text
+	// While it scans, the snapshot says so, with the start as a timestamp (the page formats it), and no box-time text
 	if during.State != GBRunRunning || during.StartedAt == nil || *during.StartedAt != store.FormatTS(began) || s.GreenboneRun.State != GBRunDone ||
 		s.GreenboneRun.StartedAt == nil || *s.GreenboneRun.StartedAt != *during.StartedAt {
 		t.Fatalf("during %+v, after %+v", during, s.GreenboneRun)
@@ -1477,9 +1477,9 @@ func TestContract_INV25_GreenboneEnabled(t *testing.T) {
 	}
 }
 
-// ---- D-564 ----
+// ---- Greenbone setting and feed ----
 
-// D-566 (FULL-2): Greenbone can be enabled (no review gate any more) but scans only a target whose testing terms are accepted: without
+// Greenbone can be enabled (no review gate any more) but scans only a target whose testing terms are accepted: without
 // them "Not checked" says so and gvmd is never asked; with the disruptive tick its own config turns on brute force, default accounts
 // and DoS, the brute-force options and safe_checks off, all read back; withdrawn terms are seen right before the step.
 func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
@@ -1581,7 +1581,7 @@ func TestContract_INV25_WebFamilyFollowsTheFeed(t *testing.T) {
 	}
 }
 
-// G3: the check line tells high and medium results from the Low ones, which are hardening notes.
+// The check line tells high and medium results from the Low ones, which are hardening notes.
 func TestContract_INV25_LowIsAHardeningNote(t *testing.T) {
 	t.Parallel()
 	e, _ := gbEnv(t)
@@ -1594,7 +1594,7 @@ func TestContract_INV25_LowIsAHardeningNote(t *testing.T) {
 	}
 }
 
-// G6: the feed is updated a week after Greenbone was enabled, then weekly; never while a scan holds the slot, and no scan starts
+// The feed is updated a week after Greenbone was enabled, then weekly; never while a scan holds the slot, and no scan starts
 // while it runs; the state is "loading" meanwhile; below 60 GB free it is refused and says why, and tried again a day later; each
 // update tried is one audit row, and the setting shows the last and the next.
 func TestContract_INV25_WeeklyFeedUpdate(t *testing.T) {
@@ -1645,7 +1645,7 @@ func TestContract_INV25_WeeklyFeedUpdate(t *testing.T) {
 		t.Fatalf("syncs %d, during = %+v", h.syncCount(), during)
 	}
 	wantAPI(t, scanErr, 409, "busy")
-	if ae := (*APIError)(nil); !errors.As(scanErr, &ae) || !strings.Contains(ae.Message, "at most 60 minutes") || !strings.Contains(ae.Message, "(started ") { // review r1 L4
+	if ae := (*APIError)(nil); !errors.As(scanErr, &ae) || !strings.Contains(ae.Message, "at most 60 minutes") || !strings.Contains(ae.Message, "(started ") {
 		t.Fatalf("busy = %v", scanErr)
 	}
 	v := e.gbState()
@@ -1678,7 +1678,7 @@ func TestContract_INV25_WeeklyFeedUpdate(t *testing.T) {
 	}
 }
 
-// D-564: the setting with its feed update fits the API schema, before the first update and after one.
+// The setting with its feed update fits the API schema, before the first update and after one.
 func TestContract_INV25_SettingFitsTheSchema(t *testing.T) {
 	t.Parallel()
 	e, _ := gbEnv(t)
@@ -1696,7 +1696,7 @@ func TestContract_INV25_SettingFitsTheSchema(t *testing.T) {
 	}
 }
 
-// review r1 L1: the next update counts from the later of the last update and the last time Greenbone was turned on, and the page
+// The next update counts from the later of the last update and the last time Greenbone was turned on, and the page
 // never shows a past date.
 func TestContract_INV25_NextFeedUpdate(t *testing.T) {
 	t.Parallel()
@@ -1727,7 +1727,7 @@ func TestContract_INV25_NextFeedUpdate(t *testing.T) {
 	}
 }
 
-// review r1 L2: Turn off cancels a running feed update and waits for it to end before it stops Greenbone.
+// Turn off cancels a running feed update and waits for it to end before it stops Greenbone.
 func TestContract_INV25_TurnOffWaitsForTheFeedUpdate(t *testing.T) {
 	t.Parallel()
 	e, h := gbEnv(t)
@@ -1760,7 +1760,7 @@ func TestContract_INV25_TurnOffWaitsForTheFeedUpdate(t *testing.T) {
 	}
 }
 
-// N45-5: the two answers of the N100's gvmd, as measured. The filtered one (preference="safe_checks", no nvt_oid) is empty, so it
+// The two answers of a real gvmd, as measured. The filtered one (preference="safe_checks", no nvt_oid) is empty, so it
 // can never say "not kept"; the read-back now reads the whole list, where safe_checks is the preference with an empty nvt oid.
 func TestSafeChecksIsTheScannerPreference(t *testing.T) {
 	t.Parallel()
@@ -1783,7 +1783,7 @@ func TestSafeChecksIsTheScannerPreference(t *testing.T) {
 	}
 }
 
-// D-593 (LEAN-1 stage A): Greenbone runs without its SCAP and CERT data. gvmd's get_feeds then lists only the NVT and gvmd data feeds;
+// LEAN-1 stage A: Greenbone runs without its SCAP and CERT data. gvmd's get_feeds then lists only the NVT and gvmd data feeds;
 // readiness waits for nothing else (gvmd's own feed lock shows on the gvmd data feed), a whole scan works, and the client never sends
 // a command that needs the SCAP or CERT database (get_info, get_resource_names) or asks for a report format (format_id: the
 // report-formats data are a stage B candidate).
@@ -1812,7 +1812,7 @@ func TestContract_INV25_NeedsNoSCAPOrCERTData(t *testing.T) {
 	})
 }
 
-// N49-3 (D-595): one state for the OpenVAS heading. A snapshot left "running" by a restart of the box (no run scans it now) reads as
+// One state for the OpenVAS heading. A snapshot left "running" by a restart of the box (no run scans it now) reads as
 // stopped; a snapshot older than the column gets the state its lines say; a stored state that is not one is not believed.
 func TestContract_INV25_OneStateForTheHeading(t *testing.T) {
 	t.Parallel()
@@ -1862,7 +1862,7 @@ func TestContract_INV25_OneStateForTheHeading(t *testing.T) {
 	}{
 		{old("OpenVAS started at 14 Nov 2026, 18:16 and runs for up to 90 minutes; its results are added here when it finishes."), GBRunStopped},
 		{old(notGBSlowOld), GBRunFailed},
-		{old("8.8.4.4 (www.acme.example): " + notGBFail), GBRunFailed}, // review L1: a domain's line carries its address
+		{old("8.8.4.4 (www.acme.example): " + notGBFail), GBRunFailed}, // a domain's line carries its address
 		{old("8.8.4.4 (www.acme.example): "+notGBOff, notGBStopped), GBRunStopped},
 		{old(notGBOff), GBRunNotRun},
 		{Content{}, GBRunNotRun},
@@ -1877,7 +1877,7 @@ func TestContract_INV25_OneStateForTheHeading(t *testing.T) {
 	}
 }
 
-// review L4 of D-595: at start-up the database itself is corrected: a step a restart left "running" is stored as stopped with the line
+// At start-up the database itself is corrected: a step a restart left "running" is stored as stopped with the line
 // that says so, for every reader; a step that ended is left alone.
 func TestContract_INV25_StartUpStopsWhatARestartCutOff(t *testing.T) {
 	t.Parallel()
@@ -1901,7 +1901,7 @@ func TestContract_INV25_StartUpStopsWhatARestartCutOff(t *testing.T) {
 	}
 }
 
-// T10 (J6): the setting shows the date of the vulnerability tests OpenVAS has loaded, read from gvmd's get_feeds, from the first feed
+// The setting shows the date of the vulnerability tests OpenVAS has loaded, read from gvmd's get_feeds, from the first feed
 // load at Enable on (also while it loads), so a working OpenVAS before its first weekly update never reads as "never updated". The
 // weekly update stays due a week after Enable.
 func TestContract_INV25_FeedDateFromGvmd(t *testing.T) {

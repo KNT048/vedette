@@ -21,7 +21,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// OpenVAS (D-529, FULL-2): the argv of greenbone.*, and up, down and the feed update against a fake podman, systemctl and apt-get
+// OpenVAS: the argv of greenbone.*, and up, down and the feed update against a fake podman, systemctl and apt-get
 // that never run anything.
 
 const gbTestPW = "0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -182,7 +182,7 @@ type gbWorld struct {
 	images    map[string]string // feed service -> image ID
 	newImages map[string]string // what the pull changes
 	pullCode  int
-	// gbLean (D-593): the SCAP/CERT containers there are (service -> its label io.vedette.started-by), the volumes there are, what
+	// gbLean: the SCAP/CERT containers there are (service -> its label io.vedette.started-by), the volumes there are, what
 	// the schema query prints (the schemas that hold data; a drop that works empties it), the exit codes of the drop tries in turn
 	// (then 0; dropFail: always 2), and of compose stop gvmd, a volume rm that fails, image IDs whose rmi is refused, compose up
 	// failing once gvmd was stopped (gvmd does not start again), a hook at compose stop gvmd, whether gvmd ran when the drop came,
@@ -502,9 +502,9 @@ func testGreenboneFirstStart(t *testing.T) {
 		"systemctl enable --now podman.socket",
 		"systemctl is-active podman.socket",
 		"podman " + strings.Join(gbUpArgv(), " "),
-		ps, // up checks the services and returns: the login is gvmd's from the creation of its user (N42-4)
+		ps, // up checks the services and returns: the login is gvmd's from the creation of its user
 	}
-	want = append(want, gbLeanFreshCalls()...) // a new box has no SCAP/CERT data to remove (D-593); once
+	want = append(want, gbLeanFreshCalls()...) // a new box has no SCAP/CERT data to remove; once
 	synctest.Wait()
 	exists := "podman " + strings.Join(gbGvmdExistsArgv(), " ")
 	want = append(want, gbLoginLine, exists, gbLoginLine, exists, gbLoginLine) // the re-sync in the background, until it takes
@@ -564,7 +564,7 @@ func TestGreenboneAtStart_TheParentIsClosedToOthers(t *testing.T) {
 	}
 }
 
-// N42-4 (D-590): on a first start gvmd holds its lock while it loads its feed, hours on the N100, and `gvmd --new-password` waits on
+// On a first start gvmd holds its lock while it loads its feed, hours on a test box, and `gvmd --new-password` waits on
 // it. Up does not wait for it and never stops the project because of it: it returns once the services run, and the re-sync keeps
 // trying in the background, past the 20 minutes the earlier login wait gave up at, until gvmd takes it. The password is never logged.
 func TestGreenboneUp_ReturnsWhileGvmdLoadsItsFeedAndTheLoginIsSetAfter(t *testing.T) {
@@ -796,7 +796,7 @@ func TestGreenboneResume_AtTheHostsStart(t *testing.T) {
 	}
 }
 
-// N42-4 (D-590): the password reaches gvmd as a file only root and gvmd's uid read: the directory root's 0700, the file 0400 and
+// The password reaches gvmd as a file only root and gvmd's uid read: the directory root's 0700, the file 0400 and
 // gvmd's (here the test's uid), the password and a newline. A directory open to others is refused before compose up, without the
 // password in the message or the log.
 func TestGreenboneUp_ThePasswordFileIsGvmdsAlone(t *testing.T) {
@@ -968,7 +968,7 @@ func TestGreenboneSyncFeed_PullsStartsAndRemovesTheReplacedFeedImages(t *testing
 	if i, j := slices.Index(c, "podman "+strings.Join(gbPullFeedArgv(), " ")), slices.Index(c, "podman "+strings.Join(gbUpFeedArgv(), " ")); i < 0 || j < i {
 		t.Fatalf("calls %q", c)
 	}
-	if got := strings.Join(gbPullFeedArgv()[7:], " "); got != "pull notus-data vulnerability-tests report-formats data-objects" { // no SCAP/CERT (D-593)
+	if got := strings.Join(gbPullFeedArgv()[7:], " "); got != "pull notus-data vulnerability-tests report-formats data-objects" { // no SCAP/CERT
 		t.Fatalf("the feed pull is %q", got)
 	}
 	w.calls, w.pullCode = nil, 1
@@ -1040,7 +1040,7 @@ func (w *gbWorld) leanCalls() []string {
 	return slices.DeleteFunc(c[i:], func(l string) bool { return l == gbLoginLine || l == gbP(gbGvmdExistsArgv()) })
 }
 
-// LEAN-1 stage A (D-593, review r1): on a box whose OpenVAS ran the SCAP/CERT data, the up removes the three containers first, then,
+// LEAN-1 stage A: on a box whose OpenVAS ran the SCAP/CERT data, the up removes the three containers first, then,
 // while a schema holds data, stops gvmd, drops the schemas (PostgreSQL still starting is asked again) and starts gvmd again, then
 // removes the volumes and the images of Vedette's containers. Each up decides from the box: once all is gone a pass only reads;
 // what failed (or what an older build brought back) is done at the next up.
@@ -1147,7 +1147,7 @@ func TestGreenboneUp_SCAPAndCERTDataBroughtBackAreRemovedAgain(t *testing.T) {
 }
 
 // Review r1 H1, L4, L7: an image is removed only when the container that used it carried Vedette's label (a customer's own
-// Greenbone, or the supervisor's trial without the label, keeps it); a refused rmi is logged and the rest goes on.
+// Greenbone, or a manual trial without the label, keeps it); a refused rmi is logged and the rest goes on.
 func TestGreenboneUp_OnlyTheImagesOfVedettesContainersAreRemoved(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {

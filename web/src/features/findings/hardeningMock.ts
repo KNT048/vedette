@@ -1,5 +1,5 @@
 // Mock of the box's general hardening (modules/mitigation/hardening.go, INV-8): the general "Have I been hit?" checks of the sample
-// finding's family, so `make dev` shows the block. The box's Go code is the reference; this is sample data. No firewall config (D-631).
+// finding's family, so `make dev` shows the block. The box's Go code is the reference; this is sample data. No firewall config.
 import type { CompromiseCheck, FindingAsset, GeneralHardening, Indicator, KevInfo } from './types'
 
 interface Family { label: string; checks: Indicator[] }

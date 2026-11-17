@@ -19,7 +19,7 @@ import (
 //
 //	POST /packs/seed {"cve": "CVE-2099-123456"} -> 204
 //
-// The release key is offline and test keys are refused outside test binaries, so the box cannot load a signed pack (D-345..D-349);
+// The release key is offline and test keys are refused outside test binaries, so the box cannot load a signed pack;
 // the load path is covered by mitigation_packs_test.go. This takes the pack of content/mitigation/testdata (the one the web mock and the
 // QA spec use), puts the given CVE in its place and writes it into mit_pack through a second connection to the box's database, as a
 // developer seed. It writes no audit row and goes through no Loader. It lives in a _test.go file: the production binary has none of it.

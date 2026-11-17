@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/exposure"
 )
 
-// exposureWebScan is exposure's WebScanner over vedette-host's zap.baseline (S-EXP-2, exposure INV-24, D-562, D-521): ZAP's passive
+// exposureWebScan is exposure's WebScanner over vedette-host's zap.baseline (S-EXP-2, exposure INV-24): ZAP's passive
 // baseline in a one-shot container whose only way out is the page's address and port. exposureService sets it as cfg.Web. The host
 // pins ZAP to page.IP, refuses a non-public address and re-checks ownership itself (the box's own egress for an IP target, the TXT
 // token for a domain, which is why the token goes along); the report comes back by a second read, at most MaxWebReport bytes.
@@ -46,7 +46,7 @@ const (
 	webUnchecked  = "the box could not confirm that the target is still yours (the public IP services or DNS did not answer, or did not agree), so nothing was sent."
 	webFence      = "the box could not set up the network fence that keeps ZAP to this one address and port, so ZAP was not started. The box log has the reason."
 	webOldHost    = "the box's host helper (vedette-host) is older than this version of Vedette. Update the box, then scan again."
-	// D-591: the domain fence of the host takes only the token bound to this box.
+	// The domain fence of the host takes only the token bound to this box.
 	webForeign  = "the Vedette host did not recognise this box's token for the domain, so nothing was sent. Update the box."
 	webNoFenceK = "the Vedette host has no usable domain fence key, so nothing was sent. Its log says why."
 )
@@ -62,7 +62,7 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 	case exposure.KindIP:
 		args.Kind = api.ZapKindIP
 	case exposure.KindDomain:
-		if p := t.Proof; p != nil { // D-628: the domain whose record proved the target at the gate (itself, or a parent covering it)
+		if p := t.Proof; p != nil { // The domain whose record proved the target at the gate (itself, or a parent covering it)
 			args.Kind, args.Domain, args.TXTToken, args.ProofAt = api.ZapKindDomain, p.Domain, p.Token, p.ProofAt
 			break
 		}
@@ -140,7 +140,7 @@ func webReason(code string, t exposure.ScanTarget, page exposure.WebPage) string
 		return webPullFailed
 	case api.CodeTargetNotOwned:
 		if t.Kind == exposure.KindDomain {
-			if p := t.Proof; p != nil && p.ProofAt != "" { // D-632: its record on the parent name is the one that went
+			if p := t.Proof; p != nil && p.ProofAt != "" { // Its record on the parent name is the one that went
 				return fmt.Sprintf(webNotOwnAt, p.ProofAt, t.Value)
 			}
 			return fmt.Sprintf(webNotOwnDom, t.Value)
@@ -149,7 +149,7 @@ func webReason(code string, t exposure.ScanTarget, page exposure.WebPage) string
 	case api.CodeOwnershipUnchecked:
 		return webUnchecked
 	case api.CodeTokenForeign:
-		if p := t.Proof; p != nil && p.ProofAt != "" { // D-632: an older target's own token cannot prove pages through a parent name
+		if p := t.Proof; p != nil && p.ProofAt != "" { // An older target's own token cannot prove pages through a parent name
 			return fmt.Sprintf(webForeignAt, t.Value, p.ProofAt)
 		}
 		return webForeign

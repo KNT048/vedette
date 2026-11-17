@@ -1,4 +1,4 @@
-// AI activity log (S-AI-8, D-48): every AI call is written to `ai_activity` as a hash chain, so nothing can be changed or removed unnoticed.
+// AI activity log (S-AI-8): every AI call is written to `ai_activity` as a hash chain, so nothing can be changed or removed unnoticed.
 // hash = SHA-256(prev_hash + canonical JSON of the entry without `hash`), see src/lib/chain.ts (DATA_MODEL §5.3). Tests cross-check it against Node's webcrypto.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'

@@ -5,7 +5,7 @@ const LABEL = new Map<string, string>(Object.entries({
   'microsoft-ds': 'SMB', 'netbios-ssn': 'NetBIOS', 'ms-sql': 'SQL Server', 'ms-sql-s': 'SQL Server', domain: 'DNS', postgresql: 'PostgreSQL', mysql: 'MySQL',
   mongodb: 'MongoDB', redis: 'Redis', 'winrm-https': 'WinRM', 'http-proxy': 'HTTP proxy', teamviewer: 'TeamViewer', radmin: 'Radmin',
   'mikrotik-api': 'MikroTik API', 'mikrotik-api-ssl': 'MikroTik API', winbox: 'Winbox', jetdirect: 'Printer', dvr: 'Camera recorder (DVR)',
-  // M2-7: nmap's own names, so no raw upper-case name reaches the page
+  // nmap's own names, so no raw upper-case name reaches the page
   'cisco-sccp': 'Cisco SCCP (IP phones)', 'ms-wbt-server': 'Remote Desktop (RDP)', msrpc: 'Windows RPC', 'http-alt': 'HTTP', 'https-alt': 'HTTPS',
   'ssl/http': 'HTTPS', 'ssl/https': 'HTTPS', 'ssl/http-alt': 'HTTPS', 'ssl/imap': 'IMAPS', 'ssl/pop3': 'POP3S', 'ssl/smtp': 'SMTPS', 'ssl/sip': 'SIP over TLS',
   'ssl/ldap': 'LDAPS', 'vnc-http': 'VNC web viewer', 'upnp': 'UPnP', 'ipp': 'Printer (IPP)', 'rtsp': 'RTSP (cameras)', 'openvpn': 'OpenVPN',
@@ -30,7 +30,7 @@ export function serviceName(service: string): string {
 
 type Ident = 'probed' | 'port' | 'none' | undefined
 
-/** M2-7: how the port's service was named: a probe's answer, only the port number (not confirmed), or nothing. A row of an older
+/** How the port's service was named: a probe's answer, only the port number (not confirmed), or nothing. A row of an older
  * scan has no ident: a name that says nothing was read still counts as "none". */
 export const identOf = (p: { service: string; ident?: Ident }): Ident => (p.ident ?? (unnamed(p.service) ? 'none' : undefined))
 
@@ -74,7 +74,7 @@ export function portHints(p: Pick<PortRow, 'cert_names' | 'title' | 'server' | '
 type Risk = 'voip' | 'remote' | 'files' | 'database' | 'control' | 'camera'
 
 /**
- * Services attackers scan the Internet for all day (D-485, after CISA Cyber Hygiene's "potentially risky open services"
+ * Services attackers scan the Internet for all day (after CISA Cyber Hygiene's "potentially risky open services"
  * and Censys/Shodan exposure reports): the page names them and asks whether they are open on purpose. The value is the
  * key of the reason in exposure.json `risky.*`. A Map, not an object: a service named "constructor" must not find
  * Object.prototype.

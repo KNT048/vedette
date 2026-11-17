@@ -41,7 +41,7 @@ func mapError(err error) (*apierr.Error, bool) {
 	switch {
 	case errors.As(err, &api):
 		return api, false
-	case errors.Is(err, store.ErrBusy): // the writer stayed taken past the request's wait limit (D-246); store logged it
+	case errors.Is(err, store.ErrBusy): // the writer stayed taken past the request's wait limit; store logged it
 		return serverBusy(), false
 	case errors.As(err, &maxErr):
 		return apierr.TooLarge(), false
@@ -95,7 +95,7 @@ var fieldRule = map[string]string{
 
 const connUserRule = "The user name is 1 to 64 characters, with no spaces, colons or control characters."
 
-// serverBusy is the 503 of a request refused because the database writer stayed busy past store.RequestWriteWait (D-246).
+// serverBusy is the 503 of a request refused because the database writer stayed busy past store.RequestWriteWait.
 func serverBusy() *apierr.Error {
 	return apierr.New(http.StatusServiceUnavailable, "server_busy", "The box is busy saving other changes. Try again in a few seconds.").
 		With("retry_after", int(store.RequestWriteWait/time.Second))
@@ -103,7 +103,7 @@ func serverBusy() *apierr.Error {
 
 // fieldPath is the full path of the first failing field of a validation error, for example
 // "active.days[0]" or "lan_ranges": ogen nests one validate.Error per object level and names array
-// elements "[i]". It is "" when there is no field. The path is made of contract names only (D-73).
+// elements "[i]". It is "" when there is no field. The path is made of contract names only.
 func fieldPath(e *validate.Error) string {
 	path := ""
 	for e != nil && len(e.Fields) > 0 {

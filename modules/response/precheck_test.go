@@ -32,7 +32,7 @@ func apiAction() response.CatalogInput {
 		Run: response.Tpl{Method: "POST", Path: "/d", Body: `{"domain":"{domain}"}`}, Rollback: response.Tpl{Method: "DELETE", Path: "/d/{domain}"}}
 }
 
-// INV-14c (D-95): the check before and the read-back text are typed and validated when an action is saved.
+// INV-14c: the check before and the read-back text are typed and validated when an action is saved.
 func TestContract_INV14c_PrecheckAndExpectAreTypedAndChecked(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)
@@ -129,7 +129,7 @@ func TestContract_INV14c_PrecheckAndExpectAreTypedAndChecked(t *testing.T) {
 	}
 }
 
-// INV-14c (D-95 (3), M4 of the WP-13a review): a device action that names a port needs a check before it with at least one refusal
+// INV-14c (M4 of the WP-13a review): a device action that names a port needs a check before it with at least one refusal
 // text, so a trunk or uplink port is never touched. Refused when saved; an older row without one is "not available".
 func TestContract_INV14c_PortActionNeedsACheckBefore(t *testing.T) {
 	t.Parallel()
@@ -262,7 +262,7 @@ func TestLibrarySeedKeepsTheUsersSwitchAndRefreshesTheCheck(t *testing.T) {
 	}
 }
 
-// INV-9 (D-95 (4)): the fingerprint of an action covers its check, its refusal texts and its read-back text. Editing any of them cancels
+// INV-9: the fingerprint of an action covers its check, its refusal texts and its read-back text. Editing any of them cancels
 // the open requests; a change that did not go through ChangeAction refuses the run.
 func TestContract_INV9_PrecheckAndExpectAreInTheFingerprint(t *testing.T) {
 	t.Parallel()
@@ -312,7 +312,7 @@ func TestContract_INV9_PrecheckAndExpectAreInTheFingerprint(t *testing.T) {
 	}
 }
 
-// FORBID-5 (D-97): the AI proposals route exists only in the preview build; the real build answers 404 like an unknown route.
+// FORBID-5: the AI proposals route exists only in the preview build; the real build answers 404 like an unknown route.
 func TestContract_FORBID5_AiProposalsRouteIsPreviewOnly(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -327,7 +327,7 @@ func TestContract_FORBID5_AiProposalsRouteIsPreviewOnly(t *testing.T) {
 	}
 }
 
-// INV-14b (D-94): no template sets a credential, address or hop-by-hop header, on the custom path, in any step.
+// INV-14b: no template sets a credential, address or hop-by-hop header, on the custom path, in any step.
 func TestContract_INV14b_NoCredentialOrHopHeadersInCustomActions(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)
@@ -409,8 +409,8 @@ func TestBuiltinActionsNeedingADeviceReadAreNotAvailableYet(t *testing.T) {
 	}
 }
 
-// D-88 (26): GET /response/catalog hides the header values of every template, the check before included, from everyone but an admin.
-func TestContract_D88_PrecheckHeaderValuesAreHiddenFromNonAdmins(t *testing.T) {
+// GET /response/catalog hides the header values of every template, the check before included, from everyone but an admin.
+func TestContract_PrecheckHeaderValuesAreHiddenFromNonAdmins(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)
 	in := apiAction()
@@ -438,7 +438,7 @@ func TestContract_D88_PrecheckHeaderValuesAreHiddenFromNonAdmins(t *testing.T) {
 	}
 }
 
-// INV-14 / D-95 (3) amended: the port guard cannot be dodged by naming the port through another placeholder. The type system has no
+// INV-14: the port guard cannot be dodged by naming the port through another placeholder. The type system has no
 // "port name" type ({port} is a TCP or UDP number, {id} a whole number, {name} a free name), so in a customer's command or API
 // path all of {interface}, {port}, {id} and {name} need the check before with a refusal text.
 func TestContract_INV14_PortNamedThroughAnotherPlaceholderStillNeedsACheck(t *testing.T) {
@@ -484,7 +484,7 @@ func TestContract_INV14_PortNamedThroughAnotherPlaceholderStillNeedsACheck(t *te
 	}
 }
 
-// D-95 (1): the check before and the read-back only read. Over SSH nothing says which lines write, so a generic rule: no line of
+// The check before and the read-back only read. Over SSH nothing says which lines write, so a generic rule: no line of
 // either may be a line of the action or of its undo (a first line that is the same in both, a pager or terminal setup line, is fine),
 // and the commands listed in data/cli-ban.json are refused in them.
 func TestContract_INV14_SSHCheckBeforeAndReadBackCannotWrite(t *testing.T) {
@@ -621,7 +621,7 @@ func TestContract_INV14b_HeaderOnlyStepsAreRefused(t *testing.T) {
 	}
 }
 
-// L9: headers that make a server act as another method, client or path are refused like the credential headers (D-94), in every
+// L9: headers that make a server act as another method, client or path are refused like the credential headers, in every
 // step, the check before included.
 func TestContract_INV14b_MethodOverrideAndForwardingHeadersAreRefused(t *testing.T) {
 	t.Parallel()
@@ -645,7 +645,7 @@ func TestContract_INV14b_MethodOverrideAndForwardingHeadersAreRefused(t *testing
 	}
 }
 
-// D-95 (1), amended 2026-11-10: a check before may also name a text its output must contain; it is validated, stored, shown and
+// A check before may also name a text its output must contain; it is validated, stored, shown and
 // fingerprinted like the refusal texts.
 func TestContract_INV14c_PrecheckExpectIsTypedStoredAndFingerprinted(t *testing.T) {
 	t.Parallel()
@@ -675,7 +675,7 @@ func TestContract_INV14c_PrecheckExpectIsTypedStoredAndFingerprinted(t *testing.
 	if a.PrecheckExpect != in.PrecheckExpect {
 		t.Fatalf("stored: %q", a.PrecheckExpect)
 	}
-	// a check with only a required text (no refusal text) is a check; for a port action the refusal text is still needed (D-95 (3))
+	// a check with only a required text (no refusal text) is a check; for a port action the refusal text is still needed
 	only := apiAction()
 	only.Name = "Expect only"
 	only.Precheck, only.PrecheckExpect = response.Tpl{Method: "GET", Path: "/d/{domain}"}, "ok"

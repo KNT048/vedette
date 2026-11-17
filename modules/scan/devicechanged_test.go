@@ -2,10 +2,10 @@ package scan
 
 import "testing"
 
-// D-601 (review r1 M2): turning a device's network scan off while its vulnerability check runs stops that check at once (the probes on
+// Turning a device's network scan off while its vulnerability check runs stops that check at once (the probes on
 // their way are closed as stopped, its row says why) and the run goes on with the next device; a change that still allows it, or one of
 // another device, stops nothing.
-func TestD601_ScanTurnedOffStopsThatDeviceOnly(t *testing.T) {
+func TestScanTurnedOffStopsThatDeviceOnly(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	started := r.eng.blockRuns()

@@ -8,14 +8,14 @@ import { useDeviceFindingCounts } from '@/features/findings/notRelevant'
 const link = 'font-medium text-accent underline-offset-4 hover:underline'
 
 /**
- * D-53: the box is the first device; its findings are fixed by updating the operating system, not by a device vendor.
- * kien G5: the fix is offered only when there is something to install. OS updates that fix open findings of the box → "Fix N
+ * The box is the first device; its findings are fixed by updating the operating system, not by a device vendor.
+ * The fix is offered only when there is something to install. OS updates that fix open findings of the box → "Fix N
  * findings: install M operating system updates"; updates waiting that are not known to fix them → "M operating system updates are
  * waiting"; open findings and no update → one honest line, "No update fixes these yet: see each finding". Nothing open → no fix line.
  */
 export function BoxNotice({ assetId }: { assetId: string }) {
   const { t } = useTranslation('inventory')
-  const install = useInstallKind() // D-381; undefined while GET /modules loads: then neither claim about packages is made
+  const install = useInstallKind() // undefined while GET /modules loads: then neither claim about packages is made
   const packages = install === 'container' ? t('box.packagesContainer') : install === 'appliance' ? t('box.packagesAppliance') : ''
   const counts = useDeviceFindingCounts(assetId)
   const os = useOsState() // a container install has no OS updates of its own: an error or no check yet means none waiting

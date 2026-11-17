@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// #829 (J2, C3): a laptop with osquery that DHCP moves. The passive sensor sees its card at the new address first (a DHCP request is
+// #829: a laptop with osquery that DHCP moves. The passive sensor sees its card at the new address first (a DHCP request is
 // broadcast); its next reports, before the hourly interfaces answer, land on its device at once (the node is the strongest identity),
 // config asks for its interfaces every minute until a report binds it again, and the report that carries them keeps the node bound (a
 // sensor seeing the machine where it reports from is a move, not a spoof). A copied key used from another address still writes nothing.

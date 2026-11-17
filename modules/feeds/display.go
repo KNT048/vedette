@@ -6,8 +6,8 @@ import (
 )
 
 // displaySlugs is the vendor_product_slug of DATA_PIPELINE section 3: the name a person recognises for a
-// vendor|product pair of KEV (slug.ts of the GUI mock; English, D-28). Pairs not listed read "Vendor Product", or only
-// "Product" when KEV's product already starts with the vendor ("OpenSSL"/"OpenSSL", "GNU"/"GNU C Library": W5-3).
+// vendor|product pair of KEV (slug.ts of the GUI mock; English). Pairs not listed read "Vendor Product", or only
+// "Product" when KEV's product already starts with the vendor ("OpenSSL"/"OpenSSL", "GNU"/"GNU C Library").
 var displaySlugs = map[string]string{
 	"qnap|photo station":                              "Photo Station app on QNAP NAS",
 	"qnap|qts":                                        "QNAP NAS (QTS)",
@@ -70,7 +70,7 @@ func KindOf(key string) string {
 	return "unknown"
 }
 
-// weeklyText is the "This week, in short" sentence, built from a template on the box (INV-14); English (D-28).
+// weeklyText is the "This week, in short" sentence, built from a template on the box (INV-14); English.
 func weeklyText(v Vuln) string {
 	what := "that is being exploited in the wild"
 	if v.Ransomware {

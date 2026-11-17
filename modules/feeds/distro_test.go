@@ -20,7 +20,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Every fixture here is written for these tests (D-516): Canonical's data is CC BY-SA 4.0 and the Debian tracker states
+// Every fixture here is written for these tests: Canonical's data is CC BY-SA 4.0 and the Debian tracker states
 // no licence, so none of it is copied into the repository.
 
 // xzTar packs files (name → text) into an xz tar archive, in the given order.
@@ -169,7 +169,7 @@ func TestDistroParsersFailClosed(t *testing.T) {
 	}
 }
 
-// D-516: the pull keeps the CISA list's CVEs, sends the validators back (a 304 keeps the rows), tells findings which
+// The pull keeps the CISA list's CVEs, sends the validators back (a 304 keeps the rows), tells findings which
 // CVEs changed (the first fill as a baseline), and a feed that is turned off is not used.
 func TestDistroPull(t *testing.T) {
 	t.Parallel()
@@ -237,7 +237,7 @@ func TestDistroPull(t *testing.T) {
 	}
 }
 
-// distroInv is an inventory that answers only Distros (D-570).
+// distroInv is an inventory that answers only Distros.
 type distroInv struct {
 	Inventory
 	got   map[string]map[string]bool
@@ -252,7 +252,7 @@ func (d *distroInv) Distros(context.Context) (map[string]map[string]bool, error)
 
 var _ DistroLister = (*distroInv)(nil)
 
-// D-570 (LEAN): a distribution feed fills once whatever the inventory says (review H1: the first device of that distribution is
+// LEAN: a distribution feed fills once whatever the inventory says (review H1: the first device of that distribution is
 // judged on its rows), then is fetched only while a device needs it. Otherwise nothing is fetched or recorded, the rows stay,
 // the feed stays due (the next tick asks again) and the Feeds page says why; a failed read of the inventory pulls as before.
 func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
@@ -267,7 +267,7 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 	if err := e.svc.RunPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 1 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 2 { // asked for the packages (D-622), not to skip it
+	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 1 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 2 { // asked for the packages, not to skip it
 		t.Fatalf("first fill: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
 	}
 	const note = "Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device."
@@ -432,7 +432,7 @@ const debianTierJSON = `{
  "curl": {"CVE-2020-0003": {"releases": {"bookworm": {"status": "resolved", "fixed_version": "7.88.1-10+deb12u9"}}}}
 }`
 
-// D-622: a distribution pull also keeps the fixed rows of the tier CVEs (nvd-recent's 12 months) for the source packages the devices
+// A distribution pull also keeps the fixed rows of the tier CVEs (nvd-recent's 12 months) for the source packages the devices
 // run, and only those (not a package no device runs, not "not affected", not a CVE outside the 12 months); the KEV matcher and the
 // rematch events (pull and switch) see only the CISA list's rows, as before; the plan reads the tier rows with the CVE's day and EPSS;
 // the packages the rows were kept for are stored, so a device's new package (never a removal) pulls the whole file again (no 304) at

@@ -21,7 +21,7 @@ import (
 const saveBoxAddressSQL = `INSERT INTO core_setting (key, value, updated_at, updated_by) VALUES ('core_box_address', ?, '2026-11-13T09:00:00.000Z', 'admin@acme.example')
 ON CONFLICT (key) DO UPDATE SET value = excluded.value`
 
-// fixedNameRE is a link to the fixed name "vedette" (any port or path): what every link of an appliance read before D-465.
+// fixedNameRE is a link to the fixed name "vedette" (any port or path): what every link of an appliance read in older releases.
 var fixedNameRE = regexp.MustCompile(`https?://vedette([:/"'\s]|$)`)
 
 var linkRE = regexp.MustCompile(`https?://[^\s"'<>)]+`)
@@ -39,7 +39,7 @@ func linkStack(t *testing.T, host bool, flags []string, listen string) (*stack, 
 	op := s.addUser("op@acme.example", routes.Operator)
 	sink := newSMTPSink(t)
 	s.email(sink, notify.Approver{UserID: op.ID, Address: "op@acme.example"})
-	s.exec(`INSERT INTO resp_identity (user_id, channel, address, linked_at) VALUES (?, 'email', 'op@acme.example', '2026-11-10T09:00:00.000Z')`, op.ID) // proved in My account (D-191)
+	s.exec(`INSERT INTO resp_identity (user_id, channel, address, linked_at) VALUES (?, 'email', 'op@acme.example', '2026-11-10T09:00:00.000Z')`, op.ID) // proved in My account
 	return s, sink
 }
 
@@ -116,7 +116,7 @@ func wantLinks(t *testing.T, links map[string]string, base string, want ...strin
 
 var allLinks = []string{"test message", "sign-in mail", "approval link", "incident notice", "finding notice", "block list URL", "URL token", "install address"}
 
-// TestEveryLinkCarriesTheBoxAddress pins D-465 on the binary's real wiring (wireBoxAddr, as serve does it, over core's saved setting):
+// TestEveryLinkCarriesTheBoxAddress pins the box-address links on the binary's real wiring (wireBoxAddr, as serve does it, over core's saved setting):
 // every path that makes a link of the box renders it with the Box address and never with the fixed name vedette: the notify test
 // message, the sign-in code mail, an approval request, a finding and an incident notice, the block list URL, a URL honey token and the
 // agent install address. A new Box address applies to the next link without a restart; the earlier one is still answered to (review M1).
@@ -149,7 +149,7 @@ func TestEveryLinkCarriesTheBoxAddress(t *testing.T) {
 	}
 }
 
-// The default end to end (D-465): nothing saved, the management IPv4 vedette-host reports in state/net is every link's address; the
+// The default end to end: nothing saved, the management IPv4 vedette-host reports in state/net is every link's address; the
 // container-only path: no host, the first usable -hosts entry; port 443 leaves the port out; an IPv6 address is bracketed.
 func TestEveryLinkCarriesTheDefaultOrTheHostsAddress(t *testing.T) {
 	t.Parallel()

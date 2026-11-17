@@ -1,5 +1,5 @@
 // Network state of the box, shared by the core mock (Settings → Box network, S-CORE-8) and the inventory mock (sensor status, S-INV-1).
-// Real box: read from the OS and changed only through the fixed command list of `vedette-host` (D-55, D-56). Mock: one table.
+// Real box: read from the OS and changed only through the fixed command list of `vedette-host`. Mock: one table.
 import { collection } from './db'
 import { boxInfo } from './stores'
 
@@ -18,7 +18,7 @@ export interface NetStore {
   ifaces: NetIface[]; mgmt: Management; span: SpanConfig
   ntp: { mode: 'default' | 'custom'; servers: string[] }
   pending: { previous: Management; expires_at: string; reboot_at?: string } | null
-  /** The Box address an administrator saved (D-465); null or missing = the management address. */
+  /** The Box address an administrator saved; null or missing = the management address. */
   box_address?: string | null
   /** Earlier Box addresses the box still answers to (review M1). */
   box_previous?: string[]
@@ -29,9 +29,9 @@ export type SpanVerdict = 'off' | 'ok' | 'own_only' | 'no_traffic' | 'no_link' |
 export interface SpanStatus { verdict: SpanVerdict; interface: string | null; packets_per_s: number; other_macs: number; last_packet_at: string | null }
 
 export const DEFAULT_NTP = 'pool.ntp.org'
-/** A device that is switched on but not in the inventory (a printer nobody scanned yet): the box finds it with an ARP probe before it takes an address (D-101). */
+/** A device that is switched on but not in the inventory (a printer nobody scanned yet): the box finds it with an ARP probe before it takes an address. */
 export const SILENT_DEVICES = ['192.168.10.77']
-export const CONFIRM_SECONDS = 300 // D-118: the admin signs in again at the new address (new origin, two-step), which takes more than 2 minutes
+export const CONFIRM_SECONDS = 300 // The admin signs in again at the new address (new origin, two-step), which takes more than 2 minutes
 const EXTRACT = { dns: true, tls_sni: true, http_host: true, flows: true }
 const LIMITS = { cpu_percent: 25, memory_mb: 512 }
 const ifaces = (span: boolean): NetIface[] => [
@@ -55,7 +55,7 @@ export const networkStore = collection<NetStore>('core_network', () => ({
   return { ifaces: ifaces(false), mgmt, span: { enabled: false, interface: null, extract: { ...EXTRACT }, filters: [], ...LIMITS }, ntp: { mode: 'default', servers: [] }, pending: null }
 })
 
-/** The address every link of the box carries (D-465): the saved Box address, else the management address; null when neither is known
+/** The address every link of the box carries: the saved Box address, else the management address; null when neither is known
  *  (the box then makes no link: never the inventory's IP or the box's name). */
 export function boxAddress(): string | null {
   const s = networkStore.get()

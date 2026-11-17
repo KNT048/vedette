@@ -185,7 +185,7 @@ func TestNewHandlerSetsEveryModule(t *testing.T) {
 	}
 }
 
-// D-189: a real Registry.Publish switch-off of the honeypot reaches its teardown through the OffGuard and addOffGuards, the way main wires it.
+// A real Registry.Publish switch-off of the honeypot reaches its teardown through the OffGuard and addOffGuards, the way main wires it.
 func TestSwitchingTheHoneypotOffRunsItsTeardown(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

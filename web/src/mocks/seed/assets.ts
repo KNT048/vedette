@@ -1,4 +1,4 @@
-// 30 thiết bị giống một SMB Việt Nam (tên hiển thị tiếng Anh, D-28). DỮ LIỆU MẪU — hiển thị nhãn "Dữ liệu mẫu".
+// 30 thiết bị giống một SMB Việt Nam (tên hiển thị tiếng Anh). DỮ LIỆU MẪU — hiển thị nhãn "Dữ liệu mẫu".
 // ID cố định để module khác tham chiếu: a-fw01, a-nas02 (phát hiện f-1), a-web01 (f-2), a-srvad (f-3)…
 import type { Asset, AssetKind, ObsSource, Service, Software } from '@/lib/types'
 
@@ -41,7 +41,7 @@ export function seedAssets(): Asset[] {
       software: [sw('s-srvad', 'Windows Server 2016', 'Microsoft', 'Windows', 'Server 2016 (1607)', ['microsoft|windows', 'microsoft|windows server'], 'nmap', 0.75)],
       services: [svc(53, 'domain'), svc(88, 'kerberos'), svc(389, 'ldap'), svc(445, 'microsoft-ds'), svc(3389, 'ms-wbt-server')] }),
     a({ id: 'a-srvfile', ip: '192.168.10.11', kind: 'server', hostname: 'SRV-FILE', mac: '00:15:5d:0a:10:11', vendor: o('Dell', 'passive', 0.8), os: o('Windows Server 2019', 'nmap', 0.75),
-      // kien G15: SQL Server added by hand without its version (Needs your input: type it there, or Not installed)
+      // SQL Server added by hand without its version (Needs your input: type it there, or Not installed)
       software: [sw('s-srvfile', 'Windows Server 2019', 'Microsoft', 'Windows', 'Server 2019 (1809)', ['microsoft|windows', 'microsoft|windows server'], 'nmap', 0.75),
         sw('s-srvfile-sql', 'Microsoft SQL Server', 'Microsoft', 'SQL Server', null, ['microsoft|sql server'], 'manual', 1)], services: [svc(445, 'microsoft-ds'), svc(3389, 'ms-wbt-server')] }),
     a({ id: 'a-web01', ip: '192.168.10.12', kind: 'server', hostname: 'WEB01', mac: '00:15:5d:0a:10:12', vendor: o('VMware', 'passive', 0.7), os: o('Ubuntu 22.04', 'nmap', 0.8),
@@ -67,11 +67,11 @@ export function seedAssets(): Asset[] {
       software: [sw('s-cam03', 'Hikvision camera', 'Hikvision', 'IP Camera firmware', null, ['hikvision|multiple products', 'hikvision|security cameras web server'], 'passive', 0.5)] }),
     a({ id: 'a-nvr01', ip: '192.168.20.10', kind: 'nvr', hostname: 'NVR-01', vendor: o('Hikvision', 'passive', 0.95), model: o('DS-7608NI-K2', 'passive', 0.8), fragile: true,
       software: [sw('s-nvr01', 'Hikvision NVR', 'Hikvision', 'NVR firmware', null, ['hikvision|multiple products'], 'passive', 0.5)], services: [svc(80, 'http', 'passive', 0.7), svc(8000, 'hikvision-sdk', 'passive', 0.6)] }),
-    // D-604: the N100's BN340, an Alpine router the scan reads as OpenSSH 10.2 with an OS guess: CVE-2026-123158 is its question
+    // BN340, an Alpine router the scan reads as OpenSSH 10.2 with an OS guess: CVE-2026-123158 is its question
     a({ id: 'a-bn340', ip: '192.168.10.9', kind: 'router', hostname: 'BN340', mac: '02:42:ac:11:03:40', vendor: o('Shenzhen BN', 'passive', 0.6), os: o('Linux 6.x', 'nmap', 0.5),
       software: [sw('s-bn340-ssh', 'OpenSSH', 'OpenBSD', 'OpenSSH', '10.2', ['openbsd|openssh'], 'nmap', 0.8)], services: [svc(22, 'ssh', 'nmap', 0.9, 'OpenSSH', '10.2')] }),
-    // D-511: a device of unknown kind that the identification rules recognise from its card maker and its open port (the N100's FortiGate).
-    // kien G15: a person added FortiGate to it with the version "latest", which Vedette cannot compare (Needs your input)
+    // A device of unknown kind that the identification rules recognise from its card maker and its open port (modelled on a FortiGate).
+    // A person added FortiGate to it with the version "latest", which Vedette cannot compare (Needs your input)
     a({ id: 'a-unk02', ip: '192.168.10.251', kind: 'unknown', mac: '70:4c:a5:fc:2f:50', vendor: o('Fortinet', 'nmap', 0.6), services: [svc(22, 'ssh', 'nmap', 0.5)],
       software: [sw('s-unk02-fgt', 'FortiGate', 'Fortinet', 'FortiOS', 'latest', ['fortinet|fortios'], 'manual', 1)], first_seen: D(1), last_seen: D(0),
       guess: { kind: 'firewall', confidence: 0.35, evidence: 'Fortinet network card and port 22 (ssh): most likely a FortiGate firewall (Fortinet also makes FortiAP access points and FortiSwitch switches; a scan of its web page or certificate tells which).', alternatives: ['ap', 'switch'] } }),
@@ -80,7 +80,7 @@ export function seedAssets(): Asset[] {
 }
 
 /**
- * D-472: n generated devices for tests at scale (the scan picker with ~500 devices), 200 per /24 from 192.168.40.0/24.
+ * N generated devices for tests at scale (the scan picker with ~500 devices), 200 per /24 from 192.168.40.0/24.
  * Deterministic. Every 10th is a printer and every 10th a camera (fragile), every 10th of unknown type, every 7th not approved,
  * every 50th added by hand; last seen spreads over 45 days.
  */

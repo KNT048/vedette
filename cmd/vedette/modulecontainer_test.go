@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// M3 (D-260): the sensor and scan containers follow their module, over the real host server and client (as the honeypot's
+// M3: the sensor and scan containers follow their module, over the real host server and client (as the honeypot's
 // tests do): on starts the unit and gives it [Install] back, off stops it with persist, the module is looked at again under
 // the lock, and a host that fails to stop is an error for the guard to retry.
 
@@ -183,7 +183,7 @@ func eventually(t *testing.T, what string, cond func() bool) {
 	}
 }
 
-// M3 (D-260), the wiring: startGuards, the function serve calls, over a real Registry and the fake host. Core starting with a
+// M3, the wiring: startGuards, the function serve calls, over a real Registry and the fake host. Core starting with a
 // module off stops its container and drops [Install]; a real Publish of a switch-on starts it with [Install]; a switch-off stops
 // it again. Without the OnChange subscription or without addContainerGuards one of these steps never happens.
 func TestSwitchingTheSensorModulesMovesTheirContainers(t *testing.T) {
@@ -526,7 +526,7 @@ func TestModuleContainerStartsAfterTheStateStaysUnreadable(t *testing.T) {
 	}
 }
 
-// A module switched on after an update starts core's own version (D-342 (2)): only when the host says that is the version it
+// A module switched on after an update starts core's own version: only when the host says that is the version it
 // pulled for the service. Never otherwise: a version the host did not pull is refused not_pulled, which would leave a box that
 // was never updated without its sensor or scan.
 func TestModuleContainerStartVersion(t *testing.T) {
@@ -551,7 +551,7 @@ func TestModuleContainerStartVersion(t *testing.T) {
 	}
 }
 
-// D-405 (walk 4): before first-run setup a default-on module's container is not started, and the guard does not retry; once
+// Before first-run setup a default-on module's container is not started, and the guard does not retry; once
 // setup is done the same call starts it.
 func TestModuleContainerWaitsForFirstRunSetup(t *testing.T) {
 	t.Parallel()
@@ -579,7 +579,7 @@ func TestModuleContainerWaitsForFirstRunSetup(t *testing.T) {
 	}
 }
 
-// D-405, the whole chain: with setup not done, the guards start nothing for the default-on sensor modules; the event the wizard's
+// The whole chain: with setup not done, the guards start nothing for the default-on sensor modules; the event the wizard's
 // commit publishes (inventory.settings.changed) runs the start, and the containers come up.
 func TestSensorContainersStartWhenFirstRunSetupCommits(t *testing.T) {
 	t.Parallel()
@@ -621,8 +621,8 @@ func TestSensorContainersStartWhenFirstRunSetupCommits(t *testing.T) {
 	}
 }
 
-// W2-6 (customer walk 2): GET /inventory/sensors says "starting" while the guard is still bringing the sensor container up. Not
-// before setup (nothing is started, D-405); while a start is retried, for at most startGiveUp; for startSettle after the host
+// GET /inventory/sensors says "starting" while the guard is still bringing the sensor container up. Not
+// before setup (nothing is started); while a start is retried, for at most startGiveUp; for startSettle after the host
 // confirmed a start; never after the module is turned off. The clock is the watch's own, moved by hand.
 func TestModuleContainerStartWatch(t *testing.T) {
 	t.Parallel()

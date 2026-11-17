@@ -8,16 +8,16 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-524: Windows's update revision comes in its own query (os_revision), which may arrive in another request than os_version. The
+// Windows's update revision comes in its own query (os_revision), which may arrive in another request than os_version. The
 // node keeps the last one and the device reads "Microsoft Windows 11 Pro 10.0.22631.4460". The revision is an answer of its own of
 // the first report: asked every minute until a usable one came, even when os_version came first (review M3), and its own report
 // shows the OS at once. A revision that is not a positive integer is not taken.
 //
-// D-546: every Windows package list then carries the operating system's row (Windows 11 23H2, 10.0.22631.<UBR>, CPE of the release
+// Every Windows package list then carries the operating system's row (Windows 11 23H2, 10.0.22631.<UBR>, CPE of the release
 // with the target, key microsoft|windows), which findings matches by the update revision. A Windows list without it (the revision
 // not reported yet) does not end the first report's package answer, so the row comes within minutes (review M3). A feature update
 // (os_version of another build, no revision yet) clears the stored release: no stale row of the old release (review M2).
-func TestContract_D524_WindowsRevisionOfAnotherRequest(t *testing.T) {
+func TestContract_WindowsRevisionOfAnotherRequest(t *testing.T) {
 	w := newWorld(t)
 	_, secret := w.token("pc", 7)
 	key := w.enroll(secret, "pc-01", peerA)

@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-// D-92: the retired SSLBL feed leaves the box, and Home can tell "no exploited vulnerabilities" from "the CISA list never loaded".
+// The retired SSLBL feed leaves the box, and Home can tell "no exploited vulnerabilities" from "the CISA list never loaded".
 
-func TestContract_D92_RetiredBuiltinRowIsRemovedAtStartWithWhatItLoaded(t *testing.T) {
+func TestContract_RetiredBuiltinRowIsRemovedAtStartWithWhatItLoaded(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	const ts = "2026-11-01T10:00:00.000Z"
@@ -62,7 +62,7 @@ func kevState(t *testing.T, e *env) (string, any) {
 	return s, at(b, "kev", "error")
 }
 
-func TestContract_D92_StatusTellsNeverLoadedFromLoadedFromOff(t *testing.T) {
+func TestContract_StatusTellsNeverLoadedFromLoadedFromOff(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	if s, er := kevState(t, e); s != "never_loaded" || er != nil {
@@ -82,7 +82,7 @@ func TestContract_D92_StatusTellsNeverLoadedFromLoadedFromOff(t *testing.T) {
 	}
 
 	// loaded once, last pull failed since: still loaded, the count stays honest, and the failure is said with the last good pull
-	// (kien G11: Home says the list is stale since then)
+	// (Home says the list is stale since then)
 	write(t, e.db, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET last_success = '2026-11-04T10:00:00.000Z', last_fetch = '2026-11-05T09:00:00.000Z' WHERE id = 'cisa-kev'`)
 		return err

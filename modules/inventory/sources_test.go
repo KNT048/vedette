@@ -8,9 +8,9 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-601: each active source of the box is on or off per device. A device added by hand stays silent until a person turns a source on;
+// Each active source of the box is on or off per device. A device added by hand stays silent until a person turns a source on;
 // turning one on lifts the hand-added default for that source only; turning one off stops it for any device.
-func TestContract_D601_SourcesPerDevice(t *testing.T) {
+func TestContract_SourcesPerDevice(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.confirmScope("192.168.30.0/24")
@@ -174,10 +174,10 @@ func TestContract_D601_SourcesPerDevice(t *testing.T) {
 	wantAPIError(t, err, 409, "box_device")
 }
 
-// D-601 (kien; review r1 M4): inside lan_ranges a credential's scope decides as before; outside them SNMP reads only a device whose SNMP a
-// person turned on (so no credential saved before D-601 reaches past the LAN by itself); an excluded address never; the network scan
+// Inside lan_ranges a credential's scope decides as before; outside them SNMP reads only a device whose SNMP a
+// person turned on (so no credential saved by an older version reaches past the LAN by itself); an excluded address never; the network scan
 // keeps to lan_ranges.
-func TestContract_D601_SNMPOutsideLANRangesNeedsTheSwitch(t *testing.T) {
+func TestContract_SNMPOutsideLANRangesNeedsTheSwitch(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	in := okSettings("192.168.30.0/24")

@@ -17,8 +17,8 @@ import (
 	"time"
 )
 
-// Orphaned containers (D-600). An orphan is a container that still runs while the rootful podman of the box no longer knows it: its
-// conmon and its processes live on in their libpod scopes, but `podman container exists <id>` says no. On kien's N100 an
+// Orphaned containers. An orphan is a container that still runs while the rootful podman of the box no longer knows it: its
+// conmon and its processes live on in their libpod scopes, but `podman container exists <id>` says no. On a test box an
 // install.sh --uninstall of 2026-11-13 purged podman and wiped /var/lib/containers under fourteen running Greenbone containers; they kept
 // running for four days, gvmd aborting ~470 times a minute on its lost /var/lib/gvm, with nothing that could see or stop them (podman
 // lists only what its database holds). The host looks for them at every start, which follows every install, upgrade, self-update and
@@ -55,7 +55,7 @@ const (
 
 var (
 	// orphanNameRE: the containers of Vedette's services and of the passive web scan, and docker-compose v2's names of the services of
-	// Greenbone's project as vedette-host runs it (D-529: greenbone-community-edition-<service>-<n>).
+	// Greenbone's project as vedette-host runs it (greenbone-community-edition-<service>-<n>).
 	orphanNameRE   = regexp.MustCompile(`^(vedette-(core|sensor|scan|honeypot|greenbone|zap)|` + gbProject + `-[a-z0-9]+(-[a-z0-9]+)*-[0-9]{1,4})$`)
 	orphanScopeRE  = regexp.MustCompile(`^libpod-(conmon-)?[0-9a-f]{64}\.scope$`)
 	orphanRootfsRE = regexp.MustCompile(`^/var/lib/containers/storage/overlay/[0-9a-f]{64}/merged$`)

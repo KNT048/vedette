@@ -223,13 +223,13 @@ func TestContract_POST3_NextRun(t *testing.T) {
 	}
 	e := newEnv(t)
 	v, _ := e.svc.Config(e.ctx())
-	if v.NextRun == nil || *v.NextRun != "2026-11-10T23:00:00.000Z" { // the env's zone is UTC; t0 is a Tuesday; no run yet: tonight (W3-6)
+	if v.NextRun == nil || *v.NextRun != "2026-11-10T23:00:00.000Z" { // the env's zone is UTC; t0 is a Tuesday; no run yet: tonight
 		t.Fatalf("view next_run: %v", v.NextRun)
 	}
 	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error { return markSlot(e.ctx(), tx, t0.AddDate(0, 0, -2)) }); err != nil {
 		t.Fatal(err)
 	}
-	if v, _ = e.svc.Config(e.ctx()); v.NextRun == nil || *v.NextRun != "2026-11-10T23:00:00.000Z" { // a slot recorded without a run (W3-9)
+	if v, _ = e.svc.Config(e.ctx()); v.NextRun == nil || *v.NextRun != "2026-11-10T23:00:00.000Z" { // a slot recorded without a run
 		t.Fatalf("view next_run after a slot without a run: %v", v.NextRun)
 	}
 	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {

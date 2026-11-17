@@ -1,18 +1,18 @@
-# CI on GitHub's runners (D-63): free for this public repo, and it keeps the heavy full
+# CI on GitHub's runners: free for this public repo, and it keeps the heavy full
 # suites (vitest, govulncheck) off the developers' machines. Every job calls make only,
-# except the two aggregators `go` and `web`, which only compare job results (D-140).
-# No Playwright e2e here (D-64): the full e2e suite runs only when the product is production-ready.
-# Before pushing, an agent builds and lints the packages it changed (D-413); CI is the merge gate. Third-party actions pinned by
+# except the two aggregators `go` and `web`, which only compare job results.
+# No Playwright e2e here: the full e2e suite runs only when the product is production-ready.
+# Before pushing, an agent builds and lints the packages it changed; CI is the merge gate. Third-party actions pinned by
 # commit SHA.
 #
-# Shape (D-140, D-365): `changes` decides what a run needs (scripts/ci, no third-party action);
+# Shape: `changes` decides what a run needs (scripts/ci, no third-party action);
 # go-static, go-lint, go-test (4 shards, weighted by scripts/ci/testtime.tsv) and go-release run in parallel; web-verify runs the web
-# suite. go-static and go-lint each keep a rolling Go cache that only main saves (D-372).
-# D-413: a pull request tests only what it reaches: go-test the packages holding a changed file and their direct importers
+# suite. go-static and go-lint each keep a rolling Go cache that only main saves.
+# A pull request tests only what it reaches: go-test the packages holding a changed file and their direct importers
 # (CHANGED_BASE, scripts/ci Affected), web-verify the vitest tests of the changed files (make verify-web-pr, no build). There is
-# no merge queue: the supervisor squash-merges a green PR, and the push to main runs the full suite, Go and web, on the merged
+# no merge queue: a green PR is squash-merged, and the push to main runs the full suite, Go and web, on the merged
 # tree (main red: revert or fix at once); that run also saves main's Go caches.
-# go-test runs -race in the daily run only (D-371, D-376): pull requests and pushes to main run without it,
+# go-test runs -race in the daily run only: pull requests and pushes to main run without it,
 # and skip the slow and quarantined tests of scripts/ci/skip-tests.txt, which only the daily run runs.
 # The daily schedule runs everything twice, uncached and shuffled (-count=2 -shuffle=on), and its failed tests go to
 # the issue labelled flaky.
@@ -33,7 +33,7 @@ permissions:
 
 # A newer push to a pull request supersedes the older run; runs on main are never cancelled once they run, but a waiting push run
 # is replaced by a newer one (GitHub keeps one pending run per group): the newest main tree saves the cache. The group holds the
-# event, so the daily schedule never waits behind, or is replaced by, a push (D-365).
+# event, so the daily schedule never waits behind, or is replaced by, a push.
 concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -74,7 +74,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false # the Go cache below holds the build cache, the vet results and the go tool binaries (sqlc, ogen)
-      # D-372: the same rolling cache as go-test (D-365), its own key: every run restores the newest one main saved, only main saves.
+      # The same rolling cache as go-test, its own key: every run restores the newest one main saved, only main saves.
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -96,7 +96,7 @@ jobs:
             ~/go/pkg/mod
           key: go-static-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-  # D-372: golangci-lint on its own runner, in parallel with go-static, with its own cache (only main saves): the Go build cache
+  # golangci-lint on its own runner, in parallel with go-static, with its own cache (only main saves): the Go build cache
   # (golangci-lint's own binary, built by go tool, and the type-checked packages), the modules of tools/go.mod, and its analysis
   # cache. The key holds tools/go.sum and .golangci.yml, so a new linter or config starts from a fresh analysis cache.
   go-lint:
@@ -149,7 +149,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false # the Go cache below holds the build and test caches of this shard
-      # D-365: go test reuses the result of a package whose test binary and inputs did not change. Every run restores the newest
+      # Go test reuses the result of a package whose test binary and inputs did not change. Every run restores the newest
       # cache of its shard that main saved (a pull request may restore main's caches, never another pull request's);
       # only main saves, so the repository's 10 GB is not filled with per-PR copies that would evict main's.
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -161,15 +161,15 @@ jobs:
           restore-keys: go-test-${{ runner.os }}-${{ matrix.shard }}-
       - name: go test (-race daily only), shard ${{ matrix.shard }} of 4
         env:
-          # D-371, D-376: only the daily run uses the race detector (4-8x slower: modules/ai 180 s vs 17 s); pull requests and
+          # Only the daily run uses the race detector (4-8x slower: modules/ai 180 s vs 17 s); pull requests and
           # pushes to main test without it, so pull requests reuse main's test cache. A race is caught within a day of its merge.
           RACE: ${{ github.event_name == 'schedule' && '-race' || '' }}
-          # D-376: the tests of scripts/ci/skip-tests.txt (slow, quarantined flaky) run only in the daily schedule.
+          # The tests of scripts/ci/skip-tests.txt (slow, quarantined flaky) run only in the daily schedule.
           SKIPTESTS: ${{ github.event_name != 'schedule' && '1' || '' }}
           # The daily run tests everything twice, uncached, in a shuffled order, to find flaky tests (the flaky job lists them).
           # -shuffle stays off elsewhere: it is not a cacheable flag, so it would turn the test cache off (go help test).
           GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on -timeout=40m' || '' }}
-          # D-413: a pull request tests the packages it changed and their direct importers; main and the daily run test all.
+          # A pull request tests the packages it changed and their direct importers; main and the daily run test all.
           CHANGED_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
         run: make test-go-shard SHARD=${{ matrix.shard }} RACE="$RACE" SKIPTESTS="$SKIPTESTS" CHANGED_BASE="$CHANGED_BASE"
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -180,7 +180,7 @@ jobs:
             ~/go/pkg/mod
           key: go-test-${{ runner.os }}-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-  # D-365: a failed daily run adds its failed tests to the one open issue labelled flaky. Only this job may write issues.
+  # A failed daily run adds its failed tests to the one open issue labelled flaky. Only this job may write issues.
   flaky:
     needs: [changes, go-test]
     if: always() && github.event_name == 'schedule' && needs.go-test.result != 'success' && needs.go-test.result != 'skipped' # a timed-out shard ends cancelled
@@ -262,7 +262,7 @@ jobs:
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: web/package.json
-      # D-413: a pull request runs typecheck, lint, the tests of its changed files and contract drift, no build; every test when a
+      # A pull request runs typecheck, lint, the tests of its changed files and contract drift, no build; every test when a
       # file outside web/ that the web tests read changed (webtests=all). main and the daily run run verify-web in full.
       - name: Typecheck, lint, unit tests of the change, contract drift (pull request)
         if: needs.changes.outputs.web == 'true' && github.event_name == 'pull_request'

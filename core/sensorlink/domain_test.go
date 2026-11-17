@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/core/domainfence"
 )
 
-// D-591: every refusal of the worker's domain fence is a result core accepts, and a domain_ip job keeps its fence fields on the wire
+// Every refusal of the worker's domain fence is a result core accepts, and a domain_ip job keeps its fence fields on the wire
 // (an nmap one and a nuclei one) while every other job keeps the shape an older worker knows.
 func TestDomainFenceOnTheWire(t *testing.T) {
 	t.Parallel()

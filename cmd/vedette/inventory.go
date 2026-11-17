@@ -22,7 +22,7 @@ import (
 // newInventory builds the inventory service from the shared deps; buildServices calls it once and stores it in
 // deps.Inventory. Its events go to deps.Bus; its KEV data comes from the feeds service (looked up lazily, see
 // feedsKEV, because feeds in turn takes the inventory).
-// The box's own packages come from vedette-host's dpkg list (Config.Box, D-470); a container-only install has no host and so no
+// The box's own packages come from vedette-host's dpkg list (Config.Box); a container-only install has no host and so no
 // list (the device page says so). findings_count comes from findingCounts.
 func newInventory(d *deps) *inventory.Service {
 	var pub inventory.Publisher
@@ -79,11 +79,11 @@ func newInventory(d *deps) *inventory.Service {
 	return svc
 }
 
-// inventoryJobs keeps the box in the inventory as its first device (INV-3, D-53): the job runs as soon as the
+// inventoryJobs keeps the box in the inventory as its first device (INV-3): the job runs as soon as the
 // module is on (start-up, or when it is switched on), creates the device once and refreshes it after. service-prune removes
 // the open services not seen for 90 days (INV-23); it only deletes past a retention the product states, so it is
-// housekeeping (D-160, D-202) and runs while the module is off too. agent-software-prune removes the software an agent has not
-// reported for 30 days (D-327): a normal job, because the 30 days count only while the inventory and agent-intake are on.
+// housekeeping and runs while the module is off too. agent-software-prune removes the software an agent has not
+// reported for 30 days: a normal job, because the 30 days count only while the inventory and agent-intake are on.
 func inventoryJobs(d deps) []jobs.Job {
 	svc := d.Inventory
 	prune := jobs.Job{Module: "inventory", Name: "service-prune", Every: 6 * time.Hour, Housekeeping: true, Run: func(ctx context.Context) error {
@@ -114,7 +114,7 @@ func inventoryJobs(d deps) []jobs.Job {
 			}
 			cancel()
 		}
-		// The box's OS from the same answer of the host (W3-8): findings judge OS-release NVD entries (CVE-2021-3493) by it, as on an
+		// The box's OS from the same answer of the host: findings judge OS-release NVD entries (CVE-2021-3493) by it, as on an
 		// agent host. "" (no host, or no answer yet) keeps what the row has.
 		box := inventory.BoxInfo{Hostname: host, IP: ip, OS: d.BoxName.OS(), ContainerOnly: d.Reg != nil && d.Reg.ContainerOnly()}
 		if _, err := svc.EnsureBox(ctx, box); err != nil {
@@ -122,11 +122,11 @@ func inventoryJobs(d deps) []jobs.Job {
 		}
 		// The box's open ports with its packages (INV-3): one failing does not hold the other back.
 		return errors.Join(svc.RefreshBoxPackages(ctx), svc.RefreshBoxServices(ctx))
-	}}, {Module: "inventory", Name: "agent-software-prune", Every: time.Hour, Run: svc.PruneAgentSoftware}} // a normal job (D-327)
+	}}, {Module: "inventory", Name: "agent-software-prune", Every: time.Hour, Run: svc.PruneAgentSoftware}} // a normal job
 }
 
-// boxPackages is inventory's BoxPackages (D-470, S-INV-5): vedette-host's GET /v1/state/packages, mapped to software exactly like an
-// osquery deb_packages snapshot (agentintake.MapDebPackages), so findings match the box like any server. A host older than D-470
+// boxPackages is inventory's BoxPackages (S-INV-5): vedette-host's GET /v1/state/packages, mapped to software exactly like an
+// osquery deb_packages snapshot (agentintake.MapDebPackages), so findings match the box like any server. An older host
 // (404 unknown_command) or a dpkg in the middle of a change (409 packages_changing) gives no list: nil, and the inventory keeps
 // what it has. The mapped list is never cut: one longer than the inventory stores (5 000 rows) is refused whole by
 // UpsertSoftware, so the stored list stays rather than becoming a part of the box.
@@ -154,7 +154,7 @@ func (b boxPackages) Packages(ctx context.Context) ([]inventory.SoftwareItem, er
 	if err != nil {
 		return nil, err
 	}
-	kernel := "" // the box's running kernel (D-516): the Kernel row takes its image; unknown keeps the lowest installed one
+	kernel := "" // the box's running kernel: the Kernel row takes its image; unknown keeps the lowest installed one
 	if info, err := b.c.Info(ctx); err == nil {
 		kernel = info.OS.Kernel
 	}
@@ -215,7 +215,7 @@ func (f findingCounts) CountByAsset(ctx context.Context) (map[string]int, error)
 	return f.d.Findings.CountByAsset(ctx)
 }
 
-// RiskByAsset is inventory's RiskSource (G4): findings.RiskMap, one cached batch with To fix's tests (its exploited findings to fix,
+// RiskByAsset is inventory's RiskSource: findings.RiskMap, one cached batch with To fix's tests (its exploited findings to fix,
 // else its recommended updates for a likely-exploited or High+ CVE), from findings (built after inventory, looked up when asked). Findings off or not built: no device is marked. The feeds
 // module off: no update counts, as GET /findings/plan then lists none.
 func (f findingCounts) RiskByAsset(ctx context.Context) (map[string]inventory.RiskCounts, error) {
@@ -245,7 +245,7 @@ func (w wazuhAgents) addresses(ctx context.Context) ([]string, []string, error) 
 	return w.d.AgentIntake.WazuhAgentAddresses(ctx)
 }
 
-// gatewayCache is inventory.Config.Gateway (D-511): the box's IPv4 default gateway from vedette-host state/net, kept for a minute so
+// gatewayCache is inventory.Config.Gateway: the box's IPv4 default gateway from vedette-host state/net, kept for a minute so
 // reading the device list does not ask the host each time; a failed read is kept as unknown (the zero address) for the same minute,
 // so a host that does not answer costs one timeout a minute, not one per page (#714 M3).
 type gatewayCache struct {

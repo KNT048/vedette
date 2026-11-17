@@ -1,4 +1,4 @@
-// Sinh ../api/openapi.json từ hợp đồng Zod của các module (D-18). Chạy: `pnpm openapi`.
+// Sinh ../api/openapi.json từ hợp đồng Zod của các module. Chạy: `pnpm openapi`.
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { createServer } from 'vite'
 

@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-31 review, slice R1: header values never reach a reader (D-174), an approver reads the whole change (D-175).
+// WP-31 review, slice R1: header values never reach a reader, an approver reads the whole change.
 
 // keyedRequest makes one open request whose API call carries the header "X-Trace: abc123secret".
 func keyedRequest(t *testing.T) *env {
@@ -43,7 +43,7 @@ func actionsJSON(t *testing.T, e *env, role routes.Role) string {
 }
 
 // M1: GET /response/actions is a viewer's call. A viewer reads header names only; the people who approve (operators, administrators) read
-// every value of what they approve, except a credential's (D-174, D-175).
+// every value of what they approve, except a credential's.
 func TestWP31_M1_ViewerReadsActionsWithoutHeaderValues(t *testing.T) {
 	t.Parallel()
 	e := keyedRequest(t)
@@ -84,7 +84,7 @@ func TestWP31_M1_ViewerReadsPlansWithoutHeaderValues(t *testing.T) {
 	}
 }
 
-// D-174 (5): a request stored before credential headers were refused keeps its header, but no read shows its value, an admin's included.
+// A request stored before credential headers were refused keeps its header, but no read shows its value, an admin's included.
 func TestWP31_M1_AStoredCredentialHeaderIsHiddenFromEveryone(t *testing.T) {
 	t.Parallel()
 	e := keyedRequest(t)
@@ -122,7 +122,7 @@ func TestWP31_M1_SimulateHidesCredentialHeaderValues(t *testing.T) {
 	}
 }
 
-// D-174 (2): a template cannot hold a credential header with a literal value, in any step; its value is exactly one placeholder.
+// A template cannot hold a credential header with a literal value, in any step; its value is exactly one placeholder.
 func TestWP31_M1_TemplateWithACredentialHeaderIsRefused(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)
@@ -250,7 +250,7 @@ func TestWP31_L6_AIRequestCarriesTheLabel(t *testing.T) {
 	}
 }
 
-// D-175 (3): the rows of the chain hold the whole call; a cap that cuts keeps the SHA-256 of the whole text.
+// The rows of the chain hold the whole call; a cap that cuts keeps the SHA-256 of the whole text.
 func TestWP31_M2_ChainRowsHoldTheFullCall(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// The guard of skip-tests.txt (D-376): every line parses, a flaky line has an issue and is at most 7 days old, and every listed
+// The guard of skip-tests.txt: every line parses, a flaky line has an issue and is at most 7 days old, and every listed
 // test still exists in its package, so a renamed or deleted test cannot leave a stale line behind.
 func TestSkipListIsValidAndCurrent(t *testing.T) {
 	t.Parallel()

@@ -5,7 +5,7 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { dateTimeText } from './dates'
 import type { HostIp, Snapshot } from './types'
 
-// D-571 (S-EXP-2, FULL-5 slice 3): a domain's deep scan per address. Each public IPv4 address its names resolve to, the names that led to
+// S-EXP-2: a domain's deep scan per address. Each public IPv4 address its names resolve to, the names that led to
 // it, what this run's deep scan did with it and what it found there; the details (services, exploited CVEs, web findings, OpenVAS) are
 // in the sections below, by address.
 type Deep = NonNullable<HostIp['deep']>

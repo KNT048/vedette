@@ -176,7 +176,7 @@ func (o *Ops) cmdOSInstall() server.Command {
 			if _, err := o.platform(); err != nil {
 				return err
 			}
-			if err := o.coreFree(); err != nil { // the pre_os_update backup is a backup of core: same rule as backup.create (D-157)
+			if err := o.coreFree(); err != nil { // the pre_os_update backup is a backup of core: same rule as backup.create
 				return err
 			}
 			if o.dpkgLocked() {
@@ -236,8 +236,8 @@ func (o *Ops) installOS(ctx context.Context, rc *server.RunContext, scope, snaps
 	}
 	var todo []Upgrade
 	for _, u := range sim.Upgrades {
-		// vedette-host is never upgraded from the host's own cgroup (FORBID-7, D-316): only host.self_update's
-		// applier installs it. No apt repository carries it (D-81); this is the second layer.
+		// vedette-host is never upgraded from the host's own cgroup (FORBID-7): only host.self_update's
+		// applier installs it. No apt repository carries it; this is the second layer.
 		if isHostPkg(u.Name) {
 			continue
 		}

@@ -6,7 +6,7 @@ default: off
 depends: [core]
 permissions: ["outbound:https"]     # discovery, token, JWKS tới IdP của khách khai báo
 ports: []                           # /auth/oidc/* và trang /sso/callback trên cổng 8443 của core
-container: core        # D-55
+container: core
 tables_prefix: oidc_
 tables: [oidc_config, oidc_flow]
 stories: [S-CORE-3]

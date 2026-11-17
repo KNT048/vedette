@@ -28,7 +28,7 @@ import type { BulkAction, FindingRow } from './types'
 import { NotRelevantToggle, isNotRelevant } from './notRelevant'
 import { RiskMarker, riskWord } from '@/features/inventory/RiskMarker'
 
-/** The three lists (D-543): Open = confirmed + suspected, Accepted risk, Handled = patched / mitigated / false positive / not relevant. */
+/** The three lists: Open = confirmed + suspected, Accepted risk, Handled = patched / mitigated / false positive / not relevant. */
 type Tab = 'open' | 'accepted' | 'handled'
 const inTab: Record<Tab, (f: FindingRow) => boolean> = {
   open: (f) => isOpen(f.status),
@@ -37,12 +37,12 @@ const inTab: Record<Tab, (f: FindingRow) => boolean> = {
 }
 /** Inside Open: `?status=confirmed|suspected` narrows it (the KPI "confirmed" cell links there). */
 type OpenStatus = 'all' | 'confirmed' | 'suspected'
-/** Độ chắc chắn (D-484): tất cả / đã xác nhận hoặc theo phiên bản / chỉ khớp tên sản phẩm. */
+/** Độ chắc chắn: tất cả / đã xác nhận hoặc theo phiên bản / chỉ khớp tên sản phẩm. */
 type Certainty = 'all' | 'likely' | 'unverified'
 const certain: Record<Certainty, (f: FindingRow) => boolean> = { all: () => true, likely: (f) => !unverified(f), unverified }
 const BULK: BulkAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk']
 
-/** Một hành động, một ghi chú cho các phát hiện đã chọn (W1-12): mỗi phát hiện vẫn có dòng lịch sử và kiểm toán riêng. */
+/** Một hành động, một ghi chú cho các phát hiện đã chọn: mỗi phát hiện vẫn có dòng lịch sử và kiểm toán riêng. */
 function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]; open: boolean; onOpenChange: (v: boolean) => void; opener: RefObject<HTMLButtonElement | null>; onDone: () => void }) {
   const { t } = useTranslation('findings')
   const bulk = useBulkStatus()
@@ -91,7 +91,7 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
   )
 }
 
-/** The status, and for an accepted risk the day it ends (D-498). */
+/** The status, and for an accepted risk the day it ends. */
 function StatusCell({ r }: { r: FindingRow }) {
   const { t } = useTranslation('findings')
   return (
@@ -111,9 +111,9 @@ function List() {
   const device = params.get('device') ?? ''
   const product = params.get('product') ?? ''
   const severity = params.get('severity') ?? ''
-  const fixKey = params.get('fix') ?? '' // D-545: the findings one update fixes, as rows (to select and handle them)
+  const fixKey = params.get('fix') ?? '' // The findings one update fixes, as rows (to select and handle them)
   const status: OpenStatus = params.get('status') === 'confirmed' ? 'confirmed' : params.get('status') === 'suspected' ? 'suspected' : 'all'
-  // kien G5: Handled hides what was closed as not relevant until `?notrelevant=show` (a shareable link, like the other filters)
+  // Handled hides what was closed as not relevant until `?notrelevant=show` (a shareable link, like the other filters)
   const showNotRelevant = params.get('notrelevant') === 'show'
   const setParam = (k: string, v: string) => { if (v) params.set(k, v); else params.delete(k); setParams(params, { replace: true }) }
   const [certainty, setCertainty] = useState<Certainty>('all')
@@ -135,8 +135,8 @@ function List() {
     .filter((f) => !s || [f.cve, name(f), f.asset?.ip ?? '', f.kev?.display ?? ''].some((v) => v.toLowerCase().includes(s)))
   // The tab being shown decides which rows are selectable: selection is cleared on a tab change by the filter below (hidden rows never stay selected).
   const tabId = (['open', 'accepted', 'handled'] as Tab[]).find((x) => x === params.get('tab')) ?? 'open'
-  // D-545: in Open, the findings one update fixes together are one item above the table, not one row each (unless ?fix= asks for them).
-  // kien G8: the findings one update fixes are an action of To fix; this list is every open finding, one row each
+  // In Open, the findings one update fixes together are one item above the table, not one row each (unless ?fix= asks for them).
+  // The findings one update fixes are an action of To fix; this list is every open finding, one row each
   const rows = rowsFor(tabId)
   const fixAction = useFixAction()
   const fixShown = fixKey ? items?.find((f) => f.fix?.group === fixKey)?.fix : undefined
@@ -169,7 +169,7 @@ function List() {
     </span>
   )
   const columns: ColumnDef<FindingRow>[] = [
-    // kien G5: no "Select all 0 findings" on an empty list
+    // No "Select all 0 findings" on an empty list
     ...(can && rows.length > 0 ? [{ id: 'select', enableSorting: false, header: () => <Checkbox checked={allShown ? true : shown.length > 0 ? 'indeterminate' : false} onCheckedChange={(v) => toggleAll(v === true)} aria-label={t('bulk.selectAll', { count: rows.length })} />, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<FindingRow>] : []),
     { id: 'device', header: t('col.device'), accessorFn: (r) => name(r), cell: ({ row: { original: r } }) => (
       <div className="grid">
@@ -287,9 +287,9 @@ function List() {
   )
 
   const toFix = useToFix()
-  // G4: each device's risk marker, from To fix's own classification (findings.RiskMap; the same value as the device list)
-  const risk = (id: string) => toFix.data?.risks[id] ?? null // every marked device, not only the 500 To fix lists (review r2 of #949)
-  // kien G8, review r1 of #943: a link that carries a finding filter (?cve=, ?fix=, the old shapes of the CVE page, Home and the device
+  // Each device's risk marker, from To fix's own classification (findings.RiskMap; the same value as the device list)
+  const risk = (id: string) => toFix.data?.risks[id] ?? null // every marked device, not only the 500 To fix lists (#949)
+  // A link that carries a finding filter (?cve=, ?fix=, the old shapes of the CVE page, Home and the device
   // page) opens the findings table with it, never To fix, which would drop it
   const filterTab = !params.get('tab') && (params.get('cve') || params.get('fix')) ? 'open' : null
   useEffect(() => { if (filterTab) { params.set('tab', filterTab); setParams(params, { replace: true }) } }, [filterTab, params, setParams])
@@ -298,17 +298,17 @@ function List() {
   const unc = (q.data?.unchecked ?? []).filter((x) => !device || x.asset_id === device)
   const inputDeviceName = [...need.map((x) => x.asset), ...unc.map((x) => x.asset), ...toFixDevices.map((x) => x.asset)].find((x) => x?.id === device)?.name ?? t('toFix.thisDevice')
   const inputCount = need.length + unc.length + toFixDevices.reduce((n, x) => n + unproved(x).length, 0)
-  // review r1 of #943: never "nothing needs your input" while the unproved matches are unread or failed
+  // #943: never "nothing needs your input" while the unproved matches are unread or failed
   const inputPanel = (
     <QueryState query={q}>
       {() => <>
-      {/* review r2 of #943: a device filter here is visible and clears in one click, as on To fix */}
+      {/* #943: a device filter here is visible and clears in one click, as on To fix */}
       {device ? <Button size="sm" className="mb-3 w-fit" onClick={() => setParam('device', '')}><X />{t('input.clearDevice', { device: inputDeviceName })}</Button> : null}
       {inputCount === 0 && toFix.data ? (
         <EmptyState title={t('input.empty')}>{t('input.emptyBody')}</EmptyState>
       ) : (
         <div className="grid gap-3">
-          {/* kien G15: one block per device, the most urgent first (To fix's order), each item with its next step there */}
+          {/* One block per device, the most urgent first (To fix's order), each item with its next step there */}
           <NeedsInput need={need} unc={unc} devices={toFixDevices} order={(toFix.data?.devices ?? []).map((x) => x.asset.id)} risks={toFix.data?.risks ?? {}} device={device} />
           {toFix.isError ? <p role="alert" className="text-sm text-danger">{t('input.toFixError', { reason: errMsg(toFix.error) })}</p>
             : toFix.isPending ? <p className="text-sm text-muted">{t('input.toFixPending')}</p> : null}
@@ -330,7 +330,7 @@ function List() {
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PlanLine />
       <PageTabs label={t('tabs.label')} tabs={[
-        // kien G8: To fix (by device, then what to do) is the default; what only a person can settle is Needs your input
+        // To fix (by device, then what to do) is the default; what only a person can settle is Needs your input
         { id: 'fix', label: t('tabs.fix'), panel: <ToFixTab q={toFix} /> },
         { id: 'input', label: t('tabs.input'), panel: inputPanel, badge: inputCount ? { count: inputCount, label: t('tabs.inputBadge') } : undefined },
         { id: 'open', label: t('tabs.open'), panel: panel('open'), badge: { count: confirmed, label: t('tabs.openBadge') } },
@@ -342,8 +342,8 @@ function List() {
   )
 }
 
-/** D-613 (S-TIER-1): one line to Updates to plan when updates there fix CVEs not exploited yet; those are never findings. M2-9 (walk
- * n74): each number links to the tab that shows that many updates: "1 update to plan fixes CVEs likely to be exploited" opens Likely
+/** S-TIER-1: one line to Updates to plan when updates there fix CVEs not exploited yet; those are never findings.
+ * Each number links to the tab that shows that many updates: "1 update to plan fixes CVEs likely to be exploited" opens Likely
  * (its heading says "1 update to plan for CVEs likely to be exploited"), "(3 in all)" opens All; no likely one: the count opens All. */
 function PlanLine() {
   const { t } = useTranslation('findings')

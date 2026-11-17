@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/notify"
 )
 
-// fakeHits answers the connection counts of the honeypot hits (D-496).
+// fakeHits answers the connection counts of the honeypot hits.
 type fakeHits struct {
 	conns map[string]int
 	err   error

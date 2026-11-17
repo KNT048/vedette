@@ -1,4 +1,4 @@
-// D-624, #818, #819 (S-CORE-1): what the v1 GUI shows of the preview modules and of the modules left out of v1.
+// S-CORE-1: what the v1 GUI shows of the preview modules and of the modules left out of v1.
 import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -11,7 +11,7 @@ const mainNav = () => screen.getByRole('navigation', { name: 'Main navigation' }
 const settingsNav = () => screen.getByRole('navigation', { name: 'Settings sections' })
 const LEAVING = 'Not part of v1: you can turn it off; once off it is hidden.'
 
-describe('D-624: preview modules (#818)', () => {
+describe('preview modules (#818)', () => {
   it('a preview module that is on has a Preview badge in the nav, on its Settings → Modules row and on its page header; a v1 module has none', async () => {
     renderApp('/honeypot')
     const traps = await within(await screen.findByRole('navigation', { name: 'Main navigation' })).findByRole('link', { name: 'Internal traps Preview' })
@@ -34,7 +34,7 @@ describe('D-624: preview modules (#818)', () => {
   })
 })
 
-describe('D-624: modules left out of v1 (#819)', () => {
+describe('modules left out of v1 (#819)', () => {
   it('off: absent from the nav, Settings → Modules, the Settings menu, Users (SSO) and Incidents (Respond); a direct link says it is not part of v1', async () => {
     setModule('response', false) // mcp-server, auth-oidc and scan-credentialed are off in the mock already
     const u = userEvent.setup()
@@ -54,7 +54,7 @@ describe('D-624: modules left out of v1 (#819)', () => {
   it('off: opening its Settings path says it is not part of v1, with no link to turn it on', async () => {
     renderApp('/settings/mcp')
     expect(await screen.findByText('MCP server is not part of v1')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: 'MCP server' })).toBeInTheDocument() // n72: the page has its h1
+    expect(screen.getByRole('heading', { level: 1, name: 'MCP server' })).toBeInTheDocument() // the page has its h1
     expect(screen.queryByRole('link', { name: 'Open module settings' })).toBeNull()
     expect(screen.queryByRole('switch', { name: 'MCP server' })).toBeNull()
   })
@@ -117,7 +117,7 @@ describe('D-624: modules left out of v1 (#819)', () => {
   })
 })
 
-describe('D-624: setup bundles turn on v1 modules only (supervisor 2026-11-16)', () => {
+describe('setup bundles turn on v1 modules only', () => {
   it('the bundle step lists only v1 modules; the custom list labels preview modules and offers no hidden one; Small business leaves every preview module off', async () => {
     const u = userEvent.setup()
     renderApp('/setup', { role: null, setupComplete: false })
@@ -131,7 +131,7 @@ describe('D-624: setup bundles turn on v1 modules only (supervisor 2026-11-16)',
     await u.type(screen.getByLabelText('Repeat password'), 'a long enough sentence')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     const range = await screen.findByLabelText('Range 1')
-    await u.clear(range) // the box's own network may be offered there (D-405)
+    await u.clear(range) // the box's own network may be offered there
     await u.type(range, '192.168.10.0/24')
     await u.click(screen.getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }))
     await u.click(screen.getByRole('button', { name: 'Continue' }))
@@ -150,7 +150,7 @@ describe('D-624: setup bundles turn on v1 modules only (supervisor 2026-11-16)',
   })
 })
 
-describe('D-624: more entry points of the post-v1 modules (review r1, L6)', () => {
+describe('more entry points of the post-v1 modules', () => {
   const APPROVE = 'Approve actions from this channel'
 
   it('channel Approvals: a channel without them has no section; one with them can turn them off, not change its approvers', async () => {

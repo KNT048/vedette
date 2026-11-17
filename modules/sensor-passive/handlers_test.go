@@ -12,7 +12,7 @@ import (
 )
 
 // GET /inventory/sensors answers with the shape of contract.ts: one card, null interface and last_seen
-// before the sensor has said anything (never_connected, not offline: D-387), an empty interface list (the cards come
+// before the sensor has said anything (never_connected, not offline), an empty interface list (the cards come
 // from its heartbeat), SPAN verdict off.
 func TestSensorsHandler(t *testing.T) {
 	t.Parallel()
@@ -46,7 +46,7 @@ func TestSensorsHandler(t *testing.T) {
 	}
 }
 
-// W2-6: while Config.Starting says the box is still starting the sensor container, a sensor that is not online is "starting"
+// While Config.Starting says the box is still starting the sensor container, a sensor that is not online is "starting"
 // (not never_connected); once it reports it is online whatever Starting says, and when Starting ends it is never_connected again.
 func TestSensorsHandlerSaysStartingWhileTheBoxStartsIt(t *testing.T) {
 	t.Parallel()
@@ -76,7 +76,7 @@ func TestSensorsHandlerSaysStartingWhileTheBoxStartsIt(t *testing.T) {
 	}
 }
 
-// PATCH /inventory/sensors/{id} (D-387, D-393): without a host the card is chosen among the heartbeat's cards (SPAN or not), a refusal is a
+// PATCH /inventory/sensors/{id}: without a host the card is chosen among the heartbeat's cards (SPAN or not), a refusal is a
 // plain sentence under bad_interface, and with a host it is 409 set_in_box_network and nothing changes.
 func TestPatchSensorChoosesTheSpanCardOnlyWithoutAHost(t *testing.T) {
 	t.Parallel()
@@ -133,7 +133,7 @@ func TestPatchSensorChoosesTheSpanCardOnlyWithoutAHost(t *testing.T) {
 	if err != nil || got.ID != sp.SensorID || got.Interface.Value != "eth1" || !got.Span || !got.Chosen {
 		t.Fatalf("SPAN on eth1: %+v %v", got, err)
 	}
-	// D-393: a card with an address is chosen to listen on, without SPAN; "" goes back to the default card (not a choice).
+	// A card with an address is chosen to listen on, without SPAN; "" goes back to the default card (not a choice).
 	if got, err = patch("eth0", false); err != nil || got.Interface.Value != "eth0" || got.Span || !got.Chosen {
 		t.Fatalf("listen on eth0: %+v %v", got, err)
 	}

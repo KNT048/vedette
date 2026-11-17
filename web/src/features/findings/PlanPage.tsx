@@ -1,4 +1,4 @@
-// Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616, D-623): route /plan, Monitor group after Findings, module findings.
+// Updates to plan (S-TIER-1, S-TIER-2): route /plan, Monitor group after Findings, module findings.
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
@@ -18,8 +18,8 @@ function Page() {
   const { t } = useTranslation('findings')
   const [params, setParams] = useSearchParams()
   const asked = FILTERS.find((f) => f === params.get('tier'))
-  // D-623: until a person picks a filter, the page opens on "Likely to be exploited" whenever some update fixes such a CVE: it asks
-  // for that tier first and for "All" only when it is empty (review r1 #5 of #808: never the heaviest answer just to choose)
+  // Until a person picks a filter, the page opens on "Likely to be exploited" whenever some update fixes such a CVE: it asks
+  // for that tier first and for "All" only when it is empty (#808: never the heaviest answer just to choose)
   const likely = usePlan('likely', undefined, !asked)
   const tier: PlanFilter = asked ?? (likely.data && likely.data.items.length === 0 ? 'all' : 'likely')
   const q = usePlan(tier)
@@ -32,7 +32,7 @@ function Page() {
   return (
     <>
       <PageHeader
-        // M2-9 (walk n74): the count names the tab it counts, so the Findings line's number reads the same here
+        // The count names the tab it counts, so the Findings line's number reads the same here
         title={!p || !p.compared || p.items.length === 0 ? t('plan.title') : t(`plan.titleCount.${tier}`, { count: p.items.length })}
         stories={['S-TIER-1', 'S-TIER-2']}
         meta={dataLine}
@@ -41,7 +41,7 @@ function Page() {
       />
       <p className="mb-4 text-sm">{t('plan.introLine')} <Link to="/findings" className="text-accent underline underline-offset-4">{t('plan.toFindings')}</Link></p>
       <div className="mb-4 flex max-w-full items-center gap-1 overflow-x-auto">
-        {/* M2-9: each filter shows how many updates it lists, from the one answer's counts: "Likely to be exploited (1)", "All (3)" */}
+        {/* each filter shows how many updates it lists, from the one answer's counts: "Likely to be exploited (1)", "All (3)" */}
         <Segmented<PlanFilter> label={t('plan.filterLabel')} value={tier} onChange={setTier} options={FILTERS.map((v) => ({ value: v,
           label: p?.compared ? t('plan.filterCount', { label: t(`plan.filter.${v}`), count: p.counts[v] }) : t(`plan.filter.${v}`) }))} />
         <InfoTip topic={t('plan.filterLabel')}>{FILTERS.map((v) => <p key={v}><span className="font-medium">{t(`plan.filter.${v}`)}</span>{': '}{t(`plan.filterHint.${v}`)}</p>)}</InfoTip>

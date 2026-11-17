@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// D-157 (WP-31 M4): backup retention never drops a backup something still needs and always keeps the one
+// WP-31 M4: backup retention never drops a backup something still needs and always keeps the one
 // just made, a missing or corrupt backup is not retried for ever (and an I/O error is), and os.install waits
 // for core.
 
@@ -136,7 +136,7 @@ func TestContract_Backup_RestoresHaveTheirOwnRetentionGroup(t *testing.T) {
 }
 
 // The backup of core's journal is kept too (the revert after a failed or interrupted start). The realistic
-// case: the journal says unrecoverable, the person runs backup.restore (D-142), and the pre_restore backup that
+// case: the journal says unrecoverable, the person runs backup.restore, and the pre_restore backup that
 // restore makes must not push the journal's backup out.
 func TestContract_Backup_RetentionKeepsTheBackupOfCoresJournalWhileBackupRestoreRuns(t *testing.T) {
 	t.Parallel()

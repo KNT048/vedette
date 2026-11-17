@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// G2 (kien, J2): a person renames any device in Vedette. The name is the device's own (user_name), apart from the host name the
+// A person renames any device in Vedette. The name is the device's own (user_name), apart from the host name the
 // network reports; set, it wins in the one naming rule every page and module reads (DisplayName, Names, DeviceRefs); empty is the
 // default name again.
 
@@ -22,7 +22,7 @@ func TestDisplayName_TheNameInVedetteWins(t *testing.T) {
 		{"Office firewall", "fw-core", "Fortinet", "FortiGate 60F", "192.168.18.1", "discovered", "", "Office firewall"},
 		{"  Office firewall ", "", "", "", "192.168.18.1", "discovered", "", "Office firewall"},
 		{"Accounting PC", "", "", "", "—", "manual", "Microsoft Office", "Accounting PC"}, // no "(no device)" once a person named it
-		{"", "fw-core", "Fortinet", "", "192.168.18.1", "discovered", "", "fw-core"},      // empty: the rule of D-471
+		{"", "fw-core", "Fortinet", "", "192.168.18.1", "discovered", "", "fw-core"},      // empty: the naming rule
 		{" ", "", "", "", "192.168.18.1", "discovered", "", "192.168.18.1"},
 	} {
 		if got := inventory.DisplayName(c.name, c.host, c.vendor, c.model, c.ip, c.origin, c.product); got != c.want {
@@ -31,7 +31,7 @@ func TestDisplayName_TheNameInVedetteWins(t *testing.T) {
 	}
 }
 
-// firewall is kien's device: found on the network at 192.168.18.1 with a host name a sensor heard.
+// firewall is a device found on the network at 192.168.18.1 with a host name a sensor heard.
 func (e *env) firewall() string {
 	e.t.Helper()
 	ip := netip.MustParseAddr("192.168.18.1")
@@ -52,7 +52,7 @@ func (e *env) nameOf(id string) string {
 	return names[id]
 }
 
-func TestContract_G2_RenameReachesEveryReader(t *testing.T) {
+func TestContract_RenameReachesEveryReader(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.firewall()
@@ -114,7 +114,7 @@ func TestContract_G2_RenameReachesEveryReader(t *testing.T) {
 	}
 }
 
-func TestContract_G2_SameNameIsANoOpAndEmptyIsTheDefault(t *testing.T) {
+func TestContract_SameNameIsANoOpAndEmptyIsTheDefault(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.firewall()
@@ -144,7 +144,7 @@ func TestContract_G2_SameNameIsANoOpAndEmptyIsTheDefault(t *testing.T) {
 	}
 }
 
-func TestContract_G2_BadNamesAreRefused(t *testing.T) {
+func TestContract_BadNamesAreRefused(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.firewall()
@@ -168,7 +168,7 @@ func TestContract_G2_BadNamesAreRefused(t *testing.T) {
 	}
 }
 
-func TestContract_G2_AMergeKeepsAName(t *testing.T) {
+func TestContract_AMergeKeepsAName(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	into := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.30.1"})
@@ -184,7 +184,7 @@ func TestContract_G2_AMergeKeepsAName(t *testing.T) {
 	}
 }
 
-func TestHandlers_G2_PatchName(t *testing.T) {
+func TestHandlers_PatchName(t *testing.T) {
 	t.Parallel()
 	a := newAPI(t)
 	id := a.want("POST", "/inventory/devices", "operator", `{"catalog_id":"fortigate","ip":"192.168.30.1"}`, 201, "")["id"].(string)
@@ -207,7 +207,7 @@ func TestHandlers_G2_PatchName(t *testing.T) {
 
 // review r1 of #929 (Low): the export keeps the host name and the name in Vedette in their own columns, and an import reads them back
 // the same way: the person's name never becomes a host name observation.
-func TestContract_G2_CSVKeepsBothNames(t *testing.T) {
+func TestContract_CSVKeepsBothNames(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.firewall()
@@ -259,7 +259,7 @@ func TestContract_G2_CSVKeepsBothNames(t *testing.T) {
 }
 
 // review r1 of #929 (Low): a duplicate address names the device that has it as every page does.
-func TestContract_G2_DuplicateIPNamesTheDevice(t *testing.T) {
+func TestContract_DuplicateIPNamesTheDevice(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ip := netip.MustParseAddr("192.168.18.1")

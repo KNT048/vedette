@@ -25,7 +25,7 @@ const vulns = (kev as { vulns: Vuln[] }).vulns
 const hasTemplate = (cve: string) => vulns.find((v) => v.cve === cve)?.has_template ?? false
 const templateName = (cve: string) => `http/cves/${cve.split('-')[1]}/${cve}.yaml`
 
-// Mọi chuỗi hiển thị bằng tiếng Anh (D-28).
+// Mọi chuỗi hiển thị bằng tiếng Anh.
 type StoredRow = RunResultRow
 interface StoredRun extends ScanRun { target_ids: string[]; stop_requested_at: string | null }
 const row = (t: ScanTarget, template: string | null, result: RunResultRow['result'], finding_id: string | null, note: string): StoredRow => ({ target_id: t.id, label: t.label, ip: t.ip, template, result, finding_id, note })
@@ -57,7 +57,7 @@ const external = {
 }
 const config = collection<ScanConfig>('scan_config', () => ({
   window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' },
-  // The sample excludes a spare address, not the box: since D-470 the box is pick-only, so it needs no exclusion line.
+  // The sample excludes a spare address, not the box: the box is pick-only, so it needs no exclusion line.
   rate: 5, exclusions: ['192.168.10.240'], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true,
   schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' },
 }), () => ({
@@ -98,7 +98,7 @@ function seedRuns(): StoredRun[] {
     const identification = trigger === 'manual' ? list.map((x, i) => (i < done ? identOne(x) : identRow(x, [], 'not_scanned', SKIPPED))) : []
     return { id, trigger, trigger_note: note, started_at: started, started_by: trigger === 'manual' ? 'it@acme.example' : 'system', ended_at: new Date(Date.parse(started) + mins * 60_000).toISOString(), status, total: list.length, done, current: null, progress: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, target_ids: list.map((x) => x.id), stop_requested_at: null, identification }
   }
-  // A scheduled run and a KEV rescan never touch a device that needs a hand pick (D-126 (2)); a manual run may, it was picked.
+  // A scheduled run and a KEV rescan never touch a device that needs a hand pick; a manual run may, it was picked.
   const auto = t.filter((x) => !x.pick_only)
   const kevHit = findingsStore.get().find((f) => auto.some((x) => x.id === f.asset_id) && hasTemplate(f.cve) && (f.status === 'confirmed' || f.status === 'suspected'))
   const kevTargets = kevHit ? auto.filter((x) => x.id === kevHit.asset_id) : auto.slice(0, 1)
@@ -117,7 +117,7 @@ const STOPPED_MID = 'Stopped while this device was being scanned: no result. The
 function seedEvents(): RescanEvent[] {
   // Từ KEV thật: CVE có mẫu quét, khớp phần mềm trong kiểm kê mẫu.
   const out: RescanEvent[] = []
-  // a rescan only scans devices allowed without a hand pick (D-126 (2)), so a match names only those
+  // a rescan only scans devices allowed without a hand pick, so a match names only those
   const pickOnly = new Set(targets().filter((x) => x.pick_only).map((x) => x.id))
   for (const v of vulns.filter((x) => x.has_template).slice(0, 40)) {
     const key = `${v.vendor}|${v.product}`.toLowerCase()
@@ -128,10 +128,10 @@ function seedEvents(): RescanEvent[] {
   }
   const unused = () => vulns.find((v) => v.has_template && !out.some((o) => o.cve === v.cve))?.cve
   out.push({ id: 'ev-nomatch', ts: daysAgo(2), cve: unused() ?? 'CVE-2026-0001', product: 'A product you do not use', devices: [], latency_min: null, run_id: null, result: 'no_match' })
-  // D-145 (7): every matching device may only be scanned by a hand pick (fragile, unclassified, hand-declared; D-126 (2))
+  // Every matching device may only be scanned by a hand pick (fragile, unclassified, hand-declared)
   const pick = targets().filter((x) => x.pick_only).map((x) => x.label).slice(0, 2)
   if (pick.length) out.push({ id: 'ev-pick', ts: daysAgo(4), cve: unused() ?? 'CVE-2026-0002', product: 'A product only on devices that need a hand pick', devices: pick, latency_min: null, run_id: null, result: 'pick_only' })
-  // D-261 (2): a rescan that waited 7 days stays in the log, with the reason
+  // A rescan that waited 7 days stays in the log, with the reason
   out.push({ id: 'ev-expired', ts: daysAgo(9), cve: unused() ?? 'CVE-2026-0005', product: 'A product whose scan template never arrived', devices: [], latency_min: null, run_id: null, result: 'expired_no_template' })
   return out.sort((a, b) => b.ts.localeCompare(a.ts))
 }
@@ -147,12 +147,12 @@ const hm = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3))
 const HM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 const inTimeRange = (at: string, from: string, to: string) => (hm(from) < hm(to) ? hm(at) >= hm(from) && hm(at) < hm(to) : hm(at) >= hm(from) || hm(at) < hm(to))
 
-/** ISO weekday: 1 = Monday … 7 = Sunday (D-57). */
+/** ISO weekday: 1 = Monday … 7 = Sunday. */
 const isoDay = (d: Date) => d.getDay() || 7
 
 /** A slot runs when its window starts on a window day (a window that crosses midnight counts by its start day, so a slot after midnight
- *  belongs to the window of the day before: #164 review M1) and, weekly, on the chosen weekday (the slot's own day). The first
- *  scheduled run (first: none ran yet) takes the next window of any window day (W3-6; modules/scan slotOK). */
+ *  belongs to the window of the day before: #164) and, weekly, on the chosen weekday (the slot's own day). The first
+ *  scheduled run (first: none ran yet) takes the next window of any window day (modules/scan slotOK). */
 function slotOK(c: ScanConfig, d: Date, first = false): boolean {
   const start = new Date(d)
   if (hm(c.window.from) > hm(c.window.to) && hm(c.schedule.at) < hm(c.window.to)) start.setDate(start.getDate() - 1)
@@ -175,9 +175,9 @@ function targets(): ScanTarget[] {
   const c = config.get()
   const sc = scope.get()
   const findings = findingsStore.get()
-  // D-126 (inventory VulnScanPolicy): a device set to "never scan", or whose network scan is off on its page (D-601: a device added by
+  // inventory VulnScanPolicy: a device set to "never scan", or whose network scan is off on its page (a device added by
   // hand starts off), is never scanned. Picking a device by hand is the consent for it, so fragile and unclassified devices and the box
-  // itself (D-470) can be picked (fragile and unclassified at a quarter of the speed); schedule and KEV rescans skip them.
+  // itself can be picked (fragile and unclassified at a quarter of the speed); schedule and KEV rescans skip them.
   const meta = peek<Record<string, { regular_scan?: string; scan_source?: 'on' | 'off' }>>('inv_meta') ?? {}
   const scanOff = (a: Asset) => (meta[a.id]?.scan_source ?? (a.origin === 'manual' ? 'off' : 'on')) === 'off'
   const open = new Map<string, number>()
@@ -195,9 +195,9 @@ function targets(): ScanTarget[] {
 
 /** Whether the scanner of the scan container answers (heartbeat, nuclei present). Tests and e2e flip it to see the 503. */
 export const scannerStore = collection<{ available: boolean }>('scan_scanner', () => ({ available: true }))
-/** Whether the organization time zone can be read. While it cannot, nothing automated starts and the schedule says why (D-261 (3)). Tests flip it. */
+/** Whether the organization time zone can be read. While it cannot, nothing automated starts and the schedule says why. Tests flip it. */
 export const zoneStore = collection<{ readable: boolean }>('scan_zone', () => ({ readable: true }))
-/** Until when the scanner still works on a run that Stop now already closed (D-261 (4)); a new scan is refused until then. Tests set it. */
+/** Until when the scanner still works on a run that Stop now already closed; a new scan is refused until then. Tests set it. */
 export const engineStore = collection<{ busyUntil: number }>('scan_engine', () => ({ busyUntil: 0 }))
 const engineBusy = () => Date.now() < engineStore.get().busyUntil
 const SCANNER_DOWN = "The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again."
@@ -216,7 +216,7 @@ const REASON: Record<NonNullable<ScanTarget['reason']>, string> = {
 }
 const reasonOf = (r: ScanTarget['reason']) => REASON[r ?? 'out_of_scope']
 
-// D-501: Scan now identifies each device first (nmap in the backend). The notes are the backend's words (modules/scan/identify.go identNote).
+// Scan now identifies each device first (nmap in the backend). The notes are the backend's words (modules/scan/identify.go identNote).
 const IDENT_NOTE: Record<IdentReason | 'identified', string> = {
   identified: 'Recorded on the device page. Software with a version is compared with the CISA list of exploited flaws; an operating system nmap only guessed is not, until you add it with its version there.',
   os_unconfirmed: 'nmap only guessed the operating system and no service gave a version, so nothing is compared with the CISA list yet: a guess would flag every flaw of that system. Add the operating system and its version on the device page to check it.',
@@ -279,7 +279,7 @@ function scanOne(t: ScanTarget, stopOnSlow: boolean): { rows: StoredRow[]; probe
   return { rows, probes: out, unresponsive: false }
 }
 
-/** Ghi kết quả vào phát hiện dùng chung: chỉ khớp → xác nhận. Không khớp chỉ là "không báo khớp" (nuclei chỉ in dòng khớp, D-133 (5)): không bao giờ đóng, hạ hay ghi gì lên phát hiện. */
+/** Ghi kết quả vào phát hiện dùng chung: chỉ khớp → xác nhận. Không khớp chỉ là "không báo khớp" (nuclei chỉ in dòng khớp): không bao giờ đóng, hạ hay ghi gì lên phát hiện. */
 function applyToFindings(rows: StoredRow[]) {
   const ts = nowIso()
   findingsStore.update((l) => l.map((f: Finding) => {
@@ -434,7 +434,7 @@ export const handlers = [
   http.get(`${API}/scans/runs`, ({ request }) => {
     const d = guard('viewer')
     if (d) return d
-    // kien G7b/c: ?asset= keeps the runs that had the device among their targets (the box's RunsOf)
+    // ?asset= keeps the runs that had the device among their targets (the box's RunsOf)
     const asset = new URL(request.url).searchParams.get('asset')
     const list = asset === null ? allRuns() : allRuns().filter((r) => r.target_ids.includes(asset))
     return HttpResponse.json({ items: list.slice(0, 100).map(strip), engine_busy: engineBusy() })

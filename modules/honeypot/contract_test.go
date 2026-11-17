@@ -52,7 +52,7 @@ func TestMigrationsUsePrefix(t *testing.T) {
 // INV-1 (code side): the module cannot connect anywhere. It imports no dialer (net, net/http, os/exec) and never
 // calls Dial; the host is a port. syscall is imported by tail.go alone, for the open flags O_NOFOLLOW and O_NONBLOCK of
 // the log (the log folder belongs to the container), and nothing else of it is used. The packet-level proof (no packet leaves the container towards a source) is WP-08's.
-// INV-14 / D-82: no signal is sent either: that would need a connection.
+// INV-14: no signal is sent either: that would need a connection.
 func TestContract_INV1_NoDialer(t *testing.T) {
 	t.Parallel()
 	banned := map[string]bool{"net": true, "net/http": true, "os/exec": true, "crypto/tls": true, "net/smtp": true}
@@ -79,7 +79,7 @@ func TestContract_INV1_NoDialer(t *testing.T) {
 	}
 }
 
-// INV-2: the services and their fixed ports and protocols (D-467); the generated configuration enables nothing else, never one of
+// INV-2: the services and their fixed ports and protocols; the generated configuration enables nothing else, never one of
 // the modules that are not offered (snmp, llmnr: scapy and raw sockets; portscan: iptables), and gives no two services one port
 // (OpenCanary refuses to start then).
 func TestContract_INV2_FixedPorts(t *testing.T) {
@@ -672,11 +672,11 @@ func TestContract_INV10_POST2_POST4_Tokens(t *testing.T) {
 		t.Fatalf("%+v %v", file, err)
 	}
 	u, _ := e.svc.AddToken(e.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenURL, Name: "Wiki link", PlantAt: "wiki"})
-	// D-465: without a Box address the URL token carries the box's IP, never its host name (vedette-hq here, "vedette" on many boxes)
+	// Without a Box address the URL token carries the box's IP, never its host name (vedette-hq here, "vedette" on many boxes)
 	if u.Password != nil || !strings.HasPrefix(u.Value, "https://192.168.10.2:8443/t/") {
 		t.Fatalf("%+v", u)
 	}
-	// D-468: the box runs no DNS server (D-81/D-82: no project servers), so a DNS token could never alert; none is made.
+	// The box runs no DNS server (no project servers), so a DNS token could never alert; none is made.
 	if _, err := e.svc.AddToken(e.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenDNS, Name: "Backup host", PlantAt: "script"}); err == nil || !strings.Contains(err.Error(), "409 dns_unavailable") {
 		t.Fatalf("DNS token: %v, want 409 dns_unavailable", err)
 	}
@@ -998,7 +998,7 @@ func TestOverviewFields(t *testing.T) {
 			t.Errorf("missing %s in %s", want, raw)
 		}
 	}
-	// D-466 (4): the first Trap IP handed to the host with SMB names the share, the first with HTTP picks the page.
+	// The first Trap IP handed to the host with SMB names the share, the first with HTTP picks the page.
 	e.setup()
 	e.addTrapIP("NAS-ARCHIVE", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	e.addTrapIP("PRN-FLOOR2", "192.168.10.242", honeypot.Printer, honeypot.HTTP)

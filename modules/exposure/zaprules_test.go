@@ -31,7 +31,7 @@ func zapReportOf(t *testing.T, page string, alerts ...zapAlert) []byte {
 	return b
 }
 
-// INV-24, D-565: the rule list applies when a report is read: an IGNORE rule's alert is dropped, a FAIL rule's alert is "fix" and
+// INV-24: the rule list applies when a report is read: an IGNORE rule's alert is dropped, a FAIL rule's alert is "fix" and
 // comes first, a WARN rule's alert is "hardening"; an unlisted rule is "fix" when ZAP rates it high or medium, else "hardening" (review
 // r1 M2); inside each group the riskiest first.
 func TestContract_INV24_RulesGroupTheAlerts(t *testing.T) {
@@ -62,7 +62,7 @@ func TestContract_INV24_RulesGroupTheAlerts(t *testing.T) {
 	}
 }
 
-// D-565: the CVEs and the library of a 10003 alert are read from Retire.js's own sentence and CVE ids only; markup, look-alikes and
+// The CVEs and the library of a 10003 alert are read from Retire.js's own sentence and CVE ids only; markup, look-alikes and
 // oversized text give nothing, never a wrong CVE or product.
 func TestContract_INV24_RetireCVEs(t *testing.T) {
 	t.Parallel()
@@ -98,7 +98,7 @@ func TestContract_INV24_RetireCVEs(t *testing.T) {
 	}
 }
 
-// D-565: the product/version tokens of a Server (10036) or X-Powered-By (10037) header.
+// The product/version tokens of a Server (10036) or X-Powered-By (10037) header.
 func TestContract_INV24_HeaderVersions(t *testing.T) {
 	t.Parallel()
 	tests := []struct{ evidence, want string }{
@@ -114,7 +114,7 @@ func TestContract_INV24_HeaderVersions(t *testing.T) {
 		{"Apache/2.4.49.1.2", "[]"},
 		{"A/1 B/2 C/3 D/4 E/5", "[{A 1 [] } {B 2 [] } {C 3 [] } {D 4 [] }]"},
 		{strings.Repeat("x", maxZapEvidence) + " Apache/2.4.49", "[]"},
-		// a distribution build (review r1 L4): the upstream version, and the distribution its suffix names; an unknown suffix is not read
+		// a distribution build: the upstream version, and the distribution its suffix names; an unknown suffix is not read
 		{"X-Powered-By: PHP/7.4.3-4ubuntu2.24", "[{PHP 7.4.3 [] Ubuntu}]"},
 		{"PHP/8.2.7-1~deb12u1", "[{PHP 8.2.7 [] Debian}]"},
 		{"Apache/2.4.37-62.el8 (Red Hat)", "[{Apache 2.4.37 [] Red Hat}]"},
@@ -169,7 +169,7 @@ func (f *fakeLookupMatcher) Exploited(_ context.Context, cves []string) (map[str
 	return out, f.lookErr
 }
 
-// D-565: when a snapshot is read, a CVE Retire.js names that CISA lists becomes a "js_library" row; a header version goes through the
+// When a snapshot is read, a CVE Retire.js names that CISA lists becomes a "js_library" row; a header version goes through the
 // Matcher unless nmap read a version of the same product on that port, and its row says which header; nothing replaces a row that is
 // already there.
 func TestContract_INV24_ZAPVersionsBecomeExploitedRows(t *testing.T) {
@@ -216,7 +216,7 @@ func TestContract_INV24_ZAPVersionsBecomeExploitedRows(t *testing.T) {
 		got[k] = v
 	}
 	if v := got["80:CVE-2020-11023"]; v.Basis != "js_library" || v.Name == "" || v.DateAdded == nil || !strings.Contains(v.Summary, "jquery 3.4.1") ||
-		!strings.Contains(v.Summary, "does not show that the site uses the affected function; the risk is to visitors' browsers, not the server") { // review r1 M3
+		!strings.Contains(v.Summary, "does not show that the site uses the affected function; the risk is to visitors' browsers, not the server") {
 		t.Fatalf("js row = %+v (all %+v)", v, s.Vulns)
 	}
 	if _, ok := got["80:CVE-2020-11022"]; ok {
@@ -243,7 +243,7 @@ func TestContract_INV24_ZAPVersionsBecomeExploitedRows(t *testing.T) {
 	}
 
 	// The list cannot be read: a "Not checked" line, never "no exploited CVE"; a reason the page may show is said as is, since trying
-	// again does not help while the Feeds module is off (review r1 L1).
+	// again does not help while the Feeds module is off.
 	m.lookErr = &Unavailable{Reason: "the Feeds module is off."}
 	snap := s
 	e.svc.withVulns(e.ctx(), &snap)
@@ -258,7 +258,7 @@ func TestContract_INV24_ZAPVersionsBecomeExploitedRows(t *testing.T) {
 	}
 }
 
-// Review r1 L5: at the cap the "Fix this" rows are kept before any hardening row, even a riskier one.
+// at the cap the "Fix this" rows are kept before any hardening row, even a riskier one.
 func TestContract_INV24_CapKeepsFixFirst(t *testing.T) {
 	t.Parallel()
 	var in []WebFindingRow
@@ -274,7 +274,7 @@ func TestContract_INV24_CapKeepsFixFirst(t *testing.T) {
 	}
 }
 
-// Review r1 L6: a snapshot stored before the list counted alerts the page no longer shows; its "web" line says how many are hidden.
+// a snapshot stored before the list counted alerts the page no longer shows; its "web" line says how many are hidden.
 func TestContract_INV24_OldSnapshotSaysWhatIsHidden(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

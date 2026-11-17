@@ -19,7 +19,7 @@ import (
 )
 
 // The logs module on the real wiring: its sources are named after the inventory device with the same IP, lines go to
-// logs.db (a file of its own, not the main database), and they come out in the "device_logs" log export (D-132).
+// logs.db (a file of its own, not the main database), and they come out in the "device_logs" log export.
 func TestWiringLogsSourcesLinesAndExport(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -152,7 +152,7 @@ func TestSyslogTLSFollowsTheHTTPSCertificateAndIsNilOnLoopback(t *testing.T) {
 	}
 }
 
-// D-210: logs' NeverCount lists the box's own addresses from the sources the box has: the -hosts literals and the container's addresses
+// logs' NeverCount lists the box's own addresses from the sources the box has: the -hosts literals and the container's addresses
 // (an install without vedette-host has nothing more to ask; a host that has not answered is an error, which logs answers by keeping its last set).
 func TestLogsNeverCountListsTheBox(t *testing.T) {
 	t.Parallel()
@@ -170,7 +170,7 @@ func TestLogsNeverCountListsTheBox(t *testing.T) {
 	}
 }
 
-// D-214: deps.SyslogTLS reaches logs: with it a TLS source is accepted, without it (a loopback or dev box) it is refused.
+// deps.SyslogTLS reaches logs: with it a TLS source is accepted, without it (a loopback or dev box) it is refused.
 func TestWiringLogsTLSSourcesFollowDepsSyslogTLS(t *testing.T) {
 	t.Parallel()
 	in := logs.Input{Kind: "fortigate", Name: "FW-TLS", SenderIP: "192.168.30.9", Proto: "tls", Port: 6514}
@@ -255,11 +255,11 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	if err := svc.ExportKnownBad(ctx, time.Time{}, time.Time{}, &out); err != nil || !strings.Contains(out.String(), `"dest":"185.220.101.47"`) || !strings.Contains(out.String(), `"feeds":["`+feedName+`"]`) {
 		t.Fatalf("%q %v", out.String(), err)
 	}
-	// #376 (D-335): the same hit is an ioc_connection event of response, through the real bus, with the trigger fields filled
+	// #376: the same hit is an ioc_connection event of response, through the real bus, with the trigger fields filled
 	if n := s.count(`SELECT count(*) FROM resp_events WHERE id = ? AND trigger = 'ioc_connection' AND asset_id = ? AND fields LIKE '%"dest_ip":"185.220.101.47"%' AND fields LIKE '%"src_ip":"192.168.30.1"%' AND fields LIKE '%"confidence":"0.4"%'`, "ioc:"+h.ID, dev.ID); n != 1 {
 		t.Fatalf("the hit is not a response event (%d)", n)
 	}
-	// #376 (D-337): and it is evidence an AI proposal can cite through the wired port: found, so the gate after evidence answers
+	// #376: and it is evidence an AI proposal can cite through the wired port: found, so the gate after evidence answers
 	body := response.ProposeBody{Trigger: "ioc_connection", ActionID: "blocklist_add", Params: map[string]string{"ip": "185.220.101.47"}, Confidence: 0.5,
 		Evidence: []response.ProposedEvidence{{Kind: "ioc_hit", ID: h.ID}}, Why: "A device talked to a listed address."}
 	if res, err := s.d.Response.Propose(ctx, body); err != nil || res.Outcome != response.OutcomeSuggestion {
@@ -292,7 +292,7 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	if _, ok, err := f.Lookup(ctx, "ip", "10.0.0.1"); ok || err != nil {
 		t.Fatalf("a private address is listed: %v %v", ok, err)
 	}
-	// D-228: hagezi TIF lists a name with all of its subdomains, so a subdomain the device asked for is a hit named after it; the
+	// hagezi TIF lists a name with all of its subdomains, so a subdomain the device asked for is a hit named after it; the
 	// other feed lists names exactly (bad-site.net covers no subdomain)
 	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_ioc (id, type, value, first_seen, last_seen) VALUES ('ioc-t3', 'domain', 'tif-listed.net', ?1, ?1)`, stamp); err != nil {

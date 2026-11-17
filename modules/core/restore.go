@@ -17,14 +17,14 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// Restore of a backup the helper keeps on the box (S-CORE-1, D-377; host-api 6.12). Before backup.restore core
+// Restore of a backup the helper keeps on the box (S-CORE-1; host-api 6.12). Before backup.restore core
 // writes a snapshot of its data WITH the key, which the host keeps as the pre_restore backup and puts back by
 // itself when the restored data does not start (status reverted). A successful restore stops core and swaps its
 // database: whatever core wrote about the run is gone with the old file. So the host's run is the record: core
 // keeps only a copy in core_setting data.restore, and the first read of the run in a process (the Data page
 // polls it, and reconnects to it after the restart) asks the host for the latest backup.restore and settles it
 // into whichever database core now runs on: one audit row data.restore_done per run, the copy, and the removal
-// of the snapshot. The one start-up pass is after a first-run restore, which leaves a marker file (D-544,
+// of the snapshot. The one start-up pass is after a first-run restore, which leaves a marker file (see
 // settleFirstRunRestore). ponytail: no start-up pass otherwise (it would spend a host request on every start); a box
 // restored from Settings -> Data and never opened again keeps its end unaudited and its snapshot until the start-up
 // sweep (1 hour), upgrade: a start-up pass once the host's rate limit has room for it.
@@ -168,7 +168,7 @@ func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CoreP
 		return nil, mapHostCode(ctx, h.log, api.CodeBackupUnknown, "", 0)
 	}
 	b := bl.Backups[i]
-	// Step-up as for Delete all data (D-76, D-98, D-154): the current password, counted against the re-auth limiter, then a
+	// Step-up as for Delete all data: the current password, counted against the re-auth limiter, then a
 	// fresh two-step code when it is on.
 	if err := h.auth.VerifyOwnPassword(ctx, c.ID, req.Password, "Wrong password. The password is needed to restore a backup."); err != nil {
 		return nil, err
@@ -210,7 +210,7 @@ func (h *OSHandlers) lockRestore(ctx context.Context) (unlock func(), err error)
 
 // startRestore runs backup.restore of b (in the host's list) under lockRestore: the intent's audit row (admin: the caller is
 // re-checked as an administrator in it), a snapshot of the current data WITH the key that the host keeps as pre_restore,
-// core's copy of the run and its follower. Settings -> Data and the first-run restore (D-518) share it.
+// core's copy of the run and its follower. Settings -> Data and the first-run restore share it.
 func (h *OSHandlers) startRestore(ctx context.Context, c caller, admin bool, b api.Backup) (*restoreRec, error) {
 	var snap snapshot
 	var run api.Run
@@ -443,7 +443,7 @@ func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
 		}
 		if rec.Status == "done" && run.Actor == setupActor {
 			// A first-run restore succeeded: this is the restored database, and the operator accepted the terms before it
-			// started (POST /core/setup/restore refuses without, D-544): the version shown and the time, from the marker.
+			// started (POST /core/setup/restore refuses without): the version shown and the time, from the marker.
 			t, ok := h.readTermsMarker()
 			if !ok { // no marker, or one that cannot be trusted: the version of this software, the start of the run
 				t = firstRunTerms{Version: vedette.TermsVersion(), At: run.StartedAt.UTC()}

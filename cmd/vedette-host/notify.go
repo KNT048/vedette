@@ -10,7 +10,7 @@ import (
 // listens. It is a reviewed exception of the network-literal guard in modules/host (FORBID-2).
 const unixDatagram = "unixgram"
 
-// sdNotify tells systemd the host is ready (Type=notify, D-102 (1)): one datagram "READY=1" to the
+// sdNotify tells systemd the host is ready (Type=notify): one datagram "READY=1" to the
 // socket named by NOTIFY_SOCKET, which systemd sets for a Type=notify unit. The unit of the
 // honeypot starts after this, so it never joins a namespace that is not ready. With no
 // NOTIFY_SOCKET (run by hand) it does nothing.

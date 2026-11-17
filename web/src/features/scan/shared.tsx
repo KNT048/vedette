@@ -8,7 +8,7 @@ export function RunStatusChip({ run }: { run: ScanRun }) {
   return <Chip tone={tone}>{t(`runStatus.${run.status}`)}</Chip>
 }
 
-// not_matched is neutral, not green: nuclei reports matches only, so it means "no match reported", not "safe" (D-133 (5)).
+// not_matched is neutral, not green: nuclei reports matches only, so it means "no match reported", not "safe".
 const resultTone: Record<RunResultKind, 'danger' | 'ok' | 'off' | 'warn'> = { matched: 'danger', not_matched: 'off', not_applicable: 'off', no_template: 'warn', no_response: 'warn', skipped: 'off' }
 export function ResultChip({ kind }: { kind: RunResultKind }) {
   const { t } = useTranslation('scan')
@@ -19,7 +19,7 @@ const OUTCOME_ORDER: RunResultKind[] = ['matched', 'no_template', 'not_matched',
 type T = (key: string, opts?: Record<string, unknown>) => string
 
 /**
- * kien G7a: what a run found, in words, from its stored results: "Checked 3 CVEs: 1 confirmed, 2 no check exists (still
+ * What a run found, in words, from its stored results: "Checked 3 CVEs: 1 confirmed, 2 no check exists (still
  * suspected)". Never "0 matches" when nothing could be checked; a stopped run says why first; a run that only identified devices
  * says how many were identified.
  */

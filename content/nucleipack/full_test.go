@@ -9,8 +9,8 @@ import (
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
-// D-527 over the real committed index: the KEV set is the one of D-528 (928 templates, 186 own_ip), the deep set never holds a
-// template of the disruptive checks, a write method or an out-of-band check, and the templates of review FULL-4b r1 are out or
+// Over the real committed index: the KEV set is the reviewed one (928 templates, 186 own_ip), the deep set never holds a
+// template of the disruptive checks, a write method or an out-of-band check, and the templates a review flagged are out or
 // behind the tick.
 func TestFullSetsOfTheCommittedPack(t *testing.T) {
 	t.Parallel()
@@ -40,9 +40,9 @@ func TestFullSetsOfTheCommittedPack(t *testing.T) {
 		}
 	}
 	if n["kev"] != 327 || n["own_ip"] != 185 {
-		t.Errorf("KEV set %d, own_ip %d: D-527 must not change the KEV set of D-528 step 2 (327, 185)", n["kev"], n["own_ip"])
+		t.Errorf("KEV set %d, own_ip %d: the deep set must not change the KEV set (327, 185)", n["kev"], n["own_ip"])
 	}
-	// D-528 step 2: without the tick only read-only GETs and the reviewed list (4 non-GET http checks, the TLS handshakes)
+	// Without the tick only read-only GETs and the reviewed list (4 non-GET http checks, the TLS handshakes)
 	post := 0
 	for _, tp := range ix.Templates {
 		if tp.FullSet() == pack.SetDeep && !strings.HasPrefix(tp.Request, "GET ") && !strings.HasPrefix(tp.Request, "HEAD ") && !strings.HasPrefix(tp.Path, "ssl/") {

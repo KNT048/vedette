@@ -12,7 +12,7 @@ import { InfoLine } from './InfoLine'
 import type { Target } from './types'
 
 /**
- * FULL-1 (S-EXP-2, D-566): the testing terms of a verified target, one screen. Accepted once, every scan of the target is a deep scan;
+ * S-EXP-2: the testing terms of a verified target, one screen. Accepted once, every scan of the target is a deep scan;
  * the one extra tick, off by default, adds the disruptive checks. The text is the backend's (terms_notice), one paragraph per line: the
  * opening sentence, what the tools may send, then the risk. Admin only; withdrawing is always possible.
  */

@@ -29,7 +29,7 @@ import (
 // ModuleID is the id of this module in the registry.
 const ModuleID = "response"
 
-// This module is the one place where Vedette may change another device (D-41, the single exception to SYS-8), so every
+// This module is the one place where Vedette may change another device (the single exception to SYS-8), so every
 // path that writes to a device goes through Service.runItem (FORBID-1). Part 1 (WP-13a) holds the execution switch, the
 // catalog, the rules and the engine, the request and approval flow in the app, the box actions (block list, message,
 // webhook) and the log. Part 13b added the device steps through the Executor port (cmd/vedette wires core/conn/write), the
@@ -128,7 +128,7 @@ type LogAddress struct {
 	Count int
 }
 
-// LogCounts is the read port of the Logs module for the log_threshold trigger (#332, D-287, D-288); cmd/vedette adapts
+// LogCounts is the read port of the Logs module for the log_threshold trigger; cmd/vedette adapts
 // logs.Service. The counts are per declared log source and signature (5-minute buckets); TopAddresses answers the remote
 // addresses behind them, most first, never the log sender, the box, its gateway or a decoy (logs CONTRACT), and as lower bounds.
 // Sources answers no source and no error while the Logs module is off; an error is a failure, logged, and no event this round.
@@ -162,7 +162,7 @@ type ConnectionInfo struct {
 }
 
 // connFP is the fingerprint of a connection as a request saw it: the same connection is the same fingerprint (conn.Fingerprint,
-// D-93: id, kind, address and the moment a security field of the connection last changed).
+// Id, kind, address and the moment a security field of the connection last changed).
 func connFP(c ConnectionInfo) string { return conn.Fingerprint(c.ID, c.Kind, c.Target, c.UpdatedAt) }
 
 // connIdent is conn.Identity of a connection: id, kind and address. An undo is held to it, not to the fingerprint.
@@ -170,7 +170,7 @@ func connIdent(c ConnectionInfo) string { return conn.Identity(c.ID, c.Kind, c.T
 
 // ChangesInForce says whether a change made through the connection may still be in force on a device: an item that was carried
 // out and not rolled back, one that was sent and whose outcome is not known yet (running), and one the sweep or the step deadline
-// failed as "state unknown" (itemRec.StateUnknown). core/conn asks before it deletes a connection (409 in_use, D-93 (4)).
+// failed as "state unknown" (itemRec.StateUnknown). core/conn asks before it deletes a connection (409 in_use).
 func (s *Service) ChangesInForce(ctx context.Context, connectionID string) (bool, error) {
 	var n int
 	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM resp_actions a, json_each(a.items) i
@@ -196,7 +196,7 @@ type DeviceStep struct {
 	ConnectionID string
 	ConnFP       string // conn.Fingerprint of the connection when the request was made: the executor refuses a connection that is not that version
 	// ByIdentity holds the step to ConnIdentity (conn.Identity: id, kind, address) instead of ConnFP: an undo and the read-backs that settle an
-	// unclear outcome must survive a rotated token or a renewed pin (D-88 (4)).
+	// unclear outcome must survive a rotated token or a renewed pin.
 	ByIdentity   bool
 	ConnIdentity string
 	Phase        string
@@ -259,35 +259,35 @@ type Config struct {
 	Links       LinkTokens  // nil = no approval link can be checked: every link is unknown (404)
 	TwoStep     TwoStep     // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
 	Planner     Planner     // nil = no plan is ever written; ai_available is false (13b-11)
-	Mailer      LinkMailer  // nil = no link code can be mailed: an email approver cannot link (503 email_not_ready), D-191
-	LinkSender  LinkSender  // nil = My account cannot ask for a new confirm link on a chat channel (400 chat_channel), D-414
+	Mailer      LinkMailer  // nil = no link code can be mailed: an email approver cannot link (503 email_not_ready)
+	LinkSender  LinkSender  // nil = My account cannot ask for a new confirm link on a chat channel (400 chat_channel)
 	// Critical lists the open critical findings with their device, for the plan job. nil = no plan is asked for.
 	Critical func(ctx context.Context) ([]PlanTarget, error)
-	// Incidents reads an incident and its source for Respond (D-509); nil = no incident can be read (404).
+	// Incidents reads an incident and its source for Respond; nil = no incident can be read (404).
 	Incidents IncidentReader
 	Evidence  EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
 
 	Clock func() time.Time
 	// BoxAddrs adds to the addresses of the network interfaces, which always count as never-touch and as forbidden webhook targets. An error
 	// means the set is not known (a configured host that has never answered, an unreadable honeypot record): the callers fail closed
-	// (errNeverTouchUnread: nothing is requested or run) instead of checking against a smaller set (D-179 (8)).
+	// (errNeverTouchUnread: nothing is requested or run) instead of checking against a smaller set.
 	BoxAddrs func() ([]netip.Addr, error)
-	// MachineAddrs are the addresses of the machine Vedette runs on (D-446: vedette-host's report, the container's gateways, -hosts,
+	// MachineAddrs are the addresses of the machine Vedette runs on (vedette-host's report, the container's gateways, -hosts,
 	// VEDETTE_BIND_IP, the host aliases) with a known flag; webhook_call refuses them on Vedette's own ports only, and every target while
 	// they are not known. nil = none, known. SelfAddrs are more addresses that are Vedette itself (the honeypot's decoys), refused by
 	// webhook_call on every port; nil = none. Neither changes never-touch (BoxAddrs).
 	MachineAddrs func() ([]netip.Addr, bool)
-	SelfAddrs    func() ([]netip.Addr, error) // an error (an unreadable decoy record) refuses every webhook: a decoy must never be a target (D-179 (8))
+	SelfAddrs    func() ([]netip.Addr, error) // an error (an unreadable decoy record) refuses every webhook: a decoy must never be a target
 	// BoxMACs adds to the MAC addresses of the network interfaces, which count as never-touch too: the decoys of the honeypot (macvlan links with
 	// MACs of their own) and the cards of the appliance. An error is as for BoxAddrs.
 	BoxMACs func() ([]string, error)
 	// HostInfra lists the network the box itself depends on, as vedette-host reports it: the default gateways of the kernel's IPv4 and IPv6
 	// routes with their MACs, the DNS servers in use (a DHCP lease's too) and the gateway and DNS servers of the management card's saved
-	// configuration (D-325, D-450). They count as never-touch without being listed (INV-10):
+	// configuration. They count as never-touch without being listed (INV-10):
 	// an automated ban on the gateway or the resolver would cut the box off with the rest of the network. An error is as for BoxAddrs
 	// (fail closed). nil = none known (no host: a container-only box, whose own route is the container bridge).
 	HostInfra func() ([]HostInfra, error)
-	// BaseURL is the address people open Vedette at (https://192.168.10.2:8443), asked at every use (D-465: the Box address of
+	// BaseURL is the address people open Vedette at (https://192.168.10.2:8443), asked at every use (the Box address of
 	// Settings → Box network). It is the start of the block list address; nil or "" = the address is shown from /api/v1 on.
 	BaseURL func() string
 }
@@ -296,7 +296,7 @@ type Config struct {
 type HostInfra struct {
 	Addr netip.Addr
 	Kind string // "gateway" or "dns"
-	// MAC is a gateway's link-layer address from the kernel's neighbour table, "" when not known (D-450). It is never-touch too, so
+	// MAC is a gateway's link-layer address from the kernel's neighbour table, "" when not known. It is never-touch too, so
 	// an action that names only a MAC (a switch quarantine, an event with no address) cannot reach the gateway.
 	MAC string
 }
@@ -311,7 +311,7 @@ type Service struct {
 	// it is one database transaction and the next step re-reads the switch.
 	mu     sync.Mutex
 	execMu sync.Mutex
-	// inflight holds the cancel of every device step being sent (a run or an undo); the emergency stop cancels them (D-179 (4)).
+	// inflight holds the cancel of every device step being sent (a run or an undo); the emergency stop cancels them.
 	inflightMu sync.Mutex
 	inflight   map[*context.CancelCauseFunc]struct{}
 
@@ -331,19 +331,19 @@ type Service struct {
 
 	limitMu         sync.Mutex
 	planFails       map[string]planAttempt // failed or refused plans per finding (limitMu)
-	planStatus      *PlannerStatus         // the plan job's last run, read-only for GET /response/plans (D-513; limitMu)
-	proposeTimes    []time.Time            // Propose calls of the last hour, any outcome (D-119)
+	planStatus      *PlannerStatus         // the plan job's last run, read-only for GET /response/plans (limitMu)
+	proposeTimes    []time.Time            // Propose calls of the last hour, any outcome
 	proposeSkipped  int                    // calls refused since the last log line
 	proposeLoggedAt time.Time
 	fetchTimes      map[string][]time.Time // block list pulls per source address (per /64 for IPv6), for the rate limit
 	linkTimes       map[string][]time.Time // approval link calls per source address (the whole address), for their own rate limit
-	chatTimes       map[string]*chatEntry  // chat decisions per channel identity, a table of its own (D-135 (7))
-	chatNotes       map[string]*chatNote   // refusals of chat senders: one log line per window per identity (D-135 (8))
+	chatTimes       map[string]*chatEntry  // chat decisions per channel identity, a table of its own
+	chatNotes       map[string]*chatNote   // refusals of chat senders: one log line per window per identity
 	chatMax         int                    // identities the chat table remembers (maxFetchKeys; only export_test.go changes it)
 	chatFullAt      time.Time              // when "chat rate table full" was last logged
 	chatNoteWin     time.Time              // start of the window of the global budget of refusal lines
 	chatNoteN       int
-	identSends      map[string][]time.Time // link codes made per person and channel in the last hour (D-191)
+	identSends      map[string][]time.Time // link codes made per person and channel in the last hour
 
 	// Sending approval requests runs in the background (sendApproval): bg ends it at shutdown (Close), sendSem lets two run at once.
 	bg           context.Context
@@ -363,7 +363,7 @@ type Service struct {
 	hpMu         sync.Mutex   // guards hpHour and hpCount: the honeypot scan hits let through to the rules this clock hour
 	hpHour       time.Time
 	hpCount      int
-	iocHour      time.Time // with iocCount, guarded by hpMu: the known-bad connections let through to the rules this clock hour (D-339)
+	iocHour      time.Time // with iocCount, guarded by hpMu: the known-bad connections let through to the rules this clock hour
 	iocCount     int
 	logPolledAt  time.Time // the last PollLogs that asked the Logs module (only the evaluate job calls it)
 }
@@ -449,7 +449,7 @@ func (s *Service) ensureSeeded(ctx context.Context) error {
 	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.seedCatalog(ctx, tx) }); err != nil {
 		return fmt.Errorf("response: seed the catalog: %w", err)
 	}
-	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.dropUnpublishable(ctx, tx) }); err != nil { // D-469, once per start
+	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.dropUnpublishable(ctx, tx) }); err != nil { // once per start
 		return fmt.Errorf("response: clean the block list: %w", err)
 	}
 	s.seeded = true
@@ -526,7 +526,7 @@ type Actor struct {
 	Chat  string // a decision made in chat: the sender's id on that platform (INV-3), part of the actor text in the log
 }
 
-// logActor is the actor of an approval or rejection in resp_log and core_audit: "<name> via <channel> (<ExternalID>)" for chat (D-96 (5)),
+// logActor is the actor of an approval or rejection in resp_log and core_audit: "<name> via <channel> (<ExternalID>)" for chat,
 // "<email> (<via>)" for the rest.
 func (a Actor) logActor() string {
 	if a.Chat == "" {
@@ -567,7 +567,7 @@ func (s *Service) step(ctx context.Context, tx *sql.Tx, auditAction, target stri
 const maxDetail = 1500
 
 // capDetail makes a detail one line and cuts it to the cap. A text that the cap cuts keeps its SHA-256 at the end, so the hash-chained row
-// still commits to the whole text (D-175: the row of a request and of an execution holds the full call, or its hash).
+// still commits to the whole text (the row of a request and of an execution holds the full call, or its hash).
 func capDetail(detail string) string {
 	if utf8.RuneCountInString(detail) <= maxDetail {
 		return oneLine(detail, maxDetail)

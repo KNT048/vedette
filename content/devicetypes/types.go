@@ -1,4 +1,4 @@
-// Package devicetypes is the one list of device types (D-511): 14 categories for people and the types under them, each acting as
+// Package devicetypes is the one list of device types: 14 categories for people and the types under them, each acting as
 // one of the 13 kinds Vedette had before (the kinds behaviour is keyed on: fragile defaults, never-touch gateways, honeypot, SSH
 // candidates, PDPL, response rules). types.json is the source: Go embeds it, the web imports it, and the zod contracts, the OpenAPI
 // file and ogen are generated from it. rules.json holds the identification rules (Identify). Standard library only: every module may
@@ -23,7 +23,7 @@ type Type struct {
 	Category string   `json:"category"`
 	ActsAs   string   `json:"acts_as"` // one of Kinds: what behaviour treats the type as
 	Aliases  []string `json:"aliases"`
-	// NoAutoIsolate: a response rule keyed on the kind the type acts as never covers it (D-511, #714 review M1): cutting off a phone
+	// NoAutoIsolate: a response rule keyed on the kind the type acts as never covers it: cutting off a phone
 	// system, an OT controller, a medical device or power gear harms more than it helps.
 	NoAutoIsolate bool `json:"no_auto_isolate,omitempty"`
 }
@@ -34,7 +34,7 @@ type Category struct {
 	Label string `json:"label"`
 }
 
-// Kinds are the 13 kinds behaviour is keyed on (the device types before D-511), in the order the settings list them. Every type acts
+// Kinds are the 13 kinds behaviour is keyed on (the device types of older releases), in the order the settings list them. Every type acts
 // as one of them; each of them is a type of its own.
 var Kinds = []string{"firewall", "router", "switch", "ap", "nas", "server", "pc", "printer", "camera", "nvr", "iot", "web", "unknown"}
 
@@ -101,7 +101,7 @@ func ActsAs(id string) string {
 	return Unknown
 }
 
-// MatchesKind reports whether a rule keyed on kinds (response device_type, D-511) covers a device of type id: one of the 13 kinds is
+// MatchesKind reports whether a rule keyed on kinds (response device_type) covers a device of type id: one of the 13 kinds is
 // the id itself, or the kind it acts as is listed and the type is not marked no_auto_isolate. A type marked no_auto_isolate is never
 // auto-isolated by a device_type rule: rules name only the 13 kinds. kinds are lower case.
 func MatchesKind(kinds []string, id string) bool {

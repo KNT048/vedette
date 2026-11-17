@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// G4 (kien): the Devices list's risk marker comes from findings through the wiring (findingCounts.RiskByAsset, the same rule as
+// The Devices list's risk marker comes from findings through the wiring (findingCounts.RiskByAsset, the same rule as
 // Findings › To fix): a device with a finding the box proved is "exploited"; a clean one has none; findings off marks nothing.
 func TestDeviceRiskThroughTheWiring(t *testing.T) {
 	t.Parallel()
@@ -98,7 +98,7 @@ func TestDeviceRiskAmberThroughTheWiring(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := s.addFortiGate() // FortiOS 7.2.5, typed by a person
-	box, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "boxkien", IP: "192.168.18.2"})
+	box, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "boxanna", IP: "192.168.18.2"})
 	if err != nil {
 		t.Fatal(err)
 	}

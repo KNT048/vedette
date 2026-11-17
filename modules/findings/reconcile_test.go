@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 )
 
-// D-144: the bus is best-effort, so findings catches up on its own. These tests drop the event (they never call the
+// The bus is best-effort, so findings catches up on its own. These tests drop the event (they never call the
 // handler) and expect the periodic Reconcile to end in the state the event would have produced.
 
 func TestContract_INV9_ReconcileCreatesTheFindingALostMatchEventLeft(t *testing.T) {
@@ -326,8 +326,8 @@ func TestReconcileRemovesNothingWhenAskingInventoryAboutADeviceFails(t *testing.
 	}
 }
 
-// W6-1: Reconcile writes the backlog and the recent entries in two writes, and each one replaced the "add the version"
-// items with its own list: on the N100 the recent write (one Office entry CISA added this week) left "adding it checks 1
+// Reconcile writes the backlog and the recent entries in two writes, and each one replaced the "add the version"
+// items with its own list: on a test box the recent write (one Office entry CISA added this week) left "adding it checks 1
 // exploited CVE" for a Microsoft Office without a version, of 30. The item counts the whole list.
 func TestReconcileVersionNeededCountsBacklogAndRecentTogether(t *testing.T) {
 	t.Parallel()
@@ -351,6 +351,6 @@ func TestReconcileVersionNeededCountsBacklogAndRecentTogether(t *testing.T) {
 		}
 	}
 	if n := e.count(`SELECT count(*) FROM fnd_finding`); n != 0 {
-		t.Fatalf("%d findings, want none (no version, no finding: D-500)", n)
+		t.Fatalf("%d findings, want none (no version, no finding)", n)
 	}
 }

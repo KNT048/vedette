@@ -34,8 +34,8 @@ function Meta({ parts }: { parts: React.ReactNode[] }) {
 }
 
 /**
- * Settings → Connections (D-93; S-AI-7, S-RESP-4): HTTP API, SSH/CLI, RESTCONF, automation platform and MCP server connections, generic kinds only (D-58).
- * They live in core, so the page is always there, also when the AI module is off. Write tools run only through approved response actions (D-41).
+ * Settings → Connections (S-AI-7, S-RESP-4): HTTP API, SSH/CLI, RESTCONF, automation platform and MCP server connections, generic kinds only.
+ * They live in core, so the page is always there, also when the AI module is off. Write tools run only through approved response actions.
  * Every request goes to the address typed here and nowhere else: privacy flow 12.
  */
 export default function ConnectionsSection() {
@@ -106,7 +106,7 @@ export default function ConnectionsSection() {
                               <Switch checked={tl.enabled} aria-label={t('connections.toolEnable', { tool: tl.name, name: c.name })} onCheckedChange={(enabled) => save.mutate({ id: c.id, ...asInput(c, { tools: c.tools.map((x) => ({ name: x.name, enabled: x.name === tl.name ? enabled : x.enabled })) }) }, { onError: fail })} />
                               <code className="font-mono text-meta">{tl.name}</code>
                               {mcp ? (
-                                // D-94 (3): the tools of an MCP server are found at Test and start as write; the administrator marks the ones that only read.
+                                // The tools of an MCP server are found at Test and start as write; the administrator marks the ones that only read.
                                 <Select className="h-8 w-auto sm:h-8" aria-label={t('connections.toolAccess', { tool: tl.name, name: c.name })} value={tl.access} onChange={(e) => save.mutate({ id: c.id, ...asInput(c, { tools: c.tools.map((x) => ({ name: x.name, enabled: x.enabled, access: x.name === tl.name ? (e.target.value as 'read' | 'write') : x.access })) }) }, { onError: fail })}>
                                   <option value="read">{t('connections.access.read')}</option><option value="write">{t('connections.access.write')}</option>
                                 </Select>
@@ -150,7 +150,7 @@ const defaultAuth = (k: ConnectorKind): (typeof AUTHS)[number] => (k === 'ssh' ?
 type FieldKey = 'name' | 'target' | 'username' | 'auth_header' | 'secret' | 'allow'
 const FIELD_IDS: Record<FieldKey, string> = { name: 'cn-name', target: 'cn-target', username: 'cn-username', auth_header: 'cn-auth-header', secret: 'cn-secret', allow: 'cn-allow' }
 const ORDER: FieldKey[] = ['name', 'target', 'username', 'auth_header', 'secret', 'allow']
-// Server error code to the field it is about (same pattern as the custom feed form). `invalid` names its field in `details.field` (D-73).
+// Server error code to the field it is about (same pattern as the custom feed form). `invalid` names its field in `details.field`.
 const FIELD_OF: Record<string, FieldKey> = { invalid_name: 'name', duplicate_name: 'name', invalid_target: 'target', username_required: 'username', invalid_auth_header: 'auth_header', invalid_secret: 'secret', secret_required: 'secret', allow_required: 'allow', invalid_allow: 'allow' }
 const serverField = (e: unknown): FieldKey | undefined => {
   if (!(e instanceof ApiError)) return undefined

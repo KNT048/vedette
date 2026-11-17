@@ -30,7 +30,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// WP-26 slice 1 (D-262): the box CA signs the self-made 8443 leaf; D-351: it is sealed in core_secret.
+// WP-26 slice 1: the box CA signs the self-made 8443 leaf; it is sealed in core_secret.
 
 // testCAs holds one box CA store per data directory of a test, so a second call for the same directory is the same box restarting.
 var testCAs sync.Map
@@ -162,7 +162,7 @@ func legacyFiles(dir string) (crt, key string) {
 	return filepath.Join(dir, boxCAName+".crt"), filepath.Join(dir, boxCAName+".key")
 }
 
-// writeLegacyCA writes what a box between D-262 and D-351 had: the CA as two files in the data directory.
+// writeLegacyCA writes what an older box had: the CA as two files in the data directory.
 func writeLegacyCA(t *testing.T, dir string, now time.Time) *boxCA {
 	t.Helper()
 	ca, plain, err := newBoxCA(now)
@@ -193,7 +193,7 @@ func TestBoxCAFreshBoxLeafChainsToIt(t *testing.T) {
 		}
 	}
 	if c, k := legacyFiles(dir); fileExists(c) || fileExists(k) {
-		t.Fatal("the CA was written to disk (D-351: it is sealed in core_secret)")
+		t.Fatal("the CA was written to disk (it is sealed in core_secret)")
 	}
 	s := testCA(t, dir)
 	if sealedRows(t, s) != 1 || len(auditRows(t, s)) != 1 || !strings.HasPrefix(auditRows(t, s)[0], "box-ca.create ecdsa-p256 serial=") {
@@ -292,7 +292,7 @@ func TestBoxCASurvivesRenewalAndAddressChange(t *testing.T) {
 	}
 }
 
-// D-397: a start with a -hosts entry the box's own leaf lacks (VEDETTE_HOSTS changed, then `up -d`) re-issues the leaf: same key,
+// A start with a -hosts entry the box's own leaf lacks (VEDETTE_HOSTS changed, then `up -d`) re-issues the leaf: same key,
 // same CA (an agent pinned to it keeps working), the old names kept, logged. An owner's certificate is never touched
 // (TestEnsureCertRenewsItsOwnPairNearExpiry), and a start whose -hosts the leaf covers, or that dropped a name, changes nothing.
 func TestEnsureCertReissuesForANewHostsEntry(t *testing.T) {
@@ -333,7 +333,7 @@ func TestEnsureCertReissuesForANewHostsEntry(t *testing.T) {
 	}
 }
 
-// writeOldSelfSigned writes what a box before D-262 had: a self-signed leaf (CA:FALSE) for its key.
+// writeOldSelfSigned writes what an even older box had: a self-signed leaf (CA:FALSE) for its key.
 func writeOldSelfSigned(t *testing.T, crt, key string, dns []string, ips ...string) *ecdsa.PrivateKey {
 	t.Helper()
 	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -399,7 +399,7 @@ func TestBoxCAUpgradeOfAnOldSelfSignedLeaf(t *testing.T) {
 	}
 }
 
-// A box that had the CA as two files (D-262) has it sealed once at its next start, the same CA (enrolled agents keep working), and
+// A box that had the CA as two files has it sealed once at its next start, the same CA (enrolled agents keep working), and
 // the files are removed: no plaintext CA key stays on disk. The leaf, already signed by it, is not touched.
 func TestBoxCALegacyFilesAreMigratedOnce(t *testing.T) {
 	t.Parallel()
@@ -452,7 +452,7 @@ func TestBoxCALegacyFilesAreMigratedOnce(t *testing.T) {
 	}
 }
 
-// The point of D-351: vedette.db and vedette.key restored into a fresh data directory (no leaf, no CA file) give the same CA, and
+// The point of sealing the CA: vedette.db and vedette.key restored into a fresh data directory (no leaf, no CA file) give the same CA, and
 // the new leaf the box makes there verifies under the CA the agents pinned before.
 func TestBoxCARestoreKeepsTheCA(t *testing.T) {
 	t.Parallel()

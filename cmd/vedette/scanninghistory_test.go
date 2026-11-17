@@ -7,7 +7,7 @@ import (
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// kien G7a: every run of the LAN engines and every public scan has a History row whose outcome comes from what it stored.
+// Every run of the LAN engines and every public scan has a History row whose outcome comes from what it stored.
 func TestJobHistory_OutcomeInWords(t *testing.T) {
 	end := "2026-11-17T03:19:00.000Z"
 	p := func(targets, result string) sensoractive.JobProbe {

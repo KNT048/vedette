@@ -1,6 +1,6 @@
 package main
 
-// The scan worker of the real-backend end-to-end run (D-427): the REAL worker of sensor-active (modules/sensor-active/worker), started in
+// The scan worker of the real-backend end-to-end run: the REAL worker of sensor-active (modules/sensor-active/worker), started in
 // this process on the box's real sensor link with the credentials of the active sensor, running a FAKE nuclei that sends nothing anywhere.
 // The vedette-sensor binary cannot be used for this: it reads the template pack from the fixed path of the scan image
 // (nucleiargv.TemplatesDir), which a development machine does not have; worker.Config.TemplatesDir is the test seam for that.

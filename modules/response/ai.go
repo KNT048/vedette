@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// WP-13b slice 13b-9 (D-97, D-98, INV-15 (8), INV-16, INV-18): approving a high-risk AI request with the two-step code, the hints a
+// WP-13b slice 13b-9 (INV-15 (8), INV-16, INV-18): approving a high-risk AI request with the two-step code, the hints a
 // rejection can leave, the quality breaker and the AI state.
 
 // AI thresholds of the contract (INV-15). Propose reads them for the proposal gates.
@@ -93,7 +93,7 @@ type AiState struct {
 
 // aiStepUp is the part of an approval that comes before its transaction, for a high-risk AI request: in the app only, then every refusal
 // of the transaction that only reads (approvalGate: the pick, the second approver, the approver's role, the execution switch, the catalog,
-// the connections, the hourly device limit), on one read snapshot, then the two-step code for this request (D-357). The code is checked
+// the connections, the hourly device limit), on one read snapshot, then the two-step code for this request. The code is checked
 // outside the transaction because checking it writes (the limiter, the replay guard, the audit line). Anything that is not such a request
 // returns (false, nil) here and the transaction answers (not found, expired, not pending). A code is spent only when the approval would be
 // recorded as things stand, so a wrong pick, a second click by the same person or an execution switch that is off does not cost one; the
@@ -126,7 +126,7 @@ func (s *Service) aiStepUp(ctx context.Context, who Actor, id string, pick []str
 	return true, nil
 }
 
-// codeSpent adds to a refusal that came after the two-step code passed that the code was used (D-357): it is one use, so the person needs a
+// codeSpent adds to a refusal that came after the two-step code passed that the code was used: it is one use, so the person needs a
 // new one. The code and the status stay.
 func codeSpent(refusal error) error {
 	ae, ok := asAPI(refusal)
@@ -238,7 +238,7 @@ func (s *Service) keepHint(ctx context.Context, tx *sql.Tx, r request, kind, rea
 
 // byPersonSQL keeps a request out of the AI's record unless somebody really decided it: a rejection counts only when a person wrote it
 // (the server words that note "Rejected by <name>"). A cancellation (an action edited, the emergency stop) is also status rejected but is
-// no verdict on the AI: it counts for neither the quality breaker nor the 7-day repeat rule (D-119).
+// no verdict on the AI: it counts for neither the quality breaker nor the 7-day repeat rule.
 const byPersonSQL = `(status <> 'rejected' OR note LIKE 'Rejected by %')`
 
 // decidedStatuses are the statuses of a request somebody decided (not pending, not expired).

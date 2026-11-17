@@ -13,13 +13,13 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// moduleContainer makes a module's container follow the module, the way the honeypot's does (M3, D-260): `sensor` runs
+// moduleContainer makes a module's container follow the module, the way the honeypot's does: `sensor` runs
 // exactly while sensor-passive is on and `scan` exactly while sensor-active is on. These two modules have no job that
 // could do it (the packets and the probes run inside the container), so core's two guards do it, with the same host
-// operations and the same retry as the honeypot's teardown (D-189):
+// operations and the same retry as the honeypot's teardown:
 //
 //   - on (core starts with the module on, and after every switch-on): container.start of the current image (of core's own
-//     version when the host last pulled that for the service, D-342 (2), see startVersion), unless the
+//     version when the host last pulled that for the service, see startVersion), unless the
 //     host's state says there is nothing to do: the host trusts the unit (Installed), it has [Install], and it is active or
 //     coming up ("other"; its health start period, whatever its health), so a container that systemd has just started on boot
 //     is never restarted and the host's one write slot is not held for minutes. Only a positive answer of the host leads to
@@ -53,7 +53,7 @@ type moduleContainer struct {
 	service string
 	version string           // the build version of core (main.version); see startVersion
 	now     func() time.Time // nil: time.Now; a test moves it
-	// setupDone says whether first-run setup has finished (nil: always). Before it has, ensureOn starts nothing (D-405): the wizard
+	// setupDone says whether first-run setup has finished (nil: always). Before it has, ensureOn starts nothing: the wizard
 	// decides which modules run, and a default-on module's container must not start on a box no administrator has seen yet.
 	setupDone func(context.Context) (bool, error)
 
@@ -61,12 +61,12 @@ type moduleContainer struct {
 	// unsureSince is when ensureOn first found the state unreadable since the last good read (zero: it was readable). Reset
 	// by a good read, a start the host confirmed and ensureOff, so a later switch-on waits its own unsureFor again.
 	unsureSince time.Time
-	// watch records how the start goes for GET /inventory/sensors (W2-6) and, for scan, GET /scanning (#889); nil: nobody asks (tests).
+	// watch records how the start goes for GET /inventory/sensors and, for scan, GET /scanning (#889); nil: nobody asks (tests).
 	watch *startWatch
 }
 
 // startWatch tells GET /inventory/sensors that the box is still bringing the sensor container up, so that a sensor that has not
-// reported yet says "starting" instead of "not connected" (customer walk 2, W2-6: right after setup the host was busy and the
+// reported yet says "starting" instead of "not connected" (right after setup the host was busy and the
 // start was retried for about two minutes). Starting: the start is being retried, for at most startGiveUp, or the host confirmed
 // it (or that the unit already runs) less than startSettle ago. A start that keeps failing past startGiveUp, or a container
 // that has not reported startSettle after it started, is a failure the admin should see. Safe on a nil *startWatch.
@@ -129,7 +129,7 @@ func (w *startWatch) done(err error, sent bool) {
 	}
 }
 
-// reset: nothing is being started (the module is off, or first-run setup has not finished, D-405).
+// reset: nothing is being started (the module is off, or first-run setup has not finished).
 func (w *startWatch) reset() {
 	if w == nil {
 		return
@@ -185,18 +185,18 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 		}
 		if !done {
 			c.watch.reset()
-			return nil // D-405: nothing to start before the wizard; its commit starts the guard again (addContainerGuards)
+			return nil // Nothing to start before the wizard; its commit starts the guard again (addContainerGuards)
 		}
 	}
 	sent, err := c.converge(ctx)
-	c.watch.done(err, sent) // W2-6: what GET /inventory/sensors says while this converges
+	c.watch.done(err, sent) // What GET /inventory/sensors says while this converges
 	return err
 }
 
 // converge is ensureOn once the module is on and setup is done (under c.mu); sent: a start went out and the host confirmed it.
 func (c *moduleContainer) converge(ctx context.Context) (sent bool, _ error) {
 	// Skip only what the host vouches for: a unit it trusts (Installed), with [Install], that is active or coming up, running the
-	// version pulled for it when that is core's own (D-342 (2)). Start only on what it positively says is wrong. Anything else
+	// version pulled for it when that is core's own. Start only on what it positively says is wrong. Anything else
 	// is unknown: an error, so the guard reads again after its backoff, until it has been unknown for unsureFor.
 	st, err := c.state(ctx)
 	v := c.startVersion(st, err == nil)
@@ -250,7 +250,7 @@ func (c *moduleContainer) start(ctx context.Context, v string) error {
 	if v != "" {
 		// The host judges a version more strictly than the current image (not_pulled, current_version_unknown, upgrade_path_required,
 		// a revoked release...). Such a refusal must not leave the module without a container, so it falls back to the image the unit
-		// pins, as before D-342 (2); a busy host or an unknown outcome is not a refusal and is retried.
+		// pins, as older releases did; a busy host or an unknown outcome is not a refusal and is retried.
 		err := c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service, Version: v}, "")
 		var re refusedError
 		if !errors.As(err, &re) {
@@ -289,7 +289,7 @@ func startReason(st api.ContainerState) string {
 	return "unit_state=" + st.UnitState
 }
 
-// startVersion is the version core asks the host to start (D-342 (2)). An update pulls a service whose module is off but does
+// startVersion is the version core asks the host to start. An update pulls a service whose module is off but does
 // not start it, so the unit still pins the old image; starting the unit as it is would run a sensor or scan that core answers
 // 426 (protocol mismatch). When the host says the version it last pulled for the service is core's own, that is sent; the host
 // repoints the unit, and only a pulled version is accepted (not_pulled otherwise, which would make a box that was never
@@ -345,7 +345,7 @@ var moduleContainers = []struct{ module, service string }{
 }
 
 // newModuleContainers builds one follower per entry of moduleContainers; nil without a host socket (dev and a bare box,
-// D-55: there is no container to follow).
+// There is no container to follow).
 func newModuleContainers(d deps) map[string]*moduleContainer {
 	if d.HostSocket == "" || d.Reg == nil {
 		return nil
@@ -359,13 +359,13 @@ func newModuleContainers(d deps) map[string]*moduleContainer {
 		h.who = m.service
 		out[m.module] = &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service, version: version}
 	}
-	out["sensor-passive"].watch = d.SensorStart // W2-6: GET /inventory/sensors reads it (nil when buildServices did not run: tests)
+	out["sensor-passive"].watch = d.SensorStart // GET /inventory/sensors reads it (nil when buildServices did not run: tests)
 	out["sensor-active"].watch = d.ScanStart    // #889: GET /scanning reads it
 	return out
 }
 
 // addContainerGuards hands each follower's two funcs to the guards (on: start, off: stop persist). Before first-run setup the
-// start does nothing (D-405); the wizard's commit publishes inventory.settings.changed (its LAN ranges become the scope), and
+// start does nothing; the wizard's commit publishes inventory.settings.changed (its LAN ranges become the scope), and
 // that event runs the start again for every module that is on, so the bundle's containers start then, whether the wizard
 // switched them or left them on. Any later scope change runs it too: a start of a container that runs costs one state read.
 // setupDone is core's SetupDone (nil: no core, the containers follow the modules alone).

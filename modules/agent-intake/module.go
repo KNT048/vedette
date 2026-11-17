@@ -1,4 +1,4 @@
-// Package agentintake is the agent-intake module (S-INV-4, WP-26, D-169): Vedette as the TLS server of osquery. It owns the enrolment
+// Package agentintake is the agent-intake module (S-INV-4, WP-26): Vedette as the TLS server of osquery. It owns the enrolment
 // tokens and the enrolled nodes, parses what osquery sends (every byte of it is untrusted, SYS-6) and hands devices and software to the
 // inventory through core/observe. The admin routes, the install scripts and Wazuh are later slices.
 package agentintake
@@ -22,7 +22,7 @@ func mustSub(fsys fs.FS, dir string) fs.FS {
 	return sub
 }
 
-// The request body caps of the public operations (D-169 (8), INV-7), by operationId. cmd/vedette hands them to server.Config through
+// The request body caps of the public operations (INV-7), by operationId. cmd/vedette hands them to server.Config through
 // moduleWiring.BodyLimits; the server refuses a declared length over the cap before reading and cuts a body that grows past it.
 const (
 	maxEnrollBody = 64 << 10

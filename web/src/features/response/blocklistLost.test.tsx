@@ -1,4 +1,4 @@
-// #847 (J7 #812): after a backup restored without its decryption key, the box cannot read the block list token. The Block list tab
+// #847 (#812): after a backup restored without its decryption key, the box cannot read the block list token. The Block list tab
 // shows the box's sentence (the firewall keeps its address) and keeps Regenerate token reachable; Regenerate shows the new address.
 import { describe, expect, it, vi } from 'vitest'
 import { screen, within } from '@testing-library/react'
@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
 
-// D-624 (#819, #841): AI response is hidden in the v1 GUI (POST_V1_IN_UI false) but its screens are kept; run them as offered,
+// AI response is hidden in the v1 GUI (POST_V1_IN_UI false) but its screens are kept; run them as offered,
 // as response.test.tsx does.
 const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
 vi.mock('@/lib/postV1', () => postV1)

@@ -102,7 +102,7 @@ func TestHostNetCacheSnapshotNeverWaits(t *testing.T) {
 	close(hung)
 }
 
-// D-408: notify's BoxAddrs waits for vedette-host only before its first answer, and then at most firstAnswerWait: the first webhook
+// Notify's BoxAddrs waits for vedette-host only before its first answer, and then at most firstAnswerWait: the first webhook
 // save after a start is checked against that answer instead of being a 503; once the set is known a connection or save never waits.
 func TestNotifyBoxAddrsWaitsOnlyForTheFirstAnswer(t *testing.T) {
 	t.Parallel()

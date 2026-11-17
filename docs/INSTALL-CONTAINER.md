@@ -1,6 +1,6 @@
 # Install Vedette on your own Docker or Podman (container-only)
 
-For the person who already runs Docker or Podman and wants Vedette on it, without giving a machine to the Vedette installer. You get the same program as the appliance, run as containers from Docker Compose. You do not get the helper that manages the machine itself (`vedette-host`), so a few things stay with you. They are listed below; each of those screens in Vedette also says so (D-381).
+For the person who already runs Docker or Podman and wants Vedette on it, without giving a machine to the Vedette installer. You get the same program as the appliance, run as containers from Docker Compose. You do not get the helper that manages the machine itself (`vedette-host`), so a few things stay with you. They are listed below; each of those screens in Vedette also says so.
 
 The appliance install is `install.sh` (`docs/DEPLOYMENT.md` section 8).
 
@@ -18,7 +18,7 @@ The appliance install is `install.sh` (`docs/DEPLOYMENT.md` section 8).
 | Updating Vedette | **you** run `pull` and `up` (below) | in the page, in batches, with rollback |
 | Backup | **you** back up the Docker volume (below) | snapshots and rotation by the helper |
 | "This box" in the device list | present, without a package list | with the package list |
-| MCP server (outside AI tools and SIEMs reading the box) | yes, on `127.0.0.1:8765` of the machine that runs Docker or Podman (`compose.yaml` publishes it there only, D-395); from another machine through an SSH tunnel to this one | yes, on the machine's localhost |
+| MCP server (outside AI tools and SIEMs reading the box) | yes, on `127.0.0.1:8765` of the machine that runs Docker or Podman (`compose.yaml` publishes it there only); from another machine through an SSH tunnel to this one | yes, on the machine's localhost |
 
 ## What you need
 
@@ -27,15 +27,15 @@ The appliance install is `install.sh` (`docs/DEPLOYMENT.md` section 8).
 - Linux, macOS or Windows (WSL2). Docker Desktop on macOS and Windows has no host network, so there you get the web page and the modules that need no real network card, not the sensors.
 - Rootless Docker or Podman: the web page and everything that is not a sensor. A rootless setup cannot publish port 514, cannot read a real network card from a container, and may show every syslog sender as one address.
 - About 4 CPU cores and 8 GB of memory for a network of up to 1,000 devices (`docs/DEPLOYMENT.md` section 4). Core is limited to 2 GB, the sensor to 512 MB, the scan worker to 1 GB.
-- For the sensors: a wired card on the network you want to discover. The sensor listens on the card that has this machine's address, or on the one you choose under Devices, Scope and sensors, Configure. A switch mirror port (SPAN) is not offered in this version (D-403).
+- For the sensors: a wired card on the network you want to discover. The sensor listens on the card that has this machine's address, or on the one you choose under Devices, Scope and sensors, Configure. A switch mirror port (SPAN) is not offered in this version.
 
 ## 1. Get the files and check them
 
-Every release that offers this install publishes four files on its GitHub release page, `https://github.com/KNT048/vedette/releases/download/v<version>/`, each with a minisign signature `<file>.minisig`: `vedette.env`, `compose.yaml`, `compose.sensors.yaml` and `compose.syslog.yaml` (D-451). The container images are at `ghcr.io/knt048/vedette-core`, `-sensor` and `-scan`, signed with cosign. The release builder copies the compose files of `deploy/compose/container-only/` unchanged and fills only the three image lines of `vedette.env`, each exactly `ghcr.io/knt048/vedette-<service>@sha256:<64 hex>` (never a tag); `VEDETTE_BIND_IP` and `VEDETTE_HOSTS` stay empty for you to fill. Each signature's trusted comment names the file and the release (`file:vedette.env version:<version>`), so a signed file of another release shows for what it is.
+Every release that offers this install publishes four files on its GitHub release page, `https://github.com/KNT048/vedette/releases/download/v<version>/`, each with a minisign signature `<file>.minisig`: `vedette.env`, `compose.yaml`, `compose.sensors.yaml` and `compose.syslog.yaml`. The container images are at `ghcr.io/knt048/vedette-core`, `-sensor` and `-scan`, signed with cosign. The release builder copies the compose files of `deploy/compose/container-only/` unchanged and fills only the three image lines of `vedette.env`, each exactly `ghcr.io/knt048/vedette-<service>@sha256:<64 hex>` (never a tag); `VEDETTE_BIND_IP` and `VEDETTE_HOSTS` stay empty for you to fill. Each signature's trusted comment names the file and the release (`file:vedette.env version:<version>`), so a signed file of another release shows for what it is.
 
 No release is published yet (WP-08k). Until then take the files from `deploy/compose/container-only/` of the repository and use images you built yourself (`make core-image sensor-image scan-base-image`, tagged `localhost/vedette-core:dev`, `localhost/vedette-sensor:dev` and `localhost/vedette-scan-base:dev`).
 
-Make an empty folder for Vedette and work in it from here on: it holds the public keys, the four release files, and later the folders an update keeps. First save the public keys there, from this repository rather than from the release page (two places an attacker would have to change). They are the keys compiled into Vedette (`internal/release/keys.go`, D-256); keep the files in this folder for every later update. `vedette-backup.pub` is the offline backup key: it signs only a rescue release, published if the everyday key is ever leaked (section 5, D-258, D-410):
+Make an empty folder for Vedette and work in it from here on: it holds the public keys, the four release files, and later the folders an update keeps. First save the public keys there, from this repository rather than from the release page (two places an attacker would have to change). They are the keys compiled into Vedette (`internal/release/keys.go`); keep the files in this folder for every later update. `vedette-backup.pub` is the offline backup key: it signs only a rescue release, published if the everyday key is ever leaked (section 5):
 
 ```sh
 mkdir vedette && cd vedette
@@ -71,7 +71,7 @@ VEDETTE_HOSTS=192.168.10.5          # the name or address you type in the browse
 
 Why two: Docker's `-p` opens the port itself, around UFW and similar tools: UFW rules do not apply to 8443, 514 or 6514 even on the address you name. So the compose file never publishes on all addresses (do not set `0.0.0.0` or `::`), and to limit *who* may connect, put the rule in Docker's `DOCKER-USER` chain or on your network firewall. And Vedette answers only to the names it was told (`VEDETTE_HOSTS`), which also go in its certificate (change the line and run `up -d` again: at that start core gives its certificate the new names, from the same box CA, so an agent you installed keeps trusting it, and says so in its log; names you removed stay in the certificate but get `421`); any other name gets `421`, a protection against DNS rebinding. Without `VEDETTE_BIND_IP` or `VEDETTE_HOSTS`, or with an empty image line, compose refuses to start and says which one.
 
-osquery agents on your servers download their installer from this box and report to it at the address in `VEDETTE_HOSTS`, so they need an address other machines can reach: with `VEDETTE_BIND_IP=127.0.0.1` (this machine only) the agent page shows no install command and says so. The box serves osquery for x86_64 and arm64 (aarch64) Linux servers and x64 Windows Server (D-399).
+osquery agents on your servers download their installer from this box and report to it at the address in `VEDETTE_HOSTS`, so they need an address other machines can reach: with `VEDETTE_BIND_IP=127.0.0.1` (this machine only) the agent page shows no install command and says so. The box serves osquery for x86_64 and arm64 (aarch64) Linux servers and x64 Windows Server.
 
 Compose does not read `vedette.env` by itself (it reads only a file called `.env`), so every command carries `--env-file vedette.env`. A `VEDETTE_*` variable exported in your shell wins over the file: unset it if the page answers on an address you did not write there.
 
@@ -83,7 +83,7 @@ docker compose --env-file vedette.env ps             # core is "healthy" within 
 docker logs vedette-core 2>&1 | grep setup_code      # podman logs vedette-core ...
 ```
 
-The log line holds the one-time setup code (`"setup_code":"..."`). It is printed again at every start while setup is open and stops when the first administrator exists. Open `https://<VEDETTE_HOSTS>:8443`, enter the code, and follow the setup. The certificate is self-signed and made by the box on first start, so your browser warns once; it is kept in the data volume. Opening the page by a name or address that is not in `VEDETTE_HOSTS` shows a short page "This address is not one Vedette answers to" (HTTP 421) that names the address you typed and links here: use the one you set, or add it to the line and run `up -d` again. The page does not list the names the box answers to. A script or API client (an `/api/` path, or no `text/html` in `Accept`) gets the same 421 as the JSON error `misdirected_request` (D-542).
+The log line holds the one-time setup code (`"setup_code":"..."`). It is printed again at every start while setup is open and stops when the first administrator exists. Open `https://<VEDETTE_HOSTS>:8443`, enter the code, and follow the setup. The certificate is self-signed and made by the box on first start, so your browser warns once; it is kept in the data volume. Opening the page by a name or address that is not in `VEDETTE_HOSTS` shows a short page "This address is not one Vedette answers to" (HTTP 421) that names the address you typed and links here: use the one you set, or add it to the line and run `up -d` again. The page does not list the names the box answers to. A script or API client (an `/api/` path, or no `text/html` in `Accept`) gets the same 421 as the JSON error `misdirected_request`.
 
 Check from another machine that only what you meant is open (`nmap` is yours to run on your own network): port 8443 on `VEDETTE_BIND_IP` and nothing else; ports 8444 and 8765 are on `127.0.0.1` only. On this machine (Linux) `ss -Hltnup | awk '$5 ~ /:(8443|8444|8765|514|6514)$/'` lists what listens on Vedette's ports (with Docker, `docker-proxy` holds a published port unless you turned the userland proxy off); with the ports file below, look for your ports instead.
 
@@ -96,7 +96,7 @@ docker compose --env-file vedette.env -f compose.yaml -f compose.sensors.yaml up
 docker compose --env-file vedette.env -f compose.yaml -f compose.syslog.yaml up -d
 ```
 
-Keep the same `-f` list on every later command (`ps`, `down`, `pull`, `up`), or compose treats the other containers as strays. Then switch the modules on in Settings → Modules. The sensor runs as uid 0, group 65532 (to read its credentials), with only `NET_RAW` (Docker gives an added capability only to root; Podman gives it to any user), read-only, on the host network; the scan worker runs as uid 65532 with no capability at all (there is no nmap here). The sensor reads the card you prepared; choose it under Sensors once the sensor has reported (the list is what the sensor sees). A sensor started rootless still reports, but cannot open the card: Sensors then shows "Reporting, not capturing" with the reason (D-399); start it as root.
+Keep the same `-f` list on every later command (`ps`, `down`, `pull`, `up`), or compose treats the other containers as strays. Then switch the modules on in Settings → Modules. The sensor runs as uid 0, group 65532 (to read its credentials), with only `NET_RAW` (Docker gives an added capability only to root; Podman gives it to any user), read-only, on the host network; the scan worker runs as uid 65532 with no capability at all (there is no nmap here). The sensor reads the card you prepared; choose it under Sensors once the sensor has reported (the list is what the sensor sees). A sensor started rootless still reports, but cannot open the card: Sensors then shows "Reporting, not capturing" with the reason; start it as root.
 
 ### Other host ports (a port is already taken)
 
@@ -137,7 +137,7 @@ What moving a port changes:
 
 Vedette looks for a new release every 6 hours (while the update check is on under Settings → Privacy). When it finds one, Settings → Updates names the version and its notes and shows these commands with the release's own image digests, for Docker or Podman; there is no Apply button. Until the first release is published (WP-08k) the page says there is no release information yet.
 
-An update replaces all four files, not only `vedette.env`, so a release that changes a compose file reaches you (D-451). Run it in the folder of section 1, where `vedette.pub`, `vedette-backup.pub` and `cosign.pub` are. The page shows these commands with the real versions and digests, one block per step; here, updating from 0.9.3 to 0.9.4:
+An update replaces all four files, not only `vedette.env`, so a release that changes a compose file reaches you. Run it in the folder of section 1, where `vedette.pub`, `vedette-backup.pub` and `cosign.pub` are. The page shows these commands with the real versions and digests, one block per step; here, updating from 0.9.3 to 0.9.4:
 
 ```sh
 # 1. the way back: the four files you run now, in a NEW folder named after the release they run (mkdir refuses an existing folder,
@@ -160,9 +160,9 @@ docker compose --env-file vedette.env pull           # podman compose ... the sa
 docker compose --env-file vedette.env up -d
 ```
 
-A release can also change the compose files (the one with D-395 publishes the MCP port `127.0.0.1:8765`; with an older `compose.yaml` the MCP server cannot be reached): download `compose.yaml`, `compose.sensors.yaml` and `compose.syslog.yaml` of the new release with their `.minisig`, check each with `minisign -Vm`, and replace yours before `pull` and `up -d`.
+A release can also change the compose files (for example, the compose file that publishes the MCP port `127.0.0.1:8765`; with an older `compose.yaml` the MCP server cannot be reached): download `compose.yaml`, `compose.sensors.yaml` and `compose.syslog.yaml` of the new release with their `.minisig`, check each with `minisign -Vm`, and replace yours before `pull` and `up -d`.
 
-**A rescue release** (D-258, D-259): if the everyday signing key is ever leaked, the next release is signed with the backup key instead, and its release notes and the GitHub release page say "rescue release". Its four files then verify only with `vedette-backup.pub`: in step 2 use `-p vedette-backup.pub` in place of `-p vedette.pub` for that release only, and nothing else (a file signed with the backup key that is not announced as a rescue release is a reason to stop). `cosign.pub` does not change. If you kept no `vedette-backup.pub`, save it from this repository as in section 1 before you check. The releases after a rescue are signed with a new everyday key: replace `vedette.pub` with the one section 1 of this guide gives at the rescue release's tag (`https://github.com/KNT048/vedette/blob/v<rescue version>/docs/INSTALL-CONTAINER.md`), and keep `vedette-backup.pub`.
+**A rescue release**: if the everyday signing key is ever leaked, the next release is signed with the backup key instead, and its release notes and the GitHub release page say "rescue release". Its four files then verify only with `vedette-backup.pub`: in step 2 use `-p vedette-backup.pub` in place of `-p vedette.pub` for that release only, and nothing else (a file signed with the backup key that is not announced as a rescue release is a reason to stop). `cosign.pub` does not change. If you kept no `vedette-backup.pub`, save it from this repository as in section 1 before you check. The releases after a rescue are signed with a new everyday key: replace `vedette.pub` with the one section 1 of this guide gives at the rescue release's tag (`https://github.com/KNT048/vedette/blob/v<rescue version>/docs/INSTALL-CONTAINER.md`), and keep `vedette-backup.pub`.
 
 If any check fails, stop and put your files back. The same commands are the way back after the update (with the same `-f` files if you run the add-ons):
 
@@ -178,7 +178,7 @@ Without an offered release, the page shows only `pull` and `up -d`: they pull ag
 
 ## 6. Back up, stop, remove
 
-Everything Vedette keeps, including the key that unlocks its secrets, is in the Docker or Podman volume `vedette_data`. The two small `creds-*` volumes hold the sensors' credentials, and core writes them again from `vedette_data` at every start (`core/pki` `Authority.Start`), so they need no backup: after `down --volumes` and a restore of `vedette_data` alone, the sensor reconnects (seen on Podman in the 2026-11-13 walk). There is no snapshot made by a helper in this install, so you copy the volume yourself, with core stopped, and keep the copy as safe as a password:
+Everything Vedette keeps, including the key that unlocks its secrets, is in the Docker or Podman volume `vedette_data`. The two small `creds-*` volumes hold the sensors' credentials, and core writes them again from `vedette_data` at every start (`core/pki` `Authority.Start`), so they need no backup: after `down --volumes` and a restore of `vedette_data` alone, the sensor reconnects (tested on Podman). There is no snapshot made by a helper in this install, so you copy the volume yourself, with core stopped, and keep the copy as safe as a password:
 
 ```sh
 docker compose --env-file vedette.env stop core
@@ -214,18 +214,18 @@ podman compose --env-file vedette.env start core
 
 ## What each limit looks like in the page
 
-Vedette knows it is a container-only install from `-host-socket=` in `compose.yaml` (D-381), and the pages follow it:
+Vedette knows it is a container-only install from `-host-socket=` in `compose.yaml`, and the pages follow it:
 
 - Settings → Updates says whether a newer release exists (version and notes) and shows the commands of section 5 for Docker or Podman, with one `cosign verify` line per image of that release; it says the operating system is yours; there is no Apply, spare slot, rollback, channel or package list.
 - Settings → Data shows the backup and restore commands of section 6 instead of Download backup and "Backups on this box". Export, log downloads and Delete all data work as on the appliance.
 - Settings → Box network says the network of the machine is yours to set up.
 - Settings → Modules shows Honeypot (and Credentialed scans) as "Not on this install"; the setup bundles leave them out. A honeypot turned on before this version shows only why it cannot run; turn it off in Settings → Modules.
 - The first-run setup names `docker logs vedette-core` for the setup code.
-- Scans → Credentialed scan says the module is not on this install instead of inviting you to turn it on (D-420).
-- Settings → MCP server says nothing outside the container can reach it yet (D-420); publishing the port safely is packaging work still to come.
-- Settings → SIEM forwarding greys out "Honeypot touches": there is no honeypot to forward (D-420).
+- Scans → Credentialed scan says the module is not on this install instead of inviting you to turn it on.
+- Settings → MCP server says nothing outside the container can reach it yet; publishing the port safely is packaging work still to come.
+- Settings → SIEM forwarding greys out "Honeypot touches": there is no honeypot to forward.
 
-Still to come: the package list of "This box" says nothing about why it is empty (S-INV-5 G3).
+Still to come: the package list of "This box" says nothing about why it is empty (S-INV-5).
 
 ## Not tested yet (the lab does)
 

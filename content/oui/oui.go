@@ -1,4 +1,4 @@
-// Package oui maps the first bits of a MAC address to the company the IEEE registered them to (D-83).
+// Package oui maps the first bits of a MAC address to the company the IEEE registered them to.
 // The table is built by `make oui` from runZero's mac-tracker (MIT; the data comes from the IEEE Registration
 // Authority registries), committed as oui.tsv.gz and embedded: the product never downloads it.
 package oui

@@ -30,7 +30,7 @@ func (liveFacts) CVE(_ context.Context, id string) (ai.CVEFacts, bool, error) {
 
 func (liveFacts) AffectedAssets(context.Context, string) ([]ai.AssetFact, error) { return nil, nil }
 
-// TestLiveCVENews fetches the real public sources and asks a real model once (kien's machine only: VEDETTE_LIVE_AI=1, never CI).
+// TestLiveCVENews fetches the real public sources and asks a real model once (local only: VEDETTE_LIVE_AI=1, never CI).
 // The key is read from ANTHROPIC_API_KEY, held in memory for the call, and never printed or stored. It proves the fetcher, the
 // parsers, the prompt, the schema and the parser of the answer fit the real Internet and a real model.
 func TestLiveCVENews(t *testing.T) {

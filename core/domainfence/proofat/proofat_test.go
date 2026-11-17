@@ -2,7 +2,7 @@ package proofat
 
 import "testing"
 
-// D-632 (review r1 L1 of #960): a record's name is the domain or a parent of it, down to the registered domain, never a public
+// A record's name is the domain or a parent of it, down to the registered domain, never a public
 // suffix of either section of the list, nor a name above one.
 func TestWithin(t *testing.T) {
 	t.Parallel()

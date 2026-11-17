@@ -39,7 +39,7 @@ func kev(cve string) NewKEV {
 }
 
 // INV-9, PRE-4, POST-4: a new KEV entry with a template rescans exactly the devices with an open finding for it,
-// with only that CVE's templates, within 60 minutes, outside the time window (D-126 (3)), and the log says how it went.
+// with only that CVE's templates, within 60 minutes, outside the time window, and the log says how it went.
 func TestContract_INV9_RescanAfterANewKEV(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t) // t0 is 10:00 UTC, outside the default 22:00-05:00 window
@@ -76,7 +76,7 @@ func TestContract_INV9_RescanAfterANewKEV(t *testing.T) {
 }
 
 // INV-9: auto rescan off → skipped_off and no scan; no device that may be scanned without a pick → no_match (a fragile
-// device is never touched by an automatic run, D-126 (2)); no template in the installed pack → it waits, then is dropped.
+// device is never touched by an automatic run); no template in the installed pack → it waits, then is dropped.
 func TestContract_INV9_SkippedOffNoMatchAndPack(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
@@ -94,7 +94,7 @@ func TestContract_INV9_SkippedOffNoMatchAndPack(t *testing.T) {
 	for _, e := range r.events() {
 		got[e.CVE] = e.Result
 	}
-	// 27593 is only on the fragile NAS: a hand pick only (D-145 (7)); 46805 is on no device; 44228 has no template in
+	// 27593 is only on the fragile NAS: a hand pick only; 46805 is on no device; 44228 has no template in
 	// the pack: still waiting
 	if len(got) != 2 || got["CVE-2022-27593"] != "pick_only" || got["CVE-2023-46805"] != "no_match" || len(r.eng.sent()) != 0 {
 		t.Fatalf("events: %v, jobs %d", got, len(r.eng.sent()))
@@ -112,7 +112,7 @@ func TestContract_INV9_SkippedOffNoMatchAndPack(t *testing.T) {
 	if r.count(`SELECT count(*) FROM scan_event WHERE cve = 'CVE-2021-44228' AND result IS NULL`) != 0 {
 		t.Fatal("an event whose template never came waits forever")
 	}
-	// D-261 (2): it stays in the rescan log, with the reason as its result
+	// It stays in the rescan log, with the reason as its result
 	var seen *EventView
 	for _, e := range r.events() {
 		if e.CVE == "CVE-2021-44228" {
@@ -168,7 +168,7 @@ func TestContract_INV9_WaitsForTheRunningScan(t *testing.T) {
 	}
 }
 
-// INV-9, D-145 (7): a rescan run stopped before every device was done is "stopped", never "clear" (which would hide
+// INV-9: a rescan run stopped before every device was done is "stopped", never "clear" (which would hide
 // the devices that were not checked).
 func TestContract_INV9_AStoppedRescanSaysSo(t *testing.T) {
 	t.Parallel()
@@ -331,7 +331,7 @@ type doneRec struct{ ch chan jobs.Run }
 
 func (d doneRec) Record(_ context.Context, r jobs.Run) error { d.ch <- r; return nil }
 
-// D-160: the retention job is housekeeping: with the module off the scheduler still runs it and it deletes what is past
+// The retention job is housekeeping: with the module off the scheduler still runs it and it deletes what is past
 // the retention. The other two jobs of the module do not run.
 func TestTheRetentionJobRunsWhileTheModuleIsOff(t *testing.T) {
 	t.Parallel()

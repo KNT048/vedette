@@ -85,7 +85,7 @@ func loadAllow(ctx context.Context, q dbq) ([]AllowEntry, error) {
 var errNeverTouchUnread = errors.New("response: the never-touch list could not be read in full")
 
 // neverTouchGateways are the inventory kinds whose devices count as never-touch without being listed: in practice they are
-// the gateways (INV-10). The box's own gateway and DNS servers come from the host's network state (Config.HostInfra, D-325).
+// the gateways (INV-10). The box's own gateway and DNS servers come from the host's network state (Config.HostInfra).
 var neverTouchGateways = []string{"router", "firewall"}
 
 // neverTouch is the declared list, the box's own addresses, the gateway and DNS servers the box uses, and every inventory router and
@@ -114,7 +114,7 @@ func (s *Service) neverTouch(ctx context.Context, q dbq) ([]AllowEntry, error) {
 }
 
 // derivedNeverTouch is what counts as never-touch without being listed: the box's addresses and MACs, the gateway and DNS servers the
-// box uses (D-325) and the inventory's routers and firewalls.
+// box uses and the inventory's routers and firewalls.
 func (s *Service) derivedNeverTouch(ctx context.Context) ([]AllowEntry, error) {
 	box, err := s.boxAddrs()
 	if err != nil {
@@ -143,7 +143,7 @@ func (s *Service) derivedNeverTouch(ctx context.Context) ([]AllowEntry, error) {
 			if ip, ok := CheckValue(PIP, h.Addr.Unmap().WithZone("").String()); ok && h.Addr.IsValid() {
 				l = append(l, AllowEntry{Value: ip, Label: label})
 			}
-			// D-450: the gateway's MAC as well; it is the only entry an IPv6 link-local gateway has (no action names a link-local address).
+			// The gateway's MAC as well; it is the only entry an IPv6 link-local gateway has (no action names a link-local address).
 			if mac, ok := CheckValue(PMAC, h.MAC); ok && h.MAC != "" {
 				l = append(l, AllowEntry{Value: mac, Label: label})
 			}
@@ -194,9 +194,9 @@ type catRow struct {
 	Run            Tpl
 	Rollback       Tpl
 	Verify         Tpl
-	Precheck       Tpl      // D-95: a read-only template that runs right before Run
-	PrecheckRefuse []string // D-95: texts that make the check refuse; never nil
-	PrecheckExpect string   // D-95: text the output of the check must contain; empty = none
+	Precheck       Tpl      // A read-only template that runs right before Run
+	PrecheckRefuse []string // texts that make the check refuse; never nil
+	PrecheckExpect string   // Text the output of the check must contain; empty = none
 	Risk           Risk
 	Enabled        bool
 	AIMayPropose   bool

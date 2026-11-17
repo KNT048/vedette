@@ -833,7 +833,7 @@ func (s *Server) execute(lr *liveRun, cmd Command, args any) {
 		}
 		if pk, ok := asParked(out.res); ok {
 			// A Parked that comes back after the deadline or after Shutdown began is not parked: the
-			// run then ends timeout or host_shutting_down, and nothing was started for it (D-316 (6)).
+			// run then ends timeout or host_shutting_down, and nothing was started for it.
 			switch {
 			case out.err == nil && ctx.Err() == nil:
 				if out.err = s.enterParked(lr, cmd, pk, rc); out.err == nil {

@@ -17,7 +17,7 @@ import (
 )
 
 // container.start with a version, container.rollback and image retention (WP-07b part 3, slice 3-8a; spec
-// 6.8, 6.10, D-104, D-105, D-138; host CONTRACT INV-20, INV-21). The machine is the fake of opstest with a
+// 6.8, 6.10; host CONTRACT INV-20, INV-21). The machine is the fake of opstest with a
 // stateful systemctl and one stateful podman that holds both containers and images (StatefulPodman), and
 // signing keys made for the test. A release is pulled with container.pull (the real path), then started.
 
@@ -220,7 +220,7 @@ func (e *updEnv) rollback(t *testing.T, svc string) api.Run {
 }
 
 // idOf is the image ID the fake podman shows for an image of that digest (the hex of the digest); retention
-// removes by this ID, not by the digest (D-138 M3).
+// removes by this ID, not by the digest.
 func idOf(digest string) string { return strings.TrimPrefix(digest, "sha256:") }
 
 func rel1(core, sensor string) relSpec { return relSpec{version: v1, core: core, sensor: sensor} }
@@ -1006,7 +1006,7 @@ func TestContract_Update_RollbackNeedsThePreUpdateBackupOfAnUnsafeCoreRelease(t 
 		}
 		e.refused(t, api.CmdContainerRollback, api.ContainerRollbackArgs{Service: "core"}, 412, api.CodeRollbackBackupMissing)
 	})
-	t.Run("retention keeps it (D-157): the versions point at it", func(t *testing.T) {
+	t.Run("retention keeps it: the versions point at it", func(t *testing.T) {
 		t.Parallel()
 		c := setupCoreUnsafe(t)
 		e := c.e
@@ -1399,7 +1399,7 @@ func TestContract_Update_TheSwitchedServiceStillRendersExactlyTheHostsOwnUnit(t 
 	e.pullRel(t, "sensor", rel2(d2, d2))
 	e.ok(t, api.CmdContainerStart, e.startArgs("sensor", v2))
 	e.rollback(t, "sensor")
-	// Every container command still accepts the unit (it is byte for byte the host's own, D-123 L2).
+	// Every container command still accepts the unit (it is byte for byte the host's own).
 	e.ok(t, api.CmdContainerStart, api.ContainerStartArgs{Service: "sensor", Restart: true})
 	if e.unit(t, "sensor") != e.render(t, "sensor", d1) {
 		t.Fatal("the unit is not the host's own")

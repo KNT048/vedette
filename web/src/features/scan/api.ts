@@ -23,7 +23,7 @@ export const useRuns = (enabled = true) =>
     refetchInterval: (q) => runsPollMs(q.state.data),
   })
 
-/** GET /scans/runs?asset= (kien G7b/c): the runs of one device, however many runs of other devices came after. */
+/** GET /scans/runs?asset=: the runs of one device, however many runs of other devices came after. */
 export const useDeviceRuns = (asset: string, enabled = true) =>
   useQuery({
     queryKey: ['scan', 'runs', asset], enabled,

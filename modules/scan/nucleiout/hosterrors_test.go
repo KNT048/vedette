@@ -10,7 +10,7 @@ import (
 // The stderr of the run recorded in testdata/matched.jsonl (lab VM, nuclei v3.11.1, -elog /dev/stderr). Seen there: a
 // target that drops packets gives network-temporary-error for http templates but unknown-error ("context cancelled
 // before establishing connection") for the tcp one; no route to host is network-permanent-error ("port closed or
-// filtered"), like a refusal; a TLS error on a plain port has no kind at all. Only the first is counted (D-165).
+// filtered"), like a refusal; a TLS error on a plain port has no kind at all. Only the first is counted.
 func TestParseHostErrorsOfTheLabRecording(t *testing.T) {
 	t.Parallel()
 	b, err := os.ReadFile("testdata/elog.txt")

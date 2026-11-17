@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// D-356 (INV-22 (k)): the read-back text is read before the run, and only whether it was there is kept. A read-back that settles an unclear
+// INV-22 (k): the read-back text is read before the run, and only whether it was there is kept. A read-back that settles an unclear
 // run counts the change as this step's only when the text was not there before; otherwise the item is not counted and nothing undoes it.
 
 const banned = "CANARY banned: 198.51.100.7" // holds the read-back text of fgt_ban_ip ("198.51.100.7"); the CANARY must never be stored
@@ -37,7 +37,7 @@ func (e *env) noDeviceOutputKept() {
 	}
 }
 
-func TestD356_AlreadyThereAndUnclearRunIsNotThisStepsChange(t *testing.T) {
+func TestAlreadyThereAndUnclearRunIsNotThisStepsChange(t *testing.T) {
 	e := banRequest(t)
 	e.exec.after, e.exec.present = banned, banned // the ban is on the device before the run (another admin, another tool)
 	e.exec.status = map[string]response.StepStatus{"run": response.StepUnknown}
@@ -66,7 +66,7 @@ func TestD356_AlreadyThereAndUnclearRunIsNotThisStepsChange(t *testing.T) {
 	}
 }
 
-func TestD356_NeverThereAndUnclearRunIsApplied(t *testing.T) {
+func TestNeverThereAndUnclearRunIsApplied(t *testing.T) {
 	e := banRequest(t)
 	e.exec.present = banned // the read before prints the list without the address; after the run it holds it
 	e.exec.status = map[string]response.StepStatus{"run": response.StepUnknown}
@@ -82,8 +82,8 @@ func TestD356_NeverThereAndUnclearRunIsApplied(t *testing.T) {
 }
 
 // The sweep (resolveUnknown) settles an item the immediate read-back could not, by the same rule. An item with no record of the read before
-// (its run predates D-356) is never disowned: it is in force, undoable here, and not undone unattended.
-func TestD356_SweepSettlesByTheReadBefore(t *testing.T) {
+// (its run predates that record) is never disowned: it is in force, undoable here, and not undone unattended.
+func TestSweepSettlesByTheReadBefore(t *testing.T) {
 	for name, tc := range map[string]struct {
 		before   string // output of the read before the run; "" = the address is not listed
 		drop     bool   // remove present_before, as on an item from an older version
@@ -132,9 +132,9 @@ func TestD356_SweepSettlesByTheReadBefore(t *testing.T) {
 	}
 }
 
-// HIGH (review of D-356): present_before is stored before the write goes out, so a restart between the run and its result (the box dies, the
+// HIGH: present_before is stored before the write goes out, so a restart between the run and its result (the box dies, the
 // sweep finds the item still running) settles it as this step's change: in force, with its undo time.
-func TestD356_RestartBetweenTheRunAndItsResultKeepsTheUndo(t *testing.T) {
+func TestRestartBetweenTheRunAndItsResultKeepsTheUndo(t *testing.T) {
 	for name, tc := range map[string]struct {
 		before  string
 		inForce bool
@@ -174,9 +174,9 @@ func TestD356_RestartBetweenTheRunAndItsResultKeepsTheUndo(t *testing.T) {
 	}
 }
 
-// MEDIUM (review of D-356): a run that answers clearly over a change that was already there is recorded, but not undone at the end of its
+// MEDIUM: a run that answers clearly over a change that was already there is recorded, but not undone at the end of its
 // undo time (it may be another's); the result says so, and the undo by hand stays open.
-func TestD356_ClearRunOverAChangeAlreadyThereGetsNoUndoTime(t *testing.T) {
+func TestClearRunOverAChangeAlreadyThereGetsNoUndoTime(t *testing.T) {
 	e := banRequest(t)
 	e.exec.after, e.exec.present = banned, banned
 	it := e.approveOnly().Items[0]
@@ -198,7 +198,7 @@ func TestD356_ClearRunOverAChangeAlreadyThereGetsNoUndoTime(t *testing.T) {
 }
 
 // When the check before is the read-back's own read, its output is used: no second read goes out.
-func TestD356_TheCheckBeforeIsTheReadWhenItIsTheSameStep(t *testing.T) {
+func TestTheCheckBeforeIsTheReadWhenItIsTheSameStep(t *testing.T) {
 	e := precheckEnv(t)
 	in := apiAction()
 	in.Precheck = response.Tpl{Method: "GET", Path: "/d/{domain}"}
@@ -222,7 +222,7 @@ func TestD356_TheCheckBeforeIsTheReadWhenItIsTheSameStep(t *testing.T) {
 }
 
 // A device that does not answer the read before the run gets no write, like a check before that does not answer.
-func TestD356_ReadBeforeThatDoesNotAnswerSendsNothingToWrite(t *testing.T) {
+func TestReadBeforeThatDoesNotAnswerSendsNothingToWrite(t *testing.T) {
 	e := banRequest(t)
 	e.exec.status = map[string]response.StepStatus{"verify": response.StepUnknown}
 	got := e.approveOnly()

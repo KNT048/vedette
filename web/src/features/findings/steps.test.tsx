@@ -7,7 +7,7 @@ import { FixedInNote, NowSteps } from './Recommendation'
 import { overdue } from './accept'
 import type { FindingDetail, KevInfo } from './types'
 
-// Walk n74 (M2-3..M2-6): what "Steps you can take now" and "Fixed version" say on a finding without a confirmed pack.
+// What "Steps you can take now" and "Fixed version" say on a finding without a confirmed pack.
 const today = new Date(2026, 10, 16)
 const kev = (due: string | null) => ({ display: 'Juniper Junos OS', due_date: due }) as KevInfo
 const finding = (known: FindingDetail['known_version'], name = 'Juniper Networks EX4200-48T', status = 'suspected') =>
@@ -17,12 +17,12 @@ const steps = (f: FindingDetail, opts: { due?: string | null; updatable?: boolea
   return screen.getAllByRole('listitem').map((li) => li.textContent)
 }
 
-describe('NowSteps (M2-3, M2-5, M2-6)', () => {
+describe('NowSteps', () => {
   it('a version from SNMP is said, not asked for; step 3 names "Read with SNMP now" and links the device', () => {
     const [s1, , s3] = steps(finding({ software: 'Juniper Junos OS', version: '15.1R7.9', source: 'snmp' }))
     expect(s1).toBe('Nothing to look up: Juniper Networks EX4200-48T runs Juniper Junos OS 15.1R7.9 (Vedette read it over SNMP).')
     expect(s3).toMatch(/^Then press "Read with SNMP now" on the page of Juniper Networks EX4200-48T/)
-    // review r1 M2: a newer Junos may not be provably fixed (INV-4c): no promise that it closes, and the Mark as handled way out
+    // a newer Junos may not be provably fixed (INV-4c): no promise that it closes, and the Mark as handled way out
     expect(s3).toMatch(/closes the findings on Juniper Networks EX4200-48T it can prove that version fixes\. If this one stays open, press "Mark as handled" and choose Patched\./)
     expect(screen.getByRole('link', { name: 'Open the device' })).toHaveAttribute('href', '/devices/a-ex')
   })
@@ -44,7 +44,7 @@ describe('NowSteps (M2-3, M2-5, M2-6)', () => {
     expect(s3).toMatch(/^Then press "I updated Junos OS \(Juniper\)" at the top of this page/) // the row's own display, as the button
   })
 
-  it('a closed finding keeps the plain step, not "rescan" (review r1 L6)', () => {
+  it('a closed finding keeps the plain step, not "rescan"', () => {
     const [, , s3] = steps(finding({ software: 'OpenSSH', version: '10.2', source: 'scan' }, '192.168.18.1', 'patched'))
     expect(s3).toMatch(/^Then press "Mark as handled"/)
   })
@@ -64,17 +64,17 @@ describe('NowSteps (M2-3, M2-5, M2-6)', () => {
   })
 })
 
-describe('FixedInNote end_listed (M2-4)', () => {
+describe('FixedInNote end_listed', () => {
   it('says the range end is not the fix and where the fix is', () => {
     const fixed_in = { kind: 'end_listed', version: '15.1R7.9', fixed: '20.4', branches: [], more: 0, no_fix: 0, distro: '', distro_fixed: '', distro_release: '', distro_pro: false, source: 'NVD affected versions' } as const
     render(<FixedInNote finding={{ asset: { name: 'Juniper Networks EX4200-48T' }, fixed_in } as unknown as FindingDetail} />)
-    // review r1 M1: never says a fix exists for this device (an EX4200 runs nothing after 15.1)
+    // never says a fix exists for this device (an EX4200 runs nothing after 15.1)
     expect(screen.getByText(/^Juniper Networks EX4200-48T runs 15\.1R7\.9, inside the range NVD lists as "before 20\.4"\. 20\.4 is not the fix: NVD lists 20\.4 itself, or releases of it, as affected too, and names no fixed release for 15\.1R7\.9\. The vendor advisory lists the releases that fix it; if none is one Juniper Networks EX4200-48T can run, protect it another way \(What CISA requires\) or plan to replace it\./)).toBeInTheDocument()
     expect(screen.queryByText(/Fixed version not known yet/)).not.toBeInTheDocument()
   })
 })
 
-describe('finding page with a typed version (review r1 L1, L4, L8)', () => {
+describe('finding page with a typed version', () => {
   it('NoPack wires the typed row: step 1 says the version, step 3 names the button the page shows; the header says a past deadline passed', async () => {
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01'
       ? { ...a, software: a.software.map((x) => (x.id === 's-web01-wp' ? { ...x, display: 'WordPress', version: '7.1.3', source: 'manual' as const } : x)) }

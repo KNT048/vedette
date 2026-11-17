@@ -23,12 +23,12 @@ const ROLES: Role[] = ['viewer', 'operator', 'admin']
 const hex = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('')
 const adminOf = (u: User): AdminUser => ({ id: u.id, name: u.name, email: u.email, role: u.role, twofa: u.twofa, twofa_method: twofaMethodOf(u), disabled: !!u.disabled, created_at: u.created_at, last_login: u.last_login, sso: !!u.sso })
 const ssoOnly = () => fail(409, 'sso_user', 'This account signs in through SSO. Its password, two-step sign-in and role come from the identity provider.')
-/** Mã cài đặt một lần (D-75): hộp thật in nó vào nhật ký lúc khởi động khi chưa có quản trị viên; mock dùng một mã cố định. */
+/** Mã cài đặt một lần: hộp thật in nó vào nhật ký lúc khởi động khi chưa có quản trị viên; mock dùng một mã cố định. */
 export const MOCK_SETUP_CODE = 'setup-code-demo'
 const tempPassword = () => `${hex(3)}-${hex(3)}-${hex(3)}-${hex(2)}`
 
 // ---------- Cài đặt ban đầu ----------
-// D-544: the acceptance of the terms of use (core_setting terms.accepted on the box). The sample box was set up by its
+// The acceptance of the terms of use (core_setting terms.accepted on the box). The sample box was set up by its
 // administrator a month ago; a clean box has none until setup.
 const termsStore = collection<TermsState['accepted']>('core_terms', () => ({ by: 'admin@acme.example', at: daysAgo(30), version: TERMS_VERSION, via: 'setup' }), () => null)
 const TERMS_REFUSED = 'Read the terms of use and tick that you agree to them before you go on.'
@@ -37,7 +37,7 @@ const setupHandlers = [
   // Công khai, chỉ id/tầng/phụ thuộc (không lộ module nào đang bật) để bước chọn gói vẽ được danh sách.
   http.get(`${API}/core/setup/modules`, () => HttpResponse.json({ modules: modulesStore.get().map(({ id, tier, depends }) => ({ id, tier, depends, available: moduleAvailable(id) })), install: installStore.get().kind, lan: installStore.get().kind === 'appliance' && !orgStore.get().setup_complete ? '192.168.10.0/24' : null })),
 
-  // D-518: restore from a backup file on a new box. Mock: any gzip file is a backup of the sample organization, a key is any
+  // Restore from a backup file on a new box. Mock: any gzip file is a backup of the sample organization, a key is any
   // 32 bytes, and the restore puts the sample data back at once (the box would restart).
   http.post(`${API}/core/setup/restore/upload`, async ({ request }) => {
     if (orgStore.get().setup_complete) return fail(409, 'already_setup', 'This box is already set up. Sign in with the administrator account.')
@@ -79,10 +79,10 @@ const setupHandlers = [
       audit('core.setup', 'sample')
       return HttpResponse.json({ ok: true })
     }
-    // D-75: creating the first administrator needs the code the box printed in its log. It is judged before the
+    // creating the first administrator needs the code the box printed in its log. It is judged before the
     // other fields, so a wrong code learns nothing about them. The sample path above creates no account.
     if (String(b.setup_code ?? '').trim() !== MOCK_SETUP_CODE) return fail(403, 'invalid_setup_code', 'The setup code is missing or wrong. Find it in the box\'s log: it is printed there each time Vedette starts while setup is open.')
-    if (b.accept_terms !== true) return fail(400, 'terms_not_accepted', TERMS_REFUSED) // the first step of the form (D-544)
+    if (b.accept_terms !== true) return fail(400, 'terms_not_accepted', TERMS_REFUSED) // the first step of the form
     const org = String(b.org ?? '').trim()
     if (org.length < 2 || org.length > 80) return fail(400, 'invalid_org', 'The organization name is 2 to 80 characters.')
     const a = b.admin ?? { name: '', email: '', password: '' }
@@ -104,7 +104,7 @@ const setupHandlers = [
     if (clash) return fail(400, 'overlap_range', `Range ${clash[0]} overlaps ${clash[1]}. Keep the larger range and drop the smaller one.`)
     let enable: ModuleId[]
     const all = modulesStore.get() // danh sách module mặc định; kiểm tra xong mới dọn kho (lỗi thì không mất gì)
-    // D-381: a bundle leaves out what this install cannot run; a custom choice naming it is refused.
+    // A bundle leaves out what this install cannot run; a custom choice naming it is refused.
     if (b.bundle === 'smb' || b.bundle === 'mid') enable = BUNDLES[b.bundle].filter(moduleAvailable)
     else if (b.bundle === 'custom') {
       enable = (b.modules ?? []) as ModuleId[]
@@ -147,7 +147,7 @@ const generalHandlers = [
     const denied = guard('viewer')
     if (denied) return denied
     const a = termsStore.get()
-    // Who accepted is said to administrators only, as the user list is (D-544).
+    // Who accepted is said to administrators only, as the user list is.
     return HttpResponse.json({ version: TERMS_VERSION, accepted: a && currentUser()?.role !== 'admin' ? { ...a, by: null } : a } satisfies TermsState)
   }),
   http.get(`${API}/core/general`, () => {
@@ -229,7 +229,7 @@ const accountHandlers = [
     if (denied) return denied
     if (currentUser()!.sso) return ssoOnly()
     const u = currentUser()!
-    // D-76: turning two-step on needs the current password, like turning it off.
+    // Turning two-step on needs the current password, like turning it off.
     if ((await body<{ password: string }>(request)).password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn on two-step sign-in.')
     if (u.twofa) return fail(409, 'already_on', 'Two-step sign-in is already on. Turn it off first to set up the other method.')
     const secret = newSecret()
@@ -313,7 +313,7 @@ const accountHandlers = [
 ]
 
 // ---------- Người dùng, OIDC ----------
-interface OidcStored { issuer: string; client_id: string; secret: string; scopes: string; groups_claim: string; default_role: Role | null; role_map: { group: string; role: Role }[]; /** D-194 (5): pinned when an administrator saves, from the address they used */ redirect_uri?: string; /** D-378 */ ca_pem?: string }
+interface OidcStored { issuer: string; client_id: string; secret: string; scopes: string; groups_claim: string; default_role: Role | null; role_map: { group: string; role: Role }[]; /** Pinned when an administrator saves, from the address they used */ redirect_uri?: string; /** extra CA certificates for this IdP */ ca_pem?: string }
 const oidcStore = collection<OidcStored>('oidc_config', () => ({ issuer: '', client_id: '', secret: '', scopes: 'openid email profile', groups_claim: 'groups', default_role: null, role_map: [] }))
 const oidcView = (): OidcConfig => {
   const c = oidcStore.get()
@@ -323,7 +323,7 @@ const oidcView = (): OidcConfig => {
     ca_pem: c.ca_pem ?? '', ca_certs: caBlocks(c.ca_pem ?? '').map((_, i) => ({ subject: `Mock internal CA ${i + 1}`, expires_at: MOCK_CA_EXPIRES })),
   }
 }
-// D-378: the mock cannot read X.509, so it checks the shape only (PEM CERTIFICATE blocks, nothing else, 1 to 5, at most 64 KB) and
+// The mock cannot read X.509, so it checks the shape only (PEM CERTIFICATE blocks, nothing else, 1 to 5, at most 64 KB) and
 // names each block "Mock internal CA n". The box parses each certificate and refuses a non-CA or an expired one.
 const MOCK_CA_EXPIRES = '2030-01-01T00:00:00.000Z'
 const caBlocks = (pemText: string) => pemText.match(/-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\s]+-----END CERTIFICATE-----/g) ?? []
@@ -337,11 +337,11 @@ function caError(raw: string): string | null {
   if (blocks.length > 5) return 'The CA certificate text holds more than 5 certificates.'
   return null
 }
-// Luồng đăng nhập SSO đang chờ gọi lại (D-194): state, binding, hạn 10 phút, dùng một lần. Bản thật chỉ giữ SHA-256 của hai giá trị.
+// Luồng đăng nhập SSO đang chờ gọi lại: state, binding, hạn 10 phút, dùng một lần. Bản thật chỉ giữ SHA-256 của hai giá trị.
 const oidcFlows = collection<{ state: string; binding: string; expires: number; issuer: string; client_id: string }[]>('oidc_flow', () => [])
 // Người dùng ở IdP mẫu: mock không có IdP thật, nên bước đăng nhập ở IdP được bỏ qua và trả về ngay một mã.
 export const MOCK_IDP_USER: { sub: string; email: string; email_verified?: boolean; name: string; groups: string[] } = { sub: 'mock-sub-1', email: 'sso.user@acme.example', email_verified: true, name: 'SSO user', groups: ['vedette-operators', 'staff'] }
-/** D-195: vai cao nhất trong các dòng khớp nhóm; không khớp dòng nào → vai mặc định (null = không có quyền). */
+/** vai cao nhất trong các dòng khớp nhóm; không khớp dòng nào → vai mặc định (null = không có quyền). */
 export function ssoRole(groups: string[], c: Pick<OidcStored, 'role_map' | 'default_role'>): Role | null {
   const hits = c.role_map.filter((m) => groups.includes(m.group)).map((m) => m.role)
   if (!hits.length) return c.default_role ?? null
@@ -352,7 +352,7 @@ const SCOPE_RE = /^[\x21\x23-\x5B\x5D-\x7E]{1,64}$/
 const CLAIM_RE = /^[A-Za-z0-9_.:/-]{1,64}$/
 const randomToken = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('')
 const OIDC_OFF = 'SSO sign-in is not set up. Sign in with your email and password, or ask an administrator.'
-// D-196: đường vào dự phòng là quản trị viên dùng mật khẩu, nên chỉ họ được tính.
+// đường vào dự phòng là quản trị viên dùng mật khẩu, nên chỉ họ được tính.
 const activeAdmins = (l: User[]) => l.filter((x) => x.role === 'admin' && !x.disabled && !x.sso).length
 
 const usersHandlers = [
@@ -459,7 +459,7 @@ const usersHandlers = [
     const ca = b.ca_pem === undefined ? (cur.ca_pem ?? '') : String(b.ca_pem)
     const caErr = caError(ca)
     if (caErr) return fail(400, 'invalid_ca', caErr)
-    // D-378 (INV-3): a new CA needs the secret again, like a new issuer; removing it does not.
+    // INV-3: a new CA needs the secret again, like a new issuer; removing it does not.
     if (ca.trim() && caBlocks(ca).join('') !== caBlocks(cur.ca_pem ?? '').join('') && !b.client_secret) return fail(400, 'invalid_secret', 'The issuer, Client ID or CA changed: enter the Client secret again.')
     oidcStore.set({ issuer, client_id: clientId, secret, scopes: [...new Set(scopes)].join(' '), groups_claim: claim, default_role: (b.default_role ?? null) as Role | null, role_map: map.map((m) => ({ group: m.group.trim(), role: m.role })), redirect_uri: `${location.origin}/sso/callback`, ca_pem: caBlocks(ca).map((x) => `${x}\n`).join('') })
     audit('oidc.update', issuer)
@@ -473,20 +473,20 @@ const usersHandlers = [
     const host = new URL(c.issuer).hostname
     audit('oidc.test', c.issuer)
     if (host.includes('invalid') || host.endsWith('.local')) return fail(502, 'discovery_failed', `Cannot read ${c.issuer}/.well-known/openid-configuration. Check the issuer and the network path from the box to the IdP.`)
-    // D-378: an issuer under .internal stands for an IdP behind a private CA; it works once a CA is saved.
+    // An issuer under .internal stands for an IdP behind a private CA; it works once a CA is saved.
     if (host.endsWith('.internal') && !c.ca_pem) return fail(502, 'discovery_failed', `Cannot read ${c.issuer}/.well-known/openid-configuration: the box does not trust the identity provider's certificate (an internal CA? paste it under Identity provider CA certificate). Check the issuer and the network path from the box to the identity provider.`)
     return HttpResponse.json({ ok: true, endpoints: { authorization: `${c.issuer}/protocol/openid-connect/auth`, token: `${c.issuer}/protocol/openid-connect/token`, jwks: `${c.issuer}/protocol/openid-connect/certs` } })
   }),
 
   // Công khai: trang đăng nhập hỏi để biết có nút SSO không.
   http.get(`${API}/core/auth-options`, () => HttpResponse.json({ oidc: isOn('auth-oidc') && !!oidcStore.get().issuer })),
-  // D-194: bắt đầu đăng nhập SSO. Bản thật trả điểm authorization của IdP; mock bỏ qua IdP và đưa thẳng về trang gọi lại kèm một mã.
+  // Bắt đầu đăng nhập SSO. Bản thật trả điểm authorization của IdP; mock bỏ qua IdP và đưa thẳng về trang gọi lại kèm một mã.
   // Module tắt: không có route (404, SYS-5); bật mà chưa có issuer: 400 oidc_off.
   http.post(`${API}/auth/oidc/start`, () => {
     if (!isOn('auth-oidc')) return fail(404, 'not_found', 'Not found.')
     const cfg = oidcStore.get()
     if (!cfg.issuer) return fail(400, 'oidc_off', OIDC_OFF)
-    // D-194 (5): SSO runs only at the address the administrator registered at the identity provider.
+    // SSO runs only at the address the administrator registered at the identity provider.
     const at = new URL(oidcView().redirect_uri).origin
     if (at !== location.origin) return fail(409, 'sso_wrong_address', `SSO sign-in works at ${at}. Open Vedette there to sign in with SSO.`, { address: at })
     const state = randomToken()
@@ -495,7 +495,7 @@ const usersHandlers = [
     oidcFlows.update((l) => [...l.filter((f) => f.expires > now).slice(-999), { state, binding, expires: now + 10 * 60_000, issuer: cfg.issuer, client_id: cfg.client_id }])
     return HttpResponse.json({ authorize_url: `${location.origin}/sso/callback?code=mock-${randomToken().slice(0, 16)}&state=${state}`, binding })
   }),
-  // D-194, D-195: gọi lại. Luồng dùng một lần và gắn với issuer/client lúc bắt đầu; vai theo nhóm; không nối vào tài khoản mật khẩu.
+  // Gọi lại. Luồng dùng một lần và gắn với issuer/client lúc bắt đầu; vai theo nhóm; không nối vào tài khoản mật khẩu.
   // Bản thật giới hạn theo địa chỉ như start; mock không đếm. Chỉ ghi kiểm toán khi luồng có thật (không để người lạ làm đầy nhật ký).
   http.post(`${API}/auth/oidc/callback`, async ({ request }) => {
     if (!isOn('auth-oidc')) return fail(404, 'not_found', 'Not found.')
@@ -514,7 +514,7 @@ const usersHandlers = [
     const list = usersStore.get()
     let u = list.find((x) => x.sso?.iss === cfg.issuer && x.sso.sub === idp.sub)
     const role = ssoRole(idp.groups, cfg)
-    // D-196 (4): leaving the groups ends the person's sessions at once, not at the next sign-in only.
+    // Leaving the groups ends the person's sessions at once, not at the next sign-in only.
     const endSessions = (id: string) => { sessionsStore.update((all) => { const n = { ...all }; delete n[id]; return n }); if (sessionStore.get().userId === id) sessionStore.set({ userId: null }) }
     if (!role) {
       if (u) endSessions(u.id)
@@ -537,7 +537,7 @@ const usersHandlers = [
       if (relinked) audit('user.sso_relink', email, cfg.issuer)
       if (u.role !== role) { audit('user.role', email, `${u.role} sang ${role} (SSO groups)`); endSessions(u.id) }
     }
-    // D-195 (6): email and name stay as they were at creation; only the role follows the groups.
+    // email and name stay as they were at creation; only the role follows the groups.
     const signed: User = { ...u, role, last_login: nowIso() }
     usersStore.update((l) => l.map((x) => (x.id === signed.id ? signed : x)))
     sessionStore.set({ userId: signed.id })
@@ -562,11 +562,11 @@ function filterAudit(q: Partial<AuditQuery>): AuditRow[] {
   })
 }
 const qOf = (url: string): Partial<AuditQuery> => { const p = new URL(url).searchParams; return { q: p.get('q') ?? '', user: p.get('user') ?? '', group: p.get('group') ?? '', from: p.get('from') ?? '', to: p.get('to') ?? '', actor: p.get('actor') === 'people' ? 'people' : '' } }
-/** D-416: an automatic line is written by the box itself: user "system" or "system:<part>" (a person, the console and an MCP token are not). */
+/** An automatic line is written by the box itself: user "system" or "system:<part>" (a person, the console and an MCP token are not). */
 const isSystemActor = (user: string) => user === 'system' || user.startsWith('system:')
-/** D-416: ids of devices (a-…) and findings (f-…) in a line's target or detail. */
+/** ids of devices (a-…) and findings (f-…) in a line's target or detail. */
 const AUDIT_ID_RE = /\b[af]-[a-z0-9]{1,64}\b/g
-/** D-416: the display names of the devices and findings named in these rows; a device is its host name, else its IP; a finding is "<CVE> on <device>". */
+/** The display names of the devices and findings named in these rows; a device is its host name, else its IP; a finding is "<CVE> on <device>". */
 function auditNames(rows: AuditRow[]): Record<string, string> {
   const ids = new Set(rows.flatMap((r) => `${r.target} ${r.detail ?? ''}`.match(AUDIT_ID_RE) ?? []))
   if (!ids.size) return {}
@@ -605,9 +605,9 @@ const CATALOG: UpdateAvailable[] = [
   { component: 'pack-mitigation', version: '2026.11.06', channel: 'stable', size_kb: 410, note: 'Adds mitigation guidance for Ivanti Connect Secure.' },
   { component: 'pack-parsers', version: '1.4.1', channel: 'stable', size_kb: 96, note: 'Fixes how FortiGate 7.4 logs are read.' },
 ]
-/** Trình trợ giúp `vedette-host` mà mỗi bản phát hành mang theo (manifest `host.version`, D-316). */
+/** Trình trợ giúp `vedette-host` mà mỗi bản phát hành mang theo (manifest `host.version`). */
 const HOST_IN: Record<string, string> = { '0.9.4': '0.9.4', '0.10.0-beta.1': '0.10.0-beta.1' }
-/** Bản phát hành khai `rollback.safe=false` (đổi DB): rollback khỏi bản này khôi phục DB trước cập nhật (D-104, D-340). */
+/** Bản phát hành khai `rollback.safe=false` (đổi DB): rollback khỏi bản này khôi phục DB trước cập nhật. */
 const RESTORES_DATA = new Set(['0.9.4'])
 const comp = (id: string, kind: UpdateComponent['kind'], version: string, previous: string | null, ago: number): UpdateComponent => ({ id, kind, version, previous, installed_at: daysAgo(ago), signature: 'valid', rollback_restores_data: false })
 const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; components: UpdateComponent[]; history: UpdateHistory[]; last_check: string | null; last_check_error?: UpdateCheckError | null; run?: UpdateRun | null }>('core_updates', () => ({
@@ -641,7 +641,7 @@ const ADVISORIES: Omit<Advisory, 'status'>[] = [
 /** Phiên bản phần mềm đang chạy. */
 export const softwareVersion = () => updStore.get().components.find((c) => c.id === 'software')!.version
 
-/** Gói do Vedette ghim và cập nhật cùng bản phát hành (D-53); không gói nào tự lấy từ kho hệ điều hành. */
+/** Gói do Vedette ghim và cập nhật cùng bản phát hành; không gói nào tự lấy từ kho hệ điều hành. */
 function managedOf(components: UpdateComponent[], available: UpdateAvailable[]): ManagedPackage[] {
   const nuclei = components.find((c) => c.id === 'pack-nuclei')?.version ?? '–'
   const pending = available.some((a) => a.component === 'pack-nuclei')
@@ -653,29 +653,29 @@ function managedOf(components: UpdateComponent[], available: UpdateAvailable[]):
   ]
 }
 
-/** Mỗi bước của một lần chạy mô phỏng (D-340); bản thật: kéo image tới 45 phút, rồi khởi động lại. */
+/** Mỗi bước của một lần chạy mô phỏng; bản thật: kéo image tới 45 phút, rồi khởi động lại. */
 export const RUN_STEP_MS = import.meta.env.MODE === 'test' ? 300 : 1500
 const runSteps = (action: UpdateRun['action'], restore: boolean): UpdateRun['steps'] => (action === 'update' ? ['download', 'restart', 'start'] : restore ? ['start', 'restore', 'restart'] : ['start', 'restart'])
 
 /**
- * How the system helper step of the next software update ends (S-CORE-2 criterion D-316); code null = it succeeds. Only tests and
+ * How the system helper step of the next software update ends (S-CORE-2); code null = it succeeds. Only tests and
  * e2e set it (no button: on a real box the host decides). `version` stands in for the helper version of the release; without it
  * downgrade_not_allowed uses 0.9.2 and test_version_refused `<release>-test.1`.
  */
 export type HostOutcome = 'self_update_unhealthy' | 'install_failed' | 'signature_invalid' | 'checksum_mismatch' | 'downgrade_not_allowed' | 'test_version_refused' | 'dependencies_unavailable' | 'dpkg_locked' | 'rollback_failed' | 'self_update_interrupted' | 'host_too_old' | 'current_package_missing' | 'host_download_failed'
 /**
- * How the next update check ends (S-CORE-2 criterion D-392); null = it succeeds. Only tests and e2e set it (no button: on a
+ * How the next update check ends (S-CORE-2); null = it succeeds. Only tests and e2e set it (no button: on a
  * real box the network decides). The sentences are core's own (modules/core/updates_check.go checkFailure), never remote text.
  */
 export const CHECK_FAILURES: Record<UpdateCheckError['code'], { status: number; message: string }> = {
   update_source_unreachable: { status: 503, message: 'Could not reach the update source (github.com): it did not answer in time. Try again later; if it keeps happening, check that the box can reach github.com over HTTPS.' },
-  // Only a record kept by an older version (D-540): a check of a source that publishes no release now succeeds with nothing offered.
+  // Only a record kept by an older version: a check of a source that publishes no release now succeeds with nothing offered.
   update_not_published: { status: 502, message: 'No release found yet: the release source answered, but no update information is published there. This is not a network problem and nothing needs fixing on the box.' },
   update_check_failed: { status: 502, message: "The update information did not pass Vedette's signature checks, so nothing new is offered and nothing was installed. The details are in the box log." },
 }
 export const checkScenario = collection<{ code: UpdateCheckError['code'] | null }>('core_updates_check_scenario', () => ({ code: null }))
 export const hostScenario = collection<{ code: HostOutcome | null; version: string | null }>('core_updates_host_scenario', () => ({ code: null, version: null }))
-/** The words core sends for each code (the story's sentences; slice 5 maps the host codes to these, core CONTRACT INV-21). */
+/** The words core sends for each code (the story's sentences; the host codes map to these, core CONTRACT INV-21). */
 export function hostError(code: HostOutcome, v: string, running: string, release: string): string {
   switch (code) {
     case 'self_update_unhealthy': case 'install_failed': return `The new system helper ${v} did not start correctly, so the box went back to ${running} by itself. Nothing else was changed.`
@@ -741,12 +741,12 @@ function startRun(action: UpdateRun['action'], component: string, from: string, 
 }
 
 /**
- * The stored index as far as D-386 needs it: its revocations and its expires_at. The mock check stores a fresh index
+ * The stored index as far as the withdrawal notices need it: its revocations and its expires_at. The mock check stores a fresh index
  * (expires in 14 days), like the box; tests put a revocation of the running release or an expired index here.
  */
 export const updIndex = collection<{ expires_at: string; revoked: { kind: 'release' | 'image_digest' | 'key' | 'advisory_only'; id: string; reason: string; since: string; action: NonNullable<UpdatesState['running_revoked']>['action'] }[] }>('core_updates_index', () => ({ expires_at: new Date(Date.now() + 7 * 864e5).toISOString(), revoked: [] }))
 const WARNS = new Set(['block_install_and_warn', 'rollback_if_possible'])
-/** D-386: a release revocation of the running version (the mock has no image digests); one with a warning action first. */
+/** A release revocation of the running version (the mock has no image digests); one with a warning action first. */
 function runningRevoked(running: string): UpdatesState['running_revoked'] {
   const hits = updIndex.get().revoked.filter((r) => r.kind === 'release' && r.id === running)
   const r = hits.find((x) => WARNS.has(x.action)) ?? hits[0]
@@ -754,7 +754,7 @@ function runningRevoked(running: string): UpdatesState['running_revoked'] {
 }
 const staleSince = (): string | null => { const e = updIndex.get().expires_at; return Date.parse(e) < Date.now() ? e : null }
 
-/** The images of a mock release by digest (manifest images[], S-CORE-9 G4): fixed per service and version, like a real manifest. */
+/** The images of a mock release by digest (manifest images[], S-CORE-9): fixed per service and version, like a real manifest. */
 const releaseImages = (version: string) => ['core', 'sensor', 'honeypot', 'scan'].map((service) => ({
   service, digest: `sha256:${[...`${service}@${version}`].map((c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('').padEnd(64, '0').slice(0, 64)}`,
 }))
@@ -769,7 +769,7 @@ function updView(): UpdatesState {
     const cur = s.components.find((c) => c.id === a.component)
     return !cur || compareVersion(a.version, cur.version) > 0
   })
-  // A container-only install has no system helper: no host row, no host_version (D-381, S-CORE-2 D-316 (g)).
+  // A container-only install has no system helper: no host row, no host_version (S-CORE-2).
   const container = installStore.get().kind === 'container'
   // chỉ giữ bản mới nhất cho mỗi thành phần
   const latest = available.filter((a) => !available.some((b) => b.component === a.component && compareVersion(b.version, a.version) > 0)).map((a) => {
@@ -916,7 +916,7 @@ const updatesHandlers = [
     for (const it of bundle.items) {
       const cur = updStore.get().components.find((c) => c.id === it.component)
       if (!cur || compareVersion(it.version, cur.version) <= 0) continue
-      if (it.component === 'software') startRun('update', it.component, cur.version, it.version, currentUser()!.email) // the same run as Apply (D-340)
+      if (it.component === 'software') startRun('update', it.component, cur.version, it.version, currentUser()!.email) // the same run as Apply
       else { applyOne(it.component, it.version, 'bundle', currentUser()!.email); applied++ }
     }
     audit('update.bundle_import', String(b.name ?? 'bundle'), `installed ${applied}`)
@@ -942,7 +942,7 @@ function telemetryPayload() {
     // Cài sạch: hộp chưa ghi nhận gì nên mọi số đếm là 0 (bản mẫu hiện số minh hoạ).
     honeypot_touches: clean ? { smb: 0, rdp: 0, ssh: 0 } : { smb: 0, rdp: 2, ssh: 1 },
     ioc_connections: clean ? 0 : 3,
-    cve_matches: clean ? {} : { 'CVE-2022-27593': 1 }, // counts of matches between devices and exploited vulnerabilities, by CVE (there is no IDS, D-43)
+    cve_matches: clean ? {} : { 'CVE-2022-27593': 1 }, // counts of matches between devices and exploited vulnerabilities, by CVE (there is no IDS)
     // A product found on one device only is left out (PRIVACY.md flow 2): a rare product must not identify a small company.
     device_counts: Object.fromEntries(Object.entries(counts).filter(([, n]) => n >= 2).sort(([a], [b]) => a.localeCompare(b))),
   }
@@ -961,16 +961,16 @@ function privacyView() {
     { id: 7, state: 'conditional', control: 'reason' },
     { id: 8, state: isOn('ai') ? 'conditional' : 'off', control: 'reason' },
     { id: 9, state: isOn('exposure') ? 'on' : 'off', control: 'reason' },
-    // on (D-166 (4)): the distribution's own chrony sources stay whatever is entered; off on a container-only install, which sets no time source (S-CORE-4)
+    // on: the distribution's own chrony sources stay whatever is entered; off on a container-only install, which sets no time source (S-CORE-4)
     { id: 10, state: installStore.get().kind === 'container' ? 'off' : 'on', control: 'reason' },
     { id: 11, state: isOn('auth-oidc') && !!oidcStore.get().issuer ? 'conditional' : 'off', control: 'reason' },
     { id: 12, state: connectorsStore.get().some((c) => c.enabled && c.kind !== 'mcp-stdio') ? 'on' : 'off', control: 'reason' },
     { id: 13, state: isOn('mcp-server') ? 'conditional' : 'off', control: 'reason' },
-    // the Wazuh connection the inventory mock keeps (Inventory → Agents): on while one is saved and the module is on (D-309)
+    // the Wazuh connection the inventory mock keeps (Inventory → Agents): on while one is saved and the module is on
     { id: 14, state: isOn('agent-intake') && peek<unknown>('intake_wazuh') ? 'on' : 'off', control: 'reason' },
-    // D-558: Shodan InternetDB is asked only on an administrator's click in External exposure
+    // Shodan InternetDB is asked only on an administrator's click in External exposure
     { id: 15, state: isOn('exposure') ? 'conditional' : 'off', control: 'reason' },
-    // D-563: on only while Greenbone is enabled in External exposure (the exposure mock keeps the switch)
+    // On only while Greenbone is enabled in External exposure (the exposure mock keeps the switch)
     { id: 16, state: peek<{ enabled?: boolean }>('exp_greenbone')?.enabled ? 'on' : 'off', control: 'reason' },
   ]
   return { flows, telemetry: { enabled: p.telemetry, last_sent: p.last_sent, payload: telemetryPayload() }, update_check: p.update_check }
@@ -988,7 +988,7 @@ const privacyHandlers = [
     const b = await body<{ telemetry: boolean; update_check: boolean }>(request)
     if (b.telemetry !== undefined && typeof b.telemetry !== 'boolean') return fail(400, 'invalid', 'The switch value must be on or off.')
     if (b.update_check !== undefined && typeof b.update_check !== 'boolean') return fail(400, 'invalid', 'The switch value must be on or off.')
-    // D-154: nothing sends the anonymous signal, so it cannot be turned on (the backend answers the same).
+    // Nothing sends the anonymous signal, so it cannot be turned on (the backend answers the same).
     if (b.telemetry === true) return fail(400, 'telemetry_unavailable', 'This version of Vedette does not send an anonymous signal, so it cannot be turned on.')
     privacyStore.update((p) => ({ ...p, telemetry: b.telemetry ?? p.telemetry, update_check: b.update_check ?? p.update_check }))
     if (b.telemetry !== undefined) audit('privacy.telemetry', 'anonymous signal', b.telemetry ? 'on' : 'off')
@@ -1007,7 +1007,7 @@ const MCP_TOOLS = [
 const mcpTokens = collection<(McpToken & { secret_hash: string })[]>('mcp_tokens', () => [])
 const mcpView = () => ({ enabled: isOn('mcp-server'), bind: '127.0.0.1', port: 8765, endpoint: 'http://127.0.0.1:8765/mcp', listening: true, listen_error: null, tokens: mcpTokens.get().map(({ secret_hash: _h, ...t }) => t), tools: MCP_TOOLS, scopes: MCP_SCOPES })
 
-// The mcp-server module owns /core/mcp*: while it is off every path answers 404 like the real server, after the role check (D-230).
+// The mcp-server module owns /core/mcp*: while it is off every path answers 404 like the real server, after the role check.
 // The switch is PATCH /modules/mcp-server (the module toggle), as for single sign-on.
 const MCP_MAX_TOKENS = 10
 /** Like the server: signed in first, then 404 while the module is off, then the admin role. */
@@ -1055,11 +1055,11 @@ const mcpHandlers = [
 const download = (name: string, data: unknown) => new HttpResponse(JSON.stringify(data, null, 2), { headers: { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename=${name}` } })
 const stamp = () => new Date().toISOString().slice(0, 10)
 
-// Wrong passwords for the purge since the last good one: the real limiter is the one of the sign-in (5 tries), D-76.
+// Wrong passwords for the purge since the last good one: the real limiter is the one of the sign-in (5 tries).
 const PURGE_MAX_TRIES = 5
 const purgeTries = collection<{ n: number }>('core_purge_tries', () => ({ n: 0 }))
 
-// Bản sao lưu trình hỗ trợ giữ trên hộp (host-api §6.11) và lần khôi phục gần nhất (D-377). Mock: khôi phục xong ngay, không khởi động lại.
+// Bản sao lưu trình hỗ trợ giữ trên hộp (host-api §6.11) và lần khôi phục gần nhất. Mock: khôi phục xong ngay, không khởi động lại.
 const boxBackupsStore = collection<BoxBackup[]>('core_box_backups', () => [
   { id: 'b3c1a7e0d2f94b5e8a6c0d1e2f3a4b5c', kind: 'pre_os_update', created_at: daysAgo(1), size: 48_300_000, includes_key: true },
   { id: 'a9e2c4f6b8d0e1f2a3b4c5d6e7f8a9b0', kind: 'pre_update', created_at: daysAgo(6), size: 47_100_000, includes_key: true },
@@ -1070,8 +1070,8 @@ const boxBackupsStore = collection<BoxBackup[]>('core_box_backups', () => [
 ])
 const restoreRunStore = collection<{ run: RestoreRun | null }>('core_restore_run', () => ({ run: null }))
 
-// D-154 step-up, like the other sensitive routes (D-76, D-98): the current password, counted against a limit, then a fresh
-// two-step code when it is on. Shared by Delete all data and Restore (D-377); null = passed.
+// Step-up, like the other sensitive routes: the current password, counted against a limit, then a fresh
+// two-step code when it is on. Shared by Delete all data and Restore; null = passed.
 async function stepUp(b: { password?: string; code?: string }, what: string): Promise<Response | null> {
     const u = currentUser()!
     if (purgeTries.get().n >= PURGE_MAX_TRIES) return HttpResponse.json({ error: { code: 'rate_limited', message: 'Too many tries. Wait a few minutes and try again.', retry_after: 300 } }, { status: 429, headers: { 'Retry-After': '300' } })

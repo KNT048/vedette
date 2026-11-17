@@ -60,10 +60,10 @@ function Page({ d }: { d: Scanning }) {
       <PageTabs label={t('page.tabs')} tabs={[
         { id: 'engines', label: t('page.tab.engines'), panel: <EnginesTab d={d} /> },
         { id: 'safety', label: t('page.tab.safety'), panel: <SafetyTab s={d.safety} /> },
-        // kien G7a: the vulnerability checks (scan module), then every other run, which core lists whatever the scan module is
+        // The vulnerability checks (scan module), then every other run, which core lists whatever the scan module is
         { id: 'history', label: t('page.tab.history'), panel: <><NucleiOnly><HistoryTab /></NucleiOnly><RunHistory /></> },
         { id: 'probes', label: t('page.tab.probes'), panel: <NucleiOnly><ProbesTab /></NucleiOnly> },
-        // D-417: not offered in v1 (no backend); kept for after v1
+        // Not offered in v1 (no backend); kept for after v1
         ...(CREDENTIALED_IN_UI ? [{ id: 'credentialed', label: t('page.tab.credentialed'), panel: <CredentialedTab /> }] : []),
       ]} />
     </>
@@ -71,7 +71,7 @@ function Page({ d }: { d: Scanning }) {
 }
 
 /**
- * #850, Settings › Scanning (S-SCAN-4, D-627): every engine of the box on one page, grouped by what it does, with the one shared
+ * #850, Settings › Scanning (S-SCAN-4): every engine of the box on one page, grouped by what it does, with the one shared
  * safety block, the vulnerability checks' history and probe log. GET /scanning is served by core, so the page answers whatever
  * engine module is off; each engine's own switch turns its module on.
  */

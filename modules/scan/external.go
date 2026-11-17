@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// ExternalProbe is one probe of the external-surface scan (INV-12, D-229) in the probe log: the same table, retention (90 days)
+// ExternalProbe is one probe of the external-surface scan (INV-12) in the probe log: the same table, retention (90 days)
 // and CSV as the probes of a run (INV-7), with no run id. Template names the kind ("exposure: tcp", "exposure: https"…).
 type ExternalProbe struct {
 	ID       string // from the scanner; the second write with the same ID completes the row
@@ -17,7 +17,7 @@ type ExternalProbe struct {
 	Template string
 	Request  string
 	Answered bool
-	// Result, when set, is the result of a template probe of exposure's safe checks (D-561, D-520): matched or not_matched (a
+	// Result, when set, is the result of a template probe of exposure's safe checks: matched or not_matched (a
 	// probe that got no usable answer stays no_response), ProbeNotRun (handed to nuclei, which did not run it) or ProbeRefused (the
 	// scan worker refused the job: nothing was sent; kf-scan item 5). It wins over Answered; any other value is not written.
 	Result string

@@ -1,4 +1,4 @@
-// Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616, D-617) and the CVE page of a CVE on no exploited list.
+// Updates to plan (S-TIER-1, S-TIER-2) and the CVE page of a CVE on no exploited list.
 import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -9,10 +9,10 @@ import { modulesStore } from '@/mocks/stores'
 describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
   it('one item per update on one device, the CVEs with tier, published day and evidence; the filter narrows; no a11y violation', async () => {
     renderApp('/plan')
-    // D-623: with no filter picked, the page opens on "Likely to be exploited" when some update fixes such a CVE
-    // M2-9: the heading names the tab it counts
+    // With no filter picked, the page opens on "Likely to be exploited" when some update fixes such a CVE
+    // the heading names the tab it counts
     expect(await screen.findByRole('heading', { level: 1, name: '3 recommended updates for CVEs likely to be exploited' })).toBeInTheDocument()
-    // kien G3: the first line says the list is Vedette's own, not a to-do list a person fills
+    // The first line says the list is Vedette's own, not a to-do list a person fills
     expect(screen.getByText(/Vedette makes this list by itself/)).toBeInTheDocument()
     expect(screen.getByText(/FIRST estimates at least a 1 in 10 chance they are exploited/)).toBeInTheDocument()
     expect(screen.getByText('fixes 2 CVEs likely to be exploited (All lists every CVE it fixes)')).toBeInTheDocument()
@@ -29,7 +29,7 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     expect(within(table).getByText('Found by a scan')).toBeInTheDocument()
     expect(within(table).getByRole('button', { name: 'About Found by a scan' })).toHaveAccessibleDescription('A scan engine (nuclei, OpenVAS or ZAP) found it on the device') // #824: ⓘ, not a hover title
     expect(within(table).getByText('Over 12 months ago')).toBeInTheDocument()
-    // review r1 #15 of #803: what each chip means is text under the list, not only a title
+    // #803: what each chip means is text under the list, not only a title
     // #824: each chip also has an ⓘ whose hidden text is its description; the legend is the visible copy
     const hint = within(nas).getAllByText(/A scan engine \(nuclei, OpenVAS or ZAP\) found it on the device/).find((el) => el.closest('dl'))!
     expect(hint).toBeVisible()
@@ -39,7 +39,7 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     await waitFor(() => expect(screen.queryByText(/Upgrade Synology NAS/)?.closest('li')?.textContent).toMatch(/fixes 1 CVE(?!s)/))
   })
 
-  it('a long list opens on its first 50 CVEs, likely first then by severity, with "Show all"; a distribution package names its fixed version (D-622, D-623)', async () => {
+  it('a long list opens on its first 50 CVEs, likely first then by severity, with "Show all"; a distribution package names its fixed version', async () => {
     renderApp('/plan?tier=all')
     const list = await screen.findByRole('list', { name: 'Recommended updates' })
     expect(within(list).getByText('Upgrade the openssl package from 3.0.2-0ubuntu1.18 to 3.0.2-0ubuntu1.20 or later')).toBeInTheDocument()
@@ -52,13 +52,13 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     expect(within(win).getByText('The 50 that matter most of 65: likely to be exploited first, then by severity.')).toBeInTheDocument()
     await userEvent.click(within(win).getByRole('button', { name: 'Show all 65 CVEs' }))
     expect(rows()).toBe(65)
-    // review r1 #6 of #808: focus lands on the first CVE the button revealed
+    // #808: focus lands on the first CVE the button revealed
     const [, ...cveRows] = within(within(win).getByRole('table')).getAllByRole('row')
     expect(within(cveRows[50]!).getByRole('link')).toHaveFocus()
     expect(within(win).queryByRole('button', { name: 'Show all 65 CVEs' })).not.toBeInTheDocument()
   })
 
-  it('not compared yet comes first: no invitation to turn the feeds on, no device section (review r1 #4 of #803)', async () => {
+  it('not compared yet comes first: no invitation to turn the feeds on, no device section (#803)', async () => {
     tierState.set({ epss: 'off', recent: 'off', compared: false })
     const { unmount } = renderApp('/plan')
     expect(await screen.findByText('Not compared yet')).toBeInTheDocument()
@@ -115,7 +115,7 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     renderApp('/plan')
     await userEvent.click(await screen.findByRole('button', { name: 'Turn on the feeds module' }))
     await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'feeds')?.enabled).toBe(true))
-    // review r1 M2 of #879: the page reads the plan again, so the "module is off" Notice and its button go away with the toast
+    // #879: the page reads the plan again, so the "module is off" Notice and its button go away with the toast
     expect(await screen.findByText('The feeds module is on.')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByText('The feeds module is off')).toBeNull())
     expect(screen.queryByRole('button', { name: 'Turn on the feeds module' })).toBeNull()
@@ -123,7 +123,7 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
 
   it('Findings links to the page; the device page lists its own items', async () => {
     const { unmount } = renderApp('/findings')
-    // M2-9 (walk n74): each number opens the tab that shows that many updates, and that tab's heading says the same number
+    // Each number opens the tab that shows that many updates, and that tab's heading says the same number
     expect(await screen.findByRole('link', { name: '4 updates in all' })).toHaveAttribute('href', '/plan?tier=all')
     await userEvent.click(screen.getByRole('link', { name: '3 recommended updates fix CVEs likely to be exploited' }))
     expect(await screen.findByRole('heading', { level: 1, name: '3 recommended updates for CVEs likely to be exploited' })).toBeInTheDocument()
@@ -151,21 +151,21 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     server.use(http.get('*/api/v1/findings/plan', () => HttpResponse.json(answer(tiers))))
   }
 
-  it('M2-9: no update fixes a likely CVE: the line counts every update and opens All', async () => {
+  it('no update fixes a likely CVE: the line counts every update and opens All', async () => {
     await serve(['recent', 'recent'])
     renderApp('/findings')
     expect(await screen.findByRole('link', { name: '2 recommended updates fix CVEs not exploited yet' })).toHaveAttribute('href', '/plan?tier=all')
     expect(screen.queryByRole('link', { name: /in all$/ })).toBeNull()
   })
 
-  it('M2-9: every update fixes a likely CVE: one link, singular, no "in all"', async () => {
+  it('every update fixes a likely CVE: one link, singular, no "in all"', async () => {
     await serve(['likely'])
     renderApp('/findings')
     expect(await screen.findByRole('link', { name: '1 recommended update fixes CVEs likely to be exploited' })).toHaveAttribute('href', '/plan?tier=likely')
     expect(screen.queryByRole('link', { name: /in all$/ })).toBeNull()
   })
 
-  it('M2-9: the Recent tab heading names its tier', async () => {
+  it('the Recent tab heading names its tier', async () => {
     renderApp('/plan?tier=recent')
     expect(await screen.findByRole('heading', { level: 1, name: /^\d+ recommended updates? for recent CVEs$/ })).toBeInTheDocument()
   })

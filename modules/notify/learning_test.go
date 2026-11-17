@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/notify"
 )
 
-// D-554 (MK-1): a device a sensor found while it was learning the network (inventory's learning flag) goes into the one
+// MK-1: a device a sensor found while it was learning the network (inventory's learning flag) goes into the one
 // first-discovery summary, long after notify's own first run; a device found by a sensor past its learning is its own incident, and
 // notify:false opens nothing.
 func TestLearningSensorFoldsItsDevicesIntoOneSummary(t *testing.T) {
@@ -38,7 +38,7 @@ func TestLearningSensorFoldsItsDevicesIntoOneSummary(t *testing.T) {
 	}
 }
 
-// D-554 (W1-37): the row inventory joined into another device leaves its new-device incidents with "merged into <name>", whether
+// The row inventory joined into another device leaves its new-device incidents with "merged into <name>", whether
 // inventory.asset.merged comes before or after the inventory.asset.deleted of the same join: one close, one audit row. The device it
 // joined keeps its own incident.
 func TestMergedDeviceLeavesItsIncidentNamingWhereItWent(t *testing.T) {
@@ -111,7 +111,7 @@ func TestMergedDeviceLeavesItsIncidentNamingWhereItWent(t *testing.T) {
 	}
 }
 
-// D-554 (Opus review HIGH): devices that leave the summary do not hide the ones added later. Told at 4 devices, 3 deleted, a month
+// devices that leave the summary do not hide the ones added later. Told at 4 devices, 3 deleted, a month
 // later a new sensor learns 2 more: each is told ("1 more device found"), and an acknowledged summary that takes a device is New again.
 // A device that leaves before it was told does not count as told: the next update still names every untold device.
 func TestDiscoverySummaryTellsDevicesAddedAfterOthersLeft(t *testing.T) {
@@ -171,7 +171,7 @@ func TestDiscoverySummaryTellsDevicesAddedAfterOthersLeft(t *testing.T) {
 	}
 }
 
-// D-554 (Opus review MED): a burst within the hour after a message is told by the hourly job, once, with every untold device.
+// Opus review MED: a burst within the hour after a message is told by the hourly job, once, with every untold device.
 func TestDiscoveryBurstIsToldByTheHourlyJob(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) {
 		c.Devices = fakeDevices{"a1": "D-a1", "a2": "D-a2", "a3": "D-a3", "a4": "D-a4"}

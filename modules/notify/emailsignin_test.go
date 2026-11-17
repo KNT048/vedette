@@ -32,7 +32,7 @@ func unsignedIDToken(claims map[string]string) string {
 
 const msClient = "0a1b2c3d-4e5f-6789-abcd-ef0123456789"
 
-// D-480: a device sign-in is polled at Microsoft's interval only, belongs to the admin who started it, and SaveChannel takes its
+// A device sign-in is polled at Microsoft's interval only, belongs to the admin who started it, and SaveChannel takes its
 // refresh token as the secret and its mailbox as the username, once. A rotated refresh token is saved back.
 func TestEmailDeviceSigninThenSaveThenRotate(t *testing.T) {
 	var mu sync.Mutex

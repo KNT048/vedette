@@ -85,7 +85,7 @@ func TestEarlierProtosFromGit(t *testing.T) {
 	if err := checkTagsCover("2.0.0", got, idx); err == nil || !strings.Contains(err.Error(), "no tag v1.5.0 here") {
 		t.Errorf("a missing tag: %v", err)
 	}
-	// a stable hotfix below beta's latest: beta's release is no source of an update to it (Opus r2)
+	// a stable hotfix below beta's latest: beta's release is no source of an update to it
 	if err := checkTagsCover("1.1.6", got, idx); err != nil {
 		t.Errorf("hotfix below beta: %v", err)
 	}

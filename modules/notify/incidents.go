@@ -83,7 +83,7 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 	}
 	ts := store.FormatTS(at)
 	key := dedupeKey(in)
-	first := key // a repeat counts on an open incident of this key before one of its own: for an attempt, the open connection (D-227 (4))
+	first := key // a repeat counts on an open incident of this key before one of its own: for an attempt, the open connection
 	if in.Attempt {
 		conn := in
 		conn.Attempt = false
@@ -209,7 +209,7 @@ func fillIncident(ctx context.Context, q dbtx, i *Incident) error {
 	return err
 }
 
-// incidentClass is the kind a weekly report names an incident by (D-490), read in SQL so a busy week is counted whole. The two log
+// incidentClass is the kind a weekly report names an incident by, read in SQL so a busy week is counted whole. The two log
 // anomalies of the failed-login rule (modules/logs/authfail.go) are told apart by their title (GLOB: anchored and case-sensitive, so a log line that merely says "accepted" is not one); a "failed logins" one of severity
 // high had a login accepted in it, so it counts as accepted. A new-device incident has no class: Devices counts those.
 const incidentClass = `CASE kind WHEN 'trap' THEN 'trap' WHEN 'bad_address' THEN 'bad_connection' WHEN 'log_anomaly' THEN
@@ -279,7 +279,7 @@ func (s *Service) IncidentsSince(ctx context.Context, since time.Time, top int) 
 }
 
 // Incidents lists the incidents for GET /notify/incidents: every open one (new or acknowledged) first, then the resolved ones, each
-// most recently seen first, at most incidentsLimit. An open incident is never cut by the limit (G6: the page counted its "open" from
+// most recently seen first, at most incidentsLimit. An open incident is never cut by the limit (the page once counted its "open" from
 // the 500 seen last, while Home and the nav badge count every open one with OpenIncidents).
 func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	db := s.cfg.DB.Reader()
@@ -354,7 +354,7 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 const hitLinkPrefix = "/honeypot/hits/"
 
 // withConnections raises the count of each trap incident to the connections its hit saw: notify counts one per event, and a
-// repeat connection folds into the hit without an event (D-496). The hit is counted once, so a later hit of the same incident
+// repeat connection folds into the hit without an event. The hit is counted once, so a later hit of the same incident
 // stays one. Without the port, or when it fails, the count stays notify's own (one log line, no error to the page).
 func (s *Service) withConnections(ctx context.Context, list []Incident) {
 	if s.cfg.Hits == nil || len(list) == 0 || (s.cfg.Modules != nil && !s.cfg.Modules.Enabled("honeypot")) {
@@ -390,7 +390,7 @@ func (s *Service) withConnections(ctx context.Context, list []Incident) {
 // unbounded list would grow with every trap hit).
 const incidentsLimit = 500
 
-// incidentsOrder is the order of GET /notify/incidents and of the page its devices and sends are read for: open first (G6).
+// incidentsOrder is the order of GET /notify/incidents and of the page its devices and sends are read for: open first.
 const incidentsOrder = `status = 'resolved', last_seen DESC, rowid DESC`
 
 // IncidentDetail returns one incident with what each channel received (GET /notify/incidents/{id}).
@@ -542,7 +542,7 @@ func (s *Service) History(ctx context.Context) (HistoryView, error) {
 
 // SentSince counts the alert messages (kinds incident and vuln: an approval request is not an alert) sent since a time (Home's "alerts
 // sent", #825): sent = attempts that arrived; failed = attempts that did not arrive, are not waiting to be sent again (a "Delayed" row
-// resends by itself, D-483), and were not resent with success later to the same channel for the same item (kind, ref_id). One range on
+// resends by itself), and were not resent with success later to the same channel for the same item (kind, ref_id). One range on
 // notify_send_at_ix; the resend check is a lookup on notify_send_ref_ix.
 func (s *Service) SentSince(ctx context.Context, since time.Time) (sent, failed int, err error) {
 	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT ifnull(sum(s.ok = 1), 0),
@@ -662,7 +662,7 @@ func (s *Service) FindingNotices(ctx context.Context, findingID string) ([]SendV
 	return scanSends(rows)
 }
 
-// AlertTarget says where an old alert id leads now: the finding or the incident it became (D-52).
+// AlertTarget says where an old alert id leads now: the finding or the incident it became.
 func (s *Service) AlertTarget(ctx context.Context, id string) (string, error) {
 	db := s.cfg.DB.Reader()
 	var first sql.NullString

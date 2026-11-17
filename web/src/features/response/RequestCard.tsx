@@ -50,7 +50,7 @@ function RejectDialog({ a, onClose }: { a: ActionRequest; onClose: () => void })
 }
 
 /** The undo line of an item. Once it ran, the undo time is the one the box set (`remove_at`): none means it is not undone automatically, for
- * example a change that was already on the device before this step (D-356). Before it runs, it is the planned `ttl_min`. */
+ * example a change that was already on the device before this step. Before it runs, it is the planned `ttl_min`. */
 function undoText(i: RequestItem, t: (k: string, o?: Record<string, unknown>) => string): string {
   if (i.status === 'executed') return i.remove_at ? t('request.undoAt', { time: fmtDateTime(i.remove_at) }) : i.reversible ? t('request.noAutoUndo') : t('request.noUndo')
   if (i.ttl_min) return t('request.undoAfter', { time: i.ttl_min >= 60 ? `${Math.round((i.ttl_min / 60) * 10) / 10} h` : `${i.ttl_min} min` })
@@ -88,7 +88,7 @@ function Item({ i, pick, onPick }: { i: RequestItem; pick?: boolean; onPick?: (v
 export function RequestCard({ a }: { a: ActionRequest }) {
   const { t } = useTranslation('response')
   const can = useCan('operator')
-  const frozen = useFrozen() // D-624: Reject and Roll back stay, Approve does not
+  const frozen = useFrozen() // Reject and Roll back stay, Approve does not
   // N-H1: rolling back a device change needs execution on (INV-7), which cannot be turned on again here: say where to undo it instead of a 409
   const execution = usePlans().data?.execution
   const onDevice = frozen && execution === false && a.items.some((i) => undoable(i) && i.reversible && i.connector_id !== null)
@@ -167,7 +167,7 @@ export function RequestCard({ a }: { a: ActionRequest }) {
             </Button>
             <Button disabled={!can} title={role} onClick={() => setRejecting(true)}>{t('action.reject')}</Button>
           </div>
-          {/* kien G1: the last approval makes the change on the device before it answers (up to 90 s for each change) */}
+          {/* The last approval makes the change on the device before it answers (up to 90 s for each change) */}
           <BusyNote id={`approve-wait-${a.id}`} busy={approve.isPending}>{t('action.approveWaiting')}</BusyNote>
         </div>
       ) : a.items.some(undoable) ? (
@@ -175,7 +175,7 @@ export function RequestCard({ a }: { a: ActionRequest }) {
           <Button disabled={!can || onDevice} busy={rollback.isPending} busyLabel={t('action.rollingBack')} title={onDevice ? t('leaving.undoOnDevice') : role} aria-describedby={onDevice ? `undo-${a.id}` : `undo-wait-${a.id}`} onClick={() => rollback.mutate(a.id, { onSuccess: () => toast.success(t('action.rolledBackToast')), onError: (e) => toast.error(errText(e)) })}>{t('action.rollback')}</Button>
           {/* what to undo and where: the device above, each change under "Exact change and rollback" */}
           {onDevice ? <p id={`undo-${a.id}`} className="text-meta text-warn">{t('leaving.undoOnDevice')}</p> : null}
-          {/* kien G1: the rollback runs on the device before it answers (up to 90 s for each change) */}
+          {/* The rollback runs on the device before it answers (up to 90 s for each change) */}
           <BusyNote id={`undo-wait-${a.id}`} busy={rollback.isPending}>{t('action.rollbackWaiting')}</BusyNote>
         </div>
       ) : null}

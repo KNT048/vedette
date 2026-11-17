@@ -16,8 +16,8 @@ const (
 
 // The SERVER header is free text the sender writes (untrusted, INV-4): "<OS>/<version> UPnP/<version> <product>/<version>" by the
 // UPnP spec, where the product is nearly always the UPnP software (MiniUPnPd, libupnp, Portable SDK, UPnP-Device-Host), not the
-// device. So, as for the LLDP description (sysdesc.go, D-406), only a known layout that names the device gives a model, a short
-// token; any other header gives nothing (D-411).
+// device. So, as for the LLDP description (sysdesc.go), only a known layout that names the device gives a model, a short
+// token; any other header gives nothing.
 //
 // ponytail: three layouts (AVM FRITZ!, Sonos, Philips Hue bridge); a new one is one more row here with a test.
 var (

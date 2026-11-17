@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// What core/conn/write needs from this package and nobody else may have (D-93, D-94, core INV-23). Each function asks for a
+// What core/conn/write needs from this package and nobody else may have (core INV-23). Each function asks for a
 // cred.Key, which only a package under core/conn can make, so a package that merely holds the Service cannot read a credential
 // or take the dialer.
 
@@ -46,7 +46,7 @@ func (s *Service) OpenCredential(ctx context.Context, k cred.Key, c Connection) 
 	return v, nil
 }
 
-// AllowsURL says whether a request may be sent to raw through c (D-94 (1)): the address is under the target and under one entry of
+// AllowsURL says whether a request may be sent to raw through c: the address is under the target and under one entry of
 // the allow-list, by the same rule as the save-time check (under): the same scheme, host and port, a path at or below, dot segments
 // resolved first, and a backslash or an encoded slash, backslash or dot (%2F, %5C, %2E) refused. It never matches by string prefix.
 func AllowsURL(c Connection, raw string) bool {

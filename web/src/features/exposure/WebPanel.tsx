@@ -9,7 +9,7 @@ import type { Snapshot, WebFinding } from './types'
 
 const ORDER = { high: 0, medium: 1, low: 2, info: 3 } as const
 
-/** S-EXP-2 (INV-24, D-562, D-565): what ZAP's passive web scan noticed, in two groups by Vedette's rule list: "Fix this" first, then
+/** S-EXP-2 (INV-24): what ZAP's passive web scan noticed, in two groups by Vedette's rule list: "Fix this" first, then
  * "Hardening". Apart from the exploited CVEs: these are hints, never "exploited" (a version ZAP read is compared in the CVE section). */
 export function WebSection({ s }: { s: Snapshot }) {
   const { t } = useTranslation('exposure')

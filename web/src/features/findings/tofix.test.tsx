@@ -8,7 +8,7 @@ import { assetsStore, findingsStore, modulesStore } from '@/mocks/stores'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 
-// kien G8: "when the user opens Findings, they know which devices need patching or an action, and what the action is".
+// "when the user opens Findings, they know which devices need patching or an action, and what the action is".
 const T = { timeout: 5000 }
 const act = (o: Partial<ToFixAction>): ToFixAction => ({ group: 'g', software_id: '', software: '', version: '', product: '', source: '', fixed: '', kind: 'fixed', windows: false, distro: '', pro: false, action: '',
   cves: [], finding_ids: [], worst: 'high', ransomware: 0, likely: 0, confirmed: 0, detected: 1, reported: 0, suspected: 0, ...o })
@@ -26,7 +26,7 @@ const sample: ToFix = { truncated: false, plan_ran: true, plan_off: false, risks
 ] }
 const serve = (tf: ToFix = sample) => server.use(http.get('*/api/v1/findings/to-fix', () => HttpResponse.json(tf)))
 
-describe('Findings › To fix (kien G8)', () => {
+describe('Findings › To fix', () => {
   it('opens by device, the most urgent first, each with its actions as sentences: device → what to do', async () => {
     serve()
     renderApp('/findings')
@@ -109,7 +109,7 @@ describe('Findings › To fix (kien G8)', () => {
     const tab = await screen.findByRole('tab', { name: /Needs your input/ }, T)
     await within(tab).findByText('2')
     await userEvent.click(tab)
-    // kien G15: one block per device, in To fix's order, collapsed until opened
+    // One block per device, in To fix's order, collapsed until opened
     const blocks = await screen.findByRole('list', { name: 'Devices that need your input, the most urgent first' }, T)
     expect(within(blocks).getAllByRole('listitem').filter((li) => li.parentElement === blocks).map((li) => li.getAttribute('aria-label'))).toEqual(['PC-A', 'DESKTOP-55UKKFV'])
     expect(screen.queryByText(/Microsoft Office has no version/)).toBeNull()
@@ -119,7 +119,7 @@ describe('Findings › To fix (kien G8)', () => {
     expect(screen.getByRole('list', { name: 'What only you can settle on DESKTOP-55UKKFV' })).toHaveTextContent(/Windows 11 Pro 10.0.26300.9974/)
   })
 
-  it('kien G12: a typed version per row; the agent and the check read the whole device, so each shows once per device (n83)', async () => {
+  it('a typed version per row; the agent and the check read the whole device, so each shows once per device (n83)', async () => {
     serve({ ...sample, devices: [dev('a-pc', 'PC-A', { open: 5, exploited: [
       { ...winUpdate, source: 'agent' },
       { ...winrar('a-pc'), source: 'manual' },

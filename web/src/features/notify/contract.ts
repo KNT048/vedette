@@ -1,4 +1,4 @@
-// Hợp đồng API module notify (D-18). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// Hợp đồng API module notify. Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 
@@ -106,7 +106,7 @@ export const HistoryResponse = z.object({ items: z.array(HistoryItem), suppresse
 export const FindingNotices = z.object({ sends: z.array(SendRecord) })
 export const LegacyTarget = z.object({ to: z.string() })
 
-// Zalo personal set-up (D-447): QR sign-in, friends and groups, look-up of an invite link or a phone number, approvers' link state.
+// Zalo personal set-up: QR sign-in, friends and groups, look-up of an invite link or a phone number, approvers' link state.
 export const ZaloQR = z.object({ size: z.number().int().describe('Side of the square view box, quiet zone included'), path: z.string().describe('SVG path of the dark cells, redrawn by the box from Zalo\'s image') })
 export const ZaloLoginState = z.enum(['none', 'waiting', 'scanned', 'signed_in', 'expired', 'declined', 'failed'])
 export const ZaloLogin = z.object({
@@ -119,7 +119,7 @@ export const ZaloLogin = z.object({
 export const ZaloContact = z.object({ id: z.string(), name: z.string(), group: z.boolean(), members: z.number().int().describe('Group size; 0 when not given') })
 export const ZaloContacts = z.object({ friends: z.array(ZaloContact), groups: z.array(ZaloContact) })
 export const ZaloFound = ZaloContact.extend({ member: z.boolean().describe('false: a group the signed-in account is not a member of (messages would not reach it)') })
-// The link state of an approver of a confirm-link channel: Zalo personal (D-447) and Telegram (D-414) share it.
+// The link state of an approver of a confirm-link channel: Zalo personal and Telegram share it.
 export const LinkApproverState = z.enum(['linked', 'sending', 'waiting', 'not_sent'])
 export const LinkApprover = z.object({ user_id: z.string(), address: z.string(), name: z.string(), state: LinkApproverState, sent_at: iso.nullable(), error: z.string().describe('not_sent: why (failed, expired, or no link made)'),
   self: z.boolean().describe('The administrator asking'),

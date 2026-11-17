@@ -9,9 +9,9 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// n100SQL is the SQL Server part of DESKTOP-55UKKFV's programs list (N100, 2026-11-17) as osquery gives it: the release's own
+// labSQL is the SQL Server part of DESKTOP-55UKKFV's programs list as osquery gives it: the release's own
 // Uninstall entry without a version and its 13 components at the RTM build, among other Microsoft rows that are not of the release.
-func n100SQL() []row {
+func labSQL() []row {
 	r := func(name, version string) row {
 		return row{"name": name, "version": version, "publisher": "Microsoft Corporation", "install_date": "20261012", "sql_setup": ""}
 	}
@@ -66,50 +66,50 @@ func sqlRows(t *testing.T, rows []row) []observe.Software {
 
 func with(rows []row, more ...row) []row { return append(slices.Clone(rows), more...) }
 
-// D-606, N100's case: the umbrella row takes the build of the instance's setup registry, cumulative update included, at the
+// The umbrella row takes the build of the instance's setup registry, cumulative update included, at the
 // confidence of a version the machine stated; the RsFx Driver, a component pkgmap maps to the same product, keeps its own name
 // (its RTM build would keep open what the update fixed). The setup value is no software row.
-func TestSQLServer_D606_SetupRegistryGivesTheRelease(t *testing.T) {
-	got := sqlRows(t, with([]row{setupRow("MSSQL16.MSSQLSERVER", "16.0.4135.4")}, n100SQL()...))
+func TestSQLServer_SetupRegistryGivesTheRelease(t *testing.T) {
+	got := sqlRows(t, with([]row{setupRow("MSSQL16.MSSQLSERVER", "16.0.4135.4")}, labSQL()...))
 	if len(got) != 1 || got[0].Display != "Microsoft SQL Server 2022 (64-bit)" || got[0].Version != "16.0.4135.4" || got[0].Confidence != softwareConfidence ||
 		got[0].Vendor != "Microsoft" || got[0].Product != "SQL Server" {
 		t.Fatalf("SQL Server rows %+v", got)
 	}
-	items, _ := mapPackages(map[string][]row{"programs": with([]row{setupRow("MSSQL16.MSSQLSERVER", "16.0.4135.4")}, n100SQL()...)}, maxRows)
+	items, _ := mapPackages(map[string][]row{"programs": with([]row{setupRow("MSSQL16.MSSQLSERVER", "16.0.4135.4")}, labSQL()...)}, maxRows)
 	i := slices.IndexFunc(items, func(s observe.Software) bool { return s.Display == "Microsoft SQL Server 2022 RsFx Driver" })
 	if i < 0 || items[i].Vendor != "Microsoft Corporation" || items[i].Product != "Microsoft SQL Server 2022 RsFx Driver" || items[i].KevKeys != nil || items[i].Version != "16.0.1000.6" {
 		t.Fatalf("the RsFx Driver: %+v", items[i])
 	}
-	if len(items) != len(n100SQL()) {
-		t.Fatalf("%d rows for %d programs", len(items), len(n100SQL()))
+	if len(items) != len(labSQL()) {
+		t.Fatalf("%d rows for %d programs", len(items), len(labSQL()))
 	}
 }
 
-// D-606 fallback (Wazuh, an agent before D-606): every component agrees on the RTM build and the Database Engine is one of them, so
+// Fallback (Wazuh, an agent without the setup-registry query): every component agrees on the RTM build and the Database Engine is one of them, so
 // the umbrella row takes it below a stated version's confidence. It is the RsFx Driver's own row (same product and build), whose
 // stated version keeps its confidence; the merged row keeps the release's name in whatever order osquery lists the two (review r1
-// L2 of #967). N100 before the fix had the umbrella row without a version: "Needs your input".
-func TestSQLServer_D606_ComponentsGiveTheRelease(t *testing.T) {
-	rsfxFirst := n100SQL()
+// L2 of #967). A test box before the fix had the umbrella row without a version: "Needs your input".
+func TestSQLServer_ComponentsGiveTheRelease(t *testing.T) {
+	rsfxFirst := labSQL()
 	rsfxFirst[0], rsfxFirst[2] = rsfxFirst[2], rsfxFirst[0] // osquery lists the RsFx Driver before the release
-	for _, rows := range [][]row{n100SQL(), rsfxFirst} {
+	for _, rows := range [][]row{labSQL(), rsfxFirst} {
 		got := sqlRows(t, rows)
 		if len(got) != 1 || got[0].Display != "Microsoft SQL Server 2022 (64-bit)" || got[0].Version != "16.0.1000.6" || got[0].Confidence != softwareConfidence {
 			t.Fatalf("SQL Server rows %+v", got)
 		}
 	}
 	// without the RsFx Driver the row is the umbrella's alone, at the components' confidence
-	rows := slices.DeleteFunc(n100SQL(), func(r row) bool { return strings.Contains(r["name"], "RsFx") })
+	rows := slices.DeleteFunc(labSQL(), func(r row) bool { return strings.Contains(r["name"], "RsFx") })
 	got := sqlRows(t, rows)
 	if len(got) != 1 || got[0].Display != "Microsoft SQL Server 2022 (64-bit)" || got[0].Version != "16.0.1000.6" || got[0].Confidence != componentConfidence {
 		t.Fatalf("SQL Server rows without RsFx %+v", got)
 	}
 }
 
-// D-606: the fallback never guesses. Components that disagree, no Database Engine, a service pack's family (13.2.x for 13.0), a
+// The fallback never guesses. Components that disagree, no Database Engine, a service pack's family (13.2.x for 13.0), a
 // version that is no build: the umbrella row stays without a version (findings asks, as before). Rows of other releases, products or
 // majors are not components.
-func TestSQLServer_D606_NoGuess(t *testing.T) {
+func TestSQLServer_NoGuess(t *testing.T) {
 	versionOf := func(rows []row) string {
 		t.Helper()
 		for _, s := range sqlRows(t, rows) {
@@ -121,7 +121,7 @@ func TestSQLServer_D606_NoGuess(t *testing.T) {
 		return ""
 	}
 	set := func(name, version string) []row {
-		rows := n100SQL()
+		rows := labSQL()
 		for i := range rows {
 			if rows[i]["name"] == name {
 				rows[i]["version"] = version
@@ -134,7 +134,7 @@ func TestSQLServer_D606_NoGuess(t *testing.T) {
 	}
 	for name, rows := range map[string][]row{
 		"one component updated":        noRsFx(set("SQL Server 2022 Common Files", "16.0.4135.4")),
-		"no Database Engine":           noRsFx(slices.DeleteFunc(n100SQL(), func(r row) bool { return strings.Contains(r["name"], "Database Engine Services") })),
+		"no Database Engine":           noRsFx(slices.DeleteFunc(labSQL(), func(r row) bool { return strings.Contains(r["name"], "Database Engine Services") })),
 		"engine of another family":     noRsFx(set("SQL Server 2022 Database Engine Services", "16.2.1000.6")),
 		"a component that is no build": noRsFx(set("SQL Server 2022 DMF", "16.0.1000")),
 	} {
@@ -150,7 +150,7 @@ func TestSQLServer_D606_NoGuess(t *testing.T) {
 		}
 	}
 	// a row of another major that names the release is not one of its components
-	if v := versionOf(noRsFx(with(n100SQL(), row{"name": "SQL Server 2022 Odd Tool", "version": "15.0.2000.5", "publisher": "x"}))); v != "16.0.1000.6" {
+	if v := versionOf(noRsFx(with(labSQL(), row{"name": "SQL Server 2022 Odd Tool", "version": "15.0.2000.5", "publisher": "x"}))); v != "16.0.1000.6" {
 		t.Errorf("another major: %q", v)
 	}
 	// no components at all, no setup value: as before
@@ -167,10 +167,10 @@ func TestSQLServer_D606_NoGuess(t *testing.T) {
 	}
 }
 
-// D-606: the setup values are read strictly. Several instances of the release give the lowest build; an instance of another
+// The setup values are read strictly. Several instances of the release give the lowest build; an instance of another
 // release, Analysis Services' key, a build of another family under the key, and text that is no build are not read; an umbrella
 // row that has a version keeps it.
-func TestSQLServer_D606_SetupValues(t *testing.T) {
+func TestSQLServer_SetupValues(t *testing.T) {
 	umbrella := row{"name": "Microsoft SQL Server 2022 (64-bit)", "version": "", "publisher": "Microsoft Corporation", "sql_setup": ""}
 	versionOf := func(rows ...row) string {
 		t.Helper()
@@ -217,9 +217,9 @@ func TestSQLServer_D606_SetupValues(t *testing.T) {
 	}
 }
 
-// D-606: the programs query reads the registry for one value of one key pattern, with the list, and the registry arm comes first (a
+// The programs query reads the registry for one value of one key pattern, with the list, and the registry arm comes first (a
 // list cut at maxRows keeps it). The SQL is SQLite's: a compound SELECT whose arms have the same five columns.
-func TestSQLServer_D606_ProgramsQuery(t *testing.T) {
+func TestSQLServer_ProgramsQuery(t *testing.T) {
 	q := programsQuery
 	want := `SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS sql_setup FROM registry r ` +
 		`WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL%\Setup' AND r.name = 'PatchLevel' ` +

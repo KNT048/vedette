@@ -16,11 +16,11 @@ type BoxInfo struct {
 	Hostname string
 	IP       string // IPv4, "" when unknown
 	OS       string // "" when unknown
-	// ContainerOnly: the box is a container-only install (no vedette-host, D-381); its model then says so instead of appliance.
+	// ContainerOnly: the box is a container-only install (no vedette-host); its model then says so instead of appliance.
 	ContainerOnly bool
 }
 
-// EnsureBox makes sure the box is in the inventory as the first device (INV-3, S-INV-5, D-53): created once
+// EnsureBox makes sure the box is in the inventory as the first device (INV-3, S-INV-5): created once
 // on the first start, updated on later ones. It is approved, cannot be deleted, and everything it knows about
 // itself has source "agent" at confidence 1. It returns the device id.
 func (s *Service) EnsureBox(ctx context.Context, info BoxInfo) (string, error) {
@@ -89,8 +89,8 @@ func (s *Service) EnsureBox(ctx context.Context, info BoxInfo) (string, error) {
 	return id, nil
 }
 
-// RefreshBoxPackages stores the packages installed on the box as its software (agent, confidence 1.0; INV-3, D-470). It
-// does nothing without a BoxPackages (a container-only install) or when it gives no list (nil: a host older than D-470): what
+// RefreshBoxPackages stores the packages installed on the box as its software (agent, confidence 1.0; INV-3). It
+// does nothing without a BoxPackages (a container-only install) or when it gives no list (nil: an older host that does not report the list): what
 // is stored stays. A failed read changes nothing either.
 func (s *Service) RefreshBoxPackages(ctx context.Context) error {
 	if s.box == nil {

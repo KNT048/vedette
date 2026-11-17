@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// D-489: a connection of a LAN device to a listed address, in the line of each firewall that has a profile, is a hit through the real ingest path,
+// A connection of a LAN device to a listed address, in the line of each firewall that has a profile, is a hit through the real ingest path,
 // said as "tried to reach" when the device stopped it.
 func TestIOCFirewallKindsMakeHits(t *testing.T) {
 	t.Parallel()

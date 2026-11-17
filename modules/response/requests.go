@@ -20,7 +20,7 @@ import (
 
 // Requests and approvals in the app (INV-1, INV-2, INV-3, INV-5, INV-6, INV-9, INV-13).
 //
-// A request is one bundle: one per rule run. Approving it once covers the bundle (D-51). The gates run in the order of
+// A request is one bundle: one per rule run. Approving it once covers the bundle. The gates run in the order of
 // INV-9 when someone approves and again, from fresh state, right before each item runs (runItem), so a switch turned
 // off, a catalog entry disabled or an address added to the never-touch list between the approval and the run still
 // stops the item. runItem is the only function that sends a step to a device (FORBID-1).
@@ -108,7 +108,7 @@ func (s *Service) Approve(ctx context.Context, who Actor, id string, pick []stri
 }
 
 // approve records one approval. lk is set when the decision came through an approval link (hash of the token, a check after the lock): the link is
-// checked first inside the transaction and burned right before the decision is recorded, so a refusal leaves it alive (D-96 (4)).
+// checked first inside the transaction and burned right before the decision is recorded, so a refusal leaves it alive.
 func (s *Service) approve(ctx context.Context, who Actor, id string, pick []string, code string, auto bool, lk *linkOpt) (ActionRequest, error) {
 	if err := s.ensureSeeded(ctx); err != nil {
 		return ActionRequest{}, err
@@ -179,7 +179,7 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 				a.Title+", approved by "+who.Email+" via "+string(who.Via)+": "+strings.Join(titles, "; ")+" (approval "+itoa(len(a.Approvals))+" of "+itoa(need)+")", who.logActor()); err != nil {
 				return err
 			}
-			// D-179 (1): an earlier approver who was disabled or demoted since no longer counts (a stale approval is not an approval); the request
+			// An earlier approver who was disabled or demoted since no longer counts (a stale approval is not an approval); the request
 			// then waits for a new second person. Only the current caller was re-read above.
 			kept := make([]Approval, 0, len(a.Approvals))
 			for _, x := range a.Approvals {
@@ -231,7 +231,7 @@ func (s *Service) approve(ctx context.Context, who Actor, id string, pick []stri
 	}
 	s.run(ctx, &fx)
 	if refusal != nil {
-		if stepped { // the state changed between the check before the code and this transaction (D-357): the code is spent, say so
+		if stepped { // the state changed between the check before the code and this transaction: the code is spent, say so
 			refusal = codeSpent(refusal)
 		}
 		return ActionRequest{}, s.refuse(ctx, refusal, id, who.refuseActor())
@@ -264,7 +264,7 @@ type approvalPick struct {
 // approvalGate is every refusal of an approval that only reads: the state of the request, the pick, the approver (demoted or disabled), the
 // settings (execution off), the second approver, the catalog and the connections (gateItem), and the hourly device limit (INV-9, INV-16). The
 // transaction runs it as the authority. aiStepUp runs the same function on one read snapshot before the two-step code is checked, so a code is
-// not spent on an approval the transaction would refuse (D-357); a change between the two reads can still refuse after the code (rare).
+// not spent on an approval the transaction would refuse; a change between the two reads can still refuse after the code (rare).
 // stepped says the code passed (or, before it is checked, that it is about to be). It writes nothing; the expiry of a pending request past its
 // time is the caller's.
 func (s *Service) approvalGate(ctx context.Context, q dbq, r request, who Actor, pick []string, stepped, auto bool, now time.Time) (approvalPick, error, error) {
@@ -328,7 +328,7 @@ func (s *Service) approvalGate(ctx context.Context, q dbq, r request, who Actor,
 	case slices.ContainsFunc(a.Approvals, func(x Approval) bool { return x.UserID == who.ID }):
 		return g, fail(http.StatusConflict, "same_approver", "You already approved this request. A second, different person must approve it."), nil
 	case who.Via == ViaEmail && needTwo(chosenRecs, st) && slices.ContainsFunc(a.Approvals, func(x Approval) bool { return x.Via == ViaEmail }):
-		// D-124: one person with two forwarded mails or a shared mailbox must not satisfy the two-person rule
+		// One person with two forwarded mails or a shared mailbox must not satisfy the two-person rule
 		return g, fail(http.StatusForbidden, "in_app_required", "This request needs two people, and only one of them may approve by email link. The second approval must be given in the app."), nil
 	}
 	if auto && preApprovedProblemItems(chosenRecs) != "" { // INV-5, checked again at run time
@@ -434,7 +434,7 @@ func deviceActionsLastHour(ctx context.Context, q dbq, now time.Time) (int, erro
 	n := 0
 	for _, r := range reqs {
 		for _, i := range r.recs {
-			// A step counts when it ran or when it may have: the outcome of a time-out or a 5xx is not known (D-179 (2)).
+			// A step counts when it ran or when it may have: the outcome of a time-out or a 5xx is not known.
 			at := i.SentAt
 			if at == "" && i.ExecutedAt != nil {
 				at = *i.ExecutedAt
@@ -519,7 +519,7 @@ func connectionGate(i itemRec, cat catRow, cs conns) *apierr.Error {
 
 // rollbackGate is what an undo of a device item still needs: the same connection as the request and the same rollback tool.
 // It does not look at the catalog switch: after an admin disables an action its changes must still be removable (removing a
-// change is the safe direction, D-88 (4)); the execution switch is the caller's.
+// change is the safe direction); the execution switch is the caller's.
 func rollbackGate(i itemRec, cats map[string]catRow, cs conns) *apierr.Error {
 	if i.ConnectorID == nil {
 		return nil
@@ -638,10 +638,10 @@ func (s *Service) runItem(ctx context.Context, reqID, itemID string) error {
 	if !claimed {
 		return nil
 	}
-	it.RunningAt = mark // the running mark of this claim: the read before the run is stored against it (D-356)
+	it.RunningAt = mark // the running mark of this claim: the read before the run is stored against it
 	xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
 	stopAF := context.AfterFunc(s.bg, cancel) //nolint:contextcheck // s.bg is the lifetime of the service, not of the caller; the box shutting down (Close) ends the step; the record of it is still written below
-	xctx, untrack := s.trackStep(xctx)        // registered before the step reads the stop flag, so a stop cannot fall between the two (D-179 (4))
+	xctx, untrack := s.trackStep(xctx)        // registered before the step reads the stop flag, so a stop cannot fall between the two
 	out := s.carryOut(xctx, r, it, cat, cs)
 	stoppedByUser := errors.Is(context.Cause(xctx), errEmergencyStop)
 	untrack()
@@ -748,7 +748,7 @@ func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRo
 	case !cat.device():
 		switch cat.ID {
 		case "blocklist_add":
-			if why := notPublicMsg(it.Values[PIP]); why != "" { // D-469: a request made before the plan-time check is refused here, never "Added"
+			if why := notPublicMsg(it.Values[PIP]); why != "" { // A request made before the plan-time check is refused here, never "Added"
 				return itemOutcome{refusal: fail(http.StatusConflict, codeNotPublishable, why)}
 			}
 			full, err := s.blockListFull(ctx, it.Values[PIP])
@@ -867,7 +867,7 @@ func (s *Service) finishItem(ctx context.Context, reqID, itemID string, o itemOu
 			}
 		default:
 			it.Status, it.ExecutedAt, it.Result, it.Verified = ItemExecuted, strp(store2(now)), strp(o.result), o.verified
-			if it.Reversible && it.TTLMin != nil && !isTrue(it.PresentBefore) { // D-356: a change that was there before the run is not undone automatically
+			if it.Reversible && it.TTLMin != nil && !isTrue(it.PresentBefore) { // A change that was there before the run is not undone automatically
 				it.RemoveAt = strp(store2(now.Add(time.Duration(*it.TTLMin) * time.Minute)))
 			}
 			if o.block {
@@ -1139,7 +1139,7 @@ func (s *Service) sweepExpired(ctx context.Context) error {
 }
 
 // sweepTTL undoes executed changes whose undo time ended (INV-13, POST-2). Removing a change is the safe direction: it
-// needs neither the execution switch nor an approval (D-88). A device that does not answer keeps the item executed;
+// needs neither the execution switch nor an approval. A device that does not answer keeps the item executed;
 // the sweep tries again, and the failure is logged once.
 func (s *Service) sweepTTL(ctx context.Context) error {
 	now := s.now()
@@ -1272,7 +1272,7 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 				break
 			}
 			xctx, cancel := context.WithTimeout(ctx, s.stepLimit)
-			out = s.undoOnDevice(xctx, r.ID, it, conn) // not tracked: the emergency stop lets an undo in flight finish (D-179 (6))
+			out = s.undoOnDevice(xctx, r.ID, it, conn) // not tracked: the emergency stop lets an undo in flight finish
 			cancel()
 		}
 	}
@@ -1351,8 +1351,8 @@ func (s *Service) undoItem(ctx context.Context, reqID, itemID string, auto bool,
 // EmergencyStop is POST /response/emergency-stop: execution off, the global circuit breaker open and every pending request
 // cancelled, in one transaction. The open breaker stops what the execution switch does not: pre-approved rules, the box actions
 // (block list, webhook, message) and every item still to run (fire and runItem read it per rule and per item); only an admin
-// resets it (INV-8, INV-12). It takes neither mu nor execMu: a stop must never wait. A run step that is being sent is cancelled
-// (D-179 (4)); an undo step that is being sent finishes (an undo is the safe direction, D-88 (4)), and the next undo is blocked by the stop.
+// resets it (INV-8, INV-12). It takes neither mu nor execMu: a stop must never wait. A run step that is being sent is cancelled;
+// an undo step that is being sent finishes (an undo is the safe direction), and the next undo is blocked by the stop.
 func (s *Service) EmergencyStop(ctx context.Context, who Actor) (int, error) {
 	cancelled := 0
 	var fx effects
@@ -1399,7 +1399,7 @@ func (s *Service) EmergencyStop(ctx context.Context, who Actor) (int, error) {
 // errEmergencyStop is the cause of the cancel that the emergency stop sends to a step in flight.
 var errEmergencyStop = errors.New("emergency stop")
 
-// trackStep makes ctx of a run step cancellable by the emergency stop until untrack is called (D-179 (4)); an undo is not tracked (D-179 (6)).
+// trackStep makes ctx of a run step cancellable by the emergency stop until untrack is called; an undo is not tracked.
 // The executor sees the cancel as its context ending: the SSH writer sends no further line, and the item ends as "stopped", state unknown.
 func (s *Service) trackStep(ctx context.Context) (context.Context, func()) {
 	ctx, cancel := context.WithCancelCause(ctx)
@@ -1486,7 +1486,7 @@ func (s *Service) Metrics(ctx context.Context) (Metrics, error) {
 	}
 	var ai, rules, rejected []request
 	for _, r := range all {
-		switch r.Source { // a person's request from an incident is neither (D-509)
+		switch r.Source { // a person's request from an incident is neither
 		case "ai":
 			ai = append(ai, r)
 		case "rule":

@@ -15,9 +15,9 @@ type Device struct {
 	Kind     string // inventory kind; "unknown" until classified
 	Approved bool
 	Fragile  bool
-	Box      bool // the Vedette box itself: scanned only when a person picks it (D-470)
+	Box      bool // the Vedette box itself: scanned only when a person picks it
 	Services []OpenPort
-	// For the picker's search and filters only (D-472): never part of a policy decision.
+	// For the picker's search and filters only: never part of a policy decision.
 	MAC      string // "" when unknown
 	Vendor   string // "" when unknown
 	LastSeen string // ISO time; "" when unknown
@@ -29,12 +29,12 @@ type OpenPort struct {
 	Name string // nmap service name: http, https, ssh, ...
 }
 
-// Decision is inventory.VulnScanPolicy as scan needs it (D-126).
+// Decision is inventory.VulnScanPolicy as scan needs it.
 type Decision struct {
 	Allowed bool
 	Reason  string // inventory's reason: ok, box, no_ip, scope_not_confirmed, out_of_scope, regular_scan_never,
 	// declared_by_hand, fragile_passive_only, unclassified_passive_only
-	Careful bool   // fragile or unclassified: a quarter of the rate (D-126 (2))
+	Careful bool   // fragile or unclassified: a quarter of the rate
 	IP      string // the address the decision was made for
 }
 
@@ -47,7 +47,7 @@ const (
 	reasonNever      = "regular_scan_never"
 	reasonOutOfScope = "out_of_scope"
 	reasonNoScope    = "scope_not_confirmed"
-	reasonNoIP       = "no_ip" // a device in the inventory with no address (hand-added, LLDP only) is not "outside the scope" (D-484)
+	reasonNoIP       = "no_ip" // a device in the inventory with no address (hand-added, LLDP only) is not "outside the scope"
 )
 
 // FindingRef is a finding of a device: the CVEs scan may confirm or clear on it.
@@ -73,7 +73,7 @@ type Evidence struct {
 type Findings interface {
 	List(ctx context.Context, assetID string) ([]FindingRef, error)
 	// ConfirmFromScan records a match and returns the id of the finding (INV-8). It is the only call: a scan without a
-	// match is "no match reported" and never touches a finding (D-133 (5)).
+	// match is "no match reported" and never touches a finding.
 	ConfirmFromScan(ctx context.Context, assetID, cve string, ev Evidence) (string, error)
 }
 
@@ -83,7 +83,7 @@ type Publisher interface {
 }
 
 // KEVFeed is feeds' record of the KEV entries it announced (feeds.vuln.new_kev), read by the catch-up of the rescan
-// job: the bus is best-effort (D-144), so an entry announced while scan was off or the process was down is found
+// job: the bus is best-effort, so an entry announced while scan was off or the process was down is found
 // here. Nil: no catch-up, only the bus.
 type KEVFeed interface {
 	// NewKEVSince lists the entries announced after (at, cve), oldest first, at most limit.

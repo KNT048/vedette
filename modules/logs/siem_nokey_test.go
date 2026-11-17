@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// #847 (J7 #812): a backup restored without its decryption key leaves the SIEM signing key sealed under another master key.
+// #847 (#812): a backup restored without its decryption key leaves the SIEM signing key sealed under another master key.
 
 // resealSiemKey seals the saved signing key again under another master key, as such a restore leaves it.
 func (e *env) resealSiemKey() {

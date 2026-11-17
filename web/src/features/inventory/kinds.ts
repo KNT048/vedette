@@ -3,7 +3,7 @@ import { categoryLabel, categoryOf, kindLabel } from '@/lib/deviceTypes'
 import type { AssetKind, KindGuess } from '@/lib/types'
 import { ApiError } from '@/lib/api'
 
-/** One icon per category (D-511); the 13 types of before keep their own icon. */
+/** One icon per category; the 13 types of before keep their own icon. */
 const CATEGORY_ICON: Record<string, LucideIcon> = {
   network: Network, security: Shield, wireless: Wifi, server: Server, computer: Monitor, mobile: Smartphone, printer: Printer,
   video: Camera, telephony: Phone, storage: HardDrive, iot: Cpu, ot: Building2, web: Globe, unknown: CircleHelp,
@@ -40,7 +40,7 @@ export async function sha256Hex(text: string): Promise<string> {
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 /** "Core switches (v3)": a credential's name with its SNMP version once. A name that already ends in the version ("Core switches (v3)",
- *  "Printers v2c", "[V3]") is shown as it is (#849, kien's review of the Add dialog). */
+ *  "Printers v2c", "[V3]") is shown as it is (#849, from a review of the Add dialog). */
 export function credentialLabel(name: string, version: string, versionText: string): string {
   const says = new RegExp(`(^|[\\s([])${escapeRe(version)}[)\\]]?$`, 'i').test(name.trim())
   return says ? name : `${name} (${versionText})`

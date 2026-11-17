@@ -53,7 +53,7 @@ export function buildWeekly(asOf = Date.now()): WeeklyReport {
   const resolvedRows = findingsStore.get().filter((f) => inWeek(t(f.resolved_at))).map((f) => ({ ...rowOf(f), ...(f.resolved_by ? { by: f.resolved_by } : {}) }))
   const order = (rows: FindingRow[]) => rows.slice().sort((a, b) => SEV[a.severity] - SEV[b.severity] || b.since.localeCompare(a.since) || a.id.localeCompare(b.id))
 
-  // The same board as Home (feeds hotRows, 7 days), moved back for an older week (D-485).
+  // The same board as Home (feeds hotRows, 7 days), moved back for an older week.
   const shift = Date.now() - asOf
   const hot = hotRows(24 * 7, new Date(data.generated_at).getTime() - shift)
   const kevNew = hot.reduce((n, r) => n + r.cves.length, 0)

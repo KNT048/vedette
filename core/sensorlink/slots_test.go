@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/core/sensorlink"
 )
 
-// D-176 (WP-31 M3): a sensor cannot hold the connection slots of the link.
+// WP-31 M3: a sensor cannot hold the connection slots of the link.
 
 // send writes one request head (and the start of a chunked body when chunked), leaving the body unfinished.
 func (rc *rawConn) send(t *testing.T, method, path string, hdr []string, chunked bool) {
@@ -298,7 +298,7 @@ func isTimeout(err error) bool {
 	return errors.As(err, &ne) && ne.Timeout()
 }
 
-// D-176 (3): the server has a whole-request ReadTimeout and an IdleTimeout, and a long poll is not cut by it.
+// The server has a whole-request ReadTimeout and an IdleTimeout, and a long poll is not cut by it.
 func TestReadTimeoutSparesTheLongPoll(t *testing.T) {
 	t.Parallel()
 	hs := mustServer(t).HTTPServer("")
@@ -425,7 +425,7 @@ func TestRefusalOverH2KeepsTheConnection(t *testing.T) {
 	}
 }
 
-// D-326 (D-176 (5) residual): a local process that opens raw TCP connections, never starts TLS and holds them cannot keep the listener: 16 of
+// A local process that opens raw TCP connections, never starts TLS and holds them cannot keep the listener: 16 of
 // them wait in the pending pool (the rest are closed at once), and once they are older than the minimum age the scan role's connection takes
 // the place of the oldest. A sustained flood is not covered (see PendingListener).
 func TestUnauthenticatedConnectionsCannotStarveTheSensors(t *testing.T) {

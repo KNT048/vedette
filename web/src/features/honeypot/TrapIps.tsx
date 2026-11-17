@@ -23,14 +23,14 @@ import { HP_SERVICES, type Hit, type HpService, type TrapIP, type TrapIPsRespons
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 type FieldId = 'preset' | 'name' | 'ip' | 'vendor' | 'services' | 'form'
-/** Which field a server error belongs to (D-466: each error under its own field; the rest above the buttons). */
+/** Which field a server error belongs to (each error under its own field; the rest above the buttons). */
 const FIELD_OF: Record<string, FieldId> = {
   bad_preset: 'preset', bad_name: 'name', name_in_use: 'name', bad_vendor: 'vendor', bad_services: 'services',
   bad_ip: 'ip', no_lan: 'ip', ip_outside_lan: 'ip', ip_is_box: 'ip', ip_is_gateway: 'ip', ip_in_use: 'ip',
 }
 const INPUT_ID: Record<Exclude<FieldId, 'form'>, string> = { preset: 'tip-preset', name: 'tip-name', ip: 'tip-ip', vendor: 'tip-vendor', services: 'tip-svc-smb' }
 
-/** D-466: one list of Trap IPs; each is a profile (name, address, vendor, its own services). S-HP-1, S-HP-2. */
+/** One list of Trap IPs; each is a profile (name, address, vendor, its own services). S-HP-1, S-HP-2. */
 export default function TrapIpsTab({ hits, lan, lanKnown = true, smbName }: { hits: Hit[]; lan: string; lanKnown?: boolean; smbName: string | null }) {
   const { t } = useTranslation('honeypot')
   const q = useTrapIps()

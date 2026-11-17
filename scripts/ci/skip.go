@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// skip-tests.txt (D-376): the tests the merge gate skips. slow ones run only in the daily schedule; flaky ones are quarantined
+// skip-tests.txt: the tests the merge gate skips. slow ones run only in the daily schedule; flaky ones are quarantined
 // for at most flakyDays with an issue. `ci skip` prints go test's -skip pattern for them.
 //
 //go:embed skip-tests.txt

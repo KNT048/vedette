@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/ai"
 )
 
-// M2-2 (walk n74): "Ask my AI" for a Juniper finding gave prose and steps but no config, and a paragraph stopped at 500 characters
+// Regression: "Ask my AI" for a Juniper finding gave prose and steps but no config, and a paragraph stopped at 500 characters
 // in the middle of a sentence ("No confirmed recommendation exists yet, and a"). The mitigation-config brief now asks for config blocks
 // (one line per string) and keeps every text whole up to a sentence end.
 func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {

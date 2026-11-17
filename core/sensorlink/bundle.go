@@ -15,7 +15,7 @@ import (
 // MaxBundle is the largest credentials file the client reads. A bundle is a key, a leaf and the CA: about 1.5 KiB.
 const MaxBundle = 64 << 10
 
-// Bundle is what core writes to <creds>/<role>/sensor.pem (D-110 (4)): the private key, the leaf certificate and the CA
+// Bundle is what core writes to <creds>/<role>/sensor.pem: the private key, the leaf certificate and the CA
 // certificate, in one file so a reader never sees a key that belongs to another certificate.
 type Bundle struct {
 	Cert tls.Certificate
@@ -78,7 +78,7 @@ func ParseBundle(data []byte) (*Bundle, error) {
 	return &Bundle{Cert: cert, Leaf: leaf, CA: ca, Pool: pool}, nil
 }
 
-// readBundleFile reads the bundle at path and refuses what the writer would never have made (D-110 (4)):
+// readBundleFile reads the bundle at path and refuses what the writer would never have made:
 //   - a symlink as the file, or as the directory that holds it (the volume is shared with a container that is being attacked;
 //     the file is opened through os.OpenRoot on its directory, so no component below that directory can lead out of it);
 //   - anything that is not a regular file, or is larger than MaxBundle (a FIFO is never opened blocking);

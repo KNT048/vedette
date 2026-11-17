@@ -1,4 +1,4 @@
-// Seeds the accounts of the run (D-172): an operator and a viewer next to the administrator the wizard made, each created the way a person
+// Seeds the accounts of the run: an operator and a viewer next to the administrator the wizard made, each created the way a person
 // does (temporary password, then a password change), and one storageState file per role for the specs of the parallel project.
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -17,14 +17,14 @@ test('accounts and one storageState per role', async () => {
   }
 
   const admin = await signedIn('admin')
-  // The wizard's mid-size bundle leaves `response` off (D-41, it acts on the customer's devices). The routes check visits its page, so the
+  // The wizard's mid-size bundle leaves `response` off (it acts on the customer's devices). The routes check visits its page, so the
   // seed turns the module on; the switch that lets it act on devices is a separate one and stays off.
   // Public-IP auto-detect would call checkip/icanhazip/ifconfig.me during the run: turn it off right after the wizard (no internet dependence).
   const noAuto = await api(admin, 'PUT', '/exposure/box-ip/settings', { auto: false, interval_min: 60 })
   expect(noAuto.status, `exposure auto-detect off: ${JSON.stringify(noAuto.body)}`).toBe(200)
-  // D-624 (supervisor 2026-11-16): a bundle turns on v1 modules only. The specs of the preview modules (scan, honeypot, logs, ai,
+  // A bundle turns on v1 modules only. The specs of the preview modules (scan, honeypot, logs, ai,
   // reports) need them on, so the seed turns each on as a customer would from its own row in Settings → Modules (same PATCH).
-  // A module this install cannot run (the honeypot on a container-only box, D-381) stays off.
+  // A module this install cannot run (the honeypot on a container-only box) stays off.
   const mods = await api<{ modules: { id: string; available: boolean }[] }>(admin, 'GET', '/modules')
   for (const id of ['ai', 'scan', 'logs', 'honeypot', 'reports']) {
     if (mods.body.modules.find((m) => m.id === id)?.available === false) continue

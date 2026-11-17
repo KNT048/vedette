@@ -148,7 +148,7 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM exp_snapshot`); n != 1 {
 		t.Fatalf("%d snapshots", n)
 	}
-	// the runner's own refusals reach the person as they are, and leave no snapshot either: the module is off (J6), the
+	// the runner's own refusals reach the person as they are, and leave no snapshot either: the module is off, the
 	// certificate-transparency search did not answer
 	e.advance(ScanEvery)
 	run.err = ErrScanOff
@@ -167,7 +167,7 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	wantAPI(t, err, 501, "not_implemented")
 }
 
-// INV-12 (D-229): one scan at a time on the box (409 busy), one scan of a target every ScanEvery (429 rate_limited; an attempt
+// INV-12: one scan at a time on the box (409 busy), one scan of a target every ScanEvery (429 rate_limited; an attempt
 // the runner refused as module off does not count), and every attempt that ends without a snapshot is audited with its outcome.
 func TestContract_INV12_OneScanAtATimeAndNotTooOften(t *testing.T) {
 	t.Parallel()
@@ -225,7 +225,7 @@ func (r *blockingRunner) Scan(ctx context.Context, t ScanTarget) (Content, error
 	return r.fakeRunner.Scan(ctx, t)
 }
 
-// D-57 (7), LEGAL §3: the scan of a domain port-scans an address only when ScannableIP says it is a verified, committed IP target
+// LEGAL §3: the scan of a domain port-scans an address only when ScannableIP says it is a verified, committed IP target
 // that may be scanned now (the same gate as a scan of it).
 func TestContract_INV12_ScannableIP(t *testing.T) {
 	t.Parallel()
@@ -526,7 +526,7 @@ func TestContract_INV7_Commitment(t *testing.T) {
 	if !slices.Contains(e.auditActions(), "exposure.commitment") {
 		t.Fatal("who confirmed and when was not audited")
 	}
-	// the stored record is the sentence of the version, with this target in it (D-473)
+	// the stored record is the sentence of the version, with this target in it
 	if c.Commitment.Version == nil || *c.Commitment.Version != NoticeVersion || c.Commitment.Sentence == nil || *c.Commitment.Sentence != noticeFor("acme.example").Text || c.CommitmentNotice != nil {
 		t.Fatalf("stored notice = %+v, offered = %+v", c.Commitment, c.CommitmentNotice)
 	}

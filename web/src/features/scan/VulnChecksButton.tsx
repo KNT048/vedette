@@ -17,11 +17,11 @@ const MAX = 200
 
 /**
  * #850 review r2 N4 (director's decision): "Run vulnerability checks now" (operator, POST /scans/runs), only while the vulnerability
- * checks (scan module, Preview) are on. `targets` = these devices (a device page: a person's own pick, D-126) or 'lan' = every
+ * checks (scan module, Preview) are on. `targets` = these devices (a device page: a person's own pick) or 'lan' = every
  * device the box may check without a person's own pick (never the box, never a fragile, unclassified or hand-added one); more than
  * 200 is said, never cut. Its progress shows under the button and the run opens in Settings › Scanning › History.
  */
-export function VulnChecksButton({ targets, size = 'sm', label, showProgress = true, describedBy }: { targets: string[] | 'lan'; size?: 'sm' | 'md'; label?: string; /** Show the progress card under the button (default true); off where the page already shows the run (#877 r1 L12). */ showProgress?: boolean; /** The id of a line that says what the button does (kien G7b/c). */ describedBy?: string }) {
+export function VulnChecksButton({ targets, size = 'sm', label, showProgress = true, describedBy }: { targets: string[] | 'lan'; size?: 'sm' | 'md'; label?: string; /** Show the progress card under the button (default true); off where the page already shows the run (#877 r1 L12). */ showProgress?: boolean; /** The id of a line that says what the button does. */ describedBy?: string }) {
   const { t } = useTranslation('scan')
   const on = useModuleEnabled('scan') === true
   const can = useCan('operator')

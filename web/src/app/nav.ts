@@ -5,8 +5,8 @@ import { api } from '@/lib/api'
 import { useMe } from '@/lib/session'
 import { navItems, type NavGroup, type NavItem } from './feature'
 
-/** Always visible, in this order, never in a group. Incidents is here (UI.md §2, decided 2026-11-16): J3 "the alert arrives" is the
- *  P0 journey, as Wiz and CrowdStrike keep Issues and Detections top-level. */
+/** Always visible, in this order, never in a group. Incidents is here (UI.md §2, decided 2026-11-16): "the alert arrives" is the
+ *  core journey, as Wiz and CrowdStrike keep Issues and Detections top-level. */
 export const PINNED = ['/', '/findings', '/plan', '/incidents'] as const
 
 /** The collapsible groups, in order. `monitor` holds no group of its own any more: what it held is pinned or moved below. */
@@ -30,7 +30,7 @@ export type NavBadge = { count: number; key: string; urgent: boolean }
 const BADGES: Record<string, (s: NavSummary) => NavBadge | null> = {
   '/findings': (s) => (s.open?.confirmed ? { count: s.open.confirmed, key: 'layout.badge.findings', urgent: true } : null),
   '/devices': (s) => (s.devices?.pending ? { count: s.devices.pending, key: 'layout.badge.devices', urgent: true } : null),
-  // J3: the open high and critical incidents (#825 adds `incidents.urgent` to the summary for this badge).
+  // The open high and critical incidents (#825 adds `incidents.urgent` to the summary for this badge).
   '/incidents': (s) => (s.incidents?.urgent ? { count: s.incidents.urgent, key: 'layout.badge.incidents', urgent: true } : null),
 }
 

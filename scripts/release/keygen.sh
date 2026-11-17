@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# The release key ceremony (D-256), on the maintainer's Mac. Makes the release signing keys the box trusts:
+# The release key ceremony, on the maintainer's Mac. Makes the release signing keys the box trusts:
 #   minisign         the active minisign key: signs index.json and every release manifest
-#   minisign-backup  the offline backup minisign key: signs the index that revokes a key, and the rescue release after one (D-108, D-258)
-#   cosign           the cosign key (ECDSA P-256): signs the images (legacy format, D-103)
+#   minisign-backup  the offline backup minisign key: signs the index that revokes a key, and the rescue release after one
+#   cosign           the cosign key (ECDSA P-256): signs the images (legacy format)
 # Usage: scripts/release/keygen.sh [name...]   (default: all three; a rotation passes only the key it replaces, after moving the old one away)
 #
 # For each key: a fresh random passphrase (256 bits, `openssl rand`) goes straight from a shell variable into the login Keychain
@@ -76,7 +76,7 @@ for n in "${names[@]}"; do
 	printf 'add-generic-password -s vedette-release-%s -a %s -l "Vedette release key passphrase (%s)" -T "" -w %s\n' "$n" "$account" "$n" "$pass" | security -i > /dev/null
 	kc=$(security find-generic-password -s "vedette-release-$n" -a "$account" 2> /dev/null | sed -n 's/^keychain: "\(.*\)"$/\1/p') || kc=
 	[ -n "$kc" ] || { echo "keygen.sh: the Keychain did not keep vedette-release-$n" >&2; exit 1; }
-	# -T "" must leave the item trusting no application; a security(1) that ignored it would let any process read it silently (D-259).
+	# -T "" must leave the item trusting no application; a security(1) that ignored it would let any process read it silently.
 	# dump-keychain -a prints access lists only (no -d: no secret); keychain-acl.sh fails closed on anything but an empty app list.
 	acl=$(security dump-keychain -a "$kc" 2> /dev/null) || { echo "keygen.sh: security dump-keychain -a $kc failed, so the access list of vedette-release-$n is unchecked" >&2; exit 1; }
 	printf '%s\n' "$acl" | scripts/release/keychain-acl.sh "vedette-release-$n" "$account" \

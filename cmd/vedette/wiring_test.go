@@ -108,7 +108,7 @@ func (s *stack) do(method, path, user, body string) (int, map[string]any) {
 }
 
 // kev stores a CISA-list row added today (the weekly and hot lists show it).
-// It has a scan template: a product match on a device a person added stays a finding, the scan's target (D-602).
+// It has a scan template: a product match on a device a person added stays a finding, the scan's target.
 func (s *stack) kev(cve, vendor, product string) {
 	s.t.Helper()
 	now := time.Now().UTC()
@@ -231,7 +231,7 @@ func TestWiringDeviceMatchesKEVAndDeleteRemovesTheFinding(t *testing.T) {
 }
 
 // New CVEs of the CISA list reach the devices that run the product: one by one after a normal pull, once after a
-// baseline pull (D-78).
+// baseline pull.
 func TestWiringFeedEventsRematchTheInventory(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)

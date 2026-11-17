@@ -171,7 +171,7 @@ func nvdOrigin(o *origin, n int) {
 	})
 }
 
-// D-500: the first pull asks for every page and fills the table, says so once (First), and a later pull asks only
+// The first pull asks for every page and fills the table, says so once (First), and a later pull asks only
 // for what NVD changed since the last good pull.
 func TestContract_NVDRangesPull(t *testing.T) {
 	t.Parallel()

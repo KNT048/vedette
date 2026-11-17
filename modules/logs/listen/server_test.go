@@ -403,7 +403,7 @@ func TestTheUnknownSenderTableHoldsTheMostRecentOnly(t *testing.T) {
 	}
 }
 
-// D-444: every pair of declared and arriving protocol.
+// Every pair of declared and arriving protocol.
 func TestAcceptsTakesTheDeclaredProtocolAndTCPForAUDPSource(t *testing.T) {
 	want := map[[2]string]bool{
 		{"udp", "udp"}: true, {"udp", "tcp"}: true, {"udp", "tls"}: false,
@@ -417,7 +417,7 @@ func TestAcceptsTakesTheDeclaredProtocolAndTCPForAUDPSource(t *testing.T) {
 	}
 }
 
-// D-444: a UDP source may hold only MaxConnsIPOther TCP connections (8), so it cannot take the share of the sources declared with TCP or TLS.
+// A UDP source may hold only MaxConnsIPOther TCP connections (8), so it cannot take the share of the sources declared with TCP or TLS.
 func TestAUDPSourceHoldsFewTCPConnections(t *testing.T) {
 	r := newRig(t, Limits{}, nil)
 	other := netip.MustParseAddr("127.0.0.2")
@@ -540,8 +540,8 @@ func TestAFailingSinkLosesOnlyItsBatchAndIsCounted(t *testing.T) {
 	waitFor(t, "the next line to arrive", func() bool { return len(r.lines()) == 2 })
 }
 
-// D-443: the sockets are open with no source at all, so a sender that is not declared yet is counted (not met by a closed port); the
-// sources decide only what is kept. D-444: a UDP source takes TCP from its address too; a TCP source takes no UDP.
+// The sockets are open with no source at all, so a sender that is not declared yet is counted (not met by a closed port); the
+// sources decide only what is kept. A UDP source takes TCP from its address too; a TCP source takes no UDP.
 func TestSocketsAreOpenWithoutSourcesAndTheSourcesDecideWhatIsKept(t *testing.T) {
 	r := newRig(t, Limits{BatchWait: 10 * time.Millisecond}, nil)
 	r.start()

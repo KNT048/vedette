@@ -4,7 +4,7 @@ import { renderApp } from '@/test/render'
 import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { BOX_ID, ensureBox, inventorySettingsStore } from './mocks'
 
-// kien G12 (n82 walk): "Vedette may scan this device during the scan window" showed on the box (never scanned) and on a device whose
+// "Vedette may scan this device during the scan window" showed on the box (never scanned) and on a device whose
 // network scan is off. The line follows the device's scan source state.
 vi.setConfig({ testTimeout: 30_000 })
 beforeEach(() => ensureBox())
@@ -15,7 +15,7 @@ const confirmed = () => {
   inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))
 }
 
-describe('device page: the fragile line says whether Vedette may scan the device (kien G12)', () => {
+describe('device page: the fragile line says whether Vedette may scan the device', () => {
   it('the box itself: never scanned', async () => {
     renderApp(`/devices/${BOX_ID}`)
     expect((await screen.findAllByText('The Vedette box itself is never part of a network scan.', undefined, T)).length).toBeGreaterThan(0) // the fragile line, and the device's Check now slot

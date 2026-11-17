@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// AssetIDs is the unfiltered, uncapped read a reconcile compares against (findings, D-144): every device of every kind, sorted,
+// AssetIDs is the unfiltered, uncapped read a reconcile compares against (findings): every device of every kind, sorted,
 // beyond MaxListed. An empty inventory is an empty answer, never an error.
 func TestAssetIDsListsEveryDeviceOfEveryKind(t *testing.T) {
 	t.Parallel()

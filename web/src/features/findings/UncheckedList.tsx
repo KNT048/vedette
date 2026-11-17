@@ -1,5 +1,5 @@
-// #910 phase 1 (J3/J5 trust): exploited CVEs of software the box has that it could not check are shown, never silent.
-// No finding is created from this list; the customer checks the advisory. kien G15: the lines sit in their device's block of Needs
+// #910 phase 1: exploited CVEs of software the box has that it could not check are shown, never silent.
+// No finding is created from this list; the customer checks the advisory. The lines sit in their device's block of Needs
 // your input (NeedsInput.tsx), each with its next step there.
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'

@@ -196,7 +196,7 @@ func TestPassiveSubcommandTalksToCore(t *testing.T) {
 	}
 }
 
-// The sensor and scan containers hold no database, no secrets and no consent (D-113, D-114): the binary must not link database/sql, SQLite,
+// The sensor and scan containers hold no database, no secrets and no consent: the binary must not link database/sql, SQLite,
 // the generated API, core's store, audit, secrets or PKI, or any module but the leaf packages below, and no third-party code
 // but x/sys/unix. The test walks the imports of
 // the packages of this module from the binary down (go/build, once for the build host and once for Linux, where the binary
@@ -207,26 +207,26 @@ func TestBinaryDependencies(t *testing.T) {
 	allowed := []string{
 		"cmd/vedette-sensor",
 		"content/oui",
-		"core/domainfence",         // the worker's domain fence of domain_ip jobs (D-591); standard library and core/localnet only, its own leaf test
-		"core/domainfence/proofat", // where a domain_ip job's record may sit (D-632): the Public Suffix List bound core and vedette-host apply too
-		"core/egressip",            // the worker's own-IP fence of the external shape and its public-address rule (D-514); standard library only, its own leaf test
+		"core/domainfence",         // the worker's domain fence of domain_ip jobs; standard library and core/localnet only, its own leaf test
+		"core/domainfence/proofat", // where a domain_ip job's record may sit: the Public Suffix List bound core and vedette-host apply too
+		"core/egressip",            // the worker's own-IP fence of the external shape and its public-address rule; standard library only, its own leaf test
 		"core/exec",
-		"core/localnet", // the local networks of nmapargv and nucleiargv (D-461); net/netip and slices only, its own leaf test
+		"core/localnet", // the local networks of nmapargv and nucleiargv; net/netip and slices only, its own leaf test
 		"core/observe",
 		"core/sensorlink",
 		"internal/jsonstrict",
-		"modules/scan/commonports", // the ports of nmapargv's external shape, the surface scan's list (D-514); it imports nothing
-		"modules/scan/nucleiargv",  // the leaves of scan the worker shares with core (D-125 (2), D-136 (3))
-		"modules/scan/nucleiout",   // the worker counts host errors from nuclei's error log with it (D-165); its own deps_test keeps it a leaf
+		"modules/scan/commonports", // the ports of nmapargv's external shape, the surface scan's list; it imports nothing
+		"modules/scan/nucleiargv",  // the leaves of scan the worker shares with core
+		"modules/scan/nucleiout",   // the worker counts host errors from nuclei's error log with it; its own deps_test keeps it a leaf
 		"modules/scan/pack",
 		"modules/sensor-active/nmapargv",
 		"modules/sensor-active/worker",
 		"modules/sensor-passive/capture",
 	}
 	// The only code from outside the standard library and this module: the raw socket of the capture (afpacket_linux.go) uses
-	// one receive-side option that package syscall lacks; the worker reads SNMP agents with gosnmp (BSD-2, D-512: SNMPv3 USM is
+	// one receive-side option that package syscall lacks; the worker reads SNMP agents with gosnmp (BSD-2: SNMPv3 USM is
 	// key localization, HMAC and AES-CFB, not worth writing again). Both are pinned in go.mod and import the standard library only.
-	// golang.org/x/net/publicsuffix (D-632): the embedded Public Suffix List of proofat; it imports the standard library only.
+	// golang.org/x/net/publicsuffix: the embedded Public Suffix List of proofat; it imports the standard library only.
 	thirdParty := []string{"golang.org/x/sys/unix", "github.com/gosnmp/gosnmp", "golang.org/x/net/publicsuffix"}
 	for _, goos := range []string{runtime.GOOS, "linux"} {
 		t.Run(goos, func(t *testing.T) {

@@ -21,7 +21,7 @@ const (
 	// miner or a free-text profile makes and for the signatures that a vocabulary of shipped data bounds (a known log id, a known event
 	// id): separate quotas, so that a flood of the first cannot push the second out. The lines past a quota are counted under
 	// OtherSignature. ponytail: 1,000 and 2,000, one constant each; a real device has tens to hundreds of kinds of line, and the
-	// vocabularies make at most 540. The bytes this can take are measured in TestMeasureCeilings and written in D-206.
+	// vocabularies make at most 540. The bytes this can take are measured in TestMeasureCeilings.
 	MaxMinedPerDay   = 1000
 	MaxBoundedPerDay = 2000
 	// MaxMinedPerBucket and MaxBoundedPerBucket are the same for one 5-minute bucket of the counters that Counts reads. 600 is at least
@@ -68,9 +68,9 @@ type bucketVal struct {
 type sigBatch struct {
 	daily  map[dailyKey]*dailyVal
 	bucket map[bucketKey]*bucketVal
-	addrs  map[bucketKey]addrGroup // the remote addresses of the lines, by the same key as bucket (D-210)
+	addrs  map[bucketKey]addrGroup // the remote addresses of the lines, by the same key as bucket
 	commit *pendingUpdate          // what storeAddrs leaves in memory once the batch is stored
-	conns  map[connKey]connObs     // the connections the lines are about (D-213), the first line of each
+	conns  map[connKey]connObs     // the connections the lines are about, the first line of each
 	auth   []authObs               // the login lines that name a remote address (authfail.go), in receive order
 }
 
@@ -123,7 +123,7 @@ func (s *Service) tally(kinds map[string]string, senders map[string]netip.Addr, 
 				k := connKey{c.Local, d.Kind, d.Value}
 				if o := b.conns[k]; o.source == "" {
 					b.conns[k] = connObs{l.SourceID, l.At, c.Blocked}
-				} else if o.blocked && !c.Blocked { // one line of the batch that went through makes the pair a connection (D-227)
+				} else if o.blocked && !c.Blocked { // one line of the batch that went through makes the pair a connection
 					o.blocked = false
 					b.conns[k] = o
 				}

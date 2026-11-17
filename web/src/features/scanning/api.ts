@@ -13,8 +13,8 @@ export const useScanning = (enabled = true) => useQuery({
   refetchInterval: (q) => (q.state.data?.running.length ? scanningPoll.runningMs : scanningPoll.idleMs),
 })
 
-/** GET /scanning/history (kien G7a): the LAN runs and public scans with their outcome; every 30 s while the tab is open. With an
- *  asset (kien G7b/c), only the runs that reached that device: its checks and the SNMP reads that asked it. */
+/** GET /scanning/history: the LAN runs and public scans with their outcome; every 30 s while the tab is open. With an
+ *  asset, only the runs that reached that device: its checks and the SNMP reads that asked it. */
 export const useScanningHistory = (asset?: string | null) => useQuery({
   queryKey: asset ? ['scanning', 'history', asset] : ['scanning', 'history'],
   queryFn: () => api.get<{ items: HistoryRun[] }>(asset ? `/scanning/history?asset=${encodeURIComponent(asset)}` : '/scanning/history'),

@@ -16,7 +16,7 @@ import (
 )
 
 // onlyLoopback lets a test reach its own origin and fails on any other host: no real network in tests. The origin is
-// named originHost in feed addresses (a loopback address is refused when a feed is saved, D-420) and reached on 127.0.0.1.
+// named originHost in feed addresses (a loopback address is refused when a feed is saved) and reached on 127.0.0.1.
 type onlyLoopback struct{ t *testing.T }
 
 const originHost = "origin.lan"
@@ -179,7 +179,7 @@ func TestContract_POST1_KEVPullStoresAndPublishesNewCVEsOnce(t *testing.T) {
 	if n := rowsOf(t, e.db, "feeds_vuln"); n != 3 {
 		t.Fatalf("%d vulnerabilities", n)
 	}
-	// D-78: the first pull into an empty table is a baseline: one event, not one per CVE
+	// The first pull into an empty table is a baseline: one event, not one per CVE
 	if news, base := e.pub.named(EventNewKEV), e.pub.named(EventSyncBaseline); len(news) != 0 || len(base) != 1 || base[0] != (SyncBaselineEvent{Source: "cisa-kev", Count: 3}) {
 		t.Errorf("first pull: new_kev %v, baseline %v", news, base)
 	}
@@ -583,7 +583,7 @@ func TestJobsRunOnlyThroughTheScheduler(t *testing.T) {
 	}
 }
 
-// Walk 2026-11-12: the rejected-rows note writes numbers as the GUI does and says why a few rows were dropped.
+// The rejected-rows note writes numbers as the GUI does and says why a few rows were dropped.
 func TestNote_GroupedCountsAndReason(t *testing.T) {
 	got := note(Stats{Accepted: 185937, Rejected: 50, Reasons: []Reason{{Reason: `"…" is not a domain`, Count: 48, Example: `"a b" is not a domain`}, {Reason: "other", Count: 2}}})
 	want := `50 of 185,987 rows were rejected. Most often: "a b" is not a domain. A few bad lines in a public list are normal; they are skipped.`
@@ -600,7 +600,7 @@ func TestNote_GroupedCountsAndReason(t *testing.T) {
 	}
 }
 
-// D-420 (3): the status line of a pull shows one real rejected value of the most common reason (quoted, cut to 40
+// The status line of a pull shows one real rejected value of the most common reason (quoted, cut to 40
 // UTF-16 units, unprintable runes as spaces), not an ellipsis; the grouped reasons of the API stay masked.
 func TestNote_ShowsOneRejectedValue(t *testing.T) {
 	in := "8.8.8.8\nbad!" + strings.Repeat("v", 50) + "\nalso!bad\n1.1.1.1\n"
@@ -621,7 +621,7 @@ func TestNote_ShowsOneRejectedValue(t *testing.T) {
 	}
 }
 
-// D-485: the CISA list is pulled every hour and each good pull brings EPSS while EPSS has no record; a failing EPSS still
+// The CISA list is pulled every hour and each good pull brings EPSS while EPSS has no record; a failing EPSS still
 // waits out its own back-off (5 minutes after the first failure) instead of being asked on every pull of the list.
 func TestEPSSAfterTheListKeepsItsBackoff(t *testing.T) {
 	t.Parallel()

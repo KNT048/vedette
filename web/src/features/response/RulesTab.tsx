@@ -69,7 +69,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
   const { t } = useTranslation('response')
   const admin = useCan('admin')
   const operator = useCan('operator')
-  const frozen = useFrozen() // D-624: a rule can be turned off, put back to dry run or deleted, not turned on, edited or made live
+  const frozen = useFrozen() // A rule can be turned off, put back to dry run or deleted, not turned on, edited or made live
   const save = useSaveRule()
   const del = useDeleteRule()
   const sim = useSimulate()
@@ -131,11 +131,11 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
 
 function Templates() {
   const { t } = useTranslation('response')
-  const frozen = useFrozen() // D-624: no new rule from a template
+  const frozen = useFrozen() // No new rule from a template
   const admin = useCan('admin') && !frozen
   const q = useTemplates()
   const clone = useCloneTemplate()
-  // S-CORE-9 G5: a template whose trigger needs a module this install cannot run (the honeypot on a container-only install) is shown but cannot be cloned
+  // S-CORE-9: a template whose trigger needs a module this install cannot run (the honeypot on a container-only install) is shown but cannot be cloned
   const noHoneypot = useModuleAvailable('honeypot') === false
   const unavailable = (trigger: string) => trigger === 'honeypot' && noHoneypot
   return (
@@ -168,7 +168,7 @@ function Events() {
   const frozen = useFrozen()
   const q = useEvents()
   const run = useRunRules()
-  const noHoneypot = useModuleAvailable('honeypot') === false // D-390: the text does not promise honeypot touches where there are none
+  const noHoneypot = useModuleAvailable('honeypot') === false // The text does not promise honeypot touches where there are none
   const columns: ColumnDef<EventView>[] = [
     { id: 'ts', header: t('det.time'), accessorFn: (d) => d.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
     { id: 'what', header: t('det.what'), accessorFn: (d) => d.summary, cell: ({ row }) => <>{row.original.summary} <span className="text-muted">({t(`rules.triggerShort.${row.original.trigger}`)})</span></> },
@@ -192,7 +192,7 @@ function Events() {
 export function RulesTab() {
   const { t } = useTranslation('response')
   const admin = useCan('admin')
-  const frozen = useFrozen() // D-624: no new rule
+  const frozen = useFrozen() // No new rule
   const rules = useRules()
   const [edit, setEdit] = useState<Rule | 'new' | null>(null)
   if (rules.isPending) return <Loading />

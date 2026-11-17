@@ -40,14 +40,14 @@ const (
 var savedFields = map[channel.Type][]string{
 	channel.Telegram:     {"chat_id"},
 	channel.Slack:        {"label", "channel_id"},
-	channel.Zalo:         {"oa_id", "user_id", "app_id"},          // app_id: the refresh-token flow (D-483)
+	channel.Zalo:         {"oa_id", "user_id", "app_id"},          // app_id: the refresh-token flow
 	channel.ZaloPersonal: {"user_id", "group", "name", "account"}, // name: the recipient's shown name; account: set from the sign-in only
 	channel.Email:        {"provider", "host", "port", "security", "username", "tenant_id", "client_id", "from", "to"},
 	channel.Webhook:      {"url"},
 }
 
 // approverAddr is the address format an approver must have on a channel; a channel without an entry
-// cannot take approvals (D-46: Zalo OA and webhook send a link that opens Vedette instead).
+// cannot take approvals (Zalo OA and webhook send a link that opens Vedette instead).
 var approverAddr = map[channel.Type]struct {
 	re  *regexp.Regexp
 	msg string
@@ -59,7 +59,7 @@ var approverAddr = map[channel.Type]struct {
 
 const emailApproverMsg = "An approver email is not valid, for example name@company.com."
 
-// zaloApproverMsg: D-242, a reply carries the sender's Zalo user ID and never their phone number, so a phone number would never match.
+// zaloApproverMsg: a reply carries the sender's Zalo user ID and never their phone number, so a phone number would never match.
 const zaloApproverMsg = "Enter the approver's Zalo user ID, not a phone number: a reply in Zalo carries the sender's user ID, never the phone number, " +
 	"so a phone number would never match. The user ID is the long number of the Zalo account, for example 2938475610293847561."
 
@@ -249,7 +249,7 @@ func badRequest(code, msg string) *apierr.Error { return apierr.New(http.StatusB
 
 // newSender builds the adapter of type t from stored fields and the plain secret. toOverride replaces
 // the recipients of an email channel (two-step codes go to one person, not to the alert list), and the chat of
-// a Telegram channel (a confirm link sent privately to one approver's user ID, D-414).
+// a Telegram channel (a confirm link sent privately to one approver's user ID).
 func (s *Service) newSender(t channel.Type, f map[string]string, secret string, toOverride []string) (channel.Sender, error) {
 	sv := secrets.NewValue(secret)
 	hc := s.cfg.HTTPClient
@@ -420,7 +420,7 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 	if len(in.Approvers) == 0 {
 		return badRequest("approvers_required", `Add at least one approver, or turn off "Approve actions from this channel".`)
 	}
-	if t == channel.Telegram && !approvalChat(in.Fields) { // review of #172, L1
+	if t == channel.Telegram && !approvalChat(in.Fields) {
 		return badRequest("bad_chat_id", "To approve actions in Telegram, Chat ID must be the number of the chat (groups look like -1001234567890), "+
 			"not a public @channel_name: anyone can join a public channel, and a name that is given up can be taken by someone else.")
 	}
@@ -456,7 +456,7 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 		if t == channel.Email {
 			key = strings.ToLower(addr)
 		}
-		if other, dup := addrs[key]; dup { // one address is one person (D-242, UNIQUE in notify_approver): an id for two people is nobody's
+		if other, dup := addrs[key]; dup { // one address is one person (UNIQUE in notify_approver): an id for two people is nobody's
 			return badRequest("duplicate_address", u.Email+": "+addr+" is already the address of "+other+". One address can belong to one approver only.")
 		}
 		addrs[key] = u.Email
@@ -464,7 +464,7 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 	return nil
 }
 
-// emailFields keeps only the fields the email provider uses (D-449): the tenant and client IDs belong to Microsoft 365, and Postmark's
+// emailFields keeps only the fields the email provider uses: the tenant and client IDs belong to Microsoft 365, and Postmark's
 // username is its server token, a secret, so it is never a field.
 func emailFields(fields map[string]string) error {
 	if fields["provider"] == "" {
@@ -490,7 +490,7 @@ func emailFields(fields map[string]string) error {
 const secretFor = "secret_for"
 
 // emailBinding is what an email secret is saved for: the sign-in method, the server and the port. A saved secret is only ever sent
-// there (D-449 review): a client secret is not a password, and a server it was not saved for never receives it, not even after a
+// there: a client secret is not a password, and a server it was not saved for never receives it, not even after a
 // save with "No encryption" in between.
 func emailBinding(f map[string]string) string {
 	auth, _ := channel.EmailAuth(f["provider"])
@@ -523,7 +523,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 	if err := s.checkApprovers(ctx, t, in); err != nil {
 		return Channel{}, err
 	}
-	// Zalo personal (D-447): the GUI saves the session of the saving administrator's finished QR sign-in; the API still takes a session
+	// Zalo personal: the GUI saves the session of the saving administrator's finished QR sign-in; the API still takes a session
 	// pasted as the secret (the JSON a zca-js client keeps, checked like any saved session).
 	var login *zaloLoginRun
 	if t == channel.ZaloPersonal {
@@ -542,7 +542,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 	var out Channel
 	var before []Approver
 	ob := &events.Outbox{}
-	var releaseSignin func() // a sign-in this save took (D-480): given back if the save fails
+	var releaseSignin func() // a sign-in this save took: given back if the save fails
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		cur, err := loadChannel(ctx, tx, t)
 		if err != nil {
@@ -577,7 +577,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			if err := emailFields(fields); err != nil {
 				return err
 			}
-			if in.Signin != "" { // D-480: the refresh token of a finished sign-in, never seen by the browser
+			if in.Signin != "" { // The refresh token of a finished sign-in, never seen by the browser
 				var release func()
 				if secret, release, err = s.takeSignin(actor, in.Signin, fields); err != nil {
 					return err
@@ -586,7 +586,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			}
 			rebind = secret == "" && cur.SecretID != "" && cur.savedFor() != emailBinding(fields)
 		}
-		if t == channel.Zalo { // D-483: the secret key and refresh token join the saved grant; an empty one keeps the saved value
+		if t == channel.Zalo { // The secret key and refresh token join the saved grant; an empty one keeps the saved value
 			saved := ""
 			if strings.TrimSpace(in.SecretKey) != "" || strings.TrimSpace(in.RefreshToken) != "" || secret != "" {
 				saved, _ = s.openSecret(ctx, tx, cur.SecretID) // unreadable = nothing saved: what was typed must be complete
@@ -767,7 +767,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			s.cfg.Log.WarnContext(ctx, "notify: an old approver proof could not be dropped", "channel", string(t), "user", a.UserID, "error", err.Error())
 		}
 	}
-	if _, ok := unlinkAction[t]; ok { // the confirm-link channels (D-447, D-414): new approvers get their link after the save
+	if _, ok := unlinkAction[t]; ok { // the confirm-link channels: new approvers get their link after the save
 		if c, err := loadChannel(ctx, s.cfg.DB.Reader(), t); err == nil && approvalsReady(c) {
 			if t == channel.ZaloPersonal {
 				s.sendLinkCodesLater(ctx, actor, c, newLinkApprovers(before, out.Approvers))
@@ -779,8 +779,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 	return out, nil
 }
 
-// newLinkApprovers lists the approvers of now who were not in before with the same address: they get a confirm link after the save
-// (D-447, D-414).
+// newLinkApprovers lists the approvers of now who were not in before with the same address: they get a confirm link after the save.
 func newLinkApprovers(before, now []Approver) []Approver {
 	var out []Approver
 	for _, a := range now {
@@ -791,7 +790,7 @@ func newLinkApprovers(before, now []Approver) []Approver {
 	return out
 }
 
-// unlinkAction is the audit action of a linked approver a save removes or re-addresses, per confirm-link channel (D-447, D-414).
+// unlinkAction is the audit action of a linked approver a save removes or re-addresses, per confirm-link channel.
 var unlinkAction = map[channel.Type]string{channel.ZaloPersonal: "notify.zalo_unlink", channel.Telegram: "notify.telegram_unlink"}
 
 // linkChannelName names a confirm-link channel in messages and audit rows.
@@ -853,7 +852,7 @@ func lastFour(s string) string {
 
 // DeleteChannel removes the saved configuration and every secret of a channel, and with them a Zalo
 // personal session (INV-12). The row stays, blank, so the API still lists six channels. The approvers'
-// proofs of their addresses on it end too (Config.LinkCodes.DropChatLink, D-447).
+// proofs of their addresses on it end too (Config.LinkCodes.DropChatLink).
 func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Type) error {
 	before, err := loadApprovers(ctx, s.cfg.DB.Reader(), t) // their proofs end with the channel (below, after the commit)
 	if err != nil {
@@ -903,7 +902,7 @@ func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Typ
 		s.tokens.Clear()
 	}
 	s.flush(ctx, ob)
-	// D-447 review round 2: a recreated channel listing the same addresses must not show them linked without a new proof.
+	// A recreated channel listing the same addresses must not show them linked without a new proof.
 	for _, a := range before {
 		if s.cfg.LinkCodes == nil {
 			break

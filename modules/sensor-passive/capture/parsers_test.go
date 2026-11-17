@@ -163,7 +163,7 @@ func TestParseDNS(t *testing.T) {
 	}
 }
 
-// The SSDP SERVER header became the model verbatim ("Linux/5.4 UPnP/1.0 MiniUPnPd/2.2"). Only a known layout gives a model (D-411).
+// The SSDP SERVER header became the model verbatim ("Linux/5.4 UPnP/1.0 MiniUPnPd/2.2"). Only a known layout gives a model.
 func TestParseSSDPServer(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct{ server, model string }{
@@ -383,7 +383,7 @@ func TestBackoffGrowsToTenMinutes(t *testing.T) {
 	}
 }
 
-// Walk 4: a switch's whole LLDP description became its name and make/model. Only a known layout gives a model and an OS.
+// A switch's whole LLDP description became its name and make/model. Only a known layout gives a model and an OS.
 func TestParseSysDesc(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct{ desc, model, os string }{
@@ -395,7 +395,7 @@ func TestParseSysDesc(t *testing.T) {
 		{"MikroTik RouterOS 6.49.10 (long-term) CRS326-24G-2S+", "CRS326-24G-2S+", "RouterOS 6.49.10"},
 		{"Ubuntu 22.04.3 LTS Linux 5.15.0-91-generic #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023 x86_64", "", "Ubuntu 22.04.3 LTS"},
 		// net-snmp's uname layout (n82): the kernel build's marks only; a release number only when the mark carries one.
-		{"Linux BN340 6.18.63-0-lts #1-Alpine SMP PREEMPT_DYNAMIC 2026-11-11 01:31:28 x86_64", "", "Alpine Linux"},
+		{"Linux gw-lab01 6.18.63-0-lts #1-Alpine SMP PREEMPT_DYNAMIC 2026-11-11 01:31:28 x86_64", "", "Alpine Linux"},
 		{"Linux fw 6.6.58-0-virt #1-Alpine SMP PREEMPT_DYNAMIC Tue, 22 Oct 2024 x86_64", "", "Alpine Linux"},
 		{"Linux web1 5.15.0-91-generic #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023 x86_64", "", "Ubuntu"},
 		{"Linux web2 6.5.0-14-generic #14~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Mon Nov 20 18:15:30 UTC 2 x86_64", "", "Ubuntu"},

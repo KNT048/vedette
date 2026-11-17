@@ -125,7 +125,7 @@ func (h *ExposureHandlers) ExposureGetExposureTargetsID(ctx context.Context, par
 
 // ExposureDeleteExposureTargetsID implements exposure_delete_exposure_targets_id (admin). It is also how an
 // IP leaves the inventory.
-// With ?ignore=true an IP also goes on the Ignored list (D-79 (3)).
+// With ?ignore=true an IP also goes on the Ignored list.
 func (h *ExposureHandlers) ExposureDeleteExposureTargetsID(ctx context.Context, params oas.ExposureDeleteExposureTargetsIDParams) error {
 	user, err := actor(ctx)
 	if err != nil {
@@ -160,7 +160,7 @@ func (h *ExposureHandlers) ExposurePostExposureTargetsIDVerify(ctx context.Conte
 
 // ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan (operator): the gate answers synchronously as always,
 // then the scan starts in the background and the answer is 202 with the run (INV-18). For the first scan of a target an
-// administrator's press is the D-26 confirmation (D-473): the body carries the notice version the page showed.
+// administrator's press is the commitment confirmation: the body carries the notice version the page showed.
 func (h *ExposureHandlers) ExposurePostExposureTargetsIDScan(ctx context.Context, req oas.OptExposurePostExposureTargetsIDScanReq, params oas.ExposurePostExposureTargetsIDScanParams) (*oas.ExposurePostExposureTargetsIDScanAccepted, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
@@ -175,7 +175,7 @@ func (h *ExposureHandlers) ExposurePostExposureTargetsIDScan(ctx context.Context
 }
 
 // ExposurePutExposureTargetsIDTerms implements exposure_put_exposure_targets_id_terms (admin with two-step): accept the testing terms
-// of a verified target, with or without the disruptive tick (FULL-1, D-566).
+// of a verified target, with or without the disruptive tick.
 func (h *ExposureHandlers) ExposurePutExposureTargetsIDTerms(ctx context.Context, req *oas.ExposurePutExposureTargetsIDTermsReq, params oas.ExposurePutExposureTargetsIDTermsParams) (*oas.ExposurePutExposureTargetsIDTermsOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
@@ -257,7 +257,7 @@ func (h *ExposureHandlers) ExposureGetExposureTargetsIDDiff(ctx context.Context,
 }
 
 // ExposureGetExposureTargetsIDOutside implements exposure_get_exposure_targets_id_outside (viewer): Shodan's last answer about this
-// IP of the box, null when nobody has asked (D-558, INV-21). It sends nothing.
+// IP of the box, null when nobody has asked (INV-21). It sends nothing.
 func (h *ExposureHandlers) ExposureGetExposureTargetsIDOutside(ctx context.Context, params oas.ExposureGetExposureTargetsIDOutsideParams) (oas.NilExposureGetExposureTargetsIDOutsideOK, error) {
 	v, err := h.svc.Outside(ctx, params.ID)
 	if err != nil {
@@ -274,7 +274,7 @@ func (h *ExposureHandlers) ExposureGetExposureTargetsIDOutside(ctx context.Conte
 }
 
 // ExposurePostExposureTargetsIDOutside implements exposure_post_exposure_targets_id_outside (admin): an administrator's click sends
-// this IP of the box to Shodan InternetDB (D-558, INV-21).
+// this IP of the box to Shodan InternetDB (INV-21).
 func (h *ExposureHandlers) ExposurePostExposureTargetsIDOutside(ctx context.Context, params oas.ExposurePostExposureTargetsIDOutsideParams) (*oas.ExposurePostExposureTargetsIDOutsideOK, error) {
 	user, err := actor(ctx)
 	if err != nil {

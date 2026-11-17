@@ -2,8 +2,8 @@ package observe
 
 import "strings"
 
-// agentOS is the device kind of an os_version platform (osquery, Wazuh) other than Windows (D-503). The Linux distributions the agent
-// supports (INV-2 of agent-intake) and their close kin are run as servers (the install is for servers only, D-34); macOS is a pc.
+// agentOS is the device kind of an os_version platform (osquery, Wazuh) other than Windows. The Linux distributions the agent
+// supports (INV-2 of agent-intake) and their close kin are run as servers (the install is for servers only); macOS is a pc.
 // Another Linux (a desktop distribution) gives no kind.
 var agentOS = map[string]string{
 	"ubuntu": "server", "debian": "server", "rhel": "server", "centos": "server", "rocky": "server",
@@ -18,7 +18,7 @@ var osNames = []struct{ prefix, platform string }{
 	{"macos", "darwin"}, {"mac os x", "darwin"}, {"microsoft windows", "windows"},
 }
 
-// AgentKind is the device kind of an agent's os_version row (D-503), within the inventory's kind list: Windows Server is a server and
+// AgentKind is the device kind of an agent's os_version row, within the inventory's kind list: Windows Server is a server and
 // another Windows a pc, a supported Linux a server, macOS a pc; anything else "" (no kind observation, the device keeps what it has).
 func AgentKind(platform, name string) string {
 	p := strings.ToLower(platform)
@@ -32,7 +32,7 @@ func AgentKind(platform, name string) string {
 }
 
 // AgentKindOfOS is AgentKind for the OS text an agent stored ("name version", agent-intake mapper.go), whose platform is not kept: the
-// platform is read from the start of the name. It types a device whose agent reported its OS before agents sent a kind (D-503, the
+// platform is read from the start of the name. It types a device whose agent reported its OS before agents sent a kind (the
 // upgrade path).
 func AgentKindOfOS(os string) string {
 	s := strings.ToLower(strings.TrimSpace(os))

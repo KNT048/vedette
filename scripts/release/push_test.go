@@ -508,7 +508,7 @@ func TestBuildInputsIsWhatManifestReads(t *testing.T) {
 			t.Errorf("%+v", im)
 		}
 	}
-	// D-410: bundled[] is the pins of the tag, as Managed packages shows them
+	// bundled[] is the pins of the tag, as Managed packages shows them
 	want := []release.Bundled{{Service: "scan", Name: "nuclei", Version: "3.11.1", License: "MIT"},
 		{Service: "scan", Name: "nuclei-templates-pack", Version: "2026.11.1", SHA256: strings.Repeat("c", 64), License: "MIT"},
 		{Service: "honeypot", Name: "opencanary", Version: "0.9.10", License: "BSD-3-Clause"}}

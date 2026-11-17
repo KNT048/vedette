@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-10 (D-97, D-119) in the real wiring: the AI proposal goes through the Go port, never through HTTP, and evidence the
+// WP-13b slice 13b-10 in the real wiring: the AI proposal goes through the Go port, never through HTTP, and evidence the
 // binary cannot look up yet fails closed.
 
 func TestWiringProposeThroughTheGoPort(t *testing.T) {
@@ -60,7 +60,7 @@ func TestWiringProposeThroughTheGoPort(t *testing.T) {
 	}
 }
 
-// ai 7 (D-311): config_read evidence is a read the ai module recorded, at most 24 hours old, looked up through the real wiring. A
+// ai 7: config_read evidence is a read the ai module recorded, at most 24 hours old, looked up through the real wiring. A
 // read it found does not prove the ioc_connection trigger, so the answer moves from evidence_invalid to evidence_mismatch; an old
 // row, an unknown id and the ai module off are evidence_invalid.
 func TestWiringConfigReadIsTheAIRecordOfAReadThroughTheConnection(t *testing.T) {

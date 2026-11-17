@@ -116,7 +116,7 @@ func deref(p *string) string {
 // new Test), the undo of every change still in force is refused forever: the sweep tries every 30 s and never sends it, and the
 // connection cannot be deleted (409 in_use, "Roll it back in Response, or wait until it expires", neither of which can happen). A
 // temporary block becomes permanent. The target, the kind and the id are unchanged, so the stored rollback is still addressed to the
-// right device, and removing a change is the safe direction (D-88 (4)).
+// right device, and removing a change is the safe direction.
 func TestDeviceUndoSurvivesACredentialRotation(t *testing.T) {
 	t.Parallel()
 	e := newDevEnv(t)

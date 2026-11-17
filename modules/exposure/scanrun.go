@@ -44,7 +44,7 @@ type ScanRun struct {
 	Phase       string    `json:"phase"`
 	SnapshotID  *string   `json:"snapshot_id"`
 	Error       *RunError `json:"error"`
-	// StopReason says why a stopped run was stopped when it was not a person's Stop (D-566 review r1 M1); nil otherwise.
+	// StopReason says why a stopped run was stopped when it was not a person's Stop; nil otherwise.
 	StopReason *string `json:"stop_reason,omitempty"`
 	// Progress is how far the step that runs now is (#830): the nmap and nuclei jobs of the scan module as the scan worker reports
 	// them, OpenVAS's own percent in the greenbone phase. Only while the run is running; null otherwise. In memory, like the run.
@@ -67,8 +67,8 @@ type scanRun struct {
 
 	prevLast    time.Time // the target's lastScan before this run, put back when the runner found the module off (nothing was asked)
 	hadPrevLast bool
-	mode        ScanMode          // what this run may do (D-566): set when it starts; withdrawing or lowering the terms stops a run above them
-	gbSnap      string            // the snapshot whose OpenVAS step runs now (set under runMu): its "running" is real (N49-3, D-595)
+	mode        ScanMode          // what this run may do: set when it starts; withdrawing or lowering the terms stops a run above them
+	gbSnap      string            // the snapshot whose OpenVAS step runs now (set under runMu): its "running" is real
 	prog        *progress.Tracker // #830: the progress of the run; its context carries it to the jobs that report
 	steps       *stepLog          // #861 (INV-30): what nuclei, ZAP and OpenVAS did in this run; its context carries it to the steps
 }
@@ -76,7 +76,7 @@ type scanRun struct {
 // stoppedBy is the cause of a run's context when someone stopped it or the module was switched off.
 type stoppedBy struct {
 	by  string
-	why string // why the box stopped it, for the page (D-566 review r1 M1: the testing terms were withdrawn); "" for a Stop
+	why string // why the box stopped it, for the page (the testing terms were withdrawn); "" for a Stop
 }
 
 func (e *stoppedBy) Error() string { return "stopped by " + e.by }
@@ -84,8 +84,8 @@ func (e *stoppedBy) Error() string { return "stopped by " + e.by }
 // begin registers a run and starts it in the background, or refuses (INV-1, INV-18): the gate's reason, no runner (501), another
 // run (409 busy), the same target within ScanEvery (429). The run's context comes from the Service, not from the request, so the
 // scan goes on after the 202 has been sent; it ends when its last step returns (each step has its own cap: 5 minutes for the runner,
-// service identification and the templates, 8 minutes a page for ZAP, 90 minutes for the optional Greenbone step; FULL-4 (Trưởng),
-// for Mlee: 70 minutes for the service step of a deep scan, FullServicesTimeout, D-526), or on StopScan. No cap covers the whole run.
+// service identification and the templates, 8 minutes a page for ZAP, 90 minutes for the optional Greenbone step;
+// 70 minutes for the service step of a deep scan, FullServicesTimeout), or on StopScan. No cap covers the whole run.
 func (s *Service) begin(ctx context.Context, user string, t Target, reason BlockedReason) (*scanRun, error) {
 	if reason != "" {
 		return nil, s.refusal(t, reason, s.clock())
@@ -112,7 +112,7 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 		return nil, apiErr(429, "rate_limited", "%s was scanned at %s. Scan it again after %s: at most one scan of a target every %d minutes.",
 			t.Value, s.momentText(last), s.momentText(next), int(ScanEvery/time.Minute))
 	}
-	// The run's mode comes from a fresh read of the terms under runMu (D-566 review r2 M1): a withdrawal committed while the gate ran
+	// The run's mode comes from a fresh read of the terms under runMu: a withdrawal committed while the gate ran
 	// is seen here, and one that comes later finds this run registered and stops it (stopRunAbove takes runMu too).
 	fresh, err := loadTarget(ctx, s.cfg.DB.Reader(), t.ID)
 	if err != nil {
@@ -155,13 +155,13 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode}
 	switch {
 	case t.proofDomain == "":
-	case t.proofOwn && t.proofDomain != t.Value: // D-632: the target's own record on a parent name: checked there, for the target (review r1 M2 of #960)
+	case t.proofOwn && t.proofDomain != t.Value: // The target's own record on a parent name: checked there, for the target
 		st.Proof = &ProofOwner{Domain: t.Value, Token: t.proofToken, ProofAt: t.proofDomain}
 	default:
 		st.Proof = &ProofOwner{Domain: t.proofDomain, Token: t.proofToken}
 	}
 	content, err := r.Scan(ctx, st)
-	content.Hosts = clearDeep(content.Hosts) // D-571: the deep state of a run is exposure's own, never the runner's
+	content.Hosts = clearDeep(content.Hosts) // The deep state of a run is exposure's own, never the runner's
 	deepDomain := st.Kind == KindDomain && st.Mode.Full
 	if err == nil {
 		content, err = s.identify(ctx, st, content) // INV-19: service identification of the box's own IP, and what was checked
@@ -177,14 +177,14 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		run.steps.close(StepZAP)
 	}
 	var deep []deepAddr
-	if err == nil && deepDomain { // D-571: each address of the names at the domain's terms depth
+	if err == nil && deepDomain { // Each address of the names at the domain's terms depth
 		content, deep, err = s.deepDomain(ctx, st, content)
 		if err == nil {
 			run.steps.close(StepNuclei)
 		}
 	}
 	gb, gbRun := false, GreenboneRun{State: GBRunNotRun}
-	var gbIP []int  // the open TCP ports of an IP target OpenVAS checks (N49-4, D-595)
+	var gbIP []int  // the open TCP ports of an IP target OpenVAS checks
 	if err == nil { // INV-25: the optional deep scan runs last, after the snapshot of the other steps is stored
 		var line string
 		gb, line, err = s.greenbonePlan(ctx, st)
@@ -210,7 +210,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	}
 	if err == nil {
 		id := store.NewID("sn")
-		s.runMu.Lock() // review L3 of D-595: its "running" is live from the moment it is stored, never read as cut off
+		s.runMu.Lock() // Its "running" is live from the moment it is stored, never read as cut off
 		run.view.Phase = PhaseSaving
 		run.prog.Report(progress.Phase(progress.PhaseSaving, ""))
 		if gb {
@@ -233,7 +233,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		}
 		if gerr != nil {
 			line := notGBStopped
-			if len(o.rows) > 0 { // review M1 of D-595: a domain keeps and shows the rows of the addresses that finished
+			if len(o.rows) > 0 { // A domain keeps and shows the rows of the addresses that finished
 				line = notGBStoppedSome
 			}
 			o.not = append([]NotCheckedRow{{Kind: "greenbone", Text: line}}, o.not...)
@@ -253,7 +253,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	s.finish(ctx, run, user, t, err)
 }
 
-// byName is the ScanTarget of a domain's by-name passive web pass (INV-24): always the K-4 scope, whatever the terms (D-571). The deep
+// byName is the ScanTarget of a domain's by-name passive web pass (INV-24): always the basic scope, whatever the terms. The deep
 // scan by name of each address, with the terms' mode and the domain's scope, is deepDomain's.
 func byName(st ScanTarget) ScanTarget {
 	if st.Kind == KindDomain {
@@ -422,10 +422,10 @@ func (s *Service) ModuleSwitched(enabled bool) {
 	s.runMu.Unlock()
 	if !enabled {
 		s.cancelRun("the box (the Exposure module was switched off)")
-		s.gbModuleOff(s.bg) // FULL-2 (Trưởng), for Mlee: Greenbone's containers stop with the module (D-529)
+		s.gbModuleOff(s.bg) // Greenbone's containers stop with the module
 		return
 	}
-	s.GreenboneAtStart(s.bg) // FULL-2 (Trưởng), for Mlee: and start again with it when it is enabled
+	s.GreenboneAtStart(s.bg) // and start again with it when it is enabled
 }
 
 // closeWait bounds Close: a runner that ignores its context must not hold the shutdown until its own 5-minute cap.
@@ -447,7 +447,7 @@ func (s *Service) Close() {
 	}
 	syncDone := g.syncDone
 	g.mu.Unlock()
-	s.waitSync(syncDone) // the host must not keep pulling the feed after the box stops (review r1 L2)
+	s.waitSync(syncDone) // the host must not keep pulling the feed after the box stops
 	if run := s.cancelRun("the box (shutting down)"); run != nil {
 		select {
 		case <-run.done:

@@ -38,7 +38,7 @@ func (e *statusError) Unwrap() error { return errSiemStatus }
 var metadataAddrs = []netip.Addr{netip.MustParseAddr("fd00:ec2::254"), netip.MustParseAddr("fd20:ce::254"), netip.MustParseAddr("100.100.100.200"), netip.MustParseAddr("192.0.0.192")}
 
 // addrForms is ip plus the IPv4 address that a transition form carries (NAT64, 6to4, IPv4-compatible): a connection to one of them
-// reaches that IPv4 address through a translator, so both are judged (D-208 does the same for feeds).
+// reaches that IPv4 address through a translator, so both are judged (feeds do the same).
 func addrForms(ip netip.Addr) []netip.Addr {
 	ip = ip.Unmap().WithZone("")
 	out := []netip.Addr{ip}
@@ -85,7 +85,7 @@ func nat64Embed(b [16]byte, at [4]int) [4]byte {
 }
 
 // nat64Always is what a guard never allows whatever the box's own addresses are (loopback, link-local, multicast, unspecified,
-// broadcast, cloud metadata): a reading of such an address is judged in every layout, learned or not (D-442 (2)).
+// broadcast, cloud metadata): a reading of such an address is judged in every layout, learned or not.
 func nat64Always(a netip.Addr) bool {
 	return a.IsLoopback() || a.IsLinkLocalUnicast() || a.IsMulticast() || a.IsUnspecified() || a == netip.AddrFrom4([4]byte{255, 255, 255, 255}) || slices.Contains(metadataAddrs, a)
 }
@@ -176,7 +176,7 @@ func learnNAT64(answers []netip.Addr) []netip.Prefix {
 // nat64Cache asks the system resolver for ipv4only.arpa only when a 64:ff9b:1::/48 address is judged, for at most 2 s, and keeps the
 // answer 6 hours (10 minutes when nothing was learned or the lookup failed, so a missing DNS64 costs one lookup per 10 minutes).
 // One lookup runs at a time and nobody waits for it: a caller that finds it running (or a fresh cache) gets what is known, which is
-// nothing at first, and nothing means every layout. The query carries no customer data (D-442).
+// nothing at first, and nothing means every layout. The query carries no customer data.
 type nat64Cache struct {
 	mu       sync.Mutex
 	lookup   func(ctx context.Context) ([]netip.Addr, error)
@@ -218,7 +218,7 @@ var nat64Prefixes = (&nat64Cache{
 
 // siemForbidden says whether the SIEM may never be at ip: link-local, multicast, unspecified, broadcast or a cloud metadata
 // endpoint, in any of its transition forms. RFC 1918 addresses are fine: an internal SIEM is the normal case. Vedette itself is
-// siemOwn's (D-446).
+// siemOwn's.
 func siemForbidden(ip netip.Addr) bool {
 	for _, f := range addrForms(ip) {
 		switch {
@@ -234,12 +234,12 @@ func siemForbidden(ip netip.Addr) bool {
 	return false
 }
 
-// vedettePorts are the ports Vedette itself answers on at the machine's addresses (D-446): the interface 8443, the sensor link 8444,
+// vedettePorts are the ports Vedette itself answers on at the machine's addresses: the interface 8443, the sensor link 8444,
 // MCP 8765, syslog 514 and syslog over TLS 6514 (install.sh preflight, the core unit's PublishPort lines, the container-only compose).
 // Same list in feeds, notify and ai. A SIEM forward to 514 or 6514 of the machine would loop back into Vedette's own listener.
 var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
 
-// siemOwn says whether ip at port is Vedette itself (D-446), in any transition form: loopback (unless allowLoopback, tests only), an
+// siemOwn says whether ip at port is Vedette itself, in any transition form: loopback (unless allowLoopback, tests only), an
 // address of core's own container (selfAddrs) or of extra (Config.SelfAddrs: the honeypot's decoys) on every port, or one of machine
 // (the machine's addresses: vedette-host, the container's gateway) on a port of vedettePorts. While the machine's addresses are not
 // known the socket refuses every send (errSiemBoxUnknown); 514 and 6514 are every SIEM's ports, so unlike ai and email they are not
@@ -285,7 +285,7 @@ func selfAddrs() []netip.Addr {
 	return out
 }
 
-// ownText is the sentence for Vedette itself (D-446): the same in feeds, notify, logs and ai.
+// ownText is the sentence for Vedette itself: the same in feeds, notify, logs and ai.
 const ownText = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
 
 // siemControl runs on the socket just before connect, after name resolution, for TCP and UDP alike, so a name that resolves (or

@@ -15,7 +15,7 @@ export const chosenFromItem = (it: CatalogItem): ChosenProduct => ({ catalog_id:
 export const productFields = (p: ChosenProduct) => (p.custom ? { vendor: p.vendor, product: p.product } : { catalog_id: p.catalog_id })
 
 /**
- * Ô tìm sản phẩm theo tên thương mại, model hoặc hãng (S-INV-2). Chưa gõ thì không hiện danh sách, chỉ một dòng gợi ý (kien: danh sách 30 mục làm tưởng chỉ hỗ trợ 30 sản phẩm).
+ * Ô tìm sản phẩm theo tên thương mại, model hoặc hãng (S-INV-2). Chưa gõ thì không hiện danh sách, chỉ một dòng gợi ý (danh sách 30 mục làm tưởng chỉ hỗ trợ 30 sản phẩm).
  * Gõ rồi mới hiện danh sách cuộn; máy chủ trả tối đa 30 dòng, phần còn lại báo "N more match". Không thấy thì tự nhập hãng + sản phẩm.
  * Combobox chuẩn ARIA: bàn phím lên/xuống/Enter, trình đọc màn hình đọc được số kết quả.
  */

@@ -79,7 +79,7 @@ func (h *McpHandlers) CoreGetCoreMcp(ctx context.Context) (*oas.CoreGetCoreMcpOK
 	if !listening {
 		msg := "The port is not open yet."
 		if lerr != nil {
-			// the port only: in a container the listen that failed is on the container's own address, not the host side in bind (D-395)
+			// the port only: in a container the listen that failed is on the container's own address, not the host side in bind
 			msg = "The port " + strconv.Itoa(int(bind.Port())) + " could not be opened: another program may hold it. Vedette tries again every 15 seconds."
 		}
 		why = &msg

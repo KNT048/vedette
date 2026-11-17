@@ -311,7 +311,7 @@ func TestShutdownWaitsAndRecords(t *testing.T) {
 	})
 }
 
-// D-160: a housekeeping job (retention purge) runs on its timer whether its module is on or off, and turning the module
+// A housekeeping job (retention purge) runs on its timer whether its module is on or off, and turning the module
 // off neither cancels its run nor runs it again; an ordinary job of the same module still stops.
 func TestHousekeepingRunsWhileModuleIsOff(t *testing.T) {
 	t.Parallel()

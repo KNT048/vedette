@@ -12,7 +12,7 @@ import { useCan } from '@/lib/session'
 import { errText, useAllowlist, useSaveAllowlist } from './api'
 import { isCidr, isDomain, isIpv4 } from './logic'
 
-/** Never-touch list (D-51): gateway, DNS, domain controllers, this box, management IPs. No rule and no AI request can change them. Editable by an admin. */
+/** Never-touch list: gateway, DNS, domain controllers, this box, management IPs. No rule and no AI request can change them. Editable by an admin. */
 export function NeverTouch() {
   const { t } = useTranslation('response')
   const admin = useCan('admin')

@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// W2-9, D-418: after an --uninstall --keep-data the host's records of the containers are still there and their units are not.
+// After an --uninstall --keep-data the host's records of the containers are still there and their units are not.
 // install.sh reads the release core last ran from the file the Go code writes (kept_release_ok), and clears exactly the records
 // the Go code keeps for the containers (forget_containers), so that the bootstrap installs again over the kept data. A rename of
 // those files, or a change of the JSON of versions-<service>.json, turns this red.

@@ -23,7 +23,7 @@ var versionRE = regexp.MustCompile(`^[A-Za-z0-9_.\-+() ]{1,40}$`)
 
 // label checks the text a person typed for a name, vendor or product: 1..64 characters, no < > and no
 // control characters (INV-4).
-// userName checks a name in Vedette (G2, INV-36), already trimmed: "" (none) or a label with no invisible character (C1 controls, bidi
+// userName checks a name in Vedette (INV-36), already trimmed: "" (none) or a label with no invisible character (C1 controls, bidi
 // marks and overrides, zero-width characters, U+FEFF): such a name would read reversed or blank on every page, alert and report.
 func userName(s string) bool {
 	return s == "" || label(s) && !strings.ContainsFunc(s, invisible)
@@ -99,10 +99,10 @@ type Adjustment struct {
 	To   string `json:"to"`
 }
 
-// checkRanges validates the LAN ranges the way PUT /inventory/settings needs (INV-6, D-32), in the mock's order:
+// checkRanges validates the LAN ranges the way PUT /inventory/settings needs (INV-6), in the mock's order:
 // a range with host bits is first reduced to its network and reported; then duplicates collapse, and at most 16
 // remain, each with a prefix (never guessed), a valid IPv4 CIDR, inside a local network only (RFC 1918 or the RFC 6598 shared space 100.64/10,
-// localnet.Prefix, D-461), no overlap. The prefix length the
+// localnet.Prefix), no overlap. The prefix length the
 // person typed is kept: only host bits go.
 func checkRanges(in []string) ([]string, []Adjustment, *apierr.Error) {
 	adjusted := []Adjustment{}
@@ -160,5 +160,5 @@ func clip(s string, n int) string {
 
 var hhmmRE = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
 
-// validKind: k is a device type (D-511).
+// validKind: k is a device type.
 func validKind(k string) bool { return devicetypes.Valid(k) }

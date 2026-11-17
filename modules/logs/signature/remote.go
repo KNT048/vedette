@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// The remote address of a line (D-210): the peer that the line is about (the client of a failed login, the source of a blocked
+// The remote address of a line: the peer that the line is about (the client of a failed login, the source of a blocked
 // connection), never the device that sent the log. A profile names where it is (remote_fields, remote_patterns); every line that
 // the profile does not settle, and every line of a device without a profile, goes through genericRemote. An address is read with
 // net/netip only: what does not parse is no address, and the line still counts everywhere else. The result is unmapped (no IPv4-in-IPv6),
@@ -83,7 +83,7 @@ func parseOne(s string) (netip.Addr, bool) {
 var remoteKeys = set("rhost", "rip", "remip", "remote", "remote_ip", "remote_addr", "remoteaddr", "remote_address", "client", "client_ip", "clientip",
 	"client_addr", "src", "srcip", "src_ip", "source_ip", "sourceip", "source_address", "saddr", "peer", "peer_ip", "ipaddress", "ip_address", "ip")
 
-// genericRemote finds the peer address of a line that no profile settled (D-210, round 3). It is a POSITIONAL ALLOWLIST: an address is
+// genericRemote finds the peer address of a line that no profile settled (round 3). It is a POSITIONAL ALLOWLIST: an address is
 // read only from a position where a daemon puts its peer, and any other address-shaped word makes the line ambiguous, so it has none:
 //
 //	(a) the first word of the message (after a "tag:" word) when the line is an access-log line (ADDR ident user [date] ...): nginx, apache;

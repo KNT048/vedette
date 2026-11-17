@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/worker"
 )
 
-// FULL-4 (D-527): a nuclei job of depth full (testing terms accepted) runs behind the same own-IP fence as own_ip, with templates
+// A nuclei job of depth full (testing terms accepted) runs behind the same own-IP fence as own_ip, with templates
 // of the sets its depth allows in the image's own index, and says so in the heartbeat. Nothing reaches a network.
 
 func (r *nrig) fullJob(disruptive bool) sensorlink.Job {
@@ -35,7 +35,7 @@ func TestFullNucleiRunsTheDeepSetBehindTheFence(t *testing.T) {
 }
 
 // A disruptive template in a job without the tick, a KEV-only template (a write method the full rule left out) in a full job, a
-// deep template in an own_ip job of D-520, a write in the file of a full job, and a full job outside own_ip are invalid_job;
+// deep template in an own_ip job, a write in the file of a full job, and a full job outside own_ip are invalid_job;
 // nuclei never starts and the fence is never asked.
 func TestFullNucleiRefusesWhatItsDepthDoesNotAllow(t *testing.T) {
 	t.Parallel()

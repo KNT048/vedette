@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/logs"
 )
 
-// #332, D-287, #348, D-288: the log_threshold trigger reads the Logs module's counts and addresses through cmd/vedette. Lines of
+// The log_threshold trigger reads the Logs module's counts and addresses through cmd/vedette. Lines of
 // one signature from a declared source reach the threshold, and the address that sent them is banned; an address under the
 // threshold is not. With the Logs module off there is no event.
 func TestWiringResponseLogThreshold(t *testing.T) {

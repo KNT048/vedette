@@ -18,7 +18,7 @@ func TestTypesFile(t *testing.T) {
 		cats[c.ID] = true
 	}
 	if len(cats) < 12 || len(cats) > 14 {
-		t.Errorf("%d categories, want 12 to 14 (D-511)", len(cats))
+		t.Errorf("%d categories, want 12 to 14", len(cats))
 	}
 	seen := map[string]bool{}
 	names := map[string]string{}
@@ -74,7 +74,7 @@ func TestTypesFile(t *testing.T) {
 			t.Errorf("Lookup(%q) = %q: too broad to be an alias", broad, got)
 		}
 	}
-	// A load balancer and a proxy stand in front of everyone's traffic: they act as routers, so never-touch keeps them (D-511).
+	// A load balancer and a proxy stand in front of everyone's traffic: they act as routers, so never-touch keeps them.
 	if ActsAs("proxy") != "router" || ActsAs("load_balancer") != "router" {
 		t.Error("proxy and load balancer must act as router (never-touch infrastructure)")
 	}

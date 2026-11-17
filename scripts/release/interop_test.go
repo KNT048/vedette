@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/internal/release/releasetest"
 )
 
-// Interop with the real minisign tool (D-164): what the builder signs through the tool verifies with the tool and with the box's
+// Interop with the real minisign tool: what the builder signs through the tool verifies with the tool and with the box's
 // verifier, and what the Go signer of releasetest signs verifies with the tool. The tool is the pinned one of deploy/tools.env
 // (scripts/release/minisign.sh downloads it; `make release-interop` runs this file). Without it the tests skip, so a machine
 // that has not fetched it still passes `go test`; the maintainer's `make release-interop` fails if the tool is missing.
@@ -136,9 +136,9 @@ func TestInteropMinisignCLI(t *testing.T) {
 	repo := filepath.Join(work, "repo")
 	must(t, os.MkdirAll(filepath.Join(repo, "modules/a/migrations/sqlite"), 0o750))
 	must(t, os.WriteFile(filepath.Join(repo, "modules/a/migrations/sqlite/0001_a.sql"), up("CREATE TABLE a (id INT);"), 0o600))
-	copyContainerTemplate(t, repo) // D-451: the real compose files and vedette.env, read back from git at the tag
-	putProto(t, repo, "4")         // D-410: the sensor protocol gate reads it at the tag
-	// D-457 part A: install.sh is baked from git at the tag
+	copyContainerTemplate(t, repo) // The real compose files and vedette.env, read back from git at the tag
+	putProto(t, repo, "4")         // The sensor protocol gate reads it at the tag
+	// install.sh is baked from git at the tag
 	must(t, os.WriteFile(filepath.Join(repo, installer), realInstaller(t), 0o600))
 	// the migrations are read from git: a repository with the release tagged
 	gitT(t, repo, "init", "-q")
@@ -200,7 +200,7 @@ func TestInteropMinisignCLI(t *testing.T) {
 		{"index.json", "index.json.minisig", "minisign.pub"},
 		{"release-manifest.json", "release-manifest.json.minisig", "minisign.pub"},
 		{"index.json", "index.json.backup.minisig", "minisign-backup.pub"},
-		// the customer's own command for the container-only files (docs/INSTALL-CONTAINER.md, D-451)
+		// the customer's own command for the container-only files (docs/INSTALL-CONTAINER.md)
 		{"vedette.env", "vedette.env.minisig", "minisign.pub"},
 		{"compose.yaml", "compose.yaml.minisig", "minisign.pub"},
 		{"compose.sensors.yaml", "compose.sensors.yaml.minisig", "minisign.pub"},
@@ -214,7 +214,7 @@ func TestInteropMinisignCLI(t *testing.T) {
 			t.Errorf("trusted comment missing: %s", o)
 		}
 	}
-	// the customer's check of the container-only files (ContainerOnly.tsx, docs/INSTALL-CONTAINER.md, D-451): `minisign -VQm` prints
+	// the customer's check of the container-only files (ContainerOnly.tsx, docs/INSTALL-CONTAINER.md): `minisign -VQm` prints
 	// exactly the trusted comment, which the page compares with "file:<that file> version:<release>"
 	for _, f := range append([]string{installer}, containerAssets...) {
 		o, err := ms(t, bin, "", "-VQm", filepath.Join(out, f), "-p", pub("minisign.pub"))
@@ -236,7 +236,7 @@ func TestInteropMinisignCLI(t *testing.T) {
 	if code, msg := do("", "verify", "-dir", out, "-keys-dir", keys); code != 0 {
 		t.Fatalf("restored: %s", msg)
 	}
-	// the weekly refresh (D-150): no manifest, signed by the real tool, verified against the published index
+	// the weekly refresh: no manifest, signed by the real tool, verified against the published index
 	refresh := filepath.Join(work, "refresh")
 	for _, step := range [][]string{
 		{"index", "-out", refresh, "-prev-index", out, "-keys-dir", keys},

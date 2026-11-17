@@ -21,7 +21,7 @@ import { useScope } from '@/lib/v1'
 import { errMsg, useGate } from './parts'
 import type { McpState, McpToken } from './types'
 
-/** The switch is the mcp-server module's own (PATCH /modules/mcp-server, D-230): the section reads /core/mcp only while it is on. */
+/** The switch is the mcp-server module's own (PATCH /modules/mcp-server): the section reads /core/mcp only while it is on. */
 function McpSwitch({ on }: { on: boolean }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
@@ -41,12 +41,12 @@ function McpSwitch({ on }: { on: boolean }) {
   )
 }
 
-/** `locked` (D-624, #819: on here, not offered in v1): everything is shown and tokens can be revoked; no new token. */
+/** `locked` (#819: on here, not offered in v1): everything is shown and tokens can be revoked; no new token. */
 function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const m = useMcpMutations()
-  const container = useInstallKind() === 'container' // D-395: the port is on the localhost of the machine that runs the container (S-CORE-9)
+  const container = useInstallKind() === 'container' // The port is on the localhost of the machine that runs the container (S-CORE-9)
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState<string[]>(['assets', 'findings', 'feeds'])
   const [formErr, setFormErr] = useState<string | null>(null)
@@ -137,7 +137,7 @@ function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
 export default function McpSection() {
   const { t } = useTranslation('core')
   const on = useModuleEnabled('mcp-server')
-  // D-624 (#819): left out of v1. A box that has it on keeps its tokens visible, Revoke and the off switch; no new token. The line
+  // Left out of v1. A box that has it on keeps its tokens visible, Revoke and the off switch; no new token. The line
   // under the title says so (PageHeader, PageModule from the section).
   const leaving = useScope('mcp-server') === 'leaving'
   const q = useMcp(on === true)

@@ -22,7 +22,7 @@ func goldFill(install bool) unitFill {
 	return unitFill{Digest: goldA, Install: install, CoreUID: 10001, CoreGID: 10002, SensorUID: 10003, SensorGID: 10004, DataDir: "/var/lib/vedette"}
 }
 
-// GOMEMLIMIT of core is the Go GC memory limit (D-150): it must sit below the container's --memory, or the GC never
+// GOMEMLIMIT of core is the Go GC memory limit: it must sit below the container's --memory, or the GC never
 // reacts before the cgroup OOM-kills core.
 func TestCoreGoMemLimitIsBelowTheContainerMemory(t *testing.T) {
 	t.Parallel()
@@ -46,7 +46,7 @@ func TestCoreGoMemLimitIsBelowTheContainerMemory(t *testing.T) {
 	}
 }
 
-// core_data goes into one Volume= line (D-142 H1): anything that is not a plain absolute path is refused, so
+// core_data goes into one Volume= line: anything that is not a plain absolute path is refused, so
 // no value can add a line, an option or a second mount to the unit.
 func TestCoreDataInTheUnitIsAStrictPath(t *testing.T) {
 	t.Parallel()
@@ -79,7 +79,7 @@ func TestCoreDataInTheUnitIsAStrictPath(t *testing.T) {
 	}
 }
 
-// D-146 (L5 of the sensor protocol): nmap can leave a child that setsid()ed away from the group the worker kills, and without an init
+// L5 of the sensor protocol: nmap can leave a child that setsid()ed away from the group the worker kills, and without an init
 // that child becomes a zombie of PID 1, which is the worker. The scan unit therefore runs under podman's init (Quadlet RunInit=, which
 // the generator turns into --init; checked with the quadlet generator of podman 5.7), and vedette-sensor is not made a subreaper.
 // The sensor starts no child process, so its unit has none.
@@ -289,7 +289,7 @@ func FuzzParseUnit(f *testing.F) {
 	})
 }
 
-// The honeypot log volume (D-318) is constant text: a tmpfs capped in bytes and in files, mounted with no suid, device or exec.
+// The honeypot log volume is constant text: a tmpfs capped in bytes and in files, mounted with no suid, device or exec.
 func TestHoneypotLogVolumeMatchesItsGoldenFile(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join("testdata", "units", hpLogVolumeFileName)
@@ -309,7 +309,7 @@ func TestHoneypotLogVolumeMatchesItsGoldenFile(t *testing.T) {
 	}
 }
 
-// The conntrack delete of D-268 clears the port core's unit publishes: if the unit's syslog PublishPort changes, the
+// The conntrack delete clears the port core's unit publishes: if the unit's syslog PublishPort changes, the
 // constant must follow (the two are written apart on purpose, ponytail).
 func TestCoreUnitPublishesTheSyslogPortTheConntrackDeleteClears(t *testing.T) {
 	t.Parallel()

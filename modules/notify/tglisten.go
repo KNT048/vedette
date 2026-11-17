@@ -21,7 +21,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// Approvals from Telegram buttons (PRE-8, POST-8, D-96 (5), D-135, docs/specs/approval-tokens.md 6). notify owns the line and the
+// Approvals from Telegram buttons (PRE-8, POST-8, docs/specs/approval-tokens.md 6). notify owns the line and the
 // platform check; the response module maps the person and keeps every gate. The listener is the job "telegram-listen": it runs only
 // while the module is on (the scheduler cancels it when the module is turned off) and only while the Telegram channel is configured,
 // enabled, takes approvals and the Decisions port is wired; it long-polls getUpdates (a connection out, no inbound port, FORBID-4).
@@ -30,8 +30,8 @@ const (
 	telegramListenJob   = "telegram-listen"
 	telegramListenEvery = 30 * time.Second // the pause before the listener starts again after it stopped (not ready, or an error)
 	telegramPollWait    = 25 * time.Second // one long poll
-	telegramWorkers     = 4                // presses decided at once; more get "busy" (the response module limits each sender, D-135 (5))
-	decideBudget        = 5 * time.Second  // Decide records and returns (D-135 (9)); past this the press is answered as failed
+	telegramWorkers     = 4                // presses decided at once; more get "busy" (the response module limits each sender)
+	decideBudget        = 5 * time.Second  // Decide records and returns; past this the press is answered as failed
 	nonceBytes          = 8                // spec 6: 8 random bytes, 11 characters of base64url
 	nonceLen            = 11
 	maxButtonRequestID  = 64 - len("a:") - len(":") - nonceLen // callback_data is at most 64 bytes

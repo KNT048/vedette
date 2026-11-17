@@ -97,7 +97,7 @@ func TestParseRefusesBadOutput(t *testing.T) {
 		"too many attributes": manyAttrs,
 		"too many hosts":      manyHosts,
 		"too many ports":      manyPorts,
-		// N42-3: only the attributes the parser reads are capped; a long one of those still refuses the run, wherever it is.
+		// Only the attributes the parser reads are capped; a long one of those still refuses the run, wherever it is.
 		"read attribute too long": `<nmaprun args="nmap"><host><status state="up"/><address addr="10.0.0.1" addrtype="ipv4"/><ports><port protocol="tcp" portid="80"><state state="open"/><service name="http" product="` + strings.Repeat("p", 5000) + `"/></port></ports></host></nmaprun>`,
 		"read name elsewhere":     `<nmaprun><host><status state="` + strings.Repeat("a", 5000) + `"/></host></nmaprun>`,
 		"output over the cap":     `<nmaprun>` + strings.Repeat(" ", maxOutput) + `</nmaprun>`,
@@ -110,7 +110,7 @@ func TestParseRefusesBadOutput(t *testing.T) {
 	}
 }
 
-// N42-3 (D-590): nmap echoes its whole argv in <nmaprun args>, and the --script list of the full shapes is longer than the 4 KB cap of
+// nmap echoes its whole argv in <nmaprun args>, and the --script list of the full shapes is longer than the 4 KB cap of
 // an attribute; the run of the deep scan must still be read (it was refused as "attribute too long", so nothing was identified).
 func TestParseAcceptsTheLongArgvOfTheFullShapes(t *testing.T) {
 	t.Parallel()
@@ -146,7 +146,7 @@ func TestParseAcceptsTheLongArgvOfTheFullShapes(t *testing.T) {
 	}
 }
 
-// Review r1 H1 (D-590): nmap prints the fingerprint of a port it cannot identify in <service servicefp>, about 6 KB of what the target
+// Review r1 H1: nmap prints the fingerprint of a port it cannot identify in <service servicefp>, about 6 KB of what the target
 // answered; the parser never reads it, so it no longer refuses the run, and the identified port beside it is kept.
 func TestParseKeepsARunWithALongServiceFingerprint(t *testing.T) {
 	t.Parallel()
@@ -226,7 +226,7 @@ func TestSoftwareAndObservations(t *testing.T) {
 		"openssh":          "openbsd|8.9p1|cpe:/a:openbsd:openssh:8.9p1",
 		"http server":      "apache|2.4.52|cpe:/a:apache:http_server:2.4.52", // underscore -> space: how the CISA list writes it
 		"Squid http proxy": "Squid http proxy|5.7|",                          // no CPE: the product name stands for the vendor
-		"linux kernel":     "linux||cpe:/o:linux:linux_kernel",               // the fingerprint's OS: a guess, without its generation (D-501)
+		"linux kernel":     "linux||cpe:/o:linux:linux_kernel",               // the fingerprint's OS: a guess, without its generation
 	} {
 		if byProduct[product] != want {
 			t.Errorf("software %q = %q, want %q (all: %v)", product, byProduct[product], want, byProduct)
@@ -254,7 +254,7 @@ func TestSoftwareAndObservations(t *testing.T) {
 func TestKindOf(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{"router": "router", "WAP": "ap", "printer": "printer", "webcam": "camera", "storage-misc": "nas", "general purpose": "", "": "",
-		"phone": "smartphone", "VoIP phone": "ip_phone", "VoIP adapter": "voip_adapter", "media device": "media_player", "power-device": "ups", "broadband router": "router", "print server": "printer"} { // D-511: phone types of their own, each acting as iot
+		"phone": "smartphone", "VoIP phone": "ip_phone", "VoIP adapter": "voip_adapter", "media device": "media_player", "power-device": "ups", "broadband router": "router", "print server": "printer"} { // Phone types of their own, each acting as iot
 		if got := kindOf(in); got != want {
 			t.Errorf("kindOf(%q) = %q, want %q", in, got, want)
 		}
@@ -279,7 +279,7 @@ func TestTextRefusesInvisibleAndBidiControls(t *testing.T) {
 	}
 }
 
-// servicesOf keeps what the inventory accepts (D-350): tcp and udp only, a port 1..65535, at most maxServices; a name or version
+// servicesOf keeps what the inventory accepts: tcp and udp only, a port 1..65535, at most maxServices; a name or version
 // longer than its column is left out rather than refusing the device's whole list.
 func TestServicesOfKeepsOnlyWhatTheInventoryAccepts(t *testing.T) {
 	t.Parallel()
@@ -306,7 +306,7 @@ func TestServicesOfKeepsOnlyWhatTheInventoryAccepts(t *testing.T) {
 	}
 }
 
-// D-522 (N1): nmap's XML keeps TLS in tunnel="ssl"; the inventory gets nmap's text form "ssl/http", which the vulnerability scan
+// nmap's XML keeps TLS in tunnel="ssl"; the inventory gets nmap's text form "ssl/http", which the vulnerability scan
 // reads as https on any port (4443 here). A name without a tunnel, and a tunnel without a name, keep their meaning.
 func TestServiceNameCarriesTheTLSTunnel(t *testing.T) {
 	t.Parallel()
@@ -328,7 +328,7 @@ func TestServiceNameCarriesTheTLSTunnel(t *testing.T) {
 	}
 }
 
-// D-511 (INV-15): what a port says about the device besides product and version (nmap's extra info and device type, the page
+// INV-15: what a port says about the device besides product and version (nmap's extra info and device type, the page
 // title, the certificate subject) is kept as the service's detail, never as software; a title with a control character is dropped.
 func TestServiceDetail(t *testing.T) {
 	t.Parallel()

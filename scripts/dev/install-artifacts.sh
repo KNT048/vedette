@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make install-artifacts (WP-08h, D-166): build the TEST release that `install.sh --test-artifacts DIR` installs, into dist/install/.
+# make install-artifacts (WP-08h): build the TEST release that `install.sh --test-artifacts DIR` installs, into dist/install/.
 # The real release keys and the published images do not exist yet, so this makes everything locally and signs it with throwaway keys:
 #   1. throwaway keys + a Go build overlay (scripts/testchannel keys): the private halves live in a work folder that is deleted at the end (or in KEYS=<dir>, kept)
 #   2. the vedette-host .deb, built with that overlay so that this one build trusts exactly those keys (the source tree is untouched); the core image gets
@@ -30,7 +30,7 @@ say() { echo "install-artifacts: $*"; }
 [ "$c" = podman ] || fail "CONTAINER must be podman (the export uses podman manifest push)"
 # shellcheck source=scripts/dev/podman-oci.sh
 . scripts/dev/podman-oci.sh # the export to an OCI layout, also through a podman machine (macOS)
-printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-test\.[0-9A-Za-z.-]{1,24}$' || fail "VERSION must be a SemVer prerelease that starts with test. and has no v (0.0.1-test.1): a test release must never look like a real one (D-166 M3), got '$version'"
+printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-test\.[0-9A-Za-z.-]{1,24}$' || fail "VERSION must be a SemVer prerelease that starts with test. and has no v (0.0.1-test.1): a test release must never look like a real one, got '$version'"
 case $arch in amd64 | arm64) ;; *) fail "ARCH must be amd64 or arm64" ;; esac
 [ "$arch" = "$native" ] || say "note: ARCH=$arch is not this machine ($native): the images cross-compile, install-check cannot run them here"
 case $out in /*) ;; *) out=$root/$out ;; esac

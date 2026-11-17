@@ -13,11 +13,11 @@ import (
 	"github.com/knt048/vedette/host/ops"
 )
 
-// vedette-host -recover-core-data (D-317, RUNBOOK 5.5): Ops.RecoverCoreData is what the command line calls; the
+// vedette-host -recover-core-data (RUNBOOK 5.5): Ops.RecoverCoreData is what the command line calls; the
 // daemon check, the flags and the exit codes are tested in cmd/vedette-host.
 
 // asideJournal writes the journal the host leaves when a rollback moved core's files aside and then could not put
-// them back (D-138 N1): unrecoverable, db_revert "aside", the names it moved.
+// them back: unrecoverable, db_revert "aside", the names it moved.
 func (e *updEnv) asideJournal(t *testing.T, unrecoverable bool, aside ...string) {
 	t.Helper()
 	sha := strings.Repeat("a", 64)

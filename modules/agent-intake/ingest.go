@@ -24,7 +24,7 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	if err != nil {
 		return err
 	}
-	// One machine is one address: the nodes bound to one source share a log bucket with the numbers of a single node (D-265 (2b)).
+	// One machine is one address: the nodes bound to one source share a log bucket with the numbers of a single node.
 	if ok, wait := s.node.allow(srcKey(src), "src", logPerMin); !ok {
 		return rateLimited(wait)
 	}
@@ -35,9 +35,9 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	if err := s.markResult(ctx, n, ip, mac, update); err != nil {
 		return err
 	}
-	// The hint is the TCP address and the node (D-598), never the MAC. The MAC is the node's own claim, and the inventory resolves a
+	// The hint is the TCP address and the node, never the MAC. The MAC is the node's own claim, and the inventory resolves a
 	// device by MAC: with it in the hint a node could write onto any device whose MAC it names. It goes in as a 0.9 observation only,
-	// which the inventory refuses when another device owns that MAC (D-265 (4)). The node is the id this box gave it at enrolment:
+	// which the inventory refuses when another device owns that MAC. The node is the id this box gave it at enrolment:
 	// the inventory binds it to the device its report reached by address, and a later report finds that device by it when the
 	// machine's address changed (a laptop on DHCP), instead of making a second device.
 	hint := observe.AssetHint{IP: ip, Agent: nodeAgent(n.id)}
@@ -87,11 +87,11 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	return s.firstReport(ctx, n, hint, mac, taken)
 }
 
-// nodeAgent is the inventory's name of an osquery node (core/observe AssetHint.Agent, D-598).
+// nodeAgent is the inventory's name of an osquery node (core/observe AssetHint.Agent).
 func nodeAgent(id string) string { return "osquery:" + id }
 
-// enrolHostname gives the device the host name the node enrolled with while its system_info answer has not reached the inventory (W-2,
-// D-548): without it a machine whose system_info is late or never taken is named after its network card's maker ("QEMU virtual NIC")
+// enrolHostname gives the device the host name the node enrolled with while its system_info answer has not reached the inventory:
+// without it a machine whose system_info is late or never taken is named after its network card's maker ("QEMU virtual NIC")
 // though its agent told its name. The name is osquery's host_details.system_info.hostname at enrolment, else the host_identifier when it
 // is shaped like a host name (the install scripts enrol under the machine's host name; never a UUID). It goes in at the agent's rank,
 // below the system_info answer (0.9 < softwareConfidence), so that answer replaces it once it comes. Once per node, at any age (N52 W-2:
@@ -155,7 +155,7 @@ func reqKernel(n nodeRow, in logIn) string {
 	return n.kernel
 }
 
-// nodeKernel is the running kernel release of the node (D-516): the one this request's kernel_info snapshot gives, stored on the node
+// nodeKernel is the running kernel release of the node: the one this request's kernel_info snapshot gives, stored on the node
 // when it changed, else the one stored. "" when the node never gave a usable one.
 func (s *Service) nodeKernel(ctx context.Context, n nodeRow, in logIn) (string, error) {
 	k := reqKernel(n, in)
@@ -172,10 +172,10 @@ func (s *Service) nodeKernel(ctx context.Context, n nodeRow, in logIn) (string, 
 	return k, nil
 }
 
-// nodeWindows is the Windows release and update revision of the node (D-524): the one this request's os_revision snapshot gives,
+// nodeWindows is the Windows release and update revision of the node: the one this request's os_revision snapshot gives,
 // stored on the node when it changed, else the one stored. Zero when the node never gave a usable one (Linux, an osquery older than
 // 5.12, a revision that is not a positive integer). A request whose os_version row is of another build than the stored one and that
-// gives no usable revision clears the stored one (D-546, review M2): the machine took a feature update, and its old release must
+// gives no usable revision clears the stored one: the machine took a feature update, and its old release must
 // not stay its operating-system row until the next revision report; the device then has no Windows row for that while.
 func (s *Service) nodeWindows(ctx context.Context, n nodeRow, in logIn) (winOS, error) {
 	w, ok := parseWinOS(in.snaps["os_revision"])
@@ -224,7 +224,7 @@ func withKernel(snaps map[string][]row, kernel string) map[string][]row {
 var answers = []string{"os_version", "system_info", "interfaces", "packages", "os_revision", "services", "hostname"}
 
 // firstReport records which answers of the first report the inventory took from this node (the config stops asking for them every
-// minute), and approves the device in the name of the token's maker once per node, as soon as the inventory has it (D-503). mac is the
+// minute), and approves the device in the name of the token's maker once per node, as soon as the inventory has it. mac is the
 // node's card on the hint's address: the inventory approves the row only when it was never seen with another MAC (DHCP reuse).
 func (s *Service) firstReport(ctx context.Context, n nodeRow, hint observe.AssetHint, mac string, taken []string) error {
 	var list []string
@@ -278,7 +278,7 @@ func (s *Service) approve(ctx context.Context, node string, hint observe.AssetHi
 // address when it last reported, and an address it left may since belong to another machine (review #673 H1).
 const approveRecent = 7 * 24 * time.Hour
 
-// ApproveBound is the job approve-enrolled (D-503, the upgrade path): it runs at start, when the module is turned on, and daily after.
+// ApproveBound is the job approve-enrolled (the upgrade path): it runs at start, when the module is turned on, and daily after.
 // A node enrolled before Vedette approved and typed devices from the enrolment has a binding (bound_ip, bound_mac) from its reports but
 // no approved_at, and its next report that the inventory takes may be an hour away (an old install has no --config_refresh, so it never
 // gets the first-report schedule). Each such node goes through the same approve as the log path, with its bound address and MAC: every
@@ -364,7 +364,7 @@ func (s *Service) enrolment(ctx context.Context, node string) (string, error) {
 	return fmt.Sprintf("osquery on %q enrolled with the token %q, %s", host, token, maker), nil
 }
 
-// sourceWindow is how often one source address may replace a software list (D-265 (2b)): one machine is one bound IPv4, so a
+// sourceWindow is how often one source address may replace a software list: one machine is one bound IPv4, so a
 // hundred nodes enrolled by one host cannot multiply the writer's work. Later lists in the window are dropped, not queued.
 const sourceWindow = 5 * time.Minute
 
@@ -403,7 +403,7 @@ func (s *Service) allowReplace(ctx context.Context, src netip.Addr, node, kind s
 	return false
 }
 
-// binding is the anti-spoofing rule of D-169 (5): the inventory is written only for the device whose address is the one this connection
+// binding is the anti-spoofing rule: the inventory is written only for the device whose address is the one this connection
 // came from, and the MAC is the one of that very card. The address is the TCP peer, which the client cannot forge and no proxy hides;
 // it must be among the IPv4 the node declared in its interfaces result of this request, or in the last one that matched. No match,
 // an IPv6 or a NAT'd peer: nothing is written (fail closed). update says the request carried an interfaces result, so the stored
@@ -503,7 +503,7 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 		return taken, nil
 	}
 	// A Windows list without the operating system's row (its revision not reported yet) is not the first report's package answer:
-	// the first hour keeps asking for it, so the row comes within minutes, not with the next hourly list (D-546, review M3).
+	// the first hour keeps asking for it, so the row comes within minutes, not with the next hourly list.
 	if len(in.snaps["programs"]) == 0 || in.snaps["windows_os"] != nil {
 		taken = append(taken, "packages")
 	}

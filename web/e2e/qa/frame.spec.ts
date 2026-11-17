@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { sampleStart } from './clean'
 
-// S-UI-1 / D-464, D-543: một khung trang (tiêu đề, dải số, hàng tab ở ?tab=) trên Scans, Response, Reports, Honeypot, chi tiết thiết bị.
+// S-UI-1: một khung trang (tiêu đề, dải số, hàng tab ở ?tab=) trên Scans, Response, Reports, Honeypot, chi tiết thiết bị.
 // Chạy: pnpm exec playwright test e2e/qa/frame.spec.ts
 test.describe.configure({ timeout: 120_000 })
 
@@ -12,7 +12,7 @@ const PAGES = [
   { path: '/logs', second: 'Sources', id: 'sources', other: 'Events' },
   { path: '/findings', second: 'Accepted risk', id: 'accepted', other: 'Handled' },
   { path: '/reports', second: 'Data protection assessment', id: 'pdpl', other: 'Weekly report' },
-  // D-543: the other Kiên-side pages on the frame
+  // The other core-side pages on the frame
   { path: '/honeypot', second: 'Services', id: 'services', other: 'Tokens' },
   { path: '/incidents', second: 'Resolved', id: 'resolved', other: 'Open' },
   // exposure: the list and one IP target (Results is the first tab, Ownership the second)
@@ -20,7 +20,7 @@ const PAGES = [
   { path: '/exposure/xt-2', second: 'Ownership', id: 'ownership', other: 'Results' },
   { path: '/devices/a-nas02', second: 'Software', id: 'software', other: 'Observations' },
   { path: '/assistant', second: 'Usage', id: 'usage', other: 'Ask' },
-  // D-519: long Settings sections and the setup page split into tabs
+  // Long Settings sections and the setup page split into tabs
   { path: '/settings/network', second: 'Box address', id: 'box-address', other: 'Time' },
   { path: '/settings/account', second: 'Sessions', id: 'sessions', other: 'Profile' },
   { path: '/devices/setup', second: 'Agents', id: 'agents', other: 'Scope' },
@@ -73,7 +73,7 @@ test.describe('page frame (S-UI-1)', () => {
     await expect(page.getByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
   })
 
-  test('old #section links of the D-519 pages open their tab through ?tab= and keep other parameters', async ({ page }) => {
+  test('old #section links of the tabbed pages open their tab through ?tab= and keep other parameters', async ({ page }) => {
     await page.goto('/devices/setup?from=ways#agents')
     await expect(page).toHaveURL(/\/devices\/setup\?from=ways&tab=agents$/)
     await expect(page.getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true')
@@ -138,7 +138,7 @@ test.describe('page frame (S-UI-1)', () => {
 
   test('phone: the Scanning tab row scrolls inside itself and the deep-linked last tab is in view', async ({ page }) => {
     test.skip(device(page) !== 'phone', 'phone only')
-    await page.goto('/settings/scanning?tab=probes') // the last tab in v1: the credentialed scan is not offered (D-417)
+    await page.goto('/settings/scanning?tab=probes') // the last tab in v1: the credentialed scan is not offered
     await expect(page.getByRole('tab', { name: 'Probe log' })).toHaveAttribute('aria-selected', 'true')
     const row = await page.getByRole('tablist').evaluate((el) => ({ sw: el.scrollWidth, cw: el.clientWidth, left: el.scrollLeft }))
     expect(row.sw, 'four tabs do not fit a phone, so the row scrolls').toBeGreaterThan(row.cw)

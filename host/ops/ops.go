@@ -54,7 +54,7 @@ type Config struct {
 	CoreUID  int // host.conf core_uid: the owner every file read from core's tree must have
 	CoreGID  int // host.conf core_gid: the group restored files get (with core_uid, mode 0600)
 	// SensorUID and SensorGID are host.conf's sensor_uid and sensor_gid: the user of the sensor and
-	// scan units and the group core's unit adds (D-114). 0 means host.conf did not give them: the
+	// scan units and the group core's unit adds. 0 means host.conf did not give them: the
 	// container commands then refuse the units that need them (host_conf_incomplete).
 	SensorUID int
 	SensorGID int
@@ -73,7 +73,7 @@ type Deps struct {
 	LockHeld   func(path string) (bool, error)                    // is a dpkg/apt lock file held by another process
 	NetPending func() bool                                        // a network change waits for confirmation (default: the server has a run in awaiting_confirm)
 	AfterFunc  func(d time.Duration, f func()) (stop func() bool) // arms the scheduled-reboot and export-sweep timers
-	// FwdAfter arms the look at the Docker forward rules (D-267); its own seam so that the tests that count
+	// FwdAfter arms the look at the Docker forward rules; its own seam so that the tests that count
 	// the timers of AfterFunc do not see it. Default: a real timer.
 	FwdAfter     func(d time.Duration, f func()) (stop func() bool)
 	Installing   *atomic.Bool                      // set while os.install runs; a test may pass its own to raise it
@@ -90,35 +90,35 @@ type Deps struct {
 	// the ARP side of the network commands (default: the real packet socket, Linux only).
 	Interfaces func() ([]HostIface, error)
 	// NeighDump is the kernel's neighbour table as the reply of a netlink RTM_GETNEIGH dump (default: syscall.NetlinkRIB on Linux, an
-	// error elsewhere); state/net reads the default gateways' MACs from it (D-450).
+	// error elsewhere); state/net reads the default gateways' MACs from it.
 	NeighDump func() ([]byte, error)
 	Probe     Prober
 	// NetPoll and NetWait are how often and how long the effect checks of the network commands look
-	// (address on the card, chrony sources): default 1 s and 15 s (D-100, D-106).
+	// (address on the card, chrony sources): default 1 s and 15 s.
 	NetPoll time.Duration
 	NetWait time.Duration
 	// NetRetryGap is the pause between the three tries of a revert's netplan apply (default 30 s, so
-	// about 60 s in all, D-100 (8)).
+	// about 60 s in all).
 	NetRetryGap time.Duration
 	// IsNetNS says whether an open file is a bind-mounted network namespace other than the host's own
 	// (default: nsfs, NS_GET_NSTYPE and the identity of /proc/self/ns/net; Linux only). Tests, which
 	// have no namespaces, answer for it.
 	IsNetNS func(*os.File) (bool, error)
 	// HealthWait and HealthPoll are how long and how often the container commands look for a healthy
-	// container after a restart: 120 s and 2 s (spec 6.8, D-105 (3)). Sleep waits between two looks
+	// container after a restart: 120 s and 2 s (spec 6.8). Sleep waits between two looks
 	// and reports whether it did (default: a timer that the context cuts short); tests give a Sleep that
 	// does not wait, so the 120 s run in no time. The wait counts the sleeps, not the clock.
 	HealthWait time.Duration
 	HealthPoll time.Duration
-	// CoreWatch is how often the host looks at core's container for a new run, to clear the stale syslog UDP flows (default 30 s, D-268).
+	// CoreWatch is how often the host looks at core's container for a new run, to clear the stale syslog UDP flows (default 30 s).
 	CoreWatch time.Duration
 	Sleep     func(ctx context.Context, d time.Duration) bool
-	// Keys is the root of trust of container.pull (D-107, D-130): default release.Embedded, the keys
+	// Keys is the root of trust of container.pull: default release.Embedded, the keys
 	// compiled into the binary. A build without real keys refuses every pull. Only tests replace it.
 	Keys func() (release.Trust, error)
 	// JournalFault, when set, is asked before every write of a transition journal with the service and the
 	// phase about to be written, and a non-nil answer makes that write fail (a test seam for the durability of
-	// the verified phase, D-138 N3). Nil in production.
+	// the verified phase). Nil in production.
 	JournalFault func(service, phase string) error
 	// Arch is the architecture container.pull asks the manifest for, as in "linux/<Arch>" (default
 	// runtime.GOARCH).
@@ -129,7 +129,7 @@ type Deps struct {
 	// the fake world starts the applier in a goroutine. PID is this process's pid for started.json (default os.Getpid).
 	StartUnit func(argv []string) error
 	PID       func() int
-	// ZapEgress and ZapTXT are zap.baseline's re-check of ownership (D-521): the box's public IP by the two-of-three rule of
+	// ZapEgress and ZapTXT are zap.baseline's re-check of ownership: the box's public IP by the two-of-three rule of
 	// core/egressip, and the TXT records of a domain (default: egressip's three services, the system resolver). ZapUID is the owner
 	// of the scan's work directory (default 1000, the image's zap user). Tests answer for them.
 	ZapEgress func(ctx context.Context) (netip.Addr, error)
@@ -138,10 +138,10 @@ type Deps struct {
 	ZapLookupIP func(ctx context.Context, name string) ([]netip.Addr, error)
 	ZapUID      int
 	// FenceKey replaces the fence key the host makes in <state>/fence.key (tests); with it no scan container copy is written.
-	// FenceCNAME is the CNAME lookup of the domain fence (default: the system resolver). D-591.
+	// FenceCNAME is the CNAME lookup of the domain fence (default: the system resolver).
 	FenceKey   []byte
 	FenceCNAME func(ctx context.Context, name string) (string, error)
-	// GreenboneUID owns gvmd's socket directory (default 1001, the user gvmd of Greenbone's image, D-529); tests give their own uid.
+	// GreenboneUID owns gvmd's socket directory (default 1001, the user gvmd of Greenbone's image); tests give their own uid.
 	GreenboneUID int
 }
 
@@ -172,7 +172,7 @@ type Ops struct {
 	stopTick func() bool
 	gate     atomic.Pointer[rebootGate] // set while a reboot the host started has not completed (WriteGate); never taken under rbMu
 
-	// stopRetry stops the next try of a started reboot that a shutdown lock refused (D-453); rbWaitNoted says
+	// stopRetry stops the next try of a started reboot that a shutdown lock refused; rbWaitNoted says
 	// the scheduled reboot's wait for a shutdown lock is already audited. Both guarded by rbMu.
 	stopRetry   func() bool
 	rbWaitNoted bool
@@ -186,14 +186,14 @@ type Ops struct {
 	hpConfigured atomic.Bool // the sysctls, lo and ruleset were set and read back since this host started
 	hpOK         atomic.Bool // the last ensureHP proved the namespace (state/net lists decoys only then)
 	touchOff     atomic.Bool // the ruleset is loaded without the set touched: nft printed it in a form the check does not know (loadProven)
-	hpDirErr     error       // hp/ is not a usable directory: decoys are off (D-121)
+	hpDirErr     error       // hp/ is not a usable directory: decoys are off
 
 	// restorePending lists the services whose unit bytes Start put back and whose state AfterReady still
 	// restores; Start sets it before the server listens, AfterReady reads it afterwards.
 	restorePending []string
 
 	// afterCtx and afterL are what AfterReady was given (guarded by mu): a run that fails to put core's data
-	// back restarts the retry loop with them once it has released the write lock (D-138 N2). kicking keeps it
+	// back restarts the retry loop with them once it has released the write lock. kicking keeps it
 	// to one loop; recNote is when each service last audited a recovery failure (guarded by mu), so a loop
 	// that fails again and again writes one line, then at most one an hour (N5).
 	afterCtx context.Context //nolint:containedctx // the process's own context, kept to restart a retry loop
@@ -204,7 +204,7 @@ type Ops struct {
 	// Container commands run one at a time under the server's write lock; Start runs before the
 	// server listens. Nothing else touches containers/ (no mutex of its own).
 
-	// The Docker forward rules (dockerfwd.go, D-267); all three are guarded by mu.
+	// The Docker forward rules (dockerfwd.go); all three are guarded by mu.
 	fwdLast string      // the state of the last look: a log line is written only when it changes
 	fwdOff  func() bool // stops the timer of the next look
 	closed  bool        // Close ran: no more looks are armed
@@ -230,7 +230,7 @@ type Ops struct {
 	zapPullErr string
 	zapExec    zapExecFn
 
-	// The OpenVAS commands (greenbone.go, D-529): gbSem holds the one operation that runs, gbCancel (guarded by gbMu) ends it for
+	// The OpenVAS commands (greenbone.go): gbSem holds the one operation that runs, gbCancel (guarded by gbMu) ends it for
 	// greenbone.down. gbExec replaces the runner in internal tests.
 	gbSem    chan struct{}
 	gbMu     sync.Mutex
@@ -240,9 +240,9 @@ type Ops struct {
 	// up call it.
 	gbResyncStop context.CancelFunc
 	gbExec       zapExecFn
-	// orphanUnmount replaces the unmount of an orphaned container's mounts in internal tests (orphans.go, D-600).
+	// orphanUnmount replaces the unmount of an orphaned container's mounts in internal tests (orphans.go).
 	orphanUnmount func(string) error
-	// fence is the domain fence over the box's fence key (fence.go, D-591); nil when the key is not usable.
+	// fence is the domain fence over the box's fence key (fence.go); nil when the key is not usable.
 	fence *domainfence.Fence
 	// fenceMu guards fenceList, the domains the host issued a fence token for (review r1 H1).
 	fenceMu   sync.Mutex
@@ -366,12 +366,12 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 		}
 	}
 	// A bad hp directory (a link, another owner, open to others) turns the decoys off and nothing else:
-	// the host must still serve the network commands (D-121).
+	// the host must still serve the network commands.
 	if err := privDir(filepath.Join(cfg.StateDir, "hp"), cfg.OwnerUID); err != nil {
 		o.hpDirErr = err
 		cfg.Logger.Error("the hp state directory is not usable; decoys are off", "error", err.Error())
 	}
-	o.initFence() // D-591: before any unit is written or started, so the scan unit's mount of the key's copy finds it
+	o.initFence() // Before any unit is written or started, so the scan unit's mount of the key's copy finds it
 	return o, nil
 }
 
@@ -456,7 +456,7 @@ func sleepCtx(ctx context.Context, d time.Duration) bool {
 	}
 }
 
-// lookupTXT asks the system resolver for the TXT records of name (zap.baseline's re-check of a domain, D-521).
+// lookupTXT asks the system resolver for the TXT records of name (zap.baseline's re-check of a domain).
 func lookupTXT(ctx context.Context, name string) ([]string, error) {
 	return net.DefaultResolver.LookupTXT(ctx, name)
 }
@@ -486,12 +486,12 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.loopCtx, o.loopStop = lctx, stop
 	o.mu.Unlock()
 	o.sweepTmp("releases", "containers")        // temp files of a write cut short (container.pull state)
-	o.zapAtStart(ctx)                           // a passive web scan this process's predecessor did not finish: container, rule, files (D-521)
-	o.gbAtStart()                               // /run/vedette-greenbone, which core's unit mounts for OpenVAS's socket (D-529)
-	go o.gbResume(lctx)                         // the re-sync of OpenVAS's login a restart cut short (D-590, review r1 M1); never blocks the start
-	go o.orphansAtStart(lctx)                   // containers that run but podman lost (D-600): every install, upgrade and reboot starts the host
-	_ = os.RemoveAll(o.stateFile(layoutParent)) // a bundle image staged by a pull that was cut short (D-452): GiBs
-	// the containers' AppArmor profile, loaded when the kernel lacks it (D-458): beside startHP, joined before READY, never blocks
+	o.zapAtStart(ctx)                           // a passive web scan this process's predecessor did not finish: container, rule, files
+	o.gbAtStart()                               // /run/vedette-greenbone, which core's unit mounts for OpenVAS's socket
+	go o.gbResume(lctx)                         // the re-sync of OpenVAS's login a restart cut short; never blocks the start
+	go o.orphansAtStart(lctx)                   // containers that run but podman lost: every install, upgrade and reboot starts the host
+	_ = os.RemoveAll(o.stateFile(layoutParent)) // a bundle image staged by a pull that was cut short: GiBs
+	// the containers' AppArmor profile, loaded when the kernel lacks it: beside startHP, joined before READY, never blocks
 	aaDone := make(chan struct{})
 	go func() { defer close(aaDone); o.ensureAppArmor(ctx) }()
 	hpReady := o.startHP(ctx) // before recoverNet: a revert at start re-applies the decoys into it
@@ -501,8 +501,8 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.sweepBackups()
 	o.checkCoreAtStart()
 	o.recoverRestore(ctx)
-	o.recoverTransitions(ctx, true) // unit changes the host died in the middle of: bytes only, the state after READY (D-105 (7), D-123); units of an earlier release (D-316 (10))
-	o.adoptHostPackage(ctx)         // the .deb install.sh kept for the running version becomes current (D-316)
+	o.recoverTransitions(ctx, true) // unit changes the host died in the middle of: bytes only, the state after READY; units of an earlier release
+	o.adoptHostPackage(ctx)         // the .deb install.sh kept for the running version becomes current
 	o.startSelfUpdate()             // a self-update under way: follow it after READY, or clean or gate an orphan journal
 	o.startReboot()
 	o.sweepExports()

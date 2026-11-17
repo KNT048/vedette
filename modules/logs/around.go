@@ -28,7 +28,7 @@ type AroundKind struct {
 	Count      int
 }
 
-// Around is what the logs counted about one address in a range (the read port of ai's events_around tool, D-223): the kinds of line
+// Around is what the logs counted about one address in a range (the read port of ai's events_around tool): the kinds of line
 // whose remote address it was, with their counts, and the connections to listed destinations it made or received. Never a log line
 // (INV-11): signatures and counts only, like the digest.
 type Around struct {

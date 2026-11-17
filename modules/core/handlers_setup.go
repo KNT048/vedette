@@ -26,7 +26,7 @@ import (
 )
 
 // Module bundles of the first-run setup (spec A6 step 3). Keep them equal to web/src/features/core/bundles.ts:
-// TestBundlesMatchTheWebList fails when they drift. A bundle turns on v1 modules only (supervisor 2026-11-16, D-624):
+// TestBundlesMatchTheWebList fails when they drift. A bundle turns on v1 modules only:
 // the preview modules (scan, honeypot, logs, ai, reports) are turned on one by one by the customer, and the post-v1 ones are
 // never offered.
 var (
@@ -47,7 +47,7 @@ const (
 	CodeTermsNotAccepted  = "terms_not_accepted"
 )
 
-// keyTerms is core_setting terms.accepted: the acceptance of the terms of use (TERMS.md, D-544) on this box.
+// keyTerms is core_setting terms.accepted: the acceptance of the terms of use (TERMS.md) on this box.
 const keyTerms = "terms.accepted"
 
 // termsAcceptance is core_setting terms.accepted.
@@ -62,7 +62,7 @@ func termsNotAccepted() *apierr.Error {
 	return apierr.New(400, CodeTermsNotAccepted, "Read the terms of use and tick that you agree to them before you go on.")
 }
 
-// acceptTerms stores the acceptance of the terms of use in tx with its audit row (D-544): one row per acceptance, by the
+// acceptTerms stores the acceptance of the terms of use in tx with its audit row: one row per acceptance, by the
 // person who accepted. The setting is replaced: the latest acceptance on this box is the one Settings -> General shows.
 func acceptTerms(ctx context.Context, tx *sql.Tx, log *audit.Log, a termsAcceptance) error {
 	b, err := json.Marshal(a)
@@ -76,7 +76,7 @@ func acceptTerms(ctx context.Context, tx *sql.Tx, log *audit.Log, a termsAccepta
 }
 
 // CoreGetCoreTerms implements GET /core/terms (viewer): the version of the terms of use this software ships and the
-// acceptance stored on this box, null when there is none (a box set up before D-544). Who accepted is said to
+// acceptance stored on this box, null when there is none (a box set up by an older release). Who accepted is said to
 // administrators only: viewers and operators cannot list users either.
 func (h *APIHandlers) CoreGetCoreTerms(ctx context.Context) (*oas.CoreGetCoreTermsOK, error) {
 	out := &oas.CoreGetCoreTermsOK{Version: vedette.TermsVersion(), Accepted: oas.NilCoreGetCoreTermsOKAccepted{Null: true}}
@@ -101,7 +101,7 @@ func (h *APIHandlers) CoreGetCoreTerms(ctx context.Context) (*oas.CoreGetCoreTer
 
 const defaultTimezone = "Asia/Ho_Chi_Minh" // the column default of core_org.timezone
 
-// firstRunBusy is the 409 of a first-run operation while another runs (D-518).
+// firstRunBusy is the 409 of a first-run operation while another runs.
 func firstRunBusy() *apierr.Error {
 	return apierr.New(409, codeBusy, "A backup is being uploaded or restored on this box, or setup is being finished. Wait for it to end.")
 }
@@ -124,7 +124,7 @@ func (h *APIHandlers) CoreGetSetup(ctx context.Context) (*oas.CoreGetSetupOK, er
 
 // CoreGetCoreSetupModules implements GET /core/setup/modules (public): module ids, tiers and dependencies
 // for the bundle step. It does not say which modules are on. While setup is open it offers the box's own network
-// (lan) as the first range of the network step (D-405); once setup is done lan is null, so the public page tells
+// (lan) as the first range of the network step; once setup is done lan is null, so the public page tells
 // nobody the box's network afterwards.
 func (h *APIHandlers) CoreGetCoreSetupModules(ctx context.Context) (*oas.CoreGetCoreSetupModulesOK, error) {
 	states := h.reg.List()
@@ -154,7 +154,7 @@ func (h *APIHandlers) CoreGetCoreSetupModules(ctx context.Context) (*oas.CoreGet
 }
 
 // parseLan checks the LAN ranges of the setup form (1 to 16 IPv4 ranges inside the local networks of localnet.Prefix:
-// 10/8, 172.16/12, 192.168/16 and the RFC 6598 shared space 100.64/10, D-461, the rule of the inventory module; a prefix
+// 10/8, 172.16/12, 192.168/16 and the RFC 6598 shared space 100.64/10, the rule of the inventory module; a prefix
 // wider than these, like 10.0.0.0/0 or 100.0.0.0/8, covers the Internet and is refused) and returns them in canonical form
 // (host bits cleared).
 func parseLan(in []string) ([]string, *apierr.Error) {
@@ -181,7 +181,7 @@ func parseLan(in []string) ([]string, *apierr.Error) {
 		}
 	}
 	// The ranges become the inventory's scope (INV-15), so they obey its rule here too, before anything is written: no two overlap
-	// (inventory INV-6; same code and words as Devices -> Scope and sensors, D-298).
+	// (inventory INV-6; same code and words as Devices -> Scope and sensors).
 	for i, a := range out {
 		for j, b := range out {
 			if i != j && netip.MustParsePrefix(a).Overlaps(netip.MustParsePrefix(b)) {
@@ -205,7 +205,7 @@ func validOrgName(s string) bool {
 	return n >= 2 && n <= 80 && utf8.ValidString(s) && !auth.HasInvisible(s)
 }
 
-// runnable leaves out of a bundle the modules this install cannot run (D-381): a container-only install has no
+// runnable leaves out of a bundle the modules this install cannot run: a container-only install has no
 // honeypot, and a bundle does not promise one. A custom choice that names one is refused by the registry instead.
 func runnable(bundle []string, known map[string]modreg.State) []string {
 	return slices.DeleteFunc(slices.Clone(bundle), func(id string) bool { s, ok := known[id]; return ok && !s.Available })
@@ -257,7 +257,7 @@ func (h *APIHandlers) wantedModules(req *oas.CorePostCoreSetupReq) (map[string]b
 // CorePostCoreSetup implements POST /core/setup (public): first-run setup. It creates the organization, the
 // first administrator and a session for them (the response sets the session and CSRF cookies, as a sign-in does; no device cookie), turns the chosen bundle on and writes core_audit, all in one
 // transaction, and only while setup is not done (INV-15). Creating the administrator needs the one-time
-// setup code from the box's log (D-75) and the acceptance of the terms of use (D-544), stored with who, when and which
+// setup code from the box's log and the acceptance of the terms of use, stored with who, when and which
 // version. Order of refusals: already set up (also for sample data), the build has no sample data, setup code, the terms,
 // then the fields in the order of the form.
 func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCoreSetupReq) (*oas.CorePostCoreSetupOK, error) {
@@ -274,7 +274,7 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	if err != nil {
 		return nil, err
 	}
-	// Setup and a first-run restore never overlap (D-518): a restore that ran on would replace the organization just made.
+	// Setup and a first-run restore never overlap: a restore that ran on would replace the organization just made.
 	if !h.firstRun.TryLock() {
 		return nil, firstRunBusy()
 	}
@@ -285,7 +285,7 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	if err := h.CheckSetupCode(ctx, req.SetupCode.Or("")); err != nil {
 		return nil, err
 	}
-	if !req.AcceptTerms.Or(false) { // the first step of the form (D-544)
+	if !req.AcceptTerms.Or(false) { // the first step of the form
 		return nil, termsNotAccepted()
 	}
 
@@ -408,7 +408,7 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 }
 
 // SetupDone reports whether first-run setup has finished (an organization exists and is set up). cmd/vedette asks it before
-// it starts a module's container (D-405): nothing beyond core runs on a box before its first administrator exists.
+// it starts a module's container: nothing beyond core runs on a box before its first administrator exists.
 func (h *APIHandlers) SetupDone(ctx context.Context) (bool, error) { return h.setupDone(ctx) }
 
 func (h *APIHandlers) setupDone(ctx context.Context) (bool, error) {

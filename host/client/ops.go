@@ -95,7 +95,7 @@ func (c *Client) ContainerRollback(ctx context.Context, args api.ContainerRollba
 	return c.Run(ctx, api.CmdContainerRollback, args, requestID, actor)
 }
 
-// SelfUpdate runs host.self_update (D-316): the host upgrades its own package to the release's. The run is
+// SelfUpdate runs host.self_update: the host upgrades its own package to the release's. The run is
 // parked while the applier works and the host restarts; reconnect and ask GET /v1/runs/{id} until it ends
 // (at most until its deadline plus 5 minutes).
 func (c *Client) SelfUpdate(ctx context.Context, args api.HostSelfUpdateArgs, requestID, actor string) (api.Run, error) {
@@ -109,8 +109,8 @@ func (c *Client) StateHost(ctx context.Context) (api.HostState, error) {
 	return out, err
 }
 
-// StatePackages returns GET /v1/state/packages: the Debian packages installed on the box (D-470). A host older than
-// D-470 answers 404 unknown_command.
+// StatePackages returns GET /v1/state/packages: the Debian packages installed on the box. An older host
+// answers 404 unknown_command.
 func (c *Client) StatePackages(ctx context.Context) (api.PackagesState, error) {
 	var out api.PackagesState
 	err := c.getJSON(ctx, "/v1/state/packages", &out)
@@ -126,7 +126,7 @@ func (c *Client) StatePorts(ctx context.Context) (api.PortsState, error) {
 }
 
 // StateHPTouches returns GET /v1/state/hp-touches: the sources that tried a new TCP or UDP connection to a decoy address in the
-// last two minutes (D-466, B2 review M2). A host older than it answers 404 unknown_command.
+// last two minutes. A host older than it answers 404 unknown_command.
 func (c *Client) StateHPTouches(ctx context.Context) (api.HPTouchesState, error) {
 	var out api.HPTouchesState
 	err := c.getJSON(ctx, "/v1/state/hp-touches", &out)
@@ -199,7 +199,7 @@ func ResultOf[T any](run api.Run) (T, error) {
 	return out, nil
 }
 
-// BackupPurge runs backup.purge (D-156): the host deletes every backup archive and its index, and
+// BackupPurge runs backup.purge: the host deletes every backup archive and its index, and
 // answers how many archives went. requestID is the idempotency key (a UUID v4; retry with the
 // same one). It waits for the run (a few files: a moment) and returns the run id as soon as the
 // host has accepted it, also when ctx ends or an error follows, so the caller can ask
@@ -230,7 +230,7 @@ func (c *Client) BackupPurge(ctx context.Context, requestID, actor string) (dele
 	return res.Deleted, runID, err
 }
 
-// ZapBaseline runs zap.baseline (D-521) and follows the run until it ends (a scan takes minutes: the run is read again every two
+// ZapBaseline runs zap.baseline and follows the run until it ends (a scan takes minutes: the run is read again every two
 // seconds), then returns it as it ended: succeeded with an api.ZapBaselineResult, or refused or failed with its code. ctx bounds the
 // wait; the run itself stops at the host's own limit.
 func (c *Client) ZapBaseline(ctx context.Context, args api.ZapBaselineArgs, requestID, actor string) (api.Run, error) {
@@ -247,7 +247,7 @@ func (c *Client) ZapBaseline(ctx context.Context, args api.ZapBaselineArgs, requ
 }
 
 // Greenbone runs one of the OpenVAS commands (api.CmdGreenboneUp with api.GreenboneUpArgs, api.CmdGreenboneDown or
-// api.CmdGreenboneSyncFeed with nil; D-529) and follows the run until it ends, read again every two seconds like ZapBaseline. ctx bounds
+// api.CmdGreenboneSyncFeed with nil) and follows the run until it ends, read again every two seconds like ZapBaseline. ctx bounds
 // the wait only: the run goes on at the host until its own limit, or until greenbone.down stops it.
 func (c *Client) Greenbone(ctx context.Context, command string, args any, requestID, actor string) (api.Run, error) {
 	switch command {
@@ -273,7 +273,7 @@ func (c *Client) DownloadZapReport(ctx context.Context, reportID string) (io.Rea
 	return c.download(ctx, "/v1/zap/"+url.PathEscape(reportID)+"/content")
 }
 
-// FenceError is a domain fence command (exposure.token, exposure.fence_check; D-591) that ended without a result: the host's code
+// FenceError is a domain fence command (exposure.token, exposure.fence_check) that ended without a result: the host's code
 // (token_foreign, target_not_owned, name_moved, cname_outside, ownership_unchecked, fence_unavailable, unknown_command for an older
 // host, …) and its message.
 type FenceError struct {
@@ -311,13 +311,13 @@ func runQuick[T any](ctx context.Context, c *Client, command string, args any, r
 	return ResultOf[T](run)
 }
 
-// ExposureToken runs exposure.token (D-591): the box-bound token of a verified domain.
+// ExposureToken runs exposure.token: the box-bound token of a verified domain.
 func (c *Client) ExposureToken(ctx context.Context, domain, requestID, actor string) (string, error) {
 	r, err := runQuick[api.ExposureTokenResult](ctx, c, api.CmdExposureToken, api.ExposureTokenArgs{Domain: domain}, requestID, actor)
 	return r.Token, err
 }
 
-// ExposureFenceCheck runs exposure.fence_check (D-591): the host's own domain fence for an OpenVAS scan; nil error is a yes, with the
+// ExposureFenceCheck runs exposure.fence_check: the host's own domain fence for an OpenVAS scan; nil error is a yes, with the
 // name's CNAME chain.
 func (c *Client) ExposureFenceCheck(ctx context.Context, args api.ExposureFenceCheckArgs, requestID, actor string) (string, error) {
 	r, err := runQuick[api.ExposureFenceCheckResult](ctx, c, api.CmdExposureFenceCheck, args, requestID, actor)

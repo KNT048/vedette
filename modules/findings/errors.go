@@ -13,7 +13,7 @@ import (
 type APIError struct {
 	Code    string // e.g. "note_required"
 	HTTP    int
-	Message string // user-facing, English (D-28)
+	Message string // user-facing, English
 }
 
 func (e *APIError) Error() string { return e.Message }

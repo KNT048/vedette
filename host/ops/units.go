@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// The root write path of the Quadlet units (D-105 (2), spec 18). Root writes into /etc/containers/systemd,
+// The root write path of the Quadlet units (spec 18). Root writes into /etc/containers/systemd,
 // a tree the installer builds, so everything that leads to it must be root's and closed:
 //
 //   - the directory and every parent up to "/" is a real directory (no link), owned by root (or the
@@ -165,7 +165,7 @@ func (o *Ops) writeUnitForStart(ctx context.Context, service string, text []byte
 }
 
 // errVolumeOwner: a credential .volume unit the host wrote names another core_uid or sensor_gid than host.conf gives now, and the
-// volume exists (D-316 (10)).
+// volume exists.
 // Quadlet sets User= and Group= only when it creates the volume, so rewriting the unit would change nothing on the volume and leave
 // core unable to write the bundles; the host never changes the owner of what a container wrote (core can point a root chown of its
 // tree at another file with a link it planted), so the change of ids is refused and the RUNBOOK says how to make it by hand.
@@ -233,7 +233,7 @@ func (o *Ops) ensureVolumeUnits(ctx context.Context, r *os.Root, service string)
 			return fmt.Errorf("%w: %s: %w", errUnitUnsafe, name, errVolumeOwner)
 		}
 	}
-	if service == api.ServiceCore || service == api.ServiceHoneypot { // the two that mount the honeypot log volume (D-318)
+	if service == api.ServiceCore || service == api.ServiceHoneypot { // the two that mount the honeypot log volume
 		vols = append(vols, vol{hpLogVolumeFileName, hpLogVolumeText})
 	}
 	for _, v := range vols {

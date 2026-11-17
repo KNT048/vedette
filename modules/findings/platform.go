@@ -15,19 +15,19 @@ import (
 	"github.com/knt048/vedette/content/oui"
 )
 
-// Platform limits (D-547, KF-4, KF-5). Some exploited CVEs affect a product only on some platforms: CVE-2026-123158 is
+// Platform limits (KF-4, KF-5). Some exploited CVEs affect a product only on some platforms: CVE-2026-123158 is
 // OpenSSH built with musl libc and without PAM (Alpine), not Ubuntu's or Debian's glibc+PAM build of the same upstream version.
 // No feed Vedette reads says so in a form a program can use (KEV: "on Linux"; CVE.org: platform "Linux"; NVD: the product
 // only), so content/catalog/platform-limits.json holds a short reviewed list. For a CVE on it:
 //   - the device's OS (for an agent row, or the OS an SNMP device states for its SNMP row: platformOS), the software's own
 //     version or banner text, or an agent's deb/rpm package database names another platform, and nothing names one it
-//     affects → proved not affected (no finding; an open one closes, D-530 path, reason not_affected_version with a D-547
-//     audit detail). The distribution's own word (D-516) is read first and wins;
-//   - the platform is not known (nothing names a platform, D-604) → no finding: the CVE is "Could not be checked" (reason
+//     affects → proved not affected (no finding; an open one closes by auto-resolve, reason not_affected_version with a platform
+//     audit detail). The distribution's own word is read first and wins;
+//   - the platform is not known (nothing names a platform) → no finding: the CVE is "Could not be checked" (reason
 //     platform_unknown) with the entry's question, and an open finding closes into that list (MatchResult.Asked); the person's
 //     answer (the device's OS, inventory INV-41) decides at the next match;
-//   - the platform is one it affects and the entry has the distribution's fixed list (D-604): the package release decides. At or above
-//     the fix of the device's branch → proved not affected (closes, D-530 path); below it → a version finding; no release yet →
+//   - the platform is one it affects and the entry has the distribution's fixed list: the package release decides. At or above
+//     the fix of the device's branch → proved not affected (closes by auto-resolve); below it → a version finding; no release yet →
 //     "Could not be checked" (reason package_unknown) asking for it, unless the version is older than every fix (a finding);
 //   - the platform is one it affects, no fixed list → the finding as for any CVE.
 
@@ -36,13 +36,13 @@ type platformLimit struct {
 	Affects string   `json:"affects"`
 	Check   string   `json:"check"`
 	// Ask is the question for a device whose platform is not known ("{device}" its name): the CVE is then "Could not be checked"
-	// with this question, not a finding (D-604).
+	// with this question, not a finding.
 	Ask    string       `json:"ask"`
 	Source string       `json:"source"`
 	Fixed  *platformFix `json:"fixed,omitempty"`
 }
 
-// platformFix is the distribution's first fixed package release per branch (D-604): once a row's platform is that distribution,
+// platformFix is the distribution's first fixed package release per branch: once a row's platform is that distribution,
 // its package release decides the CVE. Only Alpine's apk releases are read (apkver.go). The catalog names the package; the releases
 // come from the distribution's own data, the feed alpine-osv (Vuln.Distro), never from a hand copy (distroFixes).
 type platformFix struct {
@@ -113,22 +113,22 @@ var platformWords = []struct {
 	{"junos", "Juniper Junos OS", regexp.MustCompile(`(?i)\bjunos\b`)},
 }
 
-// networkOS are the platforms of network gear whose own statement of its OS also says what a service a scan sees on it runs on (D-549,
-// N47-1): a Junos switch does not forward its management address to an Alpine container. Only Junos for now: RouterOS and Cisco IOS XE
+// networkOS are the platforms of network gear whose own statement of its OS also says what a service a scan sees on it runs on:
+// a Junos switch does not forward its management address to an Alpine container. Only Junos for now: RouterOS and Cisco IOS XE
 // can host containers, so a service seen on them may still be one; so can Junos OS Evolved ("…-EVO"), which runs Docker (review r1 #4).
 var networkOS = []string{"junos"}
 
 // junosEvolved matches Junos OS Evolved in a system description ("JUNOS 21.4R1.12-EVO", "Junos OS Evolved").
 var junosEvolved = regexp.MustCompile(`(?i)-evo\b|\bevolved\b`)
 
-// networkStated is the OS the device states for every row of it (D-549, D-620): a networkOS platform, not Junos Evolved, on a device no
+// networkStated is the OS the device states for every row of it: a networkOS platform, not Junos Evolved, on a device no
 // agent reports another OS for, stated either
 //   - in the device's answer to Vedette's own SNMP read of its address (Asset.SNMPOS), or
 //   - when there is no SNMP answer, in an LLDP frame (StatedOS, source passive: LLDP's system description is the only passive source
 //     of a Junos OS), on a device whose own MAC at its address is one IEEE assigned to Juniper Networks (juniperMAC). An LLDP frame alone
 //     can be forged with another device's MAC (review r1 #3 of #800); the forged claim then sits on a device whose network card
 //     Juniper did not make, and is not read. A device with a Juniper card is Juniper gear, which runs no container behind its
-//     management address (N47-1: the EX4200 switch .47, stated over LLDP "JUNOS 15.1R7.9", MAC 3c:8a:b0:…).
+//     management address (the EX4200 switch .47, stated over LLDP "JUNOS 15.1R7.9", MAC 3c:8a:b0:…).
 //
 // An SNMP answer naming another OS wins over any LLDP frame. "" otherwise.
 func networkStated(a Asset) string {
@@ -207,11 +207,11 @@ func platformsIn(text string) []string {
 // a fingerprint or DHCP guess (review r2 of #790); an SNMP row takes only the OS the device states to Vedette's SNMP read of its address (Asset.SNMPOS).
 // A row a scan saw on a port, a row a person typed and a row of unknown source say nothing about it: a Ubuntu host may run or forward
 // the service from an Alpine container (CVE-2026-123158's references are Docker sshd images), so only the row's own text decides
-// there (review r1 #1, #2). Exception (D-549, D-620, N47-1): on network gear that states an OS of networkOS over SNMP, or over LLDP on a
+// there (review r1 #1, #2). Exception: on network gear that states an OS of networkOS over SNMP, or over LLDP on a
 // Juniper network card (a Junos switch, networkStated), that statement counts for every row, since such gear runs no container behind
 // its own address.
 //
-// D-604: a person's answers. The OS a person set on the device (Asset.ManualOS, inventory INV-41) is the OS of an agent or SNMP row (as
+// A person's answers. The OS a person set on the device (Asset.ManualOS, inventory INV-41) is the OS of an agent or SNMP row (as
 // #950 already gives it). On a row a scan saw it only confirms a platform the CVE affects (platformCheck asks for the package release
 // then); it never rules the row out, since a Ubuntu host may forward the port to an Alpine container (review r1 M1 of #961). A row whose
 // package release a person gave (inventory's correction, a manual row with Software.PkgVersion) is an answer about that row: it takes
@@ -282,11 +282,11 @@ func ruledOut(l platformLimit, e platformEvidence, cve string) (string, bool) {
 	return fmt.Sprintf("%s affects only %s; %s.", cve, l.Affects, strings.Join(e.says, ", and ")), true
 }
 
-// PlatformRuledOut says whether the platform rules of D-547 prove the KEV entry (cve of vendor and product) does not affect the device:
+// PlatformRuledOut says whether the platform rules prove the KEV entry (cve of vendor and product) does not affect the device:
 // every software row keyed to it is ruled out by its platform (MatchAsset's OtherPlatform). The CVE page's "Do you have it?" (feeds)
-// asks it so it agrees with the device's findings (D-549, KF-CVEPAGE): an Ubuntu box whose OpenSSH finding of an Alpine-only CVE is
+// asks it so it agrees with the device's findings (KF-CVEPAGE): an Ubuntu box whose OpenSSH finding of an Alpine-only CVE is
 // closed is not listed as running it. It reads no NVD range and no distribution data (feeds has the entry only): the distribution's
-// word (D-516), which could say its own package is affected after all, is not read here; no entry of the list has such a word today.
+// word, which could say its own package is affected after all, is not read here; no entry of the list has such a word today.
 // distro is the distributions' word on the CVE (feeds' rows of it): the package release a person gave is read against it.
 func PlatformRuledOut(a Asset, cve, vendor, product string, distro []DistroFix, now time.Time) bool {
 	if !HasPlatformLimit(cve) {
@@ -296,7 +296,7 @@ func PlatformRuledOut(a Asset, cve, vendor, product string, distro []DistroFix, 
 	return len(r.OtherPlatform) > 0
 }
 
-// HasPlatformLimit says whether the CVE is on the platform-limits list (D-547): only such a CVE can be ruled out by PlatformRuledOut, so a
+// HasPlatformLimit says whether the CVE is on the platform-limits list: only such a CVE can be ruled out by PlatformRuledOut, so a
 // caller checks it before reading any device (review r1 #9).
 func HasPlatformLimit(cve string) bool {
 	_, ok := platformLimits[cve]
@@ -331,7 +331,7 @@ func (f *platformFix) valid(only []string) error {
 	return nil
 }
 
-// distroFixes is the distribution's first fixed release per branch of a platform-limited CVE, nil when none (D-604). The one place the
+// distroFixes is the distribution's first fixed release per branch of a platform-limited CVE, nil when none. The one place the
 // decision reads that data from: the catalog's package (platform-limits.json `fixed`) with the releases the distribution's feed
 // gives for its source package (rows: Vuln.Distro, feeds' alpine-osv: every branch OSV.dev lists, which has no edge), each the full
 // release (upstream and -rN) unchanged. A branch the feed has no fixed release for has none here (secdb's "not affected" included: no
@@ -415,7 +415,7 @@ func alpineBranch(os string) string {
 	return cmp.Or(m[1], strings.ToLower(m[2]))
 }
 
-// askKind is what a platform-limited CVE still needs from a person on a row (D-604).
+// askKind is what a platform-limited CVE still needs from a person on a row.
 type askKind string
 
 const (
@@ -424,7 +424,7 @@ const (
 	askPackage  askKind = "package"  // the package release
 )
 
-// platformState is how a platform-limited CVE stands on a row that its platform does not rule out (D-604, platformCheck).
+// platformState is how a platform-limited CVE stands on a row that its platform does not rule out (platformCheck).
 type platformState struct {
 	ask   askKind
 	bad   string // askPackage: the release a person gave that is no Alpine release (the question says so)
@@ -466,7 +466,7 @@ func pkgRelease(s Software, in swInfo) (rel apkVer, text, given string) {
 	return apkVer{}, "", given
 }
 
-// platformCheck is the state of a platform-limited CVE on a row platformRuledOut did not rule out (D-604). Not on the list: zero.
+// platformCheck is the state of a platform-limited CVE on a row platformRuledOut did not rule out. Not on the list: zero.
 // Every outcome ends in a finding, a proof, or a question one of its answers settles (review r1 H1 of #961: never the same question
 // again after an answer).
 // rows and loading are the distributions' word on the CVE (Vuln.Distro) and the distributions whose feed is on but holds no row yet
@@ -596,7 +596,7 @@ func older(ver string, f *platformFix) bool {
 
 // platformAnswers are the answers to the platform question of a CVE (UncheckedItem.question): one click per platform it affects (per
 // branch of the fixed list: the device's OS, which on a scanned row confirms the platform and leads to the package release), then
-// "another system", where the person gives the device's OS and the row's package release, which is what rules the row out (D-604).
+// "another system", where the person gives the device's OS and the row's package release, which is what rules the row out.
 func platformAnswers(l platformLimit, f *platformFix) []UncheckedAnswer {
 	var out []UncheckedAnswer
 	for _, id := range l.Only {
@@ -613,7 +613,7 @@ func platformAnswers(l platformLimit, f *platformFix) []UncheckedAnswer {
 	return append(out, UncheckedAnswer{Label: "Another system", Ask: []string{"os", "pkg_version"}})
 }
 
-// platformQuestion is the question of an unchecked CVE of reason platform_unknown or package_unknown on a device (D-604); nil for
+// platformQuestion is the question of an unchecked CVE of reason platform_unknown or package_unknown on a device; nil for
 // another reason or a CVE not on the list. answer is the release a person gave that Vedette could not read, "" when none.
 func platformQuestion(cve, device string, reason UncheckedReason, answer string, rows []DistroFix) *UncheckedQuestion {
 	l, ok := platformLimits[cve]
@@ -664,7 +664,7 @@ func platformQuestion(cve, device string, reason UncheckedReason, answer string,
 	return nil
 }
 
-// AskedNote starts the note of a finding closed because only a person's answer can decide it (D-604, MatchResult.Asked);
+// AskedNote starts the note of a finding closed because only a person's answer can decide it (MatchResult.Asked);
 // ReopenOnMatch and SettleAsked recognise it.
 const AskedNote = "Closed: needs your answer."
 
@@ -691,7 +691,7 @@ func (k askKind) reason() UncheckedReason {
 }
 
 // platformSettled says whether the platform condition of a CVE is no longer open for the row: the CVE is not platform-limited, or the
-// row's evidence names a platform it affects (an agent reporting Alpine). The plan lists only such CVEs (D-547, review r1 #5).
+// row's evidence names a platform it affects (an agent reporting Alpine). The plan lists only such CVEs.
 func platformSettled(in swInfo, cve string) bool {
 	l, ok := platformLimits[cve]
 	if !ok {
@@ -701,7 +701,7 @@ func platformSettled(in swInfo, cve string) bool {
 }
 
 // AskedWhy is, for a match of MatchResult.Asked, why no row decides it ("CVE-… affects only …; nothing … says which …: check …"); ""
-// otherwise. Exposure gives it as the reason a public port is not listed (D-604).
+// otherwise. Exposure gives it as the reason a public port is not listed.
 func (m Match) AskedWhy() string {
 	l, ok := platformLimits[m.CVE]
 	if !ok || m.ask == askNone {

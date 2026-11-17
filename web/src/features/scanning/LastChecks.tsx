@@ -48,7 +48,7 @@ function Never({ children }: { children: ReactNode }) {
 }
 
 /**
- * kien G7b/c: "Last checks" on the device page: the last identification of this device (Check this device now, the window's queue,
+ * "Last checks" on the device page: the last identification of this device (Check this device now, the window's queue,
  * the first step of a vulnerability check), its last vulnerability check and its last SNMP read, each with when, the outcome as
  * Settings › Scanning › History says it (shared code) and a link to that run there; a kind that never ran says so and what runs it.
  * Read from GET /scanning/history?asset= (the LAN runs that reached its address) and GET /scans/runs?asset= (its vulnerability

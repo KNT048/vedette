@@ -1,4 +1,4 @@
-# Tests the merge gate skips (D-376). One test per line, fields separated by spaces or tabs:
+# Tests the merge gate skips. One test per line, fields separated by spaces or tabs:
 #   kind  TestName  package  reason  added(YYYY-MM-DD)
 # kind slow:  runs only in the daily schedule (make test-go-shard SKIPTESTS=); reason says why (wall time, whole-suite re-run).
 # kind flaky: quarantine; reason is the issue https://github.com/KNT048/vedette/issues/N; at most 7 days, then fix or delete it
@@ -23,7 +23,7 @@ slow	TestContract_Container_TheHealthWaitIs120SecondsOfLooks	modules/host	slow: 
 slow	TestUpdateRunEndThatCouldNotBeStoredIsSettledLater	modules/core	slow: 5 s wall time; daily run	2026-11-12
 slow	TestUpdateCoreSwitchRetriesWithANewSnapshot	modules/core	slow: 5 s wall time; daily run	2026-11-12
 slow	TestUpdatePullIsResentWithTheStoredRelease	modules/core	slow: 5 s wall time; daily run	2026-11-12
-slow	TestUpdateRunThatTheHostKeepsRefusingMeetsTheSixHourRule	modules/core	slow: 10 s wall time (two runs: before and after core's switch, D-459); daily run	2026-11-12
+slow	TestUpdateRunThatTheHostKeepsRefusingMeetsTheSixHourRule	modules/core	slow: 10 s wall time (two runs: before and after core's switch); daily run	2026-11-12
 slow	TestWazuh_AuthForbiddenUnreachable	modules/agent-intake	slow: 5 s wall time; daily run	2026-11-12
 slow	TestContract_INV2_OnlyTheServiceWritesInvTables	modules/inventory	slow: 5 s wall time; daily run	2026-11-12
 slow	TestContract_Backup_RetentionKeepsTheBackupARollbackNeedsAfterThreeOSInstalls	modules/host	slow: 5 s wall time; daily run	2026-11-12

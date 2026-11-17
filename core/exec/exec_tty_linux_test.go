@@ -90,7 +90,7 @@ func TestTTYBinaryHasAControllingTerminal(t *testing.T) {
 	}
 	plain := testBinary(t, nil, 0)
 	// Without TTY the child is in a process group of its own: even where the test itself runs on a terminal, that group is never
-	// the terminal's foreground one, so nmap would stay quiet (what the N100 showed).
+	// the terminal's foreground one, so nmap would stay quiet (what a test box showed).
 	if v := runTTY(t, newRunner(t, plain)); v.StdinTTY || v.Foreground {
 		t.Fatalf("plain binary sees %+v, want no terminal", v)
 	}

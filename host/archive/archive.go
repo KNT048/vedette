@@ -1,9 +1,9 @@
 // Package archive is the format of a Vedette backup (docs/specs/host-api.md 6.11): one tar.gz (Go standard library) with
 // fixed member names. The host writes and restores it; core reads it back when a person uploads a backup they downloaded
-// (S-CORE-1, D-518). Both read it as untrusted bytes with the same rules, so they live here once.
+// (S-CORE-1). Both read it as untrusted bytes with the same rules, so they live here once.
 //
 //	manifest.json   small JSON, see Manifest
-//	vedette.db      core's SQLite database, the snapshot core wrote (the host copies bytes, D-87)
+//	vedette.db      core's SQLite database, the snapshot core wrote (the host copies bytes)
 //	vedette.key     core's secrets master key, only when include_secrets
 package archive
 

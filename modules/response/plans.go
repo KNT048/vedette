@@ -100,7 +100,7 @@ func (s *Service) proposalView(p storedProposal, st Settings, cats map[string]ca
 		v.State = "execution_off"
 	case f != nil && f.code == "tool_not_allowed":
 		v.State = "tool_not_allowed"
-	case f != nil && f.code == codeNotPublishable: // D-469: say why, not "the connection is off"
+	case f != nil && f.code == codeNotPublishable: // Say why, not "the connection is off"
 		v.State = codeNotPublishable
 	case f != nil:
 		v.State = "tool_unavailable"

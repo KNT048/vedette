@@ -286,7 +286,7 @@ func TestHoneypotInventoryAdapter(t *testing.T) {
 	}
 }
 
-// addTrapIP adds one Trap IP through the API as an admin (D-466) and returns its id.
+// addTrapIP adds one Trap IP through the API as an admin and returns its id.
 func (s *stack) addTrapIP(t *testing.T, body string) string {
 	t.Helper()
 	code, b := s.do("POST", "/honeypot/trap-ips", "admin", body)

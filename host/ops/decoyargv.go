@@ -24,10 +24,10 @@ const (
 	linkNamePre  = "vdh"
 	maxMgmtBits  = 30
 	minMgmtBits  = 1
-	// The ruleset (D-102 (4), D-121, D-466) is rendered from hp/decoys.json: renderRuleset in decoyports.go.
+	// The ruleset is rendered from hp/decoys.json: renderRuleset in decoyports.go.
 )
 
-// hpSysctls are the settings of the namespace: the four of D-102 (3) and the hygiene of D-121
+// hpSysctls are the settings of the namespace: four for the decoy addresses and the hygiene ones
 // (the namespace forwards nothing and has no IPv6), one "sysctl -w" call and one "sysctl -n" to read them back.
 var hpSysctls = []string{
 	"net.ipv4.conf.all.arp_ignore=1",
@@ -126,7 +126,7 @@ func linkIPv6Argv(args []string) bool {
 func argvNftLoad() []string { return []string{"netns", "exec", hpNS, hpNftPath, "-f", "-"} }
 func argvNftList() []string { return []string{"netns", "exec", hpNS, hpNftPath, "list", "ruleset"} }
 
-// argvNftTouched lists the set of new connection attempts to the decoys as JSON (D-466, M2: a SYN scan leaves no log line).
+// argvNftTouched lists the set of new connection attempts to the decoys as JSON (M2: a SYN scan leaves no log line).
 func argvNftTouched() []string {
 	return []string{"netns", "exec", hpNS, hpNftPath, "-j", "list", "set", "inet", "vedette_hp", "touched"}
 }

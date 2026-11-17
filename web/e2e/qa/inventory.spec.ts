@@ -1,4 +1,4 @@
-// QA inventory (S-INV-1..4) như người dùng thật, giao diện chỉ tiếng Anh (D-28).
+// QA inventory (S-INV-1..4) như người dùng thật, giao diện chỉ tiếng Anh.
 // Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/inventory.spec.ts --workers=1
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
@@ -29,7 +29,7 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
   await page.reload()
 }
 const noHScroll = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'page must not scroll sideways').toBeLessThanOrEqual(1)
-/** Mọi chữ hiển thị là tiếng Anh: không dấu tiếng Việt trong phần nội dung (D-28). */
+/** Mọi chữ hiển thị là tiếng Anh: không dấu tiếng Việt trong phần nội dung. */
 const expectEnglishOnly = async (page: Page, label: string) => expect(await page.locator('body').innerText(), `${label}: Vietnamese text on the page`).not.toMatch(DIACRITICS)
 const h1 = (page: Page) => page.getByRole('heading', { level: 1 })
 const countOf = async (page: Page) => { await expect(h1(page)).toHaveText(/^\d+ devices?,/); return Number((await h1(page).innerText()).match(/^(\d+)/)![1]) }
@@ -54,9 +54,9 @@ async function cleanInstall(page: Page, lan: string) {
   await page.goto('/')
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // D-75: the code the mock accepts
+  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // The code the mock accepts
   await page.getByLabel('Organization name', { exact: true }).fill('Test Company')
   await page.getByLabel('Administrator name', { exact: true }).fill('Alex Admin')
   await page.getByLabel('Sign-in email', { exact: true }).fill('admin@testco.example')
@@ -418,7 +418,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(page.getByText('You have unsaved changes.')).toBeHidden()
   })
 
-  // The sample box already listens on a SPAN card (eth1): with SPAN hidden for v1 (D-403) it still shows that state, read-only.
+  // The sample box already listens on a SPAN card (eth1): with SPAN hidden for v1 it still shows that state, read-only.
   test('the sensor on this box: shows the SPAN status it already has and links to Settings → Box network; no multi-site controls', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto('/devices/setup?tab=sensor')
@@ -432,7 +432,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(dlg.getByText('eth1')).toBeVisible()
     await expect(dlg.getByRole('switch')).toHaveCount(0)
     await shot(page, 'inventory', 'sensor-config')
-    await expect(dlg.getByRole('link', { name: /Settings → Box network$/ })).toHaveAttribute('href', '/settings/network') // either text, SPAN shown or hidden (D-403)
+    await expect(dlg.getByRole('link', { name: /Settings → Box network$/ })).toHaveAttribute('href', '/settings/network') // either text, SPAN shown or hidden
     await page.keyboard.press('Escape')
     await expect(dlg).toBeHidden()
     const row = page.getByRole('table', { name: 'Sensors on this box' }).getByRole('row').nth(1)
@@ -449,7 +449,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await page.goto('/devices')
     await page.getByRole('link', { name: 'Scope, sensors and agents' }).click()
     await expect(page).toHaveURL(/\/devices\/setup$/)
-    await page.getByRole('tab', { name: 'Agents', exact: true }).click() // D-519: agents have their own tab
+    await page.getByRole('tab', { name: 'Agents', exact: true }).click() // agents have their own tab
     await expect(page).toHaveURL(/\/devices\/setup\?tab=agents$/)
     await expect(page.getByText('Use osquery on your Linux and Windows PCs and servers. Already run Wazuh? Connect its API instead.').first()).toBeVisible()
     const pkgTable = page.getByRole('table', { name: 'osquery packages this box serves' })
@@ -564,7 +564,7 @@ test.describe('Clean install: first-time user', () => {
     await page.goto('/devices/setup')
     const rows = page.getByRole('list', { name: 'Ranges added' }).getByRole('listitem')
     await expect(rows).toHaveText([/^192\.168\.18\.0\/24/])
-    await page.getByRole('tab', { name: 'Sensor', exact: true }).click() // D-519: the sensor has its own tab
+    await page.getByRole('tab', { name: 'Sensor', exact: true }).click() // The sensor has its own tab
     await expect(page.getByRole('table', { name: 'Sensors on this box' }).getByRole('row')).toHaveCount(2)
     await page.getByRole('tab', { name: 'Scope', exact: true }).click()
     await expect(page.locator('main')).not.toContainText('SRV-AD')

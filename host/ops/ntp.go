@@ -10,10 +10,10 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// NTP (D-106). Vedette owns chrony's sources: the host writes only vedette.sources in the
+// NTP. Vedette owns chrony's sources: the host writes only vedette.sources in the
 // directory chrony.conf names with "sourcedir" (the installer sets that up and leaves no distro
 // pool), asks chrony to reload them, and checks with "chronyc -N -c sources" that they are there.
-// Changing NTP never waits for confirmation (D-100 (5)): it is not what the admin reaches the box by.
+// Changing NTP never waits for confirmation: it is not what the admin reaches the box by.
 
 const (
 	chronyDir         = "etc/chrony/sources.d"

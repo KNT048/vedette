@@ -22,7 +22,7 @@ func readSignedT(t *testing.T, dir, name string) (raw, sig []byte) {
 	return raw, sig
 }
 
-// D-258, D-259: the active key leaked. The backup key signs a rescue index (revoking the leaked key) and the rescue manifest
+// The active key leaked. The backup key signs a rescue index (revoking the leaked key) and the rescue manifest
 // into the .minisig files a box downloads; installed boxes accept it with the box-side verifier, also after the leaked key fed
 // them an index with a huge sequence; the leaked key's manifests are refused from then on; and a box running the rescued binary
 // (new active key, old one retired) keeps the stored rescue index and takes the next ordinary release signed by the new key.
@@ -82,7 +82,7 @@ func TestRescueRoundTrip(t *testing.T) {
 		}
 	}
 
-	// The rescued binary: a new active key, the leaked one retired (D-130), the same backup and cosign keys.
+	// The rescued binary: a new active key, the leaked one retired, the same backup and cosign keys.
 	nw := &rig{t: t, active: releasetest.NewMinisign(t), backup: r.backup, cos: r.cos}
 	nw.trust, err = release.NewTrust(nw.active.PubLine(), r.backup.PubLine(), r.cos.PubPEM(t))
 	must(t, err)

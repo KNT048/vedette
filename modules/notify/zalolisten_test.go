@@ -213,9 +213,9 @@ func TestReplyCodeNormalisation(t *testing.T) {
 	}
 }
 
-// D-447: a reply alone never links a Zalo account (the confirm link does, signed in): six digits or a confirm-link token from a listed
+// A reply alone never links a Zalo account (the confirm link does, signed in): six digits or a confirm-link token from a listed
 // approver decide nothing, link nothing and get no answer; from a stranger they are only noted. A message Zalo delivers twice is taken once.
-func TestContract_D447_AReplyAloneDoesNotLink(t *testing.T) {
+func TestContract_AReplyAloneDoesNotLink(t *testing.T) {
 	l := newZaloListenEnv(t, notify.DecisionResult{}, nil)
 	l.inbox.texts = []channel.ZaloText{
 		{ID: "11", From: zaloOp, Text: " 123456 "},

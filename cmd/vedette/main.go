@@ -1,5 +1,5 @@
 // Command vedette is the box's main process: the core API, the module registry and the job
-// scheduler (D-8, D-55). The embedded web interface and TLS arrive with WP-04b and WP-08.
+// scheduler. The embedded web interface and TLS arrive with WP-04b and WP-08.
 package main
 
 import (
@@ -52,10 +52,10 @@ const (
 )
 
 func main() {
-	if pdftextCommand(os.Args[1:]) { // the PDF reader child (D-264): its own limits, no signals, no database
+	if pdftextCommand(os.Args[1:]) { // the PDF reader child: its own limits, no signals, no database
 		os.Exit(pdftext.ChildMain(os.Stdin, os.Stdout, os.Stderr))
 	}
-	pdftext.UseSelf() // this binary is the one that may serve as the PDF child (D-264); no other binary registers
+	pdftext.UseSelf() // this binary is the one that may serve as the PDF child; no other binary registers
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	err := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
 	stop()
@@ -72,19 +72,19 @@ type options struct {
 	log             *slog.Logger // set by serve for transport (the box CA's log lines); nil in tests
 	hostSocket      string
 	honeypotDir     string
-	// sensorListen and sensorCreds are the sensor link (D-141): the mutual-TLS listener of the two sensor containers and the directory
+	// sensorListen and sensorCreds are the sensor link: the mutual-TLS listener of the two sensor containers and the directory
 	// that holds their credentials, <creds>/<role>/sensor.pem. Empty sensorListen = no listener (a container-only install).
 	sensorListen, sensorCreds string
 	// syslogPort is the port the logs module listens on for syslog; 0 = 514, and 5514 when the process may not bind 514.
 	syslogPort int
-	// mcpListen is the loopback address of the read-only MCP server (mcp-server module, INV-5, D-230).
+	// mcpListen is the loopback address of the read-only MCP server (mcp-server module, INV-5).
 	mcpListen string
-	// osqueryDir is the folder of the pinned osquery packages the agent-intake module serves (D-169 (10)); empty or missing = the mirror answers 404 mirror_missing.
+	// osqueryDir is the folder of the pinned osquery packages the agent-intake module serves; empty or missing = the mirror answers 404 mirror_missing.
 	osqueryDir string
 }
 
 // newFlags builds the flag set of the server and binds it to o. The test that checks the Exec= line of core's
-// Quadlet unit parses it with this same constructor (host/ops owns the unit text, D-123), so a flag renamed
+// Quadlet unit parses it with this same constructor (host/ops owns the unit text), so a flag renamed
 // here without the unit following fails a test.
 func newFlags(o *options, stdout io.Writer) (flags *flag.FlagSet, showVersion *bool) {
 	flags = flag.NewFlagSet("vedette", flag.ContinueOnError)
@@ -92,17 +92,17 @@ func newFlags(o *options, stdout io.Writer) (flags *flag.FlagSet, showVersion *b
 	showVersion = flags.Bool("version", false, "print the version and exit")
 	flags.StringVar(&o.db, "db", "/var/lib/vedette/vedette.db", "path of the SQLite database (created with mode 0600)")
 	flags.StringVar(&o.key, "key", "/var/lib/vedette/vedette.key", "path of the secrets master key file (created with mode 0600 when missing)")
-	flags.StringVar(&o.honeypotDir, "honeypot-dir", defaultHoneypotDir, "parent of the two folders shared with the honeypot container: config/ (core writes opencanary.conf; the container mounts it read-only) and log/ (the container writes the trap log, core reads it) (D-89)")
+	flags.StringVar(&o.honeypotDir, "honeypot-dir", defaultHoneypotDir, "parent of the two folders shared with the honeypot container: config/ (core writes opencanary.conf; the container mounts it read-only) and log/ (the container writes the trap log, core reads it)")
 	// Plain HTTP only on loopback; any other address is served over TLS (own certificate, or a self-signed one made at first start).
 	flags.StringVar(&o.hostSocket, "host-socket", "/run/vedette/host.sock", "unix socket of vedette-host (operating system updates and backups); empty, or a missing socket file, means a container-only install and those endpoints answer 409 not_appliance (the data purge is stricter: with a socket path set, a missing socket refuses it with 502, because the helper holds backups, and so is the passive sensor: with a socket path set it takes the box's cards only from the helper and holds its batches until the helper answers; pass an empty value for a box without a helper). The database and key files must be <dir>/vedette.db and <dir>/vedette.key, where <dir> is the host's core_data")
 	flags.StringVar(&o.listen, "listen", "127.0.0.1:8080", "address to listen on; plain HTTP on loopback, TLS on any other address")
 	flags.StringVar(&o.tlsCert, "tls-cert", "", "PEM certificate for TLS (with -tls-key); when both are missing and -listen is not loopback, a self-signed pair is made next to the database")
 	flags.StringVar(&o.tlsKey, "tls-key", "", "PEM private key for TLS")
 	flags.StringVar(&o.hosts, "hosts", "", "comma-separated host names (a leading *. covers one label, like a wildcard certificate) and IP addresses the box answers to (Host header allowlist, 421 for others); default: the loopback names and the names of the certificate")
-	flags.StringVar(&o.sensorListen, "sensor-listen", "", "address of the sensor link, a mutual-TLS listener for the sensor and scan containers (D-109), e.g. :8444 inside the container (the unit publishes 127.0.0.1:8444 only); empty = none, and the sensors cannot reach core")
+	flags.StringVar(&o.sensorListen, "sensor-listen", "", "address of the sensor link, a mutual-TLS listener for the sensor and scan containers, e.g. :8444 inside the container (the unit publishes 127.0.0.1:8444 only); empty = none, and the sensors cannot reach core")
 	flags.StringVar(&o.sensorCreds, "sensor-creds", "", "directory where core writes the sensors' credentials, <dir>/passive/sensor.pem and <dir>/active/sensor.pem (needed with -sensor-listen); each role's folder is a volume shared with that container only")
 	flags.IntVar(&o.syslogPort, "syslog-port", 0, "port of the syslog listener of the logs module (UDP and TCP, only while the module is on and a source is declared); 0 = 514, or 5514 when this process may not bind 514")
-	flags.StringVar(&o.mcpListen, "mcp-listen", "", "loopback address and port of the read-only MCP server, open only while the mcp-server module is on; an address off loopback is refused, except 0.0.0.0 inside a container. Empty = 127.0.0.1:8765, or 0.0.0.0:8765 inside a container, whose unit publishes it on the machine's 127.0.0.1 only (INV-5, D-230, D-395)")
+	flags.StringVar(&o.mcpListen, "mcp-listen", "", "loopback address and port of the read-only MCP server, open only while the mcp-server module is on; an address off loopback is refused, except 0.0.0.0 inside a container. Empty = 127.0.0.1:8765, or 0.0.0.0:8765 inside a container, whose unit publishes it on the machine's 127.0.0.1 only (INV-5)")
 	flags.StringVar(&o.osqueryDir, "osquery-dir", defaultOsqueryDir, "folder with the pinned osquery packages (.deb, .rpm, .msi and SHA256SUMS) that the agent-intake module serves to servers under /install/osquery/; the core image carries them, a build without the folder answers 404 mirror_missing")
 	return flags, showVersion
 }
@@ -111,7 +111,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if kind, ok := healthCommand(args); ok { // the HealthCmd= of the units: before any flag, no database, no key
 		return runHealthCommand(ctx, kind)
 	}
-	if resetAdminCommand(args) { // D-389: the console's way back in for a locked-out administrator
+	if resetAdminCommand(args) { // The console's way back in for a locked-out administrator
 		return runResetAdmin(ctx, args[1:], stdout, stderr)
 	}
 	var o options
@@ -203,10 +203,10 @@ func isLoopback(addr string) (bool, error) {
 // certificate in use; loopback is always allowed by core/server.HostAllowlist. hsts is true only for a
 // certificate the owner supplied: the box then tells browsers to insist on HTTPS. A self-signed pair gets
 // no HSTS, or a browser would refuse to let the owner click through its warning for a year. The box's own pair is signed by the box
-// CA that ca keeps in core_secret (D-351), so transport runs once the database is open and migrated.
+// CA that ca keeps in core_secret, so transport runs once the database is open and migrated.
 //
 // The box's own pair also covers the box's name (certBoxName of box: the OS host name vedette-host reports, core's own host name
-// without a host); links never take a name from the certificate (they carry the Box address, D-465, boxaddr.go), and the renewer adds
+// without a host); links never take a name from the certificate (they carry the Box address, boxaddr.go), and the renewer adds
 // the Box address to the certificate once it is known (selfSignedRenewer.Check). Without -hosts the allowlist is the names
 // of the box's own pair that pass defaultAllowed (an address, one label, or .local/.lan/.home.arpa/.internal), the box's name among
 // them when it passes: the name may come from DHCP, so a name in a public domain is answered to only through -hosts. It is asked once here (at most boxNameTimeout): vedette-host
@@ -268,7 +268,7 @@ func transport(ctx context.Context, o options, ca *boxCAStore, box *boxHostName)
 // scheduler (running jobs are cancelled and waited for), database.
 func serve(ctx context.Context, log *slog.Logger, o options) error {
 	// A purge ends the process the same way SIGTERM does (graceful stop, exit 0): Quadlet's Restart=always, or the restart policy of
-	// a container, starts it on the fresh box (D-154). Without a supervisor the box stays stopped until someone starts it.
+	// a container, starts it on the fresh box. Without a supervisor the box stays stopped until someone starts it.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	tightenContainerDataDir(o.db, o.sensorCreds, log)
@@ -296,7 +296,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}()
 	// A damaged database stops the program before anything writes to it (fail closed, INV-32). Only an update whose release says
 	// rollback.safe=false gets its database back from the snapshot when the health check fails (host/ops update.go); otherwise the box
-	// stays down until someone restores a backup (RUNBOOK). A newer schema is not refused: an older core runs on a newer database by design (INV-26, D-183).
+	// stays down until someone restores a backup (RUNBOOK). A newer schema is not refused: an older core runs on a newer database by design (INV-26).
 	if err := db.QuickCheck(ctx); err != nil {
 		log.ErrorContext(ctx, "the database failed SQLite's check; not starting", "error", err)
 		return err
@@ -324,12 +324,12 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		log.ErrorContext(ctx, "compacting the database after a purge failed; it is tried again at the next start", "error", err)
 	}
 	aud := audit.New(nil)
-	// TLS comes after the database (D-351): the box CA that signs the self-made leaf is a core_secret row.
+	// TLS comes after the database: the box CA that signs the self-made leaf is a core_secret row.
 	boxCAs, err := newBoxCAStore(db, sec, aud, filepath.Dir(o.db))
 	if err != nil {
 		return err
 	}
-	if err := boxCAs.migrateLegacy(ctx, log); err != nil { // whatever the TLS mode: no plaintext CA key stays on disk (D-351)
+	if err := boxCAs.migrateLegacy(ctx, log); err != nil { // whatever the TLS mode: no plaintext CA key stays on disk
 		log.WarnContext(ctx, "the old box CA files could not be moved into the database; tried again at the next start", "error", err)
 	}
 	boxName := newBoxHostName(o.hostSocket) // before TLS: the box's own certificate carries its name
@@ -337,7 +337,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
-	var warner *ownerCertWarner // an owner's certificate: never touched, only watched (D-139)
+	var warner *ownerCertWarner // an owner's certificate: never touched, only watched
 	if o.hostSocket != "" {
 		if renew != nil {
 			renew.mgmt = hostMgmtIPv4s(hostclient.New(o.hostSocket), log)
@@ -345,7 +345,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 			warner = newOwnerCertWarner(tlsCfg, hostMgmtIPv4s(hostclient.New(o.hostSocket), log))
 		}
 	}
-	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log, ContainerOnly: o.hostSocket == ""}) // D-381: the install kind, from the one flag compose sets empty (D-168)
+	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: aud, Manifests: modules.Manifests, Version: version, Log: log, ContainerOnly: o.hostSocket == ""}) // The install kind, from the one flag compose sets empty
 	if err != nil {
 		return err
 	}
@@ -378,12 +378,12 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	defer d.OS.Close()
 	defer d.Response.Close()         // ends the approval requests still being sent before the database closes
 	defer exposureService(d).Close() // INV-18: the run that runs ends with its audit row before the database closes
-	exposureAtStart(ctx, d)          // OpenVAS enabled before this start runs again (D-529)
+	exposureAtStart(ctx, d)          // OpenVAS enabled before this start runs again
 	defer scanService(d).Close()     // stop a live scan and wait for it before the database closes (scan review M4)
 	if o.hostSocket != "" && (filepath.Base(o.db) != "vedette.db" || filepath.Base(o.key) != "vedette.key" || filepath.Dir(o.key) != filepath.Dir(o.db)) {
 		log.WarnContext(ctx, "backup restore through vedette-host needs the database and key at <core_data>/vedette.db and <core_data>/vedette.key", "db", o.db, "key", o.key)
 	}
-	// D-75: while first-run setup is open the box prints its one-time setup code, at every start. This is the
+	// While first-run setup is open the box prints its one-time setup code, at every start. This is the
 	// one place a secret is logged on purpose: the log is where the person who installed the box looks.
 	code, err := d.Core.EnsureSetupCode(ctx)
 	if err != nil {
@@ -392,14 +392,14 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if code != "" {
 		log.InfoContext(ctx, "first-run setup is open: enter this one-time setup code on the setup page", "setup_code", code)
 	}
-	var link *sensorLink // the PKI starts and writes the bundles before this listener opens (D-110 (4)); the renew job reads d.Authority
+	var link *sensorLink // the PKI starts and writes the bundles before this listener opens; the renew job reads d.Authority
 	if o.sensorListen != "" {
 		if link, err = openSensorLink(ctx, &d, o.sensorListen, o.sensorCreds); err != nil {
 			return err
 		}
 		defer func() { _ = link.ln.Close() }() // only matters when a later step fails before serveUntilDone owns it
 	}
-	learnWindowsReleases(ctx, d) // D-603: before agent-intake writes a device's OS row or findings matches it
+	learnWindowsReleases(ctx, d) // Before agent-intake writes a device's OS row or findings matches it
 	reg.OnChange(sched.ModuleChanged)
 	if err := addJobs(sched, d, wired); err != nil {
 		return err
@@ -411,14 +411,14 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 	stopGuards = startGuards(ctx, reg, log, d, wired)
 	perMinute := publicPerMinute(o.hostSocket)
-	log.InfoContext(ctx, "per-address limit of public requests without a session (D-320)", "per_minute", perMinute, "on", perMinute > 0)
+	log.InfoContext(ctx, "per-address limit of public requests without a session", "per_minute", perMinute, "on", perMinute > 0)
 	api, err := server.New(server.Config{
 		API:             newHandler(ctx, d),
 		Auth:            d.Auth.Sessions,
 		Modules:         reg,
 		Log:             log,
 		BodyLimits:      bodyLimits(wired),
-		PublicPerMinute: perMinute, // D-320
+		PublicPerMinute: perMinute,
 	})
 	if err != nil {
 		return err
@@ -456,9 +456,9 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 }
 
 // topHandler is everything the listener answers. A Host header allowed refuses is 421 before anything else is routed (DNS rebinding):
-// allowed is server.HostMatcher of the allowlist and the box's own addresses, plus the Box address (D-465). The Envelope (panic
+// allowed is server.HostMatcher of the allowlist and the box's own addresses, plus the Box address. The Envelope (panic
 // recovery, request id, security headers) wraps the ServeMux too, so the mux's own answers (307 for /api/v1, //, .. and the 404 for
-// other paths) carry the headers the API's responses do. token answers /t/<id>, the link of a URL honey token (D-507); nil leaves the
+// other paths) carry the headers the API's responses do. token answers /t/<id>, the link of a URL honey token; nil leaves the
 // path to the interface.
 func topHandler(log *slog.Logger, api, token http.Handler, allowed func(host string) bool, hsts bool) http.Handler {
 	mux := http.NewServeMux()
@@ -467,7 +467,7 @@ func topHandler(log *slog.Logger, api, token http.Handler, allowed func(host str
 		mux.Handle(urlTrapPath, token)
 		mux.Handle(urlTrapDeeper, token)
 	}
-	mux.Handle("/", webui.Handler(webui.FS())) // the interface (D-149): anything that is not the API; paths under /api/ other than the API's are its own 404
+	mux.Handle("/", webui.Handler(webui.FS())) // the interface: anything that is not the API; paths under /api/ other than the API's are its own 404
 	h := server.HostAllowlistFunc(allowed, mux)
 	if hsts {
 		h = strictTransportSecurity(h)
@@ -558,7 +558,7 @@ const containerDataDir = "/var/lib/vedette"
 const containerCredsDir = "/var/lib/vedette-creds" //nolint:gosec // G101: a directory path, not a credential
 
 // tightenContainerDataDir is the call of serve: only the data directory of the images and, with the sensor link, the two role folders
-// of the credentials directory (the creds-* volumes, which hold the 0640 credential files; D-409), only when core is not root. The
+// of the credentials directory (the creds-* volumes, which hold the 0640 credential files), only when core is not root. The
 // sensors read their folder through the group (0750 keeps it), never through "other". The credentials directory itself is left 0755:
 // it holds only the two mount points, and on the appliance core (core_uid, not its owner 65532) must traverse it.
 func tightenContainerDataDir(db, creds string, log *slog.Logger) {
@@ -574,7 +574,7 @@ func tightenContainerDataDir(db, creds string, log *slog.Logger) {
 
 // tightenDataDir removes group-write and any "other" access (mode bits 0o027) from dataDir when dir is exactly dataDir, is a real
 // directory (a symlink is left alone) and is owned by uid, which must not be root. A new named volume may start 0755 (rootless
-// Podman, and images built before D-409, whose COPY --chmod left the image directory 0755 on buildah) while the image directory is
+// Podman, and images of older releases, whose COPY --chmod left the image directory 0755 on buildah) while the image directory is
 // 0750. It only clears those bits (0700 stays 0700; setuid, setgid and sticky are kept), never touches any other directory (a dev
 // -db path, /tmp, $HOME), and a failure is logged, not fatal: the key and database files are 0600 either way.
 func tightenDataDir(dir, dataDir string, uid int, log *slog.Logger) {
@@ -613,7 +613,7 @@ func ensureKey(path string) error {
 	return secrets.GenerateKeyFile(path)
 }
 
-// publicPerMinute is the per-address limit of public requests (D-320): on an appliance (vedette-host's socket is there) core sees each
+// publicPerMinute is the per-address limit of public requests: on an appliance (vedette-host's socket is there) core sees each
 // client's own address; a container-only install may see every client as the port proxy's one address (Docker Desktop, rootless),
 // where a per-address limit would be one limit for the whole box, so it is off there.
 func publicPerMinute(hostSocket string) int {

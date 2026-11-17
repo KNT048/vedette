@@ -8,7 +8,7 @@ import (
 // maxHappened is how many incidents the page names; the counts are of all.
 const maxHappened = 3
 
-// buildHappened turns what notify counted in the week into the section (D-490). Titles come from notify, which cleaned them already;
+// buildHappened turns what notify counted in the week into the section. Titles come from notify, which cleaned them already;
 // they are cleaned again here because they began as log lines.
 func buildHappened(w IncidentWeek) *Happened {
 	h := &Happened{Traps: w.Traps, FailedLogins: w.FailedLogins, AcceptedLogins: w.AcceptedLogins, BadConnections: w.BadConnections, Other: w.Other, Top: []HappenedLine{}}

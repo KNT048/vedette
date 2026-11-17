@@ -33,7 +33,7 @@ func (s *Service) firedLately(ctx context.Context, key string, since time.Time) 
 	return n > 0, nil
 }
 
-// PollLogs makes the events of the log_threshold trigger (#332, D-287, D-288): for every enabled rule of that trigger, it asks
+// PollLogs makes the events of the log_threshold trigger: for every enabled rule of that trigger, it asks
 // each declared log source how many lines of the rule's signature arrived in the rule's window. When the count reached the
 // threshold it asks which remote addresses sent them (logs.TopAddresses): every address that alone sent at least N lines is an
 // event of its own with source_ip, so a ban rule bans each attacker and never an address for the lines of others; when none

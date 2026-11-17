@@ -32,7 +32,7 @@ const STATE_TONE = { receiving: 'ok', silent: 'warn', never: 'off' } as const
 
 // S-LOG-1: syslog the box dropped because its sender is not a source (or is one, declared with another protocol). Operators and admins see the
 // addresses; a viewer does not get them from the API. The usual trap: on a container install, syslog from the machine that runs the
-// containers arrives from the container network's gateway, not from the address the source was declared with (QA walk 3).
+// containers arrives from the container network's gateway, not from the address the source was declared with.
 // What the box keeps from a source (the form's hint): a UDP source's TCP lines too, a TCP or TLS source only its own (UDP is easy to forge).
 const protoLabel = (s: { proto: Proto }) => (s.proto === 'udp' ? 'UDP and TCP' : s.proto.toUpperCase())
 const PROTOS = new Intl.ListFormat('en', { type: 'conjunction' })
@@ -93,7 +93,7 @@ function SourcesSection() {
   const addButton = <Button variant="primary" disabled={!isAdmin} title={need} onClick={() => setAdding(true)}><Plus />{t('sources.add')}</Button>
   const qc = useQueryClient()
   // Refresh the whole page's log data, not only this table: the headline, the digest, the event search and the AI digest panel of the
-  // logs.panels slot (QA walk 2026-11-12: new lines showed here while the rest still said no line was received).
+  // logs.panels slot (new lines showed here while the rest still said no line was received).
   // #930 review r1 L6: busy only for a refresh the person pressed, not for the refetch after a save or a delete elsewhere on the page
   const [refreshing, setRefreshing] = useState(false)
   const refreshAll = () => {
@@ -251,7 +251,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
   const [text, setText] = useState('')
   const kw = useDeferredValue(text)
   const q = useEvents({ window: win, source, q: kw })
-  // The keyword search can stop before the start of the window (D-441): "Search older lines" appends the next step below what is shown.
+  // The keyword search can stop before the start of the window: "Search older lines" appends the next step below what is shown.
   const [older, setOlder] = useState<{ key: string; fetched: boolean; events: LogEvent[]; next?: string; back?: string; busy: boolean; failed: boolean }>({ key: '', fetched: false, events: [], busy: false, failed: false })
   const key = `${win}|${source}|${kw}|${q.dataUpdatedAt}`
   const extra = older.key === key ? older : { key, fetched: false, events: [] as LogEvent[], next: undefined, back: undefined, busy: false, failed: false }
@@ -307,7 +307,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
   )
 }
 
-/** The line without its syslog header (W1-22, D-485): the program, then the message; the stored line is the tooltip. */
+/** The line without its syslog header: the program, then the message; the stored line is the tooltip. */
 function Message({ e }: { e: LogEvent }) {
   return <span className="break-all font-mono text-caption" title={e.line}>{e.app ? <span className="text-muted">{e.app}: </span> : null}{e.message}</span>
 }
@@ -363,7 +363,7 @@ function Content() {
     const unmatched = b.length === 0 && (feedsOn === false || !digest.data.ioc_matching)
     if (b.length + n.length + s.length === 0) title = learning ? t('titleLearning', { n: digest.data.history_days, days: digest.data.baseline_days }) : t('titleQuiet')
     else {
-      // D-227: a hit the logging device blocked is an attempt, counted apart from the connections that went through (QA walk 3).
+      // A hit the logging device blocked is an attempt, counted apart from the connections that went through.
       const attempts = b.filter((h) => h.blocked).length
       const connections = b.length - attempts
       const bad = connections && attempts

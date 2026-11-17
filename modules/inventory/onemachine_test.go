@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// kien's MacBook on the N100 (issue #829): macOS's private Wi-Fi address b2:f0:09:… has the locally administered bit set, so every
+// A MacBook on a test box (issue #829): macOS's private Wi-Fi address b2:f0:09:… has the locally administered bit set, so every
 // new address made a new device and a "new unknown device" incident.
 const (
 	privMac1 = "b2:f0:09:23:2e:5b"
@@ -61,19 +61,19 @@ func (e *env) only() inventory.Device {
 	return d
 }
 
-// D-598 (1): a laptop whose private Wi-Fi address changes, with a new address from DHCP, stays one device: the approved one keeps its
+// A laptop whose private Wi-Fi address changes, with a new address from DHCP, stays one device: the approved one keeps its
 // id and approval and takes the newest address and MAC; no "new device" goes out. One that first shows up by ARP alone (no name yet) is
 // announced, then joined when its name arrives: merged, then deleted, so notify closes its incident.
-func TestContract_D598_APrivateWiFiAddressIsOneDevice(t *testing.T) {
+func TestContract_APrivateWiFiAddressIsOneDevice(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(privMac1, "192.168.18.145", "Kiens-MacBook-Air")...)
+	e.record(dhcp(privMac1, "192.168.18.145", "Annas-MacBook-Air")...)
 	id := e.idOf("192.168.18.145")
-	if err := e.svc.Approve(e.ctx(), "kien", id); err != nil {
+	if err := e.svc.Approve(e.ctx(), "anna", id); err != nil {
 		t.Fatal(err)
 	}
 	e.ev.reset()
 	e.tick(time.Hour)
-	e.record(dhcp(privMac2, "192.168.18.138", "kiens-macbook-air.local")...)
+	e.record(dhcp(privMac2, "192.168.18.138", "annas-macbook-air.local")...)
 	d := e.only()
 	if d.ID != id || !d.Approved || d.IP != "192.168.18.138" || d.MAC == nil || *d.MAC != privMac2 {
 		t.Errorf("joined device: id %s approved %v ip %s mac %v; want %s, approved, .138, %s", d.ID, d.Approved, d.IP, d.MAC, id, privMac2)
@@ -94,7 +94,7 @@ func TestContract_D598_APrivateWiFiAddressIsOneDevice(t *testing.T) {
 	}
 	arpID := e.idOf("192.168.18.137")
 	e.tick(time.Minute)
-	e.record(dhcp(privMac3, "192.168.18.137", "Kiens-MacBook-Air")...)
+	e.record(dhcp(privMac3, "192.168.18.137", "Annas-MacBook-Air")...)
 	d = e.only()
 	if d.ID != id || d.IP != "192.168.18.137" || !d.Approved {
 		t.Errorf("after the name: id %s ip %s approved %v", d.ID, d.IP, d.Approved)
@@ -107,16 +107,16 @@ func TestContract_D598_APrivateWiFiAddressIsOneDevice(t *testing.T) {
 		t.Errorf("deleted events: %v", e.ev.named(inventory.EventAssetDeleted))
 	}
 	// The same MAC again finds the device: no new row.
-	e.record(dhcp(privMac3, "192.168.18.137", "Kiens-MacBook-Air")...)
+	e.record(dhcp(privMac3, "192.168.18.137", "Annas-MacBook-Air")...)
 	e.only()
 }
 
-// D-598 (1): what a host name alone must not join (review #831 H1, M2): the newcomer stays a device of its own and is announced.
+// What a host name alone must not join (review #831 H1, M2): the newcomer stays a device of its own and is announced.
 // Two burned-in MACs (a re-imaged PC next to the old one); a private address next to a burned-in MAC (an intruder naming itself after
 // a server); a private address next to a row known only by address, approved (a server on a routed subnet); a generic or
 // system-made name ("iPhone", "MacBook-Pro-2", "Galaxy-A52", "DESKTOP-7GH2K1L", "localhost"); a name made of an address; three
 // rows of one name (which two?). The old row was last seen an hour before, so only the rule under test keeps them apart.
-func TestContract_D598_WhatANameAloneDoesNotJoin(t *testing.T) {
+func TestContract_WhatANameAloneDoesNotJoin(t *testing.T) {
 	cases := []struct {
 		name  string
 		first []observe.Observation
@@ -139,7 +139,7 @@ func TestContract_D598_WhatANameAloneDoesNotJoin(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			e := newEnv(t)
 			e.record(c.first...)
-			if err := e.svc.Approve(e.ctx(), "kien", e.idOf(c.first[0].AssetHint.IP.String())); err != nil {
+			if err := e.svc.Approve(e.ctx(), "anna", e.idOf(c.first[0].AssetHint.IP.String())); err != nil {
 				t.Fatal(err)
 			}
 			last := c.then
@@ -166,9 +166,9 @@ func TestContract_D598_WhatANameAloneDoesNotJoin(t *testing.T) {
 	}
 }
 
-// D-598 (1), review #831 H1: a declared device without a MAC is never taken over by a private address carrying its name: two devices,
+// A declared device without a MAC is never taken over by a private address carrying its name: two devices,
 // the newcomer announced, the declared row keeps its address and has no MAC.
-func TestContract_D598_ADeclaredDeviceIsNotTakenOver(t *testing.T) {
+func TestContract_ADeclaredDeviceIsNotTakenOver(t *testing.T) {
 	e := newEnv(t)
 	id := e.addDevice(inventory.AddInput{CatalogID: "microsoft-office-desktop", Name: "fileserver", IP: "10.30.0.9"})
 	e.ev.reset()
@@ -182,10 +182,10 @@ func TestContract_D598_ADeclaredDeviceIsNotTakenOver(t *testing.T) {
 	}
 }
 
-// D-598 (1), review #831 M2: two machines of one name online at the same time (two "Johns-iPhone", cloned VMs) stay two, however
+// Two machines of one name online at the same time (two "Johns-iPhone", cloned VMs) stay two, however
 // long they stay, and whatever their addresses do later (one loses its lease to a printer; review #831 N1); a rotation whose old
 // address answered a minute ago waits rotationQuiet (20 minutes), then joins when the old row stayed silent.
-func TestContract_D598_TwoMachinesOfOneNameOnlineAtOnce(t *testing.T) {
+func TestContract_TwoMachinesOfOneNameOnlineAtOnce(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(privMac1, "192.168.18.10", "Johns-iPhone")...)
 	e.tick(time.Second)
@@ -207,22 +207,22 @@ func TestContract_D598_TwoMachinesOfOneNameOnlineAtOnce(t *testing.T) {
 	}
 
 	r := newEnv(t)
-	r.record(dhcp(privMac1, "192.168.18.20", "kiens-ipad")...)
+	r.record(dhcp(privMac1, "192.168.18.20", "annas-ipad")...)
 	r.tick(time.Minute)
-	r.record(dhcp(privMac2, "192.168.18.21", "kiens-ipad")...)
+	r.record(dhcp(privMac2, "192.168.18.21", "annas-ipad")...)
 	if n := r.devices(); n != 2 {
 		t.Fatalf("a minute after the old address: %d devices, want 2 until the old one is quiet", n)
 	}
 	r.tick(25 * time.Minute)
-	r.record(dhcp(privMac2, "192.168.18.21", "kiens-ipad")...)
+	r.record(dhcp(privMac2, "192.168.18.21", "annas-ipad")...)
 	if d := r.only(); d.IP != "192.168.18.21" || d.MAC == nil || *d.MAC != privMac2 {
 		t.Errorf("after the quiet time: %+v", d.AssetCore)
 	}
 }
 
-// D-598 (2): an osquery node is bound to the device its first report reached by address (the device a scan found), and its later
+// An osquery node is bound to the device its first report reached by address (the device a scan found), and its later
 // reports find that device when the machine's address changes: still one device, at the new address.
-func TestContract_D598_AnAgentFollowsItsDevice(t *testing.T) {
+func TestContract_AnAgentFollowsItsDevice(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	id := e.idOf("192.168.18.20")
@@ -245,8 +245,8 @@ func TestContract_D598_AnAgentFollowsItsDevice(t *testing.T) {
 	e.only()
 }
 
-// D-598 (2): a node reporting on an address that another machine held (a row seen with another MAC) is not bound to that row.
-func TestContract_D598_AnAgentIsNotBoundToAnotherMachinesRow(t *testing.T) {
+// A node reporting on an address that another machine held (a row seen with another MAC) is not bound to that row.
+func TestContract_AnAgentIsNotBoundToAnotherMachinesRow(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt2, "192.168.18.20", "")...)
 	e.tick(time.Minute)
@@ -256,10 +256,10 @@ func TestContract_D598_AnAgentIsNotBoundToAnotherMachinesRow(t *testing.T) {
 	}
 }
 
-// D-598 (2): a node that reports from an address no device held makes a row; when a sensor then sees the machine's MAC at that
+// A node that reports from an address no device held makes a row; when a sensor then sees the machine's MAC at that
 // address, that row and the machine's device are one (its agent said that MAC, and lost the address to it): one device, which keeps
 // the enrolment's approval (review #831 L5) and the node's binding, and the node's next report finds it.
-func TestContract_D598_AnAgentsRowJoinsItsMachine(t *testing.T) {
+func TestContract_AnAgentsRowJoinsItsMachine(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	e.tick(time.Hour)
@@ -288,8 +288,8 @@ func TestContract_D598_AnAgentsRowJoinsItsMachine(t *testing.T) {
 	}
 }
 
-// D-598: only an agent's report names an agent, in the shape core/observe gives it; a sensor's is refused before any write.
-func TestContract_D598_OnlyAnAgentNamesAnAgent(t *testing.T) {
+// Only an agent's report names an agent, in the shape core/observe gives it; a sensor's is refused before any write.
+func TestContract_OnlyAnAgentNamesAnAgent(t *testing.T) {
 	e := newEnv(t)
 	for _, o := range []observe.Observation{
 		{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}, Field: observe.Hostname, Value: "x1", Source: observe.Passive, Confidence: 0.5},
@@ -305,9 +305,9 @@ func TestContract_D598_OnlyAnAgentNamesAnAgent(t *testing.T) {
 	}
 }
 
-// D-598 (2), review #831 M4: a binding is never overwritten. A node reporting on a device another node is bound to (a reused lease)
+// A binding is never overwritten. A node reporting on a device another node is bound to (a reused lease)
 // does not take it; once agent-intake releases the old node (re-enrolment, revoke, prune), the next node binds.
-func TestContract_D598_ABindingIsNeverStolen(t *testing.T) {
+func TestContract_ABindingIsNeverStolen(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	id := e.idOf("192.168.18.20")
@@ -326,11 +326,11 @@ func TestContract_D598_ABindingIsNeverStolen(t *testing.T) {
 	}
 }
 
-// D-598 (2), review #831 M3, N2: a node bound by a spoof (it once took a machine's burned-in MAC and address) keeps declaring that MAC
+// A node bound by a spoof (it once took a machine's burned-in MAC and address) keeps declaring that MAC
 // from its own address. The binding is kept until the wire says otherwise: once a sensor sees the machine's MAC at its own address after
 // the node's last report, the node's next report drops the binding and goes by address. The machine ends where it is, the node's
 // report on a device of its own.
-func TestContract_D598_ASpoofedBindingIsDropped(t *testing.T) {
+func TestContract_ASpoofedBindingIsDropped(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt2, "192.168.18.20", "")...)
 	victim := e.idOf("192.168.18.20")
@@ -358,10 +358,10 @@ func TestContract_D598_ASpoofedBindingIsDropped(t *testing.T) {
 	}
 }
 
-// D-598 (2), review #831 N3: a laptop bound through its dock's wired card (burned in) reports from Wi-Fi after undocking; the passive
+// A laptop bound through its dock's wired card (burned in) reports from Wi-Fi after undocking; the passive
 // sensor saw the Wi-Fi card first. The node is followed (the wired card is off the wire, no evidence against it) and the Wi-Fi card's
 // row, which lost its address to the laptop, is the laptop's card: one device, at the Wi-Fi address, still bound.
-func TestContract_D598_ANodeFollowsANICChange(t *testing.T) {
+func TestContract_ANodeFollowsANICChange(t *testing.T) {
 	e := newEnv(t)
 	const wifi = "a4:83:e7:00:00:09" // burned in too
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
@@ -380,8 +380,8 @@ func TestContract_D598_ANodeFollowsANICChange(t *testing.T) {
 	}
 }
 
-// D-598 (2), review #831 N4: a batch that names no MAC (agent-intake sends the enrolment's host name alone) keeps the binding.
-func TestContract_D598_AHostNameOnlyBatchKeepsTheBinding(t *testing.T) {
+// A batch that names no MAC (agent-intake sends the enrolment's host name alone) keeps the binding.
+func TestContract_AHostNameOnlyBatchKeepsTheBinding(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	id := e.idOf("192.168.18.20")
@@ -393,27 +393,27 @@ func TestContract_D598_AHostNameOnlyBatchKeepsTheBinding(t *testing.T) {
 	}
 }
 
-// D-598, review #831 N5: a queued scan result for the old row just after the new row appeared (a late sighting) does not keep a
+// A queued scan result for the old row just after the new row appeared (a late sighting) does not keep a
 // rotation apart for ever: once the old row is quiet for rotationQuiet, the next sighting of the new row joins them.
-func TestContract_D598_ALateSightingDoesNotBlockARotation(t *testing.T) {
+func TestContract_ALateSightingDoesNotBlockARotation(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(privMac1, "192.168.18.20", "kiens-ipad")...)
+	e.record(dhcp(privMac1, "192.168.18.20", "annas-ipad")...)
 	e.tick(2 * time.Minute)
-	e.record(dhcp(privMac2, "192.168.18.21", "kiens-ipad")...) // too soon after the old address: not joined yet
+	e.record(dhcp(privMac2, "192.168.18.21", "annas-ipad")...) // too soon after the old address: not joined yet
 	e.tick(time.Minute)
-	e.record(dhcp(privMac1, "192.168.18.20", "kiens-ipad")...) // a late sighting of the old row, after the new one appeared
+	e.record(dhcp(privMac1, "192.168.18.20", "annas-ipad")...) // a late sighting of the old row, after the new one appeared
 	if e.devices() != 2 {
 		t.Fatalf("setup: %d devices", e.devices())
 	}
 	e.tick(30 * time.Minute)
-	e.record(dhcp(privMac2, "192.168.18.21", "kiens-ipad")...)
+	e.record(dhcp(privMac2, "192.168.18.21", "annas-ipad")...)
 	if d := e.only(); d.IP != "192.168.18.21" {
 		t.Errorf("device at %s", d.IP)
 	}
 }
 
-// D-598 (2): ApproveEnrolled finds the device by the node first, wherever its address went.
-func TestContract_D598_ApproveEnrolledFindsTheNodesDevice(t *testing.T) {
+// ApproveEnrolled finds the device by the node first, wherever its address went.
+func TestContract_ApproveEnrolledFindsTheNodesDevice(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	id := e.idOf("192.168.18.20")
@@ -427,9 +427,9 @@ func TestContract_D598_ApproveEnrolledFindsTheNodesDevice(t *testing.T) {
 	}
 }
 
-// D-598, review #831 L6: a service list that moves an address (a sensor's MAC on the address an agent's row held) runs the joins as an
+// A service list that moves an address (a sensor's MAC on the address an agent's row held) runs the joins as an
 // observation batch does: the agent's address-less row joins the machine's device, one device.
-func TestContract_D598_AListAlsoJoins(t *testing.T) {
+func TestContract_AListAlsoJoins(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	e.tick(time.Hour)

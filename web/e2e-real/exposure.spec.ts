@@ -250,10 +250,10 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
       await expect(verify.getByLabel('TXT record value', { exact: true })).toHaveText(`vedette-verify=${t.token}`)
       await expect(verify.getByRole('button', { name: 'About TXT record value' })).toHaveAccessibleDescription(/This record only proves you control the DNS\. It gives Vedette no other access\./)
       await expect(page.getByText(/reverse dns/i)).toHaveCount(0)
-      await expect(page.locator('input[type="file"]')).toHaveCount(0) // no consent document to upload (D-26)
+      await expect(page.locator('input[type="file"]')).toHaveCount(0) // no consent document to upload
       // the Check button is there; it is not pressed: it asks real DNS (see the header)
       await expect(verify.getByRole('button', { name: 'Check', exact: true })).toBeEnabled()
-      // D-473: there is no confirm step: no record panel before the first scan, and nothing to tick
+      // There is no confirm step: no record panel before the first scan, and nothing to tick
       await expect(page.locator('#step-commit')).toHaveCount(0)
       await expect(page.getByRole('checkbox')).toHaveCount(0)
       await page.getByRole('tab', { name: 'Results' }).click()

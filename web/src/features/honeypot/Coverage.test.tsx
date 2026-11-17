@@ -5,8 +5,8 @@ import CoverageSection from './Coverage'
 
 const row = (move: string) => screen.getByText(move).closest('li') as HTMLElement
 
-// W6-2: without a listening Trap IP the box still answers URL tokens, so bait is partly covered, not "Not covered".
-// D-467: a row is covered only when what fires it listens: SMB for shares, a login service for credentials, two Trap IPs for a sweep alert.
+// Without a listening Trap IP the box still answers URL tokens, so bait is partly covered, not "Not covered".
+// A row is covered only when what fires it listens: SMB for shares, a login service for credentials, two Trap IPs for a sweep alert.
 describe('CoverageSection', () => {
   it('keeps URL tokens covered when no Trap IP listens', () => {
     render(<MemoryRouter><CoverageSection services={[]} listeningIps={0} /></MemoryRouter>)

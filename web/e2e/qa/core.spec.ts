@@ -1,4 +1,4 @@
-// QA như người dùng thật cho module core: cài đặt ban đầu, đăng nhập, cài đặt, tài khoản. Giao diện chỉ có tiếng Anh (D-28).
+// QA như người dùng thật cho module core: cài đặt ban đầu, đăng nhập, cài đặt, tài khoản. Giao diện chỉ có tiếng Anh.
 // Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/core.spec.ts
 import { createHmac } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
@@ -10,11 +10,11 @@ test.use({ actionTimeout: 10_000 })
 const PW = 'a-very-long-password-123'
 const LOGIN = { email: 'admin@example.test', password: PW }
 const SAMPLE = { admin: 'admin@acme.example', operator: 'it@acme.example', viewer: 'director@acme.example', password: 'vedette-demo' }
-// chữ Việt có dấu không được lọt vào giao diện (trừ tên tác giả "Kiên" trong dòng giấy phép và dữ liệu mẫu do người dùng/seed đặt)
+// chữ Việt có dấu không được lọt vào giao diện (trừ dữ liệu mẫu do người dùng/seed đặt)
 const VI = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i
-const ALLOWED_VI = /Kiên|acme\.example/
+const ALLOWED_VI = /acme\.example/
 
-// the page heading is the box OS line (S-CORE-7, D-53); the Vedette software version is in its table
+// the page heading is the box OS line (S-CORE-7); the Vedette software version is in its table
 // installed version of the Vedette software row (table row on desktop, list item on a phone); first .font-mono is the version column
 const softwareVersion = (page: Page) => page.locator('#vedette tbody tr, #vedette li').filter({ hasText: /^Vedette software/ }).first().locator('.font-mono').first()
 const h1 = (page: Page) => page.getByRole('heading', { level: 1 }).first()
@@ -32,7 +32,7 @@ async function startSample(page: Page) {
   await page.evaluate(() => localStorage.clear())
   await page.goto('/')
   await expect(page).toHaveURL(/\/setup/)
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Use sample data' }).click()
   await expect(h1(page)).toContainText('Today')
@@ -41,9 +41,9 @@ async function startClean(page: Page, org = 'Test Company') {
   await page.goto('/')
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // D-75: the code the mock accepts
+  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // The code the mock accepts
   await page.getByLabel('Organization name', { exact: true }).fill(org)
   await page.getByLabel('Administrator name', { exact: true }).fill('Alex Admin')
   await page.getByLabel('Sign-in email', { exact: true }).fill(LOGIN.email)
@@ -94,20 +94,20 @@ function totp(secret: string, at = Date.now()) {
 }
 
 test.describe('first-run setup', () => {
-  test('D-462: a double-click on Continue moves one step; a double-click on Finish setup sends setup once', async ({ page }) => {
+  test('a double-click on Continue moves one step; a double-click on Finish setup sends setup once', async ({ page }) => {
     const errors = collectErrors(page)
     let posts = 0
     page.on('request', (r) => { if (r.method() === 'POST' && new URL(r.url()).pathname.endsWith('/core/setup')) posts++ })
     await startClean(page)
     await page.getByRole('button', { name: 'Continue' }).dblclick()
-    // the mock prefills Range 1 with the box's network (D-405), so a second submit here would pass: it must not happen
+    // the mock prefills Range 1 with the box's network, so a second submit here would pass: it must not happen
     await expect(page.getByRole('heading', { level: 2, name: 'Network to watch' })).toBeVisible()
     await page.getByRole('button', { name: 'Continue' }).dblclick()
     await expect(page.getByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeVisible()
     await page.waitForTimeout(300) // nothing is sent behind the step
     expect(posts).toBe(0)
     await page.getByRole('button', { name: 'Finish setup' }).dblclick()
-    // Home of a clean box: its heading is the "CISA list not fetched yet" sentence (D-92), not "Today"; the D-462 reminder shows it landed
+    // Home of a clean box: its heading is the "CISA list not fetched yet" sentence, not "Today"; the alert channel reminder shows it landed
     await expect(page).toHaveURL(/\/$/)
     await expect(page.getByText('No alert channel yet')).toBeVisible()
     expect(posts).toBe(1)
@@ -125,12 +125,12 @@ test.describe('first-run setup', () => {
     await expectAccessible(page, 'setup step 1')
     await noVietnamese(page, 'setup 1')
 
-    await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+    await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
     await page.getByRole('button', { name: 'Continue' }).click()
     // step 1: empty, weak password, mismatch, bad email
     await next(page)
     await expect(page.getByText('Enter the organization name (at least 2 characters).')).toBeVisible()
-    await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // D-75: the code the mock accepts
+    await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // The code the mock accepts
     await page.getByLabel('Organization name', { exact: true }).fill('QA Company')
     await page.getByLabel('Administrator name', { exact: true }).fill('QA Admin')
     await page.getByLabel('Sign-in email', { exact: true }).fill('not-an-email')
@@ -157,7 +157,7 @@ test.describe('first-run setup', () => {
     await page.getByLabel('Range 1', { exact: true }).fill('10.0.0.0/0')
     await next(page)
     await expect(page.getByText(/is not a private range/)).toBeVisible()
-    // D-461: 100/8 outside the RFC 6598 shared address space is public; the sentence names 100.64-127.x
+    // 100/8 outside the RFC 6598 shared address space is public; the sentence names 100.64-127.x
     await page.getByLabel('Range 1', { exact: true }).fill('100.128.0.0/24')
     await next(page)
     await expect(page.getByText('100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.')).toBeVisible()
@@ -183,7 +183,7 @@ test.describe('first-run setup', () => {
     await page.getByRole('button', { name: 'Add range' }).click()
     await next(page)
     await expect(page.getByText('Fill in this range or remove the row.')).toBeVisible()
-    await page.getByLabel('Range 3', { exact: true }).fill('100.65.254.0/24') // a LAN behind carrier-grade NAT (RFC 6598) is local (D-461)
+    await page.getByLabel('Range 3', { exact: true }).fill('100.65.254.0/24') // a LAN behind carrier-grade NAT (RFC 6598) is local
     // the single commitment checkbox and the license line replace the consent upload
     await expect(page.getByLabel(/Upload/)).toHaveCount(0)
     await expect(page.locator('input[type=file]')).toHaveCount(0)
@@ -201,7 +201,7 @@ test.describe('first-run setup', () => {
     await next(page)
     await page.getByRole('radio', { name: /Mid-size business/ }).click()
     await shot(page, 'core', 'setup-3')
-    // D-462: three steps; Modules is the last one and finishes setup, there is no Alerts step
+    // Three steps; Modules is the last one and finishes setup, there is no Alerts step
     await expect(page.getByRole('list', { name: 'Setup steps' }).getByRole('listitem')).toHaveCount(3)
     await expect(page.getByRole('button', { name: 'Continue' })).toHaveCount(0)
     await page.getByRole('button', { name: 'Finish setup' }).click()
@@ -262,7 +262,7 @@ test.describe('sign-in and two-step', () => {
     test.setTimeout(120_000)
     await startSample(page)
     await page.goto('/settings/account?tab=sign-in')
-    // D-76: turning two-step on needs the current password, as turning it off does
+    // Turning two-step on needs the current password, as turning it off does
     await page.getByLabel('Your current password', { exact: true }).fill('wrong')
     await page.getByRole('button', { name: 'Set up authenticator app' }).click()
     await expect(page.getByText(/The password is needed to turn on two-step sign-in/)).toBeVisible()
@@ -353,7 +353,7 @@ test.describe('users and roles', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await logoutApi(page)
     await login(page, 'lan@example.test', temp)
-    // D-180: a password an administrator set is changed at the first sign-in
+    // A password an administrator set is changed at the first sign-in
     const lanPw = 'lan-chose-this-one-2026'
     await expect(page.getByRole('heading', { name: 'Choose a new password' })).toBeVisible()
     await page.getByLabel('Temporary password', { exact: true }).fill(temp)
@@ -403,7 +403,7 @@ test.describe('modules', () => {
     // no multi-site module anywhere
     await expect(page.getByRole('switch', { name: /Multi-site/ })).toHaveCount(0)
     await expect(nav.getByRole('link', { name: 'Multi-site' })).toHaveCount(0)
-    // D-624: AI response is not offered in v1 and no bundle turns on a preview module, so the dependency check uses a v1/preview
+    // AI response is not offered in v1 and no bundle turns on a preview module, so the dependency check uses a v1/preview
     // pair: Reports (preview) needs Notifications (v1). Turn Notifications off first, then ask for Reports.
     const sw = (name: string) => page.getByRole('switch', { name: new RegExp(`^Turn (on|off) module ${name}$`) })
     await expect(page.getByRole('switch', { name: /module AI response$/ })).toHaveCount(0)
@@ -464,7 +464,7 @@ test.describe('updates', () => {
     await page.getByRole('button', { name: /Back to 0\.9\.3/ }).click()
     await page.getByRole('button', { name: 'Cancel' }).click()
     await page.getByRole('button', { name: /Back to 0\.9\.3/ }).click()
-    // 0.9.4 changed the database (D-340): the rollback puts back the old one, so it needs the box ticked
+    // 0.9.4 changed the database: the rollback puts back the old one, so it needs the box ticked
     await expect(page.getByRole('dialog')).toContainText('Data written since the update is lost.')
     await expect(page.getByRole('button', { name: 'Roll back', exact: true })).toBeDisabled()
     await expectAccessible(page, 'updates rollback that restores data')
@@ -502,8 +502,8 @@ test.describe('updates', () => {
   })
 })
 
-// S-CORE-2 criterion D-316: the system helper is the first step of the software run. The mock's outcome is set in its store (no button).
-test.describe('updates: system helper (D-316)', () => {
+// S-CORE-2: the system helper is the first step of the software run. The mock's outcome is set in its store (no button).
+test.describe('updates: system helper', () => {
   test.skip(({ isMobile }) => isMobile, 'desktop only')
   const helperRow = (page: Page) => page.locator('#vedette tbody tr').filter({ hasText: /^System helper/ })
   async function updateWith(page: Page, code: string | null) {
@@ -561,7 +561,7 @@ test.describe('updates: system helper (D-316)', () => {
 })
 
 test.describe('privacy', () => {
-  test('16 flows, anonymous signal shown as not sent (D-153)', async ({ page, isMobile }) => {
+  test('16 flows, anonymous signal shown as not sent', async ({ page, isMobile }) => {
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/privacy')
@@ -580,7 +580,7 @@ test.describe('privacy', () => {
 
 test.describe('MCP server', () => {
   test('turn on, token shown once, revoke', async ({ page }) => {
-    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden')
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/mcp')
@@ -625,7 +625,7 @@ test.describe('data', () => {
       const body = JSON.parse(fs.readFileSync((await (await dl).path())!, 'utf8')) as Record<string, unknown>
       expect(body.format).toBe(fmt)
       expect(JSON.stringify(body)).not.toContain(PW)
-      // a clean install holds no sample data; the box itself is the one asset (D-53 item 4)
+      // a clean install holds no sample data; the box itself is the one asset
       expect((body.assets as { id: string }[]).map((a) => a.id)).toEqual(['a-box'])
     }
     await page.getByRole('button', { name: 'Delete all data', exact: true }).click()
@@ -640,7 +640,7 @@ test.describe('data', () => {
     await dlg.getByLabel(/Type the organization name/).fill('Test Company')
     await dlg.getByLabel(/Type the organization name/).press('Enter') // Enter alone must not delete
     await expect(dlg).toBeVisible()
-    // D-154: the box says exactly what goes and what stays, and wants the current password as well as the name
+    // The box says exactly what goes and what stays, and wants the current password as well as the name
     await expect(dlg).toContainText('Deleted: all data, users and backups')
     await expect(dlg).toContainText('The decryption key is replaced')
     await expect(dlg).toContainText('Kept: the TLS certificate, the system journal')
@@ -660,12 +660,12 @@ test.describe('data', () => {
     await login(page, LOGIN.email, LOGIN.password)
     await expect(page).toHaveURL(/\/setup|\/login/)
     await page.goto('/setup')
-    await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+    await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Use sample data' }).click()
     await expect(h1(page)).toContainText('Today')
     await page.goto('/devices')
-    // the box itself is a sample device too (D-53 item 4): 31 + 1
+    // the box itself is a sample device too: 31 + 1
     await expect(h1(page)).toContainText('32 devices')
     await page.goto('/settings/data')
     await page.getByRole('button', { name: 'Restore sample data', exact: true }).click()
@@ -768,7 +768,7 @@ test.describe('look and feel', () => {
     await page.keyboard.press('Tab'); await expect(page.getByLabel('Sign-in email', { exact: true })).toBeFocused()
     await page.keyboard.press('Tab'); await expect(page.getByLabel('Password', { exact: true })).toBeFocused()
     await page.keyboard.press('Tab'); await expect(page.getByLabel('Repeat password', { exact: true })).toBeFocused()
-    await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0) // W2-8: step 1 has no Back
+    await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0) // Step 1 has no Back
     await page.keyboard.press('Tab'); await expect(page.getByRole('button', { name: 'Continue' })).toBeFocused()
     // network step on a phone: rows fit, no sideways scroll
     await startClean(page)

@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// Protocol versions (D-230). The server is dual-era: a request that carries the 2026-07-28 per-request _meta is served
+// Protocol versions. The server is dual-era: a request that carries the 2026-07-28 per-request _meta is served
 // statelessly by that revision; an initialize request selects a legacy revision. No session is ever minted (both eras allow
 // that), so the server keeps no state between requests and an Mcp-Session-Id header is ignored.
 const modernVersion = "2026-07-28"
@@ -121,7 +121,7 @@ func (s *Service) serveMCP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Every authenticated request takes from the token's bucket, whatever becomes of it (D-232).
+	// Every authenticated request takes from the token's bucket, whatever becomes of it.
 	if ok, retry := s.limits.allow(tok.ID); !ok {
 		a := limited(retry)
 		writeJSON(w, a.status, nil, a)
@@ -156,7 +156,7 @@ func (s *Service) serveMCP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), callTimeout)
 	defer cancel()
-	// The answer slot is taken only now, with the body read: a slow sender holds none (D-232).
+	// The answer slot is taken only now, with the body read: a slow sender holds none.
 	release, ok := s.limits.acquire(ctx, tok.ID)
 	if !ok {
 		w.Header().Set("Retry-After", "1")
@@ -425,7 +425,7 @@ func (s *Service) toolError(e era, msg string) answer {
 	return answer{result: s.complete(e, map[string]any{"content": []map[string]any{{"type": "text", "text": msg}}, "isError": true})}
 }
 
-// call runs one tool (INV-1, INV-2, INV-6) and writes its audit row before anything is answered (D-232).
+// call runs one tool (INV-1, INV-2, INV-6) and writes its audit row before anything is answered.
 func (s *Service) call(ctx context.Context, e era, tok Token, params json.RawMessage) answer {
 	var p struct {
 		Name      string          `json:"name"`

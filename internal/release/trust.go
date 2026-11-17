@@ -12,7 +12,7 @@ import (
 )
 
 // Trust is the set of keys a verification trusts. In production it comes from Embedded; tests (and
-// the host's test seam, D-107) build it from the keys under testdata.
+// the host's test seam) build it from the keys under testdata.
 type Trust struct {
 	Active, Backup MinisignKey        // the signing key and the offline recovery key
 	Cosign         []*ecdsa.PublicKey // one key, or two during a rotation (update-manifest.md §5.2)
@@ -20,7 +20,7 @@ type Trust struct {
 	// Retired are minisign keys that no longer sign. They are used only by VerifyStoredIndex, to
 	// re-verify the index the box stored while the keys were active (so a key rotation does not make
 	// the box forget its sequence floor and revocations); they never accept a new index or manifest
-	// (update-manifest.md §5.2, D-130).
+	// (update-manifest.md §5.2).
 	Retired []MinisignKey
 	// MinSequence is the lowest index sequence a box with nothing stored accepts: the release job
 	// raises it at build time (MinSequenceText) so a fresh install cannot be fed an old index.

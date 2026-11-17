@@ -1,4 +1,4 @@
-// One rule for "can Vedette scan this device now" (kien G12, review r1 of #944): the device page's "Check this device now", the
+// One rule for "can Vedette scan this device now": the device page's "Check this device now", the
 // Devices list's "Scan selected", the finding page's and To fix's "I updated it" for scan-read software, and the device page's fragile
 // line all read it, so none offers or promises a scan the box refuses. It follows what POST /scanning/engines/nmap-discovery/run
 // refuses (sensor-active runnow.go: the box and outside the scope are out_of_scope; never scan, added by hand, no address are
@@ -15,7 +15,7 @@ export type ScanRefusal = DeviceRefusal | 'scope' | 'discovery_off'
 export function deviceRefusal(d: ScanFacts, safety?: Safety): DeviceRefusal | null {
   if (d.is_box) return 'box'
   if (!d.ip || d.ip === '—') return 'no_ip'
-  // D-601: the device's network scan, on or off on its Sources card (a device added by hand starts off; off is "never" to the server)
+  // The device's network scan, on or off on its Sources card (a device added by hand starts off; off is "never" to the server)
   if (d.scan_source === 'off') return d.origin === 'manual' ? 'manual' : 'never'
   if (d.regular_scan === 'never') return 'never'
   // the scope check runs only once there are ranges: with none, the scope itself is not confirmed (scanRefusal says so)

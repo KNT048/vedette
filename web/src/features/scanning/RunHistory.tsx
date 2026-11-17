@@ -11,8 +11,8 @@ import type { HistoryRun } from './types'
 
 const tone = { ok: 'ok', partial: 'warn', failed: 'danger', stopped: 'warn', running: 'accent' } as const
 
-/** A run's outcome as History says it: the chip and the sentence the box wrote from what the run stored (kien G7a). The device
- *  page's Last checks shows the same (kien G7b/c). */
+/** A run's outcome as History says it: the chip and the sentence the box wrote from what the run stored. The device
+ *  page's Last checks shows the same. */
 export function HistoryOutcome({ r }: { r: HistoryRun }) {
   const { t } = useTranslation('scanning')
   return <div className="grid justify-items-start gap-1 text-meta"><Chip tone={tone[r.outcome]}>{t(`history.outcome.${r.outcome}`)}</Chip><span>{r.text}</span></div>
@@ -47,10 +47,10 @@ function Opened({ r }: { r: HistoryRun | undefined }) {
 }
 
 /**
- * kien G7a: Settings › Scanning › History lists every run, not only the vulnerability checks: discovery sweeps, the identification
+ * Settings › Scanning › History lists every run, not only the vulnerability checks: discovery sweeps, the identification
  * of a device ("Check this device now", the first step of Scan now, the window's queue), SNMP reads and the scans of public
  * targets, each with what it found in words. Served by core (GET /scanning/history), so it answers while the scan module is off.
- * kien G7b/c: from a device page's Last checks, ?asset= lists only that device's runs and ?job= shows the run it opened on top.
+ * From a device page's Last checks, ?asset= lists only that device's runs and ?job= shows the run it opened on top.
  */
 export function RunHistory() {
   const { t } = useTranslation('scanning')

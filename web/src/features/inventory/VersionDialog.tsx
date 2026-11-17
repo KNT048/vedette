@@ -9,7 +9,7 @@ import { useDeviceAction } from './api'
 import { errMsg } from './kinds'
 import type { SoftwareView } from './types'
 
-/** "Change the version" of software a person declared (D-471 edit version); empty removes it. */
+/** "Change the version" of software a person declared (edit version); empty removes it. */
 export function VersionDialog({ sw, assetId, onClose }: { sw: Pick<SoftwareView, 'id' | 'display' | 'version'> | null; assetId: string; onClose: () => void }) {
   const { t } = useTranslation('inventory')
   const act = useDeviceAction(assetId)

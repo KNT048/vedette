@@ -25,7 +25,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Caps and timings of D-169 (2).
+// Caps and timings of the intake.
 const (
 	MaxTokens         = 50
 	MaxNodesPerToken  = 500
@@ -46,10 +46,10 @@ type Config struct {
 	Audit    *audit.Log
 	Sink     observe.Sink         // the inventory: device observations (core/observe)
 	Software observe.SoftwareSink // the inventory: the software list of a device
-	Approver observe.Approver     // the inventory: the enrolment approves the device a node reports on (D-503)
+	Approver observe.Approver     // the inventory: the enrolment approves the device a node reports on
 	Services observe.ServiceSink  // the inventory: the open ports a machine's agent reports (INV-22); nil: they are not recorded
 	Secrets  *secrets.Store       // the Wazuh password (purpose intake_wazuh.password)
-	Conn     *conn.Service        // the HTTPS client and address policy of D-94 for the Wazuh server (D-305)
+	Conn     *conn.Service        // the HTTPS client and address policy for the Wazuh server
 	Clock    func() time.Time
 	Log      *slog.Logger
 
@@ -58,7 +58,7 @@ type Config struct {
 	// never used for the box address.
 	TrustAnchor func() ([]byte, error) // the PEM certificates osquery pins (cmd/vedette trustAnchor); ErrNoTrustAnchor when the box has no certificate
 	HostAllowed func(host string) bool // the Host allow-list of the server (server.HostMatcher): the only Hosts the scripts may carry
-	BoxURL      func() string          // the Box address (D-465) as https://host[:port], read at every use; nil or "" when there is none
+	BoxURL      func() string          // the Box address as https://host[:port], read at every use; nil or "" when there is none
 	MirrorDir   string                 // the folder of the image that holds the pinned osquery packages
 }
 
@@ -110,7 +110,7 @@ func New(cfg Config) (*Service, error) {
 func (s *Service) now() time.Time { return s.cfg.Clock().UTC() }
 
 // errNodeInvalid is every credential failure: an unknown, revoked or expired token, a key that is not (or no longer) a node's, a request
-// that is not shaped like one of ours. The handler answers 200 + node_invalid for it and never says which (D-169 (8)).
+// that is not shaped like one of ours. The handler answers 200 + node_invalid for it and never says which.
 var errNodeInvalid = errors.New("agentintake: node invalid")
 
 func hashHex(s string) string {
@@ -215,7 +215,7 @@ func (t tokenRow) expired(now time.Time) bool { return !t.expires.IsZero() && !n
 
 // ---- enrol ----
 
-// Enroll exchanges an enrolment token for a node key (D-169 (2)). The key is returned once and only its hash is kept. A bad token is
+// Enroll exchanges an enrolment token for a node key. The key is returned once and only its hash is kept. A bad token is
 // errNodeInvalid and counts against the source (429 after 10 a minute); the same (token, host_identifier) cannot enrol again within
 // 60 seconds; the caps are 500 nodes per token and 5,000 in all (429 too_many_nodes).
 func (s *Service) Enroll(ctx context.Context, src netip.Addr, in enrollIn) (string, error) {
@@ -301,7 +301,7 @@ func (s *Service) enrollTx(ctx context.Context, tx *sql.Tx, t tokenRow, in enrol
 	return oldID, s.auditTx(ctx, tx, systemActor, "inventory.agent_enroll", in.hostIdentifier, fmt.Sprintf("token %q, host %q", t.name, in.hostname))
 }
 
-// releaseNodes tells the inventory these nodes are gone (D-598): the devices bound to them may be bound by the next node. It runs after
+// releaseNodes tells the inventory these nodes are gone: the devices bound to them may be bound by the next node. It runs after
 // the deleting transaction committed; a failure is logged, never returned: the device then stays found by address until a later release.
 func (s *Service) releaseNodes(ctx context.Context, ids []string) {
 	r, ok := s.cfg.Approver.(observe.AgentReleaser)
@@ -331,9 +331,9 @@ type nodeRow struct {
 	boundIP     netip.Addr
 	boundMAC    string
 	reported    string    // the answers of the first report the inventory took (schedule.go firstReport), comma-separated
-	approved    bool      // the enrolment's approval was done (D-503)
-	kernel      string    // the running kernel release the node last reported (kernel_info, D-516), "" until it has
-	win         winOS     // the Windows release and update revision the node last reported (os_revision, D-524), zero until it has
+	approved    bool      // the enrolment's approval was done
+	kernel      string    // the running kernel release the node last reported (kernel_info), "" until it has
+	win         winOS     // the Windows release and update revision the node last reported (os_revision), zero until it has
 	hostname    string    // the host name osquery gave at enrolment (host_details.system_info), "" when none
 	hostID      string    // the host_identifier it enrolled under (the install scripts send the machine's host name, --host_identifier=specified)
 	askedAt     time.Time // when a person last asked it to send its software now (report.go), zero when never
@@ -395,7 +395,7 @@ func (s *Service) authNode(ctx context.Context, op string, src netip.Addr, key s
 }
 
 // Config answers a config request: errNodeInvalid for an unknown key, else the schedule of this node (schedule.go nodeSchedule: a node
-// in its first hour asks every minute for the answers of its first report the inventory has not taken yet, D-503).
+// in its first hour asks every minute for the answers of its first report the inventory has not taken yet).
 func (s *Service) Config(ctx context.Context, src netip.Addr, nodeKey string) (*oas.InventoryPostIntakeOsqueryConfigOK, error) {
 	n, err := s.authNode(ctx, "config", src, nodeKey, "config", configPerMin)
 	if err != nil {

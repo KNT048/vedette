@@ -2,7 +2,7 @@
 // release manifest, and the cosign signature of each container image. It is pure (no files, no
 // network, no clock: callers pass bytes and, where it matters, the time) and is shared by
 // vedette-host, which verifies again on its own and does not trust core, and by core, which
-// verifies to show the result (docs/specs/update-manifest.md §5, D-103, D-104).
+// verifies to show the result (docs/specs/update-manifest.md §5).
 //
 // # Trust model
 //

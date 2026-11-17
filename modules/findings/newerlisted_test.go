@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// NVD's configurations of the CVEs the N100's "Could not be checked" list showed for software NVD names only at older exact
+// NVD's configurations of the CVEs a test box's "Could not be checked" list showed for software NVD names only at older exact
 // versions (public NVD data, services.nvd.nist.gov 2026-11-17; every entry vulnerable, in OR nodes, no "running on" platform).
 func newerListedVulns() []Vuln {
 	cpes := func(cve, vendor, product string, cs ...string) Vuln {
@@ -68,11 +68,11 @@ func newerListedOutcome(t *testing.T, s Software, vulns []Vuln) map[string]strin
 	return out
 }
 
-// N100 DESKTOP-55UKKFV, 2026-11-17: Java 8 Update 491, SQL Server 2022's RsFx Driver and Edge 157 were "could not be checked" for
+// A test box's DESKTOP-55UKKFV, 2026-11-17: Java 8 Update 491, SQL Server 2022's RsFx Driver and Edge 157 were "could not be checked" for
 // CVEs NVD lists only at older exact versions (Java "1.8.0 update401", SQL Server 2000 to 2008, Edge 116 and 117). NVD's list does
 // not name them: not a candidate, and no verdict either (no finding, nothing "not affected"). The same CVEs stay on the list for a
 // version NVD lists, or an older one (an exact list is often the last affected update: Oracle's "8u77 and earlier").
-func TestUnchecked_NewerThanListed_N100(t *testing.T) {
+func TestUnchecked_NewerThanListed_LabBuild(t *testing.T) {
 	t.Parallel()
 	vulns := newerListedVulns()
 	java := func(ver string) Software {
@@ -111,7 +111,7 @@ func TestUnchecked_NewerThanListed_N100(t *testing.T) {
 
 // Review r1 H1 of #970: NVD names many products by their release line ("esxi:8.0" with the update in the CPE, "solaris:11") while
 // the computer reports the whole number. Those versions are inside the listed release, not after it: every row stays listed (NVD's
-// public configurations of the KEV entries, from the N100 copy; Java 11 on a synthetic entry, no KEV entry lists jre:11.0).
+// public configurations of the KEV entries, from a test box's copy; Java 11 on a synthetic entry, no KEV entry lists jre:11.0).
 func TestUnchecked_NewerThanListed_ReleaseLines(t *testing.T) {
 	t.Parallel()
 	cpes := func(cve, vendor, product string, cs ...string) Vuln {
@@ -248,7 +248,7 @@ func TestLaterThan(t *testing.T) {
 		{"cpe:2.3:a:acme:widget:15.2\\(4\\)m3:*:*:*:*:*:*:*", "16.0", false},
 		{"cpe:2.3:a:acme:widget:2016:*:*:*:*:*:*:*", "16.0.1", false}, // two schemes (schemeClash)
 		{"cpe:2.3:a:microsoft:edge:117.0.2045.47:*:*:*:*:*:*:*", "157.0.4341.60", true},
-		// SQL Server: NVD's release names against a build's major (D-606)
+		// SQL Server: NVD's release names against a build's major
 		{"cpe:2.3:a:microsoft:sql_server:2008:sp3:*:*:*:*:*:*", "16.0.1000.6", true},
 		{"cpe:2.3:a:microsoft:sql_server:2008:r2_sp2:*:*:*:*:*:*", "10.50.6000.34", false},
 		{"cpe:2.3:a:microsoft:sql_server:2016:*:*:*:*:*:*:*", "12.0.6024.0", false},

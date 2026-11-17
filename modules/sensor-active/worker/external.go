@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// The own-IP fence of the external shapes (D-514, plan exposure-real-vulns §1.3; the two full shapes of D-526 too). They are the
+// The own-IP fence of the external shapes (the two full shapes too). They are the
 // only ones whose target is public; the grammar alone would let a core that was taken over port-scan anyone from the customer's IP. So the worker checks
 // by itself, right before nmap, that the box leaves the Internet through that address: the same three public services and the
 // same two-of-three rule as exposure (core/egressip), up to EgressRounds rounds so every address of a load-balanced uplink can
@@ -74,8 +74,8 @@ func (w *Worker) checkIP(ctx context.Context, ip netip.Addr, cached bool) (ok bo
 	return false, reason
 }
 
-// EgressRecheck is how often a running full job checks again that the box still goes out through its target (D-526, review r1
-// H1): a full run lasts up to an hour, and a line whose public address changes meanwhile (a forced PPPoE or DHCP reconnect) hands
+// EgressRecheck is how often a running full job checks again that the box still goes out through its target:
+// a full run lasts up to an hour, and a line whose public address changes meanwhile (a forced PPPoE or DHCP reconnect) hands
 // the old address to someone else. The re-check is the whole fence again, without the cached yes.
 const EgressRecheck = 3 * time.Minute
 

@@ -25,13 +25,13 @@ type Config struct {
 	Prober    EgressProber    // the three public IP services (PublicServiceProber); tests pass a fake
 	Publisher Publisher       // nil: no events
 	Runner    Runner          // nil: scanning answers 501 until the scan module registers one
-	TwoStep   TwoStep         // nil: nobody has two-step sign-in, so no first scan can record the commitment (D-473)
-	Gateway   Gateway         // nil: the page makes no claim about which device answers the open ports (D-492)
+	TwoStep   TwoStep         // nil: nobody has two-step sign-in, so no first scan can record the commitment
+	Gateway   Gateway         // nil: the page makes no claim about which device answers the open ports
 	Services  ServiceScanner  // nil: every scan of an IP says service identification is not set up (INV-19)
 	Templates TemplateScanner // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
 	Web       WebScanner      // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
 	Greenbone GreenboneHost   // nil: the setting and every scan of an IP say NotAvailableGreenbone, "OpenVAS is not available on this box." (INV-25)
-	// DomainFence nil: a domain's deep scan (D-571) reaches only the box's own verified IP; every other public address of its names
+	// DomainFence nil: a domain's deep scan reaches only the box's own verified IP; every other public address of its names
 	// gets a "needs the domain fence" line and nothing more than the by-name checks.
 	DomainFence DomainFence
 	DataDir     string           // the box data directory: Greenbone's preflight measures the free space of its filesystem (INV-25)
@@ -56,18 +56,18 @@ type Service struct {
 	runner Runner
 
 	runMu       sync.Mutex           // guards run, its view, lastScan, lastOutside, off, closed, feedSync and feedSyncAt
-	feedSync    bool                 // Greenbone's weekly feed update holds the box's one scan slot (D-564 G6): begin refuses
+	feedSync    bool                 // Greenbone's weekly feed update holds the box's one scan slot: begin refuses
 	feedSyncAt  time.Time            // when that feed update started (the busy answer says it)
 	off         bool                 // the module is switched off (ModuleSwitched): begin refuses
 	closed      bool                 // the box is shutting down (Close)
-	run         *scanRun             // the scan that runs now, or the last one (INV-18); one at a time on the box (D-229): a second one is 409 busy; a restart forgets it
+	run         *scanRun             // the scan that runs now, or the last one (INV-18); one at a time on the box: a second one is 409 busy; a restart forgets it
 	lastScan    map[string]time.Time // when each target's last scan started (ScanEvery; kept in memory, a restart forgets it)
 	lastOutside time.Time            // when the box last asked Shodan (OutsideEvery; kept in memory, a restart forgets it)
 
 	gbOnce sync.Once
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
 
-	bg context.Context // FULL-2 (Trưởng), for Mlee: the service's own context for work the registry's module switch starts (it has none)
+	bg context.Context // the service's own context for work the registry's module switch starts (it has none)
 }
 
 // NewService returns the service. DB, Audit, Resolver, Prober and Log are required.
@@ -294,7 +294,7 @@ func (s *Service) Target(ctx context.Context, id string) (TargetView, error) {
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
 	}
-	if w := s.sharedAddress(ctx, t); w != "" { // D-566 review r1 M2: on the one target page only, not on every list
+	if w := s.sharedAddress(ctx, t); w != "" { // On the one target page only, not on every list
 		v.TermsWarning = &w
 	}
 	return v, nil
@@ -328,11 +328,11 @@ func newToken() string {
 	return hex.EncodeToString(b)
 }
 
-// domainToken is the TXT token a new domain gets (D-591, plan 2026-11-14 §5) and whether it came from the host (fromHost: the host
+// domainToken is the TXT token a new domain gets and whether it came from the host (fromHost: the host
 // listed the domain, so a failed add must give the slot back). With a DomainFence: the box-bound token, so the executors' fence can
 // derive it themselves and the domain's deep scan of addresses that are not the box's can run; the host's own refusal (its cap) and a
 // transient error (busy, no answer: ErrFenceDown, "try again") are answered as they are; any other failure (an older host without the
-// op, a damaged key or list) falls back to a random token, logged with the reason (review r2 M-B): the domain is added and verified as
+// op, a damaged key or list) falls back to a random token, logged with the reason: the domain is added and verified as
 // on a container-only install, its passive scan works on any verified token, and its deep steps to addresses that are not the box's
 // say they need the box-bound TXT value. Without a fence (a container-only install) a random one, as before.
 func (s *Service) domainToken(ctx context.Context, domain string) (tok string, fromHost bool, err error) {
@@ -351,8 +351,8 @@ func (s *Service) domainToken(ctx context.Context, domain string) (tok string, f
 	return newToken(), false, nil
 }
 
-// DomainFenceForget is implemented by a DomainFence that can give a domain's slot back to the host (exposure.token_forget, review r2
-// M-A): a deleted domain target, or an add that failed after the host issued the token.
+// DomainFenceForget is implemented by a DomainFence that can give a domain's slot back to the host (exposure.token_forget):
+// a deleted domain target, or an add that failed after the host issued the token.
 type DomainFenceForget interface {
 	Forget(ctx context.Context, domain string) error
 }
@@ -369,7 +369,7 @@ func (s *Service) forgetDomain(ctx context.Context, domain string) {
 }
 
 // addChecks are AddDomain's checks of the list (a duplicate, the cap of targets), run once in a read before the host is asked for a
-// token, so a doomed add takes no host slot (review r2 M-A), and again in the write.
+// token, so a doomed add takes no host slot, and again in the write.
 func addChecks(ctx context.Context, q querier, value string) error {
 	if _, dup, err := loadTargetByValue(ctx, q, value); err != nil {
 		return err
@@ -412,7 +412,7 @@ func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, 
 		return s.audit(ctx, tx, user, "exposure.target_add", value, "")
 	})
 	if err != nil {
-		if fromHost && !dupNow { // review r2 M-A: a failed add never takes a slot (a target added meanwhile keeps its own)
+		if fromHost && !dupNow { // a failed add never takes a slot (a target added meanwhile keeps its own)
 			s.forgetDomain(ctx, value)
 		}
 		return TargetView{}, fmt.Errorf("exposure: adding domain: %w", err)
@@ -469,7 +469,7 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 	if err != nil {
 		return fmt.Errorf("exposure: deleting target: %w", err)
 	}
-	if kind == KindDomain { // review r2 M-A: the deleted domain's fence slot goes back to the host
+	if kind == KindDomain { // the deleted domain's fence slot goes back to the host
 		s.forgetDomain(ctx, value)
 	}
 	return nil
@@ -485,7 +485,7 @@ func (s *Service) Ignored(ctx context.Context) ([]IgnoredIP, error) {
 }
 
 // Restore takes an IP off the Ignored list (DELETE /exposure/box-ip/ignored/{ip}, INV-14). It only lets detection add the
-// IP again: nothing is added here, and the list never allows anything (D-25), so a restored IP that the box sees comes back
+// IP again: nothing is added here, and the list never allows anything, so a restored IP that the box sees comes back
 // as a new target that needs its commitment. ip must be a canonical IPv4 address (400 bad_value); one that is not on the
 // list is 404.
 func (s *Service) Restore(ctx context.Context, user, ip string) error {

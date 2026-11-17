@@ -45,8 +45,8 @@ function Interfaces({ d }: { d: NetworkState }) {
     setError(null)
     roles.mutate(Object.fromEntries(d.interfaces.map((i) => [i.name, i.name === name ? role : i.role])), { onError: (e) => setError(errMsg(e, t)), onSuccess: () => toast.success(t('network.interfaces.saved')) })
   }
-  // One role per row (customer walk 2, W2-7): the management port is fixed here (409 management_fixed / management_count), so another
-  // card is never offered Management; with SPAN hidden (D-403) a card that is not the SPAN port has one possible role, shown as text.
+  // One role per row: the management port is fixed here (409 management_fixed / management_count), so another
+  // card is never offered Management; with SPAN hidden a card that is not the SPAN port has one possible role, shown as text.
   const roleControl = (row: { original: NetInterface }) => {
     const r = row.original.role
     // #824: the why is behind ⓘ (reachable by keyboard and touch), not a hover-only title.
@@ -54,7 +54,7 @@ function Interfaces({ d }: { d: NetworkState }) {
     if (!SPAN_IN_UI && r !== 'span') return <Chip tone="off">{t('network.role.unused')}</Chip>
     return (
       <Select aria-label={t('network.interfaces.roleOf', { name: row.original.name })} value={r} disabled={gate.disabled || roles.isPending} title={gate.title} className="w-44" onChange={(e) => setRole(row.original.name, e.target.value as IfaceRole)}>
-        {/* D-403: while SPAN is hidden it is offered only as the role a card already has, so it can be set back to Unused. */}
+        {/* While SPAN is hidden it is offered only as the role a card already has, so it can be set back to Unused. */}
         {(['span', 'unused'] as const).map((o) => <option key={o} value={o}>{t(`network.role.${o}`)}</option>)}
       </Select>
     )
@@ -104,7 +104,7 @@ function Pending({ d }: { d: NetworkState }) {
   }, [d.pending, t])
   if (!d.pending) return null
   const ip = d.management.address ?? '?'
-  // The box could not go back by itself: it restarts, and the old settings on disk bring it back (D-100). Nothing to confirm or cancel any more.
+  // The box could not go back by itself: it restarts, and the old settings on disk bring it back. Nothing to confirm or cancel any more.
   if (d.pending.reboot_at) {
     return (
       <Notice tone="danger" role="alert" className="mb-4" title={t('network.pending.stuckTitle')}>
@@ -233,7 +233,7 @@ function NtpForm({ d }: { d: NetworkState }) {
   )
 }
 
-/** D-465: the address every link of the box carries. Empty = the management address; checked here with the box's own rule before saving. */
+/** The address every link of the box carries. Empty = the management address; checked here with the box's own rule before saving. */
 function BoxAddressForm({ d }: { d: NetworkState }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
@@ -241,7 +241,7 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
   const b = d.box_address
   const [value, setValue] = useState(b.address ?? '')
   const [error, setError] = useState<string | null>(null)
-  const [ask, setAsk] = useState<string | null>(null) // the new address waiting for the confirm of review M1
+  const [ask, setAsk] = useState<string | null>(null) // the new address waiting for its confirmation
   const save = (v: string) => boxAddress.mutate(v, {
     onSuccess: (n) => { setAsk(null); toast.success(t(v ? (n.box_address.self_signed ? 'network.boxAddress.saved' : 'network.boxAddress.savedOwnCert') : 'network.boxAddress.reset')) },
     onError: (er) => { setAsk(null); setError(errMsg(er, t)) },
@@ -254,7 +254,7 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
       const problem = boxAddressProblem(v)
       setError(problem)
       if (problem) return
-      // Review M1: the address in use now keeps answering after the change; say so before anything is saved.
+      // the address in use now keeps answering after the change; say so before anything is saved.
       if (b.address && v !== b.address) setAsk(v)
       else save(v)
     }}>
@@ -293,12 +293,12 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
   )
 }
 
-/** D-403: a box with SPAN on keeps seeing it (read-only, with Turn off) while the GUI does not offer it. A card left in the SPAN role
+/** A box with SPAN on keeps seeing it (read-only, with Turn off) while the GUI does not offer it. A card left in the SPAN role
  *  with SPAN off keeps "SPAN capture" among its role options, which is its way out. */
 const spanSetUp = (d: NetworkState) => d.span.enabled
 
-// D-519: a tab per independent area (each saves on its own), like pfSense/OPNsense keep interfaces, addresses and time apart.
-// Section ids before D-519 (`/settings/network#box-address` from Agents, bookmarks) open their tab.
+// A tab per independent area (each saves on its own), like pfSense/OPNsense keep interfaces, addresses and time apart.
+// Section ids from before the tabs (`/settings/network#box-address` from Agents, bookmarks) open their tab.
 const OLD_HASH: Record<string, string> = { interfaces: 'interfaces', decoys: 'interfaces', span: 'interfaces', guides: 'interfaces', management: 'management', 'box-address': 'box-address', ntp: 'time' }
 
 function Body({ d }: { d: NetworkState }) {
@@ -347,7 +347,7 @@ function Body({ d }: { d: NetworkState }) {
 export default function NetworkSection() {
   const { t } = useTranslation('core')
   const install = useInstallKind()
-  const q = useNetwork(install === 'appliance') // D-381: never asked on a container-only install, where it can only answer 409
+  const q = useNetwork(install === 'appliance') // Never asked on a container-only install, where it can only answer 409
   return (
     <>
       <PageHeader title={t('settings.network')} meta={install === 'container' ? t('container.network.meta') : t(SPAN_IN_UI ? 'network.meta' : 'network.metaNoSpan')}

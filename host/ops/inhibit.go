@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// binBusctl is systemd's busctl (D-453): one fixed call, logind's ListInhibitors, answered as JSON. The host
+// binBusctl is systemd's busctl: one fixed call, logind's ListInhibitors, answered as JSON. The host
 // speaks no D-Bus itself; busctl comes with the systemd package the .deb already depends on (>= 254), and
 // --json exists since systemd 240 (Ubuntu 24.04 has 255, Debian 13 257, Ubuntu 26.04 259).
 const binBusctl = "busctl"
@@ -132,7 +132,7 @@ const (
 // shutdownBlockers asks logind which locks refuse a reboot right now, within d. An error means the list is
 // unknown (busctl failed, timed out, or answered something parseInhibitors does not accept); the first
 // unknown after a good read is logged once (WARN), since on systemd 255 the host's own read is the only
-// guard against rebooting during apt (D-453).
+// guard against rebooting during apt.
 func (o *Ops) shutdownBlockers(ctx context.Context, d time.Duration) ([]inhibitor, error) {
 	ctx, cancel := context.WithTimeout(ctx, d)
 	defer cancel()

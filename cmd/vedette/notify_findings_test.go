@@ -65,7 +65,7 @@ func TestWiringKEVMatchQueuesOneNoticeWithRealTexts(t *testing.T) {
 	if n.Kind != notify.KindVuln || len(n.CVEs) != 1 || n.CVEs[0] != "CVE-2026-4001" {
 		t.Fatalf("notice kind or CVE wrong: %+v", n)
 	}
-	if len(n.Devices) != 1 || n.Devices[0] != "FortiGate (192.168.30.1)" { // the Devices name with its address (W8-2)
+	if len(n.Devices) != 1 || n.Devices[0] != "FortiGate (192.168.30.1)" { // the Devices name with its address
 		t.Fatalf("devices = %v, want the Devices name", n.Devices)
 	}
 	if n.Product != "FortiGate firewall (FortiOS)" || n.Title != "FortiGate firewall (FortiOS) is being exploited (CVE-2026-4001)" {
@@ -75,7 +75,7 @@ func TestWiringKEVMatchQueuesOneNoticeWithRealTexts(t *testing.T) {
 		t.Fatalf("what/action: %q / %q", n.What, n.Action)
 	}
 	if n.Severity != notify.Medium {
-		t.Fatalf("severity %q, want the one findings computed (medium: no NVD versions, so the version was not compared, D-500)", n.Severity)
+		t.Fatalf("severity %q, want the one findings computed (medium: no NVD versions, so the version was not compared)", n.Severity)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestPlainTextClipsAndFlattens(t *testing.T) {
 	if got := plainText("a\r\n\tb\x00 c", 50); got != "a b c" {
 		t.Fatalf("got %q", got)
 	}
-	if got := plainText("byn\u202egnp.exe\u200b", 50); got != "byngnp.exe" { // a host name from the network (D-552 review LOW-4)
+	if got := plainText("byn\u202egnp.exe\u200b", 50); got != "byngnp.exe" { // a host name from the network
 		t.Fatalf("got %q", got)
 	}
 	if got := plainText(strings.Repeat("é", 30), 10); len([]rune(got)) != 10 {
@@ -141,7 +141,7 @@ func TestPlainTextClipsAndFlattens(t *testing.T) {
 	}
 }
 
-// D-557: the alert for an entry only VulnCheck KEV lists says so, and never says CISA lists it.
+// The alert for an entry only VulnCheck KEV lists says so, and never says CISA lists it.
 func TestWiringNoticeNamesVulnCheckAsTheSource(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)

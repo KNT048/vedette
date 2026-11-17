@@ -11,7 +11,7 @@ import { errText, useActions, useBlocklist, usePlans } from './api'
 import { undoable } from './state'
 import type { ActionRequest, RequestItem } from './types'
 
-// D-624 (#819): AI response is left out of v1. A box that has it on keeps seeing it (D-403's pattern): no new action, every way back
+// AI response is left out of v1. A box that has it on keeps seeing it (the pattern of a leaving module): no new action, every way back
 // stays (frozen.ts), and turning the module off is offered with the list of what stays in force (CONTRACT "Khi tắt module").
 
 /** Disables every form control inside: for the parts that only create or edit (catalog, never-touch list, settings form). */

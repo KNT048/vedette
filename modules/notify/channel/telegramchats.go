@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Finding the Chat ID (D-491): the box asks getUpdates once, WITHOUT an offset, so Telegram confirms nothing and the approval poller
+// Finding the Chat ID: the box asks getUpdates once, WITHOUT an offset, so Telegram confirms nothing and the approval poller
 // loses no update. Only chat.id, its type and a shown name come back; everything else Telegram sends is dropped.
 
 const (

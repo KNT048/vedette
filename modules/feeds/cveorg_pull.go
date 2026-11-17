@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// The pull of CVE.org affected versions (D-556): the CVE records of the CISA KEV CVEs NVD gave no usable ranges, one
+// The pull of CVE.org affected versions: the CVE records of the CISA KEV CVEs NVD gave no usable ranges, one
 // small file each, politely (cveOrgPause apart, cveOrgMaxPerPull at most, each CVE read again only after cveOrgRecheck).
 const (
 	cveOrgFeedID     = "cve-org"
@@ -179,7 +179,7 @@ func cveOrgNote(n int, c map[string]int, rejected int, stopped bool) string {
 	return t
 }
 
-// applyCVEOrg stores the ranges a CVE.org pull found (D-556): NVD's ranges win, so a CVE that has NVD rows by now is left
+// applyCVEOrg stores the ranges a CVE.org pull found: NVD's ranges win, so a CVE that has NVD rows by now is left
 // alone; a CVE whose record no longer gives ranges loses the CVE.org ones it had. Every CVE read (checked) or not
 // readable this time (unread: its stored ranges stay) is stamped, and the stamps of CVEs CISA no longer lists go. It
 // returns the CVEs whose ranges changed, whether all of them were read for the first time (backlog: matched quietly, a

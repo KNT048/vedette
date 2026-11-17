@@ -1,11 +1,11 @@
-// Response chains on the real backend (S-RESP-3, INV-4, INV-17, INV-2; WP-30 slice 9b, D-173). A rule fires, the request goes out by email to a listed approver, the approver decides
+// Response chains on the real backend (S-RESP-3, INV-4, INV-17, INV-2; WP-30). A rule fires, the request goes out by email to a listed approver, the approver decides
 // from the link in the mail (the link points at THIS box: the loopback BaseURL seam of cmd/vedette/notify.go) or in the app, the box publishes the address on its block list, and the
 // firewall's pull (a plain GET with the token in the URL) shows it. The email is the real one: notify mails it to the box's own SMTP sink (control server of cmd/vedette/e2ebox_test.go).
 // The rule uses the `manual` trigger on purpose: it is the one that fires without a sensor or a trap, so the chain after the trigger is what is under test. The trap-hit trigger is its own
 // test at the end (`honeypot` -> block the source), and it is a known bug: nothing subscribes to honeypot.hit.created (see the test).
-// Not covered: the AI paths of S-RESP-1/2 (Emily's `ai`, no fake model), device actions (response-actions/response-exec, slice 9a), chat buttons (Telegram/Slack/Zalo need the internet).
+// Not covered: the AI paths of S-RESP-1/2 (the `ai` module, no fake model), device actions (response-actions/response-exec), chat buttons (Telegram/Slack/Zalo need the internet).
 // Global project: response settings, the email channel, the module switches and the block list are box-wide; afterAll puts back what it can (rules and devices deleted, settings and channel
-// as they were, entries rolled back). Approver identity: the operator proves the address with a code mailed to the sink, as in My account (D-191).
+// as they were, entries rolled back). Approver identity: the operator proves the address with a code mailed to the sink, as in My account.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { appendFileSync, mkdirSync } from 'node:fs'
@@ -37,7 +37,7 @@ const IP1 = '203.0.113.9'
 const IP2 = '198.51.100.23'
 const IP3 = '198.51.100.24'
 const PRIVATE = '10.9.9.9'
-const DEVICE_IP = '192.168.10.77' // the test device: a LAN address, so a block on it is refused (D-469)
+const DEVICE_IP = '192.168.10.77' // the test device: a LAN address, so a block on it is refused
 
 const made = { rules: [] as string[], devices: [] as string[], names: new Set<string>() }
 let original: { modules: Record<string, boolean>; settings?: Settings; channel?: Chan } = { modules: {} }
@@ -129,7 +129,7 @@ test.beforeAll(async () => {
     made.devices.push(d.body.id)
     device = { id: d.body.id, name: 'chain' }
   } finally { await admin.dispose() }
-  // the operator proves the address, as in My account: a code mailed to it (D-191). Without this a link of the mail would not count as the operator.
+  // the operator proves the address, as in My account: a code mailed to it. Without this a link of the mail would not count as the operator.
   const op = await as('operator')
   try {
     const before = (await mailbox()).length
@@ -264,7 +264,7 @@ test('an address that no firewall should ever be told to block is not published:
   const op = await as('operator')
   try {
     const outcomes: string[] = []
-    // a fixed address is refused when the rule is saved (D-469: not_publishable; loopback and link-local are not even an ip value)
+    // a fixed address is refused when the rule is saved (not_publishable; loopback and link-local are not even an ip value)
     for (const ip of [PRIVATE, '127.0.0.1', '169.254.10.10']) {
       const rule = await makeRule(admin, uniq('Block private'), [ip], 'manual', [], true)
       expect(rule, `${ip}: the rule is refused when it is saved`).toBeNull()
@@ -285,7 +285,7 @@ test('an address that no firewall should ever be told to block is not published:
   } finally { await admin.dispose(); await op.dispose() }
 })
 
-test('two actions over the limit need two different approvers: the same person twice, a different selection, and a second email link are refused; the second person in the app completes it (INV-2, D-124)', async () => {
+test('two actions over the limit need two different approvers: the same person twice, a different selection, and a second email link are refused; the second person in the app completes it (INV-2)', async () => {
   test.setTimeout(120_000)
   const admin = await as('admin')
   const op = await as('operator')
@@ -353,7 +353,7 @@ test('a trap hit fires the honeypot rule and asks to block its source (S-RESP-3)
       delete next.adjusted
       expect((await api(admin, 'PUT', '/inventory/settings', next)).status).toBe(200)
     }
-    // D-466: a Trap IP with SSH; one this spec added is deleted at the end, one already there is switched on and back.
+    // A Trap IP with SSH; one this spec added is deleted at the end, one already there is switched on and back.
     const tips = await get<{ items: { id: string; ip: string; enabled: boolean; services: string[] }[] }>(admin, '/honeypot/trap-ips')
     let tip = tips.items.find((x) => x.services.includes('ssh'))
     const hadTip = !!tip

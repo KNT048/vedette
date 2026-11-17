@@ -1,4 +1,4 @@
-// Package proofat is the one bound of where a domain's ownership record may sit (D-628, D-632): on the domain itself or on a parent
+// Package proofat is the one bound of where a domain's ownership record may sit: on the domain itself or on a parent
 // name of it down to its registered domain, the name one label below the longest public suffix of the Public Suffix List with both
 // its sections (ICANN's com and co.uk, and the private ddns.net, github.io, s3.amazonaws.com). Core (exposure), the scan worker and
 // vedette-host all ask it, so none of them trusts another to have checked: a record never counts on or above a public suffix, where

@@ -1,4 +1,4 @@
-// Package conn is the store of connections to devices and services (D-93, D-94): HTTP APIs, SSH, RESTCONF, automation
+// Package conn is the store of connections to devices and services: HTTP APIs, SSH, RESTCONF, automation
 // platforms and MCP servers that response actions and, later, the AI reach. It validates and saves a connection with its
 // allow-list and tools, keeps its credential encrypted in core_secret, and answers who may do what with it. Nothing here
 // opens a network connection: the transports come with slice 13b-5, and they alone decrypt a credential (internal/cred).
@@ -44,7 +44,7 @@ type Connection struct {
 	Status   string   `json:"status"`
 	LastTest *string  `json:"last_test"`
 
-	// UpdatedAt moves only when a field that decides what a request may do changes (D-93 (4)); it is part of Fingerprint.
+	// UpdatedAt moves only when a field that decides what a request may do changes; it is part of Fingerprint.
 	UpdatedAt string `json:"-"`
 	secretID  *string
 }
@@ -54,14 +54,14 @@ func (c Connection) hasSecret() bool { return c.secretID != nil }
 // Auth is how the box signs in. Last4 is set for a token or password, KeyFingerprint for an SSH key; never both.
 type Auth struct {
 	Type string `json:"type"`
-	// Header is the name of the header a token is sent in (D-174); nil sends it as "Authorization: Bearer <token>". Kept in the
+	// Header is the name of the header a token is sent in; nil sends it as "Authorization: Bearer <token>". Kept in the
 	// username column of core_connection (a token sign-in has no user name).
 	Header         *string `json:"header"`
 	Last4          *string `json:"last4"`
 	KeyFingerprint *string `json:"key_fingerprint"`
 }
 
-// Pin is what the first Test trusted (D-94): the public key of the leaf certificate of an HTTPS server that no public authority
+// Pin is what the first Test trusted: the public key of the leaf certificate of an HTTPS server that no public authority
 // vouches for (Kind tls_sha256, Value the SHA-256 of its SubjectPublicKeyInfo, 64 hex characters), the fact that a public authority
 // did vouch for it (Kind tls_roots, Value "system roots": every later Test requires a valid chain, and a self-signed certificate is
 // refused), or the host key of an SSH server (Kind ssh_hostkey, Value "<type> SHA256:..."). Trust on first use happens only while
@@ -85,7 +85,7 @@ type Tool struct {
 }
 
 // MayWrite reports whether the server said, when the tool was last seen, that it may change something (destructiveHint, or readOnlyHint
-// false). Such a tool is never access=read (D-179 (5)).
+// false). Such a tool is never access=read.
 func (t Tool) MayWrite() bool { return strings.HasSuffix(t.Ident, identMayWrite) }
 
 // Input is what an administrator sends to add or change a connection.
@@ -97,7 +97,7 @@ type Input struct {
 	AuthType string
 	Secret   secrets.Value // unset on an edit keeps the saved one; prints, formats and marshals as a placeholder
 	Username *string
-	// AuthHeader is the optional header name of a token sign-in (D-174); empty = Authorization: Bearer.
+	// AuthHeader is the optional header name of a token sign-in; empty = Authorization: Bearer.
 	AuthHeader *string
 	ClearPin   bool
 	Allow      []string
@@ -122,7 +122,7 @@ type Config struct {
 	// connection in that state cannot be deleted. nil: nothing is ever in force.
 	InUse func(ctx context.Context, id string) (bool, error)
 	// BoxAddrs lists the addresses of the box itself and the subnets that only the box lives in (a /32 or /128 is one address), which
-	// no connection may point at (D-94). cmd/vedette builds it from several sources; slice 13b-5 asks it again at dial time. nil: none known.
+	// no connection may point at. cmd/vedette builds it from several sources; slice 13b-5 asks it again at dial time. nil: none known.
 	BoxAddrs func(ctx context.Context) []netip.Prefix
 	// AssetExists says whether an inventory device exists, for the asset a connection is linked to. nil: not checked.
 	AssetExists func(ctx context.Context, id string) (bool, error)
@@ -168,7 +168,7 @@ func Fingerprint(id, kind, target, updatedAt string) string {
 
 // Identity is what an undo needs to reach the same device: id, kind and address. It does not move when the secret, the pin, the
 // allow-list or the tool switches change, so a rotated token or a renewed certificate does not strand the undo of a change still in
-// force (response D-88 (4): removing a change is the safe direction). A run keeps the full Fingerprint.
+// force (removing a change is the safe direction). A run keeps the full Fingerprint.
 func Identity(id, kind, target string) string {
 	h := sha256.Sum256([]byte("identity\x00" + id + "\x00" + kind + "\x00" + target))
 	return hex.EncodeToString(h[:16])
@@ -413,7 +413,7 @@ func (s *Service) nextStamp(old string) string {
 	return store.FormatTS(t)
 }
 
-// changedSecurityFields names the fields that moved among those that decide what a request may do (D-93 (4)): kind,
+// changedSecurityFields names the fields that moved among those that decide what a request may do: kind,
 // target, sign-in type, user name, the secret, the pin, the allow-list, and a tool's enabled or access. Not the name, the
 // linked asset, the connection's own switch, the status or the last test.
 func changedSecurityFields(a, b Connection, secretChanged bool) []string {

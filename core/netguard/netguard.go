@@ -1,7 +1,7 @@
 // Package netguard holds the address facts every outbound guard of Vedette shares (a webhook, a feed, a SIEM forward, an AI provider):
 // the cloud instance-metadata endpoints that are not link-local, the metadata service's names, and the IPv4 address an IPv6 transition
 // form carries (NAT64, 6to4, IPv4-compatible), so that a guard judges both. Each guard keeps its own rules (box addresses, private ranges,
-// ports); this package says only what those addresses are (D-411).
+// ports); this package says only what those addresses are.
 //
 // ponytail: response uses it; notify, feeds, logs and ai still keep their own copy of the same code until they move here (one follow-up
 // PR).
@@ -90,7 +90,7 @@ func nat64Embed(b [16]byte, at [4]int) [4]byte {
 // and its length is not in the address. The address is read in each layout and every reading is judged, so a forbidden IPv4 address
 // is never missed. When the network's own NAT64 prefix was learned (nat64Prefixes, RFC 7050) and covers the address, the learned
 // layouts (all that cover it) are read for the checks that depend on the network (private ranges, the box's own addresses), and the
-// other layouts only for Always: DNS can narrow the first group, never switch off the second (D-442 (2)). A learned reading inside
+// other layouts only for Always: DNS can narrow the first group, never switch off the second. A learned reading inside
 // 0.0.0.0/8 falls back to every layout. Otherwise a reading inside 0.0.0.0/8 is dropped: a translator never forwards to "this network",
 // and it is what the zero suffix of a shorter prefix looks like in a longer layout. An operator prefix whose own bytes read as an
 // always-refused address in a shorter layout has every NAT64 destination refused (a known false positive: it fails closed).
@@ -171,7 +171,7 @@ func learnNAT64(answers []netip.Addr) []netip.Prefix {
 // nat64Cache asks the system resolver for ipv4only.arpa only when a 64:ff9b:1::/48 address is judged, for at most 2 s, and keeps the
 // answer 6 hours (10 minutes when nothing was learned or the lookup failed). One lookup runs at a time and nobody else waits for it: a
 // caller that finds it running gets what is known, which is nothing at first, and nothing means every layout. The query carries no
-// customer data (D-442).
+// customer data.
 type nat64Cache struct {
 	mu       sync.Mutex
 	lookup   func(ctx context.Context) ([]netip.Addr, error)

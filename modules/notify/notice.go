@@ -17,7 +17,7 @@ const (
 )
 
 // Notice is one thing to tell people about. A vulnerability notice (S-ALERT-1)
-// carries the devices the finding matched; an incident (D-52) does not.
+// carries the devices the finding matched; an incident does not.
 type Notice struct {
 	ID       string
 	Kind     string // KindVuln or KindIncident
@@ -106,7 +106,7 @@ const held = 366 * 24 * time.Hour
 // grouping enabled, vulnerability notices for the same product whose time is
 // within WindowMin of the first notice of the batch become one batch;
 // everything else is a batch of its own. A critical notice is never grouped: it
-// is always its own batch, due at its own time (D-62, INV-6). Batches come out
+// is always its own batch, due at its own time (INV-6). Batches come out
 // in the order of their first notice. An invalid window groups nothing.
 func Group(ns []Notice, g Grouping, floor Severity) []Batch {
 	if !g.Enabled || g.Validate() != nil {
@@ -115,7 +115,7 @@ func Group(ns []Notice, g Grouping, floor Severity) []Batch {
 	return group(ns, time.Duration(g.WindowMin)*time.Minute, floor)
 }
 
-// GroupHeld groups the notices kept during quiet hours (D-57 item 8): one batch
+// GroupHeld groups the notices kept during quiet hours: one batch
 // per product, whatever the window setting, so people get one message when the
 // window ends rather than one per notice. Same filtering as Group; a critical
 // notice still stays a batch of its own.
@@ -145,8 +145,8 @@ func group(ns []Notice, window time.Duration, floor Severity) []Batch {
 	return out
 }
 
-// digest merges the vulnerability batches a channel sends in one run into one message (D-483, W1-19): the first matching after a
-// product is added makes a burst of findings, often critical (never grouped by window, D-62), and one message each floods the chat
+// digest merges the vulnerability batches a channel sends in one run into one message: the first matching after a
+// product is added makes a burst of findings, often critical (never grouped by window), and one message each floods the chat
 // and runs into the provider's rate limit. Nothing waits longer for this: only batches already due now are merged. Critical notices
 // come first. Incident batches stay their own message. link is the findings list, the link of a digest of several products.
 func digest(release []Batch, link string) []Batch {
@@ -181,12 +181,12 @@ func digest(release []Batch, link string) []Batch {
 }
 
 // Listed is the notices the message of the batch names one by one, in its order: at most channel.MaxItems (the message counts the
-// rest in "and N more"). A chat channel may send fewer lines whole (channel.Listed); only the lines sent count as told (W1-11).
+// rest in "and N more"). A chat channel may send fewer lines whole (channel.Listed); only the lines sent count as told.
 func (b Batch) Listed() []Notice {
 	return b.Notices[:min(len(b.Notices), channel.MaxItems)]
 }
 
-// Told is the notices a message of the batch on channel t actually names (D-483): one notice is the message itself; of several, the
+// Told is the notices a message of the batch on channel t actually names: one notice is the message itself; of several, the
 // ones whose line t sends whole (channel.Listed of msg, the message of the batch).
 func (b Batch) Told(t channel.Type, msg channel.Message) []Notice {
 	l := b.Listed()
@@ -278,7 +278,7 @@ func (b Batch) Message() (channel.Message, error) {
 		items = append(items, line)
 	}
 	more := len(b.Notices) - len(listed)
-	if mixed { // a digest of a burst across products (D-483)
+	if mixed { // a digest of a burst across products
 		var names []string
 		for _, p := range products {
 			c := perProduct[p]

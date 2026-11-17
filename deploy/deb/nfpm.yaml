@@ -1,4 +1,4 @@
-# The vedette-host .deb (WP-08g, D-155). Built by `make host-deb VERSION=x.y.z [ARCH=amd64|arm64]` with
+# The vedette-host .deb (WP-08g). Built by `make host-deb VERSION=x.y.z [ARCH=amd64|arm64]` with
 # `go tool -modfile=tools/go.mod nfpm pkg`; run from the repository root. VERSION, ARCH, BINARY and LICENSES come from the environment.
 # Nothing here is edited by hand on a box: the package installs the helper and its unit, creates the users and directories the
 # helper expects, and enables the unit without starting it. The installer (WP-08h) writes /etc/vedette/host.conf and starts it.
@@ -19,17 +19,17 @@ description: |-
    install /etc/vedette/host.conf (the Vedette installer does), then
    start vedette-host.service.
 
-# Minimums, not exact versions (D-155). Why each one:
-#  podman (>= 4.8)   Quadlet units (/etc/containers/systemd) exist from 4.4, ContainersConfModule= from 4.8: all four units load the AppArmor module (D-458), the honeypot also its sysctl one (#486);
+# Minimums, not exact versions. Why each one:
+#  podman (>= 4.8)   Quadlet units (/etc/containers/systemd) exist from 4.4, ContainersConfModule= from 4.8: all four units load the AppArmor module, the honeypot also its sysctl one (#486);
 #                    Ubuntu 24.04 has 4.9, Debian 13 has 5.x
-#  systemd (>= 254)  RestartSteps= and RestartMaxDelaySec= of vedette-host.service (D-150); Ubuntu 24.04 has 255
+#  systemd (>= 254)  RestartSteps= and RestartMaxDelaySec= of vedette-host.service; Ubuntu 24.04 has 255
 #  nftables          the ruleset inside the namespace vedette-hp (nft, run through ip netns exec)
-#  iproute2          ip: decoy links and ip netns (D-102)
+#  iproute2          ip: decoy links and ip netns
 #  procps            sysctl, run through ip netns exec in vedette-hp
-#  conntrack         conntrack -D of the stale UDP syslog flows after core restarts (D-268)
-#  chrony            chronyc and the chrony sources the host writes (D-106)
-#  netplan.io        netplan apply: the host owns /etc/netplan/90-vedette.yaml (D-99)
-#  unattended-upgrades  the apt configuration the host writes (52vedette-unattended) does nothing without it (D-53)
+#  conntrack         conntrack -D of the stale UDP syslog flows after core restarts
+#  chrony            chronyc and the chrony sources the host writes
+#  netplan.io        netplan apply: the host owns /etc/netplan/90-vedette.yaml
+#  unattended-upgrades  the apt configuration the host writes (52vedette-unattended) does nothing without it
 #  passwd            useradd and groupadd of the postinst
 depends:
   - podman (>= 4.8)
@@ -64,7 +64,7 @@ contents:
       mode: 0644
       owner: root
       group: root
-  # the AppArmor profile of every Vedette container and the containers.conf module that names it in each unit (D-458). The profile is
+  # the AppArmor profile of every Vedette container and the containers.conf module that names it in each unit. The profile is
   # under /etc/apparmor.d because that is the only directory apparmor.service loads at boot; a conffile, like every profile Debian
   # ships (dh_apparmor). The postinst loads it into the kernel.
   - src: deploy/deb/vedette-container.apparmor
@@ -80,7 +80,7 @@ contents:
       mode: 0644
       owner: root
       group: root
-  # OpenVAS (Greenbone Community Edition, D-529): Greenbone's official compose file pinned by digest, and Vedette's override. vedette-host
+  # OpenVAS (Greenbone Community Edition): Greenbone's official compose file pinned by digest, and Vedette's override. vedette-host
   # runs them with podman compose only once an administrator enables OpenVAS; constant, not for an administrator to edit
   - src: deploy/greenbone/compose.yaml
     dst: /usr/lib/vedette/greenbone/compose.yaml
@@ -122,6 +122,6 @@ scripts:
 
 deb:
   compression: gzip
-  # where to report a problem (D-541): reportbug and apt show read Bugs; GitHub Issues, not a personal address
+  # where to report a problem: reportbug and apt show read Bugs; GitHub Issues, not a personal address
   fields:
     Bugs: https://github.com/KNT048/vedette/issues

@@ -22,7 +22,7 @@ export function inRanges(v: string, ranges: string[]): boolean {
 }
 
 /** "Add 192.168.20.0/24 to the scan scope" without leaving the step that needs it (#842 "do it where you are"): the same commitment
- *  as Scope (D-28). A range goes through the append-only POST /scanning/safety/ranges (#860) with the ranges and confirmation shown
+ *  as Scope. A range goes through the append-only POST /scanning/safety/ranges (#860) with the ranges and confirmation shown
  *  here: if someone changed the scope meanwhile the box answers 409 scope_changed, the dialog re-reads and asks again, nothing is
  *  overwritten. `entry` null only confirms the ranges already saved (scope_not_confirmed), through the same call. */
 export function AddToScopeDialog({ entry, onClose, onDone }: { entry: string | null; onClose: () => void; onDone?: () => void }) {

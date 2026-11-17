@@ -1,4 +1,4 @@
-// Validation shared by the Box network form and its mock API (S-CORE-8). The real backend repeats these checks; vedette-host re-checks again before touching the OS (D-55).
+// Validation shared by the Box network form and its mock API (S-CORE-8). The real backend repeats these checks; vedette-host re-checks again before touching the OS.
 import { isBareIp, normaliseCidr } from './util'
 
 export type FilterType = 'cidr' | 'host' | 'port'
@@ -21,7 +21,7 @@ export interface StaticInput { address?: unknown; prefix?: unknown; gateway?: un
 /** What is wrong with a static management configuration: the API code, and a sentence for the person. */
 export interface StaticProblem { code: 'invalid_static' | 'gateway_outside_subnet' | 'gateway_not_host'; message: string }
 const bad = (message: string): StaticProblem => ({ code: 'invalid_static', message })
-/** Problem with a static management configuration, or null. The gateway outside the range is its own code (D-100). */
+/** Problem with a static management configuration, or null. The gateway outside the range is its own code. */
 export function staticProblem(v: StaticInput): StaticProblem | null {
   if (typeof v.address !== 'string' || !isBareIp(v.address)) return bad('The IP address must be an IPv4 address like 192.168.10.250.')
   const prefix = typeof v.prefix === 'number' ? v.prefix : Number(v.prefix)
@@ -54,9 +54,9 @@ export function filterProblem(type: unknown, value: unknown): string | null {
 }
 export const normaliseFilter = (type: FilterType, value: string) => (type === 'cidr' ? (normaliseCidr(value.trim())?.value ?? value.trim()) : type === 'host' ? value.trim().toLowerCase() : String(Number(value.trim())))
 
-/** The Box address in its normal form (D-465): trimmed, lower case, no trailing dot; '' = use the default. */
+/** The Box address in its normal form: trimmed, lower case, no trailing dot; '' = use the default. */
 export const normaliseBoxAddress = (v: string) => v.trim().toLowerCase().replace(/\.$/, '')
-/** The Box address (D-465): a host name (the NTP rule) or a unicast IPv4 address; no URL, port, path or space. Takes the normal form. */
+/** The Box address: a host name (the NTP rule) or a unicast IPv4 address; no URL, port, path or space. Takes the normal form. */
 export function boxAddressProblem(v: string): string | null {
   if (v === '') return null
   const numeric = v.split('.').every((l) => /^(\d+|0[xX][0-9a-fA-F]*)$/.test(l))

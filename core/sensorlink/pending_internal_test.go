@@ -56,7 +56,7 @@ func (c *fakeClock) add(d time.Duration) {
 	c.mu.Unlock()
 }
 
-// D-326: a full pool evicts its oldest pending connection when that one has waited MinPendingAge, and closes a newcomer when every pending
+// A full pool evicts its oldest pending connection when that one has waited MinPendingAge, and closes a newcomer when every pending
 // one is younger; a promoted (handshaken) connection leaves the pool and cannot be evicted; a late promotion fails.
 func TestPendingPoolEvictsTheOldestOrRefusesTheNewest(t *testing.T) {
 	t.Parallel()
@@ -114,8 +114,8 @@ func TestPendingPoolEvictsTheOldestOrRefusesTheNewest(t *testing.T) {
 	_ = b.Close() // twice is harmless
 }
 
-// D-326: a connection still pending after the deadline is closed, whatever net/http's own timeouts say. The listener's timer runs on
-// the fake clock of a synctest bubble, so the deadline is exact and a slow machine cannot make it look late (D-373).
+// A connection still pending after the deadline is closed, whatever net/http's own timeouts say. The listener's timer runs on
+// the fake clock of a synctest bubble, so the deadline is exact and a slow machine cannot make it look late.
 func TestPendingConnectionsHaveADeadline(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {

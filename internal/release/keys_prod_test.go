@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-// The ids of the release keys made at the ceremony of 2026-11-11 (D-256), as minisign prints them and as
+// The ids of the release keys made at the ceremony of 2026-11-11, as minisign prints them and as
 // index.json revocations name them. A change here is a key rotation: it needs a decision, not a test fix.
 const (
 	prodActiveID = "7B78764E550D48D0"

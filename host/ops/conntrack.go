@@ -11,11 +11,11 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// Stale syslog flows after core restarts (D-268). core publishes the syslog port 514 -> 5514 (udp and tcp) through
+// Stale syslog flows after core restarts. core publishes the syslog port 514 -> 5514 (udp and tcp) through
 // netavark's DNAT. A device that sends UDP from one fixed source port and never pauses keeps hitting the conntrack entry
 // made before core restarted; a stale entry (one that DNATs to the old container, or one created without DNAT while
 // core's rules were gone) keeps the flow, so nothing reaches the new core, and it never times out while the device
-// keeps sending (measured, review M1 of D-167; which of the two it is, the rootful lab run will say). TCP opens new
+// keeps sending (measured; which of the two it is, the rootful lab run will say). TCP opens new
 // connections and is not affected. Like kube-proxy for UDP services, the host deletes the UDP entries whose original
 // destination port is the published one, once, right after it sees core run again; that clears both kinds.
 //

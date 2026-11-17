@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/nucleiout"
 )
 
-// INV-6 mid-run (D-165): with -ms a device that answered some templates and then died leaves lines that look like answers,
+// INV-6 mid-run: with -ms a device that answered some templates and then died leaves lines that look like answers,
 // so core learns it from the host errors the worker counted in nuclei's error log. The helpers say what the fake worker
 // reports. A device that never answered prints only error lines and is the older rule (TestContract_INV6_AutoStopOnUnresponsive).
 

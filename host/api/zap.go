@@ -1,6 +1,6 @@
 package api
 
-// zap.baseline (docs/specs/host-api.md §6.15, D-521): ZAP's passive baseline scan of one page of a verified exposure target, in a
+// zap.baseline (docs/specs/host-api.md §6.15): ZAP's passive baseline scan of one page of a verified exposure target, in a
 // one-shot container on the network vedette-zap whose only way out is the one address and port of the page.
 
 // CmdZapBaseline is the name of the command.
@@ -56,7 +56,7 @@ type ZapBaselineArgs struct {
 	Kind     string `json:"kind"`
 	Domain   string `json:"domain,omitempty"`
 	TXTToken string `json:"txt_token,omitempty"`
-	// ProofAt (D-632): the parent name of Domain (the zone apex) where Domain's own record sits; "" = on Domain. Only with the token
+	// ProofAt: the parent name of Domain (the zone apex) where Domain's own record sits; "" = on Domain. Only with the token
 	// bound to this box for Domain (the domain fence), and between Domain and its registered domain.
 	ProofAt string `json:"proof_at,omitempty"`
 }

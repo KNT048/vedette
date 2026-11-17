@@ -30,7 +30,7 @@ var ErrCT = errors.New("surface: the certificate-transparency search did not ans
 
 // ErrTooManyNames means the domain has more names in the CT logs than one scan reads (maxNames, or an answer over maxCTBody).
 // The scan stops rather than keep a part: which part is kept would change from day to day, and the comparison of two days
-// would show names, ports and pages as new or gone that never changed (D-229).
+// would show names, ports and pages as new or gone that never changed.
 var ErrTooManyNames = errors.New("surface: the domain has more names than one scan reads")
 
 // nameRE is a plain host name (the exposure module's rule for a domain): labels of letters, digits and inner dashes, a

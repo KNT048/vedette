@@ -128,7 +128,7 @@ func sameConnection(a, b Profile) bool {
 		a.APIKey.Reveal() == b.APIKey.Reveal()
 }
 
-// draftTestTTL is how long the test of settings not saved yet waits for the profile saved with them (D-445): the time to finish the
+// draftTestTTL is how long the test of settings not saved yet waits for the profile saved with them: the time to finish the
 // dialog, not a cache of results.
 const draftTestTTL = 15 * time.Minute
 
@@ -228,7 +228,7 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 	if err := p.Validate(); err != nil {
 		return ProfileView{}, mapErr(err)
 	}
-	if err := p.checkOwn(s.own()); err != nil { // D-446
+	if err := p.checkOwn(s.own()); err != nil {
 		return ProfileView{}, mapErr(err)
 	}
 	if len(cur.profiles) >= MaxProfiles {
@@ -240,7 +240,7 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 	asg := cloneAssign(cur.assign)
 	var taken []Job
 	for _, j := range Jobs() {
-		// response-plan runs by itself every 5 minutes and sends device data, so it is opt-in: the admin assigns a profile to it (D-181).
+		// response-plan runs by itself every 5 minutes and sends device data, so it is opt-in: the admin assigns a profile to it.
 		if slot := asg.Jobs[j]; j != JobResponsePlan && slot.Primary == "" && asg.Allowed(j, p) {
 			slot.Primary = p.ID
 			asg.Jobs[j] = slot
@@ -320,7 +320,7 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 	if err := p.Validate(); err != nil {
 		return ProfileView{}, mapErr(err)
 	}
-	if err := p.checkOwn(s.own()); err != nil { // D-446
+	if err := p.checkOwn(s.own()); err != nil {
 		return ProfileView{}, mapErr(err)
 	}
 	if cur.nameTaken(p.Name, id) {
@@ -493,7 +493,7 @@ const auditTimeout = 10 * time.Second
 // the profile is saved. The test is checked against the caps before it runs and counted after (L5), and it is audited with the host it went to
 // (never the key), also when the request is cancelled while the key is on its way (M2). A test of a saved profile exactly as saved
 // (same address, model and key) is kept as its last test (S-AI-1), unless the profile changed meanwhile or the request was cancelled.
-// A test of other settings becomes the last test of the profile the same admin adds or edits to exactly them within draftTestTTL (D-445).
+// A test of other settings becomes the last test of the profile the same admin adds or edits to exactly them within draftTestTTL.
 func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) (TestResult, error) {
 	cur := s.snap.Load()
 	id, key := "draft", keyOf(in)
@@ -526,7 +526,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	if err := p.Validate(); err != nil {
 		return TestResult{}, mapErr(err)
 	}
-	if err := p.checkOwn(s.own()); err != nil { // D-446
+	if err := p.checkOwn(s.own()); err != nil {
 		return TestResult{}, mapErr(err)
 	}
 	if old, ok := cur.find(in.ID); ok && sameConnection(old.Profile, p) {
@@ -579,7 +579,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	}); err != nil {
 		return TestResult{}, err
 	}
-	if draft { // settings not saved yet, once the test is on record: kept for the profile the dialog then saves with exactly them (D-445)
+	if draft { // settings not saved yet, once the test is on record: kept for the profile the dialog then saves with exactly them
 		s.mu.Lock()
 		s.recordDraftTest(who, p, failure)
 		s.mu.Unlock()
@@ -597,7 +597,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		Capabilities: Capabilities{Tools: res.Tools, Structured: res.Structured}}, nil
 }
 
-// ListModels asks the provider's model endpoint which models it offers, so the dialog can offer a list instead of a blank (D-475). It
+// ListModels asks the provider's model endpoint which models it offers, so the dialog can offer a list instead of a blank. It
 // is checked like a test: the same validation and own-address rule at save-time, the same stored-key rule for a saved profile (M1), and
 // the same dialer at connect time (provider.ListModels). The call is audited with the host (never the key). Nothing is saved and no
 // tokens are spent; the answer is ids only.
@@ -756,7 +756,7 @@ func probeFailure(err error, baseURL string) error {
 		return bad("This Anthropic key is not tied to a workspace. Create the API key inside a workspace in the Anthropic console and use that key.")
 	case errors.Is(err, provider.ErrRateLimited):
 		return bad(fmt.Sprintf("%s is rate-limiting this key; try again later.", host))
-	case errors.Is(err, provider.ErrOwnAddress): // a name that resolves to Vedette itself (D-446)
+	case errors.Is(err, provider.ErrOwnAddress): // a name that resolves to Vedette itself
 		return apierr.New(http.StatusBadGateway, "unreachable", provider.OwnText)
 	case errors.Is(err, provider.ErrNetwork), errors.Is(err, provider.ErrTimeout):
 		return apierr.New(http.StatusBadGateway, "unreachable", fmt.Sprintf("Could not connect to %s. Check the address, the box's network and the firewall.", host))

@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-126: the policy of the vulnerability scanner. One row per rule, each asked as a schedule or a KEV rescan
+// The policy of the vulnerability scanner. One row per rule, each asked as a schedule or a KEV rescan
 // (explicit=false) and as a person's pick in "Scan now" (explicit=true). The configured rate is 50, so a quarter
 // is 12.
 func TestContract_VulnScanPolicy_Rules(t *testing.T) {
@@ -47,7 +47,7 @@ func TestContract_VulnScanPolicy_Rules(t *testing.T) {
 				e.t.Fatal(err)
 			}
 			return id
-		}, deny(inventory.ReasonBox), ok(normal)}, // D-470: only a person's pick scans the box
+		}, deny(inventory.ReasonBox), ok(normal)}, // Only a person's pick scans the box
 		{"box, regular_scan=allow", false, func(e *env) string {
 			id, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette-hq", IP: "192.168.10.2"})
 			if err != nil {
@@ -93,7 +93,7 @@ func TestContract_VulnScanPolicy_Rules(t *testing.T) {
 		}, deny(inventory.ReasonFragilePassiveOnly), ok(quarter)},
 		{"unclassified", false, func(e *env) string { return seen(e, "192.168.10.20", "") },
 			deny(inventory.ReasonUnclassifiedPassiveOnly), ok(quarter)},
-		// D-601 (review r1 M1): a device added by hand whose network scan nobody turned on is refused even when picked; turned on, it is
+		// A device added by hand whose network scan nobody turned on is refused even when picked; turned on, it is
 		// scanned like a discovered one (fragile: a pick at a quarter of the rate, no schedule).
 		{"declared by hand, ordinary", false, func(e *env) string {
 			id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.30"})
@@ -174,7 +174,7 @@ func TestContract_VulnScanPolicy_Rules(t *testing.T) {
 	}
 }
 
-// D-126: the sensor-active switch is not the vulnerability scanner's; scope and per-device rules still apply.
+// The sensor-active switch is not the vulnerability scanner's; scope and per-device rules still apply.
 func TestContract_VulnScanPolicy_ScanningOffDoesNotBlock(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

@@ -21,11 +21,11 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// zap.baseline (D-521): the argv, the egress rule and the flow of a run, against a fake podman and nft that never run anything.
+// zap.baseline: the argv, the egress rule and the flow of a run, against a fake podman and nft that never run anything.
 
 const zapTestIP = "93.184.216.34"
 
-// zapTestKey is the fence key of every zap world (Deps.FenceKey); zapTestTok is example.com's box-bound token under it (D-591).
+// zapTestKey is the fence key of every zap world (Deps.FenceKey); zapTestTok is example.com's box-bound token under it.
 var (
 	zapTestKey = []byte("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")
 	zapTestTok = domainfence.Token(zapTestKey, "example.com")
@@ -112,14 +112,14 @@ func TestZapRunArgvIsFixedAndValidated(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Fatalf("argv\n%q\nwant\n%q", got, want)
 	}
-	// K-5 (D-559): never alpha/active rules, a config file or URL, the AJAX or client spider, a context, a scan user or a hook.
+	// K-5: never alpha/active rules, a config file or URL, the AJAX or client spider, a context, a scan user or a hook.
 	for _, f := range []string{"-a", "-u", "-c", "-j", "--ajax-spider", "--client-spider", "-n", "-U", "-P", "--hook", "--auto"} {
 		if slices.Contains(got, f) {
 			t.Fatalf("%s is in the argv", f)
 		}
 	}
 	if !strings.Contains(zapOptions, "spider.processform=false") || !strings.Contains(zapOptions, "spider.postform=false") || !slices.Contains(got, "--autooff") {
-		t.Fatal("the spider may post forms: its options or the traditional runner they need (--autooff, D-525) are gone")
+		t.Fatal("the spider may post forms: its options or the traditional runner they need (--autooff) are gone")
 	}
 	validate := validatePodmanIn("/var/lib/vedette-host")
 	if err := validate(got); err != nil {
@@ -271,7 +271,7 @@ func TestZapRulesetLoadedReadsNftsListing(t *testing.T) {
 	}
 }
 
-// TestZapRulesetLoadedReadsRealNft: testdata/zap-nft-1.1.6-list.json is what nft 1.1.6 (Ubuntu 26.04, the N100) printed for
+// TestZapRulesetLoadedReadsRealNft: testdata/zap-nft-1.1.6-list.json is what nft 1.1.6 (Ubuntu 26.04) printed for
 // `nft -j list table inet vedette_zap` after `nft -f -` of zapRuleset(93.184.216.34, 8443), loaded twice in a throwaway network
 // namespace (unshare -n). nft refused the first chain names, "fwd" and "in", as a syntax error, so no fence ever loaded (n38).
 func TestZapRulesetLoadedReadsRealNft(t *testing.T) {
@@ -790,7 +790,7 @@ func TestZapReport_UnknownIDs(t *testing.T) {
 	}
 }
 
-// The image is named in three places: pins.env (with its tag, for people), the host's constant and install.sh --uninstall (D-521).
+// The image is named in three places: pins.env (with its tag, for people), the host's constant and install.sh --uninstall.
 func TestZapPinsAgree(t *testing.T) {
 	t.Parallel()
 	pins, err := os.ReadFile("../../deploy/containers/pins.env")

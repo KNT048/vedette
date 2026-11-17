@@ -1,13 +1,13 @@
 # UI standard (web app)
 
-The one standard for every screen of `web/` (#842). Order of work: this page → one independent review (r1 done) → shared
+The one standard for every screen of `web/` (#842). Order of work: this page → one independent review → shared
 components built once in `web/src/components/` and `web/src/app/` → Devices as the reference page (light, dark, phone
-screenshots to kien) → other pages in groups → dashboard (#825). Done for each step = before/after screenshots of every
-top-level page in the PR, checked on the N100. A page never styles itself; it composes the components named here.
+screenshots) → other pages in groups → dashboard (#825). Done for each step = before/after screenshots of every
+top-level page in the PR, checked on a real box. A page never styles itself; it composes the components named here.
 `docs/FRONTEND.md` keeps the stack, voice and anti-"AI look" checklist; every visual rule lives here.
 **exists** = use as is, **fix** = change named here, **build** = new, name given.
 
-## 0. Customer ease first: every page follows these (kien 2026-11-16, on the #849 drafts)
+## 0. Customer ease first: every page follows these (on the #849 drafts)
 
 Convenience is the first rule of the UI: in 2026 no product sends its customer somewhere else, unguided, to do a second task
 before the first one can go on.
@@ -23,7 +23,7 @@ before the first one can go on.
    created inline links straight to the exact tab and field (`DependencyLink`: one short reason + a link to
    `/settings/<section>?tab=<tab>#<field-id>`, the field gets focus on arrival), never "see Settings". As GOV.UK's error
    summary links each problem to its field ([Error summary](https://design-system.service.gov.uk/components/error-summary/)).
-3. **No action with nothing behind it** (kien G5, 2026-11-17: the box offered "Fix by updating the operating system" with no
+3. **No action with nothing behind it** (the box offered "Fix by updating the operating system" with no
    update to install). A link, button, banner, dialog or count is shown only when there is something to act on: "Install N
    updates" only at N > 0, "Fix by updating" only when an update fixes an open finding, no "Select all 0", no link a role cannot
    open, no action on a closed item. When work remains but nothing fixes it yet, one honest line says so ("No update fixes these
@@ -104,11 +104,11 @@ Decisions from #842. Patterns: collapsible sections ([Atlassian navigation](http
 groups ([Primer NavList](https://primer.style/product/components/nav-list/)), icon rail and drawer ([Material rail](https://m3.material.io/components/navigation-rail/overview),
 [drawer](https://m3.material.io/components/navigation-drawer/overview)), a quiet dense sidebar ([Linear redesign](https://linear.app/now/how-we-redesigned-the-linear-ui)).
 
-- **Order**: logo and org; the always-visible block **Home**, **Findings**, **Recommended updates** (was "Updates to plan", kien G3), **Incidents** (decided
-  2026-11-16: J3 "the alert arrives" is the P0 journey, and Wiz and CrowdStrike keep Issues and Detections top-level); then the
+- **Order**: logo and org; the always-visible block **Home**, **Findings**, **Recommended updates** (was "Updates to plan"), **Incidents** (decided
+  2026-11-16: "the alert arrives" is a core user journey, and Wiz and CrowdStrike keep Issues and Detections top-level); then the
   groups **Assets** (Devices, External exposure, Vulnerability scans), **Intrusion detection** (Internal traps, Logs),
   **Assistant and reports** (AI assistant, Reports, Lookup); at the foot the `shell.status` slot, **Settings** (one entry,
-  decided 2026-11-16: its sections stay in its own menu, D-519, as Linear and GitHub do), the user menu (with the running
+  decided 2026-11-16: its sections stay in its own menu, as Linear and GitHub do), the user menu (with the running
   version) and "Collapse menu". The placement is one table in `app/nav.ts`.
 - **Groups**: a group with one visible item renders as that plain item (no header, no chevron); a group with none is not
   drawn ([Primer NavList](https://primer.style/product/components/nav-list/) groups related items, never one link). On a
@@ -120,7 +120,7 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
 - **Badges** come from one cheap read, `GET /findings/summary` (#825, cached on the box, shared with Home through the same
   query key `['findings','summary']`, 60 s refresh, paused in a hidden tab). A plain selector table in `app/nav.ts` maps it to
   items: Findings ← `open.confirmed` ("confirmed to handle"), Devices ← `devices.pending` ("to review"), Incidents ←
-  `incidents.urgent` ("high or critical open", J3); all urgent (red), as work waits for the user. An error stops the polling.
+  `incidents.urgent` ("high or critical open"); all urgent (red), as work waits for the user. An error stops the polling.
   The summary API PR (#825) merges before the shell PR. No per-item hook and no list fetch in the shell. A closed group shows only the **urgent** total
   of its items; its accessible name starts with the visible text and then lists the parts ("Assets 15 waiting: Devices 15 to review"; no
   `aria-label` that would hide the visible label, WCAG 2.5.3). No summary (findings off, error): no badges.
@@ -146,7 +146,7 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
 
 ## 3. Page frame (`PageHeader`, `KpiStrip`, `PageTabs`: exist; **build** `components/common/Breadcrumbs.tsx`)
 
-- Content: max 1280 px, gutter 16 / 24 / 40 px (base / `sm` / `lg`), top 24 / 32 px (exists in Layout). Order (D-464):
+- Content: max 1280 px, gutter 16 / 24 / 40 px (base / `sm` / `lg`), top 24 / 32 px (exists in Layout). Order:
   breadcrumbs → `PageHeader` (20 px under) → at most one page `Notice` (20 px) → `KpiStrip` (20 px) → `PageTabs` (panel 16 px
   under the row) → content; `Section`s 32 px apart. These are the values in the code today; none changes.
 - `PageHeader`: `h1` (`page-title`) + one short line (`meta`) + ⓘ (`info`) on the left, actions on the right (one primary at
@@ -164,8 +164,8 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
 
 Two components, one look, as Primer splits UnderlineNav and UnderlinePanels ([UnderlineNav](https://primer.style/product/components/underline-nav/)):
 `PageTabs` for panels of one page (`role=tablist`, `?tab=`, replace history, arrows/Home/End: [APG tabs](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/));
-`UnderlineNav` for links between pages (`aria-current="page"`; Settings: a row below `lg`, the vertical menu from `lg`,
-D-519/D-543). `components/ui/tabs.tsx` stays private to `PageTabs` (guard in `PageFrame.test.tsx`). Underline 2 px `accent`
+`UnderlineNav` for links between pages (`aria-current="page"`; Settings: a row below `lg`, the vertical menu from `lg`).
+`components/ui/tabs.tsx` stays private to `PageTabs` (guard in `PageFrame.test.tsx`). Underline 2 px `accent`
 under the open item, label `text-sm`, open item `font-medium ink`, counts as a `Counter`. Narrow screens: the row scrolls
 sideways inside itself and the open item scrolls into view; it never wraps and never becomes a select (Material's scrollable
 tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs, one or two words each. `Segmented` (exists;
@@ -238,7 +238,7 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
   required. Primary action at the end of the form, left-aligned with the fields ([Primer forms](https://primer.style/product/ui-patterns/forms/)).
 - **Button** (exists): one `primary` per region; `secondary` default; `ghost` in toolbars; `danger` for destructive verbs;
   icon-only buttons have `aria-label` and a `Tooltip`. Labels are verbs ("Remove device"), no trailing arrows.
-- **Busy state** (kien G1, 2026-11-17: "Ask my AI" went grey for 20 s with no sign of work): a button whose action waits on the
+- **Busy state** (2026-11-17: "Ask my AI" went grey for 20 s with no sign of work): a button whose action waits on the
   server takes `busy={x.isPending}` and `busyLabel` ("Saving…", "Asking…": `common:busy.*` or the feature's). The Button then
   disables itself, sets `aria-busy="true"`, keeps its full colour, and shows a spinner with the busy label in place of its icon
   and label; its width never changes (label, busy content and busy label share one grid cell). Only the button whose own action
@@ -316,19 +316,14 @@ channel, token, key, user, module on…); (2) each is created inline (`Creatable
 or deep-linked to the exact tab and field (`DependencyLink`); (3) no text says "go to Settings" without that link; (4) the same
 item is still editable on its own page. A dependency that fails (2) is a defect, not a follow-up.
 
-### Review r1: accepted Lows
+Spacing: the doc states the code's values. Targets follow the code (§11). Checkboxes keep `muted`. The guard names its
+keywords; opacity-modified tokens and hand-drawn boxes are review-only, as said in §12. The shell keeps the `<ol>` (note in
+§3).
 
-L1 spacing: the doc now states the code's values. L2: targets softened to the code (§11). L3: checkboxes keep `muted`. L4, L5,
-L6, L7, L8, L9, L10, L11, L13, L14, L15, L16: done in the text above. L12: the guard names its keywords; opacity-modified
-tokens and hand-drawn boxes are review-only, as said in §12.
-
-Review r2 (shell code): M1–M6 and L1–L16 done in the code and the text above; L12 keeps the `<ol>` (note in §3); L14 is on the
-migration list (§7).
-
-## 14. Decisions (2026-11-16, kien: "để mlee quyết", under his rules)
+## 14. Decisions
 
 1. **Incidents always visible** in the pinned block (§2).
-2. **Settings is one entry at the foot** of the sidebar; its sections keep their own menu (§2, D-519).
+2. **Settings is one entry at the foot** of the sidebar; its sections keep their own menu.
 3. **Severity: a level meter inside the existing four tones** (§7); solid stays for "Confirmed" only.
 
 No open questions remain for this standard; new ones go to the issue of the page that raises them.

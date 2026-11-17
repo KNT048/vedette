@@ -10,7 +10,7 @@ const open = async (device: string) => {
   return screen.findByRole('list', { name: `What Vedette could not check on ${device}` }, T)
 }
 
-describe('#910 phase 1: exploited CVEs that could not be checked, in their device block (kien G15)', () => {
+describe('#910 phase 1: exploited CVEs that could not be checked, in their device block', () => {
   it('each device block counts them; open, each reason is in plain words with advisory or NVD links, and no finding is made', async () => {
     renderApp('/findings?tab=input')
     const list = await blocks()

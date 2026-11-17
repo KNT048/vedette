@@ -155,7 +155,7 @@ func rnd7(i int) string {
 }
 
 // realWorld are lines of the services and devices that the review listed, with 1,000 different account or host names each. The miner
-// cannot know every format, so this is best effort (D-206); each of these gives at most 3 signatures.
+// cannot know every format, so this is best effort; each of these gives at most 3 signatures.
 var realWorld = []struct {
 	kind, label string
 	f           func(i int) string
@@ -307,7 +307,7 @@ func TestMineKeepsTheQuotedMessage(t *testing.T) {
 // The e-mail pattern is linear: a hostile line (a long local part, a long run of dotted labels, an "@" in every word) costs about what
 // the same line without its "@" costs, not 20 to 40 times as much as the counted form {1,64}@...{1,255} did (3 to 6 ms a line). The
 // bound is a ratio to a control line of the same text, so it holds with -race and on a loaded box (best of 5 runs of 20 lines); the
-// measured numbers are in D-206 and in the benchmark.
+// measured numbers are in the benchmark.
 func TestMineHostileEmailLinesAreCheap(t *testing.T) {
 	lines := []string{
 		strings.Repeat("a", 2000) + "@" + strings.Repeat("b.", 1000),

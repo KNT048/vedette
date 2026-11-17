@@ -16,7 +16,7 @@ import type { IncidentOption } from './types'
 
 const link = 'text-accent underline underline-offset-4'
 
-/** Respond on an incident (D-509, S-RESP-3): the incident's source and only what can really be asked for it. Asking creates a
+/** Respond on an incident (S-RESP-3): the incident's source and only what can really be asked for it. Asking creates a
  * request that waits for approval like any other; nothing here changes a device. */
 export function IncidentRespond({ id }: { id: string }) {
   const { t } = useTranslation('response')
@@ -84,7 +84,7 @@ function OptionRow({ id, o, onSent }: { id: string; o: IncidentOption; onSent: (
   )
 }
 
-/** Respond on an incident while the response module is off (the default; W7-1, S-RESP-3): nothing can be asked for, but what to
+/** Respond on an incident while the response module is off (the default, S-RESP-3): nothing can be asked for, but what to
  * do by hand still stands, read from the incident itself (notify), and the way to let Vedette help next time. */
 export function IncidentRespondOff({ id }: { id: string }) {
   const { t } = useTranslation('response')

@@ -1,9 +1,9 @@
-// Package pack reads the index of the safe nuclei template pack (D-125 (4)): the list of templates the signed scan
+// Package pack reads the index of the safe nuclei template pack: the list of templates the signed scan
 // image carries, built at release time with the pack. Core reads it to choose templates (one per CVE a device is
 // suspected of), to write the request line of the probe log before anything is sent (INV-7), and to refuse a template
 // that is not in the safe set (INV-4); the worker reads the same index to check each template file's SHA-256 before
 // nuclei starts. The index is the project's own format, so it is decoded strictly (internal/jsonstrict) and every
-// entry is checked again here, behind the release builder's own checks. Since D-527 each entry names its sets: the KEV set of
+// entry is checked again here, behind the release builder's own checks. Each entry names its sets: the KEV set of
 // every job that is not full, and the deep and disruptive sets of a full job (exposure, testing terms accepted).
 package pack
 
@@ -19,8 +19,8 @@ import (
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 )
 
-// Limits of an index. The pack of D-527 (KEV plus the deep and disruptive sets of nuclei-templates 10.5.1) is measured in
-// D-527; these keep about twice its size.
+// Limits of an index. The full pack (KEV plus the deep and disruptive sets of nuclei-templates 10.5.1) was measured, and
+// these keep about twice its size.
 const (
 	MaxSize      = 12 << 20 // bytes
 	MaxTemplates = 20000
@@ -32,7 +32,7 @@ const (
 // SafeTags are the tags a template of the KEV set must carry one of: the KEV sets (CISA KEV, VulnCheck KEV) (INV-4).
 var SafeTags = []string{"kev", "vkev"}
 
-// The sets of the pack (D-527). SetKEV is the set of every job that is not full, as before: the LAN scan and the read-only own_ip
+// The sets of the pack. SetKEV is the set of every job that is not full, as before: the LAN scan and the read-only own_ip
 // checks. A full job (testing terms accepted, nucleiargv.DepthFull) runs SetDeep, and SetDisruptive only with the extra tick. A
 // template belongs to one or two: kev alone, kev with deep or disruptive (a KEV template allowed at full depth), deep, disruptive.
 const (
@@ -52,12 +52,12 @@ type Template struct {
 	SHA256  string   `json:"sha256"`        // of the template file
 	Tags    []string `json:"tags"`          //
 	Request string   `json:"request"`       // the first request line, for the probe log (contract.ts ProbeEntry.request)
-	// OwnIP says the template may run on the box's own public IP (exposure's safe checks, D-520): decided when the pack is built
+	// OwnIP says the template may run on the box's own public IP (exposure's safe checks): decided when the pack is built
 	// (scripts/scanpack) from the template itself, conservatively: http only, every request GET or HEAD without a body, no
 	// credential, no command, no refused tag (OwnIPRefusedTag), and the file passes OwnIPText. Absent = false: a template the
 	// builder could not judge is not allowed. The worker checks the file again with OwnIPText before an own_ip job runs.
 	OwnIP bool `json:"own_ip,omitempty"`
-	// Sets are the sets the template belongs to (D-527): SetKEV, SetDeep, SetDisruptive (see there). The worker runs a template only
+	// Sets are the sets the template belongs to: SetKEV, SetDeep, SetDisruptive (see there). The worker runs a template only
 	// in a job its sets allow (RunsAt).
 	Sets []string `json:"sets"`
 	// Name and Severity are info.name (printable ASCII) and info.severity, from the template: what a deep result without a CVE
@@ -66,7 +66,7 @@ type Template struct {
 	Severity string `json:"severity,omitempty"`
 	// Generic marks a deep http template of the exposure, misconfiguration, panel and miscellaneous categories that names no
 	// product (no vendor or product in its metadata, none of its tags a product of the technologies templates): a full job runs it
-	// on every web port, whatever the technologies found (D-527).
+	// on every web port, whatever the technologies found.
 	Generic bool `json:"generic,omitempty"`
 }
 
@@ -83,7 +83,7 @@ func (t Template) FullSet() string {
 	return ""
 }
 
-// RunsAt says whether a job of this depth may run the template (D-527): a job that is not full runs the KEV set only; a full job
+// RunsAt says whether a job of this depth may run the template: a job that is not full runs the KEV set only; a full job
 // runs the deep set, and the disruptive set only with the extra tick.
 func (t Template) RunsAt(full, disruptive bool) bool {
 	if !full {
@@ -93,7 +93,7 @@ func (t Template) RunsAt(full, disruptive bool) bool {
 	return s == SetDeep || s == SetDisruptive && disruptive
 }
 
-// Tech says whether the template is one of the technologies templates a full job runs first on a web port (D-527).
+// Tech says whether the template is one of the technologies templates a full job runs first on a web port.
 func (t Template) Tech() bool { return strings.HasPrefix(t.Path, "http/technologies/") }
 
 // genericTags are tags of the technologies templates that name no product: they are never product tags.
@@ -181,7 +181,7 @@ func Parse(raw []byte) (*Index, error) {
 	return &ix, nil
 }
 
-// checkSets checks the sets of an entry (D-527): one or two, of the allowed pairs, and what each needs.
+// checkSets checks the sets of an entry: one or two, of the allowed pairs, and what each needs.
 func (t Template) checkSets() error {
 	switch {
 	case len(t.Sets) == 1 && slices.Contains([]string{SetKEV, SetDeep, SetDisruptive}, t.Sets[0]):
@@ -234,7 +234,7 @@ func (t Template) check() error {
 		if !tagRE.MatchString(tag) {
 			return fmt.Errorf("tag %.40q is not valid", tag)
 		}
-		if slices.Contains(forbidden, tag) && (tag != "dos" || !onlyDisruptive) { // D-527: dos only in the disruptive set
+		if slices.Contains(forbidden, tag) && (tag != "dos" || !onlyDisruptive) { // Dos only in the disruptive set
 			return fmt.Errorf("tag %q is never allowed", tag)
 		}
 		if tag == "oast" { // L3: nuclei runs with -ni, so a check that needs an out-of-band answer would always say "not matched"
@@ -260,7 +260,7 @@ func (t Template) check() error {
 var ownIPRefusedParts = []string{"sqli", "injection", "xss", "ssti", "rce", "login", "brute", "upload", "write", "deserializ", "password",
 	"passwd", "reset", "cmdi", "jndi", "auth", "credential", "creds", "intrusive", "fuzz", "dos", "ssrf", "crlf"}
 
-// OwnIPRefusedTag says whether a template with this tag may never run on the box's own public IP (D-559 K-6, D-520): a tag of
+// OwnIPRefusedTag says whether a template with this tag may never run on the box's own public IP: a tag of
 // nucleiargv.OwnIPForbiddenTags, or one that contains a part of ownIPRefusedParts.
 func OwnIPRefusedTag(tag string) bool {
 	return slices.Contains(nucleiargv.OwnIPForbiddenTags(), tag) || slices.ContainsFunc(ownIPRefusedParts, func(p string) bool { return strings.Contains(tag, p) })
@@ -284,7 +284,7 @@ var credMarks = []string{"{{username", "{{password", "{{user}}", "{{pass", "{{cm
 	"/bin/bash", "cmd.exe", "powershell", "whoami", "{{sid", "${jndi", "exec(", "system(", "%60", "--exec", "%24%28", "%3bid", "reset",
 	"delete", "remove", "drop ", "oast.", "interact.sh"}
 
-// OwnIPText is the worker's own check of a template file before an own_ip job (D-520), the last fence, without a YAML parser
+// OwnIPText is the worker's own check of a template file before an own_ip job, the last fence, without a YAML parser
 // (the sensor binary links none): every raw request line is GET or HEAD, every method: key is GET or HEAD, there is no body: key,
 // no header that carries a credential and no credential, command or delay variable. It is stricter than it needs to be on
 // purpose: the builder marks own_ip only templates that also pass it.
@@ -344,8 +344,8 @@ var (
 	base64RE = regexp.MustCompile(`[A-Za-z0-9+/_-]{8,}={0,2}`)
 )
 
-// RequestPayloadOK refuses a request target (path and query) or a header value that carries an injection-shaped payload (D-520,
-// review round 2 M1), on the text and on its percent-decoded form: a quote, a "--" comment, a ";" in the query, a CR or LF, a
+// RequestPayloadOK refuses a request target (path and query) or a header value that carries an injection-shaped payload,
+// on the text and on its percent-decoded form: a quote, a "--" comment, a ";" in the query, a CR or LF, a
 // script or javascript: (also inside a base64 blob), SQL words (union, select, sleep(, benchmark(), a template expression other
 // than nuclei's address variables, ${ or #{. Conservative: false refusals are accepted.
 func RequestPayloadOK(s string) error {
@@ -427,7 +427,7 @@ func (ix *Index) ForCVE(cve string) []Template {
 	return out
 }
 
-// FullForCVE returns the templates of any set that confirm cve and that a full job may run (RunsAt), in index order (D-527).
+// FullForCVE returns the templates of any set that confirm cve and that a full job may run (RunsAt), in index order.
 func (ix *Index) FullForCVE(cve string, disruptive bool) []Template {
 	var out []Template
 	for _, i := range ix.allCVE[cve] {
@@ -457,15 +457,15 @@ func (ix *Index) Has(id string) bool {
 // the target would be made to reach. The word alone ("Interactsh Server" as a matcher of tech-detect) is not a use.
 var oastRE = regexp.MustCompile(`(?i)\{\{\s*(interactsh|oast)|interactsh[-_](url|protocol|request|response|ip)|interactsh\.(com|me|sh)|oast\.(me|fun|live|online|site|pro|sh|com)|interact\.sh|burpcollaborator\.`)
 
-// NeedsOAST says whether a template uses an out-of-band server (a third party: a data flow leaving the box), D-527.
+// NeedsOAST says whether a template uses an out-of-band server (a third party: a data flow leaving the box).
 func NeedsOAST(body []byte) bool { return oastRE.Match(body) }
 
 // oobServerRE is a matcher looking for an interactsh server's own page: outside the technologies templates, a template that matches
 // it makes the target fetch one (review FULL-4b r1 M3, CVE-2021-22054 hides the URL in base64).
 var oobServerRE = regexp.MustCompile(`(?i)interactsh server`)
 
-// FullText is the worker's own check of a template file before a full job (D-527), behind the index's sets and the file's hash and
-// NoChangeText (D-528, every job): no out-of-band interaction (interactsh, oast), and outside the technologies templates (tech) no
+// FullText is the worker's own check of a template file before a full job, behind the index's sets and the file's hash and
+// NoChangeText (every job): no out-of-band interaction (interactsh, oast), and outside the technologies templates (tech) no
 // match on an interactsh server's page. Like OwnIPText it reads the text without a YAML parser (the sensor binary links none).
 func FullText(body []byte, tech bool) error {
 	if NeedsOAST(body) || !tech && oobServerRE.Match(body) {

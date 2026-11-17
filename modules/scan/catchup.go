@@ -13,7 +13,7 @@ import (
 const catchUpPage = 100
 
 // catchUp records the KEV entries feeds announced since the last one read, as OnNewKEV does for the bus: the bus is
-// best-effort (D-144), so an entry announced while scan was off or the process was down is found here. One page per
+// best-effort, so an entry announced while scan was off or the process was down is found here. One page per
 // pass. The rows and the read point are written in one transaction, and an entry already queued (from the bus) is
 // kept, so a pass can be repeated. The event keeps the time feeds announced it, so its latency says how late the
 // rescan came. Entries announced more than pendingFor ago are passed over (the read point moves on): an event that old

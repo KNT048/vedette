@@ -29,8 +29,8 @@ import (
 
 var epochRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
-// currentConfig is what the sensor is told now: the card the admin chose (else the default card, D-380), SPAN mode, and for
-// SPAN the switches and filters. When the filters cannot be read it says "do not capture" (D-80 (3): ignoring a rule would
+// currentConfig is what the sensor is told now: the card the admin chose (else the default card), SPAN mode, and for
+// SPAN the switches and filters. When the filters cannot be read it says "do not capture" (ignoring a rule would
 // read traffic the admin excluded).
 func (s *Service) currentConfig(ctx context.Context) (sensorlink.Config, error) {
 	if err := s.ensureSensor(ctx); err != nil {
@@ -221,7 +221,7 @@ func (s *Service) Observations(ctx context.Context, req *sensorlink.Observations
 		return sensorlink.ObservationsReply{AckSeq: req.Seq, Rejected: []sensorlink.Rejected{}}, nil
 	}
 	box, err := s.boxAddresses(ctx)
-	if err != nil { // not the items' fault: 503 not_ready, which the sensor retries whole and never splits (D-385)
+	if err != nil { // not the items' fault: 503 not_ready, which the sensor retries whole and never splits
 		s.log.WarnContext(ctx, "sensor-passive: batch not applied until the box's own cards are known; the sensor will send it again", "error", err)
 		e := sensorlink.NewError(sensorlink.CodeNotReady)
 		e.RetryAfter = notReadyRetry
@@ -355,8 +355,8 @@ func (b boxSet) has(o observe.Observation) bool {
 }
 
 // boxAddresses reads the cards of the box from the host (the authority; the heartbeat of a sensor is not): what a sensor says
-// about them is refused, the box is described by the host alone (INV-6, D-118). A host that is configured but gives no list
-// fails the batch (the sensor sends it again), as in SetInterface. Only without a host (container-only, D-168, D-385) the
+// about them is refused, the box is described by the host alone (INV-6). A host that is configured but gives no list
+// fails the batch (the sensor sends it again), as in SetInterface. Only without a host (container-only) the
 // cards are those of the sensor's heartbeat of the last 90 s: the sensor runs on the host network and is the only one that
 // sees the box's real cards, the core container sees only its own bridge link. With no such heartbeat the batch fails too:
 // a box whose cards are unknown would be recorded as a device of its own network.

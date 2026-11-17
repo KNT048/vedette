@@ -337,7 +337,7 @@ func TestContract_INV4_DecisionMustBeApproveOrReject(t *testing.T) {
 	}
 }
 
-// The approver is checked again when the link is used (D-96 (4)); a refusal does not burn the token.
+// The approver is checked again when the link is used; a refusal does not burn the token.
 func TestContract_INV4_TheApproverIsCheckedAgain(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -384,7 +384,7 @@ func TestContract_INV4_TheApproverIsCheckedAgain(t *testing.T) {
 	}
 }
 
-// D-57 (20): a high-risk request is never decided through a link, whichever way the record got there.
+// A high-risk request is never decided through a link, whichever way the record got there.
 func TestContract_INV4_HighRiskIsNeverDecidedByLink(t *testing.T) {
 	t.Parallel()
 	e := newLinkEnv(t)
@@ -455,7 +455,7 @@ func TestContract_INV4_RefusalDoesNotBurnTheToken(t *testing.T) {
 	}
 }
 
-// Reject burns the token (D-96 (4)) and is a decision of its own.
+// Reject burns the token and is a decision of its own.
 func TestContract_INV4_RejectBurnsTheToken(t *testing.T) {
 	t.Parallel()
 	e := newLinkEnv(t)
@@ -939,7 +939,7 @@ func TestPost5_ABlackholedMailServerDelaysNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.rule("Pre", "honeypot", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(1440)}}, func(in *response.RuleInput) { in.PreApproved = true })
-	e.fireNoWait(e.trap("h1", "203.0.113.157")) // a public source: a block on a LAN address is refused when planned (D-469)
+	e.fireNoWait(e.trap("h1", "203.0.113.157")) // a public source: a block on a LAN address is refused when planned
 	if e.count(`SELECT COUNT(*) FROM resp_actions WHERE pre_approved = 1 AND status = 'executed'`) != 1 {
 		t.Fatal("a pre-approved action waited for the mail server")
 	}
@@ -1173,7 +1173,7 @@ func TestContract_INV4_LinkLimitIsPerWholeIPv6AddressAndNotTheBlocklists(t *test
 	}
 }
 
-// ---- D-124: two people, at most one by link ----
+// ---- Two people, at most one by link ----
 
 func TestContract_INV2_TwoPersonRuleAllowsOneLink(t *testing.T) {
 	t.Parallel()

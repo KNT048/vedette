@@ -1,6 +1,6 @@
 package main
 
-// The devices of the box of the real-backend end-to-end run (WP-30 slice 5, D-93/D-94): an HTTPS server, an SSH server and an MCP server in
+// The devices of the box of the real-backend end-to-end run (WP-30 slice 5): an HTTPS server, an SSH server and an MCP server in
 // this process, on loopback, reachable only under their own names (conntest.AllowLoopback): a connection saved with "devN.device.test" in its
 // target reaches the fake, while the address policy still refuses 127.0.0.1 and the box's own address typed by anybody. ready.json carries the
 // names, targets and logins; the specs read what each device received and rotate its certificate or host key through the control server:

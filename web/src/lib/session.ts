@@ -6,13 +6,13 @@ export interface Me { id: string; name: string; email: string; role: Role; org: 
 
 const rank: Record<Role, number> = { viewer: 0, operator: 1, admin: 2 }
 
-/** enabled false: not asked yet (RequireSession on a box not set up: /me would only answer 401, logged by the browser, W2-8). */
+/** enabled false: not asked yet (RequireSession on a box not set up: /me would only answer 401, logged by the browser). */
 export function useMe(enabled = true) {
   return useQuery<Me | null, ApiError>({
     queryKey: ['me'],
     enabled,
     queryFn: async () => {
-      // N44-2: without the session's readable cookie nobody is signed in, and asking /me would only answer 401, which the browser
+      // Without the session's readable cookie nobody is signed in, and asking /me would only answer 401, which the browser
       // logs on every page load. The mock sets no cookie, so it is asked as before.
       if (import.meta.env.VITE_API_MOCK === 'off' && !hasSessionCookie()) return null
       try {

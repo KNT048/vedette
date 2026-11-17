@@ -20,7 +20,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// newConn builds the store of connections once, in buildServices (deps.Conn): core owns it (D-93), response reads it through
+// newConn builds the store of connections once, in buildServices (deps.Conn): core owns it, response reads it through
 // responseConnections and core's Privacy page asks it through privacyFacts. The ports to inventory and response are read when
 // they are asked for, because response is built after the store it reads.
 func newConn(d *deps) (*conn.Service, error) {
@@ -52,7 +52,7 @@ func newConn(d *deps) (*conn.Service, error) {
 	})
 }
 
-// boxSources are the places the box's own addresses come from (D-94: no connection may point at the box). core runs in a
+// boxSources are the places the box's own addresses come from (no connection may point at the box). core runs in a
 // container, so the interfaces it sees are not the appliance's LAN address: the other sources fill that in. Each is a function so a
 // test can fake it; a nil one is skipped.
 type boxSources struct {

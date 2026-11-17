@@ -27,7 +27,7 @@ export function useSubmitSetup() {
   })
 }
 
-// ---- khôi phục từ tệp sao lưu ở lần cài đầu (S-CORE-1, D-518) ----
+// ---- khôi phục từ tệp sao lưu ở lần cài đầu (S-CORE-1) ----
 export const useUploadBackup = () => useMutation({ mutationFn: (v: { code: string; file: File }) => api.upload<BackupUpload>('/core/setup/restore/upload', v.file, { 'X-Setup-Code': v.code.trim() }) })
 export const useSetupRestore = () => useMutation({ mutationFn: (v: { setup_code: string; upload_id: string; key?: string; confirm_without_key?: boolean; accept_terms: boolean }) => api.post<SetupRestoreRun>('/core/setup/restore', v) })
 /** Polled while the first-run restore runs. Vedette restarts during it, so a failed poll keeps polling; done once the restored
@@ -67,7 +67,7 @@ export function useToggleModule() {
     onSuccess: async (r, v) => {
       if (r.kind !== 'ok') return
       await qc.invalidateQueries({ queryKey: ['modules'] }) // so the MCP page sees the module off before its cached answer is dropped
-      // off, every /core/mcp path is 404 (D-230): drop the cached answer instead of refetching it
+      // off, every /core/mcp path is 404: drop the cached answer instead of refetching it
       if (v.id === 'mcp-server' && !v.enabled) qc.removeQueries({ queryKey: ['core', 'mcp'] })
       else void qc.invalidateQueries({ queryKey: ['core', 'mcp'] })
     },
@@ -118,12 +118,12 @@ export const useAudit = (q: AuditQuery) => useQuery({ queryKey: ['core', 'audit'
 export const auditExportPath = (q: AuditQuery) => `/core/audit/export${qs(q)}`
 
 // ---- cập nhật ----
-/** Hỏi lại mỗi giây khi phần mềm đang cập nhật hay quay lại (D-340); vẫn hỏi khi một lần hỏi lỗi lúc Vedette khởi động lại. */
+/** Hỏi lại mỗi giây khi phần mềm đang cập nhật hay quay lại; vẫn hỏi khi một lần hỏi lỗi lúc Vedette khởi động lại. */
 export const useUpdates = () => useQuery({
   queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'),
   refetchInterval: (q) => (q.state.data?.run?.status === 'running' ? 1000 : false), refetchIntervalInBackground: true,
 })
-/** The every-page banner of D-386: the same data, read again every 10 minutes (an open tab learns of a withdrawal the periodic check stored), never at the 1 s pace of a run (only the Updates page follows a run). */
+/** The every-page banner of a withdrawn release: the same data, read again every 10 minutes (an open tab learns of a withdrawal the periodic check stored), never at the 1 s pace of a run (only the Updates page follows a run). */
 export const useUpdatesBanner = () => useQuery({ queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'), staleTime: 60_000, refetchInterval: 10 * 60_000 })
 export function useUpdateMutations() {
   const qc = useQueryClient()
@@ -132,7 +132,7 @@ export function useUpdateMutations() {
   return {
     refresh: () => qc.fetchQuery({ queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'), staleTime: 0 }),
     settings: useMutation({ mutationFn: (v: { channel?: UpdateChannel; mode?: 'auto' | 'manual' }) => api.patch<UpdatesState>('/core/updates', v), onSuccess: set }),
-    // A failed check is stored (last_check_error, D-392): read the state again so the page says so.
+    // A failed check is stored (last_check_error): read the state again so the page says so.
     check: useMutation({ mutationFn: () => api.post<UpdatesState & { applied: number }>('/core/updates/check'), onSuccess: set, onError: () => void qc.invalidateQueries({ queryKey: ['core', 'updates'] }) }),
     apply: useMutation({ mutationFn: (component: string) => api.post<UpdatesState>('/core/updates/apply', { component }), onSuccess: set }),
     rollback: useMutation({ mutationFn: (v: { component: string; confirm_data_loss?: boolean }) => api.post<UpdatesState>('/core/updates/rollback', v), onSuccess: set }),
@@ -140,8 +140,8 @@ export function useUpdateMutations() {
   }
 }
 
-// ---- hệ điều hành của hộp (D-53) ----
-// D-381: the pages that use the endpoints of vedette-host mount them only on the appliance (useInstallKind); on a container-only
+// ---- hệ điều hành của hộp ----
+// The pages that use the endpoints of vedette-host mount them only on the appliance (useInstallKind); on a container-only
 // install they could only answer 409 not_appliance.
 export const useOsState = () => useQuery({ queryKey: ['core', 'os'], queryFn: () => api.get<OsState>('/core/updates/os') })
 /** Lần chạy hiện tại hoặc gần nhất; tự hỏi lại mỗi 0,5 giây khi đang chạy để có log trực tiếp. */
@@ -168,7 +168,7 @@ export function useSavePrivacy() {
   return useMutation({ mutationFn: (v: { telemetry?: boolean; update_check?: boolean }) => api.patch<PrivacyState>('/core/privacy', v), onSuccess: (d) => { qc.setQueryData(['core', 'privacy'], d); void qc.invalidateQueries({ queryKey: ['core', 'updates'] }) } })
 }
 
-// ---- kết nối tới thiết bị (D-93) ----
+// ---- kết nối tới thiết bị ----
 /** Every change refreshes the list and the Privacy page: flow 12 is on while a connection is enabled. */
 function useConnectionWrite<A, R = unknown>(fn: (a: A) => Promise<R>) {
   const qc = useQueryClient()
@@ -180,7 +180,7 @@ export const useRemoveConnection = () => useConnectionWrite((id: string) => api.
 export const useTestConnection = () => useConnectionWrite((id: string) => api.post<ConnectorTestResult>(`/core/connections/${encodeURIComponent(id)}/test`))
 
 // ---- MCP ----
-/** Only while the mcp-server module is on: off, every /core/mcp path is 404 (D-230). The switch is useToggleModule. */
+/** Only while the mcp-server module is on: off, every /core/mcp path is 404. The switch is useToggleModule. */
 export const useMcp = (enabled: boolean) => useQuery({ queryKey: ['core', 'mcp'], queryFn: () => api.get<McpState>('/core/mcp'), enabled })
 export function useMcpMutations() {
   const qc = useQueryClient()
@@ -199,7 +199,7 @@ export async function saveInventoryScope(lan: string[], scopeConfirmed: boolean)
   return api.put<{ scope_confirmed_at: string | null }>('/inventory/settings', { ...cur, lan_ranges: lan, active: { ...(cur.active as object), enabled: scopeConfirmed }, scope_confirmed: scopeConfirmed })
 }
 
-// ---- khôi phục sao lưu trên hộp (S-CORE-1, D-377) ----
+// ---- khôi phục sao lưu trên hộp (S-CORE-1) ----
 export const useBoxBackups = () => useQuery({ queryKey: ['core', 'backups'], queryFn: () => api.get<BoxBackups>('/core/data/backups'), retry: false })
 /** Polled while a restore runs: Vedette restarts during it, so a failed poll is retried, not shown. The host makes the Before
  * restore copy during the run, so the list of backups is read again when a run this page saw running ends (A13-1). */
@@ -216,7 +216,7 @@ export const useRestoreRun = () => {
     refetchInterval: (q) => (q.state.data?.status === 'running' ? 3000 : false),
   })
 }
-/** The decryption key, once, behind the password and two-step code (D-518). */
+/** The decryption key, once, behind the password and two-step code. */
 export const useDownloadKey = () => useMutation({ mutationFn: (v: { password: string; code?: string }) => download('/core/data/key', 'vedette.key', v) })
 export const useRestore = () => {
   const qc = useQueryClient()
@@ -227,7 +227,7 @@ export const useRestore = () => {
 }
 export const usePurge = () => useMutation({ mutationFn: (v: { confirm: string; password: string; code?: string }) => api.post<{ ok: true; removed: Record<string, number>; kept: string[] }>('/core/data/purge', v) })
 
-// ---- mạng của hộp (D-56) ----
+// ---- mạng của hộp ----
 export const useNetwork = (enabled: boolean) => useQuery({ queryKey: ['core', 'network'], queryFn: () => api.get<NetworkState>('/core/network'), enabled, refetchInterval: (q) => (q.state.data?.pending ? 10000 : false) })
 /** Polled while the page is open: the point of the card is to watch traffic arrive. */
 export const useSpanStatus = () => useQuery({ queryKey: ['core', 'network', 'span-status'], queryFn: () => api.get<SpanStatus>('/core/network/span/status'), refetchInterval: 5000 })
@@ -241,7 +241,7 @@ export function useNetworkActions() {
     revert: useMutation({ mutationFn: () => api.post<NetworkState>('/core/network/management/revert'), onSuccess: done }),
     span: useMutation({ mutationFn: (b: SpanConfig) => api.put<NetworkState>('/core/network/span', b), onSuccess: done }),
     ntp: useMutation({ mutationFn: (b: NtpConfig) => api.put<NetworkState>('/core/network/ntp', b), onSuccess: done }),
-    // D-465: the block list URL (Response) and the agent install commands (Devices) carry the Box address.
+    // The block list URL (Response) and the agent install commands (Devices) carry the Box address.
     boxAddress: useMutation({ mutationFn: (address: string) => api.put<NetworkState>('/core/network/box-address', { address }), onSuccess: (d: NetworkState) => { done(d); void qc.invalidateQueries({ queryKey: ['response'] }) } }),
     forgetBoxAddress: useMutation({ mutationFn: (address: string) => api.post<NetworkState>('/core/network/box-address/forget', { address }), onSuccess: done }),
   }

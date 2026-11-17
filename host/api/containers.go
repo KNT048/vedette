@@ -3,7 +3,7 @@ package api
 import "regexp"
 
 // container.start, container.stop and GET /v1/state/containers (docs/specs/host-api.md sections 5,
-// 6.8 and 6.9, D-104, D-105, D-123).
+// 6.8 and 6.9).
 
 // Commands of the container part (slice 3-6 start and stop, slice 3-7 pull, slice 3-8a start with a
 // version and rollback).
@@ -49,10 +49,10 @@ const (
 	// CodeHostConfIncomplete: the unit needs a uid or gid that host.conf did not give the host.
 	CodeHostConfIncomplete = "host_conf_incomplete"
 	// CodePortInUse (412, container.start and container.rollback): the unit the command would write publishes a host port that the
-	// unit on disk does not, and another program listens on it, so the service would not start; nothing was changed (D-455).
+	// unit on disk does not, and another program listens on it, so the service would not start; nothing was changed.
 	CodePortInUse = "port_in_use"
 
-	// Refusals of container.pull (spec 6.7, D-104, D-130): what the host's own verification found.
+	// Refusals of container.pull (spec 6.7): what the host's own verification found.
 	CodeSignatureInvalid    = "signature_invalid"      // a document or a cosign signature does not verify, or does not parse
 	CodeKeyRevoked          = "key_revoked"            // the signing key is revoked by the stored index
 	CodeReleaseRevoked      = "release_revoked"        // the release version or an image digest is revoked
@@ -61,16 +61,16 @@ const (
 	CodeSequenceRegress     = "sequence_regress"       // the index is older than the stored one
 	CodePlatformMismatch    = "platform_mismatch"      // no image for linux/<GOARCH>
 	CodeManifestMismatch    = "manifest_mismatch"      // version differs from the args, or the hash differs from the index
-	CodeBundleUnsupported   = "bundle_unsupported"     // source=bundle on a host older than D-452 (this host no longer sends it)
-	CodeNoTrustedKeys       = "no_trusted_keys"        // this build embeds no release keys: it refuses everything (D-130)
-	CodeReleaseStateInvalid = "release_state_invalid"  // the stored index is damaged: the host will not guess (D-130)
+	CodeBundleUnsupported   = "bundle_unsupported"     // source=bundle on an older host (this host no longer sends it)
+	CodeNoTrustedKeys       = "no_trusted_keys"        // this build embeds no release keys: it refuses everything
+	CodeReleaseStateInvalid = "release_state_invalid"  // the stored index is damaged: the host will not guess
 	CodePullFailed          = "pull_failed"            // run ended failed: podman could not pull or tag
 	// CodeScanBuildFailed ends a container.pull of scan as failed: the signed base image was pulled and verified, but the image with
 	// nmap that the host builds on the box from it was not (no package mirror, a build error, or nmap below the floor). The previous
-	// localhost/vedette-scan-nmap image, if any, is untouched and the previous unit keeps running (D-147).
+	// localhost/vedette-scan-nmap image, if any, is untouched and the previous unit keeps running.
 	CodeScanBuildFailed = "scan_build_failed"
 
-	// Codes of container.pull with source=bundle (spec 6.7, D-452). The bundle is <core_data>/bundles/<bundle_id>.tar.
+	// Codes of container.pull with source=bundle (spec 6.7). The bundle is <core_data>/bundles/<bundle_id>.tar.
 	// CodeBundleNotFound (412): core has not written that bundle (or core_data is not set or not safe to read).
 	CodeBundleNotFound = "bundle_not_found"
 	// CodeBundleInvalid: the file or the tar is not what the bundle contract allows (a link, not core's, over 8 GiB, a name
@@ -81,7 +81,7 @@ const (
 	// (its index.json names another digest, or a blob does not hash to its name).
 	CodeArchiveDigestMismatch = "archive_digest_mismatch"
 
-	// Refusals of container.start with a version and of container.rollback (spec 6.8, 6.10, D-104, D-138).
+	// Refusals of container.start with a version and of container.rollback (spec 6.8, 6.10).
 	CodeDowngradeNotAllowed   = "downgrade_not_allowed"   // the version is lower than the running one: going back is container.rollback
 	CodeUpgradePathRequired   = "upgrade_path_required"   // the running version is below the target's min_upgrade_from
 	CodeNoPrevious            = "no_previous"             // nothing to roll back to (or its image is gone)
@@ -118,7 +118,7 @@ type ContainerStopArgs struct {
 // version; Restarted is false when the service already ran the right image and was healthy.
 // PreviousDigest is the digest the service ran before a switch. BackupID is the pre_update backup
 // core's switch made. IndexExpired says the index the version was checked against is past its
-// expires_at: the caller shows it (D-130).
+// expires_at: the caller shows it.
 type ContainerStartResult struct {
 	Service        string  `json:"service"`
 	Version        *string `json:"version"`
@@ -148,7 +148,7 @@ type ContainerRollbackResult struct {
 // documents, base64, with their minisign signatures (each at most 256 KiB decoded); the host
 // verifies them itself and never takes an image reference, a digest or a path from here. With
 // source=bundle the four documents are not sent: the host reads them from the bundle core wrote at
-// <core_data>/bundles/<bundle_id>.tar (D-452).
+// <core_data>/bundles/<bundle_id>.tar.
 type ContainerPullArgs struct {
 	Service     string `json:"service"`
 	Version     string `json:"version"`
@@ -173,7 +173,7 @@ type ContainerPullResult struct {
 	Size     int64    `json:"size"`
 	Verified []string `json:"verified"` // ["minisign","cosign"]
 	// IndexExpired says the index this pull was verified with is past its expires_at. An old index only
-	// warns (D-104); the caller shows it (D-130).
+	// warns; the caller shows it.
 	IndexExpired bool `json:"index_expired"`
 }
 
@@ -234,7 +234,7 @@ type ContainersState struct {
 var portsInUseRE = regexp.MustCompile(`^(Ports?) ([0-9]{1,5}/(?:tcp|udp)[ -~]{0,480}?) (?:is|are) in use by another program on this machine\.`)
 
 // PortsInUse reads the ports, and the program holding each when the host found it in /proc (name from comm, printable ASCII,
-// at most 15 characters, and pid), out of a port_in_use message, for core to show (D-412). list is printable ASCII, plural
+// at most 15 characters, and pid), out of a port_in_use message, for core to show. list is printable ASCII, plural
 // is true for more than one port, ok is false for a message of another shape.
 func PortsInUse(msg string) (list string, plural, ok bool) {
 	m := portsInUseRE.FindStringSubmatch(msg)

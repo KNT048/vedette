@@ -21,7 +21,7 @@ import (
 // beyond these fails the whole batch rather than being cut to fit.
 const (
 	// maxXMLDepth: nmap's own elements nest 7 deep (nmaprun/host/os/osmatch/osclass/cpe); a script's structured output adds a
-	// table per level under <script> (the vulns library: script/table/table/table/elem is 9 under a port, D-526).
+	// table per level under <script> (the vulns library: script/table/table/table/elem is 9 under a port).
 	maxXMLDepth     = 16
 	maxXMLAttrs     = 24
 	maxXMLTokens    = 400_000
@@ -32,8 +32,8 @@ const (
 	maxText         = 200 // longest stored string, in runes
 	maxCPELen       = 300
 	maxElemLen      = 256      // longest <elem> text of an NTLM script that is read; a longer one is dropped
-	maxScriptOutput = 64 << 10 // longest output attribute of a <script> that is read (ssl-cert prints the whole certificate, D-511); a longer one is ignored
-	// The NSE results of a full external run (D-526). maxScriptsPerHost: a few dozen scripts answer on a web port and at most
+	maxScriptOutput = 64 << 10 // longest output attribute of a <script> that is read (ssl-cert prints the whole certificate); a longer one is ignored
+	// The NSE results of a full external run. maxScriptsPerHost: a few dozen scripts answer on a web port and at most
 	// commonports.MaxBelievableOpen ports are believed, so a real host prints far fewer; the cap (four per listed port) bounds a
 	// hostile answer, and more fails the run like too many ports (the whole XML is bounded by MaxOutput anyway). It applies to
 	// every shape, LAN ones included (their -sV can print version-category scripts too); a LAN host near it is not expected.
@@ -67,16 +67,16 @@ type host struct {
 	ports    []portInfo // open ports only
 	matches  []osMatch
 	timedOut bool // nmap gave up on the host (--host-timeout): it printed no port table, so ports says nothing
-	// read are the ports the PortVersions follow-up of a weekly scan read with -sV (D-592), set by probeAllPorts; nil otherwise
+	// read are the ports the PortVersions follow-up of a weekly scan read with -sV, set by probeAllPorts; nil otherwise
 	read []int
 	// closed and filtered count the ports nmap found in those states (listed ports and <extraports>): with no open port they
-	// say whether the device refused the probes (closed) or something dropped them (filtered), D-501.
+	// say whether the device refused the probes (closed) or something dropped them (filtered).
 	closed, filtered int
-	ntlm             ntlmInfo    // what the device said about itself in an NTLM challenge (D-504); zero when no script answered
-	scripts          []nseScript // every NSE script result of an open port or of the host (<hostscript>), read for the full shapes (D-526)
+	ntlm             ntlmInfo    // what the device said about itself in an NTLM challenge; zero when no script answered
+	scripts          []nseScript // every NSE script result of an open port or of the host (<hostscript>), read for the full shapes
 }
 
-// nseScript is one NSE script result (D-526): the script's id, its text output (scriptText, or outputWithheld) and the findings
+// nseScript is one NSE script result: the script's id, its text output (scriptText, or outputWithheld) and the findings
 // of the vulns library in its structured output. Port is 0 for a host script.
 type nseScript struct {
 	port     int
@@ -151,7 +151,7 @@ func scriptText(s string) string {
 	return clipRunes(strings.TrimSpace(s), maxScriptText)
 }
 
-// ntlmInfo is the part of an NTLM CHALLENGE that nmap's rdp-ntlm-info or http-ntlm-info printed (nmapargv.Scripts, D-504): the
+// ntlmInfo is the part of an NTLM CHALLENGE that nmap's rdp-ntlm-info or http-ntlm-info printed (nmapargv.Scripts): the
 // Windows version and build the device itself put in the challenge, and its computer name. Only values of the expected form are kept.
 type ntlmInfo struct {
 	version string // Product_Version, "10.0.22631": major.minor.build, without the monthly update revision
@@ -198,7 +198,7 @@ type portInfo struct {
 	number                 int
 	proto, name            string
 	product, version, info string
-	// What the port said about the device besides product and version (D-511): nmap's device type of the service match, the page
+	// What the port said about the device besides product and version: nmap's device type of the service match, the page
 	// title (http-title) and the certificate subject (ssl-cert). Evidence for identification, never software.
 	devType, title, certSubject string
 	conf                        int // nmap's 1..10, 0 when absent
@@ -245,7 +245,7 @@ func clipRunes(s string, n int) string {
 	return string([]rune(s)[:n])
 }
 
-// Bounds of what a port says (D-511, #714 review): a long certificate subject or title is shortened, never dropped whole.
+// Bounds of what a port says: a long certificate subject or title is shortened, never dropped whole.
 const (
 	maxTitle       = 80
 	maxSubjectPart = 60
@@ -254,7 +254,7 @@ const (
 
 // certSubject is the subject of ssl-cert's output ("Subject: commonName=FGT60F.../organizationName=Fortinet/..."), commonName first
 // (it names the device: a FortiGate's serial, a host name), then the organisation, then the rest, each part cut to maxSubjectPart
-// and the whole to maxSubject; "" when there is none or it is not printable (D-511).
+// and the whole to maxSubject; "" when there is none or it is not printable.
 func certSubject(out string) string {
 	for line := range strings.Lines(out) {
 		s, ok := strings.CutPrefix(strings.TrimSpace(line), "Subject: ")
@@ -304,7 +304,7 @@ func (h *host) countState(state string, n int) {
 	}
 }
 
-// serviceName is the name of a <service> as nmap's own text output prints it (D-522, N1): nmap's XML keeps TLS apart, in
+// serviceName is the name of a <service> as nmap's own text output prints it: nmap's XML keeps TLS apart, in
 // tunnel="ssl", so an HTTPS admin page on 4443 is name="http" tunnel="ssl"; it becomes "ssl/http", which every consumer
 // (scan endpoints, exposure schemeOf and ZAP) reads as TLS. Without it nuclei spoke plain HTTP to a TLS port and found nothing.
 func serviceName(a map[string]string) string {
@@ -327,7 +327,7 @@ func attrs(el xml.StartElement) map[string]string {
 
 // readAttrs are the attributes the parser reads (the a["…"] keys of parseNmapXML and serviceName; TestReadAttrsAreTheParsersKeys
 // keeps the two in step). Only they are capped at maxAttrLen, a script's output apart (maxScriptOutput). Every other attribute nmap
-// prints is never read and bounded only by maxOutput (N42-3, D-590): nmap echoes its whole command line in <nmaprun args> (the
+// prints is never read and bounded only by maxOutput: nmap echoes its whole command line in <nmaprun args> (the
 // --script list of the full shapes alone is about 4.8 KB, 6.2 KB disruptive), the -p list in <scaninfo services>, and the fingerprint
 // of a port it cannot identify in <service servicefp> (about 6 KB, from what the target answered). Capping them refused whole runs.
 var readAttrs = map[string]bool{
@@ -371,10 +371,10 @@ func parseNmapXML(data []byte) ([]host, error) {
 		cpeBuf   strings.Builder
 		closed   bool
 		ntlm     bool   // inside the <script> of an NTLM script of an open port
-		title    bool   // inside the <script> of http-title (D-511)
+		title    bool   // inside the <script> of http-title
 		elemKey  string // key of the <elem> being read; "" when none
 		elemBuf  strings.Builder
-		scr      *nseScript  // the <script> being read, of an open port or of the host (D-526); nil outside one
+		scr      *nseScript  // the <script> being read, of an open port or of the host; nil outside one
 		scrDepth int         // len(path) of scr's <script>
 		fnd      *nseFinding // a <table> directly under scr: a vulns-library finding when it has a state
 		inIDs    bool        // inside fnd's <table key="ids">
@@ -407,7 +407,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 			}
 			for _, a := range t.Attr {
 				// A script's printed output (a certificate with many names, a long page title) may be longer than any other
-				// attribute; it is bounded apart below, so a long one never refuses the whole run (D-511). Attributes the parser
+				// attribute; it is bounded apart below, so a long one never refuses the whole run. Attributes the parser
 				// never reads are not capped one by one (readAttrs; the whole document is bounded by maxOutput).
 				if len(a.Value) > maxAttrLen && readAttrs[a.Name.Local] && (t.Name.Local != "script" || a.Name.Local != "output") {
 					return nil, fmt.Errorf("%w: attribute too long", errXMLInvalid)

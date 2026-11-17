@@ -20,7 +20,7 @@ import (
 	"github.com/knt048/vedette/modules/reports"
 )
 
-// D-630 (kien 2026-11-17, review: never throw away a person's decisions): Ignore through the API (operator) closes the device's open
+// review: never throw away a person's decisions: Ignore through the API (operator) closes the device's open
 // findings with a readable reason and no notice; a finding a person settled keeps its status; a reconcile makes nothing new; Stop
 // ignoring reopens only what Ignore closed and the device is matched again.
 func TestWiringIgnoredDeviceClosesItsOpenFindingsAndKeepsDecisions(t *testing.T) {
@@ -106,14 +106,14 @@ func TestWiringIgnoredDeviceClosesItsOpenFindingsAndKeepsDecisions(t *testing.T)
 	}
 }
 
-// D-630: ignoring closes the device's new-device incident, naming the person; a trap hit from the ignored device still opens a
+// ignoring closes the device's new-device incident, naming the person; a trap hit from the ignored device still opens a
 // Critical incident (the security exception: a staff phone touching a honeypot is what the customer must hear about).
 func TestWiringIgnoredDeviceClosesItsIncidentButATrapHitStillAlerts(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	s.enableNotify()
 	ctx := t.Context()
-	const mac = "c2:31:86:3f:8c:a0" // the N100's iPhone: a private MAC
+	const mac = "c2:31:86:3f:8c:a0" // a phone's private MAC
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{
 		{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr("192.168.18.129")}, Field: observe.Hostname, Value: "iPhone", Source: observe.Passive, Confidence: 0.7},
 	}); err != nil {
@@ -191,7 +191,7 @@ func ignoreAt(t *testing.T, s *stack, ip, mac string) string {
 	return ""
 }
 
-// D-630 security exception, review r1 L7 of #945: a URL token opened from an ignored device goes through the honeypot module's own
+// Security exception (#945): a URL token opened from an ignored device goes through the honeypot module's own
 // path (OpenURLToken: the hit, its source device, honeypot.hit.created) and still opens a Critical trap incident naming the device.
 func TestWiringATrapHitFromAnIgnoredDeviceStillAlerts(t *testing.T) {
 	t.Parallel()
@@ -205,7 +205,7 @@ func TestWiringATrapHitFromAnIgnoredDeviceStillAlerts(t *testing.T) {
 	}
 }
 
-// D-630 security exception, review r1 L7 of #945: a log line of an ignored device that reaches a known-bad address still opens the
+// Security exception (#945): a log line of an ignored device that reaches a known-bad address still opens the
 // intrusion-detection incident (logs.bad_address.detected through the logs module's own ingest).
 func TestWiringAnIntrusionAlertFromAnIgnoredDeviceStillAlerts(t *testing.T) {
 	t.Parallel()

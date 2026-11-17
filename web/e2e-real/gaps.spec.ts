@@ -1,4 +1,4 @@
-// The gap map (D-171): every route of Kiên's modules, opened as the administrator on the real box. Each must render with no JavaScript
+// The gap map: every route of the core-side modules, opened as the administrator on the real box. Each must render with no JavaScript
 // error and no 5xx from the API, except the exact 501 answers of backend that is not built yet. KNOWN_501 only shrinks: an entry that is
 // no longer answered 501 on its route fails that route's test, and a new 5xx fails its route. Each entry names its owner and the
 // deferred line that tracks it. KNOWN_404 is the same for a 404 on an API path the GUI calls (a module that is not wired yet): any other

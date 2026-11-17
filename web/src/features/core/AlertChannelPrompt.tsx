@@ -7,7 +7,7 @@ import { useMe } from '@/lib/session'
 import { useChannels } from '@/features/notify/api'
 
 /**
- * S-NOT-1 criterion D-462: the setup wizard has no alert channel step, so Home tells an administrator that no alert channel
+ * S-NOT-1: the setup wizard has no alert channel step, so Home tells an administrator that no alert channel
  * is set up and switched on, with a link to Settings → Alert channels, until one is. Only administrators (they alone read and
  * change channels) and only while the Notifications module is on (switched off, nobody wants alerts).
  */

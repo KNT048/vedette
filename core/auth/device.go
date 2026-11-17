@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
-// Device cookies (D-77), after OWASP "Slow Down Online Guessing Attacks with Device Cookies"
+// Device cookies, after OWASP "Slow Down Online Guessing Attacks with Device Cookies"
 // (https://owasp.org/www-community/Slow_Down_Online_Guessing_Attacks_with_Device_Cookies).
 //
 // The rate limit of sign-in is keyed by client address, and an IPv6 /64 is one key at a higher limit, so a
@@ -154,7 +154,7 @@ func (s *Service) limitKeys(ctx context.Context, email string, ip netip.Addr, co
 
 // ValidDevice reports whether cookie is, right now, a valid device cookie of the user userID: signed by this
 // box, not expired, for the user's current password. A caller that is about to change the password asks
-// before the change, then asks NewDevice for the cookie of the new password (D-77: the browser the owner
+// before the change, then asks NewDevice for the cookie of the new password (the browser the owner
 // already trusted keeps its exemption after a password change they just proved).
 func (s *Service) ValidDevice(ctx context.Context, userID, cookie string) bool {
 	c, ok := s.parseDevice(ctx, cookie)

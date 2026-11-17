@@ -699,7 +699,7 @@ func TestContract_INV15_ResumeKeepsTheWindowAndTheNextDecisionLooksAgain(t *test
 	}
 }
 
-// ---- D-357: the gates of the approval run before the code ----
+// ---- The gates of the approval run before the code ----
 
 // hookTwoStep accepts every code and runs fn first: a change of state that lands after the check before the code and before the transaction.
 type hookTwoStep struct {
@@ -752,7 +752,7 @@ func approvalRefusals(e *env) map[string]struct {
 
 // A refused approval does not spend the code: the gates of the transaction run on a read of the box before the code is looked at. The same
 // code then approves once the state allows it.
-func TestD357_RefusedApprovalDoesNotSpendTheCode(t *testing.T) {
+func TestRefusedApprovalDoesNotSpendTheCode(t *testing.T) {
 	e, f := newAIEnv(t)
 	a := e.highRiskAI()
 	f.give(oper.ID, purposeOf(a.ID), "111111")
@@ -776,7 +776,7 @@ func TestD357_RefusedApprovalDoesNotSpendTheCode(t *testing.T) {
 
 // No drift: the check before the code and the transaction give the same refusal for the same state. When the state changes between the two
 // (after the code passed), the transaction still refuses with the same code and says the code was used.
-func TestD357_SameRefusalBeforeTheCodeAndInTheTransaction(t *testing.T) {
+func TestSameRefusalBeforeTheCodeAndInTheTransaction(t *testing.T) {
 	h := &hookTwoStep{}
 	e := newEnv(t, func(c *response.Config) { c.TwoStep = h })
 	a := e.highRiskAI()

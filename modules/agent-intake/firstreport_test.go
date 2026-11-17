@@ -40,10 +40,10 @@ func wantIntervals(t *testing.T, step string, got map[string]float64, want map[s
 	}
 }
 
-// D-503 (W2-1): a new machine is asked every minute for each answer of its first report the inventory has not taken yet, and goes back
+// A new machine is asked every minute for each answer of its first report the inventory has not taken yet, and goes back
 // to the hourly schedule answer by answer; an answer written for nobody (no matched address) does not count; after an hour a node that
 // never matched is not asked every minute any more.
-func TestContract_D503_FirstReportIsAskedEveryMinute(t *testing.T) {
+func TestContract_FirstReportIsAskedEveryMinute(t *testing.T) {
 	w := newWorld(t)
 	_, secret := w.token("srv", 7)
 	key := w.enroll(secret, "srv-1", peerA)
@@ -80,10 +80,10 @@ func TestContract_D503_FirstReportIsAskedEveryMinute(t *testing.T) {
 		map[string]float64{"os_version": 3600, "interfaces": 3600, "system_info": 3600, "deb_packages": 3600})
 }
 
-// D-503 (W2-1, W2-12): the agent claims the row the passive sensor made for the same machine (one device), types it from its OS with
+// The agent claims the row the passive sensor made for the same machine (one device), types it from its OS with
 // the agent's rank (a passive guess never overrides it, a person's choice does), and the enrolment approves it once, in the name of
 // whoever made the token.
-func TestContract_D503_AgentClaimsThePassiveRowTypedAndApproved(t *testing.T) {
+func TestContract_AgentClaimsThePassiveRowTypedAndApproved(t *testing.T) {
 	w := newWorld(t)
 	ctx := t.Context()
 	passive := func(f observe.Field, v string) {
@@ -128,8 +128,8 @@ func TestContract_D503_AgentClaimsThePassiveRowTypedAndApproved(t *testing.T) {
 	}
 }
 
-// D-503: a machine a person marked suspicious keeps waiting after it enrols (a person's flag wins) and is not tried again at every report.
-func TestContract_D503_SuspiciousStaysForAPerson(t *testing.T) {
+// A machine a person marked suspicious keeps waiting after it enrols (a person's flag wins) and is not tried again at every report.
+func TestContract_SuspiciousStaysForAPerson(t *testing.T) {
 	w := newWorld(t)
 	if err := w.inv.Record(t.Context(), []observe.Observation{{AssetHint: observe.AssetHint{MAC: macA, IP: netip.MustParseAddr(peerA)}, Field: observe.Hostname, Value: "odd", Source: observe.Passive, Confidence: 0.6}}); err != nil {
 		t.Fatal(err)
@@ -150,8 +150,8 @@ func TestContract_D503_SuspiciousStaysForAPerson(t *testing.T) {
 	}
 }
 
-// D-503: a token made before created_by still approves; the audit line says who made it is not known.
-func TestContract_D503_OldTokenSaysItsMakerIsUnknown(t *testing.T) {
+// A token made before created_by still approves; the audit line says who made it is not known.
+func TestContract_OldTokenSaysItsMakerIsUnknown(t *testing.T) {
 	w := newWorld(t)
 	_, secret := w.token("old", 7)
 	w.exec(`UPDATE intake_agent_tokens SET created_by = NULL`)
@@ -166,11 +166,11 @@ func TestContract_D503_OldTokenSaysItsMakerIsUnknown(t *testing.T) {
 	}
 }
 
-// D-503, review #665 (HIGH): DHCP gave the address of an old machine to a new one and no sensor has seen the move yet, so the agent's
+// HIGH: DHCP gave the address of an old machine to a new one and no sensor has seen the move yet, so the agent's
 // address still resolves to the old machine's row. The agent's MAC observation makes the agent's MAC that row's MAC (agent outranks
 // passive), so a check of the MAC column alone would pass; the old MAC's observation is what says it is another machine. The row is
 // not approved in the token maker's name, the node does not try again at every report, and the server log says why.
-func TestContract_D503_AnAddressDHCPReusedApprovesNothing(t *testing.T) {
+func TestContract_AnAddressDHCPReusedApprovesNothing(t *testing.T) {
 	w := newWorld(t)
 	const oldMAC = "52:54:00:00:00:99"
 	if err := w.inv.Record(t.Context(), []observe.Observation{{AssetHint: observe.AssetHint{MAC: oldMAC, IP: netip.MustParseAddr(peerA)}, Field: observe.Hostname, Value: "old-laptop", Source: observe.Passive, Confidence: 0.6}}); err != nil {
@@ -194,9 +194,9 @@ func TestContract_D503_AnAddressDHCPReusedApprovesNothing(t *testing.T) {
 	}
 }
 
-// D-503, review #665 (LOW 3): the 5-minute window of package lists is per source address, not per node. A list the window dropped was
+// LOW 3: the 5-minute window of package lists is per source address, not per node. A list the window dropped was
 // not taken from this node, so its first hour keeps asking for it; the next list after the window counts.
-func TestContract_D503_APackageListTheWindowDroppedIsAskedAgain(t *testing.T) {
+func TestContract_APackageListTheWindowDroppedIsAskedAgain(t *testing.T) {
 	w := newWorld(t)
 	_, secret := w.token("srv", 7)
 	first := w.enroll(secret, "srv-1", peerA)
@@ -214,11 +214,11 @@ func TestContract_D503_APackageListTheWindowDroppedIsAskedAgain(t *testing.T) {
 	}
 }
 
-// D-503, the upgrade path (N100 walk): a machine enrolled before the upgrade has a binding and an OS in the inventory but was never
+// The upgrade path: a machine enrolled before the upgrade has a binding and an OS in the inventory but was never
 // approved, and its next report may be an hour away. The approve-enrolled job, at start, approves and types it from what the inventory
 // already has, with no new report; a row seen with another MAC is still left for a person, a person's kind still wins, a node with no
 // binding waits for its report, and a second run changes nothing.
-func TestContract_D503_UpgradeApprovesAndTypesEnrolledMachines(t *testing.T) {
+func TestContract_UpgradeApprovesAndTypesEnrolledMachines(t *testing.T) {
 	w := newWorld(t)
 	ctx := t.Context()
 	const (
@@ -321,7 +321,7 @@ func (w *world) bind(host, ip, mac string, ago time.Duration) {
 		store.FormatTS(w.clock.Now().Add(-ago)) + `' WHERE host_identifier = '` + host + `'`)
 }
 
-// agentWrote records what an agent wrote on the device at ip before D-503: its OS and its card's MAC, no kind.
+// agentWrote records what an agent wrote on the device at ip before the upgrade: its OS and its card's MAC, no kind.
 func (w *world) agentWrote(ip, mac string) {
 	w.t.Helper()
 	h := observe.AssetHint{IP: netip.MustParseAddr(ip)}
@@ -337,7 +337,7 @@ func (w *world) agentWrote(ip, mac string) {
 // Review #673 H1: a stored binding is no live connection. A machine decommissioned (its device deleted, its node not revoked) leaves
 // its address to a new machine that sensors see only by IP, with no MAC: the job approves it neither from a binding a month old nor
 // from a fresh one, because the agent never reported its MAC on that row.
-func TestContract_D503_UpgradeNeverApprovesARowTheAgentDidNotReport(t *testing.T) {
+func TestContract_UpgradeNeverApprovesARowTheAgentDidNotReport(t *testing.T) {
 	w := newWorld(t)
 	ctx := t.Context()
 	_, secret := w.token("srv", 0) // never expires
@@ -379,7 +379,7 @@ func TestContract_D503_UpgradeNeverApprovesARowTheAgentDidNotReport(t *testing.T
 
 // Review #673 L3: the job path keeps the inventory's guards. An address the box answers on is no device (the node waits); a device a
 // person marked suspicious keeps waiting (the node is done, no audit row).
-func TestContract_D503_UpgradeKeepsTheBoxAndSuspiciousGuards(t *testing.T) {
+func TestContract_UpgradeKeepsTheBoxAndSuspiciousGuards(t *testing.T) {
 	var decoy atomic.Bool
 	w := newWorld(t, func(c *agentintake.Config) {
 		inv, err := inventory.New(inventory.Config{DB: c.DB, Audit: c.Audit, Clock: c.Clock, Log: c.Log, BoxOwnedIPs: func(context.Context) []netip.Addr {
@@ -434,7 +434,7 @@ func (r *revokeFirst) ApproveEnrolled(ctx context.Context, hint observe.AssetHin
 }
 
 // Review #673 L3: a node whose token is revoked while the job runs is skipped and the run goes on with the next node.
-func TestContract_D503_UpgradeSkipsANodeRevokedDuringTheRun(t *testing.T) {
+func TestContract_UpgradeSkipsANodeRevokedDuringTheRun(t *testing.T) {
 	r := &revokeFirst{}
 	w := newWorld(t, func(c *agentintake.Config) { r.Approver = c.Approver; c.Approver = r })
 	ctx := t.Context()

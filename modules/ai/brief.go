@@ -18,7 +18,7 @@ import (
 
 // The brief is the small door the mitigation module uses (`mitigation.AI`): the AI explains a finding or drafts a
 // recommendation for it, and the answer is a few paragraphs and steps. Like every AI output it is a suggestion: mitigation stores
-// it as an AI result and the page labels it as AI-generated, never as a confirmed recommendation (INV-5, D-21).
+// it as an AI result and the page labels it as AI-generated, never as a confirmed recommendation (INV-5).
 
 // BriefRequest is one such call. Data holds the device and feed text of the finding; it is untrusted and goes into the prompt only
 // as fenced data.

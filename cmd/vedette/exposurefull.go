@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
-// The deep scan of a target whose testing terms were accepted (FULL-4, D-527; exposure ScanMode.Full, FULL-1). Every identified port
+// The deep scan of a target whose testing terms were accepted (exposure ScanMode.Full). Every identified port
 // of the box's own public IP gets nuclei's own automatic scan (nuclei -as, docs.projectdiscovery.io/tools/nuclei/running "-as,
 // -automatic-scan: automatic web scan using wappalyzer technology detection to tags mapping"; nuclei v3.11.1
 // pkg/protocols/common/automaticscan runs the detection templates first and then the templates tagged with what they found), with
@@ -112,7 +112,7 @@ func (a exposureTemplateScan) scanFull(ctx context.Context, t exposure.ScanTarge
 }
 
 // baselineInstead is the scan of a target whose terms were withdrawn before the first deep run: the read-only KEV checks of a target
-// without terms (D-520), as the next scan would run them, with a line saying no deep template was sent. The ModeNow of the next runs
+// without terms, as the next scan would run them, with a line saying no deep template was sent. The ModeNow of the next runs
 // is not needed: the baseline is what every verified target gets, and scanBaseline still runs the gate before each run.
 func (a exposureTemplateScan) baselineInstead(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ix *pack.Index, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
 	var base []exposure.TemplateJob

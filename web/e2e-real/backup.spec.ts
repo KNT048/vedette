@@ -1,9 +1,9 @@
-// The backup download on the real backend through vedette-host (core INV-18 and INV-19, S-CORE-1 data section, D-87): the box writes a snapshot
+// The backup download on the real backend through vedette-host (core INV-18 and INV-19, S-CORE-1 data section): the box writes a snapshot
 // WITHOUT its master key, the host packs it, and what the browser saves is a tar.gz that holds no key and no password. The archive is opened
 // here, in the test, byte by byte. The host is the fake machine of cmd/vedette/e2ehost_test.go.
 // A download is one a minute (429 after that), so the whole spec makes one download through the GUI and checks that file.
 // Where the real answer differs from the mock (the mock saves JSON, the real backend sends a tar.gz) the test is test.fail() with the
-// issue and the deferred line (D-171).
+// issue and the deferred line.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'

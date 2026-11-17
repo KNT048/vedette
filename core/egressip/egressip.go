@@ -1,6 +1,6 @@
 // Package egressip asks three public "what is my IP" services which address the box leaves the Internet through, and says which
-// IPv4 addresses are public (D-81, D-82). exposure uses it to verify and re-check the box's own public IP (INV-2, INV-13 there);
-// the scan container's worker uses the same code for its own-IP fence right before nmap -sV (D-514). It is a leaf: standard
+// IPv4 addresses are public. exposure uses it to verify and re-check the box's own public IP (INV-2, INV-13 there);
+// the scan container's worker uses the same code for its own-IP fence right before nmap -sV. It is a leaf: standard
 // library only, because the sensor binary links it (TestBinaryDependencies).
 package egressip
 
@@ -20,7 +20,7 @@ import (
 	"github.com/knt048/vedette/core/localnet"
 )
 
-// DefaultServices are the three independent public "what is my IP" services the box asks (D-81, PRIVACY
+// DefaultServices are the three independent public "what is my IP" services the box asks (PRIVACY
 // flow 9), run by three different operators: AWS, Cloudflare and Google Cloud. They are fixed in code: never typed in by a user, never read
 // from a feed. No server of the project is involved.
 var DefaultServices = []string{
@@ -183,5 +183,5 @@ func ParseAnswer(body []byte) (netip.Addr, error) {
 // IsPublicIPv4 reports whether a is a global unicast IPv4 address the box may verify and scan: not private, loopback, link-local,
 // shared carrier (CGNAT 100.64.0.0/10), documentation, multicast or reserved (exposure INV-3). IPv6 is refused for now (ponytail: the
 // scans target IPv4; IPv6 is a later story). The rule lives in core/localnet (localnet.Public) so nucleiargv, which may not link
-// net/http, applies the same one (D-520).
+// net/http, applies the same one.
 func IsPublicIPv4(a netip.Addr) bool { return localnet.Public(a) }

@@ -5,7 +5,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// MaxBatch is the most addresses one nmap run gets, so its XML stays small (D-84 (7)).
+// MaxBatch is the most addresses one nmap run gets, so its XML stays small.
 const MaxBatch = nmapargv.MaxBatch
 
 // maxOutput caps what one nmap run may print; more means the run is discarded (INV-7).

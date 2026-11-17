@@ -6,13 +6,13 @@ import (
 	"testing"
 )
 
-// M2-4 (walk n74): the EX4200 on JUNOS 15.1R7.9 is inside CVE-2023-36845's "before 20.4", but NVD lists 20.4:r1 … one by one
+// The EX4200 on JUNOS 15.1R7.9 is inside CVE-2023-36845's "before 20.4", but NVD lists 20.4:r1 … one by one
 // as affected: 20.4 is not the fix, and the page says so instead of "Fixed version not known yet".
 func TestFixedIn_M24_RangeEndThatIsItselfAffectedIsNotTheFix(t *testing.T) {
 	t.Parallel()
 	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
 	i := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == "CVE-2023-36845" })
-	f := FixedInFor(walk1EX4200(), vulns[i])
+	f := FixedInFor(labEX4200(), vulns[i])
 	if f == nil || f.Kind != "end_listed" || f.Fixed != "20.4" || f.Version != "15.1R7.9" {
 		t.Fatalf("got %+v, want end_listed 20.4 for 15.1R7.9", f)
 	}
@@ -61,7 +61,7 @@ func TestMatch_M26_ScanDisplayWithVersionIsNotDoubled(t *testing.T) {
 // M2-3: the version the box has, and who gave it, for every source; nil without a version or a known source.
 func TestKnownVersion_M23_EverySource(t *testing.T) {
 	t.Parallel()
-	ex := walk1EX4200()
+	ex := labEX4200()
 	osRow := deviceSoftware(ex)[0]
 	if k := knownVersion(ex, osRow); k == nil || *k != (KnownVersion{Software: "Juniper Junos OS", Version: "15.1R7.9", Source: VersionByStated}) {
 		t.Errorf("LLDP-stated Junos: %+v", k)
@@ -97,7 +97,7 @@ func TestKnownVersion_M23_EverySource(t *testing.T) {
 func TestFindingDetail_M23_KnownVersion(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
-	ex := walk1EX4200()
+	ex := labEX4200()
 	ex.ID, ex.SNMPOS = "a-1", ex.StatedOS
 	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
 	i := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == "CVE-2023-36845" })

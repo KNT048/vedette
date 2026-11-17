@@ -158,7 +158,7 @@ func TestPlanRefusedAndAudited(t *testing.T) {
 		"no steps":               {},
 		"bad kind":               {{Kind: "wipe", Title: "t", Detail: "d"}},
 		"never touch":            {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.1"}}}},
-		// D-313: the confidence and the reads a proposal cites are checked before anything is stored
+		// The confidence and the reads a proposal cites are checked before anything is stored
 		"confidence above 1":     {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}}, Confidence: 1.5}},
 		"confidence below 0":     {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}}, Confidence: -0.1}},
 		"confidence NaN":         {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}}, Confidence: math.NaN()}},
@@ -398,7 +398,7 @@ func TestPlanBackoffAndNoDailyCap(t *testing.T) {
 	if step(1000*time.Hour) != 0 {
 		t.Fatal("a finding that failed four times is asked again")
 	}
-	// no daily cap of the job (D-531): every waiting finding is asked within the day, at most 3 a run (the burst fuse); the monthly
+	// no daily cap of the job: every waiting finding is asked within the day, at most 3 a run (the burst fuse); the monthly
 	// AI budget of the ai module is the only limit on the total
 	e2, fp2, targets2 := aiPlanEnv(t)
 	fp2.err = errors.New("format")

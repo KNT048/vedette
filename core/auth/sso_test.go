@@ -31,7 +31,7 @@ func ssoUser(t *testing.T, e *authtest.Env) auth.User {
 	return auth.User{}
 }
 
-// D-195 (5): an SSO account has no password, no Vedette two-step and no hand-set role: 409 sso_user. Its name never carries an
+// An SSO account has no password, no Vedette two-step and no hand-set role: 409 sso_user. Its name never carries an
 // invisible character from the IdP (the email's local part instead).
 func TestSSO_AccountHasNoPasswordTwofaOrHandSetRole(t *testing.T) {
 	e := authtest.New(t)
@@ -61,7 +61,7 @@ func TestSSO_AccountHasNoPasswordTwofaOrHandSetRole(t *testing.T) {
 	wantAPI(t, err, 400, "invalid_credentials")
 }
 
-// D-196 (3): the last-administrator rule counts only administrators who sign in with a password.
+// The last-administrator rule counts only administrators who sign in with a password.
 func TestSSO_LastAdminCountsPasswordAdminsOnly(t *testing.T) {
 	e := authtest.New(t)
 	admin := e.User(t, "admin@acme.example", routes.Admin)

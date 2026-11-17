@@ -12,7 +12,7 @@ import (
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// D-520: a nuclei job of scope own_ip (exposure's safe checks on the box's own public IP) goes only to a worker whose heartbeat
+// A nuclei job of scope own_ip (exposure's safe checks on the box's own public IP) goes only to a worker whose heartbeat
 // said own_ip, never waits behind another nuclei job, carries its scope on the wire, and the worker's own-IP refusals
 // come back as ErrNotOwnIP and ErrEgressUnverified. The Dispatcher is driven directly: nothing reaches a network.
 

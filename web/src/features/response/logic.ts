@@ -15,10 +15,10 @@ export async function sha256Hex(text: string): Promise<string> {
   return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, '0')).join('')
 }
 
-// ---- Tamper-evident log (D-48) ----
+// ---- Tamper-evident log ----
 export { GENESIS }
 export interface LogCore { id: string; ts: string; kind: string; actor: string; detail: string; prev_hash: string }
-/** One formula for every chain (D-57 (14)): SHA-256( prev_hash + "\n" + canonical JSON of the entry without hash ), see src/lib/chain.ts. */
+/** One formula for every chain: SHA-256( prev_hash + "\n" + canonical JSON of the entry without hash ), see src/lib/chain.ts. */
 export const logHashSync = (e: LogCore) => respLogHash(e)
 
 /** Walk the chain oldest to newest. `broken_at` = index of the first entry whose link or hash does not match. */
@@ -32,7 +32,7 @@ export async function verifyChain(entries: (LogCore & { hash: string })[]): Prom
   return { ok: true, broken_at: null }
 }
 
-// ---- Typed placeholders (D-47, D-51, SYS-1: no free shell text). Trigger data is attacker-controlled: every value is checked by type. ----
+// ---- Typed placeholders (SYS-1: no free shell text). Trigger data is attacker-controlled: every value is checked by type. ----
 export type ParamType = 'ip' | 'cidr' | 'domain' | 'port' | 'mac' | 'vlan' | 'interface' | 'id' | 'name' | 'text'
 export const PARAM_TYPES: ParamType[] = ['ip', 'cidr', 'domain', 'port', 'mac', 'vlan', 'interface', 'id', 'name', 'text']
 /** Values Vedette reads from the device or derives when it runs (action-templates §1.1 precheck, §1.4 ttl). Rules never supply them: they are not parameters, and a request shows them as <name>. */
@@ -45,7 +45,7 @@ export const isDomain = (v: string) => DOMAIN.test(v)
 const NOT_PUBLISHABLE: [string, number][] = [['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.88.99.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['224.0.0.0', 4], ['240.0.0.0', 4]]
 const ip4Num = (v: string) => v.split('.').reduce((n, o) => n * 256 + Number(o), 0)
 export const isPublishable = (ip: string) => isIpv4(ip) && !NOT_PUBLISHABLE.some(([net, bits]) => Math.floor(ip4Num(ip) / 2 ** (32 - bits)) === Math.floor(ip4Num(net) / 2 ** (32 - bits)))
-/** The refusal of a block list action on an address the list never publishes (D-469, code not_publishable); the box's notPublicMsg. */
+/** The refusal of a block list action on an address the list never publishes (code not_publishable); the box's notPublicMsg. */
 export const notPublicMsg = (ip: string) => `${ip} is not a public address (private, loopback, link-local, carrier-grade NAT 100.64.0.0/10, multicast or reserved). The block list only carries public addresses, so your firewall never blocks your own network. To stop a device on your LAN, use a device action (for example, shut its switch port). Nothing was changed.`
 export const isCidr = (v: string) => /^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/.test(v) && IPV4.test(v.split('/')[0]!) && Number(v.split('/')[1]) <= 32
 /** Safe text: letters, numbers, space and . , : @ # / _ - only. No quotes, no shell characters, no newlines. */
@@ -62,7 +62,7 @@ export const PARAM_CHECK: Record<ParamType, (v: string) => boolean> = {
 }
 export const PARAM_LABEL: Record<ParamType, string> = { ip: 'an IP address', cidr: 'an address range', domain: 'a domain', port: 'a port number', mac: 'a MAC address', vlan: 'a VLAN number', interface: 'a port or interface name', id: 'a whole number (for example a policy number)', name: 'a name of letters, numbers, . _ and - (up to 64)', text: 'a short plain-text value' }
 
-/** `expect` (D-95) only means something on the read-back: after the action its output must contain it, after the undo it must not. */
+/** `expect` only means something on the read-back: after the action its output must contain it, after the undo it must not. */
 export interface Tpl { cli: string; method: '' | 'GET' | 'PUT' | 'PATCH' | 'POST' | 'DELETE'; path: string; body: string; headers: string; expect?: string }
 export const EMPTY_TPL: Tpl = { cli: '', method: '', path: '', body: '', headers: '', expect: '' }
 export const MAX_REFUSE = 8
@@ -83,7 +83,7 @@ export function templateParams(...texts: string[]): ParamType[] {
   return PARAM_TYPES.filter((p) => found.has(p))
 }
 export const tplParams = (...t: Tpl[]) => templateParams(...t.flatMap((x) => [x.cli, x.path, x.body, x.headers, x.expect ?? '']))
-/** Header names a template may never set (D-94): the connection sets the credentials and the address, and hop-by-hop headers belong to the connection. */
+/** Header names a template may never set: the connection sets the credentials and the address, and hop-by-hop headers belong to the connection. */
 const FORBIDDEN_HEADERS = ['authorization', 'cookie', 'host', 'connection', 'keep-alive', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'forwarded', 'via', 'x-forwarded',
   'x-http-method-override', 'x-http-method', 'x-method-override', 'x-real-ip', 'x-original-url', 'x-rewrite-url']
 export const forbiddenHeader = (name: string) => { const n = name.toLowerCase(); return FORBIDDEN_HEADERS.includes(n) || n.startsWith('proxy-') || n.startsWith('x-forwarded-') }
@@ -134,7 +134,7 @@ export function kindProblem(kind: ConnKind, t: Tpl, what: string): string | null
   return null
 }
 const REFUSE_TEXT = /^[\x20-\x7e]{1,80}$/
-/** The check before the action (D-95): a read-only template plus up to 8 texts that refuse it and one text its output must contain; when the output holds a refusal text, or lacks the required one, nothing is written. null = acceptable (or none given). */
+/** The check before the action: a read-only template plus up to 8 texts that refuse it and one text its output must contain; when the output holds a refusal text, or lacks the required one, nothing is written. null = acceptable (or none given). */
 export function validatePrecheck(pre: Tpl, refuse: string[], kind: ConnKind, expect = ''): string | null {
   const what = 'Check before'
   if (tplEmpty(pre) && refuse.length === 0 && !expect) return null
@@ -158,10 +158,10 @@ export function readBackProblem(t: Tpl): string | null {
 const PORT_LIKE: ParamType[] = ['interface', 'port', 'id', 'name']
 const usesPortLike = (run: Tpl, rollback: Tpl, verify: Tpl, pre: Tpl, custom: boolean) =>
   tplParams(run, rollback, verify, pre).includes('interface') || (custom && templateParams(run.cli, run.path, rollback.cli, rollback.path).some((p) => PORT_LIKE.includes(p)))
-/** An action that can name a port needs the check before with at least one refusal text, so a trunk or uplink is never touched (D-95 (3)). custom: a customer's action. */
+/** An action that can name a port needs the check before with at least one refusal text, so a trunk or uplink is never touched. custom: a customer's action. */
 export const needsPrecheck = (run: Tpl, rollback: Tpl, verify: Tpl, pre: Tpl, refuse: string[], custom = false) => usesPortLike(run, rollback, verify, pre, custom) && (tplEmpty(pre) || refuse.length === 0)
 
-// ---- Command lines of the steps that must only read (D-95): the refused commands are data (templates/cli-ban.sample.json, D-58) ----
+// ---- Command lines of the steps that must only read: the refused commands are data (templates/cli-ban.sample.json) ----
 export interface CliBan { everywhere: string[]; read_only_steps: string[] }
 const banRegexps = (patterns: string[]) => patterns.map((p) => new RegExp(`^${p.toLowerCase().split(/\s+/).filter(Boolean).map((w) => w.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')).join(' ')}(\\s|$)`))
 export const cliLines = (s: string) => s.split('\n').map((l) => l.trim().toLowerCase().split(/\s+/).filter(Boolean).join(' ')).filter(Boolean)
@@ -188,7 +188,7 @@ export function cliProblem(ban: CliBan, s: { run: Tpl; rollback: Tpl; verify: Tp
 
 /** Reason a connection cannot carry out actions, or null. */
 export const READ_ONLY = 'Read-only: this connection has no write tools'
-/** Starting hint for a new action by kind. Generic only (D-58): device examples live in the template library, not here. */
+/** Starting hint for a new action by kind. Generic only: device examples live in the template library, not here. */
 export function kindHint(kind: ConnKind | null): { run: Partial<Tpl>; rollback: Partial<Tpl>; hint: string } {
   if (kind === 'ssh') return { run: {}, rollback: {}, hint: 'One command per line. Use typed placeholders such as {ip}, {interface} or {vlan}. Each line is sent on its own.' }
   if (kind === 'netconf-restconf') return { run: {}, rollback: {}, hint: 'RESTCONF: choose the method and the path under the device address. NETCONF: put the request in the body.' }
@@ -234,18 +234,18 @@ export const oneLine = (s: string, max = 80) => s.replace(/[\r\n\t]+/g, ' ').sli
 // ---- Conditions (IF) ----
 export interface Cond { field: string; op: string; value: string; n: number | null; window_min: number | null }
 export interface Ev { id: string; ts: string; fields: Record<string, string>; device_kind: string | null; trigger?: string }
-/** The counted signature of a log_threshold rule (D-287): pasted from the Logs digest, compared and counted, never filled into an action. */
+/** The counted signature of a log_threshold rule: pasted from the Logs digest, compared and counted, never filled into an action. */
 export const logSignature = (trigger: string | undefined, c: { op: string; field: string }) => trigger === 'log_threshold' && c.op === 'count_window' && c.field === 'signature'
 const lc = (s: string) => s.trim().toLowerCase()
 const OPS = ['eq', 'in', 'in_cidr', 'gte', 'lte', 'device_type', 'count_window', 'first_time']
 const TEXT_VAL = /^[\w .,:/@#-]{0,200}$/
-/** A plain decimal number, the same pattern as the box (D-390): no hex, exponent, Infinity or NaN. */
+/** A plain decimal number, the same pattern as the box: no hex, exponent, Infinity or NaN. */
 const DECIMAL = /^[-+]?(\d+\.?\d*|\.\d+)$/
 /** The spaces Go's strings.TrimSpace removes (unicode.IsSpace), so a pasted signature is trimmed like the box does: not U+FEFF, which JS trim() would. */
 const GO_SPACE = /^[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g
 export const goTrim = (s: string) => s.replace(GO_SPACE, '')
 export interface CondField { key: string; label: string; type: string; choices: string[]; min: number | null; max: number | null }
-/** Why the value of a condition does not fit its field, or null (D-390): "at least"/"at most" only on a field with a range (number,
+/** Why the value of a condition does not fit its field, or null: "at least"/"at most" only on a field with a range (number,
  * port) and inside it; "equals"/"is one of" take numbers inside the range of such a field, or one of the choices of a field that has
  * them (without case, like evalCondition). The box's condValueProblem says the same words. */
 export function condValueProblem(f: CondField, op: string, value: string): string | null {
@@ -286,7 +286,7 @@ export function evalCondition(c: Cond, ev: Ev, others: Ev[]): boolean {
     case 'in_cidr': return isCidr(c.value) && isIpv4(f) && allowMatches(c.value, f)
     case 'gte': return f !== '' && Number(f) >= Number(c.value)
     case 'lte': return f !== '' && Number(f) <= Number(c.value)
-    case 'device_type': return !!ev.device_kind && matchesKind(list(), lc(ev.device_kind)) // as the box: the kind a type acts as (D-511)
+    case 'device_type': return !!ev.device_kind && matchesKind(list(), lc(ev.device_kind)) // as the box: the kind a type acts as
     case 'count_window': {
       // a log count event is the count itself, made for exactly this signature, window and threshold (the box's PollLogs)
       if (logSignature(ev.trigger, c)) return f !== '' && f === c.value && ev.fields.window === String(c.window_min ?? 0) && ev.fields.threshold === String(c.n ?? 0)

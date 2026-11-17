@@ -15,7 +15,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useModules } from '@/lib/modules'
-import { useScope } from '@/lib/v1'
+import { notOffered } from '@/lib/v1'
 import { useCan } from '@/lib/session'
 import { useBulkIncidents, useChannels, useIncidents } from './api'
 import { MAX_BULK_INCIDENTS } from './contract'
@@ -98,7 +98,6 @@ function Content() {
   const channels = useChannels({ retry: false, enabled: admin }) // not asked of a role that would get 403
   const noChannel = channels.data !== undefined && !channels.data.channels.some((c) => c.enabled)
   const newChannel = useNewChannel() // its dialogs stay mounted after the save turns a channel on and the button goes
-  const responseScope = useScope('response')
   const [params, setParams] = useSearchParams()
   const tab: Tab = params.get('tab') === 'resolved' ? 'resolved' : 'open'
   const onlyUrgent = params.get('severity') === 'urgent'
@@ -142,7 +141,7 @@ function Content() {
     </span>
   )
   const open = (s: BulkStatus) => (e: MouseEvent<HTMLButtonElement>) => { opener.current = e.currentTarget; setBulk(s) }
-  const respond = responseScope !== 'hidden' // Respond opens the response module, not offered in v1
+  const respond = !notOffered('response') // Respond starts a new action: none while this build does not offer the response module, even on a box that has it on
   const columns: ColumnDef<Incident>[] = [
     ...(can && tab === 'open' ? [{ id: 'select', enableSorting: false, header: ({ table }) => {
       const page = table.getRowModel().rows.map((r) => r.original.id)

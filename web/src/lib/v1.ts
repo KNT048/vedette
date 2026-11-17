@@ -2,7 +2,8 @@
 // - Preview (#818): off by default, labelled "Preview" on their nav entry, their row in Settings → Modules and their page header.
 // - After v1 (#819): while POST_V1_IN_UI is false the GUI does not offer them: no nav entry, no row in Settings → Modules, no
 //   Settings section, no setup wizard choice, no switch elsewhere. A box that already has one on still sees it, read-only, with
-//   one line and the way out (turn it off; once off it is hidden), as SPAN_IN_UI does. No route, API, mock or backend
+//   one line and the way out (turn it off; once off it is hidden), as SPAN_IN_UI does. Its actions inside other pages (Respond
+//   on incidents and trap hits, the response plan on a finding) are gone even then: only its own pages stay. No route, API, mock or backend
 //   code is removed. The switch POST_V1_IN_UI lives in ./postV1 (so a test can flip it); post-v1: set it true and recheck the
 //   stories of these modules.
 import { createContext } from 'react'

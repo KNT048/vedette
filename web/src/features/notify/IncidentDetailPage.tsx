@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { useScope } from '@/lib/v1'
+import { notOffered } from '@/lib/v1'
 import { useIncident, useSetStatus } from './api'
 import { IncidentStatusChip, MessagePreview, NotSentFix, kindKey } from './shared'
 import { useNewChannel } from './NewChannel'
@@ -62,7 +62,7 @@ function Content() {
   const q = useIncident(id)
   const admin = useCan('admin') // the fix links open Settings, Alert channels: an admin's page
   const newChannel = useNewChannel()
-  const respond = useScope('response') !== 'hidden' // The response module is not offered in v1
+  const respond = !notOffered('response') // Respond starts a new action: none while this build does not offer the response module, even on a box that has it on
   // docs/UI.md §3: the parent above the title, also while the incident loads or is missing, so the way back is always there.
   const crumbs = [{ label: t('nav.incidents'), to: '/incidents' }]
   return (

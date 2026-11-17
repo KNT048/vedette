@@ -13,6 +13,9 @@ import { Card } from '@/components/common/Card'
 import { Button } from '@/components/ui/button'
 import { api, ApiError } from '@/lib/api'
 import { useMe } from '@/lib/session'
+import { useModuleEnabled } from '@/lib/modules'
+import { notOffered } from '@/lib/v1'
+import { Loading, ModuleOff } from '@/components/common/States'
 import type { Identity, IdentityList } from './types'
 import { useLeaving } from './frozen'
 
@@ -20,7 +23,14 @@ import { useLeaving } from './frozen'
 const CHANNEL = { telegram: 'telegram', zalo: 'zalo-personal' } as const
 type Kind = keyof typeof CHANNEL
 
+/** While this build does not offer AI response and this box never turned it on, an old confirm link opens the not-available page. */
 export default function ChatLinkPage() {
+  const on = useModuleEnabled('response')
+  if (notOffered('response') && on !== true) return on === undefined ? <Loading /> : <ModuleOff module="response" page />
+  return <ChatLink />
+}
+
+function ChatLink() {
   const { t } = useTranslation('response')
   const kind: Kind = useLocation().pathname.endsWith('/telegram') ? 'telegram' : 'zalo'
   const channel = CHANNEL[kind]

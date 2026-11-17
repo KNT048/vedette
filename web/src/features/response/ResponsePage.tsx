@@ -4,6 +4,7 @@ import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { ErrorState, Loading, RequireModule, SampleDataNote } from '@/components/common/States'
 import { useCan } from '@/lib/session'
+import { notOffered } from '@/lib/v1'
 import { useActions, usePlans, useSettings } from './api'
 import { EmergencyStop } from './parts'
 import { RulesTab } from './RulesTab'
@@ -86,6 +87,7 @@ function Content() {
 
 export default function ResponsePage() {
   const incident = new URLSearchParams(useLocation().search).get('incident')
-  // Respond on an incident while response is off (the default): the manual steps still help (S-RESP-3)
-  return <RequireModule module="response" page fallback={incident ? <IncidentRespondOff id={incident} /> : undefined}><Content /></RequireModule>
+  // Respond on an incident while response is off (the default): the manual steps still help (S-RESP-3). While this build does not
+  // offer the module, an old link gets the plain not-available page.
+  return <RequireModule module="response" page fallback={incident && !notOffered('response') ? <IncidentRespondOff id={incident} /> : undefined}><Content /></RequireModule>
 }

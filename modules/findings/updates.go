@@ -68,6 +68,9 @@ type UpdateAction struct {
 	Ransomware, Likely int
 	// How each exploited finding is known (Proof*); zero for planned ones (every plan CVE is compared on a trusted version).
 	Confirmed, Detected, Reported, Suspected int
+	// NVDLag (planned Windows updates, PlanItem.NVDLag): the update is newer than every fix NVD names, so it fixes at least CVEs; the
+	// newest update's CVEs are not analysed by NVD yet.
+	NVDLag bool
 }
 
 // DeviceUpdates is the answer for one device.
@@ -322,7 +325,7 @@ func listedPlanItems(items []PlanItem, now time.Time) []PlanItem {
 // planAction is the action of one plan item (without its sentence): its CVEs, how many are likely, and the worst severity.
 func planAction(it PlanItem) UpdateAction {
 	u := UpdateAction{Group: it.Group, SoftwareID: it.SoftwareID, Software: it.Software, Version: it.Version, Fixed: it.Fixed, Kind: it.Kind,
-		Windows: it.Kind == "windows" || it.Kind == "esu", Pro: it.Pro}
+		Windows: it.Kind == "windows" || it.Kind == "esu", Pro: it.Pro, NVDLag: it.NVDLag}
 	worst := -1
 	for _, c := range it.CVEs {
 		u.CVEs = append(u.CVEs, c.CVE)

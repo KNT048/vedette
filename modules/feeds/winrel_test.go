@@ -104,12 +104,13 @@ func TestParseWinRelPage_Hostile(t *testing.T) {
 
 // A pull stores the releases and hands them to core/winrel; a later page Vedette cannot read fails the pull and keeps them (INV-3).
 func TestWinRelPull(t *testing.T) {
-	t.Cleanup(func() { winrel.Learn(nil) })
+	t.Cleanup(func() { winrel.Learn(nil); winrel.LearnUpdates(nil) })
 	e, o := pullEnv(t)
 	e.only(winRelFeedID)
 	e.setURL(winRelFeedID, o.url("/rh/windows11-release-information")) // no mirror through the API (review r1 M2)
 	o.body("/rh/windows11-release-information", `"a"`, testFile(t, "winrel/windows11-release-information.html"))
 	o.body("/rh/"+winRelServerPage, `"b"`, "<html>moved</html>") // review r1 L5: the server page is optional
+	o.body("/rh/"+winRel10Page, `"w"`, "<html>moved</html>")     // and the Windows 10 page
 	if err := e.svc.Fetch(t.Context(), winRelFeedID); err != nil {
 		t.Fatal(err)
 	}
@@ -140,6 +141,123 @@ func TestWinRelPull(t *testing.T) {
 	}
 	if _, ok := winrel.ByBuild(26300, false); !ok {
 		t.Fatal("a failed pull forgot 26H2")
+	}
+}
+
+// newestUpdates is the newest monthly update of each release (build, server 0/1) among us.
+func newestUpdates(us []winrel.Update) map[[2]int]winrel.Update {
+	out := map[[2]int]winrel.Update{}
+	for _, u := range us {
+		k := [2]int{u.Build, boolInt(u.Server)}
+		if o, ok := out[k]; !ok || u.Rev > o.Rev {
+			out[k] = u
+		}
+	}
+	return out
+}
+
+// The monthly security updates ("YYYY-MM B") of every history table of the three pages (trimmed real pages, 2026-11-17), each by the
+// build its rows name: also a table with a paragraph between its heading and it (Windows 10 22H2 and 21H2), the client LTSC/LTSB
+// editions of the Windows 10 page and the releases whose heading the release list does not read. Never a preview, an out-of-band
+// update (26100.33828 of 2026-11-13), a first build or a hotpatch calendar.
+func TestParseWinRelUpdates(t *testing.T) {
+	var all []winrel.Update
+	for _, p := range []struct {
+		file   string
+		server bool
+	}{{"winrel/windows11-release-information.html", false}, {"winrel/windows-server-release-info.html", true}, {"winrel/release-information.html", false}} {
+		all = append(all, parseWinRelUpdates([]byte(testFile(t, p.file)), p.server)...)
+	}
+	type want struct {
+		rev int
+		kb  string
+	}
+	wants := map[[2]int]want{
+		{26100, 1}: {33822, "KB5131080"}, {20348, 1}: {5870, "KB5131090"}, {17763, 1}: {9487, "KB5131085"}, {14393, 1}: {9688, "KB5131291"},
+		{26100, 0}: {9974, "KB5132061"}, {26200, 0}: {9974, "KB5132061"}, {26300, 0}: {9974, "KB5132061"}, {28000, 0}: {3501, "KB5132059"},
+		{19045, 0}: {7846, "KB5131096"}, {19044, 0}: {7846, "KB5131096"}, {17763, 0}: {9487, "KB5131085"},
+	}
+	got := newestUpdates(all)
+	if len(got) != len(wants) {
+		t.Errorf("releases: %v", got)
+	}
+	for k, w := range wants {
+		if u := got[k]; u.Rev != w.rev || u.KB != w.kb || u.Day != day(t, "2026-11-10") {
+			t.Errorf("%v: got %+v, want %+v", k, u, w)
+		}
+	}
+	for _, u := range all {
+		if u.Rev == 33828 || u.Rev == 7850 || u.Rev == 1742 || u.Day.Before(day(t, "2026-01-01")) {
+			t.Errorf("not a monthly security update: %+v", u)
+		}
+	}
+	// untrusted input: a revision 0, a build of letters, a bad KB and an out-of-band row are not read
+	row := func(upd, d, build, kb string) string {
+		return "<tr><td>x</td><td>" + upd + "</td><td>" + d + "</td><td>" + build + "</td><td>" + kb + "</td></tr>"
+	}
+	page := `<table id="historyTable_0"><tbody>` + row("2026-11 B", "2026-11-10", "26100.0", "KB5000001") + row("2026-11 B", "2026-11-10", "26a00.5", "KB5000001") +
+		row("2026-11 B", "2026-11-10", "26100.5", "KB5<b>") + row("2026-11 OOB", "2026-11-13", "26100.6", "KB5000002") + row("2026-11 B", "2026-11-10", "26100.7", "") + `</tbody></table>`
+	if us := parseWinRelUpdates([]byte(page), true); len(us) != 1 || us[0].Rev != 7 || us[0].KB != "" || !us[0].Server {
+		t.Errorf("hostile rows: %+v", us)
+	}
+}
+
+// A pull stores the monthly updates of every page it read and hands them to core/winrel; a page that fails keeps the stored updates
+// of its releases, and a pull that fails keeps them all.
+func TestWinRelPull_MonthlyUpdates(t *testing.T) {
+	t.Cleanup(func() { winrel.Learn(nil); winrel.LearnUpdates(nil) })
+	e, o := pullEnv(t)
+	e.only(winRelFeedID)
+	e.setURL(winRelFeedID, o.url("/rh/windows11-release-information"))
+	o.body("/rh/windows11-release-information", `"a"`, testFile(t, "winrel/windows11-release-information.html"))
+	o.body("/rh/"+winRelServerPage, `"b"`, testFile(t, "winrel/windows-server-release-info.html"))
+	o.body("/rh/"+winRel10Page, `"c"`, testFile(t, "winrel/release-information.html"))
+	newest := func(build int, server bool) int {
+		us := winrel.Updates(build, server)
+		if len(us) == 0 {
+			return 0
+		}
+		return us[len(us)-1].Rev
+	}
+	if err := e.svc.Fetch(t.Context(), winRelFeedID); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		build  int
+		server bool
+		rev    int
+	}{{26100, true, 33822}, {26100, false, 9974}, {26200, false, 9974}, {19045, false, 7846}, {17763, false, 9487}, {17763, true, 9487}} {
+		if got := newest(c.build, c.server); got != c.rev {
+			t.Errorf("%d server=%v: newest %d, want %d", c.build, c.server, got, c.rev)
+		}
+	}
+	n := rowsOf(t, e.db, "feeds_winrel_update")
+	if n == 0 {
+		t.Fatal("no update stored")
+	}
+	// the server and Windows 10 pages fail: their releases keep their stored updates
+	o.body("/rh/"+winRelServerPage, `"b2"`, "<html>moved</html>")
+	o.body("/rh/"+winRel10Page, `"c2"`, "<html>moved</html>")
+	e.setNow(e.clock().Add(25 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), winRelFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.feed(winRelFeedID); f.Status != "ok" || rowsOf(t, e.db, "feeds_winrel_update") != n || newest(26100, true) != 33822 || newest(19045, false) != 7846 {
+		t.Fatalf("feed %+v, %d rows, Server 2025 %d, Windows 10 22H2 %d", f, rowsOf(t, e.db, "feeds_winrel_update"), newest(26100, true), newest(19045, false))
+	}
+	// the Windows 11 page fails: the pull fails and every update is kept
+	o.body("/rh/windows11-release-information", `"a2"`, "<html>moved</html>")
+	e.setNow(e.clock().Add(25 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), winRelFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.feed(winRelFeedID); f.Status != "error" || rowsOf(t, e.db, "feeds_winrel_update") != n || newest(26200, false) != 9974 {
+		t.Fatalf("feed %+v, %d rows", f, rowsOf(t, e.db, "feeds_winrel_update"))
+	}
+	// a restart reads them back
+	winrel.LearnUpdates(nil)
+	if err := e.svc.LearnWindowsReleases(t.Context()); err != nil || newest(26100, true) != 33822 {
+		t.Fatalf("after a restart: %v, Server 2025 %d", err, newest(26100, true))
 	}
 }
 

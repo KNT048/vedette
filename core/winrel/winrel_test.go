@@ -3,6 +3,7 @@ package winrel
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // One release per build and kind, one per NVD name, every line the first build of a client release of the table, and a
@@ -84,5 +85,34 @@ func TestLearn(t *testing.T) {
 	Learn(nil)
 	if _, ok := ByBuild(26300, false); ok {
 		t.Error("Learn(nil) keeps 26H2")
+	}
+}
+
+// LearnUpdates keeps the valid updates once per release and revision, oldest first, server and client apart; each call replaces the last.
+func TestLearnUpdates(t *testing.T) {
+	t.Cleanup(func() { LearnUpdates(nil) })
+	d := func(s string) time.Time { return day(s) }
+	n := LearnUpdates([]Update{
+		{Build: 26100, Server: true, Rev: 33822, KB: "KB5131080", Day: d("2026-11-10")},
+		{Build: 26100, Server: true, Rev: 33650, KB: "KB5126646", Day: d("2026-10-13")},
+		{Build: 26100, Server: true, Rev: 33822, KB: "KB5131080", Day: d("2026-11-10")}, // twice
+		{Build: 26100, Rev: 9974, KB: "KB5132061", Day: d("2026-11-10")},
+		{Build: 9600, Rev: 1, Day: d("2026-11-10")},                       // not Windows 10 or later
+		{Build: 26100, Rev: 0, Day: d("2026-11-10")},                      // no revision
+		{Build: 26100, Rev: 9000, KB: "KB<script>", Day: d("2026-11-10")}, // bad KB
+		{Build: 26100, Rev: 9001}, // no day
+	})
+	if n != 3 {
+		t.Errorf("kept %d", n)
+	}
+	if us := Updates(26100, true); len(us) != 2 || us[0].Rev != 33650 || us[1].Rev != 33822 {
+		t.Errorf("Server 2025: %+v", us)
+	}
+	if us := Updates(26100, false); len(us) != 1 || us[0].Rev != 9974 {
+		t.Errorf("24H2: %+v", us)
+	}
+	LearnUpdates(nil)
+	if us := Updates(26100, true); us != nil {
+		t.Errorf("after forgetting: %+v", us)
 	}
 }

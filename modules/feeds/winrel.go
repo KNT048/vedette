@@ -31,6 +31,11 @@ const winRelFeedID = "windows-releases"
 // winRelServerPage is the page of Windows Server releases, next to the feed's address (the Windows 11 page).
 const winRelServerPage = "windows-server-release-info"
 
+// winRel10Page is the page of Windows 10 releases, next to the feed's address: read only for its monthly updates (Windows 10 22H2
+// with Extended Security Updates, the LTSC/LTSB editions 2015, 2016, 2019 and 2021), never for releases (core/winrel's table has them
+// all, and its "Version 22H2" is not Windows 11's).
+const winRel10Page = "release-information"
+
 // winRelMaxBytes bounds each page (the Windows 11 page is about 140 kB, the server page 170 kB, November 2026).
 const winRelMaxBytes = 2 << 20
 
@@ -46,6 +51,10 @@ var (
 	winRelUpdRE   = regexp.MustCompile(`^(?:20[0-9]{2}-[01][0-9] (?:[A-E]|OOB))?$`)
 	winRelClient  = regexp.MustCompile(`^Version ([0-9]{2}H[12])$`)
 	winRelServer  = regexp.MustCompile(`^Windows Server (20[2-9][0-9])$`)
+	// every history table of a page, whatever stands between its heading and it (a paragraph on the enablement package, "- End of
+	// updates"): its rows name their own build, so the monthly updates need no heading
+	winRelAnyTableRE = regexp.MustCompile(`(?s)<table[^>]*\bid="historyTable_[0-9]{1,3}"[^>]*>(.*?)</table>`)
+	winRelMonthlyRE  = regexp.MustCompile(`^20[0-9]{2}-[01][0-9] B$`)
 )
 
 // winRelUpdate is one row of a release's history.
@@ -93,6 +102,35 @@ func parseWinRelPage(body []byte, server bool) ([]winRelHistory, error) {
 		return nil, fail(ErrBadSample, "Microsoft's release information page has none of the release tables Vedette reads (its layout may have changed); the list on the box was kept.")
 	}
 	return out, nil
+}
+
+// parseWinRelUpdates reads the monthly security updates ("2026-11 B") of every history table of one of Microsoft's release
+// information pages, of the kind of the page (server or client), each by the build its row names. The previews (C, D), out-of-band
+// and first builds are left out: the target of a Windows release's update is the month's security update everyone is offered. A row
+// whose values are not of the expected shape is skipped; a page with none gives none.
+func parseWinRelUpdates(body []byte, server bool) []winrel.Update {
+	var out []winrel.Update
+	for _, m := range winRelAnyTableRE.FindAllSubmatch(body, 64) {
+		for _, row := range winRelRowRE.FindAllSubmatch(m[1], 2000) {
+			cells := winRelCellRE.FindAllSubmatch(row[1], 8)
+			if len(cells) != 5 {
+				continue
+			}
+			upd, day, build, kb := winRelText(cells[1][1]), winRelText(cells[2][1]), winRelText(cells[3][1]), winRelText(cells[4][1])
+			bm := winRelBuildRE.FindStringSubmatch(build)
+			d, err := time.Parse(time.DateOnly, day)
+			if bm == nil || err != nil || d.Year() < 2015 || !winRelMonthlyRE.MatchString(upd) || kb != "" && !winRelKBRE.MatchString(kb) {
+				continue
+			}
+			b, _ := strconv.Atoi(bm[1])
+			rev, _ := strconv.Atoi(bm[2])
+			if b < 10240 || rev < 1 {
+				continue
+			}
+			out = append(out, winrel.Update{Build: b, Server: server, Rev: rev, KB: kb, Day: d})
+		}
+	}
+	return out
 }
 
 func winRelText(b []byte) string {
@@ -168,40 +206,62 @@ func winRelReleases(hs []winRelHistory, now time.Time) []winrel.Release {
 	return out
 }
 
-// buildWinRel fetches the feed's address (the Windows 11 page, required) and the server page next to it. The server page is optional
-// (review r1 L5 of #951): every Windows Server release it lists today is in core/winrel's table, so a failure of it is logged and the
-// client releases are still learned.
+// buildWinRel fetches the feed's address (the Windows 11 page, required), the server page and the Windows 10 page next to it. The
+// server page is optional (review r1 L5 of #951): every Windows Server release it lists today is in core/winrel's table, so a failure
+// of it is logged and the client releases are still learned. The Windows 10 page is optional too and gives monthly updates only. A page
+// that fails keeps the stored updates of its releases (applyWinRel replaces only the releases a pull read).
 func (s *Service) buildWinRel(ctx context.Context, src sourceRow, p pullPlan) (pullPlan, error) {
-	serverURL := src.URL[:strings.LastIndex(src.URL, "/")+1] + winRelServerPage
+	dir := src.URL[:strings.LastIndex(src.URL, "/")+1]
 	var hs []winRelHistory
-	for i, u := range []string{src.URL, serverURL} {
+	var ups []winrel.Update
+	for i, u := range []string{src.URL, dir + winRelServerPage, dir + winRel10Page} {
 		resp, err := s.get(ctx, Request{URL: u, MaxBytes: winRelMaxBytes})
 		var h []winRelHistory
-		if err == nil {
+		if err == nil && i < 2 {
 			h, err = parseWinRelPage(resp.Body, i == 1)
+		}
+		if err == nil && i == 2 && len(winRelAnyTableRE.FindIndex(resp.Body)) == 0 {
+			err = fail(ErrBadSample, "Microsoft's Windows 10 release information page has none of the tables Vedette reads (its layout may have changed).")
 		}
 		if err != nil && i == 0 {
 			return p, err
 		}
 		if err != nil {
-			s.Log.WarnContext(ctx, "the Windows Server release page could not be read; the Windows 11 releases are still learned", "url", u, "error", err)
+			s.Log.WarnContext(ctx, "a Windows release page could not be read; the Windows 11 releases are still learned and its stored updates kept", "url", u, "error", err)
 			continue
 		}
 		p.out.Bytes += len(resp.Body)
 		hs = append(hs, h...)
+		ups = append(ups, parseWinRelUpdates(resp.Body, i == 1)...)
 	}
 	rels := winRelReleases(hs, s.now())
 	if !slices.ContainsFunc(rels, func(r winrel.Release) bool { return !r.Server }) {
 		return p, fail(ErrBadSample, "Microsoft's release information page lists no Windows 11 release Vedette can read (its layout may have changed); the list on the box was kept.")
 	}
 	p.out.OK, p.out.Records, p.out.Accepted = true, len(rels), len(rels)
-	p.winRel, p.hasWinRel = rels, true
+	p.winRel, p.winRelUpd, p.hasWinRel = rels, ups, true
 	return p, nil
 }
 
-// applyWinRel replaces the stored releases (feeds_winrel); when they changed, it returns the CVEs NVD lists Windows rows for, for
-// findings to match again (EventRangesUpdated).
-func applyWinRel(ctx context.Context, tx *sql.Tx, rels []winrel.Release) (changedCVEs []string, err error) {
+// applyWinRel replaces the stored releases (feeds_winrel) and the stored monthly updates of every release the pull read
+// (feeds_winrel_update); when the releases changed, it returns the CVEs NVD lists Windows rows for, for findings to match again
+// (EventRangesUpdated). A change of the updates only moves the plan's target builds, which findings reads at its next plan pass
+// (TierStamp has this feed).
+func applyWinRel(ctx context.Context, tx *sql.Tx, rels []winrel.Release, ups []winrel.Update) (changedCVEs []string, err error) {
+	read := map[[2]int]bool{}
+	for _, u := range ups {
+		k := [2]int{u.Build, boolInt(u.Server)}
+		if !read[k] {
+			read[k] = true
+			if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_winrel_update WHERE build = ? AND server = ?`, k[0], k[1]); err != nil {
+				return nil, fmt.Errorf("feeds: clear windows updates: %w", err)
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_winrel_update (build, server, rev, kb, day) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
+			u.Build, k[1], u.Rev, u.KB, u.Day.Format(time.DateOnly)); err != nil {
+			return nil, fmt.Errorf("feeds: store windows update: %w", err)
+		}
+	}
 	before, err := winRelRows(ctx, tx)
 	if err != nil {
 		return nil, err
@@ -265,14 +325,43 @@ func winRelRows(ctx context.Context, q winRelQuerier) ([]winrel.Release, error) 
 	return out, rows.Err()
 }
 
-// LearnWindowsReleases hands the stored releases to core/winrel: when the service is built (cmd/vedette, before any match
-// or agent report needs them), when it is first ready, and after a pull that changed them. With the feed off the
-// stored list stays in use (the last good copy); it is never deleted by turning the feed off, only replaced by a good pull.
+// winRelUpdateRows reads the stored monthly updates.
+func winRelUpdateRows(ctx context.Context, q winRelQuerier) ([]winrel.Update, error) {
+	rows, err := q.QueryContext(ctx, `SELECT build, server, rev, kb, day FROM feeds_winrel_update ORDER BY build, server, rev`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: read windows updates: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []winrel.Update
+	for rows.Next() {
+		var u winrel.Update
+		var server int
+		var d string
+		if err := rows.Scan(&u.Build, &server, &u.Rev, &u.KB, &d); err != nil {
+			return nil, fmt.Errorf("feeds: read windows updates: %w", err)
+		}
+		u.Server = server == 1
+		if u.Day, err = time.Parse(time.DateOnly, d); err != nil {
+			continue
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// LearnWindowsReleases hands the stored releases and monthly updates to core/winrel: when the service is built (cmd/vedette, before
+// any match or agent report needs them), when it is first ready, and after every good pull. With the feed off the stored lists stay in
+// use (the last good copy); they are never deleted by turning the feed off, only replaced by a good pull.
 func (s *Service) LearnWindowsReleases(ctx context.Context) error {
 	rels, err := winRelRows(ctx, s.DB.Reader())
 	if err != nil {
 		return err
 	}
+	ups, err := winRelUpdateRows(ctx, s.DB.Reader())
+	if err != nil {
+		return err
+	}
 	winrel.Learn(rels)
+	winrel.LearnUpdates(ups)
 	return nil
 }

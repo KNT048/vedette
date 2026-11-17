@@ -210,6 +210,7 @@ export const PlanItem = z.object({
   fixed: z.string().describe('fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: the distribution\'s package version that fixes every CVE of the item on the device\'s release'),
   kind: z.enum(['fixed', 'distro', 'windows', 'esu']).describe('fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package `software` from `version` to `fixed` or later (the distribution\'s security update); windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates'),
   pro: z.boolean().describe('distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise'),
+  nvd_lag: z.boolean().describe('windows, esu: `fixed` is the newest monthly update Microsoft\'s release information lists for the release, newer than the update that carries every fixed build NVD names for these CVEs. The item fixes at least `cves`; the newest update\'s CVEs are not yet analysed by NVD, so the page says "at least". false otherwise'),
   cves: z.array(PlanCve).min(1).describe('Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest'),
   likely: z.number().int().min(0),
   recent: z.number().int().min(0),
@@ -283,6 +284,7 @@ export const ToFixAction = z.object({
   worst: z.string().describe('The finding\'s severity (critical, high, medium, low) for exploited ones; NVD\'s for planned ones; "" when none'),
   ransomware: z.number().int(), likely: z.number().int().describe('Planned: CVEs EPSS says are likely to be exploited soon'),
   confirmed: z.number().int(), detected: z.number().int(), reported: z.number().int(), suspected: z.number().int().describe('How each exploited finding is known: confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network'),
+  nvd_lag: z.boolean().describe('Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update\'s CVEs are not yet analysed by NVD); false otherwise'),
 })
 export const ToFixDevice = z.object({
   asset: FindingAsset,

@@ -47,13 +47,16 @@ type PlanItem struct {
 	AssetID string `json:"-"`
 	// SoftwareID is the device's software row the item is about (for a distribution's package, the first row of that source
 	// package), so a page can show the item on the row (DeviceUpdates). Not in the API.
-	SoftwareID string    `json:"-"`
-	Software   string    `json:"software"`
-	Version    string    `json:"version"`
-	Fixed      string    `json:"fixed"`
-	Kind       string    `json:"kind"` // fixed, windows, esu, distro
-	Pro        bool      `json:"pro"`  // distro: the fixed version is in Ubuntu Pro (ESM) only
-	CVEs       []PlanCVE `json:"cves"`
+	SoftwareID string `json:"-"`
+	Software   string `json:"software"`
+	Version    string `json:"version"`
+	Fixed      string `json:"fixed"`
+	Kind       string `json:"kind"` // fixed, windows, esu, distro
+	Pro        bool   `json:"pro"`  // distro: the fixed version is in Ubuntu Pro (ESM) only
+	// NVDLag (windows, esu): Fixed is the newest monthly update Microsoft lists for the release, newer than the update that carries
+	// every fixed build NVD names (GroupFix.NVDLag): the item fixes at least its CVEs; the newest update's are not analysed by NVD yet.
+	NVDLag bool      `json:"nvd_lag"`
+	CVEs   []PlanCVE `json:"cves"`
 	// Reported is, for an agent's row, when the agent last reported it (Software.SeenAt): the day of the list the version comes from,
 	// which GET /findings/plan names once no agent reports the device (agent_reported). Zero otherwise. Not in the pass's JSON.
 	Reported time.Time `json:"-"`
@@ -510,7 +513,7 @@ func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []V
 		case win && g.Kind != "feature_update":
 			kind = "windows"
 		}
-		it := PlanItem{Group: base + suffix, AssetID: a.ID, SoftwareID: s.ID, Software: clean(s.Display), Version: clean(in.ver), Fixed: g.Fixed, Kind: kind}
+		it := PlanItem{Group: base + suffix, AssetID: a.ID, SoftwareID: s.ID, Software: clean(s.Display), Version: clean(in.ver), Fixed: g.Fixed, Kind: kind, NVDLag: win && g.NVDLag}
 		basis := planVersion
 		if s.Source == "agent" {
 			basis, it.Reported = planAgent, s.SeenAt

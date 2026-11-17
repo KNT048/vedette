@@ -646,9 +646,10 @@ func windowsFixedIn(in swInfo, v Vuln) (*FixedIn, bool) {
 }
 
 // windowsGroupFix is groupFixOf for a Windows release row: one monthly update fixes every entry it is affected by through a range
-// with an end, the latest of those ends (kind fixed, or esu when that needs Extended Security Updates). When one of them can only
-// be fixed by a feature update, the line is that (kind feature_update, Fixed the release that has the fix): no monthly update
-// clears the device. nil when none.
+// with an end, the latest of those ends (kind fixed, or esu when that needs Extended Security Updates), raised to the newest monthly
+// update Microsoft lists for the release when that is newer (winLatest: NVD has not analysed the newest month's CVEs yet). When one
+// of them can only be fixed by a feature update, the line is that (kind feature_update, Fixed the release that has the fix): no
+// monthly update clears the device. nil when none.
 func windowsGroupFix(in swInfo, vulns []Vuln) *GroupFix {
 	d, _ := winDevice(in)
 	closed := map[string]bool{}
@@ -673,10 +674,40 @@ func windowsGroupFix(in swInfo, vulns []Vuln) *GroupFix {
 	if len(closed) == 0 {
 		return nil
 	}
+	lag := false
 	if kind == "feature_update" {
 		fixed = branch
+	} else {
+		fixed, lag = winLatest(d, fixed, kind)
 	}
-	return &GroupFix{Kind: kind, Version: clean(in.ver), Fixed: clean(fixed), Closed: closed, Ranged: maps.Clone(closed)}
+	return &GroupFix{Kind: kind, Version: clean(in.ver), Fixed: clean(fixed), Closed: closed, Ranged: maps.Clone(closed), NVDLag: lag}
+}
+
+// winLatest is the target build of a Windows release's cumulative update: the newest monthly security update Microsoft's release
+// information lists for the device's release (core/winrel.Updates, feed windows-releases) when it is newer than fixed, the highest
+// fixed build NVD names among the CVEs; fixed itself when Microsoft's list has nothing for the release or nothing newer (never a build
+// below NVD's). NVD analyses a month's CVEs days to weeks after Patch Tuesday, so without this the plan names last month's update and
+// counts none of this month's CVEs. lag says an update newer than the one that carries fixed exists: the newest update's CVEs are not
+// in NVD's data yet, so the CVEs counted are those analysed so far (a fixed build of the newest month itself, a hotpatch build below
+// its "B" build, is no lag). A kind fixed on a release whose free updates ended (LastFreeRev) keeps NVD's build when the newest update
+// needs Extended Security Updates: the fixes NVD names are free.
+func winLatest(d winDev, fixed, kind string) (string, bool) {
+	m := winBoundRE.FindStringSubmatch(fixed)
+	if m == nil {
+		return fixed, false
+	}
+	build, _ := strconv.Atoi(m[1])
+	rev, _ := strconv.Atoi(m[2])
+	us := winrel.Updates(d.rel.Build, d.rel.Server)
+	if build != d.rel.Build || len(us) == 0 {
+		return fixed, false
+	}
+	newest := us[len(us)-1]
+	if newest.Rev <= rev || kind == "fixed" && d.rel.LastFreeRev > 0 && newest.Rev > d.rel.LastFreeRev {
+		return fixed, false
+	}
+	carrier := slices.IndexFunc(us, func(u winrel.Update) bool { return u.Rev >= rev }) // the first update that has NVD's fix
+	return fmt.Sprintf("10.0.%d.%d", build, newest.Rev), carrier >= 0 && carrier < len(us)-1
 }
 
 // WIN-NOISE-2: Windows updates are cumulative. Each month Microsoft ships one update per release line, and

@@ -384,6 +384,10 @@ type GroupFix struct {
 	// only ones the update is proved to fix. A CVE with no range for this software (no NVD data, another product of a "Multiple
 	// Products" entry, a range on another row) is not in it.
 	Ranged map[string]bool
+	// NVDLag (a Windows release's cumulative update, winLatest): Fixed is the newest monthly update Microsoft lists for the release,
+	// newer than the update that carries the highest fixed build NVD names. It fixes Closed and the CVEs of the newer updates NVD has
+	// not analysed yet, so a count of Closed is a floor.
+	NVDLag bool
 }
 
 // nvdRows is, by CVE, the software row the matcher matches an entry of vulns on when no KEV key of that row reaches it (viaNVD,

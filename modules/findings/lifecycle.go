@@ -130,7 +130,7 @@ func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry,
 	if f.Status != StatusSuspected || f.Basis == BasisScan {
 		return f, HistoryEntry{}, false
 	}
-	note = clipRunes(note, MaxNote)
+	note = clipNote(note)
 	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = StatusNotRelevant, SystemUser, now, note, ReasonNotAffectedVersion, time.Time{}
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
 }
@@ -141,7 +141,7 @@ func reopenedByPerson(hist []HistoryEntry) bool {
 	reopened := false
 	for i := len(hist) - 1; i >= 0; i-- {
 		switch h := hist[i]; {
-		case h.User == SystemUser && h.Action == string(StatusNotRelevant):
+		case h.User == SystemUser && h.Action == string(StatusNotRelevant) && !strings.HasPrefix(h.Note, IgnoredNote): // D-630's close is no proof
 			return reopened
 		case h.User != SystemUser && h.Action == "reopened":
 			reopened = true
@@ -166,8 +166,60 @@ func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: note}, true
 }
 
-// clipRunes cuts s to at most n UTF-16 units (jsLen), on a character boundary.
-func clipRunes(s string, n int) string {
+// IgnoredNote starts the note of an open finding Vedette closed because a person ignored its device (inventory INV-38, D-630).
+// With status not_relevant, resolved_by system and no resolution reason it marks the findings Stop ignoring reopens: no other
+// close writes it (a person's close has the person in resolved_by, D-530's has a reason).
+const IgnoredNote = "Closed by Vedette: the device was ignored"
+
+// ReasonDeviceIgnored and ReasonDeviceWatched are the StatusChangedEvent reasons of IgnoreClose and UnignoreReopen (D-630): notify
+// sends nothing for either (a person just acted on the device).
+const (
+	ReasonDeviceIgnored = "device_ignored"
+	ReasonDeviceWatched = "device_watched"
+)
+
+// ClosedForIgnore reports whether the finding is one IgnoreClose closed and nobody has touched since.
+func (f Finding) ClosedForIgnore() bool {
+	return f.Status == StatusNotRelevant && f.ResolvedBy == SystemUser && f.ResolutionReason == "" && strings.HasPrefix(f.ResolutionNote, IgnoredNote)
+}
+
+// IgnoreClose closes an open finding (suspected or confirmed) of a device a person ignored (D-630): not_relevant by the system
+// user, the note naming the person. ok is false for a finding that is already closed: what a person settled (patched, mitigated,
+// false positive, not relevant, risk accepted) and Vedette's own closes keep their status.
+func (f Finding) IgnoreClose(by string, now time.Time) (Finding, HistoryEntry, bool) {
+	if !f.Status.Open() {
+		return f, HistoryEntry{}, false
+	}
+	note := IgnoredNote + "."
+	if by != "" {
+		note = clipNote(IgnoredNote + " by " + by + ".")
+	}
+	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = StatusNotRelevant, SystemUser, now, note, "", time.Time{}
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
+}
+
+// UnignoreReopen reopens a finding IgnoreClose closed, once a person stops ignoring the device (D-630): to the open status a fresh
+// match would give (confirmed with a scan basis, else suspected), then the device is matched again as usual. ok is false for any
+// other finding, so nothing a person decided is reopened.
+func (f Finding) UnignoreReopen(by string, now time.Time) (Finding, HistoryEntry, bool) {
+	if !f.ClosedForIgnore() {
+		return f, HistoryEntry{}, false
+	}
+	note := "The device is watched again, so Vedette reopened this finding it had closed when the device was ignored."
+	if by != "" {
+		note = clipNote("The device is watched again (" + by + " stopped ignoring it), so Vedette reopened this finding it had closed when the device was ignored.")
+	}
+	f.Status = StatusSuspected
+	if f.Basis == BasisScan {
+		f.Status = StatusConfirmed
+	}
+	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = "", time.Time{}, "", "", time.Time{}
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: "reopened", Note: note}, true
+}
+
+// clipNote cuts a note to at most MaxNote UTF-16 units (jsLen), on a character boundary.
+func clipNote(s string) string {
+	n := MaxNote
 	if jsLen(s) <= n {
 		return s
 	}

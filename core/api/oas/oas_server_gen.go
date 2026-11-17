@@ -1488,6 +1488,19 @@ type Handler interface {
 	//
 	// POST /inventory/devices/{id}/approve
 	InventoryPostInventoryDevicesIDApprove(ctx context.Context, params InventoryPostInventoryDevicesIDApproveParams) (*InventoryPostInventoryDevicesIDApproveOK, error)
+	// InventoryPostInventoryDevicesIDIgnore implements inventory_post_inventory_devices_id_ignore operation.
+	//
+	// Ignore a device that needs no watching, such as a staff phone, or stop ignoring it (D-630). Ignored:
+	// it stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the
+	// Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its open
+	// findings close as not relevant ("Closed by Vedette: the device was ignored by .", no notice;
+	// findings a person settled keep their status); a trap hit or an intrusion-detection incident from it
+	// still alerts. Stopped: it goes back to To review (not approved), its own scan and SNMP settings
+	// apply again (they are kept while it is ignored), the findings Ignore closed reopen, matched again.
+	// Saying it again changes nothing. 404 not_found. 409 box_device: the Vedette box itself.
+	//
+	// POST /inventory/devices/{id}/ignore
+	InventoryPostInventoryDevicesIDIgnore(ctx context.Context, req *InventoryPostInventoryDevicesIDIgnoreReq, params InventoryPostInventoryDevicesIDIgnoreParams) (*InventoryPostInventoryDevicesIDIgnoreOK, error)
 	// InventoryPostInventoryDevicesIDKeepSeparate implements inventory_post_inventory_devices_id_keep_separate operation.
 	//
 	// Two machines: the pair is never offered as possibly the same device again, until either is deleted
@@ -1565,7 +1578,8 @@ type Handler interface {
 	// exclusions, window, fragile, never scan); turning the network scan on queues the device for the next
 	// window. Off stops it for any device (the run on it stops); what the source found stays and manual
 	// values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404
-	// not_found. 409 box_device: the Vedette box itself.
+	// not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an
+	// ignored device (D-630).
 	//
 	// PUT /inventory/devices/{id}/sources
 	InventoryPutInventoryDevicesIDSources(ctx context.Context, req *InventoryPutInventoryDevicesIDSourcesReq, params InventoryPutInventoryDevicesIDSourcesParams) (*InventoryPutInventoryDevicesIDSourcesOK, error)

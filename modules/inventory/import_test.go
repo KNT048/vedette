@@ -456,6 +456,8 @@ func TestEveryMutationIsAudited(t *testing.T) {
 	must(e.svc.PatchDevice(e.ctx(), "it@acme.example", id, inventory.Patch{Kind: &kind, RegularScan: &rs, Notes: &notes, Fragile: &fragile, Name: &name}))
 	must(e.svc.SetSuspicious(e.ctx(), "it@acme.example", id, true))
 	must(e.svc.SetSuspicious(e.ctx(), "it@acme.example", id, false))
+	must(e.svc.SetIgnored(e.ctx(), "it@acme.example", id, true))
+	must(e.svc.SetIgnored(e.ctx(), "it@acme.example", id, false))
 	must(e.svc.Approve(e.ctx(), "it@acme.example", id))
 	must(e.svc.SetNotifyNew(e.ctx(), "it@acme.example", true))
 	e.importCSV("name\nx\n")
@@ -467,7 +469,7 @@ func TestEveryMutationIsAudited(t *testing.T) {
 	got := e.auditActions()
 	for _, want := range []string{
 		"inventory.add_manual", "inventory.add_software", "inventory.remove_software", "inventory.set_kind", "inventory.set_regular_scan", "inventory.set_fragile",
-		"inventory.rename", "inventory.set_notes", "inventory.mark_suspicious", "inventory.unmark_suspicious", "inventory.approve", "inventory.notify_new", "inventory.import",
+		"inventory.rename", "inventory.set_notes", "inventory.mark_suspicious", "inventory.unmark_suspicious", "inventory.ignore", "inventory.unignore", "inventory.approve", "inventory.notify_new", "inventory.import",
 		"inventory.export", "inventory.settings", "inventory.delete",
 	} {
 		if !has(got, want) {

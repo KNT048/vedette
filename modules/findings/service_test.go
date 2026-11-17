@@ -24,6 +24,8 @@ type fakeInv struct {
 	assets map[string]AssetView
 	match  map[string]Asset
 	idsErr error
+	// ignored are the devices a person ignored (D-630); the test also removes them from match, as the inventory does.
+	ignored map[string]bool
 	// onMatch runs (without the lock) when MatchInput reads a device: a test can change the world while a pass reads it.
 	onMatch func(id string)
 }
@@ -52,6 +54,18 @@ func (f *fakeInv) MatchInput(_ context.Context, id string) (Asset, bool, error) 
 }
 
 // AssetIDs lists the devices that exist: the ones the matcher can read. idsErr makes the read fail.
+func (f *fakeInv) IgnoredIDs(context.Context) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Sorted(maps.Keys(f.ignored)), nil
+}
+
+func (f *fakeInv) IsIgnored(_ context.Context, id string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ignored[id], nil
+}
+
 func (f *fakeInv) AssetIDs(context.Context) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -171,6 +185,8 @@ type env struct {
 	feeds *fakeFeeds
 	pub   *fakePub
 	clock *time.Time
+	// parked keeps the match input of a device a test ignored (env.ignore), to give it back when it is watched again.
+	parked map[string]Asset
 }
 
 func newEnv(t testing.TB) *env {

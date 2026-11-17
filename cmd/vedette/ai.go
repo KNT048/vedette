@@ -130,8 +130,8 @@ func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact
 			continue
 		}
 		name := a.IP
-		if a.Hostname != nil && *a.Hostname != "" {
-			name = *a.Hostname
+		if a.Name != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first, G2)
+			name = a.Name
 		}
 		out = append(out, ai.AssetFact{Name: name, IP: a.IP, Kind: a.Kind, Basis: string(r.Basis), Status: string(r.Status), IsBox: a.ID == box && box != ""})
 	}
@@ -309,8 +309,14 @@ func aiIP(s string) string {
 	return "no IP address"
 }
 
-// aiName is a device's name for the AI: its host name when it is a plain one, else its model, else its address.
+// aiName is a device's name for the AI: the name a person gave it in Vedette (G2; an operator typed it, no < or >), its host name when
+// it is a plain one, else its model, else its address.
 func aiName(d inventory.Device) string {
+	if d.UserName != nil {
+		if n := aiVal(*d.UserName, 64); n != "" {
+			return n
+		}
+	}
 	if d.Hostname != nil && aiHostRE.MatchString(*d.Hostname) {
 		return *d.Hostname
 	}
@@ -543,9 +549,9 @@ func aiObserved(o *inventory.Observed) string {
 }
 
 func aiDeviceName(d inventory.Device) string {
-	switch {
-	case d.Hostname != nil && *d.Hostname != "":
-		return *d.Hostname
+	switch n := d.NameOrHost(); {
+	case n != nil: // the name in Vedette, else the host name (G2)
+		return *n
 	case d.Model != nil && d.Model.Value != "":
 		return d.Model.Value
 	}

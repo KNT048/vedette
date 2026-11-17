@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type RefObject } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -14,7 +14,7 @@ import { SourceBadge } from '@/components/common/SourceBadge'
 import { Slot } from '@/components/common/Slot'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
-import { Select, Textarea, Label } from '@/components/ui/input'
+import { Input, Select, Textarea, Label } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
@@ -97,12 +97,71 @@ function Overview({ d }: { d: DeviceDetail }) {
           {row(t('detail.firstScan'), a.first_scan_at ? fmtDateTime(a.first_scan_at) : <span className="text-muted">{t('detail.firstScanNone')}</span>)}
         </>
       ) : null}
+      {row(t('detail.hostname'), <HostName d={d} />)}
       {row(t('detail.ip'), a.ip)}
       {row(t('detail.mac'), a.mac ?? <span className="text-muted">{t('common:unknown')}</span>)}
       {row(t('detail.firstSeen'), fmtDateTime(a.first_seen))}
       {row(t('detail.lastSeen'), `${fmtDateTime(a.last_seen)} (${fmtRelative(a.last_seen)})`)}
       {row(t('detail.origin'), a.is_box ? t('box.origin') : a.origin === 'manual' ? t('detail.originManual') : t('detail.originDiscovered'))}
     </dl>
+  )
+}
+
+/** G2: the host name the network reports (or typed when the device was added), with its source: read-only, apart from the name in
+ *  Vedette that the title shows and Rename changes. */
+function HostName({ d }: { d: DeviceDetail }) {
+  const { t } = useTranslation('inventory')
+  const host = d.asset.hostname
+  if (!host) return <span className="text-muted">{t('detail.hostnameNone')}</span>
+  const obs = d.observations.find((o) => o.field === 'hostname' && o.current)
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span className="[overflow-wrap:anywhere]" data-testid="device-hostname">{host}</span>
+      {obs ? <SourceBadge source={obs.source} confidence={obs.confidence} /> : null}
+    </span>
+  )
+}
+
+/** G2 (kien): rename the device in Vedette where its name is, next to the page title. The name wins on every page (nameOf,
+ *  inventory.DisplayName); empty goes back to the default name. Enter saves, Escape cancels. The host name the network reports is not
+ *  changed. `editing` false: the Rename button; true: the field that takes the title's place. */
+function RenameDevice({ d, editing, setEditing, button }: { d: DeviceDetail; editing: boolean; setEditing: (v: boolean) => void; button: RefObject<HTMLButtonElement | null> }) {
+  const { t } = useTranslation('inventory')
+  const can = useCan('operator')
+  const act = useDeviceAction(d.asset.id)
+  const saved = d.asset.name ?? ''
+  const [text, setText] = useState(saved) // the field mounts on Rename, so it starts from the saved name
+  const fallback = nameOf({ ...d.asset, name: null }, kindLabel(d.asset.kind)) // the default name: what an empty name shows
+  const bad = /[<>]/.test(text)
+  const next = text.trim()
+  const close = () => { setEditing(false); requestAnimationFrame(() => button.current?.focus()) } // focus back on Rename, which comes back
+  const save = () => {
+    if (bad || act.patch.isPending) return
+    if (next === saved) { close(); return }
+    act.patch.mutate({ name: next }, {
+      onSuccess: () => { toast.success(next ? t('detail.renamed', { name: next }) : t('detail.renameReset', { name: fallback })); close() },
+      onError: (e) => toast.error(errMsg(e)),
+    })
+  }
+  if (!editing) {
+    return (
+      <Button ref={button} size="sm" variant="ghost" className="ml-1" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+        onClick={() => setEditing(true)}><Pencil />{t('detail.rename')}</Button>
+    )
+  }
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <Input id="device-name" autoFocus className="w-80 max-w-full" value={text} maxLength={64} aria-label={t('detail.renameLabel')}
+        aria-invalid={bad || undefined} aria-describedby="device-name-hint" placeholder={fallback} disabled={act.patch.isPending}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); save() }
+          if (e.key === 'Escape') { e.preventDefault(); close() }
+        }} />
+      <Button size="sm" variant="primary" disabled={bad || act.patch.isPending} onClick={save}>{t('detail.renameSave')}</Button>
+      <Button size="sm" variant="ghost" disabled={act.patch.isPending} onClick={close}>{t('detail.renameCancel')}</Button>
+      {bad ? <span role="alert" className="w-full text-caption text-danger">{t('detail.renameBad')}</span> : null}
+    </span>
   )
 }
 
@@ -321,6 +380,8 @@ function Body() {
   const act = useDeviceAction(id)
   const [adding, setAdding] = useState(false)
   const [del, setDel] = useState(false)
+  const [renaming, setRenaming] = useState(false)
+  const renameButton = useRef<HTMLButtonElement>(null)
   // UI.md §3: breadcrumbs (parents only) above the title; also while the device loads or is missing, so the way back is always there.
   const crumbs = [{ label: t('nav.devices'), to: '/devices' }]
   const back = <Breadcrumbs items={crumbs} />
@@ -338,7 +399,11 @@ function Body() {
   return (
     <>
       <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2', 'S-INV-3']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+        meta={renaming
+          ? <span id="device-name-hint" className="max-w-xl">{t('detail.renameHint', { name: nameOf({ ...a, name: null }, kindLabel(a.kind)) })}</span>
+          : <span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+        titleAction={<RenameDevice key="rename" d={d} editing={false} setEditing={setRenaming} button={renameButton} />}
+        editing={renaming ? <RenameDevice key="edit" d={d} editing setEditing={setRenaming} button={renameButton} /> : undefined}
         actions={<>
           {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId, asset }: the facts that say whether
               it can be checked, from this page's own read, #877 r1 L6). */}

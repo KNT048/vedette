@@ -345,13 +345,22 @@ type Patch struct {
 	Fragile     *bool
 	RegularScan *string
 	Notes       *string
+	Name        *string // the name in Vedette (G2): trimmed; "" clears it, back to the naming rule (D-471)
 }
 
-// PatchDevice changes the type, fragile flag, regular-scan override or notes of a device (PRE-4, POST-4).
-// A new type is added as a manual observation: older and weaker values stay in the list (INV-1).
+// PatchDevice changes the name in Vedette, type, fragile flag, regular-scan override or notes of a device (PRE-4, POST-4).
+// A new type is added as a manual observation: older and weaker values stay in the list (INV-1). The name is the device's own
+// column (user_name, G2), never an observation: the host name the network reports stays as it is, shown apart.
 func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) error {
 	if err := s.requireDevice(ctx, id); err != nil { // 404 before 400, like the mock
 		return err
+	}
+	if p.Name != nil {
+		n := strings.TrimSpace(*p.Name)
+		if n != "" && !label(n) {
+			return badRequest("bad_name", "The name is at most 64 characters and cannot contain < or >.")
+		}
+		p.Name = &n
 	}
 	if p.RegularScan != nil && !slices.Contains([]string{"follow", "allow", "never"}, *p.RegularScan) {
 		return badRequest("bad_regular_scan", "Regular scans must be: follow type setting, allow or never.")
@@ -372,6 +381,24 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 			return fmt.Errorf("inventory: read device: %w", err)
 		}
 		name := deviceName(ctx, tx, id)
+		match := false
+		if p.Name != nil {
+			var old sql.NullString
+			if err := tx.QueryRowContext(ctx, `SELECT user_name FROM inv_asset WHERE id = ?`, id).Scan(&old); err != nil {
+				return fmt.Errorf("inventory: read name: %w", err)
+			}
+			if old.String != *p.Name { // the same name again changes nothing and writes no audit row
+				if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET user_name = ? WHERE id = ?`, nullStr(*p.Name), id); err != nil {
+					return fmt.Errorf("inventory: set name: %w", err)
+				}
+				renamed := deviceName(ctx, tx, id)
+				if err := s.auditTx(ctx, tx, actor, "inventory.rename", renamed, name+" → "+renamed); err != nil {
+					return err
+				}
+				// The findings' evidence names the device (MatchDevice.Name): matching it again writes the new name there too.
+				name, match = renamed, true
+			}
+		}
 		if p.RegularScan != nil {
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET regular_scan = ? WHERE id = ?`, *p.RegularScan, id); err != nil {
 				return fmt.Errorf("inventory: set regular scan: %w", err)
@@ -409,7 +436,7 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 				return err
 			}
 		}
-		o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+		o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: match})
 		return nil
 	})
 }

@@ -19,10 +19,11 @@ import (
 // DeviceRef is a device as other modules name it.
 type DeviceRef struct {
 	ID       string
-	Hostname *string
-	IP       string // "—" when unknown, like the API
-	MAC      string // "" when unknown
-	Vendor   string // the current vendor value, "" when none
+	Hostname *string // the host name the network reports (observations)
+	UserName *string // the name a person gave the device in Vedette (G2); nil = none
+	IP       string  // "—" when unknown, like the API
+	MAC      string  // "" when unknown
+	Vendor   string  // the current vendor value, "" when none
 	Kind     string
 	Display  string // the first software's display name, else the kind (DisplayName's product of a declared device, notify)
 	OS       string // the current operating system value ("Microsoft Windows Server 2025 10.0.26100.1742"), "" when unknown (#905)
@@ -41,7 +42,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		for i, id := range chunk {
 			args[i] = id
 		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at, a.os,
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.user_name, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at, a.os,
 			(SELECT display FROM inv_software WHERE asset_id = a.id ORDER BY display, id LIMIT 1)
 			FROM inv_asset a WHERE a.id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
 		if err != nil {
@@ -49,12 +50,12 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		}
 		for rows.Next() {
 			var d DeviceRef
-			var host, ip, mac, vendor, model, approvedAt, osName, display sql.NullString
-			if err := rows.Scan(&d.ID, &host, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &display); err != nil {
+			var host, userName, ip, mac, vendor, model, approvedAt, osName, display sql.NullString
+			if err := rows.Scan(&d.ID, &host, &userName, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &display); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("inventory: read devices: %w", err)
 			}
-			d.Hostname, d.IP, d.MAC, d.Vendor, d.Display, d.Model, d.OS = ptr(host), noIP, mac.String, vendor.String, d.Kind, model.String, osName.String
+			d.Hostname, d.UserName, d.IP, d.MAC, d.Vendor, d.Display, d.Model, d.OS = ptr(host), ptr(userName), noIP, mac.String, vendor.String, d.Kind, model.String, osName.String
 			if approvedAt.Valid {
 				t, err := time.Parse(time.RFC3339Nano, approvedAt.String)
 				if err != nil {
@@ -231,6 +232,7 @@ func (s *Service) HasDevice(ctx context.Context, kinds []string, vendor string) 
 type KindDevice struct {
 	ID       string
 	Hostname *string
+	UserName *string // the name a person gave the device in Vedette (G2); nil = none
 	IP       string  // "—" when unknown, like the API
 	MAC      *string // lower case aa:bb:cc:dd:ee:ff
 	Kind     string
@@ -290,7 +292,7 @@ func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevi
 	for i, k := range kinds {
 		args[i] = k
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.kind, a.approved, o.source FROM inv_asset a LEFT JOIN inv_observation o ON o.id = a.kind_obs_id WHERE a.kind IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`) ORDER BY a.id`, args...)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.user_name, a.ip, a.mac, a.kind, a.approved, o.source FROM inv_asset a LEFT JOIN inv_observation o ON o.id = a.kind_obs_id WHERE a.kind IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`) ORDER BY a.id`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read devices of a kind: %w", err)
 	}
@@ -298,11 +300,11 @@ func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevi
 	var out []KindDevice
 	for rows.Next() {
 		var d KindDevice
-		var host, ip, mac, src sql.NullString
-		if err := rows.Scan(&d.ID, &host, &ip, &mac, &d.Kind, &d.Approved, &src); err != nil {
+		var host, userName, ip, mac, src sql.NullString
+		if err := rows.Scan(&d.ID, &host, &userName, &ip, &mac, &d.Kind, &d.Approved, &src); err != nil {
 			return nil, fmt.Errorf("inventory: read devices of a kind: %w", err)
 		}
-		d.Hostname, d.MAC, d.IP, d.KindSource = ptr(host), ptr(mac), noIP, src.String
+		d.Hostname, d.UserName, d.MAC, d.IP, d.KindSource = ptr(host), ptr(userName), ptr(mac), noIP, src.String
 		if ip.Valid {
 			d.IP = ip.String
 		}
@@ -326,7 +328,7 @@ func (s *Service) trustedKindUnion(ctx context.Context, kinds []string, out []Ki
 	for i, k := range kinds {
 		args[i] = k
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.approved, o.value, o.source FROM inv_asset a JOIN inv_observation o ON o.asset_id = a.id
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.user_name, a.ip, a.mac, a.approved, o.value, o.source FROM inv_asset a JOIN inv_observation o ON o.asset_id = a.id
 		WHERE o.field = 'kind' AND o.value IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`) AND (o.source = 'agent' OR (o.source IN ('snmp', 'nmap') AND a.approved = 1))
 		AND o.seen_at > coalesce((SELECT max(m.seen_at) FROM inv_observation m WHERE m.asset_id = a.id AND m.field = 'kind' AND m.source = 'manual'), '')
 		ORDER BY a.id, CASE o.source WHEN 'agent' THEN 1 WHEN 'snmp' THEN 2 ELSE 3 END, o.seen_at DESC`, args...) // only "?" placeholders are concatenated; the kinds are bound
@@ -341,8 +343,8 @@ func (s *Service) trustedKindUnion(ctx context.Context, kinds []string, out []Ki
 	added := false
 	for rows.Next() {
 		var d KindDevice
-		var host, ip, mac sql.NullString
-		if err := rows.Scan(&d.ID, &host, &ip, &mac, &d.Approved, &d.Kind, &d.KindSource); err != nil {
+		var host, userName, ip, mac sql.NullString
+		if err := rows.Scan(&d.ID, &host, &userName, &ip, &mac, &d.Approved, &d.Kind, &d.KindSource); err != nil {
 			return nil, fmt.Errorf("inventory: read trusted kinds: %w", err)
 		}
 		i, listed := at[d.ID]
@@ -351,7 +353,7 @@ func (s *Service) trustedKindUnion(ctx context.Context, kinds []string, out []Ki
 		case listed:
 			out[i].Kind, out[i].KindSource = d.Kind, d.KindSource
 		default:
-			d.Hostname, d.MAC, d.IP = ptr(host), ptr(mac), noIP
+			d.Hostname, d.UserName, d.MAC, d.IP = ptr(host), ptr(userName), ptr(mac), noIP
 			if ip.Valid {
 				d.IP = ip.String
 			}

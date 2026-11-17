@@ -16,7 +16,7 @@ export const vulnOf = (cve: string) => data.vulns.find((v) => v.cve === cve)
 export function rowOf(f: Finding): FindingRow {
   const a = assetsStore.get().find((x) => x.id === f.asset_id)
   const v = vulnOf(f.cve)
-  return { id: f.id, cve: f.cve, device: a?.hostname ?? a?.ip ?? f.asset_id, asset_id: f.asset_id, product: v ? displayOf(v.vendor, v.product) : f.cve, status: f.status, severity: f.severity, since: f.first_seen, ...(f.evidence?.agent ? { agent: true } : {}) }
+  return { id: f.id, cve: f.cve, device: a?.name ?? a?.hostname ?? a?.ip ?? f.asset_id, asset_id: f.asset_id, product: v ? displayOf(v.vendor, v.product) : f.cve, status: f.status, severity: f.severity, since: f.first_seen, ...(f.evidence?.agent ? { agent: true } : {}) }
 }
 
 const SEV = { critical: 0, high: 1, medium: 2, low: 3, info: 4 } as const

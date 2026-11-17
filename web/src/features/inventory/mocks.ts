@@ -252,7 +252,7 @@ const scanInfo = (a: Asset) => ({
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
-const live = (a: Asset) => ({ ...a, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
+const live = (a: Asset) => ({ ...a, name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
 /** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's when osquery reports the device (its node is
  * bound to it) and Wazuh's when the saved Wazuh connection delivered it (both when both do); not Wazuh's once that connection is gone. */
 const DEVICE_SOURCES: readonly DeviceSource[] = ['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh']
@@ -296,7 +296,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
     && (hasFindings === null || (r.findings_count > 0) === hasFindings)
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
     && (!sources.length || r.sources.some((x) => sources.includes(x)))
-    && (!q || [r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
+    && (!q || [r.name, r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
       || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
 }
 const find = (id: string) => allAssets().find((x) => x.id === id)
@@ -715,8 +715,17 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
     if (!a) return notFound(request)
-    const b = await body<{ kind: AssetKind; fragile: boolean; regular_scan: RegularScan; notes: string }>(request)
+    const b = await body<{ name: string; kind: AssetKind; fragile: boolean; regular_scan: RegularScan; notes: string }>(request)
     const patch: Partial<Asset> = {}
+    if (b.name !== undefined) { // G2: the name in Vedette, as the backend checks it (trimmed, at most 64 characters, no < or >; empty clears it)
+      const n = typeof b.name === 'string' ? b.name.trim() : null
+      if (n === null || (n !== '' && !LABEL_RE.test(n))) return fail(400, 'bad_name', 'The name is at most 64 characters and cannot contain < or >.')
+      if (n !== (a.name ?? '')) {
+        const before = nameOf(a, a.kind)
+        patch.name = n || null
+        audit('inventory.rename', nameOf({ ...a, name: patch.name }, a.kind), `${before} → ${nameOf({ ...a, name: patch.name }, a.kind)}`)
+      }
+    }
     if (b.regular_scan !== undefined) {
       if (!['follow', 'allow', 'never'].includes(b.regular_scan)) return fail(400, 'bad_regular_scan', 'Regular scans must be: follow type setting, allow or never.')
       metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], regular_scan: b.regular_scan } }))

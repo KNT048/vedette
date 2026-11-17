@@ -18,7 +18,7 @@ const (
 // MatchedAsset is a device that matches a vulnerable product.
 type MatchedAsset struct {
 	ID       string  `json:"id"`
-	Hostname *string `json:"hostname"`
+	Hostname *string `json:"hostname"` // the name a person gave the device in Vedette (G2), else its host name; nil when neither
 	IP       string  `json:"ip"`
 	Display  string  `json:"display"`
 	How      YouHave `json:"how"` // yes or maybe, never no

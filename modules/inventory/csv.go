@@ -439,7 +439,7 @@ func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (
 		if sum != nil {
 			src, conf = sum.Source, strconv.FormatFloat(sum.Confidence, 'f', 2, 64)
 		}
-		cells := []string{deref(d.Hostname), ip, deref(d.MAC), d.Kind, obsValue(d.Vendor), obsValue(d.Model), obsValue(d.OS), strings.Join(sw, "; "), yesNo(d.Approved), yesNo(d.Fragile), d.Origin, src, conf, d.LastSeen}
+		cells := []string{deref(d.NameOrHost()), ip, deref(d.MAC), d.Kind, obsValue(d.Vendor), obsValue(d.Model), obsValue(d.OS), strings.Join(sw, "; "), yesNo(d.Approved), yesNo(d.Fragile), d.Origin, src, conf, d.LastSeen}
 		for j, c := range cells {
 			if j > 0 {
 				b.WriteByte(',')

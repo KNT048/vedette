@@ -25,7 +25,9 @@ export interface Asset {
   site: string
   ip: string
   mac: string | null
-  hostname: string | null
+  hostname: string | null // the host name the network reports (read-only), or the name typed when the device was added manually
+  /** The name a person gave the device in Vedette (G2): it wins on every page (nameOf); null or absent = the default name (D-471). */
+  name?: string | null
   kind: AssetKind
   kind_source?: ObsSource | null // the source of the kind; null for the default unknown (D-511)
   guess?: KindGuess | null

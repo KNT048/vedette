@@ -92,6 +92,8 @@
     "title": "Findings on this device",
     "description": "Exploited vulnerabilities that match this device.",
     "none": "No findings for this device yet.",
+    "onlyNotRelevant_one": "No findings to handle: the one finding of this device is closed as not relevant.",
+    "onlyNotRelevant_other": "No findings to handle: the {{count}} findings of this device are closed as not relevant.",
     "lastSeen": "Seen {{time}}",
     "handleAll": "Select and handle these findings in the Findings list"
   },
@@ -419,6 +421,12 @@
     "confirmed": "Confirmed",
     "critical": "Critical",
     "ending": "Accepted risks ending within 7 days"
+  },
+  "notRelevant": {
+    "show_one": "Show not relevant ({{count}})",
+    "show_other": "Show not relevant ({{count}})",
+    "hide_one": "Hide not relevant ({{count}})",
+    "hide_other": "Hide not relevant ({{count}})"
   },
   "tabs": {
     "label": "Findings lists",

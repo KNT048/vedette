@@ -57,6 +57,7 @@
       "approveFirst": "Approve the device first: SNMP reads only approved devices."
     },
     "declared": "Added by hand: Vedette sends nothing to it until you turn its network scan on or set up SNMP here.",
+    "declaredScanOff": "Added by hand: Vedette does not scan it (no device check, no vulnerability check) until you turn its network scan on here.",
     "toggle": {
       "scan": "Network scan of this device",
       "snmp": "SNMP reads of this device"

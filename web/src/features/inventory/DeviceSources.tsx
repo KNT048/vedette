@@ -191,7 +191,8 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
           )
         })}
       </ul>
-      {declared && silent ? <p className="mt-3 max-w-3xl text-meta text-muted">{t('sources.declared')}</p> : null}
+      {/* the one place on the device page that says why a device added by hand is not scanned: next to the switch that turns it on */}
+      {declared && a.scan_source === 'off' ? <p className="mt-3 max-w-3xl text-meta text-muted">{t(silent ? 'sources.declared' : 'sources.declaredScanOff')}</p> : null}
       <p className="mt-3 max-w-3xl text-meta text-muted">{t('sources.both')}</p>
       {enrol ? <AddDialog open method="osquery" onOpenChange={(o) => { if (!o) setEnrol(false) }} /> : null}
     </Section>

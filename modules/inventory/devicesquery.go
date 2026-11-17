@@ -216,6 +216,10 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 			"(a.origin = 'manual' AND EXISTS (SELECT 1 FROM inv_software sq WHERE sq.asset_id = a.id AND " + fmt.Sprintf(like, "sq.display") + "))",
 		}
 		qa := []any{f.Q, f.Q, f.Q, f.Q, f.Q, f.Q}
+		if keys := modelKeys(f.Q); len(keys) > 0 { // the model a person's declared OS row gives the device (INV-45: "FortiGate")
+			parts = append(parts, "EXISTS (SELECT 1 FROM inv_software sm WHERE sm.asset_id = a.id AND sm.source = 'manual' AND lower(sm.vendor) || '|' || lower(sm.product) IN (SELECT value FROM json_each(?)))")
+			qa = append(qa, jsonList(keys))
+		}
 		if hex, ok := macFragment(f.Q); ok {
 			parts, qa = append(parts, "instr(coalesce(a.mac, ''), ?) > 0"), append(qa, hex) // a.mac is stored lower case aa:bb:…
 		}

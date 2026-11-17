@@ -5,7 +5,7 @@ export type AssetKind = string
 /** What the identification rules say a device of unknown kind most likely is; never its kind. */
 export interface KindGuess { kind: AssetKind; confidence: number; evidence: string; model?: string; alternatives?: AssetKind[] }
 
-export interface Observed { value: string; source: ObsSource; confidence: number; seen_at: string }
+export interface Observed { value: string; source: ObsSource; confidence: number; seen_at: string; basis?: 'stated' | 'guess'; software_id?: string }
 
 export interface Software {
   id: string

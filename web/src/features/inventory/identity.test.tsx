@@ -28,6 +28,16 @@ describe('Device page: maker, model and OS with their source', () => {
     await expectNoA11yViolations(container)
   })
 
+  it('an OS read from the row a person declared shows on the Overview with that source and is not repeated as an OS line', async () => {
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-fw01' ? { ...a, os: { value: 'FortiOS 7.2.13', source: 'manual' as const, confidence: 1, seen_at: new Date().toISOString(), software_id: a.software[0]?.id } } : a)))
+    const user = userEvent.setup()
+    renderApp('/devices/a-fw01')
+    expect(await overviewRow('OS or firmware')).toHaveTextContent(/^FortiOS 7\.2\.13\s*Manual\s*\(high confidence\)$/)
+    await user.click(screen.getByRole('tab', { name: /Software/ }))
+    await screen.findByRole('table', { name: 'Software on the device' }, T)
+    expect(screen.queryByTestId('software-os')).toBeNull()
+  })
+
   it('an OS that is only a scan guess is its own Software row, never also the OS line', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-srvad')

@@ -211,8 +211,8 @@ func (a findingsInventory) AssetIDs(ctx context.Context) ([]string, error) {
 	return a.inv.AssetIDs(ctx)
 }
 
-// findingsJobs is findings' reconcile job (D-144): it heals what a lost event left behind.
-func findingsJobs(d deps) []jobs.Job { return findings.Jobs(d.Findings) }
+// findingsJobs is findings' reconcile job (D-144): it heals what a lost event left behind; and its KEV reachability audit (reachJob).
+func findingsJobs(d deps) []jobs.Job { return append(findings.Jobs(d.Findings), reachJob(d)) }
 
 func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (findings.Asset, bool, error) {
 	d, ok, err := a.inv.MatchInput(ctx, assetID)

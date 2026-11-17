@@ -4,7 +4,9 @@ import (
 	"cmp"
 	_ "embed"
 	"encoding/json"
+	"maps"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -372,6 +374,36 @@ func windowsRow(w winOS) (observe.Software, bool) {
 	return observe.Software{Display: rel.Display, Vendor: "microsoft", Product: rel.Display, Version: w.version,
 		CPE:     "cpe:2.3:o:microsoft:" + rel.Product + ":" + w.version + ":*:*:*:*:*:" + cmp.Or(w.target, "*") + ":*",
 		KevKeys: []string{"microsoft|windows"}, Confidence: softwareConfidence}, true
+}
+
+// KnownSoftware is every software row the mapper gives a KEV key (#910, findings' KEV reachability audit): one per pkgmap pair, Linux
+// and Windows, exact and prefix, as mapPackages makes a mapped row (no version, not Packaged: the audit reads the product, not a
+// distribution's build), and the operating-system row windowsRow makes for every release core/winrel lists (at update revision 1).
+func KnownSoftware() []observe.Software {
+	var out []observe.Software
+	seen := map[string]bool{}
+	pair := func(vendor, product string) {
+		k := strings.ToLower(vendor) + "|" + strings.ToLower(product)
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, observe.Software{Display: product, Vendor: vendor, Product: product, KevKeys: []string{k}, Confidence: softwareConfidence})
+		}
+	}
+	for _, t := range []pkgTable{pkgmap.Linux, pkgmap.Windows} {
+		for _, name := range slices.Sorted(maps.Keys(t.Exact)) {
+			pair(t.Exact[name].Vendor, t.Exact[name].Product)
+		}
+		for _, p := range t.Prefix {
+			pair(p.Vendor, p.Product)
+		}
+	}
+	for _, r := range winrel.Releases() {
+		name := "Microsoft " + r.Display
+		if s, ok := windowsRow(winOS{name: name, version: "10.0." + strconv.Itoa(r.Build) + ".1", target: "x64"}); ok {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // sameWinBuild says whether the request's os_version row, when it has a Windows one, is of the build of w ("10.0.22631" and

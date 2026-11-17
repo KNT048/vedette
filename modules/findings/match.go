@@ -630,10 +630,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time)
 // distribution's own word (D-516): NVD's upstream ranges do not see the fixes it backports (an Android entry that also lists
 // linux_kernel on Ubuntu's kernel). An Edge Legacy row is never reached: NVD writes Chromium Edge's ranges under microsoft:edge too.
 func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outcome) {
-	if !nvdNames(in, v) || edgeLegacyRow(s, in) {
-		return Match{}, outNone
-	}
-	if _, ok := distroVerdict(in, v); !ok && distroBuilt(in) {
+	if !nvdReaches(s, in, v) {
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
@@ -641,6 +638,16 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return m, out
 	}
 	return Match{}, outNone
+}
+
+// nvdReaches says whether viaNVD reads v for the row: NVD's list names it (nvdNames), it is not an Edge Legacy row, and a row its
+// distribution may have built has the distribution's word (D-516). Reachability reads the same.
+func nvdReaches(s Software, in swInfo, v Vuln) bool {
+	if !nvdNames(in, v) || edgeLegacyRow(s, in) {
+		return false
+	}
+	_, ok := distroVerdict(in, v)
+	return ok || !distroBuilt(in)
 }
 
 // nvdNames says whether an entry of NVD's list for v names the row's software (its CPE, name or alias, appliesTo) with a range

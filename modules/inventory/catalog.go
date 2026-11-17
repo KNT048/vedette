@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -218,6 +219,18 @@ func (s *Service) KevKeysByCPE(ctx context.Context) func(cpe string) []string {
 		return func(string) []string { return nil }
 	}
 	return c.keysForCPE
+}
+
+// Curated is the software row a person adds by picking each curated entry (manual.go: its vendor, product and KEV keys; no
+// version), in the catalog's order. findings' KEV reachability audit reads it (#910, cmd/vedette reachRows).
+func (c *Catalog) Curated() []SoftwareItem {
+	var out []SoftwareItem
+	for _, e := range c.entries {
+		if e.curated {
+			out = append(out, SoftwareItem{Display: e.display, Vendor: e.vendor, Product: e.product, KevKeys: slices.Clone(e.kev), Confidence: 1})
+		}
+	}
+	return out
 }
 
 func (c *Catalog) sum(keys []string) int {

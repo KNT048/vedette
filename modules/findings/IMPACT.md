@@ -11,6 +11,10 @@
 - `ConfirmFromScan` trên `false_positive`/`not_relevant`/`risk_accepted`: lần đầu một `template` khớp thì ghi bằng chứng (basis scan, history `rescanned`) và `Notify=true`; cùng `template` lần sau không đổi gì, `Notify=false` (service không cần tự chống trùng). Trường bằng chứng quá 4096 byte bị cắt, có dấu `...[truncated]`.
 - Ghi chú trạng thái đo như GUI: `trim` của JavaScript và độ dài UTF-16 (ngưỡng 3 và 500).
 
+## Modifying: kiểm khả năng chạm KEV (`Reachability`, `ReachAudit`, `StoreReach`, `fnd_reach_run`; INV-4e, #910)
+- Đổi `keyedTo`, `rowEntries`, `versionEvidence`, `nvdReaches`/`nvdNames`, `newSWInfo`/`cpeAliases`, `network-os.json`, `pkgmap.json` (agent-intake), `curated.json` (inventory) hay `core/winrel` là đổi số lớp: `cmd/vedette TestReachability_910_Fixture` đỏ và nêu CVE dời lớp. Lớp không chạm được tăng = hồi quy; giảm = cập nhật `reachWant` trong cùng PR và nói trong mô tả.
+- `cmd/vedette reachRows` là nơi duy nhất ghép dòng của agent-intake và inventory (findings không import hai module đó); job `reach-audit` đọc `feeds.Store.MatchStamp` và `Inventory.Catalog`. Thêm cột vào `fnd_reach_run` phải thêm vào `modules/core/export_policy.go`.
+
 ## Modifying: `findings.Service.OnAssetMerged(ctx, from, into)` và người nghe `inventory.asset.merged` (D-515, INV-7)
 - **Người gọi**: `cmd/vedette/wiring.go` nghe `inventory.asset.merged {from, into, actor}` (inventory INV-29, khi một switch LLDP được nối vào thiết bị có IP của nó) qua `on("findings")`; sự kiện tới **trước** `inventory.asset.deleted` của `from` và `inventory.asset.updated` `match=true` của `into` trên cùng bus đồng bộ. Đổi thứ tự hay bỏ người nghe này là `OnAssetDeleted` xoá finding (kèm history, `mit_applied`, `mit_ai_output`) rồi lần khớp lại tạo lại và **notify báo lại** các CVE đó. Khi `OnAssetMerged` lỗi, binary ghi `from` vào một tập trong bộ nhớ và người nghe `deleted` bỏ qua đúng id đó (reconcile lo finding mồ côi).
 - **`ServiceConfig.Applied`** (binary: `mitigationApplied` đọc `mit_applied`): đổi bảng hay nghĩa "đã áp dụng" của mitigation là đổi finding nào thắng khi hai thiết bị cùng có một CVE. Nil = không finding nào được coi là đã áp dụng.

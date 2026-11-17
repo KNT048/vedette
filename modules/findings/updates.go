@@ -23,8 +23,9 @@ const (
 	// evidence.agent, D-548; or a version the plan also trusts, tierSource: a person's entry, the device's SNMP answer, the OS the
 	// device states) and that version is inside the affected range.
 	ProofDetected = "detected"
-	// ProofReported: the device's agent reported the installed version, but Vedette could not compare it with the vulnerability's
-	// data (a product-only match on an agent row, evidence.agent_row, D-612): not a guess, and not proved inside the range either.
+	// ProofReported: the device's agent reported the installed version, but the box has not proved it affected: it could not compare
+	// it with the vulnerability's data (evidence.agent_row, D-612), or the range has no end or a platform condition is open (an agent
+	// row without evidence.agent, D-548). Not a guess, and not proved either: the finding's evidence says what to check.
 	ProofReported = "reported"
 	// ProofSuspected: a network guess: a version read from a banner or a fingerprint, or the product name only.
 	ProofSuspected = "suspected"
@@ -162,13 +163,12 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 	members := map[string][]member{}
 	var order []string
 	for _, r := range open {
-		row, known := rowOf[r.CVE] // the row the finding matched on: its source says how it is known (review r1 L2 of #935)
+		matched, ok := rowOf[r.CVE]
+		f := fixes[r.CVE]
+		row, known := proofRow(matched, ok, f, sws)
 		var key string
 		var act UpdateAction
-		if f := fixes[r.CVE]; f != nil {
-			if sw, ok := sws[f.SoftwareID]; ok && !known {
-				row, known = sw, true
-			}
+		if f != nil {
 			key = "fix:" + f.Group
 			act = UpdateAction{Group: f.Group, SoftwareID: f.SoftwareID, Software: f.Software, Version: f.Version, Fixed: f.Fixed, Kind: f.Kind,
 				Windows: f.Windows, Distro: f.Distro, Pro: f.Pro}
@@ -216,16 +216,35 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 	return sortUpdates(fixed), sortUpdates(none)
 }
 
-// proofOf says how a finding's CVE is known (Proof*): from its basis and evidence, then the source of its software row.
+// proofRow is the row whose source says how a finding is known: the row it matched on (MatchAsset), the fix group's row only when it
+// matched on none (review r1 L2 of #935: a group may hold a CVE the matcher matched on another row of the same product).
+func proofRow(matched Software, ok bool, f *RowFix, sws map[string]Software) (Software, bool) {
+	if ok {
+		return matched, true
+	}
+	if f != nil {
+		if sw, found := sws[f.SoftwareID]; found {
+			return sw, true
+		}
+	}
+	return Software{}, false
+}
+
+// proofOf says how a finding's CVE is known (Proof*): from its basis and evidence, then the source of its software row. An agent's
+// row is "detected" only when the matcher said so (evidence.agent, D-548): it leaves it unset while the range has no end or a
+// platform condition is open (the person still has to check it), and such a finding, like a product-only match on an agent row
+// (evidence.agent_row, D-612), is "reported" (review r2 L1 of #935). A person's entry, the device's SNMP answer or the OS it states
+// (tierSource, not an agent row) inside the range is "detected".
 func proofOf(r Record, row Software, known bool) string {
+	agentRow := known && row.Source == "agent"
 	switch {
 	case r.Basis == BasisScan:
 		return ProofConfirmed
 	case r.Evidence != nil && r.Evidence.Agent:
 		return ProofDetected
-	case r.Basis == BasisVersion && known && tierSource(row):
+	case r.Basis == BasisVersion && known && !agentRow && tierSource(row):
 		return ProofDetected
-	case r.Evidence != nil && r.Evidence.AgentRow:
+	case r.Evidence != nil && r.Evidence.AgentRow, agentRow:
 		return ProofReported
 	}
 	return ProofSuspected

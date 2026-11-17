@@ -124,3 +124,36 @@ func TestDeviceUpdates_G9_ManualRowIsDetectedAndALeftCVEStays(t *testing.T) {
 		t.Fatalf("left the list: %+v", u.NoUpdate)
 	}
 }
+
+// Review r2 L1, L2 of #935. The status is read from the row the finding matched on, never from the fix group's row when they differ
+// (a banner-matched CVE grouped under a person's row of the same product stays suspected), and an agent's row is "detected" only
+// when the matcher set evidence.agent (D-548: unset while the range has no end or a platform condition is open, so the person still
+// checks it): otherwise "reported".
+func TestDeviceUpdates_G9_ProofReadsTheMatchedRowAndD548(t *testing.T) {
+	t.Parallel()
+	banner := Software{ID: "s-nmap", Display: "Photo Station", Version: "6.1.1", Source: "nmap"}
+	typed := Software{ID: "s-man", Display: "Photo Station", Version: "6.0.0", Source: "manual"}
+	sws := map[string]Software{banner.ID: banner, typed.ID: typed}
+	fix := &RowFix{Group: "a-1/s-man", SoftwareID: typed.ID}
+	version := Record{Finding: Finding{Basis: BasisVersion, Evidence: &Evidence{Summary: "…"}}}
+	if row, ok := proofRow(banner, true, fix, sws); proofOf(version, row, ok) != ProofSuspected {
+		t.Fatalf("matched on the banner, grouped under the typed row: %s", proofOf(version, row, ok))
+	}
+	if row, ok := proofRow(Software{}, false, fix, sws); proofOf(version, row, ok) != ProofDetected {
+		t.Fatal("no matched row: the group's (typed) row decides")
+	}
+	agent := Software{ID: "s-ag", Version: "6.1.1", Source: "agent"}
+	open := Record{Finding: Finding{Basis: BasisVersion, Evidence: &Evidence{Summary: "It affects only …"}}}
+	if got := proofOf(open, agent, true); got != ProofReported {
+		t.Fatalf("agent row without evidence.agent (platform open): %s, want reported", got)
+	}
+	open.Evidence.Agent = true
+	if got := proofOf(open, agent, true); got != ProofDetected {
+		t.Fatalf("evidence.agent: %s", got)
+	}
+	for _, src := range []string{"snmp", "manual"} {
+		if got := proofOf(version, Software{ID: "s-x", Source: src}, true); got != ProofDetected {
+			t.Fatalf("%s row: %s", src, got)
+		}
+	}
+}

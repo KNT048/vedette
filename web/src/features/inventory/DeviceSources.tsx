@@ -11,10 +11,10 @@ import { useCan, useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { AddDialog } from './AddDialog'
 import { TurnOnModule } from './Inline'
-import { useDeviceAction, useDeviceSources, useSettings } from './api'
+import { useDeviceAction, useDeviceSnmp, useDeviceSources, useSettings } from './api'
 import { useScanningHistory } from '@/features/scanning/api'
 import { inRanges } from './AddToScopeDialog'
-import { nameOf } from './nameOf'
+import { hasSnmpCard, nameOf } from './nameOf'
 import { kindLabel } from '@/lib/deviceTypes'
 import { toast } from 'sonner'
 import { errMsg } from './kinds'
@@ -76,8 +76,21 @@ function When({ at, text }: { at: string; text: string }) {
   return <time className="text-caption text-muted" dateTime={at} title={fmtDateTime(at)}>{text}</time>
 }
 
+/** SNMP without settings of the device's own: no read goes to it whatever its stored switch says (reads come only from a device's
+ *  SNMP settings), so there is no switch to show, only what to do. Saving the settings turns SNMP on for the device. */
+function SnmpNotSetUp({ card }: { card: boolean }) {
+  const { t } = useTranslation('inventory')
+  return (
+    <p className="text-meta text-muted" data-testid="snmp-not-set-up">
+      {t('sources.meaning.snmp.notSetUp')}
+      {card ? <> <Link to="#device-snmp" className="text-accent underline-offset-4 hover:underline">{t('sources.meaning.snmp.setUpLink')}</Link></> : null}
+    </p>
+  )
+}
+
 /** The person's switch of one active source of the box for this device (network scan, SNMP), with what on and off mean in one
- *  line. Admin only; others see it locked with the reason. An agent has no switch: it is installed or uninstalled on the machine. */
+ *  line. Admin only; others see it locked with the reason. An agent has no switch: it is installed or uninstalled on the machine.
+ *  The SNMP switch is drawn only for a device with SNMP settings (DeviceSources): without them "On" would claim reads that never happen. */
 function SourceSwitch({ d, which }: { d: DeviceDetail; which: 'scan' | 'snmp' }) {
   const { t } = useTranslation('inventory')
   const admin = useCan('admin')
@@ -115,6 +128,11 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const feeds = feedsOf(d)
   const ip = a.ip && IPV4.test(a.ip) ? a.ip : ''
   const declared = a.origin === 'manual'
+  // Whether the device has SNMP settings of its own (the same query as its SNMP card): true, false, or null when not known (loading,
+  // or not an administrator: only administrators see SNMP settings, so others get no SNMP switch rather than a guess).
+  const snmpQ = useDeviceSnmp(a.id, admin && snmpOn)
+  const snmpSetUp = snmpQ.data ? snmpQ.data.state !== 'not_set_up' : null
+  const silent = a.scan_source === 'off' && (a.snmp_source === 'off' || snmpSetUp === false)
 
   const action = (f: Feed): React.ReactNode => {
     if (f === 'snmp') {
@@ -166,13 +184,14 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
                 {action(f)}
               </div>
               <p className="text-meta text-muted">{t(`sources.what.${f}`)}</p>
-              {f === 'scan' || (f === 'snmp' && snmpOn) ? <SourceSwitch d={d} which={f} /> : null}
+              {f === 'scan' || (f === 'snmp' && snmpOn && snmpSetUp) ? <SourceSwitch d={d} which={f} /> : null}
+              {f === 'snmp' && snmpOn && snmpSetUp === false ? <SnmpNotSetUp card={hasSnmpCard(a, admin, snmpOn)} /> : null}
               {f === 'agent' && agentsOn ? <p className="text-caption text-muted">{t('sources.agent.how')}</p> : null}
             </li>
           )
         })}
       </ul>
-      {declared && a.scan_source === 'off' && a.snmp_source === 'off' ? <p className="mt-3 max-w-3xl text-meta text-muted">{t('sources.declared')}</p> : null}
+      {declared && silent ? <p className="mt-3 max-w-3xl text-meta text-muted">{t('sources.declared')}</p> : null}
       <p className="mt-3 max-w-3xl text-meta text-muted">{t('sources.both')}</p>
       {enrol ? <AddDialog open method="osquery" onOpenChange={(o) => { if (!o) setEnrol(false) }} /> : null}
     </Section>

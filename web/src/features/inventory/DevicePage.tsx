@@ -33,7 +33,7 @@ import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
 import { NotInstalledDialog } from './NotInstalledDialog'
 import { errMsg } from './kinds'
-import { badUserName, declaredSoftwareOnly, nameOf } from './nameOf'
+import { badUserName, declaredSoftwareOnly, nameOf, neverSeen } from './nameOf'
 import { DeviceSources } from './DeviceSources'
 import { DeviceSnmpCard } from './SnmpCard'
 import { PossibleSameNotice } from './SameDevice'
@@ -118,11 +118,12 @@ function Overview({ d }: { d: DeviceDetail }) {
       {row(t('detail.maker'), <Identity v={a.vendor} />)}
       {row(t('detail.model'), <Identity v={a.model} />)}
       {row(t('detail.os'), <Identity v={a.os} />)}
-      {row(t('detail.hostname'), <HostName d={d} />)}
+      {row(hostnameObs(d)?.source === 'manual' ? t('detail.hostnameManual') : t('detail.hostname'), <HostName d={d} />)}
       {row(t('detail.ip'), a.ip)}
       {row(t('detail.mac'), a.mac ?? <span className="text-muted">{t('common:unknown')}</span>)}
-      {row(t('detail.firstSeen'), fmtDateTime(a.first_seen))}
-      {row(t('detail.lastSeen'), `${fmtDateTime(a.last_seen)} (${fmtRelative(a.last_seen)})`)}
+      {/* a hand-added device's first_seen is when a person added it, not a sighting; last_seen is one only once a report moved it */}
+      {row(a.origin === 'manual' ? t('detail.addedByHand') : t('detail.firstSeen'), fmtDateTime(a.first_seen))}
+      {row(t('detail.lastSeen'), neverSeen(a) ? <span className="text-muted">{t('detail.neverSeen')}</span> : `${fmtDateTime(a.last_seen)} (${fmtRelative(a.last_seen)})`)}
       {row(t('detail.origin'), a.is_box ? t('box.origin') : a.origin === 'manual' ? t('detail.originManual') : t('detail.originDiscovered'))}
     </dl>
   )
@@ -141,13 +142,16 @@ function Identity({ v }: { v: DeviceDetail['asset']['os'] }) {
   )
 }
 
+/** The observation the host name in use comes from; its source names the row ("entered by hand" for a person's, else "seen on the network"). */
+const hostnameObs = (d: DeviceDetail) => d.observations.find((o) => o.field === 'hostname' && o.current)
+
 /** The host name the network reports (or typed when the device was added), with its source: read-only, apart from the name in
  *  Vedette that the title shows and Rename changes. */
 function HostName({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
   const host = d.asset.hostname
   if (!host) return <span className="text-muted">{t('detail.hostnameNone')}</span>
-  const obs = d.observations.find((o) => o.field === 'hostname' && o.current)
+  const obs = hostnameObs(d)
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="[overflow-wrap:anywhere]" data-testid="device-hostname">{host}</span>
@@ -454,7 +458,7 @@ function Body() {
       <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2', 'S-INV-3']}
         meta={renaming
           ? <span id="device-name-hint" className="max-w-xl">{t('detail.renameHint', { name: nameOf({ ...a, name: null }, kindLabel(a.kind)) })}</span>
-          : <span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<RiskMarker id={a.id} risk={d.risk} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+          : <span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<RiskMarker id={a.id} risk={d.risk} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{neverSeen(a) ? t('detail.metaLineNeverSeen', { kind: kindLabel(a.kind), when: fmtRelative(a.first_seen) }) : t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
         titleAction={<RenameDevice key="rename" d={d} editing={false} setEditing={setRenaming} button={renameButton} />}
         editing={renaming ? <RenameDevice key="edit" d={d} editing setEditing={setRenaming} button={renameButton} /> : undefined}
         actions={<>

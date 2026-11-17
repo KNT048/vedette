@@ -28,6 +28,7 @@ import { errMsg, kindIcon, shownKind } from './kinds'
 import { declaredSoftwareOnly, nameOf } from './nameOf'
 import { RiskMarker, riskRank } from './RiskMarker'
 import { PendingPanel } from './PendingPanel'
+import { IgnoredPanel } from './IgnoreDevice'
 import { SameChip } from './SameDevice'
 import type { DeviceRow } from './types'
 
@@ -366,6 +367,8 @@ function Body() {
               <PageTabs label={t('tabs.label')} tabs={[
                 { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} same={same} /> },
                 { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} />, badge: { count: pending, label: t('tabs.reviewBadge') } },
+                // D-630: the devices a person ignored, only while there are any (an old ?tab=ignored link lands on Devices then)
+                ...(d.counts.ignored > 0 ? [{ id: 'ignored', label: t('tabs.ignoredCount', { count: d.counts.ignored }), panel: <IgnoredPanel /> }] : []),
               ]} />
               {declaredLine}
             </>

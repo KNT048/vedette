@@ -90,7 +90,7 @@ func TestApprovedDeviceClosesItsIncidentWithTheApprover(t *testing.T) {
 		t.Fatalf("reopened = %+v, %v", d.Incident, err)
 	}
 	publish(inventory.EventAssetDeleted, map[string]string{"asset_id": "a2"})
-	if i := e.detail(summary.ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: every device on it was approved or deleted in Devices." {
+	if i := e.detail(summary.ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: every device on it was approved, ignored or deleted in Devices." {
 		t.Fatalf("summary = %+v", i)
 	}
 }

@@ -83,7 +83,7 @@ func TestContract_G4_TheRiskFilter(t *testing.T) {
 	risk[x], risk[u] = inventory.RiskCounts{Exploited: 1}, inventory.RiskCounts{Updates: 1}
 	ids := func(risks string) map[string]bool {
 		t.Helper()
-		f, err := inventory.ParseDeviceSearch("", "", "", "", "", risks, "")
+		f, err := inventory.ParseDeviceSearch("", "", "", "", "", "", risks, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -112,7 +112,7 @@ func TestContract_G4_TheRiskFilter(t *testing.T) {
 			}
 		}
 	}
-	_, err := inventory.ParseDeviceSearch("", "", "", "", "", "high", "")
+	_, err := inventory.ParseDeviceSearch("", "", "", "", "", "", "high", "")
 	var ae *apierr.Error
 	if !errors.As(err, &ae) || ae.Code != "bad_filter" {
 		t.Errorf("risk=high: %v, want 400 bad_filter", err)

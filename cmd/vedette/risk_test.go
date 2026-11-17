@@ -55,7 +55,7 @@ func TestDeviceRiskThroughTheWiring(t *testing.T) {
 	if d, err := s.d.Inventory.DetailPage(ctx, fw.ID); err != nil || d.Risk == nil || d.Risk.Exploited != 1 {
 		t.Fatalf("detail risk = %+v, %v", d.Risk, err)
 	}
-	f, err := inventory.ParseDeviceSearch("", "", "", "", "", "exploited", "")
+	f, err := inventory.ParseDeviceSearch("", "", "", "", "", "", "exploited", "")
 	if err != nil {
 		t.Fatal(err)
 	}

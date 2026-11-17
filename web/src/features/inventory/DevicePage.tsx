@@ -2,7 +2,7 @@ import { useRef, useState, type RefObject } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { EyeOff, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { Card } from '@/components/common/Card'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
@@ -36,6 +36,7 @@ import { badUserName, declaredSoftwareOnly, nameOf } from './nameOf'
 import { DeviceSources } from './DeviceSources'
 import { PossibleSameNotice } from './SameDevice'
 import { BoxNotice } from './BoxNotice'
+import { IgnoreDialog, IgnoredNotice } from './IgnoreDevice'
 import type { DeviceDetail, Observation, RegularScan, SoftwareView } from './types'
 import { RiskMarker } from './RiskMarker'
 
@@ -348,15 +349,19 @@ function Approval({ d }: { d: DeviceDetail }) {
   const act = useDeviceAction(d.asset.id)
   const navigate = useNavigate()
   const [del, setDel] = useState(false)
+  const [ign, setIgn] = useState(false)
   const name = nameOf(d.asset, kindLabel(d.asset.kind))
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
     <Notice tone="warn" title={d.suspicious ? t('approval.suspicious') : t('approval.pending')} info={t('approval.bodyInfo')} actions={<>
         <Button variant="primary" disabled={!can} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
         <Button disabled={!can} busy={act.suspicious.isPending} busyLabel={t('common:busy.saving')} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>{d.suspicious ? t('pending.unmark') : t('pending.mark')}</Button>
+        <Button disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
         <Button disabled={!can} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </>}>
       {t('approval.body')}
+      <IgnoreDialog open={ign} onOpenChange={setIgn} name={name} mac={d.asset.mac} findings={d.findings_count} pending={act.ignore.isPending}
+        onConfirm={() => act.ignore.mutate(true, { onSuccess: () => { setIgn(false); toast.success(t('pending.ignored', { name }), { description: t('pending.ignoredLater') }) }, onError: fail })} />
       <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}
         onConfirm={() => act.remove.mutate(undefined, { onSuccess: () => { toast.success(t('delete.done', { name })); void navigate('/devices') }, onError: fail })} />
     </Notice>
@@ -372,6 +377,7 @@ function Body() {
   const act = useDeviceAction(id)
   const [adding, setAdding] = useState(false)
   const [del, setDel] = useState(false)
+  const [ign, setIgn] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const renameButton = useRef<HTMLButtonElement>(null)
   // UI.md §3: breadcrumbs (parents only) above the title; also while the device loads or is missing, so the way back is always there.
@@ -400,19 +406,21 @@ function Body() {
           {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId, asset }: the facts that say whether
               it can be checked, from this page's own read, #877 r1 L6). */}
           <Slot name="device.actions" props={{ assetId: a.id, asset: a }} />
+          {/* D-630: an approved device can be ignored here; a waiting one in its notice below, an ignored one is stopped there */}
+          {a.approved && !a.ignored_at && !a.is_box ? <Button disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={needRole} onClick={() => setIgn(true)}><EyeOff />{t('pending.ignore')}</Button> : null}
           <Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>
         </>} />
       {a.is_box ? <BoxNotice assetId={a.id} /> : null}
       {/* D-599 (#829): before the approval, since merging a new row into the known device answers its approval too */}
       <PossibleSameNotice me={{ id: a.id, name, approved: a.approved }} list={d.possible_same ?? []} />
-      {!a.approved ? <Approval d={d} /> : null}
+      {a.ignored_at ? <IgnoredNotice d={d} /> : !a.approved ? <Approval d={d} /> : null}
       {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}
       <DeviceKpis d={d} />
       <PageTabs label={t('detail.tabs.label')} tabs={[
         { id: 'overview', label: t('detail.tabs.overview'), panel: (
           <>
             <Section id="overview" title={t('detail.overview')}><Card><Overview d={d} /></Card></Section>
-            {a.is_box || declaredSoftwareOnly(a) ? null : <DeviceSources d={d} />}
+            {a.is_box || declaredSoftwareOnly(a) || a.ignored_at ? null : <DeviceSources d={d} />}
             <Slot name="device.panels" props={{ assetId: a.id }} />
             <Section id="notes" title={t('notes.title')}><Notes key={a.notes ?? ''} d={d} /></Section>
           </>
@@ -435,6 +443,8 @@ function Body() {
       <AddDeviceDialog open={adding} onOpenChange={setAdding} deviceId={a.id} />
       <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}
         onConfirm={() => act.remove.mutate(undefined, { onSuccess: () => { toast.success(t('delete.done', { name })); void navigate('/devices') }, onError: (e) => toast.error(errMsg(e)) })} />
+      <IgnoreDialog open={ign} onOpenChange={setIgn} name={name} mac={a.mac} findings={d.findings_count} pending={act.ignore.isPending}
+        onConfirm={() => act.ignore.mutate(true, { onSuccess: () => { setIgn(false); toast.success(t('pending.ignored', { name }), { description: t('pending.ignoredLater') }) }, onError: (e) => toast.error(errMsg(e)) })} />
     </>
   )
 }

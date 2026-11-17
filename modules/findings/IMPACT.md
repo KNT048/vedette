@@ -1,7 +1,7 @@
 # Findings — Change Impact Map
 
 ## Modifying: `RiskOf`, `AssetRisk`, `Service.RiskByAsset`, `risk` of `GET /findings/to-fix` (G4, INV-26)
-- **inventory** shows it as the risk marker of every device list (inventory INV-38, through cmd/vedette `findingCounts.RiskByAsset`) and filters on it (`?risk=`). Changing what To fix lists (`actionable`, `Planned`) changes the marker with it, by design: one rule. A new threshold goes in `RiskOf`, never in inventory or the web.
+- **inventory** shows it as the risk marker of every device list (inventory INV-39, through cmd/vedette `findingCounts.RiskByAsset`) and filters on it (`?risk=`). Changing what To fix lists (`actionable`, `Planned`) changes the marker with it, by design: one rule. A new threshold goes in `RiskOf`, never in inventory or the web.
 - **web**: `features/inventory/RiskMarker.tsx` and the Findings page (device column, filter options, To fix cards read `risk` from the to-fix answer); the mocks' `riskOfCard` mirrors `RiskOf`.
 
 ## Modifying: thư viện thuần `modules/findings` (không DB; service WP-21 bọc ngoài)

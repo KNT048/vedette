@@ -211,6 +211,15 @@ func (a findingsInventory) AssetIDs(ctx context.Context) ([]string, error) {
 	return a.inv.AssetIDs(ctx)
 }
 
+// IgnoredIDs and IsIgnored are the devices a person ignored (D-630), for findings' reconcile and its write-time check.
+func (a findingsInventory) IgnoredIDs(ctx context.Context) ([]string, error) {
+	return a.inv.IgnoredIDs(ctx)
+}
+
+func (a findingsInventory) IsIgnored(ctx context.Context, id string) (bool, error) {
+	return a.inv.IsIgnored(ctx, id)
+}
+
 // findingsJobs is findings' reconcile job (D-144): it heals what a lost event left behind; and its KEV reachability audit (reachJob).
 func findingsJobs(d deps) []jobs.Job { return append(findings.Jobs(d.Findings), reachJob(d)) }
 
@@ -732,6 +741,25 @@ func subscribe(d deps) {
 			return nil
 		}
 		_, err := d.Findings.OnAssetDeleted(ctx, ev.AssetID)
+		return err
+	}))
+	// D-630: an ignored device's open findings close ("Closed by Vedette: the device was ignored by <person>."; what a person settled
+	// keeps its status, nothing is deleted), and while it is ignored nothing new is made (MatchInput says it is not there, AssetIDs
+	// leaves it out). Stopping reopens only what Ignore closed; the inventory.asset.updated with match that follows matches it again.
+	d.Bus.Subscribe(inventory.EventAssetIgnored, on("findings", func(ctx context.Context, data any) error {
+		ev, ok := data.(inventory.AssetEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		_, err := d.Findings.OnAssetIgnored(ctx, ev.AssetID, ev.Actor)
+		return err
+	}))
+	d.Bus.Subscribe(inventory.EventAssetUnignored, on("findings", func(ctx context.Context, data any) error {
+		ev, ok := data.(inventory.AssetEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		_, err := d.Findings.OnAssetUnignored(ctx, ev.AssetID, ev.Actor)
 		return err
 	}))
 	d.Bus.Subscribe(feeds.EventNewKEV, on("inventory", func(ctx context.Context, data any) error {

@@ -6232,6 +6232,7 @@ func decodeInventoryGetInventoryCatalogParams(args [0]string, argsEscaped bool, 
 // InventoryGetInventoryDevicesParams is parameters of inventory_get_inventory_devices operation.
 type InventoryGetInventoryDevicesParams struct {
 	Approved    OptInventoryGetInventoryDevicesApproved    `json:",omitempty,omitzero"`
+	Ignored     OptInventoryGetInventoryDevicesIgnored     `json:",omitempty,omitzero"`
 	Type        OptString                                  `json:",omitempty,omitzero"`
 	Source      OptString                                  `json:",omitempty,omitzero"`
 	Fragile     OptInventoryGetInventoryDevicesFragile     `json:",omitempty,omitzero"`
@@ -6248,6 +6249,15 @@ func unpackInventoryGetInventoryDevicesParams(packed middleware.Parameters) (par
 		}
 		if v, ok := packed[key]; ok {
 			params.Approved = v.(OptInventoryGetInventoryDevicesApproved)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "ignored",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Ignored = v.(OptInventoryGetInventoryDevicesIgnored)
 		}
 	}
 	{
@@ -6361,6 +6371,62 @@ func decodeInventoryGetInventoryDevicesParams(args [0]string, argsEscaped bool, 
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "approved",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: ignored.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "ignored",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIgnoredVal InventoryGetInventoryDevicesIgnored
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIgnoredVal = InventoryGetInventoryDevicesIgnored(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Ignored.SetTo(paramsDotIgnoredVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Ignored.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "ignored",
 			In:   "query",
 			Err:  err,
 		}
@@ -6820,6 +6886,7 @@ func decodeInventoryGetInventoryDevicesIDParams(args [1]string, argsEscaped bool
 // InventoryGetInventoryExportCsvParams is parameters of inventory_get_inventory_export_csv operation.
 type InventoryGetInventoryExportCsvParams struct {
 	Approved    OptInventoryGetInventoryExportCsvApproved    `json:",omitempty,omitzero"`
+	Ignored     OptInventoryGetInventoryExportCsvIgnored     `json:",omitempty,omitzero"`
 	Type        OptString                                    `json:",omitempty,omitzero"`
 	Source      OptString                                    `json:",omitempty,omitzero"`
 	Fragile     OptInventoryGetInventoryExportCsvFragile     `json:",omitempty,omitzero"`
@@ -6836,6 +6903,15 @@ func unpackInventoryGetInventoryExportCsvParams(packed middleware.Parameters) (p
 		}
 		if v, ok := packed[key]; ok {
 			params.Approved = v.(OptInventoryGetInventoryExportCsvApproved)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "ignored",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Ignored = v.(OptInventoryGetInventoryExportCsvIgnored)
 		}
 	}
 	{
@@ -6949,6 +7025,62 @@ func decodeInventoryGetInventoryExportCsvParams(args [0]string, argsEscaped bool
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "approved",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: ignored.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "ignored",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIgnoredVal InventoryGetInventoryExportCsvIgnored
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIgnoredVal = InventoryGetInventoryExportCsvIgnored(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Ignored.SetTo(paramsDotIgnoredVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Ignored.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "ignored",
 			In:   "query",
 			Err:  err,
 		}
@@ -7735,6 +7867,71 @@ func unpackInventoryPostInventoryDevicesIDApproveParams(packed middleware.Parame
 }
 
 func decodeInventoryPostInventoryDevicesIDApproveParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPostInventoryDevicesIDApproveParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// InventoryPostInventoryDevicesIDIgnoreParams is parameters of inventory_post_inventory_devices_id_ignore operation.
+type InventoryPostInventoryDevicesIDIgnoreParams struct {
+	ID string
+}
+
+func unpackInventoryPostInventoryDevicesIDIgnoreParams(packed middleware.Parameters) (params InventoryPostInventoryDevicesIDIgnoreParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeInventoryPostInventoryDevicesIDIgnoreParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPostInventoryDevicesIDIgnoreParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

@@ -52694,6 +52694,17 @@ func (s InventoryGetInventoryDevicesIDOKRiskLevel) Validate() error {
 	}
 }
 
+func (s InventoryGetInventoryDevicesIgnored) Validate() error {
+	switch s {
+	case "true":
+		return nil
+	case "false":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *InventoryGetInventoryDevicesOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -52790,6 +52801,27 @@ func (s *InventoryGetInventoryDevicesOKCounts) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "fragile",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Ignored)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ignored",
 			Error: err,
 		})
 	}
@@ -54378,6 +54410,17 @@ func (s InventoryGetInventoryExportCsvFragile) Validate() error {
 }
 
 func (s InventoryGetInventoryExportCsvHasFindings) Validate() error {
+	switch s {
+	case "true":
+		return nil
+	case "false":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryExportCsvIgnored) Validate() error {
 	switch s {
 	case "true":
 		return nil

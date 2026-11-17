@@ -210,7 +210,7 @@ function AddTarget() {
           </Field>
           <DialogFooter>
             <Button onClick={() => toggle(false)} disabled={add.isPending}>{t('common:cancel')}</Button>
-            <Button type="submit" variant="primary" disabled={add.isPending}>{t('add.submit')}</Button>
+            <Button type="submit" variant="primary" busy={add.isPending} busyLabel={t('common:busy.adding')}>{t('add.submit')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

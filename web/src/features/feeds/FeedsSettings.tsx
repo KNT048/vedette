@@ -6,6 +6,7 @@ import { PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -90,11 +91,14 @@ function Tables({ items }: { items: Feed[] }) {
       onCheckedChange={(v) => patch.mutate({ id: f.id, enabled: v }, { onSuccess: () => toast.success(v ? t('row.nowOn', { name: f.name }) : t('row.nowOff', { name: f.name })) })} />
   )
   const last = (f: Feed) => (f.last_fetch ? <span title={f.last_fetch}>{fmtRelative(f.last_fetch)}</span> : <span className="text-muted">{t('row.never')}</span>)
+  const fetching = (f: Feed) => fetchNow.isPending && fetchNow.variables === f.id
   const fetchBtn = (f: Feed) => (
-    <Button size="sm" disabled={!admin || !f.enabled || (fetchNow.isPending && fetchNow.variables === f.id)} title={reason ?? (f.enabled ? undefined : t('row.turnOnFirst'))} aria-label={t('row.fetchNamed', { name: f.name })} onClick={() => runFetch(f)}>
-      {fetchNow.isPending && fetchNow.variables === f.id ? t('row.fetching') : t('row.fetchNow')}
+    <Button size="sm" disabled={!admin || !f.enabled} busy={fetching(f)} busyLabel={t('row.fetching')} title={reason ?? (f.enabled ? undefined : t('row.turnOnFirst'))} aria-label={t('row.fetchNamed', { name: f.name })} aria-describedby={`feed-wait-${f.id}`} onClick={() => runFetch(f)}>
+      {t('row.fetchNow')}
     </Button>
   )
+  // kien G1: a pull runs on the server until it ends (a big feed takes minutes); the row says so while it waits
+  const fetchNote = (f: Feed) => <BusyNote id={`feed-wait-${f.id}`} className="basis-full" busy={fetching(f)}>{t('row.fetchWaiting', { name: f.name })}</BusyNote>
   type R = { row: { original: Feed } }
   const common = {
     on: { id: 'on', header: t('col.on'), enableSorting: false, accessorKey: 'enabled', cell: ({ row }: R) => toggle(row.original) },
@@ -118,6 +122,7 @@ function Tables({ items }: { items: Feed[] }) {
     <>
       <Button size="sm" disabled={!admin} title={reason} aria-label={t('row.settingsNamed', { name: f.name })} onClick={() => setBuiltin(f)}>{t('row.settings')}</Button>
       {fetchBtn(f)}
+      {fetchNote(f)}
     </>
   )
   const customActions = (f: Feed) => (
@@ -125,6 +130,7 @@ function Tables({ items }: { items: Feed[] }) {
       <Button size="sm" disabled={!admin} title={reason} aria-label={t('row.editNamed', { name: f.name })} onClick={() => setCustom(f)}>{t('row.edit')}</Button>
       {fetchBtn(f)}
       <Button size="sm" disabled={!admin} title={reason} aria-label={t('row.deleteNamed', { name: f.name })} onClick={() => setDel(f)}>{t('common:delete')}</Button>
+      {fetchNote(f)}
     </>
   )
   const addBtn = <Button variant="primary" disabled={!admin} title={reason} onClick={() => setCustom('new')}>{t('custom.add')}</Button>

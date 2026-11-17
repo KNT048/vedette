@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Notice } from '@/components/common/PageHeader'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label } from '@/components/ui/input'
@@ -160,9 +161,11 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button onClick={onBack} disabled={upload.isPending || restore.isPending}>{t('setup.back')}</Button>
         {checked
-          ? <Button variant="primary" disabled={restore.isPending || (noKeyLoss && !sure)} onClick={() => void doRestore()}>{restore.isPending ? t('setup.restore.importing') : t('setup.restore.restore')}</Button>
-          : <Button variant="primary" disabled={upload.isPending} onClick={() => void check()}>{upload.isPending ? t('setup.restore.checking') : t('setup.restore.check')}</Button>}
+          ? <Button variant="primary" disabled={noKeyLoss && !sure} busy={restore.isPending} busyLabel={t('setup.restore.importing')} onClick={() => void doRestore()}>{t('setup.restore.restore')}</Button>
+          : <Button variant="primary" busy={upload.isPending} busyLabel={t('setup.restore.checking')} onClick={() => void check()}>{t('setup.restore.check')}</Button>}
       </div>
+      <BusyNote busy={upload.isPending}>{t('setup.restore.checkWaiting')}</BusyNote>
+      <BusyNote busy={restore.isPending}>{t('setup.restore.importWaiting')}</BusyNote>
     </div>
   )
 }

@@ -59,7 +59,7 @@ function TryProposal() {
         </div>
         <Field htmlFor="try-why" label={t('try.why')}><Input id="try-why" value={f.why} maxLength={400} onChange={(e) => setF({ ...f, why: e.target.value })} /></Field>
         {out ? <Notice tone="off" role="status" className="mb-0" title={out} /> : null}
-        <div><Button variant="primary" disabled={propose.isPending || !chosen}
+        <div><Button variant="primary" disabled={!chosen} busy={propose.isPending} busyLabel={t('common:busy.sending')}
           onClick={() => propose.mutate({ trigger: 'ioc_connection', action_id: f.action, params: { [type]: f.value }, confidence: Number(f.confidence), evidence: [{ kind: f.kind, id: f.evidence }], why: f.why },
             { onSuccess: (r) => { setOut(r.note); toast.success(t(`try.outcome.${r.outcome}`)) }, onError: (e) => setOut(errText(e)) })}>{t('try.send')}</Button></div>
       </Card>
@@ -85,7 +85,7 @@ export function MetricsTab() {
         <div className="grid gap-4">
           {s.quality.paused || s.gates.paused_at ? (
             <Notice tone="danger" role="alert" className="mb-0" title={t('ai.paused')}
-              actions={admin ? <Button disabled={resume.isPending} onClick={() => resume.mutate(undefined, { onSuccess: () => toast.success(t('ai.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('ai.resume')}</Button> : null}>
+              actions={admin ? <Button busy={resume.isPending} busyLabel={t('resuming')} onClick={() => resume.mutate(undefined, { onSuccess: () => toast.success(t('ai.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('ai.resume')}</Button> : null}>
               {s.gates.paused_reason}. {t('ai.pausedBody')}
             </Notice>
           ) : null}

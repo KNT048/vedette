@@ -106,7 +106,7 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
       </details>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" variant="primary" disabled={test.isPending} onClick={() => test.mutate({ kind, parser, sample: own.trim() ? own : undefined })}>{test.isPending ? t('parser.testing') : t('parser.test')}</Button>
+        <Button type="button" variant="primary" busy={test.isPending} busyLabel={t('common:busy.testing')} onClick={() => test.mutate({ kind, parser, sample: own.trim() ? own : undefined })}>{t('parser.test')}</Button>
         <span className="text-meta text-muted">{t('parser.limits', { size: SIZE_LIMIT / 1_000_000, rows: fmtNumber(ROW_LIMIT) })}</span>
       </div>
       {err ? <Notice tone="danger" role="alert" className="mb-0" title={err} /> : null}

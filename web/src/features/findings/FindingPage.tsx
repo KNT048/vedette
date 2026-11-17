@@ -74,7 +74,7 @@ function StatusDialog({ f, open, onOpenChange, opener }: { f: FindingDetail; ope
         </Field>
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
-          <Button variant="primary" disabled={set.isPending} onClick={submit}>{t('status.submit')}</Button>
+          <Button variant="primary" busy={set.isPending} busyLabel={t('common:busy.saving')} onClick={submit}>{t('status.submit')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -208,7 +208,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
   const name = deviceName(f.asset, t('removedDevice'))
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const reopenButton = (
-    <Button disabled={!can || set.isPending} title={needRole} onClick={() => set.mutate({ action: 'reopen', note: '' }, { onSuccess: () => toast.success(t('status.reopened')), onError: (e) => toast.error(errMsg(e)) })}>{t('status.reopen')}</Button>
+    <Button disabled={!can} busy={set.isPending} busyLabel={t('status.reopening')} title={needRole} onClick={() => set.mutate({ action: 'reopen', note: '' }, { onSuccess: () => toast.success(t('status.reopened')), onError: (e) => toast.error(errMsg(e)) })}>{t('status.reopen')}</Button>
   )
   const open_ = isOpen(f.status)
   const body = (

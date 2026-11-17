@@ -196,6 +196,7 @@
     "test": "Test connection",
     "testOk": "Read the identity provider's OIDC configuration.",
     "saveFirst": "Save the settings before testing",
+    "testWaiting": "Testing the sign-in provider… this can take up to 20 seconds.",
     "err": {
       "issuer": "Enter the issuer address.",
       "client": "Enter the Client ID.",
@@ -624,6 +625,7 @@
     },
     "modeInfo": "With automatic updates, boxes get new builds in waves to limit risk.",
     "check": "Check for Vedette releases",
+    "checkWaiting": "Checking for Vedette releases… this can take up to a minute.",
     "checkOff": "Update checks are off in Privacy.",
     "lastCheck": "Last checked {{time}}.",
     "neverChecked": "Never checked.",
@@ -683,6 +685,7 @@
       "manual": "The box switches to manual updates.",
       "manualInfo": "So it does not climb back to the old build. Turn automatic on again on this page when you want.",
       "confirm": "Roll back",
+      "rollingBack": "Rolling back…",
       "dataLoss": "Data written since the update is lost.",
       "dataLossWhy": "Findings, logs and settings changed since then are gone.",
       "dataLossInfo": "This release changed how Vedette stores its data, so the box also puts back the database it saved just before the update.",
@@ -877,9 +880,12 @@
         "atHintAny": "The next time this clock time comes.",
         "atHintWindow": "Must fall inside the maintenance window.",
         "scheduleConfirm": "Schedule reboot",
+        "scheduling": "Scheduling…",
         "scheduled": "Reboot scheduled.",
         "cancel": "Cancel reboot",
-        "cancelled": "Scheduled reboot cancelled."
+        "cancelling": "Cancelling…",
+        "cancelled": "Scheduled reboot cancelled.",
+        "waiting": "Waiting for the box… this can take up to 2 minutes."
       },
       "run": {
         "title": "Latest install run",
@@ -907,7 +913,8 @@
         "warnInfo": "A release upgrade changes the whole system and can fail halfway. Do it by hand, in a console, at a quiet time, with a snapshot or backup.",
         "backupLink": "Download a backup in Settings, Data"
       },
-      "checkNow": "Check now"
+      "checkNow": "Check now",
+      "checkWaiting": "Checking for operating system updates… this can take a few minutes."
     },
     "run": {
       "title": {
@@ -1199,6 +1206,7 @@
       "empty": "No tokens yet. Create one so an outside tool can connect.",
       "never": "Never used",
       "revoke": "Revoke",
+      "revoking": "Revoking…",
       "revokeOf": "Revoke token {{name}}",
       "revoked": "Token {{name}} revoked.",
       "revokeAsk": {
@@ -1475,6 +1483,7 @@
       "end": "End",
       "current": "This session",
       "endBtn": "End",
+      "ending": "Ending…",
       "endOf": "End session {{device}} at {{ip}}",
       "endOthers": "End all other sessions",
       "ended": "Session ended.",
@@ -1515,7 +1524,8 @@
     "current": "Temporary password",
     "currentError": "Enter the temporary password you signed in with.",
     "sameError": "The new password must differ from the temporary one.",
-    "submit": "Save and continue"
+    "submit": "Save and continue",
+    "signingOut": "Signing out…"
   },
   "login": {
     "sso": "Sign in with SSO",
@@ -1541,6 +1551,7 @@
     "back": "Back",
     "next": "Continue",
     "finish": "Finish setup",
+    "finishing": "Setting up…",
     "terms": {
       "title": "Terms of use",
       "desc": "Read the terms of use. You accept them once, for this box.",
@@ -1659,6 +1670,7 @@
       },
       "check": "Check the backup",
       "checking": "Uploading and checking…",
+      "checkWaiting": "Uploading and checking the backup… a large backup can take a few minutes.",
       "checkedLabel": "What the backup holds",
       "checked": "Backup of {{org}}, made {{when}}, with {{users}} active users.",
       "withKey": "The key file is checked against the backup when you restore.",
@@ -1672,6 +1684,7 @@
       "understand": "I understand that without the key these are lost",
       "restore": "Restore",
       "importing": "Storing the backup…",
+      "importWaiting": "Storing the backup… this can take a minute.",
       "running": "Restoring the backup of {{org}}. Vedette restarts during the restore; this page reconnects by itself.",
       "reconnect": "Waiting for Vedette to come back.",
       "reconnectInfo": "If this stays for more than two minutes, reload the page: after a restore the box may show a new certificate, which you accept as on your first visit.",
@@ -1756,6 +1769,7 @@
       "restartNote": "If the box restarts before you confirm, it comes back on the old address.",
       "reverted": "The change was not confirmed in time, so the box went back to the old settings."
     },
+    "applyWaiting": "Applying the network settings… this can take up to 2 minutes.",
     "confirm": {
       "title": "Change the management address?",
       "body": "You will lose this page. Open https://{{ip}}:8443 within 5 minutes and confirm, or the box returns to the old settings.",
@@ -1772,6 +1786,8 @@
       "left": "Time left",
       "confirm": "Confirm: I opened the new address",
       "revert": "Cancel and go back now",
+      "reverting": "Going back…",
+      "waiting": "Waiting for the box… this can take up to a minute.",
       "confirmed": "New address confirmed.",
       "previousSettings": "the previous settings",
       "stuckTitle": "The box could not go back to the old network settings by itself",
@@ -1942,6 +1958,7 @@
       "previousLabel": "Earlier box addresses still answered to",
       "previous": "Also still answering to {{address}} (agents, firewalls and links set up with it).",
       "forget": "Stop answering to {{address}}",
+      "forgetting": "Forgetting…",
       "forgotten": "The box no longer answers to {{address}}.",
       "confirm": {
         "title": "Change the box address?",
@@ -1996,6 +2013,7 @@
     "test": "Test connection",
     "testNamed": "Test connection {{name}}",
     "testing": "Testing…",
+    "testWaiting": "Testing the connection… this can take up to {{s}} seconds.",
     "testOk": "Connected",
     "allowTitle": "Allow-list",
     "allowFor": "Allow-list of {{name}}",

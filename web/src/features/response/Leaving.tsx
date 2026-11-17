@@ -80,7 +80,7 @@ export function InForce({ onRollBack }: { onRollBack?: () => void }) {
 /** N-H1, option (b): turning execution off or pressing Emergency stop on a box where AI response is not offered is one-way for device
  *  changes (execution cannot be turned on again here, and rolling back a device change needs it, INV-7). Say so, list them, and offer to
  *  roll them back first, which still works at this moment because execution is on. */
-export function ConfirmExecutionOff({ open, onOpenChange, title, confirmLabel, busy, onConfirm }: { open: boolean; onOpenChange: (v: boolean) => void; title: string; confirmLabel: string; busy: boolean; onConfirm: () => void }) {
+export function ConfirmExecutionOff({ open, onOpenChange, title, confirmLabel, busy, busyLabel, onConfirm }: { open: boolean; onOpenChange: (v: boolean) => void; title: string; confirmLabel: string; busy: boolean; busyLabel: string; onConfirm: () => void }) {
   const { t } = useTranslation('response')
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -88,7 +88,7 @@ export function ConfirmExecutionOff({ open, onOpenChange, title, confirmLabel, b
         {open ? <DeviceInForce onRollBack={() => onOpenChange(false)} /> : null}
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
-          <Button variant="danger" disabled={busy} onClick={onConfirm}>{confirmLabel}</Button>
+          <Button variant="danger" busy={busy} busyLabel={busyLabel} onClick={onConfirm}>{confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -130,13 +130,13 @@ export function TurnOffResponse() {
   }
   return (
     <>
-      <Button disabled={!admin || toggle.isPending} title={admin ? undefined : t('leaving.needAdmin')} onClick={() => setAsk(true)}>{t('leaving.turnOff')}</Button>
+      <Button disabled={!admin} busy={toggle.isPending} busyLabel={t('common:busy.turningOff')} title={admin ? undefined : t('leaving.needAdmin')} onClick={() => setAsk(true)}>{t('leaving.turnOff')}</Button>
       <Dialog open={ask} onOpenChange={setAsk}>
         <DialogContent title={t('leaving.title')} description={t('leaving.body')}>
           {ask ? <InForce onRollBack={() => setAsk(false)} /> : null}
           <DialogFooter>
             <Button onClick={() => setAsk(false)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={toggle.isPending} onClick={() => void off()}>{t('leaving.turnOff')}</Button>
+            <Button variant="danger" busy={toggle.isPending} busyLabel={t('common:busy.turningOff')} onClick={() => void off()}>{t('leaving.turnOff')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

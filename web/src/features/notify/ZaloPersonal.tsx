@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { QrCode, TriangleAlert } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { QrSvg } from '@/components/common/QrCode'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -66,8 +67,10 @@ export function ZaloSignIn({ channel, onSigned }: { channel: Channel; onSigned: 
       {v && NEW_QR.includes(v.state) ? <p role="status" className="text-meta text-danger">{v.state === 'failed' ? v.error : t(`zp.state.${v.state}`)}</p> : null}
       {err ? <p role="alert" className="text-meta text-danger">{err}</p> : null}
       {!v || v.state === 'none' || NEW_QR.includes(v.state) || v.state === 'signed_in' ? (
-        <div><Button disabled={start.isPending} onClick={() => void begin()}><QrCode />{v && v.state !== 'none' && v.state !== 'signed_in' ? t('zp.newQr') : saved || channel.secret_last4 || signedName ? t('zp.relogin') : t('zp.show')}</Button></div>
+        <div><Button busy={start.isPending} busyLabel={t('zp.gettingQr')} onClick={() => void begin()}><QrCode />{v && v.state !== 'none' && v.state !== 'signed_in' ? t('zp.newQr') : saved || channel.secret_last4 || signedName ? t('zp.relogin') : t('zp.show')}</Button></div>
       ) : null}
+      {/* kien G1: the QR code takes four requests to id.zalo.me, 45 s at most (zaloLoginStart) */}
+      <BusyNote busy={start.isPending}>{t('zp.qrWaiting')}</BusyNote>
     </div>
   )
 }
@@ -92,7 +95,9 @@ function Finder({ id, label, hint, onFound, groups }: { id: string; label: strin
         <Input id={id} value={q} autoComplete="off" aria-invalid={err ? true : undefined} aria-describedby={`${id}-${err ? 'error' : 'hint'}`}
           onChange={(e) => { setQ(e.target.value); setErr(null) }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void find() } }} />
       </Field>
-      <Button disabled={!q.trim() || resolve.isPending} onClick={() => void find()}>{t('zp.find')}</Button>
+      <Button disabled={!q.trim()} busy={resolve.isPending} busyLabel={t('zp.finding')} onClick={() => void find()}>{t('zp.find')}</Button>
+      {/* kien G1: the box asks Zalo (15 s per request at most) */}
+      <BusyNote busy={resolve.isPending} className="basis-full">{t('zp.findWaiting')}</BusyNote>
     </div>
   )
 }
@@ -172,7 +177,7 @@ export function ApproverLinkState({ kind, approver, saved }: { kind: LinkKind; a
       <div className="flex flex-wrap items-center gap-2 text-meta" role="status">
         <Chip tone="warn">{t('zp.link.not_sent')}</Chip>
         <span>{t('zp.link.yours')}</span>
-        <Button size="sm" variant="primary" disabled={send.isPending} onClick={again}>{t('zp.link.mine')}</Button>
+        <Button size="sm" variant="primary" busy={send.isPending} busyLabel={t('common:busy.linking')} onClick={again}>{t('zp.link.mine')}</Button>
       </div>
     )
   }
@@ -181,7 +186,7 @@ export function ApproverLinkState({ kind, approver, saved }: { kind: LinkKind; a
       {s.state === 'linked' ? <Chip tone="ok">{t('zp.link.linked')}</Chip> : <Chip tone="warn">{t(`zp.link.${s.state}`)}</Chip>}
       {s.state === 'waiting' ? <span>{t('zp.link.waitingFor', { name: who, time: s.sent_at ? fmtDateTime(s.sent_at) : '' })}</span> : null}
       {s.state === 'not_sent' && s.error ? <span className="text-danger">{s.error}</span> : null}
-      {s.state === 'waiting' || s.state === 'not_sent' ? <Button size="sm" disabled={send.isPending} onClick={again}>{t('zp.link.again')}</Button> : null}
+      {s.state === 'waiting' || s.state === 'not_sent' ? <Button size="sm" busy={send.isPending} busyLabel={t('common:busy.sending')} onClick={again}>{t('zp.link.again')}</Button> : null}
     </div>
   )
 }

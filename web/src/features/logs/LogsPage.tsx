@@ -94,8 +94,13 @@ function SourcesSection() {
   const qc = useQueryClient()
   // Refresh the whole page's log data, not only this table: the headline, the digest, the event search and the AI digest panel of the
   // logs.panels slot (QA walk 2026-11-12: new lines showed here while the rest still said no line was received).
-  const refreshAll = () => { void qc.invalidateQueries({ queryKey: ['logs'] }); void qc.invalidateQueries({ queryKey: ['ai', 'digest'] }) }
-  const refresh = <Button onClick={refreshAll} disabled={q.isFetching}><RefreshCw />{t('refresh')}</Button>
+  // #930 review r1 L6: busy only for a refresh the person pressed, not for the refetch after a save or a delete elsewhere on the page
+  const [refreshing, setRefreshing] = useState(false)
+  const refreshAll = () => {
+    setRefreshing(true)
+    void Promise.allSettled([qc.invalidateQueries({ queryKey: ['logs'] }), qc.invalidateQueries({ queryKey: ['ai', 'digest'] })]).finally(() => setRefreshing(false))
+  }
+  const refresh = <Button onClick={refreshAll} busy={refreshing} busyLabel={t('refreshing')}><RefreshCw />{t('refresh')}</Button>
   const box = q.data?.box
   const description = !box ? t('sources.description', { ip: '' }) : box.ip ? t('sources.description', { ip: box.ip }) : box.lan ? t('sources.descriptionNoIpLan', { lan: box.lan }) : t('sources.descriptionNoIp')
   const descriptionInfo = !box || box.ip ? t('sources.descriptionInfo') : box.lan ? t('sources.descriptionNoIpLanInfo', { lan: box.lan }) : t('sources.descriptionNoIpInfo')
@@ -283,7 +288,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
             {next ? (
               <div className="mb-2 flex flex-wrap items-center gap-3 text-meta text-muted">
                 <p aria-live="polite">{t('events.partial', { count: rows.length, time: back ? fmtDateTime(back) : '' })}</p>
-                <Button disabled={extra.busy || q.isPlaceholderData} aria-busy={extra.busy} onClick={() => searchOlder(d)}>{t('events.searchOlder')}</Button>
+                <Button disabled={q.isPlaceholderData} busy={extra.busy} busyLabel={t('events.searchingOlder')} onClick={() => searchOlder(d)}>{t('events.searchOlder')}</Button>
                 {extra.failed ? <span role="alert" className="text-danger">{t('events.searchOlderFailed')}</span> : null}
               </div>
             ) : (
@@ -329,7 +334,7 @@ function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: 
           <DialogContent title={t('retention.shortenTitle', { n: pending })} description={t('retention.shortenBody', { n: pending })}>
             <DialogFooter>
               <Button disabled={set.isPending} onClick={() => setPending(null)}>{t('common:cancel')}</Button>
-              <Button variant="danger" disabled={set.isPending} onClick={() => save(pending)}>{t('retention.shortenConfirm')}</Button>
+              <Button variant="danger" busy={set.isPending} busyLabel={t('common:busy.saving')} onClick={() => save(pending)}>{t('retention.shortenConfirm')}</Button>
             </DialogFooter>
           </DialogContent>
         ) : null}

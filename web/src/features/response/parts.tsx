@@ -73,7 +73,7 @@ function ProposalView({ p }: { p: Proposal }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">{t('proposal.label')}: {p.title}</p>
         {p.request_id ? <Link className="text-meta text-accent underline underline-offset-4" to="/response?tab=requests">{t('proposal.requested')}</Link>
-          : <Button size="sm" disabled={!can || p.state !== 'ready' || req.isPending} title={frozen ? t('leaving.frozen') : !can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
+          : <Button size="sm" disabled={!can || p.state !== 'ready'} busy={req.isPending} busyLabel={t('common:busy.sending')} title={frozen ? t('leaving.frozen') : !can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
               onClick={() => req.mutate(p.id, { onSuccess: () => toast.success(t('proposal.sent')), onError: (e) => toast.error(errText(e)) })}>{t('proposal.request')}</Button>}
       </div>
       <p className="text-meta text-muted">{t('proposal.via', { connection: p.connection, tool: p.tool })}</p>
@@ -120,11 +120,11 @@ export function EmergencyStop() {
   const go = () => stop.mutate(undefined, { onSuccess: (r) => { setAsk(false); toast.success(t('stop.done', { count: r.cancelled })) }, onError: (e) => { setAsk(false); toast.error(errText(e)) } })
   return (
     <>
-      <Button variant="danger" disabled={!can || stop.isPending} title={!can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
+      <Button variant="danger" disabled={!can} busy={stop.isPending} busyLabel={t('common:busy.stopping')} title={!can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
         onClick={() => (frozen ? setAsk(true) : go())}>
         <OctagonAlert className="size-4" aria-hidden />{t('stop.button')}
       </Button>
-      {frozen ? <ConfirmExecutionOff open={ask} onOpenChange={setAsk} title={t('leaving.stopTitle')} confirmLabel={t('stop.button')} busy={stop.isPending} onConfirm={go} /> : null}
+      {frozen ? <ConfirmExecutionOff open={ask} onOpenChange={setAsk} title={t('leaving.stopTitle')} confirmLabel={t('stop.button')} busy={stop.isPending} busyLabel={t('common:busy.stopping')} onConfirm={go} /> : null}
     </>
   )
 }

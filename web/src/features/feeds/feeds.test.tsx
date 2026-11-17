@@ -753,3 +753,23 @@ describe('feeds: an address Vedette never pulls from is refused when the feed is
     expect((await screen.findAllByText('Fetched at the next scheduled check (every 5 minutes), or now with Fetch now.')).length).toBeGreaterThan(0)
   })
 })
+
+describe('feeds: Fetch now shows the shared busy state while the pull runs (kien G1)', () => {
+  it('the row\'s button is busy and the row says a large feed can take minutes', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => { release = r })
+    // waits, then falls through to the mock's own handler
+    server.use(http.post('*/api/v1/feeds/sources/cisa-kev/fetch', async () => { await gate }))
+    renderApp('/settings/feeds')
+    const btn = await screen.findByRole('button', { name: /^Fetch now: CISA KEV$/ })
+    await waitFor(() => expect(btn).toBeEnabled())
+    await userEvent.click(btn)
+    // the table renders its cells again: ask for the button each time
+    const fetchBtn = () => screen.getByRole('button', { name: /^(?:Fetching… )?Fetch now: CISA KEV$/ })
+    // WCAG 2.5.3: while busy the name starts with the visible busy label
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Fetching… Fetch now: CISA KEV$/ })).toHaveAttribute('aria-busy', 'true'))
+    expect(screen.getByText(/Fetching CISA KEV from its source… a large feed can take several minutes\./)).toBeInTheDocument()
+    release()
+    await waitFor(() => expect(fetchBtn()).not.toHaveAttribute('aria-busy'))
+  })
+})

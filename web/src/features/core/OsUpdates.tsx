@@ -10,6 +10,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -69,7 +70,7 @@ function WindowForm({ s, disabled, title }: { s: OsState; disabled: boolean; tit
       {s.reboot_scheduled_at && !same ? <p className="max-w-2xl text-meta text-warn">{t('updates.os.window.rebootWarn', { time: fmtDateTime(s.reboot_scheduled_at) })}</p> : null}
       <div className="flex items-center gap-1"><p className="text-meta text-muted">{w.mode === 'always' ? t('updates.os.window.hintAnytime') : t('updates.os.window.hintWindow')}</p>{w.mode === 'always' ? null : <InfoTip topic={t('updates.os.windowLabel')}>{t('updates.os.window.windowInfo')}</InfoTip>}</div>
       {problem ? <p role="alert" className="text-meta text-danger">{problem}</p> : null}
-      <div><Button disabled={disabled || same || !!problem || m.settings.isPending} onClick={() => void m.settings.mutateAsync({ window: w }).then((r) => (s.reboot_scheduled_at && !r.reboot_scheduled_at ? toast.warning(t('updates.os.window.savedCancelled')) : toast.success(t('updates.os.window.saved')))).catch((e) => toast.error(errMsg(e, t)))}>{t('updates.os.window.save')}</Button></div>
+      <div><Button disabled={disabled || same || !!problem} busy={m.settings.isPending} busyLabel={t('common:busy.saving')} onClick={() => void m.settings.mutateAsync({ window: w }).then((r) => (s.reboot_scheduled_at && !r.reboot_scheduled_at ? toast.warning(t('updates.os.window.savedCancelled')) : toast.success(t('updates.os.window.saved')))).catch((e) => toast.error(errMsg(e, t)))}>{t('updates.os.window.save')}</Button></div>
     </fieldset>
   )
 }
@@ -112,8 +113,9 @@ function RebootDialog({ s, open, onClose }: { s: OsState; open: boolean; onClose
         ) : null}
         <DialogFooter>
           <Button onClick={onClose}>{t('common:cancel')}</Button>
-          <Button variant="primary" disabled={m.reboot.isPending || (choice === 'custom' && !at)} onClick={() => void go()}>{t('updates.os.reboot.scheduleConfirm')}</Button>
+          <Button variant="primary" disabled={choice === 'custom' && !at} busy={m.reboot.isPending} busyLabel={t('updates.os.reboot.scheduling')} onClick={() => void go()}>{t('updates.os.reboot.scheduleConfirm')}</Button>
         </DialogFooter>
+        <BusyNote busy={m.reboot.isPending}>{t('updates.os.reboot.waiting')}</BusyNote>
       </DialogContent>
     </Dialog>
   )
@@ -190,7 +192,8 @@ function Body({ s }: { s: CheckedOs }) {
     <>
       <section id="os" aria-labelledby="os-band">
         <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} info={<><p>{t('updates.os.info')}</p><p>{t('updates.os.helper')}</p></>}
-          actions={<Button onClick={() => void act(() => m.check.mutateAsync(), t('updates.os.checked'))} disabled={operator.disabled || m.check.isPending} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
+          actions={<Button onClick={() => void act(() => m.check.mutateAsync(), t('updates.os.checked'))} disabled={operator.disabled} busy={m.check.isPending} busyLabel={t('common:busy.checking')} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
+        <BusyNote busy={m.check.isPending} className="mb-3">{t('updates.os.checkWaiting')}</BusyNote>
         <div className="grid gap-5">
           <Card className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(160px,max-content)_1fr]">
             <span className="text-meta text-muted">{t('updates.os.distro')}</span>
@@ -221,7 +224,7 @@ function Body({ s }: { s: CheckedOs }) {
               {s.reboot_scheduled_at ? (
                 <span className="flex flex-wrap items-center gap-2 text-meta">
                   <CalendarClock className="size-4" aria-hidden />{t('updates.os.rebootScheduled', { time: fmtDateTime(s.reboot_scheduled_at) })}
-                  <Button size="sm" variant="ghost" disabled={admin.disabled || m.cancelReboot.isPending} title={admin.title} onClick={() => void act(() => m.cancelReboot.mutateAsync(), t('updates.os.reboot.cancelled'))}>{t('updates.os.reboot.cancel')}</Button>
+                  <Button size="sm" variant="ghost" disabled={admin.disabled} busy={m.cancelReboot.isPending} busyLabel={t('updates.os.reboot.cancelling')} title={admin.title} onClick={() => void act(() => m.cancelReboot.mutateAsync(), t('updates.os.reboot.cancelled'))}>{t('updates.os.reboot.cancel')}</Button>
                 </span>
               ) : null}
             </span>
@@ -239,8 +242,8 @@ function Body({ s }: { s: CheckedOs }) {
           <WindowForm key={JSON.stringify(s.window)} s={s} disabled={admin.disabled} title={admin.title} />
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="primary" disabled={admin.disabled || m.install.isPending} title={admin.title} onClick={() => install('security')}><ShieldCheck />{t('updates.os.installSecurity')}{sec ? ` (${sec})` : ''}</Button>
-            <Button disabled={admin.disabled || m.install.isPending} title={admin.title} onClick={() => setInstallAll(true)}>{t('updates.os.installAll')}</Button>
+            <Button variant="primary" disabled={admin.disabled || m.install.isPending} busy={m.install.isPending && m.install.variables === 'security'} busyLabel={t('common:busy.starting')} title={admin.title} onClick={() => install('security')}><ShieldCheck />{t('updates.os.installSecurity')}{sec ? ` (${sec})` : ''}</Button>
+            <Button disabled={admin.disabled || m.install.isPending} busy={m.install.isPending && m.install.variables === 'all'} busyLabel={t('common:busy.starting')} title={admin.title} onClick={() => setInstallAll(true)}>{t('updates.os.installAll')}</Button>
             <Button disabled={admin.disabled} title={admin.title} onClick={() => setRebooting(true)}><Power />{t('updates.os.reboot.now')}</Button>
             <Button disabled={admin.disabled} title={admin.title} onClick={() => setScheduling(true)}><CalendarClock />{t('updates.os.reboot.schedule')}</Button>
           </div>
@@ -274,15 +277,16 @@ function Body({ s }: { s: CheckedOs }) {
         <DialogContent title={t('updates.os.reboot.nowTitle')} description={t('updates.os.reboot.nowBody')} info={t('updates.os.reboot.nowInfo')}>
           <DialogFooter>
             <Button onClick={() => setRebooting(false)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={m.reboot.isPending} onClick={() => void act(() => m.reboot.mutateAsync({ when: 'now' }), t('updates.os.reboot.done')).then(() => setRebooting(false))}>{t('updates.os.reboot.nowConfirm')}</Button>
+            <Button variant="danger" busy={m.reboot.isPending} busyLabel={t('common:busy.restarting')} onClick={() => void act(() => m.reboot.mutateAsync({ when: 'now' }), t('updates.os.reboot.done')).then(() => setRebooting(false))}>{t('updates.os.reboot.nowConfirm')}</Button>
           </DialogFooter>
+          <BusyNote busy={m.reboot.isPending}>{t('updates.os.reboot.waiting')}</BusyNote>
         </DialogContent>
       </Dialog>
       <Dialog open={installAll} onOpenChange={(o) => !o && setInstallAll(false)}>
         <DialogContent title={t('updates.os.installAllTitle', { count: s.pending.length })} description={t('updates.os.installAllBody')} info={t('updates.os.installAllInfo')}>
           <DialogFooter>
             <Button onClick={() => setInstallAll(false)}>{t('common:cancel')}</Button>
-            <Button variant="primary" disabled={m.install.isPending} onClick={() => { install('all'); setInstallAll(false) }}>{t('updates.os.installAllConfirm')}</Button>
+            <Button variant="primary" busy={m.install.isPending} busyLabel={t('common:busy.starting')} onClick={() => { install('all'); setInstallAll(false) }}>{t('updates.os.installAllConfirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -300,7 +304,8 @@ function NoCheckYet() {
   return (
     <section id="os" aria-labelledby="os-band">
       <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} info={t('updates.os.info')}
-        actions={<Button onClick={() => void m.check.mutateAsync().then(() => toast.success(t('updates.os.checked'))).catch((e) => toast.error(errMsg(e, t)))} disabled={operator.disabled || m.check.isPending} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
+        actions={<Button onClick={() => void m.check.mutateAsync().then(() => toast.success(t('updates.os.checked'))).catch((e) => toast.error(errMsg(e, t)))} disabled={operator.disabled} busy={m.check.isPending} busyLabel={t('common:busy.checking')} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
+      <BusyNote busy={m.check.isPending} className="mb-3">{t('updates.os.checkWaiting')}</BusyNote>
       <p role="status" className="text-sm">{t('updates.os.noCheckYet')}</p>
     </section>
   )

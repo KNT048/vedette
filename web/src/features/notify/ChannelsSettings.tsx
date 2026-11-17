@@ -1,9 +1,10 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { LoaderCircle, Send, X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState, RequireModule } from '@/components/common/States'
@@ -112,6 +113,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
   const [fieldErr, setFieldErr] = useState<Record<string, string>>({})
   const [warn, setWarn] = useState<boolean | null>(null) // null = no warning; value = whether to send a test after saving
   const busy = save.isPending
+  const [thenTesting, setThenTesting] = useState(false) // which of Save and Save and send test runs (the busy one)
 
   function submit(e: FormEvent | { preventDefault(): void }, thenTest = false, confirmed = false) {
     e.preventDefault()
@@ -125,6 +127,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
     const sent = type === 'slack' && !approvals ? Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'channel_id'))
       : type === 'zalo-personal' ? { user_id: target.user_id, group: target.group ? 'true' : '', name: target.name } : fields
     const zalo = type === 'zalo-personal' ? { zalo_login: zaloSigned !== null } : {}
+    setThenTesting(thenTest)
     save.mutate({ type, enabled, fields: sent, secret: secret || undefined, ...(type === 'email' && signin ? { signin } : {}), min_severity: min, ...zalo, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}), ...(type === 'zalo' ? { secret_key: zaloKey || undefined, refresh_token: zaloRefresh || undefined } : {}) }, {
       onSuccess: () => {
         toast.success(t('channels.saved', { name }))
@@ -374,15 +377,15 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
           </div>
           <DialogFooter>
             <Button onClick={onClose}>{t('common:cancel')}</Button>
-            <Button disabled={busy} onClick={(e) => submit(e, true)}><Send />{t('channels.saveTest')}</Button>
-            <Button type="submit" variant="primary" disabled={busy}>{t('channels.save')}</Button>
+            <Button disabled={busy} busy={busy && thenTesting} busyLabel={t('common:busy.saving')} onClick={(e) => submit(e, true)}><Send />{t('channels.saveTest')}</Button>
+            <Button type="submit" variant="primary" disabled={busy} busy={busy && !thenTesting} busyLabel={t('common:busy.saving')}>{t('channels.save')}</Button>
           </DialogFooter>
         </form>
         <Dialog open={warn !== null} onOpenChange={(o) => { if (!o) setWarn(null) }}>
           <DialogContent title={t('channels.turnOffTitle')} description={t('channels.emailCodes', { count: codeUsers })}>
             <DialogFooter>
               <Button onClick={() => setWarn(null)}>{t('channels.keepEditing')}</Button>
-              <Button variant="danger" disabled={busy} onClick={(e) => { const test = warn === true; setWarn(null); submit(e, test, true) }}>{t('channels.turnOffConfirm')}</Button>
+              <Button variant="danger" busy={busy} busyLabel={t('common:busy.saving')} onClick={(e) => { const test = warn === true; setWarn(null); submit(e, test, true) }}>{t('channels.turnOffConfirm')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -404,10 +407,10 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   const chName = (r: Channel) => <span className="font-medium">{t(`ch.${r.type}`)}{r.configured && r.approvals ? <Chip tone="ok" className="ml-2">{t('approve.chip')}</Chip> : null}</span>
   const min = (r: Channel) => (r.configured ? t('channels.min', { sev: t(`common:severity.${r.min_severity}`) }) : '')
   const status = (r: Channel) => <Chip tone={!r.configured ? 'off' : r.enabled ? 'ok' : 'off'}>{t(`channels.state.${!r.configured ? 'none' : r.enabled ? 'on' : 'off'}`)}</Chip>
-  // A test waits for the far end (up to 30 s): the row says so, and a failure shows its reason as text, not only as a hover title (walk 3 G13).
+  // A test waits for the far end (up to 45 s, testTimeout): the row says so, and a failure shows its reason as text, not only as a hover title (walk 3 G13).
   const lastTest = (r: Channel) => {
     if (!r.configured) return null
-    if (test.isPending && test.variables === r.type) return <span role="status" className="inline-flex items-center gap-1.5 text-muted"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />{t('channels.testing')}</span>
+    if (test.isPending && test.variables === r.type) return <BusyNote busy>{t('channels.testWaiting')}</BusyNote>
     if (!r.last_test) return <span className="text-meta text-muted">{t('channels.testNever')}</span>
     if (r.last_test.ok) return <span className="text-meta text-ok">{t('channels.testOk', { time: fmtDateTime(r.last_test.at) })}</span>
     return (
@@ -425,7 +428,7 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
         <Button id={`channel-${r.type}`} size="sm" variant={r.configured ? 'secondary' : 'primary'} disabled={!isAdmin} title={need} onClick={() => setEditing(r)}>{r.configured ? t('channels.edit') : t('channels.configure')} <span className="sr-only">{name}</span></Button>
         {r.configured ? (
           <>
-            <Button size="sm" disabled={!isAdmin || test.isPending} title={need}
+            <Button size="sm" disabled={!isAdmin || test.isPending} busy={test.isPending && test.variables === r.type} busyLabel={t('common:busy.sending')} title={need}
               onClick={() => runTest(r.type)}>{t('channels.test')} <span className="sr-only">{name}</span></Button>
             <Button size="sm" variant="ghost" disabled={!isAdmin} title={need} onClick={() => setRemoving(r)}>{t('channels.remove')} <span className="sr-only">{name}</span></Button>
           </>
@@ -444,7 +447,7 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
       </span>
     ) },
     { id: 'status', header: t('channels.col.status'), accessorFn: (r) => (r.configured ? (r.enabled ? 0 : 1) : 2), cell: ({ row: { original: r } }) => (
-      <span className="grid justify-items-start gap-1">{status(r)}{lastTest(r)}</span>
+      <div className="grid justify-items-start gap-1">{status(r)}{lastTest(r)}</div>
     ) },
     { id: 'actions', header: t('channels.col.actions'), enableSorting: false, cell: ({ row }) => actions(row.original, true) },
   ]
@@ -468,7 +471,7 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
             {removing.type === 'email' && codeUsers > 0 ? <Notice tone="danger" role="alert" className="mb-0" title={t('channels.emailCodes', { count: codeUsers })} /> : null}
             <DialogFooter>
               <Button onClick={() => setRemoving(null)}>{t('common:cancel')}</Button>
-              <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate(removing.type, { onSuccess: () => { toast.success(t('channels.removed', { name: t(`ch.${removing.type}`) })); setRemoving(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('common:delete')}</Button>
+              <Button variant="danger" busy={remove.isPending} busyLabel={t('common:busy.deleting')} onClick={() => remove.mutate(removing.type, { onSuccess: () => { toast.success(t('channels.removed', { name: t(`ch.${removing.type}`) })); setRemoving(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('common:delete')}</Button>
             </DialogFooter>
           </DialogContent>
         ) : null}
@@ -514,7 +517,7 @@ function Rules({ init }: { init: { quiet: Quiet; grouping: Grouping } }) {
           </Select>
         </Field>
       </fieldset>
-      <div><Button type="submit" variant="primary" disabled={!isAdmin || save.isPending} title={isAdmin ? undefined : t('channels.needRole')}>{t('rules.save')}</Button></div>
+      <div><Button type="submit" variant="primary" disabled={!isAdmin} busy={save.isPending} busyLabel={t('common:busy.saving')} title={isAdmin ? undefined : t('channels.needRole')}>{t('rules.save')}</Button></div>
     </form>
   )
 }

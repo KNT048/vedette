@@ -10,6 +10,7 @@ import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, Loading, QueryState } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -144,7 +145,7 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
   }
   const Actions = (p: AiProfile) => (
     <span className="flex flex-wrap gap-2">
-      <Button size="sm" onClick={() => runTest(p)} disabled={!admin || test.isPending} title={reason} aria-label={t('profiles.testNamed', { name: p.name })}>{test.isPending && test.variables?.id === p.id ? t('profiles.testing') : t('profiles.test')}</Button>
+      <Button size="sm" onClick={() => runTest(p)} disabled={!admin || test.isPending} busy={test.isPending && test.variables?.id === p.id} busyLabel={t('common:busy.testing')} title={reason} aria-label={t('profiles.testNamed', { name: p.name })}>{t('profiles.test')}</Button>
       <Button size="sm" onClick={() => setEdit(p)} disabled={!admin} title={reason} aria-label={t('profiles.editNamed', { name: p.name })}>{t('profiles.edit')}</Button>
       <Button size="sm" onClick={() => setDel(p)} disabled={!admin} title={reason} aria-label={t('profiles.removeNamed', { name: p.name })}>{t('profiles.remove')}</Button>
     </span>
@@ -187,6 +188,8 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
             { id: 'actions', header: t('profiles.col.actions'), enableSorting: false, cell: ({ row }: { row: { original: AiProfile } }) => Actions(row.original) },
           ]} />
       )}
+      {/* kien G1: a test asks the provider (up to 60 s, modules/ai probeTimeout); say so while it runs */}
+      <BusyNote busy={test.isPending} className="mt-3">{t('profiles.testWaiting', { name: test.variables?.name ?? '' })}</BusyNote>
       {result ? (
         result.ok ? (
           <p role="status" className="mt-3 flex flex-wrap items-center gap-2 text-sm">
@@ -339,8 +342,9 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
             <Field label={t('profiles.f.model')} htmlFor="pf-model" hint={models.data ? t('profiles.f.modelsFound', { count: models.data.models.length }) : t('profiles.f.modelHint')} info={t('profiles.f.modelInfo')} error={err('model')} className="sm:col-span-2">
               <div className="flex gap-2">
                 <Input id="pf-model" list="pf-models" value={model} onChange={(e) => { setModel(e.target.value); upd('model') }} autoComplete="off" className="min-w-0 flex-1" {...aria('model', true)} />
-                <Button type="button" onClick={listModels} disabled={models.isPending}>{models.isPending ? t('profiles.f.listing') : t('profiles.f.listModels')}</Button>
+                <Button type="button" onClick={listModels} busy={models.isPending} busyLabel={t('profiles.f.listing')}>{t('profiles.f.listModels')}</Button>
               </div>
+              <BusyNote busy={models.isPending}>{t('profiles.f.listingWaiting')}</BusyNote>
               <datalist id="pf-models">{models.data?.models.map((m) => <option key={m} value={m} />)}</datalist>
             </Field>
             {models.error && !serverField(models.error) ? <div className="sm:col-span-2"><ActionError error={models.error} /></div> : null}
@@ -372,13 +376,15 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
             </div>
           ) : null}
           {needAck && !ack ? <p id="pf-ack-why" className="text-meta text-muted">{t('profiles.f.ackNeeded', { button: profile ? t('common:save') : t('profiles.addConfirm') })}</p> : null}
+          {/* kien G1: the test asks the provider (up to 60 s, modules/ai probeTimeout); say so while it runs */}
+          <BusyNote busy={test.isPending}>{t('profiles.testWaitingDraft')}</BusyNote>
           {tested ? <p role="status" className="flex flex-wrap items-center gap-2 text-sm"><Chip tone="ok">{t('profiles.testOk')}</Chip>{t('profiles.testDetail', { name: name.trim() || t('profiles.thisProfile'), ms: tested.latency_ms, input: tested.tokens_in, output: tested.tokens_out })} {t(tested.capabilities.tools ? 'profiles.capTools' : 'profiles.capNoTools')}</p> : null}
           {testErr && !serverField(testErr) ? <ActionError error={testErr} /> : null}
           {save.error && !serverField(save.error) ? <ActionError error={save.error} /> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-            <Button type="button" onClick={runTest} disabled={test.isPending || save.isPending}>{test.isPending ? t('profiles.testing') : t('profiles.test')}</Button>
-            <Button type="submit" variant="primary" disabled={save.isPending || (needAck && !ack)} aria-describedby={needAck && !ack ? 'pf-ack-why' : undefined}>{save.isPending ? t('profiles.saving') : profile ? t('common:save') : t('profiles.addConfirm')}</Button>
+            <Button type="button" onClick={runTest} disabled={save.isPending} busy={test.isPending} busyLabel={t('common:busy.testing')}>{t('profiles.test')}</Button>
+            <Button type="submit" variant="primary" disabled={needAck && !ack} busy={save.isPending} busyLabel={t('common:busy.saving')} aria-describedby={needAck && !ack ? 'pf-ack-why' : undefined}>{profile ? t('common:save') : t('profiles.addConfirm')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -396,7 +402,7 @@ function RemoveDialog({ profile, assign, onClose }: { profile: AiProfile; assign
         <ActionError error={remove.error} />
         <DialogFooter>
           <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-          <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate(profile.id, { onSuccess: () => { onClose(); toast.success(t('profiles.removed', { name: profile.name })) } })}>{t('profiles.removeConfirm')}</Button>
+          <Button variant="danger" busy={remove.isPending} busyLabel={t('common:busy.removing')} onClick={() => remove.mutate(profile.id, { onSuccess: () => { onClose(); toast.success(t('profiles.removed', { name: profile.name })) } })}>{t('profiles.removeConfirm')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -534,8 +540,8 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
         {adding ? <ProfileDialog profile={null} existing={profiles} onClose={() => setAdding(false)} /> : null}
         <ActionError error={save.error} />
         <div className="flex flex-wrap gap-3">
-          <Button variant="primary" disabled={!admin || !dirty || save.isPending} title={reason ?? (!dirty ? t('assign.nothingToSave') : undefined)}
-            onClick={() => save.mutate(draft, { onSuccess: () => { setNote(''); toast.success(t('assign.saved')) } })}>{save.isPending ? t('assign.saving') : t('assign.save')}</Button>
+          <Button variant="primary" disabled={!admin || !dirty} busy={save.isPending} busyLabel={t('common:busy.saving')} title={reason ?? (!dirty ? t('assign.nothingToSave') : undefined)}
+            onClick={() => save.mutate(draft, { onSuccess: () => { setNote(''); toast.success(t('assign.saved')) } })}>{t('assign.save')}</Button>
           {dirty ? <Button onClick={() => { setDraft(assign); setNote('') }}>{t('assign.discard')}</Button> : null}
         </div>
       </div>
@@ -599,7 +605,7 @@ function TierForm({ cfg }: { cfg: AiConfigView }) {
           </div>
         </div>
         {save.error && !serverCap ? <div className="mt-3"><ActionError error={save.error} /></div> : null}
-        <div className="mt-4"><Button type="submit" variant="primary" disabled={!admin || save.isPending} title={reason}>{save.isPending ? t('settings.saving') : t('common:save')}</Button></div>
+        <div className="mt-4"><Button type="submit" variant="primary" disabled={!admin} busy={save.isPending} busyLabel={t('common:busy.saving')} title={reason}>{t('common:save')}</Button></div>
       </Section>
     </form>
   )
@@ -624,7 +630,7 @@ function RetentionForm() {
           </Field>
         </Card>
         {save.error ? <div className="mt-3"><ActionError error={save.error} /></div> : null}
-        <div className="mt-4"><Button type="submit" variant="primary" disabled={!admin || !!err || save.isPending || cur.isPending} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })}>{t('common:save')}</Button></div>
+        <div className="mt-4"><Button type="submit" variant="primary" disabled={!admin || !!err || cur.isPending} busy={save.isPending} busyLabel={t('common:busy.saving')} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })}>{t('common:save')}</Button></div>
       </Section>
     </form>
   )

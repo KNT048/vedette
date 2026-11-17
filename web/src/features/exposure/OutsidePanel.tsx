@@ -7,6 +7,7 @@ import { Panel, Section } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { useCan } from '@/lib/session'
 import { InfoTip } from '@/components/common/InfoTip'
@@ -35,14 +36,16 @@ export function OutsidePanel({ target }: { target: Target }) {
   }
   return (
     <Section id="outside" title={t('outside.title')} description={t('outside.description', { ip: target.value })} info={t('outside.descriptionInfo', { ip: target.value })}
-      actions={<Button onClick={() => setConfirm(true)} disabled={!!reason || check.isPending} title={reason}><Globe />{v ? t('outside.again') : t('outside.button')}</Button>}>
+      actions={<Button onClick={() => setConfirm(true)} disabled={!!reason} busy={check.isPending} busyLabel={t('common:busy.checking')} title={reason}><Globe />{v ? t('outside.again') : t('outside.button')}</Button>}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : v ? <Answer v={v} /> : <Never ip={target.value} />}
       {!eligible ? <p className="mt-2 max-w-3xl text-meta text-muted">{t('outside.notEligible')}</p> : null}
       <Dialog open={confirm} onOpenChange={(o) => { if (!check.isPending) setConfirm(o) }}>
         <DialogContent title={t('outside.confirmTitle', { ip: target.value })} description={t('outside.confirmBody', { ip: target.value })} info={t('outside.confirmBodyInfo', { ip: target.value })}>
+          {/* kien G1: the box may re-check its IP first (5 rounds, 5 s each at most), then Shodan answers within 10 s */}
+          <BusyNote busy={check.isPending}>{t('outside.waiting')}</BusyNote>
           <DialogFooter>
             <Button onClick={() => setConfirm(false)} disabled={check.isPending}>{t('common:cancel')}</Button>
-            <Button variant="primary" onClick={send} disabled={check.isPending}>{t('outside.send')}</Button>
+            <Button variant="primary" onClick={send} busy={check.isPending} busyLabel={t('common:busy.sending')}>{t('outside.send')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

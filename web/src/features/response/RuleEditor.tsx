@@ -261,9 +261,9 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
             {result ? <SimResult s={result} /> : null}
             {error ? <Notice tone="danger" role="alert" ref={alertRef} className="mb-0" title={error} /> : null}
             <DialogFooter>
-              <Button type="button" disabled={sim.isPending || !r.actions.length} onClick={() => { if (checked()) sim.mutate(input(), { onSuccess: setResult, onError: refused }) }}><FlaskConical className="size-4" aria-hidden />{t('editor.simulate')}</Button>
+              <Button type="button" disabled={!r.actions.length} busy={sim.isPending} busyLabel={t('simulating')} onClick={() => { if (checked()) sim.mutate(input(), { onSuccess: setResult, onError: refused }) }}><FlaskConical className="size-4" aria-hidden />{t('editor.simulate')}</Button>
               <Button type="button" onClick={onClose}>{t('common:cancel')}</Button>
-              <Button type="submit" variant="primary" disabled={save.isPending}>{t('common:save')}</Button>
+              <Button type="submit" variant="primary" busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('common:save')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

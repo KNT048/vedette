@@ -35,9 +35,9 @@ function Progress({ run }: { run: ScanRun }) {
       ) : null}
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
         <p className="text-sm" role="status">{stopping ? t('progress.stoppingBody') : run.current ? t('progress.current', { label: run.current.label, ip: run.current.ip }) : ''}</p>
-        <Button variant="danger" className="ml-auto" disabled={!can || stopping || stop.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+        <Button variant="danger" className="ml-auto" disabled={!can} busy={stopping || stop.isPending} busyLabel={t('common:busy.stopping')} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
           onClick={() => stop.mutate(run.id, { onError: (e) => toast.error(errMsg(e)) })}>
-          <OctagonX />{stopping ? t('progress.stoppingButton') : t('progress.stop')}
+          <OctagonX />{t('progress.stop')}
         </Button>
       </div>
       {stopping ? null : <JobProgress progress={run.progress} className="mt-3 rounded-md bg-surface p-3" />}

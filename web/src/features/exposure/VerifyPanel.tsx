@@ -5,6 +5,7 @@ import { Panel, KeyValue } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
+import { BusyNote } from '@/components/common/BusyNote'
 import { dateText, dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
 import { useVerify } from './api'
@@ -35,11 +36,13 @@ export function VerifyPanel({ target }: { target: Target }) {
   const label = domain ? (verified ? t('verify.checkAgain') : t('verify.recheck')) : t('verify.ipRecheck')
   const recheck = (
     <div className="flex flex-wrap items-center gap-3">
-      <Button variant={verified && target.blocked_reason !== 'txt_missing' && !paused && target.validity !== 'expired' ? 'secondary' : 'primary'} onClick={run} disabled={!can || verify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}>
-        <RefreshCw className={verify.isPending ? 'animate-spin motion-reduce:animate-none' : undefined} />{verify.isPending ? t('verify.checking') : label}
+      <Button variant={verified && target.blocked_reason !== 'txt_missing' && !paused && target.validity !== 'expired' ? 'secondary' : 'primary'} onClick={run} disabled={!can} busy={verify.isPending} busyLabel={t('common:busy.checking')} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}>
+        <RefreshCw />{label}
       </Button>
       {domain ? <span className="max-w-xl text-meta text-muted">{t('verify.recheckHint')}</span>
         : <InfoLine className="max-w-xl text-meta text-muted" topic={t('verify.ipRecheck')} info={t('verify.ipRecheckHintInfo')}>{t('verify.ipRecheckHint', { value: target.value })}</InfoLine>}
+      {/* kien G1: Verify again of an IP is a full check, 5 rounds of three public services (5 s each at most); a DNS lookup is quick */}
+      {domain ? null : <BusyNote busy={verify.isPending} className="basis-full">{t('verify.ipWaiting')}</BusyNote>}
     </div>
   )
 

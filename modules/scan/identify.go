@@ -3,6 +3,8 @@ package scan
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
 )
 
 // Identifier identifies a device before a Scan now run checks it: sensor-active's nmap device scan records what it finds
@@ -38,6 +40,60 @@ type IdentRow struct {
 	Found    []string `json:"found"`
 	Reason   *string  `json:"reason"` // nil: software was recorded
 	Note     string   `json:"note"`
+}
+
+// OSPages is the OS each device page shows now (the inventory's ranking, through cmd/vedette). Absent from the map: no device page.
+type OSPages interface {
+	OSShown(ctx context.Context, ids []string) (map[string]string, error)
+}
+
+// osLine starts the identification line of the OS a device check recorded (sensor-active `identified`).
+const osLine = "Operating system: "
+
+// osNotUsed replaces an OS line whose OS is not the one the device page shows now (a better source, or a newer scan's guess).
+const osNotUsed = osLine + "scan guess not used now"
+
+// withShownOS keeps each identification row's OS line only when it names the OS its device page shows now: otherwise it says the
+// scan guess is not used, never a second OS value beside the page's. A failed read is logged and drops the OS lines (the list still
+// answers). Without OSPages the rows stay as recorded.
+func (s *Service) withShownOS(ctx context.Context, runs []RunView) {
+	if s.cfg.OSPages == nil {
+		return
+	}
+	var ids []string
+	for _, v := range runs {
+		for _, r := range v.Identification {
+			if slices.ContainsFunc(r.Found, func(l string) bool { return strings.HasPrefix(l, osLine) }) && !slices.Contains(ids, r.TargetID) {
+				ids = append(ids, r.TargetID)
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	shown, err := s.cfg.OSPages.OSShown(ctx, ids)
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "scan: the OS the device pages show could not be read; identification rows are listed without their OS", "error", err)
+	}
+	for _, v := range runs {
+		for i := range v.Identification {
+			r := &v.Identification[i]
+			out := r.Found[:0:0]
+			for _, l := range r.Found {
+				recorded, isOS := strings.CutPrefix(l, osLine)
+				page, known := shown[r.TargetID]
+				switch {
+				case !isOS:
+				case err != nil:
+					continue
+				case known && page != recorded:
+					l = osNotUsed
+				}
+				out = append(out, l)
+			}
+			r.Found = out
+		}
+	}
 }
 
 // maxFoundLines bounds IdentRow.Found (contract.ts: at most 20).

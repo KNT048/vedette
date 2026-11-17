@@ -42,10 +42,7 @@ func (e scanningEngines) history(ctx context.Context, asset string) ([]core.Hist
 			if err != nil {
 				return nil, err
 			}
-			shown, err := e.osShown(ctx, jobs)
-			if err != nil {
-				return nil, err
-			}
+			shown := e.osShown(ctx, jobs)
 			for _, j := range jobs {
 				if r, ok := jobHistory(j, shown); ok {
 					out = append(out, r)
@@ -70,11 +67,12 @@ func (e scanningEngines) history(ctx context.Context, asset string) ([]core.Hist
 	return out, nil
 }
 
-// osShown is the OS the device page shows now for each device whose checks recorded an OS guess (the inventory's ranking, INV-44),
-// so a check's words never put a scan guess beside a better OS the page shows. Nil without an inventory: the guesses are kept.
-func (e scanningEngines) osShown(ctx context.Context, jobs []sensoractive.JobRow) (map[string]shownOS, error) {
+// osShown is the OS the device page shows now for each device whose checks recorded an OS (the inventory's ranking, INV-44), so a
+// check's words never put another OS beside the one the page shows. Nil without an inventory: the checks' words are kept. A failed
+// read is logged and leaves out the OS words of those checks: the list still answers, and never names an OS the page may not show.
+func (e scanningEngines) osShown(ctx context.Context, jobs []sensoractive.JobRow) map[string]shownOS {
 	if e.d.Inventory == nil {
-		return nil, nil
+		return nil
 	}
 	var ids []string
 	for _, j := range jobs {
@@ -83,17 +81,23 @@ func (e scanningEngines) osShown(ctx context.Context, jobs []sensoractive.JobRow
 		}
 	}
 	if len(ids) == 0 {
-		return nil, nil
+		return nil
 	}
+	out := make(map[string]shownOS, len(ids))
 	refs, err := e.d.Inventory.DeviceRefs(ctx, ids)
 	if err != nil {
-		return nil, err
+		if e.d.Log != nil {
+			e.d.Log.ErrorContext(ctx, "scanning history: the OS the device pages show could not be read; checks are listed without their OS", "error", err)
+		}
+		for _, id := range ids {
+			out[id] = shownOS{Unread: true}
+		}
+		return out
 	}
-	out := make(map[string]shownOS, len(refs))
 	for id, r := range refs {
-		out[id] = shownOS{Value: r.OS, Source: r.OSSource, Basis: r.OSBasis}
+		out[id] = shownOS{Value: r.OS, Basis: r.OSBasis}
 	}
-	return out, nil
+	return out
 }
 
 // deviceAddr is the address of device id now; the zero Addr when the device is unknown or has none.
@@ -120,20 +124,11 @@ var (
 
 // jobHistory is an sa_job row as a History row. Its words come from what it stored (#940 review r1 H1, M3): the hosts that answered
 // each sweep batch, the devices that answered each SNMP read, the row's own status and error; never the targets it only meant to reach.
-// shownOS is the OS a device's page shows now: the value the inventory's ranking chose, its source and basis (inventory DeviceRef).
-type shownOS struct{ Value, Source, Basis string }
-
-// guessUsed says whether the device page shows the scan's OS guess: its OS comes from nmap. Unknown (no inventory, a device not
-// found): the guess is kept, as the check recorded it.
-func (o *shownOS) guessUsed() bool { return o == nil || o.Source == "nmap" }
-
-// words is where the OS the page shows comes from, in the words the device page uses for its source.
-func (o *shownOS) words() string {
-	if o.Basis == "stated" {
-		return "as the device announces it (LLDP)"
-	}
-	return map[string]string{"manual": "as entered by a person", "agent": "as the device's agent reports", "snmp": "as the device states over SNMP",
-		"scan": "as a vulnerability check found", "passive": "from passive listening"}[o.Source]
+// shownOS is the OS a device's page shows now: the value the inventory's ranking chose and its basis (inventory DeviceRef: "guess"
+// for nmap's fingerprint, "stated", or ""), or Unread when it could not be read.
+type shownOS struct {
+	Value, Basis string
+	Unread       bool
 }
 
 func jobHistory(j sensoractive.JobRow, shown map[string]shownOS) (core.HistoryRun, bool) {
@@ -332,9 +327,9 @@ const shownPorts = 8
 
 // foundText is what a device check found, in words, from what it stored (sensoractive.DeviceFound): the open ports with nmap's
 // service names, its OS guess, and what changed since the previous check of the same reach ("nothing changed" when the ports and
-// the OS guess are the same). The guess and its change are said only when the device page shows the scan's guess (page, the OS it
-// shows now; nil: unknown, kept): when a better source won (INV-44 of inventory), the check names that OS and says the guess was not
-// used, or says nothing of the OS when the page shows none. Lower case first: the caller makes the sentence.
+// the OS guess are the same). The OS it recorded, and its change, are said only when it is the OS the device page shows now (page;
+// nil: no page to compare with, said as recorded): otherwise "scan guess not used now", never a second OS value (INV-44 of
+// inventory). A change is said without the old value. Lower case first: the caller makes the sentence.
 func foundText(addr string, f sensoractive.DeviceFound, page *shownOS) string {
 	var b strings.Builder
 	switch f.Reach {
@@ -356,21 +351,21 @@ func foundText(addr string, f sensoractive.DeviceFound, page *shownOS) string {
 	} else {
 		b.WriteString(sep + portsText(f))
 	}
-	if f.OS != "" && !page.guessUsed() { // a better source than the scan names the OS: the guess and its change are not said
-		if page.Value != "" {
-			b.WriteString("; OS " + page.Value)
-			if w := page.words(); w != "" {
-				b.WriteString(", " + w)
-			}
-			b.WriteString(" (scan guess not used)")
+	osChanged := false
+	switch {
+	case f.OS == "", page != nil && page.Unread: // nothing recorded, or the page's OS unknown: no OS words
+	case page != nil && page.Value != f.OS: // the page shows another OS (a better source, or a newer scan's guess): one OS on the page
+		b.WriteString("; OS: scan guess not used now")
+	default: // the OS the page shows (or no page to compare with): a guess is called one, the device's own answer is not
+		label := "OS guess "
+		if page != nil && page.Basis != "guess" {
+			label = "OS "
 		}
-		f.OS, f.OSWas = "", ""
-	}
-	if f.OS != "" {
 		if f.OSWas != "" {
-			b.WriteString("; OS guess now " + f.OS + " (was " + f.OSWas + ")")
+			b.WriteString("; " + label + "now " + f.OS + " (changed since the previous check)")
+			osChanged = true
 		} else {
-			b.WriteString("; OS guess " + f.OS)
+			b.WriteString("; " + label + f.OS)
 		}
 	}
 	if f.ExtraFailed {
@@ -391,7 +386,7 @@ func foundText(addr string, f sensoractive.DeviceFound, page *shownOS) string {
 		switch {
 		case len(ch) > 0:
 			b.WriteString("; " + since + ": " + strings.Join(ch, ", "))
-		case f.OSWas == "":
+		case !osChanged:
 			b.WriteString("; nothing changed " + since)
 		}
 	}

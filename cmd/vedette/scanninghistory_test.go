@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/modules/exposure"
@@ -127,7 +128,7 @@ func TestJobHistory_DeviceCheckSaysWhatItFound(t *testing.T) {
 		{"nothing changed", sensoractive.DeviceFound{Reach: "top1000", Open: 3, Ports: ports, OS: "Cisco Catalyst switch (IOS 15)", Compared: true}, "ok: 1 hosts up", "ok",
 			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); OS guess Cisco Catalyst switch (IOS 15); nothing changed since the previous check"},
 		{"OS changed", sensoractive.DeviceFound{Reach: "top1000", Open: 3, Ports: ports, OS: "Cisco Catalyst switch (IOS 15)", OSWas: "Cisco ISR router", Compared: true}, "ok: 1 hosts up", "ok",
-			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); OS guess now Cisco Catalyst switch (IOS 15) (was Cisco ISR router)"},
+			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); OS guess now Cisco Catalyst switch (IOS 15) (changed since the previous check)"},
 		{"ports changed", sensoractive.DeviceFound{Reach: "top1000", Open: 3, Ports: ports, Compared: true, New: []int{80}, Gone: []int{23, 443}}, "ok: 1 hosts up", "ok",
 			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); since the previous check: port 80 newly open, ports 23, 443 no longer open"},
 		{"no open port", sensoractive.DeviceFound{Reach: "top1000"}, "ok: 1 hosts up", "ok", "Scanned 192.168.10.47: no open port"},
@@ -150,9 +151,9 @@ func TestJobHistory_DeviceCheckSaysWhatItFound(t *testing.T) {
 	}
 }
 
-// A device check names its OS guess only when the device page shows that guess. When a better source won the inventory's ranking
-// (a person, the device's agent, its SNMP answer, its LLDP statement), the words name the OS the page shows and say the guess was not
-// used, never the raw guess or its change; a device whose page shows no OS gets no OS words.
+// A device check names the OS it recorded only when it is the OS the device page shows now (the inventory's ranking): a better
+// source (a person, an agent, SNMP, LLDP) or a newer scan's guess makes it "scan guess not used now", never a second OS value; a
+// change is said without the old value; the device's own NTLM answer is not called a guess; an unread page drops the OS words.
 func TestJobHistory_TheScanGuessOnlyWhenThePageShowsIt(t *testing.T) {
 	end := "2026-11-17T03:19:00.000Z"
 	j := sensoractive.JobRow{JobHead: sensoractive.JobHead{ID: "j", Kind: "device", Status: "done", Reason: "check_now", StartedAt: "2026-11-17T03:18:00.000Z", FinishedAt: &end, Targets: 1},
@@ -160,23 +161,35 @@ func TestJobHistory_TheScanGuessOnlyWhenThePageShowsIt(t *testing.T) {
 		Found: &sensoractive.DeviceFound{Reach: "top1000", Open: 1, Ports: []sensoractive.FoundPort{{Port: 22, Proto: "tcp", Name: "ssh"}},
 			OS: "Network switch OS (8.5 - 11.2)", OSWas: "Network switch OS (12)", Compared: true}}
 	const ports = "Scanned 192.168.10.47: 1 open port (22 ssh)"
+	const notUsed = ports + "; OS: scan guess not used now; nothing changed since the previous check"
 	for _, c := range []struct {
 		name  string
 		shown map[string]shownOS
 		text  string
 	}{
-		{"stated over LLDP", map[string]shownOS{"a-sw": {Value: "NetOS 15.1R7.9", Source: "passive", Basis: "stated"}},
-			ports + "; OS NetOS 15.1R7.9, as the device announces it (LLDP) (scan guess not used); nothing changed since the previous check"},
-		{"SNMP", map[string]shownOS{"a-sw": {Value: "NetOS 15.1R7.9", Source: "snmp"}}, ports + "; OS NetOS 15.1R7.9, as the device states over SNMP (scan guess not used); nothing changed since the previous check"},
-		{"a person", map[string]shownOS{"a-sw": {Value: "NetOS 15", Source: "manual"}}, ports + "; OS NetOS 15, as entered by a person (scan guess not used); nothing changed since the previous check"},
-		{"no OS on the page", map[string]shownOS{"a-sw": {}}, ports + "; nothing changed since the previous check"},
-		{"the page shows the guess", map[string]shownOS{"a-sw": {Value: "Network switch OS (8.5 - 11.2)", Source: "nmap", Basis: "guess"}},
-			ports + "; OS guess now Network switch OS (8.5 - 11.2) (was Network switch OS (12))"},
-		{"unknown device: kept", nil, ports + "; OS guess now Network switch OS (8.5 - 11.2) (was Network switch OS (12))"},
+		{"stated over LLDP", map[string]shownOS{"a-sw": {Value: "NetOS 15.1R7.9", Basis: "stated"}}, notUsed},
+		{"SNMP", map[string]shownOS{"a-sw": {Value: "NetOS 15.1R7.9"}}, notUsed},
+		{"a newer scan's guess", map[string]shownOS{"a-sw": {Value: "Network switch OS (12)", Basis: "guess"}}, notUsed},
+		{"no OS on the page", map[string]shownOS{"a-sw": {}}, notUsed},
+		{"the page shows this guess", map[string]shownOS{"a-sw": {Value: "Network switch OS (8.5 - 11.2)", Basis: "guess"}},
+			ports + "; OS guess now Network switch OS (8.5 - 11.2) (changed since the previous check)"},
+		{"the page's OS could not be read", map[string]shownOS{"a-sw": {Unread: true}}, ports + "; nothing changed since the previous check"},
+		{"no page to compare with", nil, ports + "; OS guess now Network switch OS (8.5 - 11.2) (changed since the previous check)"},
 	} {
 		r, ok := jobHistory(j, c.shown)
 		if !ok || r.Text != c.text {
 			t.Errorf("%s:\n got %q\nwant %q", c.name, r.Text, c.text)
 		}
+		if strings.Contains(r.Text, "Network switch OS (12)") || strings.Contains(r.Text, "NetOS") {
+			t.Errorf("%s: a second OS value in %q", c.name, r.Text)
+		}
+	}
+	// the device's own NTLM answer, shown on the page (basis not a guess), is named without "guess"
+	ntlm := j
+	f := *j.Found
+	f.OS, f.OSWas = "Windows 11 (build 26100)", ""
+	ntlm.Found = &f
+	if r, _ := jobHistory(ntlm, map[string]shownOS{"a-sw": {Value: "Windows 11 (build 26100)"}}); r.Text != ports+"; OS Windows 11 (build 26100); nothing changed since the previous check" {
+		t.Errorf("NTLM answer: %q", r.Text)
 	}
 }

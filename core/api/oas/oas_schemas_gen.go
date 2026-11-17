@@ -195691,6 +195691,8 @@ func (s *ScanGetScansRunsOKItemsItemCurrent) SetLabel(val string) {
 
 type ScanGetScansRunsOKItemsItemIdentificationItem struct {
 	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	// The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads
+	// "Operating system: scan guess not used now".
 	Found []string `json:"found"`
 	IP    string   `json:"ip"`
 	Label string   `json:"label"`
@@ -197965,6 +197967,8 @@ func (s *ScanPostScansRunsCreatedCurrent) SetLabel(val string) {
 
 type ScanPostScansRunsCreatedIdentificationItem struct {
 	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	// The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads
+	// "Operating system: scan guess not used now".
 	Found []string `json:"found"`
 	IP    string   `json:"ip"`
 	Label string   `json:"label"`
@@ -198941,6 +198945,8 @@ func (s *ScanPostScansRunsIDStopOKCurrent) SetLabel(val string) {
 
 type ScanPostScansRunsIDStopOKIdentificationItem struct {
 	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	// The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads
+	// "Operating system: scan guess not used now".
 	Found []string `json:"found"`
 	IP    string   `json:"ip"`
 	Label string   `json:"label"`
@@ -200363,9 +200369,11 @@ type ScanningGetScanningHistoryOKItemsItem struct {
 	// devices", "2 of 3 devices answered over SNMP", "Failed: the device did not answer over SNMP." (an
 	// SNMP read nothing answered is failed, never partial), "Scanned 192.168.18.20: 3 open ports (22 ssh,
 	// 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check" (a device
-	// check: its open ports, its OS guess, "OS guess now (was )", "since the previous check: port 8080
-	// newly open, port 23 no longer open"), "Scanned 192.168.18.20: it did not answer", "Stopped: . Swept
-	// 64 addresses … before it ended", "Failed: .".
+	// check: its open ports; the OS it recorded only when it is the OS the device page shows now, "OS
+	// guess " for nmap's fingerprint, "OS " for the device's own answer, "OS guess now (changed since the
+	// previous check)"; otherwise "OS: scan guess not used now", never a second OS value; "since the
+	// previous check: port 8080 newly open, port 23 no longer open"), "Scanned 192.168.18.20: it did not
+	// answer", "Stopped: . Swept 64 addresses … before it ended", "Failed: .".
 	Text string `json:"text"`
 	// Sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart);
 	// automatic: the window's queue (a new device, a weekly scan) or its SNMP round; person: a person

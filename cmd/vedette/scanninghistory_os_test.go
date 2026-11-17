@@ -15,7 +15,7 @@ import (
 )
 
 // A device check's words read the OS the device page shows from the inventory's own ranking (DeviceRefs): a scan guess alone is
-// said as the guess; once the device states its OS over SNMP, the same check names that OS and says the guess was not used.
+// said as the guess; once the device states its OS over SNMP, the same check says its guess is not used, never naming a second OS.
 func TestScanningHistoryReadsTheOSThePageShows(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -46,18 +46,14 @@ func TestScanningHistoryReadsTheOSThePageShows(t *testing.T) {
 		Found: &sensoractive.DeviceFound{Reach: "top1000", OS: "Network switch OS (8.5 - 11.2)"}}
 	text := func() string {
 		t.Helper()
-		shown, err := scanningEngines{d: d}.osShown(ctx, []sensoractive.JobRow{j})
-		if err != nil {
-			t.Fatal(err)
-		}
-		r, _ := jobHistory(j, shown)
+		r, _ := jobHistory(j, scanningEngines{d: d}.osShown(ctx, []sensoractive.JobRow{j}))
 		return r.Text
 	}
 	if got, want := text(), "Scanned 192.168.10.47: no open port; OS guess Network switch OS (8.5 - 11.2)"; got != want {
 		t.Fatalf("guess on the page:\n got %q\nwant %q", got, want)
 	}
 	record(observe.SNMP, "NetOS 15.1R7.9", 0.9)
-	if got, want := text(), "Scanned 192.168.10.47: no open port; OS NetOS 15.1R7.9, as the device states over SNMP (scan guess not used)"; got != want {
+	if got, want := text(), "Scanned 192.168.10.47: no open port; OS: scan guess not used now"; got != want {
 		t.Fatalf("SNMP on the page:\n got %q\nwant %q", got, want)
 	}
 }

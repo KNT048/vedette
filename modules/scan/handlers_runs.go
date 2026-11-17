@@ -29,6 +29,7 @@ func (h *ScanHandlers) ScanGetScansRuns(ctx context.Context, params oas.ScanGetS
 	if err != nil {
 		return nil, err
 	}
+	h.svc.withShownOS(ctx, items)
 	return into[oas.ScanGetScansRunsOK](struct {
 		Items      []RunView `json:"items"`
 		EngineBusy bool      `json:"engine_busy"`

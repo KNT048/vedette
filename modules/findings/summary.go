@@ -192,7 +192,7 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 	}
 	// n73: Fix first names the software, not only the KEV group ("Windows PCs and servers" on all five rows): the device's row the
 	// entry is keyed to, as the finding's page names it (matchedOn). At most SummaryTop devices are read; a failed read only leaves
-	// the name out. The stored entries are read once, and only when a top item is a "Multiple Products" entry.
+	// the name out. The stored entries are read once.
 	var vulns []Vuln
 	vulnsRead := false
 	softwareOf := func(r summaryRow, k KevInfo) string {
@@ -200,17 +200,17 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 		if err != nil || !ok {
 			return ""
 		}
+		// the stored entry lets matchedOn name the matcher's row: a "Multiple Products" entry, or one reached only through NVD's list
+		// (#910: no row is keyed to it), names the same row as the finding's page (review r2 M1 of #913)
+		if !vulnsRead {
+			vulnsRead = true
+			vulns, _ = h.feed.Vulns(ctx)
+		}
 		var v *Vuln
-		if isMultiProduct(k.Product) {
-			if !vulnsRead {
-				vulnsRead = true
-				vulns, _ = h.feed.Vulns(ctx)
-			}
-			for i := range vulns {
-				if vulns[i].CVE == r.cve {
-					v = &vulns[i]
-					break
-				}
+		for i := range vulns {
+			if vulns[i].CVE == r.cve {
+				v = &vulns[i]
+				break
 			}
 		}
 		return matchedOn(a, k, v)

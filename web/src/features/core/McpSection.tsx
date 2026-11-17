@@ -70,7 +70,7 @@ function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
     { id: 'last4', header: t('mcp.token.col.last4'), accessorFn: (x) => x.last4, cell: ({ row }) => <span className="font-mono text-meta">…{row.original.last4}</span> },
     { id: 'created', header: t('mcp.token.col.created'), accessorFn: (x) => x.created_at, cell: ({ row }) => fmtDateTime(row.original.created_at) },
     { id: 'used', header: t('mcp.token.col.used'), accessorFn: (x) => x.last_used ?? '', cell: ({ row }) => (row.original.last_used ? fmtRelative(row.original.last_used) : t('mcp.token.never')) },
-    { id: 'rev', header: t('mcp.token.col.revoke'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => <Button size="sm" variant="danger" aria-label={t('mcp.token.revokeOf', { name: row.original.name })} disabled={gate.disabled || m.revoke.isPending} title={gate.title} onClick={() => setAskRevoke(row.original)}>{t('mcp.token.revoke')}</Button> },
+    { id: 'rev', header: t('mcp.token.col.revoke'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => <Button size="sm" variant="danger" aria-label={t('mcp.token.revokeOf', { name: row.original.name })} disabled={gate.disabled || m.revoke.isPending} busy={m.revoke.isPending && m.revoke.variables === row.original.id} busyLabel={t('mcp.token.revoking')} title={gate.title} onClick={() => setAskRevoke(row.original)}>{t('mcp.token.revoke')}</Button> },
   ]
   const toolCols: ColumnDef<{ name: string; scope: string }>[] = [
     { id: 'name', header: t('mcp.tools.col.name'), accessorFn: (x) => x.name, cell: ({ row }) => <span className="font-mono text-meta">{row.original.name}</span> },
@@ -104,7 +104,7 @@ function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
                   </div>
                 ))}
               </fieldset>
-              <div><Button type="submit" variant="primary" disabled={gate.disabled || m.create.isPending} title={gate.title}><Plus />{t('mcp.token.create')}</Button></div>
+              <div><Button type="submit" variant="primary" disabled={gate.disabled} busy={m.create.isPending} busyLabel={t('common:busy.creating')} title={gate.title}><Plus />{t('mcp.token.create')}</Button></div>
             </form>}
             <DataTable data={s.tokens} columns={tokenCols} caption={t('mcp.token.title')} empty={t('mcp.token.empty')} />
           </Section>
@@ -119,7 +119,7 @@ function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
         <DialogContent title={t('mcp.token.revokeAsk.title', { name: askRevoke?.name ?? '' })} description={t('mcp.token.revokeAsk.body')} info={t('mcp.token.revokeAsk.info')}>
           <DialogFooter>
             <Button onClick={() => setAskRevoke(null)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={m.revoke.isPending} onClick={() => askRevoke && void revoke(askRevoke)}>{t('mcp.token.revoke')}</Button>
+            <Button variant="danger" busy={m.revoke.isPending} busyLabel={t('mcp.token.revoking')} onClick={() => askRevoke && void revoke(askRevoke)}>{t('mcp.token.revoke')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

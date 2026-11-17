@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Field } from '@/components/ui/input'
@@ -84,11 +85,11 @@ function SnmpRead({ ip }: { ip: string }) {
             renderCreate={(p) => (p.open ? <CredentialDialog current={null} scope={ip} onClose={() => p.onOpenChange(false)}
               onSaved={(c) => { p.onCreated({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }); saved(c) }} /> : null)} />
         </Field>
-        <Button type="submit" size="sm" variant="primary" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('sources.snmp.read')}</Button>
+        <Button type="submit" size="sm" variant="primary" busy={test.isPending} busyLabel={t('snmp.run.running')}>{t('sources.snmp.read')}</Button>
         {chosenCred ? <Button size="sm" variant="link" onClick={() => setForm({ current: chosenCred, scope: chosenCred.scope.join('\n'), widen: false })}>{t('addDialog.snmp.editCredential', { name: chosenCred.name })}</Button> : null}
       </form>
       {q.data && !q.data.ready ? <p className="text-meta text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
-      {test.isPending ? <p role="status" aria-live="polite" className="text-meta text-muted">{t('snmp.run.pending', { ip })}</p> : null}
+      <BusyNote busy={test.isPending}>{t('snmp.run.pending', { ip })}</BusyNote>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result && !test.isPending ? <SnmpAnswer r={result} ip={ip} /> : null}
       {result && !test.isPending && !result.ok ? (
@@ -157,7 +158,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
         return (
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-meta text-muted">{t('sources.snmp.approveFirst')}</span>
-            <Button size="sm" disabled={!canOp || approve.isPending} title={canOp ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+            <Button size="sm" disabled={!canOp} busy={approve.isPending} busyLabel={t('common:busy.approving')} title={canOp ? undefined : t('common:needRole', { role: t('common:role.operator') })}
               onClick={() => approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name: nameOf(a, kindLabel(a.kind)) })), onError: (e) => toast.error(errMsg(e)) })}>{t('sources.snmp.approveHere')}</Button>
           </span>
         )
@@ -167,7 +168,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
       // D-601: with SNMP off for this device, the button says it turns SNMP on (the person's consent, audited) and opens the read here.
       if (a.snmp_source === 'off') {
         return (
-          <Button size="sm" disabled={sources.isPending}
+          <Button busy={sources.isPending} busyLabel={t('common:busy.saving')} size="sm" disabled={sources.isPending}
             onClick={() => sources.mutate({ snmp: 'on' }, { onSuccess: () => setReading(true), onError: (e) => toast.error(errMsg(e)) })}>{t('sources.snmp.turnOnAdd')}</Button>
         )
       }

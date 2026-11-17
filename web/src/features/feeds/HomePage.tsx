@@ -147,8 +147,8 @@ function Weekly() {
                 <div className="flex gap-2">
                   {i.answer === 'have' ? <span className="text-meta text-ok">{t('weekly.added')}</span> : (
                     <>
-                      <Button size="sm" variant="primary" disabled={!canAct || answer.isPending} title={canAct ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => send(i.id, 'have')}>{t('weekly.have')}</Button>
-                      <Button size="sm" disabled={!canAct || answer.isPending} onClick={() => send(i.id, 'not_relevant')}>{t('weekly.notRelevant')}</Button>
+                      <Button size="sm" variant="primary" disabled={!canAct || answer.isPending} busy={answer.isPending && answer.variables?.id === i.id && answer.variables.answer === 'have'} busyLabel={t('common:busy.adding')} title={canAct ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => send(i.id, 'have')}>{t('weekly.have')}</Button>
+                      <Button size="sm" disabled={!canAct || answer.isPending} busy={answer.isPending && answer.variables?.id === i.id && answer.variables.answer === 'not_relevant'} busyLabel={t('common:busy.saving')} onClick={() => send(i.id, 'not_relevant')}>{t('weekly.notRelevant')}</Button>
                     </>
                   )}
                 </div>

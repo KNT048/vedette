@@ -57,7 +57,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
         </div>
         <p className="text-meta text-muted">{data.schedule_blocked_reason ? data.schedule_blocked_reason : !data.can_scan && sch.enabled ? t(data.scope.commitment ? 'safety.nextScannerDown' : 'safety.nextBlocked') : data.next_run ? t('safety.next', { time: fmtDateTime(data.next_run) }) : t('safety.nextNone')}</p>
         {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-        <div><Button type="submit" disabled={dis || save.isPending}>{t('nuclei.saveSchedule')}</Button></div>
+        <div><Button type="submit" disabled={dis} busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('nuclei.saveSchedule')}</Button></div>
       </form>
       <AutoStop data={data} disabled={dis} />
       <div className="grid gap-2">

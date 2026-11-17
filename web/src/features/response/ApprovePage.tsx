@@ -6,6 +6,7 @@ import { Notice } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { StandalonePage } from '@/components/common/StandalonePage'
 import { ErrorState, Loading } from '@/components/common/States'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { fmtDateTime } from '@/lib/format'
 import { errText, useApprovalView, useDecideByLink } from './api'
@@ -34,9 +35,12 @@ export default function ApprovePage() {
           <p className="text-meta text-muted">{t('approve.until', { time: fmtDateTime(q.data.expires_at) })} {t('approve.once')}</p>
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" disabled={decide.isPending} onClick={() => go('approve')}>{t('action.approve')}</Button>
-            <Button disabled={decide.isPending} onClick={() => go('reject')}>{t('action.reject')}</Button>
+            <Button variant="primary" disabled={decide.isPending} busy={decide.isPending && decide.variables?.decision === 'approve'} busyLabel={t('common:busy.approving')}
+              aria-describedby="approve-wait" onClick={() => go('approve')}>{t('action.approve')}</Button>
+            <Button disabled={decide.isPending} busy={decide.isPending && decide.variables?.decision === 'reject'} busyLabel={t('common:busy.rejecting')} onClick={() => go('reject')}>{t('action.reject')}</Button>
           </div>
+          {/* kien G1: the last approval makes the change on the device before it answers (up to 90 s for each change) */}
+          <BusyNote id="approve-wait" busy={decide.isPending && decide.variables?.decision === 'approve'}>{t('action.approveWaiting')}</BusyNote>
         </Card>
       ) : (
         <Notice tone="off" role="alert" className="mb-0" title={t(`approve.state.${q.data.state}`, { status: q.data.status ? t(`status.${q.data.status}`).toLowerCase() : '' })} />

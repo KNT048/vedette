@@ -637,7 +637,8 @@ describe('logs: SIEM forwarding (S-LOG-3)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save and send test' }))
     expect((await screen.findAllByText('SIEM settings saved.')).length).toBeGreaterThan(0)
     expect((await screen.findAllByText(/Sent 1 test record to siem\.company\.com:514\/udp/)).length).toBeGreaterThan(0)
-    expect(await screen.findByRole('status')).toHaveTextContent('success')
+    // the last test's line (the BusyNote under the button is a status region too, empty when idle)
+    expect(await screen.findByText(/^Test at .*: success/)).toHaveAttribute('role', 'status')
     expect(auditStore.get().some((e) => e.action === 'logs.siem_test')).toBe(true)
   })
 
@@ -646,7 +647,24 @@ describe('logs: SIEM forwarding (S-LOG-3)', () => {
     await userEvent.type(await screen.findByLabelText('SIEM server'), 'siem.invalid')
     await userEvent.click(screen.getByRole('button', { name: 'Save and send test' }))
     expect((await screen.findAllByText(/Could not connect to siem\.invalid/)).length).toBeGreaterThan(0)
-    expect(await screen.findByRole('status')).toHaveTextContent('failed')
+    expect(await screen.findByText(/^Test at .*: failed/)).toHaveAttribute('role', 'status')
+  })
+
+  // kien G1: the test waits on the SIEM (up to 30 s); the button spins and a note says what is happening
+  it('Save and send test shows the busy state and the waiting note while the test runs', async () => {
+    let release!: () => void
+    const held = new Promise<void>((r) => { release = r })
+    server.use(http.post('*/api/v1/logs/siem/test', async () => { await held; return HttpResponse.json({ ok: true, at: new Date().toISOString(), detail: 'ok' }) }))
+    renderSiem()
+    await userEvent.type(await screen.findByLabelText('SIEM server'), 'siem.company.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Save and send test' }))
+    const busy = await screen.findByRole('button', { name: 'Sending test…' })
+    expect(busy).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: /^Save$/ })).not.toHaveAttribute('aria-busy')
+    expect(screen.getByText('Sending a test record to your SIEM… this can take up to 30 seconds.')).toBeInTheDocument()
+    release()
+    expect(await screen.findByRole('button', { name: 'Save and send test' })).not.toHaveAttribute('aria-busy')
+    expect(screen.queryByText('Sending a test record to your SIEM… this can take up to 30 seconds.')).toBeNull()
   })
 
   it('JSON webhook: the signing key keeps only its last 4 characters, the API never returns the full key', async () => {

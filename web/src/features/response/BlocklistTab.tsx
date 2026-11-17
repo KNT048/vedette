@@ -27,7 +27,7 @@ export function BlocklistTab() {
       <DialogContent title={t('blocklist.regenerateTitle')} description={t('blocklist.regenerateBody')}>
         <DialogFooter>
           <Button onClick={() => setAsk(false)}>{t('common:cancel')}</Button>
-          <Button variant="danger" disabled={renew.isPending} onClick={() => renew.mutate(undefined, { onSuccess: () => { toast.success(t('blocklist.regenerated')); setAsk(false) }, onError: (e) => toast.error(errText(e)) })}>{t('blocklist.regenerate')}</Button>
+          <Button variant="danger" busy={renew.isPending} busyLabel={t('common:busy.generating')} onClick={() => renew.mutate(undefined, { onSuccess: () => { toast.success(t('blocklist.regenerated')); setAsk(false) }, onError: (e) => toast.error(errText(e)) })}>{t('blocklist.regenerate')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

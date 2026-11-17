@@ -269,7 +269,10 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Finish setup' })).toBeDisabled())
+    // busy (docs/UI.md §8): the button says what it is doing and cannot be pressed again
+    const finishing = await screen.findByRole('button', { name: 'Setting up…' })
+    expect(finishing).toBeDisabled()
+    expect(finishing).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled()
     release()
     // a failure gives the buttons back, with the box's sentence

@@ -24,7 +24,7 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
   const active = '/devices/setup?tab=scope#active-enabled' // the active scanning switch
   const turnOn = (
     <div>
-      <Button size="sm" variant="primary" disabled={!admin || sources.isPending} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })}
+      <Button busy={sources.isPending} busyLabel={t('common:busy.saving')} size="sm" variant="primary" disabled={!admin || sources.isPending} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })}
         onClick={() => sources.mutate({ snmp: 'on' }, { onSuccess: () => { toast.success(t('snmpNext.snmpOn', { ip })); onRetry() }, onError: (e) => toast.error(errMsg(e)) })}>
         {t('snmpNext.turnSnmpOn', { ip })}
       </Button>
@@ -39,7 +39,7 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
     case 'not_approved':
       return r.device_id ? (
         <div>
-          <Button size="sm" variant="primary" disabled={approve.isPending}
+          <Button size="sm" variant="primary" busy={approve.isPending} busyLabel={t('common:busy.approving')}
             onClick={() => approve.mutate(undefined, { onSuccess: () => { toast.success(t('snmpNext.approved', { ip })); onRetry() }, onError: (e) => toast.error(errMsg(e)) })}>
             {t('snmpNext.approve', { ip })}
           </Button>

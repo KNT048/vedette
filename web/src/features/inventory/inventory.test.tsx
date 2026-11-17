@@ -1843,6 +1843,25 @@ describe('inventory: agents (S-INV-4)', () => {
     expect((await call('GET', '/agents')).json!.wazuh).toBeNull() // testing does not save
   })
 
+  it('kien G1: while Test connection waits on the Wazuh manager, the button is busy and a note says it can take up to 30 seconds', async () => {
+    enableModule('agent-intake', true)
+    let release = () => {}
+    const held = new Promise<void>((r) => { release = r })
+    server.use(http.post('*/api/v1/inventory/agents/wazuh/test', async () => { await held; return HttpResponse.json({ version: '4.9.2', agents: 1 }) }))
+    const user = userEvent.setup()
+    renderApp('/devices/setup?tab=agents')
+    await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
+    await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
+    const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
+    await user.type(within(dialog).getByLabelText('Wazuh server API address'), 'https://wazuh-manager:55000')
+    await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
+    expect(await within(dialog).findByRole('button', { name: 'Testing…' }, T)).toHaveAttribute('aria-busy', 'true')
+    expect(within(dialog).getByText(/^Reaching the Wazuh manager… this can take up to 30 seconds\./)).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Save connection' })).toBeDisabled()
+    release()
+    expect(await within(dialog).findByText(/Connected to Wazuh 4\.9\.2/, undefined, T)).toBeInTheDocument()
+  })
+
   it('#847: a Wazuh pull that failed shows why on the card (a password not restored with the backup says to enter it again)', async () => {
     enableModule('agent-intake', true)
     const lost = 'The saved Wazuh password was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the password again and press Save. Nothing is pulled until then.'

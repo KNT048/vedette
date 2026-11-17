@@ -5,6 +5,7 @@ import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
+import { BusyNote } from '@/components/common/BusyNote'
 import { useCan } from '@/lib/session'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { dateText, dateTimeText } from './dates'
@@ -62,8 +63,9 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
       </p>
       {heldOn ? (embedded ? null : (
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={() => change(false)} disabled={!can || set.isPending} title={locked}>{t('greenbone.disable')}</Button>
+          <Button onClick={() => change(false)} disabled={!can} busy={set.isPending} busyLabel={t('common:busy.turningOff')} title={locked}>{t('greenbone.disable')}</Button>
           <span className="text-caption text-muted">{t('greenbone.heldOn')}</span>
+          <BusyNote busy={set.isPending} className="basis-full">{t('greenbone.offWaiting')}</BusyNote>
         </div>
       )) : g.state === 'unavailable' ? null : (
         <>
@@ -83,11 +85,13 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
           {!on && !p.ok ? <p role="alert" className="text-sm text-warn">{p.reason}</p> : null}
           {embedded ? null : <div className="flex flex-wrap items-center gap-3">
             {on ? (
-              <Button onClick={() => change(false)} disabled={!can || set.isPending} title={locked}>{t('greenbone.disable')}</Button>
+              <Button onClick={() => change(false)} disabled={!can} busy={set.isPending} busyLabel={t('common:busy.turningOff')} title={locked}>{t('greenbone.disable')}</Button>
             ) : (
-              <Button variant="primary" onClick={() => change(true)} disabled={!can || !p.ok || set.isPending} title={locked ?? (p.ok ? undefined : p.reason ?? undefined)}>{t('greenbone.enable')}</Button>
+              <Button variant="primary" onClick={() => change(true)} disabled={!can || !p.ok} busy={set.isPending} busyLabel={t('common:busy.turningOn')} title={locked ?? (p.ok ? undefined : p.reason ?? undefined)}>{t('greenbone.enable')}</Button>
             )}
             {g.changed_by && g.changed_at ? <span className="text-caption text-muted">{t(on ? 'greenbone.changedOn' : 'greenbone.changedOff', { by: g.changed_by, time: dateTimeText(g.changed_at) })}</span> : null}
+            {/* kien G1: Turn off stops the OpenVAS containers and waits for them (up to 5 minutes); Enable only starts them in the background */}
+            <BusyNote busy={set.isPending && set.variables === false} className="basis-full">{t('greenbone.offWaiting')}</BusyNote>
           </div>}
           {locked && !embedded ? <p className="text-meta text-muted">{locked}</p> : null}
         </>

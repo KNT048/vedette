@@ -80,7 +80,7 @@ function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () => void 
           <ActionError error={save.error} />
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" disabled={save.isPending}>{save.isPending ? t('harness.saving') : t('common:save')}</Button>
+            <Button type="submit" variant="primary" busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('common:save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

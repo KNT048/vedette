@@ -120,7 +120,7 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
               {error && errorAt === 'form' ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
               <DialogFooter>
                 <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-                <Button type="submit" variant="primary" disabled={unchanged || save.isPending}>{t('common:save')}</Button>
+                <Button type="submit" variant="primary" disabled={unchanged} busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('common:save')}</Button>
               </DialogFooter>
             </form>
           )}

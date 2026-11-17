@@ -323,6 +323,23 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(await screen.findByText('Your AI')).toBeInTheDocument()
   })
 
+  // kien G1: the button went grey for 10–20 s with no sign of work. While the AI answers it spins, says "Asking…", and a note under
+  // it says what is happening and how long it can take.
+  it('Ask my AI shows the busy state and the waiting note while the AI answers', async () => {
+    let release!: () => void
+    const held = new Promise<void>((r) => { release = r })
+    server.use(http.post('*/api/v1/findings/:id/ai', async () => { await held; return HttpResponse.json({ error: { code: 'ai_timeout', message: 'late' } }, { status: 504 }) }))
+    renderApp('/findings/f-2')
+    await userEvent.click(await screen.findByRole('button', { name: 'Ask my AI' }))
+    const busy = await screen.findByRole('button', { name: 'Asking…' })
+    expect(busy).toHaveAttribute('aria-busy', 'true')
+    expect(busy).toBeDisabled()
+    expect(screen.getByText('Asking your AI… this can take up to a minute.')).toBeInTheDocument()
+    release()
+    expect(await screen.findByRole('button', { name: 'Ask my AI' })).not.toHaveAttribute('aria-busy')
+    expect(screen.queryByText('Asking your AI… this can take up to a minute.')).toBeNull()
+  })
+
   // beta 0.1.0-beta.1: Explain on Haiku 5.5 failed with a cut answer, and the page said "No AI profile is assigned". Each failure of the
   // AI shows the box's own message for it, never the "not set up" one.
   it.each([

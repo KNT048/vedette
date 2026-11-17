@@ -72,7 +72,7 @@ export default function KnowledgeTab() {
               </Card>
             </Section>
             <Section title={t('harness.knowledge.title')} description={t('harness.knowledge.body')} info={t('harness.knowledge.bodyInfo')}
-              actions={<><Button variant="primary" onClick={() => file.current?.click()} disabled={add.isPending || !k.index_profile} title={!k.index_profile ? t('harness.knowledge.needIndex') : undefined}>{add.isPending ? t('harness.knowledge.uploading') : t('harness.knowledge.upload')}</Button>
+              actions={<><Button variant="primary" onClick={() => file.current?.click()} disabled={!k.index_profile} busy={add.isPending} busyLabel={t('harness.knowledge.uploading')} title={!k.index_profile ? t('harness.knowledge.needIndex') : undefined}>{t('harness.knowledge.upload')}</Button>
                 <input ref={file} type="file" hidden tabIndex={-1} aria-hidden="true" accept=".pdf,.md,.txt,.docx" onChange={(e) => { void onFile(e) }} data-testid="kb-file" /></>}>
               <div className="grid gap-3">
                 {pickErr ? <Notice tone="danger" role="alert" title={pickErr} /> : null}
@@ -114,7 +114,7 @@ function DocJobsDialog({ doc, onClose }: { doc: KnowledgeDoc; onClose: () => voi
           <ActionError error={save.error} />
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" disabled={save.isPending}>{save.isPending ? t('harness.saving') : t('common:save')}</Button>
+            <Button type="submit" variant="primary" busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('common:save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

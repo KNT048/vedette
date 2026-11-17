@@ -45,7 +45,7 @@ export function NeverTouch() {
           <Field htmlFor="al-value" label={t('allow.value')} hint={t('allow.valueHint')} className="min-w-52"><Input id="al-value" value={nv} onChange={(e) => setNv(e.target.value)} placeholder="192.168.10.5" /></Field>
           <Field htmlFor="al-label" label={t('allow.label')} className="min-w-52"><Input id="al-label" value={nl} maxLength={80} onChange={(e) => setNl(e.target.value)} placeholder="Accounting server" /></Field>
           <Button type="submit" disabled={!valid(nv.trim())}><Plus className="size-4" aria-hidden />{t('allow.add')}</Button>
-          <Button type="button" variant="primary" disabled={!draft || save.isPending} onClick={() => save.mutate({ items }, { onSuccess: () => { toast.success(t('common:saved')); setDraft(null) }, onError: (e) => toast.error(errText(e)) })}>{t('common:save')}</Button>
+          <Button type="button" variant="primary" disabled={!draft} busy={save.isPending} busyLabel={t('common:busy.saving')} onClick={() => save.mutate({ items }, { onSuccess: () => { toast.success(t('common:saved')); setDraft(null) }, onError: (e) => toast.error(errText(e)) })}>{t('common:save')}</Button>
         </form>
       ) : null}
     </div>

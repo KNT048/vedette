@@ -6,6 +6,9 @@
 - **inventory** shows it on the Devices list, the device page and the CSV (inventory INV-40, through cmd/vedette `findingCounts.RiskByAsset`) and filters on it (`?risk=`).
 - **web**: `features/inventory/RiskMarker.tsx`; the Findings page (device column and filter from `risks`, To fix cards from each card's `risk`) and Recommended updates (`risk` of each item); the mocks' `deviceRisk`/`riskOfCard` mirror `RiskOf`.
 
+## Modifying: `deviceOS`, `deviceSoftware`, `withoutCoveredWindows`, `osRow.reads`, `OSVersion` (INV-4c (2))
+- **inventory** shows the OS these keep as the device's OS (`DeclaredOSRow` through `Config.DeclaredOS`): a change of which row decides changes the device page in the same commit. `cmd/vedette` `TestWiringDeclaredOSPageIsTheMatchersOS` must still pass.
+
 ## Modifying: thư viện thuần `modules/findings` (không DB; service WP-21 bọc ngoài)
 - `MatchAsset(Asset, []Vuln, have, now) MatchResult{New, Existing}` — bộ khớp. Gọi từ service khi nhận `inventory.match.changed`/`feeds.vuln.updated`. Đổi quy tắc ⇒ đổi số finding và tin `notify`; test `Contract_INV4/5/6`.
 - `NewFinding`, `Finding.ApplyMatch`, `Finding.Apply(action, note, user, now)`, `Finding.ConfirmFromScan(evidence, now)`, `ScanClear`, `Finding.Validate` — vòng đời. Lỗi `*APIError` (`ErrBadAction`, `ErrNoteTooLong`, `ErrNoteRequired`, `ErrAlreadyOpen`, `ErrNotFound`) ánh xạ 1:1 mã lỗi API; đổi mã = đổi `findings/contract.ts` và mock.

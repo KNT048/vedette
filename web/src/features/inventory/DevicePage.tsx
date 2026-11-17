@@ -291,9 +291,9 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const notInstalledIn = (sw: SoftwareView) => !!sw.correction?.not_installed
   const list = d.asset.software.filter((sw) => !(sw.corrected_by && d.asset.software.some((c) => c.id === sw.corrected_by && notInstalledIn(c) && c.correction?.active)))
   // The OS the device uses has a line of its own when no row shows it (an OS from the agent, SNMP or the device's LLDP statement);
-  // a network scan's OS guess is its own row, marked as a guess, never also a line. The box's own OS is its package list.
+  // a network scan's OS guess, or the OS row a person declared, is its own row, never also a line. The box's own OS is its package list.
   const os = d.asset.os
-  const osBox = os && os.basis !== 'guess' && !d.asset.is_box && !list.some((sw) => sw.display === os.value) ? (
+  const osBox = os && os.basis !== 'guess' && !os.software_id && !d.asset.is_box && !list.some((sw) => sw.display === os.value) ? (
     <div className="mb-3 grid gap-1 rounded-md border border-rule bg-surface px-4 py-3 text-sm" data-testid="software-os">
       <span className="font-medium">{t('software.os')}</span>
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><span className="[overflow-wrap:anywhere]">{os.value}</span><SourceBadge source={os.source} confidence={os.confidence} basis={os.basis} /></span>

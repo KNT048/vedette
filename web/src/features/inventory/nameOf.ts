@@ -17,7 +17,9 @@ export function displayName(a: Named): string {
   // The backend lists software by display name (ORDER BY display): the first of them, whatever order this array has.
   const product = a.origin === 'manual' ? a.software?.map((s) => s.display.trim()).filter(Boolean).sort()[0] : undefined
   if (product) return hasIp(a) ? product : i18n.t('inventory:noDevice', { product })
-  const hw = [a.vendor?.value, a.model?.value].filter(Boolean).join(' ')
+  // A maker or model read from a person's declared OS row (software_id) is not the observations' (inventory INV-45): the backend's
+  // naming rule leaves it out, and so does this one, so a device has one name on every page.
+  const hw = [a.vendor, a.model].filter((o) => o && !o.software_id).map((o) => o!.value).filter(Boolean).join(' ')
   return hw || (hasIp(a) ? a.ip : '')
 }
 

@@ -68,6 +68,11 @@ type UpdateAction struct {
 	Ransomware, Likely int
 	// How each exploited finding is known (Proof*); zero for planned ones (every plan CVE is compared on a trusted version).
 	Confirmed, Detected, Reported, Suspected int
+	// NVDLag (planned Windows updates, PlanItem.NVDLag): the update is newer than every fix NVD names, so it fixes at least CVEs; the
+	// newest update's CVEs are not analysed by NVD yet.
+	NVDLag bool
+	// KB is the KB number of a Windows update's Fixed build when Microsoft's release information lists it; "" otherwise.
+	KB string
 }
 
 // DeviceUpdates is the answer for one device.
@@ -193,7 +198,7 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 		if f != nil {
 			key = "fix:" + f.Group
 			act = UpdateAction{Group: f.Group, SoftwareID: f.SoftwareID, Software: f.Software, Version: f.Version, Fixed: f.Fixed, Kind: f.Kind,
-				Windows: f.Windows, Distro: f.Distro, Pro: f.Pro, Product: productKey(sws[f.SoftwareID]), Source: sws[f.SoftwareID].Source}
+				Windows: f.Windows, Distro: f.Distro, Pro: f.Pro, KB: f.KB, Product: productKey(sws[f.SoftwareID]), Source: sws[f.SoftwareID].Source}
 		} else {
 			key = "row:" + row.ID
 			act = UpdateAction{Group: a.ID + "/" + row.ID, SoftwareID: row.ID, Software: clean(row.Display), Version: clean(row.Version), Kind: "none", Product: productKey(row), Source: row.Source}
@@ -322,7 +327,7 @@ func listedPlanItems(items []PlanItem, now time.Time) []PlanItem {
 // planAction is the action of one plan item (without its sentence): its CVEs, how many are likely, and the worst severity.
 func planAction(it PlanItem) UpdateAction {
 	u := UpdateAction{Group: it.Group, SoftwareID: it.SoftwareID, Software: it.Software, Version: it.Version, Fixed: it.Fixed, Kind: it.Kind,
-		Windows: it.Kind == "windows" || it.Kind == "esu", Pro: it.Pro}
+		Windows: it.Kind == "windows" || it.Kind == "esu", Pro: it.Pro, NVDLag: it.NVDLag, KB: it.KB}
 	worst := -1
 	for _, c := range it.CVEs {
 		u.CVEs = append(u.CVEs, c.CVE)
@@ -358,6 +363,10 @@ func updateSentence(u UpdateAction) string {
 		if v := strings.TrimPrefix(u.Version, "10.0."); v != "" {
 			build = "from build " + v + " to " + fixed
 		}
+		build += " or later"
+		if u.KB != "" { // the number an admin looks the update up by
+			build += "; " + u.KB
+		}
 	}
 	switch u.Kind {
 	case "none":
@@ -375,12 +384,12 @@ func updateSentence(u UpdateAction) string {
 	case "feature_update":
 		return fmt.Sprintf("Upgrade %s to %s: some of these get no update for this release", sw, fixed)
 	case "esu":
-		return fmt.Sprintf("Install the Extended Security Update for %s (%s or later; it needs an ESU subscription)", sw, build)
+		return fmt.Sprintf("Install the Extended Security Update for %s (%s; it needs an ESU subscription)", sw, build)
 	case "windows":
-		return fmt.Sprintf("Install the latest cumulative update for %s (%s or later)", sw, build)
+		return fmt.Sprintf("Install the latest cumulative update for %s (%s)", sw, build)
 	}
 	if u.Windows {
-		return fmt.Sprintf("Install the latest cumulative update for %s (%s or later)", sw, build)
+		return fmt.Sprintf("Install the latest cumulative update for %s (%s)", sw, build)
 	}
 	return fmt.Sprintf("Upgrade %s from %s to %s or later", sw, u.Version, fixed)
 }

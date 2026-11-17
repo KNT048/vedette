@@ -396,6 +396,14 @@ func aiFindingData(req mitigation.AIRequest, dev *inventory.Device, walls aiFire
 			fmt.Fprintf(&d, "Software of the finding: %s\n", sw)
 		}
 		fmt.Fprintf(&d, "Open ports: %s\n", aiPorts(*dev))
+		if req.Skill == mitigation.SkillConfig {
+			if v := aiVulnPorts(row, *dev); v != "" {
+				fmt.Fprintf(&d, "Ports of the vulnerable product: %s\n", v)
+			}
+			if s := aiSafeApply(*dev); s != "" {
+				fmt.Fprintf(&d, "Safe apply on this device: %s\n", s)
+			}
+		}
 	}
 	if e := row.Evidence; e != nil && e.Summary != "" {
 		fmt.Fprintf(&d, "Evidence (installed version and affected range): %s\n", aiVal(e.Summary, 600))
@@ -496,6 +504,332 @@ func aiPorts(d inventory.Device) string {
 		ps = append(ps, p)
 	}
 	return strings.Join(ps, "; ")
+}
+
+// aiWebNames are the names a scan gives a web server's port, plain or TLS, on its usual and alternate ports. An HTTP proxy port
+// (8080) is most often a web interface too. MS RPC over HTTP (http-rpc-epmap) is not a web server.
+var aiWebNames = []string{"http", "https", "http-alt", "https-alt", "http-proxy", "http-mgmt", "www", "www-http"}
+
+// aiTLSNames maps the name of a service's TLS port (implicit TLS, or STARTTLS for "submission") to its plain service.
+var aiTLSNames = map[string]string{
+	"imaps": "imap", "pop3s": "pop3", "smtps": "smtp", "submission": "smtp", "submissions": "smtp", "ldaps": "ldap", "ftps": "ftp",
+	"telnets": "telnet", "nntps": "nntp", "ircs": "irc", "ircs-u": "irc", "sip-tls": "sip", "sips": "sip", "domain-s": "domain",
+}
+
+// The family names a port can get besides its own service name.
+const (
+	aiWebFamily = "web"
+	aiTLSFamily = "TLS, service not identified"
+)
+
+// aiServiceFamily is the service a scan's port name stands for, with the TLS layer and the alternate-port names folded in: "http",
+// "https", "ssl/https", "ssl/http", "http-alt" and "https-alt" are all web; "imaps" is "imap". A TLS port whose service the scan
+// could not read ("ssl", "ssl/unknown") is aiTLSFamily: an embedded web interface often answers so. "" for a port the scan named
+// nothing on.
+func aiServiceFamily(name string) string {
+	n := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(name)), "?") // nmap's "http?" is a guess of the same service
+	tls := strings.HasPrefix(n, "ssl/") || strings.HasPrefix(n, "tls/") || n == "ssl" || n == "tls"
+	n = strings.TrimPrefix(strings.TrimPrefix(n, "ssl/"), "tls/")
+	switch {
+	case tls && (n == "ssl" || n == "tls" || n == "unknown" || n == "tcpwrapped"):
+		return aiTLSFamily
+	case n == "" || n == "unknown" || n == "tcpwrapped":
+		return ""
+	case slices.Contains(aiWebNames, n):
+		return aiWebFamily
+	case aiTLSNames[n] != "":
+		return aiTLSNames[n]
+	}
+	return aiVal(n, 40)
+}
+
+// aiGenericWords are words of product and vendor names that do not tell one product from another ("Junos OS", "Exchange Server").
+var aiGenericWords = map[string]bool{"os": true, "server": true, "http": true, "httpd": true, "https": true, "web": true, "the": true,
+	"for": true, "and": true, "software": true, "service": true, "services": true, "network": true, "networks": true, "management": true,
+	"manager": true, "interface": true, "firmware": true, "edition": true, "enterprise": true, "daemon": true, "ssl": true, "tls": true,
+	"inc": true, "corp": true, "corporation": true, "systems": true, "system": true, "device": true, "devices": true, "platform": true,
+	"appliance": true, "multiple": true, "products": true, "product": true, "version": true, "ltd": true, "co": true, "com": true}
+
+// aiWords are the distinctive words of a name, lower case: no generic word, no number, nothing shorter than 3 letters.
+func aiWords(s string) []string {
+	var out []string
+	for _, w := range strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		if len(w) >= 3 && !aiGenericWords[w] && strings.Trim(w, "0123456789") != "" && !slices.Contains(out, w) {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// aiProductWords are the words that name the finding's product: the exploited entry's product without the vendor's own words
+// ("Apache" of "Apache Tomcat" names Apache httpd too), else the device's software rows the finding matched. vendor: the entry
+// vendor's words. A port runs the product only when every one of these words is on it ("Windows Server Update Service" is not
+// "Microsoft Windows RPC").
+func aiProductWords(row findings.Row, d inventory.Device) (product, vendor []string) {
+	if k := row.Kev; k != nil {
+		vendor = aiWords(k.Vendor)
+		for _, w := range aiWords(strings.ReplaceAll(k.Product, "_", " ")) {
+			if !slices.Contains(vendor, w) {
+				product = append(product, w)
+			}
+		}
+	}
+	if len(product) > 0 {
+		return product, vendor
+	}
+	matched := aiMatched(row, d)
+	for _, s := range d.Software {
+		if s.NotInstalled || !slices.Contains(s.Kev, row.CVE) && (s.Display == "" || !strings.Contains(matched, s.Display)) {
+			continue
+		}
+		for _, w := range aiWords(s.Display) {
+			if !slices.Contains(vendor, w) && !slices.Contains(product, w) {
+				product = append(product, w)
+			}
+		}
+		break // the first matched row names it; two rows' words together would match nothing
+	}
+	return product, vendor
+}
+
+// aiBanner is a value the device chose (a product, a version, a service name) as this line quotes it: brackets for parentheses and
+// no other separator of the line, so a banner cannot fake a "runs it" or "write no rule" part ("15.2(7)E" stays "15.2[7]E").
+func aiBanner(s string, n int) string {
+	return strings.Join(strings.Fields(strings.Map(func(r rune) rune {
+		switch r {
+		case '(':
+			return '['
+		case ')':
+			return ']'
+		case ';', ':', ',':
+			return ' '
+		}
+		return r
+	}, aiVal(s, n))), " ")
+}
+
+// aiPortLabel is one port as the data shows it: "443/tcp ssl/https (product)" or "(product not read)".
+func aiPortLabel(sv inventory.ServiceRow) string {
+	p := fmt.Sprintf("%d/%s %s", sv.Port, aiBanner(sv.Proto, 8), aiBanner(sv.Name, 40))
+	if prod := strings.TrimSpace(aiBanner(aiStr(sv.Product), 60) + " " + aiBanner(aiStr(sv.Version), 40)); prod != "" {
+		return p + " (" + prod + ")"
+	}
+	return p + " (product not read)"
+}
+
+// aiPlatform reports whether the finding is on the device's own platform (its operating system or firmware: Junos OS, IOS XE,
+// FortiOS, Windows) rather than on an application it runs, by whole words:
+//   - the entry's whole product (its vendor's words aside) is in the device's OS: "Windows" on "Windows Server 2022", never
+//     "Windows Server Update Service" there; or
+//   - the device is the entry vendor's own and the entry's product is an operating system or firmware: a word "os", "ios", "eos",
+//     "firmware" or one ending in "os" (Junos, FortiOS, PAN-OS, SonicOS), never a word of the vendor's name (Sophos).
+func aiPlatform(row findings.Row, d inventory.Device, product, vendor []string) bool {
+	if row.Kev == nil || len(product) == 0 {
+		return false
+	}
+	osWords := aiWords(aiObserved(d.OS))
+	if !slices.ContainsFunc(product, func(w string) bool { return !slices.Contains(osWords, w) }) {
+		return true
+	}
+	if !slices.ContainsFunc(aiWords(aiObserved(d.Vendor)), func(w string) bool { return slices.Contains(vendor, w) }) {
+		return false
+	}
+	for _, w := range strings.FieldsFunc(strings.ToLower(row.Kev.Product), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		if slices.Contains(vendor, w) {
+			continue
+		}
+		if w == "os" || w == "ios" || w == "eos" || w == "firmware" || (len(w) >= 5 && strings.HasSuffix(w, "os")) {
+			return true
+		}
+	}
+	return false
+}
+
+// aiTitle is the page title the scan read on a port ("title: …" of its detail), "" when it read none.
+func aiTitle(detail string) string {
+	for _, part := range strings.Split(detail, "; ") {
+		if t, ok := strings.CutPrefix(part, "title: "); ok {
+			return t
+		}
+	}
+	return ""
+}
+
+// aiVulnPorts is the "Ports of the vulnerable product" fact: which open ports a scan read serve the finding's product. The finding
+// has no port, and a device often runs several web servers (a public site on 80/443, an admin console on 8443, Tomcat on 8080), so
+// "every web port" over-blocks and "the port with a product" under-blocks (port 80 "http" with a product, 443 "ssl/https" without
+// one, both the same web interface).
+//   - A platform finding (the device's own OS or firmware): every interface of the device runs the platform, and a banner that names
+//     it on one port (telnet, SNMP) says nothing about the vulnerable one, so the box lists every named port by service, plain and TLS
+//     together, and the model covers all ports of the interface the vulnerability names.
+//   - An application finding: a port whose scanned product or page names the whole product runs it. The other ports of that
+//     service (plain or TLS) are split: one where the scan read another product runs another one (no rule; a reverse proxy in front
+//     of the product is the case the scan cannot tell); one with no product is most likely the same server unless another product
+//     serves the service, its page title does not name the product, or its title or certificate names another product of the
+//     device; else not known. A port of another service is never excluded, whatever its product: an application often names
+//     itself on one protocol and serves its web front end behind the web server's banner (Exchange: SMTP names Exchange, OWA on 443
+//     says IIS). When no port names the product, every port is a candidate, listed by service.
+//
+// "" when the scan read no named port.
+func aiVulnPorts(row findings.Row, d inventory.Device) string {
+	svcs := aiScanned(d.Services)
+	svcs = svcs[:min(len(svcs), aiMaxPorts)]
+	product, vendor := aiProductWords(row, d)
+	type port struct {
+		sv               inventory.ServiceRow
+		fam, prod, label string
+		words, title     []string
+		runs             bool
+	}
+	var ps []port
+	seen := map[string]bool{}
+	for _, sv := range svcs {
+		fam := aiServiceFamily(sv.Name)
+		key := fmt.Sprintf("%d/%s", sv.Port, sv.Proto)
+		if fam == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		words := aiWords(aiStr(sv.Product) + " " + aiStr(sv.Detail))
+		ps = append(ps, port{sv: sv, fam: aiBanner(fam, 40), prod: strings.ToLower(strings.TrimSpace(aiStr(sv.Product))), label: aiPortLabel(sv),
+			words: words, title: aiWords(aiTitle(aiStr(sv.Detail))),
+			runs: len(product) > 0 && !slices.ContainsFunc(product, func(w string) bool { return !slices.Contains(words, w) })})
+	}
+	if len(ps) == 0 {
+		return ""
+	}
+	var fams []string
+	for _, p := range ps {
+		if !slices.Contains(fams, p.fam) {
+			fams = append(fams, p.fam)
+		}
+	}
+	join := func(ls []string) string { return strings.Join(ls, ", ") }
+	byService := func() string {
+		var groups []string
+		for _, f := range fams {
+			var ls []string
+			for _, p := range ps {
+				if p.fam == f {
+					ls = append(ls, p.label)
+				}
+			}
+			groups = append(groups, f+": "+join(ls))
+		}
+		return strings.Join(groups, "; ")
+	}
+	if aiPlatform(row, d, product, vendor) {
+		return "the vulnerability is in the device's own platform, which serves all of its interfaces, so the scan cannot tell which port " +
+			"serves the vulnerable one. Ports by service (a service's plain and TLS ports together): " + byService()
+	}
+	if !slices.ContainsFunc(ps, func(p port) bool { return p.runs }) {
+		return "not known: the scan read the finding's product on no port. Candidates by service: " + byService()
+	}
+	runFam, otherFam := map[string]bool{}, map[string]bool{}
+	var otherWords []string // the words of the other products the scan read on the device
+	for _, p := range ps {
+		switch {
+		case p.runs:
+			runFam[p.fam] = true
+		case p.prod != "":
+			otherFam[p.fam] = true
+			for _, w := range aiWords(p.prod) {
+				if !slices.Contains(product, w) && !slices.Contains(vendor, w) {
+					otherWords = append(otherWords, w)
+				}
+			}
+		}
+	}
+	namesOther := func(p port) bool {
+		return (len(p.title) > 0 && !slices.ContainsFunc(product, func(w string) bool { return slices.Contains(p.title, w) })) ||
+			slices.ContainsFunc(p.words, func(w string) bool { return slices.Contains(otherWords, w) })
+	}
+	var runs, same, unknownSame, unknownOther, other []string
+	for _, p := range ps {
+		switch {
+		case p.runs:
+			runs = append(runs, p.label)
+		case !runFam[p.fam]:
+			unknownOther = append(unknownOther, p.label)
+		case p.prod != "":
+			other = append(other, p.label)
+		case !otherFam[p.fam] && !namesOther(p):
+			same = append(same, p.label)
+		default:
+			unknownSame = append(unknownSame, p.label)
+		}
+	}
+	out := "runs it (the scan read it there): " + join(runs)
+	for _, part := range []struct {
+		head string
+		ls   []string
+	}{
+		{"most likely the same server (the same service, plain or TLS, product not read)", same},
+		{"the same service, not known which product", unknownSame},
+		{"other services, not known which product (the product may serve one of them behind another banner)", unknownOther},
+		{"the same service, another product (write no rule for these; the scan cannot tell a reverse proxy in front of the product)", other},
+	} {
+		if len(part.ls) > 0 {
+			out += "; " + part.head + ": " + join(part.ls)
+		}
+	}
+	return out
+}
+
+// Sources of the safe-apply steps (vendor documentation):
+//   - Junos commit confirmed: https://www.juniper.net/documentation/en_US/junos13.2/topics/reference/command-summary/commit.html
+//   - IOS XR commit confirmed (the default unit is seconds): https://community.cisco.com/t5/networking-knowledge-base/understanding-quot-commit-quot-command-in-ios-xr/ta-p/3154033
+//   - IOS / IOS XE configure terminal revert timer, configure confirm (needs an archive path): Cisco IOS "Configuration Replace and
+//     Configuration Rollback" guide; https://networklessons.com/cisco/ccnp-route/configuration-archive-rollback-cisco-ios ;
+//     reload in / reload cancel: Cisco IOS Configuration Fundamentals Command Reference, "reload".
+//   - FortiOS cfg-save revert, cfg-revert-timeout, execute cfg save: https://docs.fortinet.com/document/fortigate/6.0.5/cli-reference/846611/cfg-save ;
+//     https://community.fortinet.com/t5/FortiGate/Technical-Tip-Auto-restore-a-previous-config-if-the-change-fails/ta-p/209749
+//   - Arista EOS configure session, commit timer: https://www.arista.com/en/um-eos/eos-session-management-commands
+//   - VyOS commit-confirm, confirm, save, config-management commit-confirm action: https://docs.vyos.io/en/latest/cli.html
+//   - EdgeOS commit-confirm, confirm: https://help.uisp.com/hc/en-us/articles/22591199766551-EdgeRouter-Configuration-and-Operational-Mode
+//   - RouterOS Safe Mode (9-minute TCP timeout, 100-action history): https://help.mikrotik.com/docs/spaces/ROS/pages/328155/Configuration+Management
+//
+// Platforms whose confirm step is not documented the same way across releases (Aruba AOS-CX checkpoint auto) are left out.
+
+// aiJunosModel is a Juniper model line that runs Junos, also when the model value starts with the vendor or is a virtual one (vSRX).
+var aiJunosModel = regexp.MustCompile(`(^|[^a-z])v?(ex|srx|mx|qfx|acx|ptx|nfx)[0-9]`)
+
+// aiAristaModel is an Arista switch that runs EOS (DCS-7050SX3, CCS-720XP, 7280R3); not an Arista access point or firewall.
+var aiAristaModel = regexp.MustCompile(`^(arista[ -]+)?((dcs|ccs)-|7[0-9]{3})`)
+
+// aiRouterOSModel is a MikroTik router line that runs RouterOS (RB4011, CCR2004, hAP ax2, hEX, CHR); never a CRS/CSS switch, which
+// may run SwOS and has no Safe Mode then.
+var aiRouterOSModel = regexp.MustCompile(`^(mikrotik[ -]+)?(rb[0-9]|routerboard|ccr|hap|hex|chr|l009)`)
+
+// aiCiscoIOS is Cisco IOS or IOS XE in an operating system name (not NX-OS, ASA or Apple's iOS, whose vendor is not Cisco).
+var aiCiscoIOS = regexp.MustCompile(`(^|[^a-z-])ios([ -]?xe)?([^a-z]|$)`)
+
+// aiSafeApply is how a remote change is applied on a platform so that it undoes itself when it locks the person out, for the
+// platforms whose command line has such a mode (sources above); "" for every other one, and the model is told not to name one then.
+// The platform is read from the inventory's vendor, model and operating system. Each text says which commands are separate steps
+// (an interactive prompt or a key, never a line of the pasted block) and what happens when the change is not confirmed.
+func aiSafeApply(d inventory.Device) string {
+	vendor, model, osName := strings.ToLower(aiObserved(d.Vendor)), strings.ToLower(aiObserved(d.Model)), strings.ToLower(aiObserved(d.OS))
+	all := vendor + " " + model + " " + osName
+	switch {
+	case strings.Contains(all, "junos") || (strings.Contains(vendor, "juniper") && aiJunosModel.MatchString(model)):
+		return "Junos: the block ends with `commit confirmed 5` instead of `commit`; check that access still works, then run `commit` within those 5 minutes; when it is not confirmed, Junos rolls the change back by itself, without a restart."
+	case strings.Contains(vendor, "cisco") && (strings.Contains(osName, "ios xr") || strings.Contains(osName, "ios-xr") || strings.Contains(osName, "iosxr")):
+		return "Cisco IOS XR: the block ends with `commit confirmed 300` (seconds) instead of `commit`; check that access still works, then run `commit`; when it is not confirmed, IOS XR rolls the change back by itself, without a restart."
+	case strings.Contains(vendor, "cisco") && aiCiscoIOS.MatchString(osName):
+		return "Cisco IOS: when `show archive` lists an archive path, enter configuration with `configure terminal revert timer 10` instead of `configure terminal`, paste the change, `end`, check that access still works, then run `configure confirm` within 10 minutes and `write memory` (without it the change is gone after the next restart); when it is not confirmed, IOS restores the previous configuration without a restart. With no archive path: as a separate step before the change (never a line of the pasted block, it asks questions: answer no to saving and confirm the reload), run `reload in 10`; after the change check access, run `reload cancel`, then `write memory`; when it is not cancelled, the whole device restarts with its saved configuration, traffic through it stops for minutes, and every change not saved before is lost."
+	case strings.Contains(osName, "fortios") || strings.Contains(model, "fortigate") || strings.Contains(model, "fortiwifi"):
+		return "FortiOS: as a separate step before the change, `config system global`, `set cfg-save revert`, `set cfg-revert-timeout 600`, `end`; apply the change, check that access still works, then `execute cfg save` within those 600 seconds, and set `cfg-save` back to `automatic` (it is a global setting that stays); when it is not saved, the FortiGate restarts with its previous configuration, and traffic through it stops during the restart."
+	case (strings.Contains(vendor, "arista") || strings.Contains(osName, "arista")) && (slices.Contains(strings.Fields(osName), "eos") || aiAristaModel.MatchString(model)):
+		return "Arista EOS: enter the change in a session, `configure session <SESSION_NAME>` instead of `configure terminal`, and end it with `commit timer 00:05:00` instead of `commit`; check that access still works, then run `configure session <SESSION_NAME> commit` within those 5 minutes and `copy running-config startup-config` (without it the change is gone after the next restart); when it is not confirmed, EOS rolls the session back by itself, without a restart."
+	case strings.Contains(all, "vyos"):
+		return "VyOS: the block ends with `commit-confirm 5` instead of `commit`; check that access still works, then run `confirm` and `save` (without `save` the change is gone after the next restart); when it is not confirmed, VyOS restarts into its saved configuration (traffic through it stops during the restart) unless `system config-management commit-confirm action reload` is set."
+	case strings.Contains(osName, "edgeos") || (strings.Contains(vendor, "ubiquiti") && strings.Contains(model, "edgerouter")):
+		return "Ubiquiti EdgeOS: the block ends with `commit-confirm 5` instead of `commit`; check that access still works, then run `confirm` and `save` (without `save` the change is gone after the next restart); when it is not confirmed, the router restarts with its saved configuration, and traffic through it stops during the restart."
+	case strings.Contains(osName, "routeros") || (osName == "" && strings.Contains(vendor, "mikrotik") && aiRouterOSModel.MatchString(model)): //nolint:misspell // RouterOS is the product name
+		return "MikroTik RouterOS: as a separate step, turn on Safe Mode (Ctrl+X in the terminal, or the Safe Mode button in WinBox) before pasting, keep the change under 100 commands (past that, Safe Mode ends and nothing is undone), check that access still works, then press Ctrl+X again to keep it; when the session drops in Safe Mode, RouterOS undoes the change about 9 minutes later."
+	}
+	return ""
 }
 
 // aiFixedIn is the page's "Fixed version" fact in one line, with what the page says about it (Ubuntu Pro, the distribution's own
@@ -704,7 +1038,7 @@ func (a aiAsk) DeviceUpdates(ctx context.Context, assetID string) (ai.DeviceUpda
 		out := make([]ai.UpdateRow, len(us))
 		for i, x := range us {
 			out[i] = ai.UpdateRow{Action: x.Action, Software: x.Software, Version: x.Version, Fixed: x.Fixed, CVEs: x.CVEs, Worst: x.Worst, Ransomware: x.Ransomware,
-				Likely: x.Likely, Confirmed: x.Confirmed, Detected: x.Detected, Reported: x.Reported, Suspected: x.Suspected}
+				Likely: x.Likely, Confirmed: x.Confirmed, Detected: x.Detected, Reported: x.Reported, Suspected: x.Suspected, NVDLag: x.NVDLag}
 		}
 		return out
 	}

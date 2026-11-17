@@ -93,7 +93,8 @@ func (d osRow) reads(ver string) bool {
 		_, ok := junosParse(ver)
 		return ok
 	case schemeDotted:
-		return dottedRe.MatchString(strings.TrimSpace(ver)) && versionKnown(ver)
+		ver = OSVersion(ver)
+		return dottedRe.MatchString(ver) && versionKnown(ver)
 	}
 	return false
 }

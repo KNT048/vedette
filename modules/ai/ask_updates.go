@@ -105,7 +105,11 @@ func knownAs(u UpdateRow) string {
 func updateLine(u UpdateRow, exploited bool) string {
 	b := strings.Builder{}
 	b.WriteString(clip(u.Action, 200))
-	b.WriteString("; " + plural(len(u.CVEs), "CVE", "CVEs"))
+	if u.NVDLag { // the plan's words: the CVEs NVD has analysed so far, never "all"
+		b.WriteString("; fixes at least " + plural(len(u.CVEs), "CVE", "CVEs"))
+	} else {
+		b.WriteString("; " + plural(len(u.CVEs), "CVE", "CVEs"))
+	}
 	if w := clip(u.Worst, 12); w != "" {
 		b.WriteString(", worst " + w)
 	}
@@ -117,6 +121,9 @@ func updateLine(u UpdateRow, exploited bool) string {
 	}
 	if u.Likely > 0 {
 		fmt.Fprintf(&b, ", %d likely exploited soon", u.Likely)
+	}
+	if u.NVDLag {
+		b.WriteString("; the newest update's CVEs are not yet analysed by NVD")
 	}
 	return b.String()
 }

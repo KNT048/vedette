@@ -74719,12 +74719,20 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	Fixed string `json:"fixed"`
 	// "/", as RowFix.group.
 	Group string `json:"group"`
+	// Windows, esu: the KB number of `fixed` when Microsoft's release information lists that build
+	// ("KB5131080"), named next to the build; "" otherwise.
+	KB string `json:"kb"`
 	// Fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package
 	// `software` from `version` to `fixed` or later (the distribution's security update); windows = the
 	// monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its
 	// end of support: the update comes only with Extended Security Updates.
 	Kind   FindingsGetFindingsPlanOKItemsItemKind `json:"kind"`
 	Likely int                                    `json:"likely"`
+	// Windows, esu: `fixed` is the newest monthly update Microsoft's release information lists for the
+	// release, newer than the update that carries every fixed build NVD names for these CVEs. The item
+	// fixes at least `cves`; the newest update's CVEs are not yet analysed by NVD, so the page says "at
+	// least". false otherwise.
+	NvdLag bool `json:"nvd_lag"`
 	// Distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise.
 	Pro    bool `json:"pro"`
 	Recent int  `json:"recent"`
@@ -74768,6 +74776,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) GetGroup() string {
 	return s.Group
 }
 
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetKB() string {
+	return s.KB
+}
+
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsPlanOKItemsItem) GetKind() FindingsGetFindingsPlanOKItemsItemKind {
 	return s.Kind
@@ -74776,6 +74789,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) GetKind() FindingsGetFindingsPlanOK
 // GetLikely returns the value of Likely.
 func (s *FindingsGetFindingsPlanOKItemsItem) GetLikely() int {
 	return s.Likely
+}
+
+// GetNvdLag returns the value of NvdLag.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetNvdLag() bool {
+	return s.NvdLag
 }
 
 // GetPro returns the value of Pro.
@@ -74833,6 +74851,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) SetGroup(val string) {
 	s.Group = val
 }
 
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetKB(val string) {
+	s.KB = val
+}
+
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsPlanOKItemsItem) SetKind(val FindingsGetFindingsPlanOKItemsItemKind) {
 	s.Kind = val
@@ -74841,6 +74864,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) SetKind(val FindingsGetFindingsPlan
 // SetLikely sets the value of Likely.
 func (s *FindingsGetFindingsPlanOKItemsItem) SetLikely(val int) {
 	s.Likely = val
+}
+
+// SetNvdLag sets the value of NvdLag.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetNvdLag(val bool) {
+	s.NvdLag = val
 }
 
 // SetPro sets the value of Pro.
@@ -77662,10 +77690,16 @@ type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
 	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
 	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
+	// A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; ""
+	// otherwise.
+	KB string `json:"kb"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemExploitedItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
-	Likely int  `json:"likely"`
+	Likely int `json:"likely"`
+	// Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update's CVEs are
+	// not yet analysed by NVD); false otherwise.
+	NvdLag bool `json:"nvd_lag"`
 	Pro    bool `json:"pro"`
 	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
 	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
@@ -77730,6 +77764,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetGroup() string {
 	return s.Group
 }
 
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetKB() string {
+	return s.KB
+}
+
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetKind() FindingsGetFindingsToFixOKDevicesItemExploitedItemKind {
 	return s.Kind
@@ -77738,6 +77777,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetKind() FindingsG
 // GetLikely returns the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetLikely() int {
 	return s.Likely
+}
+
+// GetNvdLag returns the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetNvdLag() bool {
+	return s.NvdLag
 }
 
 // GetPro returns the value of Pro.
@@ -77835,6 +77879,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetGroup(val string
 	s.Group = val
 }
 
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetKB(val string) {
+	s.KB = val
+}
+
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetKind(val FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) {
 	s.Kind = val
@@ -77843,6 +77892,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetKind(val Finding
 // SetLikely sets the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetLikely(val int) {
 	s.Likely = val
+}
+
+// SetNvdLag sets the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetNvdLag(val bool) {
+	s.NvdLag = val
 }
 
 // SetPro sets the value of Pro.
@@ -77986,10 +78040,16 @@ type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
 	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
 	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
+	// A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; ""
+	// otherwise.
+	KB string `json:"kb"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
-	Likely int  `json:"likely"`
+	Likely int `json:"likely"`
+	// Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update's CVEs are
+	// not yet analysed by NVD); false otherwise.
+	NvdLag bool `json:"nvd_lag"`
 	Pro    bool `json:"pro"`
 	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
 	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
@@ -78054,6 +78114,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetGroup() string {
 	return s.Group
 }
 
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetKB() string {
+	return s.KB
+}
+
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetKind() FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind {
 	return s.Kind
@@ -78062,6 +78127,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetKind() FindingsGe
 // GetLikely returns the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetLikely() int {
 	return s.Likely
+}
+
+// GetNvdLag returns the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetNvdLag() bool {
+	return s.NvdLag
 }
 
 // GetPro returns the value of Pro.
@@ -78159,6 +78229,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetGroup(val string)
 	s.Group = val
 }
 
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetKB(val string) {
+	s.KB = val
+}
+
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetKind(val FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) {
 	s.Kind = val
@@ -78167,6 +78242,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetKind(val Findings
 // SetLikely sets the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetLikely(val int) {
 	s.Likely = val
+}
+
+// SetNvdLag sets the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetNvdLag(val bool) {
+	s.NvdLag = val
 }
 
 // SetPro sets the value of Pro.
@@ -78310,10 +78390,16 @@ type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
 	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
 	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
+	// A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; ""
+	// otherwise.
+	KB string `json:"kb"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemPlannedItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
-	Likely int  `json:"likely"`
+	Likely int `json:"likely"`
+	// Planned Windows updates: PlanItem.nvd_lag (it fixes at least `cves`; the newest update's CVEs are
+	// not yet analysed by NVD); false otherwise.
+	NvdLag bool `json:"nvd_lag"`
 	Pro    bool `json:"pro"`
 	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
 	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
@@ -78378,6 +78464,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetGroup() string {
 	return s.Group
 }
 
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetKB() string {
+	return s.KB
+}
+
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetKind() FindingsGetFindingsToFixOKDevicesItemPlannedItemKind {
 	return s.Kind
@@ -78386,6 +78477,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetKind() FindingsGet
 // GetLikely returns the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetLikely() int {
 	return s.Likely
+}
+
+// GetNvdLag returns the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetNvdLag() bool {
+	return s.NvdLag
 }
 
 // GetPro returns the value of Pro.
@@ -78483,6 +78579,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetGroup(val string) 
 	s.Group = val
 }
 
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetKB(val string) {
+	s.KB = val
+}
+
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetKind(val FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) {
 	s.Kind = val
@@ -78491,6 +78592,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetKind(val FindingsG
 // SetLikely sets the value of Likely.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetLikely(val int) {
 	s.Likely = val
+}
+
+// SetNvdLag sets the value of NvdLag.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetNvdLag(val bool) {
+	s.NvdLag = val
 }
 
 // SetPro sets the value of Pro.
@@ -103000,8 +103106,12 @@ type InventoryGetInventoryDevicesIDOKAssetModel struct {
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetModelBasis `json:"basis"`
 	Confidence float64                                            `json:"confidence"`
 	SeenAt     time.Time                                          `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetModelSource   `json:"source"`
-	Value      string                                             `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                        `json:"software_id"`
+	Source     InventoryGetInventoryDevicesIDOKAssetModelSource `json:"source"`
+	Value      string                                           `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -103017,6 +103127,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModel) GetConfidence() float64 {
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetModel) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetModel) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -103042,6 +103157,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetConfidence(val float64) 
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -103215,8 +103335,12 @@ type InventoryGetInventoryDevicesIDOKAssetOs struct {
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetOsBasis `json:"basis"`
 	Confidence float64                                         `json:"confidence"`
 	SeenAt     time.Time                                       `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetOsSource   `json:"source"`
-	Value      string                                          `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                     `json:"software_id"`
+	Source     InventoryGetInventoryDevicesIDOKAssetOsSource `json:"source"`
+	Value      string                                        `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -103232,6 +103356,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) GetConfidence() float64 {
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetOs) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetOs) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -103257,6 +103386,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetConfidence(val float64) {
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -103370,8 +103504,12 @@ type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected struct {
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis `json:"basis"`
 	Confidence float64                                                           `json:"confidence"`
 	SeenAt     time.Time                                                         `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource   `json:"source"`
-	Value      string                                                            `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                                       `json:"software_id"`
+	Source     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource `json:"source"`
+	Value      string                                                          `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -103387,6 +103525,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetConfidenc
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -103412,6 +103555,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetConfidenc
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -104434,8 +104582,12 @@ type InventoryGetInventoryDevicesIDOKAssetVendor struct {
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetVendorBasis `json:"basis"`
 	Confidence float64                                             `json:"confidence"`
 	SeenAt     time.Time                                           `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetVendorSource   `json:"source"`
-	Value      string                                              `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                         `json:"software_id"`
+	Source     InventoryGetInventoryDevicesIDOKAssetVendorSource `json:"source"`
+	Value      string                                            `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -104451,6 +104603,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) GetConfidence() float64 {
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetVendor) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetVendor) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -104476,6 +104633,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetConfidence(val float64)
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -108334,8 +108496,12 @@ type InventoryGetInventoryDevicesOKItemsItemModel struct {
 	Basis      OptInventoryGetInventoryDevicesOKItemsItemModelBasis `json:"basis"`
 	Confidence float64                                              `json:"confidence"`
 	SeenAt     time.Time                                            `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesOKItemsItemModelSource   `json:"source"`
-	Value      string                                               `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                          `json:"software_id"`
+	Source     InventoryGetInventoryDevicesOKItemsItemModelSource `json:"source"`
+	Value      string                                             `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -108351,6 +108517,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModel) GetConfidence() float64 {
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemModel) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemModel) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -108376,6 +108547,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetConfidence(val float64
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -108549,8 +108725,12 @@ type InventoryGetInventoryDevicesOKItemsItemOs struct {
 	Basis      OptInventoryGetInventoryDevicesOKItemsItemOsBasis `json:"basis"`
 	Confidence float64                                           `json:"confidence"`
 	SeenAt     time.Time                                         `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesOKItemsItemOsSource   `json:"source"`
-	Value      string                                            `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                       `json:"software_id"`
+	Source     InventoryGetInventoryDevicesOKItemsItemOsSource `json:"source"`
+	Value      string                                          `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -108566,6 +108746,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) GetConfidence() float64 {
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemOs) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemOs) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -108591,6 +108776,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetConfidence(val float64) {
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -109526,8 +109716,12 @@ type InventoryGetInventoryDevicesOKItemsItemVendor struct {
 	Basis      OptInventoryGetInventoryDevicesOKItemsItemVendorBasis `json:"basis"`
 	Confidence float64                                               `json:"confidence"`
 	SeenAt     time.Time                                             `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesOKItemsItemVendorSource   `json:"source"`
-	Value      string                                                `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                           `json:"software_id"`
+	Source     InventoryGetInventoryDevicesOKItemsItemVendorSource `json:"source"`
+	Value      string                                              `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -109543,6 +109737,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) GetConfidence() float64 
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemVendor) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemVendor) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -109568,6 +109767,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetConfidence(val float6
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.

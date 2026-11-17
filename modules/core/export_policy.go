@@ -87,6 +87,7 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_recent_cve":       {skipAll: true, skip: "cve published last_modified status severity score cvss_score cvss_version cvss_source cvss_vector"}, // Public NVD data, pulled again
 	"feeds_cvss":             {export: "cve score version source vector"},                                                                                // #825: the CVSS score of each KEV CVE, public NVD data
 	"feeds_winrel":           {export: "build server product display line ga ga_rev"},                                                                    // The Windows releases Microsoft lists; kept so a restore reads the same builds
+	"feeds_winrel_update":    {export: "build server rev kb day"},                                                                                        // The monthly Windows updates Microsoft lists; kept so a restore names the same target builds
 	"feeds_published":        {export: "cve published source"},                                                                                           // The day each KEV CVE was published; kept so a restore does not reopen age-closed findings
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":              {export: "id type value first_seen last_seen"},

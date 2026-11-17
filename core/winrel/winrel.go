@@ -197,3 +197,61 @@ func tableByProduct(product string) (Release, bool) {
 	}
 	return Release{}, false
 }
+
+// Update is one monthly security update ("2026-11 B", Patch Tuesday) Microsoft's release information pages list for a release: the
+// cumulative update Windows Update offers that month, at the release's build ("26100.33822", KB5131080 of 2026-11-10 for Windows
+// Server 2025). The feeds module reads them on the box once a day and hands them to LearnUpdates. NVD analyses a month's CVEs days
+// to weeks after Microsoft publishes them, so the newest update named here may be newer than every fixed build NVD lists.
+type Update struct {
+	Build  int // 26100
+	Server bool
+	Rev    int    // 33822
+	KB     string // "KB5131080"; "" when the page names none
+	Day    time.Time
+}
+
+type updateKey struct {
+	build  int
+	server bool
+}
+
+// updates are the updates LearnUpdates was last given, by release, oldest first; nil before the first call.
+var updates atomic.Pointer[map[updateKey][]Update]
+
+var kbShape = regexp.MustCompile(`^KB[0-9]{6,8}$`)
+
+// LearnUpdates sets the monthly updates Microsoft's release information lists and returns how many it kept: a valid one (build of a
+// Windows 10 or later release, revision 1..999999, a KB of the right shape or none, a day), once per release and revision. Each call
+// replaces what the last one set; nil or empty forgets them all.
+func LearnUpdates(us []Update) int {
+	byRel := map[updateKey][]Update{}
+	n := 0
+	for _, u := range us {
+		k := updateKey{u.Build, u.Server}
+		if u.Build < 10240 || u.Build > 99999 || u.Rev < 1 || u.Rev > 999999 || u.KB != "" && !kbShape.MatchString(u.KB) || u.Day.IsZero() ||
+			slices.ContainsFunc(byRel[k], func(o Update) bool { return o.Rev == u.Rev }) {
+			continue
+		}
+		byRel[k] = append(byRel[k], u)
+		n++
+	}
+	for _, l := range byRel {
+		slices.SortFunc(l, func(a, b Update) int {
+			if c := a.Day.Compare(b.Day); c != 0 {
+				return c
+			}
+			return a.Rev - b.Rev
+		})
+	}
+	updates.Store(&byRel)
+	return n
+}
+
+// Updates are the monthly updates of the client (server false) or server release on build, oldest first (by day, then revision); nil
+// when none was learned. The caller must not change the slice.
+func Updates(build int, server bool) []Update {
+	if p := updates.Load(); p != nil {
+		return (*p)[updateKey{build, server}]
+	}
+	return nil
+}

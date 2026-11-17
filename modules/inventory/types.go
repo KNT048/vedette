@@ -219,6 +219,9 @@ type Observed struct {
 	// vendor's card: the OS, and the model of the same frame), "guess" (nmap's OS fingerprint) or "" (the source and confidence
 	// say it all).
 	Basis string `json:"basis,omitempty"`
+	// SoftwareID names the software row the value is read from: the OS or firmware row a person declared (INV-45); "" when an
+	// observation gives it.
+	SoftwareID string `json:"software_id,omitempty"`
 }
 
 // Software is one software row (contract.ts Software).
@@ -236,6 +239,9 @@ type Software struct {
 	// NotInstalled: a person said this software is not installed on the device (INV-41 (6)): the mark itself, or the reported row it
 	// covers. Readers that tell what the device runs (the Ask context, the MCP asset data) leave it out. Not in the API.
 	NotInstalled bool `json:"-"`
+	// live: the row counts for matching (liveSW); seenAt: when its source last reported it. Read by declaredIdentity.
+	live   bool
+	seenAt string
 }
 
 // SoftwareView is Software with CVE ids instead of keys (contract.ts SoftwareView).
@@ -321,6 +327,9 @@ type Device struct {
 	Summary       *Summary    `json:"summary"`
 	Sources       []string    `json:"sources"` // what feeds the device, in the words of the Devices search (#849, DeviceSources); set by DevicesPage only
 	ident         []*Observed // current hostname and MAC observations: the summary of a device with no vendor, model or OS
+	// observedHW is the maker and model the observations give, before a declared OS row fills them (applyDeclared): the naming rule
+	// reads these, as Names does, so a device is named alike on every page. nil on a Device not read by loadDevices.
+	observedHW *[2]string
 }
 
 // DetailAsset is the asset of a device detail.

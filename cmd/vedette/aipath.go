@@ -295,7 +295,11 @@ func aiNetworkBlock(f aiFirewalls) string {
 	var b strings.Builder
 	list := func() {
 		for i, w := range f.Walls {
-			fmt.Fprintf(&b, "- %s, IP %s, kind %s; %s; %s\n", aiName(w), aiIP(w.IP), aiVal(w.Kind, 30), aiWallFacts(w), f.Paths[i].label())
+			fmt.Fprintf(&b, "- %s, IP %s, kind %s; %s; %s", aiName(w), aiIP(w.IP), aiVal(w.Kind, 30), aiWallFacts(w), f.Paths[i].label())
+			if s := aiSafeApply(w); s != "" {
+				b.WriteString("; safe apply: " + s)
+			}
+			b.WriteString("\n")
 		}
 	}
 	switch {

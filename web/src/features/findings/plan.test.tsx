@@ -19,8 +19,14 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'All (4)' }))
     expect(await screen.findByRole('heading', { level: 1, name: '4 recommended updates' })).toBeInTheDocument()
     const list = screen.getByRole('list', { name: 'Recommended updates' })
-    expect(within(list).getByText(/Install the latest cumulative update for Windows Server 2022 \(from build 20348\.2700 to 20348\.4405 or later\)/)).toBeInTheDocument()
+    expect(within(list).getByText(/Install the latest cumulative update for Windows Server 2022 \(from build 20348\.2700 to 20348\.4405 or later; KB5000001\)/)).toBeInTheDocument()
     expect(within(list).getByText('(2 likely to be exploited)')).toBeInTheDocument()
+    // the target is Microsoft's newest update, newer than every fix NVD names: the count says it covers the CVEs analysed so far
+    const winItem = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('Windows Server 2022'))!
+    expect(winItem).toHaveTextContent("fixes at least 65 CVEs (2 likely to be exploited); the newest update's CVEs are not yet analysed by NVD")
+    const nginx = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('Upgrade nginx'))!
+    expect(nginx).toHaveTextContent('fixes 3 CVEs')
+    expect(nginx).not.toHaveTextContent(/fixes at least|not yet analysed/)
     expect(screen.getByText('1 CVE published more than 12 months ago is listed because a scan found it on the device.')).toBeInTheDocument()
     const nas = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('NAS-BACKUP'))!
     await userEvent.click(within(nas).getByText('Show the 2 CVEs'))

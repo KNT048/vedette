@@ -12,7 +12,7 @@ import type { FindingAsset, ToFix, ToFixAction, ToFixDevice, UncheckedItem, Vers
 const T = { timeout: 5000 }
 const asset = (id: string, name: string): FindingAsset => ({ id, name, hostname: name, ip: '192.168.18.20', kind: 'server', display: name })
 const act = (o: Partial<ToFixAction>): ToFixAction => ({ group: 'g', software_id: '', software: '', version: '', product: '', source: '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, action: '',
-  cves: [], finding_ids: [], worst: 'medium', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 1, suspected: 0, ...o })
+  cves: [], finding_ids: [], worst: 'medium', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 1, suspected: 0, nvd_lag: false, kb: '', ...o })
 const dev = (a: FindingAsset, o: Partial<ToFixDevice>): ToFixDevice => ({ asset: a, risk: null, open: 0, exploited: [], no_update: [], planned: [], plan_compared: true, ...o })
 const need = (a: FindingAsset, sw: string, o: Partial<VersionNeeded> = {}): VersionNeeded => ({ asset: a, asset_id: a.id, software_id: `s-${a.id}`, software: sw, version: null, cves: 3, ...o })
 const unc = (a: FindingAsset, sw: string, cves: string[], o: Partial<UncheckedItem> = {}): UncheckedItem => ({ asset: a, asset_id: a.id, software_id: `u-${a.id}`, software: sw, version: null, reason: 'no_nvd_data', action: 'none',

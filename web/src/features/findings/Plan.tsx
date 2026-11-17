@@ -130,8 +130,10 @@ function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: s
         <span className="font-medium">{action}</span>{': '}
         {likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
           <>
-            {t('plan.fixes', { count: i.cves.length })}
+            {t(i.nvd_lag ? 'plan.fixesAtLeast' : 'plan.fixes', { count: i.cves.length })}
             {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
+            {/* Microsoft's newest update is newer than every fix NVD names: the count is the CVEs NVD has analysed so far */}
+            {i.nvd_lag ? t('plan.nvdLag') : null}
           </>
         )}
         {gone ? <span className="block text-meta text-muted">{i.agent_reported ? t('plan.lastReported', { date: fmtDate(i.agent_reported) }) : t('plan.lastReportedNoDate')}</span> : null}

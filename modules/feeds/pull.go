@@ -167,6 +167,7 @@ type pullPlan struct {
 	hasEPSSAll bool
 
 	winRel    []winrel.Release // windows-releases: the releases Microsoft's pages list, replaced whole
+	winRelUpd []winrel.Update  // windows-releases: the monthly updates of the pages read, replaced per release
 	hasWinRel bool
 }
 
@@ -661,7 +662,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 					return fmt.Errorf("feeds: distro print: %w", err)
 				}
 			case p.hasWinRel: // findings matches the Windows entries again when the releases changed
-				if rangesChanged, err = applyWinRel(ctx, tx, p.winRel); err != nil {
+				if rangesChanged, err = applyWinRel(ctx, tx, p.winRel, p.winRelUpd); err != nil {
 					return err
 				}
 			}

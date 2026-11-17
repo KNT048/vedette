@@ -88,7 +88,7 @@ describe('Findings › Needs your input by device (kien G15)', () => {
     expect(assetsStore.get().find((a) => a.id === 'a-unk02')!.software[0]!.version).toBe('7.2.5')
   })
 
-  it('Not installed removes software a person added, after one confirmation here; never offered for software a scan reads', async () => {
+  it('Not installed removes software a person added, after one confirmation here', async () => {
     renderApp('/findings?tab=input')
     const block = await expand('Fortinet')
     await userEvent.click(await within(block).findByRole('button', { name: 'Not installed' }, T))
@@ -101,11 +101,26 @@ describe('Findings › Needs your input by device (kien G15)', () => {
     expect(await screen.findByText('Removed FortiGate from Fortinet.', undefined, T)).toBeInTheDocument()
     expect(assetsStore.get().find((a) => a.id === 'a-unk02')!.software).toEqual([])
     await waitFor(() => expect(screen.queryByRole('listitem', { name: 'Fortinet' })).toBeNull(), T)
-    // a camera Vedette saw in traffic: its version can be typed (a correction, INV-41), but Not installed is not offered
+  })
+
+  it('Not installed on software a scan reads (INV-41 (6)): one confirmation, then the person\'s word is kept as a correction and the item leaves', async () => {
+    let sent: unknown = null
+    server.events.on('request:start', ({ request }) => { if (request.method === 'PATCH' && request.url.includes('/software/s-cam01')) void request.clone().json().then((b) => { sent = b }) })
+    renderApp('/findings?tab=input')
     const cam = await expand('CAM-GATE')
     expect(await within(cam).findByText(/Vedette saw it in network traffic, which carries no version/, undefined, T)).toBeInTheDocument()
-    expect(within(cam).queryByRole('button', { name: 'Not installed' })).toBeNull()
-    expect(within(cam).getByRole('button', { name: 'Save and check' })).toBeInTheDocument()
+    expect(within(cam).getByRole('button', { name: 'Save and check' })).toBeInTheDocument() // the version can still be typed (a correction)
+    await userEvent.click(within(cam).getByRole('button', { name: 'Not installed' }))
+    const ask = within(cam).getByRole('group', { name: 'Not installed' })
+    expect(ask).toHaveTextContent('Say Hikvision camera is not installed on CAM-GATE? The findings only it produced close. If a later scan or agent read finds it at another version, Vedette checks that version. Clear it on the device page to undo.')
+    await userEvent.click(within(ask).getByRole('button', { name: 'Not installed' }))
+    // the toast says what happened: here no open finding was on the row
+    expect(await screen.findByText('Hikvision camera is marked not installed on CAM-GATE. No open finding was on it.', undefined, T)).toBeInTheDocument()
+    expect(sent).toEqual({ not_installed: true })
+    const row = assetsStore.get().find((a) => a.id === 'a-cam01')!.software
+    expect(row.find((s) => s.corrects === 's-cam01')).toMatchObject({ source: 'manual', not_installed: true, display: 'Hikvision camera' })
+    await waitFor(() => expect(screen.queryByRole('listitem', { name: 'CAM-GATE' })).toBeNull(), T)
+    server.events.removeAllListeners()
   })
 
   it('a product added as its own device: Not installed removes the device', async () => {
@@ -137,7 +152,28 @@ describe('Findings › Needs your input by device (kien G15)', () => {
     const srv = await expand('SRV-ACCOUNTS')
     expect(await within(srv).findByText(/^Nothing to type here: read the advisories to check it yourself\. Vedette checks these again at the next NVD refresh, on .+\.$/, undefined, T)).toBeInTheDocument()
     expect(within(srv).queryByRole('button', { name: 'Save and check' })).toBeNull()
-    expect(within(srv).queryByRole('button', { name: 'Not installed' })).toBeNull()
+    // a row a scan reads, waiting for NVD: the person can still say it is not installed
+    expect(within(srv).getByRole('button', { name: 'Not installed' })).toBeInTheDocument()
+  })
+
+  it('a question about the platform or package release of a reported row offers Not installed too', async () => {
+    const cam = asset('a-cam01', 'CAM-GATE')
+    serve({ unchecked: [unc(cam, 'Hikvision camera', ['CVE-2026-41'], { software_id: 's-cam01', action: 'answer_platform', reason: 'package_unknown',
+      question: { text: 'Which firmware build does CAM-GATE run?', command: null, answers: [{ label: 'Enter the package release', ask: ['pkg_version'] }] } })] })
+    renderApp('/findings?tab=input')
+    const block = await expand('CAM-GATE')
+    expect(await within(block).findByText('Which firmware build does CAM-GATE run?', undefined, T)).toBeInTheDocument()
+    expect(await within(block).findByRole('button', { name: 'Not installed' }, T)).toBeInTheDocument()
+  })
+
+  it('the box\'s own software is never offered Not installed: it reads its own package list', async () => {
+    const box = asset('a-box', 'vedette')
+    serve({ unchecked: [unc(box, 'OpenSSH server', ['CVE-2026-31'], { software_id: 's-box-openssh' })] })
+    renderApp('/findings?tab=input')
+    const block = await expand('vedette')
+    expect((await within(block).findAllByText(/CVE-2026-31/, undefined, T)).length).toBeGreaterThan(0)
+    await waitFor(() => expect(within(block).queryByText(/Reading the device/)).toBeNull(), T)
+    expect(within(block).queryByRole('button', { name: 'Not installed' })).toBeNull()
   })
 
   it('the NVD feed off, and NVD not answered yet: it says so, with the way to turn it on', async () => {

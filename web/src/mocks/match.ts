@@ -13,8 +13,9 @@ interface Kev { cve: string; vendor: string; product: string; ransomware: boolea
 const vulns = (kev as { vulns: Kev[] }).vulns
 
 type Sw = Asset['software'][number]
-/** INV-41: the rows matching reads: a reported row a person corrected is replaced by the correction. */
-export const liveSoftware = (a: Asset): Sw[] => a.software.filter((s) => !a.software.some((c) => c.corrects === s.id))
+/** INV-41: the rows matching reads: a reported row a person corrected is replaced by the correction; a "not installed" correction
+ *  (INV-41 (6)) replaces it with nothing. */
+export const liveSoftware = (a: Asset): Sw[] => a.software.filter((s) => !s.not_installed && !a.software.some((c) => c.corrects === s.id))
 /** Mirrors the Go matcher's versionKnown: empty, an all-zero placeholder ("0.0") or text without a number is no version. */
 export const usableVersion = (v: string | null) => !!v && /\d/.test(v) && !/^[0.\s]+$/.test(v)
 
@@ -69,4 +70,46 @@ export function versionNeeded(assetId?: string | null) {
     }
   }
   return out.sort((x, y) => y.cves - x.cves)
+}
+
+/** The note of a finding closed because a person said its software is not installed (findings INV-6c, NotInstalledNote). */
+export const NOT_INSTALLED_NOTE = 'Closed: a person said the software is not installed.'
+
+/** Findings INV-6c: the open suspected findings that only `sw` (a row a person said is not installed) produced close, the person named;
+ *  a finding another live row still produces stays. No notice. */
+export function closeNotInstalled(assetId: string, sw: Sw, who: string): number {
+  const a = assetsStore.get().find((x) => x.id === assetId)
+  if (!a) return 0
+  const live = liveSoftware(a)
+  const now = nowIso()
+  const day = new Date(now).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  const note = `${NOT_INSTALLED_NOTE} ${who || 'a person'} said ${[sw.display, sw.version].filter(Boolean).join(' ')} (${sw.source}) is not installed on ${a.name ?? a.hostname ?? a.ip} (${day}).`
+  let n = 0
+  findingsStore.update((l) => l.map((f) => {
+    if (f.asset_id !== a.id || f.status !== 'suspected') return f
+    const v = vulns.find((x) => x.cve === f.cve)
+    if (!v || !keyed(sw, v) || live.some((s) => keyed(s, v))) return f
+    n++
+    return { ...f, status: 'not_relevant', resolved_by: 'system', resolved_at: now, resolution_note: note, history: [...f.history, { ts: now, user: 'system', action: 'not_relevant', note }] }
+  }))
+  return n
+}
+
+/** INV-6c: a finding closed for "Not installed" whose CVE a live row produces again (the person cleared it, or said what is installed)
+ *  reopens. */
+export function reopenNotInstalled(assetId: string): number {
+  const a = assetsStore.get().find((x) => x.id === assetId)
+  if (!a) return 0
+  const live = liveSoftware(a)
+  const now = nowIso()
+  let n = 0
+  findingsStore.update((l) => l.map((f) => {
+    if (f.asset_id !== a.id || f.status !== 'not_relevant' || f.resolved_by !== 'system' || !f.resolution_note?.startsWith(NOT_INSTALLED_NOTE)) return f
+    const v = vulns.find((x) => x.cve === f.cve)
+    if (!v || !live.some((s) => keyed(s, v))) return f
+    n++
+    return { ...f, status: 'suspected', resolved_by: null, resolved_at: null, resolution_note: null,
+      history: [...f.history, { ts: now, user: 'system', action: 'matches_again', note: 'The device matches this entry again, so Vedette reopened it (it had closed it because a person said the software is not installed).' }] }
+  }))
+  return n
 }

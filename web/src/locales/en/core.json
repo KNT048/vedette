@@ -571,6 +571,7 @@
       "inventory.clear_os": "Clear a corrected operating system",
       "inventory.correct_software": "Correct software a scan or agent reported",
       "inventory.clear_software_correction": "Clear a software correction",
+      "inventory.mark_not_installed": "Say software a scan or agent reported is not installed",
       "inventory.set_fragile": "Mark device fragile",
       "inventory.set_kind": "Change device kind",
       "inventory.set_notes": "Change device notes",

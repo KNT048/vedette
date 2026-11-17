@@ -162,6 +162,21 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 			}
 		}
 	}
+	if len(mine) > 0 && len(a.NotInstalled) > 0 { // INV-6c: a finding left open on a row a person said is not installed (a scan confirmed it, or a person kept it) keeps the row's name
+		gone := a
+		gone.Software, gone.NotInstalled = a.NotInstalled, nil
+		r := MatchAsset(gone, mine, have, now)
+		for _, m := range slices.Concat(r.New, r.Existing) {
+			if _, done := rowOf[m.CVE]; done {
+				continue
+			}
+			for _, sw := range a.NotInstalled {
+				if sw.ID == m.SoftwareID {
+					rowOf[m.CVE], sws[sw.ID] = sw, sw
+				}
+			}
+		}
+	}
 	type member struct {
 		r   Record
 		ran bool

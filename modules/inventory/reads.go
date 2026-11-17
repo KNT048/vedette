@@ -109,7 +109,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 }
 
 func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
-	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key
+	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key, `+notInstalledSW+`
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id
 		WHERE s.asset_id IN `+sub+` AND NOT `+hiddenGuess+` ORDER BY s.asset_id, s.display, s.id, k.kev_key`, args...)
 	if err != nil {
@@ -120,7 +120,7 @@ func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx m
 		var asset, key sql.NullString
 		var sw Software
 		var ver sql.NullString
-		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key); err != nil {
+		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key, &sw.NotInstalled); err != nil {
 			return fmt.Errorf("inventory: read software: %w", err)
 		}
 		d := &out[idx[asset.String]]

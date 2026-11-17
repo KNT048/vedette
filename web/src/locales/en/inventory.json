@@ -385,7 +385,19 @@
     "seen": "The device reports {{version}} ({{source}}).",
     "seenTyped": "You entered {{typed}}; the device reports {{version}} ({{source}}).",
     "accept": "Use {{version}}",
-    "acceptLabel": "Use version {{version}} for {{name}}"
+    "acceptLabel": "Use version {{version}} for {{name}}",
+    "notInstalledAction": "Not installed",
+    "notInstalledActionLabel": "Say {{name}} is not installed on this device",
+    "notInstalledTitle": "Is {{name}} not installed on {{device}}?",
+    "notInstalledBody": "Vedette stops matching it and closes the findings only it produced, as long as the scan or agent reads this same version.",
+    "notInstalledBodyInfo": "If a later read finds it at another version, that is a new install and Vedette checks it again. Clear undoes this.",
+    "notInstalledConfirm": "Not installed",
+    "notInstalled": "Not installed (you said, {{date}})",
+    "notInstalledStale": "You said not installed on {{date}}; the last read now finds {{now}} ({{source}}), and Vedette checks that.",
+    "notInstalledGone": "You said not installed on {{date}}; no scan or agent reports it now.",
+    "clear": "Clear",
+    "clearLabel": "Clear \"not installed\" for {{name}}",
+    "cleared": "{{name}} is back as the scan or agent reads it. Its findings are checked again."
   },
   "notes": {
     "title": "Notes",

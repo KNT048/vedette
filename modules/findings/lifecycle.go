@@ -176,6 +176,9 @@ func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 	if strings.HasPrefix(f.ResolutionNote, AskedNote) { // D-604: the answer says the device is affected
 		note = "The answer about the device's system or package release says it is affected, so Vedette reopened it."
 	}
+	if strings.HasPrefix(f.ResolutionNote, NotInstalledNote) { // INV-6c: the person cleared "Not installed", or the source reads a new install
+		note = "The device matches this entry again, so Vedette reopened it (it had closed it because a person said the software is not installed)."
+	}
 	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = StatusSuspected, "", time.Time{}, "", ""
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: note}, true
 }

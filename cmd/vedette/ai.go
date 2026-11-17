@@ -168,6 +168,9 @@ type aiMitigation struct {
 	// AI writes config for what is there; nil = the facts of the finding row only.
 	inv *inventory.Service
 	log *slog.Logger // an inventory read that fails is logged and the AI gets the row's own facts (#897); nil = not logged
+	// net reads the box's own network (its subnets and default gateways), which decides which firewalls are on a device's path;
+	// nil = no host, the path is not known.
+	net func(context.Context) aiNet
 }
 
 func jobOf(s mitigation.Skill) ai.Job {
@@ -181,8 +184,8 @@ func (m aiMitigation) Available(_ context.Context, s mitigation.Skill) bool {
 	return m.svc.Available(jobOf(s))
 }
 
-// aiMaxFirewalls is how many firewalls and routers the config skill is told about: one config block each, so a network with many
-// gets the first ones by id (the device list's order); the answer has room for about eight blocks.
+// aiMaxFirewalls is how many firewalls and routers the config skill may write a rule for: one config block each, so a network with
+// many gets the first ones by id (the device list's order); the answer has room for about eight blocks.
 const aiMaxFirewalls = 6
 
 func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitigation.AIOutput, error) {
@@ -191,7 +194,7 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 	data := aiFindingData(req, dev, walls)
 	q := "Explain this finding."
 	if req.Skill == mitigation.SkillConfig {
-		q = "Write the configuration for this finding: the device's own workaround and a rule for each firewall in the network block."
+		q = "Write the configuration for this finding: the device's own workaround and a rule for each firewall the network block says is on the device's path."
 	}
 	ans, err := m.svc.Brief(ctx, ai.BriefRequest{Job: jobOf(req.Skill), Actor: req.User, Target: row.CVE, Question: q, Data: data, Trusted: aiTrusted(row, dev, walls)})
 	if err != nil {
@@ -220,11 +223,11 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 }
 
 // facts reads the device of the finding and, for the config skill, the firewalls and routers of the inventory (the kinds
-// mitigation.Vendors reads, INV-5). A device deleted meanwhile is left out; a read that fails is logged and left out too, so the AI
-// still answers from the row's own facts instead of the page getting a bare 500 (#897).
-func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev *inventory.Device, walls []inventory.Device) {
+// mitigation.Vendors reads, INV-5) that are on the device's path (aiPickWalls). A device deleted meanwhile is left out; a read that
+// fails is logged and left out too, so the AI still answers from the row's own facts instead of the page getting a bare 500 (#897).
+func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev *inventory.Device, walls aiFirewalls) {
 	if m.inv == nil {
-		return nil, nil
+		return nil, walls
 	}
 	failed := func(what string, err error) {
 		if m.log != nil && !errors.Is(err, inventory.ErrNotFound) {
@@ -237,32 +240,43 @@ func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev 
 		failed("device", err)
 	}
 	if req.Skill != mitigation.SkillConfig {
-		return dev, nil
+		return dev, walls
 	}
 	kd, err := m.inv.DevicesOfKind(ctx, []string{"firewall", "router"})
 	if err != nil {
 		failed("firewalls", err)
-		return dev, nil
+		return dev, walls
 	}
-	for _, k := range kd {
-		if len(walls) == aiMaxFirewalls {
-			break
-		}
-		if d, err := m.inv.Device(ctx, k.ID); err == nil {
-			walls = append(walls, d)
+	var n aiNet
+	if m.net != nil {
+		n = m.net(ctx)
+	}
+	devIP := ""
+	if dev != nil {
+		devIP = dev.IP
+	} else if req.Finding.Asset != nil {
+		devIP = req.Finding.Asset.IP
+	}
+	ids, sel := aiPickWalls(n, req.Finding.AssetID, devIP, kd)
+	paths := sel.Paths
+	sel.Paths = nil
+	for i, id := range ids {
+		if d, err := m.inv.Device(ctx, id); err == nil {
+			sel.Walls, sel.Paths = append(sel.Walls, d), append(sel.Paths, paths[i])
 		} else {
 			failed("firewall", err)
 		}
 	}
-	return dev, walls
+	return dev, sel
 }
 
 // aiMaxPorts caps the open ports one finding sends.
 const aiMaxPorts = 30
 
-// aiTrusted are the addresses the box knows for the finding from structured fields: the device's IP and the firewalls' IPs, never a
-// banner, a name or the Evidence text. A config naming any other address is flagged on the page (#897).
-func aiTrusted(row findings.Row, dev *inventory.Device, walls []inventory.Device) []netip.Addr {
+// aiTrusted are the addresses the box knows for the finding from structured fields: the device's IP, the IPs of the firewalls a rule
+// may be written for and the device's gateway, never a banner, a name or the Evidence text. A config naming any other address (a
+// firewall that is not on the device's path among them) is flagged on the page (#897).
+func aiTrusted(row findings.Row, dev *inventory.Device, walls aiFirewalls) []netip.Addr {
 	var out []netip.Addr
 	add := func(ip string) {
 		if a, err := netip.ParseAddr(ip); err == nil && a.Zone() == "" && !slices.Contains(out, a.Unmap()) {
@@ -275,8 +289,11 @@ func aiTrusted(row findings.Row, dev *inventory.Device, walls []inventory.Device
 	if dev != nil {
 		add(dev.IP)
 	}
-	for _, w := range walls {
+	for _, w := range walls.Walls {
 		add(w.IP)
+	}
+	if walls.Gateway.IsValid() {
+		add(walls.Gateway.String())
 	}
 	return out
 }
@@ -331,10 +348,10 @@ func aiName(d inventory.Device) string {
 // aiFindingData is what the AI gets for a finding: the same facts the finding page shows (an answer once said "the data does not
 // list affected versions" while the Evidence named "before 20.4"). The exploited-list entry; the device with its vendor, model, OS,
 // software and open ports, the Evidence sentence (the installed version and the affected range), the fixed release or the fix of each
-// release line, the basis and confidence; and for the config skill the firewalls and routers of the inventory, whose vendor decides the
-// syntax of the firewall rule. Device data is the customer's own network data, as before: the job carries internal data (INV-3 of ai)
+// release line, the basis and confidence; and for the config skill the firewalls and routers on the device's path (aiNetworkBlock), whose
+// vendor decides the syntax of the firewall rule. Device data is the customer's own network data, as before: the job carries internal data (INV-3 of ai)
 // and goes through the privacy rule and the before_ai hooks like every call.
-func aiFindingData(req mitigation.AIRequest, dev *inventory.Device, walls []inventory.Device) []ai.DataBlock {
+func aiFindingData(req mitigation.AIRequest, dev *inventory.Device, walls aiFirewalls) []ai.DataBlock {
 	row := req.Finding
 	var feed, d strings.Builder
 	links := 0
@@ -370,16 +387,7 @@ func aiFindingData(req mitigation.AIRequest, dev *inventory.Device, walls []inve
 	if req.Skill != mitigation.SkillConfig {
 		return blocks
 	}
-	var n strings.Builder
-	if len(walls) == 0 {
-		n.WriteString("No firewall or router is in the inventory.\n")
-	} else {
-		n.WriteString("Firewalls and routers in the inventory:\n")
-		for _, w := range walls {
-			fmt.Fprintf(&n, "- %s, IP %s, kind %s; %s\n", aiName(w), aiIP(w.IP), aiVal(w.Kind, 30), cmp.Or(aiDeviceFacts(w), "vendor not known"))
-		}
-	}
-	return append(blocks, ai.DataBlock{Kind: "inventory", Source: "the firewalls of the network", Text: n.String()})
+	return append(blocks, ai.DataBlock{Kind: "inventory", Source: "the firewalls of the network", Text: aiNetworkBlock(walls)})
 }
 
 // aiAttack says how the vulnerability is reached, from the CVSS vector: the config skill writes a firewall rule only for a flaw

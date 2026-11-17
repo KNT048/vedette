@@ -97,3 +97,39 @@ func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {
 		t.Fatalf("explain = %+v, %v", out, err)
 	}
 }
+
+// An answer said "the fixed release is 20.4 or later" from the Evidence's "before 20.4" while the finding page said 20.4 is not the
+// fix, and wrote a rule for a firewall that traffic to the device never crosses. Both finding jobs tell the model that the "Fixed
+// version" line is the fix and that a range end is not one; the config job writes rules only for the firewalls the network block
+// offers and names the firewall it assumed when the box does not know the path.
+func TestBrief_FixFollowsThePageAndRulesFollowThePath(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	fix := []string{`The "Fixed version" line of the device block is what the finding page tells the person about the fix`,
+		`never call that release (or "that release or later") the fix`, "Never work out a fixed release from an affected range"}
+	path := []string{"never for one it says is not on the path to this device", `put "(assumed)" in the block's "title"`,
+		`in "no_config_reason" name each firewall you assumed is in front of the device`}
+	for _, c := range []struct {
+		job    ai.Job
+		answer string
+		want   []string
+	}{
+		{ai.JobExplainFinding, `{"paragraphs":["The device runs an affected release."],"steps":["Read the vendor advisory."]}`, fix},
+		{ai.JobMitigationConfig, `{"paragraphs":["The device runs an affected release."],"steps":["Patch."],"configs":[],"no_config_reason":"No open port serves the vulnerable part."}`, append(slices.Clone(fix), path...)},
+	} {
+		a.fake.setAnswer(c.answer)
+		if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: c.job, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Explain this finding."}); err != nil {
+			t.Fatalf("%s: %v", c.job.Name(), err)
+		}
+		req := a.fake.lastRequest(t)
+		all := req.System + req.Messages[0].Text
+		for _, w := range c.want {
+			if !strings.Contains(all, w) {
+				t.Errorf("%s: the instructions lack %q", c.job.Name(), w)
+			}
+		}
+		if strings.Contains(all, "which release fixes it (say so from the data") {
+			t.Errorf("%s: the instructions still ask the model to name a fix whatever the data says", c.job.Name())
+		}
+	}
+}

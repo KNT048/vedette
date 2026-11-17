@@ -172,3 +172,6 @@
 - `Service.ToFix` (INV-25): thứ tự thiết bị (`urgency`) là thứ người dùng thấy đầu tiên trên Findings; `UpdateAction.Proved` quyết một nhóm "không có bản cập nhật" vào "To fix" hay "Needs your input" (web `proved` trong `ToFix.tsx` cùng luật): đổi một bên thì đổi cả hai.
 - Gộp theo `RowFixes`/`PlanItem`: đổi INV-18 hay INV-20 là đổi câu trả lời này cùng lúc (cố ý: một cách gộp). `SoftwareID` của `RowFix`/`PlanItem` là `json:"-"`, không vào API.
 - `DeviceUpdates` nhận `feedsOn` (người gọi đọc công tắc feeds như handler plan). `proofOf` đọc `basis`, `evidence.agent`/`agent_row` và `tierSource`: đổi một trong ba là đổi lời "detected"/"suspected" khách đọc.
+
+## Modifying: "I updated it" for agent-read software (web `Updated.tsx` `AgentAsk`, `ToFix.tsx` `DeviceUpdated`; S-MIT-1)
+- **agent-intake** (`GET`/`POST /inventory/agents/devices/{id}/report`, INV-23): the button asks the device's osquery agent; a Wazuh-only device gets the pull interval; agent-intake off gets the generic line. To fix shows the agent control and the network check once per device (n83), a typed version per row. `os` wording (restart) follows `isOsSoftware` (Windows' own row, the Linux kernel) and a Windows/ESU/feature-update action: a change of how agent-intake names the Windows row (`windowsRow`) or the kernel (`pkgmap.json` Linux|Kernel) changes it.

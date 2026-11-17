@@ -173,3 +173,6 @@
 
 ## Modifying: `inventory.Service.DeviceCounts(ctx)` (#825)
 - **findings** (`GET /findings/summary`, `HomeSources.Devices`, nối ở `cmd/vedette/wiring.go`): ô thiết bị của Home. Phải giữ cùng định nghĩa với `Devices().Counts.All/Pending` (`TestDeviceCountsAreTheListCounts`); đổi một bên = đổi cả hai.
+
+## Modifying: `AgentDevice` (INV-39, `observe.AgentDevices`)
+- **agent-intake** (`report.go` `reportState`, type-asserted on `Config.Approver`): finds the osquery node of a device by `agent_key` and a Wazuh device by IP/MAC for "I updated it: ask the agent now" (S-MIT-1). Renaming the agent key prefix or returning another device's key would ask the wrong machine; dropping the interface makes every device answer `none` (no button).

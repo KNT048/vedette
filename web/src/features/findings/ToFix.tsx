@@ -15,7 +15,11 @@ import { useDevice, useDevices } from '@/features/inventory/api'
 import { deviceName } from './basis'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 import type { SoftwareView } from '@/features/inventory/types'
-import { IUpdated } from './Updated'
+import { isOsSoftware, IUpdated } from './Updated'
+
+/** An action that updates the operating system itself (its new build shows only after a restart): Windows' cumulative update, or a
+ *  row that is the OS or the kernel (its "vendor|product"). */
+const osAction = (a: ToFixAction) => a.windows || a.kind === 'windows' || a.kind === 'esu' || a.kind === 'feature_update' || isOsSoftware(a.product.split('|')[0] ?? '', a.product.split('|')[1] ?? '')
 
 const SEV = ['info', 'low', 'medium', 'high', 'critical']
 const rank = (s: string) => SEV.indexOf(s.toLowerCase())
@@ -77,9 +81,27 @@ function Action({ a, planned, box, asset }: { a: ToFixAction; planned: boolean; 
         ) : null}
       </details>
       <ActionButton a={a} box={box} />
-      {/* kien G12: the same "I updated it" as the finding page: what the update needs, by who reports the version */}
-      {a.software_id ? <IUpdated asset={asset} software={{ id: a.software_id, display: a.software, version: a.version || null, source: a.source as SoftwareView['source'], kev_cves: a.cves }} size="sm" progress={false} /> : null}
+      {/* kien G12: the same "I updated it" as the finding page; a typed version is per row, an agent or a check reads the whole device
+          (DeviceUpdated, once per device: n83) */}
+      {a.software_id && a.source === 'manual' ? <IUpdated asset={asset} software={updatedOf(a)} size="sm" progress={false} /> : null}
     </li>
+  )
+}
+
+const updatedOf = (a: ToFixAction) => ({ id: a.software_id, display: a.software, version: a.version || null, source: a.source as SoftwareView['source'], kev_cves: a.cves })
+
+/** "I updated it" for what reads the whole device (n83: once per device, not under every row): its agent ("ask the agent now", or how
+ *  the new version arrives), and the network check for rows a scan read. An OS update among the agent's rows words it for the restart. */
+function DeviceUpdated({ d, box }: { d: ToFixDevice; box: boolean }) {
+  const rows = [...actionable(d), ...d.planned].filter((a) => a.software_id)
+  const agent = rows.filter((a) => a.source === 'agent')
+  const scan = rows.find((a) => a.source !== 'agent' && a.source !== 'manual')
+  if (!agent.length && !scan) return null
+  return (
+    <div className="mt-1 grid gap-1">
+      {agent.length ? <IUpdated asset={d.asset} software={updatedOf(agent[0]!)} size="sm" progress={false} os={agent.some(osAction)} box={box} /> : null}
+      {scan ? <IUpdated asset={d.asset} software={updatedOf(scan)} size="sm" progress={false} /> : null}
+    </div>
   )
 }
 
@@ -104,6 +126,7 @@ export function DeviceCard({ d, box, showName = true }: { d: ToFixDevice; box: b
           <ul aria-label={t('toFix.recommendedOf', { device: name })} className="divide-y divide-rule">{d.planned.map((a) => <Action key={`plan:${a.group}`} a={a} planned box={box} asset={d.asset} />)}</ul>
         </>
       ) : null}
+      <DeviceUpdated d={d} box={box} />
       {check ? <Link to={`/findings?tab=input&device=${encodeURIComponent(d.asset.id)}`} className="mt-1 inline-block text-meta text-accent underline underline-offset-4">{t('toFix.toCheck', { count: check })}</Link> : null}
     </li>
   )

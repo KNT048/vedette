@@ -20,7 +20,6 @@ const ALLOWED: { file: string; text: string; count: number; why: string }[] = [
   { file: 'features/findings/FindingsPage.tsx', text: 'ids.length', count: 1, why: 'the bulk dialog opens only from the selection bar, which shows only with a selection' },
   { file: 'features/notify/IncidentsPage.tsx', text: 'ids.length', count: 1, why: 'the bulk dialog opens only from the selection bar, which shows only with a selection' },
   { file: 'features/findings/FindingsPage.tsx', text: 'all', count: 1, why: 'PlanLine returns null when the plan has no item, so all is at least 1' },
-  { file: 'features/findings/FixGroups.tsx', text: 'g.members.length', count: 1, why: 'a fix group has at least two findings by construction (fixGroups)' },
   { file: 'features/feeds/HomeDashboard.tsx', text: 's.open.total', count: 1, why: 'the Fix first card is drawn only when it lists open findings (an empty one returns earlier)' },
 ]
 

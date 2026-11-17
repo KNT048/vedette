@@ -514,7 +514,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 					fresh = append(fresh, b)
 				}
 			}
-			release = append(digest(retried, s.link("/findings")), digest(fresh, s.link("/findings"))...)
+			release = append(digest(retried, s.link(findingsList)), digest(fresh, s.link(findingsList))...)
 			// Critical first, then the order they were queued in; what does not fit in this run stays pending.
 			sort.SliceStable(release, func(i, j int) bool {
 				return release[i].Severity() == Critical && release[j].Severity() != Critical
@@ -551,12 +551,16 @@ func refOf(n Notice) (kind, ref, link string) {
 	if n.Kind == KindIncident {
 		return "incident", n.ID, "/incidents/" + n.ID
 	}
-	link = "/findings"
+	link = findingsList
 	if len(n.FindingIDs) > 0 {
-		link += "/" + n.FindingIDs[0]
+		link = "/findings/" + n.FindingIDs[0]
 	}
 	return "vuln", n.ID, link
 }
+
+// findingsList is where a digest or a notice that names no finding links: every open finding as rows (the All open tab), which also
+// lists new product-only matches; the Findings page opens on To fix, which leaves those to Needs your input (kien G8, review r2 of #943).
+const findingsList = "/findings?tab=open"
 
 // fallbackMessage is a single-notice message for a record of an attempt that never rendered one.
 func fallbackMessage(n Notice) channel.Message {

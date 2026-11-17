@@ -168,6 +168,7 @@
 - **Đo trên hộp**: `scripts/dev/home-summary-measure.sh` (thời gian API p50/p95, cỡ câu trả lời, RSS của core trước/sau, tải trang).
 
 ## Modifying: `Service.DeviceUpdates`, `UpdateAction`, `Proof*`, `RowFix.SoftwareID`, `PlanItem.SoftwareID` (INV-24, G9)
-- Người gọi: `cmd/vedette` `aiAsk.DeviceUpdates` (công cụ `device_updates` của Ask my AI, ai INV-22c); sắp tới G8 (trang Findings, tab Software của thiết bị nối theo `SoftwareID`). Đổi trường → sửa adapter và mô tả công cụ.
+- Người gọi: `cmd/vedette` `aiAsk.DeviceUpdates` (công cụ `device_updates` của Ask my AI, ai INV-22c); `Service.ToFix` (`GET /findings/to-fix`, INV-25: trang Findings "To fix", tab Software của thiết bị nối theo `SoftwareID`). Đổi trường → sửa adapter, mô tả công cụ, `handlers_tofix.go` (`toFixActionJS`), `web/src/features/findings/contract.ts` `ToFixAction`, mock `toFix` (`findings/mocks.ts`), `ToFix.tsx`, `SoftwareNeeds.tsx`.
+- `Service.ToFix` (INV-25): thứ tự thiết bị (`urgency`) là thứ người dùng thấy đầu tiên trên Findings; `UpdateAction.Proved` quyết một nhóm "không có bản cập nhật" vào "To fix" hay "Needs your input" (web `proved` trong `ToFix.tsx` cùng luật): đổi một bên thì đổi cả hai.
 - Gộp theo `RowFixes`/`PlanItem`: đổi INV-18 hay INV-20 là đổi câu trả lời này cùng lúc (cố ý: một cách gộp). `SoftwareID` của `RowFix`/`PlanItem` là `json:"-"`, không vào API.
 - `DeviceUpdates` nhận `feedsOn` (người gọi đọc công tắc feeds như handler plan). `proofOf` đọc `basis`, `evidence.agent`/`agent_row` và `tierSource`: đổi một trong ba là đổi lời "detected"/"suspected" khách đọc.

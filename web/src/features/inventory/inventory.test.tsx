@@ -738,7 +738,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeChecked()
     // D-543: the page frame: numbers that link to the detail, then one tab per area of the device
     const kpis = screen.getByRole('list', { name: 'This device at a glance' })
-    expect(within(kpis).getByRole('link', { name: /Open findings/ })).toHaveAttribute('href', '/findings?device=a-nas02')
+    expect(within(kpis).getByRole('link', { name: /Open findings/ })).toHaveAttribute('href', '/findings?tab=open&device=a-nas02')
     expect(within(kpis).getByRole('link', { name: '3 Open services' })).toHaveAttribute('href', '/devices/a-nas02?tab=services')
     expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Overview', 'Software', 'Services', 'Observations'])
     await expectNoA11yViolations()
@@ -759,7 +759,8 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(within(row8080).getByText('5.1.0')).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Software' }))
     const sw = await screen.findByRole('table', { name: 'Software on the device' }, T)
-    expect(within(sw).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/f-1')
+    // kien G8: the row says what it needs, linked to the device's To fix
+    expect(await within(sw).findByRole('link', { name: '1 exploited CVE' }, T)).toHaveAttribute('href', '/findings?tab=open&device=a-nas02')
     await expectNoA11yViolations()
   })
 
@@ -767,23 +768,24 @@ describe('inventory: device detail (S-INV-1)', () => {
   // The row is looked up on every try: the table re-renders when the module list and the findings arrive.
   const photoStation = () => within(screen.getByRole('table', { name: 'Software on the device' })).getByText('QNAP Photo Station').closest('tr')!
   const openSoftwareTab = () => renderApp('/devices/a-nas02?tab=software')
-  it('W11-1: an open finding shows its CVE on the software row, linked to the finding', async () => {
+  it('W11-1, G8: an open finding shows on the software row as what it needs, linked to the device\'s To fix', async () => {
     openSoftwareTab()
-    await waitFor(() => expect(within(photoStation()).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/f-1'), T)
+    await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toHaveAttribute('href', '/findings?tab=open&device=a-nas02'), T)
   })
 
   it('W11-1: an exploited CVE of the product without an open finding on the device is not shown', async () => {
     findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-nas02' ? { ...f, status: 'not_relevant' as const } : f)))
     openSoftwareTab()
-    await waitFor(() => expect(within(photoStation()).getByText('None open')).toBeInTheDocument(), T)
-    expect(within(photoStation()).queryByRole('link', { name: /^CVE-/ })).toBeNull()
+    await screen.findByRole('table', { name: 'Software on the device' }, T)
+    await waitFor(() => expect(screen.queryByText('Checking findings')).toBeNull(), T)
+    expect(within(photoStation()).queryByRole('link', { name: /exploited CVE/ })).toBeNull() // G8: nothing on a clean row
   })
 
   it('W11-1: with findings off the column says so instead of listing the product\'s exploited CVEs', async () => {
     enableModule('findings', false)
     openSoftwareTab()
-    await waitFor(() => expect(within(photoStation()).getByText('Findings module is off')).toBeInTheDocument(), T)
-    expect(within(photoStation()).queryByRole('link', { name: /^CVE-/ })).toBeNull()
+    await waitFor(() => expect(within(photoStation()).getByText('Findings are off')).toBeInTheDocument(), T)
+    expect(within(photoStation()).queryByRole('link', { name: /exploited CVE/ })).toBeNull()
   })
 
   it('changing the type adds a manual observation and keeps the old one', async () => {

@@ -74,6 +74,17 @@ func TestExposureWeb_AReportComesBack(t *testing.T) {
 			t.Fatalf("args %+v actor %q", h.got, h.actor)
 		}
 	}
+	// D-628 (review r1 M of #941): a child covered only by its parent (git.example.com by example.com) has its pages checked against
+	// the parent's record: the host is asked for the parent's domain and token, and the page's name stays the child's
+	child := exposure.ScanTarget{ID: "t3", Kind: exposure.KindDomain, Value: "git.example.com", User: "us_admin", Proof: &exposure.ProofOwner{Domain: "example.com", Token: "fedcba9876543210"}}
+	childPage := exposure.WebPage{URL: "https://git.example.com/", Host: "git.example.com", IP: netip.MustParseAddr("93.184.216.34"), Port: 443}
+	hc := &fakeZapHost{run: zapRun(t, api.StatusSucceeded, "", &api.ZapBaselineResult{ReportID: rid}), report: []byte(`{}`)}
+	if _, err := (exposureWebScan{host: hc, token: func(context.Context, string) (string, error) { return "0123456789abcdef", nil }}).Baseline(t.Context(), child, childPage); err != nil {
+		t.Fatal(err)
+	}
+	if hc.got.Domain != "example.com" || hc.got.TXTToken != "fedcba9876543210" || hc.got.Host != "git.example.com" {
+		t.Fatalf("covered child: %+v", hc.got)
+	}
 	h := &fakeZapHost{run: zapRun(t, api.StatusSucceeded, "", &api.ZapBaselineResult{ReportID: rid}), report: []byte(`{}`)}
 	if _, err := (exposureWebScan{host: h}).Baseline(t.Context(), webIPTarget, webIPPage); err != nil {
 		t.Fatal(err)

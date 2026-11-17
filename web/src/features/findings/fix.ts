@@ -1,24 +1,7 @@
-// D-545 (W-3, S-MIT-1): one missing update is one item, not one row per CVE, as top-tier scanners group by the fix (Defender's
-// "Update Windows Server 2025" recommendation, Tenable's one plugin per cumulative update).
+// D-545 (W-3, S-MIT-1): what to install, in words. The grouping by fix is the server's (findings.DeviceUpdates, GET /findings/to-fix,
+// kien G8): the page shows it as To fix, one action per update.
 import { useTranslation } from 'react-i18next'
-import { isOpen, riskRank } from './basis'
-import type { FindingRow, PlanItem, RowFix } from './types'
-
-export interface FixGroup { key: string; fix: RowFix; members: [FindingRow, ...FindingRow[]] }
-
-/** The open rows that one update fixes together (two or more of the rows given) become groups; the rest stay rows. */
-export function fixGroups(rows: FindingRow[]): { groups: FixGroup[]; rest: FindingRow[] } {
-  const by = new Map<string, FindingRow[]>()
-  for (const r of rows) if (r.fix && isOpen(r.status)) by.set(r.fix.group, [...(by.get(r.fix.group) ?? []), r])
-  const groups: FixGroup[] = []
-  for (const [key, list] of by) {
-    const [first, ...others] = [...list].sort((a, b) => riskRank(b) - riskRank(a))
-    if (first?.fix && others.length > 0) groups.push({ key, fix: first.fix, members: [first, ...others] })
-  }
-  const grouped = new Set(groups.flatMap((g) => g.members.map((m) => m.id)))
-  groups.sort((a, b) => b.members.length - a.members.length || riskRank(b.members[0]) - riskRank(a.members[0]))
-  return { groups, rest: rows.filter((r) => !grouped.has(r.id)) }
-}
+import type { PlanItem, RowFix } from './types'
 
 const build = (v: string) => v.replace(/^10\.0\./, '')
 

@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -16,15 +16,14 @@ import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
 import { untilOk } from './accept'
-import { useBulkStatus, useFindings, usePlan } from './api'
+import { useBulkStatus, useFindings, usePlan, useToFix } from './api'
 import { basisKey, deviceName, hasIp, isOpen, riskRank, unverified } from './basis'
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
 import { RiskChip } from './Risk'
 import { UncheckedList } from './UncheckedList'
-import { CvssScore } from './Cvss'
-import { FixGroupList } from './FixGroups'
-import { fixGroups, useFixAction } from './fix'
+import { ToFixTab, UnprovedList, unproved } from './ToFix'
+import { useFixAction } from './fix'
 import type { BulkAction, FindingRow, VersionNeeded } from './types'
 import { NotRelevantToggle, isNotRelevant } from './notRelevant'
 
@@ -136,8 +135,8 @@ function List() {
   // The tab being shown decides which rows are selectable: selection is cleared on a tab change by the filter below (hidden rows never stay selected).
   const tabId = (['open', 'accepted', 'handled'] as Tab[]).find((x) => x === params.get('tab')) ?? 'open'
   // D-545: in Open, the findings one update fixes together are one item above the table, not one row each (unless ?fix= asks for them).
-  const grouping = tabId === 'open' && !fixKey ? fixGroups(rowsFor('open')) : null
-  const rows = grouping ? grouping.rest : rowsFor(tabId)
+  // kien G8: the findings one update fixes are an action of To fix; this list is every open finding, one row each
+  const rows = rowsFor(tabId)
   const fixAction = useFixAction()
   const fixShown = fixKey ? items?.find((f) => f.fix?.group === fixKey)?.fix : undefined
   // Only what is shown can stay selected: changing a filter never acts on hidden rows.
@@ -182,7 +181,7 @@ function List() {
     { id: 'status', header: t('col.status'), accessorFn: (r) => r.status, cell: ({ row: { original: r } }) => <StatusCell r={r} /> },
     // #825: the CVSS score sits under the exploited risk, never instead of it, in the same cell (no extra column: the table fits 1280 px as before)
     { id: 'severity', header: t('col.severity'), accessorFn: riskRank, cell: ({ row: { original: r } }) => (
-      <span className="grid justify-items-start gap-1"><RiskChip f={r} /><CvssScore cvss={r.cvss} prefix /></span>
+      <RiskChip f={r} />
     ) },
     // hidden, sorted from "Sort by": highest first, no score last both ways
     { id: 'cvss', header: t('col.cvss'), accessorFn: (r) => r.cvss?.score, sortUndefined: 'last', sortDescFirst: true },
@@ -232,13 +231,8 @@ function List() {
         ) : null}
       </div>
       {tab === 'handled' ? <div className="mb-3"><NotRelevantToggle count={rowsFor('handled', true).filter(isNotRelevant).length} shown={showNotRelevant} onChange={(v) => setParam('notrelevant', v ? 'show' : '')} /></div> : null}
-      {tab === 'open' && q.data?.version_needed.length ? <VersionNeededList items={q.data.version_needed} /> : null}
-      {tab === 'open' && q.data?.unchecked?.length ? <UncheckedList items={q.data.unchecked} /> : null}
-      {tab === 'open' && grouping ? <div className="mb-3"><FixGroupList groups={grouping.groups} showDevice /></div> : null}
       <QueryState query={q}>
-        {() => tab === 'open' && grouping && grouping.groups.length > 0 && rows.length === 0 ? (
-          <p className="text-sm text-muted">{t('fix.allGrouped')}</p>
-        ) : tab === 'open' && rows.length === 0 && !filtersOn('open') ? (
+        {() => tab === 'open' && rows.length === 0 && !filtersOn('open') ? (
           // docs/UI.md §6: nothing open is good news: the drawing, and what to do next (not a table with an empty row)
           <EmptyState art="no-findings" title={t('emptyOpen')} info={t('emptyHelpInfo')}
             action={<span className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm">
@@ -268,7 +262,6 @@ function List() {
                   <span className="text-meta text-muted">{r.kev?.display ?? '–'}</span>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                     <RiskChip f={r} />
-                    <CvssScore cvss={r.cvss} prefix />
                     <span>{t(basisKey(r.basis))}</span>
                     <span className="text-muted">{fmtRelative(r.last_seen)}</span>
                   </div>
@@ -292,6 +285,36 @@ function List() {
     </>
   )
 
+  const toFix = useToFix()
+  // kien G8, review r1 of #943: a link that carries a finding filter (?cve=, ?fix=, the old shapes of the CVE page, Home and the device
+  // page) opens the findings table with it, never To fix, which would drop it
+  const filterTab = !params.get('tab') && (params.get('cve') || params.get('fix')) ? 'open' : null
+  useEffect(() => { if (filterTab) { params.set('tab', filterTab); setParams(params, { replace: true }) } }, [filterTab, params, setParams])
+  const toFixDevices = (toFix.data?.devices ?? []).filter((x) => !device || x.asset.id === device)
+  const need = (q.data?.version_needed ?? []).filter((x) => !device || x.asset_id === device)
+  const unc = (q.data?.unchecked ?? []).filter((x) => !device || x.asset_id === device)
+  const inputDeviceName = [...need.map((x) => x.asset), ...unc.map((x) => x.asset), ...toFixDevices.map((x) => x.asset)].find((x) => x?.id === device)?.name ?? t('toFix.thisDevice')
+  const inputCount = need.length + unc.length + toFixDevices.reduce((n, x) => n + unproved(x).length, 0)
+  // review r1 of #943: never "nothing needs your input" while the unproved matches are unread or failed
+  const inputPanel = (
+    <QueryState query={q}>
+      {() => <>
+      {/* review r2 of #943: a device filter here is visible and clears in one click, as on To fix */}
+      {device ? <Button size="sm" className="mb-3 w-fit" onClick={() => setParam('device', '')}><X />{t('input.clearDevice', { device: inputDeviceName })}</Button> : null}
+      {inputCount === 0 && toFix.data ? (
+        <EmptyState title={t('input.empty')}>{t('input.emptyBody')}</EmptyState>
+      ) : (
+        <div className="grid gap-6">
+          {need.length ? <VersionNeededList items={need} /> : null}
+          {unc.length ? <UncheckedList items={unc} /> : null}
+          {toFix.isError ? <p role="alert" className="text-sm text-danger">{t('input.toFixError', { reason: errMsg(toFix.error) })}</p>
+            : toFix.isPending ? <p className="text-sm text-muted">{t('input.toFixPending')}</p> : <UnprovedList devices={toFixDevices} />}
+          {toFix.data?.truncated ? <p className="text-meta text-muted">{t('input.truncated')}</p> : null}
+        </div>
+      )}
+      </>}
+    </QueryState>
+  )
   return (
     <>
       <PageHeader
@@ -304,6 +327,9 @@ function List() {
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PlanLine />
       <PageTabs label={t('tabs.label')} tabs={[
+        // kien G8: To fix (by device, then what to do) is the default; what only a person can settle is Needs your input
+        { id: 'fix', label: t('tabs.fix'), panel: <ToFixTab q={toFix} /> },
+        { id: 'input', label: t('tabs.input'), panel: inputPanel, badge: inputCount ? { count: inputCount, label: t('tabs.inputBadge') } : undefined },
         { id: 'open', label: t('tabs.open'), panel: panel('open'), badge: { count: confirmed, label: t('tabs.openBadge') } },
         { id: 'accepted', label: t('tabs.accepted'), panel: panel('accepted') },
         { id: 'handled', label: t('tabs.handled'), panel: panel('handled') },

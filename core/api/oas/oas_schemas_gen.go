@@ -42970,7 +42970,10 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
-	Scannable bool                                                  `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposureDeleteExposureTargetsIDTermsOKProof `json:"proof"`
+	Scannable bool                                           `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureDeleteExposureTargetsIDTermsOKStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -43056,6 +43059,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) GetMethod() NilExposureDeleteEx
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) GetOpenPorts() []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetProof() NilExposureDeleteExposureTargetsIDTermsOKProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -43166,6 +43174,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) SetMethod(val NilExposureDelete
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) SetOpenPorts(val []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetProof(val NilExposureDeleteExposureTargetsIDTermsOKProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -43714,6 +43727,59 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -45254,7 +45320,10 @@ type ExposureGetExposureTargetsIDOK struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureGetExposureTargetsIDOKOpenPortsItem `json:"open_ports"`
-	Scannable bool                                          `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposureGetExposureTargetsIDOKProof `json:"proof"`
+	Scannable bool                                   `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -45340,6 +45409,11 @@ func (s *ExposureGetExposureTargetsIDOK) GetMethod() NilExposureGetExposureTarge
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposureGetExposureTargetsIDOK) GetOpenPorts() []ExposureGetExposureTargetsIDOKOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposureGetExposureTargetsIDOK) GetProof() NilExposureGetExposureTargetsIDOKProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -45450,6 +45524,11 @@ func (s *ExposureGetExposureTargetsIDOK) SetMethod(val NilExposureGetExposureTar
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposureGetExposureTargetsIDOK) SetOpenPorts(val []ExposureGetExposureTargetsIDOKOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposureGetExposureTargetsIDOK) SetProof(val NilExposureGetExposureTargetsIDOKProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -45998,6 +46077,59 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemIdent) UnmarshalText(data []
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureGetExposureTargetsIDOKProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposureGetExposureTargetsIDOKProof) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposureGetExposureTargetsIDOKProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposureGetExposureTargetsIDOKProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposureGetExposureTargetsIDOKProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposureGetExposureTargetsIDOKProof) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposureGetExposureTargetsIDOKProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposureGetExposureTargetsIDOKProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposureGetExposureTargetsIDOKProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -49108,7 +49240,10 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureGetExposureTargetsOKItemsItemOpenPortsItem `json:"open_ports"`
-	Scannable bool                                                 `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposureGetExposureTargetsOKItemsItemProof `json:"proof"`
+	Scannable bool                                          `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -49194,6 +49329,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetMethod() NilExposureGetExposu
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetOpenPorts() []ExposureGetExposureTargetsOKItemsItemOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetProof() NilExposureGetExposureTargetsOKItemsItemProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -49304,6 +49444,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetMethod(val NilExposureGetExpo
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetOpenPorts(val []ExposureGetExposureTargetsOKItemsItemOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetProof(val NilExposureGetExposureTargetsOKItemsItemProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -49854,6 +49999,59 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) UnmarshalText(
 	}
 }
 
+type ExposureGetExposureTargetsOKItemsItemProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) SetZone(val string) {
+	s.Zone = val
+}
+
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposureGetExposureTargetsOKItemsItemStatus string
 
@@ -50104,7 +50302,10 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem `json:"open_ports"`
-	Scannable bool                                                      `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposurePostExposureBoxIPVerifyOKItemsItemProof `json:"proof"`
+	Scannable bool                                               `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -50190,6 +50391,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetMethod() NilExposurePost
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetOpenPorts() []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetProof() NilExposurePostExposureBoxIPVerifyOKItemsItemProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -50300,6 +50506,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetMethod(val NilExposurePo
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetOpenPorts(val []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetProof(val NilExposurePostExposureBoxIPVerifyOKItemsItemProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -50848,6 +51059,59 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Unmarshal
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureBoxIPVerifyOKItemsItemProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -51640,7 +51904,10 @@ type ExposurePostExposureTargetsCreated struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureTargetsCreatedOpenPortsItem `json:"open_ports"`
-	Scannable bool                                              `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposurePostExposureTargetsCreatedProof `json:"proof"`
+	Scannable bool                                       `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -51726,6 +51993,11 @@ func (s *ExposurePostExposureTargetsCreated) GetMethod() NilExposurePostExposure
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePostExposureTargetsCreated) GetOpenPorts() []ExposurePostExposureTargetsCreatedOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePostExposureTargetsCreated) GetProof() NilExposurePostExposureTargetsCreatedProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -51836,6 +52108,11 @@ func (s *ExposurePostExposureTargetsCreated) SetMethod(val NilExposurePostExposu
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePostExposureTargetsCreated) SetOpenPorts(val []ExposurePostExposureTargetsCreatedOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePostExposureTargetsCreated) SetProof(val NilExposurePostExposureTargetsCreatedProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -52384,6 +52661,59 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemIdent) UnmarshalText(dat
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTargetsCreatedProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePostExposureTargetsCreatedProof) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePostExposureTargetsCreatedProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePostExposureTargetsCreatedProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePostExposureTargetsCreatedProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePostExposureTargetsCreatedProof) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePostExposureTargetsCreatedProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePostExposureTargetsCreatedProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePostExposureTargetsCreatedProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -53362,7 +53692,10 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem `json:"open_ports"`
-	Scannable bool                                                       `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposurePostExposureTargetsIDVerifyOKTargetProof `json:"proof"`
+	Scannable bool                                                `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -53448,6 +53781,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetMethod() NilExposurePos
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetOpenPorts() []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetProof() NilExposurePostExposureTargetsIDVerifyOKTargetProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -53558,6 +53896,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetMethod(val NilExposureP
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetOpenPorts(val []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetProof(val NilExposurePostExposureTargetsIDVerifyOKTargetProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -54106,6 +54449,59 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Unmarsha
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTargetsIDVerifyOKTargetProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -54795,7 +55191,10 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePutExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
-	Scannable bool                                               `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposurePutExposureTargetsIDTermsOKProof `json:"proof"`
+	Scannable bool                                        `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePutExposureTargetsIDTermsOKStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -54881,6 +55280,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) GetMethod() NilExposurePutExposure
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePutExposureTargetsIDTermsOK) GetOpenPorts() []ExposurePutExposureTargetsIDTermsOKOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetProof() NilExposurePutExposureTargetsIDTermsOKProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -54991,6 +55395,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) SetMethod(val NilExposurePutExposu
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePutExposureTargetsIDTermsOK) SetOpenPorts(val []ExposurePutExposureTargetsIDTermsOKOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetProof(val NilExposurePutExposureTargetsIDTermsOKProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -55539,6 +55948,59 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText(da
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePutExposureTargetsIDTermsOKProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -73404,6 +73866,1790 @@ func (s *FindingsGetFindingsSummaryOKUnchecked) SetCves(val int) {
 // SetDevices sets the value of Devices.
 func (s *FindingsGetFindingsSummaryOKUnchecked) SetDevices(val int) {
 	s.Devices = val
+}
+
+type FindingsGetFindingsToFixOK struct {
+	// Every device with something to fix or plan, the most urgent first: something exploited to fix (a
+	// named update, or proved), then the worst severity, ransomware, proved findings and CVEs; then the
+	// plan's worst severity, likely and CVEs.
+	Devices []FindingsGetFindingsToFixOKDevicesItem `json:"devices"`
+	// The feeds module is off: no recommended update is listed.
+	PlanOff bool `json:"plan_off"`
+	// The plan job compared the devices since the box started; false: recommended updates are not known
+	// yet.
+	PlanRan bool `json:"plan_ran"`
+	// More devices had something than the 500 listed.
+	Truncated bool `json:"truncated"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *FindingsGetFindingsToFixOK) GetDevices() []FindingsGetFindingsToFixOKDevicesItem {
+	return s.Devices
+}
+
+// GetPlanOff returns the value of PlanOff.
+func (s *FindingsGetFindingsToFixOK) GetPlanOff() bool {
+	return s.PlanOff
+}
+
+// GetPlanRan returns the value of PlanRan.
+func (s *FindingsGetFindingsToFixOK) GetPlanRan() bool {
+	return s.PlanRan
+}
+
+// GetTruncated returns the value of Truncated.
+func (s *FindingsGetFindingsToFixOK) GetTruncated() bool {
+	return s.Truncated
+}
+
+// SetDevices sets the value of Devices.
+func (s *FindingsGetFindingsToFixOK) SetDevices(val []FindingsGetFindingsToFixOKDevicesItem) {
+	s.Devices = val
+}
+
+// SetPlanOff sets the value of PlanOff.
+func (s *FindingsGetFindingsToFixOK) SetPlanOff(val bool) {
+	s.PlanOff = val
+}
+
+// SetPlanRan sets the value of PlanRan.
+func (s *FindingsGetFindingsToFixOK) SetPlanRan(val bool) {
+	s.PlanRan = val
+}
+
+// SetTruncated sets the value of Truncated.
+func (s *FindingsGetFindingsToFixOK) SetTruncated(val bool) {
+	s.Truncated = val
+}
+
+type FindingsGetFindingsToFixOKDevicesItem struct {
+	Asset FindingsGetFindingsToFixOKDevicesItemAsset `json:"asset"`
+	// Open exploited findings one named update fixes, one action per update, worst first.
+	Exploited []FindingsGetFindingsToFixOKDevicesItemExploitedItem `json:"exploited"`
+	// Open findings no update is named for, one per software row; one with confirmed + detected = 0 is the
+	// person's to check (Needs your input), not to fix.
+	NoUpdate []FindingsGetFindingsToFixOKDevicesItemNoUpdateItem `json:"no_update"`
+	// Open findings of the device.
+	Open int `json:"open"`
+	// The last plan pass compared this device.
+	PlanCompared bool `json:"plan_compared"`
+	// Recommended updates (D-613): CVEs on no exploited list, as GET /findings/plan lists them.
+	Planned []FindingsGetFindingsToFixOKDevicesItemPlannedItem `json:"planned"`
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsGetFindingsToFixOKDevicesItem) GetAsset() FindingsGetFindingsToFixOKDevicesItemAsset {
+	return s.Asset
+}
+
+// GetExploited returns the value of Exploited.
+func (s *FindingsGetFindingsToFixOKDevicesItem) GetExploited() []FindingsGetFindingsToFixOKDevicesItemExploitedItem {
+	return s.Exploited
+}
+
+// GetNoUpdate returns the value of NoUpdate.
+func (s *FindingsGetFindingsToFixOKDevicesItem) GetNoUpdate() []FindingsGetFindingsToFixOKDevicesItemNoUpdateItem {
+	return s.NoUpdate
+}
+
+// GetOpen returns the value of Open.
+func (s *FindingsGetFindingsToFixOKDevicesItem) GetOpen() int {
+	return s.Open
+}
+
+// GetPlanCompared returns the value of PlanCompared.
+func (s *FindingsGetFindingsToFixOKDevicesItem) GetPlanCompared() bool {
+	return s.PlanCompared
+}
+
+// GetPlanned returns the value of Planned.
+func (s *FindingsGetFindingsToFixOKDevicesItem) GetPlanned() []FindingsGetFindingsToFixOKDevicesItemPlannedItem {
+	return s.Planned
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsGetFindingsToFixOKDevicesItem) SetAsset(val FindingsGetFindingsToFixOKDevicesItemAsset) {
+	s.Asset = val
+}
+
+// SetExploited sets the value of Exploited.
+func (s *FindingsGetFindingsToFixOKDevicesItem) SetExploited(val []FindingsGetFindingsToFixOKDevicesItemExploitedItem) {
+	s.Exploited = val
+}
+
+// SetNoUpdate sets the value of NoUpdate.
+func (s *FindingsGetFindingsToFixOKDevicesItem) SetNoUpdate(val []FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) {
+	s.NoUpdate = val
+}
+
+// SetOpen sets the value of Open.
+func (s *FindingsGetFindingsToFixOKDevicesItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetPlanCompared sets the value of PlanCompared.
+func (s *FindingsGetFindingsToFixOKDevicesItem) SetPlanCompared(val bool) {
+	s.PlanCompared = val
+}
+
+// SetPlanned sets the value of Planned.
+func (s *FindingsGetFindingsToFixOKDevicesItem) SetPlanned(val []FindingsGetFindingsToFixOKDevicesItemPlannedItem) {
+	s.Planned = val
+}
+
+type FindingsGetFindingsToFixOKDevicesItemAsset struct {
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                         `json:"ip"`
+	Kind FindingsGetFindingsToFixOKDevicesItemAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetDisplay() string {
+	return s.Display
+}
+
+// GetHostname returns the value of Hostname.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetHostname() NilString {
+	return s.Hostname
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetKind() FindingsGetFindingsToFixOKDevicesItemAssetKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) GetName() string {
+	return s.Name
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetHostname sets the value of Hostname.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetHostname(val NilString) {
+	s.Hostname = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetKind(val FindingsGetFindingsToFixOKDevicesItemAssetKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsToFixOKDevicesItemAssetKind string
+
+const (
+	FindingsGetFindingsToFixOKDevicesItemAssetKindRouter              FindingsGetFindingsToFixOKDevicesItemAssetKind = "router"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSwitch              FindingsGetFindingsToFixOKDevicesItemAssetKind = "switch"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindModem               FindingsGetFindingsToFixOKDevicesItemAssetKind = "modem"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSdWan               FindingsGetFindingsToFixOKDevicesItemAssetKind = "sd_wan"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindLoadBalancer        FindingsGetFindingsToFixOKDevicesItemAssetKind = "load_balancer"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindNetworkController   FindingsGetFindingsToFixOKDevicesItemAssetKind = "network_controller"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindFirewall            FindingsGetFindingsToFixOKDevicesItemAssetKind = "firewall"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindVpnGateway          FindingsGetFindingsToFixOKDevicesItemAssetKind = "vpn_gateway"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindIdsSensor           FindingsGetFindingsToFixOKDevicesItemAssetKind = "ids_sensor"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindProxy               FindingsGetFindingsToFixOKDevicesItemAssetKind = "proxy"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindAp                  FindingsGetFindingsToFixOKDevicesItemAssetKind = "ap"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessController  FindingsGetFindingsToFixOKDevicesItemAssetKind = "wireless_controller"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindWifiExtender        FindingsGetFindingsToFixOKDevicesItemAssetKind = "wifi_extender"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindMeshNode            FindingsGetFindingsToFixOKDevicesItemAssetKind = "mesh_node"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindServer              FindingsGetFindingsToFixOKDevicesItemAssetKind = "server"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindVirtualMachine      FindingsGetFindingsToFixOKDevicesItemAssetKind = "virtual_machine"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindHypervisor          FindingsGetFindingsToFixOKDevicesItemAssetKind = "hypervisor"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindBmc                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "bmc"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindDomainController    FindingsGetFindingsToFixOKDevicesItemAssetKind = "domain_controller"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindMailServer          FindingsGetFindingsToFixOKDevicesItemAssetKind = "mail_server"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindDatabaseServer      FindingsGetFindingsToFixOKDevicesItemAssetKind = "database_server"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindBackupServer        FindingsGetFindingsToFixOKDevicesItemAssetKind = "backup_server"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindPc                  FindingsGetFindingsToFixOKDevicesItemAssetKind = "pc"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindLaptop              FindingsGetFindingsToFixOKDevicesItemAssetKind = "laptop"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindWorkstation         FindingsGetFindingsToFixOKDevicesItemAssetKind = "workstation"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindThinClient          FindingsGetFindingsToFixOKDevicesItemAssetKind = "thin_client"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindPosTerminal         FindingsGetFindingsToFixOKDevicesItemAssetKind = "pos_terminal"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindKiosk               FindingsGetFindingsToFixOKDevicesItemAssetKind = "kiosk"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSmartphone          FindingsGetFindingsToFixOKDevicesItemAssetKind = "smartphone"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindTablet              FindingsGetFindingsToFixOKDevicesItemAssetKind = "tablet"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSmartwatch          FindingsGetFindingsToFixOKDevicesItemAssetKind = "smartwatch"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindPrinter             FindingsGetFindingsToFixOKDevicesItemAssetKind = "printer"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindMfp                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "mfp"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindScanner             FindingsGetFindingsToFixOKDevicesItemAssetKind = "scanner"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindLabelPrinter        FindingsGetFindingsToFixOKDevicesItemAssetKind = "label_printer"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindReceiptPrinter      FindingsGetFindingsToFixOKDevicesItemAssetKind = "receipt_printer"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindPlotter             FindingsGetFindingsToFixOKDevicesItemAssetKind = "plotter"
+	FindingsGetFindingsToFixOKDevicesItemAssetKind3dPrinter           FindingsGetFindingsToFixOKDevicesItemAssetKind = "3d_printer"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindCamera              FindingsGetFindingsToFixOKDevicesItemAssetKind = "camera"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindNvr                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "nvr"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindDvr                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "dvr"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindVideoEncoder        FindingsGetFindingsToFixOKDevicesItemAssetKind = "video_encoder"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindDoorbell            FindingsGetFindingsToFixOKDevicesItemAssetKind = "doorbell"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindVideoConferencing   FindingsGetFindingsToFixOKDevicesItemAssetKind = "video_conferencing"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindIPPhone             FindingsGetFindingsToFixOKDevicesItemAssetKind = "ip_phone"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindPbx                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "pbx"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindVoipAdapter         FindingsGetFindingsToFixOKDevicesItemAssetKind = "voip_adapter"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindVoipGateway         FindingsGetFindingsToFixOKDevicesItemAssetKind = "voip_gateway"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindConferencePhone     FindingsGetFindingsToFixOKDevicesItemAssetKind = "conference_phone"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindIntercom            FindingsGetFindingsToFixOKDevicesItemAssetKind = "intercom"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindNas                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "nas"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSan                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "san"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindBackupAppliance     FindingsGetFindingsToFixOKDevicesItemAssetKind = "backup_appliance"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindTapeLibrary         FindingsGetFindingsToFixOKDevicesItemAssetKind = "tape_library"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindIot                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "iot"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSmartTv             FindingsGetFindingsToFixOKDevicesItemAssetKind = "smart_tv"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindMediaPlayer         FindingsGetFindingsToFixOKDevicesItemAssetKind = "media_player"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSmartSpeaker        FindingsGetFindingsToFixOKDevicesItemAssetKind = "smart_speaker"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindGameConsole         FindingsGetFindingsToFixOKDevicesItemAssetKind = "game_console"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSmartPlug           FindingsGetFindingsToFixOKDevicesItemAssetKind = "smart_plug"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSmartLight          FindingsGetFindingsToFixOKDevicesItemAssetKind = "smart_light"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSmartHub            FindingsGetFindingsToFixOKDevicesItemAssetKind = "smart_hub"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindThermostat          FindingsGetFindingsToFixOKDevicesItemAssetKind = "thermostat"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindProjector           FindingsGetFindingsToFixOKDevicesItemAssetKind = "projector"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindDigitalSignage      FindingsGetFindingsToFixOKDevicesItemAssetKind = "digital_signage"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSingleBoardComputer FindingsGetFindingsToFixOKDevicesItemAssetKind = "single_board_computer"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSmartAppliance      FindingsGetFindingsToFixOKDevicesItemAssetKind = "smart_appliance"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindRobotVacuum         FindingsGetFindingsToFixOKDevicesItemAssetKind = "robot_vacuum"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessBridge      FindingsGetFindingsToFixOKDevicesItemAssetKind = "wireless_bridge"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindPlc                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "plc"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindHmi                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "hmi"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindRtu                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "rtu"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindScadaServer         FindingsGetFindingsToFixOKDevicesItemAssetKind = "scada_server"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindIndustrialSwitch    FindingsGetFindingsToFixOKDevicesItemAssetKind = "industrial_switch"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindUps                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "ups"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindPdu                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "pdu"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindAccessControl       FindingsGetFindingsToFixOKDevicesItemAssetKind = "access_control"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindTimeClock           FindingsGetFindingsToFixOKDevicesItemAssetKind = "time_clock"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindAlarmPanel          FindingsGetFindingsToFixOKDevicesItemAssetKind = "alarm_panel"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindHvacController      FindingsGetFindingsToFixOKDevicesItemAssetKind = "hvac_controller"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindBuildingController  FindingsGetFindingsToFixOKDevicesItemAssetKind = "building_controller"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindPowerMeter          FindingsGetFindingsToFixOKDevicesItemAssetKind = "power_meter"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindEnvironmentMonitor  FindingsGetFindingsToFixOKDevicesItemAssetKind = "environment_monitor"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindEvCharger           FindingsGetFindingsToFixOKDevicesItemAssetKind = "ev_charger"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindSolarInverter       FindingsGetFindingsToFixOKDevicesItemAssetKind = "solar_inverter"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindMedicalDevice       FindingsGetFindingsToFixOKDevicesItemAssetKind = "medical_device"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindWeb                 FindingsGetFindingsToFixOKDevicesItemAssetKind = "web"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindCloudService        FindingsGetFindingsToFixOKDevicesItemAssetKind = "cloud_service"
+	FindingsGetFindingsToFixOKDevicesItemAssetKindUnknown             FindingsGetFindingsToFixOKDevicesItemAssetKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsToFixOKDevicesItemAssetKind values.
+func (FindingsGetFindingsToFixOKDevicesItemAssetKind) AllValues() []FindingsGetFindingsToFixOKDevicesItemAssetKind {
+	return []FindingsGetFindingsToFixOKDevicesItemAssetKind{
+		FindingsGetFindingsToFixOKDevicesItemAssetKindRouter,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSwitch,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindModem,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSdWan,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindLoadBalancer,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindNetworkController,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindFirewall,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindVpnGateway,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindIdsSensor,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindProxy,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindAp,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessController,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindWifiExtender,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindMeshNode,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindServer,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindVirtualMachine,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindHypervisor,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindBmc,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindDomainController,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindMailServer,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindDatabaseServer,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindBackupServer,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindPc,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindLaptop,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindWorkstation,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindThinClient,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindPosTerminal,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindKiosk,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSmartphone,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindTablet,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSmartwatch,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindPrinter,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindMfp,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindScanner,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindLabelPrinter,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindReceiptPrinter,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindPlotter,
+		FindingsGetFindingsToFixOKDevicesItemAssetKind3dPrinter,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindCamera,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindNvr,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindDvr,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindVideoEncoder,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindDoorbell,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindVideoConferencing,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindIPPhone,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindPbx,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindVoipAdapter,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindVoipGateway,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindConferencePhone,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindIntercom,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindNas,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSan,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindBackupAppliance,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindTapeLibrary,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindIot,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSmartTv,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindMediaPlayer,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSmartSpeaker,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindGameConsole,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSmartPlug,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSmartLight,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSmartHub,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindThermostat,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindProjector,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindDigitalSignage,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSingleBoardComputer,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSmartAppliance,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindRobotVacuum,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessBridge,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindPlc,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindHmi,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindRtu,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindScadaServer,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindIndustrialSwitch,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindUps,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindPdu,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindAccessControl,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindTimeClock,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindAlarmPanel,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindHvacController,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindBuildingController,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindPowerMeter,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindEnvironmentMonitor,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindEvCharger,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindSolarInverter,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindMedicalDevice,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindWeb,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindCloudService,
+		FindingsGetFindingsToFixOKDevicesItemAssetKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemAssetKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindRouter:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindProxy:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindAp:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMeshNode:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindServer:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBackupServer:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPc:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartwatch:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKind3dPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindCamera:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindNvr:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIot:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindCloudService:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemAssetKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsToFixOKDevicesItemAssetKind(data) {
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindRouter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindRouter
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSwitch:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSwitch
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindModem:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindModem
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSdWan:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSdWan
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindLoadBalancer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindLoadBalancer
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindNetworkController:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindNetworkController
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindFirewall:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindFirewall
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVpnGateway:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVpnGateway
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIdsSensor:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindIdsSensor
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindProxy:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindProxy
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindAp:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindAp
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessController:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessController
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWifiExtender:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindWifiExtender
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMeshNode:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindMeshNode
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindServer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindServer
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVirtualMachine:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVirtualMachine
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindHypervisor:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindHypervisor
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBmc:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindBmc
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDomainController:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindDomainController
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMailServer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindMailServer
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDatabaseServer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindDatabaseServer
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBackupServer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindBackupServer
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPc:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPc
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindLaptop:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindLaptop
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWorkstation:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindWorkstation
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindThinClient:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindThinClient
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPosTerminal:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPosTerminal
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindKiosk:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindKiosk
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartphone:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartphone
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindTablet:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindTablet
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartwatch:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartwatch
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPrinter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPrinter
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMfp:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindMfp
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindScanner:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindScanner
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindLabelPrinter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindLabelPrinter
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindReceiptPrinter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPlotter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPlotter
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKind3dPrinter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKind3dPrinter
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindCamera:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindCamera
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindNvr:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindNvr
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDvr:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindDvr
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVideoEncoder:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVideoEncoder
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDoorbell:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindDoorbell
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVideoConferencing:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVideoConferencing
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIPPhone:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindIPPhone
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPbx:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPbx
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVoipAdapter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVoipAdapter
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVoipGateway:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVoipGateway
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindConferencePhone:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindConferencePhone
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIntercom:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindIntercom
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindNas:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindNas
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSan:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSan
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBackupAppliance:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindBackupAppliance
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindTapeLibrary:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindTapeLibrary
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIot:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindIot
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartTv:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartTv
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMediaPlayer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindMediaPlayer
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartSpeaker:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindGameConsole:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindGameConsole
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartPlug:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartPlug
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartLight:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartLight
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartHub:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartHub
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindThermostat:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindThermostat
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindProjector:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindProjector
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDigitalSignage:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindDigitalSignage
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSingleBoardComputer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartAppliance:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartAppliance
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindRobotVacuum:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindRobotVacuum
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessBridge:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessBridge
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPlc:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPlc
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindHmi:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindHmi
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindRtu:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindRtu
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindScadaServer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindScadaServer
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIndustrialSwitch:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindUps:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindUps
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPdu:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPdu
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindAccessControl:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindAccessControl
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindTimeClock:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindTimeClock
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindAlarmPanel:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindAlarmPanel
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindHvacController:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindHvacController
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBuildingController:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindBuildingController
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPowerMeter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPowerMeter
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindEnvironmentMonitor:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindEvCharger:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindEvCharger
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSolarInverter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSolarInverter
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMedicalDevice:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindMedicalDevice
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWeb:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindWeb
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindCloudService:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindCloudService
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindUnknown:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
+	// The sentence the page shows: "Upgrade RARLAB WinRAR from 7.01 to 7.13 or later".
+	Action    string `json:"action"`
+	Confirmed int    `json:"confirmed"`
+	// Worst first.
+	Cves     []string `json:"cves"`
+	Detected int      `json:"detected"`
+	Distro   string   `json:"distro"`
+	// The open findings of the CVEs, same order (exploited only; empty for planned).
+	FindingIds []string `json:"finding_ids"`
+	// The release or build to install; "" for a distribution's updates and when no update is named.
+	Fixed string `json:"fixed"`
+	// The key of the action on its device: FindingRow.fix.group of an exploited update ("/", the ?fix=
+	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
+	// device: "By fix" groups by product and release instead.
+	Group string `json:"group"`
+	// None: no update is named that fixes these findings (follow the vendor's advice).
+	Kind FindingsGetFindingsToFixOKDevicesItemExploitedItemKind `json:"kind"`
+	// Planned: CVEs EPSS says are likely to be exploited soon.
+	Likely int  `json:"likely"`
+	Pro    bool `json:"pro"`
+	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
+	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
+	Product    string `json:"product"`
+	Ransomware int    `json:"ransomware"`
+	Reported   int    `json:"reported"`
+	Software   string `json:"software"`
+	// The device's software row it is about; "" when none matches.
+	SoftwareID string `json:"software_id"`
+	// How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the
+	// device reported, reported but not compared, suspected from the network.
+	Suspected int `json:"suspected"`
+	// The installed version; "" when none.
+	Version string `json:"version"`
+	// The monthly cumulative update of a Windows release.
+	Windows bool `json:"windows"`
+	// The finding's severity (critical, high, medium, low) for exploited ones; NVD's for planned ones; ""
+	// when none.
+	Worst string `json:"worst"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetAction() string {
+	return s.Action
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCves returns the value of Cves.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetCves() []string {
+	return s.Cves
+}
+
+// GetDetected returns the value of Detected.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetDetected() int {
+	return s.Detected
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetDistro() string {
+	return s.Distro
+}
+
+// GetFindingIds returns the value of FindingIds.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetFindingIds() []string {
+	return s.FindingIds
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetKind() FindingsGetFindingsToFixOKDevicesItemExploitedItemKind {
+	return s.Kind
+}
+
+// GetLikely returns the value of Likely.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetLikely() int {
+	return s.Likely
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetPro() bool {
+	return s.Pro
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetProduct() string {
+	return s.Product
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetRansomware() int {
+	return s.Ransomware
+}
+
+// GetReported returns the value of Reported.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetReported() int {
+	return s.Reported
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetSoftware() string {
+	return s.Software
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetSoftwareID() string {
+	return s.SoftwareID
+}
+
+// GetSuspected returns the value of Suspected.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetSuspected() int {
+	return s.Suspected
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetWindows() bool {
+	return s.Windows
+}
+
+// GetWorst returns the value of Worst.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetWorst() string {
+	return s.Worst
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetAction(val string) {
+	s.Action = val
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCves sets the value of Cves.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetCves(val []string) {
+	s.Cves = val
+}
+
+// SetDetected sets the value of Detected.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetDetected(val int) {
+	s.Detected = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFindingIds sets the value of FindingIds.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetFindingIds(val []string) {
+	s.FindingIds = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetKind(val FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) {
+	s.Kind = val
+}
+
+// SetLikely sets the value of Likely.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetLikely(val int) {
+	s.Likely = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetRansomware(val int) {
+	s.Ransomware = val
+}
+
+// SetReported sets the value of Reported.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetReported(val int) {
+	s.Reported = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetSoftwareID(val string) {
+	s.SoftwareID = val
+}
+
+// SetSuspected sets the value of Suspected.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetSuspected(val int) {
+	s.Suspected = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetWorst(val string) {
+	s.Worst = val
+}
+
+// None: no update is named that fixes these findings (follow the vendor's advice).
+type FindingsGetFindingsToFixOKDevicesItemExploitedItemKind string
+
+const (
+	FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFixed         FindingsGetFindingsToFixOKDevicesItemExploitedItemKind = "fixed"
+	FindingsGetFindingsToFixOKDevicesItemExploitedItemKindEsu           FindingsGetFindingsToFixOKDevicesItemExploitedItemKind = "esu"
+	FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFeatureUpdate FindingsGetFindingsToFixOKDevicesItemExploitedItemKind = "feature_update"
+	FindingsGetFindingsToFixOKDevicesItemExploitedItemKindDistro        FindingsGetFindingsToFixOKDevicesItemExploitedItemKind = "distro"
+	FindingsGetFindingsToFixOKDevicesItemExploitedItemKindWindows       FindingsGetFindingsToFixOKDevicesItemExploitedItemKind = "windows"
+	FindingsGetFindingsToFixOKDevicesItemExploitedItemKindNone          FindingsGetFindingsToFixOKDevicesItemExploitedItemKind = "none"
+)
+
+// AllValues returns all FindingsGetFindingsToFixOKDevicesItemExploitedItemKind values.
+func (FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) AllValues() []FindingsGetFindingsToFixOKDevicesItemExploitedItemKind {
+	return []FindingsGetFindingsToFixOKDevicesItemExploitedItemKind{
+		FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFixed,
+		FindingsGetFindingsToFixOKDevicesItemExploitedItemKindEsu,
+		FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFeatureUpdate,
+		FindingsGetFindingsToFixOKDevicesItemExploitedItemKindDistro,
+		FindingsGetFindingsToFixOKDevicesItemExploitedItemKindWindows,
+		FindingsGetFindingsToFixOKDevicesItemExploitedItemKindNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindEsu:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindDistro:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindWindows:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsToFixOKDevicesItemExploitedItemKind(data) {
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFixed:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFixed
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindEsu:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindEsu
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFeatureUpdate:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindDistro:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindDistro
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindWindows:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindWindows
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindNone:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
+	// The sentence the page shows: "Upgrade RARLAB WinRAR from 7.01 to 7.13 or later".
+	Action    string `json:"action"`
+	Confirmed int    `json:"confirmed"`
+	// Worst first.
+	Cves     []string `json:"cves"`
+	Detected int      `json:"detected"`
+	Distro   string   `json:"distro"`
+	// The open findings of the CVEs, same order (exploited only; empty for planned).
+	FindingIds []string `json:"finding_ids"`
+	// The release or build to install; "" for a distribution's updates and when no update is named.
+	Fixed string `json:"fixed"`
+	// The key of the action on its device: FindingRow.fix.group of an exploited update ("/", the ?fix=
+	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
+	// device: "By fix" groups by product and release instead.
+	Group string `json:"group"`
+	// None: no update is named that fixes these findings (follow the vendor's advice).
+	Kind FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind `json:"kind"`
+	// Planned: CVEs EPSS says are likely to be exploited soon.
+	Likely int  `json:"likely"`
+	Pro    bool `json:"pro"`
+	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
+	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
+	Product    string `json:"product"`
+	Ransomware int    `json:"ransomware"`
+	Reported   int    `json:"reported"`
+	Software   string `json:"software"`
+	// The device's software row it is about; "" when none matches.
+	SoftwareID string `json:"software_id"`
+	// How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the
+	// device reported, reported but not compared, suspected from the network.
+	Suspected int `json:"suspected"`
+	// The installed version; "" when none.
+	Version string `json:"version"`
+	// The monthly cumulative update of a Windows release.
+	Windows bool `json:"windows"`
+	// The finding's severity (critical, high, medium, low) for exploited ones; NVD's for planned ones; ""
+	// when none.
+	Worst string `json:"worst"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetAction() string {
+	return s.Action
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCves returns the value of Cves.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetCves() []string {
+	return s.Cves
+}
+
+// GetDetected returns the value of Detected.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetDetected() int {
+	return s.Detected
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetDistro() string {
+	return s.Distro
+}
+
+// GetFindingIds returns the value of FindingIds.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetFindingIds() []string {
+	return s.FindingIds
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetKind() FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind {
+	return s.Kind
+}
+
+// GetLikely returns the value of Likely.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetLikely() int {
+	return s.Likely
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetPro() bool {
+	return s.Pro
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetProduct() string {
+	return s.Product
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetRansomware() int {
+	return s.Ransomware
+}
+
+// GetReported returns the value of Reported.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetReported() int {
+	return s.Reported
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetSoftware() string {
+	return s.Software
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetSoftwareID() string {
+	return s.SoftwareID
+}
+
+// GetSuspected returns the value of Suspected.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetSuspected() int {
+	return s.Suspected
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetWindows() bool {
+	return s.Windows
+}
+
+// GetWorst returns the value of Worst.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetWorst() string {
+	return s.Worst
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetAction(val string) {
+	s.Action = val
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCves sets the value of Cves.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetCves(val []string) {
+	s.Cves = val
+}
+
+// SetDetected sets the value of Detected.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetDetected(val int) {
+	s.Detected = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFindingIds sets the value of FindingIds.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetFindingIds(val []string) {
+	s.FindingIds = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetKind(val FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) {
+	s.Kind = val
+}
+
+// SetLikely sets the value of Likely.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetLikely(val int) {
+	s.Likely = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetRansomware(val int) {
+	s.Ransomware = val
+}
+
+// SetReported sets the value of Reported.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetReported(val int) {
+	s.Reported = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetSoftwareID(val string) {
+	s.SoftwareID = val
+}
+
+// SetSuspected sets the value of Suspected.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetSuspected(val int) {
+	s.Suspected = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetWorst(val string) {
+	s.Worst = val
+}
+
+// None: no update is named that fixes these findings (follow the vendor's advice).
+type FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind string
+
+const (
+	FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFixed         FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind = "fixed"
+	FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindEsu           FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind = "esu"
+	FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFeatureUpdate FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind = "feature_update"
+	FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindDistro        FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind = "distro"
+	FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindWindows       FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind = "windows"
+	FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindNone          FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind = "none"
+)
+
+// AllValues returns all FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind values.
+func (FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) AllValues() []FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind {
+	return []FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind{
+		FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFixed,
+		FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindEsu,
+		FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFeatureUpdate,
+		FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindDistro,
+		FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindWindows,
+		FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindEsu:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindDistro:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindWindows:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind(data) {
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFixed:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFixed
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindEsu:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindEsu
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFeatureUpdate:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindDistro:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindDistro
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindWindows:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindWindows
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindNone:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
+	// The sentence the page shows: "Upgrade RARLAB WinRAR from 7.01 to 7.13 or later".
+	Action    string `json:"action"`
+	Confirmed int    `json:"confirmed"`
+	// Worst first.
+	Cves     []string `json:"cves"`
+	Detected int      `json:"detected"`
+	Distro   string   `json:"distro"`
+	// The open findings of the CVEs, same order (exploited only; empty for planned).
+	FindingIds []string `json:"finding_ids"`
+	// The release or build to install; "" for a distribution's updates and when no update is named.
+	Fixed string `json:"fixed"`
+	// The key of the action on its device: FindingRow.fix.group of an exploited update ("/", the ?fix=
+	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
+	// device: "By fix" groups by product and release instead.
+	Group string `json:"group"`
+	// None: no update is named that fixes these findings (follow the vendor's advice).
+	Kind FindingsGetFindingsToFixOKDevicesItemPlannedItemKind `json:"kind"`
+	// Planned: CVEs EPSS says are likely to be exploited soon.
+	Likely int  `json:"likely"`
+	Pro    bool `json:"pro"`
+	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
+	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
+	Product    string `json:"product"`
+	Ransomware int    `json:"ransomware"`
+	Reported   int    `json:"reported"`
+	Software   string `json:"software"`
+	// The device's software row it is about; "" when none matches.
+	SoftwareID string `json:"software_id"`
+	// How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the
+	// device reported, reported but not compared, suspected from the network.
+	Suspected int `json:"suspected"`
+	// The installed version; "" when none.
+	Version string `json:"version"`
+	// The monthly cumulative update of a Windows release.
+	Windows bool `json:"windows"`
+	// The finding's severity (critical, high, medium, low) for exploited ones; NVD's for planned ones; ""
+	// when none.
+	Worst string `json:"worst"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetAction() string {
+	return s.Action
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCves returns the value of Cves.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetCves() []string {
+	return s.Cves
+}
+
+// GetDetected returns the value of Detected.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetDetected() int {
+	return s.Detected
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetDistro() string {
+	return s.Distro
+}
+
+// GetFindingIds returns the value of FindingIds.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetFindingIds() []string {
+	return s.FindingIds
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetKind() FindingsGetFindingsToFixOKDevicesItemPlannedItemKind {
+	return s.Kind
+}
+
+// GetLikely returns the value of Likely.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetLikely() int {
+	return s.Likely
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetPro() bool {
+	return s.Pro
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetProduct() string {
+	return s.Product
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetRansomware() int {
+	return s.Ransomware
+}
+
+// GetReported returns the value of Reported.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetReported() int {
+	return s.Reported
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetSoftware() string {
+	return s.Software
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetSoftwareID() string {
+	return s.SoftwareID
+}
+
+// GetSuspected returns the value of Suspected.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetSuspected() int {
+	return s.Suspected
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetWindows() bool {
+	return s.Windows
+}
+
+// GetWorst returns the value of Worst.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetWorst() string {
+	return s.Worst
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetAction(val string) {
+	s.Action = val
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCves sets the value of Cves.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetCves(val []string) {
+	s.Cves = val
+}
+
+// SetDetected sets the value of Detected.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetDetected(val int) {
+	s.Detected = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFindingIds sets the value of FindingIds.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetFindingIds(val []string) {
+	s.FindingIds = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetKind(val FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) {
+	s.Kind = val
+}
+
+// SetLikely sets the value of Likely.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetLikely(val int) {
+	s.Likely = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetRansomware(val int) {
+	s.Ransomware = val
+}
+
+// SetReported sets the value of Reported.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetReported(val int) {
+	s.Reported = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetSoftwareID(val string) {
+	s.SoftwareID = val
+}
+
+// SetSuspected sets the value of Suspected.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetSuspected(val int) {
+	s.Suspected = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetWorst(val string) {
+	s.Worst = val
+}
+
+// None: no update is named that fixes these findings (follow the vendor's advice).
+type FindingsGetFindingsToFixOKDevicesItemPlannedItemKind string
+
+const (
+	FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFixed         FindingsGetFindingsToFixOKDevicesItemPlannedItemKind = "fixed"
+	FindingsGetFindingsToFixOKDevicesItemPlannedItemKindEsu           FindingsGetFindingsToFixOKDevicesItemPlannedItemKind = "esu"
+	FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFeatureUpdate FindingsGetFindingsToFixOKDevicesItemPlannedItemKind = "feature_update"
+	FindingsGetFindingsToFixOKDevicesItemPlannedItemKindDistro        FindingsGetFindingsToFixOKDevicesItemPlannedItemKind = "distro"
+	FindingsGetFindingsToFixOKDevicesItemPlannedItemKindWindows       FindingsGetFindingsToFixOKDevicesItemPlannedItemKind = "windows"
+	FindingsGetFindingsToFixOKDevicesItemPlannedItemKindNone          FindingsGetFindingsToFixOKDevicesItemPlannedItemKind = "none"
+)
+
+// AllValues returns all FindingsGetFindingsToFixOKDevicesItemPlannedItemKind values.
+func (FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) AllValues() []FindingsGetFindingsToFixOKDevicesItemPlannedItemKind {
+	return []FindingsGetFindingsToFixOKDevicesItemPlannedItemKind{
+		FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFixed,
+		FindingsGetFindingsToFixOKDevicesItemPlannedItemKindEsu,
+		FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFeatureUpdate,
+		FindingsGetFindingsToFixOKDevicesItemPlannedItemKindDistro,
+		FindingsGetFindingsToFixOKDevicesItemPlannedItemKindWindows,
+		FindingsGetFindingsToFixOKDevicesItemPlannedItemKindNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindEsu:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindDistro:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindWindows:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsToFixOKDevicesItemPlannedItemKind(data) {
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFixed:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFixed
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindEsu:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindEsu
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFeatureUpdate:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindDistro:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindDistro
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindWindows:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindWindows
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindNone:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAiOK struct {
@@ -120906,6 +123152,51 @@ func (o NilExposureDeleteExposureTargetsIDTermsOKMethod) Or(d ExposureDeleteExpo
 	return d
 }
 
+// NewNilExposureDeleteExposureTargetsIDTermsOKProof returns new NilExposureDeleteExposureTargetsIDTermsOKProof with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKProof(v ExposureDeleteExposureTargetsIDTermsOKProof) NilExposureDeleteExposureTargetsIDTermsOKProof {
+	return NilExposureDeleteExposureTargetsIDTermsOKProof{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKProof is nullable ExposureDeleteExposureTargetsIDTermsOKProof.
+type NilExposureDeleteExposureTargetsIDTermsOKProof struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKProof) SetTo(v ExposureDeleteExposureTargetsIDTermsOKProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKProof) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKProof) Get() (v ExposureDeleteExposureTargetsIDTermsOKProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKProof) Or(d ExposureDeleteExposureTargetsIDTermsOKProof) ExposureDeleteExposureTargetsIDTermsOKProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureDeleteExposureTargetsIDTermsOKTerms returns new NilExposureDeleteExposureTargetsIDTermsOKTerms with value set to v.
 func NewNilExposureDeleteExposureTargetsIDTermsOKTerms(v ExposureDeleteExposureTargetsIDTermsOKTerms) NilExposureDeleteExposureTargetsIDTermsOKTerms {
 	return NilExposureDeleteExposureTargetsIDTermsOKTerms{
@@ -121491,6 +123782,51 @@ func (o NilExposureGetExposureTargetsIDOKMethod) Or(d ExposureGetExposureTargets
 	return d
 }
 
+// NewNilExposureGetExposureTargetsIDOKProof returns new NilExposureGetExposureTargetsIDOKProof with value set to v.
+func NewNilExposureGetExposureTargetsIDOKProof(v ExposureGetExposureTargetsIDOKProof) NilExposureGetExposureTargetsIDOKProof {
+	return NilExposureGetExposureTargetsIDOKProof{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsIDOKProof is nullable ExposureGetExposureTargetsIDOKProof.
+type NilExposureGetExposureTargetsIDOKProof struct {
+	Value ExposureGetExposureTargetsIDOKProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsIDOKProof) SetTo(v ExposureGetExposureTargetsIDOKProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsIDOKProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsIDOKProof) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsIDOKProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsIDOKProof) Get() (v ExposureGetExposureTargetsIDOKProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsIDOKProof) Or(d ExposureGetExposureTargetsIDOKProof) ExposureGetExposureTargetsIDOKProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTargetsIDOKTerms returns new NilExposureGetExposureTargetsIDOKTerms with value set to v.
 func NewNilExposureGetExposureTargetsIDOKTerms(v ExposureGetExposureTargetsIDOKTerms) NilExposureGetExposureTargetsIDOKTerms {
 	return NilExposureGetExposureTargetsIDOKTerms{
@@ -121986,6 +124322,51 @@ func (o NilExposureGetExposureTargetsOKItemsItemMethod) Or(d ExposureGetExposure
 	return d
 }
 
+// NewNilExposureGetExposureTargetsOKItemsItemProof returns new NilExposureGetExposureTargetsOKItemsItemProof with value set to v.
+func NewNilExposureGetExposureTargetsOKItemsItemProof(v ExposureGetExposureTargetsOKItemsItemProof) NilExposureGetExposureTargetsOKItemsItemProof {
+	return NilExposureGetExposureTargetsOKItemsItemProof{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsOKItemsItemProof is nullable ExposureGetExposureTargetsOKItemsItemProof.
+type NilExposureGetExposureTargetsOKItemsItemProof struct {
+	Value ExposureGetExposureTargetsOKItemsItemProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsOKItemsItemProof) SetTo(v ExposureGetExposureTargetsOKItemsItemProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsOKItemsItemProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsOKItemsItemProof) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsOKItemsItemProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsOKItemsItemProof) Get() (v ExposureGetExposureTargetsOKItemsItemProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsOKItemsItemProof) Or(d ExposureGetExposureTargetsOKItemsItemProof) ExposureGetExposureTargetsOKItemsItemProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTargetsOKItemsItemTerms returns new NilExposureGetExposureTargetsOKItemsItemTerms with value set to v.
 func NewNilExposureGetExposureTargetsOKItemsItemTerms(v ExposureGetExposureTargetsOKItemsItemTerms) NilExposureGetExposureTargetsOKItemsItemTerms {
 	return NilExposureGetExposureTargetsOKItemsItemTerms{
@@ -122340,6 +124721,51 @@ func (o NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) Get() (v ExposurePo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemMethod) ExposurePostExposureBoxIPVerifyOKItemsItemMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureBoxIPVerifyOKItemsItemProof returns new NilExposurePostExposureBoxIPVerifyOKItemsItemProof with value set to v.
+func NewNilExposurePostExposureBoxIPVerifyOKItemsItemProof(v ExposurePostExposureBoxIPVerifyOKItemsItemProof) NilExposurePostExposureBoxIPVerifyOKItemsItemProof {
+	return NilExposurePostExposureBoxIPVerifyOKItemsItemProof{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureBoxIPVerifyOKItemsItemProof is nullable ExposurePostExposureBoxIPVerifyOKItemsItemProof.
+type NilExposurePostExposureBoxIPVerifyOKItemsItemProof struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemProof) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemProof) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemProof) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemProof) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemProof) ExposurePostExposureBoxIPVerifyOKItemsItemProof {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -122841,6 +125267,51 @@ func (o NilExposurePostExposureTargetsCreatedMethod) Or(d ExposurePostExposureTa
 	return d
 }
 
+// NewNilExposurePostExposureTargetsCreatedProof returns new NilExposurePostExposureTargetsCreatedProof with value set to v.
+func NewNilExposurePostExposureTargetsCreatedProof(v ExposurePostExposureTargetsCreatedProof) NilExposurePostExposureTargetsCreatedProof {
+	return NilExposurePostExposureTargetsCreatedProof{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsCreatedProof is nullable ExposurePostExposureTargetsCreatedProof.
+type NilExposurePostExposureTargetsCreatedProof struct {
+	Value ExposurePostExposureTargetsCreatedProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsCreatedProof) SetTo(v ExposurePostExposureTargetsCreatedProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsCreatedProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsCreatedProof) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsCreatedProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsCreatedProof) Get() (v ExposurePostExposureTargetsCreatedProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsCreatedProof) Or(d ExposurePostExposureTargetsCreatedProof) ExposurePostExposureTargetsCreatedProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsCreatedTerms returns new NilExposurePostExposureTargetsCreatedTerms with value set to v.
 func NewNilExposurePostExposureTargetsCreatedTerms(v ExposurePostExposureTargetsCreatedTerms) NilExposurePostExposureTargetsCreatedTerms {
 	return NilExposurePostExposureTargetsCreatedTerms{
@@ -123336,6 +125807,51 @@ func (o NilExposurePostExposureTargetsIDVerifyOKTargetMethod) Or(d ExposurePostE
 	return d
 }
 
+// NewNilExposurePostExposureTargetsIDVerifyOKTargetProof returns new NilExposurePostExposureTargetsIDVerifyOKTargetProof with value set to v.
+func NewNilExposurePostExposureTargetsIDVerifyOKTargetProof(v ExposurePostExposureTargetsIDVerifyOKTargetProof) NilExposurePostExposureTargetsIDVerifyOKTargetProof {
+	return NilExposurePostExposureTargetsIDVerifyOKTargetProof{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsIDVerifyOKTargetProof is nullable ExposurePostExposureTargetsIDVerifyOKTargetProof.
+type NilExposurePostExposureTargetsIDVerifyOKTargetProof struct {
+	Value ExposurePostExposureTargetsIDVerifyOKTargetProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsIDVerifyOKTargetProof) SetTo(v ExposurePostExposureTargetsIDVerifyOKTargetProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsIDVerifyOKTargetProof) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsIDVerifyOKTargetProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetProof) Get() (v ExposurePostExposureTargetsIDVerifyOKTargetProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetProof) Or(d ExposurePostExposureTargetsIDVerifyOKTargetProof) ExposurePostExposureTargetsIDVerifyOKTargetProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsIDVerifyOKTargetTerms returns new NilExposurePostExposureTargetsIDVerifyOKTargetTerms with value set to v.
 func NewNilExposurePostExposureTargetsIDVerifyOKTargetTerms(v ExposurePostExposureTargetsIDVerifyOKTargetTerms) NilExposurePostExposureTargetsIDVerifyOKTargetTerms {
 	return NilExposurePostExposureTargetsIDVerifyOKTargetTerms{
@@ -123780,6 +126296,51 @@ func (o NilExposurePutExposureTargetsIDTermsOKMethod) Get() (v ExposurePutExposu
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePutExposureTargetsIDTermsOKMethod) Or(d ExposurePutExposureTargetsIDTermsOKMethod) ExposurePutExposureTargetsIDTermsOKMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKProof returns new NilExposurePutExposureTargetsIDTermsOKProof with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKProof(v ExposurePutExposureTargetsIDTermsOKProof) NilExposurePutExposureTargetsIDTermsOKProof {
+	return NilExposurePutExposureTargetsIDTermsOKProof{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKProof is nullable ExposurePutExposureTargetsIDTermsOKProof.
+type NilExposurePutExposureTargetsIDTermsOKProof struct {
+	Value ExposurePutExposureTargetsIDTermsOKProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKProof) SetTo(v ExposurePutExposureTargetsIDTermsOKProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKProof) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKProof) Get() (v ExposurePutExposureTargetsIDTermsOKProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKProof) Or(d ExposurePutExposureTargetsIDTermsOKProof) ExposurePutExposureTargetsIDTermsOKProof {
 	if v, ok := o.Get(); ok {
 		return v
 	}

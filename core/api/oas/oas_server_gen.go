@@ -1151,6 +1151,13 @@ type Handler interface {
 	//
 	// GET /findings/summary
 	FindingsGetFindingsSummary(ctx context.Context) (*FindingsGetFindingsSummaryOK, error)
+	// FindingsGetFindingsToFix implements findings_get_findings_to_fix operation.
+	//
+	// To fix (kien G8): every device that needs an update or an action, the most urgent first, each with
+	// its actions in plain sentences (findings.DeviceUpdates), at most 500 devices.
+	//
+	// GET /findings/to-fix
+	FindingsGetFindingsToFix(ctx context.Context, params FindingsGetFindingsToFixParams) (*FindingsGetFindingsToFixOK, error)
 	// FindingsPostFindingsIDAi implements findings_post_findings_id_ai operation.
 	//
 	// Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off.

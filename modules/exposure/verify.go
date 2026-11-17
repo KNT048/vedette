@@ -3,7 +3,6 @@ package exposure
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -14,31 +13,19 @@ import (
 
 const (
 	dnsTimeout   = 5 * time.Second
-	notFoundHint = "DNS usually updates within minutes and can take up to 72 hours. Check again later, and make sure the value was pasted without extra quotes and that the Name field is just @ (some providers append the domain automatically)."
+	notFoundHint = "DNS usually updates within minutes and can take up to 72 hours. Check again later, and make sure the value was pasted without extra quotes and that the Name field is the host shown (some providers append the domain automatically)."
 )
 
 func txtRecord(token string) string { return "vedette-verify=" + token }
 
-// lookupTXT reports whether the domain has the TXT record of the target. A failed lookup is "not
-// confirmed" with a reason (fail closed), never an error: the answer is a normal result.
-func (s *Service) lookupTXT(ctx context.Context, t Target) (found bool, failure string) {
-	lctx, cancel := context.WithTimeout(ctx, dnsTimeout)
-	defer cancel()
-	vals, err := s.cfg.Resolver.LookupTXT(lctx, t.Value)
+// proveDomain looks for the record proving t among the box's targets (D-628, prove). A failed lookup is "not confirmed" with the
+// names asked and what came back (fail closed), never an error: the answer is a normal result.
+func (s *Service) proveDomain(ctx context.Context, t Target) (proof, error) {
+	all, err := listTargets(ctx, s.cfg.DB.Reader())
 	if err != nil {
-		var de interface{ NotFound() bool }
-		if errors.As(err, &de) && de.NotFound() {
-			return false, ""
-		}
-		return false, fmt.Sprintf("The DNS lookup for %s failed, so the record could not be checked. Try again in a few minutes.", t.Value)
+		return proof{}, fmt.Errorf("reading the targets: %w", err)
 	}
-	want := txtRecord(t.Token)
-	for _, v := range vals {
-		if strings.TrimSpace(v) == want {
-			return true, ""
-		}
-	}
-	return false, ""
+	return s.prove(ctx, t, all), nil
 }
 
 // retryWait is the minutes (1 or more, rounded up) until the oldest of the attempts of the last hour leaves the hour.
@@ -83,8 +70,12 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 	var ok bool
 	var failure string // why nothing could be checked, when that was the case
 	var observed []string
+	var pr proof
 	if t.Kind == KindDomain {
-		ok, failure = s.lookupTXT(ctx, t)
+		if pr, err = s.proveDomain(ctx, t); err != nil {
+			return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
+		}
+		ok, failure = pr.found, pr.failure
 	} else {
 		addrs, _, perr := s.observe(ctx, DeepRounds)
 		if perr != nil {
@@ -100,6 +91,12 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		if err != nil {
 			return err
 		}
+		if cur.Kind == KindDomain {
+			if pr, err = stillOwner(ctx, tx, id, pr); err != nil {
+				return err
+			}
+			ok, failure = pr.found, pr.failure
+		}
 		now := s.clock()
 		wasOK := !cur.VerifiedAt.IsZero() && cur.LastCheck != nil && cur.LastCheck.OK && cur.validity(now) != validityExpired
 		method, message := methodDNS, ""
@@ -111,10 +108,12 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		case ok && cur.Kind == KindIP:
 			message, verifiedAt = fmt.Sprintf("The box reaches the Internet via %s. Verified until %s.", cur.Value, s.dayText(now.Add(ValidDays*24*time.Hour))), now
 		case ok:
-			message = fmt.Sprintf("Found the TXT record %s on %s.", txtRecord(cur.Token), cur.Value)
+			message = proofMessage(cur, pr)
 			if cur.VerifiedAt.IsZero() {
 				verifiedAt = now
 			}
+		case failure != "" && cur.Kind == KindDomain:
+			message = failure + " " + notFoundHint
 		case failure != "":
 			message = failure
 		case cur.Kind == KindIP:
@@ -139,6 +138,9 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		if ok && !wasOK {
 			emit(EventTargetVerified, TargetVerifiedEvent{TargetID: id})
 		}
+		if ok && cur.Kind == KindDomain {
+			return s.coverOthers(ctx, tx, user, cur, pr, now, emit)
+		}
 		return nil
 	})
 	if err != nil {
@@ -149,6 +151,35 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		return VerifyResult{}, err
 	}
 	return VerifyResult{Verified: ok, Message: v.LastCheck.Message, Target: v}, nil
+}
+
+// coverOthers verifies, in the transaction of t's verification, the box's other domain targets the record just found proves too
+// (D-628): a target added before its parent was verified is covered from now, with no second record. Each one gets its own check
+// message and audit row; one already verified and passing is left as it is. The record is checked again for each of them right
+// before each of their scans (INV-1 (c)), so a record removed, or the parent target removed with its token, covers them no more.
+func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Target, p proof, now time.Time, emit func(string, any)) error {
+	all, err := listTargets(ctx, tx)
+	if err != nil {
+		return err
+	}
+	for _, o := range all {
+		if o.Kind != KindDomain || o.ID == t.ID || !Covers(p.proven, o.Value) || !o.VerifiedAt.IsZero() && o.LastCheck != nil && o.LastCheck.OK {
+			continue
+		}
+		var verifiedAt time.Time
+		if o.VerifiedAt.IsZero() {
+			verifiedAt = now
+		}
+		msg := fmt.Sprintf("Covered by the TXT record on %s, found when %s was checked: it proves %s and every name under it.", p.at, t.Value, p.proven)
+		if err := updateCheck(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: true, Message: msg}, verifiedAt, methodDNS); err != nil {
+			return err
+		}
+		if err := s.audit(ctx, tx, user, "exposure.verify_ok", o.Value, methodDNS+", covered by "+p.proven); err != nil {
+			return err
+		}
+		emit(EventTargetVerified, TargetVerifiedEvent{TargetID: o.ID})
+	}
+	return nil
 }
 
 func noneIfEmpty(ips []string) string {

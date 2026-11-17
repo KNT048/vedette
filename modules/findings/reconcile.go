@@ -32,6 +32,9 @@ type ReconcileResult struct {
 	NameOnly int
 	Orphans  int // findings removed because their device no longer exists
 	Expired  int // risk acceptances whose day passed, reopened (D-498, INV-13)
+	// IgnoreHealed counts the findings a lost inventory.asset.ignored or .unignored left behind (D-630, review r1 M2 of #945): open
+	// findings of an ignored device closed, findings Ignore closed on a watched device reopened.
+	IgnoreHealed int
 }
 
 // Reconcile heals what a lost event left behind (D-144: the bus is best-effort, findings owns the catch-up). It does the
@@ -63,6 +66,10 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	if err != nil {
 		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: listing devices: %w", err))...)
 	}
+	ignored, err := s.cfg.Inventory.IgnoredIDs(ctx)
+	if err != nil {
+		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: listing ignored devices: %w", err))...)
+	}
 	vulns, err := s.cfg.Feeds.Vulns(ctx)
 	if err != nil {
 		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: reading the exploited list: %w", err))...)
@@ -76,9 +83,36 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		failed = append(failed, fmt.Errorf("device %q: %w", id, err))
 		return nil
 	}
-	live := make(map[string]bool, len(ids))
+	live := make(map[string]bool, len(ids)+len(ignored))
+	// D-630: an ignored device is not gone (its findings are never orphans, review r1 L10 of #945), and the work of a lost
+	// inventory.asset.ignored is done here: its open findings close (review r1 M2).
+	for _, id := range ignored {
+		live[id] = true
+		if err := ctx.Err(); err != nil {
+			return res, err
+		}
+		n, err := s.healIgnored(ctx, id, true)
+		if err != nil {
+			if err := skip(id, err); err != nil {
+				return res, err
+			}
+			continue
+		}
+		res.IgnoreHealed += n
+	}
 	for _, id := range ids {
 		live[id] = true
+		if err := ctx.Err(); err != nil {
+			return res, err
+		}
+		// a lost inventory.asset.unignored: the findings Ignore closed on a device watched again reopen before it is matched
+		if n, err := s.healIgnored(ctx, id, false); err != nil {
+			if err := skip(id, err); err != nil {
+				return res, err
+			}
+		} else {
+			res.IgnoreHealed += n
+		}
 		if len(vulns) == 0 {
 			continue // no exploited list loaded yet: nothing can match
 		}
@@ -117,7 +151,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		if err := ctx.Err(); err != nil {
 			return res, err
 		}
-		known, err := s.cfg.Inventory.Assets(ctx, []string{id}) // a second look: a device created after the list was read is not an orphan
+		known, err := s.cfg.Inventory.Assets(ctx, []string{id}) // a second look: a device created (or ignored) after the lists were read is not an orphan
 		if err != nil {
 			if err := skip(id, fmt.Errorf("checking the device: %w", err)); err != nil {
 				return res, err
@@ -138,7 +172,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	}
 	// One line per run, so a box's log shows the pass ran and what it changed (walk 3: the job's own line is debug).
 	s.cfg.Log.InfoContext(ctx, "findings: reconcile pass done", "devices", res.Devices, "created", res.Created,
-		"closed_not_affected", res.Closed, "closed_multiple_products", res.Retired, "closed_older_than_12_months", res.Aged, "closed_no_version_evidence", res.NameOnly, "removed_with_device", res.Orphans, "risk_acceptances_expired", res.Expired)
+		"closed_not_affected", res.Closed, "closed_multiple_products", res.Retired, "closed_older_than_12_months", res.Aged, "closed_no_version_evidence", res.NameOnly, "removed_with_device", res.Orphans, "risk_acceptances_expired", res.Expired, "ignore_healed", res.IgnoreHealed)
 	return res, errors.Join(failed...)
 }
 
@@ -146,26 +180,30 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 // INV-13): Finding.ExpireAcceptance, its history row by the system user, an audit row findings.status and the
 // status_changed event with reason ReasonRiskExpired. A row that cannot be read or reopened whole is reopened on its
 // status alone (expireRaw); one that cannot be even so is logged with its id and skipped; the others still reopen. It
-// returns how many it reopened.
+// returns how many it reopened. A finding of a device a person ignored (D-630) keeps its acceptance until the device is watched
+// again: no alert about a device nobody watches.
 func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, eventWriteTimeout)
 	defer cancel()
+	unwatched := s.unwatchedAccepted(ctx)
 	n := 0
 	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		n = 0
 		// accepted_until < the latest day that has ended everywhere; ExpireAcceptance decides with AcceptanceEnds.
-		rows, err := tx.QueryContext(ctx, `SELECT id FROM fnd_finding WHERE status = 'risk_accepted' AND accepted_until < ? ORDER BY id`, dayOf(now).Format(time.DateOnly))
+		rows, err := tx.QueryContext(ctx, `SELECT id, asset_id FROM fnd_finding WHERE status = 'risk_accepted' AND accepted_until < ? ORDER BY id`, dayOf(now).Format(time.DateOnly))
 		if err != nil {
 			return fmt.Errorf("findings: reading expired risk acceptances: %w", err)
 		}
 		var ids []string
 		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
+			var id, asset string
+			if err := rows.Scan(&id, &asset); err != nil {
 				_ = rows.Close()
 				return fmt.Errorf("findings: reading expired risk acceptances: %w", err)
 			}
-			ids = append(ids, id)
+			if !unwatched[asset] {
+				ids = append(ids, id)
+			}
 		}
 		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 			return fmt.Errorf("findings: reading expired risk acceptances: %w", err)
@@ -216,6 +254,47 @@ func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	return n, nil
+}
+
+// unwatchedAccepted is the set of devices a person ignored (D-630): their risk acceptances wait until the device is watched again.
+// One read; when it fails the acceptances expire as usual (an alert too many, never one lost; review r1 L10 of #945).
+func (s *Service) unwatchedAccepted(ctx context.Context) map[string]bool {
+	ids, err := s.cfg.Inventory.IgnoredIDs(ctx)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "findings: the ignored devices could not be read; their risk acceptances expire as usual", "error", err)
+		return nil
+	}
+	out := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out
+}
+
+// healIgnored does the work of a lost inventory.asset.ignored (ignored: close the open findings of an ignored device) or
+// .unignored (reopen on a watched device the findings Ignore closed), D-630, review r1 M2 of #945. A read first, so the hourly pass
+// writes only for a device that needs it; the write checks the device's state again (forAssetFindings).
+func (s *Service) healIgnored(ctx context.Context, id string, ignored bool) (int, error) {
+	q := `SELECT 1 FROM fnd_finding WHERE asset_id = ? AND status IN ('suspected', 'confirmed') LIMIT 1`
+	args := []any{id}
+	if !ignored {
+		q = `SELECT 1 FROM fnd_finding WHERE asset_id = ? AND status = 'not_relevant' AND resolved_by = ? AND resolution_reason IS NULL AND substr(resolution_note, 1, ?) = ? LIMIT 1`
+		args = append(args, SystemUser, len(IgnoredNote), IgnoredNote)
+	}
+	var one int
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, q, args...).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("findings: reading the findings of a device: %w", err)
+	}
+	wctx, cancel := context.WithTimeout(ctx, eventWriteTimeout)
+	defer cancel()
+	if ignored {
+		return s.OnAssetIgnored(wctx, id, "")
+	}
+	return s.OnAssetUnignored(wctx, id, "")
 }
 
 // expireOne writes one expiry under a savepoint, so a row that fails leaves nothing half written and the pass goes on.

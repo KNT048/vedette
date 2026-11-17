@@ -106,7 +106,7 @@ func TestMergedDeviceLeavesItsIncidentNamingWhereItWent(t *testing.T) {
 	publish(inventory.EventAssetDeleted, map[string]string{"asset_id": "lldp-2"})
 	publish(notify.EventAssetMerged, map[string]string{"from": "s2", "into": "ip-2"})
 	if i := e.detail(l[0].ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil ||
-		*i.ResolvedReason != "Closed by Vedette: every device on it was approved or deleted in Devices, the last one merged into EX4300." {
+		*i.ResolvedReason != "Closed by Vedette: every device on it was approved, ignored or deleted in Devices, the last one merged into EX4300." {
 		t.Fatalf("summary whose last device was merged = %+v", i)
 	}
 }

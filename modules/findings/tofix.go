@@ -113,7 +113,7 @@ func (s *Service) toFix(ctx context.Context, feedsOn bool, assetID string, limit
 		}
 		if feedsOn {
 			d.Planned, d.PlanRan, d.PlanCompared = s.plannedUpdates(id)
-			withProducts(a, d.Planned)
+			withRows(a, d.Planned)
 		} else {
 			d.PlanOff = true
 		}
@@ -213,13 +213,14 @@ func (u urgent) compare(o urgent) int {
 		cmp.Compare(u.cves, o.cves), cmp.Compare(u.planWorst, o.planWorst), cmp.Compare(u.likely, o.likely), cmp.Compare(u.planCVEs, o.planCVEs))
 }
 
-// withProducts sets UpdateAction.Product of planned actions from the device's software rows (the plan items carry only the row id).
-func withProducts(a Asset, us []UpdateAction) {
+// withRows sets UpdateAction.Product and Source of planned actions from the device's software rows (the plan items carry only the
+// row id).
+func withRows(a Asset, us []UpdateAction) {
 	sws := map[string]Software{}
 	for _, sw := range deviceSoftware(a) {
 		sws[sw.ID] = sw
 	}
 	for i := range us {
-		us[i].Product = productKey(sws[us[i].SoftwareID])
+		us[i].Product, us[i].Source = productKey(sws[us[i].SoftwareID]), sws[us[i].SoftwareID].Source
 	}
 }

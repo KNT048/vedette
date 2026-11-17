@@ -22,13 +22,13 @@ export async function expectNoA11yViolations(node: Element = document.body) {
   expect(res.violations, msg).toHaveLength(0)
 }
 
-/** A link of the main nav as a user reaches it (docs/UI.md §2): Testing Library ignores `inert`, so a link inside a closed group would
- *  be found though nobody can reach it. This opens the group first, then checks the link is not inert. */
+/** A link of the main nav as a user reaches it (docs/UI.md §2): a link inside a closed group is `hidden`, out of reach, so this
+ *  finds it in the hidden tree, opens its group the way a user does (its header), then checks it is reachable. */
 export async function mainNavLink(name: string | RegExp) {
   const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
-  const link = await within(nav).findByRole('link', { name })
-  const closed = link.closest('[inert]')
+  const link = await within(nav).findByRole('link', { name, hidden: true })
+  const closed = link.closest<HTMLElement>('[hidden]')
   if (closed) fireEvent.click(nav.querySelector(`[aria-controls="${closed.id}"]`)!)
-  expect(link.closest('[inert]')).toBeNull()
+  expect(within(nav).getByRole('link', { name })).toBe(link)
   return link
 }

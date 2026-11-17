@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
@@ -41,7 +43,7 @@ func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 		{AssetCore: inventory.AssetCore{IP: "192.168.18.2", Kind: "firewall", Vendor: obs("Fortinet"), Model: obs("FortiGate 60F"), OS: obs("FortiOS 7.2.5")}},
 		{AssetCore: inventory.AssetCore{IP: "192.168.18.1", Kind: "firewall"}},
 	}
-	blocks := aiFindingData(req, &dev, walls)
+	blocks := aiFindingData(req, &dev, aiFirewalls{Walls: walls, Paths: []aiPath{pathSameSubnet, pathGateway}, OnPath: true})
 	if len(blocks) != 3 {
 		t.Fatalf("blocks = %d, want feed, device and network", len(blocks))
 	}
@@ -54,7 +56,7 @@ func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 		"443/tcp https (J-Web)", "22/tcp ssh", // the open ports
 		"matched by version, confidence 0.70", "CVSS 3.1 base score: 9.8",
 		"Vendor: Fortinet; Model: FortiGate 60F; Operating system: FortiOS 7.2.5", // the firewall in Devices
-		"192.168.18.1, kind firewall; vendor not known",
+		"192.168.18.1, kind firewall; vendor not known; path: the default gateway of this device's network",
 	} {
 		if !strings.Contains(all, want) {
 			t.Errorf("the AI's data lacks %q:\n%s", want, all)
@@ -66,11 +68,11 @@ func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 
 	// explain gets the device facts but not the firewalls; no firewall in Devices is said, not left out
 	req.Skill = mitigation.SkillExplain
-	if b := aiFindingData(req, &dev, nil); len(b) != 2 || !strings.Contains(b[1].Text, "before 20.4") {
+	if b := aiFindingData(req, &dev, aiFirewalls{}); len(b) != 2 || !strings.Contains(b[1].Text, "before 20.4") {
 		t.Fatalf("explain blocks = %+v", b)
 	}
 	req.Skill, req.FixedIn = mitigation.SkillConfig, nil
-	b := aiFindingData(req, nil, nil)
+	b := aiFindingData(req, nil, aiFirewalls{})
 	if !strings.Contains(b[2].Text, "No firewall or router is in the inventory.") || !strings.Contains(b[1].Text, "Fixed version: not known on this box (NVD's affected versions name none); the vendor advisory in the links may name it.") {
 		t.Fatalf("no device, no firewall: %+v", b)
 	}
@@ -92,7 +94,8 @@ func TestAIFixedIn_EveryKindIsAFact(t *testing.T) {
 }
 
 // #897 r1 L5: the door reads the device and, for the config skill only, the firewalls of the real inventory; a device that is gone
-// leaves the device facts out and the AI still gets the rest.
+// leaves the device facts out and the AI still gets the rest. The firewalls are chosen by the box's network: the one that is the
+// device's gateway is given, the one with no known path is not.
 func TestAIMitigationFacts_ReadsTheInventory(t *testing.T) {
 	d := testServices(t)
 	ctx := t.Context()
@@ -100,15 +103,31 @@ func TestAIMitigationFacts_ReadsTheInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := aiMitigation{svc: d.AI, inv: d.Inventory, log: d.Log}
-	dev, walls := m.facts(ctx, mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{AssetID: fw.ID}})
-	if dev == nil || dev.IP != "192.168.30.1" || len(walls) != 1 || walls[0].ID != fw.ID {
-		t.Fatalf("config: device %+v, firewalls %d", dev, len(walls))
+	far, err := d.Inventory.AddDevice(ctx, "it@acme.example", inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", Name: "fw-branch", IP: "100.64.20.1"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if b := aiFindingData(mitigation.AIRequest{Skill: mitigation.SkillConfig}, dev, walls); !strings.Contains(b[2].Text, "fw-hq, IP 192.168.30.1") {
+	srv, err := d.Inventory.AddDevice(ctx, "it@acme.example", inventory.AddInput{CatalogID: "synology-nas-dsm", Version: "7.2", Name: "nas-01", IP: "192.168.30.40"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := aiMitigation{svc: d.AI, inv: d.Inventory, log: d.Log, net: func(context.Context) aiNet {
+		return aiNetOf(api.NetState{Interfaces: []api.NetInterface{{Name: "eth0", Addresses: []string{"192.168.30.9/24"}}}, DefaultRoute: &api.NetRoute{Gateway: "192.168.30.1"}})
+	}}
+	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{AssetID: srv.ID}}
+	dev, walls := m.facts(ctx, req)
+	if dev == nil || dev.IP != "192.168.30.40" || len(walls.Walls) != 1 || walls.Walls[0].ID != fw.ID || !walls.OnPath || walls.Others != 1 {
+		t.Fatalf("config: device %+v, firewalls %+v", dev, walls)
+	}
+	if b := aiFindingData(req, dev, walls); !strings.Contains(b[2].Text, "fw-hq, IP 192.168.30.1") || strings.Contains(b[2].Text, "100.64.20.1") || strings.Contains(b[2].Text, "fw-branch") {
 		t.Fatalf("network block = %q", b[2].Text)
 	}
-	if _, walls = m.facts(ctx, mitigation.AIRequest{Skill: mitigation.SkillExplain, Finding: findings.Row{AssetID: fw.ID}}); walls != nil {
+	// without the box's network every firewall is offered, as an assumption; the finding's own device is never one of them
+	m.net = nil
+	if _, walls = m.facts(ctx, mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{AssetID: fw.ID}}); len(walls.Walls) != 1 || walls.Walls[0].ID != far.ID || walls.OnPath || walls.Why == "" {
+		t.Fatalf("no network: %+v", walls)
+	}
+	if _, walls = m.facts(ctx, mitigation.AIRequest{Skill: mitigation.SkillExplain, Finding: findings.Row{AssetID: fw.ID}}); walls.Walls != nil {
 		t.Fatal("explain must not read the other devices")
 	}
 	if dev, _ = m.facts(ctx, mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{AssetID: "gone"}}); dev != nil {
@@ -123,7 +142,7 @@ func TestAIFindingData_R1_OneLineValuesAndAttackVector(t *testing.T) {
 	dev := inventory.Device{AssetCore: inventory.AssetCore{IP: "192.168.18.5", Kind: "server", Services: []inventory.ServiceRow{{Port: 80, Proto: "tcp", Name: "http", Product: &evil}}}}
 	walls := []inventory.Device{{AssetCore: inventory.AssetCore{IP: "192.168.18.1\nIP 203.0.113.9", Hostname: &host, Kind: "firewall"}}}
 	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{CVE: "CVE-2024-1", CVSS: &findings.CVSS{Score: 7.8, Version: "3.1", Vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:R/S:U/C:H/I:H/A:H"}}}
-	b := aiFindingData(req, &dev, walls)
+	b := aiFindingData(req, &dev, aiFirewalls{Walls: walls, Paths: []aiPath{pathGateway}, OnPath: true})
 	for _, blk := range b[1:] {
 		if strings.Count(blk.Text, "Firewalls and routers") > 1 || strings.Contains(blk.Text, "\n- evil") || strings.Contains(blk.Text, "bad\nname") {
 			t.Fatalf("a value broke out of its line:\n%s", blk.Text)
@@ -149,7 +168,7 @@ func TestAITrustedAndMatched_R2(t *testing.T) {
 		t.Fatal(err)
 	}
 	walls := []inventory.Device{{AssetCore: inventory.AssetCore{IP: "192.168.18.1"}}, {AssetCore: inventory.AssetCore{IP: "not an ip"}}}
-	if got := fmt.Sprint(aiTrusted(row, &dev, walls)); got != "[192.168.18.5 192.168.18.1]" {
+	if got := fmt.Sprint(aiTrusted(row, &dev, aiFirewalls{Walls: walls})); got != "[192.168.18.5 192.168.18.1]" {
 		t.Fatalf("trusted = %s", got)
 	}
 	if got := aiMatched(row, dev); got != "Apache HTTP Server 2.4.58" {

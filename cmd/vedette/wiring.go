@@ -616,7 +616,10 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.AI, err = newAI(ctx, d, d.AIFacts, ask, ask); err != nil { // ask is also device_updates' door, typed (#935)
 		return fmt.Errorf("ai: %w", err)
 	}
-	aiDoor := aiMitigation{d.AI, d.Inventory, d.Log}
+	aiDoor := aiMitigation{svc: d.AI, inv: d.Inventory, log: d.Log}
+	if d.HostSocket != "" { // the box's subnets and gateways decide which firewalls are on a device's path; no host, not known
+		aiDoor.net = aiNetReader(hostclient.New(d.HostSocket))
+	}
 	provider, err := mitigation.NewProvider(d.DB, mitigationVendors{d.Inventory}, aiDoor)
 	if err != nil {
 		return err

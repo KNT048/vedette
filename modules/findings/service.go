@@ -868,8 +868,7 @@ func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, er
 		for _, q := range []string{
 			`UPDATE OR IGNORE fnd_version_needed SET asset_id = ?2 WHERE asset_id = ?1`,
 			`DELETE FROM fnd_version_needed WHERE asset_id = ?1`,
-			`UPDATE OR IGNORE fnd_unchecked SET asset_id = ?2 WHERE asset_id = ?1`,
-			`DELETE FROM fnd_unchecked WHERE asset_id = ?1`,
+			`DELETE FROM fnd_unchecked WHERE asset_id IN (?1, ?2)`, // not moved: recomputed when "into" is matched (r1 L2: one place per CVE)
 		} {
 			if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
 				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)

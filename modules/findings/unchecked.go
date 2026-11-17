@@ -52,7 +52,8 @@ type Unchecked struct {
 func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, out outcome) (UncheckedReason, bool) {
 	switch {
 	case out == outRuledOut: // only a keyed row is ruled out (viaNVD says nothing instead)
-		if m.Evidence.Summary != "" || isMultiProduct(v.Product) {
+		// a vendor's "Multiple Products" reaches every row of the vendor by its key: only one NVD's list names counts (r1 L4)
+		if m.Evidence.Summary != "" || isMultiProduct(v.Product) && len(rowEntries(s, in, v)) == 0 {
 			return "", false
 		}
 	case out == outNone && named && in.given: // cheapest tests first: this runs for every row NVD's vendors may name
@@ -68,27 +69,37 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 	default:
 		return "", false
 	}
-	return uncheckedReason(s, in, v), true
+	return uncheckedReason(s, in, v, false)
 }
 
-// uncheckedReason is the reason of an unchecked row, first that applies: NVD has no entry (no_nvd_data); no entry gives a version
-// (no_nvd_versions, audit class 2); none names the row (not_named, audit class 5 and "3k"); those that name it give no version
-// (no_nvd_versions); else the row's version does not compare with theirs (not_comparable).
-func uncheckedReason(s Software, in swInfo, v Vuln) UncheckedReason {
+// uncheckedReason is the reason of an unchecked row, first that applies:
+//   - no_nvd_data: NVD answered with no entry (Vuln.NVDAnswered); before it answered there is no row at all (ok false: the list
+//     says nothing it cannot back, review r1 M2 of #920);
+//   - no_nvd_versions: no entry gives a version (audit class 2);
+//   - not_named: none names the row (audit class 5 and "3k", and #919's nvd_other_product);
+//   - no_nvd_versions: those that name it give no version, or no range that decides (only exact versions, only a start, or a
+//     partial CVE.org list);
+//   - not_comparable: an entry naming it has a range with an end and the row's version did not compare with it, or the row is a
+//     network OS whose version has no order (scheme): only then can typing the version as the vendor writes it help.
+func uncheckedReason(s Software, in swInfo, v Vuln, scheme bool) (UncheckedReason, bool) {
 	if len(v.Affected) == 0 {
-		return UncheckedNoNVDData
+		return UncheckedNoNVDData, v.NVDAnswered
 	}
 	if !slices.ContainsFunc(v.Affected, versionEvidence) {
-		return UncheckedNoNVDVersions
+		return UncheckedNoNVDVersions, true
 	}
 	own := rowEntries(s, in, v)
 	switch {
 	case len(own) == 0:
-		return UncheckedNotNamed
+		return UncheckedNotNamed, true
 	case !slices.ContainsFunc(own, versionEvidence):
-		return UncheckedNoNVDVersions
+		return UncheckedNoNVDVersions, true
+	case scheme || !versionKnown(in.ver):
+		return UncheckedNotComparable, true
+	case v.RangesFrom == RangesCVEOrgPartial || !slices.ContainsFunc(own, func(af Affected) bool { return endBound(af.Range) }):
+		return UncheckedNoNVDVersions, true
 	}
-	return UncheckedNotComparable
+	return UncheckedNotComparable, true
 }
 
 // versionEvidence says whether an NVD entry gives a version: a range bound, or a version in its CPE.
@@ -135,8 +146,14 @@ func replaceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []U
 	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_unchecked WHERE asset_id = ?`, assetID); err != nil {
 		return fmt.Errorf("findings: clearing unchecked rows: %w", err)
 	}
+	seen := map[[2]string]bool{}
 	for _, u := range items {
-		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO fnd_unchecked (asset_id, software_id, software, version, source, reason, cve, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		k := [2]string{u.SoftwareID, u.CVE}
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_unchecked (asset_id, software_id, software, version, source, reason, cve, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			assetID, u.SoftwareID, u.Software, u.Version, u.Source, string(u.Reason), u.CVE, store.FormatTS(now)); err != nil {
 			return fmt.Errorf("findings: storing an unchecked row: %w", err)
 		}
@@ -305,7 +322,8 @@ func UncheckedItems(rows []UncheckedRow, kev map[string]KevInfo, assets map[stri
 		return ""
 	}
 	slices.SortStableFunc(out, func(a, b UncheckedItem) int {
-		return cmp.Or(cmp.Compare(name(a), name(b)), cmp.Compare(a.AssetID, b.AssetID),
+		return cmp.Or(cmp.Compare(boolRank(a.Asset == nil), boolRank(b.Asset == nil)), // a device gone last (r1 L6)
+			cmp.Compare(name(a), name(b)), cmp.Compare(a.AssetID, b.AssetID),
 			cmp.Compare(strings.ToLower(a.Software), strings.ToLower(b.Software)), cmp.Compare(a.Software, b.Software),
 			cmp.Compare(reasonRank(a.Reason), reasonRank(b.Reason)))
 	})
@@ -324,4 +342,11 @@ func edgeLegacyOf(c CPE, af Affected, v Vuln) bool {
 	p, _ := c.Product.Literal()
 	pre := !v.Published.IsZero() && v.Published.Before(chromiumEdgeGA) || v.Published.IsZero() && cveYear(v.CVE) > 0 && cveYear(v.CVE) < 2020
 	return norm(p) == "edge" && !versionEvidence(af) && pre
+}
+
+func boolRank(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

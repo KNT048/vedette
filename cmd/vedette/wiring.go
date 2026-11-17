@@ -411,6 +411,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate}
+		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE feeds_affected_cve records
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
 			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,
@@ -680,6 +681,20 @@ func subscribe(d deps) {
 			return err
 		}))
 	}
+	// #910 (review r1 L1 of #920): a software change that keeps the exploited-list keys (an agent's version upgrade, a removed row)
+	// sends no match.changed, so the device's "add the version" items and "could not be checked" rows would name the old row until
+	// the hourly reconcile: match it again now.
+	d.Bus.Subscribe(inventory.EventSoftwareChanged, on("findings", func(ctx context.Context, data any) error {
+		ev, ok := data.(inventory.AssetEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		_, err := d.Findings.OnMatchChanged(ctx, ev.AssetID)
+		if errors.Is(err, findings.ErrUnknownAsset) {
+			return nil // the device was deleted after the event went out
+		}
+		return err
+	}))
 	// D-617 (review r1 #1 of #804): "Updates to plan" compares a device again on any change of its software (a version upgrade, a new
 	// product without an exploited-list key, a removed row: inventory.match.changed covers only exploited-list keys) and on any
 	// discovered or updated device (its agent's OS decides platform-limited CVEs). Only a mark: the plan job does the work.

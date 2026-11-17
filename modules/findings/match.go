@@ -120,6 +120,10 @@ type Vuln struct {
 	Affected    []Affected
 	Source      string // "" or "cisa-kev": the CISA list; "vulncheck-kev": VulnCheck KEV (D-557); names the list in evidence texts
 	RangesFrom  string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record (D-556)
+	// NVDAnswered: the feeds module recorded an answer for the CVE's affected configurations (feeds_affected_cve: NVD's, or the
+	// CVE.org record's), even an empty one. False before the NVD pull, with it off or failing: an empty Affected then says nothing
+	// about NVD, so the "could not be checked" list does not claim "no NVD data" (#910, review r1 M2 of #920).
+	NVDAnswered bool
 	// Distro is what Ubuntu and Debian say about the CVE in their own packages (D-516): per release and source package,
 	// fixed in a version or not affected. Empty when the distribution feeds are off or have no word on it.
 	Distro []DistroFix
@@ -402,7 +406,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				// not (CVE-2018-0171, "IOS and IOS XE", NVD only classic cisco:ios): could not be checked, not a product finding;
 				// #910 rule 2 reads it as NVD naming another product (not_named, unless NVD gives no version at all)
 				other, otherVer, unproved = &m, s.Version, true
-				unchecked = append(unchecked, uncheckedOf(s, v, uncheckedReason(s, infos[i], v)))
+				if r, ok := uncheckedReason(s, infos[i], v, false); ok {
+					unchecked = append(unchecked, uncheckedOf(s, v, r))
+				}
 				continue
 			}
 			if out == outRuledOut || out == outNone && named[i][vi] {
@@ -489,8 +495,12 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				r.Evidence.Summary = agedOthersSummary(v, r)
 			}
 			res.Aged = append(res.Aged, r)
-			if !needs { // the product match nothing else decided: it was not checked either (#910)
-				res.Unchecked = append(res.Unchecked, uncheckedOf(sws[bestRow], v, uncheckedReason(sws[bestRow], infos[bestRow], v)))
+			if !needs { // the product match nothing else decided: it was not checked either (#910), nor the product's other rows (r1 L3)
+				if r, ok := uncheckedReason(sws[bestRow], infos[bestRow], v, false); ok &&
+					!slices.ContainsFunc(unchecked, func(u Unchecked) bool { return u.SoftwareID == sws[bestRow].ID }) {
+					unchecked = append(unchecked, uncheckedOf(sws[bestRow], v, r))
+				}
+				res.Unchecked = append(res.Unchecked, unchecked...)
 			}
 			decided[v.CVE] = needs
 			continue
@@ -513,8 +523,11 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			}
 		}
 		for _, n := range scheme { // the OS row is not in sws here: its entries are listed only from this
-			if !decided[n.CVE] { // a finding or an "add the version" item of another row decides it (#910 rule 1)
-				res.Unchecked = append(res.Unchecked, uncheckedOf(os, byCVE[n.CVE], uncheckedReason(os, in, byCVE[n.CVE])))
+			if decided[n.CVE] { // a finding or an "add the version" item of another row decides it (#910 rule 1)
+				continue
+			}
+			if r, ok := uncheckedReason(os, in, byCVE[n.CVE], true); ok {
+				res.Unchecked = append(res.Unchecked, uncheckedOf(os, byCVE[n.CVE], r))
 			}
 		}
 	}

@@ -484,7 +484,8 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 		if !feedsOn || asset != "" && it.AssetID != asset {
 			continue
 		}
-		k := shown{it: it}
+		// Microsoft's newest Windows update with no CVE analysed yet: a recent item (its CVEs are this month's), never a likely one
+		k := shown{it: it, recent: awaitsNVD(it)}
 		for _, c := range it.CVEs {
 			// a CVE that crossed the 12-month line since the pass is not listed (review r1 #2 of #804): only a scan may list an older
 			// one, and no scan basis exists yet
@@ -537,7 +538,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 		if k.recent {
 			counts["recent"]++
 		}
-		if len(k.cves) == 0 {
+		if len(k.cves) == 0 && (!awaitsNVD(k.it) || tier == "likely") {
 			continue // not of the asked tier
 		}
 		likely := 0
@@ -551,12 +552,16 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 		}
 		// The version of an agent's row is the last list an agent sent once none reports the device: the item says so, with that day
 		var reported *string
-		lastOnly := slices.ContainsFunc(k.cves, func(c PlanCVE) bool { return c.Basis == planAgent }) && agentGone(a.ID)
+		lastOnly := (slices.ContainsFunc(k.cves, func(c PlanCVE) bool { return c.Basis == planAgent }) || awaitsNVD(k.it) && k.it.Basis == planAgent) && agentGone(a.ID)
+		cves := k.cves
+		if cves == nil {
+			cves = []PlanCVE{}
+		}
 		if lastOnly && !k.it.Reported.IsZero() {
 			reported = day(k.it.Reported)
 		}
 		items = append(items, map[string]any{"group": k.it.Group, "asset": map[string]any{"id": a.ID, "name": a.Name}, "risk": riskOfView(risks, a), "software": k.it.Software,
-			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "pro": k.it.Pro, "nvd_lag": k.it.NVDLag, "kb": k.it.KB, "cves": k.cves, "likely": likely, "recent": len(k.cves) - likely,
+			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "pro": k.it.Pro, "nvd_lag": k.it.NVDLag, "kb": k.it.KB, "cves": cves, "likely": likely, "recent": len(k.cves) - likely,
 			"agent_gone": lastOnly, "agent_reported": reported})
 	}
 	return Into[oas.FindingsGetFindingsPlanOK](map[string]any{

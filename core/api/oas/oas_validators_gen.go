@@ -40519,14 +40519,6 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Validate() error {
 		if s.Cves == nil {
 			return errors.New("nil is invalid value")
 		}
-		if err := (validate.Array{
-			MinLength:    1,
-			MinLengthSet: true,
-			MaxLength:    0,
-			MaxLengthSet: false,
-		}).ValidateLength(len(s.Cves)); err != nil {
-			return errors.Wrap(err, "array")
-		}
 		var failures []validate.FieldError
 		for i, elem := range s.Cves {
 			if err := func() error {

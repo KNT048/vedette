@@ -132,6 +132,19 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 	for _, v := range kevs {
 		kev[v.CVE] = true
 	}
+	recs, err := s.List(ctx, "")
+	if err != nil {
+		return fmt.Errorf("findings: plan: reading the findings: %w", err)
+	}
+	open := map[string]map[string]bool{} // device -> its open exploited findings' CVEs: the updates To fix names (tierIndex.withOpen)
+	for _, r := range recs {
+		if r.Status.Open() {
+			if open[r.AssetID] == nil {
+				open[r.AssetID] = map[string]bool{}
+			}
+			open[r.AssetID][r.CVE] = true
+		}
+	}
 	var assets []Asset
 	gone := map[string]bool{}
 	var failed []error
@@ -173,7 +186,7 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 			return fmt.Errorf("findings: plan: reading the distributions' tier data: %w", err)
 		}
 	}
-	x := newTierIndex(tv).withDistro(dv, covered)
+	x := newTierIndex(tv).withDistro(dv, covered).withKEV(kevs, open)
 	now := s.now()
 	got := make(map[string]planDevice, len(assets))
 	items := 0

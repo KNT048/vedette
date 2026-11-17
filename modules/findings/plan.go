@@ -2,11 +2,13 @@ package findings
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/debver"
+	"github.com/knt048/vedette/core/winrel"
 )
 
 // "Updates to plan" (S-TIER-1, S-TIER-2): CVEs on no exploited list, published in the last 12 months,
@@ -59,6 +61,9 @@ type PlanItem struct {
 	// KB (windows, esu): the KB number of Fixed when Microsoft's release information lists that build; "" otherwise.
 	KB   string    `json:"kb"`
 	CVEs []PlanCVE `json:"cves"`
+	// Basis is how the row's version is known (planAgent or planVersion; planDistro for a package): the basis of its CVEs, and of an
+	// item with none (awaitsNVD), which GET /findings/plan reads for agent_gone. Not in the API.
+	Basis string `json:"-"`
 	// Reported is, for an agent's row, when the agent last reported it (Software.SeenAt): the day of the list the version comes from,
 	// which GET /findings/plan names once no agent reports the device (agent_reported). Zero otherwise. Not in the pass's JSON.
 	Reported time.Time `json:"-"`
@@ -205,6 +210,35 @@ type tierIndex struct {
 	dtier   []TierVuln
 	dby     map[string][]int
 	covered map[string]bool
+	// kevWin are the exploited-list entries with a Windows release row, and open the CVEs of each device's open findings (withKEV): a
+	// Windows row inside one of them with a fix and an open finding has an exploited update To fix names (the same target), so the plan
+	// names no newest update for it (newestUpdateItem).
+	kevWin []Vuln
+	open   map[string]map[string]bool
+}
+
+// withKEV adds the exploited-list entries that name a Windows release, and each device's open findings (device -> CVEs), to the index.
+func (x *tierIndex) withKEV(kevs []Vuln, open map[string]map[string]bool) *tierIndex {
+	for _, v := range kevs {
+		if slices.ContainsFunc(v.Affected, func(af Affected) bool { return isWindowsKey(tierKey(af.CPE)) }) {
+			x.kevWin = append(x.kevWin, v)
+		}
+	}
+	x.open = open
+	return x
+}
+
+// exploitedFix says whether the device has an open finding of an exploited-list entry the Windows row is inside through a range with
+// an end: To fix lists that update for the device (exploitedUpdates: open findings only, the same target, winLatest). A finding a
+// person closed (mitigated, risk accepted) names no update, so the newest one is planned.
+func (x *tierIndex) exploitedFix(assetID string, in swInfo, now time.Time) bool {
+	return slices.ContainsFunc(x.kevWin, func(v Vuln) bool {
+		if !x.open[assetID][v.CVE] {
+			return false
+		}
+		w, ok := windowsDecide(in, v, true, now)
+		return ok && w.t == Yes && w.within.EndExcl != ""
+	})
 }
 
 // withDistro adds the distributions' fixed rows (Feeds.TierDistro) to the index.
@@ -349,6 +383,7 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 		return cmp.Compare(boolInt(q.Source == "agent"), boolInt(p.Source == "agent"))
 	})
 	listed := map[string]bool{}
+	winItem := map[string]bool{} // a Windows install (its version) that has an item: one row per install, never a second one
 	for _, s := range sws {
 		in, ok := tierInfo(a, s)
 		if !ok {
@@ -389,10 +424,56 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 				listed[c.CVE+"|"+clean(in.ver)] = true
 			}
 		}
+		if win && len(its) == 0 && !winItem[clean(in.ver)] && !x.exploitedFix(a.ID, in, now) {
+			if it, ok := newestUpdateItem(a, s, in, d, now); ok {
+				its = []PlanItem{it}
+			}
+		}
+		if win && len(its) > 0 {
+			winItem[clean(in.ver)] = true
+		}
 		items = append(items, its...)
 	}
 	its, dc := distroTierItems(a, x, kev, cut)
 	return append(items, its...), compared || dc
+}
+
+// newestUpdateItem is the item of a Windows release row below the newest monthly security update Microsoft lists for its release
+// (core/winrel.Updates, feed windows-releases) when no analysed CVE gives the row an item: on Patch Tuesday every Windows device is one
+// update behind, and NVD analyses that update's CVEs over the next weeks, so without it the plan says nothing while the update is
+// out. The item names the update (its build and KB) with no CVE yet (awaitsNVD); once NVD analyses a CVE of it that the row is inside,
+// tierItems gives the row its item instead, with the same target (winLatest) and a count. The release must still get monthly updates
+// for the device: a release that ended gets none, unless its LTSC edition is still serviced and the device runs it, or Extended
+// Security Updates continue it (LastFreeRev; then the item is kind esu when the newest update is above the last free one, as winFix).
+// A device on a hotpatch is current to its month (winDevice: d.rev is that month's update). No item when an exploited-list entry
+// already has the row (To fix names the same update, matchTiers), or when the newest update is older than AgeLimit (the feed has not
+// been read for a year: nothing current to name). NVDLag is true while the update is younger than winNVDLagWindow ("its CVEs are not
+// yet analysed by NVD"); after it the item stays, since the device is still behind, but says NVD lists no CVE of it for the release.
+func newestUpdateItem(a Asset, s Software, in swInfo, d winDev, now time.Time) (PlanItem, bool) {
+	if d.ended() && d.rel.LastFreeRev == 0 {
+		return PlanItem{}, false
+	}
+	us := winrel.Updates(d.rel.Build, d.rel.Server)
+	if len(us) == 0 || us[len(us)-1].Rev <= d.rev || now.Sub(us[len(us)-1].Day) > AgeLimit {
+		return PlanItem{}, false
+	}
+	newest := us[len(us)-1]
+	kind := "windows"
+	if d.rel.LastFreeRev > 0 && newest.Rev > d.rel.LastFreeRev {
+		kind = "esu"
+	}
+	it := PlanItem{Group: a.ID + "/" + s.ID, AssetID: a.ID, SoftwareID: s.ID, Software: clean(s.Display), Version: clean(in.ver),
+		Fixed: fmt.Sprintf("10.0.%d.%d", d.rel.Build, newest.Rev), Kind: kind, NVDLag: now.Sub(newest.Day) < winNVDLagWindow, KB: newest.KB, Basis: planVersion}
+	if s.Source == "agent" {
+		it.Basis, it.Reported = planAgent, s.SeenAt
+	}
+	return it, true
+}
+
+// awaitsNVD says the item is a Windows release's newest monthly update with none of its CVEs analysed by NVD yet (newestUpdateItem):
+// it is listed with no CVE, under the tiers all and recent, and ranks after every item with a CVE (no severity or EPSS to rank by).
+func awaitsNVD(it PlanItem) bool {
+	return len(it.CVEs) == 0 && (it.Kind == "windows" || it.Kind == "esu")
 }
 
 // distroTierItems is the plan of a device's Ubuntu or Debian packages: an agent's deb row (full version and source package)
@@ -520,6 +601,7 @@ func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []V
 		if s.Source == "agent" {
 			basis, it.Reported = planAgent, s.SeenAt
 		}
+		it.Basis = basis
 		for _, v := range vulns {
 			if g.Ranged[v.CVE] {
 				it.CVEs = append(it.CVEs, planCVE(x.tier[x.byName[v.CVE]], basis))

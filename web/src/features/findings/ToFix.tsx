@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
 import { useDevice, useDevices } from '@/features/inventory/api'
 import { deviceName } from './basis'
-import { kbNote } from './fix'
+import { kbNote, noCvesKey } from './fix'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 import type { SoftwareView } from '@/features/inventory/types'
 import { isOsSoftware, IUpdated } from './Updated'
@@ -56,6 +56,14 @@ function Action({ a, planned, box, asset }: { a: ToFixAction; planned: boolean; 
   const what = planned
     ? t(a.nvd_lag ? 'toFix.plannedFixesAtLeast' : 'toFix.plannedFixes', { count: a.cves.length })
     : a.kind === 'none' ? t('toFix.noUpdateCount', { count: a.cves.length }) : t('toFix.fixes', { count: a.cves.length })
+  if (planned && a.cves.length === 0) { // Microsoft's newest Windows update, none of its CVEs analysed by NVD yet: nothing to open
+    return (
+      <li className="grid gap-1 py-2">
+        <p className="text-sm"><span className="font-medium">{a.action}</span><span className="text-muted">{': '}{t(noCvesKey(a.nvd_lag))}</span></p>
+        {a.software_id && a.source === 'manual' ? <IUpdated asset={asset} software={updatedOf(a)} size="sm" progress={false} /> : null}
+      </li>
+    )
+  }
   return (
     <li className="grid gap-1 py-2">
       <details className="group">
@@ -175,13 +183,15 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
         const cves = r.devices.reduce((n, x) => n + x.a.cves.length, 0)
         const worst = r.devices.reduce((w, x) => (rank(x.a.worst) > rank(w) ? x.a.worst : w), '')
         const lag = r.planned && r.devices.some((x) => x.a.nvd_lag) // Microsoft's newest update: the CVEs NVD has analysed so far
-        const on = `${t('toFix.byFix.devices', { count: r.devices.length })}, ${t(lag ? 'toFix.byFix.cvesPlannedAtLeast' : r.planned ? 'toFix.byFix.cvesPlanned' : 'toFix.byFix.cves', { count: cves })}`
+        // no CVE analysed yet on any device: the update is named, its count is not known
+        const on = r.planned && cves === 0 ? `${t('toFix.byFix.devices', { count: r.devices.length })}; ${t(noCvesKey(r.devices.some((x) => x.a.nvd_lag)))}`
+          : `${t('toFix.byFix.devices', { count: r.devices.length })}, ${t(lag ? 'toFix.byFix.cvesPlannedAtLeast' : r.planned ? 'toFix.byFix.cvesPlanned' : 'toFix.byFix.cves', { count: cves })}`
         return (
           <li key={r.key} className="rounded-md border border-rule bg-surface px-4 py-3">
             <details>
               <summary className="cursor-pointer text-sm">
                 <span className="font-medium">{label(r.sample)}</span>
-                <span className="text-muted">{': '}{r.planned ? t('toFix.byFix.recommendedOn', { on }) : on}{lag ? t('plan.nvdLag') : null}</span>
+                <span className="text-muted">{': '}{r.planned ? t('toFix.byFix.recommendedOn', { on }) : on}{lag && cves > 0 ? t('plan.nvdLag') : null}</span>
                 {' '}<Worst worst={worst} />
               </summary>
               <ul className="mt-1 grid gap-1 pl-4 text-meta">
@@ -189,7 +199,7 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
                   <li key={d.asset.id}>
                     <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{deviceName(d.asset, t('removedDevice'))}</Link>
                     {' '}<RiskMarker id={d.asset.id} risk={d.risk} className="align-middle" />
-                    <span className="text-muted">{': '}{a.action}, {t(a.nvd_lag ? 'toFix.cveCountAtLeast' : 'toFix.cveCount', { count: a.cves.length })}{a.nvd_lag ? t('plan.nvdLag') : null}</span>
+                    <span className="text-muted">{': '}{a.action}, {a.cves.length === 0 ? t(noCvesKey(a.nvd_lag)) : <>{t(a.nvd_lag ? 'toFix.cveCountAtLeast' : 'toFix.cveCount', { count: a.cves.length })}{a.nvd_lag ? t('plan.nvdLag') : null}</>}</span>
                   </li>
                 ))}
               </ul>

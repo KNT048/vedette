@@ -514,7 +514,9 @@
     "planned_one": "Recommended update to {{fixed}} fixes 1 CVE",
     "planned_other": "Recommended update to {{fixed}} fixes {{count}} CVEs",
     "plannedNoVersion_one": "A recommended update fixes 1 CVE",
-    "plannedNoVersion_other": "A recommended update fixes {{count}} CVEs"
+    "plannedNoVersion_other": "A recommended update fixes {{count}} CVEs",
+    "plannedNotAnalysed": "Recommended update to {{fixed}}{{kb}}: its CVEs are not yet analysed by NVD",
+    "plannedNoCves": "Recommended update to {{fixed}}{{kb}}: NVD lists no CVE of it for this release yet"
   },
   "input": {
     "toFixError": "The unproved matches could not be read: {{reason}}",
@@ -622,6 +624,8 @@
     "fixesAtLeast_one": "fixes at least {{count}} CVE",
     "fixesAtLeast_other": "fixes at least {{count}} CVEs",
     "nvdLag": "; the newest update's CVEs are not yet analysed by NVD",
+    "notAnalysed": "its CVEs are not yet analysed by NVD",
+    "noCves": "NVD lists no CVE of it for this release yet",
     "fixesLikely_one": "({{count}} likely to be exploited)",
     "fixesLikely_other": "({{count}} likely to be exploited)",
     "fixesOnlyLikely_one": "fixes {{count}} CVE likely to be exploited (All lists every CVE it fixes)",

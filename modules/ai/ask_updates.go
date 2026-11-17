@@ -105,9 +105,13 @@ func knownAs(u UpdateRow) string {
 func updateLine(u UpdateRow, exploited bool) string {
 	b := strings.Builder{}
 	b.WriteString(clip(u.Action, 200))
-	if u.NVDLag { // the plan's words: the CVEs NVD has analysed so far, never "all"
+	switch {
+	case len(u.CVEs) == 0: // Microsoft's newest Windows update with no CVE in NVD's data for the release: no count to give
+		b.WriteString("; " + noCVEsYet(u))
+		return b.String()
+	case u.NVDLag: // the plan's words: the CVEs NVD has analysed so far, never "all"
 		b.WriteString("; fixes at least " + plural(len(u.CVEs), "CVE", "CVEs"))
-	} else {
+	default:
 		b.WriteString("; " + plural(len(u.CVEs), "CVE", "CVEs"))
 	}
 	if w := clip(u.Worst, 12); w != "" {
@@ -126,6 +130,15 @@ func updateLine(u UpdateRow, exploited bool) string {
 		b.WriteString("; the newest update's CVEs are not yet analysed by NVD")
 	}
 	return b.String()
+}
+
+// noCVEsYet is what a recommended Windows update with no CVE says instead of a count, as the plan page: while the update is young
+// (NVDLag) NVD has not analysed its CVEs yet; after that NVD lists none of them for the release yet.
+func noCVEsYet(u UpdateRow) string {
+	if u.NVDLag {
+		return "its CVEs are not yet analysed by NVD"
+	}
+	return "NVD lists no CVE of it for this release yet"
 }
 
 // planNote says why the recommended list is empty or not known, so the model never reads "0" as "nothing to update" (review r1 M4,
@@ -275,7 +288,7 @@ func (s *Service) toolDeviceUpdates(ctx context.Context, d Data, up Updates, raw
 			if l.exploited {
 				status = knownAs(x)
 			}
-			t.Rows = append(t.Rows, AskRow{Href: "/devices/" + clip(dev.ID, 96), Cells: []string{clip(x.Action, 200), plural(len(x.CVEs), "CVE", "CVEs"), clip(x.Worst, 12), status}})
+			t.Rows = append(t.Rows, AskRow{Href: "/devices/" + clip(dev.ID, 96), Cells: []string{clip(x.Action, 200), cveCell(x), clip(x.Worst, 12), status}})
 		}
 	}
 	out := toolOut{Text: text, Summary: fmt.Sprintf("%s, %s", plural(len(u.Exploited), "update", "updates"), plural(len(u.Planned), "recommended", "recommended")),
@@ -284,6 +297,18 @@ func (s *Service) toolDeviceUpdates(ctx context.Context, d Data, up Updates, raw
 		out.Table = t
 	}
 	return out, nil
+}
+
+// cveCell is the table's CVE count of a row: "12 CVEs", "at least 12 CVEs" while NVD lags, never "0 CVEs" for an update whose CVEs
+// NVD has not listed yet (its words instead).
+func cveCell(u UpdateRow) string {
+	switch {
+	case len(u.CVEs) == 0:
+		return noCVEsYet(u)
+	case u.NVDLag:
+		return "at least " + plural(len(u.CVEs), "CVE", "CVEs")
+	}
+	return plural(len(u.CVEs), "CVE", "CVEs")
 }
 
 // fitUpdates returns the JSON of build with as many rows as fit askResultBytes, and the lists as kept. On a first call the recommended

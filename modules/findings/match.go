@@ -1006,6 +1006,9 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		case w.via != "":
 			note = fmt.Sprintf("Not affected: version %s of %s is outside every version range NVD lists for %s (read with the ranges of %s, which takes the same monthly update). Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.CVE, w.via)
 		}
+		if hn, ok := winHotpatchNote(in, v.CVE); ok && isWin && proof != proofOS { // the build read at its month's update, not as written
+			note = hn
+		}
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
 	case tri == Unknown && !in.given && !every && versionDecides(in, v, key):
 		return Match{}, outNeedVersion // One "add the version" item per software, not one finding per CVE

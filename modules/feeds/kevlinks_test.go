@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -27,6 +28,8 @@ func TestCleanLink(t *testing.T) {
 		{"parentheses of the path itself", "https://www.draytek.com/about/security-advisory/vigorconnect-(cve-2021-20123-cve-2021-20129)", "https://www.draytek.com/about/security-advisory/vigorconnect-(cve-2021-20123-cve-2021-20129)"},
 		{"archived page", "https://web.archive.org/web/20150729014733/https://kb.isc.org/article/AA-01272", "https://web.archive.org/web/20150729014733/https://kb.isc.org/article/AA-01272"},
 		{"fragment", "https://docs.wpsquared.com/changelogs/versions/changelog/#13617", "https://docs.wpsquared.com/changelogs/versions/changelog/#13617"},
+		{"percent-encoded parenthesis of the path", "https://host.example/a%28b)", "https://host.example/a%28b)"},
+		{"percent-encoded bracket of the path", "https://host.example/a%5Bb]", "https://host.example/a%5Bb]"},
 		{"nothing but punctuation", "(),", ""},
 	} {
 		if got := cleanLink(c.in); got != c.want {
@@ -37,7 +40,17 @@ func TestCleanLink(t *testing.T) {
 	if want := []string{"https://www.cisa.gov/news-events/directives/ed-21-04", "https://a.example/x", "https://b.example/y"}; !slices.Equal(got, want) {
 		t.Errorf("kevLinks = %q, want %q", got, want)
 	}
+	// links joined by a comma alone (CVE-2023-38606); a comma inside a URL and an archived page's URL stay whole
+	got = kevLinks("https://support.apple.com/en-us/HT213843,https://support.apple.com/en-us/HT213844,HTTPS://support.apple.com/en-us/HT213845 ; " +
+		"https://web.archive.org/web/20120324170253/http://www.adobe.com/support/apsb09-15.html#:~:text=CVE%2D2009%2D3459).-,NOTE%3A,-There")
+	if want := []string{"https://support.apple.com/en-us/HT213843", "https://support.apple.com/en-us/HT213844", "HTTPS://support.apple.com/en-us/HT213845",
+		"https://web.archive.org/web/20120324170253/http://www.adobe.com/support/apsb09-15.html#:~:text=CVE%2D2009%2D3459).-,NOTE%3A,-There"}; !slices.Equal(got, want) {
+		t.Errorf("kevLinks of comma-joined links = %q, want %q", got, want)
+	}
 }
+
+// secondScheme is a scheme inside a link that is not an archived page's own URL (which follows a "/").
+var secondScheme = regexp.MustCompile(`(?i)[^/]https?://`)
 
 // junk says why a stored link is not clean, or "" when it is.
 func junk(l string) string {
@@ -52,6 +65,8 @@ func junk(l string) string {
 		return "unmatched )"
 	case !strings.HasPrefix(strings.ToLower(l), "https://"):
 		return "not https://"
+	case secondScheme.MatchString(l[1:]):
+		return "two links in one"
 	}
 	return ""
 }
@@ -102,7 +117,8 @@ func TestStoredLinksReadClean(t *testing.T) {
 	t.Parallel()
 	s, db := newStore(t)
 	dirty := vuln("CVE-2026-0001", "Apple", "Multiple Products", "2026-11-03")
-	dirty.Links = []string{"https://support.apple.com/en-us/121752,", "https://support.apple.com/en-us/121752", "(https://www.cisa.gov/x)"}
+	dirty.Links = []string{"https://support.apple.com/en-us/121752,", "https://support.apple.com/en-us/121752", "(https://www.cisa.gov/x)",
+		"https://support.apple.com/en-us/HT213843,https://support.apple.com/en-us/HT213844"}
 	enc, _ := json.Marshal(dirty.Links)
 	write(t, db, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, description, required_action, links,
@@ -114,7 +130,8 @@ date_added, due_date, ransomware, has_template, source_id, updated_at) VALUES (?
 	if err != nil || !ok {
 		t.Fatalf("VulnByCVE: %v %v", ok, err)
 	}
-	if want := []string{"https://support.apple.com/en-us/121752", "https://www.cisa.gov/x"}; !slices.Equal(row.Links, want) {
+	if want := []string{"https://support.apple.com/en-us/121752", "https://www.cisa.gov/x", "https://support.apple.com/en-us/HT213843",
+		"https://support.apple.com/en-us/HT213844"}; !slices.Equal(row.Links, want) {
 		t.Fatalf("stored links read as %q, want %q", row.Links, want)
 	}
 	if fresh, upd := applyV(t, db, epoch0, "cisa-kev", []Vuln{dirty}, false); len(fresh) != 0 || len(upd) != 0 {

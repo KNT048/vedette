@@ -1,0 +1,219 @@
+package findings
+
+import (
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"slices"
+	"strings"
+
+	catalogdata "github.com/knt048/vedette/content/catalog"
+)
+
+// The operating system a network device states about itself is software the matcher compares (W1-32, D-510, #910 phase 1):
+// content/catalog/network-os.json maps each statement ("JUNOS 15.1R7.9", "FortiOS 7.0.1", "Cisco IOS XE 17.3.1",
+// "RouterOS 6.48", "Cisco IOS 15.2(4)M3") to the NVD product (juniper:junos, fortinet:fortios, cisco:ios_xe,
+// MikroTik's RouterOS, cisco:ios), the CISA KEV keys that name it, and the version scheme that orders it. One table, one rule:
+// a new OS is a row of data, not code.
+
+// The version schemes of network-os.json.
+const (
+	schemeJunos  = "junos"  // Juniper's maintenance trains (junosEval, junosListed)
+	schemeDotted = "dotted" // numbers with an optional letter ("7.0.1", "17.3.1a"): the generic comparison
+	schemeNone   = "none"   // not orderable (classic Cisco IOS "15.2(4)M3"): never compared (#910 phase 2)
+)
+
+// Which statement of the device counts for a row of network-os.json.
+const (
+	fromSNMP   = "snmp"   // only the device's answer to Vedette's own SNMP read of its address (Asset.SNMPOS, D-549)
+	fromStated = "stated" // SNMP or LLDP (Asset.StatedOS): Junos only (D-510, D-620)
+)
+
+// osRow is one row of network-os.json.
+type osRow struct {
+	Display   string   `json:"display"`
+	Vendor    string   `json:"vendor"`
+	Product   string   `json:"product"`
+	CPE       string   `json:"cpe"` // part:vendor:product, "o:fortinet:fortios"
+	Statement string   `json:"statement"`
+	From      string   `json:"from"`
+	Scheme    string   `json:"scheme"`
+	KevKeys   []string `json:"kev_keys"`
+	re        *regexp.Regexp
+}
+
+var osRows, osRowsErr = loadNetworkOS(catalogdata.NetworkOS)
+
+// loadNetworkOS reads network-os.json; on an error it returns the rows read so far (TestNetworkOS_DataIsValid fails on it).
+func loadNetworkOS(data []byte) ([]osRow, error) {
+	var f struct {
+		OS []osRow `json:"os"`
+	}
+	if err := json.Unmarshal(data, &f); err != nil {
+		return nil, err
+	}
+	out := make([]osRow, 0, len(f.OS))
+	for _, r := range f.OS {
+		re, err := regexp.Compile(r.Statement)
+		if err != nil {
+			return out, fmt.Errorf("network-os.json %q: statement: %w", r.Display, err)
+		}
+		if re.NumSubexp() < 1 {
+			return out, fmt.Errorf("network-os.json %q: the statement's group 1 is the version", r.Display)
+		}
+		if r.From != fromSNMP && r.From != fromStated {
+			return out, fmt.Errorf("network-os.json %q: from %q", r.Display, r.From)
+		}
+		if r.Scheme != schemeJunos && r.Scheme != schemeDotted && r.Scheme != schemeNone {
+			return out, fmt.Errorf("network-os.json %q: scheme %q", r.Display, r.Scheme)
+		}
+		if _, err := ParseCPE(r.cpe23()); err != nil || strings.Count(r.CPE, ":") != 2 {
+			return out, fmt.Errorf("network-os.json %q: cpe %q", r.Display, r.CPE)
+		}
+		if r.Display == "" || r.Vendor == "" || r.Product == "" || len(r.KevKeys) == 0 {
+			return out, fmt.Errorf("network-os.json %q: display, vendor, product and kev_keys are required", r.Display)
+		}
+		for i, k := range r.KevKeys {
+			r.KevKeys[i] = NormalizeKevKey(k)
+		}
+		r.re = re
+		out = append(out, r)
+	}
+	return out, nil
+}
+
+// cpe23 is the row's NVD product as a CPE of any version: the identity PR 1's NVD path (viaNVD, rowVendors) reads.
+func (d osRow) cpe23() string { return "cpe:2.3:" + d.CPE + ":*:*:*:*:*:*:*:*" }
+
+// dottedRe is a version the dotted scheme orders: two to four numbers, an optional letter ("17.3.1a").
+var dottedRe = regexp.MustCompile(`^\d{1,4}(?:\.\d{1,4}){1,3}[a-z]?$`)
+
+// reads says whether the row's scheme orders version ver against NVD's.
+func (d osRow) reads(ver string) bool {
+	switch d.Scheme {
+	case schemeJunos:
+		_, ok := junosParse(ver)
+		return ok
+	case schemeDotted:
+		return dottedRe.MatchString(strings.TrimSpace(ver)) && versionKnown(ver)
+	}
+	return false
+}
+
+// own says whether a recorded row's KEV key names this OS itself (one of its keys, not the vendor's "Multiple Products").
+func (d osRow) own(k string) bool {
+	k = NormalizeKevKey(k)
+	return !multiKey(k) && slices.Contains(d.KevKeys, k)
+}
+
+// multiKey says whether a normalised KEV key is a vendor's "Multiple Products".
+func multiKey(k string) bool {
+	_, p, _ := strings.Cut(k, "|")
+	return isMultiProduct(p)
+}
+
+// osSoftwareID is the software id of the row a device's own OS gives (deviceSoftware): no inventory row has it.
+func osSoftwareID(assetID string) string { return "os:" + assetID }
+
+// deviceOS is the row the OS the device states gives (network-os.json): its first row whose statement is the whole value the
+// device states, through the source the row allows (from). Never nmap's OS guess (D-501): "Juniper Junos OS 12.1 - 15.1" or
+// "Juniper JUNOS 10.4R1.9 (EX4200 switch)" are not statements, even when they won the device's OS field (review M2 of #703).
+// orderable is false when the row's scheme cannot order the version (scheme none, or a version it does not read, "7.14rc1"):
+// that row is never compared, only listed (MatchResult.NotComparable). ok is false when the device states no such OS, when its
+// own agent reports another OS (the agent's reading wins, D-549), or when a row a person, an agent or a scan recorded for the OS
+// decides instead: one keyed to it with a version the scheme reads, or, for a version that is not orderable, any one keyed to
+// it (it gives what it gives today).
+func deviceOS(a Asset) (os Software, orderable, ok bool) {
+	for _, d := range osRows {
+		text := a.StatedOS
+		if d.From == fromSNMP {
+			text = a.SNMPOS
+		}
+		m := d.re.FindStringSubmatch(text)
+		if m == nil {
+			continue
+		}
+		if a.AgentOS != "" && !d.re.MatchString(a.AgentOS) {
+			return Software{}, false, false
+		}
+		orderable = d.reads(m[1])
+		for _, s := range a.Software {
+			if slices.ContainsFunc(s.KevKeys, d.own) && (!orderable || d.reads(s.Version)) {
+				return Software{}, false, false // "15.1" or "JUNOS 15.1R7.9" typed by a person is not a Junos version: the stated one decides (review L2)
+			}
+		}
+		os = Software{ID: osSoftwareID(a.ID), Display: d.Display, Vendor: d.Vendor, Product: d.Product, Version: m[1],
+			KevKeys: slices.Clone(d.KevKeys), CPE: d.cpe23()}
+		if a.SNMPOS != "" && text == a.SNMPOS {
+			os.Source = "snmp" // the device's own SNMP answer (platformOS, knownVersion); an LLDP-stated Junos keeps no source
+		}
+		return os, orderable, true
+	}
+	return Software{}, false, false
+}
+
+// deviceSoftware is the software the matcher reads for a device: its inventory rows and, when the device states a network OS
+// with a version its scheme orders (deviceOS), one row for that OS. A recorded row of the OS without a readable version, all of
+// whose KEV keys are the OS row's, gives way to it: the device's own version decides instead of "add the version" (review M3 of
+// #703).
+func deviceSoftware(a Asset) []Software {
+	return withoutCoveredWindows(deviceOSSoftware(a)) // D-546, review M4: the agent's Windows release row covers a person's "Windows 11"
+}
+
+func deviceOSSoftware(a Asset) []Software {
+	os, orderable, ok := deviceOS(a)
+	if !ok || !orderable {
+		return a.Software
+	}
+	out := make([]Software, 0, len(a.Software)+1)
+	for _, s := range a.Software {
+		covered, own := len(s.KevKeys) > 0, false
+		for _, k := range s.KevKeys {
+			k = NormalizeKevKey(k)
+			covered, own = covered && slices.Contains(os.KevKeys, k), own || !multiKey(k)
+		}
+		if covered && own { // a FortiGate picked in the catalog (fortinet|fortios, fortinet|multiple products) without a version
+			continue
+		}
+		out = append(out, s)
+	}
+	return append(out, os)
+}
+
+// NotComparable is an exploited CVE of the network OS a device states whose version Vedette cannot order against NVD's (#910
+// phase 1: classic Cisco IOS "15.2(4)M3"): no finding and no "add the version" item, but not silent either: the "could not be
+// checked" list shows it with reason not_comparable.
+type NotComparable struct {
+	CVE        string
+	SoftwareID string // the OS row's id (osSoftwareID)
+	Software   string // its display, "Cisco IOS"
+	Version    string // the version as the device states it, "15.2(4)M3"
+}
+
+// notComparable lists the entries of vulns the device's not-orderable OS row would be compared with: those whose key names it
+// (keyedTo) and, for the vendor's "Multiple Products", only those whose NVD list names its product (D-505).
+func notComparable(os Software, vulns []Vuln) []NotComparable {
+	in := newSWInfo(os, "")
+	var out []NotComparable
+	seen := map[string]bool{}
+	for _, v := range vulns {
+		if !ValidCVE(v.CVE) || seen[v.CVE] || !keyedTo(os, v) || isMultiProduct(v.Product) && !listsRow(in, v) {
+			continue
+		}
+		seen[v.CVE] = true
+		out = append(out, NotComparable{CVE: v.CVE, SoftwareID: os.ID, Software: clean(os.Display), Version: clean(os.Version)})
+	}
+	return out
+}
+
+// listsRow says whether an entry of NVD's list for v names the row's own product (its CPE, name or alias).
+func listsRow(in swInfo, v Vuln) bool {
+	for _, af := range v.Affected {
+		if c, err := af.cpe(); err == nil {
+			if own, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids); own {
+				return true
+			}
+		}
+	}
+	return false
+}

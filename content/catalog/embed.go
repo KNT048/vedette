@@ -32,3 +32,9 @@ var NmapCPE []byte
 //
 //go:embed platform-limits.json
 var PlatformLimits []byte
+
+// NetworkOS is network-os.json: the OS a network device states over SNMP (or, for Junos, LLDP) as the NVD product the matcher
+// compares, with its version scheme (#910), read by findings.
+//
+//go:embed network-os.json
+var NetworkOS []byte

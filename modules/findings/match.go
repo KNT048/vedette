@@ -238,6 +238,10 @@ type MatchResult struct {
 	// that pair with Evidence.Summary (AgedNote first) as its note, and a later confirmed match reopens it. Exposure lists
 	// them as ruled out, with the reason.
 	Aged []Match
+	// NotComparable lists the exploited CVEs of the network OS the device states (network-os.json) when its version has no order
+	// Vedette can compare (scheme none, classic Cisco IOS "15.2(4)M3"; #910 phase 1): no finding and no "add the version" item,
+	// for the "could not be checked" list (reason not_comparable).
+	NotComparable []NotComparable
 }
 
 // AgeLimit is the age from which a KEV CVE becomes a finding only on confirmed evidence (D-615): published before now minus
@@ -461,6 +465,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		} else {
 			res.New = append(res.New, *best)
 		}
+	}
+	if os, orderable, ok := deviceOS(a); ok && !orderable {
+		res.NotComparable = notComparable(os, vulns)
 	}
 	return res
 }

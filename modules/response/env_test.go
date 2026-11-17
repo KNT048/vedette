@@ -53,9 +53,16 @@ type fakeNotifier struct {
 	sendErr   error                          // and the error it answers
 	onSend    func()                         // runs inside RequestApproval (what is open while a send runs)
 	block     chan struct{}                  // RequestApproval waits for it to close (or for its context to end)
+	onList    func(ch string)                // runs at the start of Approvers, outside the lock
 }
 
 func (f *fakeNotifier) Approvers(_ context.Context, ch string) ([]response.Approver, error) {
+	f.mu.Lock()
+	hook := f.onList
+	f.mu.Unlock()
+	if hook != nil {
+		hook(ch)
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.approvers[ch], nil

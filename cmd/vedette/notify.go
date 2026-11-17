@@ -195,6 +195,14 @@ func (l notifyApproverLinks) DropChatLink(ctx context.Context, actor, userID str
 	return l.d.Response.DropChatLink(ctx, actor, userID, string(ch), address)
 }
 
+// DropLinkToken is the third part of notify's Config.LinkCodes: a confirm link that could not be delivered leaves no token waiting.
+func (l notifyApproverLinks) DropLinkToken(ctx context.Context, userID string, ch channel.Type, address, token string) error {
+	if l.d.Response == nil {
+		return errResponseNotReady
+	}
+	return l.d.Response.DropLinkToken(ctx, userID, string(ch), address, token)
+}
+
 // notifyHits implements notify.HitConnections over the honeypot's export of hits (the one public read that carries conn_count; honeypot
 // is built after notify, so it is read when asked). A hit is found by its time: the incident's first_seen is the hit's ts, so one
 // narrow window per hit.

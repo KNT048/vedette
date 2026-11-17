@@ -57,6 +57,9 @@ type Unchecked struct {
 //     word, or none, as for an Android entry that also lists the Linux kernel), not an Edge Legacy row, not a Juniper model CISA
 //     leaves out (D-510).
 //
+// Neither kind counts when NVD names the row only at exact versions older than its own (newerThanListed): NVD's list does not name
+// it at all, so it is no candidate (not a verdict: nothing closes, nothing is "not affected").
+//
 // A product match the age rule drops (D-615) and the network OS a device states without an order (NotComparable) are listed by
 // MatchAsset itself.
 func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, out outcome) (UncheckedReason, bool) {
@@ -79,7 +82,33 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 	default:
 		return "", false
 	}
+	if newerThanListed(rowEntries(s, in, v), in.ver) {
+		return "", false
+	}
 	return uncheckedReason(s, in, v, false)
+}
+
+// newerThanListed says every entry of own (the entries of NVD's list that name the row, rowEntries) is one exact version, with no
+// range, that the row's version is later than (laterThan): Java 8 Update 491 for CVE-2023-41993, which NVD lists for Java at
+// "1.8.0 update401" only; SQL Server 2022 (16.0.1000.6) for CVE-2012-1856, listed for SQL Server 2000 to 2008. NVD's configuration
+// names those versions, not the row's, so the row is not a candidate. Only later: an exact list is often the last affected
+// update of each line (Oracle's "8u77 and earlier"), so an older version than every listed one stays a candidate, and so does any
+// entry with a range, any version or a version that does not read.
+func newerThanListed(own []Affected, ver string) bool {
+	if len(own) == 0 || !versionKnown(ver) {
+		return false
+	}
+	for _, af := range own {
+		c, err := af.cpe()
+		if err != nil || !af.Range.IsZero() {
+			return false
+		}
+		lit, ok := c.Version.Literal()
+		if !ok || !laterThan(c, lit, ver) {
+			return false
+		}
+	}
+	return true
 }
 
 // uncheckedReason is the reason of an unchecked row, first that applies:

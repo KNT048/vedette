@@ -52,7 +52,7 @@ func TestUnchecked_910_OneReasonEach(t *testing.T) {
 		uncVuln("CVE-2020-0001", "Acme", "Widget", uncOld),                                                         // no NVD data, aged product match
 		uncVuln("CVE-2020-0002", "Acme", "Widget", uncOld, Affected{CPE: "cpe:2.3:a:acme:widget:-:*:*:*:*:*:*:*"}), // no version
 		uncVuln("CVE-2020-0003", "Acme", "Engine", uncOld, uncAff("cpe:2.3:a:acme:engine:*:*:*:*:*:*:*:*", "3.0")), // not named
-		uncVuln("CVE-2026-0004", "Acme", "Gadget Core", uncNew, Affected{CPE: "cpe:2.3:a:acme:gadget:9.0:*:*:*:*:*:*:*"}),
+		uncVuln("CVE-2026-0004", "Acme", "Gadget Core", uncNew, Affected{CPE: "cpe:2.3:a:acme:gadget:9.2:*:*:*:*:*:*:*"}),
 		uncVuln("CVE-2026-0005", "Acme", "Hub Firmware", uncNew, Affected{CPE: "cpe:2.3:a:acme:hub:-:*:*:*:*:*:*:*"}, uncAff("cpe:2.3:a:other:thing:*:*:*:*:*:*:*:*", "2.0")),
 		uncVuln("CVE-2020-0006", "Acme", "Router", uncOld, uncAff("cpe:2.3:a:acme:router:*:*:*:*:*:*:*:*", "15.9")),
 		// NVD has not answered for this one yet (before the pull, the feed off): listed at once as no NVD data (D-602, review r1 H2 of
@@ -67,7 +67,7 @@ func TestUnchecked_910_OneReasonEach(t *testing.T) {
 		"w CVE-2020-0001": UncheckedNoNVDData,
 		"w CVE-2020-0002": UncheckedNoNVDVersions,
 		"p CVE-2020-0003": UncheckedNotNamed,
-		"g CVE-2026-0004": UncheckedNoNVDVersions, // NVD lists one exact version only (#913): its version orders, NVD gives no range (r1 M1)
+		"g CVE-2026-0004": UncheckedNoNVDVersions, // NVD lists one exact version only, later than the row's (#913, newerThanListed): no range (r1 M1)
 		"h CVE-2026-0005": UncheckedNoNVDVersions, // NVD names the row with no version
 		"r CVE-2020-0006": UncheckedNotComparable, // a range with an end, a version that does not compare with it
 		"w CVE-2020-0007": UncheckedNoNVDData,
@@ -203,7 +203,7 @@ func TestUnchecked_910_StoredListAndHome(t *testing.T) {
 	*e.clock = uncNow.Add(-2 * AgeLimit) // the widget entry is recent then: a product finding
 	recent := e.clock.Add(-24 * time.Hour)
 	e.feeds.vulns = []Vuln{
-		uncVuln("CVE-2026-0004", "Acme", "Gadget Core", uncNew, Affected{CPE: "cpe:2.3:a:acme:gadget:9.0:*:*:*:*:*:*:*"}),
+		uncVuln("CVE-2026-0004", "Acme", "Gadget Core", uncNew, Affected{CPE: "cpe:2.3:a:acme:gadget:9.2:*:*:*:*:*:*:*"}),
 		uncVuln("CVE-2024-0007", "Acme", "Widget", recent),
 		uncVuln("CVE-2024-0008", "Acme", "Widget", recent),
 	}

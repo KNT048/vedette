@@ -2,6 +2,7 @@ package findings
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -65,6 +66,71 @@ func officeEdition(c CPE, r VersionRange, exact bool, ver string) (Tri, bool) {
 		}
 	}
 	return No, true
+}
+
+// sqlServerMajors maps the release names NVD gives SQL Server ("cpe:...:microsoft:sql_server:2014:sp3") to the major of
+// the builds a computer reports (12.0.6024.0 is SQL Server 2014; 2008 R2 is 10.50, so 2008 and 2008 R2 share 10). One
+// release per major, unlike Office. Source: Microsoft Learn, "Latest updates and version history for SQL Server"
+// (https://support.microsoft.com/servicing/sql/kb321185-download-and-install-latest-updates); D-606.
+var sqlServerMajors = map[string]uint64{"2000": 8, "2005": 9, "2008": 10, "2012": 11, "2014": 12, "2016": 13, "2017": 14, "2019": 15,
+	"2022": 16, "2025": 17}
+
+// sqlServerProducts are the releases NVD names as products of their own with build versions (microsoft:sql_server_2016 …
+// _2025, NVD's CPE dictionary, 2026-11-17), the aliases of Microsoft|SQL Server in nvd-cpe.json. sql_server_2000/2005/2008
+// write the release in the version ("sql_server_2008:r2:sp1") and are neither.
+var sqlServerProducts = map[string]bool{"2016": true, "2017": true, "2019": true, "2022": true, "2025": true}
+
+// sqlServerRelease reads the two ways NVD names a SQL Server release against the software version (D-606):
+//   - an exact release configuration of microsoft:sql_server ("sql_server:2014:sp3"), as officeEdition does for Office: a release
+//     typed by a person ("2014") must be that release; a build a computer reports ("16.0.4135.4") is compared by major: another
+//     major is No (SQL Server 2022 is not SQL Server 2014), the same major is Unknown (the build does not say which service pack);
+//   - a configuration of a release's own product (microsoft:sql_server_2016 … _2025, aliases of Microsoft|SQL Server in
+//     nvd-cpe.json) with build ranges: a typed release other than that product's is No, the same one Unknown (a year is not a build);
+//     a build of the product's major written with a service-pack minor ("13.2.5026.0", how SQL Server 2016 SP2's programs
+//     read) is Unknown, since NVD writes those builds as 13.0.x; any other build is left to the ranges.
+//
+// It never answers Yes for a build. A No here is one entry's: decide still lets a Yes or Unknown of any other entry of the CVE win.
+// ok is false when the rule does not apply.
+func sqlServerRelease(c CPE, r VersionRange, exact bool, ver string) (Tri, bool) {
+	v, okV := c.Vendor.Literal()
+	p, okP := c.Product.Literal()
+	if !okV || !okP || norm(v) != "microsoft" {
+		return Unknown, false
+	}
+	var rel string // the release the configuration names
+	product := false
+	switch np := norm(p); {
+	case np == "sqlserver" && exact:
+		rel = strings.ToLower(r.StartIncl)
+	case strings.HasPrefix(np, "sqlserver") && sqlServerProducts[strings.TrimPrefix(np, "sqlserver")]:
+		rel, product = strings.TrimPrefix(np, "sqlserver"), true
+	}
+	major, ok := sqlServerMajors[rel]
+	if !ok {
+		return Unknown, false
+	}
+	if tok := strings.ToLower(strings.TrimSpace(ver)); sqlServerMajors[tok] != 0 { // the person typed a release
+		switch {
+		case tok != rel:
+			return No, true
+		case product || c.Update.Kind != Any:
+			return Unknown, true // "2016" is not a build of the ranges; "2014" does not say which service pack
+		}
+		return Yes, true
+	}
+	pv, ok := parseVersion(ver)
+	if !ok || len(pv.rel) < 3 || pv.rel[0] < 8 || pv.rel[0] > 17 {
+		return Unknown, false
+	}
+	switch {
+	case product && pv.rel[0] == major && pv.rel[1] != 0:
+		return Unknown, true // a service pack's "13.2.5026.0" against NVD's 13.0.x ranges
+	case product:
+		return Unknown, false // the ranges decide
+	case pv.rel[0] != major:
+		return No, true
+	}
+	return Unknown, true
 }
 
 // schemeClash reports whether the range and the version are written in two different schemes, so that ordering
@@ -153,4 +219,138 @@ func osRulesOut(v Vuln, in swInfo) bool {
 func sameVersionText(cfg, ver string) bool {
 	ver = strings.TrimSpace(ver)
 	return ver != "" && len(ver) <= maxVersionLen && !isPlaceholder(ver) && strings.EqualFold(strings.TrimSpace(cfg), ver)
+}
+
+// laterThan says the software version ver is certainly later than lit, the one version an exact NVD configuration c names (no
+// range), in the scheme the vendor writes it: a SQL Server build against NVD's release name (16.0.1000.6 is SQL Server 2022, later
+// than "sql_server:2008"), Java SE before 9 by line and update (javaRelease), any other by laterRelease. Office editions, Junos and
+// everything that does not read are never later: "later" only takes a row off the "could not be checked" list (newerThanListed),
+// so it must be certain, and it is never a verdict about the flaw.
+func laterThan(c CPE, lit, ver string) bool {
+	if isJunos(c) {
+		return false
+	}
+	if _, ok := officeEdition(c, VersionRange{StartIncl: lit, EndIncl: lit}, true, ver); ok {
+		return false
+	}
+	if later, ok := sqlServerLater(c, lit, ver); ok {
+		return later
+	}
+	if el, eu, java, ok := javaEntry(c, lit); java { // Java's "1.8.0" is never compared as a number with "8.0.4910.10"
+		rl, ru, rok := javaRelease(ver)
+		return ok && rok && (rl > el || rl == el && ru > eu)
+	}
+	return laterRelease(c, lit, ver)
+}
+
+// plainVersionRE is a version of numbers and dots only: the one form laterRelease compares.
+var plainVersionRE = regexp.MustCompile(`^\d{1,9}(?:\.\d{1,9}){0,7}$`)
+
+// laterRelease is laterThan for a product no scheme rule reads (review r1 H1 of #970). NVD often names a release line by its first
+// numbers ("esxi:8.0" with the update in the CPE, "vcenter_server:6.7", "solaris:11", "internet_explorer:11") while the computer
+// reports the whole number ("8.0.3", "6.7.0.44000", "11.4", "11.0.26100.1"): a version is later only when its first numbers, as
+// many as NVD wrote, are higher (9.0.1 after 8.0; 8.0.3 is inside 8.0). Never later: a configuration that pins an update,
+// edition or other qualifier ("esxi:8.0:update_3", "coldfusion:2016:update5", "vcenter_server:7.0:c"), a version with letters or
+// suffixes on either side ("6.6.1p1", "8.0.3 build-24022510"), a release named by its year or a build-sized number ("2016" of
+// Exchange or ColdFusion against a typed "2019"), and two ways of writing versions (schemeClash).
+func laterRelease(c CPE, lit, ver string) bool {
+	for _, a := range []Attr{c.Update, c.Edition, c.SWEdition, c.Other} {
+		if a.Kind == Value {
+			return false
+		}
+	}
+	ver = strings.TrimSpace(ver)
+	if !plainVersionRE.MatchString(lit) || !plainVersionRE.MatchString(ver) || schemeClash(VersionRange{StartIncl: lit}, ver) {
+		return false
+	}
+	lv, okL := parseVersion(lit)
+	rv, okR := parseVersion(ver)
+	if !okL || !okR || lv.rel[0] >= 1000 {
+		return false
+	}
+	for i, n := range lv.rel {
+		var r uint64
+		if i < len(rv.rel) {
+			r = rv.rel[i]
+		}
+		if r != n {
+			return r > n
+		}
+	}
+	return false // the same release, or a version inside it
+}
+
+// sqlServerLater is laterThan for an exact release configuration of microsoft:sql_server ("sql_server:2008:sp3", D-606): a build a
+// computer reports or a release a person typed is later when its major is higher. ok is false when the rule does not apply.
+func sqlServerLater(c CPE, lit, ver string) (later, ok bool) {
+	v, okV := c.Vendor.Literal()
+	p, okP := c.Product.Literal()
+	major, okM := sqlServerMajors[strings.ToLower(lit)]
+	if !okV || !okP || !okM || norm(v) != "microsoft" || norm(p) != "sqlserver" {
+		return false, false
+	}
+	if m := sqlServerMajors[strings.ToLower(strings.TrimSpace(ver))]; m != 0 {
+		return m > major, true
+	}
+	pv, okR := parseVersion(ver)
+	return okR && len(pv.rel) >= 3 && pv.rel[0] >= 8 && pv.rel[0] <= 17 && pv.rel[0] > major, true
+}
+
+// javaEntryRE is how NVD names a Java SE release before 9: "1.8.0" (the update in the CPE's update, "update401") or "1.4.2_25".
+var javaEntryRE = regexp.MustCompile(`^1\.([1-8])\.\d+(?:_(\d+))?$`)
+
+// javaUpdateRE is NVD's update of a Java SE release: "update401", "update_401", "update32_b31" (a build of update 32).
+var javaUpdateRE = regexp.MustCompile(`^update_?(\d+)(?:_b\d+)?$`)
+
+// javaEntry reads an exact NVD configuration of Oracle's JRE or JDK written in the "1.x" scheme: java is true for those, and ok when
+// the line and update read (an update of ANY is every update of the line: none to be later than).
+func javaEntry(c CPE, lit string) (line, update uint64, java, ok bool) {
+	v, okV := c.Vendor.Literal()
+	p, okP := c.Product.Literal()
+	if !okV || !okP || norm(v) != "oracle" || norm(p) != "jre" && norm(p) != "jdk" || !strings.HasPrefix(lit, "1.") {
+		return 0, 0, false, false
+	}
+	m := javaEntryRE.FindStringSubmatch(lit)
+	if m == nil {
+		return 0, 0, true, false
+	}
+	line, _ = strconv.ParseUint(m[1], 10, 64)
+	switch u, okU := c.Update.Literal(); {
+	case m[2] != "":
+		update, _ = strconv.ParseUint(m[2], 10, 64)
+	case c.Update.Kind == NA:
+		update = 0 // "1.7.0:-": the release itself
+	case okU && javaUpdateRE.MatchString(strings.ToLower(u)):
+		update, _ = strconv.ParseUint(javaUpdateRE.FindStringSubmatch(strings.ToLower(u))[1], 10, 64)
+	default:
+		return 0, 0, true, false
+	}
+	return line, update, true, true
+}
+
+// javaWinRE is the version Windows' list of programs gives Java SE 5 to 8: "8.0.4910.10" is Java 8 Update 491 (the update times
+// ten, then the build), "6.0.450" Java 6 Update 45.
+var javaWinRE = regexp.MustCompile(`^([5-8])\.0\.(\d+)(?:\.\d+)?$`)
+
+// javaUnderscoreRE is the version Java SE 5 to 8 reports itself ("java -version"): "1.8.0_491".
+var javaUnderscoreRE = regexp.MustCompile(`^1\.([5-8])\.0_(\d+)(?:-b\d+)?$`)
+
+// javaRelease reads a Java SE version as its line and update: "8.0.4910.10" and "1.8.0_491" are line 8 update 491; "17.0.10" is
+// line 17 (from Java 9 on the version is the release, later than every update of an earlier line).
+func javaRelease(ver string) (line, update uint64, ok bool) {
+	ver = strings.TrimSpace(ver)
+	if m := javaWinRE.FindStringSubmatch(ver); m != nil {
+		line, _ = strconv.ParseUint(m[1], 10, 64)
+		u, _ := strconv.ParseUint(m[2], 10, 64)
+		return line, u / 10, true
+	}
+	if m := javaUnderscoreRE.FindStringSubmatch(ver); m != nil {
+		line, _ = strconv.ParseUint(m[1], 10, 64)
+		u, _ := strconv.ParseUint(m[2], 10, 64)
+		return line, u, true
+	}
+	if pv, ok := parseVersion(ver); ok && pv.rel[0] >= 9 && pv.rel[0] < 1000 {
+		return pv.rel[0], 0, true
+	}
+	return 0, 0, false
 }

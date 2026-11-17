@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// D-524: Windows's update revision is asked of Windows nodes only, from os_version (no registry table), and is first-report data.
+// D-524: Windows's update revision is asked of Windows nodes only, from os_version (not the registry table), and is first-report data.
 func TestScheduleAsksTheWindowsRevisionOfWindowsOnly(t *testing.T) {
 	i := slices.IndexFunc(schedule, func(q scheduleQuery) bool { return q.name == "os_revision" })
 	if i < 0 {
@@ -22,7 +22,8 @@ func TestScheduleAsksTheWindowsRevisionOfWindowsOnly(t *testing.T) {
 		t.Fatalf("os_revision is an answer of its own of the first report: %q", firstReport["os_revision"])
 	}
 	for _, q := range schedule {
-		if strings.Contains(strings.ToLower(q.query), "registry") {
+		// the registry table is read by the Windows programs query only, for one value of one key pattern (D-606)
+		if strings.Contains(strings.ToLower(q.query), "registry") && (q.name != "programs" || q.platform != "windows" || q.query != programsQuery) {
 			t.Fatalf("query %s reads the registry table", q.name)
 		}
 		if q.name != "os_revision" && strings.Contains(q.query, "revision") {

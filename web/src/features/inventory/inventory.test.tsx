@@ -2088,7 +2088,11 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(sched.programs!.platform).toBe('windows')
     expect(sched.deb_packages!.platform).toBe('linux')
     expect(sched.os_revision!.platform).toBe('windows') // D-524: Windows's update revision, a Windows-only column of os_version
-    expect(JSON.stringify(sched)).not.toMatch(/registry/) // the revision comes from os_version, no registry table (D-169 (1))
+    expect(sched.os_revision!.query).not.toMatch(/registry/) // the revision comes from os_version, not the registry table
+    // D-606: the one registry read is each SQL Server instance's PatchLevel, in the Windows programs query
+    for (const [name, q] of Object.entries(sched)) if (name !== 'programs') expect(q.query).not.toMatch(/registry/)
+    expect(sched.programs!.query).toContain("FROM registry r WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Microsoft SQL Server\\MSSQL%\\Setup' AND r.name = 'PatchLevel' UNION ALL")
+    expect(sched.programs!.query).toMatch(/FROM programs;$/)
 
     const wz = wazuhReaderSteps()
     expect(wz.map((s) => s.key)).toEqual(['login', 'policy', 'role', 'user', 'link'])
@@ -2400,7 +2404,7 @@ describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
     expect(auditStore.get().some((e) => e.action === 'inventory.set_software_version')).toBe(true)
   })
 
-  it('PATCH software version: manual only, version checked, empty removes it', async () => {
+  it('PATCH software version: in place on a declared row, version checked, empty removes it; a reported row gets a correction (INV-41)', async () => {
     const id = await addOffice({ version: '2019' })
     const sid = find(id).software[0]!.id
     expect((await call('PATCH', `/devices/${id}/software/${sid}`, { version: '<b>' })).json!.error.code).toBe('bad_version')
@@ -2410,7 +2414,13 @@ describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
     expect(find(id).software[0]!.version).toBeNull()
     const agent = assetsStore.get().find((a) => a.software.some((s) => s.source !== 'manual'))!
     const asid = agent.software.find((s) => s.source !== 'manual')!.id
-    expect((await call('PATCH', `/devices/${agent.id}/software/${asid}`, { version: '1' })).json!.error.code).toBe('not_manual')
+    expect((await call('PATCH', `/devices/${agent.id}/software/${asid}`, { version: '1' })).status).toBe(200)
+    const sw = find(agent.id).software
+    expect(sw.find((s) => s.id === asid)!.version).not.toBe('1') // the reported row stays as the source read it
+    expect(sw.find((s) => s.corrects === asid)).toMatchObject({ source: 'manual', version: '1' })
+    expect((await call('GET', `/devices/${agent.id}`)).json!.asset.software.find((s: { id: string }) => s.id === asid).corrected_by).toBe(sw.find((s) => s.corrects === asid)!.id)
+    expect((await call('PATCH', `/devices/${agent.id}/software/${asid}`, {})).json!.error.code).toBe('bad_edit')
+    expect((await call('PATCH', `/devices/${agent.id}/software/${asid}`, { pkg_version: '10.2 p1' })).json!.error.code).toBe('bad_pkg_version')
   })
 })
 

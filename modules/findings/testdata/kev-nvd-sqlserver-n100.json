@@ -1,0 +1,65 @@
+{
+"source": "CISA KEV catalog + NVD CVE API 2.0 (hasKev) as the N100 box held them on 2026-11-17 (public data only: feeds_vuln, feeds_affected); every KEV entry whose NVD list names microsoft:sql_server*, PR #967 review r1 H1",
+"vulns": [
+{"cve": "CVE-2012-0158", "vendor": "Microsoft", "product": "MSCOMCTL.OCX", "ransomware": true, "date_added": "2021-11-03", "affected": [
+  {"cpe": "cpe:2.3:a:microsoft:office:2003:sp3:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:office:2007:sp2:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:office:2007:sp3:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:office:2010:-:*:*:*:*:x86:*"},
+  {"cpe": "cpe:2.3:a:microsoft:office:2010:sp1:*:*:*:*:x86:*"},
+  {"cpe": "cpe:2.3:a:microsoft:office_web_components:2003:sp3:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2000:-:sp4:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2005:-:sp4:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2008:-:sp2:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2008:-:sp3:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2008:r2:-:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2008:r2:sp1:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:biztalk_server:2002:sp1:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:commerce_server:2002:sp4:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:commerce_server:2007:sp2:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:commerce_server_2009:-:*:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:commerce_server_2009:r2:*:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:visual_basic:6.0:*:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:visual_foxpro:8.0:sp1:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:visual_foxpro:9.0:sp2:*:*:*:*:*:*"}
+]},
+{"cve": "CVE-2012-1856", "vendor": "Microsoft", "product": "Office", "ransomware": false, "date_added": "2022-03-03", "affected": [
+  {"cpe": "cpe:2.3:a:microsoft:commerce_server:2002:sp4:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:commerce_server:2007:sp2:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:commerce_server:2009:*:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:commerce_server:2009:r2:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:host_integration_server:2004:sp1:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:office:2003:sp3:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:office:2007:sp2:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:office:2007:sp3:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:office:2010:sp1:x86:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:office_web_components:2003:sp3:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2000:sp4:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2000:sp4:analysis_services:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2005:sp3:express_advanced_services:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2005:sp4:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2008:r2_sp1:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2008:r2_sp2:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2008:sp2:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2008:sp3:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:visual_basic:6.0:*:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:visual_foxpro:8.0:sp1:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:visual_foxpro:9.0:sp2:*:*:*:*:*:*"}
+]},
+{"cve": "CVE-2019-1068", "vendor": "Microsoft", "product": "SQL Server", "ransomware": false, "date_added": "2026-08-26", "affected": [
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2014:sp2:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2014:sp3:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "start_incl": "13.0.4001.0", "end_excl": "13.0.4259.0"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "start_incl": "13.0.4411.0", "end_excl": "13.0.4604.0"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "start_incl": "13.0.5026.0", "end_excl": "13.0.5101.9"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "start_incl": "13.0.5149.0", "end_excl": "13.0.5366.0"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2017:*:*:*:*:*:*:*:*", "start_incl": "14.0.1000.169", "end_excl": "14.0.2027.2"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server_2017:*:*:*:*:*:*:*:*", "start_incl": "14.0.3006.16", "end_excl": "14.0.3192.2"}
+]},
+{"cve": "CVE-2020-0618", "vendor": "Microsoft", "product": "SQL Server", "ransomware": true, "date_added": "2024-09-18", "affected": [
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2012:sp4:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2014:sp3:*:*:*:*:*:*"},
+  {"cpe": "cpe:2.3:a:microsoft:sql_server:2016:sp2:*:*:*:*:x64:*"}
+]}
+]
+}

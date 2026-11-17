@@ -163,8 +163,8 @@ function RenameDevice({ d, editing, setEditing, button }: { d: DeviceDetail; edi
           if (e.key === 'Enter') { e.preventDefault(); save() }
           if (e.key === 'Escape') { e.preventDefault(); close() }
         }} />
-      <Button size="sm" variant="primary" disabled={bad || act.patch.isPending} onClick={save}>{t('detail.renameSave')}</Button>
-      <Button size="sm" variant="ghost" disabled={act.patch.isPending} onClick={close}>{t('detail.renameCancel')}</Button>
+      <Button size="sm" variant="primary" disabled={bad} busy={act.patch.isPending} busyLabel={t('common:busy.saving')} onClick={save}>{t('detail.renameSave')}</Button>
+      <Button size="sm" variant="ghost" disabled={act.patch.isPending} onClick={close}>{t('common:cancel')}</Button>
       {bad || refused ? <span id="device-name-error" role="alert" className="w-full text-caption text-danger">{bad ? t('detail.renameBad') : refused}</span> : null}
     </span>
   )

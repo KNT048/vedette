@@ -91,6 +91,9 @@ type Config struct {
 	ChainPruner ChainPruner
 	// Data is what the read tools of "Ask your data" search (inventory, findings, feeds); nil = those tools are not offered.
 	Data Data
+	// Updates is what to install on a device to clear its CVEs (findings, G9): the device_updates tool, offered with Data (which finds
+	// the device by IP or name); nil = not offered.
+	Updates Updates
 	// Conns lists and calls the read tools of the connections (core/conn/read); nil = no connection tools.
 	Conns ConnReader
 	// ConnTargets returns the address of each connection by id (core/conn List). While the privacy rule is on, only the tools of a

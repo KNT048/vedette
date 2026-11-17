@@ -1935,6 +1935,9 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     expect(os().getByText('Release upgrade to Debian 13 (trixie) is available')).toBeInTheDocument()
     expect(os().getByRole('switch', { name: 'Automatic security updates' })).not.toBeChecked()
     expect(os().getByText('Nothing waiting. The operating system is up to date.')).toBeInTheDocument()
+    // kien G5: nothing to install, so no install button
+    expect(os().queryByRole('button', { name: /^Install security updates/ })).toBeNull()
+    expect(os().queryByRole('button', { name: 'Install all updates' })).toBeNull()
   })
 
   it('install security updates: live log, backup, health check, reboot required, then the security rows are gone; a second run is refused meanwhile', async () => {

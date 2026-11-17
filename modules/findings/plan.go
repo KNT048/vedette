@@ -43,14 +43,17 @@ type PlanCVE struct {
 
 // PlanItem is one update on one device (contract PlanItem without the device's name, which the handler adds).
 type PlanItem struct {
-	Group    string    `json:"group"`
-	AssetID  string    `json:"-"`
-	Software string    `json:"software"`
-	Version  string    `json:"version"`
-	Fixed    string    `json:"fixed"`
-	Kind     string    `json:"kind"` // fixed, windows, esu, distro (D-617, D-622)
-	Pro      bool      `json:"pro"`  // distro: the fixed version is in Ubuntu Pro (ESM) only
-	CVEs     []PlanCVE `json:"cves"`
+	Group   string `json:"group"`
+	AssetID string `json:"-"`
+	// SoftwareID is the device's software row the item is about (for a distribution's package, the first row of that source
+	// package), so a page can show the item on the row (G8, DeviceUpdates). Not in the API.
+	SoftwareID string    `json:"-"`
+	Software   string    `json:"software"`
+	Version    string    `json:"version"`
+	Fixed      string    `json:"fixed"`
+	Kind       string    `json:"kind"` // fixed, windows, esu, distro (D-617, D-622)
+	Pro        bool      `json:"pro"`  // distro: the fixed version is in Ubuntu Pro (ESM) only
+	CVEs       []PlanCVE `json:"cves"`
 }
 
 // Basis values of a plan CVE (D-615 (8)).
@@ -432,7 +435,7 @@ func distroTierItems(a Asset, x *tierIndex, kev map[string]bool, cut time.Time) 
 				if fix.Pro {
 					group += "/pro"
 				}
-				it = &PlanItem{Group: group, AssetID: a.ID, Software: clean(pkg), Version: in.pkgVer, Fixed: fix.Fixed, Kind: "distro", Pro: fix.Pro}
+				it = &PlanItem{Group: group, AssetID: a.ID, SoftwareID: s.ID, Software: clean(pkg), Version: in.pkgVer, Fixed: fix.Fixed, Kind: "distro", Pro: fix.Pro}
 				got[k], seen[k] = it, map[string]bool{}
 				order = append(order, k)
 			}
@@ -501,7 +504,7 @@ func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []V
 		case win && g.Kind != "feature_update":
 			kind = "windows"
 		}
-		it := PlanItem{Group: base + suffix, AssetID: a.ID, Software: clean(s.Display), Version: clean(in.ver), Fixed: g.Fixed, Kind: kind}
+		it := PlanItem{Group: base + suffix, AssetID: a.ID, SoftwareID: s.ID, Software: clean(s.Display), Version: clean(in.ver), Fixed: g.Fixed, Kind: kind}
 		basis := planVersion
 		if s.Source == "agent" {
 			basis = planAgent

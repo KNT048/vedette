@@ -91,6 +91,9 @@ func ByBuild(build int, server bool) (Release, bool) {
 	return Release{}, false
 }
 
+// Releases is every release of the table, in its order (a copy).
+func Releases() []Release { return append([]Release(nil), releases...) }
+
 // ByProduct is the release NVD names product ("windows_11_23h2", lower case as NVD writes it); false when the table has none.
 func ByProduct(product string) (Release, bool) {
 	for _, r := range releases {

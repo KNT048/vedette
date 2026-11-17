@@ -630,10 +630,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time)
 // distribution's own word (D-516): NVD's upstream ranges do not see the fixes it backports (an Android entry that also lists
 // linux_kernel on Ubuntu's kernel). An Edge Legacy row is never reached: NVD writes Chromium Edge's ranges under microsoft:edge too.
 func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outcome) {
-	if !nvdNames(in, v) || edgeLegacyRow(s, in) {
-		return Match{}, outNone
-	}
-	if _, ok := distroVerdict(in, v); !ok && distroBuilt(in) {
+	if !nvdReaches(s, in, v) {
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
@@ -641,6 +638,16 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return m, out
 	}
 	return Match{}, outNone
+}
+
+// nvdReaches says whether viaNVD reads v for the row: NVD's list names it (nvdNames), it is not an Edge Legacy row, and a row its
+// distribution may have built has the distribution's word (D-516). Reachability reads the same.
+func nvdReaches(s Software, in swInfo, v Vuln) bool {
+	if !nvdNames(in, v) || edgeLegacyRow(s, in) {
+		return false
+	}
+	_, ok := distroVerdict(in, v)
+	return ok || !distroBuilt(in)
 }
 
 // nvdNames says whether an entry of NVD's list for v names the row's software (its CPE, name or alias, appliesTo) with a range
@@ -1030,6 +1037,15 @@ func listsOthersOnly(in swInfo, v Vuln) bool {
 	return len(v.Affected) > 0
 }
 
+// entryFor says whether NVD entry c is about the row for decide: it names the row itself (own: its CPE, name or alias, appliesTo) or
+// the KEV entry's own vendor and product (byKey: key, keyIDs; it finds the entry, a No on it alone proves nothing). known is
+// appliesTo's for the row. Reachability reads the same.
+func entryFor(c CPE, in swInfo, key []identity) (own, byKey, known bool) {
+	own, known = appliesTo(c, in.cpe, in.hasCPE, in.ids)
+	byKey, _ = appliesTo(c, CPE{}, false, key)
+	return own, byKey, known
+}
+
 // decide evaluates the NVD configurations of v for one software. every is true when an applicable entry names every
 // version of the product (no range, version and update ANY, nothing pinned the software contradicts): then the answer
 // does not depend on the version, so a software without one is not sent to "add the version" (D-500).
@@ -1057,8 +1073,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 			undecidable = true // cannot tell which product this entry is about
 			continue
 		}
-		own, known := appliesTo(c, in.cpe, in.hasCPE, in.ids)
-		byKey, _ := appliesTo(c, CPE{}, false, key)
+		own, byKey, known := entryFor(c, in, key)
 		if !own && !byKey {
 			undecidable = undecidable || !known
 			continue

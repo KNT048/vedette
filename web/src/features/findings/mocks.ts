@@ -60,6 +60,22 @@ function kevInfo(cve: string): KevInfo | null {
 }
 
 
+/** G4: a device's risk marker as the box computes it (findings RiskOf, through inventory): read from what To fix shows for it (one
+ *  rule): its open exploited findings To fix lists (an update named, or proved), else its recommended updates with a likely CVE or of
+ *  High or Critical severity. null when clean, and while the findings module is off. */
+type Risk = { level: 'exploited' | 'update'; exploited: number; updates: number }
+export function deviceRisk(assetId: string): Risk | null {
+  if (!isOn('findings')) return null
+  return toFix(assetId).devices[0]?.risk ?? null
+}
+/** findings.RiskOf of one To fix card. */
+function riskOfCard(d: Omit<ToFixDevice, 'risk'>): Risk | null {
+  const exploited = [...d.exploited, ...d.no_update.filter((x) => x.confirmed + x.detected > 0)].reduce((n, x) => n + Math.max(x.finding_ids.length, x.cves.length), 0)
+  const updates = d.planned.filter((x) => x.likely > 0 || sevRank(x.worst) >= sevRank('high')).length
+  if (exploited > 0) return { level: 'exploited', exploited, updates }
+  return updates > 0 ? { level: 'update', exploited: 0, updates } : null
+}
+
 /** GET /findings/plan (D-613, D-615): the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. */
 function plan(tier: string, asset: string | null): Plan {
   const n = (t: string) => tierPlan(t, asset).items.length // M2-9: every tab's number in one answer, as the box gives it
@@ -426,7 +442,8 @@ function toFix(asset: string | null): ToFix {
       const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: '', pro: i.pro, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0 }
       return { ...u, action: sentence(u) }
     })
-    devices.push({ asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true })
+    const card = { asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true }
+    devices.push({ ...card, risk: riskOfCard(card) })
   }
   const urgency = (d: ToFixDevice) => {
     const act = [...d.exploited, ...d.no_update.filter((x) => x.confirmed + x.detected > 0)]

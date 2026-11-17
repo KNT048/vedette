@@ -26,6 +26,7 @@ import { ToFixTab, UnprovedList, unproved } from './ToFix'
 import { useFixAction } from './fix'
 import type { BulkAction, FindingRow, VersionNeeded } from './types'
 import { NotRelevantToggle, isNotRelevant } from './notRelevant'
+import { RiskMarker, riskWord } from '@/features/inventory/RiskMarker'
 
 /** The three lists (D-543): Open = confirmed + suspected, Accepted risk, Handled = patched / mitigated / false positive / not relevant. */
 type Tab = 'open' | 'accepted' | 'handled'
@@ -172,7 +173,7 @@ function List() {
     ...(can && rows.length > 0 ? [{ id: 'select', enableSorting: false, header: () => <Checkbox checked={allShown ? true : shown.length > 0 ? 'indeterminate' : false} onCheckedChange={(v) => toggleAll(v === true)} aria-label={t('bulk.selectAll', { count: rows.length })} />, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<FindingRow>] : []),
     { id: 'device', header: t('col.device'), accessorFn: (r) => name(r), cell: ({ row: { original: r } }) => (
       <div className="grid">
-        {r.asset ? <Link to={`/devices/${r.asset.id}`} title={name(r)} className="line-clamp-2 max-w-64 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name(r)}</Link> : <span className="font-medium">{name(r)}</span>}
+        {r.asset ? <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><Link to={`/devices/${r.asset.id}`} title={name(r)} className="line-clamp-2 max-w-64 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name(r)}</Link><RiskMarker id={r.asset.id} risk={risk(r.asset.id)} /></span> : <span className="font-medium">{name(r)}</span>}
         <span className="text-caption text-muted">{hasIp(r.asset) ? r.asset?.ip : r.asset ? t('noIp') : ''}</span>
       </div>
     ) },
@@ -214,7 +215,7 @@ function List() {
           <Input className="h-9 w-full sm:max-w-xs" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('filter')} aria-label={t('filter')} />
           <Select className="w-full sm:w-auto sm:max-w-64" value={device} onChange={(e) => setParam('device', e.target.value)} aria-label={t('deviceFilter')}>
             <option value="">{t('allDevices')}</option>
-            {devices.map(([id, n]) => <option key={id} value={id}>{n}</option>)}
+            {devices.map(([id, n]) => <option key={id} value={id}>{riskWord(t, risk(id)) ? `${n} (${riskWord(t, risk(id))})` : n}</option>)}
           </Select>
           <Select className="w-full sm:w-auto sm:max-w-64" value={product} onChange={(e) => setParam('product', e.target.value)} aria-label={t('productFilter')}>
             <option value="">{t('allProducts')}</option>
@@ -286,6 +287,9 @@ function List() {
   )
 
   const toFix = useToFix()
+  // G4: each device's risk marker, as To fix shows it (the server's findings.RiskOf; the same value as the device list)
+  const riskById = new Map((toFix.data?.devices ?? []).map((x) => [x.asset.id, x.risk]))
+  const risk = (id: string) => riskById.get(id) ?? null
   // kien G8, review r1 of #943: a link that carries a finding filter (?cve=, ?fix=, the old shapes of the CVE page, Home and the device
   // page) opens the findings table with it, never To fix, which would drop it
   const filterTab = !params.get('tab') && (params.get('cve') || params.get('fix')) ? 'open' : null

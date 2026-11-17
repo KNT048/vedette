@@ -26,6 +26,7 @@ import { usePossibleSame, useDevices, useSettings } from './api'
 import { deviceKeys, feedsOfRow, filterDevices, fromOldUrl, matchSoftware, softwareValues, type SameIds } from './deviceQuery'
 import { errMsg, kindIcon, shownKind } from './kinds'
 import { declaredSoftwareOnly, nameOf } from './nameOf'
+import { RiskMarker, riskRank } from './RiskMarker'
 import { PendingPanel } from './PendingPanel'
 import { SameChip } from './SameDevice'
 import type { DeviceRow } from './types'
@@ -144,6 +145,9 @@ function DeviceSearch({ rows, now, query, same }: { rows: DeviceRow[]; now: numb
   const keys = useMemo(() => deviceKeys(rows, now, same), [rows, now, same])
   const count = (key: string, value: string) => keys.find((x) => x.key === key)?.values?.find((v) => v.value === value)?.count
   const chips: TokenChip[] = [
+    // G4: the devices that carry risk first, as Defender's exposure filter does
+    { token: 'risk:exploited', label: t('search.chip.exploited'), count: count('risk', 'exploited') },
+    { token: 'risk:update', label: t('search.chip.update'), count: count('risk', 'update') },
     { token: 'fragile', label: t('search.chip.fragile'), count: rows.filter((d) => d.fragile).length },
     { token: 'source:snmp', label: t('search.chip.snmp'), count: count('source', 'snmp') },
     { token: 'source:osquery', label: t('search.chip.osquery'), count: count('source', 'osquery') },
@@ -190,6 +194,8 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
     { id: 'name', header: t('col.name'), accessorFn: (d) => nameOf(d, kindLabel(d.kind)), cell: ({ row }) => (
       <div className="flex items-center gap-x-2 whitespace-nowrap">{nameLink(row.original, 'whitespace-nowrap')}<NameChips d={row.original} dense /><SameChip id={row.original.id} others={same.others.get(row.original.id) ?? []} /></div>
     ) },
+    // G4: the risk marker, sortable (worst first on the first click); empty for a clean device
+    { id: 'risk', header: t('risk.column'), sortDescFirst: true, accessorFn: (d) => riskRank(d.risk), cell: ({ row }) => <RiskMarker id={row.original.id} risk={row.original.risk} /> },
     { id: 'ip', header: t('col.ip'), accessorFn: (d) => d.ip, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{row.original.ip}</span> },
     { id: 'kind', header: t('col.kind'), accessorFn: (d) => { const k = shownKind(d).kind; return `${kindLabel(k)} ${categoryLabel(categoryOf(k))}` }, cell: ({ row }) => <TypeCell d={row.original} dense /> },
     // #849 review: one line per row at 1280. Make, model and OS share a column, cut with an ellipsis (the whole text on hover, the
@@ -243,6 +249,7 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 {selecting ? <Checkbox aria-label={t('select.one', { name: nameOf(d, kindLabel(d.kind)) })} checked={sel.has(d.id)} onCheckedChange={(v) => ops.toggle(d.id, v === true)} /> : null}
                 {nameLink(d, 'min-w-0 [overflow-wrap:anywhere]')}
+                <RiskMarker id={d.id} risk={d.risk} />
                 <NameChips d={d} />
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted">

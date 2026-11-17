@@ -20,6 +20,7 @@ import type {
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
 import { badUserName, nameOf } from './nameOf'
+import { deviceRisk } from '@/features/findings/mocks'
 import { actsAs, lookupType, TYPE_IDS } from '@/lib/deviceTypes'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
@@ -282,7 +283,7 @@ function sourcesOf(a: Asset): DeviceSource[] {
   }
   return DEVICE_SOURCES.filter((x) => has.has(x))
 }
-const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), summary: summaryOf(a) })
+const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), summary: summaryOf(a) })
 
 /** #849: the Devices search, as the backend reads it (ParseDeviceFilter): ANDed filters, each list ORed, unknown words 400 bad_filter,
  * a boolean that is not true or false 400 invalid (the schema's enum). Returns the filter, or the error response. */
@@ -297,6 +298,9 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   if (badType) return fail(400, 'bad_filter', `"${badType}" is not a device type. Use a type id such as server, switch, firewall or printer.`)
   const badSource = sources.find((x) => !DEVICE_SOURCES.includes(x as DeviceSource))
   if (badSource) return fail(400, 'bad_filter', `"${badSource}" is not a source. Use one of: ${DEVICE_SOURCES.join(', ')}.`)
+  const risks = list('risk') // G4: exploited, update, none (ParseDeviceSearch)
+  const badRisk = risks.find((x) => !['exploited', 'update', 'none'].includes(x))
+  if (badRisk) return fail(400, 'bad_filter', `"${badRisk}" is not a risk. Use one of: exploited, update, none.`)
   const q = (p.get('q') ?? '').trim().toLowerCase()
   if (q.length > 80) return fail(400, 'invalid', 'The parameter "q" is not valid.')
   // Whole bytes of a MAC, in the stored aa:bb:cc form, so a piece never matches across a byte boundary (as the backend's macFragment).
@@ -308,6 +312,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
     && (hasFindings === null || (r.findings_count > 0) === hasFindings)
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
     && (!sources.length || r.sources.some((x) => sources.includes(x)))
+    && (!risks.length || risks.includes(r.risk?.level ?? 'none'))
     && (!q || [r.name, r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
       || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
 }
@@ -688,7 +693,7 @@ export const handlers = [
     if (!a) return notFound(request)
     const software: SoftwareView[] = a.software.map((s) => ({ id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: cvesFor(s.kev) }))
     const observations = markCurrent(obsOf(a)).sort((x, y) => FIELD_ORDER.indexOf(x.field) - FIELD_ORDER.indexOf(y.field) || new Date(y.seen_at).getTime() - new Date(x.seen_at).getTime())
-    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), observations, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
+    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), observations, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
   }),
 
   http.get(`${API}/inventory/possible-same`, () => {

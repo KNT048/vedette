@@ -15,6 +15,7 @@ import { YouHaveCell } from './YouHaveCell'
 import { useModuleEnabled } from '@/lib/modules'
 import { useFindings } from '@/features/findings/api'
 import { isOpen } from '@/features/findings/basis'
+import { DeviceRiskMarker } from '@/features/inventory/RiskMarker'
 
 const yearAgo = () => new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10)
 
@@ -90,7 +91,7 @@ export default function CvePage() {
                             <span className="font-medium">{m.hostname ?? m.display}</span>
                             <span className="text-caption text-muted">{m.ip}</span>
                           </Link>
-                          <YouHaveCell value={m.how} />
+                          <span className="flex flex-wrap items-center justify-end gap-2"><DeviceRiskMarker id={m.id} /><YouHaveCell value={m.how} /></span>
                         </li>
                       ))}
                     </ul></Card>

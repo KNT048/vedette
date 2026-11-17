@@ -73935,6 +73935,10 @@ type FindingsGetFindingsToFixOKDevicesItem struct {
 	PlanCompared bool `json:"plan_compared"`
 	// Recommended updates (D-613): CVEs on no exploited list, as GET /findings/plan lists them.
 	Planned []FindingsGetFindingsToFixOKDevicesItemPlannedItem `json:"planned"`
+	// The device's risk marker (G4, the same as GET /inventory/devices gives): exploited = open exploited
+	// findings this list shows to fix; update = none, but a recommended update fixes a CVE likely to be
+	// exploited or of High or Critical severity.
+	Risk NilFindingsGetFindingsToFixOKDevicesItemRisk `json:"risk"`
 }
 
 // GetAsset returns the value of Asset.
@@ -73967,6 +73971,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItem) GetPlanned() []FindingsGetFindin
 	return s.Planned
 }
 
+// GetRisk returns the value of Risk.
+func (s *FindingsGetFindingsToFixOKDevicesItem) GetRisk() NilFindingsGetFindingsToFixOKDevicesItemRisk {
+	return s.Risk
+}
+
 // SetAsset sets the value of Asset.
 func (s *FindingsGetFindingsToFixOKDevicesItem) SetAsset(val FindingsGetFindingsToFixOKDevicesItemAsset) {
 	s.Asset = val
@@ -73995,6 +74004,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItem) SetPlanCompared(val bool) {
 // SetPlanned sets the value of Planned.
 func (s *FindingsGetFindingsToFixOKDevicesItem) SetPlanned(val []FindingsGetFindingsToFixOKDevicesItemPlannedItem) {
 	s.Planned = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *FindingsGetFindingsToFixOKDevicesItem) SetRisk(val NilFindingsGetFindingsToFixOKDevicesItemRisk) {
+	s.Risk = val
 }
 
 type FindingsGetFindingsToFixOKDevicesItemAsset struct {
@@ -75685,6 +75699,83 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) UnmarshalText(dat
 		return nil
 	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindNone:
 		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsToFixOKDevicesItemRisk struct {
+	Exploited int                                            `json:"exploited"`
+	Level     FindingsGetFindingsToFixOKDevicesItemRiskLevel `json:"level"`
+	Updates   int                                            `json:"updates"`
+}
+
+// GetExploited returns the value of Exploited.
+func (s *FindingsGetFindingsToFixOKDevicesItemRisk) GetExploited() int {
+	return s.Exploited
+}
+
+// GetLevel returns the value of Level.
+func (s *FindingsGetFindingsToFixOKDevicesItemRisk) GetLevel() FindingsGetFindingsToFixOKDevicesItemRiskLevel {
+	return s.Level
+}
+
+// GetUpdates returns the value of Updates.
+func (s *FindingsGetFindingsToFixOKDevicesItemRisk) GetUpdates() int {
+	return s.Updates
+}
+
+// SetExploited sets the value of Exploited.
+func (s *FindingsGetFindingsToFixOKDevicesItemRisk) SetExploited(val int) {
+	s.Exploited = val
+}
+
+// SetLevel sets the value of Level.
+func (s *FindingsGetFindingsToFixOKDevicesItemRisk) SetLevel(val FindingsGetFindingsToFixOKDevicesItemRiskLevel) {
+	s.Level = val
+}
+
+// SetUpdates sets the value of Updates.
+func (s *FindingsGetFindingsToFixOKDevicesItemRisk) SetUpdates(val int) {
+	s.Updates = val
+}
+
+type FindingsGetFindingsToFixOKDevicesItemRiskLevel string
+
+const (
+	FindingsGetFindingsToFixOKDevicesItemRiskLevelExploited FindingsGetFindingsToFixOKDevicesItemRiskLevel = "exploited"
+	FindingsGetFindingsToFixOKDevicesItemRiskLevelUpdate    FindingsGetFindingsToFixOKDevicesItemRiskLevel = "update"
+)
+
+// AllValues returns all FindingsGetFindingsToFixOKDevicesItemRiskLevel values.
+func (FindingsGetFindingsToFixOKDevicesItemRiskLevel) AllValues() []FindingsGetFindingsToFixOKDevicesItemRiskLevel {
+	return []FindingsGetFindingsToFixOKDevicesItemRiskLevel{
+		FindingsGetFindingsToFixOKDevicesItemRiskLevelExploited,
+		FindingsGetFindingsToFixOKDevicesItemRiskLevelUpdate,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemRiskLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsToFixOKDevicesItemRiskLevelExploited:
+		return []byte(s), nil
+	case FindingsGetFindingsToFixOKDevicesItemRiskLevelUpdate:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemRiskLevel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsToFixOKDevicesItemRiskLevel(data) {
+	case FindingsGetFindingsToFixOKDevicesItemRiskLevelExploited:
+		*s = FindingsGetFindingsToFixOKDevicesItemRiskLevelExploited
+		return nil
+	case FindingsGetFindingsToFixOKDevicesItemRiskLevelUpdate:
+		*s = FindingsGetFindingsToFixOKDevicesItemRiskLevelUpdate
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -99245,6 +99336,7 @@ type InventoryGetInventoryDevicesIDOK struct {
 	// different burned-in MACs say two machines, they state another name, model or OS, or one was seen
 	// while the other was.
 	PossibleSame []InventoryGetInventoryDevicesIDOKPossibleSameItem `json:"possible_same"`
+	Risk         NilInventoryGetInventoryDevicesIDOKRisk            `json:"risk"`
 	Suspicious   bool                                               `json:"suspicious"`
 }
 
@@ -99271,6 +99363,11 @@ func (s *InventoryGetInventoryDevicesIDOK) GetObservations() []InventoryGetInven
 // GetPossibleSame returns the value of PossibleSame.
 func (s *InventoryGetInventoryDevicesIDOK) GetPossibleSame() []InventoryGetInventoryDevicesIDOKPossibleSameItem {
 	return s.PossibleSame
+}
+
+// GetRisk returns the value of Risk.
+func (s *InventoryGetInventoryDevicesIDOK) GetRisk() NilInventoryGetInventoryDevicesIDOKRisk {
+	return s.Risk
 }
 
 // GetSuspicious returns the value of Suspicious.
@@ -99301,6 +99398,11 @@ func (s *InventoryGetInventoryDevicesIDOK) SetObservations(val []InventoryGetInv
 // SetPossibleSame sets the value of PossibleSame.
 func (s *InventoryGetInventoryDevicesIDOK) SetPossibleSame(val []InventoryGetInventoryDevicesIDOKPossibleSameItem) {
 	s.PossibleSame = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *InventoryGetInventoryDevicesIDOK) SetRisk(val NilInventoryGetInventoryDevicesIDOKRisk) {
+	s.Risk = val
 }
 
 // SetSuspicious sets the value of Suspicious.
@@ -103523,6 +103625,89 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetWhy(val string) {
 	s.Why = val
 }
 
+// The device's risk marker (G4): null when it has no open exploited finding and no such update;
+// computed by the findings module, none while it is off.
+type InventoryGetInventoryDevicesIDOKRisk struct {
+	// Open exploited findings of the device that Findings › To fix lists: an update is named for them,
+	// or the box proved them (a product-only guess is in Needs your input, not here).
+	Exploited int                                       `json:"exploited"`
+	Level     InventoryGetInventoryDevicesIDOKRiskLevel `json:"level"`
+	// Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or
+	// Critical severity.
+	Updates int `json:"updates"`
+}
+
+// GetExploited returns the value of Exploited.
+func (s *InventoryGetInventoryDevicesIDOKRisk) GetExploited() int {
+	return s.Exploited
+}
+
+// GetLevel returns the value of Level.
+func (s *InventoryGetInventoryDevicesIDOKRisk) GetLevel() InventoryGetInventoryDevicesIDOKRiskLevel {
+	return s.Level
+}
+
+// GetUpdates returns the value of Updates.
+func (s *InventoryGetInventoryDevicesIDOKRisk) GetUpdates() int {
+	return s.Updates
+}
+
+// SetExploited sets the value of Exploited.
+func (s *InventoryGetInventoryDevicesIDOKRisk) SetExploited(val int) {
+	s.Exploited = val
+}
+
+// SetLevel sets the value of Level.
+func (s *InventoryGetInventoryDevicesIDOKRisk) SetLevel(val InventoryGetInventoryDevicesIDOKRiskLevel) {
+	s.Level = val
+}
+
+// SetUpdates sets the value of Updates.
+func (s *InventoryGetInventoryDevicesIDOKRisk) SetUpdates(val int) {
+	s.Updates = val
+}
+
+type InventoryGetInventoryDevicesIDOKRiskLevel string
+
+const (
+	InventoryGetInventoryDevicesIDOKRiskLevelExploited InventoryGetInventoryDevicesIDOKRiskLevel = "exploited"
+	InventoryGetInventoryDevicesIDOKRiskLevelUpdate    InventoryGetInventoryDevicesIDOKRiskLevel = "update"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKRiskLevel values.
+func (InventoryGetInventoryDevicesIDOKRiskLevel) AllValues() []InventoryGetInventoryDevicesIDOKRiskLevel {
+	return []InventoryGetInventoryDevicesIDOKRiskLevel{
+		InventoryGetInventoryDevicesIDOKRiskLevelExploited,
+		InventoryGetInventoryDevicesIDOKRiskLevelUpdate,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKRiskLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKRiskLevelExploited:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKRiskLevelUpdate:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKRiskLevel) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKRiskLevel(data) {
+	case InventoryGetInventoryDevicesIDOKRiskLevelExploited:
+		*s = InventoryGetInventoryDevicesIDOKRiskLevelExploited
+		return nil
+	case InventoryGetInventoryDevicesIDOKRiskLevelUpdate:
+		*s = InventoryGetInventoryDevicesIDOKRiskLevelUpdate
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesOK struct {
 	Counts InventoryGetInventoryDevicesOKCounts      `json:"counts"`
 	Items  []InventoryGetInventoryDevicesOKItemsItem `json:"items"`
@@ -103656,6 +103841,7 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan `json:"regular_scan"`
+	Risk        NilInventoryGetInventoryDevicesOKItemsItemRisk     `json:"risk"`
 	// D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the
 	// box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor
 	// found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
@@ -103779,6 +103965,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetOs() NilInventoryGetInvento
 // GetRegularScan returns the value of RegularScan.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetRegularScan() InventoryGetInventoryDevicesOKItemsItemRegularScan {
 	return s.RegularScan
+}
+
+// GetRisk returns the value of Risk.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetRisk() NilInventoryGetInventoryDevicesOKItemsItemRisk {
+	return s.Risk
 }
 
 // GetScanSource returns the value of ScanSource.
@@ -103929,6 +104120,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetOs(val NilInventoryGetInven
 // SetRegularScan sets the value of RegularScan.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetRegularScan(val InventoryGetInventoryDevicesOKItemsItemRegularScan) {
 	s.RegularScan = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetRisk(val NilInventoryGetInventoryDevicesOKItemsItemRisk) {
+	s.Risk = val
 }
 
 // SetScanSource sets the value of ScanSource.
@@ -106379,6 +106575,89 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRegularScan) UnmarshalText(data 
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemRegularScanNever:
 		*s = InventoryGetInventoryDevicesOKItemsItemRegularScanNever
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The device's risk marker (G4): null when it has no open exploited finding and no such update;
+// computed by the findings module, none while it is off.
+type InventoryGetInventoryDevicesOKItemsItemRisk struct {
+	// Open exploited findings of the device that Findings › To fix lists: an update is named for them,
+	// or the box proved them (a product-only guess is in Needs your input, not here).
+	Exploited int                                              `json:"exploited"`
+	Level     InventoryGetInventoryDevicesOKItemsItemRiskLevel `json:"level"`
+	// Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or
+	// Critical severity.
+	Updates int `json:"updates"`
+}
+
+// GetExploited returns the value of Exploited.
+func (s *InventoryGetInventoryDevicesOKItemsItemRisk) GetExploited() int {
+	return s.Exploited
+}
+
+// GetLevel returns the value of Level.
+func (s *InventoryGetInventoryDevicesOKItemsItemRisk) GetLevel() InventoryGetInventoryDevicesOKItemsItemRiskLevel {
+	return s.Level
+}
+
+// GetUpdates returns the value of Updates.
+func (s *InventoryGetInventoryDevicesOKItemsItemRisk) GetUpdates() int {
+	return s.Updates
+}
+
+// SetExploited sets the value of Exploited.
+func (s *InventoryGetInventoryDevicesOKItemsItemRisk) SetExploited(val int) {
+	s.Exploited = val
+}
+
+// SetLevel sets the value of Level.
+func (s *InventoryGetInventoryDevicesOKItemsItemRisk) SetLevel(val InventoryGetInventoryDevicesOKItemsItemRiskLevel) {
+	s.Level = val
+}
+
+// SetUpdates sets the value of Updates.
+func (s *InventoryGetInventoryDevicesOKItemsItemRisk) SetUpdates(val int) {
+	s.Updates = val
+}
+
+type InventoryGetInventoryDevicesOKItemsItemRiskLevel string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemRiskLevelExploited InventoryGetInventoryDevicesOKItemsItemRiskLevel = "exploited"
+	InventoryGetInventoryDevicesOKItemsItemRiskLevelUpdate    InventoryGetInventoryDevicesOKItemsItemRiskLevel = "update"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemRiskLevel values.
+func (InventoryGetInventoryDevicesOKItemsItemRiskLevel) AllValues() []InventoryGetInventoryDevicesOKItemsItemRiskLevel {
+	return []InventoryGetInventoryDevicesOKItemsItemRiskLevel{
+		InventoryGetInventoryDevicesOKItemsItemRiskLevelExploited,
+		InventoryGetInventoryDevicesOKItemsItemRiskLevelUpdate,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemRiskLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemRiskLevelExploited:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemRiskLevelUpdate:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemRiskLevel) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemRiskLevel(data) {
+	case InventoryGetInventoryDevicesOKItemsItemRiskLevelExploited:
+		*s = InventoryGetInventoryDevicesOKItemsItemRiskLevelExploited
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemRiskLevelUpdate:
+		*s = InventoryGetInventoryDevicesOKItemsItemRiskLevelUpdate
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -128096,6 +128375,51 @@ func (o NilFindingsGetFindingsSummaryOKTopItemSource) Or(d FindingsGetFindingsSu
 	return d
 }
 
+// NewNilFindingsGetFindingsToFixOKDevicesItemRisk returns new NilFindingsGetFindingsToFixOKDevicesItemRisk with value set to v.
+func NewNilFindingsGetFindingsToFixOKDevicesItemRisk(v FindingsGetFindingsToFixOKDevicesItemRisk) NilFindingsGetFindingsToFixOKDevicesItemRisk {
+	return NilFindingsGetFindingsToFixOKDevicesItemRisk{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsToFixOKDevicesItemRisk is nullable FindingsGetFindingsToFixOKDevicesItemRisk.
+type NilFindingsGetFindingsToFixOKDevicesItemRisk struct {
+	Value FindingsGetFindingsToFixOKDevicesItemRisk
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsToFixOKDevicesItemRisk) SetTo(v FindingsGetFindingsToFixOKDevicesItemRisk) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsToFixOKDevicesItemRisk) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsToFixOKDevicesItemRisk) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsToFixOKDevicesItemRisk
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsToFixOKDevicesItemRisk) Get() (v FindingsGetFindingsToFixOKDevicesItemRisk, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsToFixOKDevicesItemRisk) Or(d FindingsGetFindingsToFixOKDevicesItemRisk) FindingsGetFindingsToFixOKDevicesItemRisk {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAiOKAiConfig returns new NilFindingsPostFindingsIDAiOKAiConfig with value set to v.
 func NewNilFindingsPostFindingsIDAiOKAiConfig(v FindingsPostFindingsIDAiOKAiConfig) NilFindingsPostFindingsIDAiOKAiConfig {
 	return NilFindingsPostFindingsIDAiOKAiConfig{
@@ -130841,6 +131165,51 @@ func (o NilInventoryGetInventoryDevicesIDOKAssetVendor) Or(d InventoryGetInvento
 	return d
 }
 
+// NewNilInventoryGetInventoryDevicesIDOKRisk returns new NilInventoryGetInventoryDevicesIDOKRisk with value set to v.
+func NewNilInventoryGetInventoryDevicesIDOKRisk(v InventoryGetInventoryDevicesIDOKRisk) NilInventoryGetInventoryDevicesIDOKRisk {
+	return NilInventoryGetInventoryDevicesIDOKRisk{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDOKRisk is nullable InventoryGetInventoryDevicesIDOKRisk.
+type NilInventoryGetInventoryDevicesIDOKRisk struct {
+	Value InventoryGetInventoryDevicesIDOKRisk
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDOKRisk) SetTo(v InventoryGetInventoryDevicesIDOKRisk) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDOKRisk) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDOKRisk) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDOKRisk
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDOKRisk) Get() (v InventoryGetInventoryDevicesIDOKRisk, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDOKRisk) Or(d InventoryGetInventoryDevicesIDOKRisk) InventoryGetInventoryDevicesIDOKRisk {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryGetInventoryDevicesOKItemsItemGuess returns new NilInventoryGetInventoryDevicesOKItemsItemGuess with value set to v.
 func NewNilInventoryGetInventoryDevicesOKItemsItemGuess(v InventoryGetInventoryDevicesOKItemsItemGuess) NilInventoryGetInventoryDevicesOKItemsItemGuess {
 	return NilInventoryGetInventoryDevicesOKItemsItemGuess{
@@ -131015,6 +131384,51 @@ func (o NilInventoryGetInventoryDevicesOKItemsItemOs) Get() (v InventoryGetInven
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryGetInventoryDevicesOKItemsItemOs) Or(d InventoryGetInventoryDevicesOKItemsItemOs) InventoryGetInventoryDevicesOKItemsItemOs {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventoryDevicesOKItemsItemRisk returns new NilInventoryGetInventoryDevicesOKItemsItemRisk with value set to v.
+func NewNilInventoryGetInventoryDevicesOKItemsItemRisk(v InventoryGetInventoryDevicesOKItemsItemRisk) NilInventoryGetInventoryDevicesOKItemsItemRisk {
+	return NilInventoryGetInventoryDevicesOKItemsItemRisk{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesOKItemsItemRisk is nullable InventoryGetInventoryDevicesOKItemsItemRisk.
+type NilInventoryGetInventoryDevicesOKItemsItemRisk struct {
+	Value InventoryGetInventoryDevicesOKItemsItemRisk
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesOKItemsItemRisk) SetTo(v InventoryGetInventoryDevicesOKItemsItemRisk) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesOKItemsItemRisk) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesOKItemsItemRisk) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesOKItemsItemRisk
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesOKItemsItemRisk) Get() (v InventoryGetInventoryDevicesOKItemsItemRisk, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesOKItemsItemRisk) Or(d InventoryGetInventoryDevicesOKItemsItemRisk) InventoryGetInventoryDevicesOKItemsItemRisk {
 	if v, ok := o.Get(); ok {
 		return v
 	}

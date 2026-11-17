@@ -28,6 +28,7 @@ type DeviceFilter struct {
 	Approved, Fragile, HasFindings *bool
 	Types                          []string // device type ids; a type also matches the types that act as it (D-511)
 	Sources                        []string // DeviceSources
+	Risks                          []string // RiskLevels (G4)
 	Q                              string   // free text: name, IP, MAC (any notation), vendor, model
 }
 
@@ -38,6 +39,11 @@ func badFilter(msg string) *apierr.Error { return apierr.New(400, "bad_filter", 
 // bad_filter. The schema already bounds the lengths and the boolean words (400 invalid, D-73); this is the same check for a caller
 // that does not go through it.
 func ParseDeviceFilter(approved, fragile, hasFindings, types, sources, q string) (DeviceFilter, error) {
+	return ParseDeviceSearch(approved, fragile, hasFindings, types, sources, "", q)
+}
+
+// ParseDeviceSearch is ParseDeviceFilter with the risk filter (G4): a comma-separated list of RiskLevels.
+func ParseDeviceSearch(approved, fragile, hasFindings, types, sources, risks, q string) (DeviceFilter, error) {
 	var f DeviceFilter
 	var err error
 	if f.Approved, err = boolFilter("approved", approved); err != nil {
@@ -60,6 +66,12 @@ func ParseDeviceFilter(approved, fragile, hasFindings, types, sources, q string)
 			return f, badFilter(fmt.Sprintf("%q is not a source. Use one of: %s.", clipText(src, 40), strings.Join(DeviceSources, ", ")))
 		}
 		f.Sources = append(f.Sources, src)
+	}
+	for _, r := range listFilter(risks) {
+		if !slices.Contains(RiskLevels, r) {
+			return f, badFilter(fmt.Sprintf("%q is not a risk. Use one of: %s.", clipText(r, 40), strings.Join(RiskLevels, ", ")))
+		}
+		f.Risks = append(f.Risks, r)
 	}
 	f.Q = strings.TrimSpace(q)
 	if len([]rune(f.Q)) > 80 {
@@ -120,9 +132,10 @@ func macFragment(q string) (string, bool) {
 	return strings.Join(bytes, ":"), true
 }
 
-// where is the WHERE clause on inv_asset a that keeps the devices of f, and its arguments. sources and counts are every device's
-// sources and finding counts (deviceSources, findingCounts). Sets of ids go in as one JSON argument (json_each), never as text.
-func (f DeviceFilter) where(sources map[string][]string, counts map[string]int) (string, []any) {
+// where is the WHERE clause on inv_asset a that keeps the devices of f, and its arguments. sources, counts and risks are every device's
+// sources, finding counts and risk markers (deviceSources, findingCounts, risks). Sets of ids go in as one JSON argument (json_each),
+// never as text.
+func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, risks map[string]*Risk) (string, []any) {
 	var conds []string
 	var args []any
 	add := func(cond string, arg any) { conds, args = append(conds, cond), append(args, arg) }
@@ -163,6 +176,21 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int) 
 			op = "NOT IN"
 		}
 		add("a.id "+op+" (SELECT value FROM json_each(?))", jsonList(ids))
+	}
+	if len(f.Risks) > 0 { // G4: none is every device without a marker, so it is the complement of the marked ones not asked
+		var in, out []string
+		for id, r := range risks {
+			if slices.Contains(f.Risks, riskLevel(r)) {
+				in = append(in, id)
+			} else {
+				out = append(out, id)
+			}
+		}
+		if slices.Contains(f.Risks, RiskNone) {
+			add("a.id NOT IN (SELECT value FROM json_each(?))", jsonList(out))
+		} else {
+			add("a.id IN (SELECT value FROM json_each(?))", jsonList(in))
+		}
 	}
 	if f.Q != "" {
 		// lower() on both sides: SQLite folds ASCII only, so the text and the data fold the same way. The text is passed once per use

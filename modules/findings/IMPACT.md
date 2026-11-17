@@ -1,5 +1,9 @@
 # Findings — Change Impact Map
 
+## Modifying: `RiskOf`, `AssetRisk`, `Service.RiskByAsset`, `risk` of `GET /findings/to-fix` (G4, INV-26)
+- **inventory** shows it as the risk marker of every device list (inventory INV-38, through cmd/vedette `findingCounts.RiskByAsset`) and filters on it (`?risk=`). Changing what To fix lists (`actionable`, `Planned`) changes the marker with it, by design: one rule. A new threshold goes in `RiskOf`, never in inventory or the web.
+- **web**: `features/inventory/RiskMarker.tsx` and the Findings page (device column, filter options, To fix cards read `risk` from the to-fix answer); the mocks' `riskOfCard` mirrors `RiskOf`.
+
 ## Modifying: thư viện thuần `modules/findings` (không DB; service WP-21 bọc ngoài)
 - `MatchAsset(Asset, []Vuln, have, now) MatchResult{New, Existing}` — bộ khớp. Gọi từ service khi nhận `inventory.match.changed`/`feeds.vuln.updated`. Đổi quy tắc ⇒ đổi số finding và tin `notify`; test `Contract_INV4/5/6`.
 - `NewFinding`, `Finding.ApplyMatch`, `Finding.Apply(action, note, user, now)`, `Finding.ConfirmFromScan(evidence, now)`, `ScanClear`, `Finding.Validate` — vòng đời. Lỗi `*APIError` (`ErrBadAction`, `ErrNoteTooLong`, `ErrNoteRequired`, `ErrAlreadyOpen`, `ErrNotFound`) ánh xạ 1:1 mã lỗi API; đổi mã = đổi `findings/contract.ts` và mock.

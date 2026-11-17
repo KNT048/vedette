@@ -50,3 +50,5 @@ export type SnmpTestResult = z.infer<typeof C.SnmpTestResult>
 export type DeviceSource = z.infer<typeof C.DeviceSource>
 export type DevicesQuery = z.infer<typeof C.DevicesQuery>
 export type SnmpRead = z.infer<typeof C.SnmpRead>
+/** G4: a device's risk marker (exploited findings, or a recommended update); null when clean. */
+export type DeviceRisk = z.infer<typeof C.DeviceRisk>

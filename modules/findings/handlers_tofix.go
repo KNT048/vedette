@@ -66,8 +66,14 @@ func (h *FindingHandlers) FindingsGetFindingsToFix(ctx context.Context, params o
 			return nil, fmt.Errorf("findings: to fix: reading devices: %w", err)
 		}
 	}
+	type riskJS struct { // G4: the device's risk marker, as the device list gives it (RiskOf)
+		Level     string `json:"level"`
+		Exploited int    `json:"exploited"`
+		Updates   int    `json:"updates"`
+	}
 	type deviceJS struct {
 		Asset        AssetView       `json:"asset"`
+		Risk         *riskJS         `json:"risk"`
 		Open         int             `json:"open"`
 		Exploited    []toFixActionJS `json:"exploited"`
 		NoUpdate     []toFixActionJS `json:"no_update"`
@@ -85,7 +91,14 @@ func (h *FindingHandlers) FindingsGetFindingsToFix(ctx context.Context, params o
 		if !ok {
 			continue
 		}
-		out.Devices = append(out.Devices, deviceJS{Asset: a, Open: d.Open, Exploited: toFixActions(d.Exploited), NoUpdate: toFixActions(d.NoUpdate),
+		var risk *riskJS
+		if r := RiskOf(d); r.Level() != "" {
+			risk = &riskJS{Level: r.Level(), Exploited: r.Exploited, Updates: r.Updates}
+			if risk.Level == "update" {
+				risk.Exploited = 0
+			}
+		}
+		out.Devices = append(out.Devices, deviceJS{Asset: a, Risk: risk, Open: d.Open, Exploited: toFixActions(d.Exploited), NoUpdate: toFixActions(d.NoUpdate),
 			Planned: toFixActions(d.Planned), PlanCompared: d.PlanCompared})
 	}
 	return Into[oas.FindingsGetFindingsToFixOK](out)

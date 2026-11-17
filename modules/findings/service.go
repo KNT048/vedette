@@ -114,6 +114,55 @@ func (s *Service) Get(ctx context.Context, id string) (Record, error) {
 	return loadByID(ctx, s.cfg.DB.Reader(), id)
 }
 
+// AssetRisk is what a device's risk marker reads (G4, inventory.RiskCounts), from what "To fix" shows for the device (DeviceUpdates,
+// one rule, review of G8): Exploited = the open findings of its actionable actions (an update is named for them, or the box proved
+// them), Updates = its recommended updates (the plan, INV-20) with a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical
+// severity. A product-only guess To fix leaves to "Needs your input" is neither.
+type AssetRisk struct{ Exploited, Updates int }
+
+// Level is the risk marker's level (G4, inventory's Risk.level): "exploited" when the device has open exploited findings to fix,
+// else "update" when it has such recommended updates, else "" (clean).
+func (r AssetRisk) Level() string {
+	switch {
+	case r.Exploited > 0:
+		return "exploited"
+	case r.Updates > 0:
+		return "update"
+	}
+	return ""
+}
+
+// RiskOf is the risk of device d as To fix lists it.
+func RiskOf(d DeviceUpdates) AssetRisk {
+	var r AssetRisk
+	for _, a := range d.actionable() {
+		r.Exploited += max(len(a.FindingIDs), len(a.CVEs))
+	}
+	for _, a := range d.Planned {
+		if a.Likely > 0 || sevRank(Severity(a.Worst)) >= sevRank(SeverityHigh) {
+			r.Updates++
+		}
+	}
+	return r
+}
+
+// RiskByAsset returns the risk of every device To fix lists (assetID "": every device, else that one only), as RiskOf reads it;
+// a device with none is absent. feedsOn as for ToFix. Its cost is ToFix's (at most ToFixLimit devices get the per-device work; a
+// device past that is not marked, as To fix does not list it).
+func (s *Service) RiskByAsset(ctx context.Context, feedsOn bool, assetID string) (map[string]AssetRisk, error) {
+	tf, err := s.ToFix(ctx, feedsOn, assetID)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]AssetRisk{}
+	for _, d := range tf.Devices {
+		if r := RiskOf(d); r != (AssetRisk{}) {
+			out[d.AssetID] = r
+		}
+	}
+	return out, nil
+}
+
 // CountByAsset returns how many findings each asset has, every status included: the number inventory shows as findings_count, which
 // is also what deleting the device deletes (OnAssetDeleted). One grouped read; an asset with none is absent.
 func (s *Service) CountByAsset(ctx context.Context) (map[string]int, error) {

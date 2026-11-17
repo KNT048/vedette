@@ -20,6 +20,7 @@ import { fmtDay } from '@/features/feeds/dates'
 import { usePlanAction } from './fix'
 import type { Plan, PlanCve, PlanItem } from './types'
 import { InfoTip } from '@/components/common/InfoTip'
+import { DeviceRiskMarker } from '@/features/inventory/RiskMarker'
 
 function Severity({ c }: { c: PlanCve }) {
   const { t } = useTranslation('findings')
@@ -129,7 +130,7 @@ export function PlanItems({ items, showDevice, likelyOnly = false }: { items: Pl
       {shown.map((i) => (
         <li key={i.group} className="grid min-w-0 gap-1 px-4 py-3">
           <p className="text-sm">
-            {showDevice ? <><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>{': '}</> : null}
+            {showDevice ? <><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>{' '}<DeviceRiskMarker id={i.asset.id} className="align-middle" />{': '}</> : null}
             <span className="font-medium">{action(i)}</span>{': '}
             {likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
               <>

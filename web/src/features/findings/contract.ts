@@ -276,6 +276,8 @@ export const ToFixAction = z.object({
 })
 export const ToFixDevice = z.object({
   asset: FindingAsset,
+  risk: z.object({ level: z.enum(['exploited', 'update']), exploited: z.number().int(), updates: z.number().int() }).nullable()
+    .describe('The device\'s risk marker (G4, the same as GET /inventory/devices gives): exploited = open exploited findings this list shows to fix; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity'),
   open: z.number().int().describe('Open findings of the device'),
   exploited: z.array(ToFixAction).describe('Open exploited findings one named update fixes, one action per update, worst first'),
   no_update: z.array(ToFixAction).describe('Open findings no update is named for, one per software row; one with confirmed + detected = 0 is the person\'s to check (Needs your input), not to fix'),

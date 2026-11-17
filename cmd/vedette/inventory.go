@@ -15,6 +15,7 @@ import (
 	hostapi "github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -39,7 +40,7 @@ func newInventory(d *deps) *inventory.Service {
 		return append(d.Honeypot.DecoyIPs(ctx), d.Honeypot.TrapIPAddrs(ctx)...) // a Trap IP not handed over yet is the box's too (B2 lab)
 	}
 	cfg := inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned,
-		Findings: findingCounts{d}, WazuhAgents: wazuhAgents{d}.addresses}
+		Findings: findingCounts{d}, Risk: findingCounts{d}, WazuhAgents: wazuhAgents{d}.addresses}
 	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device (WP-31 M7). Without a
 	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
 	if d.HostSocket != "" {
@@ -212,6 +213,25 @@ func (f findingCounts) CountByAsset(ctx context.Context) (map[string]int, error)
 		return map[string]int{}, nil
 	}
 	return f.d.Findings.CountByAsset(ctx)
+}
+
+// RiskByAsset is inventory's RiskSource (G4): what findings' "To fix" shows for each device (findings.RiskByAsset: its exploited
+// findings to fix, else its recommended updates for a likely-exploited or High+ CVE), from findings (built after inventory, looked up
+// when asked). Findings off or not built: no device is marked. The feeds
+// module off: no update counts, as GET /findings/plan then lists none.
+func (f findingCounts) RiskByAsset(ctx context.Context, assetID string) (map[string]inventory.RiskCounts, error) {
+	out := map[string]inventory.RiskCounts{}
+	if f.d == nil || f.d.Findings == nil || (f.d.Reg != nil && !f.d.Reg.Enabled("findings")) {
+		return out, nil
+	}
+	m, err := f.d.Findings.RiskByAsset(ctx, f.d.Reg == nil || f.d.Reg.Enabled(findings.FeedsModule), assetID)
+	if err != nil {
+		return nil, err
+	}
+	for id, r := range m {
+		out[id] = inventory.RiskCounts{Exploited: r.Exploited, Updates: r.Updates}
+	}
+	return out, nil
 }
 
 // wazuhAgents is inventory.Config.WazuhAgents (#849): the addresses and MACs agent-intake's Wazuh pulls delivered to, so the Devices

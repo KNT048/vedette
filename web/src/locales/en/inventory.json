@@ -1010,7 +1010,9 @@
       "osquery": "osquery",
       "manual": "Manual",
       "findings": "Has findings",
-      "same": "Possibly the same"
+      "same": "Possibly the same",
+      "exploited": "Exploited",
+      "update": "Update recommended"
     },
     "matches_one": "{{shown}} of {{count}} device",
     "matches_other": "{{shown}} of {{count}} devices",
@@ -1024,7 +1026,8 @@
       "software": "Runs this software",
       "suspicious": "Marked unknown",
       "approved": "Approved recently",
-      "possible": "Possibly the same device"
+      "possible": "Possibly the same device",
+      "risk": "Risk: exploited findings or an update recommended"
     },
     "source": {
       "snmp": "SNMP",
@@ -1055,6 +1058,11 @@
     "lowConfidence": "(low confidence)",
     "possible": {
       "same": "As another device (merge or keep separate)"
+    },
+    "risk": {
+      "exploited": "Exploited findings",
+      "update": "Update recommended",
+      "none": "No risk mark"
     }
   },
   "declaredPage": {
@@ -1162,5 +1170,18 @@
     "hint": "Possibly the same device as {{name}}",
     "hintMany_one": "Possibly the same device as {{name}} or {{count}} other",
     "hintMany_other": "Possibly the same device as {{name}} or {{count}} others"
+  },
+  "risk": {
+    "exploited_one": "{{count}} exploited",
+    "exploited_other": "{{count}} exploited",
+    "update": "Update recommended",
+    "exploitedAria_one": "{{count}} open exploited finding on this device: open its findings",
+    "exploitedAria_other": "{{count}} open exploited findings on this device: open its findings",
+    "updateAria_one": "No exploited finding, but {{count}} recommended update fixes a CVE likely to be exploited or of high severity: open it",
+    "updateAria_other": "No exploited finding, but {{count}} recommended updates fix a CVE likely to be exploited or of high severity: open them",
+    "column": "Risk",
+    "chipExploited": "Exploited",
+    "chipUpdate": "Update recommended",
+    "info": "Red: the device has open findings, CVEs that are being exploited. Amber: none of those, but a recommended update fixes a CVE likely to be exploited (EPSS 10% or more) or of high or critical severity (CVSS 7 or more). No mark: neither."
   }
 }

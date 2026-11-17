@@ -193,6 +193,25 @@ func (s *Service) findingCounts(ctx context.Context) (map[string]int, error) {
 	return m, nil
 }
 
+// risks is the risk marker of every marked device (assetID ""), or of that one (G4), from findings through Config.Risk; clean devices
+// are absent. Read once per list.
+func (s *Service) risks(ctx context.Context, assetID string) (map[string]*Risk, error) {
+	out := map[string]*Risk{}
+	if s.risk == nil {
+		return out, nil
+	}
+	m, err := s.risk.RiskByAsset(ctx, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: device risk: %w", err)
+	}
+	for id, c := range m {
+		if r := riskOf(c); r != nil {
+			out[id] = r
+		}
+	}
+	return out, nil
+}
+
 // Devices lists the devices for the other modules (scan, reports, honeypot, MCP): at most MaxListed rows, the counts over all of them.
 // It does not read the sources (Device.Sources nil): only the Devices page and the export need them (#855 r1 L3).
 func (s *Service) Devices(ctx context.Context) (DeviceList, error) {
@@ -243,7 +262,11 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 			return nil, err
 		}
 	}
-	where, args := f.where(sources, counts)
+	risks, err := s.risks(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	where, args := f.where(sources, counts, risks)
 	items, err := s.loadDevices(ctx, db, where, limit, args...)
 	if err != nil {
 		return nil, err
@@ -255,6 +278,7 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	for i := range items {
 		d := &items[i]
 		d.FindingsCount = counts[d.ID]
+		d.Risk = risks[d.ID]
 		d.Summary = summaryOf(d)
 		if withSources {
 			if d.Sources = sources[d.ID]; d.Sources == nil {
@@ -495,13 +519,18 @@ func (s *Service) DevicesPage(ctx context.Context, f DeviceFilter) (DeviceList, 
 	return l, nil
 }
 
-// DetailPage is Detail with the guess of the identification rules (D-511): GET /inventory/devices/{id}.
+// DetailPage is Detail with the guess of the identification rules (D-511) and the risk marker (G4): GET /inventory/devices/{id}.
 func (s *Service) DetailPage(ctx context.Context, id string) (Detail, error) {
 	d, err := s.Detail(ctx, id)
 	if err != nil {
 		return d, err
 	}
 	s.addGuesses(ctx, []*AssetCore{&d.Asset.AssetCore})
+	risks, err := s.risks(ctx, id) // G4: the marker next to the title
+	if err != nil {
+		return d, err
+	}
+	d.Risk = risks[id]
 	return d, nil
 }
 

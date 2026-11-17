@@ -10,7 +10,7 @@
 - **`cmd/vedette` `packVerifier`** (cài `Verifier` trên `internal/release.VerifyContent` và khoá phát hành nhúng, D-346; thiếu = từ chối mọi gói): đổi `Statement` phải đổi cùng lúc công cụ ký `release packs` (`scripts/release`) và mọi chữ ký đã phát hành không còn khớp, **ai** (cài `AI`: `Available`, `Run` qua RunJob), **inventory** (cài `Vendors.HasFirewallVendor`: `cmd/vedette/wiring.go` hỏi `inventory.HasDevice` với loại `firewall` hoặc `router`, so hãng không phân biệt hoa thường, kể cả hãng của phần mềm trên thiết bị). Đổi chữ ký = đổi chỗ nối trong `cmd/vedette`. `AI` là cửa của module `ai` (`aiMitigation`); `Loader` được dựng trong `buildServices` với `packVerifier` và chạy qua job `load-packs` (D-348).
 
 ## Modifying: gia cố chung (`hardening.go`, INV-8)
-- SPA `web/src/features/findings/Hardening.tsx` (`GeneralChecks`) và mock `hardeningMock.ts`; đổi `findings.Hardening` (`{software, family, checks}`) phải sửa `findings/contract.ts` (`GeneralHardening`). Không còn cấu hình firewall nào do code viết (D-629): đừng thêm lại khi chưa có quyết định mới của kien.
+- SPA `web/src/features/findings/Hardening.tsx` (`GeneralChecks`) và mock `hardeningMock.ts`; đổi `findings.Hardening` (`{software, family, checks}`) phải sửa `findings/contract.ts` (`GeneralHardening`). Không còn cấu hình firewall nào do code viết (D-631): đừng thêm lại khi chưa có quyết định mới của kien.
 
 ## Modifying: nạp gói (`Loader.Install`) và định dạng `MitigationPack`
 - **tooling `vedette-author`** (S-MIT-4) và builder phát hành: schema chung; đổi trường = đổi cả công cụ lẫn bộ nạp. Gói đi cùng image `core` đã ký (D-36, D-345): đổi thư mục `/opt/vedette/content/mitigation` hay bố cục `ReadPackDir` phải đổi cùng `deploy/containers/core/Containerfile` và job `load-packs`.

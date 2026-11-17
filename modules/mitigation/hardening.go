@@ -12,7 +12,7 @@ import (
 // General hardening (INV-8): while no maintainer-confirmed pack ships its own compromise signs for a CVE, every finding still gets
 // general "Have I been hit?" checks for its software family, written here by reviewed code: signs any intruder tends to leave. Nothing
 // in them is about the CVE, so they are not a recommendation (D-21) and the page labels them so; Vedette never runs them (FORBID-1).
-// The generated firewall configs that let only an admin network reach the device (M2-1) are gone: D-629, kien 2026-11-17 ("remove the
+// The generated firewall configs that let only an admin network reach the device (M2-1) are gone: D-631, kien 2026-11-17 ("remove the
 // General hardening feature that tells the user to allow traffic from the box to devices; it is useless").
 
 // hardening is the general hardening of a finding, or nil when the confirmed pack has its own compromise signs (POST-1).

@@ -80,7 +80,7 @@ func TestSummaryForNamesTheFamilyOnce(t *testing.T) {
 }
 
 // POST-1: a confirmed pack's own compromise signs win; otherwise the general checks fill in. No firewall config is ever generated
-// (D-629, kien 2026-11-17), whatever the pack holds.
+// (D-631, kien 2026-11-17), whatever the pack holds.
 func TestContract_INV8_TheConfirmedPackWinsWhereItHasItsOwn(t *testing.T) {
 	t.Parallel()
 	row := hardeningRow("10.0.0.5", "server", "OpenBSD", "OpenSSH")
@@ -93,7 +93,7 @@ func TestContract_INV8_TheConfirmedPackWinsWhereItHasItsOwn(t *testing.T) {
 }
 
 // POST-1 end to end: a finding without a pack carries the general checks on GET /findings/{id}, and nothing of a firewall config or an
-// admin network (D-629).
+// admin network (D-631).
 func TestContract_INV8_FindingWithoutPackShowsGeneralChecksOnly(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

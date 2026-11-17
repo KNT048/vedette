@@ -238,7 +238,7 @@ function detail(f: Finding): FindingDetail {
   }
 }
 
-/** Mitigation INV-8: the general checks fill in when the confirmed pack has no compromise signs of its own (D-629: no firewall config). */
+/** Mitigation INV-8: the general checks fill in when the confirmed pack has no compromise signs of its own (D-631: no firewall config). */
 function hardeningFor(f: Finding, r: FindingRow, _pack: MitigationPack | undefined, check: unknown) {
   if (check) return null
   return mockHardening(f.cve, r.kev, r.asset)

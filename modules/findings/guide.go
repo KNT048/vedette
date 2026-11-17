@@ -103,7 +103,7 @@ type CompromiseCheck struct {
 
 // Hardening is the general hardening of a finding (mitigation INV-8): general compromise checks for its software family, written by
 // reviewed code. It says nothing about the CVE, so it is not a confirmed recommendation (D-21) and is never shown as one. The
-// generated firewall configs it held (M2-1) are gone (D-629).
+// generated firewall configs it held (M2-1) are gone (D-631).
 type Hardening struct {
 	Software string           `json:"software"` // the software the checks are for ("OpenSSH", "Juniper Junos OS")
 	Family   string           `json:"family"`   // the family the checks are written for ("Linux", "Network device")

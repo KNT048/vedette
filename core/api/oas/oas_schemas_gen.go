@@ -66002,7 +66002,7 @@ func (s *FindingsGetFindingsIDOKFixedInKind) UnmarshalText(data []byte) error {
 
 // Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
 // CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
-// and the admin network field (M2-1) are gone (D-629, kien 2026-11-17).
+// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
 type FindingsGetFindingsIDOKHardening struct {
 	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsGetFindingsIDOKHardeningChecks `json:"checks"`
@@ -77622,7 +77622,7 @@ func (s *FindingsPostFindingsIDAiOKFixedInKind) UnmarshalText(data []byte) error
 
 // Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
 // CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
-// and the admin network field (M2-1) are gone (D-629, kien 2026-11-17).
+// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
 type FindingsPostFindingsIDAiOKHardening struct {
 	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsPostFindingsIDAiOKHardeningChecks `json:"checks"`
@@ -81639,7 +81639,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInKind) UnmarshalText(data []byte) 
 
 // Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
 // CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
-// and the admin network field (M2-1) are gone (D-629, kien 2026-11-17).
+// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
 type FindingsPostFindingsIDAppliedOKHardening struct {
 	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsPostFindingsIDAppliedOKHardeningChecks `json:"checks"`
@@ -85677,7 +85677,7 @@ func (s *FindingsPostFindingsIDStatusOKFixedInKind) UnmarshalText(data []byte) e
 
 // Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
 // CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
-// and the admin network field (M2-1) are gone (D-629, kien 2026-11-17).
+// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
 type FindingsPostFindingsIDStatusOKHardening struct {
 	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsPostFindingsIDStatusOKHardeningChecks `json:"checks"`

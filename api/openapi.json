@@ -33944,7 +33944,7 @@
                             "checks"
                           ],
                           "additionalProperties": false,
-                          "description": "Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-629, kien 2026-11-17)"
+                          "description": "Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-631, kien 2026-11-17)"
                         },
                         {
                           "type": "null"
@@ -35505,7 +35505,7 @@
                             "checks"
                           ],
                           "additionalProperties": false,
-                          "description": "Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-629, kien 2026-11-17)"
+                          "description": "Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-631, kien 2026-11-17)"
                         },
                         {
                           "type": "null"
@@ -37068,7 +37068,7 @@
                             "checks"
                           ],
                           "additionalProperties": false,
-                          "description": "Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-629, kien 2026-11-17)"
+                          "description": "Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-631, kien 2026-11-17)"
                         },
                         {
                           "type": "null"
@@ -38643,7 +38643,7 @@
                             "checks"
                           ],
                           "additionalProperties": false,
-                          "description": "Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-629, kien 2026-11-17)"
+                          "description": "Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-631, kien 2026-11-17)"
                         },
                         {
                           "type": "null"

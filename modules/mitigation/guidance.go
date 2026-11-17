@@ -56,7 +56,7 @@ func (p *Provider) Guidance(ctx context.Context, r findings.Row) (findings.Guide
 		}
 	}
 	g.Pack, g.Compromise = pack, compromise
-	g.Hardening = hardening(r, compromise) // INV-8: the general checks, when the pack has no signs of its own (D-629: no firewall config)
+	g.Hardening = hardening(r, compromise) // INV-8: the general checks, when the pack has no signs of its own (D-631: no firewall config)
 	g.Recheck = genericRecheck(r)
 	if recheck != nil {
 		g.Recheck = *recheck

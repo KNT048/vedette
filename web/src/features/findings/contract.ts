@@ -100,7 +100,7 @@ export const GeneralHardening = z.object({
   software: z.string().describe('The software the checks are for, as the page names it'),
   family: z.string().describe('The family the checks are written for ("Linux", "Network device", "General")'),
   checks: CompromiseCheck.nullable().describe('General "Have I been hit?" checks for the software family'),
-}).describe('Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-629, kien 2026-11-17)')
+}).describe('Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-631, kien 2026-11-17)')
 export const AiResult = z.object({
   skill: z.enum(['explain', 'mitigation-config']), ts: iso, model: z.string(),
   profile: z.string().optional().describe('Name of the AI profile that answered (D-29)'),

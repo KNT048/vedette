@@ -103479,8 +103479,12 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemSource) UnmarshalText(d
 }
 
 type InventoryGetInventoryDevicesIDOKPossibleSameItem struct {
-	Approved bool      `json:"approved"`
-	ID       string    `json:"id"`
+	Approved bool   `json:"approved"`
+	ID       string `json:"id"`
+	// D-630: a person ignored the other device. A merge keeps the kept device watched or ignored, except
+	// that an approved device a person watches is never hidden: merged with it, an ignored device is
+	// watched again.
+	Ignored  bool      `json:"ignored"`
 	LastSeen time.Time `json:"last_seen"`
 	// The other device, named as every page names it (D-471).
 	Name string `json:"name"`
@@ -103497,6 +103501,11 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetApproved() bool {
 // GetID returns the value of ID.
 func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetID() string {
 	return s.ID
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetIgnored() bool {
+	return s.Ignored
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -103522,6 +103531,11 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetApproved(val bool)
 // SetID sets the value of ID.
 func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetLastSeen sets the value of LastSeen.

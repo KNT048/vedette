@@ -66,9 +66,16 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	if err != nil {
 		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: listing devices: %w", err))...)
 	}
+	// review r2 N1 of #945: without the ignored list the watched devices are still matched; only what needs that list waits for the
+	// next pass (closing an ignored device's findings, and the orphan pass, which would take an ignored device for a deleted one)
 	ignored, err := s.cfg.Inventory.IgnoredIDs(ctx)
+	ignoredKnown := err == nil
 	if err != nil {
-		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: listing ignored devices: %w", err))...)
+		if ctx.Err() != nil {
+			return res, ctx.Err()
+		}
+		s.cfg.Log.WarnContext(ctx, "findings reconcile could not read the ignored devices; it matches the watched devices and skips the ignored ones and the orphan pass", "error", err)
+		failed = append(failed, fmt.Errorf("findings: reconcile: listing ignored devices: %w", err))
 	}
 	vulns, err := s.cfg.Feeds.Vulns(ctx)
 	if err != nil {
@@ -143,9 +150,11 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		res.Aged += up.Aged
 		res.NameOnly += up.NameOnly
 	}
-	orphans, err := s.orphanAssets(ctx, live)
-	if err != nil {
-		return res, errors.Join(append(failed, err)...)
+	var orphans []string
+	if ignoredKnown { // without the ignored list an ignored device would look deleted
+		if orphans, err = s.orphanAssets(ctx, live); err != nil {
+			return res, errors.Join(append(failed, err)...)
+		}
 	}
 	for _, id := range orphans {
 		if err := ctx.Err(); err != nil {

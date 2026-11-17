@@ -68,6 +68,16 @@ func TestINV46_ManualTimeIsTheLastPersonEdit(t *testing.T) {
 		t.Fatalf("a type set by a person: manual_at = %q, want %q", got, ts())
 	}
 
+	// An OS set later too (the person's OS replaces the previous one; its row carries the new time).
+	e.tick(time.Hour)
+	osv := "FortiOS 7.2.14"
+	if err := e.svc.PatchDevice(e.ctx(), who, hand, inventory.Patch{OS: &osv}); err != nil {
+		t.Fatal(err)
+	}
+	if got := at(hand); got != ts() {
+		t.Fatalf("an OS set by a person: manual_at = %q, want %q", got, ts())
+	}
+
 	// A device a sensor found: none until a person says a reported row is not installed, then that time; a later report keeps it.
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.40.20")}
 	report := func(version string) {

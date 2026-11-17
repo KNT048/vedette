@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/test/server'
+import { API } from '@/mocks/http'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { historyStore, markReached } from '@/features/scanning/mocks'
@@ -147,6 +150,20 @@ describe('Device page: Sources switches', () => {
     cleanup()
     li = await manualText()
     expect(await within(li).findByText(/^last changed (now|\d+ seconds? ago)$/, {}, T)).toBeInTheDocument()
+  })
+
+  it('a hand-added device with no manual row left still reads the manual source as in use, with its time', async () => {
+    const old = new Date(Date.now() - 48 * 3_600_000).toISOString()
+    assetsStore.update((l) => [{ id: 'a-hand-ip', site: 'hq', ip: '192.168.10.79', mac: null, hostname: null, name: 'switch-01', kind: 'unknown', vendor: null,
+      model: null, os: null, software: [], services: [], first_seen: old, last_seen: old, approved: true, fragile: false, origin: 'manual' }, ...l])
+    const d = (await (await api('GET', '/devices/a-hand-ip')).json()) as { observations: { source: string }[] }
+    // as the API answers it: no manual observation or software row, only the time it was added
+    server.use(http.get(`${API}/inventory/devices/a-hand-ip`, () => HttpResponse.json({ ...d, observations: d.observations.filter((o) => o.source !== 'manual'), manual_at: old })))
+    renderApp('/devices/a-hand-ip', { role: 'admin' })
+    const li = item(await sources(), 'Manual')
+    expect(await within(li).findByText('added 2 days ago', {}, T)).toBeInTheDocument()
+    expect(li).toHaveTextContent('Reporting')
+    expect(li).not.toHaveTextContent('Not set up')
   })
 
   it('turns the network scan of a discovered device off and on again, saying what off means', async () => {

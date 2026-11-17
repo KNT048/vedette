@@ -144,6 +144,8 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
     }
     return null
   }
+  // A person's entry is the manual source in use (INV-46): manual_at says so even for a hand-added device with no manual row left.
+  if (d.manual_at && !feeds.has('manual')) feeds.set('manual', d.manual_at)
   const shown = FEEDS.filter((f) => f !== 'manual' || declared || feeds.has('manual'))
   return (
     <Section id="sources" title={t('sources.title')} description={t('sources.description')} stories={['S-INV-1', 'S-INV-4']}>

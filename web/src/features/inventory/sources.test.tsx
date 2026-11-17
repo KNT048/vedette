@@ -98,26 +98,66 @@ describe('Device page: Sources switches', () => {
   }
   const sw = (li: HTMLElement) => within(li).getByRole('switch')
 
-  it('a device added by hand starts with scan and SNMP off; the SNMP switch turns that source on only', async () => {
+  // SNMP reads go only to a device with SNMP settings of its own: without them there is no SNMP switch to claim "On", only what to do.
+  const notSetUp = async (list: HTMLElement) => {
+    const snmp = item(list, 'SNMP')
+    expect(await within(snmp).findByTestId('snmp-not-set-up', {}, T)).toHaveTextContent('Not set up: no SNMP read goes to this device. Setting SNMP up on it turns SNMP on.')
+    expect(within(snmp).queryByRole('switch')).toBeNull()
+    expect(snmp).not.toHaveTextContent('read with the SNMP settings of this device')
+    expect(within(snmp).getByRole('link', { name: 'Set it up on the SNMP card' })).toHaveAttribute('href', expect.stringMatching(/#device-snmp$/))
+    return snmp
+  }
+
+  it('a device added by hand starts silent: scan off, SNMP not set up; setting SNMP up turns that source on only', async () => {
     enableModule('agent-intake', true)
     const id = await addByHand('192.168.10.77')
-    const user = userEvent.setup()
     renderApp(`/devices/${id}`, { role: 'admin' })
     const list = await sources()
     const scan = item(list, 'Network scan')
-    const snmp = item(list, 'SNMP')
     expect(sw(scan)).not.toBeChecked()
-    expect(sw(snmp)).not.toBeChecked()
     expect(scan).toHaveTextContent('Off: no scan packet goes to this device.')
-    expect(snmp).toHaveTextContent('Off: no SNMP read goes to this device.')
-    expect(screen.getByText(/Vedette sends nothing to it until you turn a source on here/)).toBeInTheDocument()
+    await notSetUp(list)
+    expect(screen.getByText('Added by hand: Vedette sends nothing to it until you turn its network scan on or set up SNMP here.')).toBeInTheDocument()
     expect(item(list, 'Agent (osquery or Wazuh)')).toHaveTextContent('installed or uninstalled on the machine itself')
-    await user.click(sw(snmp))
-    await vi.waitFor(() => expect(sw(item(list, 'SNMP'))).toBeChecked(), T)
-    expect(item(list, 'SNMP')).toHaveTextContent('outside the LAN ranges only because it is on here; never if excluded')
-    expect(sw(item(list, 'Network scan'))).not.toBeChecked() // that source only
+    cleanup()
+
+    // with settings of its own, the switch is drawn, on (saving them was the consent), and says what on means
+    expect((await api('PUT', `/snmp/devices/${id}`, { version: 'v2c', community: 'ro-community-1' })).status).toBe(200)
+    renderApp(`/devices/${id}`, { role: 'admin' })
+    const after = await sources()
+    await vi.waitFor(() => expect(sw(item(after, 'SNMP'))).toBeChecked(), T)
+    expect(item(after, 'SNMP')).toHaveTextContent('On: read with the SNMP settings of this device')
+    expect(within(item(after, 'SNMP')).queryByTestId('snmp-not-set-up')).toBeNull()
+    expect(sw(item(after, 'Network scan'))).not.toBeChecked() // that source only
+    expect(screen.queryByText(/Vedette sends nothing to it until/)).toBeNull()
     const d = (await (await api('GET', `/devices/${id}`)).json()) as { asset: { scan_source: string; snmp_source: string } }
     expect(d.asset).toMatchObject({ scan_source: 'off', snmp_source: 'on' })
+  })
+
+  it('a stored SNMP switch on without SNMP settings (credentials moved away, or settings removed) reads not set up, never On', async () => {
+    const id = await addByHand('192.168.10.80')
+    expect((await api('PUT', `/devices/${id}/sources`, { snmp: 'on' })).status).toBe(200) // the stored state is left as it is
+    renderApp(`/devices/${id}`, { role: 'admin' })
+    await notSetUp(await sources())
+    // nothing is sent to it: it still reads as silent
+    expect(screen.getByText(/Vedette sends nothing to it until you turn its network scan on or set up SNMP here/)).toBeInTheDocument()
+    cleanup()
+
+    // a discovered device has SNMP on by default, and also no switch until it has settings
+    renderApp('/devices/a-nas02', { role: 'admin' })
+    await notSetUp(await sources())
+  })
+
+  it('a device with SNMP settings whose switch a person turned off shows the switch off, and turns it on again', async () => {
+    const user = userEvent.setup()
+    expect((await api('PUT', '/snmp/devices/a-nas02', { version: 'v2c', community: 'ro-community-2' })).status).toBe(200)
+    expect((await api('PUT', '/devices/a-nas02/sources', { snmp: 'off' })).status).toBe(200)
+    renderApp('/devices/a-nas02', { role: 'admin' })
+    const list = await sources()
+    await vi.waitFor(() => expect(sw(item(list, 'SNMP'))).not.toBeChecked(), T)
+    expect(item(list, 'SNMP')).toHaveTextContent('Off: no SNMP read goes to this device.')
+    await user.click(sw(item(list, 'SNMP')))
+    await vi.waitFor(() => expect(sw(item(list, 'SNMP'))).toBeChecked(), T)
   })
 
   // INV-46: the Manual source says when a person last entered or changed something on the device, never a "report", and never the
@@ -178,11 +218,13 @@ describe('Device page: Sources switches', () => {
     await vi.waitFor(() => expect(sw(item(list, 'Network scan'))).toBeChecked(), T)
   })
 
-  it('a viewer sees the switches locked', async () => {
+  it('a viewer sees the scan switch locked and no SNMP switch: only administrators see whether SNMP is set up', async () => {
     renderApp('/devices/a-nas02', { role: 'viewer' })
     const list = await sources()
     expect(sw(item(list, 'Network scan'))).toBeDisabled()
-    expect(sw(item(list, 'SNMP'))).toBeDisabled()
+    expect(within(item(list, 'SNMP')).queryByRole('switch')).toBeNull()
+    expect(item(list, 'SNMP')).toHaveTextContent('An administrator sets this up.')
+    expect(item(list, 'SNMP')).not.toHaveTextContent('read with the SNMP settings of this device')
   })
 })
 

@@ -56,7 +56,7 @@
       "approveHere": "Approve, then set up SNMP",
       "approveFirst": "Approve the device first: SNMP reads only approved devices."
     },
-    "declared": "Added by hand: Vedette sends nothing to it until you turn a source on here.",
+    "declared": "Added by hand: Vedette sends nothing to it until you turn its network scan on or set up SNMP here.",
     "toggle": {
       "scan": "Network scan of this device",
       "snmp": "SNMP reads of this device"
@@ -69,7 +69,9 @@
       "snmp": {
         "on": "On: read with the SNMP settings of this device at its read address; outside the LAN ranges only because it is on here; never if excluded. Turning it off stops all SNMP to it.",
         "off": "Off: no SNMP read goes to this device. What it read stays; values you entered still win.",
-        "offOutside": "Off: this device is outside the LAN ranges, so SNMP reads it only once you turn it on here. Nothing is sent to it now."
+        "offOutside": "Off: this device is outside the LAN ranges, so SNMP reads it only once you turn it on here. Nothing is sent to it now.",
+        "notSetUp": "Not set up: no SNMP read goes to this device. Setting SNMP up on it turns SNMP on.",
+        "setUpLink": "Set it up on the SNMP card"
       }
     },
     "saved": {
@@ -112,6 +114,9 @@
     "os": "Operating system",
     "source": "Source",
     "lastSeen": "Last seen",
+    "neverSeen": "Never",
+    "neverSeenTitle": "Never seen on the network. Added by hand on {{when}}.",
+    "neverSeenAdded": "Never seen on the network, added by hand {{when}}",
     "sources": "Sources",
     "device": "Make, model and OS",
     "matched": "Matched software"
@@ -254,6 +259,7 @@
     "renameBad": "A name cannot contain < or >, control characters or invisible characters.",
     "renameReset": "The device is named {{name}} again.",
     "hostname": "Host name (seen on the network)",
+    "hostnameManual": "Host name (entered by hand)",
     "hostnameNone": "None reported",
     "maker": "Maker",
     "model": "Model",
@@ -271,7 +277,9 @@
     "ip": "IP address",
     "mac": "MAC address",
     "firstSeen": "First seen",
+    "addedByHand": "Added by hand",
     "lastSeen": "Last seen",
+    "neverSeen": "Never seen on the network",
     "origin": "How it got on the list",
     "originManual": "Manual",
     "originDiscovered": "Found on the network",
@@ -299,7 +307,8 @@
       "software": "Software",
       "services": "Open services"
     },
-    "metaLine": "{{kind}}, last seen {{when}}"
+    "metaLine": "{{kind}}, last seen {{when}}",
+    "metaLineNeverSeen": "{{kind}}, added by hand {{when}}, never seen on the network"
   },
   "approval": {
     "pending": "This device is not approved yet",

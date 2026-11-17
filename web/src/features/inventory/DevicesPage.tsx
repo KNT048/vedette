@@ -25,7 +25,7 @@ import { AddDialog, METHODS, type Method } from './AddDialog'
 import { usePossibleSame, useDevices, useSettings } from './api'
 import { deviceKeys, feedsOfRow, filterDevices, fromOldUrl, matchSoftware, softwareValues, type SameIds } from './deviceQuery'
 import { errMsg, kindIcon, shownKind } from './kinds'
-import { declaredSoftwareOnly, nameOf } from './nameOf'
+import { declaredSoftwareOnly, nameOf, neverSeen } from './nameOf'
 import { RiskMarker, riskRank } from './RiskMarker'
 import { PendingPanel } from './PendingPanel'
 import { IgnoredPanel } from './IgnoreDevice'
@@ -99,6 +99,20 @@ function shortAgo(iso: string, now: number, locale: string) {
   if (abs < 3600) return rtf.format(Math.round(diff / 60), 'minute')
   if (abs < 86400) return rtf.format(Math.round(diff / 3600), 'hour')
   return rtf.format(Math.round(diff / 86400), 'day')
+}
+
+/** A row's Last seen: the last report of a sensor, scan or agent. A hand-added device none has reported reads Never, with when a
+ *  person added it (in the title of a dense row, `now` given; in the words on a phone row). */
+function LastSeen({ d, now }: { d: DeviceRow; now?: number }) {
+  const { t, i18n } = useTranslation('inventory')
+  if (neverSeen(d)) {
+    return now === undefined
+      ? <span>{t('col.neverSeenAdded', { when: fmtRelative(d.first_seen) })}</span>
+      : <span className="whitespace-nowrap text-meta text-muted" title={t('col.neverSeenTitle', { when: fmtDateTime(d.first_seen) })}>{t('col.neverSeen')}</span>
+  }
+  return now === undefined
+    ? <time dateTime={d.last_seen}>{fmtRelative(d.last_seen)}</time>
+    : <time className="whitespace-nowrap text-meta text-muted" dateTime={d.last_seen} title={fmtDateTime(d.last_seen)}>{shortAgo(d.last_seen, now, i18n.language || 'en')}</time>
 }
 
 /** `dense` (a desktop row, one line): no ⓘ; the explanation is read out with the chip (sr-only) and shown to the mouse in a Tooltip that
@@ -176,7 +190,7 @@ function MatchLine({ q, shown, total, onClear }: { q: string; shown: number; tot
 
 /** Devices: the approved list (#849). */
 function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: number; query: Query; same: SamePairsBy }) {
-  const { t, i18n } = useTranslation('inventory')
+  const { t } = useTranslation('inventory')
   const navigate = useNavigate()
   const { q, clear } = query
   const deferred = useDeferredValue(q)
@@ -234,7 +248,8 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
       },
     } satisfies ColumnDef<DeviceRow>] : []),
     { id: 'source', header: t('col.sources'), accessorFn: (d) => FEED_ORDER.filter((f) => feedsOfRow(d).has(f)).join(' '), cell: ({ row }) => <SourcesCell d={row.original} compact /> },
-    { id: 'seen', header: t('col.lastSeen'), accessorFn: (d) => new Date(d.last_seen).getTime(), cell: ({ row }) => <time className="whitespace-nowrap text-meta text-muted" dateTime={row.original.last_seen} title={fmtDateTime(row.original.last_seen)}>{shortAgo(row.original.last_seen, now, i18n.language || 'en')}</time> },
+    // a hand-added device no report has seen sorts as the oldest and reads Never, its added time in the tooltip
+    { id: 'seen', header: t('col.lastSeen'), accessorFn: (d) => (neverSeen(d) ? 0 : new Date(d.last_seen).getTime()), cell: ({ row }) => <LastSeen d={row.original} now={now} /> },
   ]
   return (
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">
@@ -266,7 +281,7 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
               })() : null}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
                 <SourcesCell d={d} />
-                <time dateTime={d.last_seen}>{fmtRelative(d.last_seen)}</time>
+                <LastSeen d={d} />
               </div>
             </div>
           )

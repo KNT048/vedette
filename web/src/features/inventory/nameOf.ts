@@ -34,6 +34,11 @@ export function nameOf(a: Named, fallback: string) {
  *  declared software, not a device; nothing scans it, it is matched against exploited CVEs by its product. */
 export const declaredSoftwareOnly = (a: Named) => a.origin === 'manual' && !a.hostname && !hasIp(a)
 
+/** A device a person added by hand that no sensor, scan or agent has reported since. The inventory writes last_seen = first_seen =
+ *  the time it was added, and only a report moves last_seen (max of the report's time), never a person's edit; so last_seen is a
+ *  sighting only once it is past first_seen. Such a device reads "Never seen on the network" and "Added by hand", never "Last seen". */
+export const neverSeen = (a: Pick<Asset, 'origin' | 'first_seen' | 'last_seen'>) => a.origin === 'manual' && Date.parse(a.last_seen) <= Date.parse(a.first_seen)
+
 /** Whether the device page shows this device's SNMP card: an admin, active discovery on, a real device (not the box, not ignored,
  *  not declared software only). Last checks reads it too, so its "Set it up on the SNMP card" link never points at no card. */
 export const hasSnmpCard = (a: Named & { is_box: boolean; ignored_at?: string | null }, admin: boolean, on: boolean) => admin && on && !a.is_box && !a.ignored_at && !declaredSoftwareOnly(a)

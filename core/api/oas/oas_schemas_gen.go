@@ -196600,16 +196600,21 @@ type ScanningGetScanningHistoryOKItemsItem struct {
 	Kind ScanningGetScanningHistoryOKItemsItemKind `json:"kind"`
 	// What it scanned: "LAN 192.168.18.0/24", "192.168.18.20", "SNMP read of 3 devices", "203.0.113.10".
 	Label string `json:"label"`
-	// Partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep
-	// batch or a read that failed, a public scan step not checked or an OpenVAS run that failed).
+	// Partial: it ended, but part of it found nothing usable (an SNMP device of several that did not
+	// answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that
+	// failed).
 	Outcome   ScanningGetScanningHistoryOKItemsItemOutcome `json:"outcome"`
 	StartedAt time.Time                                    `json:"started_at"`
 	// The exposure target of a public scan, for a link; null otherwise (a LAN job does not record its
 	// device).
 	TargetID NilString `json:"target_id"`
 	// The outcome in words, only from what the run stored: "Swept 254 addresses: 12 hosts answered, 2 new
-	// devices", "2 of 3 devices answered over SNMP", "Scanned 192.168.18.20: it did not answer", "Stopped:
-	// . Swept 64 addresses … before it ended", "Failed: .".
+	// devices", "2 of 3 devices answered over SNMP", "Failed: the device did not answer over SNMP." (an
+	// SNMP read nothing answered is failed, never partial), "Scanned 192.168.18.20: 3 open ports (22 ssh,
+	// 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check" (a device
+	// check: its open ports, its OS guess, "OS guess now (was )", "since the previous check: port 8080
+	// newly open, port 23 no longer open"), "Scanned 192.168.18.20: it did not answer", "Stopped: . Swept
+	// 64 addresses … before it ended", "Failed: .".
 	Text string `json:"text"`
 	// Sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart);
 	// automatic: the window's queue (a new device, a weekly scan) or its SNMP round; person: a person
@@ -196873,8 +196878,9 @@ func (s *ScanningGetScanningHistoryOKItemsItemKind) UnmarshalText(data []byte) e
 	}
 }
 
-// Partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep
-// batch or a read that failed, a public scan step not checked or an OpenVAS run that failed).
+// Partial: it ended, but part of it found nothing usable (an SNMP device of several that did not
+// answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that
+// failed).
 type ScanningGetScanningHistoryOKItemsItemOutcome string
 
 const (

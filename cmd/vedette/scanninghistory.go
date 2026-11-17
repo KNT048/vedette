@@ -22,9 +22,9 @@ const historyRead = 200
 // from what it stored. The vulnerability checks keep their own list (GET /scans/runs). A source that is not built or not readable
 // gives nothing; it never fails the page.
 //
-// With asset (the device page's Last checks): only the LAN jobs that reached that device's address now, its
-// identifications and the SNMP reads that asked it, at most historyRead of each kind; no sweep, no public scan. The jobs record
-// addresses, not devices: an unknown device, or one without an address, has none.
+// With asset (the device page's Last checks): only that device's LAN jobs, at most historyRead of each kind: its identifications
+// (the jobs that name it, and those stored before jobs named their device that reached its address now) and the SNMP reads of its
+// SNMP read address while it has SNMP set up; no sweep, no public scan.
 func (e scanningEngines) history(ctx context.Context, asset string) ([]core.HistoryRun, error) {
 	var out []core.HistoryRun
 	if e.d.DB != nil && e.d.SensorDispatcher != nil {
@@ -34,8 +34,8 @@ func (e scanningEngines) history(ctx context.Context, asset string) ([]core.Hist
 				jobs, err = svc.Jobs(ctx, historyRead)
 			} else {
 				var at netip.Addr
-				if at, err = e.deviceAddr(ctx, asset); err == nil && at.IsValid() {
-					jobs, err = svc.JobsAt(ctx, at, historyRead)
+				if at, err = e.deviceAddr(ctx, asset); err == nil {
+					jobs, err = svc.JobsOf(ctx, asset, at, historyRead)
 				}
 			}
 			if err != nil {
@@ -112,7 +112,8 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 			}
 		}
 	}
-	var found string // what the stored probes say it did, "" when it sent none
+	var found string    // what the stored probes say it did, "" when it sent none
+	var noAnswer string // why an SNMP read that ended found nothing: nothing answered
 	switch j.Kind {
 	case sensoractive.KindSweep:
 		r.Engine, r.Trigger, r.Label = "nmap-discovery", "sweep", "LAN sweep"
@@ -158,10 +159,21 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 			addr := j.Probes[0].Targets
 			r.Label = addr
 			switch m := probeUp.FindStringSubmatch(j.Probes[0].Result); {
+			case j.Found != nil: // what it recorded on the device (sa_job.found)
+				found = foundText(addr, *j.Found)
 			case m != nil && m[1] == "0":
 				found = "scanned " + addr + ": it did not answer"
 			case m != nil:
-				found = "scanned " + addr + ": it answered; what it runs is on its device page"
+				found = "scanned " + addr + ": it answered (a check from before checks kept what they found)"
+				switch {
+				case j.AssetID == "": // a check stored before checks named their device
+				case j.Status == sensoractive.StatusRunning: // what it found is stored when it ends
+					found = "scanned " + addr + ": it answered; what it found is shown when the check ends"
+				case j.Status == sensoractive.StatusDone: // it finished, but storing its result failed
+					found = "scanned " + addr + ": it answered, but what it found could not be recorded"
+				default: // stopped or failed: the reason is the sentence; it recorded nothing
+					found = "scanned " + addr + ": it answered"
+				}
 			case strings.HasPrefix(j.Probes[0].Result, "failed"): // the failed reason is the text; nothing was found
 			default:
 				found = "scanned " + addr
@@ -185,7 +197,26 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 				answered, asked, read = answered+a, asked+b, true
 			}
 		}
-		if read {
+		round := ""
+		if asked > 1 {
+			round = fmt.Sprintf(" (a round of %d devices: %d answered)", asked, answered)
+		}
+		switch {
+		case !read:
+		case j.Own != "" && r.Outcome == "ok": // the device page: how this device's own read went
+			if j.Own == "ok" {
+				found = "this device answered over SNMP" + round
+			} else {
+				r.Outcome, noAnswer = "failed", orDefault(snmpOwnWhy[j.Own], "the SNMP read of this device failed")+round
+			}
+		case answered == 0 && r.Outcome == "ok": // it asked and nothing came back: no model, no firmware read
+			r.Outcome, noAnswer = "failed", "no device answered over SNMP"
+			if asked == 1 {
+				noAnswer = "the device did not answer over SNMP"
+			}
+		case asked == 1 && answered == 1:
+			found = "the device answered over SNMP"
+		default:
 			found = fmt.Sprintf("%d of %s answered over SNMP", answered, count(asked, "device", "devices"))
 			if r.Outcome == "ok" && answered < asked {
 				r.Outcome = "partial"
@@ -214,13 +245,16 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 	switch r.Outcome {
 	case "running":
 		r.Text = "Running"
-		if found != "" {
+		switch {
+		case found != "" && j.Kind == sensoractive.KindDevice: // one device: its sentence says what is still to come
+			r.Text += ": " + found
+		case found != "":
 			r.Text += ": " + found + " so far"
-		} else if len(j.Probes) == 0 && j.Kind == sensoractive.KindSweep {
+		case len(j.Probes) == 0 && j.Kind == sensoractive.KindSweep:
 			r.Text += ": sweeping"
 		}
 	case "failed", "stopped":
-		why := orDefault(j.Error, orDefault(probeErr, map[string]string{"failed": "the box did not record why", "stopped": "stopped before the end"}[r.Outcome]))
+		why := orDefault(j.Error, orDefault(noAnswer, orDefault(probeErr, map[string]string{"failed": "the box did not record why", "stopped": "stopped before the end"}[r.Outcome])))
 		r.Text = upper(r.Outcome) + ": " + strings.TrimSuffix(why, ".") + "."
 		if did != "" {
 			r.Text += " " + upper(did)
@@ -231,8 +265,105 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 	default:
 		r.Text = upper(orDefault(did, "nothing usable was recorded"))
 	}
-	r.Text = clipText(r.Text, 300)
+	r.Text = clipText(r.Text, 600)
 	return r, true
+}
+
+// snmpOwnWhy is why a device's own SNMP read found nothing, by sa_snmp_device.last_status.
+var snmpOwnWhy = map[string]string{
+	"no_answer":    "this device did not answer over SNMP",
+	"auth_failed":  "this device refused the SNMP community or password",
+	"unknown_user": "this device does not know the SNMP v3 user",
+}
+
+// shownPorts is how many open ports a device check names before "and n more".
+const shownPorts = 8
+
+// foundText is what a device check found, in words, from what it stored (sensoractive.DeviceFound): the open ports with nmap's
+// service names, its OS guess, and what changed since the previous check of the same reach ("nothing changed" when the ports and
+// the OS guess are the same). Lower case first: the caller makes the sentence.
+func foundText(addr string, f sensoractive.DeviceFound) string {
+	var b strings.Builder
+	switch f.Reach {
+	case "top100":
+		b.WriteString("gentle scan of " + addr + " (its 100 most used ports)")
+	case "all":
+		b.WriteString("scanned every port of " + addr)
+	case "extra":
+		b.WriteString("scanned " + addr + ": only the scan of the extra ports saw it")
+	default:
+		b.WriteString("scanned " + addr)
+	}
+	sep := ": "
+	if f.Reach == "extra" {
+		sep = "; "
+	}
+	if f.TimedOut {
+		b.WriteString(sep + "it answered, but nmap reached its time limit before it listed the ports; the ports known before are kept")
+	} else {
+		b.WriteString(sep + portsText(f))
+	}
+	if f.OS != "" {
+		if f.OSWas != "" {
+			b.WriteString("; OS guess now " + f.OS + " (was " + f.OSWas + ")")
+		} else {
+			b.WriteString("; OS guess " + f.OS)
+		}
+	}
+	if f.ExtraFailed {
+		b.WriteString("; the scan of the extra ports did not finish")
+	}
+	if f.Compared && !f.TimedOut {
+		since := "since the previous check"
+		if f.ComparedPart { // one of the two checks did not cover the extra ports
+			since += " (outside the extra ports)"
+		}
+		var ch []string
+		if len(f.New) > 0 {
+			ch = append(ch, portList(f.New)+" newly open")
+		}
+		if len(f.Gone) > 0 {
+			ch = append(ch, portList(f.Gone)+" no longer open")
+		}
+		switch {
+		case len(ch) > 0:
+			b.WriteString("; " + since + ": " + strings.Join(ch, ", "))
+		case f.OSWas == "":
+			b.WriteString("; nothing changed " + since)
+		}
+	}
+	return b.String()
+}
+
+// portsText is "3 open ports (22 ssh, 80 http, 161/udp snmp)", "no open port", or the first shownPorts and "and n more".
+func portsText(f sensoractive.DeviceFound) string {
+	if f.Open == 0 {
+		return "no open port"
+	}
+	var names []string
+	for _, p := range f.Ports[:min(len(f.Ports), shownPorts)] {
+		n := strconv.Itoa(p.Port)
+		if p.Proto == "udp" {
+			n += "/udp"
+		}
+		if p.Name != "" {
+			n += " " + p.Name
+		}
+		names = append(names, n)
+	}
+	if more := f.Open - len(names); more > 0 {
+		names = append(names, fmt.Sprintf("and %d more", more))
+	}
+	return count(f.Open, "open port", "open ports") + " (" + strings.Join(names, ", ") + ")"
+}
+
+// portList is "port 23" or "ports 23, 8080".
+func portList(ps []int) string {
+	out := make([]string, len(ps))
+	for i, p := range ps {
+		out[i] = strconv.Itoa(p)
+	}
+	return plural(len(ps), "port ", "ports ") + strings.Join(out, ", ")
 }
 
 // exposureHistory is a stored scan of a public target as a History row (one per target and day). Public scans run only when a person

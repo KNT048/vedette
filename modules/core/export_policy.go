@@ -167,8 +167,8 @@ var exportPolicy = map[string]tablePolicy{
 	"resp_identity":          {export: "user_id channel address linked_at"},
 	"resp_link_codes":        {skipAll: true, skip: "user_id channel address code_hash expires_at sent_at tries"},
 	"resp_tokens":            {skipAll: true, skip: "token_hash kind decision action_id user_id address channel key_id expires_at used_at"},
-	"sa_all_ports":           {export: "asset_id last_at outcome extra_at", json: "extra extra_sw versioned normal_ports normal_sw"}, // ports, products and versions, like inv_service and inv_software
-	"sa_job":                 {export: "id kind reason started_at finished_at status targets new_devices error"},
+	"sa_all_ports":           {export: "asset_id last_at outcome extra_at", json: "extra extra_sw versioned normal_ports normal_sw"},     // ports, products and versions, like inv_service and inv_software
+	"sa_job":                 {export: "id kind reason started_at finished_at status targets new_devices error asset_id", json: "found"}, // found: ports and nmap's OS guess of a device check, like inv_service
 	"sa_probe":               {export: "id time job_id shape rate hosts flags targets result"},
 	"sa_queue":               {export: "asset_id queued_at reason attempts"},
 	"sa_sweep":               {export: "id cursor updated_at"},

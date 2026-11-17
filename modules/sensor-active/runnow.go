@@ -502,6 +502,14 @@ func (st Settings) nextOpening(t time.Time) *time.Time {
 type JobRow struct {
 	JobHead
 	Probes []JobProbe // in the order they were sent; empty when it sent none
+	// Found is what a device check found (sa_job.found): nil for the other kinds, a check that found nothing it could record (the
+	// device did not answer, nmap failed or was stopped) and the checks stored before it was kept.
+	Found *DeviceFound
+	// AssetID is the device a device check was for (sa_job.asset_id); "" for the other kinds and checks stored before jobs named it.
+	AssetID string
+	// Own is, in JobsOf only, how the device's own read went in this SNMP read (sa_snmp_device.last_status of the read that
+	// stored it: ok, no_answer, auth_failed, unknown_user, error); "" when it is not known (an older read of the device).
+	Own string
 }
 
 // JobProbe is one probe of a job: its targets (an address, or the ranges of a sweep batch) and its result as recorded ("ok: 3 hosts
@@ -528,24 +536,43 @@ func (s *Service) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
 	return out, s.jobProbes(ctx, out)
 }
 
-// snmpReadsScanned is how many of the newest SNMP reads JobsAt looks through: a read keeps its addresses as a compact list with
+// snmpReadsScanned is how many of the newest SNMP reads JobsOf looks through: a read keeps its addresses as a compact list with
 // ranges, which SQL cannot match, so they are matched here. An older read of the address is not found (the contract says so).
 const snmpReadsScanned = 1000
 
-// JobsAt lists the LAN jobs that reached addr (the device page's Last checks), newest first, at most limit (1..500) of
-// each kind: the identifications of that address (kind device: Check this device now, the window's queue, the first step of a
-// vulnerability check) and the SNMP reads that asked it (rounds, Read now, a credential Test) among the newest snmpReadsScanned
-// reads. No sweep: it reaches every address of the scope and identifies nothing. Read only; the probes, and so the jobs, are kept
-// ProbeRetention. Two jobs started in the same millisecond come newest row first.
-func (s *Service) JobsAt(ctx context.Context, addr netip.Addr, limit int) ([]JobRow, error) {
+// JobsOf lists the LAN jobs of device id (the device page's Last checks), newest first, at most limit (1..500) of each kind: its
+// identifications (kind device: Check this device now, the window's queue, the first step of a vulnerability check), by the device
+// the job names, or, for a job stored before jobs named their device, by its address addr; and the SNMP reads that asked the read
+// address of its SNMP settings (rounds, Check now, and the tests of the shared credentials before SNMP moved to each device), among
+// the newest snmpReadsScanned reads. A device without SNMP set up has no SNMP read: its address may have been asked with a
+// credential that is gone, which says nothing about its own SNMP. No sweep: it reaches every address of the scope and identifies
+// nothing. Read only; the probes, and so the jobs, are kept ProbeRetention. Two jobs started in the same millisecond come newest
+// row first.
+func (s *Service) JobsOf(ctx context.Context, id string, addr netip.Addr, limit int) ([]JobRow, error) {
 	limit = clamp(limit, 1, 500)
-	out, err := s.jobHeads(ctx, `j WHERE kind = ? AND EXISTS (SELECT 1 FROM sa_probe p WHERE p.job_id = j.id AND p.targets = ?)
-ORDER BY j.started_at DESC, j.rowid DESC LIMIT ?`, KindDevice, addr.String(), limit)
+	at := ""
+	if addr.IsValid() {
+		at = addr.String()
+	}
+	out, err := s.jobHeads(ctx, `j WHERE kind = ? AND (asset_id = ? OR (asset_id IS NULL AND ? <> '' AND EXISTS (SELECT 1 FROM sa_probe p WHERE p.job_id = j.id AND p.targets = ?)))
+ORDER BY j.started_at DESC, j.rowid DESC LIMIT ?`, KindDevice, id, at, at, limit)
 	if err != nil {
 		return nil, err
 	}
 	if err := s.jobProbes(ctx, out); err != nil {
 		return nil, err
+	}
+	var from string
+	var checked, status sql.NullString // the device's own last read: when, and how it went
+	switch err := s.db.Reader().QueryRowContext(ctx, `SELECT read_from, last_checked_at, last_status FROM sa_snmp_device WHERE asset_id = ?`, id).Scan(&from, &checked, &status); {
+	case errors.Is(err, sql.ErrNoRows):
+		return out, nil
+	case err != nil:
+		return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+	}
+	readAt, err := netip.ParseAddr(from)
+	if err != nil {
+		return out, nil //nolint:nilerr // a read address that is not one was never asked
 	}
 	reads, err := s.jobHeads(ctx, `WHERE kind = ? ORDER BY started_at DESC, rowid DESC LIMIT ?`, KindSNMP, snmpReadsScanned)
 	if err != nil {
@@ -559,7 +586,11 @@ ORDER BY j.started_at DESC, j.rowid DESC LIMIT ?`, KindDevice, addr.String(), li
 		if n == limit {
 			break
 		}
-		if slices.ContainsFunc(r.Probes, func(p JobProbe) bool { return targetsHave(p.Targets, addr) }) {
+		if slices.ContainsFunc(r.Probes, func(p JobProbe) bool { return targetsHave(p.Targets, readAt) }) {
+			// the device's own result is kept for its last read only: the read during which it was stored
+			if checked.Valid && status.Valid && r.StartedAt <= checked.String && (r.FinishedAt == nil || checked.String <= *r.FinishedAt) {
+				r.Own = status.String
+			}
 			out = append(out, r)
 			n++
 		}
@@ -591,7 +622,7 @@ func targetsHave(list string, addr netip.Addr) bool {
 
 // jobHeads reads sa_job rows: where is the rest of the statement after FROM sa_job (an alias, WHERE, ORDER BY and LIMIT).
 func (s *Service) jobHeads(ctx context.Context, where string, args ...any) ([]JobRow, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, kind, status, reason, started_at, finished_at, targets, new_devices, error FROM sa_job `+where, args...)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, kind, status, reason, started_at, finished_at, targets, new_devices, error, found, asset_id FROM sa_job `+where, args...)
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
 	}
@@ -599,11 +630,17 @@ func (s *Service) jobHeads(ctx context.Context, where string, args ...any) ([]Jo
 	var out []JobRow
 	for rows.Next() {
 		var r JobRow
-		var reason, errText sql.NullString
-		if err := rows.Scan(&r.ID, &r.Kind, &r.Status, &reason, &r.StartedAt, &r.FinishedAt, &r.Targets, &r.NewDevices, &errText); err != nil {
+		var reason, errText, found, asset sql.NullString
+		if err := rows.Scan(&r.ID, &r.Kind, &r.Status, &reason, &r.StartedAt, &r.FinishedAt, &r.Targets, &r.NewDevices, &errText, &found, &asset); err != nil {
 			return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
 		}
-		r.Reason, r.Error = reason.String, errText.String
+		r.Reason, r.Error, r.AssetID = reason.String, errText.String, asset.String
+		if found.Valid {
+			var f DeviceFound
+			if json.Unmarshal([]byte(found.String), &f) == nil {
+				r.Found = &f
+			}
+		}
 		out = append(out, r)
 	}
 	if err := rows.Err(); err != nil {

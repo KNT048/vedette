@@ -77305,7 +77305,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "A device id (the device page's Last checks): only the runs that reached its address now, the identifications of that address (kind device) and the SNMP reads that asked it, at most 200 of each kind: the identifications from the year of runs the box keeps, the SNMP reads among its newest 1000 reads; no sweep, no public scan. The jobs record addresses, so a run of the device under an earlier address is not listed. An unknown device, or one without an address, gives an empty list",
+              "description": "A device id (the device page's Last checks): only that device's runs, at most 200 of each kind: its identifications (kind device: the checks that name it, and checks stored before checks named their device that reached its address now), from the year of runs the box keeps; and, only while SNMP is set up on it, the SNMP reads of its SNMP read address, among the newest 1000 reads (a read of its address with a shared credential, before SNMP moved to each device, is not its own when it has no SNMP set up). No sweep, no public scan. An unknown device gives an empty list",
               "type": "string",
               "maxLength": 96
             }
@@ -77401,11 +77401,11 @@
                               "stopped",
                               "running"
                             ],
-                            "description": "partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that failed)"
+                            "description": "partial: it ended, but part of it found nothing usable (an SNMP device of several that did not answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that failed)"
                           },
                           "text": {
                             "type": "string",
-                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
+                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 192.168.18.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports, its OS guess, \"OS guess now <x> (was <y>)\", \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
                           }
                         },
                         "required": [

@@ -40,6 +40,12 @@ const (
 	// gmpGlobalOID is the feed's "Global variable settings" (family Settings): its checkbox "Enable generic web application scanning"
 	// turns on the generic SQL injection, XSS and directory-traversal fuzzing of the web application tests: off in the deep level (Greenbone's default; on the N100 it kept three CPU-bound NVTs running 40+ min, #915), on only with the disruptive tick (D-566).
 	gmpGlobalOID = "1.3.6.1.4.1.25623.1.0.12288"
+	// gmpWebRootTravOID is the feed's "Generic HTTP Directory Traversal / File Inclusion (Web Root) - Active Check" (family Web
+	// application abuses, ACT_ATTACK, its own 30-minute script_timeout). It is the one generic web traversal test that the checkbox
+	// above does not gate (it reads only "Enable CGI scanning"), so the deep level leaves it out of its config by name (#915: on
+	// the N100 it ran its full 30 minutes at 98% on every deep scan and found nothing).
+	gmpWebRootTravOID = "1.3.6.1.4.1.25623.1.0.106756"
+	gmpWebFamily      = "Web application abuses"
 	// GreenboneMinQoD is the lowest quality of detection a result is read with (Greenbone's own default filter is 70).
 	GreenboneMinQoD = 70
 
@@ -48,7 +54,10 @@ const (
 	// gmpMaxPrefs bounds the one answer that lists every preference of a scan config (readBack, N45-5): a copy of "Full and fast"
 	// carries the scanner preferences and every NVT preference of the feed (measured on the N100's gvmd, 2026-11-14: 394 KB, 1,301
 	// preferences; the cap leaves room for ten times that). A bigger answer is refused, never cut.
-	gmpMaxPrefs   = 4 << 20
+	gmpMaxPrefs = 4 << 20
+	// gmpMaxNVTs bounds a get_nvts answer of one family without details (levelNVTs): the community feed's Web application abuses
+	// has some thousands of NVTs, a few hundred bytes each. A bigger answer is refused, never cut.
+	gmpMaxNVTs    = 16 << 20
 	gmpCmdTimeout = 2 * time.Minute
 	gmpMaxResults = 2000 // results a report may hold before it is refused
 	gmpMaxCVEs    = 50   // CVE ids kept per result
@@ -74,18 +83,20 @@ type gbLevel struct {
 	disruptive bool   // the disruptive families on
 	safeChecks string // "yes" or "no"
 	prefs      []gmpCheckbox
+	webOff     []string // NVTs of the family Web application abuses left out of the config (#915); none keeps the whole family
 }
 
 // The two levels (D-566): the deep scan of accepted testing terms, and the deep scan with the disruptive tick.
 var (
 	gbDeep = gbLevel{
 		name: "vedette-deep-full-and-fast", disruptive: false, safeChecks: "yes",
-		text: "Full and fast, every non-disruptive check (active ones included; generic web scanning off, as in a stock Full and fast scan); safe checks on",
+		text: "Full and fast, every non-disruptive check (active ones included; generic web scanning and the web-root traversal test off); safe checks on",
 		prefs: []gmpCheckbox{
 			{gmpBruteOID, "Disable brute force checks", "yes"},
 			{gmpBruteOID, "Disable default account checks", "yes"},
 			{gmpGlobalOID, "Enable generic web application scanning", "no"},
 		},
+		webOff: []string{gmpWebRootTravOID},
 	}
 	gbDisruptive = gbLevel{
 		name: "vedette-disruptive-full-and-fast", disruptive: true, safeChecks: "no",
@@ -421,6 +432,9 @@ func (g *gmpConn) levelConfig(ctx context.Context, user string, lv gbLevel) (str
 	if err := g.levelPrefs(ctx, id, lv); err != nil {
 		return "", err
 	}
+	if err := g.levelNVTs(ctx, id, lv); err != nil {
+		return "", err
+	}
 	return id, g.readBack(ctx, id, lv)
 }
 
@@ -548,6 +562,79 @@ func (g *gmpConn) levelPrefs(ctx context.Context, config string, lv gbLevel) err
 				return &Unavailable{Reason: "OpenVAS did not keep \"" + c.name + "\" " + onOff(c.value == "yes") + " in Vedette's scan config " + lv.name + ", so nothing was started."}
 			}
 		}
+	}
+	return nil
+}
+
+// gmpNVTs is a get_nvts answer without details: the OIDs.
+type gmpNVTs struct {
+	NVTs []struct {
+		OID string `xml:"oid,attr"`
+	} `xml:"nvt"`
+}
+
+// gmpOIDRe is an NVT id as gvmd answers it: an OID (digits and dots only, so it goes into XML as it is). Any OID form is taken, not
+// only Greenbone's own prefix: a feed NVT of another form must stay in the list, never stop every deep scan (#925 r1 L2).
+var gmpOIDRe = regexp.MustCompile(`^[0-9]{1,10}(\.[0-9]{1,10}){1,30}$`)
+
+// webNVTs is the OIDs of the family Web application abuses: of the feed, or, when config is set, those the config selects (gvmd's
+// select_config_nvts: the family minus the NVTs it excludes). An id that is not an OID fails closed.
+func (g *gmpConn) webNVTs(ctx context.Context, config string) ([]string, error) {
+	attr := ""
+	if config != "" {
+		attr = ` config_id="` + config + `"`
+	}
+	var n gmpNVTs
+	if _, err := g.do(ctx, "get_nvts", `<get_nvts family="`+gmpWebFamily+`"`+attr+`/>`, gmpMaxNVTs, &n); err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(n.NVTs))
+	for _, x := range n.NVTs {
+		oid := strings.TrimSpace(x.OID)
+		if !gmpOIDRe.MatchString(oid) {
+			return nil, fmt.Errorf("%w: get_nvts answered an NVT id that is not Greenbone's", ErrGMPBad)
+		}
+		out = append(out, oid)
+	}
+	return out, nil
+}
+
+// levelNVTs leaves the level's webOff NVTs out of the family Web application abuses (#915) and reads the family back. GMP has no
+// "all but": every other NVT of today's feed is listed, and gvmd stores that for a growing family as the family minus the NVTs not
+// listed (manage_set_config_nvts: "exclude all no's"), so the family stays growing and an NVT a feed update adds is in it. An NVT
+// of webOff still selected, or one listed that is not, fails closed: nothing starts.
+func (g *gmpConn) levelNVTs(ctx context.Context, config string, lv gbLevel) error {
+	if len(lv.webOff) == 0 {
+		return nil
+	}
+	feed, err := g.webNVTs(ctx, "")
+	if err != nil {
+		return err
+	}
+	var sel strings.Builder
+	sel.WriteString(`<modify_config config_id="` + config + `"><nvt_selection><family>` + gmpWebFamily + `</family>`)
+	var kept []string
+	for _, oid := range feed {
+		if !slices.Contains(lv.webOff, oid) {
+			kept = append(kept, oid)
+			sel.WriteString(`<nvt oid="` + oid + `"/>`)
+		}
+	}
+	if len(kept) == 0 {
+		return fmt.Errorf("%w: the feed has no web application test to keep", ErrGMPBad)
+	}
+	sel.WriteString("</nvt_selection></modify_config>")
+	if err := g.modifyConfig(ctx, lv.name, sel.String()); err != nil {
+		return err
+	}
+	got, err := g.webNVTs(ctx, config)
+	if err != nil {
+		return err
+	}
+	// r1 M1: every NVT listed must be selected too, or a cut or partial selection would scan with most of the family missing
+	if slices.ContainsFunc(got, func(o string) bool { return slices.Contains(lv.webOff, o) }) ||
+		slices.ContainsFunc(kept, func(o string) bool { return !slices.Contains(got, o) }) {
+		return &Unavailable{Reason: "OpenVAS did not keep the web-root traversal test off in Vedette's scan config " + lv.name + ", so nothing was started."}
 	}
 	return nil
 }

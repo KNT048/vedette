@@ -6,3 +6,6 @@ export function runPlace(j: RunningJob): string {
   if (j.engine === 'nuclei') return `/settings/scanning?tab=history&run=${encodeURIComponent(j.id)}`
   return j.target_id ? `/devices/${encodeURIComponent(j.target_id)}` : '/settings/scanning?tab=engines#engine-nmap-discovery'
 }
+
+/** Where a LAN run of a device opens: History of that device's runs, with that run on top (kien G7b/c). */
+export const historyRowHref = (asset: string, job: string) => `/settings/scanning?tab=history&asset=${encodeURIComponent(asset)}&job=${encodeURIComponent(job)}`

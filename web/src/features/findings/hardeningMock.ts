@@ -121,7 +121,7 @@ export function mockHardening(cve: string, kev: KevInfo | null, view: FindingAss
   const ip = view && /^\d{1,3}(\.\d{1,3}){3}$/.test(view.ip) ? view.ip : '<IP>'
   const ports: Port[] = fam.port ? (asset?.services ?? []).filter(fam.port).map((s) => ({ port: s.port, proto: s.proto, service: s.name })) : []
   const checks: CompromiseCheck = {
-    summary: `General checks for ${software} (${fam.label}): signs any intruder tends to leave. They are not specific to ${cve}: the vendor advisory and the exploited-list entry (links in What to do) name the files, accounts and addresses seen for this CVE.`,
+    summary: `General checks for ${fam.label === 'General' || software.toLowerCase().includes(fam.label.toLowerCase()) ? software : `${software} (${fam.label})`}: signs any intruder tends to leave. They are not specific to ${cve}: the vendor advisory and the exploited-list entry (links in What to do) name the files, accounts and addresses seen for this CVE.`,
     indicators: [...fam.checks, OUTBOUND], if_found: IF_FOUND,
   }
   return { software, family: fam.label, target: ip, self: false, ports_from: ports.length ? 'seen' : 'all', ports, admin_example: '192.168.1.0/24', box: [BOX], viewer: mockViewer.get(),

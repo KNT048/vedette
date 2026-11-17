@@ -3,7 +3,9 @@ package exposure
 import (
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // M2-7 (J6, S-EXP-2): each open port says how its service was named, so the page never shows nmap's usual service of a port number
@@ -130,21 +132,42 @@ func scriptHints(scripts []ScriptRow, ip string) map[int]portHints {
 			continue
 		}
 		h := out[s.Port]
+		o := nmapText(s.Output)
 		switch s.ID {
 		case "ssl-cert":
-			h.CertNames = certNames(s.Output)
+			h.CertNames = certNames(o)
 		case "http-title":
-			if t := firstLine(s.Output); !strings.HasPrefix(t, "Site doesn't have a title") && !strings.HasPrefix(t, "Did not follow redirect") {
+			if t := firstLine(o); !strings.HasPrefix(t, "Site doesn't have a title") && !strings.HasPrefix(t, "Did not follow redirect") {
 				h.Title = field(t, maxHint)
 			}
 		case "http-server-header":
-			h.Server = field(firstLine(s.Output), maxHint)
+			h.Server = field(firstLine(o), maxHint)
 		default:
 			continue
 		}
 		out[s.Port] = h
 	}
 	return out
+}
+
+// nmapEscape is a byte nmap's script output escaped: it prints every byte outside printable ASCII as \xNN (W76-4: a GitLab page
+// title "Sign in \xC2\xB7 GitLab").
+var nmapEscape = regexp.MustCompile(`(?:\\x[0-9A-Fa-f]{2})+`)
+
+// nmapText decodes the \xNN runs of a script's output back to the bytes the service sent, when they form UTF-8 text; a run that does
+// not is left as nmap printed it. field still refuses control characters.
+func nmapText(s string) string {
+	return nmapEscape.ReplaceAllStringFunc(s, func(run string) string {
+		b := make([]byte, 0, len(run)/4)
+		for i := 0; i+4 <= len(run); i += 4 {
+			v, _ := strconv.ParseUint(run[i+2:i+4], 16, 8)
+			b = append(b, byte(v))
+		}
+		if !utf8.Valid(b) {
+			return run
+		}
+		return string(b)
+	})
 }
 
 func firstLine(s string) string {

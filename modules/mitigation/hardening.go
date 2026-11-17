@@ -667,8 +667,13 @@ func familyOf(r findings.Row) family {
 
 // ---- "Have I been hit?": general signs per family (text only, INV-6, INV-8) ----
 
+// summaryFor names the family after the software only when the software's name does not already say it (W76-2: "General checks for
+// Juniper Junos OS (Juniper Junos OS)"), and never the catch-all "General" family, which says nothing more.
 func summaryFor(family, software, cve string) string {
-	return fmt.Sprintf("General checks for %s (%s): signs any intruder tends to leave. They are not specific to %s: the vendor advisory and the exploited-list entry (links in What to do) name the files, accounts and addresses seen for this CVE.", software, family, cve)
+	if family != "General" && !strings.Contains(strings.ToLower(software), strings.ToLower(family)) {
+		software += " (" + family + ")"
+	}
+	return fmt.Sprintf("General checks for %s: signs any intruder tends to leave. They are not specific to %s: the vendor advisory and the exploited-list entry (links in What to do) name the files, accounts and addresses seen for this CVE.", software, cve)
 }
 
 var ifFound = []string{

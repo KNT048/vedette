@@ -439,6 +439,23 @@ func TestDeepOnlyPortIsKeptByScansThatDoNotProbeIt(t *testing.T) {
 // it is the same service), nmap's table name is "port" (not confirmed), "unknown", a bare TLS layer and tcpwrapped are "none" and
 // replace the port list's guess; a surface GET that read a product keeps the port identified. The deep scan's ssl-cert, http-title
 // and http-server-header outputs become the port's certificate names, title and Server header, which are sanitized when stored.
+// W76-4 (walk n76): nmap prints the bytes outside printable ASCII as \xNN; a run that forms UTF-8 is the text the service sent, one that
+// does not stays as nmap printed it.
+func TestNmapTextDecodesEscapedUTF8(t *testing.T) {
+	t.Parallel()
+	for in, want := range map[string]string{
+		`Sign in \xC2\xB7 GitLab`:  "Sign in · GitLab",
+		`\xE6\x97\xA5\xE6\x9C\xAC`: "日本",
+		`bad \xFF\xFE end`:         `bad \xFF\xFE end`,
+		`half \xC2 then`:           `half \xC2 then`,
+		`plain \x4 and \\path`:     `plain \x4 and \\path`,
+	} {
+		if got := nmapText(in); got != want {
+			t.Errorf("nmapText(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestPortIdentFromMethodAndScripts(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -459,7 +476,7 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 		{IP: ipA, Port: 23, Name: "telnet"}, // no method word: the intake's guess mark stays (review r2 L1)
 	}, Scripts: []ScriptRow{
 		{IP: ipA, Port: 11443, ID: "ssl-cert", Output: cert},
-		{IP: ipA, Port: 10443, ID: "http-title", Output: "Sign in · GitLab\nRequested resource was /users/sign_in"},
+		{IP: ipA, Port: 10443, ID: "http-title", Output: `Sign in \xC2\xB7 GitLab` + "\nRequested resource was /users/sign_in"}, // W76-4: as nmap prints it
 		{IP: ipA, Port: 11080, ID: "http-title", Output: "Site doesn't have a title (text/html)."},
 		{IP: ipA, Port: 11080, ID: "http-server-header", Output: "Caddy"},
 		{IP: ipB, Port: 11443, ID: "ssl-cert", Output: "Subject: commonName=other.example"},

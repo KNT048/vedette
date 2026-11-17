@@ -210,6 +210,9 @@ func TestContract_INV8_ChecksArePerFamilyAndClaimNothingAboutTheCVE(t *testing.T
 			t.Errorf("%s %s: family %q, checks %v, firewall %d", c.vendor, c.product, h.Family, h.Checks != nil, len(h.Firewall))
 			continue
 		}
+		if strings.Count(strings.TrimPrefix(h.Checks.Summary, "General checks"), c.family) > 1 { // W76-2: "General checks for Juniper Junos OS (Juniper Junos OS)"
+			t.Errorf("%s: the family is named twice: %s", c.product, h.Checks.Summary)
+		}
 		all := h.Checks.Summary
 		for _, in := range h.Checks.Indicators {
 			all += in.Title + in.Detail

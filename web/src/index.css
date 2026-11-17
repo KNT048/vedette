@@ -122,6 +122,8 @@
      hide rule outweighed it and the report printed blank) */
   :where(body:has(.print-doc)) * { visibility: hidden !important; }
   .print-doc, .print-doc * { visibility: visible !important; }
+  /* W76-8: the page itself is white too, or the body's paper colour prints as a grey strip right of and below .print-doc */
+  :where(html:has(.print-doc), body:has(.print-doc)) { background: white !important; }
   .print-doc { page: report; position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; padding: 0 !important; border: 0 !important; }
   .print-doc * { color: black !important; border-color: silver !important; background-color: transparent !important; }
   .no-print { display: none !important; }

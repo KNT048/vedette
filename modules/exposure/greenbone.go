@@ -1135,6 +1135,10 @@ func (s *Service) addGreenbone(ctx context.Context, user string, t Target, snap 
 		if _, err := tx.ExecContext(wctx, `UPDATE exp_snapshot SET checks = ?, not_checked = ?, greenbone = ?, greenbone_run = ? WHERE id = ?`, d[6], d[7], d[9], string(run), snap.ID); err != nil {
 			return fmt.Errorf("adding Greenbone's results: %w", err)
 		}
+		// W76-5: "Last scanned" is when the scan ended, not when its other steps were stored (OpenVAS runs an hour or more after them)
+		if _, err := tx.ExecContext(wctx, `UPDATE exp_target SET last_scan_at = ? WHERE id = ?`, store.FormatTS(s.clock()), t.ID); err != nil {
+			return fmt.Errorf("adding Greenbone's results: %w", err)
+		}
 		return s.audit(wctx, tx, user, "exposure.greenbone_scan", t.Value, clipText(o.audit, 500))
 	})
 	if err != nil {

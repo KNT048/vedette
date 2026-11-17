@@ -68,9 +68,13 @@ describe('M2-1: general hardening when no confirmed pack exists (mitigation INV-
 
   it('r2 M4: warns when the address of this browser is outside the admin network typed', async () => {
     mockViewer.set('192.168.18.40')
+    localStorage.clear() // the field holds the example, not a network an earlier test typed
     renderApp('/findings/f-2')
     const block = await screen.findByRole('region', { name: 'General hardening' })
     const field = within(block).getByRole('textbox', { name: /Your admin network/ })
+    // W76-3: the example network asks for the person's own network; no lock-out warning about a network nobody typed
+    expect(within(block).getByText('Enter your admin network first')).toBeInTheDocument()
+    expect(within(block).queryByText(/you would lock yourself out/)).toBeNull()
     await userEvent.clear(field)
     await userEvent.type(field, '10.20.0.0/24')
     expect(within(block).getByText('Your address 192.168.18.40 is not inside 10.20.0.0/24: you would lock yourself out')).toBeInTheDocument()

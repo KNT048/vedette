@@ -102,8 +102,9 @@ export function GeneralHardening({ finding }: { finding: FindingDetail }) {
   const detected = h.firewall.find((g) => g.detected)
   const vendor = chosen ?? detected?.vendor ?? 'generic'
   const g = h.firewall.find((x) => x.vendor === vendor) ?? h.firewall[0]!
-  // r2 M4: the browser's own address outside the network typed means the admin pasting it locks themselves out.
-  const outside = !!net && !!h.viewer && inNetwork(h.viewer, net) === false
+  // r2 M4: the browser's own address outside the network typed means the admin pasting it locks themselves out. Not for the example
+  // network (W76-3): that one asks for their own network first, and a lock-out warning about a network nobody typed contradicts it.
+  const outside = !!net && !example && !!h.viewer && inNetwork(h.viewer, net) === false
   // r2 M1: a config only for a valid network that is not the example; for the firewall itself, not over a lock-out unless confirmed.
   const ready = !!net && !example && !(outside && h.self && !anyway)
   return (

@@ -465,6 +465,9 @@ func aiFixedIn(f *findings.FixedIn, links bool) string {
 		b.WriteString("fixed in " + aiVal(f.Fixed, 60))
 	case "up_to":
 		b.WriteString("affected up to and including " + aiVal(f.Fixed, 60) + ", no fixed release named")
+	case "end_listed": // W76-1: the AI called 20.4 "the fixed release" from the Evidence's "before 20.4"; the page says it is not
+		b.WriteString("inside the range NVD lists as before " + aiVal(f.Fixed, 60) + ", but " + aiVal(f.Fixed, 60) +
+			" is not a fix: NVD lists it, or releases of it, as affected too, and names no fixed release for this version; the vendor advisory lists the releases that fix it")
 	case "distro":
 		b.WriteString("install the security updates of " + cmp.Or(aiVal(f.Distro, 40), "the distribution") + " (its packages carry the fix under their own numbers)")
 		if f.DistroFixed != "" {

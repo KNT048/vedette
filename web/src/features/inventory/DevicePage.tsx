@@ -235,8 +235,9 @@ function Observations({ list }: { list: Observation[] }) {
  *  sensor scans the rest. */
 type PortsBy = 'box' | 'boxContainer' | 'agent' | 'fragile' | 'scan'
 
-function Services({ list, by }: { list: Service[]; by: PortsBy }) {
+function Services({ list, by, asset }: { list: Service[]; by: PortsBy; asset: DeviceDetail['asset'] }) {
   const { t } = useTranslation('inventory')
+  const scanning = useScanning().data
   // On the box its own ports (source agent, host INV-9b) are read by the box itself, as its software is: "This box", not "Agent".
   const source = (sv: Service) => (by === 'box' && sv.source === 'agent' ? <span className="text-caption text-muted">{t('box.source')}</span> : <SourceBadge source={sv.source} confidence={sv.confidence} />)
   if (!list.length) {
@@ -244,7 +245,9 @@ function Services({ list, by }: { list: Service[]; by: PortsBy }) {
       box: [t('services.emptyBox'), t('services.emptyBoxInfo')],
       boxContainer: [t('services.emptyBoxContainer'), t('services.emptyBoxContainerInfo')],
       agent: [t('services.emptyAgent'), t('services.emptyAgentInfo')],
-      fragile: [t('services.emptyFragile'), t('services.emptyFragileInfo')], scan: [t('services.emptyBody'), t('services.emptyBodyInfo')],
+      fragile: [t('services.emptyFragile'), t('services.emptyFragileInfo')],
+      // "Check this device now" is named only when this page shows it (the button's rule, scanning/canScan.ts); otherwise why not
+      scan: [t('services.emptyBody'), ((r) => r ? t(`scanning:selection.device.${r}`) : t('services.emptyBodyInfo'))(scanRefusal(asset, scanning))],
     }[by]
     return <EmptyState title={t('services.empty')} info={info}>{body}</EmptyState>
   }
@@ -484,7 +487,7 @@ function Body() {
           </Section>
         ) },
         { id: 'services', label: t('detail.tabs.services'), panel: (
-          <Section id="services" title={t('services.title')} description={t('services.description')} info={<><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>}><Services list={a.services} by={a.is_box ? (/container-only/.test(a.model?.value ?? '') ? 'boxContainer' : 'box') : [...d.observations, ...a.software].some((x) => x.source === 'agent') ? 'agent' : a.fragile ? 'fragile' : 'scan'} /></Section>
+          <Section id="services" title={t('services.title')} description={t('services.description')} info={<><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>}><Services asset={a} list={a.services} by={a.is_box ? (/container-only/.test(a.model?.value ?? '') ? 'boxContainer' : 'box') : [...d.observations, ...a.software].some((x) => x.source === 'agent') ? 'agent' : a.fragile ? 'fragile' : 'scan'} /></Section>
         ) },
         { id: 'observations', label: t('detail.tabs.observations'), panel: (
           <Section id="obs" title={t('obs.title')} description={t('obs.description')} info={<><p>{t('obs.descriptionInfo')}</p><p>{t('detail.meta')}</p></>}>

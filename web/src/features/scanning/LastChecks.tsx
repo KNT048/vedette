@@ -6,7 +6,7 @@ import { Section } from '@/components/common/PageHeader'
 import { ErrorState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { useDevice } from '@/features/inventory/api'
-import { useDeviceRuns } from '@/features/scan/api'
+import { useDeviceRuns, useScanConfig } from '@/features/scan/api'
 import { runHref } from '@/features/scan/links'
 import { RunStatusChip, runOutcome } from '@/features/scan/shared'
 import type { ScanRun } from '@/features/scan/types'
@@ -14,9 +14,10 @@ import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModules } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useScanning, useScanningHistory } from './api'
-import { scanRefusal } from './canScan'
+import { scanRefusal, useDeviceButtons, type DeviceRefusal } from './canScan'
 import { historyRowHref } from './places'
 import { HistoryOutcome } from './RunHistory'
+import { hasSnmpCard } from '@/features/inventory/nameOf'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 
@@ -43,6 +44,14 @@ function Row({ title, when, children, href }: { title: string; when: string | nu
   )
 }
 
+/** The words for a vulnerability check that cannot run on this device, from the scan list's reason the device page shows in place
+ *  of its button. A device added by hand is "never" to that list until its network scan is on; the device rule (deviceRefusal)
+ *  says what a person changes first: its address, or its network scan under Sources. */
+function vulnWhy(reason: string, origin: string | undefined, device: DeviceRefusal | null): string {
+  if (reason === 'regular_scan_never' && origin === 'manual' && (device === 'no_ip' || device === 'manual')) return device
+  return ['unapproved', 'excluded', 'out_of_scope', 'no_ip', 'regular_scan_never'].includes(reason) ? reason : 'out_of_scope'
+}
+
 function Never({ children }: { children: ReactNode }) {
   const { t } = useTranslation('scanning')
   return <><Chip tone="off">{t('lastChecks.never')}</Chip><span>{children}</span></>
@@ -62,23 +71,33 @@ export function LastChecks(props: Record<string, unknown>) {
   const modules = useModules()
   const scanOn = modules.data?.modules.find((m) => m.id === 'scan')?.enabled
   const admin = useCan('admin')
+  const operator = useCan('operator')
   const device = useDevice(assetId)
   const scanning = useScanning()
   const history = useScanningHistory(assetId)
   const runs = useDeviceRuns(assetId, scanOn === true)
+  const cfg = useScanConfig(scanOn === true)
+  // the buttons the device page shows for this device (DeviceActions' own rule): a hint names a button only when it is there
+  const buttons = useDeviceButtons(assetId, device.data?.asset)
   if (!assetId) return null
   // #965: a read that failed or has not answered is never "Never"
   const failed = [history, modules, device].find((q) => q.isError)
-  const loading = history.isPending || modules.isPending || device.isPending || (scanOn === true && runs.isPending)
+  const loading = history.isPending || modules.isPending || device.isPending || (scanOn === true && (runs.isPending || buttons.pending))
   const items = history.data?.items ?? []
   const ident = items.find((r) => r.kind === 'device')
   const snmp = items.find((r) => r.kind === 'snmp')
   const last = runs.data?.items[0]
   const vuln = last ? ofDevice(last, assetId) : null
   const a = device.data?.asset
+  // why "Check this device now" is not there (the device: the same rule as the button) or cannot start (the box's ranges, discovery)
   const refusal = a ? scanRefusal(a, scanning.data) : null
-  // the device's own SNMP card (admin, active discovery on; not on the box or an ignored device) is on this page
-  const snmpCard = admin && modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true && !!a && !a.is_box && !a.ignored_at
+  const neverIdentify = refusal ? t(`selection.device.${refusal}`) : admin ? t('lastChecks.neverIdentify') : t('lastChecks.neverIdentifyRole')
+  const neverVuln = buttons.vuln && buttons.vuln !== 'off' ? t(`lastChecks.vulnWhy.${vulnWhy(buttons.vuln, a?.origin, buttons.identify)}`)
+    : !operator ? t('lastChecks.neverVulnRole')
+    : cfg.data && !cfg.data.can_scan && cfg.data.block_reason ? cfg.data.block_reason
+    : t('lastChecks.neverVuln')
+  // the device's own SNMP card is on this page (the page's rule, SnmpCard.hasSnmpCard)
+  const snmpCard = !!a && hasSnmpCard(a, admin, modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true)
   return (
     <Section id="last-checks" title={t('lastChecks.title')} description={t('lastChecks.description')} stories={['S-INV-1', 'S-SCAN-4']}>
       {failed ? <ErrorState error={failed.error} onRetry={() => { for (const q of [history, modules, device]) if (q.isError) void q.refetch() }} /> : (
@@ -86,13 +105,13 @@ export function LastChecks(props: Record<string, unknown>) {
           {loading ? <p className="text-meta text-muted">{t('common:loading')}</p> : (
             <>
               <Row title={t('lastChecks.kind.identify')} when={ident?.started_at ?? null} href={ident ? historyRowHref(assetId, ident.id) : undefined}>
-                {ident ? <HistoryOutcome r={ident} /> : <Never>{refusal ? t(`selection.device.${refusal}`) : t('lastChecks.neverIdentify')}</Never>}
+                {ident ? <HistoryOutcome r={ident} /> : <Never>{neverIdentify}</Never>}
               </Row>
               <Row title={t('lastChecks.kind.vuln')} when={vuln?.started_at ?? null} href={vuln ? runHref(vuln.id) : undefined}>
                 {vuln ? <><RunStatusChip run={vuln} /><span>{runOutcome(vuln, ts)}</span></>
                   : scanOn === false ? <><Chip tone="off">{t('lastChecks.off')}</Chip><span>{t('lastChecks.vulnOff')} <Link to="/settings/scanning?tab=engines#engine-nuclei-switch" className={link}>{t('lastChecks.vulnOffLink')}</Link></span></>
                   : runs.isError ? <ErrorState error={runs.error} onRetry={() => void runs.refetch()} />
-                  : <Never>{t('lastChecks.neverVuln')}</Never>}
+                  : <Never>{neverVuln}</Never>}
               </Row>
               <Row title={t('lastChecks.kind.snmp')} when={snmp?.started_at ?? null} href={snmp ? historyRowHref(assetId, snmp.id) : undefined}>
                 {snmp ? <HistoryOutcome r={snmp} /> : <Never>{t('lastChecks.neverSnmp')}{snmpCard ? <> <Link to="#device-snmp" className={link}>{t('lastChecks.neverSnmpLink')}</Link></> : null}</Never>}

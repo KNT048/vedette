@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 import { ScopeButton } from '@/features/scanning/Fixes'
 import { useDeviceAction, useDeviceSnmp, useDeviceSnmpActions, useDeviceSources, useDismissSnmpNotices, useSnmp } from './api'
 import { errMsg } from './kinds'
-import { nameOf } from './nameOf'
+import { hasSnmpCard, nameOf } from './nameOf'
 import type { DeviceDetail, DeviceSnmp, DeviceSnmpInput, SnmpAuth, SnmpDeviceRow, SnmpPriv, SnmpState, SnmpVersion } from './types'
 import { IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES } from './validate'
 
@@ -58,7 +58,7 @@ export function SnmpStateLabel({ state }: { state: SnmpState }) {
 export function DeviceSnmpCard({ d }: { d: DeviceDetail }) {
   const admin = useCan('admin')
   const on = useModuleEnabled('sensor-active') === true
-  if (!admin || !on || d.asset.is_box) return null
+  if (!hasSnmpCard(d.asset, admin, on)) return null
   return <SnmpPanel d={d} />
 }
 

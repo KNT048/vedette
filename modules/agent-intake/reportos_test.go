@@ -5,10 +5,10 @@ import (
 	"time"
 )
 
-// softwareRow is the version (PkgVersion when set, else Version) of the device's software row with this vendor and product prefix.
-func (w *world) softwareRow(ip, vendor, product string) string {
+// softwareRow is the version (PkgVersion when set, else Version) of peerA's device's software row with this vendor and product prefix.
+func (w *world) softwareRow(vendor, product string) string {
 	w.t.Helper()
-	d, ok := w.device(ip)
+	d, ok := w.device(peerA)
 	if !ok {
 		w.t.Fatal("no device")
 	}
@@ -54,7 +54,7 @@ func TestContract_INV23_LinuxAskWaitsForTheKernel(t *testing.T) {
 		map[string]string{"name": "linux-image-7.0.0-43-generic", "version": "7.0.0-43.43", "arch": "amd64", "source": "linux-signed"})
 	kernel := func(rel string) map[string]any { return snap("kernel_info", map[string]string{"version": rel}) }
 	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), kernel("7.0.0-30-generic"), images))
-	if got := w.softwareRow(peerA, "Linux", "Kernel"); got != "7.0.0-30.30" {
+	if got := w.softwareRow("Linux", "Kernel"); got != "7.0.0-30.30" {
 		t.Fatalf("running 30: %s", got)
 	}
 	w.clock.Advance(61 * time.Minute)
@@ -82,7 +82,7 @@ func TestContract_INV23_LinuxAskWaitsForTheKernel(t *testing.T) {
 	}
 	w.clock.Advance(5 * time.Minute)
 	w.post("/intake/osquery/log", peerA, logBody(key, images))
-	if got := w.softwareRow(peerA, "Linux", "Kernel"); got != "7.0.0-43.43" {
+	if got := w.softwareRow("Linux", "Kernel"); got != "7.0.0-43.43" {
 		t.Fatalf("after the list built with the new kernel: %s", got)
 	}
 	if w.askIsOpen(key, path, "deb_packages") {
@@ -101,7 +101,7 @@ func TestContract_INV23_LinuxAskWaitsForTheKernel(t *testing.T) {
 	}
 	w.clock.Advance(time.Minute)
 	w.post("/intake/osquery/log", peerA, logBody(key, images))
-	if got := w.softwareRow(peerA, "Linux", "Kernel"); got != "7.0.0-30.30" || w.askIsOpen(key, path, "deb_packages") {
+	if got := w.softwareRow("Linux", "Kernel"); got != "7.0.0-30.30" || w.askIsOpen(key, path, "deb_packages") {
 		t.Fatalf("kernel then list: row %s, ask still open %v", got, w.askIsOpen(key, path, "deb_packages"))
 	}
 
@@ -112,7 +112,7 @@ func TestContract_INV23_LinuxAskWaitsForTheKernel(t *testing.T) {
 	}
 	w.clock.Advance(5 * time.Minute)
 	w.post("/intake/osquery/log", peerA, logBody(key, kernel("7.0.0-43-generic"), images))
-	if got := w.softwareRow(peerA, "Linux", "Kernel"); got != "7.0.0-43.43" || w.askIsOpen(key, path, "deb_packages") {
+	if got := w.softwareRow("Linux", "Kernel"); got != "7.0.0-43.43" || w.askIsOpen(key, path, "deb_packages") {
 		t.Fatalf("kernel and list together: row %s", got)
 	}
 }
@@ -128,7 +128,7 @@ func TestContract_INV23_WindowsAskWaitsForTheRevision(t *testing.T) {
 		return snap("os_revision", map[string]string{"name": "Microsoft Windows 11 Pro", "version": "10.0.22631", "revision": r, "arch": "64-bit"})
 	}
 	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), osv, rev("4460"), progs))
-	if got := w.softwareRow(peerA, "microsoft", "Windows"); got != "10.0.22631.4460" {
+	if got := w.softwareRow("microsoft", "Windows"); got != "10.0.22631.4460" {
 		t.Fatalf("UBR 4460: %s", got)
 	}
 	w.clock.Advance(61 * time.Minute)
@@ -151,7 +151,7 @@ func TestContract_INV23_WindowsAskWaitsForTheRevision(t *testing.T) {
 	}
 	w.clock.Advance(5 * time.Minute)
 	w.post("/intake/osquery/log", peerA, logBody(key, progs))
-	if got := w.softwareRow(peerA, "microsoft", "Windows"); got != "10.0.22631.4500" || w.askIsOpen(key, path, "programs") {
+	if got := w.softwareRow("microsoft", "Windows"); got != "10.0.22631.4500" || w.askIsOpen(key, path, "programs") {
 		t.Fatalf("programs after the revision: row %s", got)
 	}
 
@@ -167,7 +167,7 @@ func TestContract_INV23_WindowsAskWaitsForTheRevision(t *testing.T) {
 	}
 	w.clock.Advance(time.Minute)
 	w.post("/intake/osquery/log", peerA, logBody(key, progs))
-	if got := w.softwareRow(peerA, "microsoft", "Windows"); got != "10.0.22631.4600" || w.askIsOpen(key, path, "programs") {
+	if got := w.softwareRow("microsoft", "Windows"); got != "10.0.22631.4600" || w.askIsOpen(key, path, "programs") {
 		t.Fatalf("revision then programs: row %s", got)
 	}
 }

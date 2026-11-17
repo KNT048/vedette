@@ -49,8 +49,9 @@ var guessFamilies = []guessFamily{
 		types: concat(networkGear, printers, []string{"camera", "video_encoder", "doorbell", "smartphone", "smartwatch", "ip_phone"}),
 	},
 	{
-		name:  "network", // the OS of a router, switch or firewall
-		words: []string{"cisco ios", "nx-os", "junos", "fortios", "routeros", "pan-os"},
+		// the OS of a router, switch or firewall
+		name:  "network",
+		words: []string{"cisco ios", "nx-os", "junos", "fortios", "routeros", "pan-os"}, //nolint:misspell // MikroTik RouterOS
 		types: concat(printers, []string{"pc", "laptop", "workstation", "smartphone", "tablet", "smartwatch", "camera", "doorbell"}),
 	},
 }

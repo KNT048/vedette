@@ -610,7 +610,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	// The ai service comes before mitigation: mitigation reaches the AI only through this door (mitigation.AI), and the door is
 	// unavailable while no profile is assigned, so the page offers no AI button then.
 	d.AIFacts = aiFacts{fs.Store(), d.Findings, inv, aiBoxID(d.Inventory)}
-	if d.AI, err = newAI(ctx, d, d.AIFacts, aiAsk{fs.Store(), d.Findings, d.Inventory}); err != nil {
+	ask := aiAsk{feeds: fs.Store(), findings: d.Findings, inv: d.Inventory, gate: gate}
+	if d.AI, err = newAI(ctx, d, d.AIFacts, ask, ask); err != nil { // ask is also device_updates' door, typed: review r1 L3 of #935
 		return fmt.Errorf("ai: %w", err)
 	}
 	aiDoor := aiMitigation{d.AI, d.Inventory, d.Log}

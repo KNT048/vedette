@@ -38,8 +38,8 @@ describe('Device page: Sources', () => {
   })
 
   // The network scan's time and the Last checks section read the same run: each time is named for what it is, the device check (the
-  // run Last checks lists) and the LAN sweep that heard the device after it; never one unlabelled "last report".
-  it('the network scan names its times: the last device check, as Last checks says, and a later sweep', async () => {
+  // run Last checks lists) and a later network scan that heard the device; never one unlabelled "last report".
+  it('the network scan names its times: the last device check, as Last checks says, and a later network scan', async () => {
     const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
     historyStore.set([{ id: 'saj-old', kind: 'device', engine: 'nmap-versions', trigger: 'automatic', label: '192.168.10.21', target_id: null, started_at: ago(72), ended_at: ago(71.9), outcome: 'ok', text: 'Scanned 192.168.10.21: no open port' }])
     markReached('saj-old', ['192.168.10.21'])
@@ -48,7 +48,7 @@ describe('Device page: Sources', () => {
     const list = await sources()
     const scan = item(list, 'Network scan')
     expect(await within(scan).findByText('last device check 3 days ago', {}, T)).toBeInTheDocument()
-    expect(within(scan).getByText('answered the LAN sweep 22 hours ago')).toBeInTheDocument()
+    expect(within(scan).getByText('seen by a network scan 22 hours ago')).toBeInTheDocument()
     expect(within(scan).queryByText(/last report/)).toBeNull()
     const ident = await screen.findByRole('group', { name: 'Device check: ports, services, software' }, T)
     expect(within(ident).getByText(/\(3 days ago\)/)).toBeInTheDocument()
@@ -62,7 +62,7 @@ describe('Device page: Sources', () => {
     renderApp('/devices/a-nas02', { role: 'admin' })
     const scan = item(await sources(), 'Network scan')
     expect(await within(scan).findByText('last device check 2 hours ago', {}, T)).toBeInTheDocument()
-    expect(within(scan).queryByText(/LAN sweep/)).toBeNull()
+    expect(within(scan).queryByText(/seen by a network scan/)).toBeNull()
   })
 
   it('says why SNMP or osquery cannot be added: modules off, not an administrator', async () => {

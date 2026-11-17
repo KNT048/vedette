@@ -112,6 +112,14 @@ func TestJobsOf_TheRunsOfOneDevice(t *testing.T) {
 	if f := got[3].Found; f == nil || f.Reach != "top1000" || f.Open != 1 || f.Ports[0] != (sa.FoundPort{Port: 22, Proto: "tcp", Name: "ssh"}) {
 		t.Errorf("found of d4: %+v", f)
 	}
+	if got[1].Own != "" {
+		t.Errorf("own result of n1 with no read stored: %q", got[1].Own)
+	}
+	// the device's last read was stored during n1: that read carries how the device's own read went
+	insert(`UPDATE sa_snmp_device SET last_checked_at = '2026-11-17T02:00:30.000Z', last_status = 'no_answer' WHERE asset_id = 'a-sw'`)
+	if got, _ := e.svc.JobsOf(e.ctx(), "a-sw", netip.MustParseAddr("192.168.18.20"), 50); got[1].ID != "n1" || got[1].Own != "no_answer" {
+		t.Errorf("own result of n1: %+v", got[1])
+	}
 	if got := ids("a-sw", 1); !slices.Equal(got, []string{"d1", "n1"}) {
 		t.Errorf("limit is per kind: %v", got)
 	}

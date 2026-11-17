@@ -42,11 +42,11 @@ function feedsOf(d: DeviceDetail): Map<Feed, string | null> {
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/
 
-/** A scan observation this much after a device check ended came from a later run: the LAN sweep (it records what answered). */
+/** A scan observation this much after a device check ended came from a later run (a LAN sweep, most often; which one is not known). */
 const AFTER_CHECK_MS = 120_000
 
 /** The times of the network scan, each named for what it is: the last device check (the run the Last checks section lists, from
- *  the same History rows) and, when the LAN sweep heard the device after it, that sweep; with no check yet, only the sweep. */
+ *  the same History rows) and, when a network scan heard the device after it, that time; with no check yet, only that time. */
 function ScanTimes({ id, seen }: { id: string; seen: string | null }) {
   const { t } = useTranslation('inventory')
   const history = useScanningHistory(id)
@@ -57,7 +57,7 @@ function ScanTimes({ id, seen }: { id: string; seen: string | null }) {
   return (
     <>
       {check ? <When at={check.started_at} text={t('sources.lastCheck', { when: fmtRelative(check.started_at) })} /> : null}
-      {sweep ? <When at={sweep} text={t('sources.lastSweep', { when: fmtRelative(sweep) })} /> : null}
+      {sweep ? <When at={sweep} text={t('sources.lastSeenScan', { when: fmtRelative(sweep) })} /> : null}
     </>
   )
 }

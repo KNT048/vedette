@@ -50,6 +50,25 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 			t.Errorf("%s: %+v", c.name, r)
 		}
 	}
+	// a check made since checks name their device whose result could not be recorded says so, never that it is an old check
+	rec := job("device", "done", "check_now", "", 1, 0, p("192.168.10.20", "ok: 1 hosts up"))
+	rec.AssetID = "a-1"
+	if r, _ := jobHistory(rec); r.Text != "Scanned 192.168.10.20: it answered, but what it found could not be recorded" {
+		t.Errorf("unrecorded check: %q", r.Text)
+	}
+	// the device page: in a round of several devices, its own read decides the outcome and the words
+	for _, c := range []struct{ own, outcome, text string }{
+		{"ok", "ok", "This device answered over SNMP (a round of 2 devices: 1 answered)"},
+		{"no_answer", "failed", "Failed: this device did not answer over SNMP (a round of 2 devices: 1 answered)."},
+		{"auth_failed", "failed", "Failed: this device refused the SNMP community or password (a round of 2 devices: 1 answered)."},
+		{"error", "failed", "Failed: the SNMP read of this device failed (a round of 2 devices: 1 answered)."},
+	} {
+		j := job("snmp", "done", "window", "", 2, 0, p("192.168.10.1,192.168.10.9", "ok: 1 of 2 answered"))
+		j.Own = c.own
+		if r, _ := jobHistory(j); r.Outcome != c.outcome || r.Text != c.text {
+			t.Errorf("own %s: %s %q", c.own, r.Outcome, r.Text)
+		}
+	}
 	if _, ok := jobHistory(job("external", "done", "exposure", "", 1, 0)); ok {
 		t.Errorf("an external sa_job is exposure's to list")
 	}
@@ -102,6 +121,10 @@ func TestJobHistory_DeviceCheckSaysWhatItFound(t *testing.T) {
 		{"gentle", sensoractive.DeviceFound{Reach: "top100", Open: 1, Ports: ports[:1]}, "ok: 1 hosts up", "ok", "Gentle scan of 192.168.10.47 (its 100 most used ports): 1 open port (22 ssh)"},
 		{"only the extra ports", sensoractive.DeviceFound{Reach: "extra", Open: 1, Ports: []sensoractive.FoundPort{{Port: 22222, Proto: "tcp", Name: "ssh"}}}, "ok: 0 hosts up", "ok",
 			"Scanned 192.168.10.47: only the scan of the extra ports saw it; 1 open port (22222 ssh)"},
+		{"extra ports did not finish", sensoractive.DeviceFound{Reach: "top1000", Open: 1, Ports: ports[:1], ExtraFailed: true, Compared: true, ComparedPart: true, New: []int{40000}}, "ok: 1 hosts up", "ok",
+			"Scanned 192.168.10.47: 1 open port (22 ssh); the scan of the extra ports did not finish; since the previous check (outside the extra ports): port 40000 newly open"},
+		{"compared outside the extra ports, no change", sensoractive.DeviceFound{Reach: "top1000", Open: 1, Ports: ports[:1], Compared: true, ComparedPart: true}, "ok: 1 hosts up", "ok",
+			"Scanned 192.168.10.47: 1 open port (22 ssh); nothing changed since the previous check (outside the extra ports)"},
 		{"timed out", sensoractive.DeviceFound{Reach: "top1000", TimedOut: true, Compared: true}, "ok: 1 hosts up", "ok",
 			"Scanned 192.168.10.47: it answered, but nmap reached its time limit before it listed the ports; the ports known before are kept"},
 	} {

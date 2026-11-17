@@ -786,13 +786,17 @@ func (s *Service) AssetDeleted(ctx context.Context, assetID string) error {
 
 // AssetMerged handles inventory.asset.merged {from, into} (published before from's asset.deleted): from's SNMP settings become into's
 // when into has none; otherwise into keeps its own and from's go with their secrets. A read address that was from's IP stays the
-// address it was: if into is elsewhere, nothing is sent until a person sets it (moved).
+// address it was: if into is elsewhere, nothing is sent until a person sets it (moved). from's device checks become into's
+// (sa_job.asset_id, INV-23): into's Last checks lists them and its next check compares with them.
 func (s *Service) AssetMerged(ctx context.Context, from, into string) error {
 	if from == "" || into == "" || from == into {
 		return nil
 	}
 	defer s.snmpSettingsChanged(from)
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE sa_job SET asset_id = ? WHERE asset_id = ?`, into, from); err != nil {
+			return fmt.Errorf("sensoractive: merge device checks: %w", err)
+		}
 		f, err := s.snmpRow(ctx, tx, from)
 		if err != nil || f == nil {
 			return err

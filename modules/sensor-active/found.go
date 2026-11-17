@@ -18,15 +18,21 @@ import (
 type DeviceFound struct {
 	// Reach is how far the check looked: "top100" (the gentle scan), "top1000" (a normal or versions scan with the extra ports),
 	// "extra" (only the extra ports answered), "all" (the weekly scan of every port). Ports are compared only within one reach.
-	Reach    string      `json:"reach"`
-	TimedOut bool        `json:"timed_out,omitempty"` // nmap reached its host timeout: no port table, what was known is kept
-	Open     int         `json:"open"`                // open ports it found (Ports holds the first maxFoundPorts)
-	Ports    []FoundPort `json:"ports,omitempty"`
-	OS       string      `json:"os,omitempty"` // the OS it recorded (nmap's guess of 85 % or more, or the device's NTLM answer); "" when none
+	Reach    string `json:"reach"`
+	TimedOut bool   `json:"timed_out,omitempty"` // nmap reached its host timeout: no port table, what was known is kept
+	// ExtraFailed: a top1000 check whose run over the extra ports (nmapargv.ExtraPorts) did not finish, so it covered nmap's top
+	// 1000 only. Its ports are compared, and compared with, only outside the extra ports, and its OS guess (an NTLM answer may come
+	// from that run) is never compared.
+	ExtraFailed bool        `json:"extra_failed,omitempty"`
+	Open        int         `json:"open"` // open ports it found (Ports holds the first maxFoundPorts)
+	Ports       []FoundPort `json:"ports,omitempty"`
+	OS          string      `json:"os,omitempty"` // the OS it recorded (nmap's guess of 85 % or more, or the device's NTLM answer); "" when none
 	// Compared: a previous check of the device with the same reach was there to compare the ports with (New, Gone).
-	Compared bool  `json:"compared,omitempty"`
-	New      []int `json:"new,omitempty"`  // TCP ports open now that the previous check of the same reach did not find
-	Gone     []int `json:"gone,omitempty"` // TCP ports that check found and this one did not
+	Compared bool `json:"compared,omitempty"`
+	// ComparedPart: one of the two checks had ExtraFailed, so the extra ports were left out of the comparison.
+	ComparedPart bool  `json:"compared_part,omitempty"`
+	New          []int `json:"new,omitempty"`  // TCP ports open now that the previous check of the same reach did not find
+	Gone         []int `json:"gone,omitempty"` // TCP ports that check found and this one did not
 	// OSWas is the previous OS guess when this check recorded another one; "" when it is the same, or when there is nothing to compare.
 	OSWas string `json:"os_was,omitempty"`
 }
@@ -57,17 +63,19 @@ func reachOf(kind nmapargv.Kind) string {
 	}
 }
 
-// foundOf is what the check of h found, compared with the earlier checks of the device (newest first; prev): its ports with the
-// newest one of the same reach, else, for a normal scan, with normalPorts (the TCP ports of the last normal scan, kept in sa_all_ports;
-// nil when none); its OS guess with the newest one that recorded an OS.
-func foundOf(h host, kind nmapargv.Kind, prev []DeviceFound, normalPorts []int) DeviceFound {
-	f := DeviceFound{Reach: reachOf(kind), TimedOut: h.timedOut}
+// foundOf is what the check of h found (extraFailed: its run over the extra ports did not finish), compared with the earlier checks
+// of the device (newest first; prev): its ports with the newest one of the same reach that kept its whole list, only over the ports
+// both covered; its OS guess with the newest one that recorded an OS, when both are complete top1000 checks. With no earlier check
+// to compare with, it says what it found and nothing about a change.
+func foundOf(h host, kind nmapargv.Kind, extraFailed bool, prev []DeviceFound) DeviceFound {
+	f := DeviceFound{Reach: reachOf(kind), TimedOut: h.timedOut, ExtraFailed: extraFailed && reachOf(kind) == "top1000"}
 	for _, o := range deviceObservations(h, kind) {
 		if o.Field == observe.OS {
 			f.OS = o.Value
 		}
 	}
-	if i := slices.IndexFunc(prev, func(p DeviceFound) bool { return p.OS != "" }); i >= 0 && f.OS != "" && prev[i].OS != f.OS {
+	full := func(p DeviceFound) bool { return p.Reach == "top1000" && !p.ExtraFailed }
+	if i := slices.IndexFunc(prev, func(p DeviceFound) bool { return p.OS != "" }); i >= 0 && f.OS != "" && prev[i].OS != f.OS && full(f) && full(prev[i]) {
 		f.OSWas = prev[i].OS
 	}
 	if h.timedOut {
@@ -83,33 +91,35 @@ func foundOf(h host, kind nmapargv.Kind, prev []DeviceFound, normalPorts []int) 
 			tcp = append(tcp, s.Port)
 		}
 	}
-	var before []int
 	i := slices.IndexFunc(prev, func(p DeviceFound) bool { return p.Reach == f.Reach && !p.TimedOut })
-	switch {
-	case i >= 0 && prev[i].Open <= len(prev[i].Ports): // its whole list was kept
-		f.Compared = true
-		for _, p := range prev[i].Ports {
-			if p.Proto == "tcp" {
-				before = append(before, p.Port)
-			}
-		}
-	case i < 0 && f.Reach == "top1000" && normalPorts != nil:
-		f.Compared, before = true, normalPorts
+	if i < 0 || prev[i].Open > len(prev[i].Ports) { // no earlier check of this reach, or its list was not kept whole
+		return f
 	}
-	if f.Compared {
-		for _, p := range tcp {
-			if !slices.Contains(before, p) && len(f.New) < maxFoundDiff {
-				f.New = append(f.New, p)
-			}
-		}
-		for _, p := range before {
-			if !slices.Contains(tcp, p) && len(f.Gone) < maxFoundDiff {
-				f.Gone = append(f.Gone, p)
-			}
-		}
-		slices.Sort(f.New)
-		slices.Sort(f.Gone)
+	// A check whose extra ports did not finish covered nmap's top 1000 only: a port of the extra list says nothing either way.
+	// nmap's top 1000 is not known here, so every extra port is left out, the ones inside the top 1000 too.
+	covered := func(p int) bool {
+		part := f.ExtraFailed || prev[i].ExtraFailed
+		return !part || !slices.Contains(nmapargv.ExtraPortNumbers, p)
 	}
+	var before []int
+	for _, p := range prev[i].Ports {
+		if p.Proto == "tcp" {
+			before = append(before, p.Port)
+		}
+	}
+	f.Compared, f.ComparedPart = true, f.ExtraFailed || prev[i].ExtraFailed
+	for _, p := range tcp {
+		if covered(p) && !slices.Contains(before, p) && len(f.New) < maxFoundDiff {
+			f.New = append(f.New, p)
+		}
+	}
+	for _, p := range before {
+		if covered(p) && !slices.Contains(tcp, p) && len(f.Gone) < maxFoundDiff {
+			f.Gone = append(f.Gone, p)
+		}
+	}
+	slices.Sort(f.New)
+	slices.Sort(f.Gone)
 	return f
 }
 
@@ -145,22 +155,6 @@ ORDER BY started_at DESC, rowid DESC LIMIT ?`, assetID, KindDevice, jobID, earli
 // earlierChecks is how many earlier checks of a device a new one is compared with (the newest of its reach, the newest with an OS).
 const earlierChecks = 20
 
-// normalPorts is the TCP ports of the device's last normal scan (sa_all_ports.normal_ports); nil when it has none.
-func (s *Service) normalPorts(ctx context.Context, assetID string) []int {
-	var raw string
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT normal_ports FROM sa_all_ports WHERE asset_id = ?`, assetID).Scan(&raw); err != nil {
-		return nil
-	}
-	var out []int
-	if json.Unmarshal([]byte(raw), &out) != nil {
-		return nil
-	}
-	if out == nil {
-		out = []int{}
-	}
-	return out
-}
-
 // saveFound stores what the check found with its job. A failure is logged: the result itself is recorded, only its words are lost.
 func (s *Service) saveFound(ctx context.Context, jobID string, f DeviceFound) {
 	b, err := json.Marshal(f)
@@ -179,11 +173,11 @@ func (s *Service) saveFound(ctx context.Context, jobID string, f DeviceFound) {
 	}
 }
 
-// beforeRecord is what recordDevice compares a check with, read before it records anything (the normal ports are replaced then).
-func (s *Service) beforeRecord(ctx context.Context, assetID, jobID string, ip netip.Addr) ([]DeviceFound, []int) {
+// beforeRecord is what recordDevice compares a check with: the device's earlier checks, read before it records anything.
+func (s *Service) beforeRecord(ctx context.Context, assetID, jobID string, ip netip.Addr) []DeviceFound {
 	prev, err := s.earlierFound(ctx, assetID, jobID)
 	if err != nil {
 		s.log.WarnContext(ctx, "sensoractive: the earlier checks of a device could not be read", "ip", ip.String(), "error", err)
 	}
-	return prev, s.normalPorts(ctx, assetID)
+	return prev
 }

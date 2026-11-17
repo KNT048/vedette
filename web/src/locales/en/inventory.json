@@ -25,7 +25,7 @@
     "notYet": "Not set up",
     "lastSeen": "last report {{when}}",
     "lastCheck": "last device check {{when}}",
-    "lastSweep": "answered the LAN sweep {{when}}",
+    "lastSeenScan": "seen by a network scan {{when}}",
     "name": {
       "scan": "Network scan",
       "passive": "Passive listening",

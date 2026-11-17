@@ -165,6 +165,9 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 				found = "scanned " + addr + ": it did not answer"
 			case m != nil:
 				found = "scanned " + addr + ": it answered (a check from before checks kept what they found)"
+				if j.AssetID != "" { // a check made since: recording its result failed
+					found = "scanned " + addr + ": it answered, but what it found could not be recorded"
+				}
 			case strings.HasPrefix(j.Probes[0].Result, "failed"): // the failed reason is the text; nothing was found
 			default:
 				found = "scanned " + addr
@@ -188,8 +191,18 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 				answered, asked, read = answered+a, asked+b, true
 			}
 		}
+		round := ""
+		if asked > 1 {
+			round = fmt.Sprintf(" (a round of %d devices: %d answered)", asked, answered)
+		}
 		switch {
 		case !read:
+		case j.Own != "" && r.Outcome == "ok": // the device page: how this device's own read went
+			if j.Own == "ok" {
+				found = "this device answered over SNMP" + round
+			} else {
+				r.Outcome, noAnswer = "failed", orDefault(snmpOwnWhy[j.Own], "the SNMP read of this device failed")+round
+			}
 		case answered == 0 && r.Outcome == "ok": // it asked and nothing came back: no model, no firmware read
 			r.Outcome, noAnswer = "failed", "no device answered over SNMP"
 			if asked == 1 {
@@ -247,6 +260,13 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 	return r, true
 }
 
+// snmpOwnWhy is why a device's own SNMP read found nothing, by sa_snmp_device.last_status.
+var snmpOwnWhy = map[string]string{
+	"no_answer":    "this device did not answer over SNMP",
+	"auth_failed":  "this device refused the SNMP community or password",
+	"unknown_user": "this device does not know the SNMP v3 user",
+}
+
 // shownPorts is how many open ports a device check names before "and n more".
 const shownPorts = 8
 
@@ -281,7 +301,14 @@ func foundText(addr string, f sensoractive.DeviceFound) string {
 			b.WriteString("; OS guess " + f.OS)
 		}
 	}
+	if f.ExtraFailed {
+		b.WriteString("; the scan of the extra ports did not finish")
+	}
 	if f.Compared && !f.TimedOut {
+		since := "since the previous check"
+		if f.ComparedPart { // one of the two checks did not cover the extra ports
+			since += " (outside the extra ports)"
+		}
 		var ch []string
 		if len(f.New) > 0 {
 			ch = append(ch, portList(f.New)+" newly open")
@@ -291,9 +318,9 @@ func foundText(addr string, f sensoractive.DeviceFound) string {
 		}
 		switch {
 		case len(ch) > 0:
-			b.WriteString("; since the previous check: " + strings.Join(ch, ", "))
+			b.WriteString("; " + since + ": " + strings.Join(ch, ", "))
 		case f.OSWas == "":
-			b.WriteString("; nothing changed since the previous check")
+			b.WriteString("; nothing changed " + since)
 		}
 	}
 	return b.String()

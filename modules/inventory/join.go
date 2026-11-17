@@ -225,6 +225,7 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 		`UPDATE inv_asset SET
 			suspicious = max(suspicious, (SELECT suspicious FROM inv_asset WHERE id = ?2)),
 			notes = coalesce(notes, (SELECT notes FROM inv_asset WHERE id = ?2)),
+			user_name = coalesce(user_name, (SELECT user_name FROM inv_asset WHERE id = ?2)),
 			regular_scan = CASE WHEN regular_scan = 'follow' THEN (SELECT regular_scan FROM inv_asset WHERE id = ?2) ELSE regular_scan END,
 			fragile = CASE WHEN fragile_manual = 0 AND (SELECT fragile_manual FROM inv_asset WHERE id = ?2) = 1 THEN (SELECT fragile FROM inv_asset WHERE id = ?2) ELSE fragile END,
 			fragile_manual = max(fragile_manual, (SELECT fragile_manual FROM inv_asset WHERE id = ?2)),

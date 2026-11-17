@@ -118,6 +118,9 @@ func (h *Handlers) InventoryPatchInventoryDevicesID(ctx context.Context, req *oa
 	if v, ok := req.Notes.Get(); ok {
 		p.Notes = &v
 	}
+	if v, ok := req.Name.Get(); ok {
+		p.Name = &v
+	}
 	if err := h.svc.PatchDevice(ctx, who, params.ID, p); err != nil {
 		return nil, fail(err)
 	}

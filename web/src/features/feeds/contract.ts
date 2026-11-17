@@ -50,7 +50,7 @@ export const FeedStatus = z.object({
 })
 
 export const WeeklyItem = z.object({ id: z.string(), key: z.string(), text: z.string(), date_added: isoDate, cve: cveId, answer: z.enum(['have', 'not_relevant']).nullable() })
-export const MatchedAsset = z.object({ id: z.string(), hostname: z.string().nullable(), ip: z.string(), display: z.string(), how: YouHave })
+export const MatchedAsset = z.object({ id: z.string(), hostname: z.string().nullable().describe('The device\'s name: the name a person gave it in Vedette (G2), else its host name; null when neither'), ip: z.string(), display: z.string(), how: YouHave })
 export const CveDetail = Vuln.extend({
   display: z.string(), matched: z.array(MatchedAsset).nullable(),
   not_affected: z.number().int().min(0).optional().describe('D-549: devices that run the product but that the platform rules of the findings prove are not affected; left out of matched'),

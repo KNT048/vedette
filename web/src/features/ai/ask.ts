@@ -10,7 +10,7 @@ import type { AskTable, ToolCall } from './types'
 export interface Answer { answer: string[]; table: AskTable | null; tool_calls: ToolCall[]; citations: { title: string }[] }
 
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd')
-const name = (a: Asset) => a.hostname ?? a.model?.value ?? a.ip
+const name = (a: Asset) => a.name ?? a.hostname ?? a.model?.value ?? a.ip
 const has = (q: string, words: string[]) => words.some((w) => q.includes(w))
 const list = (xs: string[]) => (xs.length > 4 ? `${xs.slice(0, 4).join(', ')} and ${xs.length - 4} more` : xs.join(', '))
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
@@ -108,7 +108,7 @@ export function answerQuestion(question: string): Answer {
 
   const words = norm(question).split(/[^a-z0-9.]+/).filter((w) => w.length >= 3 && !STOP.has(w))
   const rows = words.length ? assets.filter((a) => {
-    const hay = norm([a.hostname, a.ip, a.vendor?.value, a.model?.value, a.os?.value, ...a.software.map((s) => s.display)].filter(Boolean).join(' ')).split(/[^a-z0-9.]+/)
+    const hay = norm([a.name, a.hostname, a.ip, a.vendor?.value, a.model?.value, a.os?.value, ...a.software.map((s) => s.display)].filter(Boolean).join(' ')).split(/[^a-z0-9.]+/)
     return words.some((w) => hay.some((h) => h === w || (w.length >= 4 && h.startsWith(w))))
   }) : []
   if (rows.length) return { answer: [`Found ${plural(rows.length, 'device')} matching keywords in the question: ${list(rows.map(name))}.`], table: assetTable(rows), tool_calls: [{ tool: 'search_assets', args: JSON.stringify({ text: words.join(' ') }), result: boxApart(rows) }], citations: [inv] }

@@ -1396,7 +1396,8 @@ type Handler interface {
 	InventoryGetInventorySnmpIDRead(ctx context.Context, params InventoryGetInventorySnmpIDReadParams) (NilInventoryGetInventorySnmpIDReadOK, error)
 	// InventoryPatchInventoryDevicesID implements inventory_patch_inventory_devices_id operation.
 	//
-	// Change the type, mark as fragile, override regular scans or edit the notes of a device.
+	// Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the
+	// notes of a device. 400 bad_name: a name over 64 characters or with < or >.
 	//
 	// PATCH /inventory/devices/{id}
 	InventoryPatchInventoryDevicesID(ctx context.Context, req *InventoryPatchInventoryDevicesIDReq, params InventoryPatchInventoryDevicesIDParams) (*InventoryPatchInventoryDevicesIDOK, error)

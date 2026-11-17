@@ -170,7 +170,7 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 			k = a
 		}
 		header[i] = k
-		hasName = hasName || k == "name"
+		hasName = hasName || k == "name" || k == "name_in_vedette"
 		hasProduct = hasProduct || k == "product"
 	}
 	if !hasName && !hasProduct {
@@ -306,7 +306,7 @@ func prepareRow(cat *Catalog, get func(string) string) (msg string, a addChecked
 			return fmt.Sprintf(`Product "%s" not recognised. Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`, clip(productText, 40)), a, ""
 		}
 	}
-	if productText == "" && get("name") == "" {
+	if productText == "" && get("name") == "" && get("name_in_vedette") == "" {
 		return "This row has neither name nor product. At least one is needed.", a, ""
 	}
 	if kindText := get("kind"); kindText != "" {
@@ -314,7 +314,9 @@ func prepareRow(cat *Catalog, get func(string) string) (msg string, a addChecked
 			return fmt.Sprintf(`Type "%s" is not a device type. Use a type the device page lists, for example router, switch, server, laptop, printer, camera, ip_phone or unknown.`, clip(kindText, 20)), a, ""
 		}
 	}
-	a, aerr := checkAdd(cat, AddInput{Version: get("version"), Name: get("name"), IP: get("ip")}, false)
+	// name is the host name (typed, a manual hostname observation); name_in_vedette is the name a person gave the device (G2,
+	// user_name), never a host name: an export of a renamed device imports back as the same two names.
+	a, aerr := checkAdd(cat, AddInput{Version: get("version"), Name: get("name"), IP: get("ip"), UserName: get("name_in_vedette")}, false)
 	if aerr != nil {
 		return aerr.Message, a, ""
 	}
@@ -397,17 +399,17 @@ func namesWithoutIP(ctx context.Context, q querier) (map[string]bool, error) {
 	return out, rows.Err()
 }
 
-// ipOwner returns the name of the device that has ip, or "".
+// ipOwner returns the name of the device that has ip (as every page names it, D-471, G2), or "".
 func ipOwner(ctx context.Context, q querier, ip string) (string, error) {
-	var n string
-	err := q.QueryRowContext(ctx, `SELECT coalesce(hostname, id) FROM inv_asset WHERE ip = ?`, ip).Scan(&n)
+	var id string
+	err := q.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = ?`, ip).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
 	if err != nil {
 		return "", fmt.Errorf("inventory: check IP: %w", err)
 	}
-	return n, nil
+	return deviceName(ctx, q, id), nil
 }
 
 // ExportCSV writes the devices f keeps (the Devices search, #849; the zero filter: all) as CSV, UTF-8 with a BOM so Excel opens it
@@ -419,7 +421,9 @@ func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (
 	}
 	var b strings.Builder
 	b.WriteString(bom)
-	b.WriteString("name,ip,mac,kind,vendor,model,os,software,approved,fragile,origin,source,confidence,last_seen\r\n")
+	// name is the host name (seen on the network, or typed when the device was added); name_in_vedette the name a person gave it (G2).
+	// Import reads both back the same way.
+	b.WriteString("name,ip,mac,kind,vendor,model,os,software,approved,fragile,origin,source,confidence,last_seen,name_in_vedette\r\n")
 	for i := range items {
 		d := &items[i]
 		sum := d.Summary
@@ -439,7 +443,7 @@ func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (
 		if sum != nil {
 			src, conf = sum.Source, strconv.FormatFloat(sum.Confidence, 'f', 2, 64)
 		}
-		cells := []string{deref(d.Hostname), ip, deref(d.MAC), d.Kind, obsValue(d.Vendor), obsValue(d.Model), obsValue(d.OS), strings.Join(sw, "; "), yesNo(d.Approved), yesNo(d.Fragile), d.Origin, src, conf, d.LastSeen}
+		cells := []string{deref(d.Hostname), ip, deref(d.MAC), d.Kind, obsValue(d.Vendor), obsValue(d.Model), obsValue(d.OS), strings.Join(sw, "; "), yesNo(d.Approved), yesNo(d.Fragile), d.Origin, src, conf, d.LastSeen, deref(d.UserName)}
 		for j, c := range cells {
 			if j > 0 {
 				b.WriteByte(',')

@@ -258,11 +258,11 @@ func (a sensorInventory) Asset(ctx context.Context, assetID string) (sensoractiv
 		return sensoractive.Asset{}, sensoractive.ErrNotFound
 	}
 	ip, _ := netip.ParseAddr(r.IP) // "—" (no IP known) gives the zero Addr
-	// A host name, else the model, else the vendor; else none ("a device"): Display may be a software or a kind.
+	// The name in Vedette or the host name, else the model, else the vendor; else none ("a device"): Display may be a software or a kind.
 	name := r.Vendor
 	switch {
-	case r.Hostname != nil && *r.Hostname != "":
-		name = *r.Hostname
+	case r.NameOrHost() != nil: // the name in Vedette, else the host name (G2)
+		name = *r.NameOrHost()
 	case r.Model != "":
 		name = r.Model
 	}

@@ -73825,6 +73825,9 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	Fixed string `json:"fixed"`
 	// "/", as RowFix.group.
 	Group string `json:"group"`
+	// Windows, esu: the KB number of `fixed` when Microsoft's release information lists that build
+	// ("KB5131080"), named next to the build; "" otherwise.
+	KB string `json:"kb"`
 	// Fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package
 	// `software` from `version` to `fixed` or later (the distribution's security update); windows = the
 	// monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its
@@ -73877,6 +73880,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) GetFixed() string {
 // GetGroup returns the value of Group.
 func (s *FindingsGetFindingsPlanOKItemsItem) GetGroup() string {
 	return s.Group
+}
+
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetKB() string {
+	return s.KB
 }
 
 // GetKind returns the value of Kind.
@@ -73947,6 +73955,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) SetFixed(val string) {
 // SetGroup sets the value of Group.
 func (s *FindingsGetFindingsPlanOKItemsItem) SetGroup(val string) {
 	s.Group = val
+}
+
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetKB(val string) {
+	s.KB = val
 }
 
 // SetKind sets the value of Kind.
@@ -76783,6 +76796,9 @@ type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
 	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
 	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
+	// A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; ""
+	// otherwise.
+	KB string `json:"kb"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemExploitedItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
@@ -76852,6 +76868,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetFixed() string {
 // GetGroup returns the value of Group.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetGroup() string {
 	return s.Group
+}
+
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetKB() string {
+	return s.KB
 }
 
 // GetKind returns the value of Kind.
@@ -76962,6 +76983,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetFixed(val string
 // SetGroup sets the value of Group.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetGroup(val string) {
 	s.Group = val
+}
+
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetKB(val string) {
+	s.KB = val
 }
 
 // SetKind sets the value of Kind.
@@ -77120,6 +77146,9 @@ type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
 	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
 	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
+	// A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; ""
+	// otherwise.
+	KB string `json:"kb"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
@@ -77189,6 +77218,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetFixed() string {
 // GetGroup returns the value of Group.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetGroup() string {
 	return s.Group
+}
+
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetKB() string {
+	return s.KB
 }
 
 // GetKind returns the value of Kind.
@@ -77299,6 +77333,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetFixed(val string)
 // SetGroup sets the value of Group.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetGroup(val string) {
 	s.Group = val
+}
+
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetKB(val string) {
+	s.KB = val
 }
 
 // SetKind sets the value of Kind.
@@ -77457,6 +77496,9 @@ type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
 	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
 	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
+	// A Windows update: the KB number of `fixed` when Microsoft's release information lists that build; ""
+	// otherwise.
+	KB string `json:"kb"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemPlannedItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
@@ -77526,6 +77568,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetFixed() string {
 // GetGroup returns the value of Group.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetGroup() string {
 	return s.Group
+}
+
+// GetKB returns the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetKB() string {
+	return s.KB
 }
 
 // GetKind returns the value of Kind.
@@ -77636,6 +77683,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetFixed(val string) 
 // SetGroup sets the value of Group.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetGroup(val string) {
 	s.Group = val
+}
+
+// SetKB sets the value of KB.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetKB(val string) {
+	s.KB = val
 }
 
 // SetKind sets the value of Kind.

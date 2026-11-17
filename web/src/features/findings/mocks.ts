@@ -117,7 +117,7 @@ function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
       // As the box: an agent row's version is the last list an agent sent once no agent reports the device (agent-intake off, or no
       // agent row: the inventory mock binds an osquery agent to a device with one; the box reads its own packages)
       const gone = cves.some((c) => c.basis === 'agent') && a.id !== 'a-box' && !(isOn('agent-intake') && a.software.some((s) => s.source === 'agent'))
-      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, risk: null, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false, nvd_lag: p.nvd_lag ?? false,
+      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, risk: null, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false, nvd_lag: p.nvd_lag ?? false, kb: p.kb ?? '',
         cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length,
         agent_gone: gone, agent_reported: gone ? p.reported ?? null : null })
     }
@@ -447,20 +447,20 @@ const SEV = ['info', 'low', 'medium', 'high', 'critical']
 const sevRank = (s: string) => SEV.indexOf(s.toLowerCase())
 const buildOf = (v: string) => v.replace(/^10\.0\./, '')
 /** As findings updateSentence (updates.go): what to install, in the words the box writes. */
-function sentence(u: Pick<ToFixAction, 'kind' | 'software' | 'version' | 'fixed' | 'windows' | 'distro' | 'pro'>): string {
+function sentence(u: Pick<ToFixAction, 'kind' | 'software' | 'version' | 'fixed' | 'windows' | 'distro' | 'pro' | 'kb'>): string {
   const sw = u.software || 'the software'
   const fixed = u.windows ? buildOf(u.fixed) : u.fixed
-  const build = u.windows && u.version ? `from build ${buildOf(u.version)} to ${fixed}` : `build ${fixed}`
+  const build = `${u.windows && u.version ? `from build ${buildOf(u.version)} to ${fixed}` : `build ${fixed}`} or later${u.kb ? `; ${u.kb}` : ''}`
   switch (u.kind) {
     case 'none': return `No update is named that fixes these: follow the vendor's advice for ${sw}`
     case 'distro':
       if (fixed) return `Upgrade the ${sw} package from ${u.version} to ${fixed} or later${u.pro ? ' (Ubuntu Pro)' : ''}`
       return u.distro ? `Install ${u.distro}'s security updates for ${sw}` : `Install the distribution's security updates for ${sw}`
     case 'feature_update': return `Upgrade ${sw} to ${fixed}: some of these get no update for this release`
-    case 'esu': return `Install the Extended Security Update for ${sw} (${build} or later; it needs an ESU subscription)`
-    case 'windows': return `Install the latest cumulative update for ${sw} (${build} or later)`
+    case 'esu': return `Install the Extended Security Update for ${sw} (${build}; it needs an ESU subscription)`
+    case 'windows': return `Install the latest cumulative update for ${sw} (${build})`
   }
-  return u.windows ? `Install the latest cumulative update for ${sw} (${build} or later)` : `Upgrade ${sw} from ${u.version} to ${fixed} or later`
+  return u.windows ? `Install the latest cumulative update for ${sw} (${build})` : `Upgrade ${sw} from ${u.version} to ${fixed} or later`
 }
 
 /** GET /findings/to-fix, as findings.ToFix builds it: per device, the open findings grouped by their fix (or by product when
@@ -486,8 +486,8 @@ function toFix(asset: string | null): ToFix {
       let g = groups.get(key)
       if (!g) {
         g = f
-          ? { group: f.group, software_id: '', software: f.software, version: f.version, product: kevKey, source: a.software.find((x) => `${id}/${x.id}` === f.group)?.source ?? '', fixed: f.fixed, kind: f.kind, windows: f.windows, distro: f.distro, pro: f.pro, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: false }
-          : { group: `${id}/${swRow?.id ?? ''}`, software_id: swRow?.id ?? '', software: sw, version: swRow?.version ?? '', product: swRow ? `${swRow.vendor}|${swRow.product}`.toLowerCase() : '', source: swRow?.source ?? '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: false }
+          ? { group: f.group, software_id: '', software: f.software, version: f.version, product: kevKey, source: a.software.find((x) => `${id}/${x.id}` === f.group)?.source ?? '', fixed: f.fixed, kind: f.kind, windows: f.windows, distro: f.distro, pro: f.pro, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: false, kb: '' }
+          : { group: `${id}/${swRow?.id ?? ''}`, software_id: swRow?.id ?? '', software: sw, version: swRow?.version ?? '', product: swRow ? `${swRow.vendor}|${swRow.product}`.toLowerCase() : '', source: swRow?.source ?? '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: false, kb: '' }
         if (f) g.software_id = a.software.find((s) => `${id}/${s.id}` === f.group)?.id ?? ''
         groups.set(key, g)
       }
@@ -503,7 +503,7 @@ function toFix(asset: string | null): ToFix {
     const planned: ToFixAction[] = planItems.filter((i) => i.asset.id === id).map((i) => {
       const worst = i.cves.reduce((w, c) => (c.severity && sevRank(c.severity) > sevRank(w) ? c.severity : w), '')
       const row = a.software.find((x) => x.id === (i.group.split('/')[1] ?? ''))
-      const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: '', pro: i.pro, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: i.nvd_lag }
+      const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: '', pro: i.pro, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0, nvd_lag: i.nvd_lag, kb: i.kb }
       return { ...u, action: sentence(u) }
     })
     const card = { asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true }

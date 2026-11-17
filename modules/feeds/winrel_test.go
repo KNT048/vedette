@@ -166,7 +166,7 @@ func TestParseWinRelUpdates(t *testing.T) {
 		file   string
 		server bool
 	}{{"winrel/windows11-release-information.html", false}, {"winrel/windows-server-release-info.html", true}, {"winrel/release-information.html", false}} {
-		all = append(all, parseWinRelUpdates([]byte(testFile(t, p.file)), p.server)...)
+		all = append(all, parseWinRelUpdates([]byte(testFile(t, p.file)), p.server, day(t, "2026-11-17"))...)
 	}
 	type want struct {
 		rev int
@@ -191,13 +191,15 @@ func TestParseWinRelUpdates(t *testing.T) {
 			t.Errorf("not a monthly security update: %+v", u)
 		}
 	}
-	// untrusted input: a revision 0, a build of letters, a bad KB and an out-of-band row are not read
+	// untrusted input: a revision 0, a build of letters, a bad KB, an out-of-band row, a date after the pull and a date outside the
+	// label's month are not read
 	row := func(upd, d, build, kb string) string {
 		return "<tr><td>x</td><td>" + upd + "</td><td>" + d + "</td><td>" + build + "</td><td>" + kb + "</td></tr>"
 	}
 	page := `<table id="historyTable_0"><tbody>` + row("2026-11 B", "2026-11-10", "26100.0", "KB5000001") + row("2026-11 B", "2026-11-10", "26a00.5", "KB5000001") +
-		row("2026-11 B", "2026-11-10", "26100.5", "KB5<b>") + row("2026-11 OOB", "2026-11-13", "26100.6", "KB5000002") + row("2026-11 B", "2026-11-10", "26100.7", "") + `</tbody></table>`
-	if us := parseWinRelUpdates([]byte(page), true); len(us) != 1 || us[0].Rev != 7 || us[0].KB != "" || !us[0].Server {
+		row("2026-11 B", "2026-11-10", "26100.5", "KB5<b>") + row("2026-11 OOB", "2026-11-13", "26100.6", "KB5000002") + row("2026-11 B", "2026-11-10", "26100.7", "") +
+		row("2027-11 B", "2027-11-10", "26100.8", "KB5000003") + row("2026-10 B", "2026-11-10", "26100.9", "KB5000004") + `</tbody></table>`
+	if us := parseWinRelUpdates([]byte(page), true, day(t, "2026-11-17")); len(us) != 1 || us[0].Rev != 7 || us[0].KB != "" || !us[0].Server {
 		t.Errorf("hostile rows: %+v", us)
 	}
 }
@@ -207,6 +209,7 @@ func TestParseWinRelUpdates(t *testing.T) {
 func TestWinRelPull_MonthlyUpdates(t *testing.T) {
 	t.Cleanup(func() { winrel.Learn(nil); winrel.LearnUpdates(nil) })
 	e, o := pullEnv(t)
+	e.setNow(day(t, "2026-11-17").Add(12 * time.Hour)) // the day the fixture pages were read: their newest rows are not in the future
 	e.only(winRelFeedID)
 	e.setURL(winRelFeedID, o.url("/rh/windows11-release-information"))
 	o.body("/rh/windows11-release-information", `"a"`, testFile(t, "winrel/windows11-release-information.html"))

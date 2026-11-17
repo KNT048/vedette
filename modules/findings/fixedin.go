@@ -388,6 +388,8 @@ type GroupFix struct {
 	// newer than the update that carries the highest fixed build NVD names. It fixes Closed and the CVEs of the newer updates NVD has
 	// not analysed yet, so a count of Closed is a floor.
 	NVDLag bool
+	// KB is the KB number of Fixed when Microsoft's release information lists that build (a Windows release); "" otherwise.
+	KB string
 }
 
 // nvdRows is, by CVE, the software row the matcher matches an entry of vulns on when no KEV key of that row reaches it (viaNVD,
@@ -447,7 +449,7 @@ func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
 		}
 		g := groupFixOf(in, mine, nvd)
 		if _, ok := winDevice(in); ok {
-			g = windowsGroupFix(in, mine)
+			g = windowsGroupFix(in, mine, time.Time{})
 		}
 		if g == nil {
 			continue
@@ -543,6 +545,8 @@ type RowFix struct {
 	Pro      bool   `json:"pro"`      // distro: the fix of at least one of them is in Ubuntu Pro (ESM) only
 	// SoftwareID is the id of the software row (GroupFix.Software), so DeviceUpdates can name the row an update is for. Not in the API.
 	SoftwareID string `json:"-"`
+	// KB is GroupFix.KB, for the sentence of To fix and the assistant (updateSentence). Not in the API.
+	KB string `json:"-"`
 }
 
 // RowFixes is FixedInForAll as FindingRow.fix, by CVE, for the vulnerabilities of a device's open findings (vulns: only those, as the
@@ -582,7 +586,7 @@ func RowFixes(a Asset, vulns []Vuln) map[string]*RowFix {
 				pro[group] = true
 			}
 		}
-		out[cve] = &RowFix{Group: group, SoftwareID: g.Software, Kind: g.Kind, Windows: win, Software: clean(s.Display), Version: g.Version, Fixed: g.Fixed, Distro: g.Distro}
+		out[cve] = &RowFix{Group: group, SoftwareID: g.Software, Kind: g.Kind, Windows: win, Software: clean(s.Display), Version: g.Version, Fixed: g.Fixed, Distro: g.Distro, KB: g.KB}
 	}
 	for _, f := range out {
 		f.Pro = pro[f.Group]

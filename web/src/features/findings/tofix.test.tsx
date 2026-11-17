@@ -11,7 +11,7 @@ import type { ToFix, ToFixAction, ToFixDevice } from './types'
 // "when the user opens Findings, they know which devices need patching or an action, and what the action is".
 const T = { timeout: 5000 }
 const act = (o: Partial<ToFixAction>): ToFixAction => ({ group: 'g', software_id: '', software: '', version: '', product: '', source: '', fixed: '', kind: 'fixed', windows: false, distro: '', pro: false, action: '',
-  cves: [], finding_ids: [], worst: 'high', ransomware: 0, likely: 0, confirmed: 0, detected: 1, reported: 0, suspected: 0, nvd_lag: false, ...o })
+  cves: [], finding_ids: [], worst: 'high', ransomware: 0, likely: 0, confirmed: 0, detected: 1, reported: 0, suspected: 0, nvd_lag: false, kb: '', ...o })
 const dev = (id: string, name: string, o: Partial<ToFixDevice>): ToFixDevice => ({ asset: { id, name, hostname: name, ip: '192.168.18.10', kind: 'pc', display: 'Windows 11' }, risk: null, open: 0, exploited: [], no_update: [], planned: [], plan_compared: true, ...o })
 const winUpdate = act({ group: 'a-pc/s-win', software_id: 's-win', software: 'Windows 11 Pro', version: '10.0.26100.1742', fixed: '10.0.26100.33650', windows: true,
   action: 'Install the latest cumulative update for Windows 11 Pro (build 26100.33650 or later)', cves: ['CVE-2026-1001', 'CVE-2026-1002', 'CVE-2026-1003'], finding_ids: ['f-a', 'f-b', 'f-c'], worst: 'critical', ransomware: 1, detected: 3 })
@@ -83,16 +83,16 @@ describe('Findings › To fix', () => {
 
   it('a recommended Windows update newer than every fix NVD names says its count covers the CVEs analysed so far, by device and by fix', async () => {
     const win = act({ group: 'a-srv/s-w', software_id: 's-w', software: 'Windows Server 2025', product: 'microsoft|windows_server_2025', version: '10.0.26100.1742', fixed: '10.0.26100.33822', kind: 'windows', windows: true,
-      action: 'Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.33822 or later)', cves: ['CVE-2026-4001', 'CVE-2026-4002', 'CVE-2026-4003'], worst: 'critical', likely: 1, detected: 0, nvd_lag: true })
+      action: 'Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.33822 or later; KB5131080)', cves: ['CVE-2026-4001', 'CVE-2026-4002', 'CVE-2026-4003'], worst: 'critical', likely: 1, detected: 0, nvd_lag: true, kb: 'KB5131080' })
     serve({ ...sample, devices: [dev('a-srv', 'Windows Server 2025 host', { planned: [win] })] })
     renderApp('/findings')
     const rec = await screen.findByRole('list', { name: 'Recommended updates for Windows Server 2025 host' }, T)
-    expect(rec).toHaveTextContent("Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.33822 or later): fixes at least 3 CVEs not exploited yet, 1 likely to be exploited soon; the newest update's CVEs are not yet analysed by NVD")
+    expect(rec).toHaveTextContent("Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.33822 or later; KB5131080): fixes at least 3 CVEs not exploited yet, 1 likely to be exploited soon; the newest update's CVEs are not yet analysed by NVD")
     await userEvent.click(screen.getByRole('button', { name: 'By fix' }))
     const fixes = await screen.findByRole('list', { name: 'Fixes, the most urgent first' })
-    expect(fixes).toHaveTextContent("Install the latest cumulative update for Windows Server 2025 (build 26100.33822 or later): recommended on 1 device, at least 3 CVEs; the newest update's CVEs are not yet analysed by NVD")
+    expect(fixes).toHaveTextContent("Install the latest cumulative update for Windows Server 2025 (build 26100.33822 or later; KB5131080): recommended on 1 device, at least 3 CVEs; the newest update's CVEs are not yet analysed by NVD")
     await userEvent.click(within(fixes).getByText(/^Install the latest cumulative update for Windows Server 2025/))
-    expect(fixes).toHaveTextContent("26100.33822 or later), at least 3 CVEs; the newest update's CVEs are not yet analysed by NVD")
+    expect(fixes).toHaveTextContent("26100.33822 or later; KB5131080), at least 3 CVEs; the newest update's CVEs are not yet analysed by NVD")
     await expectNoA11yViolations()
   })
 

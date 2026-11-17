@@ -19,7 +19,7 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'All (4)' }))
     expect(await screen.findByRole('heading', { level: 1, name: '4 recommended updates' })).toBeInTheDocument()
     const list = screen.getByRole('list', { name: 'Recommended updates' })
-    expect(within(list).getByText(/Install the latest cumulative update for Windows Server 2022 \(from build 20348\.2700 to 20348\.4405 or later\)/)).toBeInTheDocument()
+    expect(within(list).getByText(/Install the latest cumulative update for Windows Server 2022 \(from build 20348\.2700 to 20348\.4405 or later; KB5000001\)/)).toBeInTheDocument()
     expect(within(list).getByText('(2 likely to be exploited)')).toBeInTheDocument()
     // the target is Microsoft's newest update, newer than every fix NVD names: the count says it covers the CVEs analysed so far
     const winItem = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('Windows Server 2022'))!

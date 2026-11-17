@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
 import { useDevice, useDevices } from '@/features/inventory/api'
 import { deviceName } from './basis'
+import { kbNote } from './fix'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 import type { SoftwareView } from '@/features/inventory/types'
 import { isOsSoftware, IUpdated } from './Updated'
@@ -157,7 +158,7 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
     return [...m.values()].sort((x, y) => Number(x.planned) - Number(y.planned) || worst(y) - worst(x) || y.devices.length - x.devices.length || x.sample.software.localeCompare(y.sample.software))
   }, [devices])
   const label = (a: ToFixAction) => {
-    const v = { software: a.software || t('toFix.theSoftware'), fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed }
+    const v = { software: a.software || t('toFix.theSoftware'), fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed, kb: kbNote(a.kb) }
     // review r1 of #943: a Windows row's feature update and ESU before the monthly cumulative update
     switch (a.kind) {
       case 'none': return t('toFix.byFix.none', v)

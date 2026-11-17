@@ -55,8 +55,10 @@ type PlanItem struct {
 	Pro        bool   `json:"pro"`  // distro: the fixed version is in Ubuntu Pro (ESM) only
 	// NVDLag (windows, esu): Fixed is the newest monthly update Microsoft lists for the release, newer than the update that carries
 	// every fixed build NVD names (GroupFix.NVDLag): the item fixes at least its CVEs; the newest update's are not analysed by NVD yet.
-	NVDLag bool      `json:"nvd_lag"`
-	CVEs   []PlanCVE `json:"cves"`
+	NVDLag bool `json:"nvd_lag"`
+	// KB (windows, esu): the KB number of Fixed when Microsoft's release information lists that build; "" otherwise.
+	KB   string    `json:"kb"`
+	CVEs []PlanCVE `json:"cves"`
 	// Reported is, for an agent's row, when the agent last reported it (Software.SeenAt): the day of the list the version comes from,
 	// which GET /findings/plan names once no agent reports the device (agent_reported). Zero otherwise. Not in the pass's JSON.
 	Reported time.Time `json:"-"`
@@ -381,7 +383,7 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 			}
 			mine = append(mine, v)
 		}
-		its := tierItems(a, s, in, win, x, mine)
+		its := tierItems(a, s, in, win, x, mine, now)
 		for _, it := range its { // the same install seen twice (the agent's and a typed row) folds; two installs at two versions do not (review r2 #2 of #804)
 			for _, c := range it.CVEs {
 				listed[c.CVE+"|"+clean(in.ver)] = true
@@ -494,13 +496,13 @@ func boolInt(b bool) int {
 // tierItems groups the matched CVEs of one row by the update that fixes them: one item when one release fixes them all, else one
 // item per release that fixes some (each CVE once, by its own nearest fix); a CVE no release is named for is left out (no update to
 // plan for it).
-func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []Vuln) []PlanItem {
+func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []Vuln, now time.Time) []PlanItem {
 	if len(vulns) == 0 {
 		return nil
 	}
 	group := func(vs []Vuln) *GroupFix {
 		if win {
-			return windowsGroupFix(in, vs)
+			return windowsGroupFix(in, vs, now)
 		}
 		return groupFixOf(in, vs, nil)
 	}
@@ -513,7 +515,7 @@ func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []V
 		case win && g.Kind != "feature_update":
 			kind = "windows"
 		}
-		it := PlanItem{Group: base + suffix, AssetID: a.ID, SoftwareID: s.ID, Software: clean(s.Display), Version: clean(in.ver), Fixed: g.Fixed, Kind: kind, NVDLag: win && g.NVDLag}
+		it := PlanItem{Group: base + suffix, AssetID: a.ID, SoftwareID: s.ID, Software: clean(s.Display), Version: clean(in.ver), Fixed: g.Fixed, Kind: kind, NVDLag: win && g.NVDLag, KB: g.KB}
 		basis := planVersion
 		if s.Source == "agent" {
 			basis, it.Reported = planAgent, s.SeenAt

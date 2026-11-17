@@ -107,8 +107,9 @@ func parseWinRelPage(body []byte, server bool) ([]winRelHistory, error) {
 // parseWinRelUpdates reads the monthly security updates ("2026-11 B") of every history table of one of Microsoft's release
 // information pages, of the kind of the page (server or client), each by the build its row names. The previews (C, D), out-of-band
 // and first builds are left out: the target of a Windows release's update is the month's security update everyone is offered. A row
-// whose values are not of the expected shape is skipped; a page with none gives none.
-func parseWinRelUpdates(body []byte, server bool) []winrel.Update {
+// whose values are not of the expected shape is skipped, and so is one dated after now or outside the month its label names (a
+// mistyped date would stay "newest" for a year); a page with none gives none.
+func parseWinRelUpdates(body []byte, server bool, now time.Time) []winrel.Update {
 	var out []winrel.Update
 	for _, m := range winRelAnyTableRE.FindAllSubmatch(body, 64) {
 		for _, row := range winRelRowRE.FindAllSubmatch(m[1], 2000) {
@@ -119,7 +120,8 @@ func parseWinRelUpdates(body []byte, server bool) []winrel.Update {
 			upd, day, build, kb := winRelText(cells[1][1]), winRelText(cells[2][1]), winRelText(cells[3][1]), winRelText(cells[4][1])
 			bm := winRelBuildRE.FindStringSubmatch(build)
 			d, err := time.Parse(time.DateOnly, day)
-			if bm == nil || err != nil || d.Year() < 2015 || !winRelMonthlyRE.MatchString(upd) || kb != "" && !winRelKBRE.MatchString(kb) {
+			if bm == nil || err != nil || d.Year() < 2015 || !winRelMonthlyRE.MatchString(upd) || kb != "" && !winRelKBRE.MatchString(kb) ||
+				d.After(now) || d.Format("2006-01") != upd[:7] {
 				continue
 			}
 			b, _ := strconv.Atoi(bm[1])
@@ -232,7 +234,7 @@ func (s *Service) buildWinRel(ctx context.Context, src sourceRow, p pullPlan) (p
 		}
 		p.out.Bytes += len(resp.Body)
 		hs = append(hs, h...)
-		ups = append(ups, parseWinRelUpdates(resp.Body, i == 1)...)
+		ups = append(ups, parseWinRelUpdates(resp.Body, i == 1, s.now())...)
 	}
 	rels := winRelReleases(hs, s.now())
 	if !slices.ContainsFunc(rels, func(r winrel.Release) bool { return !r.Server }) {

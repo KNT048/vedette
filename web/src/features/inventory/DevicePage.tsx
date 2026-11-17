@@ -411,7 +411,7 @@ function Body() {
         </>} />
       {a.is_box ? <BoxNotice assetId={a.id} /> : null}
       {/* D-599 (#829): before the approval, since merging a new row into the known device answers its approval too */}
-      <PossibleSameNotice me={{ id: a.id, name, approved: a.approved }} list={d.possible_same ?? []} />
+      <PossibleSameNotice me={{ id: a.id, name, approved: a.approved, ignored: a.ignored_at != null }} list={d.possible_same ?? []} />
       {a.ignored_at ? <IgnoredNotice d={d} /> : !a.approved ? <Approval d={d} /> : null}
       {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}
       <DeviceKpis d={d} />

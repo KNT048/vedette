@@ -96,22 +96,11 @@ export const Indicator = z.object({
   commands: z.array(z.object({ label: z.string(), code: z.string() })).optional(),
 })
 export const CompromiseCheck = z.object({ summary: z.string(), indicators: z.array(Indicator), if_found: z.array(z.string()) })
-/** The admin network in the general hardening configs; the page replaces it with the network the person types (mitigation INV-8). */
-export const ADMIN_NET_PLACEHOLDER = '{ADMIN_NET}'
-export const HardeningPort = z.object({ port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']), service: z.string().describe('Service name from inventory or the software defaults; empty when unknown') })
 export const GeneralHardening = z.object({
   software: z.string().describe('The software the checks are for, as the page names it'),
   family: z.string().describe('The family the checks are written for ("Linux", "Network device", "General")'),
-  target: z.string().describe('The device address in the configs; "<IP>" when the device has no usable IP (INV-4)'),
-  self: z.boolean().describe('The device is itself the firewall: its own guide protects its admin access'),
-  ports_from: z.enum(['seen', 'usual', 'all']).describe('seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network'),
-  ports: z.array(HardeningPort).describe('Empty when ports_from is all'),
-  admin_example: z.string().describe('The example admin network the page starts with; the configs hold {ADMIN_NET}'),
-  box: z.array(z.string()).describe('The Vedette box\'s addresses the configs allow as well, so its scans still see the ports; empty when unknown'),
-  viewer: z.string().describe('The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed'),
-  firewall: z.array(FirewallGuide).describe('Empty when the confirmed pack has its own firewall guides'),
-  checks: CompromiseCheck.nullable().describe('General "Have I been hit?" checks for the software family; null when the confirmed pack has its own'),
-}).describe('M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as "Vedette confirmed", never run by Vedette')
+  checks: CompromiseCheck.nullable().describe('General "Have I been hit?" checks for the software family'),
+}).describe('Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and the admin network field (M2-1) are gone (D-631, kien 2026-11-17)')
 export const AiResult = z.object({
   skill: z.enum(['explain', 'mitigation-config']), ts: iso, model: z.string(),
   profile: z.string().optional().describe('Name of the AI profile that answered (D-29)'),
@@ -151,7 +140,7 @@ export const FindingDetail = FindingRow.extend({
   ai: z.object({ explain: AiResult.nullable(), config: AiResult.nullable() }),
   ai_available: z.object({ explain: z.boolean(), config: z.boolean() }).describe('Whether an AI profile is assigned and allowed for each job (D-29)'),
   applied: z.array(AppliedEntry),
-  hardening: GeneralHardening.nullable().describe('null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off'),
+  hardening: GeneralHardening.nullable().describe('null when the confirmed pack has its own compromise signs, or mitigation is off'),
 })
 export const VersionNeeded = z.object({
   asset: FindingAsset.nullable(), asset_id: z.string(), software_id: z.string(), software: z.string().describe('Display name of the software'),

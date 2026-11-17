@@ -15,7 +15,16 @@ import type { PossibleSame } from './types'
 
 /** The id the device page section has, so the To review hint and a link can open it (useDeepLinkTarget focuses it). */
 export const SAME_SECTION = 'possible-same'
-type Me = { id: string; name: string; approved: boolean }
+type Me = { id: string; name: string; approved: boolean; ignored?: boolean }
+
+/** D-630 (review r2 N2 of #945): what the kept device is after the merge, as the box decides it (inventory joinAs): it keeps its own
+ *  state, except that an approved device a person watches is never hidden, so an ignored device merged with one is watched again.
+ *  "" when both are watched or both ignored. */
+export function watchAfterMerge(kept: { ignored?: boolean }, gone: { ignored?: boolean; approved: boolean }): '' | 'staysIgnored' | 'staysWatched' | 'watchedAgain' {
+  if (!!kept.ignored === !!gone.ignored) return ''
+  if (!kept.ignored) return 'staysWatched'
+  return gone.approved ? 'watchedAgain' : 'staysIgnored'
+}
 
 /** "Waiting for review, seen 2 days ago": what tells the two apart at a glance. */
 function StateLine({ approved, lastSeen }: { approved: boolean; lastSeen: string }) {
@@ -100,6 +109,7 @@ function MergeDialog({ me, other, onClose }: { me: Me; other: PossibleSame; onCl
   const [keep, setKeep] = useState(other.approved && !me.approved ? other.id : me.id)
   const [error, setError] = useState('')
   const [kept, gone] = keep === me.id ? [me, other] : [other, me]
+  const watch = watchAfterMerge(kept, gone)
   const option = (d: { id: string; name: string; approved: boolean }) => (
     <option key={d.id} value={d.id}>{t(d.approved ? 'same.keepOptionApproved' : 'same.keepOptionPending', { name: said(d, true) })}</option>
   )
@@ -120,6 +130,7 @@ function MergeDialog({ me, other, onClose }: { me: Me; other: PossibleSame; onCl
             {option(me)}{option(other)}
           </Select>
         </Field>
+        {watch ? <p className="text-sm">{t(`same.watch.${watch}`, { into: said(kept), from: said(gone) })}</p> : null}
         {error ? <p role="alert" className="text-meta text-danger [overflow-wrap:anywhere]">{error}</p> : null}
         <DialogFooter>
           <DialogClose asChild><Button disabled={merge.isPending}>{t('common:cancel')}</Button></DialogClose>

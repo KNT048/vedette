@@ -24,7 +24,7 @@ export function BoxNotice({ assetId }: { assetId: string }) {
   const cves = new Set(counts?.cves ?? [])
   const fixing = pending.filter((p) => p.cves.some((c) => cves.has(c)))
   const fixed = new Set(fixing.flatMap((p) => p.cves).filter((c) => cves.has(c))).size
-  const findingsLink = `/findings?device=${encodeURIComponent(assetId)}`
+  const findingsLink = `/findings?tab=open&device=${encodeURIComponent(assetId)}`
   return (
     <Notice tone="accent" title={t('box.title')} info={[t('box.lead'), packages].filter(Boolean).join(' ')}>
       <p>{t('box.matched')}</p>

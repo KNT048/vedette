@@ -24,7 +24,7 @@ import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/d
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useDevice, useDeviceAction } from './api'
 import { useModuleEnabled } from '@/lib/modules'
-import { SoftwareNeeds, useSoftwareNeeds } from '@/features/findings/SoftwareNeeds'
+import { OsNeeds, SoftwareNeeds, useSoftwareNeeds } from '@/features/findings/SoftwareNeeds'
 import { useDeviceFindingCounts } from '@/features/findings/notRelevant'
 import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
@@ -294,6 +294,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   ]
   return (
     <>
+      <OsNeeds assetId={d.asset.id} needs={needs} />
       <DataTable caption={t('software.caption')} data={list} columns={columns}
         mobileRow={(sw) => (
           <div className="flex items-start justify-between gap-3">
@@ -432,7 +433,7 @@ function DeviceKpis({ d }: { d: DeviceDetail }) {
   const id = encodeURIComponent(d.asset.id)
   return (
     <KpiStrip label={t('detail.kpi.label')} items={[
-      ...(findingsOn ? [{ value: counts ? counts.open : '–', label: t('detail.kpi.findings'), to: `/findings?device=${id}` }] : []),
+      ...(findingsOn ? [{ value: counts ? counts.open : '–', label: t('detail.kpi.findings'), to: `/findings?tab=open&device=${id}` }] : []),
       { value: d.asset.software.length, label: t('detail.kpi.software'), to: '?tab=software' },
       { value: d.asset.services.length, label: t('detail.kpi.services'), to: '?tab=services' },
     ]} />

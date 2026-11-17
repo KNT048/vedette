@@ -11,7 +11,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
-import { useDevices } from '@/features/inventory/api'
+import { useDevice, useDevices } from '@/features/inventory/api'
 import { deviceName } from './basis'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 
@@ -117,7 +117,10 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
         // review r1 of #943: the product's identity (vendor|product), not the name each device gives it; a distro's own updates apart
         const key = [a.kind, a.product || a.software.toLowerCase(), a.distro, a.fixed, planned].join('|')
         const r = m.get(key) ?? { key, sample: a, planned, devices: [] }
-        r.devices.push({ d, a })
+        // review r2 of #943: two rows of the same product on one device (7-Zip and 7-Zip (x64)) are one device, their CVEs together
+        const same = r.devices.find((x) => x.d.asset.id === d.asset.id)
+        if (same) same.a = { ...same.a, cves: [...same.a.cves, ...a.cves], worst: rank(a.worst) > rank(same.a.worst) ? a.worst : same.a.worst }
+        else r.devices.push({ d, a })
         m.set(key, r)
       }
     }
@@ -166,6 +169,12 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
   )
 }
 
+/** A device's name, read only for a `?device=` To fix does not list (review r2 of #943): the chip and the empty state name it. */
+function WithDeviceName({ id, children }: { id: string; children: (name: string | undefined) => ReactNode }) {
+  const a = useDevice(id).data?.asset
+  return <>{children(a ? (a.name || a.hostname || (a.ip && a.ip !== '—' ? a.ip : undefined)) ?? undefined : undefined)}</>
+}
+
 /** The box's device id, read only when an action may need it (a distribution's update): its OS updates have their own page. */
 export function WithBox({ children }: { children: (boxId: string | undefined) => ReactNode }) {
   const boxId = useDevices().data?.items.find((x) => x.is_box)?.id
@@ -174,6 +183,15 @@ export function WithBox({ children }: { children: (boxId: string | undefined) =>
 
 /** The To fix tab: by device (default) or by fix (`?by=fix`, shareable); `?device=` keeps one device, shown as a chip to clear. */
 export function ToFixTab({ q }: { q: { data: ToFix | undefined; error: unknown; isPending: boolean; refetch: () => unknown } }) {
+  const [params] = useSearchParams()
+  const device = params.get('device') ?? ''
+  // review r2 of #943: a device with nothing in to-fix is still named (its device read, only then)
+  const inList = !device || !q.data || q.data.devices.some((x) => x.asset.id === device)
+  if (!inList) return <WithDeviceName id={device}>{(name) => <ToFixBody q={q} otherName={name} />}</WithDeviceName>
+  return <ToFixBody q={q} otherName={undefined} />
+}
+
+function ToFixBody({ q, otherName }: { q: { data: ToFix | undefined; error: unknown; isPending: boolean; refetch: () => unknown }; otherName: string | undefined }) {
   const { t } = useTranslation('findings')
   const [params, setParams] = useSearchParams()
   const by = params.get('by') === 'fix' ? 'fix' : 'device'
@@ -185,7 +203,7 @@ export function ToFixTab({ q }: { q: { data: ToFix | undefined; error: unknown; 
       {(d) => {
         const devices = d.devices.filter(listed).filter((x) => !device || x.asset.id === device)
         const named = device ? d.devices.find((x) => x.asset.id === device) : undefined
-        const deviceLabel = named ? deviceName(named.asset, t('removedDevice')) : t('toFix.thisDevice')
+        const deviceLabel = named ? deviceName(named.asset, t('removedDevice')) : otherName ?? t('toFix.thisDevice')
         const planNote = d.plan_off ? t('toFix.planOff') : !d.plan_ran ? t('toFix.planNotRun') : ''
         return (
           <div className="grid gap-3">
@@ -198,7 +216,9 @@ export function ToFixTab({ q }: { q: { data: ToFix | undefined; error: unknown; 
             {planNote ? <p className="text-meta text-muted">{planNote}</p> : null}
             {devices.length === 0 ? (
               <EmptyState art="no-findings" title={device ? t('toFix.emptyDevice', { device: deviceLabel }) : t('toFix.empty')}>
-                {device && named && unproved(named).length ? t('toFix.emptyDeviceCheck') : d.plan_off || !d.plan_ran ? t('toFix.emptyBodyNoPlan') : t('toFix.emptyBody')}
+                {device && named && unproved(named).length
+                  ? <Link to={`/findings?tab=input&device=${encodeURIComponent(device)}`} className="text-accent underline underline-offset-4">{t('toFix.emptyDeviceCheck')}</Link>
+                  : d.plan_off || !d.plan_ran ? t('toFix.emptyBodyNoPlan') : t('toFix.emptyBody')}
               </EmptyState>
             ) : by === 'fix' ? <ByFix devices={devices} /> : (() => {
               const list = (boxId: string | undefined) => <ul aria-label={t('toFix.label')} className="grid gap-3">{devices.map((x) => <DeviceCard key={x.asset.id} d={x} box={x.asset.id === boxId} />)}</ul>

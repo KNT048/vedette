@@ -293,11 +293,15 @@ function List() {
   const toFixDevices = (toFix.data?.devices ?? []).filter((x) => !device || x.asset.id === device)
   const need = (q.data?.version_needed ?? []).filter((x) => !device || x.asset_id === device)
   const unc = (q.data?.unchecked ?? []).filter((x) => !device || x.asset_id === device)
+  const inputDeviceName = [...need.map((x) => x.asset), ...unc.map((x) => x.asset), ...toFixDevices.map((x) => x.asset)].find((x) => x?.id === device)?.name ?? t('toFix.thisDevice')
   const inputCount = need.length + unc.length + toFixDevices.reduce((n, x) => n + unproved(x).length, 0)
   // review r1 of #943: never "nothing needs your input" while the unproved matches are unread or failed
   const inputPanel = (
     <QueryState query={q}>
-      {() => inputCount === 0 && toFix.data ? (
+      {() => <>
+      {/* review r2 of #943: a device filter here is visible and clears in one click, as on To fix */}
+      {device ? <Button size="sm" className="mb-3 w-fit" onClick={() => setParam('device', '')}><X />{t('input.clearDevice', { device: inputDeviceName })}</Button> : null}
+      {inputCount === 0 && toFix.data ? (
         <EmptyState title={t('input.empty')}>{t('input.emptyBody')}</EmptyState>
       ) : (
         <div className="grid gap-6">
@@ -308,6 +312,7 @@ function List() {
           {toFix.data?.truncated ? <p className="text-meta text-muted">{t('input.truncated')}</p> : null}
         </div>
       )}
+      </>}
     </QueryState>
   )
   return (

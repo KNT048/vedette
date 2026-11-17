@@ -49,7 +49,7 @@ export function SoftwareNeeds({ assetId, softwareId, needs }: { assetId: string;
   const cves = n.exploited.reduce((s, a) => s + a.cves.length, 0)
   const check = n.check.reduce((s, a) => s + a.cves.length, 0)
   const worst = n.exploited.reduce((w, a) => (rank(a.worst) > rank(w) ? a.worst : w), '')
-  const to = `/findings?device=${encodeURIComponent(assetId)}`
+  const to = `/findings?tab=open&device=${encodeURIComponent(assetId)}`
   return (
     <div className="grid gap-1 text-meta">
       {cves ? (
@@ -65,6 +65,20 @@ export function SoftwareNeeds({ assetId, softwareId, needs }: { assetId: string;
           {a.fixed ? t('needs.planned', { fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed, count: a.cves.length }) : t('needs.plannedNoVersion', { count: a.cves.length })}
         </Link>
       ))}
+    </div>
+  )
+}
+
+/** The device's operating system has no row of its own on the Software tab when the OS comes from SNMP or what the device states
+ *  (its actions are on "os:<device>"): one line above the table says what it needs (review r2 of #943); nothing when clean. */
+export function OsNeeds({ assetId, needs }: { assetId: string; needs: ReturnType<typeof useSoftwareNeeds> }) {
+  const { t } = useTranslation('findings')
+  const id = `os:${assetId}`
+  if (!(needs instanceof Map) || !needs.has(id)) return null
+  return (
+    <div className="mb-3 grid gap-1 rounded-md border border-rule bg-surface px-4 py-3 text-sm">
+      <span className="font-medium">{t('needs.os')}</span>
+      <SoftwareNeeds assetId={assetId} softwareId={id} needs={needs} />
     </div>
   )
 }

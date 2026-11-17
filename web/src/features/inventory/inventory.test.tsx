@@ -738,7 +738,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeChecked()
     // D-543: the page frame: numbers that link to the detail, then one tab per area of the device
     const kpis = screen.getByRole('list', { name: 'This device at a glance' })
-    expect(within(kpis).getByRole('link', { name: /Open findings/ })).toHaveAttribute('href', '/findings?device=a-nas02')
+    expect(within(kpis).getByRole('link', { name: /Open findings/ })).toHaveAttribute('href', '/findings?tab=open&device=a-nas02')
     expect(within(kpis).getByRole('link', { name: '3 Open services' })).toHaveAttribute('href', '/devices/a-nas02?tab=services')
     expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Overview', 'Software', 'Services', 'Observations'])
     await expectNoA11yViolations()
@@ -760,7 +760,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     await user.click(screen.getByRole('tab', { name: 'Software' }))
     const sw = await screen.findByRole('table', { name: 'Software on the device' }, T)
     // kien G8: the row says what it needs, linked to the device's To fix
-    expect(await within(sw).findByRole('link', { name: '1 exploited CVE' }, T)).toHaveAttribute('href', '/findings?device=a-nas02')
+    expect(await within(sw).findByRole('link', { name: '1 exploited CVE' }, T)).toHaveAttribute('href', '/findings?tab=open&device=a-nas02')
     await expectNoA11yViolations()
   })
 
@@ -770,7 +770,7 @@ describe('inventory: device detail (S-INV-1)', () => {
   const openSoftwareTab = () => renderApp('/devices/a-nas02?tab=software')
   it('W11-1, G8: an open finding shows on the software row as what it needs, linked to the device\'s To fix', async () => {
     openSoftwareTab()
-    await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toHaveAttribute('href', '/findings?device=a-nas02'), T)
+    await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toHaveAttribute('href', '/findings?tab=open&device=a-nas02'), T)
   })
 
   it('W11-1: an exploited CVE of the product without an open finding on the device is not shown', async () => {

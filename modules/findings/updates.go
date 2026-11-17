@@ -117,6 +117,7 @@ func (s *Service) DeviceUpdates(ctx context.Context, assetID string, feedsOn boo
 	}
 	if feedsOn {
 		out.Planned, out.PlanRan, out.PlanCompared = s.plannedUpdates(assetID)
+		withProducts(a, out.Planned)
 	} else {
 		out.PlanOff = true
 	}

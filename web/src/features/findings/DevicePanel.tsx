@@ -27,19 +27,24 @@ export function DevicePanel(props: Record<string, unknown>) {
   const toFix = useToFix(assetId, on === true)
   const sw = useDeviceSoftware(assetId)
   const [showNotRelevant, setShowNotRelevant] = useState(false)
+  const found = toFix.data?.devices.find((x) => x.asset.id === assetId)
+  const card = found && hasWork(found) ? found : undefined
   if (on === false) return <Section title={t('device.title')}><ModuleOff module="findings" /></Section>
   return (
     <>
     <Section id="device-findings" title={t('device.title')} description={t('device.description')} stories={['S-MIT-1']}>
+      {/* kien G8 (review r2 of #943): the device's To fix card whenever it has any action, recommended updates only included */}
+      {card ? (actionable(card).some((a) => a.kind === 'distro')
+        ? <WithBox>{(boxId) => <ul aria-label={t('device.todo')} className="mb-3 grid"><DeviceCard d={card} box={boxId === assetId} showName={false} /></ul>}</WithBox>
+        : <ul aria-label={t('device.todo')} className="mb-3 grid"><DeviceCard d={card} box={false} showName={false} /></ul>) : null}
       <QueryState query={q}>
         {(d) => d.items.length === 0 ? (
-          <p className="text-sm text-muted">{t('device.none')}</p>
+          card ? null : <p className="text-sm text-muted">{t('device.none')}</p>
         ) : (() => {
           // kien G5: not relevant is hidden until asked for. kien G8 (review r1 of #943): what to do is the device's To fix card, the
           // same answer and component as Findings (one grouping on the page); below it every finding of the device, one row each.
           const listed = withoutNotRelevant(d.items, showNotRelevant)
           const rest = listed.rows
-          const card = toFix.data?.devices.find((x) => x.asset.id === assetId)
           const toggle = <NotRelevantToggle count={listed.total} shown={showNotRelevant} onChange={setShowNotRelevant} />
           if (listed.rows.length === 0) return <div className="grid gap-1"><p className="text-sm text-muted">{t('device.onlyNotRelevant', { count: listed.total })}</p>{toggle}</div>
           return (
@@ -48,9 +53,6 @@ export function DevicePanel(props: Record<string, unknown>) {
             <Link to={`/findings?tab=open&device=${encodeURIComponent(assetId)}`} className="w-fit text-meta text-accent underline underline-offset-4">{t('device.handleAll')}</Link>
           ) : null}
           <Updated items={d.items} software={sw.data?.asset.software} />
-          {card && hasWork(card) ? (actionable(card).some((a) => a.kind === 'distro')
-            ? <WithBox>{(boxId) => <ul aria-label={t('device.todo')} className="grid"><DeviceCard d={card} box={boxId === assetId} showName={false} /></ul>}</WithBox>
-            : <ul aria-label={t('device.todo')} className="grid"><DeviceCard d={card} box={false} showName={false} /></ul>) : null}
           {rest.length ? <Card flush><ul aria-label={t('device.all')} className="divide-y divide-rule">
             {[...rest].sort((a, b) => riskRank(b) - riskRank(a)).map((f) => (
               <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">

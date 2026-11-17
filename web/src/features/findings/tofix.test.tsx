@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
-import { assetsStore } from '@/mocks/stores'
+import { assetsStore, findingsStore } from '@/mocks/stores'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 
 // kien G8: "when the user opens Findings, they know which devices need patching or an action, and what the action is".
@@ -113,13 +113,32 @@ describe('Findings › To fix (kien G8)', () => {
     expect(screen.getByText(/Windows 11 Pro 10.0.26300.9974/)).toBeInTheDocument()
   })
 
+  it('a device with recommended updates only shows them on its page (review r2 of #943)', async () => {
+    const withFindings = new Set(findingsStore.get().map((f) => f.asset_id))
+    const quiet = assetsStore.get().find((x) => !withFindings.has(x.id) && x.software.length > 0)!
+    server.use(http.get('*/api/v1/findings/to-fix', () => HttpResponse.json({ ...sample, devices: [dev(quiet.id, 'QUIET', { planned: [firefox] })] })))
+    renderApp(`/devices/${encodeURIComponent(quiet.id)}`)
+    const todo = await screen.findByRole('list', { name: 'What to do on this device' }, T)
+    expect(within(todo).getByRole('list', { name: 'Recommended updates for QUIET' })).toHaveTextContent('Upgrade Mozilla Firefox from 152.0 to 157.0.1 or later: fixes 228 CVEs not exploited yet')
+    expect(screen.queryByText('No findings for this device yet.')).toBeNull()
+  })
+
+  it('a device whose findings all need a check links To fix\'s empty state to Needs your input', async () => {
+    serve({ ...sample, devices: [dev('a-cam', 'CAM-01', { open: 2, no_update: [unprovedWin] })] })
+    renderApp('/findings?device=a-cam')
+    expect(await screen.findByRole('link', { name: 'Its exploited CVEs need your check: see Needs your input.' }, T)).toHaveAttribute('href', '/findings?tab=input&device=a-cam')
+    expect(screen.getByRole('button', { name: 'Only CAM-01: show every device' })).toBeInTheDocument()
+  })
+
   it('the device\'s Software tab says what each row needs: a recommended update with its CVEs, nothing on a clean row', async () => {
+    // review r2 of #943: a third row for the unproved match, so the check below always runs
+    assetsStore.update((l) => l.map((x) => (x.id === 'a-nas02' ? { ...x, software: [...x.software, { ...x.software[0]!, id: 's-g8-third', display: 'Hikvision camera firmware', vendor: 'Hikvision', product: 'firmware', kev: [] }] } : x)))
     const a = assetsStore.get().find((x) => x.id === 'a-nas02')!
     const [first, clean] = a.software
-    const third = a.software[2]
+    const third = a.software.find((x) => x.id === 's-g8-third')!
     server.use(http.get('*/api/v1/findings/to-fix', () => HttpResponse.json({ ...sample, devices: [dev('a-nas02', 'NAS-PHOTOS', {
       planned: [act({ group: `a-nas02/${first!.id}`, software_id: first!.id, software: first!.display, version: '1.0', fixed: '1.2.3', cves: ['CVE-2026-1', 'CVE-2026-2'], action: 'Upgrade' })],
-      no_update: third ? [act({ ...unprovedWin, group: `a-nas02/${third.id}`, software_id: third.id })] : [],
+      no_update: [act({ ...unprovedWin, group: `a-nas02/${third.id}`, software_id: third.id })],
     })] })))
     renderApp('/devices/a-nas02?tab=software')
     const table = await screen.findByRole('table', { name: 'Software on the device' }, T)
@@ -127,9 +146,7 @@ describe('Findings › To fix (kien G8)', () => {
     expect(await within(row(first!.display)).findByRole('link', { name: 'Recommended update to 1.2.3 fixes 2 CVEs' }, T)).toBeInTheDocument()
     if (clean) expect(within(row(clean.display)).queryByRole('link', { name: /Recommended|exploited/ })).toBeNull()
     // review r1 of #943: an unproved match is not counted as exploited: it links to Needs your input
-    if (third) {
-      expect(within(row(third.display)).queryByRole('link', { name: /^2 exploited CVEs$/ })).toBeNull()
-      expect(within(row(third.display)).getByRole('link', { name: '2 exploited CVEs to check' })).toHaveAttribute('href', '/findings?tab=input&device=a-nas02')
-    }
+    expect(within(row(third.display)).queryByRole('link', { name: /^2 exploited CVEs$/ })).toBeNull()
+    expect(within(row(third.display)).getByRole('link', { name: '2 exploited CVEs to check' })).toHaveAttribute('href', '/findings?tab=input&device=a-nas02')
   })
 })

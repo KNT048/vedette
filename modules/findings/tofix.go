@@ -45,6 +45,11 @@ func (d DeviceUpdates) actionable() []UpdateAction {
 // severity, ransomware, open findings; then its plan); only the ToFixLimit first get the per-device work (MatchInput, MatchAsset,
 // RowFixes), so the page never pays it for more than ToFixLimit devices, and Truncated says more had something.
 func (s *Service) ToFix(ctx context.Context, feedsOn bool, assetID string) (ToFix, error) {
+	return s.toFix(ctx, feedsOn, assetID, ToFixLimit)
+}
+
+// toFix is ToFix with the cap as a parameter (the tests use a small one).
+func (s *Service) toFix(ctx context.Context, feedsOn bool, assetID string, limit int) (ToFix, error) {
 	recs, err := s.List(ctx, assetID)
 	if err != nil {
 		return ToFix{}, err
@@ -56,14 +61,27 @@ func (s *Service) ToFix(ctx context.Context, feedsOn bool, assetID string) (ToFi
 		}
 	}
 	out := ToFix{PlanOff: !feedsOn}
-	plan := map[string]int{} // device -> its plan items
+	plan := map[string]planRank{} // device -> what its plan items weigh, as urgency reads them
 	if feedsOn {
 		s.plan.mu.RLock()
 		out.PlanRan = s.plan.ran
 		for id, d := range s.plan.devices {
-			if len(d.items) > 0 && (assetID == "" || id == assetID) {
-				plan[id] = len(d.items)
+			if len(d.items) == 0 || (assetID != "" && id != assetID) {
+				continue
 			}
+			var p planRank
+			for _, it := range d.items {
+				for _, c := range it.CVEs {
+					p.cves++
+					if c.Tier == "likely" {
+						p.likely++
+					}
+					if c.Severity != nil {
+						p.worst = max(p.worst, sevRank(Severity(*c.Severity)))
+					}
+				}
+			}
+			plan[id] = p
 		}
 		s.plan.mu.RUnlock()
 	}
@@ -78,8 +96,8 @@ func (s *Service) ToFix(ctx context.Context, feedsOn bool, assetID string) (ToFi
 		}
 	}
 	ids := preRank(open, plan, ransom)
-	if len(ids) > ToFixLimit {
-		ids, out.Truncated = ids[:ToFixLimit], true
+	if len(ids) > limit {
+		ids, out.Truncated = ids[:limit], true
 	}
 	for _, id := range ids {
 		a, ok, err := s.cfg.Inventory.MatchInput(ctx, id)
@@ -95,13 +113,7 @@ func (s *Service) ToFix(ctx context.Context, feedsOn bool, assetID string) (ToFi
 		}
 		if feedsOn {
 			d.Planned, d.PlanRan, d.PlanCompared = s.plannedUpdates(id)
-			sws := map[string]Software{}
-			for _, sw := range deviceSoftware(a) {
-				sws[sw.ID] = sw
-			}
-			for i := range d.Planned {
-				d.Planned[i].Product = productKey(sws[d.Planned[i].SoftwareID])
-			}
+			withProducts(a, d.Planned)
 		} else {
 			d.PlanOff = true
 		}
@@ -120,28 +132,42 @@ func sortByUrgency(ds []DeviceUpdates) {
 	})
 }
 
-// preRank orders the devices from what is read without the per-device work: open exploited findings first (their worst severity,
-// ransomware, how many), then devices with only plan items (how many); ties by id.
-func preRank(open map[string][]Record, plan map[string]int, ransom map[string]bool) []string {
+// planRank is what a device's plan items weigh: their worst severity, likely CVEs and CVEs (urgency's plan keys).
+type planRank struct{ worst, likely, cves int }
+
+// preRank orders the devices from what is read without the per-device work, by the same keys as urgency (review r2 of #943): first
+// whether the device has something to fix (an open finding the box proved or can name an update for: any basis but a product-only
+// match, or the agent's evidence), then that part's worst severity, ransomware, proved findings and CVEs; then its plan's worst
+// severity, likely CVEs and CVEs; ties by id. A device with only product-only guesses (To fix does not list it) never pushes out one
+// with something to fix.
+func preRank(open map[string][]Record, plan map[string]planRank, ransom map[string]bool) []string {
 	type pre struct {
-		id                     string
-		worst, ransomware, all int
-		plan                   int
+		id                              string
+		act, worst, ransomware, n, cves int
+		plan                            planRank
 	}
 	seen := map[string]*pre{}
 	for id, rs := range open {
-		p := &pre{id: id, all: len(rs), plan: plan[id]}
+		p := &pre{id: id, plan: plan[id]}
 		for _, r := range rs {
+			if r.Basis == BasisProduct && (r.Evidence == nil || !r.Evidence.Agent) {
+				continue // a product-only match: no update is named, nothing proved (Needs your input)
+			}
+			p.act = 1
 			p.worst = max(p.worst, sevRank(r.Severity))
 			if ransom[r.CVE] {
 				p.ransomware++
 			}
+			if r.Basis == BasisScan || (r.Evidence != nil && r.Evidence.Agent) {
+				p.n++
+			}
+			p.cves++
 		}
 		seen[id] = p
 	}
-	for id, n := range plan {
+	for id, pl := range plan {
 		if seen[id] == nil {
-			seen[id] = &pre{id: id, plan: n}
+			seen[id] = &pre{id: id, plan: pl}
 		}
 	}
 	list := make([]*pre, 0, len(seen))
@@ -149,7 +175,9 @@ func preRank(open map[string][]Record, plan map[string]int, ransom map[string]bo
 		list = append(list, p)
 	}
 	slices.SortFunc(list, func(p, q *pre) int {
-		return cmp.Or(cmp.Compare(q.worst, p.worst), cmp.Compare(q.ransomware, p.ransomware), cmp.Compare(q.all, p.all), cmp.Compare(q.plan, p.plan), strings.Compare(p.id, q.id))
+		return cmp.Or(cmp.Compare(q.act, p.act), cmp.Compare(q.worst, p.worst), cmp.Compare(q.ransomware, p.ransomware), cmp.Compare(q.n, p.n),
+			cmp.Compare(q.cves, p.cves), cmp.Compare(q.plan.worst, p.plan.worst), cmp.Compare(q.plan.likely, p.plan.likely), cmp.Compare(q.plan.cves, p.plan.cves),
+			strings.Compare(p.id, q.id))
 	})
 	ids := make([]string, len(list))
 	for i, p := range list {
@@ -183,4 +211,15 @@ func urgency(d DeviceUpdates) urgent {
 func (u urgent) compare(o urgent) int {
 	return cmp.Or(cmp.Compare(u.act, o.act), cmp.Compare(u.worst, o.worst), cmp.Compare(u.ransomware, o.ransomware), cmp.Compare(u.proved, o.proved),
 		cmp.Compare(u.cves, o.cves), cmp.Compare(u.planWorst, o.planWorst), cmp.Compare(u.likely, o.likely), cmp.Compare(u.planCVEs, o.planCVEs))
+}
+
+// withProducts sets UpdateAction.Product of planned actions from the device's software rows (the plan items carry only the row id).
+func withProducts(a Asset, us []UpdateAction) {
+	sws := map[string]Software{}
+	for _, sw := range deviceSoftware(a) {
+		sws[sw.ID] = sw
+	}
+	for i := range us {
+		us[i].Product = productKey(sws[us[i].SoftwareID])
+	}
 }

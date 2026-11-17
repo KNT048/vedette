@@ -13,8 +13,8 @@ import (
 
 // BN340 (n82): nmap's fingerprint guesses "Android 9 - 10 (Linux 4.9 - 4.14)"; the device's SNMP answer (net-snmp's uname layout) says
 // Alpine Linux and wins over the guess (INV-1); a person's correction wins over both, drives matching, survives later reads, says when
-// the sources disagree, and can be cleared (INV-39).
-func TestINV39_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
+// the sources disagree, and can be cleared (INV-41).
+func TestINV41_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ip := netip.MustParseAddr("192.168.18.1")
@@ -102,11 +102,11 @@ func TestINV39_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 	}
 }
 
-// INV-39: a person corrects the OpenSSH row a scan reported (BN340: package release 10.2_p1-r1). The correction replaces exactly that
+// INV-41: a person corrects the OpenSSH row a scan reported (BN340: package release 10.2_p1-r1). The correction replaces exactly that
 // row for matching, and its re-reports; a later scan that reads another version is another row, which matches and makes the device
 // say the scan disagrees. The correction can change the product (the wrong row's CVEs stop matching); clearing it brings the scanned
 // row back.
-func TestINV39_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
+func TestINV41_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, withKEV(fakeKEV{cves: map[string][]string{"openbsd|openssh": {"CVE-2026-123158"}, "matt johnston|dropbear ssh": {"CVE-2026-0002"}}}))
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.18.1")}
@@ -151,20 +151,28 @@ func TestINV39_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "manual" {
 		t.Fatalf("the correction must survive the next scan: %+v", sw)
 	}
+	// The source now reads another version (review r2 M-B): the correction rests and the 10.3 row decides; the device says so.
 	scan("10.3")
-	if sw := matchRows(t, e, dev); len(sw) != 2 {
-		t.Fatalf("a version the scan never reported before is not hidden: %+v", sw)
+	if sw := matchRows(t, e, dev); len(sw) != 1 || sw[0].Source != "nmap" || sw[0].Version != "10.3" ||
+		!strings.Contains(sw[0].Superseded, "op@example.com corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2p1 (package 10.2_p1-r1) on ") ||
+		!strings.HasSuffix(sw[0].Superseded, "; nmap now reads OpenSSH 10.3, so Vedette uses that until the correction is set again") {
+		t.Fatalf("a resting correction must not match; the 10.3 row decides and names it: %+v", sw)
 	}
-	if _, mine := swViews(t, e, dev); mine.Correction == nil || mine.Correction.Detected == nil || *mine.Correction.Detected.Version != "10.3" || !mine.Correction.Disagrees {
-		t.Fatalf("the last scan reads 10.3: %+v", mine.Correction)
+	if m, _, _ := e.svc.MatchInput(e.ctx(), dev); len(m.StaleCorrections) != 1 {
+		t.Fatalf("stale corrections %v", m.StaleCorrections)
 	}
-	// A version change without a package release drops the old release (review r1 L3).
+	if _, mine := swViews(t, e, dev); mine.Correction == nil || mine.Correction.Active || mine.Correction.Detected == nil || *mine.Correction.Detected.Version != "10.3" || !mine.Correction.Disagrees {
+		t.Fatalf("the device shows the correction not in use; the scan now reads 10.3: %+v", mine.Correction)
+	}
+	// Setting it again (here on the correction itself) puts it on what the scan reads now; a version change without a package release
+	// drops the old release (review r1 L3).
 	_, mine = swViews(t, e, dev)
 	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, mine.ID, inventory.SoftwareEdit{Version: ptr("10.3")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, again := swViews(t, e, dev); again.ID != mine.ID || *again.Version != "10.3" || again.PkgVersion != nil || again.Correction.Disagrees {
-		t.Fatalf("edit of the correction: %+v", again)
+	if sc, again := swViews(t, e, dev); again.ID != mine.ID || *again.Version != "10.3" || again.PkgVersion != nil || !again.Correction.Active || again.Correction.Disagrees ||
+		sc.CorrectedBy == nil || *sc.CorrectedBy != mine.ID {
+		t.Fatalf("set again: %+v / %+v", again, sc)
 	}
 
 	// Another product: the wrong row's CVEs stop matching on this row (the 10.3 row the scan reads now still matches OpenSSH).
@@ -201,7 +209,7 @@ func TestINV39_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 // Review r1 H1 of #950: a correction replaces exactly the row the person corrected. Another source's row of the product (.181: the
 // nmap row corrected while the agent's packaged row stands), another version from the same agent (a Debian box with two kernels) and
 // another version from the same scan (OpenSSH on two ports) keep matching.
-func TestINV39_ACorrectionReplacesOnlyItsRow(t *testing.T) {
+func TestINV41_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	at := netip.MustParseAddr("192.168.18.181")
@@ -250,12 +258,94 @@ func TestINV39_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Fatalf("rows matched %v, want %v (only the two corrected rows go)", got, want)
 	}
+	// .181 (review r2 M-A): with the nmap row corrected to 10.2p1, the agent's own 10.2p1 row is corrected too (its package release).
+	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, idOf("agent", "10.2p1"), inventory.SoftwareEdit{PkgVersion: ptr("1:10.2p1-2ubuntu3.9")}); err != nil {
+		t.Fatalf("the second source's row must be correctable: %v", err)
+	}
+	got = nil
+	for _, r := range matchRows(t, e, dev) {
+		got = append(got, r.Source+" "+r.Version+" "+r.ReportedSource+" "+r.PkgVersion)
+	}
+	slices.Sort(got)
+	want = []string{"agent 6.12.117  6.12.117-1", "manual 10.2p1 agent 1:10.2p1-2ubuntu3.9", "manual 10.2p1 nmap 9.9-1", "manual 6.12.116 agent 9.9-1", "nmap 8.9p1  "}
+	if !slices.Equal(got, want) {
+		t.Fatalf("rows matched %q, want %q", got, want)
+	}
+}
+
+// Review r2 M-A of #950: nmap and the agent both read OpenSSH 7.4; both rows are corrected to 9.6 (the same release), and neither
+// original matches. Corrections never collide with each other, with the rows they correct, or with a declared row.
+func TestINV41_TwoSourcesCorrectedToTheSameVersion(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	at := netip.MustParseAddr("192.168.18.60")
+	ssh := []observe.Software{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "7.4", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.9}}
+	for _, src := range []observe.Source{observe.Nmap, observe.Agent} {
+		if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: at}, src, ssh); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dev := deviceAt(t, e, at)
+	for _, r := range matchRows(t, e, dev) {
+		if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, r.ID, inventory.SoftwareEdit{Version: ptr("9.6"), PkgVersion: ptr("1:9.6p1-3ubuntu13.14")}); err != nil {
+			t.Fatalf("%s: %v", r.Source, err)
+		}
+	}
+	sw := matchRows(t, e, dev)
+	if len(sw) != 2 || sw[0].Source != "manual" || sw[1].Source != "manual" || sw[0].Version != "9.6" || sw[1].Version != "9.6" || sw[0].ReportedSource == sw[1].ReportedSource {
+		t.Fatalf("both corrections match, no original does: %+v", sw)
+	}
+	if e.count(`SELECT count(*) FROM inv_software WHERE corrects IS NOT NULL`) != 2 {
+		t.Fatal("one correction per reported row")
+	}
+}
+
+// Review r2 M-B of #950: the agent stops reporting the package (removed, or its row expired): the correction rests and stops matching,
+// the device says so, and the findings history can name it.
+func TestINV41_TheAgentStopsReportingTheCorrectedPackage(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	at := netip.MustParseAddr("192.168.18.61")
+	hint := observe.AssetHint{IP: at}
+	report := func(items ...observe.Software) {
+		t.Helper()
+		if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Agent, items); err != nil {
+			t.Fatal(err)
+		}
+	}
+	curl := observe.Software{Display: "curl", Vendor: "haxx", Product: "curl", Version: "8.5.0", KevKeys: []string{"haxx|curl"}, Confidence: 0.95}
+	vim := observe.Software{Display: "vim", Vendor: "vim", Product: "vim", Version: "9.1", Confidence: 0.95}
+	report(curl, vim)
+	dev := deviceAt(t, e, at)
+	var curlID string
+	for _, r := range matchRows(t, e, dev) {
+		if r.Product == "curl" {
+			curlID = r.ID
+		}
+	}
+	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", dev, curlID, inventory.SoftwareEdit{Version: ptr("8.5.1")}); err != nil {
+		t.Fatal(err)
+	}
+	report(vim)
+	m, _, err := e.svc.MatchInput(e.ctx(), dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Software) != 1 || m.Software[0].Product != "vim" {
+		t.Fatalf("a correction of a package the agent no longer reports must not match: %+v", m.Software)
+	}
+	if len(m.StaleCorrections) != 1 || !strings.HasSuffix(m.StaleCorrections[0], "; agent reports it no more, so Vedette does not use the correction") {
+		t.Fatalf("stale %q", m.StaleCorrections)
+	}
+	if _, mine := swViews(t, e, dev); mine.Correction == nil || mine.Correction.Active || mine.Correction.Detected != nil || !mine.Correction.Disagrees {
+		t.Fatalf("the device shows the correction not in use: %+v", mine.Correction)
+	}
 }
 
 // Review r1 M1 of #950: a version-only correction of an agent's packaged row keeps the row's distribution semantics: matching reads it
 // as built by the agent's packages (ReportedSource agent, Packaged, the source package, the CPE); the package release of the old
 // version is dropped, so no distribution fix is read against it; a package-only correction keeps the version.
-func TestINV39_ACorrectionKeepsWhatThePersonDidNotChange(t *testing.T) {
+func TestINV41_ACorrectionKeepsWhatThePersonDidNotChange(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	at := netip.MustParseAddr("192.168.18.50")

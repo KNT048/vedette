@@ -1557,7 +1557,7 @@ describe('inventory: agents (S-INV-4)', () => {
     const table = await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     expect(within(table).getByText(OSQ)).toBeInTheDocument()
     expect(within(table).getByText('••••k3Pq')).toBeInTheDocument()
-    expect(screen.getByText('Use osquery on your Linux and Windows servers. Already run Wazuh? Connect its API instead.')).toBeInTheDocument()
+    expect(screen.getByText('Use osquery on your Linux and Windows PCs and servers. Already run Wazuh? Connect its API instead.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Connect Wazuh' })).toBeInTheDocument()
     expect(screen.queryByText(/Trivy/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/macOS/i)).not.toBeInTheDocument()
@@ -2485,7 +2485,7 @@ describe('inventory: G2 rename a device (S-INV-1)', () => {
     expect((await call('PATCH', '/devices/a-nas02', { name: 'Photo NAS' })).status).toBe(200)
     const csv = (await call('GET', '/export.csv')).text
     expect(csv).toContain('last_seen,name_in_vedette')
-    expect(csv).toMatch(/\r\nNAS-PHOTOS,[^\r]*,Photo NAS\r\n/)
+    expect(csv).toMatch(/\r\nNAS-PHOTOS,[^\r]*,Photo NAS,[^,\r]*\r\n/)
     const r = await call('POST', '/import', { filename: 'x.csv', size: 1, sha256: 'x', text: 'name,ip,name_in_vedette\nfw-core,192.168.77.1,Office firewall\n' })
     expect(r.json!.created).toBe(1)
     const a = assetsStore.get().find((x) => x.ip === '192.168.77.1')!

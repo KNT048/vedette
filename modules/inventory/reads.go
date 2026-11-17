@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/knt048/vedette/content/devicetypes"
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/observe"
 )
 
@@ -197,21 +198,49 @@ func (s *Service) findingCounts(ctx context.Context) (map[string]int, error) {
 	return m, nil
 }
 
+// riskUnavailable is the answer to a risk filter while the markers cannot be read (findings failed): 503, never the unfiltered list.
+func riskUnavailable() *apierr.Error {
+	return apierr.New(503, "risk_unavailable", "Vedette could not read the risk marks just now, so it cannot filter by risk. Try again in a moment, or remove the risk filter.").
+		With("retry_after", 5)
+}
+
+// risks is the risk marker of every marked device (G4), from findings through Config.Risk (one batch, cached there); clean devices
+// are absent. Only the Devices page, the device page and the CSV export ask for it (review r1 of #949: the honeypot, scans, reports
+// and MCP read devices without it). ok is false when findings could not answer: logged, and the page shows no marker; it never fails
+// the list.
+func (s *Service) risks(ctx context.Context) (out map[string]*Risk, ok bool) {
+	out = map[string]*Risk{}
+	if s.risk == nil {
+		return out, true
+	}
+	m, err := s.risk.RiskByAsset(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "inventory: device risk markers not read", "error", err)
+		return out, false
+	}
+	for id, c := range m {
+		if r := riskOf(c); r != nil {
+			out[id] = r
+		}
+	}
+	return out, true
+}
+
 // Devices lists the devices for the other modules (scan, reports, honeypot, MCP): at most MaxListed rows, the counts over all of them.
 // It does not read the sources (Device.Sources nil): only the Devices page and the export need them (#855 r1 L3).
 func (s *Service) Devices(ctx context.Context) (DeviceList, error) {
-	return s.devices(ctx, DeviceFilter{}, false)
+	return s.devices(ctx, DeviceFilter{}, false, false)
 }
 
 // devices is Devices narrowed by the Devices search (#849): at most MaxListed of the devices f keeps, with their sources when
-// withSources; the counts stay over the whole inventory (the tabs).
-func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources bool) (DeviceList, error) {
+// withSources and their risk markers when withRisk (G4); the counts stay over the whole inventory (the tabs).
+func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources, withRisk bool) (DeviceList, error) {
 	db := s.db.Reader()
-	items, err := s.filtered(ctx, db, f, MaxListed, withSources)
+	items, riskOK, err := s.filtered(ctx, db, f, MaxListed, withSources, withRisk)
 	if err != nil {
 		return DeviceList{}, err
 	}
-	out := DeviceList{Items: items}
+	out := DeviceList{Items: items, RiskUnavailable: withRisk && !riskOK}
 	// An ignored device is in no count but its own (D-630): not in All, not in the To review badge.
 	err = db.QueryRowContext(ctx, `SELECT ifnull(sum(ignored_at IS NULL), 0), ifnull(sum(approved = 0 AND ignored_at IS NULL), 0), ifnull(sum(fragile AND ignored_at IS NULL), 0),
 		ifnull(sum(origin = 'manual' AND ignored_at IS NULL), 0), ifnull(sum(ignored_at IS NOT NULL), 0) FROM inv_asset`).
@@ -237,22 +266,33 @@ func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err err
 }
 
 // filtered reads the devices f keeps (limit 0 = all), newest first, each with its finding count, summary and, when withSources, its
-// sources (a source filter reads them in any case); the box is always just seen.
-func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limit int, withSources bool) ([]Device, error) {
+// sources (a source filter reads them in any case) and, when withRisk, its risk marker (G4; a risk filter needs withRisk); the box is
+// always just seen and never marked. riskOK is false when the markers could not be read: the rows have none and a risk filter is not
+// applied (DeviceList.RiskUnavailable says so); with a risk filter that is 503 risk_unavailable instead (never every device).
+func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limit int, withSources, withRisk bool) (items []Device, riskOK bool, err error) {
 	counts, err := s.findingCounts(ctx)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	var sources map[string][]string
 	if withSources || len(f.Sources) > 0 {
 		if sources, err = s.deviceSources(ctx, db); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
-	where, args := f.where(sources, counts)
-	items, err := s.loadDevices(ctx, db, where, limit, args...)
-	if err != nil {
-		return nil, err
+	risks, riskOK := map[string]*Risk{}, true
+	if withRisk {
+		risks, riskOK = s.risks(ctx)
+	}
+	if withRisk && !riskOK && len(f.Risks) > 0 { // never "every device" for a risk filter (review r2 of #949 L1)
+		return nil, false, riskUnavailable()
+	}
+	if !withRisk {
+		f.Risks = nil
+	}
+	where, args := f.where(sources, counts, risks)
+	if items, err = s.loadDevices(ctx, db, where, limit, args...); err != nil {
+		return nil, false, err
 	}
 	if items == nil {
 		items = []Device{}
@@ -261,6 +301,9 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	for i := range items {
 		d := &items[i]
 		d.FindingsCount = counts[d.ID]
+		if !d.IsBox { // the box's own updates are in To fix; the box is never marked (G4)
+			d.Risk = risks[d.ID]
+		}
 		d.Summary = summaryOf(d)
 		if withSources {
 			if d.Sources = sources[d.ID]; d.Sources == nil {
@@ -271,7 +314,7 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 			d.LastSeen = now // the box is the machine running Vedette: always just seen
 		}
 	}
-	return items, nil
+	return items, riskOK, nil
 }
 
 // Device returns one device as a list row, or ErrNotFound. findings, notify and the other modules read it.
@@ -496,7 +539,7 @@ func deviceName(ctx context.Context, q querier, id string) string {
 // /inventory/devices. Only the Devices page asks for guesses; every other reader (scan, reports, honeypot, MCP, response) reads Devices
 // or Device, which never ask the host (#714 M3).
 func (s *Service) DevicesPage(ctx context.Context, f DeviceFilter) (DeviceList, error) {
-	l, err := s.devices(ctx, f, true)
+	l, err := s.devices(ctx, f, true, true)
 	if err != nil {
 		return l, err
 	}
@@ -508,13 +551,18 @@ func (s *Service) DevicesPage(ctx context.Context, f DeviceFilter) (DeviceList, 
 	return l, nil
 }
 
-// DetailPage is Detail with the guess of the identification rules (D-511): GET /inventory/devices/{id}.
+// DetailPage is Detail with the guess of the identification rules (D-511) and the risk marker (G4): GET /inventory/devices/{id}.
 func (s *Service) DetailPage(ctx context.Context, id string) (Detail, error) {
 	d, err := s.Detail(ctx, id)
 	if err != nil {
 		return d, err
 	}
 	s.addGuesses(ctx, []*AssetCore{&d.Asset.AssetCore})
+	risks, ok := s.risks(ctx) // G4: the marker next to the title (the box never has one)
+	if !d.Asset.IsBox {
+		d.Risk = risks[id]
+	}
+	d.RiskUnavailable = !ok
 	return d, nil
 }
 

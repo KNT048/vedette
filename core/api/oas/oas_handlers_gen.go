@@ -25585,7 +25585,7 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDRequest(args [1]string, 
 
 // handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest handles inventory_delete_inventory_devices_id_software_sid operation.
 //
-// Remove manually declared software from a device; on a correction (INV-39) this clears it and the
+// Remove manually declared software from a device; on a correction (INV-41) this clears it and the
 // reported row matches again (audit inventory.clear_software_correction).
 //
 // DELETE /inventory/devices/{id}/software/{sid}
@@ -25665,7 +25665,7 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryDeleteInventoryDevicesIDSoftwareSidOperation,
-			OperationSummary: "Remove manually declared software from a device; on a correction (INV-39) this clears it and the reported row matches again (audit inventory.clear_software_correction)",
+			OperationSummary: "Remove manually declared software from a device; on a correction (INV-41) this clears it and the reported row matches again (audit inventory.clear_software_correction)",
 			OperationID:      "inventory_delete_inventory_devices_id_software_sid",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -26719,6 +26719,10 @@ func (s *Server) handleInventoryGetInventoryDevicesRequest(args [0]string, argsE
 					In:   "query",
 				}: params.HasFindings,
 				{
+					Name: "risk",
+					In:   "query",
+				}: params.Risk,
+				{
 					Name: "q",
 					In:   "query",
 				}: params.Q,
@@ -27025,6 +27029,10 @@ func (s *Server) handleInventoryGetInventoryExportCsvRequest(args [0]string, arg
 					Name: "has_findings",
 					In:   "query",
 				}: params.HasFindings,
+				{
+					Name: "risk",
+					In:   "query",
+				}: params.Risk,
 				{
 					Name: "q",
 					In:   "query",
@@ -28012,7 +28020,7 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDRequest(args [1]string, a
 
 // handleInventoryPatchInventoryDevicesIDSoftwareSidRequest handles inventory_patch_inventory_devices_id_software_sid operation.
 //
-// Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or
+// Change a software row (D-471, INV-41). A row a person declared changes in place. A row a sensor or
 // agent reported is corrected: the values go in a manual correction row (source manual, correction
 // set) that replaces exactly that row (its source, product and version, and its re-reports) for
 // matching until it is deleted; another install of the product (another version or source) keeps
@@ -28113,7 +28121,7 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDSoftwareSidRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPatchInventoryDevicesIDSoftwareSidOperation,
-			OperationSummary: "Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
+			OperationSummary: "Change a software row (D-471, INV-41). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
 			OperationID:      "inventory_patch_inventory_devices_id_software_sid",
 			Body:             request,
 			RawBody:          rawBody,
@@ -45085,7 +45093,7 @@ func (s *Server) handleScanGetScansProbesCsvRequest(args [0]string, argsEscaped 
 
 // handleScanGetScansRunsRequest handles scan_get_scans_runs operation.
 //
-// Scan history and the running scan, with per-device results.
+// Scan history and the running scan, with per-device results: the newest 100 runs.
 //
 // GET /scans/runs
 func (s *Server) handleScanGetScansRunsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -45146,6 +45154,16 @@ func (s *Server) handleScanGetScansRunsRequest(args [0]string, argsEscaped bool,
 			return
 		}
 	}
+	params, err := decodeScanGetScansRunsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 
@@ -45154,17 +45172,22 @@ func (s *Server) handleScanGetScansRunsRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanGetScansRunsOperation,
-			OperationSummary: "Scan history and the running scan, with per-device results",
+			OperationSummary: "Scan history and the running scan, with per-device results: the newest 100 runs",
 			OperationID:      "scan_get_scans_runs",
 			Body:             nil,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "asset",
+					In:   "query",
+				}: params.Asset,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = ScanGetScansRunsParams
 			Response = *ScanGetScansRunsOK
 		)
 		response, err = middleware.HookMiddleware[
@@ -45174,14 +45197,14 @@ func (s *Server) handleScanGetScansRunsRequest(args [0]string, argsEscaped bool,
 		](
 			m,
 			mreq,
-			nil,
+			unpackScanGetScansRunsParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.ScanGetScansRuns(ctx)
+				response, err = s.h.ScanGetScansRuns(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.ScanGetScansRuns(ctx)
+		response, err = s.h.ScanGetScansRuns(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -46236,6 +46259,16 @@ func (s *Server) handleScanningGetScanningHistoryRequest(args [0]string, argsEsc
 			return
 		}
 	}
+	params, err := decodeScanningGetScanningHistoryParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 
@@ -46248,13 +46281,18 @@ func (s *Server) handleScanningGetScanningHistoryRequest(args [0]string, argsEsc
 			OperationID:      "scanning_get_scanning_history",
 			Body:             nil,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "asset",
+					In:   "query",
+				}: params.Asset,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = ScanningGetScanningHistoryParams
 			Response = *ScanningGetScanningHistoryOK
 		)
 		response, err = middleware.HookMiddleware[
@@ -46264,14 +46302,14 @@ func (s *Server) handleScanningGetScanningHistoryRequest(args [0]string, argsEsc
 		](
 			m,
 			mreq,
-			nil,
+			unpackScanningGetScanningHistoryParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.ScanningGetScanningHistory(ctx)
+				response, err = s.h.ScanningGetScanningHistory(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.ScanningGetScanningHistory(ctx)
+		response, err = s.h.ScanningGetScanningHistory(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {

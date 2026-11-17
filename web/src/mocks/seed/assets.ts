@@ -41,7 +41,9 @@ export function seedAssets(): Asset[] {
       software: [sw('s-srvad', 'Windows Server 2016', 'Microsoft', 'Windows', 'Server 2016 (1607)', ['microsoft|windows', 'microsoft|windows server'], 'nmap', 0.75)],
       services: [svc(53, 'domain'), svc(88, 'kerberos'), svc(389, 'ldap'), svc(445, 'microsoft-ds'), svc(3389, 'ms-wbt-server')] }),
     a({ id: 'a-srvfile', ip: '192.168.10.11', kind: 'server', hostname: 'SRV-FILE', mac: '00:15:5d:0a:10:11', vendor: o('Dell', 'passive', 0.8), os: o('Windows Server 2019', 'nmap', 0.75),
-      software: [sw('s-srvfile', 'Windows Server 2019', 'Microsoft', 'Windows', 'Server 2019 (1809)', ['microsoft|windows', 'microsoft|windows server'], 'nmap', 0.75)], services: [svc(445, 'microsoft-ds'), svc(3389, 'ms-wbt-server')] }),
+      // kien G15: SQL Server added by hand without its version (Needs your input: type it there, or Not installed)
+      software: [sw('s-srvfile', 'Windows Server 2019', 'Microsoft', 'Windows', 'Server 2019 (1809)', ['microsoft|windows', 'microsoft|windows server'], 'nmap', 0.75),
+        sw('s-srvfile-sql', 'Microsoft SQL Server', 'Microsoft', 'SQL Server', null, ['microsoft|sql server'], 'manual', 1)], services: [svc(445, 'microsoft-ds'), svc(3389, 'ms-wbt-server')] }),
     a({ id: 'a-web01', ip: '192.168.10.12', kind: 'server', hostname: 'WEB01', mac: '00:15:5d:0a:10:12', vendor: o('VMware', 'passive', 0.7), os: o('Ubuntu 22.04', 'nmap', 0.8),
       software: [sw('s-web01-wp', 'WordPress website', 'WordPress', 'WordPress Core', '7.1.x', ['wordpress|wordpress core', 'wordpress|core'], 'nmap', 0.5), sw('s-web01-php', 'PHP', 'PHP Group', 'PHP', '8.1', ['php group|php'], 'nmap', 0.6)],
       services: [svc(22, 'ssh', 'nmap', 0.9, 'OpenSSH', '8.9p1'), svc(80, 'http', 'nmap', 0.9, 'nginx'), svc(443, 'https', 'nmap', 0.9, 'nginx')] }),
@@ -66,7 +68,9 @@ export function seedAssets(): Asset[] {
     a({ id: 'a-nvr01', ip: '192.168.20.10', kind: 'nvr', hostname: 'NVR-01', vendor: o('Hikvision', 'passive', 0.95), model: o('DS-7608NI-K2', 'passive', 0.8), fragile: true,
       software: [sw('s-nvr01', 'Hikvision NVR', 'Hikvision', 'NVR firmware', null, ['hikvision|multiple products'], 'passive', 0.5)], services: [svc(80, 'http', 'passive', 0.7), svc(8000, 'hikvision-sdk', 'passive', 0.6)] }),
     // D-511: a device of unknown kind that the identification rules recognise from its card maker and its open port (the N100's FortiGate).
-    a({ id: 'a-unk02', ip: '192.168.10.251', kind: 'unknown', mac: '70:4c:a5:fc:2f:50', vendor: o('Fortinet', 'nmap', 0.6), services: [svc(22, 'ssh', 'nmap', 0.5)], first_seen: D(1), last_seen: D(0),
+    // kien G15: a person added FortiGate to it with the version "latest", which Vedette cannot compare (Needs your input)
+    a({ id: 'a-unk02', ip: '192.168.10.251', kind: 'unknown', mac: '70:4c:a5:fc:2f:50', vendor: o('Fortinet', 'nmap', 0.6), services: [svc(22, 'ssh', 'nmap', 0.5)],
+      software: [sw('s-unk02-fgt', 'FortiGate', 'Fortinet', 'FortiOS', 'latest', ['fortinet|fortios'], 'manual', 1)], first_seen: D(1), last_seen: D(0),
       guess: { kind: 'firewall', confidence: 0.35, evidence: 'Fortinet network card and port 22 (ssh): most likely a FortiGate firewall (Fortinet also makes FortiAP access points and FortiSwitch switches; a scan of its web page or certificate tells which).', alternatives: ['ap', 'switch'] } }),
     a({ id: 'a-unk01', ip: '192.168.10.157', kind: 'unknown', hostname: null, mac: 'da:a1:19:5c:77:01', vendor: o('Device with a randomized MAC', 'passive', 0.3), approved: false, first_seen: D(0, ), last_seen: D(0) }),
   ]

@@ -58,10 +58,21 @@ const ScanInfo = z.object({
 /** #849: what feeds a device, in the words of the Devices search (source:…). scan = nmap or a vulnerability scan; osquery and Wazuh are
  * told apart (both are source agent in observations): osquery by the device's agent binding (D-598), Wazuh by its sync. */
 export const DeviceSource = z.enum(['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh'])
+/** G4 (kien): which devices carry risk, at a glance in every list (like Defender's exposure level), read from what Findings › To fix
+ * shows for the device (findings DeviceUpdates, one rule): exploited = open exploited findings To fix lists (an update is named for
+ * them, or the box proved them); update = none, but a Recommended update fixes a CVE likely to be exploited (EPSS ≥ 10%) or of High
+ * or Critical severity. null on a clean device. */
+export const RiskLevel = z.enum(['exploited', 'update'])
+export const DeviceRisk = z.object({
+  level: RiskLevel,
+  exploited: z.number().int().describe('Open exploited findings of the device that Findings › To fix lists: an update is named for them, or the box proved them (a product-only guess is in Needs your input, not here)'),
+  updates: z.number().int().describe('Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity'),
+}).describe('The device\'s risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off')
 export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
   sources: z.array(DeviceSource).describe('Every source that told Vedette something about the device and is still kept (its details, software or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source: filter, #829 sources of the device page)'),
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
+  risk: DeviceRisk.nullable(),
   summary: z.object({ source: ObsSource, confidence }).nullable().describe('Source of the most trusted value; confidence is that of the weakest value'),
 })
 /** #849: the filters of the Devices search; all optional, ANDed; each list ORs its values. counts stay over the whole inventory. */
@@ -72,6 +83,7 @@ export const DevicesQuery = z.object({
   source: z.string().max(200).optional().describe(`Comma-separated: ${DeviceSource.options.join(', ')}. Unknown value: 400 bad_filter`),
   fragile: z.enum(['true', 'false']).optional(),
   has_findings: z.enum(['true', 'false']).optional().describe('true: findings_count > 0'),
+  risk: z.string().max(60).optional().describe('Comma-separated: exploited, update, none (no risk marker). Unknown value: 400 bad_filter (G4)'),
   q: z.string().max(80).optional().describe('Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model'),
 })
 export const DevicesResponse = z.object({
@@ -79,23 +91,25 @@ export const DevicesResponse = z.object({
   counts: z.object({ all: z.number().int(), pending: z.number().int(), fragile: z.number().int(), manual: z.number().int(), ignored: z.number().int().describe('Ignored devices (D-630); no other count includes them') }),
   notify_new: z.boolean(),
   notify_available: z.boolean().describe('false when the notify module is off'),
+  risk_unavailable: z.boolean().describe('G4: the risk markers could not be read (the findings module failed): no row has one and a risk filter was not applied'),
 })
-/** INV-39 (BN340): a person's correction of a row a sensor or agent reported. */
+/** INV-41 (BN340): a person's correction of a row a sensor or agent reported. */
 export const SoftwareCorrection = z.object({
   set_at: dt.describe('When the person set it (or last changed it)'),
   set_by: z.string().describe('Who set it (email); "" for a correction stored without one'),
   detected: z.object({
     id: z.string(), display: z.string(), version: z.string().nullable(), pkg_version: z.string().nullable(), source: ObsSource, seen_at: dt,
   }).nullable().describe('The corrected row when its source still reports it (it does not match while the correction stands), else that source\'s newest row of the product at another version (that one matches on its own: a second install or an update); null when the source reports the product no more: say "no scan or agent reports it now"'),
-  disagrees: z.boolean().describe('The sources read another product, version or package release than the person: show "You set X on <date>; the last scan reads Y"'),
+  disagrees: z.boolean().describe('The source reads another product, version or package release than the person (always true while active is false): show "You set X on <date>; the last scan reads Y"'),
+  active: z.boolean().describe('true: the row it corrects is still reported and matching uses the correction. false: the source moved on (detected = what it reads now) or reports the product no more (detected null); matching uses the source\'s reading until the person sets the correction again (PATCH on detected.id, or on this row, which moves it onto what the source reads now). Show it as not in use: "You set X on <date>; the scan now reads Y (Vedette uses that)" with Set again and Clear'),
 })
 export const SoftwareView = Software.omit({ kev: true }).extend({
   kev_cves: z.array(z.string()),
   pkg_version: z.string().optional().describe('The full package release: an agent\'s packaged row ("1:9.6p1-3ubuntu13.14", D-516) or a person\'s correction ("10.2_p1-r1"); absent when none'),
-  corrected_by: z.string().optional().describe('On a row a sensor or agent reported: the id of the person\'s correction that replaces it for matching (INV-39). Show it as replaced; Clear on the correction brings it back'),
-  correction: SoftwareCorrection.optional().describe('On a person\'s correction of a reported row (INV-39): when it was set and what the sources read now. Clear = DELETE the row'),
+  corrected_by: z.string().optional().describe('On a row a sensor or agent reported: the id of the person\'s correction that replaces it for matching (INV-41). Show it as replaced; Clear on the correction brings it back'),
+  correction: SoftwareCorrection.optional().describe('On a person\'s correction of a reported row (INV-41): when it was set and what the sources read now. Clear = DELETE the row'),
 })
-/** INV-39: the OS a person set on the device; it wins over every source and drives matching while it stands. */
+/** INV-41: the OS a person set on the device; it wins over every source and drives matching while it stands. */
 export const OsCorrection = z.object({
   value: z.string(), set_at: dt,
   detected: Observed.nullable().describe('The OS the sources read without the correction (the value that would win); null when none reads one'),
@@ -113,10 +127,12 @@ export const SameRef = PossibleSame.omit({ why: true, ignored: true })
 export const DeviceDetail = z.object({
   asset: Asset.omit({ software: true }).extend(ScanInfo.shape).extend({
     software: z.array(SoftwareView),
-    os_correction: OsCorrection.optional().describe('The OS a person set (PATCH os, INV-39); absent when none: os is then what the sources read'),
+    os_correction: OsCorrection.optional().describe('The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read'),
   }),
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
+  risk: DeviceRisk.nullable(),
+  risk_unavailable: z.boolean().describe('G4: the risk marker could not be read (the findings module failed)'),
   observations: z.array(Observation),
   kinds: z.array(AssetKind),
   possible_same: z.array(PossibleSame).describe('Devices that may be this same machine (D-599), the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was'),
@@ -313,7 +329,7 @@ export const endpoints = defineEndpoints([
     body: z.object({
       name: z.string().max(200).optional().describe('The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the default name). The host name the network reports is not changed'),
       kind: AssetKind.optional(), fragile: z.boolean().optional(), regular_scan: RegularScan.optional(), notes: z.string().max(2000).optional(),
-      os: z.string().max(400).optional().describe('Correct the operating system (INV-39): trimmed, at most 200 characters, no < or >; it wins over every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources read). 400 bad_os'),
+      os: z.string().max(400).optional().describe('Correct the operating system (INV-41): trimmed, at most 200 characters, no < or >; it wins over every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources read). 400 bad_os'),
     }), response: ok },
   { method: 'put', path: '/inventory/devices/{id}/sources', summary: 'Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person\'s consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device (D-630)', stories: ['S-INV-1', 'S-INV-4'], role: 'admin', params: id, body: SourcesInput, response: SourcesState },
   { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
@@ -325,14 +341,14 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/devices/{id}/suspicious', summary: 'Mark or unmark a device as suspicious', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ suspicious: z.boolean() }), response: ok },
   { method: 'post', path: '/inventory/devices/{id}/software', status: 201, summary: 'Declare additional software running on a device', stories: ['S-INV-2'], role: 'operator', params: id,
     body: AddDeviceInput.omit({ name: true, ip: true }), response: z.object({ kev_cves: z.number().int() }) },
-  { method: 'patch', path: '/inventory/devices/{id}/software/{sid}', summary: 'Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }),
+  { method: 'patch', path: '/inventory/devices/{id}/software/{sid}', summary: 'Change a software row (D-471, INV-41). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }),
     body: z.object({
       version: z.string().max(40).optional().describe('Letters, digits, . - + ( ) and spaces; empty removes the version'),
       pkg_version: z.string().max(100).optional().describe('The package release the device\'s package manager shows ("10.2_p1-r1", "1:9.6p1-3ubuntu13.14"); empty removes it'),
       catalog_id: z.string().max(64).optional().describe('Another product, from GET /inventory/catalog'),
       vendor: z.string().max(64).optional(), product: z.string().max(64).optional().describe('Another product typed by hand (both vendor and product)'),
     }), response: ok },
-  { method: 'delete', path: '/inventory/devices/{id}/software/{sid}', summary: 'Remove manually declared software from a device; on a correction (INV-39) this clears it and the reported row matches again (audit inventory.clear_software_correction)', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }), response: null },
+  { method: 'delete', path: '/inventory/devices/{id}/software/{sid}', summary: 'Remove manually declared software from a device; on a correction (INV-41) this clears it and the reported row matches again (audit inventory.clear_software_correction)', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }), response: null },
   { method: 'get', path: '/inventory/catalog', summary: 'Suggest products by vendor or commercial name', stories: ['S-INV-2'], role: 'viewer', query: z.object({ q: z.string().max(80) }), response: CatalogResponse, example: { query: { q: 'forti' } } },
   { method: 'put', path: '/inventory/notify-new', summary: 'Turn alerts for new devices on or off', stories: ['S-INV-3'], role: 'operator', body: z.object({ enabled: z.boolean() }), response: z.object({ enabled: z.boolean() }) },
   { method: 'get', path: '/inventory/export.csv', summary: 'Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET /inventory/devices export what the page shows', stories: ['S-INV-2'], role: 'viewer', query: DevicesQuery, response: 'file' },

@@ -110,7 +110,7 @@ const SCAN_READ = new Set<string>(['nmap', 'scan', 'snmp', 'passive'])
 
 /** Scan-read software: "Check this device now" itself, only where Vedette may scan the device now (scanning/canScan.ts, the rule
  *  of the device page); otherwise the reason, never a button that can only be refused (G5). */
-function CheckNow({ asset, size, progress }: { asset: FindingAsset; size?: 'sm'; progress: boolean }) {
+export function CheckNow({ asset, size, progress }: { asset: FindingAsset; size?: 'sm'; progress: boolean }) {
   const { t } = useTranslation('scanning')
   const row = useDevices().data?.items.find((x) => x.id === asset.id)
   const scanning = useScanning().data

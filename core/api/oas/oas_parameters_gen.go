@@ -6302,6 +6302,7 @@ type InventoryGetInventoryDevicesParams struct {
 	Source      OptString                                  `json:",omitempty,omitzero"`
 	Fragile     OptInventoryGetInventoryDevicesFragile     `json:",omitempty,omitzero"`
 	HasFindings OptInventoryGetInventoryDevicesHasFindings `json:",omitempty,omitzero"`
+	Risk        OptString                                  `json:",omitempty,omitzero"`
 	Q           OptString                                  `json:",omitempty,omitzero"`
 }
 
@@ -6358,6 +6359,15 @@ func unpackInventoryGetInventoryDevicesParams(packed middleware.Parameters) (par
 		}
 		if v, ok := packed[key]; ok {
 			params.HasFindings = v.(OptInventoryGetInventoryDevicesHasFindings)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "risk",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Risk = v.(OptString)
 		}
 	}
 	{
@@ -6734,6 +6744,74 @@ func decodeInventoryGetInventoryDevicesParams(args [0]string, argsEscaped bool, 
 			Err:  err,
 		}
 	}
+	// Decode query: risk.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "risk",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotRiskVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotRiskVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Risk.SetTo(paramsDotRiskVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Risk.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     60,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "risk",
+			In:   "query",
+			Err:  err,
+		}
+	}
 	// Decode query: q.
 	if err := func() error {
 		cfg := uri.QueryParameterDecodingConfig{
@@ -6878,6 +6956,7 @@ type InventoryGetInventoryExportCsvParams struct {
 	Source      OptString                                    `json:",omitempty,omitzero"`
 	Fragile     OptInventoryGetInventoryExportCsvFragile     `json:",omitempty,omitzero"`
 	HasFindings OptInventoryGetInventoryExportCsvHasFindings `json:",omitempty,omitzero"`
+	Risk        OptString                                    `json:",omitempty,omitzero"`
 	Q           OptString                                    `json:",omitempty,omitzero"`
 }
 
@@ -6934,6 +7013,15 @@ func unpackInventoryGetInventoryExportCsvParams(packed middleware.Parameters) (p
 		}
 		if v, ok := packed[key]; ok {
 			params.HasFindings = v.(OptInventoryGetInventoryExportCsvHasFindings)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "risk",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Risk = v.(OptString)
 		}
 	}
 	{
@@ -7306,6 +7394,74 @@ func decodeInventoryGetInventoryExportCsvParams(args [0]string, argsEscaped bool
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "has_findings",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: risk.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "risk",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotRiskVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotRiskVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Risk.SetTo(paramsDotRiskVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Risk.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     60,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "risk",
 			In:   "query",
 			Err:  err,
 		}
@@ -11364,6 +11520,97 @@ func decodeScanDeleteScansCredentialedIDParams(args [1]string, argsEscaped bool,
 	return params, nil
 }
 
+// ScanGetScansRunsParams is parameters of scan_get_scans_runs operation.
+type ScanGetScansRunsParams struct {
+	Asset OptString `json:",omitempty,omitzero"`
+}
+
+func unpackScanGetScansRunsParams(packed middleware.Parameters) (params ScanGetScansRunsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "asset",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Asset = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeScanGetScansRunsParams(args [0]string, argsEscaped bool, r *http.Request) (params ScanGetScansRunsParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: asset.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "asset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotAssetVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotAssetVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Asset.SetTo(paramsDotAssetVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Asset.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     96,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "asset",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // ScanPostScansCredentialedIDTestParams is parameters of scan_post_scans_credentialed_id_test operation.
 type ScanPostScansCredentialedIDTestParams struct {
 	ID string
@@ -11488,6 +11735,97 @@ func decodeScanPostScansRunsIDStopParams(args [1]string, argsEscaped bool, r *ht
 		return params, &ogenerrors.DecodeParamError{
 			Name: "id",
 			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// ScanningGetScanningHistoryParams is parameters of scanning_get_scanning_history operation.
+type ScanningGetScanningHistoryParams struct {
+	Asset OptString `json:",omitempty,omitzero"`
+}
+
+func unpackScanningGetScanningHistoryParams(packed middleware.Parameters) (params ScanningGetScanningHistoryParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "asset",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Asset = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeScanningGetScanningHistoryParams(args [0]string, argsEscaped bool, r *http.Request) (params ScanningGetScanningHistoryParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: asset.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "asset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotAssetVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotAssetVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Asset.SetTo(paramsDotAssetVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Asset.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     96,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "asset",
+			In:   "query",
 			Err:  err,
 		}
 	}

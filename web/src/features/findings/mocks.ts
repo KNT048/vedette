@@ -4,7 +4,7 @@ import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
 import { aiAvailable, aiCandidates, assetsStore, findingsStore, isOn, recordAiRun, type AiJob } from '@/mocks/stores'
-import { versionNeeded } from '@/mocks/match'
+import { usableVersion, versionNeeded } from '@/mocks/match'
 import { epssDate, kevPublished as published, planSeed, recentSince, tierFact, tierOf, tierState, withinYear } from '@/mocks/tiers'
 import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
@@ -60,10 +60,31 @@ function kevInfo(cve: string): KevInfo | null {
 }
 
 
+/** G4: a device's risk marker as the box computes it (findings RiskOf, through inventory): read from what To fix shows for it (one
+ *  rule): its open exploited findings To fix lists (an update named, or proved), else its recommended updates with a likely CVE or of
+ *  High or Critical severity. null when clean, and while the findings module is off. */
+type Risk = { level: 'exploited' | 'update'; exploited: number; updates: number }
+/** The box (inventory's BOX_ID) is never marked (G4); its updates stay in To fix. */
+const MOCK_BOX = 'a-box'
+export function deviceRisk(assetId: string): Risk | null {
+  if (!isOn('findings') || assetId === MOCK_BOX) return null
+  return riskOfCard(toFix(assetId).devices[0] ?? null)
+}
+/** findings.RiskOf of one To fix card. */
+function riskOfCard(d: Omit<ToFixDevice, 'risk'> | null): Risk | null {
+  if (!d || d.asset.id === MOCK_BOX) return null
+  const exploited = [...d.exploited, ...d.no_update.filter((x) => x.confirmed + x.detected > 0)].reduce((n, x) => n + Math.max(x.finding_ids.length, x.cves.length), 0)
+  const updates = d.planned.filter((x) => x.likely > 0 || sevRank(x.worst) >= sevRank('high')).length
+  if (exploited > 0) return { level: 'exploited', exploited, updates }
+  return updates > 0 ? { level: 'update', exploited: 0, updates } : null
+}
+
 /** GET /findings/plan (D-613, D-615): the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. */
 function plan(tier: string, asset: string | null): Plan {
   const n = (t: string) => tierPlan(t, asset).items.length // M2-9: every tab's number in one answer, as the box gives it
-  return { ...tierPlan(tier, asset), counts: { likely: n('likely'), recent: n('recent'), all: n('all') } }
+  const base = tierPlan(tier, asset)
+  // G4: each item carries its device's risk marker, so the page needs no device list
+  return { ...base, items: base.items.map((i) => ({ ...i, risk: deviceRisk(i.asset.id) })), counts: { likely: n('likely'), recent: n('recent'), all: n('all') } }
 }
 
 function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
@@ -93,7 +114,7 @@ function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
       cves.sort((x, y) => (x.tier === y.tier ? 0 : x.tier === 'likely' ? -1 : 1)
         || (x.tier === 'likely' ? (y.epss ?? -1) - (x.epss ?? -1) || (y.score ?? -1) - (x.score ?? -1) : (y.score ?? -1) - (x.score ?? -1) || (y.epss ?? -1) - (x.epss ?? -1))
         || y.published.localeCompare(x.published))
-      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false,
+      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, risk: null, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false,
         cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length })
     }
   }
@@ -335,7 +356,7 @@ const UNCHECKED_SEED: { asset: string; software: string; reason: UncheckedItem['
     cveOf('CVE-2026-20002', 'Windows SMB Remote Code Execution', '2026-11-10', false, null)] },
   { asset: 'a-web01', software: 'WordPress website', reason: 'no_nvd_versions', action: 'none', cves: [
     cveOf('CVE-2026-20003', 'WordPress Core Authentication Bypass', '2026-11-05', false, 'https://wordpress.org/news/category/security/')] },
-  { asset: 'a-nas01', software: 'Synology NAS (DSM)', reason: 'not_comparable', action: 'add_version', cves: [
+  { asset: 'a-nas01', software: 'Synology NAS (DSM)', reason: 'not_comparable', action: 'none', cves: [
     cveOf('CVE-2026-20004', 'Synology DSM Command Injection', '2026-10-28', true, 'https://www.synology.com/en-global/security/advisory/Synology_SA_26_10'),
     cveOf('CVE-2026-20005', 'Synology DSM Path Traversal', '2026-10-20', false, null),
     cveOf('CVE-2026-20006', 'Synology DSM Authentication Bypass', '2026-10-02', false, null),
@@ -343,6 +364,19 @@ const UNCHECKED_SEED: { asset: string; software: string; reason: UncheckedItem['
   { asset: 'a-rt02', software: 'MikroTik router', reason: 'not_named', action: 'none', cves: [
     cveOf('CVE-2026-20008', 'MikroTik RouterOS Memory Corruption', '2026-09-01', false, 'https://mikrotik.com/supportsec')] },
 ]
+/** kien G15 mock: SQL Server added by hand without a version on SRV-FILE (the N100's case), and a camera seen only in traffic. Their
+ *  exploited CVEs are not in the KEV fixture, so the items are seeded here; it leaves once the row has a usable version, as the real box re-matches. */
+const VERSION_SEED: { asset: string; software: string; cves: number }[] = [
+  { asset: 'a-srvfile', software: 'Microsoft SQL Server', cves: 6 },
+  { asset: 'a-cam01', software: 'Hikvision camera', cves: 4 }, // seen in traffic, no version: a scan reads it
+]
+function versionSeed(asset?: string | null) {
+  return VERSION_SEED.flatMap((v) => {
+    const a = assetsStore.get().find((x) => x.id === v.asset)
+    const sw = a?.software.find((x) => x.display === v.software)
+    return a && sw && (!asset || a.id === asset) && !usableVersion(sw.version) ? [{ asset: a, software: sw, cves: v.cves }] : []
+  })
+}
 const seedVersions = new Map<string, string | null>()
 /** #910 phase 1 mock: the unchecked list; an item leaves it once its software's version changes (the real box re-checks). */
 export function unchecked(asset?: string | null): UncheckedItem[] {
@@ -425,7 +459,8 @@ function toFix(asset: string | null): ToFix {
       const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: '', pro: i.pro, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0 }
       return { ...u, action: sentence(u) }
     })
-    devices.push({ asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true })
+    const card = { asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true }
+    devices.push({ ...card, risk: riskOfCard(card) })
   }
   const urgency = (d: ToFixDevice) => {
     const act = [...d.exploited, ...d.no_update.filter((x) => x.confirmed + x.detected > 0)]
@@ -433,7 +468,8 @@ function toFix(asset: string | null): ToFix {
       Math.max(-1, ...d.planned.map((x) => sevRank(x.worst))), d.planned.reduce((n, x) => n + x.likely, 0), d.planned.reduce((n, x) => n + x.cves.length, 0)]
   }
   devices.sort((x, y) => { const a = urgency(x); const b = urgency(y); for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return b[i]! - a[i]!; return x.asset.id.localeCompare(y.asset.id) })
-  return { devices, truncated: false, plan_ran: feedsOn, plan_off: !feedsOn }
+  const risks = asset ? {} : Object.fromEntries(devices.flatMap((d) => (d.risk ? [[d.asset.id, d.risk]] : [])))
+  return { devices, truncated: false, plan_ran: feedsOn, plan_off: !feedsOn, risks }
 }
 
 export const handlers = [
@@ -442,7 +478,7 @@ export const handlers = [
     expireAccepted()
     const asset = new URL(request.url).searchParams.get('asset')
     const list = findingsStore.get().filter((f) => !asset || f.asset_id === asset)
-    const version_needed = versionNeeded(asset).map(({ asset: a, software: s, cves }) => ({
+    const version_needed = [...versionNeeded(asset), ...versionSeed(asset)].map(({ asset: a, software: s, cves }) => ({
       asset: assetView(a), asset_id: a.id, software_id: s.id, software: s.display, version: s.version || null, cves,
     }))
     return HttpResponse.json({ items: list.map(row), version_needed, unchecked: unchecked(asset) })

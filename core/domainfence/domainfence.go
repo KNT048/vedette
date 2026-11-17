@@ -89,6 +89,11 @@ type Job struct {
 	IP         netip.Addr
 	Token      string
 	Disruptive bool
+	// ProofAt (D-632) is a parent name of Domain where Domain's own record sits (the zone apex: a name that is a CNAME can hold no
+	// TXT, and control of the apex proves every name of the zone, the Google Workspace and Microsoft 365 model): the record
+	// vedette-verify=<Token> is looked for there instead of on Domain, with the same rules (Owned). "" = on Domain. The token stays
+	// Domain's; ProofAt is never Domain itself, and never a name of one label (vedette-host also refuses a public suffix there).
+	ProofAt string
 }
 
 // Valid is point 1 of the check, the grammar: the domain, a name that is the domain or under it, a public IPv4 address
@@ -103,6 +108,8 @@ func (j Job) Valid() error {
 		return errors.New("the address is not a public IPv4 address")
 	case !tokenRE.MatchString(j.Token):
 		return errors.New("the token is not 16 hex digits")
+	case j.ProofAt != "" && (j.ProofAt == j.Domain || !ValidDomain(j.ProofAt) || !Under(j.Domain, j.ProofAt)):
+		return errors.New("the proof name is not a parent name of the domain")
 	}
 	return nil
 }
@@ -128,8 +135,8 @@ type Outcome struct {
 func (o Outcome) ChainText() string { return strings.Join(o.Chain, " -> ") }
 
 type cacheKey struct {
-	domain, name string
-	ip           netip.Addr
+	domain, proofAt, name string
+	ip                    netip.Addr
 }
 
 type cacheEntry struct {
@@ -182,7 +189,7 @@ func (f *Fence) Check(ctx context.Context, j Job, cached bool) Outcome {
 	if f.listed == nil || !f.listed(j.Domain) { // review r1 H1: only a domain vedette-host has issued a token for (capped, audited)
 		return Outcome{Reason: TokenForeign, Detail: "vedette-host has not issued a token for " + j.Domain}
 	}
-	k := cacheKey{j.Domain, j.Name, j.IP}
+	k := cacheKey{j.Domain, j.ProofAt, j.Name, j.IP}
 	if cached {
 		f.mu.Lock()
 		e, ok := f.cache[k]
@@ -212,7 +219,11 @@ func (f *Fence) check(ctx context.Context, j Job) (Outcome, cacheEntry) {
 		defer cancel()
 		return fn(lctx)
 	}
-	switch pr := Owned(ctx, f.r, j.Domain, j.Token, LookupTimeout); {
+	owner := j.Domain
+	if j.ProofAt != "" { // D-632: Domain's own record on a parent name
+		owner = j.ProofAt
+	}
+	switch pr := Owned(ctx, f.r, owner, j.Token, LookupTimeout); {
 	case pr.Unchecked:
 		return Outcome{Reason: Unchecked, Detail: pr.Detail}, cacheEntry{}
 	case pr.At == "":

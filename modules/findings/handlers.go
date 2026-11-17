@@ -494,6 +494,10 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading the devices of the plan: %w", err)
 	}
+	var risks map[string]AssetRisk // G4: each device's marker, so the page needs no device list
+	if len(keep) > 0 {
+		risks = h.risks(ctx, feedsOn)
+	}
 	counts := map[string]int{"likely": 0, "recent": 0, "all": 0} // M2-9: every tab's number from one answer
 	for _, k := range keep {
 		a, ok := names[k.it.AssetID]
@@ -519,7 +523,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 				old++
 			}
 		}
-		items = append(items, map[string]any{"group": k.it.Group, "asset": map[string]any{"id": a.ID, "name": a.Name}, "software": k.it.Software,
+		items = append(items, map[string]any{"group": k.it.Group, "asset": map[string]any{"id": a.ID, "name": a.Name}, "risk": riskOfView(risks, a), "software": k.it.Software,
 			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "pro": k.it.Pro, "cves": k.cves, "likely": likely, "recent": len(k.cves) - likely})
 	}
 	return Into[oas.FindingsGetFindingsPlanOK](map[string]any{

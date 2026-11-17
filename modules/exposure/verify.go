@@ -71,11 +71,15 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 	var failure string // why nothing could be checked, when that was the case
 	var observed []string
 	var pr proof
+	bound := "" // review r1 L3 of #960: the box-bound value the executors check, when the stored token is an older one
 	if t.Kind == KindDomain {
 		if pr, err = s.proveDomain(ctx, t); err != nil {
 			return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
 		}
 		ok, failure = pr.found, pr.failure
+		if ok {
+			bound = s.boundTokenNote(ctx, t, pr)
+		}
 	} else {
 		addrs, _, perr := s.observe(ctx, DeepRounds)
 		if perr != nil {
@@ -108,7 +112,7 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		case ok && cur.Kind == KindIP:
 			message, verifiedAt = fmt.Sprintf("The box reaches the Internet via %s. Verified until %s.", cur.Value, s.dayText(now.Add(ValidDays*24*time.Hour))), now
 		case ok:
-			message = proofMessage(cur, pr)
+			message = proofMessage(cur, pr) + bound
 			if cur.VerifiedAt.IsZero() {
 				verifiedAt = now
 			}
@@ -125,7 +129,7 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		if ok {
 			setMethod = method
 		}
-		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message}, verifiedAt, setMethod); err != nil {
+		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message, Covers: ok && pr.coversBelow(cur.Value)}, verifiedAt, setMethod); err != nil {
 			return err
 		}
 		action := "exposure.verify_fail"
@@ -153,11 +157,31 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 	return VerifyResult{Verified: ok, Message: v.LastCheck.Message, Target: v}, nil
 }
 
+// boundTokenNote says, after a passed check of t's own record, which value the executors check when it is not t's stored token
+// (review r1 L3 of #960). Since D-591 a domain's token is the one vedette-host binds to the box for it (HMAC of the domain), and the
+// scan worker (deep nmap, nuclei), OpenVAS and ZAP through a parent name check that value; a target added before D-591, or while the
+// host gave no token (a logged fallback), keeps a random one. Check keeps passing on the stored token (nothing that works breaks); the
+// note names the record to add next to it so those steps pass too. "" when the two are the same, there is no fence, or it gave none.
+func (s *Service) boundTokenNote(ctx context.Context, t Target, p proof) string {
+	if s.cfg.DomainFence == nil || !p.own {
+		return ""
+	}
+	tok, err := s.cfg.DomainFence.Token(ctx, t.Value)
+	if err != nil || !fenceTokenRE.MatchString(tok) || tok == t.Token {
+		return ""
+	}
+	return fmt.Sprintf(" This target's token is older than the value this box binds to %s, which deep scans of addresses that are not this box's (and web pages, when the record is on a parent name) check: add the TXT record %s on %s too, keeping the current one.", t.Value, txtRecord(tok), p.proven)
+}
+
 // coverOthers verifies, in the transaction of t's verification, the box's other domain targets the record just found proves too
 // (D-628): a target added before its parent was verified is covered from now, with no second record. Each one gets its own check
 // message and audit row; one already verified and passing is left as it is. The record is checked again for each of them right
 // before each of their scans (INV-1 (c)), so a record removed, or the parent target removed with its token, covers them no more.
 func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Target, p proof, now time.Time, emit func(string, any)) error {
+	if owner := map[bool]string{true: t.Value, false: p.via}[p.own]; p.proven != owner {
+		// D-632: t's own token on a parent name proves t only: the other targets under that parent need their own token there
+		return nil
+	}
 	all, err := listTargets(ctx, tx)
 	if err != nil {
 		return err

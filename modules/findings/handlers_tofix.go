@@ -49,16 +49,56 @@ func nonNil(s []string) []string {
 	return s
 }
 
+// riskJS is contract.ts DeviceRisk (G4): a device's risk marker, the same value the device list gives (RiskMap).
+type riskJS struct {
+	Level     string `json:"level"`
+	Exploited int    `json:"exploited"`
+	Updates   int    `json:"updates"`
+}
+
+// risks is RiskMap for a page that shows markers; a failure is logged and shows no marker, never fails the page (review r1 of #949).
+func (h *FindingHandlers) risks(ctx context.Context, feedsOn bool) map[string]AssetRisk {
+	m, err := h.svc.RiskMap(ctx, feedsOn)
+	if err != nil {
+		h.svc.cfg.Log.WarnContext(ctx, "findings: risk markers not read", "error", err)
+		return nil
+	}
+	return m
+}
+
+// riskOfView is the marker of device a: nil when clean or when a is the Vedette box itself (its updates are in To fix, the box is not
+// marked, G4).
+func riskOfView(m map[string]AssetRisk, a AssetView) *riskJS { return riskJSOf(m[a.ID], a.Box) }
+
+func riskJSOf(r AssetRisk, box bool) *riskJS {
+	if box || r.Level() == "" {
+		return nil
+	}
+	out := &riskJS{Level: r.Level(), Exploited: r.Exploited, Updates: r.Updates}
+	if out.Level == "update" {
+		out.Exploited = 0
+	}
+	return out
+}
+
 // FindingsGetFindingsToFix implements GET /findings/to-fix (kien G8): Service.ToFix with each device's name. A device the inventory
 // no longer knows is left out (its findings go with it).
 func (h *FindingHandlers) FindingsGetFindingsToFix(ctx context.Context, params oas.FindingsGetFindingsToFixParams) (*oas.FindingsGetFindingsToFixOK, error) {
-	tf, err := h.svc.ToFix(ctx, h.gate == nil || h.gate.Enabled(FeedsModule), params.Asset.Or(""))
+	feedsOn := h.gate == nil || h.gate.Enabled(FeedsModule)
+	tf, err := h.svc.ToFix(ctx, feedsOn, params.Asset.Or(""))
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]string, 0, len(tf.Devices))
+	// G4: every marked device's risk (no display cap), for the markers of the Findings table and its filter (review r2 of #949 L2)
+	risks := h.risks(ctx, feedsOn)
+	ids := make([]string, 0, len(tf.Devices)+len(risks))
 	for _, d := range tf.Devices {
 		ids = append(ids, d.AssetID)
+	}
+	if params.Asset.Or("") == "" {
+		for id := range risks {
+			ids = append(ids, id)
+		}
 	}
 	assets := map[string]AssetView{}
 	if len(ids) > 0 {
@@ -68,6 +108,7 @@ func (h *FindingHandlers) FindingsGetFindingsToFix(ctx context.Context, params o
 	}
 	type deviceJS struct {
 		Asset        AssetView       `json:"asset"`
+		Risk         *riskJS         `json:"risk"`
 		Open         int             `json:"open"`
 		Exploited    []toFixActionJS `json:"exploited"`
 		NoUpdate     []toFixActionJS `json:"no_update"`
@@ -75,18 +116,29 @@ func (h *FindingHandlers) FindingsGetFindingsToFix(ctx context.Context, params o
 		PlanCompared bool            `json:"plan_compared"`
 	}
 	out := struct {
-		Devices   []deviceJS `json:"devices"`
-		Truncated bool       `json:"truncated"`
-		PlanRan   bool       `json:"plan_ran"`
-		PlanOff   bool       `json:"plan_off"`
-	}{Devices: []deviceJS{}, Truncated: tf.Truncated, PlanRan: tf.PlanRan, PlanOff: tf.PlanOff}
+		Devices   []deviceJS         `json:"devices"`
+		Risks     map[string]*riskJS `json:"risks"`
+		Truncated bool               `json:"truncated"`
+		PlanRan   bool               `json:"plan_ran"`
+		PlanOff   bool               `json:"plan_off"`
+	}{Devices: []deviceJS{}, Risks: map[string]*riskJS{}, Truncated: tf.Truncated, PlanRan: tf.PlanRan, PlanOff: tf.PlanOff}
 	for _, d := range tf.Devices {
 		a, ok := assets[d.AssetID]
 		if !ok {
 			continue
 		}
-		out.Devices = append(out.Devices, deviceJS{Asset: a, Open: d.Open, Exploited: toFixActions(d.Exploited), NoUpdate: toFixActions(d.NoUpdate),
+		// the card's own classification: its marker counts exactly what the card lists (review r2 of #949)
+		out.Devices = append(out.Devices, deviceJS{Asset: a, Risk: riskJSOf(RiskOf(d), a.Box), Open: d.Open, Exploited: toFixActions(d.Exploited), NoUpdate: toFixActions(d.NoUpdate),
 			Planned: toFixActions(d.Planned), PlanCompared: d.PlanCompared})
+	}
+	if params.Asset.Or("") == "" {
+		for id, r := range risks {
+			if a, ok := assets[id]; ok {
+				if v := riskJSOf(r, a.Box); v != nil {
+					out.Risks[id] = v
+				}
+			}
+		}
 	}
 	return Into[oas.FindingsGetFindingsToFixOK](out)
 }

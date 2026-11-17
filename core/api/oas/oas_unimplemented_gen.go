@@ -1861,7 +1861,7 @@ func (UnimplementedHandler) InventoryDeleteInventoryDevicesID(ctx context.Contex
 
 // InventoryDeleteInventoryDevicesIDSoftwareSid implements inventory_delete_inventory_devices_id_software_sid operation.
 //
-// Remove manually declared software from a device; on a correction (INV-39) this clears it and the
+// Remove manually declared software from a device; on a correction (INV-41) this clears it and the
 // reported row matches again (audit inventory.clear_software_correction).
 //
 // DELETE /inventory/devices/{id}/software/{sid}
@@ -2044,7 +2044,7 @@ func (UnimplementedHandler) InventoryPatchInventoryDevicesID(ctx context.Context
 
 // InventoryPatchInventoryDevicesIDSoftwareSid implements inventory_patch_inventory_devices_id_software_sid operation.
 //
-// Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or
+// Change a software row (D-471, INV-41). A row a person declared changes in place. A row a sensor or
 // agent reported is corrected: the values go in a manual correction row (source manual, correction
 // set) that replaces exactly that row (its source, product and version, and its re-reports) for
 // matching until it is deleted; another install of the product (another version or source) keeps
@@ -3268,10 +3268,10 @@ func (UnimplementedHandler) ScanGetScansProbesCsv(ctx context.Context) (r ScanGe
 
 // ScanGetScansRuns implements scan_get_scans_runs operation.
 //
-// Scan history and the running scan, with per-device results.
+// Scan history and the running scan, with per-device results: the newest 100 runs.
 //
 // GET /scans/runs
-func (UnimplementedHandler) ScanGetScansRuns(ctx context.Context) (r *ScanGetScansRunsOK, _ error) {
+func (UnimplementedHandler) ScanGetScansRuns(ctx context.Context, params ScanGetScansRunsParams) (r *ScanGetScansRunsOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -3350,7 +3350,7 @@ func (UnimplementedHandler) ScanningGetScanning(ctx context.Context) (r *Scannin
 // scans module is on.
 //
 // GET /scanning/history
-func (UnimplementedHandler) ScanningGetScanningHistory(ctx context.Context) (r *ScanningGetScanningHistoryOK, _ error) {
+func (UnimplementedHandler) ScanningGetScanningHistory(ctx context.Context, params ScanningGetScanningHistoryParams) (r *ScanningGetScanningHistoryOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

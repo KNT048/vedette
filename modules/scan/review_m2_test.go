@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/api/oas"
 )
 
 // M2: a worker that does not stop keeps the engine busy: the run shows stopped within 5 s, but no new run starts
@@ -56,7 +58,7 @@ func TestReview_M2_RunsViewSaysEngineBusyAfterStop(t *testing.T) {
 	h := NewScanHandlers(r.svc)
 	busy := func() bool {
 		t.Helper()
-		out, err := h.ScanGetScansRuns(r.ctx())
+		out, err := h.ScanGetScansRuns(r.ctx(), oas.ScanGetScansRunsParams{})
 		if err != nil {
 			t.Fatal(err)
 		}

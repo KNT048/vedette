@@ -13,6 +13,7 @@ import { EvidenceChip, PlanDataState } from '@/features/findings/Plan'
 import { usePlanAction } from '@/features/findings/fix'
 import { fmtDay } from './dates'
 import type { TierCve } from './types'
+import { RiskMarker } from '@/features/inventory/RiskMarker'
 
 export function TierCvePage({ v }: { v: TierCve }) {
   const { t } = useTranslation('feeds')
@@ -71,7 +72,7 @@ function TierDevices({ cve }: { cve: string }) {
             <Card flush><ul className="grid divide-y divide-rule">
               {hits.map(({ i, c }) => (
                 <li key={i.group} className="grid gap-1 px-4 py-2.5 text-sm">
-                  <Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>
+                  <span className="flex flex-wrap items-center gap-2"><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link><RiskMarker id={i.asset.id} risk={i.risk} /></span>
                   <span className="text-meta">{action(i)}</span>
                   <EvidenceChip basis={c.basis} />
                 </li>

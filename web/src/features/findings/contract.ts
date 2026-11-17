@@ -161,7 +161,7 @@ export const UncheckedCve = z.object({
 })
 export const UncheckedAnswer = z.object({
   label: z.string().describe('The button: "Alpine Linux 3.23", "Another system", "Enter the package release"'),
-  os: z.string().optional().describe('One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-39)'),
+  os: z.string().optional().describe('One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-41)'),
   ask: z.array(z.enum(['os', 'pkg_version'])).optional().describe('What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (apk info -v output is read as is). "Another system" asks both: on a row a scan saw only the row\'s release rules it out'),
 })
 export const UncheckedQuestion = z.object({
@@ -197,9 +197,14 @@ export const PlanCve = z.object({
   epss: z.number().min(0).max(1).nullable(),
   percentile: z.number().min(0).max(1).nullable(),
 })
+/** G4: a device's risk marker (the same value as GET /inventory/devices gives, findings.RiskMap); null when clean, for the Vedette box
+ * itself, or when the marker could not be read. */
+export const DeviceRiskView = z.object({ level: z.enum(['exploited', 'update']), exploited: z.number().int(), updates: z.number().int() }).nullable()
+  .describe('The device\'s risk marker (G4): exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read')
 export const PlanItem = z.object({
   group: z.string().describe('"<device id>/<software id>", as RowFix.group (D-545)'),
   asset: z.object({ id: z.string(), name: z.string().describe('The name the Devices page shows, never the internal id (D-484)') }),
+  risk: DeviceRiskView,
   software: z.string().describe('Display name of the software row'),
   version: z.string().describe('The installed version'),
   fixed: z.string().describe('fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: the distribution\'s package version that fixes every CVE of the item on the device\'s release (D-622)'),
@@ -279,6 +284,7 @@ export const ToFixAction = z.object({
 })
 export const ToFixDevice = z.object({
   asset: FindingAsset,
+  risk: DeviceRiskView,
   open: z.number().int().describe('Open findings of the device'),
   exploited: z.array(ToFixAction).describe('Open exploited findings one named update fixes, one action per update, worst first'),
   no_update: z.array(ToFixAction).describe('Open findings no update is named for, one per software row; one with confirmed + detected = 0 is the person\'s to check (Needs your input), not to fix'),
@@ -290,6 +296,7 @@ export const ToFix = z.object({
   truncated: z.boolean().describe('More devices had something than the 500 listed'),
   plan_ran: z.boolean().describe('The plan job compared the devices since the box started; false: recommended updates are not known yet'),
   plan_off: z.boolean().describe('The feeds module is off: no recommended update is listed'),
+  risks: z.record(z.string(), DeviceRiskView.unwrap()).describe('G4: the risk marker of every marked device by id, not capped like devices (empty for ?asset=): the Findings table and filter read it'),
 })
 
 export const endpoints = defineEndpoints([

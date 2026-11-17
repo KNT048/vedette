@@ -17,9 +17,15 @@ func (h *ScanHandlers) ScanGetScansTargets(ctx context.Context) (*oas.ScanGetSca
 	}{items})
 }
 
-// ScanGetScansRuns implements scan_get_scans_runs (viewer).
-func (h *ScanHandlers) ScanGetScansRuns(ctx context.Context) (*oas.ScanGetScansRunsOK, error) {
-	items, err := h.svc.Runs(ctx)
+// ScanGetScansRuns implements scan_get_scans_runs (viewer); with asset, only the runs of that device (kien G7b/c).
+func (h *ScanHandlers) ScanGetScansRuns(ctx context.Context, params oas.ScanGetScansRunsParams) (*oas.ScanGetScansRunsOK, error) {
+	var items []RunView
+	var err error
+	if a, ok := params.Asset.Get(); ok {
+		items, err = h.svc.RunsOf(ctx, a)
+	} else {
+		items, err = h.svc.Runs(ctx)
+	}
 	if err != nil {
 		return nil, err
 	}

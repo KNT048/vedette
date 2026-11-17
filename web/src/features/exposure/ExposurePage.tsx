@@ -142,7 +142,7 @@ function GatewayNote({ g }: { g: Gateway }) {
   const info = !g.ip ? t('gateway.unknownInfo') : !known ? t('gateway.notListedInfo') : g.open_exploited > 0 ? t('gateway.knownInfo') : t('gateway.noneInfo', { name })
   return (
     <Notice tone="accent" data-testid="gateway-note" title={text} info={info}
-      actions={known && g.open_exploited > 0 ? <Link className="text-meta text-accent underline-offset-4 hover:underline" to={`/findings?device=${encodeURIComponent(g.device_id ?? '')}`}>{t('gateway.link', { name })}</Link> : undefined} />
+      actions={known && g.open_exploited > 0 ? <Link className="text-meta text-accent underline-offset-4 hover:underline" to={`/findings?tab=open&device=${encodeURIComponent(g.device_id ?? '')}`}>{t('gateway.link', { name })}</Link> : undefined} />
   )
 }
 

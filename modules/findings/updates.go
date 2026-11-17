@@ -41,6 +41,9 @@ type UpdateAction struct {
 	SoftwareID string
 	Software   string
 	Version    string
+	// Product is the software row's identity across devices, "vendor|product" in lower case ("" when no row matches): what "By fix"
+	// groups one update on several devices by, whatever each device calls the row (G8, review r1 of #943).
+	Product string
 	// Fixed is the release or build to install ("" for a distribution's updates without a version, and for no named update).
 	Fixed string
 	// Kind: exploited: RowFix.Kind (fixed, esu, feature_update, distro); planned: PlanItem.Kind (fixed, windows, esu, distro);
@@ -114,6 +117,7 @@ func (s *Service) DeviceUpdates(ctx context.Context, assetID string, feedsOn boo
 	}
 	if feedsOn {
 		out.Planned, out.PlanRan, out.PlanCompared = s.plannedUpdates(assetID)
+		withProducts(a, out.Planned)
 	} else {
 		out.PlanOff = true
 	}
@@ -171,10 +175,10 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 		if f != nil {
 			key = "fix:" + f.Group
 			act = UpdateAction{Group: f.Group, SoftwareID: f.SoftwareID, Software: f.Software, Version: f.Version, Fixed: f.Fixed, Kind: f.Kind,
-				Windows: f.Windows, Distro: f.Distro, Pro: f.Pro}
+				Windows: f.Windows, Distro: f.Distro, Pro: f.Pro, Product: productKey(sws[f.SoftwareID])}
 		} else {
 			key = "row:" + row.ID
-			act = UpdateAction{Group: a.ID + "/" + row.ID, SoftwareID: row.ID, Software: clean(row.Display), Version: clean(row.Version), Kind: "none"}
+			act = UpdateAction{Group: a.ID + "/" + row.ID, SoftwareID: row.ID, Software: clean(row.Display), Version: clean(row.Version), Kind: "none", Product: productKey(row)}
 		}
 		g := groups[key]
 		if g == nil {
@@ -214,6 +218,14 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 		}
 	}
 	return sortUpdates(fixed), sortUpdates(none)
+}
+
+// productKey is a software row's identity across devices (UpdateAction.Product): "vendor|product" in lower case, "" for none.
+func productKey(s Software) string {
+	if s.Vendor == "" && s.Product == "" {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(s.Vendor) + "|" + strings.TrimSpace(s.Product))
 }
 
 // proofRow is the row whose source says how a finding is known: the row it matched on (MatchAsset), the fix group's row only when it

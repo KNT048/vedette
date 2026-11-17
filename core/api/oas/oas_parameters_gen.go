@@ -5001,6 +5001,70 @@ func decodeFindingsGetFindingsPlanParams(args [0]string, argsEscaped bool, r *ht
 	return params, nil
 }
 
+// FindingsGetFindingsToFixParams is parameters of findings_get_findings_to_fix operation.
+type FindingsGetFindingsToFixParams struct {
+	Asset OptString `json:",omitempty,omitzero"`
+}
+
+func unpackFindingsGetFindingsToFixParams(packed middleware.Parameters) (params FindingsGetFindingsToFixParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "asset",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Asset = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeFindingsGetFindingsToFixParams(args [0]string, argsEscaped bool, r *http.Request) (params FindingsGetFindingsToFixParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: asset.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "asset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotAssetVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotAssetVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Asset.SetTo(paramsDotAssetVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "asset",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // FindingsPostFindingsIDAiParams is parameters of findings_post_findings_id_ai operation.
 type FindingsPostFindingsIDAiParams struct {
 	ID string

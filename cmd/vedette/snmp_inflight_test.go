@@ -54,7 +54,7 @@ func (w *heldWorker) RunSNMP(ctx context.Context, j sensorlink.SNMPJob) ([]senso
 	var answers []sensorlink.SNMPAnswer
 	for _, t := range j.Targets {
 		ips = append(ips, t.IP)
-		answers = append(answers, sensorlink.SNMPAnswer{Target: t.IP, Status: sensorlink.SNMPStatusNoAnswer, Credential: t.Credentials[0]})
+		answers = append(answers, sensorlink.SNMPAnswer{Target: t.IP, Status: sensorlink.SNMPStatusNoAnswer})
 	}
 	if err := w.hold(ctx, ips...); err != nil {
 		return nil, err
@@ -76,10 +76,11 @@ var midRun = map[string]func(s *stack, t *testing.T, ip, mac string){
 	"the device moves":                 func(s *stack, t *testing.T, _, mac string) { s.seen(t, "192.168.10.77", mac, "") },
 }
 
-// #874 (D-512 (3)), through the real inventory, bus and sensor-active: while an SNMP read of the approved switch at .205 waits for the
-// worker, a new machine (another MAC, nobody approved it) takes .205, or the switch moves away from it. The inventory announces the
-// switch's new address, the batch is cancelled before the worker sends (the bus is synchronous: Record returns after the reactions
-// ran), and the community never reaches .205. A new test of a newcomer there is refused.
+// #874 (D-512 (3), D-607), through the real inventory, bus and sensor-active: while a Check now of the approved switch at .205 waits
+// for the worker, a new machine (another MAC, nobody approved it) takes .205, or the switch moves away from it. The inventory
+// announces the change, the batch is cancelled before the worker sends (the bus is synchronous: Record returns after the reactions
+// ran), and the community never reaches .205. A new check is refused too: the switch's read address was its IP, which it no longer
+// holds.
 func TestWiringSNMPStopsWhenTheDeviceLeavesTheAddress(t *testing.T) {
 	t.Parallel()
 	for name, happen := range midRun {
@@ -97,18 +98,16 @@ func TestWiringSNMPStopsWhenTheDeviceLeavesTheAddress(t *testing.T) {
 			if err := s.d.Inventory.Approve(t.Context(), "it@acme.example", sw); err != nil {
 				t.Fatal(err)
 			}
-			cred, err := svc.AddSNMP(t.Context(), "admin@acme.example", sensoractive.SNMPCredentialInput{
-				Name: "lan", Version: "v2c", Community: secrets.NewValue("community-874"), Scope: []string{"192.168.10.0/24"}})
-			if err != nil {
+			if _, err := svc.SetSNMP(t.Context(), "admin@acme.example", sw, sensoractive.SNMPInput{Version: "v2c", Community: secrets.NewValue("community-874")}); err != nil {
 				t.Fatal(err)
 			}
 			type out struct {
-				res sensoractive.SNMPTestResult
+				res sensoractive.SNMPCheckResult
 				err error
 			}
 			done := make(chan out, 1)
 			go func() {
-				res, err := svc.TestSNMP(context.Background(), "admin@acme.example", cred.ID, ip)
+				res, err := svc.CheckSNMP(context.Background(), "admin@acme.example", sw)
 				done <- out{res, err}
 			}()
 			<-w.started
@@ -123,9 +122,9 @@ func TestWiringSNMPStopsWhenTheDeviceLeavesTheAddress(t *testing.T) {
 				t.Fatalf("the community went to %v after the switch left the address", sent)
 			}
 			s.seen(t, ip, "3c:22:fb:00:09:99", "") // a newcomer at .205 (already there in the first case)
-			res, err := svc.TestSNMP(t.Context(), "admin@acme.example", cred.ID, ip)
-			if err != nil || res.Reason != sensoractive.SNMPNotApproved || len(w.sentTo()) != 0 {
-				t.Fatalf("a test of the newcomer: %+v, %v, sent %v; want not_approved and nothing sent", res, err, w.sentTo())
+			res, err := svc.CheckSNMP(t.Context(), "admin@acme.example", sw)
+			if err != nil || res.OK || len(w.sentTo()) != 0 {
+				t.Fatalf("a check after the move: %+v, %v, sent %v; want a refusal and nothing sent", res, err, w.sentTo())
 			}
 		})
 	}

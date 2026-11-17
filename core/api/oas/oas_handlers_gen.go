@@ -25729,12 +25729,13 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args 
 	}
 }
 
-// handleInventoryDeleteInventorySnmpIDRequest handles inventory_delete_inventory_snmp_id operation.
+// handleInventoryDeleteInventorySnmpDevicesIDRequest handles inventory_delete_inventory_snmp_devices_id operation.
 //
-// Delete an SNMP credential and its secrets; what devices said stays in the inventory.
+// Remove the SNMP settings of one device and its secrets (D-607); what it said stays in the inventory;
+// its SNMP source switch is left as it is. 404 not_found when the device has none.
 //
-// DELETE /inventory/snmp/{id}
-func (s *Server) handleInventoryDeleteInventorySnmpIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// DELETE /inventory/snmp/devices/{id}
+func (s *Server) handleInventoryDeleteInventorySnmpDevicesIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	ctx := r.Context()
@@ -25742,15 +25743,15 @@ func (s *Server) handleInventoryDeleteInventorySnmpIDRequest(args [1]string, arg
 	var (
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: InventoryDeleteInventorySnmpIDOperation,
-			ID:   "inventory_delete_inventory_snmp_id",
+			Name: InventoryDeleteInventorySnmpDevicesIDOperation,
+			ID:   "inventory_delete_inventory_snmp_devices_id",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securitySession(ctx, InventoryDeleteInventorySnmpIDOperation, r)
+			sctx, ok, err := s.securitySession(ctx, InventoryDeleteInventorySnmpDevicesIDOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -25792,7 +25793,7 @@ func (s *Server) handleInventoryDeleteInventorySnmpIDRequest(args [1]string, arg
 			return
 		}
 	}
-	params, err := decodeInventoryDeleteInventorySnmpIDParams(args, argsEscaped, r)
+	params, err := decodeInventoryDeleteInventorySnmpDevicesIDParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -25805,13 +25806,13 @@ func (s *Server) handleInventoryDeleteInventorySnmpIDRequest(args [1]string, arg
 
 	var rawBody []byte
 
-	var response *InventoryDeleteInventorySnmpIDNoContent
+	var response *InventoryDeleteInventorySnmpDevicesIDNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    InventoryDeleteInventorySnmpIDOperation,
-			OperationSummary: "Delete an SNMP credential and its secrets; what devices said stays in the inventory",
-			OperationID:      "inventory_delete_inventory_snmp_id",
+			OperationName:    InventoryDeleteInventorySnmpDevicesIDOperation,
+			OperationSummary: "Remove the SNMP settings of one device and its secrets (D-607); what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none",
+			OperationID:      "inventory_delete_inventory_snmp_devices_id",
 			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
@@ -25825,8 +25826,8 @@ func (s *Server) handleInventoryDeleteInventorySnmpIDRequest(args [1]string, arg
 
 		type (
 			Request  = struct{}
-			Params   = InventoryDeleteInventorySnmpIDParams
-			Response = *InventoryDeleteInventorySnmpIDNoContent
+			Params   = InventoryDeleteInventorySnmpDevicesIDParams
+			Response = *InventoryDeleteInventorySnmpDevicesIDNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -25835,14 +25836,14 @@ func (s *Server) handleInventoryDeleteInventorySnmpIDRequest(args [1]string, arg
 		](
 			m,
 			mreq,
-			unpackInventoryDeleteInventorySnmpIDParams,
+			unpackInventoryDeleteInventorySnmpDevicesIDParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				err = s.h.InventoryDeleteInventorySnmpID(ctx, params)
+				err = s.h.InventoryDeleteInventorySnmpDevicesID(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		err = s.h.InventoryDeleteInventorySnmpID(ctx, params)
+		err = s.h.InventoryDeleteInventorySnmpDevicesID(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -25861,7 +25862,7 @@ func (s *Server) handleInventoryDeleteInventorySnmpIDRequest(args [1]string, arg
 		return
 	}
 
-	if err := encodeInventoryDeleteInventorySnmpIDResponse(response, w); err != nil {
+	if err := encodeInventoryDeleteInventorySnmpDevicesIDResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -27595,8 +27596,8 @@ func (s *Server) handleInventoryGetInventorySettingsRequest(args [0]string, args
 
 // handleInventoryGetInventorySnmpRequest handles inventory_get_inventory_snmp operation.
 //
-// SNMP credentials (secrets only as their last 4 characters) and whether the scan container can read
-// SNMP now (D-512).
+// Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what
+// the box changed by itself (D-607).
 //
 // GET /inventory/snmp
 func (s *Server) handleInventoryGetInventorySnmpRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27665,7 +27666,7 @@ func (s *Server) handleInventoryGetInventorySnmpRequest(args [0]string, argsEsca
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryGetInventorySnmpOperation,
-			OperationSummary: "SNMP credentials (secrets only as their last 4 characters) and whether the scan container can read SNMP now (D-512)",
+			OperationSummary: "Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what the box changed by itself (D-607)",
 			OperationID:      "inventory_get_inventory_snmp",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -27720,12 +27721,14 @@ func (s *Server) handleInventoryGetInventorySnmpRequest(args [0]string, argsEsca
 	}
 }
 
-// handleInventoryGetInventorySnmpIDReadRequest handles inventory_get_inventory_snmp_id_read operation.
+// handleInventoryGetInventorySnmpDevicesIDRequest handles inventory_get_inventory_snmp_devices_id operation.
 //
-// The read of this credential that runs now, or the last one; null when none since the box started.
+// The SNMP settings and state of one device (D-607): working, not answering, waiting or not set up;
+// read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found:
+// no such device.
 //
-// GET /inventory/snmp/{id}/read
-func (s *Server) handleInventoryGetInventorySnmpIDReadRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// GET /inventory/snmp/devices/{id}
+func (s *Server) handleInventoryGetInventorySnmpDevicesIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	ctx := r.Context()
@@ -27733,15 +27736,15 @@ func (s *Server) handleInventoryGetInventorySnmpIDReadRequest(args [1]string, ar
 	var (
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: InventoryGetInventorySnmpIDReadOperation,
-			ID:   "inventory_get_inventory_snmp_id_read",
+			Name: InventoryGetInventorySnmpDevicesIDOperation,
+			ID:   "inventory_get_inventory_snmp_devices_id",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securitySession(ctx, InventoryGetInventorySnmpIDReadOperation, r)
+			sctx, ok, err := s.securitySession(ctx, InventoryGetInventorySnmpDevicesIDOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -27783,7 +27786,7 @@ func (s *Server) handleInventoryGetInventorySnmpIDReadRequest(args [1]string, ar
 			return
 		}
 	}
-	params, err := decodeInventoryGetInventorySnmpIDReadParams(args, argsEscaped, r)
+	params, err := decodeInventoryGetInventorySnmpDevicesIDParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -27796,13 +27799,13 @@ func (s *Server) handleInventoryGetInventorySnmpIDReadRequest(args [1]string, ar
 
 	var rawBody []byte
 
-	var response NilInventoryGetInventorySnmpIDReadOK
+	var response *InventoryGetInventorySnmpDevicesIDOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    InventoryGetInventorySnmpIDReadOperation,
-			OperationSummary: "The read of this credential that runs now, or the last one; null when none since the box started",
-			OperationID:      "inventory_get_inventory_snmp_id_read",
+			OperationName:    InventoryGetInventorySnmpDevicesIDOperation,
+			OperationSummary: "The SNMP settings and state of one device (D-607): working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device",
+			OperationID:      "inventory_get_inventory_snmp_devices_id",
 			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
@@ -27816,8 +27819,8 @@ func (s *Server) handleInventoryGetInventorySnmpIDReadRequest(args [1]string, ar
 
 		type (
 			Request  = struct{}
-			Params   = InventoryGetInventorySnmpIDReadParams
-			Response = NilInventoryGetInventorySnmpIDReadOK
+			Params   = InventoryGetInventorySnmpDevicesIDParams
+			Response = *InventoryGetInventorySnmpDevicesIDOK
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -27826,14 +27829,14 @@ func (s *Server) handleInventoryGetInventorySnmpIDReadRequest(args [1]string, ar
 		](
 			m,
 			mreq,
-			unpackInventoryGetInventorySnmpIDReadParams,
+			unpackInventoryGetInventorySnmpDevicesIDParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.InventoryGetInventorySnmpIDRead(ctx, params)
+				response, err = s.h.InventoryGetInventorySnmpDevicesID(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.InventoryGetInventorySnmpIDRead(ctx, params)
+		response, err = s.h.InventoryGetInventorySnmpDevicesID(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -27852,7 +27855,7 @@ func (s *Server) handleInventoryGetInventorySnmpIDReadRequest(args [1]string, ar
 		return
 	}
 
-	if err := encodeInventoryGetInventorySnmpIDReadResponse(response, w); err != nil {
+	if err := encodeInventoryGetInventorySnmpDevicesIDResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -30640,13 +30643,15 @@ func (s *Server) handleInventoryPostInventoryImportRequest(args [0]string, argsE
 	}
 }
 
-// handleInventoryPostInventorySnmpRequest handles inventory_post_inventory_snmp operation.
+// handleInventoryPostInventorySnmpDevicesIDCheckRequest handles inventory_post_inventory_snmp_devices_id_check operation.
 //
-// Add an SNMP credential (v2c community or v3 user); its secrets are stored encrypted. 409 name_taken,
-// 409 too_many (8 at most).
+// Check now (D-607): read this device at once at its Read from address (read-only GETs from the scan
+// container, logged in the probe log, every rule but the window) and say what it answered, or why not;
+// an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the
+// module or scanning was turned off), changed (the settings changed while it started).
 //
-// POST /inventory/snmp
-func (s *Server) handleInventoryPostInventorySnmpRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// POST /inventory/snmp/devices/{id}/check
+func (s *Server) handleInventoryPostInventorySnmpDevicesIDCheckRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	ctx := r.Context()
@@ -30654,15 +30659,15 @@ func (s *Server) handleInventoryPostInventorySnmpRequest(args [0]string, argsEsc
 	var (
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: InventoryPostInventorySnmpOperation,
-			ID:   "inventory_post_inventory_snmp",
+			Name: InventoryPostInventorySnmpDevicesIDCheckOperation,
+			ID:   "inventory_post_inventory_snmp_devices_id_check",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securitySession(ctx, InventoryPostInventorySnmpOperation, r)
+			sctx, ok, err := s.securitySession(ctx, InventoryPostInventorySnmpDevicesIDCheckOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -30704,152 +30709,7 @@ func (s *Server) handleInventoryPostInventorySnmpRequest(args [0]string, argsEsc
 			return
 		}
 	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeInventoryPostInventorySnmpRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response *InventoryPostInventorySnmpCreated
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    InventoryPostInventorySnmpOperation,
-			OperationSummary: "Add an SNMP credential (v2c community or v3 user); its secrets are stored encrypted. 409 name_taken, 409 too_many (8 at most)",
-			OperationID:      "inventory_post_inventory_snmp",
-			Body:             request,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
-		}
-
-		type (
-			Request  = *InventoryPostInventorySnmpReq
-			Params   = struct{}
-			Response = *InventoryPostInventorySnmpCreated
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			nil,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.InventoryPostInventorySnmp(ctx, request)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.InventoryPostInventorySnmp(ctx, request)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeInventoryPostInventorySnmpResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
-// handleInventoryPostInventorySnmpIDReadRequest handles inventory_post_inventory_snmp_id_read operation.
-//
-// Read now every approved device in this credential's scope (read-only GETs from the scan container,
-// logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
-// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
-// 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409
-// stopped when active discovery was turned off while the read started.
-//
-// POST /inventory/snmp/{id}/read
-func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: InventoryPostInventorySnmpIDReadOperation,
-			ID:   "inventory_post_inventory_snmp_id_read",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, InventoryPostInventorySnmpIDReadOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-	params, err := decodeInventoryPostInventorySnmpIDReadParams(args, argsEscaped, r)
+	params, err := decodeInventoryPostInventorySnmpDevicesIDCheckParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -30862,13 +30722,13 @@ func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, a
 
 	var rawBody []byte
 
-	var response *InventoryPostInventorySnmpIDReadAccepted
+	var response *InventoryPostInventorySnmpDevicesIDCheckOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    InventoryPostInventorySnmpIDReadOperation,
-			OperationSummary: "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409 stopped when active discovery was turned off while the read started",
-			OperationID:      "inventory_post_inventory_snmp_id_read",
+			OperationName:    InventoryPostInventorySnmpDevicesIDCheckOperation,
+			OperationSummary: "Check now (D-607): read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)",
+			OperationID:      "inventory_post_inventory_snmp_devices_id_check",
 			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
@@ -30882,8 +30742,8 @@ func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, a
 
 		type (
 			Request  = struct{}
-			Params   = InventoryPostInventorySnmpIDReadParams
-			Response = *InventoryPostInventorySnmpIDReadAccepted
+			Params   = InventoryPostInventorySnmpDevicesIDCheckParams
+			Response = *InventoryPostInventorySnmpDevicesIDCheckOK
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -30892,14 +30752,14 @@ func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, a
 		](
 			m,
 			mreq,
-			unpackInventoryPostInventorySnmpIDReadParams,
+			unpackInventoryPostInventorySnmpDevicesIDCheckParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.InventoryPostInventorySnmpIDRead(ctx, params)
+				response, err = s.h.InventoryPostInventorySnmpDevicesIDCheck(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.InventoryPostInventorySnmpIDRead(ctx, params)
+		response, err = s.h.InventoryPostInventorySnmpDevicesIDCheck(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -30918,7 +30778,7 @@ func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, a
 		return
 	}
 
-	if err := encodeInventoryPostInventorySnmpIDReadResponse(response, w); err != nil {
+	if err := encodeInventoryPostInventorySnmpDevicesIDCheckResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -30927,15 +30787,12 @@ func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, a
 	}
 }
 
-// handleInventoryPostInventorySnmpIDTestRequest handles inventory_post_inventory_snmp_id_test operation.
+// handleInventoryPostInventorySnmpNoticesDismissRequest handles inventory_post_inventory_snmp_notices_dismiss operation.
 //
-// Read one device with this credential now (read-only GETs from the scan container, logged in the
-// probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409
-// secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it
-// again).
+// Dismiss every SNMP notice (D-607).
 //
-// POST /inventory/snmp/{id}/test
-func (s *Server) handleInventoryPostInventorySnmpIDTestRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// POST /inventory/snmp/notices/dismiss
+func (s *Server) handleInventoryPostInventorySnmpNoticesDismissRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	ctx := r.Context()
@@ -30943,15 +30800,15 @@ func (s *Server) handleInventoryPostInventorySnmpIDTestRequest(args [1]string, a
 	var (
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: InventoryPostInventorySnmpIDTestOperation,
-			ID:   "inventory_post_inventory_snmp_id_test",
+			Name: InventoryPostInventorySnmpNoticesDismissOperation,
+			ID:   "inventory_post_inventory_snmp_notices_dismiss",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securitySession(ctx, InventoryPostInventorySnmpIDTestOperation, r)
+			sctx, ok, err := s.securitySession(ctx, InventoryPostInventorySnmpNoticesDismissOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -30993,56 +30850,26 @@ func (s *Server) handleInventoryPostInventorySnmpIDTestRequest(args [1]string, a
 			return
 		}
 	}
-	params, err := decodeInventoryPostInventorySnmpIDTestParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
 
 	var rawBody []byte
-	request, rawBody, close, err := s.decodeInventoryPostInventorySnmpIDTestRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
 
-	var response *InventoryPostInventorySnmpIDTestOK
+	var response *InventoryPostInventorySnmpNoticesDismissOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    InventoryPostInventorySnmpIDTestOperation,
-			OperationSummary: "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409 secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it again)",
-			OperationID:      "inventory_post_inventory_snmp_id_test",
-			Body:             request,
+			OperationName:    InventoryPostInventorySnmpNoticesDismissOperation,
+			OperationSummary: "Dismiss every SNMP notice (D-607)",
+			OperationID:      "inventory_post_inventory_snmp_notices_dismiss",
+			Body:             nil,
 			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "id",
-					In:   "path",
-				}: params.ID,
-			},
-			Raw: r,
+			Params:           middleware.Parameters{},
+			Raw:              r,
 		}
 
 		type (
-			Request  = *InventoryPostInventorySnmpIDTestReq
-			Params   = InventoryPostInventorySnmpIDTestParams
-			Response = *InventoryPostInventorySnmpIDTestOK
+			Request  = struct{}
+			Params   = struct{}
+			Response = *InventoryPostInventorySnmpNoticesDismissOK
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -31051,14 +30878,14 @@ func (s *Server) handleInventoryPostInventorySnmpIDTestRequest(args [1]string, a
 		](
 			m,
 			mreq,
-			unpackInventoryPostInventorySnmpIDTestParams,
+			nil,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.InventoryPostInventorySnmpIDTest(ctx, request, params)
+				response, err = s.h.InventoryPostInventorySnmpNoticesDismiss(ctx)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.InventoryPostInventorySnmpIDTest(ctx, request, params)
+		response, err = s.h.InventoryPostInventorySnmpNoticesDismiss(ctx)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -31077,7 +30904,7 @@ func (s *Server) handleInventoryPostInventorySnmpIDTestRequest(args [1]string, a
 		return
 	}
 
-	if err := encodeInventoryPostInventorySnmpIDTestResponse(response, w); err != nil {
+	if err := encodeInventoryPostInventorySnmpNoticesDismissResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -31672,13 +31499,19 @@ func (s *Server) handleInventoryPutInventorySettingsRequest(args [0]string, args
 	}
 }
 
-// handleInventoryPutInventorySnmpIDRequest handles inventory_put_inventory_snmp_id operation.
+// handleInventoryPutInventorySnmpDevicesIDRequest handles inventory_put_inventory_snmp_devices_id operation.
 //
-// Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret
-// would keep one this box cannot open (type it again).
+// Set up or edit the SNMP of one device (D-607): version, community or v3 user, port, Read from; or
+// copy_from another device (the secret is copied on the box). Saving is the person's consent: it turns
+// the device's SNMP source on (D-601) when it was not. A blank secret keeps the saved one, unless Read
+// from changes. One audit row. 400 bad_version, bad_secret, secret_required, bad_user, bad_auth,
+// bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found,
+// copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet),
+// box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box
+// cannot open), device_ignored.
 //
-// PUT /inventory/snmp/{id}
-func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// PUT /inventory/snmp/devices/{id}
+func (s *Server) handleInventoryPutInventorySnmpDevicesIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	ctx := r.Context()
@@ -31686,15 +31519,15 @@ func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEs
 	var (
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: InventoryPutInventorySnmpIDOperation,
-			ID:   "inventory_put_inventory_snmp_id",
+			Name: InventoryPutInventorySnmpDevicesIDOperation,
+			ID:   "inventory_put_inventory_snmp_devices_id",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securitySession(ctx, InventoryPutInventorySnmpIDOperation, r)
+			sctx, ok, err := s.securitySession(ctx, InventoryPutInventorySnmpDevicesIDOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -31736,7 +31569,7 @@ func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEs
 			return
 		}
 	}
-	params, err := decodeInventoryPutInventorySnmpIDParams(args, argsEscaped, r)
+	params, err := decodeInventoryPutInventorySnmpDevicesIDParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -31748,7 +31581,7 @@ func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEs
 	}
 
 	var rawBody []byte
-	request, rawBody, close, err := s.decodeInventoryPutInventorySnmpIDRequest(r)
+	request, rawBody, close, err := s.decodeInventoryPutInventorySnmpDevicesIDRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -31764,13 +31597,13 @@ func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEs
 		}
 	}()
 
-	var response *InventoryPutInventorySnmpIDOK
+	var response *InventoryPutInventorySnmpDevicesIDOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    InventoryPutInventorySnmpIDOperation,
-			OperationSummary: "Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret would keep one this box cannot open (type it again)",
-			OperationID:      "inventory_put_inventory_snmp_id",
+			OperationName:    InventoryPutInventorySnmpDevicesIDOperation,
+			OperationSummary: "Set up or edit the SNMP of one device (D-607): version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person's consent: it turns the device's SNMP source on (D-601) when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required, bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored",
+			OperationID:      "inventory_put_inventory_snmp_devices_id",
 			Body:             request,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
@@ -31783,9 +31616,9 @@ func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEs
 		}
 
 		type (
-			Request  = *InventoryPutInventorySnmpIDReq
-			Params   = InventoryPutInventorySnmpIDParams
-			Response = *InventoryPutInventorySnmpIDOK
+			Request  = *InventoryPutInventorySnmpDevicesIDReq
+			Params   = InventoryPutInventorySnmpDevicesIDParams
+			Response = *InventoryPutInventorySnmpDevicesIDOK
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -31794,14 +31627,14 @@ func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEs
 		](
 			m,
 			mreq,
-			unpackInventoryPutInventorySnmpIDParams,
+			unpackInventoryPutInventorySnmpDevicesIDParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.InventoryPutInventorySnmpID(ctx, request, params)
+				response, err = s.h.InventoryPutInventorySnmpDevicesID(ctx, request, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.InventoryPutInventorySnmpID(ctx, request, params)
+		response, err = s.h.InventoryPutInventorySnmpDevicesID(ctx, request, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -31820,7 +31653,7 @@ func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEs
 		return
 	}
 
-	if err := encodeInventoryPutInventorySnmpIDResponse(response, w); err != nil {
+	if err := encodeInventoryPutInventorySnmpDevicesIDResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

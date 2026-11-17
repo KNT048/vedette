@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
@@ -25,14 +24,17 @@ import (
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
-// SNMP reads (D-512, INV-10, S-INV-1). An administrator saves SNMP credentials (a v2c community, or a v3 user with SHA or SHA-256
-// and AES-128 or no privacy); their secrets are sealed in core/secrets and never leave core except inside an snmp job to the worker
-// of the scan container, over the mutual-TLS sensor link. The worker sends read-only GETs of a fixed list of objects; core decides
-// everything before that: once per scan window (after the sweep and the queue) every approved device of the confirmed scope that is
-// not the box, not added by hand and not set to "never" is read with the credentials whose own scope holds it, in order, until one
-// is answered; a Test reads one device with one credential at once. Fragile and unclassified devices are read too: a few GETs are
-// gentler than the one gentle scan, and SNMP is how a printer or a UPS tells what it is. Every job writes a probe row (INV-9) before
-// anything is sent. What a device answers is parsed in core (snmpmap.go) and recorded with source snmp.
+// SNMP reads (D-512, D-607, INV-10, S-INV-1). SNMP is set up per device, as a Zabbix host has its SNMP interface: an administrator
+// saves on a device its version (a v2c community, or a v3 user with SHA or SHA-256 and AES-128 or no privacy), its UDP port and its
+// read address (the device's IP, or its management address: a FortiGate answers on its global VDOM interface). The secrets are
+// sealed in core/secrets and never leave core except inside an snmp job to the worker of the scan container, over the mutual-TLS
+// sensor link, inside the one target they belong to: a device's secret goes to that device's read address and nowhere else (snmpJob
+// refuses any other). The worker sends read-only GETs of a fixed list of objects; core decides everything before that: once per
+// scan window (after the sweep and the queue) every device with SNMP set up that the policy lets be read is read, and Check now reads
+// one device at once. Fragile and unclassified devices are read too: a few GETs are gentler than the one gentle scan, and SNMP is how
+// a printer or a UPS tells what it is. Every job writes a probe row (INV-9) before anything is sent. What a device answers is parsed
+// in core (snmpmap.go) and recorded on that device (observe.AssetHint.Device): an answer from the read address never makes, finds
+// or joins another device.
 
 // The purposes of the secrets in core_secret: the community or the v3 authentication password, and the v3 privacy password.
 const (
@@ -41,88 +43,119 @@ const (
 )
 
 const (
-	// maxSNMPCredentials is how many credentials can be saved: an snmp job carries at most this many.
-	maxSNMPCredentials = sensorlink.MaxSNMPCredentials
-	maxSNMPScope       = 16
-	// snmpTestBudget bounds a Test: a v3 read is a discovery and a GET of 2 s each, sent twice; the rest is the worker picking it up.
+	// snmpTestBudget bounds a Check now: a v3 read is a discovery and a GET of 2 s each, sent twice; the rest is the worker picking it up.
 	snmpTestBudget = 40 * time.Second
-	// snmpRoundRun bounds one batch of the window's round (64 devices with up to 4 credentials each).
+	// snmpRoundRun bounds one batch of the window's round (64 devices).
 	snmpRoundRun = time.Hour
 	// snmpBatchTries bounds the reads of one batch of a round that device changes stop (#882).
 	snmpBatchTries = 4
-	// snmpWait is how long a Test waits for a batch of the window's round to finish before it says busy.
+	// snmpWait is how long a Check now waits for a batch of the window's round to finish before it says busy.
 	snmpWait = 30 * time.Second
 	// The confidence of what a device states about itself; the kind from a family or a phrase is a little less sure.
 	snmpStated = 0.9
 	snmpKind   = 0.8
-	// Reasons of sa_job rows of kind snmp.
+	// Reasons of sa_job rows of kind snmp (snmp_test: a Check now, as the Test of before D-607; the history reads it as a person's).
 	snmpReasonTest   = "snmp_test"
 	snmpReasonWindow = "window"
 )
 
-// SNMP reasons and statuses a Test answers with (SnmpTestReason in contract.ts), beside the inventory's refusals it passes on.
+// SNMP reasons a Check now answers with (SnmpReason in contract.ts), beside the read statuses of sensorlink and the inventory's
+// refusals it passes on.
 const (
-	SNMPOK                   = "ok"
-	SNMPNotInInventory       = "not_in_inventory"
-	SNMPNotApproved          = "not_approved"
-	SNMPNotForThisCredential = "not_for_this_credential"
-	SNMPUnavailable          = "unavailable"
-	SNMPBusy                 = "busy"
+	SNMPOK          = "ok"
+	SNMPNotSetUp    = "not_set_up"
+	SNMPNotApproved = "not_approved"
+	SNMPUnavailable = "unavailable"
+	SNMPBusy        = "busy"
+	SNMPMoved       = "moved"
+	SNMPSecretLost  = "secret_lost"
+	SNMPNoIP        = "no_ip"
 )
 
-// SNMPCredential is a saved credential without its secrets (SnmpCredential in contract.ts). Priv is "aes128" or "none" for v3, ""
-// for v2c; Auth is "" for v2c. Port is the UDP port it is sent to (161 unless the person named another). SecretLost is set by
-// SNMPCredentials only: a saved secret this box cannot open (#868).
-type SNMPCredential struct {
-	ID, Name, Version, Username, Auth, Priv string
-	SecretLast4, PrivLast4                  string
-	Port                                    int
-	Scope                                   []string
-	CreatedAt, LastAnswerAt                 time.Time // LastAnswerAt zero: never
-	Answered                                int
-	SecretLost                              bool
-	MovedOut                                []SNMPMoved // set by SNMPCredentials only (#829 C4)
+// The states of a device's SNMP (SnmpState in contract.ts).
+const (
+	SNMPWorking      = "working"
+	SNMPNotAnswering = "not_answering"
+	SNMPWaiting      = "waiting"
+)
+
+// SNMPDevice is the SNMP of one device without its secrets (DeviceSnmp in contract.ts). IP and Name are the inventory's.
+type SNMPDevice struct {
+	DeviceID, Name                string
+	IP                            netip.Addr // the device's own address; invalid when none
+	State                         string     // working, not_answering, waiting, not_set_up
+	ReadFrom                      netip.Addr // invalid when not set up
+	ReadFromDefault               bool
+	Version, Username, Auth, Priv string // Priv "aes128" or "none" for v3, "" for v2c
+	Port                          int    // 0 when not set up
+	SecretLast4, PrivLast4        string
+	SecretLost                    bool
+	LastCheckedAt, LastAnswerAt   time.Time // zero: never
+	UpdatedAt                     time.Time
+	LastReason                    string // the status of the last read; "" when never read
+	Error                         string // plain words for a last read without an answer
+	Answer                        *SNMPFacts
+	Blocked                       *SNMPBlocked
 }
 
-// SNMPCredentialInput is the form (SnmpCredentialInput in contract.ts). A blank secret on an edit keeps the saved one. Port 0 is
-// none given: 161.
-type SNMPCredentialInput struct {
-	Name, Version, Username, Auth, Priv   string
+// SNMPBlocked says why nothing is sent to a device now (SnmpBlocked in contract.ts).
+type SNMPBlocked struct{ Reason, Message string }
+
+// SNMPInput is the form of a device's SNMP (DeviceSnmpInput in contract.ts). A blank secret on an edit keeps the saved one, unless
+// the read address changes. Port 0 is none given: 161. ReadFrom "" is the device's IP. CopyFrom names another device whose settings
+// and secrets are copied on the box; then only ReadFrom is read besides it.
+type SNMPInput struct {
+	CopyFrom, ReadFrom                    string
+	Version, Username, Auth, Priv         string
 	Community, AuthPassword, PrivPassword secrets.Value
 	Port                                  int
-	Scope                                 []string
 }
 
-// SNMPTestResult is what a Test answers (SnmpTestResult in contract.ts). Answer is set when the device answered.
-type SNMPTestResult struct {
-	OK       bool
-	Reason   string
-	Message  string
-	DeviceID string
-	Answer   *SNMPFacts
+// SNMPCheckResult is what a Check now answers (SnmpCheckResult in contract.ts). Answer is set when the device answered.
+type SNMPCheckResult struct {
+	OK      bool
+	Reason  string
+	Message string
+	Answer  *SNMPFacts
+	Device  SNMPDevice
 }
 
-// snmpRow is a credential as stored.
+// SNMPNotice is a change the box made to SNMP settings by itself (SnmpNotice in contract.ts).
+type SNMPNotice struct {
+	ID   int64
+	At   time.Time
+	Text string
+}
+
+// snmpRow is a device's SNMP settings as stored.
 type snmpRow struct {
-	SNMPCredential
-	secretID, privID    string
-	scopeRaw, updatedAt string // as stored: snmpJob checks the row did not change since the batch read it (review #715 r2 M1)
+	AssetID                       string
+	ReadFrom                      netip.Addr
+	ReadFromDefault               bool
+	Version, Username, Auth, Priv string
+	SecretLast4, PrivLast4        string
+	Port                          int
+	CreatedAt, UpdatedAt          time.Time
+	LastCheckedAt, LastAnswerAt   time.Time
+	LastStatus                    string
+	answer                        string // JSON of sensorlink.SNMPValues, "" when none
+	secretID, privID              string
+	updatedAt                     string // as stored: snmpJob checks the row did not change since the batch read it (review #715 r2 M1)
 }
 
-// snmpRun is the SNMP batch in progress, for SettingsChanged, AssetChanged and Stop.
+// snmpRun is the SNMP batch in progress, for SettingsChanged, AssetChanged, an edit of a device's SNMP and Stop.
 type snmpRun struct {
 	cancel context.CancelFunc
-	// changed stops the batch because one of its devices changed (AssetChanged), with that device as the cause: the round reads
-	// the batch again instead of ending (#882).
+	// changed stops the batch because one of its devices changed (AssetChanged, its SNMP settings edited), with that device as the
+	// cause: the round reads the batch again instead of ending (#882).
 	changed context.CancelCauseFunc
-	// targets and assets are the batch's addresses and devices: every one it was given until recheckSNMP, then only the ones it
+	// targets and assets are the batch's read addresses and devices: every one it was given until recheckSNMP, then only the ones it
 	// still sends to (set under s.mu), so a change to a device the batch dropped does not stop it (#882).
 	targets []netip.Addr
 	assets  []string
-	picked  bool // a Test: the window does not bind it
-	// credIDs are the credentials the batch carries (an edit or a delete of one stops it); deadline is when a round's batch stops by
-	// itself, the window's end or snmpRoundRun (a shorter window stops it earlier). Both are set under s.mu once known.
-	credIDs  []string
+	picked  bool // a Check now: the window does not bind it
+	// deadline is when a round's batch stops by itself, the window's end or snmpRoundRun (a shorter window stops it earlier). Set under
+	// s.mu once known.
 	deadline time.Time
 }
 
@@ -133,7 +166,7 @@ var (
 
 func bad(code, msg string) *apierr.Error { return apierr.New(400, code, msg) }
 
-// snmpOff is the answer of every credential call when the service was built without secrets (a build that is not wired).
+// snmpOff is the answer of every SNMP call when the service was built without secrets (a build that is not wired).
 func snmpOff() *apierr.Error {
 	return apierr.New(501, apierr.CodeNotImplemented, "SNMP is not available in this build.")
 }
@@ -149,46 +182,22 @@ func (s *Service) SNMPStatus() (ready bool, message string) {
 	return true, ""
 }
 
-// SNMPCredentials lists the saved credentials in the order they are tried: oldest first, each saying whether a saved secret of it
-// cannot be opened on this box (SecretLost, #868).
-func (s *Service) SNMPCredentials(ctx context.Context) ([]SNMPCredential, error) {
-	rows, err := s.snmpRows(ctx, s.db.Reader())
-	if err != nil {
-		return nil, err
-	}
-	out := make([]SNMPCredential, len(rows))
-	for i, r := range rows {
-		out[i] = r.SNMPCredential
-		if s.secrets == nil {
-			continue
-		}
-		// Only a secret sealed under another master key is "lost"; any other failure to open one (a row of another key version, a read
-		// error) leaves the list as it was: a Test or a round reports it as before.
-		lost, err := s.snmpLost(ctx, s.db.Reader(), r)
-		if err != nil {
-			s.log.WarnContext(ctx, "sensoractive: checking an snmp credential's secret failed", "credential", r.ID, "error", err)
-		}
-		out[i].SecretLost = lost
-	}
-	moved, _ := s.snmpMovedOut(ctx, rows)
-	for i := range out {
-		out[i].MovedOut = moved[out[i].ID]
-	}
-	return out, nil
-}
-
 // codeSecretLost is the refusal of a saved secret this box cannot open (#847, #868; core/conn, agent-intake and response use the
 // same code).
 const codeSecretLost = "secret_lost"
 
-// snmpLostText is what a person is told about a credential whose saved secret is sealed under another master key (#868).
-const snmpLostText = "The saved SNMP community or password of this credential was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter it again and save."
+// snmpLostText is what a person is told about a device whose saved SNMP secret is sealed under another master key (#868).
+const snmpLostText = "The saved SNMP community or password of this device was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter it again and save."
 
-// errSNMPSecretLost is a credential's secret found sealed under another master key while a job was built (snmpJob): nothing was sent.
+// errSNMPSecretLost is a device's secret found sealed under another master key while a job was built (snmpJob): nothing was sent.
 var errSNMPSecretLost = errors.New("the saved SNMP community or password was not restored")
 
+// errSNMPNotReadAddress is a job built for an address that is not the stored read address of the device whose secret it carries
+// (snmpJob, D-607): refused before any secret is opened.
+var errSNMPNotReadAddress = errors.New("sensoractive: an snmp target is not the read address of its device")
+
 // snmpDeviceChanged is ErrStopped for a batch stopped only because one of its devices changed (AssetChanged: it moved, another
-// device took its address, a field changed): snmpRound reads the batch again (#882).
+// device took its address, a field changed; or its SNMP settings were edited): snmpRound reads the batch again (#882).
 type snmpDeviceChanged struct{ asset string }
 
 func (e *snmpDeviceChanged) Error() string {
@@ -196,16 +205,16 @@ func (e *snmpDeviceChanged) Error() string {
 }
 func (e *snmpDeviceChanged) Is(target error) bool { return target == ErrStopped }
 
-// snmpSecretLost is the answer of a Test, a Read now and an Edit that keeps a secret this box cannot open (#868).
+// snmpSecretLost is the answer of a Check now, and of an edit or a copy that keeps a secret this box cannot open (#868).
 func snmpSecretLost() *apierr.Error {
 	return apierr.New(409, codeSecretLost, snmpLostText+" Nothing was sent.")
 }
 
-// snmpLost reports whether a saved secret of credential c is sealed under another master key (a backup restored without its
-// decryption key, or a key file made again: #868). Such a secret is gone for good: the credential is skipped until a person types it
-// again (Edit). Any other failure to open it is an error, never "lost" (secrets.IsWrongKey). The opened bytes are cleared at once.
-func (s *Service) snmpLost(ctx context.Context, q coredb.DBTX, c snmpRow) (bool, error) {
-	for _, x := range [...]struct{ id, purpose string }{{c.secretID, snmpSecretPurpose}, {c.privID, snmpPrivPurpose}} {
+// snmpLost reports whether a saved secret of row r is sealed under another master key (a backup restored without its decryption
+// key, or a key file made again: #868). Such a secret is gone for good: the device is skipped until a person types it again (Edit).
+// Any other failure to open it is an error, never "lost" (secrets.IsWrongKey). The opened bytes are cleared at once.
+func (s *Service) snmpLost(ctx context.Context, q coredb.DBTX, r snmpRow) (bool, error) {
+	for _, x := range [...]struct{ id, purpose string }{{r.secretID, snmpSecretPurpose}, {r.privID, snmpPrivPurpose}} {
 		if lost, err := s.secretLost(ctx, q, x.id, x.purpose); lost || err != nil {
 			return lost, err
 		}
@@ -229,20 +238,22 @@ func (s *Service) secretLost(ctx context.Context, q coredb.DBTX, id, purpose str
 	return false, nil
 }
 
-// snmpKeptLost is the refusal of an edit that keeps (leaves blank) a saved secret this box cannot open: it would save a credential
-// that can never be sent (#868).
-func snmpKeptLost() *apierr.Error {
-	return apierr.New(409, codeSecretLost, "The saved SNMP community or password of this credential was not restored (the backup was restored without its decryption key, or the box key changed). Enter it again, then save.")
+const snmpCols = `asset_id, read_from, read_from_default, version, username, auth, priv, secret_id, secret_last4, priv_secret_id, priv_last4,
+	coalesce(port, 161), created_at, updated_at, last_checked_at, last_status, last_answer_at, answer`
+
+type rowsQuerier interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }
 
-const snmpCols = `id, name, version, username, auth, priv, secret_id, secret_last4, priv_secret_id, priv_last4, scope, created_at, last_answer_at, answered, updated_at, coalesce(port, 161)`
+type rowQuerier interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
 
-func (s *Service) snmpRows(ctx context.Context, q interface {
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-}) ([]snmpRow, error) {
-	rows, err := q.QueryContext(ctx, `SELECT `+snmpCols+` FROM sa_snmp ORDER BY created_at, id`)
+// snmpRows reads every device's SNMP settings, by device id.
+func (s *Service) snmpRows(ctx context.Context, q rowsQuerier) ([]snmpRow, error) {
+	rows, err := q.QueryContext(ctx, `SELECT `+snmpCols+` FROM sa_snmp_device ORDER BY asset_id`)
 	if err != nil {
-		return nil, fmt.Errorf("sensoractive: read snmp credentials: %w", err)
+		return nil, fmt.Errorf("sensoractive: read snmp settings: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	var out []snmpRow
@@ -258,39 +269,33 @@ func (s *Service) snmpRows(ctx context.Context, q interface {
 
 func scanSNMPRow(r interface{ Scan(...any) error }) (snmpRow, error) {
 	var row snmpRow
-	var user, auth, priv, privID, last sql.NullString
-	var scope, created string
-	if err := r.Scan(&row.ID, &row.Name, &row.Version, &user, &auth, &priv, &row.secretID, &row.SecretLast4, &privID, &row.PrivLast4, &scope, &created, &last, &row.Answered, &row.updatedAt, &row.Port); err != nil {
-		return snmpRow{}, fmt.Errorf("sensoractive: read snmp credential: %w", err)
+	var user, auth, priv, privID, checked, status, answered, answer sql.NullString
+	var readFrom, created string
+	if err := r.Scan(&row.AssetID, &readFrom, &row.ReadFromDefault, &row.Version, &user, &auth, &priv, &row.secretID, &row.SecretLast4, &privID,
+		&row.PrivLast4, &row.Port, &created, &row.updatedAt, &checked, &status, &answered, &answer); err != nil {
+		return snmpRow{}, fmt.Errorf("sensoractive: read snmp settings: %w", err)
 	}
-	row.Username, row.Auth, row.privID, row.scopeRaw = user.String, auth.String, privID.String, scope
+	row.Username, row.Auth, row.privID, row.LastStatus, row.answer = user.String, auth.String, privID.String, status.String, answer.String
 	if row.Version == sensorlink.SNMPv3 {
-		row.Priv = cmpOr(priv.String, "none")
+		row.Priv = cmp.Or(priv.String, "none")
 	}
-	row.Scope = []string{}
-	if err := json.Unmarshal([]byte(scope), &row.Scope); err != nil {
-		return snmpRow{}, fmt.Errorf("sensoractive: read snmp credential scope: %w", err)
-	}
+	row.ReadFrom, _ = netip.ParseAddr(readFrom)
 	row.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
-	if last.Valid {
-		row.LastAnswerAt, _ = time.Parse(time.RFC3339Nano, last.String)
+	row.UpdatedAt, _ = time.Parse(time.RFC3339Nano, row.updatedAt)
+	if checked.Valid {
+		row.LastCheckedAt, _ = time.Parse(time.RFC3339Nano, checked.String)
+	}
+	if answered.Valid {
+		row.LastAnswerAt, _ = time.Parse(time.RFC3339Nano, answered.String)
 	}
 	return row, nil
 }
 
-func cmpOr(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
-}
-
-func (s *Service) snmpRow(ctx context.Context, q interface {
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}, id string) (*snmpRow, error) {
-	r, err := scanSNMPRow(q.QueryRowContext(ctx, `SELECT `+snmpCols+` FROM sa_snmp WHERE id = ?`, id))
+// snmpRow reads the SNMP settings of device id; nil when it has none.
+func (s *Service) snmpRow(ctx context.Context, q rowQuerier, id string) (*snmpRow, error) {
+	r, err := scanSNMPRow(q.QueryRowContext(ctx, `SELECT `+snmpCols+` FROM sa_snmp_device WHERE asset_id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apierr.New(404, "not_found", "There is no SNMP credential with this id.")
+		return nil, nil
 	}
 	if err != nil {
 		return nil, err
@@ -298,21 +303,17 @@ func (s *Service) snmpRow(ctx context.Context, q interface {
 	return &r, nil
 }
 
-// snmpForm is a checked form.
+// snmpForm is a checked form; its secrets are plain text, for this call only.
 type snmpForm struct {
-	name, version, user, auth, priv string // priv "" for v2c and for v3 without privacy
-	secret, privSecret              string // "" = keep the saved one
-	port                            int    // 1..65535; 161 when the form gave none
-	scope                           []netip.Prefix
-	scopeText                       []string
+	version, user, auth, priv string // priv "" for v2c and for v3 without privacy
+	secret, privSecret        string // "" = keep the saved one
+	port                      int    // 1..65535; 161 when the form gave none
 }
 
-// checkSNMP checks the form against the rules of the contract; prev is the saved credential of an edit, nil for a new one.
-func checkSNMP(in SNMPCredentialInput, prev *snmpRow) (snmpForm, *apierr.Error) {
-	f := snmpForm{name: strings.TrimSpace(in.Name), version: in.Version, port: cmp.Or(in.Port, sensorlink.SNMPPort)}
-	if n := utf8.RuneCountInString(f.name); n < 1 || n > 64 || strings.ContainsAny(f.name, "<>") || cleanSNMP(f.name) != f.name {
-		return f, bad("bad_name", "Give the credential a name of 1 to 64 characters, without < or >.")
-	}
+// checkSNMP checks the form of a device's SNMP against the rules of the contract; prev is the saved settings of an edit, nil for a
+// new one.
+func checkSNMP(in SNMPInput, prev *snmpRow) (snmpForm, *apierr.Error) {
+	f := snmpForm{version: in.Version, port: cmp.Or(in.Port, sensorlink.SNMPPort)}
 	if f.port < 1 || f.port > 65535 {
 		return f, bad("bad_port", "The port is a number from 1 to 65535. Leave it empty for 161, the SNMP port.")
 	}
@@ -366,57 +367,7 @@ func checkSNMP(in SNMPCredentialInput, prev *snmpRow) (snmpForm, *apierr.Error) 
 	default:
 		return f, bad("bad_version", "Choose SNMP v2c or v3.")
 	}
-	if len(in.Scope) > maxSNMPScope {
-		return f, bad("bad_scope", fmt.Sprintf("List at most %d addresses or ranges.", maxSNMPScope))
-	}
-	for _, raw := range in.Scope {
-		raw = strings.TrimSpace(raw)
-		p, perr := netip.ParsePrefix(raw)
-		if perr != nil {
-			a, aerr := netip.ParseAddr(raw)
-			if aerr != nil {
-				return f, bad("bad_scope", fmt.Sprintf("%q is not an IPv4 address or range (192.168.1.10 or 192.168.1.0/24).", clip(raw, 40)))
-			}
-			p = netip.PrefixFrom(a, 32)
-		}
-		p = p.Masked()
-		if !localnet.Prefix(p) {
-			return f, bad("bad_scope", fmt.Sprintf("%s is not a local network address (%s).", p, localnet.Names))
-		}
-		if slices.Contains(f.scope, p) {
-			continue
-		}
-		f.scope = append(f.scope, p)
-		if p.Bits() == 32 {
-			f.scopeText = append(f.scopeText, p.Addr().String())
-		} else {
-			f.scopeText = append(f.scopeText, p.String())
-		}
-	}
-	// The scope is required (review M3, runZero's allow list): an operator can approve a device and osquery enrolment approves one,
-	// so "every approved device" would hand the community to a laptop someone plugged in and got approved. The admin names the
-	// devices a credential belongs to.
-	if len(f.scope) == 0 {
-		return f, bad("scope_required", "List the addresses or ranges of the devices this credential belongs to (for example 192.168.1.1 or 192.168.1.0/28). It is sent only there, so a device someone plugs in later never receives it.")
-	}
-	// A saved secret goes only where it was going when it was typed: an edit that sends it to more addresses asks for it again
-	// (as a changed Wazuh certificate does, D-308), so a person who can edit the form but never knew the secret cannot point it at
-	// a device of their own.
-	if prev != nil && (f.secret == "" || (f.priv != "" && f.privSecret == "")) && widens(prev.Scope, f.scope) {
-		return f, bad("secret_required", "This credential would be sent to more addresses. Type its community or passwords again to allow that.")
-	}
 	return f, nil
-}
-
-// widens reports whether the new scope reaches an address the old one did not.
-func widens(old []string, next []netip.Prefix) bool {
-	olds := exclusionPrefixes(old) // an address or a range, as the scope is stored
-	for _, p := range next {
-		if !slices.ContainsFunc(olds, func(q netip.Prefix) bool { return q.Bits() <= p.Bits() && q.Contains(p.Addr()) }) {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *Service) auditTx(ctx context.Context, tx *sql.Tx, actor, action, target, detail string) error {
@@ -429,182 +380,376 @@ func (s *Service) auditTx(ctx context.Context, tx *sql.Tx, actor, action, target
 	return nil
 }
 
-func (f snmpForm) words() string {
-	w := f.version + ", port " + strconv.Itoa(f.port)
+func (f snmpForm) words(readFrom netip.Addr) string {
+	w := f.version + ", read from " + readFrom.String() + ", port " + strconv.Itoa(f.port)
 	if f.version == sensorlink.SNMPv3 {
-		w += " user " + f.user + ", " + f.auth + ", " + cmpOr(f.priv, "no privacy")
+		w += ", user " + f.user + ", " + f.auth + ", " + cmp.Or(f.priv, "no privacy")
 	}
-	return w + ", scope " + strings.Join(f.scopeText, " ")
+	return w
 }
 
-// portColumn is the port as stored: NULL for 161, so a credential saved without one and one saved with 161 are the same row.
-func (f snmpForm) portColumn() any {
-	if f.port == sensorlink.SNMPPort {
+// portColumn is the port as stored: NULL for 161.
+func portColumn(port int) any {
+	if port == sensorlink.SNMPPort {
 		return nil
 	}
-	return f.port
+	return port
 }
 
-func nameTaken(err error) error {
-	if err != nil && strings.Contains(err.Error(), "UNIQUE") && strings.Contains(err.Error(), "sa_snmp.name") {
-		return apierr.New(409, "name_taken", "Another SNMP credential has this name.")
+// checkReadFrom checks a read address a person typed (D-607): one IPv4 address of a local network (inside or outside the LAN
+// ranges: the person set it on this device), not a multicast, broadcast or reserved address, not the network or broadcast address
+// of a LAN range, not the box or one of its trap addresses.
+func (s *Service) checkReadFrom(ctx context.Context, text string) (netip.Addr, error) {
+	a, err := netip.ParseAddr(strings.TrimSpace(text))
+	if err != nil || !a.Unmap().Is4() {
+		return netip.Addr{}, bad("bad_read_from", "Read from is the IPv4 address the device answers SNMP on, for example 192.168.1.1.")
 	}
-	return err
-}
-
-// AddSNMP saves a new credential: its secrets sealed in core/secrets, the rest in sa_snmp, one audit row; at most 8.
-func (s *Service) AddSNMP(ctx context.Context, actor string, in SNMPCredentialInput) (SNMPCredential, error) {
-	if s.secrets == nil {
-		return SNMPCredential{}, snmpOff()
+	a = a.Unmap()
+	if a.IsUnspecified() || a.IsLoopback() || a.IsMulticast() || a.IsLinkLocalUnicast() || a == netip.AddrFrom4([4]byte{255, 255, 255, 255}) {
+		return netip.Addr{}, bad("bad_read_from", a.String()+" is a multicast, broadcast or reserved address, not the address of one device.")
 	}
-	f, aerr := checkSNMP(in, nil)
-	if aerr != nil {
-		return SNMPCredential{}, aerr
+	if !localnet.Addr(a) {
+		return netip.Addr{}, bad("read_from_not_local", fmt.Sprintf("%s is not a local network address (%s): SNMP reads stay on your own networks.", a, localnet.Names))
 	}
-	id := store.NewID("snmp")
-	scope, _ := json.Marshal(f.scopeText)
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		var n int
-		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM sa_snmp`).Scan(&n); err != nil {
-			return err
-		}
-		if n >= maxSNMPCredentials {
-			return apierr.New(409, "too_many", fmt.Sprintf("At most %d SNMP credentials can be saved. Delete one first.", maxSNMPCredentials))
-		}
-		secretID, last4, err := s.secrets.Seal(ctx, tx, snmpSecretPurpose, []byte(f.secret), true)
-		if err != nil {
-			return fmt.Errorf("sensoractive: seal snmp secret: %w", err)
-		}
-		var privID, privLast4 any = nil, ""
-		if f.priv != "" {
-			pid, pl4, err := s.secrets.Seal(ctx, tx, snmpPrivPurpose, []byte(f.privSecret), true)
-			if err != nil {
-				return fmt.Errorf("sensoractive: seal snmp privacy password: %w", err)
-			}
-			privID, privLast4 = pid, pl4
-		}
-		now := s.now()
-		if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp (id, name, version, username, auth, priv, secret_id, secret_last4, priv_secret_id, priv_last4, scope, created_at, updated_at, port)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, f.name, f.version, nullable(f.user), nullable(f.auth), nullable(f.priv), secretID, last4, privID, privLast4, string(scope), now, now, f.portColumn()); err != nil {
-			return nameTaken(err)
-		}
-		return s.auditTx(ctx, tx, actor, "inventory.snmp_add", f.name, f.words())
-	})
+	st, err := s.inv.Settings(ctx)
 	if err != nil {
-		return SNMPCredential{}, err
+		return netip.Addr{}, err
 	}
-	r, err := s.snmpRow(ctx, s.db.Reader(), id)
+	for _, p := range prefixes(st.LANRanges) {
+		if p.Bits() > 30 || !p.Contains(a) {
+			continue
+		}
+		if a == p.Masked().Addr() || a == lastAddr(p) {
+			return netip.Addr{}, bad("bad_read_from", fmt.Sprintf("%s is the network or broadcast address of the LAN range %s, not the address of one device.", a, p.Masked()))
+		}
+	}
+	box, err := s.inv.BoxIPs(ctx)
 	if err != nil {
-		return SNMPCredential{}, err
+		return netip.Addr{}, err
 	}
-	return r.SNMPCredential, nil
+	if slices.Contains(box, a) {
+		return netip.Addr{}, apierr.New(409, "read_from_box", a.String()+" is the Vedette box itself or one of its trap addresses: it is never read.")
+	}
+	return a, nil
 }
 
-// EditSNMP changes a credential. A blank secret keeps the saved one, unless the version changes or the credential would be sent to
-// more addresses (checkSNMP); choosing no privacy deletes the privacy password.
-func (s *Service) EditSNMP(ctx context.Context, actor, id string, in SNMPCredentialInput) (SNMPCredential, error) {
-	if s.secrets == nil {
-		return SNMPCredential{}, snmpOff()
+// lastAddr is the broadcast address of an IPv4 prefix.
+func lastAddr(p netip.Prefix) netip.Addr {
+	b := p.Masked().Addr().As4()
+	host := uint32(1)<<(32-p.Bits()) - 1
+	v := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3]) | host
+	return netip.AddrFrom4([4]byte{byte(v >> 24), byte(v >> 16), byte(v >> 8), byte(v)})
+}
+
+// deviceName is how a person knows the device in audit rows and notices.
+func deviceName(a Asset) string {
+	if a.Name != "" {
+		return a.Name
 	}
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+	if a.IP.IsValid() {
+		return a.IP.String()
+	}
+	return a.ID
+}
+
+// SetSNMP sets up or edits the SNMP of device id (PUT /inventory/snmp/devices/{id}, D-607): the form, or a copy of another device's
+// settings and secrets made on the box. Saving is the person's consent to read this device: its SNMP source switch is turned on
+// first (D-601, audited by the inventory; an ignored device is refused there). A blank secret keeps the saved one, unless the read
+// address changes: a person who can edit the form but never knew the secret cannot send it to an address of their own (as the
+// scopes of before did, D-512). One audit row says who set what, never the secret.
+func (s *Service) SetSNMP(ctx context.Context, actor, id string, in SNMPInput) (SNMPDevice, error) {
+	if s.secrets == nil {
+		return SNMPDevice{}, snmpOff()
+	}
+	if err := s.moveCredentials(ctx); err != nil {
+		return SNMPDevice{}, err
+	}
+	a, err := s.inv.Asset(ctx, id)
+	if errors.Is(err, ErrNotFound) {
+		return SNMPDevice{}, apierr.New(404, "not_found", "There is no device with this id.")
+	}
+	if err != nil {
+		return SNMPDevice{}, err
+	}
+	box, err := s.inv.BoxIPs(ctx)
+	if err != nil {
+		return SNMPDevice{}, err
+	}
+	if a.IP.IsValid() && slices.Contains(box, a.IP) {
+		return SNMPDevice{}, apierr.New(409, "box_device", "This is the Vedette box itself: it is never read with SNMP.")
+	}
+	if !a.IP.IsValid() {
+		return SNMPDevice{}, apierr.New(409, SNMPNoIP, "This device has no address yet: SNMP can be set up once a sensor has seen its address.")
+	}
+	readFrom, deflt := a.IP, true
+	if strings.TrimSpace(in.ReadFrom) != "" {
+		if readFrom, err = s.checkReadFrom(ctx, in.ReadFrom); err != nil {
+			return SNMPDevice{}, err
+		}
+		deflt = readFrom == a.IP
+	} else if slices.Contains(box, readFrom) {
+		return SNMPDevice{}, apierr.New(409, "read_from_box", readFrom.String()+" is the Vedette box itself or one of its trap addresses: it is never read.")
+	}
+	var src *snmpRow
+	var srcName string
+	if in.CopyFrom != "" {
+		if in.CopyFrom == id {
+			return SNMPDevice{}, bad("copy_from_self", "Choose another device to copy from.")
+		}
+		if src, err = s.snmpRow(ctx, s.db.Reader(), in.CopyFrom); err != nil {
+			return SNMPDevice{}, err
+		}
+		if src == nil {
+			return SNMPDevice{}, apierr.New(404, "copy_from_not_found", "The device to copy from has no SNMP set up.")
+		}
+		srcName = in.CopyFrom
+		if sa, err := s.inv.Asset(ctx, in.CopyFrom); err == nil {
+			srcName = deviceName(sa)
+		}
+	}
+	// The switch first: a device the inventory refuses it for (ignored, the box) is refused before anything is saved.
+	if err := s.inv.TurnSNMPOn(ctx, actor, id); err != nil {
+		return SNMPDevice{}, err
+	}
+	err = s.db.Write(ctx, func(tx *sql.Tx) error {
 		prev, err := s.snmpRow(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		f, aerr := checkSNMP(in, prev)
-		if aerr != nil {
-			return aerr
-		}
-		last4 := prev.SecretLast4
-		if f.secret != "" {
-			if last4, err = s.secrets.Replace(ctx, tx, prev.secretID, snmpSecretPurpose, []byte(f.secret), true); err != nil {
-				return fmt.Errorf("sensoractive: replace snmp secret: %w", err)
+		var f snmpForm
+		if src != nil {
+			if f, err = s.copiedForm(ctx, tx, in.CopyFrom, src); err != nil {
+				return err
 			}
-		} else if lost, _ := s.secretLost(ctx, tx, prev.secretID, snmpSecretPurpose); lost { // another failure to open it: kept, as before
-			return snmpKeptLost()
-		}
-		var privID any
-		privLast4 := ""
-		switch {
-		case f.priv == "" && prev.privID != "":
-			if err := s.secrets.Delete(ctx, tx, prev.privID); err != nil {
-				return fmt.Errorf("sensoractive: delete snmp privacy password: %w", err)
+		} else {
+			var aerr *apierr.Error
+			if f, aerr = checkSNMP(in, prev); aerr != nil {
+				return aerr
 			}
-		case f.priv != "" && prev.privID == "":
-			pid, pl4, err := s.secrets.Seal(ctx, tx, snmpPrivPurpose, []byte(f.privSecret), true)
-			if err != nil {
-				return fmt.Errorf("sensoractive: seal snmp privacy password: %w", err)
-			}
-			privID, privLast4 = pid, pl4
-		case f.priv != "":
-			privID, privLast4 = prev.privID, prev.PrivLast4
-			if f.privSecret != "" {
-				if privLast4, err = s.secrets.Replace(ctx, tx, prev.privID, snmpPrivPurpose, []byte(f.privSecret), true); err != nil {
-					return fmt.Errorf("sensoractive: replace snmp privacy password: %w", err)
+			if prev != nil && prev.ReadFrom != readFrom && (f.secret == "" || (f.priv != "" && f.privSecret == "")) {
+				what := "community"
+				if f.version == sensorlink.SNMPv3 {
+					what = "passwords"
 				}
-			} else if lost, _ := s.secretLost(ctx, tx, prev.privID, snmpPrivPurpose); lost { // another failure to open it: kept, as before
-				return snmpKeptLost()
+				return bad("secret_required", fmt.Sprintf("SNMP reads would go to a new address (%s instead of %s). Type the %s again to allow that.", readFrom, prev.ReadFrom, what))
 			}
 		}
-		scope, _ := json.Marshal(f.scopeText)
-		if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp SET name = ?, version = ?, username = ?, auth = ?, priv = ?, secret_last4 = ?, priv_secret_id = ?, priv_last4 = ?, scope = ?, port = ?, updated_at = ? WHERE id = ?`,
-			f.name, f.version, nullable(f.user), nullable(f.auth), nullable(f.priv), last4, privID, privLast4, string(scope), f.portColumn(), s.now(), id); err != nil {
-			return nameTaken(err)
-		}
-		if err := forgetOutside(ctx, tx, id, f.scopeText); err != nil {
-			return err
-		}
-		return s.auditTx(ctx, tx, actor, "inventory.snmp_edit", f.name, f.words())
+		defer func() { f.secret, f.privSecret = "", "" }()
+		return s.saveSNMP(ctx, tx, actor, a, prev, f, readFrom, deflt, srcName)
 	})
 	if err != nil {
-		return SNMPCredential{}, err
+		return SNMPDevice{}, err
 	}
-	s.snmpCredentialChanged(id)
-	r, err := s.snmpRow(ctx, s.db.Reader(), id)
-	if err != nil {
-		return SNMPCredential{}, err
-	}
-	return r.SNMPCredential, nil
+	s.snmpSettingsChanged(id)
+	return s.SNMPDeviceOf(ctx, id)
 }
 
-// DeleteSNMP removes a credential and its secrets in one transaction. What devices said with it stays in the inventory.
+// copiedForm is the form of device from's settings, its secrets opened in the transaction (they are sealed again for the device
+// that copies them and never leave core). A secret this box cannot open is 409 secret_lost.
+func (s *Service) copiedForm(ctx context.Context, tx *sql.Tx, from string, src *snmpRow) (snmpForm, error) {
+	cur, err := s.snmpRow(ctx, tx, from) // read again in the transaction: the settings copied are the ones saved now
+	if err != nil {
+		return snmpForm{}, err
+	}
+	if cur == nil {
+		return snmpForm{}, apierr.New(404, "copy_from_not_found", "The device to copy from has no SNMP set up.")
+	}
+	*src = *cur
+	f := snmpForm{version: src.Version, user: src.Username, auth: src.Auth, port: src.Port}
+	open := func(id, purpose string) (string, error) {
+		b, err := s.secrets.Open(ctx, tx, id, purpose)
+		defer clear(b)
+		if secrets.IsWrongKey(err) {
+			return "", snmpSecretLost()
+		}
+		if err != nil {
+			return "", fmt.Errorf("sensoractive: open snmp secret: %w", err)
+		}
+		return string(b), nil
+	}
+	if f.secret, err = open(src.secretID, snmpSecretPurpose); err != nil {
+		return snmpForm{}, err
+	}
+	if src.privID != "" {
+		f.priv = sensorlink.SNMPPrivAES128
+		if f.privSecret, err = open(src.privID, snmpPrivPurpose); err != nil {
+			return snmpForm{}, err
+		}
+	}
+	return f, nil
+}
+
+// saveSNMP writes a checked form for device a: the secrets sealed (or replaced) in core/secrets, the rest in sa_snmp_device, one
+// audit row. A blank secret keeps prev's; one this box cannot open is 409 secret_lost (#868).
+func (s *Service) saveSNMP(ctx context.Context, tx *sql.Tx, actor string, a Asset, prev *snmpRow, f snmpForm, readFrom netip.Addr, deflt bool, copied string) error {
+	now := s.now()
+	var secretID, last4 string
+	switch {
+	case prev == nil:
+		id, l4, err := s.secrets.Seal(ctx, tx, snmpSecretPurpose, []byte(f.secret), true)
+		if err != nil {
+			return fmt.Errorf("sensoractive: seal snmp secret: %w", err)
+		}
+		secretID, last4 = id, l4
+	case f.secret != "":
+		l4, err := s.secrets.Replace(ctx, tx, prev.secretID, snmpSecretPurpose, []byte(f.secret), true)
+		if err != nil {
+			return fmt.Errorf("sensoractive: replace snmp secret: %w", err)
+		}
+		secretID, last4 = prev.secretID, l4
+	default:
+		if lost, _ := s.secretLost(ctx, tx, prev.secretID, snmpSecretPurpose); lost { // another failure to open it: kept, as before
+			return snmpSecretLost()
+		}
+		secretID, last4 = prev.secretID, prev.SecretLast4
+	}
+	var privID any
+	privLast4 := ""
+	prevPriv := ""
+	if prev != nil {
+		prevPriv = prev.privID
+	}
+	switch {
+	case f.priv == "" && prevPriv != "":
+		if err := s.secrets.Delete(ctx, tx, prevPriv); err != nil {
+			return fmt.Errorf("sensoractive: delete snmp privacy password: %w", err)
+		}
+	case f.priv != "" && prevPriv == "":
+		pid, pl4, err := s.secrets.Seal(ctx, tx, snmpPrivPurpose, []byte(f.privSecret), true)
+		if err != nil {
+			return fmt.Errorf("sensoractive: seal snmp privacy password: %w", err)
+		}
+		privID, privLast4 = pid, pl4
+	case f.priv != "":
+		privID, privLast4 = prevPriv, prev.PrivLast4
+		if f.privSecret != "" {
+			l4, err := s.secrets.Replace(ctx, tx, prevPriv, snmpPrivPurpose, []byte(f.privSecret), true)
+			if err != nil {
+				return fmt.Errorf("sensoractive: replace snmp privacy password: %w", err)
+			}
+			privLast4 = l4
+		} else if lost, _ := s.secretLost(ctx, tx, prevPriv, snmpPrivPurpose); lost {
+			return snmpSecretLost()
+		}
+	}
+	if prev == nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp_device (asset_id, read_from, read_from_default, version, username, auth, priv, secret_id, secret_last4,
+			priv_secret_id, priv_last4, port, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			a.ID, readFrom.String(), deflt, f.version, nullable(f.user), nullable(f.auth), nullable(f.priv), secretID, last4, privID, privLast4,
+			portColumn(f.port), now, now); err != nil {
+			return fmt.Errorf("sensoractive: save snmp settings: %w", err)
+		}
+	} else {
+		// A new read address or version starts the state again: what the old one answered is not this one's.
+		reset := ""
+		if prev.ReadFrom != readFrom || prev.Version != f.version {
+			reset = "last_checked_at = NULL, last_status = NULL, last_answer_at = NULL, answer = NULL, "
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp_device SET `+reset+`read_from = ?, read_from_default = ?, version = ?, username = ?, auth = ?, priv = ?,
+			secret_last4 = ?, priv_secret_id = ?, priv_last4 = ?, port = ?, updated_at = ? WHERE asset_id = ?`,
+			readFrom.String(), deflt, f.version, nullable(f.user), nullable(f.auth), nullable(f.priv), last4, privID, privLast4, portColumn(f.port), now,
+			a.ID); err != nil {
+			return fmt.Errorf("sensoractive: save snmp settings: %w", err)
+		}
+	}
+	detail := f.words(readFrom)
+	if copied != "" {
+		detail += ", copied from " + copied
+	}
+	return s.auditTx(ctx, tx, actor, "inventory.snmp_set", deviceName(a), detail)
+}
+
+// DeleteSNMP removes the SNMP settings of device id and their secrets in one transaction (DELETE /inventory/snmp/devices/{id}). What
+// the device said stays in the inventory; its SNMP switch is left as it is. 404 when it has none.
 func (s *Service) DeleteSNMP(ctx context.Context, actor, id string) error {
 	if s.secrets == nil {
 		return snmpOff()
 	}
-	defer s.snmpCredentialChanged(id) // after the delete committed (or failed: a needless stop, retried next round)
+	if err := s.moveCredentials(ctx); err != nil {
+		return err
+	}
+	name := id
+	if a, err := s.inv.Asset(ctx, id); err == nil {
+		name = deviceName(a)
+	}
+	defer s.snmpSettingsChanged(id) // after the delete committed (or failed: a needless stop, retried next round)
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
 		prev, err := s.snmpRow(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM sa_snmp_answer WHERE credential_id = ?`, id); err != nil {
-			return fmt.Errorf("sensoractive: delete snmp answers: %w", err)
+		if prev == nil {
+			return apierr.New(404, "not_found", "This device has no SNMP set up.")
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM sa_snmp WHERE id = ?`, id); err != nil {
-			return fmt.Errorf("sensoractive: delete snmp credential: %w", err)
+		if err := s.dropSNMP(ctx, tx, *prev); err != nil {
+			return err
 		}
-		for _, sid := range []string{prev.secretID, prev.privID} {
-			if sid == "" {
-				continue
-			}
-			if err := s.secrets.Delete(ctx, tx, sid); err != nil {
-				return fmt.Errorf("sensoractive: delete snmp secret: %w", err)
-			}
-		}
-		return s.auditTx(ctx, tx, actor, "inventory.snmp_delete", prev.Name, prev.Version)
+		return s.auditTx(ctx, tx, actor, "inventory.snmp_remove", name, prev.Version+", read from "+prev.ReadFrom.String())
 	})
 }
 
-// covers reports whether a credential may be sent to ip: its scope holds ip. An empty scope (no row can have one, checkSNMP) holds
-// nothing: fail closed.
-func (r snmpRow) covers(ip netip.Addr) bool {
-	return slices.ContainsFunc(exclusionPrefixes(r.Scope), func(p netip.Prefix) bool { return p.Contains(ip) }) // an address or a range
+// dropSNMP deletes a device's settings and their secrets.
+func (s *Service) dropSNMP(ctx context.Context, tx *sql.Tx, r snmpRow) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM sa_snmp_device WHERE asset_id = ?`, r.AssetID); err != nil {
+		return fmt.Errorf("sensoractive: delete snmp settings: %w", err)
+	}
+	if s.secrets == nil {
+		return nil
+	}
+	for _, sid := range []string{r.secretID, r.privID} {
+		if sid == "" {
+			continue
+		}
+		if err := s.secrets.Delete(ctx, tx, sid); err != nil {
+			return fmt.Errorf("sensoractive: delete snmp secret: %w", err)
+		}
+	}
+	return nil
+}
+
+// AssetDeleted handles inventory.asset.deleted: the device's SNMP settings and their secrets go with it.
+func (s *Service) AssetDeleted(ctx context.Context, assetID string) error {
+	defer s.snmpSettingsChanged(assetID)
+	return s.db.Write(ctx, func(tx *sql.Tx) error {
+		r, err := s.snmpRow(ctx, tx, assetID)
+		if err != nil || r == nil {
+			return err
+		}
+		return s.dropSNMP(ctx, tx, *r)
+	})
+}
+
+// AssetMerged handles inventory.asset.merged {from, into} (published before from's asset.deleted): from's SNMP settings become into's
+// when into has none; otherwise into keeps its own and from's go with their secrets. A read address that was from's IP stays the
+// address it was: if into is elsewhere, nothing is sent until a person sets it (moved).
+func (s *Service) AssetMerged(ctx context.Context, from, into string) error {
+	if from == "" || into == "" || from == into {
+		return nil
+	}
+	defer s.snmpSettingsChanged(from)
+	return s.db.Write(ctx, func(tx *sql.Tx) error {
+		f, err := s.snmpRow(ctx, tx, from)
+		if err != nil || f == nil {
+			return err
+		}
+		i, err := s.snmpRow(ctx, tx, into)
+		if err != nil {
+			return err
+		}
+		if i != nil {
+			return s.dropSNMP(ctx, tx, *f)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp_device SET asset_id = ?, updated_at = ? WHERE asset_id = ?`, into, s.now(), from); err != nil {
+			return fmt.Errorf("sensoractive: merge snmp settings: %w", err)
+		}
+		return nil
+	})
 }
 
 // snmpPolicy decides whether a device may be read with SNMP at all: "" when it may, else the reason. It is the inventory's
-// SNMPPolicy (D-601: the device's own SNMP setting, so a network scan turned off does not stop SNMP, and SNMP turned off stops it) without the fragile rule (a fragile or unclassified device is read), plus the device's approval and the box's own
-// addresses and decoys (box, from Inventory.BoxIPs: always refused, fragile or not; review L1).
+// SNMPPolicy (D-601: the device's own SNMP setting, so a network scan turned off does not stop SNMP, and SNMP turned off stops it) without
+// the fragile rule (a fragile or unclassified device is read), plus the device's approval and the box's own addresses and decoys
+// (box, from Inventory.BoxIPs: always refused, fragile or not; review L1).
 func (s *Service) snmpPolicy(ctx context.Context, assetID string, box []netip.Addr) (Asset, string, error) {
 	dec, err := s.inv.SNMPPolicy(ctx, assetID)
 	if err != nil {
@@ -623,7 +768,7 @@ func (s *Service) snmpPolicy(ctx context.Context, assetID string, box []netip.Ad
 	}
 	switch {
 	case !a.IP.IsValid():
-		return a, "no_ip", nil
+		return a, SNMPNoIP, nil
 	case slices.Contains(box, a.IP):
 		return a, reasonBox, nil
 	case !a.Approved:
@@ -632,80 +777,105 @@ func (s *Service) snmpPolicy(ctx context.Context, assetID string, box []netip.Ad
 	return a, "", nil
 }
 
-// snmpRefusals are the refusals of snmpPolicy a Test answers with as they are (SnmpTestReason in contract.ts).
-var snmpRefusals = []string{SNMPNotApproved, "out_of_scope", reasonScanningOff, reasonScopeNotConfirmed, "declared_by_hand", reasonBox, reasonNever, reasonSNMPOff, reasonExcluded}
+// snmpAllowed is snmpPolicy for the device of r plus the rules of its read address (D-607): a read address left to the device's IP
+// that the device has since left is not followed (moved: a copied network card looks the same, #829 C4); the read address is never the
+// box or a decoy, never outside the local networks, never excluded. sc is the scope of the settings read for this decision.
+func (s *Service) snmpAllowed(ctx context.Context, r snmpRow, box []netip.Addr, sc scope) (Asset, string, error) {
+	a, why, err := s.snmpPolicy(ctx, r.AssetID, box)
+	if err != nil || why != "" {
+		return a, why, err
+	}
+	switch {
+	case r.ReadFromDefault && a.IP != r.ReadFrom:
+		return a, SNMPMoved, nil
+	case slices.Contains(box, r.ReadFrom):
+		return a, reasonBox, nil
+	case !localnet.Addr(r.ReadFrom):
+		return a, "out_of_scope", nil
+	case sc.excluded(r.ReadFrom):
+		return a, reasonExcluded, nil
+	}
+	return a, "", nil
+}
 
-// snmpTarget is one device of a batch and the credentials to try on it, in order (indexes into the batch's credentials).
+// snmpRefusals are the refusals a Check now answers with as they are (SnmpReason in contract.ts).
+var snmpRefusals = []string{SNMPNotApproved, "out_of_scope", reasonScanningOff, reasonScopeNotConfirmed, "declared_by_hand", reasonBox, reasonNever,
+	reasonSNMPOff, reasonExcluded, SNMPNoIP, SNMPMoved}
+
+// snmpTarget is one device of a batch: its id, its read address and its settings.
 type snmpTarget struct {
 	asset string
 	ip    netip.Addr
-	creds []int
+	row   snmpRow
 }
 
-// TestSNMP reads one device with one credential now (POST /inventory/snmp/{id}/test): every rule of the window's round but the
-// window. It answers what the device said, recorded in the inventory, or a plain reason; one audit row says who tested what. A
-// credential whose saved secret this box cannot open is 409 secret_lost and nothing is sent (#868).
-func (s *Service) TestSNMP(ctx context.Context, actor, id, ipText string) (SNMPTestResult, error) {
+// CheckSNMP reads one device now at its read address (POST /inventory/snmp/devices/{id}/check): every rule of the window's round but
+// the window. It answers what the device said, recorded on the device, or a plain reason; one audit row says who checked which
+// device. 409 not_set_up, and secret_lost when its saved secret this box cannot open (#868): nothing is sent.
+func (s *Service) CheckSNMP(ctx context.Context, actor, id string) (SNMPCheckResult, error) {
 	if s.secrets == nil {
-		return SNMPTestResult{}, snmpOff()
+		return SNMPCheckResult{}, snmpOff()
 	}
-	ip, err := netip.ParseAddr(strings.TrimSpace(ipText))
-	if err != nil || !ip.Is4() {
-		return SNMPTestResult{}, bad("bad_ip", "Enter the IPv4 address of a device, for example 192.168.1.10.")
+	if err := s.moveCredentials(ctx); err != nil {
+		return SNMPCheckResult{}, err
 	}
-	cred, err := s.snmpRow(ctx, s.db.Reader(), id)
+	a, err := s.inv.Asset(ctx, id)
+	if errors.Is(err, ErrNotFound) {
+		return SNMPCheckResult{}, apierr.New(404, "not_found", "There is no device with this id.")
+	}
 	if err != nil {
-		return SNMPTestResult{}, err
+		return SNMPCheckResult{}, err
+	}
+	row, err := s.snmpRow(ctx, s.db.Reader(), id)
+	if err != nil {
+		return SNMPCheckResult{}, err
+	}
+	if row == nil {
+		return SNMPCheckResult{}, apierr.New(409, SNMPNotSetUp, "SNMP is not set up for this device: set it up first.")
 	}
 	// Only a lost secret is refused here; any other failure to open one is reported where the job is built, as before.
-	if lost, _ := s.snmpLost(ctx, s.db.Reader(), *cred); lost {
-		return SNMPTestResult{}, snmpSecretLost()
+	if lost, _ := s.snmpLost(ctx, s.db.Reader(), *row); lost {
+		return SNMPCheckResult{}, snmpSecretLost()
 	}
-	res, err := s.testSNMP(ctx, *cred, ip)
+	res, err := s.checkSNMP(ctx, *row)
 	if err != nil {
-		return SNMPTestResult{}, err
+		return SNMPCheckResult{}, err
 	}
-	res.Message = snmpMessage(res.Reason, ip, cred.Version, cred.Port, res.Message)
+	res.Message = snmpMessage(res.Reason, deviceName(a), a.IP, *row, res.Message)
 	res.OK = res.Reason == SNMPOK
-	wctx := context.WithoutCancel(ctx) // the test happened: its audit row is written even when the caller has gone
+	wctx := context.WithoutCancel(ctx) // the check happened: its audit row is written even when the caller has gone
 	werr := s.db.Write(wctx, func(tx *sql.Tx) error {
-		return s.auditTx(wctx, tx, actor, "inventory.snmp_test", ip.String(), cred.Name+": "+res.Reason)
+		return s.auditTx(wctx, tx, actor, "inventory.snmp_check", deviceName(a), row.ReadFrom.String()+": "+res.Reason)
 	})
-	return res, werr
+	if werr != nil {
+		return SNMPCheckResult{}, werr
+	}
+	res.Device, err = s.SNMPDeviceOf(wctx, id)
+	return res, err
 }
 
-func (s *Service) testSNMP(ctx context.Context, cred snmpRow, ip netip.Addr) (SNMPTestResult, error) {
-	addrs, err := s.inv.Addresses(ctx)
-	if err != nil {
-		return SNMPTestResult{}, err
-	}
-	assetID, ok := addrs[ip]
-	if !ok {
-		return SNMPTestResult{Reason: SNMPNotInInventory}, nil
-	}
-	res := SNMPTestResult{DeviceID: assetID}
+func (s *Service) checkSNMP(ctx context.Context, row snmpRow) (SNMPCheckResult, error) {
 	box, err := s.inv.BoxIPs(ctx)
 	if err != nil {
-		return SNMPTestResult{}, err
+		return SNMPCheckResult{}, err
 	}
-	a, why, err := s.snmpPolicy(ctx, assetID, box)
+	st, err := s.inv.Settings(ctx)
+	if err != nil {
+		return SNMPCheckResult{}, err
+	}
+	var res SNMPCheckResult
+	_, why, err := s.snmpAllowed(ctx, row, box, newScope(st))
 	switch {
 	case errors.Is(err, ErrNotFound):
-		return SNMPTestResult{Reason: SNMPNotInInventory}, nil
+		return SNMPCheckResult{}, apierr.New(404, "not_found", "There is no device with this id.")
 	case err != nil:
-		return SNMPTestResult{}, err
-	case why == "no_ip", why == "" && a.IP != ip: // the device moved to another address between the two reads (review L2)
-		res.Reason = SNMPNotInInventory
-		return res, nil
+		return SNMPCheckResult{}, err
 	case why != "":
-		s.blocked(ctx, assetID, why)
+		s.blocked(ctx, row.AssetID, why)
 		res.Reason = why
 		if !slices.Contains(snmpRefusals, why) { // a refusal of the inventory this list does not know yet: say it in words
 			res.Reason, res.Message = SNMPUnavailable, "the inventory's scan policy refuses this device ("+why+")"
 		}
-		return res, nil
-	case !cred.covers(ip):
-		res.Reason = SNMPNotForThisCredential
 		return res, nil
 	}
 	if ready, msg := s.SNMPStatus(); !ready {
@@ -719,25 +889,25 @@ func (s *Service) testSNMP(ctx context.Context, cred snmpRow, ip netip.Addr) (SN
 	defer s.snmpMu.Unlock()
 	jobID, err := s.startJob(ctx, KindSNMP, snmpReasonTest, 1)
 	if err != nil {
-		return SNMPTestResult{}, err
+		return SNMPCheckResult{}, err
 	}
 	bctx, cancel := context.WithTimeout(ctx, snmpTestBudget)
 	defer cancel()
-	answers, err := s.snmpBatch(bctx, jobID, []snmpRow{cred}, []snmpTarget{{asset: assetID, ip: ip, creds: []int{0}}}, true)
+	answers, err := s.snmpBatch(bctx, jobID, []snmpTarget{{asset: row.AssetID, ip: row.ReadFrom, row: row}}, true)
 	s.closeSNMPJob(ctx, jobID, 1, err)
 	switch {
 	case errors.Is(err, ErrStopped):
-		return SNMPTestResult{}, apierr.New(409, "stopped", "The test was stopped: the scan settings changed or the module was turned off.")
+		return SNMPCheckResult{}, apierr.New(409, "stopped", "The check was stopped: the scan settings or this device's SNMP changed, or the module was turned off.")
 	case errors.Is(err, errSNMPSecretLost):
-		return SNMPTestResult{}, snmpSecretLost()
+		return SNMPCheckResult{}, snmpSecretLost()
 	case errors.Is(err, ErrSNMPUnavailable), errors.Is(err, ErrWorkerLost), errors.Is(err, context.DeadlineExceeded):
 		_, msg := s.SNMPStatus()
-		res.Reason, res.Message = SNMPUnavailable, cmpOr(msg, "the scan worker did not finish the read in time")
+		res.Reason, res.Message = SNMPUnavailable, cmp.Or(msg, "the scan worker did not finish the read in time")
 		return res, nil
 	case err != nil:
-		return SNMPTestResult{}, err
-	case len(answers) == 0: // the batch's own check dropped it: the device or the credential changed in between
-		return SNMPTestResult{}, apierr.New(409, "changed", "The device or the credential changed while the test started. Test again.")
+		return SNMPCheckResult{}, err
+	case len(answers) == 0: // the batch's own check dropped it: the device or its settings changed in between
+		return SNMPCheckResult{}, apierr.New(409, "changed", "The device or its SNMP settings changed while the check started. Check again.")
 	}
 	ans := answers[0]
 	res.Reason = ans.Status
@@ -783,11 +953,11 @@ func (s *Service) closeSNMPJob(ctx context.Context, jobID string, targets int, e
 }
 
 // snmpBatch reads up to 64 devices in one snmp job: the order of INV-1 and INV-9 holds as for nmap: the batch is published first
-// (SettingsChanged sees it), then the settings, the window (not for a Test) and the scope are read again for every target, then the
-// probe row is written, and only then the secrets are opened and the job handed to the worker. What the devices answered is recorded.
-// The caller holds snmpMu.
-// A batch stopped only because one of its devices changed returns *snmpDeviceChanged (an ErrStopped).
-func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, targets []snmpTarget, picked bool) (_ []sensorlink.SNMPAnswer, err error) {
+// (SettingsChanged sees it), then the settings, the window (not for a Check now) and the scope are read again for every target, then
+// the probe row is written, and only then the secrets are opened and the job handed to the worker. What the devices answered is
+// recorded. The caller holds snmpMu. A batch stopped only because one of its devices changed returns *snmpDeviceChanged (an
+// ErrStopped).
+func (s *Service) snmpBatch(ctx context.Context, jobID string, targets []snmpTarget, picked bool) (_ []sensorlink.SNMPAnswer, err error) {
 	v0 := s.ver.Load()
 	rctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
@@ -801,9 +971,6 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	}()
 	for _, t := range targets {
 		run.targets, run.assets = append(run.targets, t.ip), append(run.assets, t.asset)
-	}
-	for _, c := range creds { // registered before the batch reads them again: an edit committed after that read still stops it
-		run.credIDs = append(run.credIDs, c.ID)
 	}
 	if s.beforeSNMPBatch != nil {
 		s.beforeSNMPBatch()
@@ -845,9 +1012,9 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 		run.deadline = s.clock().Add(timeout) // a window shortened under the batch stops it (snmpChanged, review #715 r2 L1)
 		s.mu.Unlock()
 	}
-	// The round chose its devices and credentials when it started: read both again now, so a device set to never, no longer
-	// approved, moved or deleted, and a credential deleted or narrowed since, gets nothing (review M1, L3).
-	if creds, targets, err = s.recheckSNMP(rctx, creds, targets); err != nil {
+	// The round chose its devices when it started: read their settings and policy again now, so a device set to never, no longer
+	// approved, moved or deleted, or whose SNMP was edited or removed since, gets nothing (review M1, L3).
+	if targets, err = s.recheckSNMP(rctx, targets, newScope(st)); err != nil {
 		if rctx.Err() != nil {
 			return nil, ErrStopped
 		}
@@ -856,24 +1023,20 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	if len(targets) == 0 {
 		return nil, nil
 	}
-	// From now on only the credentials this batch carries stop it when edited or deleted; one changed between the read above and
-	// here is caught by snmpJob, which reads each row again with its secrets. Likewise only the devices it still sends to stop it
-	// when they change (#882): one the recheck dropped gets nothing whatever it does now, and one it kept that changed after the
-	// recheck read it is still listed here, so its change stops the batch.
-	ids := make([]string, len(creds))
-	for i, c := range creds {
-		ids[i] = c.ID
-	}
+	// From now on only the devices it still sends to stop it when they change (#882): one the recheck dropped gets nothing whatever
+	// it does now, and one it kept that changed after the recheck read it is still listed here, so its change stops the batch. A
+	// change of settings between the recheck and the job is caught by snmpJob, which reads each row again with its secrets.
 	ips, assets := make([]netip.Addr, len(targets)), make([]string, len(targets))
 	for i, t := range targets {
 		ips[i], assets[i] = t.ip, t.asset
 	}
 	s.mu.Lock()
-	run.credIDs, run.targets, run.assets = ids, ips, assets
+	run.targets, run.assets = ips, assets
 	s.mu.Unlock()
-	// SNMP reaches past lan_ranges only for a device a person turned SNMP on for (SNMPPolicy, D-601), never an excluded one: a target the exclusions took since the
-	// targets were chosen stops the batch. A target inside lan_ranges is asked again of the inventory, which reads the settings fresh:
-	// one it no longer holds (excluded since, or the ranges changed under the batch) stops it too, fail closed.
+	// SNMP reaches past lan_ranges only for a device a person set it up on (D-601, D-607), never an excluded address: a target the
+	// exclusions took since the targets were chosen stops the batch. A target inside lan_ranges is asked again of the inventory,
+	// which reads the settings fresh: one it no longer holds (excluded since, or the ranges changed under the batch) stops it too,
+	// fail closed.
 	sc := newScope(st)
 	for _, t := range targets {
 		if sc.excluded(t.ip) {
@@ -887,7 +1050,7 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 		}
 	}
 	rate := max(1, min(st.Rate, 1000))
-	probeID, err := s.insertSNMPProbe(rctx, jobID, rate, creds, targets)
+	probeID, err := s.insertSNMPProbe(rctx, jobID, rate, targets)
 	if err != nil {
 		if rctx.Err() != nil { // stopped before the row was written: nothing was sent
 			return nil, ErrStopped
@@ -898,10 +1061,10 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 		s.finishProbe(ctx, probeID, stoppedText)
 		return nil, ErrStopped
 	}
-	job, err := s.snmpJob(rctx, rate, creds, targets)
+	job, err := s.snmpJob(rctx, rate, targets)
 	switch {
 	case errors.Is(err, ErrStopped):
-		s.finishProbe(ctx, probeID, "stopped: a credential changed or was deleted")
+		s.finishProbe(ctx, probeID, "stopped: the SNMP settings of a device changed or were removed")
 		return nil, ErrStopped
 	case err != nil && rctx.Err() != nil:
 		s.finishProbe(ctx, probeID, stoppedText)
@@ -909,8 +1072,12 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	case errors.Is(err, errSNMPSecretLost):
 		s.finishProbe(ctx, probeID, "failed: a saved SNMP secret was not restored")
 		return nil, err
+	case errors.Is(err, errSNMPNotReadAddress):
+		s.finishProbe(ctx, probeID, "refused: a target was not the read address of its device")
+		s.log.ErrorContext(ctx, "sensoractive: an snmp job named an address that is not its device's read address; nothing was sent", "job", jobID)
+		return nil, err
 	case err != nil:
-		s.finishProbe(ctx, probeID, "failed: the credentials could not be read")
+		s.finishProbe(ctx, probeID, "failed: the SNMP settings could not be read")
 		return nil, err
 	}
 	answers, err := s.snmp.RunSNMP(rctx, job)
@@ -944,128 +1111,125 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	if err != nil {
 		return nil, err
 	}
-	return answers, s.recordSNMP(ctx, creds, targets, answers, picked)
+	return answers, s.recordSNMP(ctx, targets, answers)
 }
 
-// recheckSNMP reads the credentials and every target's policy again right before a batch: targets the policy now refuses (never, not
-// approved, the box, hand-added, out of scope), that moved to another address or are gone are dropped; credentials deleted since are
-// dropped, a narrowed scope is applied, and a credential no remaining target uses is left out of the job.
-func (s *Service) recheckSNMP(ctx context.Context, creds []snmpRow, targets []snmpTarget) ([]snmpRow, []snmpTarget, error) {
+// recheckSNMP reads every target's settings and policy again right before a batch: a device whose SNMP was removed, whose read address
+// changed, that the policy now refuses (never, not approved, the box, hand-added and off, out of scope, moved) or that is gone is
+// dropped; settings edited otherwise are taken as they are now (snmpJob reads them once more with the secrets).
+func (s *Service) recheckSNMP(ctx context.Context, targets []snmpTarget, sc scope) ([]snmpTarget, error) {
 	rows, err := s.snmpRows(ctx, s.db.Reader())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	box, err := s.inv.BoxIPs(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	fresh := make([]*snmpRow, len(creds)) // the saved row of each credential of the batch, nil when deleted
-	for i, c := range creds {
-		if j := slices.IndexFunc(rows, func(r snmpRow) bool { return r.ID == c.ID }); j >= 0 {
-			fresh[i] = &rows[j]
-		}
-	}
-	var outCreds []snmpRow
-	at := map[int]int{} // index in creds -> index in outCreds
 	var out []snmpTarget
 	for _, t := range targets {
-		a, why, err := s.snmpPolicy(ctx, t.asset, box)
-		if errors.Is(err, ErrNotFound) || err == nil && (why != "" || a.IP != t.ip) {
+		j := slices.IndexFunc(rows, func(r snmpRow) bool { return r.AssetID == t.asset })
+		if j < 0 || rows[j].ReadFrom != t.ip {
+			continue
+		}
+		_, why, err := s.snmpAllowed(ctx, rows[j], box, sc)
+		if errors.Is(err, ErrNotFound) || err == nil && why != "" {
 			continue
 		}
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		var use []int
-		for _, ci := range t.creds {
-			if fresh[ci] == nil || !fresh[ci].covers(t.ip) {
-				continue
-			}
-			if _, ok := at[ci]; !ok {
-				at[ci] = len(outCreds)
-				outCreds = append(outCreds, *fresh[ci])
-			}
-			use = append(use, at[ci])
-		}
-		if len(use) > 0 {
-			out = append(out, snmpTarget{asset: t.asset, ip: t.ip, creds: use})
-		}
+		out = append(out, snmpTarget{asset: t.asset, ip: t.ip, row: rows[j]})
 	}
-	return outCreds, out, nil
+	return out, nil
 }
 
-// snmpJob opens the secrets of the batch's credentials (only here, only for the job) and builds the job of the wire.
+// snmpJob opens the secrets of the batch's devices (only here, only for the job) and builds the job of the wire, each secret inside
+// the one target it belongs to.
 //
-// The secrets are opened in one read transaction that also reads each credential's row again: a credential edited (its version,
-// scope, secrets or anything else: updated_at) or deleted since the batch read it stops the batch (ErrStopped), so a v3 password never
-// leaves as a v2c community and a rotated community never goes to a device its new scope no longer holds (review #715 r2 M1).
-func (s *Service) snmpJob(ctx context.Context, rate int, creds []snmpRow, targets []snmpTarget) (job sensorlink.SNMPJob, err error) {
+// The secrets are opened in one read transaction that also reads each device's settings again. A target that is not the stored read
+// address of its device is refused (errSNMPNotReadAddress, D-607): a secret is only ever sent to that one address. Settings edited
+// (version, secrets, anything: updated_at) or removed since the batch read them stop the batch (ErrStopped), so a v3 password never
+// leaves as a v2c community (review #715 r2 M1).
+func (s *Service) snmpJob(ctx context.Context, rate int, targets []snmpTarget) (job sensorlink.SNMPJob, err error) {
 	job = sensorlink.SNMPJob{Rate: rate}
 	tx, err := s.db.Reader().BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
-		return job, fmt.Errorf("sensoractive: read snmp credentials: %w", err)
+		return job, fmt.Errorf("sensoractive: read snmp settings: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	for _, c := range creds {
-		var version, scope, secretID, privID, updated string
-		err := tx.QueryRowContext(ctx, `SELECT version, scope, secret_id, coalesce(priv_secret_id, ''), updated_at FROM sa_snmp WHERE id = ?`, c.ID).
-			Scan(&version, &scope, &secretID, &privID, &updated)
+	defer func() {
+		if err != nil { // nothing half-built leaves this function
+			for i := range job.Targets {
+				job.Targets[i].Credential = sensorlink.SNMPCredential{}
+			}
+			job.Targets = nil
+		}
+	}()
+	for _, t := range targets {
+		var readFrom, version, secretID, privID, updated string
+		err := tx.QueryRowContext(ctx, `SELECT read_from, version, secret_id, coalesce(priv_secret_id, ''), updated_at FROM sa_snmp_device WHERE asset_id = ?`, t.asset).
+			Scan(&readFrom, &version, &secretID, &privID, &updated)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			return job, ErrStopped
 		case err != nil:
-			return job, fmt.Errorf("sensoractive: read snmp credential: %w", err)
-		case version != c.Version || scope != c.scopeRaw || secretID != c.secretID || privID != c.privID || updated != c.updatedAt:
+			return job, fmt.Errorf("sensoractive: read snmp settings: %w", err)
+		case readFrom != t.ip.String() || t.row.ReadFrom != t.ip || t.row.AssetID != t.asset:
+			return job, fmt.Errorf("%w (%s, device %s)", errSNMPNotReadAddress, t.ip, t.asset)
+		case version != t.row.Version || secretID != t.row.secretID || privID != t.row.privID || updated != t.row.updatedAt:
 			return job, ErrStopped
 		}
-		secret, err := s.secrets.Open(ctx, tx, c.secretID, snmpSecretPurpose)
+		secret, err := s.secrets.Open(ctx, tx, t.row.secretID, snmpSecretPurpose)
 		if secrets.IsWrongKey(err) {
-			return job, fmt.Errorf("%w (%s)", errSNMPSecretLost, c.Name)
+			return job, fmt.Errorf("%w (device %s)", errSNMPSecretLost, t.asset)
 		}
 		if err != nil {
 			return job, fmt.Errorf("sensoractive: open snmp secret: %w", err)
 		}
-		w := sensorlink.SNMPCredential{Version: c.Version}
-		if c.Port != sensorlink.SNMPPort {
-			w.Port = c.Port // 161 stays off the wire: a worker built before the port gets the job it knows (sensor-protocol.md section 10)
+		w := sensorlink.SNMPCredential{Version: t.row.Version}
+		if t.row.Port != sensorlink.SNMPPort {
+			w.Port = t.row.Port // 161 stays off the wire (sensor-protocol.md section 10)
 		}
-		switch c.Version {
+		switch t.row.Version {
 		case sensorlink.SNMPv2c:
 			w.Community = string(secret)
 		default:
-			w.User, w.Auth, w.AuthPass = c.Username, c.Auth, string(secret)
-			if c.privID != "" {
-				priv, err := s.secrets.Open(ctx, tx, c.privID, snmpPrivPurpose)
+			w.User, w.Auth, w.AuthPass = t.row.Username, t.row.Auth, string(secret)
+			if t.row.privID != "" {
+				priv, err := s.secrets.Open(ctx, tx, t.row.privID, snmpPrivPurpose)
 				if secrets.IsWrongKey(err) {
-					return job, fmt.Errorf("%w (%s)", errSNMPSecretLost, c.Name)
+					return job, fmt.Errorf("%w (device %s)", errSNMPSecretLost, t.asset)
 				}
 				if err != nil {
 					return job, fmt.Errorf("sensoractive: open snmp privacy password: %w", err)
 				}
 				w.Priv, w.PrivPass = sensorlink.SNMPPrivAES128, string(priv)
+				clear(priv)
 			}
 		}
-		job.Credentials = append(job.Credentials, w)
-	}
-	for _, t := range targets {
-		job.Targets = append(job.Targets, sensorlink.SNMPTarget{IP: t.ip.String(), Credentials: slices.Clone(t.creds)})
+		clear(secret)
+		job.Targets = append(job.Targets, sensorlink.SNMPTarget{IP: t.ip.String(), Credential: w})
 	}
 	return job, nil
 }
 
-// insertSNMPProbe writes the probe row of a batch before anything is sent (INV-9): shape snmp, the pace, the addresses, and in flags
-// what was asked and with which credentials (names and versions, never a secret).
-func (s *Service) insertSNMPProbe(ctx context.Context, jobID string, rate int, creds []snmpRow, targets []snmpTarget) (int64, error) {
+// insertSNMPProbe writes the probe row of a batch before anything is sent (INV-9): shape snmp, the pace, the read addresses, and in
+// flags what was asked and how (versions and ports, never a secret).
+func (s *Service) insertSNMPProbe(ctx context.Context, jobID string, rate int, targets []snmpTarget) (int64, error) {
 	addrs := make([]netip.Addr, len(targets))
+	ways := map[string]int{}
 	for i, t := range targets {
 		addrs[i] = t.ip
+		ways[fmt.Sprintf("%s UDP %d", t.row.Version, t.row.Port)]++
 	}
 	slices.SortFunc(addrs, func(a, b netip.Addr) int { return a.Compare(b) })
-	names := make([]string, len(creds))
-	for i, c := range creds {
-		names[i] = fmt.Sprintf("%s (%s, UDP %d)", c.Name, c.Version, c.Port)
+	var how []string
+	for w, n := range ways {
+		how = append(how, fmt.Sprintf("%s ×%d", w, n))
 	}
-	flags := clip("GET sysDescr sysObjectID sysName entPhysical.1 class model softwareRev serialNum mtxrLicVersion.0; timeout 2s retries 1; credentials: "+strings.Join(names, ", "), 300)
+	slices.Sort(how)
+	flags := clip("GET sysDescr sysObjectID sysName entPhysical.1 class model softwareRev serialNum mtxrLicVersion.0; timeout 2s retries 1; each device's own settings at its read address: "+strings.Join(how, ", "), 300)
 	var id int64
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, 'snmp', ?, ?, ?, ?, 'started')`,
@@ -1082,23 +1246,19 @@ func (s *Service) insertSNMPProbe(ctx context.Context, jobID string, rate int, c
 	return id, nil
 }
 
-// recordSNMP writes what the devices said into the inventory (source snmp) and the credentials' last answer. An observation the
-// inventory refuses (a value it does not take) is dropped and the rest of the device's are written.
-func (s *Service) recordSNMP(ctx context.Context, creds []snmpRow, targets []snmpTarget, answers []sensorlink.SNMPAnswer, picked bool) error {
+// recordSNMP writes what the devices said into the inventory (source snmp), on the device each read was for (AssetHint.Device:
+// never by the read address, D-607), and the state of each device's last read. An observation the inventory refuses (a value it does
+// not take) is dropped and the rest of the device's are written.
+func (s *Service) recordSNMP(ctx context.Context, targets []snmpTarget, answers []sensorlink.SNMPAnswer) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
-	answered := make([]int, len(creds))
 	var errs []error
 	for _, a := range answers {
-		if a.Status != sensorlink.SNMPStatusOK {
+		i := slices.IndexFunc(targets, func(t snmpTarget) bool { return t.ip.String() == a.Target })
+		if a.Status != sensorlink.SNMPStatusOK || i < 0 {
 			continue
 		}
-		answered[a.Credential]++
-		ip, err := netip.ParseAddr(a.Target)
-		if err != nil {
-			continue
-		}
-		obs := snmpObservations(ip, identifySNMP(a.Values))
+		obs := snmpObservations(targets[i].asset, identifySNMP(a.Values))
 		for len(obs) > 0 {
 			err := s.obs.Record(ctx, obs)
 			var rej *observe.ErrRejected
@@ -1113,32 +1273,25 @@ func (s *Service) recordSNMP(ctx context.Context, creds []snmpRow, targets []snm
 		}
 	}
 	now := s.now()
-	// answered is the count of the window's round; a Test (one device) only says the credential works: at least 1.
-	set := `answered = ?`
-	if picked {
-		set = `answered = max(answered, ?)`
-	}
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		for i, c := range creds {
-			if answered[i] == 0 {
-				continue
-			}
-			if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp SET last_answer_at = ?, `+set+` WHERE id = ?`, now, answered[i], c.ID); err != nil {
-				return err
-			}
-		}
-		// Which device answered which credential at which address (#829 C4): a device that moves out of the credential's scope is
-		// then named on the credential instead of silently no longer read.
 		for _, a := range answers {
 			i := slices.IndexFunc(targets, func(t snmpTarget) bool { return t.ip.String() == a.Target })
-			if a.Status != sensorlink.SNMPStatusOK || i < 0 || a.Credential < 0 || a.Credential >= len(creds) {
+			if i < 0 {
 				continue
 			}
-			// The raw sysDescr and sysObjectID (cleaned, n82) stay with the answer, to read the next unknown layout on the box.
-			f := identifySNMP(a.Values)
-			if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp_answer (credential_id, asset_id, ip, answered_at, sys_descr, sys_object_id) SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM sa_snmp WHERE id = ?)
-				ON CONFLICT (credential_id, asset_id) DO UPDATE SET ip = excluded.ip, answered_at = excluded.answered_at, sys_descr = excluded.sys_descr, sys_object_id = excluded.sys_object_id`,
-				creds[a.Credential].ID, targets[i].asset, a.Target, now, nullText(f.SysDescr), nullText(f.SysObjectID), creds[a.Credential].ID); err != nil {
+			// The values stay with the device (cleaned, n82), to show what answered and to read the next unknown layout on the box.
+			var answer any
+			if a.Status == sensorlink.SNMPStatusOK {
+				b, err := json.Marshal(cleanValues(a.Values))
+				if err != nil {
+					return err
+				}
+				answer = string(b)
+			}
+			// Only while the device's read address is still the one read: settings edited meanwhile start their own state.
+			if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp_device SET last_checked_at = ?1, last_status = ?2,
+				last_answer_at = CASE WHEN ?2 = 'ok' THEN ?1 ELSE last_answer_at END, answer = CASE WHEN ?2 = 'ok' THEN ?3 ELSE answer END
+				WHERE asset_id = ?4 AND read_from = ?5`, now, a.Status, answer, targets[i].asset, a.Target); err != nil {
 				return err
 			}
 		}
@@ -1147,12 +1300,20 @@ func (s *Service) recordSNMP(ctx context.Context, creds []snmpRow, targets []snm
 	return errors.Join(append(errs, err)...)
 }
 
-// snmpObservations are what an answer says, as observations of the device at ip.
-func snmpObservations(ip netip.Addr, f SNMPFacts) []observe.Observation {
+// cleanValues is what is kept of an answer: every value cleaned as identifySNMP cleans it (valid UTF-8, no control or format
+// character, at most 200 characters).
+func cleanValues(v sensorlink.SNMPValues) sensorlink.SNMPValues {
+	return sensorlink.SNMPValues{SysDescr: cleanSNMP(v.SysDescr), SysObjectID: cleanSNMP(v.SysObjectID), SysName: cleanSNMP(v.SysName),
+		EntClass: cleanSNMP(v.EntClass), EntModel: cleanSNMP(v.EntModel), EntSoftware: cleanSNMP(v.EntSoftware), EntSerial: cleanSNMP(v.EntSerial),
+		OSVersion: cleanSNMP(v.OSVersion)}
+}
+
+// snmpObservations are what an answer says, as observations of device asset.
+func snmpObservations(asset string, f SNMPFacts) []observe.Observation {
 	var out []observe.Observation
 	add := func(field observe.Field, v string, c float64) {
 		if v != "" {
-			out = append(out, observe.Observation{AssetHint: observe.AssetHint{IP: ip}, Field: field, Value: v, Source: observe.SNMP, Confidence: c})
+			out = append(out, observe.Observation{AssetHint: observe.AssetHint{Device: asset}, Field: field, Value: v, Source: observe.SNMP, Confidence: c})
 		}
 	}
 	add(observe.Hostname, f.Hostname, snmpStated)
@@ -1174,17 +1335,19 @@ func (s *Service) snmpRoundDue(ctx context.Context, start time.Time) (bool, erro
 	return n == 0, nil
 }
 
-// snmpRound is the window's round of SNMP reads (Tick, after the sweep and the queue): once per window, every device the policy
-// lets be read, with the credentials whose scope holds it (in order, at most 4), in batches of 64. The job row is written first, so
-// a window with nothing to read is not looked at again every minute. A credential whose saved secret this box cannot open is left
-// out (#868): the others are read; its row in the list and the Scanning card say it needs typing again. While every credential is
-// so, no round starts (the next Tick checks again, locally), so one typed again is read in the same window.
+// snmpRound is the window's round of SNMP reads (Tick, after the sweep and the queue): once per window, every device with SNMP set up
+// that the policy lets be read, at its read address, in batches of 64. The job row is written first, so a window with nothing to
+// read is not looked at again every minute. A device whose saved secret this box cannot open is left out (#868); while every device
+// is so, no round starts (the next Tick checks again, locally), so one typed again is read in the same window.
 func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	if s.snmp == nil || s.secrets == nil {
 		return nil
 	}
-	creds, err := s.snmpRows(ctx, s.db.Reader())
-	if err != nil || len(creds) == 0 {
+	if err := s.moveCredentials(ctx); err != nil {
+		return err
+	}
+	rows, err := s.snmpRows(ctx, s.db.Reader())
+	if err != nil || len(rows) == 0 {
 		return err
 	}
 	if due, err := s.snmpRoundDue(ctx, windowStart); err != nil || !due {
@@ -1193,39 +1356,27 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	if ready, _ := s.SNMPStatus(); !ready {
 		return nil // the next Tick tries again
 	}
-	usable := creds[:0:0]
+	usable := rows[:0:0]
 	var lost []string
-	for _, c := range creds {
-		// Another failure to open a secret is not "lost": the credential stays in, and the batch fails on it as before (snmpJob).
-		if gone, _ := s.snmpLost(ctx, s.db.Reader(), c); gone {
-			lost = append(lost, c.Name)
+	for _, r := range rows {
+		// Another failure to open a secret is not "lost": the device stays in, and the batch fails on it as before (snmpJob).
+		if gone, _ := s.snmpLost(ctx, s.db.Reader(), r); gone {
+			lost = append(lost, r.AssetID)
 			continue
 		}
-		usable = append(usable, c)
+		usable = append(usable, r)
 	}
 	if len(usable) == 0 {
 		return nil
 	}
 	if len(lost) > 0 {
-		s.log.WarnContext(ctx, "sensoractive: snmp credentials skipped: their saved secret was not restored", "credentials", lost)
-	}
-	creds = usable
-	// A device that answered a credential and moved out of its scope is not read (D-512); the credential, the device page and the
-	// Scanning card name it (#829 C4), and the log says it once per round.
-	moved, gone := s.snmpMovedOut(ctx, creds)
-	if err := s.forgetSNMPAnswers(ctx, gone); err != nil {
-		s.log.WarnContext(ctx, "sensoractive: forgetting the snmp answers of deleted devices failed", "error", err)
-	}
-	for _, c := range creds {
-		for _, m := range moved[c.ID] {
-			s.log.InfoContext(ctx, "sensoractive: snmp device skipped: it moved out of the credential's scope", "credential", c.Name, "device", m.DeviceID, "ip", m.IP)
-		}
+		s.log.WarnContext(ctx, "sensoractive: snmp devices skipped: their saved secret was not restored", "devices", lost)
 	}
 	jobID, err := s.startJob(ctx, KindSNMP, snmpReasonWindow, 0)
 	if err != nil {
 		return err
 	}
-	targets, err := s.snmpTargets(ctx, creds)
+	targets, err := s.snmpTargets(ctx, usable)
 	if err != nil {
 		s.finishJob(ctx, jobID, StatusFailed, 0, 0, err.Error())
 		return err
@@ -1235,13 +1386,13 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	for batch := range slices.Chunk(targets, sensorlink.MaxSNMPTargets) {
 		for try := 1; ; try++ {
 			s.snmpMu.Lock()
-			_, err = s.snmpBatch(ctx, jobID, creds, batch, false) // its deadline: the window's end or snmpRoundRun (INV-3, review M2)
+			_, err = s.snmpBatch(ctx, jobID, batch, false) // its deadline: the window's end or snmpRoundRun (INV-3, review M2)
 			s.snmpMu.Unlock()
 			// A batch stopped only because one of its devices changed is read again, not the whole round from its first batch
 			// on the next Tick (#882). The new batch checks everything again: a device that moved or is gone since the round
-			// started is dropped by its recheck (D-512 (3)). A device that stops the round a second time is left out of it (the
-			// next window reads it), so the round ends however often devices change. A batch stopped snmpBatchTries times is
-			// left for the next window and the round goes on with the next batch (review r1 L1: never 128 sends of one batch).
+			// started is dropped by its recheck. A device that stops the round a second time is left out of it (the next window
+			// reads it), so the round ends however often devices change. A batch stopped snmpBatchTries times is left for the
+			// next window and the round goes on with the next batch (review r1 L1: never 128 sends of one batch).
 			var dc *snmpDeviceChanged
 			if !errors.As(err, &dc) {
 				break
@@ -1254,6 +1405,8 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 			if changed[dc.asset]++; changed[dc.asset] > 1 {
 				batch = slices.DeleteFunc(slices.Clone(batch), func(t snmpTarget) bool { return t.asset == dc.asset })
 			}
+			// A device whose settings were edited is read with its new ones: take them again.
+			batch = s.freshTargets(ctx, batch)
 		}
 		if err != nil {
 			break
@@ -1267,41 +1420,56 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	return err
 }
 
-// snmpTargets lists the devices of a round, by address, and the credentials to try on each.
-func (s *Service) snmpTargets(ctx context.Context, creds []snmpRow) ([]snmpTarget, error) {
-	addrs, err := s.inv.Addresses(ctx)
+// freshTargets is a batch with every device's settings read again (an edit stopped it): a device whose SNMP was removed is left out,
+// one whose read address changed is read at the new one. Failures keep the batch as it was: the batch's recheck drops what changed.
+func (s *Service) freshTargets(ctx context.Context, batch []snmpTarget) []snmpTarget {
+	rows, err := s.snmpRows(ctx, s.db.Reader())
 	if err != nil {
-		return nil, err
+		return batch
 	}
+	var out []snmpTarget
+	for _, t := range batch {
+		if j := slices.IndexFunc(rows, func(r snmpRow) bool { return r.AssetID == t.asset }); j >= 0 {
+			out = append(out, snmpTarget{asset: t.asset, ip: rows[j].ReadFrom, row: rows[j]})
+		}
+	}
+	return out
+}
+
+// snmpTargets lists the devices of a round that the policy lets be read now, by read address.
+func (s *Service) snmpTargets(ctx context.Context, rows []snmpRow) ([]snmpTarget, error) {
 	box, err := s.inv.BoxIPs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ips := make([]netip.Addr, 0, len(addrs))
-	for ip := range addrs {
-		ips = append(ips, ip)
+	st, err := s.inv.Settings(ctx)
+	if err != nil {
+		return nil, err
 	}
-	slices.SortFunc(ips, func(a, b netip.Addr) int { return a.Compare(b) })
+	sc := newScope(st)
 	var out []snmpTarget
-	for _, ip := range ips {
-		var use []int
-		for i, c := range creds {
-			if c.covers(ip) && len(use) < sensorlink.MaxSNMPTargetTries {
-				use = append(use, i)
-			}
-		}
-		if len(use) == 0 || !localnet.Addr(ip) {
-			continue
-		}
-		a, why, err := s.snmpPolicy(ctx, addrs[ip], box)
-		if errors.Is(err, ErrNotFound) || err == nil && (why != "" || a.IP != ip) {
+	seen := map[netip.Addr]bool{} // one read of an address per job (two devices given one management address: the first one)
+	for _, r := range rows {
+		_, why, err := s.snmpAllowed(ctx, r, box, sc)
+		if errors.Is(err, ErrNotFound) {
 			continue
 		}
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, snmpTarget{asset: addrs[ip], ip: ip, creds: use})
+		if why != "" {
+			if why == SNMPMoved {
+				s.log.InfoContext(ctx, "sensoractive: snmp device skipped: it moved away from its read address", "device", r.AssetID, "read_from", r.ReadFrom)
+			}
+			continue
+		}
+		if seen[r.ReadFrom] {
+			continue
+		}
+		seen[r.ReadFrom] = true
+		out = append(out, snmpTarget{asset: r.AssetID, ip: r.ReadFrom, row: r})
 	}
+	slices.SortFunc(out, func(a, b snmpTarget) int { return a.ip.Compare(b.ip) })
 	return out, nil
 }
 
@@ -1335,7 +1503,7 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 	deadline := run.deadline
 	s.mu.Unlock()
 	// Outside the window, or a window shortened under the batch: its deadline came from the old end (INV-3, as nmap's
-	// SettingsChanged; review #715 r2 L1). A Test is not bound to the window.
+	// SettingsChanged; review #715 r2 L1). A Check now is not bound to the window.
 	if !run.picked && (!ok || !deadline.IsZero() && end.Before(deadline)) {
 		run.cancel()
 		return
@@ -1346,57 +1514,65 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 	}
 }
 
-// snmpCredentialChanged stops the batch in progress when it carries the credential an edit or a delete just changed: a job already
-// with the worker is cancelled there too (review #715 r2 M1). The next batch reads the credential again.
-func (s *Service) snmpCredentialChanged(id string) {
+// snmpSettingsChanged stops the batch in progress when it holds the device whose SNMP an edit, a removal, a delete or a merge just
+// changed: a job already with the worker is cancelled there too (review #715 r2 M1). The round reads the batch again with the new
+// settings (#882).
+func (s *Service) snmpSettingsChanged(asset string) {
 	s.mu.Lock()
 	run := s.snmpCur
-	held := run != nil && slices.Contains(run.credIDs, id) // credIDs is narrowed under s.mu while the batch runs
+	held := run != nil && slices.Contains(run.assets, asset) // assets is narrowed under s.mu while the batch runs
 	s.mu.Unlock()
 	if held {
-		run.cancel()
+		run.changed(&snmpDeviceChanged{asset: asset})
 	}
 }
 
-// snmpMessage is the plain text of a Test's reason (the GUI shows it as it is): port is the UDP port the read went to. extra is a
+// snmpMessage is the plain text of a reason (the GUI shows it as it is): name and ip are the device's, r its settings. extra is a
 // message already set (unavailable).
-func snmpMessage(reason string, ip netip.Addr, version string, port int, extra string) string {
+func snmpMessage(reason, name string, ip netip.Addr, r snmpRow, extra string) string {
+	at, port := r.ReadFrom, r.Port
 	switch reason {
 	case SNMPOK:
-		return fmt.Sprintf("%s answered on UDP port %d. What it said is now in the inventory, with source SNMP.", ip, port)
+		return fmt.Sprintf("%s answered on UDP port %d. What it said is now on this device in the inventory, with source SNMP.", at, port)
 	case sensorlink.SNMPStatusNoAnswer:
-		if version == sensorlink.SNMPv3 {
-			return fmt.Sprintf("No answer from %s on UDP port %d within 2 s (sent twice). The device may not run SNMP or may answer on another port (set it in the credential), a firewall may drop UDP port %d, or SNMPv3 is not enabled on it.", ip, port, port)
+		if r.Version == sensorlink.SNMPv3 {
+			return fmt.Sprintf("No answer from %s on UDP port %d within 2 s (sent twice). The device may not run SNMP there, may answer on another port or another address (set Read from to its management address), a firewall may drop UDP port %d, or SNMPv3 is not enabled on it.", at, port, port)
 		}
-		return fmt.Sprintf("No answer from %s on UDP port %d within 2 s (sent twice). The device may not run SNMP or may answer on another port (set it in the credential), a firewall may drop UDP port %d, or the community is wrong: a device ignores a wrong community instead of saying so.", ip, port, port)
+		return fmt.Sprintf("No answer from %s on UDP port %d within 2 s (sent twice). The device may not run SNMP there, may answer on another port or another address (set Read from to its management address), a firewall may drop UDP port %d, or the community is wrong: a device ignores a wrong community instead of saying so.", at, port, port)
 	case sensorlink.SNMPStatusAuthFailed:
 		return "The device did not accept the v3 user name or password (or the authentication or privacy algorithm differs)."
 	case sensorlink.SNMPStatusUnknownUser:
 		return "The device does not know this v3 user name."
 	case sensorlink.SNMPStatusError:
 		return "The device answered with an error, or with a message Vedette could not read."
-	case SNMPNotInInventory:
-		return fmt.Sprintf("%s is not a device in the inventory. Only devices in the list can be tested.", ip)
 	case SNMPNotApproved:
-		return fmt.Sprintf("%s is not approved yet. SNMP credentials are sent only to devices a person approved: approve it under Devices, To review, then test again.", ip)
+		return fmt.Sprintf("%s is not approved yet. SNMP secrets are sent only to devices a person approved: approve it under Devices, To review, then check again.", cmp.Or(name, "This device"))
 	case "out_of_scope":
-		return fmt.Sprintf("%s is outside the LAN ranges: SNMP reads a device there only once you turn SNMP on for it on its page (Sources). The LAN ranges are not widened for it.", ip)
-	case SNMPNotForThisCredential:
-		return fmt.Sprintf("%s is outside the scope of this credential, so it is never sent there.", ip)
+		if !localnet.Addr(at) {
+			return fmt.Sprintf("%s is not a local network address: SNMP reads stay on your own networks.", at)
+		}
+		return fmt.Sprintf("%s is outside the LAN ranges: turn SNMP on for this device on its page (Sources), or save its SNMP settings again, to read it there. The LAN ranges are not widened for it.", ip)
 	case reasonScanningOff:
 		return "Active scanning is off under Scope and sensors, so nothing is sent."
 	case reasonScopeNotConfirmed:
 		return "The scan scope commitment is not ticked under Scope and sensors, so nothing is sent."
 	case "declared_by_hand":
-		return "This device was added by hand: Vedette reads it with SNMP only once you turn SNMP on on its page (Sources)."
+		return "This device was added by hand and its SNMP is not turned on (Sources): save its SNMP settings, or turn SNMP on, to read it."
 	case reasonSNMPOff:
 		return "SNMP is turned off for this device on its page (Sources), so nothing is sent."
 	case reasonExcluded:
-		return fmt.Sprintf("%s is on the exclusion list under Scope and sensors: Vedette never touches it, not even with SNMP.", ip)
+		return fmt.Sprintf("%s is on the exclusion list under Scope and sensors: Vedette never touches it, not even with SNMP.", at)
 	case reasonBox:
 		return "This is the Vedette box itself (or one of its trap addresses): it is never probed."
 	case reasonNever:
 		return "This device is set to never be scanned."
+	case SNMPNoIP:
+		return "This device has no address in the inventory now, so nothing is sent."
+	case SNMPMoved:
+		who := cmp.Or(name, "This device")
+		return fmt.Sprintf("%s is now at %s, but its SNMP reads go only to %s, the address it had when SNMP was set up. If it is still %s, check on the device itself that %s is its address now (a copied network card looks the same), then open Edit and set Read from to %s (type the community or passwords again). Nothing is sent until then.", who, ip, at, cmp.Or(name, "the same device"), ip, ip)
+	case SNMPSecretLost:
+		return snmpLostText
 	case SNMPUnavailable:
 		return "SNMP reads cannot run now: " + extra + "."
 	case SNMPBusy:

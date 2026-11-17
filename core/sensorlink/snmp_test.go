@@ -12,10 +12,10 @@ import (
 )
 
 const snmpJobJSON = `{"id":"c0ffee00c0ffee00c0ffee00c0ffee00","kind":"snmp","timeout_s":600,"rate":10,` +
-	`"credentials":[{"version":"v2c","community":"s3cret-community"},{"version":"v3","user":"vedette","auth":"sha","auth_pass":"authpass1","priv":"aes128","priv_pass":"privpass1"}],` +
-	`"targets":[{"ip":"192.168.10.20","credentials":[1,0]},{"ip":"10.0.0.7","credentials":[0]}]}`
+	`"targets":[{"ip":"192.168.10.20","credential":{"version":"v3","user":"vedette","auth":"sha","auth_pass":"authpass1","priv":"aes128","priv_pass":"privpass1"}},` +
+	`{"ip":"10.0.0.7","credential":{"version":"v2c","community":"s3cret-community"}}]}`
 
-// D-512 (protocol 5): an snmp job travels with its credentials and targets, and decodes back to the same job.
+// D-512, D-607 (protocol 5): an snmp job travels with its targets, each with its own credential, and decodes back to the same job.
 func TestSNMPJobRoundTrip(t *testing.T) {
 	t.Parallel()
 	var rep JobsReply
@@ -23,8 +23,8 @@ func TestSNMPJobRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	j := rep.Jobs[0]
-	if j.Kind != KindSNMP || j.SNMP == nil || j.TimeoutS != 600 || j.SNMP.Rate != 10 || len(j.SNMP.Credentials) != 2 || j.SNMP.Credentials[1].PrivPass != "privpass1" ||
-		len(j.SNMP.Targets) != 2 || j.SNMP.Targets[0].Credentials[0] != 1 {
+	if j.Kind != KindSNMP || j.SNMP == nil || j.TimeoutS != 600 || j.SNMP.Rate != 10 || len(j.SNMP.Targets) != 2 || j.SNMP.Targets[0].Credential.PrivPass != "privpass1" ||
+		j.SNMP.Targets[1].Credential.Community != "s3cret-community" {
 		t.Fatalf("decoded %+v", j)
 	}
 	if err := CheckSNMPJob(j.SNMP); err != nil {
@@ -38,23 +38,28 @@ func TestSNMPJobRoundTrip(t *testing.T) {
 	if err := json.Unmarshal([]byte(strings.Replace(snmpJobJSON, `"rate":10,`, `"rate":10,"oids":["1.3.6.1"],`, 1)), &unknown); err == nil {
 		t.Fatal("an snmp job with a field it does not have decoded")
 	}
+	// The protocol-5 shape of before D-607 (credentials beside the targets, indexes on each target) is not a job any more: a
+	// credential cannot be named for an address other than its own target's.
+	var old Job
+	if err := json.Unmarshal([]byte(`{"id":"c0ffee00c0ffee00c0ffee00c0ffee00","kind":"snmp","timeout_s":60,"rate":1,"credentials":[{"version":"v2c","community":"x"}],"targets":[{"ip":"10.0.0.7","credentials":[0]}]}`), &old); err == nil {
+		t.Fatal("the shape with shared credentials decoded")
+	}
 }
 
-// kien 2026-11-17: a credential carries the UDP port of a device that serves SNMP elsewhere; one of the default port leaves it out,
-// so the job of a credential without a port is the bytes a worker built before the field knows.
+// kien 2026-11-17: a credential carries the UDP port of a device that serves SNMP elsewhere; one of the default port leaves it out.
 func TestSNMPCredentialPort(t *testing.T) {
 	t.Parallel()
-	j := SNMPJob{Rate: 1, Credentials: []SNMPCredential{{Version: SNMPv2c, Community: "public", Port: 1161}, {Version: SNMPv2c, Community: "public"}},
-		Targets: []SNMPTarget{{IP: "192.168.1.1", Credentials: []int{0, 1}}}}
+	j := SNMPJob{Rate: 1, Targets: []SNMPTarget{{IP: "192.168.1.1", Credential: SNMPCredential{Version: SNMPv2c, Community: "public", Port: 1161}},
+		{IP: "192.168.1.2", Credential: SNMPCredential{Version: SNMPv2c, Community: "public"}}}}
 	if err := CheckSNMPJob(&j); err != nil {
 		t.Fatal(err)
 	}
 	b, err := json.Marshal(Job{ID: strings.Repeat("a", 32), Kind: KindSNMP, TimeoutS: 60, SNMP: &j})
-	if err != nil || !strings.Contains(string(b), `[{"version":"v2c","port":1161,"community":"public"},{"version":"v2c","community":"public"}]`) {
+	if err != nil || !strings.Contains(string(b), `{"ip":"192.168.1.1","credential":{"version":"v2c","port":1161,"community":"public"}},{"ip":"192.168.1.2","credential":{"version":"v2c","community":"public"}}`) {
 		t.Fatalf("%v %s", err, b)
 	}
 	var back Job
-	if err := json.Unmarshal(b, &back); err != nil || back.SNMP.Credentials[0].Port != 1161 || back.SNMP.Credentials[1].Port != 0 {
+	if err := json.Unmarshal(b, &back); err != nil || back.SNMP.Targets[0].Credential.Port != 1161 || back.SNMP.Targets[1].Credential.Port != 0 {
 		t.Fatalf("%v %+v", err, back.SNMP)
 	}
 }
@@ -64,8 +69,9 @@ func TestSNMPCredentialIsRedacted(t *testing.T) {
 	t.Parallel()
 	c := SNMPCredential{Version: SNMPv2c, Community: "s3cret-community"}
 	var logged strings.Builder
-	slog.New(slog.NewTextHandler(&logged, nil)).Info("x", "cred", c, "job", SNMPJob{Credentials: []SNMPCredential{c}})
-	for _, s := range []string{fmt.Sprint(c), fmt.Sprintf("%+v %#v %s %q", c, c, c, c), fmt.Sprintf("%+v", SNMPJob{Credentials: []SNMPCredential{c}}), logged.String()} {
+	job := SNMPJob{Targets: []SNMPTarget{{IP: "10.0.0.7", Credential: c}}}
+	slog.New(slog.NewTextHandler(&logged, nil)).Info("x", "cred", c, "job", job)
+	for _, s := range []string{fmt.Sprint(c), fmt.Sprintf("%+v %#v %s %q", c, c, c, c), fmt.Sprintf("%+v %v", job, job.Targets), logged.String()} {
 		if strings.Contains(s, "s3cret") {
 			t.Errorf("the community shows: %s", s)
 		}
@@ -75,8 +81,8 @@ func TestSNMPCredentialIsRedacted(t *testing.T) {
 func TestCheckSNMPJob(t *testing.T) {
 	t.Parallel()
 	good := func() *SNMPJob {
-		return &SNMPJob{Rate: 5, Credentials: []SNMPCredential{{Version: SNMPv2c, Community: "public"}, {Version: SNMPv3, User: "u", Auth: SNMPAuthSHA256, AuthPass: "12345678"}},
-			Targets: []SNMPTarget{{IP: "192.168.1.1", Credentials: []int{0, 1}}}}
+		return &SNMPJob{Rate: 5, Targets: []SNMPTarget{{IP: "192.168.1.1", Credential: SNMPCredential{Version: SNMPv2c, Community: "public"}},
+			{IP: "192.168.1.2", Credential: SNMPCredential{Version: SNMPv3, User: "u", Auth: SNMPAuthSHA256, AuthPass: "12345678"}}}}
 	}
 	if err := CheckSNMPJob(good()); err != nil {
 		t.Fatal(err)
@@ -84,30 +90,26 @@ func TestCheckSNMPJob(t *testing.T) {
 	bad := map[string]func(j *SNMPJob){
 		"rate 0":                      func(j *SNMPJob) { j.Rate = 0 },
 		"rate 1001":                   func(j *SNMPJob) { j.Rate = 1001 },
-		"no credential":               func(j *SNMPJob) { j.Credentials = nil },
-		"v1":                          func(j *SNMPJob) { j.Credentials[0].Version = "v1" },
-		"an empty community":          func(j *SNMPJob) { j.Credentials[0].Community = "" },
-		"a control byte in it":        func(j *SNMPJob) { j.Credentials[0].Community = "pub\nlic" },
-		"a v2c with a user":           func(j *SNMPJob) { j.Credentials[0].User = "x" },
-		"md5":                         func(j *SNMPJob) { j.Credentials[1].Auth = "md5" },
-		"a short auth password":       func(j *SNMPJob) { j.Credentials[1].AuthPass = "1234567" },
-		"des":                         func(j *SNMPJob) { j.Credentials[1].Priv, j.Credentials[1].PrivPass = "des", "12345678" },
-		"a privacy password, no priv": func(j *SNMPJob) { j.Credentials[1].PrivPass = "12345678" },
-		"aes, no password":            func(j *SNMPJob) { j.Credentials[1].Priv = SNMPPrivAES128 },
-		"a v3 with a community":       func(j *SNMPJob) { j.Credentials[1].Community = "x" },
-		"port 65536":                  func(j *SNMPJob) { j.Credentials[0].Port = 65536 },
-		"port -1":                     func(j *SNMPJob) { j.Credentials[1].Port = -1 },
+		"no credential":               func(j *SNMPJob) { j.Targets[0].Credential = SNMPCredential{} },
+		"v1":                          func(j *SNMPJob) { j.Targets[0].Credential.Version = "v1" },
+		"an empty community":          func(j *SNMPJob) { j.Targets[0].Credential.Community = "" },
+		"a control byte in it":        func(j *SNMPJob) { j.Targets[0].Credential.Community = "pub\nlic" },
+		"a v2c with a user":           func(j *SNMPJob) { j.Targets[0].Credential.User = "x" },
+		"md5":                         func(j *SNMPJob) { j.Targets[1].Credential.Auth = "md5" },
+		"a short auth password":       func(j *SNMPJob) { j.Targets[1].Credential.AuthPass = "1234567" },
+		"des":                         func(j *SNMPJob) { j.Targets[1].Credential.Priv, j.Targets[1].Credential.PrivPass = "des", "12345678" },
+		"a privacy password, no priv": func(j *SNMPJob) { j.Targets[1].Credential.PrivPass = "12345678" },
+		"aes, no password":            func(j *SNMPJob) { j.Targets[1].Credential.Priv = SNMPPrivAES128 },
+		"a v3 with a community":       func(j *SNMPJob) { j.Targets[1].Credential.Community = "x" },
+		"port 65536":                  func(j *SNMPJob) { j.Targets[0].Credential.Port = 65536 },
+		"port -1":                     func(j *SNMPJob) { j.Targets[1].Credential.Port = -1 },
 		"no target":                   func(j *SNMPJob) { j.Targets = nil },
 		"a name":                      func(j *SNMPJob) { j.Targets[0].IP = "printer.local" },
 		"IPv6":                        func(j *SNMPJob) { j.Targets[0].IP = "fe80::1" },
 		"not canonical":               func(j *SNMPJob) { j.Targets[0].IP = "192.168.001.1" },
 		"a target twice": func(j *SNMPJob) {
-			j.Targets = append(j.Targets, SNMPTarget{IP: "192.168.1.1", Credentials: []int{0}})
+			j.Targets = append(j.Targets, SNMPTarget{IP: "192.168.1.1", Credential: SNMPCredential{Version: SNMPv2c, Community: "other"}})
 		},
-		"a credential out of range": func(j *SNMPJob) { j.Targets[0].Credentials = []int{2} },
-		"a credential twice":        func(j *SNMPJob) { j.Targets[0].Credentials = []int{0, 0} },
-		"no credential to try":      func(j *SNMPJob) { j.Targets[0].Credentials = nil },
-		"five to try":               func(j *SNMPJob) { j.Targets[0].Credentials = []int{0, 1, 0, 1, 0} },
 	}
 	for name, mut := range bad {
 		j := good()
@@ -118,7 +120,7 @@ func TestCheckSNMPJob(t *testing.T) {
 	}
 	many := good()
 	for i := range MaxSNMPTargets {
-		many.Targets = append(many.Targets, SNMPTarget{IP: fmt.Sprintf("10.0.%d.%d", i/200, i%200+1), Credentials: []int{0}})
+		many.Targets = append(many.Targets, SNMPTarget{IP: fmt.Sprintf("10.0.%d.%d", i/200, i%200+1), Credential: SNMPCredential{Version: SNMPv2c, Community: "public"}})
 	}
 	if err := CheckSNMPJob(many); !errors.Is(err, errInvalid) {
 		t.Errorf("65 targets: %v", err)
@@ -129,8 +131,8 @@ func TestCheckSNMPJob(t *testing.T) {
 func TestSNMPResult(t *testing.T) {
 	t.Parallel()
 	head := `{"status":"done","reason":"","exit_code":0,"truncated":false,"xml_b64":""`
-	ok := head + `,"snmp":[{"target":"192.168.10.20","status":"ok","credential":1,"values":{"sys_descr":"Juniper Networks, Inc. ex4200-48t","sys_object_id":".1.3.6.1.4.1.2636.1.1.1.2.31","sys_name":"sw1","ent_class":"3","ent_model":"","ent_software":"","ent_serial":""}},` +
-		`{"target":"10.0.0.7","status":"no_answer","credential":0,"values":{"sys_descr":"","sys_object_id":"","sys_name":"","ent_class":"","ent_model":"","ent_software":"","ent_serial":""}}]}`
+	ok := head + `,"snmp":[{"target":"192.168.10.20","status":"ok","values":{"sys_descr":"Juniper Networks, Inc. ex4200-48t","sys_object_id":".1.3.6.1.4.1.2636.1.1.1.2.31","sys_name":"sw1","ent_class":"3","ent_model":"","ent_software":"","ent_serial":""}},` +
+		`{"target":"10.0.0.7","status":"no_answer","values":{"sys_descr":"","sys_object_id":"","sys_name":"","ent_class":"","ent_model":"","ent_software":"","ent_serial":""}}]}`
 	r, err := decodeJobResult([]byte(ok))
 	if err != nil || len(r.SNMP) != 2 || r.SNMP[0].Values.SysName != "sw1" || r.SNMP[1].Status != SNMPStatusNoAnswer {
 		t.Fatalf("a good one: %v %+v", err, r)
@@ -138,19 +140,18 @@ func TestSNMPResult(t *testing.T) {
 	one := func(s string) string { return head + `,"snmp":[` + s + `]}` }
 	empty := `"values":{"sys_descr":"","sys_object_id":"","sys_name":"","ent_class":"","ent_model":"","ent_software":"","ent_serial":""}`
 	bad := map[string]string{
-		"an unknown status":    one(`{"target":"10.0.0.7","status":"maybe","credential":0,` + empty + `}`),
-		"a credential over 7":  one(`{"target":"10.0.0.7","status":"ok","credential":8,` + empty + `}`),
-		"a name as target":     one(`{"target":"evil.example","status":"ok","credential":0,` + empty + `}`),
-		"a value too long":     one(`{"target":"10.0.0.7","status":"ok","credential":0,"values":{"sys_descr":"` + strings.Repeat("x", MaxSNMPValue+1) + `","sys_object_id":"","sys_name":"","ent_class":"","ent_model":"","ent_software":"","ent_serial":""}}`),
-		"a value on no answer": one(`{"target":"10.0.0.7","status":"no_answer","credential":0,"values":{"sys_descr":"x","sys_object_id":"","sys_name":"","ent_class":"","ent_model":"","ent_software":"","ent_serial":""}}`),
-		"an unknown value":     one(`{"target":"10.0.0.7","status":"ok","credential":0,"values":{"sys_contact":"x","sys_descr":"","sys_object_id":"","sys_name":"","ent_class":"","ent_model":"","ent_software":"","ent_serial":""}}`),
-		"a target twice":       head + `,"snmp":[{"target":"10.0.0.7","status":"ok","credential":0,` + empty + `},{"target":"10.0.0.7","status":"ok","credential":0,` + empty + `}]}`,
-		"with nmap output":     `{"status":"done","reason":"","exit_code":0,"truncated":false,"xml_b64":"PHg+","snmp":[{"target":"10.0.0.7","status":"ok","credential":0,` + empty + `}]}`,
-		"on a result not done": `{"status":"failed","reason":"","exit_code":-1,"truncated":false,"xml_b64":"","snmp":[{"target":"10.0.0.7","status":"ok","credential":0,` + empty + `}]}`,
+		"an unknown status":    one(`{"target":"10.0.0.7","status":"maybe",` + empty + `}`),
+		"a name as target":     one(`{"target":"evil.example","status":"ok",` + empty + `}`),
+		"a value too long":     one(`{"target":"10.0.0.7","status":"ok","values":{"sys_descr":"` + strings.Repeat("x", MaxSNMPValue+1) + `","sys_object_id":"","sys_name":"","ent_class":"","ent_model":"","ent_software":"","ent_serial":""}}`),
+		"a value on no answer": one(`{"target":"10.0.0.7","status":"no_answer","values":{"sys_descr":"x","sys_object_id":"","sys_name":"","ent_class":"","ent_model":"","ent_software":"","ent_serial":""}}`),
+		"an unknown value":     one(`{"target":"10.0.0.7","status":"ok","values":{"sys_contact":"x","sys_descr":"","sys_object_id":"","sys_name":"","ent_class":"","ent_model":"","ent_software":"","ent_serial":""}}`),
+		"a target twice":       head + `,"snmp":[{"target":"10.0.0.7","status":"ok",` + empty + `},{"target":"10.0.0.7","status":"ok",` + empty + `}]}`,
+		"with nmap output":     `{"status":"done","reason":"","exit_code":0,"truncated":false,"xml_b64":"PHg+","snmp":[{"target":"10.0.0.7","status":"ok",` + empty + `}]}`,
+		"on a result not done": `{"status":"failed","reason":"","exit_code":-1,"truncated":false,"xml_b64":"","snmp":[{"target":"10.0.0.7","status":"ok",` + empty + `}]}`,
 		"over the targets of a job": func() string {
 			var many []string
 			for i := range MaxSNMPTargets + 1 {
-				many = append(many, fmt.Sprintf(`{"target":"10.0.0.%d","status":"no_answer","credential":0,%s}`, i+1, empty))
+				many = append(many, fmt.Sprintf(`{"target":"10.0.0.%d","status":"no_answer",%s}`, i+1, empty))
 			}
 			return head + `,"snmp":[` + strings.Join(many, ",") + `]}`
 		}(),

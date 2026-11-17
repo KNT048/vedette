@@ -1869,12 +1869,13 @@ func (UnimplementedHandler) InventoryDeleteInventoryDevicesIDSoftwareSid(ctx con
 	return ht.ErrNotImplemented
 }
 
-// InventoryDeleteInventorySnmpID implements inventory_delete_inventory_snmp_id operation.
+// InventoryDeleteInventorySnmpDevicesID implements inventory_delete_inventory_snmp_devices_id operation.
 //
-// Delete an SNMP credential and its secrets; what devices said stays in the inventory.
+// Remove the SNMP settings of one device and its secrets (D-607); what it said stays in the inventory;
+// its SNMP source switch is left as it is. 404 not_found when the device has none.
 //
-// DELETE /inventory/snmp/{id}
-func (UnimplementedHandler) InventoryDeleteInventorySnmpID(ctx context.Context, params InventoryDeleteInventorySnmpIDParams) error {
+// DELETE /inventory/snmp/devices/{id}
+func (UnimplementedHandler) InventoryDeleteInventorySnmpDevicesID(ctx context.Context, params InventoryDeleteInventorySnmpDevicesIDParams) error {
 	return ht.ErrNotImplemented
 }
 
@@ -2015,20 +2016,22 @@ func (UnimplementedHandler) InventoryGetInventorySettings(ctx context.Context) (
 
 // InventoryGetInventorySnmp implements inventory_get_inventory_snmp operation.
 //
-// SNMP credentials (secrets only as their last 4 characters) and whether the scan container can read
-// SNMP now (D-512).
+// Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what
+// the box changed by itself (D-607).
 //
 // GET /inventory/snmp
 func (UnimplementedHandler) InventoryGetInventorySnmp(ctx context.Context) (r *InventoryGetInventorySnmpOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// InventoryGetInventorySnmpIDRead implements inventory_get_inventory_snmp_id_read operation.
+// InventoryGetInventorySnmpDevicesID implements inventory_get_inventory_snmp_devices_id operation.
 //
-// The read of this credential that runs now, or the last one; null when none since the box started.
+// The SNMP settings and state of one device (D-607): working, not answering, waiting or not set up;
+// read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found:
+// no such device.
 //
-// GET /inventory/snmp/{id}/read
-func (UnimplementedHandler) InventoryGetInventorySnmpIDRead(ctx context.Context, params InventoryGetInventorySnmpIDReadParams) (r NilInventoryGetInventorySnmpIDReadOK, _ error) {
+// GET /inventory/snmp/devices/{id}
+func (UnimplementedHandler) InventoryGetInventorySnmpDevicesID(ctx context.Context, params InventoryGetInventorySnmpDevicesIDParams) (r *InventoryGetInventorySnmpDevicesIDOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2246,38 +2249,24 @@ func (UnimplementedHandler) InventoryPostInventoryImport(ctx context.Context, re
 	return r, ht.ErrNotImplemented
 }
 
-// InventoryPostInventorySnmp implements inventory_post_inventory_snmp operation.
+// InventoryPostInventorySnmpDevicesIDCheck implements inventory_post_inventory_snmp_devices_id_check operation.
 //
-// Add an SNMP credential (v2c community or v3 user); its secrets are stored encrypted. 409 name_taken,
-// 409 too_many (8 at most).
+// Check now (D-607): read this device at once at its Read from address (read-only GETs from the scan
+// container, logged in the probe log, every rule but the window) and say what it answered, or why not;
+// an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the
+// module or scanning was turned off), changed (the settings changed while it started).
 //
-// POST /inventory/snmp
-func (UnimplementedHandler) InventoryPostInventorySnmp(ctx context.Context, req *InventoryPostInventorySnmpReq) (r *InventoryPostInventorySnmpCreated, _ error) {
+// POST /inventory/snmp/devices/{id}/check
+func (UnimplementedHandler) InventoryPostInventorySnmpDevicesIDCheck(ctx context.Context, params InventoryPostInventorySnmpDevicesIDCheckParams) (r *InventoryPostInventorySnmpDevicesIDCheckOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// InventoryPostInventorySnmpIDRead implements inventory_post_inventory_snmp_id_read operation.
+// InventoryPostInventorySnmpNoticesDismiss implements inventory_post_inventory_snmp_notices_dismiss operation.
 //
-// Read now every approved device in this credential's scope (read-only GETs from the scan container,
-// logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
-// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
-// 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409
-// stopped when active discovery was turned off while the read started.
+// Dismiss every SNMP notice (D-607).
 //
-// POST /inventory/snmp/{id}/read
-func (UnimplementedHandler) InventoryPostInventorySnmpIDRead(ctx context.Context, params InventoryPostInventorySnmpIDReadParams) (r *InventoryPostInventorySnmpIDReadAccepted, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// InventoryPostInventorySnmpIDTest implements inventory_post_inventory_snmp_id_test operation.
-//
-// Read one device with this credential now (read-only GETs from the scan container, logged in the
-// probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409
-// secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it
-// again).
-//
-// POST /inventory/snmp/{id}/test
-func (UnimplementedHandler) InventoryPostInventorySnmpIDTest(ctx context.Context, req *InventoryPostInventorySnmpIDTestReq, params InventoryPostInventorySnmpIDTestParams) (r *InventoryPostInventorySnmpIDTestOK, _ error) {
+// POST /inventory/snmp/notices/dismiss
+func (UnimplementedHandler) InventoryPostInventorySnmpNoticesDismiss(ctx context.Context) (r *InventoryPostInventorySnmpNoticesDismissOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2324,13 +2313,19 @@ func (UnimplementedHandler) InventoryPutInventorySettings(ctx context.Context, r
 	return r, ht.ErrNotImplemented
 }
 
-// InventoryPutInventorySnmpID implements inventory_put_inventory_snmp_id operation.
+// InventoryPutInventorySnmpDevicesID implements inventory_put_inventory_snmp_devices_id operation.
 //
-// Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret
-// would keep one this box cannot open (type it again).
+// Set up or edit the SNMP of one device (D-607): version, community or v3 user, port, Read from; or
+// copy_from another device (the secret is copied on the box). Saving is the person's consent: it turns
+// the device's SNMP source on (D-601) when it was not. A blank secret keeps the saved one, unless Read
+// from changes. One audit row. 400 bad_version, bad_secret, secret_required, bad_user, bad_auth,
+// bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found,
+// copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet),
+// box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box
+// cannot open), device_ignored.
 //
-// PUT /inventory/snmp/{id}
-func (UnimplementedHandler) InventoryPutInventorySnmpID(ctx context.Context, req *InventoryPutInventorySnmpIDReq, params InventoryPutInventorySnmpIDParams) (r *InventoryPutInventorySnmpIDOK, _ error) {
+// PUT /inventory/snmp/devices/{id}
+func (UnimplementedHandler) InventoryPutInventorySnmpDevicesID(ctx context.Context, req *InventoryPutInventorySnmpDevicesIDReq, params InventoryPutInventorySnmpDevicesIDParams) (r *InventoryPutInventorySnmpDevicesIDOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

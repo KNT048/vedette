@@ -112,9 +112,11 @@ type Service struct {
 	urgent atomic.Int32
 
 	mu      sync.Mutex
-	cur     *running      // the job holding runMu, for SettingsChanged
-	snmpCur *snmpRun      // the snmp batch holding snmpMu, for SettingsChanged, AssetChanged and Stop
-	reads   snmpReadState // the Read now of each credential (#849)
+	cur     *running // the job holding runMu, for SettingsChanged
+	snmpCur *snmpRun // the snmp batch holding snmpMu, for SettingsChanged, AssetChanged and Stop
+	// snmpMoveMu and snmpMoved: the credentials of before D-607 are moved to their devices once (snmp_move.go).
+	snmpMoveMu sync.Mutex
+	snmpMoved  atomic.Bool
 	// allPortsHeld are the devices whose weekly run failed in the window that started at allPortsHeldIn: the round leaves them
 	// to the next window (review r1 L3).
 	allPortsHeld   map[string]bool

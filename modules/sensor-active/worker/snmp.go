@@ -17,8 +17,9 @@ import (
 	"github.com/knt048/vedette/core/sensorlink"
 )
 
-// The SNMP reads of D-512: for each target of an snmp job, in order and one at a time, the worker tries the credentials the target
-// names until one gets an answer, with one read-only GET of a fixed list of objects (snmpObjects). Nothing is ever set, walked or
+// The SNMP reads of D-512 and D-607: for each target of an snmp job, in order and one at a time, the worker sends the target's own
+// credential to the target's address, and to no other (D-607: a device's secret goes only to its read address; the wire carries the
+// credential inside its target), with one read-only GET of a fixed list of objects (snmpObjects). Nothing is ever set, walked or
 // bulk-read, and no object identifier comes from core. A request waits 2 s for its answer and is sent once more (SNMPTimeout,
 // SNMPRetries); the next request leaves at most rate packets a second behind it (a v3 read is two exchanges: the engine discovery
 // and the GET). Credentials live in the job, in memory, for the job only: they are never logged (sensorlink.SNMPCredential
@@ -71,9 +72,10 @@ func (w *Worker) executeSNMP(ctx, jctx context.Context, cur *activeJob) *sensorl
 		if i > 0 && gap > 0 && w.sleep(rctx, gap) != nil {
 			break
 		}
-		a, ok := w.readTarget(rctx, t, j.SNMP)
-		if !ok {
-			break
+		a := sensorlink.SNMPAnswer{Target: t.String()}
+		a.Status, a.Values = w.read(rctx, t, j.SNMP.Targets[i].Credential)
+		if rctx.Err() != nil && a.Status != sensorlink.SNMPStatusOK {
+			break // a timeout cut short by the job's end says nothing about the device
 		}
 		answers = append(answers, a)
 	}
@@ -104,31 +106,6 @@ func snmpTargets(j sensorlink.Job) ([]netip.Addr, error) {
 		out[i] = a
 	}
 	return out, nil
-}
-
-// readTarget tries the target's credentials in order until one is answered. ok is false when ctx ended before a status was known.
-func (w *Worker) readTarget(ctx context.Context, ip netip.Addr, job *sensorlink.SNMPJob) (sensorlink.SNMPAnswer, bool) {
-	var tries []int
-	for _, t := range job.Targets {
-		if t.IP == ip.String() {
-			tries = t.Credentials
-		}
-	}
-	a := sensorlink.SNMPAnswer{Target: ip.String(), Status: sensorlink.SNMPStatusNoAnswer}
-	for _, ci := range tries {
-		if ctx.Err() != nil {
-			return a, false
-		}
-		a.Credential = ci
-		a.Status, a.Values = w.read(ctx, ip, job.Credentials[ci])
-		if a.Status == sensorlink.SNMPStatusOK {
-			break
-		}
-	}
-	if ctx.Err() != nil && a.Status != sensorlink.SNMPStatusOK {
-		return a, false // a timeout cut short by the job's end says nothing about the device
-	}
-	return a, true
 }
 
 // read is one credential against one target: the GET of snmpObjects, and of the system group alone when the agent refuses that.

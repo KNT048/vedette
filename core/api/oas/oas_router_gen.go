@@ -240,7 +240,10 @@ var (
 		"PATCH": "Content-Type",
 		"PUT":   "Content-Type",
 	}
-	rn259AllowedHeaders = map[string]string{
+	rn258AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn260AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn261AllowedHeaders = map[string]string{
@@ -252,13 +255,10 @@ var (
 	rn263AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn264AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
 	rn225AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn268AllowedHeaders = map[string]string{
+	rn267AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn246AllowedHeaders = map[string]string{
@@ -266,6 +266,9 @@ var (
 	}
 	rn228AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
+	}
+	rn270AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
 	}
 	rn271AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
@@ -276,38 +279,29 @@ var (
 	rn273AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn274AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
 	rn230AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
 	rn281AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn276AllowedHeaders = map[string]string{
+	rn275AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn277AllowedHeaders = map[string]string{
+	rn276AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn282AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn257AllowedHeaders = map[string]string{
+	rn256AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
 	rn253AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn254AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
 	rn232AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
-	}
-	rn279AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
 	}
 	rn293AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
@@ -5416,7 +5410,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn259AllowedHeaders,
+										allowedHeaders: rn258AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5441,7 +5435,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn261AllowedHeaders,
+										allowedHeaders: rn260AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5466,7 +5460,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn262AllowedHeaders,
+										allowedHeaders: rn261AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5491,7 +5485,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn263AllowedHeaders,
+										allowedHeaders: rn262AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5621,7 +5615,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn264AllowedHeaders,
+											allowedHeaders: rn263AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -5775,7 +5769,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn268AllowedHeaders,
+													allowedHeaders: rn267AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -5943,7 +5937,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn271AllowedHeaders,
+												allowedHeaders: rn270AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -5970,7 +5964,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn272AllowedHeaders,
+												allowedHeaders: rn271AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -5997,7 +5991,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn273AllowedHeaders,
+												allowedHeaders: rn272AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -6047,7 +6041,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "POST",
-														allowedHeaders: rn274AllowedHeaders,
+														allowedHeaders: rn273AllowedHeaders,
 														acceptPost:     "application/json",
 														acceptPatch:    "",
 													})
@@ -6147,7 +6141,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn276AllowedHeaders,
+													allowedHeaders: rn275AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -6204,7 +6198,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn277AllowedHeaders,
+									allowedHeaders: rn276AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -6365,7 +6359,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "PATCH",
-												allowedHeaders: rn257AllowedHeaders,
+												allowedHeaders: rn256AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "application/json",
 											})
@@ -6417,13 +6411,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								switch r.Method {
 								case "GET":
 									s.handleInventoryGetInventorySnmpRequest([0]string{}, elemIsEscaped, w, r)
-								case "POST":
-									s.handleInventoryPostInventorySnmpRequest([0]string{}, elemIsEscaped, w, r)
 								default:
 									s.notAllowed(w, r, notAllowedParams{
-										allowedMethods: "GET,POST",
-										allowedHeaders: rn254AllowedHeaders,
-										acceptPost:     "application/json",
+										allowedMethods: "GET",
+										allowedHeaders: nil,
+										acceptPost:     "",
 										acceptPatch:    "",
 									})
 								}
@@ -6439,52 +6431,56 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									break
 								}
 
-								// Param: "id"
-								// Match until "/"
-								idx := strings.IndexByte(elem, '/')
-								if idx < 0 {
-									idx = len(elem)
-								}
-								args[0] = elem[:idx]
-								elem = elem[idx:]
-
 								if len(elem) == 0 {
-									switch r.Method {
-									case "DELETE":
-										s.handleInventoryDeleteInventorySnmpIDRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									case "PUT":
-										s.handleInventoryPutInventorySnmpIDRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, notAllowedParams{
-											allowedMethods: "DELETE,PUT",
-											allowedHeaders: rn232AllowedHeaders,
-											acceptPost:     "",
-											acceptPatch:    "",
-										})
-									}
-
-									return
+									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/"
+								case 'd': // Prefix: "devices/"
 
-									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									if l := len("devices/"); len(elem) >= l && elem[0:l] == "devices/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
+									// Param: "id"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[0] = elem[:idx]
+									elem = elem[idx:]
+
 									if len(elem) == 0 {
-										break
+										switch r.Method {
+										case "DELETE":
+											s.handleInventoryDeleteInventorySnmpDevicesIDRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										case "GET":
+											s.handleInventoryGetInventorySnmpDevicesIDRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleInventoryPutInventorySnmpDevicesIDRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "DELETE,GET,PUT",
+												allowedHeaders: rn232AllowedHeaders,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
+
+										return
 									}
 									switch elem[0] {
-									case 'r': // Prefix: "read"
+									case '/': // Prefix: "/check"
 
-										if l := len("read"); len(elem) >= l && elem[0:l] == "read" {
+										if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
 											elem = elem[l:]
 										} else {
 											break
@@ -6493,17 +6489,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										if len(elem) == 0 {
 											// Leaf node.
 											switch r.Method {
-											case "GET":
-												s.handleInventoryGetInventorySnmpIDReadRequest([1]string{
-													args[0],
-												}, elemIsEscaped, w, r)
 											case "POST":
-												s.handleInventoryPostInventorySnmpIDReadRequest([1]string{
+												s.handleInventoryPostInventorySnmpDevicesIDCheckRequest([1]string{
 													args[0],
 												}, elemIsEscaped, w, r)
 											default:
 												s.notAllowed(w, r, notAllowedParams{
-													allowedMethods: "GET,POST",
+													allowedMethods: "POST",
 													allowedHeaders: nil,
 													acceptPost:     "",
 													acceptPatch:    "",
@@ -6513,33 +6505,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											return
 										}
 
-									case 't': // Prefix: "test"
+									}
 
-										if l := len("test"); len(elem) >= l && elem[0:l] == "test" {
-											elem = elem[l:]
-										} else {
-											break
+								case 'n': // Prefix: "notices/dismiss"
+
+									if l := len("notices/dismiss"); len(elem) >= l && elem[0:l] == "notices/dismiss" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleInventoryPostInventorySnmpNoticesDismissRequest([0]string{}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "POST",
+												allowedHeaders: nil,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
 										}
 
-										if len(elem) == 0 {
-											// Leaf node.
-											switch r.Method {
-											case "POST":
-												s.handleInventoryPostInventorySnmpIDTestRequest([1]string{
-													args[0],
-												}, elemIsEscaped, w, r)
-											default:
-												s.notAllowed(w, r, notAllowedParams{
-													allowedMethods: "POST",
-													allowedHeaders: rn279AllowedHeaders,
-													acceptPost:     "application/json",
-													acceptPatch:    "",
-												})
-											}
-
-											return
-										}
-
+										return
 									}
 
 								}
@@ -16077,17 +16067,8 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = InventoryGetInventorySnmpOperation
-									r.summary = "SNMP credentials (secrets only as their last 4 characters) and whether the scan container can read SNMP now (D-512)"
+									r.summary = "Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what the box changed by itself (D-607)"
 									r.operationID = "inventory_get_inventory_snmp"
-									r.operationGroup = ""
-									r.pathPattern = "/inventory/snmp"
-									r.args = args
-									r.count = 0
-									return r, true
-								case "POST":
-									r.name = InventoryPostInventorySnmpOperation
-									r.summary = "Add an SNMP credential (v2c community or v3 user); its secrets are stored encrypted. 409 name_taken, 409 too_many (8 at most)"
-									r.operationID = "inventory_post_inventory_snmp"
 									r.operationGroup = ""
 									r.pathPattern = "/inventory/snmp"
 									r.args = args
@@ -16106,111 +16087,111 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									break
 								}
 
-								// Param: "id"
-								// Match until "/"
-								idx := strings.IndexByte(elem, '/')
-								if idx < 0 {
-									idx = len(elem)
-								}
-								args[0] = elem[:idx]
-								elem = elem[idx:]
-
 								if len(elem) == 0 {
-									switch method {
-									case "DELETE":
-										r.name = InventoryDeleteInventorySnmpIDOperation
-										r.summary = "Delete an SNMP credential and its secrets; what devices said stays in the inventory"
-										r.operationID = "inventory_delete_inventory_snmp_id"
-										r.operationGroup = ""
-										r.pathPattern = "/inventory/snmp/{id}"
-										r.args = args
-										r.count = 1
-										return r, true
-									case "PUT":
-										r.name = InventoryPutInventorySnmpIDOperation
-										r.summary = "Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret would keep one this box cannot open (type it again)"
-										r.operationID = "inventory_put_inventory_snmp_id"
-										r.operationGroup = ""
-										r.pathPattern = "/inventory/snmp/{id}"
-										r.args = args
-										r.count = 1
-										return r, true
-									default:
-										return
-									}
+									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/"
+								case 'd': // Prefix: "devices/"
 
-									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									if l := len("devices/"); len(elem) >= l && elem[0:l] == "devices/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "id"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[0] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										switch method {
+										case "DELETE":
+											r.name = InventoryDeleteInventorySnmpDevicesIDOperation
+											r.summary = "Remove the SNMP settings of one device and its secrets (D-607); what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none"
+											r.operationID = "inventory_delete_inventory_snmp_devices_id"
+											r.operationGroup = ""
+											r.pathPattern = "/inventory/snmp/devices/{id}"
+											r.args = args
+											r.count = 1
+											return r, true
+										case "GET":
+											r.name = InventoryGetInventorySnmpDevicesIDOperation
+											r.summary = "The SNMP settings and state of one device (D-607): working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device"
+											r.operationID = "inventory_get_inventory_snmp_devices_id"
+											r.operationGroup = ""
+											r.pathPattern = "/inventory/snmp/devices/{id}"
+											r.args = args
+											r.count = 1
+											return r, true
+										case "PUT":
+											r.name = InventoryPutInventorySnmpDevicesIDOperation
+											r.summary = "Set up or edit the SNMP of one device (D-607): version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person's consent: it turns the device's SNMP source on (D-601) when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required, bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored"
+											r.operationID = "inventory_put_inventory_snmp_devices_id"
+											r.operationGroup = ""
+											r.pathPattern = "/inventory/snmp/devices/{id}"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/check"
+
+										if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = InventoryPostInventorySnmpDevicesIDCheckOperation
+												r.summary = "Check now (D-607): read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)"
+												r.operationID = "inventory_post_inventory_snmp_devices_id_check"
+												r.operationGroup = ""
+												r.pathPattern = "/inventory/snmp/devices/{id}/check"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
+									}
+
+								case 'n': // Prefix: "notices/dismiss"
+
+									if l := len("notices/dismiss"); len(elem) >= l && elem[0:l] == "notices/dismiss" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										break
-									}
-									switch elem[0] {
-									case 'r': // Prefix: "read"
-
-										if l := len("read"); len(elem) >= l && elem[0:l] == "read" {
-											elem = elem[l:]
-										} else {
-											break
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = InventoryPostInventorySnmpNoticesDismissOperation
+											r.summary = "Dismiss every SNMP notice (D-607)"
+											r.operationID = "inventory_post_inventory_snmp_notices_dismiss"
+											r.operationGroup = ""
+											r.pathPattern = "/inventory/snmp/notices/dismiss"
+											r.args = args
+											r.count = 0
+											return r, true
+										default:
+											return
 										}
-
-										if len(elem) == 0 {
-											// Leaf node.
-											switch method {
-											case "GET":
-												r.name = InventoryGetInventorySnmpIDReadOperation
-												r.summary = "The read of this credential that runs now, or the last one; null when none since the box started"
-												r.operationID = "inventory_get_inventory_snmp_id_read"
-												r.operationGroup = ""
-												r.pathPattern = "/inventory/snmp/{id}/read"
-												r.args = args
-												r.count = 1
-												return r, true
-											case "POST":
-												r.name = InventoryPostInventorySnmpIDReadOperation
-												r.summary = "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409 stopped when active discovery was turned off while the read started"
-												r.operationID = "inventory_post_inventory_snmp_id_read"
-												r.operationGroup = ""
-												r.pathPattern = "/inventory/snmp/{id}/read"
-												r.args = args
-												r.count = 1
-												return r, true
-											default:
-												return
-											}
-										}
-
-									case 't': // Prefix: "test"
-
-										if l := len("test"); len(elem) >= l && elem[0:l] == "test" {
-											elem = elem[l:]
-										} else {
-											break
-										}
-
-										if len(elem) == 0 {
-											// Leaf node.
-											switch method {
-											case "POST":
-												r.name = InventoryPostInventorySnmpIDTestOperation
-												r.summary = "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409 secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it again)"
-												r.operationID = "inventory_post_inventory_snmp_id_test"
-												r.operationGroup = ""
-												r.pathPattern = "/inventory/snmp/{id}/test"
-												r.args = args
-												r.count = 1
-												return r, true
-											default:
-												return
-											}
-										}
-
 									}
 
 								}

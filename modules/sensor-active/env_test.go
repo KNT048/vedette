@@ -123,6 +123,27 @@ type fakeInv struct {
 	onAddresses func()
 	// onInScope runs once, at the next InScope (outside the lock): a test changes something between a check and the run.
 	onInScope func()
+	// snmpRead and snmpOn are what SNMPKnown answers (D-607's move); turnedOn are the devices TurnSNMPOn was called for, and
+	// turnOnErr what it answers.
+	snmpRead, snmpOn []string
+	turnedOn         []string
+	turnOnErr        error
+}
+
+func (f *fakeInv) SNMPKnown(context.Context) (read, on []string, err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.snmpRead), slices.Clone(f.snmpOn), nil
+}
+
+func (f *fakeInv) TurnSNMPOn(_ context.Context, _, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.turnOnErr != nil {
+		return f.turnOnErr
+	}
+	f.turnedOn = append(f.turnedOn, id)
+	return nil
 }
 
 func (f *fakeInv) BoxIPs(context.Context) ([]netip.Addr, error) {

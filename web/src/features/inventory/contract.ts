@@ -255,67 +255,72 @@ export const AgentReport = z.object({
   wazuh_interval_minutes: z.number().int().nullable().describe('agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise'),
 })
 
-/** SNMP credentials (D-512, S-INV-1): read-only GETs from the scan container to approved devices in the scan scope. Secrets are stored encrypted; the API never returns them, only their last 4 characters. */
+/** D-607 (S-INV-1): SNMP is set up per device, like a Zabbix host's SNMP interface. Each device has its own version, community or
+ * v3 user, port and "read from" address (its management address, by default its own IP); its secrets are stored encrypted, the API
+ * never returns them (only their last 4 characters), and they are sent to that one address only. There are no credential profiles
+ * and no scopes. Reads are read-only GETs from the scan container, in the scan window or by Check now. */
 export const SnmpVersion = z.enum(['v2c', 'v3']).describe('No SNMPv1 (D-512)')
 export const SnmpAuth = z.enum(['sha', 'sha256']).describe('v3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5)')
 export const SnmpPriv = z.enum(['aes128', 'none']).describe('v3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES')
-/** #829 C4: a device that answered this credential and has since moved to an address outside its scope. It is not read there (the scope is the safety line, D-512) until a person adds the address. */
-export const SnmpMoved = z.object({
-  device_id: z.string(), name: z.string().describe('How a person knows the device: host name, else model, else vendor; empty when none'),
-  ip: z.string().describe('Its address now, outside the credential\'s scope'),
-  message: z.string().describe('Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then."'),
-})
-export const SnmpCredential = z.object({
-  id: z.string(), name: z.string(), version: SnmpVersion,
-  username: z.string().nullable().describe('v3 user name; null for v2c'),
-  auth: SnmpAuth.nullable().describe('null for v2c'), priv: SnmpPriv.nullable().describe('null for v2c'),
-  secret_last4: z.string().describe('Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has fewer than 8 characters'),
-  priv_last4: z.string().describe('Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters'),
-  port: z.number().int().describe('The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that answers SNMP elsewhere'),
-  scope: z.array(z.string()).describe('IPv4 addresses and CIDR ranges this credential is sent to (1 to 16): only approved devices of the scan scope inside them'),
-  created_at: dt, last_answer_at: dt.nullable().describe('When a device last answered with it (a round in the scan window, or a Test)'),
-  answered: z.number().int().describe('Devices that answered with it in its latest round in the scan window; a Test that got an answer makes it at least 1'),
-  secret_lost: z.boolean().describe('A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again'),
-  moved_out: z.array(SnmpMoved).describe('Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses'),
-})
-export const SnmpCredentialInput = z.object({
-  name: z.string().max(64).describe('1 to 64 characters, not < >; unique (case does not matter)'), version: SnmpVersion,
-  community: z.string().max(64).optional().describe('v2c: 1 to 64 printable ASCII characters; blank when editing keeps the saved one'),
-  username: z.string().max(64).optional().describe('v3: letters, digits and . _ @ -'), auth: SnmpAuth.optional(),
-  auth_password: z.string().max(64).optional().describe('v3: 8 to 64 printable ASCII characters; blank when editing keeps the saved one'),
-  priv: SnmpPriv.optional().describe('v3; default aes128'),
-  priv_password: z.string().max(64).optional().describe('v3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one'),
-  port: z.number().int().min(1).max(65535).optional().describe('The UDP port the devices answer SNMP on; left out = 161. A device on another port gets a credential of its own whose scope holds it'),
-  scope: z.array(z.string()).max(16).describe('Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400 scope_required when empty, from the handler so the person reads why). A device someone plugs in later and gets approved never receives it (D-512)'),
-})
-export const SnmpResponse = z.object({
-  credentials: z.array(SnmpCredential).describe('In the order they are tried (oldest first), at most 8'),
-  ready: z.boolean().describe('false while the scan container cannot read SNMP (not reporting, or older than this version)'), message: z.string().nullable().describe('Why not ready'),
-})
-export const SnmpTestReason = z.enum([
-  'ok', 'no_answer', 'auth_failed', 'unknown_user', 'error', 'not_in_inventory', 'not_approved', 'out_of_scope', 'not_for_this_credential',
-  'scanning_off', 'scope_not_confirmed', 'declared_by_hand', 'box', 'regular_scan_never', 'unavailable', 'busy', 'snmp_off', 'excluded',
-])
+export const SnmpState = z.enum(['working', 'not_answering', 'waiting', 'not_set_up']).describe(
+  'working: the last read got an answer. not_answering: the last read got none, or an error (error says why). waiting: set up, not read yet (the next scan window reads it, or Check now). not_set_up: no SNMP settings on this device')
+export const SnmpReason = z.enum([
+  'ok', 'no_answer', 'auth_failed', 'unknown_user', 'error',
+  'not_set_up', 'not_approved', 'out_of_scope', 'scanning_off', 'scope_not_confirmed', 'declared_by_hand', 'box', 'regular_scan_never', 'snmp_off', 'excluded', 'no_ip', 'moved', 'secret_lost', 'unavailable', 'busy',
+]).describe('ok, no_answer, auth_failed, unknown_user, error: what the device did. The others: why nothing was sent (the device or the box refuses it now)')
 export const SnmpAnswer = z.object({
   sys_descr: z.string(), sys_object_id: z.string(), sys_name: z.string().describe('What the device said, cleaned; empty when it has none'),
   vendor: z.string(), product: z.string().describe('Product family from sysObjectID, e.g. FortiGate'), model: z.string(), os: z.string(), kind: z.string().describe('A device type id, or empty'),
-  serial: z.string(), firmware: z.string().describe('ENTITY-MIB chassis firmware text; shown, not stored'),
+  serial: z.string(), firmware: z.string().describe('ENTITY-MIB chassis firmware text (or the OS version a vendor MIB states)'),
 })
-export const SnmpTestResult = z.object({
-  ok: z.boolean(), reason: SnmpTestReason, message: z.string().describe('Plain words for the person'),
-  device_id: z.string().nullable().describe('The inventory device at that IP, when there is one'),
-  answer: SnmpAnswer.nullable().describe('What the device said, when it answered; it is also recorded in the inventory with source snmp'),
+export const SnmpBlocked = z.object({ reason: SnmpReason, message: z.string().describe('Plain words for the person, what to do included') })
+export const DeviceSnmp = z.object({
+  device_id: z.string(),
+  ip: z.string().nullable().describe('The device\'s own address in the inventory; null when none'),
+  state: SnmpState,
+  read_from: z.string().nullable().describe('The one address SNMP reads (and the secret) go to; null when not set up. The device\'s IP unless the person set its management address, e.g. "100.65.253.1" for a FortiGate whose ip is "100.65.254.1". It never makes or merges a device: what answers there is this device'),
+  read_from_default: z.boolean().describe('true when Read from was left to the device\'s address (it was the device\'s IP when saved). If the device later moves to another IP, nothing is sent until a person sets Read from again (blocked reason moved); a Read from the person typed stays as it is'),
+  version: SnmpVersion.nullable(), username: z.string().nullable().describe('v3 user name; null for v2c'),
+  auth: SnmpAuth.nullable().describe('null for v2c'), priv: SnmpPriv.nullable().describe('null for v2c'),
+  port: z.number().int().nullable().describe('The UDP port reads go to (161 unless set); null when not set up'),
+  secret_last4: z.string().describe('Last 4 characters of the community (v2c) or the authentication password (v3); empty when not set up or it has fewer than 8 characters'),
+  priv_last4: z.string().describe('Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters'),
+  secret_lost: z.boolean().describe('A saved secret cannot be opened on this box (a backup restored without its decryption key, #868): nothing is sent until Edit saves it typed again'),
+  last_checked_at: dt.nullable().describe('When the box last sent a read (scan window or Check now)'),
+  last_answer_at: dt.nullable().describe('When the device last answered'),
+  last_reason: SnmpReason.nullable().describe('The outcome of the last read (ok, no_answer, auth_failed, unknown_user, error); null when never read'),
+  error: z.string().nullable().describe('Plain words for the last read that got no answer; null when working, waiting or not set up'),
+  answer: SnmpAnswer.nullable().describe('What answered at read_from at last_answer_at (sysName, model, serial, firmware…), so a wrong Read from is obvious; null when it never answered'),
+  blocked: SnmpBlocked.nullable().describe('Why the box will not send a read to this device now, even though it is set up (not approved, SNMP off, excluded, moved, secret lost, scanning off…); null when it may. Check now answers the same reason'),
+  updated_at: dt.nullable(),
 })
-
-/** #849 SNMP by range: "Read now" for every approved device of a credential's scope, outside the window like Test (D-512 holds:
- * nothing is sent to a device that is not approved, or to an address with no device). One read at a time on the box (409 busy). */
-export const SnmpRead = z.object({
-  id: z.string(), credential_id: z.string(), by: z.string(), started_at: dt, finished_at: dt.nullable(),
-  status: z.enum(['running', 'done', 'stopped', 'failed']),
-  message: z.string().nullable().describe('Why the read stopped or failed, in plain words; null while running and when done'),
-  total: z.number().int().describe('Approved devices of the scope that get one read'), done: z.number().int(), answered: z.number().int(),
-  skipped: z.number().int().describe('Devices of the inventory in the credential\'s scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope; and devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an address with no device'),
-  results: z.array(SnmpTestResult.extend({ ip: z.string() })).describe('One row per device read so far, as Test answers it; a device that answered this credential and moved out of its scope is a row with reason not_for_this_credential at its new address, counted in skipped, and is not read (#829 C4)'),
+export const DeviceSnmpInput = z.object({
+  copy_from: z.string().optional().describe('A device id: copy that device\'s SNMP settings (version, user, algorithms, port and the saved community or passwords) on the box; the secret never goes to the browser. With copy_from only read_from is read from this body'),
+  read_from: z.string().max(15).optional().describe('The IPv4 address SNMP answers on; left out or empty = the device\'s IP. Any local address (inside or outside the LAN ranges), not the box or a trap address, not multicast or broadcast'),
+  version: SnmpVersion.optional().describe('Required unless copy_from'),
+  community: z.string().max(64).optional().describe('v2c: 1 to 64 printable ASCII characters; blank on an edit keeps the saved one (not when Read from changes)'),
+  username: z.string().max(64).optional().describe('v3: letters, digits and . _ @ -'), auth: SnmpAuth.optional(),
+  auth_password: z.string().max(64).optional().describe('v3: 8 to 64 printable ASCII characters; blank on an edit keeps the saved one (not when Read from changes)'),
+  priv: SnmpPriv.optional().describe('v3; default aes128'),
+  priv_password: z.string().max(64).optional().describe('v3 with aes128: 8 to 64 printable ASCII characters; blank on an edit keeps the saved one'),
+  port: z.number().int().min(1).max(65535).optional().describe('The UDP port the device answers SNMP on; left out = 161'),
+})
+export const SnmpCheckResult = z.object({
+  ok: z.boolean(), reason: SnmpReason, message: z.string().describe('Plain words for the person'),
+  answer: SnmpAnswer.nullable().describe('What the device said, when it answered; it is also recorded on this device in the inventory with source snmp'),
+  snmp: DeviceSnmp.describe('The device\'s SNMP state after the check'),
+})
+export const SnmpDeviceRow = z.object({
+  device_id: z.string(), name: z.string().describe('How a person knows the device: its name in Vedette or host name, else model, else vendor; empty when none'),
+  ip: z.string().nullable(), read_from: z.string(), version: SnmpVersion, username: z.string().nullable(), port: z.number().int(),
+  state: SnmpState.exclude(['not_set_up']), last_answer_at: dt.nullable(),
+  blocked: SnmpBlocked.nullable().describe('As DeviceSnmp.blocked'),
+})
+export const SnmpNotice = z.object({ id: z.number().int(), at: dt, text: z.string().describe('Plain words, e.g. what the move to per-device SNMP did to a saved credential') })
+export const SnmpResponse = z.object({
+  ready: z.boolean().describe('false while the scan container cannot read SNMP (not reporting, or older than this version)'), message: z.string().nullable().describe('Why not ready'),
+  devices: z.array(SnmpDeviceRow).describe('Every device with SNMP set up, by name: the Copy from list and the Scanning card'),
+  notices: z.array(SnmpNotice).describe('What the box did to SNMP settings by itself (the move from credentials to devices, D-607), until a person dismisses them'),
 })
 
 const id = z.object({ id: z.string() })
@@ -376,12 +381,10 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/agents/wazuh/test', summary: 'Test the connection to the Wazuh API with the form values, without saving', stories: ['S-INV-4'], role: 'admin', body: WazuhInput, response: WazuhTestResult },
   { method: 'delete', path: '/inventory/agents/wazuh', summary: 'Disconnect Wazuh and delete the saved password', stories: ['S-INV-4'], role: 'admin', response: null },
   { method: 'post', path: '/inventory/agents/wazuh/sample-data', summary: 'PREVIEW ONLY (mock): sync sample data as if just pulled from Wazuh', stories: ['S-INV-4'], role: 'admin', response: SampleResult },
-  { method: 'get', path: '/inventory/snmp', summary: 'SNMP credentials (secrets only as their last 4 characters) and whether the scan container can read SNMP now (D-512)', stories: ['S-INV-1'], role: 'admin', response: SnmpResponse },
-  { method: 'post', path: '/inventory/snmp', status: 201, summary: 'Add an SNMP credential (v2c community or v3 user); its secrets are stored encrypted. 409 name_taken, 409 too_many (8 at most)', stories: ['S-INV-1'], role: 'admin', body: SnmpCredentialInput, response: SnmpCredential },
-  { method: 'put', path: '/inventory/snmp/{id}', summary: 'Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret would keep one this box cannot open (type it again)', stories: ['S-INV-1'], role: 'admin', params: id, body: SnmpCredentialInput, response: SnmpCredential },
-  { method: 'delete', path: '/inventory/snmp/{id}', summary: 'Delete an SNMP credential and its secrets; what devices said stays in the inventory', stories: ['S-INV-1'], role: 'admin', params: id, response: null },
-  { method: 'post', path: '/inventory/snmp/{id}/test', summary: 'Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409 secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it again)', stories: ['S-INV-1'], role: 'admin', params: id,
-    body: z.object({ ip: z.string().max(15).describe('IPv4 of a device in the inventory') }), response: SnmpTestResult },
-  { method: 'post', path: '/inventory/snmp/{id}/read', status: 202, summary: 'Read now every approved device in this credential\'s scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window\'s round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409 stopped when active discovery was turned off while the read started', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpRead },
-  { method: 'get', path: '/inventory/snmp/{id}/read', summary: 'The read of this credential that runs now, or the last one; null when none since the box started', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpRead.nullable() },
+  { method: 'get', path: '/inventory/snmp', summary: 'Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what the box changed by itself (D-607)', stories: ['S-INV-1'], role: 'admin', response: SnmpResponse },
+  { method: 'post', path: '/inventory/snmp/notices/dismiss', summary: 'Dismiss every SNMP notice (D-607)', stories: ['S-INV-1'], role: 'admin', response: ok },
+  { method: 'get', path: '/inventory/snmp/devices/{id}', summary: 'The SNMP settings and state of one device (D-607): working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device', stories: ['S-INV-1'], role: 'admin', params: id, response: DeviceSnmp },
+  { method: 'put', path: '/inventory/snmp/devices/{id}', summary: 'Set up or edit the SNMP of one device (D-607): version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person\'s consent: it turns the device\'s SNMP source on (D-601) when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required, bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored', stories: ['S-INV-1'], role: 'admin', params: id, body: DeviceSnmpInput, response: DeviceSnmp },
+  { method: 'delete', path: '/inventory/snmp/devices/{id}', summary: 'Remove the SNMP settings of one device and its secrets (D-607); what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none', stories: ['S-INV-1'], role: 'admin', params: id, response: null },
+  { method: 'post', path: '/inventory/snmp/devices/{id}/check', summary: 'Check now (D-607): read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpCheckResult },
 ])

@@ -17,7 +17,7 @@ import (
 // starting over from its first batch on the next Tick. The bus is synchronous: the fake worker calls AssetChanged itself, as the
 // inventory's publish would while the job is with the worker.
 
-// roundOf runs one Tick of a round over newBigWorld (batches .10-.73 and .74-.79) with one credential for the whole /24; answer
+// roundOf runs one Tick of a round over newBigWorld (batches .10-.73 and .74-.79), every device set up with one community; answer
 // gets the call number (1-based) and the job, and answers like the worker.
 func roundOf(t *testing.T, answer func(ctx context.Context, n int, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error)) (*sa.Service, *fakeInv, *fakeReader) {
 	t.Helper()
@@ -32,18 +32,8 @@ func roundOf(t *testing.T, answer func(ctx context.Context, n int, j sensorlink.
 		return answer(ctx, k, j)
 	}
 	svc, inv := newBigWorld(t, r, 2, 0)
-	if _, err := svc.AddSNMP(t.Context(), "a", v2cInput("all", "community-1")); err != nil {
-		t.Fatal(err)
-	}
+	setUpAll(t, svc, inv, "community-1")
 	return svc, inv, r
-}
-
-func ipsOf(j sensorlink.SNMPJob) []string {
-	out := make([]string, len(j.Targets))
-	for i, tg := range j.Targets {
-		out[i] = tg.IP
-	}
-	return out
 }
 
 func rangeIPs(from, to int, skip ...int) []string {

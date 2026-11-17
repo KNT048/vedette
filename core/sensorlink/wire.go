@@ -220,18 +220,18 @@ type Job struct {
 	SNMP   *SNMPJob   // snmp, nil for the others
 }
 
-// SNMPJob is a round of SNMP reads (protocol 5, D-512): for each target, in order, the worker tries the credentials the target
-// names until one gets an answer, with read-only GETs of a fixed list of objects it owns (no object identifier is on the wire, as
-// no argv is: D-111 (3)). Rate is packets a second.
+// SNMPJob is a round of SNMP reads (protocol 5, D-512, D-607): for each target, in order, the worker sends the target's own
+// credential to the target's address and nowhere else, with read-only GETs of a fixed list of objects it owns (no object identifier
+// is on the wire, as no argv is: D-111 (3)). Rate is packets a second. A credential travels inside its target (D-607): SNMP is set up
+// per device, and the secret of a device goes only to that device's read address, so the wire has no way to name another one.
 type SNMPJob struct {
-	Rate        int              `json:"rate"`
-	Credentials []SNMPCredential `json:"credentials"`
-	Targets     []SNMPTarget     `json:"targets"`
+	Rate    int          `json:"rate"`
+	Targets []SNMPTarget `json:"targets"`
 }
 
 // SNMPCredential is one way to sign in to an SNMP agent. Version is "v2c" (Community) or "v3" (User, Auth "sha" or "sha256" with
 // AuthPass, Priv "aes128" with PrivPass, or Priv "" for authNoPriv). Port is the UDP port the agent answers on: 0 (left out of the
-// JSON) is SNMPPort, 161; a device that serves SNMP elsewhere has a credential of its own with that port. Port was added to protocol
+// JSON) is SNMPPort, 161. Port was added to protocol
 // 5 before its first release, as D-520's fields were: core leaves it out for 161, so a worker built before it gets the shape it
 // knows for every credential of the default port. It holds secrets: printing or logging it gives "[redacted]"; only the JSON of the
 // job carries them, inside the mutual-TLS link.
@@ -249,20 +249,18 @@ type SNMPCredential struct {
 // Format implements fmt.Formatter for every verb: the credential never reaches a log line through fmt.
 func (SNMPCredential) Format(f fmt.State, _ rune) { _, _ = f.Write([]byte("[redacted]")) }
 
-// SNMPTarget is one device of an snmp job: its address and the indexes (into SNMPJob.Credentials) of the credentials to try, in order.
+// SNMPTarget is one device of an snmp job: the address its reads go to (the device's read address, D-607) and its credential.
 type SNMPTarget struct {
-	IP          string `json:"ip"`
-	Credentials []int  `json:"credentials"`
+	IP         string         `json:"ip"`
+	Credential SNMPCredential `json:"credential"`
 }
 
 // The limits of an snmp job (sensor-protocol.md section 9).
 const (
-	MaxSNMPTargets     = 64  // targets of a job, like an nmap batch
-	MaxSNMPCredentials = 8   // credentials of a job
-	MaxSNMPTargetTries = 4   // credentials one target names
-	MaxSNMPValue       = 512 // bytes of one value of an answer (an SNMP DisplayString is at most 255)
-	MaxSNMPSeconds     = 3600
-	SNMPPort           = 161 // the UDP port of an SNMP agent (RFC 3417), what a credential without a port is sent to
+	MaxSNMPTargets = 64  // targets of a job, like an nmap batch
+	MaxSNMPValue   = 512 // bytes of one value of an answer (an SNMP DisplayString is at most 255)
+	MaxSNMPSeconds = 3600
+	SNMPPort       = 161 // the UDP port of an SNMP agent (RFC 3417), what a credential without a port is sent to
 )
 
 // The per-target statuses of an snmp result.
@@ -286,13 +284,12 @@ const (
 // SNMPStatuses is the closed set of the per-target statuses of an snmp result.
 var SNMPStatuses = []string{SNMPStatusOK, SNMPStatusNoAnswer, SNMPStatusAuthFailed, SNMPStatusUnknownUser, SNMPStatusError}
 
-// SNMPAnswer is what the worker got from one target: the status of the last credential it tried (Credential, an index into the
-// job's credentials) and, when Status is ok, the values the agent gave. Every value is untrusted text (SYS-6).
+// SNMPAnswer is what the worker got from one target with its credential: the status and, when Status is ok, the values the agent
+// gave. Every value is untrusted text (SYS-6).
 type SNMPAnswer struct {
-	Target     string     `json:"target"`
-	Status     string     `json:"status"`
-	Credential int        `json:"credential"`
-	Values     SNMPValues `json:"values"`
+	Target string     `json:"target"`
+	Status string     `json:"status"`
+	Values SNMPValues `json:"values"`
 }
 
 // SNMPValues are the objects the worker reads ("" when the agent has none): MIB-2 system, ENTITY-MIB entPhysical for index 1, and
@@ -316,23 +313,15 @@ func (v SNMPValues) all() []string {
 }
 
 // CheckSNMPJob is the grammar of an snmp job, the same for core before it dispatches and for the worker before it sends anything: a
-// rate of 1..1000, 1..8 credentials of a known shape (a v2c community or a v3 user of 1..64 printable characters, v3 passwords of
-// 8..64, a port of 1..65535 or none), 1..64 unique canonical IPv4 targets (local is checked by the caller with core/localnet, which this package does not import),
-// each naming 1..4 distinct credentials.
+// rate of 1..1000 and 1..64 unique canonical IPv4 targets (local is checked by the caller with core/localnet, which this package does
+// not import), each with one credential of a known shape (a v2c community or a v3 user of 1..64 printable characters, v3 passwords of
+// 8..64, a port of 1..65535 or none).
 func CheckSNMPJob(j *SNMPJob) error {
 	if j == nil {
 		return invalid("snmp job")
 	}
 	if j.Rate < 1 || j.Rate > 1000 {
 		return invalid("snmp rate")
-	}
-	if len(j.Credentials) < 1 || len(j.Credentials) > MaxSNMPCredentials {
-		return invalid("snmp credentials")
-	}
-	for _, c := range j.Credentials {
-		if err := checkSNMPCredential(c); err != nil {
-			return err
-		}
 	}
 	if len(j.Targets) < 1 || len(j.Targets) > MaxSNMPTargets {
 		return invalid("snmp targets")
@@ -344,13 +333,8 @@ func CheckSNMPJob(j *SNMPJob) error {
 			return invalid("snmp target")
 		}
 		seen[t.IP] = true
-		if len(t.Credentials) < 1 || len(t.Credentials) > MaxSNMPTargetTries {
-			return invalid("snmp target credentials")
-		}
-		for i, c := range t.Credentials {
-			if c < 0 || c >= len(j.Credentials) || slices.Contains(t.Credentials[:i], c) {
-				return invalid("snmp target credential")
-			}
+		if err := checkSNMPCredential(t.Credential); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -789,8 +773,8 @@ func checkHostErrors(r *JobResult) error {
 }
 
 // checkSNMPAnswers checks the shape of snmp: only on a done result without another output, at most one answer per target and
-// MaxSNMPTargets in all, a known status, values of at most MaxSNMPValue bytes and only on an ok answer. Whether a target and a
-// credential index belong to the job is the Dispatcher's check, which knows the job.
+// MaxSNMPTargets in all, a known status, values of at most MaxSNMPValue bytes and only on an ok answer. Whether a target belongs to
+// the job is the Dispatcher's check, which knows the job.
 func checkSNMPAnswers(r *JobResult) error {
 	if len(r.SNMP) == 0 {
 		return nil
@@ -799,7 +783,7 @@ func checkSNMPAnswers(r *JobResult) error {
 		return invalid("snmp")
 	}
 	for i, a := range r.SNMP {
-		if !slices.Contains(SNMPStatuses, a.Status) || a.Credential < 0 || a.Credential >= MaxSNMPCredentials {
+		if !slices.Contains(SNMPStatuses, a.Status) {
 			return invalid("snmp answer")
 		}
 		if ip, err := netip.ParseAddr(a.Target); err != nil || !ip.Is4() || ip.String() != a.Target {

@@ -105,9 +105,13 @@ func knownAs(u UpdateRow) string {
 func updateLine(u UpdateRow, exploited bool) string {
 	b := strings.Builder{}
 	b.WriteString(clip(u.Action, 200))
-	if u.NVDLag { // the plan's words: the CVEs NVD has analysed so far, never "all"
+	switch {
+	case u.NVDLag && len(u.CVEs) == 0: // Microsoft's newest Windows update, none of its CVEs analysed yet: no count to give
+		b.WriteString("; its CVEs are not yet analysed by NVD")
+		return b.String()
+	case u.NVDLag: // the plan's words: the CVEs NVD has analysed so far, never "all"
 		b.WriteString("; fixes at least " + plural(len(u.CVEs), "CVE", "CVEs"))
-	} else {
+	default:
 		b.WriteString("; " + plural(len(u.CVEs), "CVE", "CVEs"))
 	}
 	if w := clip(u.Worst, 12); w != "" {

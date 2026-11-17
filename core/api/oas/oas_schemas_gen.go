@@ -73817,7 +73817,10 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	// known.
 	AgentReported NilDate                                 `json:"agent_reported"`
 	Asset         FindingsGetFindingsPlanOKItemsItemAsset `json:"asset"`
-	// Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest.
+	// Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest. Empty only for a
+	// Windows release below the newest monthly update Microsoft lists for it while none of that update's
+	// CVEs that apply is analysed by NVD (kind windows or esu, nvd_lag true): the item names the update,
+	// lists under All and Recent, and ranks after every item with a CVE.
 	Cves []FindingsGetFindingsPlanOKItemsItemCvesItem `json:"cves"`
 	// Fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative
 	// update; distro: the distribution's package version that fixes every CVE of the item on the device's

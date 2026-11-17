@@ -304,7 +304,8 @@ func (s *Service) plannedUpdates(assetID string) (out []UpdateAction, ran, compa
 }
 
 // listedPlanItems are the items with the CVEs GET /findings/plan still lists at now: a CVE that crossed the 12-month line since the
-// pass is left out (#804), and an item left with none is dropped. To fix, the device's updates and the risk marker
+// pass is left out (#804), and an item left with none is dropped; an item that never had one (awaitsNVD: Microsoft's newest Windows
+// update, its CVEs not analysed yet) is kept. To fix, the device's updates and the risk marker
 // (RiskMap) read the plan through it.
 func listedPlanItems(items []PlanItem, now time.Time) []PlanItem {
 	cut := now.Add(-AgeLimit).UTC().Format(time.DateOnly)
@@ -316,7 +317,7 @@ func listedPlanItems(items []PlanItem, now time.Time) []PlanItem {
 				cves = append(cves, c)
 			}
 		}
-		if len(cves) > 0 {
+		if len(cves) > 0 || awaitsNVD(it) {
 			it.CVEs = cves
 			kept = append(kept, it)
 		}

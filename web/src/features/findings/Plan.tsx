@@ -128,7 +128,8 @@ function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: s
       <p className="text-sm">
         {showDevice ? <><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>{' '}<RiskMarker id={i.asset.id} risk={i.risk} className="align-middle" />{': '}</> : null}
         <span className="font-medium">{action}</span>{': '}
-        {likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
+        {/* Microsoft's newest Windows update with none of its CVEs analysed by NVD yet: no count, no list */}
+        {i.cves.length === 0 ? t('plan.notAnalysed') : likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
           <>
             {t(i.nvd_lag ? 'plan.fixesAtLeast' : 'plan.fixes', { count: i.cves.length })}
             {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
@@ -138,10 +139,12 @@ function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: s
         )}
         {gone ? <span className="block text-meta text-muted">{i.agent_reported ? t('plan.lastReported', { date: fmtDate(i.agent_reported) }) : t('plan.lastReportedNoDate')}</span> : null}
       </p>
-      <details className="min-w-0">
-        <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>
-        <CveList item={i} gone={gone} />
-      </details>
+      {i.cves.length > 0 ? (
+        <details className="min-w-0">
+          <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>
+          <CveList item={i} gone={gone} />
+        </details>
+      ) : null}
     </li>
   )
 }

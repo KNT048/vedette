@@ -2,6 +2,8 @@
 import { describe, expect, it } from 'vitest'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/test/server'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { tierState } from '@/mocks/tiers'
 import { assetsStore, modulesStore } from '@/mocks/stores'
@@ -202,6 +204,20 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     await userEvent.click(within(item).getByText('Show the 65 CVEs'))
     expect(within(within(item).getByRole('table')).getAllByText('Reported by the agent')).toHaveLength(50)
     expect(within(item).queryByText('Last reported by an agent')).toBeNull()
+  })
+
+  it('a Windows device below Microsoft\'s newest update is named at once, with its build and KB, its CVEs not yet analysed by NVD', async () => {
+    const item = { group: 'a-srv/s-w', asset: { id: 'a-srv', name: 'Windows Server 2025 host' }, risk: null, software: 'Windows Server 2025', version: '10.0.26100.33650', fixed: '10.0.26100.33822',
+      kind: 'windows', pro: false, nvd_lag: true, kb: 'KB5131080', cves: [], likely: 0, recent: 0, agent_gone: true, agent_reported: '2026-11-02' }
+    server.use(http.get('*/api/v1/findings/plan', () => HttpResponse.json({ items: [item], counts: { likely: 0, recent: 1, all: 1 }, compared: true, compared_devices: 1, unchecked_devices: 0, old_evidence: 0,
+      data: { epss: 'ready', recent: 'ready', epss_date: '2026-11-17', recent_since: '2025-11-17' } })))
+    renderApp('/plan?tier=all')
+    const list = await screen.findByRole('list', { name: 'Recommended updates' })
+    const row = within(list).getAllByRole('listitem')[0]!
+    expect(row).toHaveTextContent('Install the latest cumulative update for Windows Server 2025 (from build 26100.33650 to 26100.33822 or later; KB5131080): its CVEs are not yet analysed by NVD')
+    expect(row).toHaveTextContent('Based on the version an agent last reported on')
+    expect(within(row).queryByText(/Show the/)).not.toBeInTheDocument()
+    await expectNoA11yViolations()
   })
 
   it('the CVE page answers for a CVE on no exploited list, with its devices from Updates to plan', async () => {

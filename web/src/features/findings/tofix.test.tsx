@@ -96,6 +96,21 @@ describe('Findings › To fix', () => {
     await expectNoA11yViolations()
   })
 
+  it('Microsoft\'s newest Windows update with no CVE analysed yet is planned on the device and by fix, named, with no count', async () => {
+    const win = act({ group: 'a-srv/s-w', software_id: 's-w', software: 'Windows Server 2025', product: 'microsoft|windows_server_2025', version: '10.0.26100.33650', fixed: '10.0.26100.33822', kind: 'windows', windows: true,
+      action: 'Install the latest cumulative update for Windows Server 2025 (from build 26100.33650 to 26100.33822 or later; KB5131080)', worst: '', detected: 0, nvd_lag: true, kb: 'KB5131080' })
+    serve({ ...sample, devices: [dev('a-srv', 'Windows Server 2025 host', { planned: [win] })] })
+    renderApp('/findings')
+    const rec = await screen.findByRole('list', { name: 'Recommended updates for Windows Server 2025 host' }, T)
+    expect(rec).toHaveTextContent('Install the latest cumulative update for Windows Server 2025 (from build 26100.33650 to 26100.33822 or later; KB5131080): its CVEs are not yet analysed by NVD')
+    expect(within(rec).queryByText(/Show the/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'By fix' }))
+    const fixes = await screen.findByRole('list', { name: 'Fixes, the most urgent first' })
+    expect(fixes).toHaveTextContent('Install the latest cumulative update for Windows Server 2025 (build 26100.33822 or later; KB5131080): recommended on 1 device; its CVEs are not yet analysed by NVD')
+    expect(fixes).not.toHaveTextContent(/0 CVEs|at least/)
+    await expectNoA11yViolations()
+  })
+
   it('a device filter shows as a chip that clears it, and the empty state names the device', async () => {
     serve()
     renderApp('/findings?device=a-none')

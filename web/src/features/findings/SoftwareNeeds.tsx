@@ -7,6 +7,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { useModuleEnabled } from '@/lib/modules'
 import { useToFix } from './api'
 import { actionable, unproved } from './ToFix'
+import { kbNote } from './fix'
 import type { ToFixAction } from './types'
 
 const SEV = ['info', 'low', 'medium', 'high', 'critical']
@@ -60,9 +61,10 @@ export function SoftwareNeeds({ assetId, softwareId, needs }: { assetId: string;
         </span>
       ) : null}
       {check > 0 ? <Link to={`/findings?tab=input&device=${encodeURIComponent(assetId)}`} className="w-fit text-accent underline-offset-4 hover:underline">{t('needs.toCheck', { count: check })}</Link> : null}
-      {n.planned.filter((a) => a.cves.length > 0).map((a) => (
+      {n.planned.filter((a) => a.cves.length > 0 || a.nvd_lag).map((a) => (
         <Link key={a.group} to="/plan?tier=all" className="w-fit text-accent underline-offset-4 hover:underline">
-          {a.fixed ? t('needs.planned', { fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed, count: a.cves.length }) : t('needs.plannedNoVersion', { count: a.cves.length })}
+          {a.cves.length === 0 ? t('needs.plannedNotAnalysed', { fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed, kb: kbNote(a.kb) })
+            : a.fixed ? t('needs.planned', { fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed, count: a.cves.length }) : t('needs.plannedNoVersion', { count: a.cves.length })}
         </Link>
       ))}
     </div>

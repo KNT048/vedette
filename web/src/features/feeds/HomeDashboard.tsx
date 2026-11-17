@@ -89,6 +89,19 @@ function Tiles({ s, noClaim }: { s: HomeSummary; noClaim: boolean }) {
   )
 }
 
+/** #910 phase 1: "You have" exploited CVEs Vedette could not check, shown instead of silent; links to the Findings block. Hidden at 0. */
+function UncheckedLine({ s }: { s: HomeSummary }) {
+  const { t } = useTranslation('feeds')
+  if (!s.unchecked?.cves) return null
+  return (
+    <p className="-mt-4 mb-6 text-sm">
+      <Link to="/findings?tab=open#unchecked" className="font-medium text-accent underline-offset-4 hover:underline">
+        {t('dash.unchecked', { count: s.unchecked.cves, devices: s.unchecked.devices })}
+      </Link>
+    </p>
+  )
+}
+
 /** One "Fix first" row: product (link to the finding), CVE, device, age; certainty, the exploited list, ransomware; CVSS under them. */
 function FixRow({ f, rank }: { f: SummaryItem; rank: number }) {
   const { t } = useTranslation('feeds')
@@ -301,6 +314,7 @@ export function HomeDashboard({ kevNotice, prompts }: { kevNotice: ReactNode; pr
       {firstRun ? null : (
         <>
           <Tiles s={s} noClaim={!!kevNotice} />
+          <UncheckedLine s={s} />
           <FixFirst s={s} kevNotice={kevNotice} />
         </>
       )}

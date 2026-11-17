@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { DeviceDetail, SoftwareView } from '@/features/inventory/types'
 import { isOpen } from './basis'
-import type { FindingRow, VersionNeeded } from './types'
+import type { FindingRow, UncheckedItem, VersionNeeded } from './types'
 
 /** Reads of the findings list after the save, and the pause between them: about 6 s in all (D-499). */
 export const POLLS = 12
@@ -41,7 +41,7 @@ export function outcome(before: FindingRow[], after: FindingRow[], cves: Set<str
   return { settled: done, closed, still }
 }
 
-type List = { items: FindingRow[]; version_needed: VersionNeeded[] }
+type List = { items: FindingRow[]; version_needed: VersionNeeded[]; unchecked: UncheckedItem[] }
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** PATCH the version (inventory INV-26 (3)), then re-read the device's findings until the re-match shows, at most POLLS times. */

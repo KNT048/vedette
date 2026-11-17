@@ -23,6 +23,8 @@
   "finishing": "OpenVAS is finishing its last checks (its slowest part). It stops by {{time}} at the latest and keeps what it found.",
   "limitReached": "OpenVAS reached its time limit and is collecting what it found.",
   "leftSoon": "less than a minute left in this step",
+  "longer": "taking longer than estimated, still working",
+  "wrappingUp": "finishing this step",
   "quiet": "Last report {{time}} ago",
   "quietTopic": "quiet scanner",
   "quietHelp": "The scanner reports at most every 5 seconds, and some checks report nothing until they finish. A quiet scanner is still working; Stop ends it at any time.",

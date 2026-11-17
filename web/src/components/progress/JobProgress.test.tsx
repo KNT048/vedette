@@ -97,14 +97,57 @@ describe('JobProgress (#830)', () => {
 
   it('out-of-range percents are clamped; every phase has words', () => {
     freeze()
-    const { rerender } = render(<JobProgress progress={job({ percent: 140 })} />)
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+    const { rerender } = render(<JobProgress progress={job({ percent: -5 })} />)
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
     for (const phase of ['discovery', 'ports', 'services', 'scripts', 'vulns', 'web', 'openvas', 'saving'] as const) {
       rerender(<JobProgress progress={job({ phase })} />)
       const name = screen.getByRole('progressbar').getAttribute('aria-label')
       expect(name).toBe(i18n.t(`phase.${phase}`, { ns: 'progress' }))
       expect(name).not.toMatch(/^phase\./)
     }
+  })
+
+  it('the estimate of a step never grows: it keeps the earliest end, and a later one past a minute drops it for "taking longer"', () => {
+    freeze()
+    const { rerender } = render(<JobProgress progress={job({ phase: 'services', percent: 67, eta: ahead(4 * 60_000) })} />)
+    expect(screen.getByText('about 4 min left in this step')).toBeInTheDocument()
+    rerender(<JobProgress progress={job({ phase: 'services', percent: 67, eta: ahead(40_000) })} />)
+    expect(screen.getByText('less than a minute left in this step')).toBeInTheDocument()
+    // a few seconds later than the kept end: still the kept one
+    rerender(<JobProgress progress={job({ phase: 'services', percent: 67, eta: ahead(70_000) })} />)
+    expect(screen.getByText('less than a minute left in this step')).toBeInTheDocument()
+    // re-estimated 5 minutes out: no time any more, for the rest of this step
+    rerender(<JobProgress progress={job({ phase: 'services', percent: 67, eta: ahead(5 * 60_000) })} />)
+    expect(screen.queryByText(/left in this step/)).toBeNull()
+    expect(screen.getByText('taking longer than estimated, still working')).toBeInTheDocument()
+    rerender(<JobProgress progress={job({ phase: 'services', percent: 67, eta: ahead(20_000) })} />)
+    expect(screen.queryByText(/left in this step/)).toBeNull()
+    // the next step starts with its own estimate
+    rerender(<JobProgress progress={job({ phase: 'scripts', percent: 10, phase_started_at: ago(1_000), eta: ahead(3 * 60_000) })} />)
+    expect(screen.getByText('about 3 min left in this step')).toBeInTheDocument()
+    expect(screen.queryByText(/taking longer/)).toBeNull()
+  })
+
+  it('an estimate more than a minute past while the step still runs says "taking longer", not nothing', () => {
+    freeze()
+    render(<JobProgress progress={job({ eta: ago(2 * 60_000) })} />)
+    expect(screen.queryByText(/left in this step/)).toBeNull()
+    expect(screen.getByText('taking longer than estimated, still working')).toBeInTheDocument()
+  })
+
+  it('a step the tool reports at 100 % while it still runs is not shown as done: "finishing this step" over an indeterminate bar', async () => {
+    freeze()
+    const { rerender } = render(<JobProgress progress={job({ phase: 'scripts', percent: 100 })} />)
+    const bar = screen.getByRole('progressbar', { name: 'Reading service details' })
+    expect(bar).not.toHaveAttribute('aria-valuenow')
+    expect(bar).toHaveAttribute('aria-valuetext', 'finishing this step')
+    expect(bar.querySelector('[data-indeterminate]')).not.toBeNull()
+    expect(screen.queryByText('100%')).toBeNull()
+    expect(screen.getByText('finishing this step', { selector: 'span' })).toBeInTheDocument()
+    rerender(<JobProgress progress={job({ phase: 'ports', percent: 140 })} />)
+    expect(screen.queryByText('100%')).toBeNull()
+    vi.useRealTimers()
+    await expectNoA11yViolations()
   })
 
   it('durations read as people say them', () => {
@@ -124,10 +167,11 @@ describe('JobProgress (#830)', () => {
     const { rerender } = render(<JobProgress progress={job({ phase: 'openvas', percent: 98, ends_by: endsBy, eta: ahead(2 * 60_000) })} />)
     expect(screen.getByText(`OpenVAS is finishing its last checks (its slowest part). It stops by ${stop} at the latest and keeps what it found.`)).toBeInTheDocument()
     expect(screen.queryByText(/left in this step/)).toBeNull()
-    rerender(<JobProgress progress={job({ phase: 'openvas', percent: 60, ends_by: endsBy, eta: ahead(10 * 60_000) })} />)
+    // a new step each time (its own start), so the estimates of one do not count against the next
+    rerender(<JobProgress progress={job({ phase: 'openvas', percent: 60, ends_by: endsBy, eta: ahead(10 * 60_000), phase_started_at: ago(50_000) })} />)
     expect(screen.getByText(/about 10 min left in this step/)).toBeInTheDocument()
     expect(screen.queryByText(/finishing its last checks/)).toBeNull()
-    rerender(<JobProgress progress={job({ phase: 'openvas', percent: 60, ends_by: endsBy, eta: ago(1_000) })} />)
+    rerender(<JobProgress progress={job({ phase: 'openvas', percent: 60, ends_by: endsBy, eta: ago(1_000), phase_started_at: ago(40_000) })} />)
     expect(screen.getByText(/finishing its last checks/)).toBeInTheDocument()
     rerender(<JobProgress progress={job({ phase: 'vulns', percent: 97, ends_by: null, eta: ahead(3 * 60_000) })} />)
     expect(screen.getByText(/about 3 min left in this step/)).toBeInTheDocument()

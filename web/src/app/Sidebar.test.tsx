@@ -19,7 +19,7 @@ const region = (button: HTMLElement) => document.getElementById(button.getAttrib
 beforeEach(() => localStorage.clear())
 
 describe('sidebar groups (docs/UI.md §2)', () => {
-  it('Home, Findings, Recommended updates and Incidents are always there; other groups start closed and inert, the current page opens its own', async () => {
+  it('Home, Findings, Recommended updates and Incidents are always there; other groups start closed and hidden, the current page opens its own', async () => {
     renderApp('/devices')
     const nav = within(await mainNav())
     for (const name of ['Home', 'Findings', 'Recommended updates', 'Incidents']) expect(await nav.findByRole('link', { name: named(name) })).toBeInTheDocument()
@@ -27,11 +27,37 @@ describe('sidebar groups (docs/UI.md §2)', () => {
     const assets = await nav.findByRole('button', { name: 'Assets, holds this page' })
     expect(assets).toHaveAttribute('aria-expanded', 'true') // holds /devices: open, and its header does nothing
     expect(assets).toHaveAttribute('aria-disabled', 'true')
-    expect(region(assets)).not.toHaveAttribute('inert')
+    expect(region(assets)).not.toHaveAttribute('hidden')
     const detect = nav.getByRole('button', { name: 'Intrusion detection' })
     expect(detect).toHaveAttribute('aria-expanded', 'false')
-    expect(region(detect)).toHaveAttribute('inert')
+    expect(region(detect)).toHaveAttribute('hidden')
     await expectNoA11yViolations()
+  })
+
+  it('a closed group\'s links are out of the accessibility tree and the tab order; opening brings them back, closing hides them again', async () => {
+    const u = userEvent.setup()
+    renderApp('/')
+    const nav = within(await mainNav())
+    const assets = await nav.findByRole('button', { name: named('Assets') })
+    expect(assets).toHaveAttribute('aria-expanded', 'false')
+    expect(region(assets)).toHaveAttribute('id', assets.getAttribute('aria-controls'))
+    expect(region(assets)).toHaveAttribute('hidden')
+    for (const name of ['Devices', 'External exposure']) expect(nav.queryByRole('link', { name: named(name) })).toBeNull()
+    // Keyboard: Tab from the closed header goes past the group's links to the next header.
+    assets.focus()
+    await u.tab()
+    expect(document.activeElement?.closest('#' + assets.getAttribute('aria-controls'))).toBeNull()
+
+    await u.click(assets)
+    expect(assets).toHaveAttribute('aria-expanded', 'true')
+    expect(region(assets)).not.toHaveAttribute('hidden')
+    for (const name of ['Devices', 'External exposure']) expect(nav.getByRole('link', { name: named(name) })).toBeVisible()
+    await u.tab()
+    expect(nav.getByRole('link', { name: named('Devices') })).toHaveFocus()
+
+    await u.click(assets)
+    expect(assets).toHaveAttribute('aria-expanded', 'false')
+    for (const name of ['Devices', 'External exposure']) expect(nav.queryByRole('link', { name: named(name) })).toBeNull()
   })
 
   it('opening a group is remembered after a reload; the current group opening by itself is not saved', async () => {

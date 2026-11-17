@@ -82,6 +82,10 @@ type sourceRow struct {
 	// validators of the feed's own address, so neither address is ever sent the other's.
 	MirrorETag         *string
 	MirrorLastModified *string
+	// ContentVersion is the version of the code that read the stored data (contentVersions, INV-32); 0: never read since the column.
+	// Not in sourceCols (code that reads the feed rows runs on the schema before migration 0021 in the migration tests): set by
+	// withVersions where a pull decides on it.
+	ContentVersion int
 }
 
 func (r sourceRow) state() State {
@@ -982,6 +986,9 @@ type outcome struct {
 	CatalogVersion    string
 	CatalogReleased   time.Time // dateReleased of the catalog stored (zero leaves it as it is)
 	AnsweredBy        string    // The copy of the CISA list the stored catalog came from ("" leaves it as it is)
+	// ContentVersion is the code's version of the feed (contentVersions) when this pull read the whole source with it; 0 leaves the
+	// stored version as it is (INV-32)
+	ContentVersion int
 	// Copies is what each copy of the CISA list said at this check, with each copy's validators; nil for
 	// every other pull. Written for a failed pull too.
 	Copies *kevCopies
@@ -1034,9 +1041,14 @@ reject_reasons, error, bytes, etag, last_modified) VALUES (?, ?, ?, ?, ?, ?, ?, 
 		if o.CatalogVersion != "" {
 			ver = o.CatalogVersion
 		}
+		var cv any
+		if o.ContentVersion > 0 {
+			cv = o.ContentVersion
+		}
 		_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET last_fetch = ?, last_success = ?, failures = 0, status = 'ok', error = ?,
-records = COALESCE(?, records), etag = ?, last_modified = ?, catalog_version = COALESCE(?, catalog_version), answered_by = COALESCE(?, answered_by) WHERE id = ?`,
-			fin, fin, msg, records, etag, lm, ver, answered, id)
+records = COALESCE(?, records), etag = ?, last_modified = ?, catalog_version = COALESCE(?, catalog_version), answered_by = COALESCE(?, answered_by),
+content_version = COALESCE(?, content_version) WHERE id = ?`,
+			fin, fin, msg, records, etag, lm, ver, answered, cv, id)
 		if err == nil && !o.CatalogReleased.IsZero() {
 			_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET catalog_released = ? WHERE id = ?`, store.FormatTS(o.CatalogReleased), id)
 		}

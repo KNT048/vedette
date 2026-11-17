@@ -253,6 +253,7 @@ func (s *Service) buildWinRel(ctx context.Context, src sourceRow, p pullPlan) (p
 		}
 		if err != nil {
 			s.Log.WarnContext(ctx, "a Windows release page could not be read; the Windows 11 releases are still learned and its stored updates kept", "url", u, "error", err)
+			p.partial = true
 			continue
 		}
 		p.out.Bytes += len(resp.Body)
@@ -269,57 +270,68 @@ func (s *Service) buildWinRel(ctx context.Context, src sourceRow, p pullPlan) (p
 }
 
 // applyWinRel replaces the stored releases (feeds_winrel) and the stored monthly updates of every release the pull read
-// (feeds_winrel_update); when the releases changed, it returns the CVEs NVD lists Windows rows for, for findings to match again
-// (EventRangesUpdated). A change of the updates only moves the plan's target builds, which findings reads at its next plan pass
-// (TierStamp has this feed).
-func applyWinRel(ctx context.Context, tx *sql.Tx, rels []winrel.Release, ups []winrel.Update) (changedCVEs []string, err error) {
+// (feeds_winrel_update); when the releases or the updates changed, it returns the CVEs NVD lists Windows rows for, for findings to
+// match again (EventRangesUpdated): an update moves the build a hotpatched device is compared at (core/winrel.Baseline) and the target
+// and KB of the fix. The plan's target builds follow at its next plan pass (TierStamp has this feed). first: the pull filled an empty
+// table of updates (the first pull, or the first after the update that added the table): the matches it changes are a baseline, not
+// news (EventRangesUpdated.First).
+func applyWinRel(ctx context.Context, tx *sql.Tx, rels []winrel.Release, ups []winrel.Update) (changedCVEs []string, first bool, err error) {
+	updsBefore, err := winRelUpdateRows(ctx, tx)
+	if err != nil {
+		return nil, false, err
+	}
 	read := map[[2]int]bool{}
 	for _, u := range ups {
 		k := [2]int{u.Build, boolInt(u.Server)}
 		if !read[k] {
 			read[k] = true
 			if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_winrel_update WHERE build = ? AND server = ?`, k[0], k[1]); err != nil {
-				return nil, fmt.Errorf("feeds: clear windows updates: %w", err)
+				return nil, false, fmt.Errorf("feeds: clear windows updates: %w", err)
 			}
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_winrel_update (build, server, rev, kb, day, hotpatch) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
 			u.Build, k[1], u.Rev, u.KB, u.Day.Format(time.DateOnly), boolInt(u.Hotpatch)); err != nil {
-			return nil, fmt.Errorf("feeds: store windows update: %w", err)
+			return nil, false, fmt.Errorf("feeds: store windows update: %w", err)
 		}
 	}
 	before, err := winRelRows(ctx, tx)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_winrel`); err != nil {
-		return nil, fmt.Errorf("feeds: clear windows releases: %w", err)
+		return nil, false, fmt.Errorf("feeds: clear windows releases: %w", err)
 	}
 	for _, r := range rels {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_winrel (build, server, product, display, line, ga, ga_rev) VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT DO NOTHING`, r.Build, boolInt(r.Server), r.Product, r.Display, r.Line, r.GA.Format(time.DateOnly), r.GARev); err != nil {
-			return nil, fmt.Errorf("feeds: store windows release: %w", err)
+			return nil, false, fmt.Errorf("feeds: store windows release: %w", err)
 		}
 	}
 	after, err := winRelRows(ctx, tx)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	if slices.Equal(before, after) {
-		return nil, nil
+	updsAfter, err := winRelUpdateRows(ctx, tx)
+	if err != nil {
+		return nil, false, err
 	}
+	if slices.Equal(before, after) && slices.Equal(updsBefore, updsAfter) {
+		return nil, false, nil
+	}
+	first = len(updsBefore) == 0 && len(updsAfter) > 0
 	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_affected WHERE cpe GLOB 'cpe:2.3:o:microsoft:windows*' ORDER BY cve`)
 	if err != nil {
-		return nil, fmt.Errorf("feeds: windows cves: %w", err)
+		return nil, false, fmt.Errorf("feeds: windows cves: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var c string
 		if err := rows.Scan(&c); err != nil {
-			return nil, fmt.Errorf("feeds: windows cves: %w", err)
+			return nil, false, fmt.Errorf("feeds: windows cves: %w", err)
 		}
 		changedCVEs = append(changedCVEs, c)
 	}
-	return changedCVEs, rows.Err()
+	return changedCVEs, first, rows.Err()
 }
 
 type winRelQuerier interface {

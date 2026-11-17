@@ -203,7 +203,7 @@ func (s *Service) buildEPSSAll(ctx context.Context, src sourceRow, p pullPlan) (
 		read = c.n
 		return err
 	}}
-	if src.Status == "ok" {
+	if src.Status == "ok" && !src.reload() { // a reload by new code reads the whole file (INV-32)
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	ctx, cancel := context.WithTimeout(ctx, epssAllTimeout)

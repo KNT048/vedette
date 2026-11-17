@@ -69347,8 +69347,8 @@ func (s *FindingsGetFindingsOKItemsItemStatus) UnmarshalText(data []byte) error 
 // #910 phase 1: exploited CVEs of software the box has that it could not check; one item per device x
 // software x reason. No finding is created from it.
 type FindingsGetFindingsOKUncheckedItem struct {
-	// Add_version: typing the version as the vendor writes it lets Vedette check these CVEs
-	// (not_comparable, and not_named once phase 2 lands); none: only the advisory decides.
+	// Add_version: only not_comparable on a software row a person declared (#920): typing the version as
+	// the vendor writes it lets Vedette check these CVEs; none: only the advisory decides.
 	Action  FindingsGetFindingsOKUncheckedItemAction     `json:"action"`
 	Asset   NilFindingsGetFindingsOKUncheckedItemAsset   `json:"asset"`
 	AssetID string                                       `json:"asset_id"`
@@ -69440,8 +69440,8 @@ func (s *FindingsGetFindingsOKUncheckedItem) SetVersion(val NilString) {
 	s.Version = val
 }
 
-// Add_version: typing the version as the vendor writes it lets Vedette check these CVEs
-// (not_comparable, and not_named once phase 2 lands); none: only the advisory decides.
+// Add_version: only not_comparable on a software row a person declared (#920): typing the version as
+// the vendor writes it lets Vedette check these CVEs; none: only the advisory decides.
 type FindingsGetFindingsOKUncheckedItemAction string
 
 const (

@@ -47,7 +47,7 @@ export function ScanProgress() {
             {run.progress && run.phase !== 'greenbone' ? null : <span className="text-muted">{t(`progress.phase.${run.phase}`)}</span>}
           </p>
           {run.phase === 'greenbone' ? <InfoTip topic={t('progress.greenboneTopic')}>{t('progress.greenboneInfo')}</InfoTip> : null}
-          {operator ? <Button variant="secondary" size="sm" className="ml-auto" disabled={stop.isPending} onClick={() => stop.mutate(undefined, { onError: (e) => toast.error(e instanceof Error ? e.message : String(e)) })}>{t('progress.stop')}</Button> : null}
+          {operator ? <Button variant="secondary" size="sm" className="ml-auto" busy={stop.isPending} busyLabel={t('common:busy.stopping')} onClick={() => stop.mutate(undefined, { onError: (e) => toast.error(e instanceof Error ? e.message : String(e)) })}>{t('progress.stop')}</Button> : null}
         </div>
         {run.progress ? <JobProgress progress={run.progress} /> : null}
       </div>

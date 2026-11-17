@@ -42,11 +42,11 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
       </div>
       {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (D-471: the toast links the device). */}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="primary" disabled={!can || busy} title={title} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
-        <Button size="sm" disabled={!can || busy} title={title} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>
+        <Button size="sm" variant="primary" disabled={!can || busy} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} title={title} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
+        <Button size="sm" disabled={!can || busy} busy={act.suspicious.isPending} busyLabel={t('common:busy.saving')} title={title} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>
           {d.suspicious ? t('pending.unmark') : t('pending.mark')}
         </Button>
-        <Button size="sm" disabled={!can || busy} title={title} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
+        <Button size="sm" disabled={!can || busy} busy={act.remove.isPending} busyLabel={t('common:busy.deleting')} title={title} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </div>
       <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}
         onConfirm={() => act.remove.mutate(undefined, { onSuccess: () => { setDel(false); toast.success(t('delete.done', { name })) }, onError: fail })} />
@@ -63,6 +63,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
 }) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
+  const admin = useCan('admin')
   const notify = useNotifyNew()
   const pending = [...items].sort((a, b) => b.first_seen.localeCompare(a.first_seen))
   return (
@@ -82,7 +83,8 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
         </div>
       </div>
       {notifyNew && !notifyAvailable ? <TurnOnModule id="notify" reason={t('pending.notifyOff2')} /> : null}
-      {notifyNew && notifyAvailable ? <p className="text-meta text-muted">{t('pending.notifyVia')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></p> : null}
+      {/* kien G5: the channels page is an administrator's: others get the sentence without a link they cannot open */}
+      {notifyNew && notifyAvailable ? <p className="text-meta text-muted">{t('pending.notifyVia')}{admin ? <> <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></> : null}</p> : null}
       {total ? search : null}
       {pending.length ? (
         <Card flush>

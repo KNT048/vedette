@@ -28875,6 +28875,7 @@
                                 "type": "string"
                               },
                               "hostname": {
+                                "description": "The device's name: the name a person gave it in Vedette (G2), else its host name; null when neither",
                                 "type": [
                                   "string",
                                   "null"
@@ -44850,7 +44851,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Free text, case-insensitive, matched in the name (host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
+              "description": "Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
               "type": "string",
               "maxLength": 80
             }
@@ -44886,6 +44887,14 @@
                             ]
                           },
                           "hostname": {
+                            "description": "The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device was added manually; read-only",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "name": {
+                            "description": "The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on every page; null = the default name (the naming rule, D-471)",
                             "type": [
                               "string",
                               "null"
@@ -45530,6 +45539,22 @@
                             ],
                             "description": "Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)"
                           },
+                          "scan_source": {
+                            "type": "string",
+                            "enum": [
+                              "on",
+                              "off"
+                            ],
+                            "description": "D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals"
+                          },
+                          "snmp_source": {
+                            "type": "string",
+                            "enum": [
+                              "on",
+                              "off"
+                            ],
+                            "description": "D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found, off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off)"
+                          },
                           "approved_at": {
                             "anyOf": [
                               {
@@ -45608,6 +45633,7 @@
                           "ip",
                           "mac",
                           "hostname",
+                          "name",
                           "kind",
                           "kind_source",
                           "guess",
@@ -45624,6 +45650,8 @@
                           "is_box",
                           "first_scan_at",
                           "regular_scan",
+                          "scan_source",
+                          "snmp_source",
                           "approved_at",
                           "sources",
                           "suspicious",
@@ -45874,6 +45902,14 @@
                           ]
                         },
                         "hostname": {
+                          "description": "The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device was added manually; read-only",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "name": {
+                          "description": "The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on every page; null = the default name (the naming rule, D-471)",
                           "type": [
                             "string",
                             "null"
@@ -46457,6 +46493,22 @@
                           ],
                           "description": "Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)"
                         },
+                        "scan_source": {
+                          "type": "string",
+                          "enum": [
+                            "on",
+                            "off"
+                          ],
+                          "description": "D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals"
+                        },
+                        "snmp_source": {
+                          "type": "string",
+                          "enum": [
+                            "on",
+                            "off"
+                          ],
+                          "description": "D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found, off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off)"
+                        },
                         "approved_at": {
                           "anyOf": [
                             {
@@ -46537,6 +46589,7 @@
                         "ip",
                         "mac",
                         "hostname",
+                        "name",
                         "kind",
                         "kind_source",
                         "guess",
@@ -46552,6 +46605,8 @@
                         "is_box",
                         "first_scan_at",
                         "regular_scan",
+                        "scan_source",
+                        "snmp_source",
                         "approved_at",
                         "software"
                       ],
@@ -46787,7 +46842,7 @@
       },
       "patch": {
         "operationId": "inventory_patch_inventory_devices_id",
-        "summary": "Change the type, mark as fragile, override regular scans or edit the notes of a device",
+        "summary": "Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the notes of a device. 400 bad_name: a name over 64 characters or with < or >",
         "tags": [
           "inventory"
         ],
@@ -46812,6 +46867,11 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "name": {
+                    "description": "The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the default name). The host name the network reports is not changed",
+                    "type": "string",
+                    "maxLength": 200
+                  },
                   "kind": {
                     "type": "string",
                     "enum": [
@@ -47386,6 +47446,101 @@
         }
       }
     },
+    "/inventory/devices/{id}/sources": {
+      "put": {
+        "operationId": "inventory_put_inventory_devices_id_sources",
+        "summary": "Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person's consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1",
+          "S-INV-4"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scan": {
+                    "type": "string",
+                    "enum": [
+                      "on",
+                      "off"
+                    ]
+                  },
+                  "snmp": {
+                    "type": "string",
+                    "enum": [
+                      "on",
+                      "off"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "description": "At least one; a source left out is left alone"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scan_source": {
+                      "type": "string",
+                      "enum": [
+                        "on",
+                        "off"
+                      ]
+                    },
+                    "snmp_source": {
+                      "type": "string",
+                      "enum": [
+                        "on",
+                        "off"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "scan_source",
+                    "snmp_source"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/inventory/devices/{id}/suspicious": {
       "post": {
         "operationId": "inventory_post_inventory_devices_id_suspicious",
@@ -47535,7 +47690,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Free text, case-insensitive, matched in the name (host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
+              "description": "Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
               "type": "string",
               "maxLength": 80
             }
@@ -49712,7 +49867,9 @@
                                   "box",
                                   "regular_scan_never",
                                   "unavailable",
-                                  "busy"
+                                  "busy",
+                                  "snmp_off",
+                                  "excluded"
                                 ]
                               },
                               "message": {
@@ -49957,7 +50114,9 @@
                               "box",
                               "regular_scan_never",
                               "unavailable",
-                              "busy"
+                              "busy",
+                              "snmp_off",
+                              "excluded"
                             ]
                           },
                           "message": {
@@ -50151,7 +50310,9 @@
                         "box",
                         "regular_scan_never",
                         "unavailable",
-                        "busy"
+                        "busy",
+                        "snmp_off",
+                        "excluded"
                       ]
                     },
                     "message": {

@@ -196,6 +196,7 @@
     "test": "Test connection",
     "testOk": "Read the identity provider's OIDC configuration.",
     "saveFirst": "Save the settings before testing",
+    "testWaiting": "Testing the sign-in provider… this can take up to 20 seconds.",
     "err": {
       "issuer": "Enter the issuer address.",
       "client": "Enter the Client ID.",
@@ -561,11 +562,13 @@
       "inventory.import": "Import devices",
       "inventory.notify_new": "Change alerts for new devices",
       "inventory.remove_software": "Remove software from a device",
+      "inventory.rename": "Rename a device",
       "inventory.set_software_version": "Change the version of software on a device",
       "inventory.set_fragile": "Mark device fragile",
       "inventory.set_kind": "Change device kind",
       "inventory.set_notes": "Change device notes",
       "inventory.set_regular_scan": "Change regular scanning of a device",
+      "inventory.set_source": "Turn a source of a device on or off (network scan, SNMP)",
       "inventory.settings": "Change device discovery settings",
       "inventory.software_expired": "Agent software no longer reported was removed",
       "inventory.software_sync": "Software list synced",
@@ -623,6 +626,7 @@
     },
     "modeInfo": "With automatic updates, boxes get new builds in waves to limit risk.",
     "check": "Check for Vedette releases",
+    "checkWaiting": "Checking for Vedette releases… this can take up to a minute.",
     "checkOff": "Update checks are off in Privacy.",
     "lastCheck": "Last checked {{time}}.",
     "neverChecked": "Never checked.",
@@ -682,6 +686,7 @@
       "manual": "The box switches to manual updates.",
       "manualInfo": "So it does not climb back to the old build. Turn automatic on again on this page when you want.",
       "confirm": "Roll back",
+      "rollingBack": "Rolling back…",
       "dataLoss": "Data written since the update is lost.",
       "dataLossWhy": "Findings, logs and settings changed since then are gone.",
       "dataLossInfo": "This release changed how Vedette stores its data, so the box also puts back the database it saved just before the update.",
@@ -849,7 +854,9 @@
       "installAllConfirm": "Install all",
       "helper": "A separate privileged helper, vedette-host, runs a fixed list of apt commands. The web app never runs shell commands. A database backup is taken before every run, and only one run can go at a time.",
       "checked": "Checked the package mirrors.",
-      "pending": "{{count}} updates waiting, {{security}} of them security",
+      "pending_one": "1 update waiting, {{security}} of them security",
+      "pending_other": "{{count}} updates waiting, {{security}} of them security",
+      "pendingNone": "Updates waiting",
       "pendingCaption": "Pending operating system updates",
       "pendingEmpty": "Nothing waiting. The operating system is up to date.",
       "col": {
@@ -876,9 +883,12 @@
         "atHintAny": "The next time this clock time comes.",
         "atHintWindow": "Must fall inside the maintenance window.",
         "scheduleConfirm": "Schedule reboot",
+        "scheduling": "Scheduling…",
         "scheduled": "Reboot scheduled.",
         "cancel": "Cancel reboot",
-        "cancelled": "Scheduled reboot cancelled."
+        "cancelling": "Cancelling…",
+        "cancelled": "Scheduled reboot cancelled.",
+        "waiting": "Waiting for the box… this can take up to 2 minutes."
       },
       "run": {
         "title": "Latest install run",
@@ -906,7 +916,8 @@
         "warnInfo": "A release upgrade changes the whole system and can fail halfway. Do it by hand, in a console, at a quiet time, with a snapshot or backup.",
         "backupLink": "Download a backup in Settings, Data"
       },
-      "checkNow": "Check now"
+      "checkNow": "Check now",
+      "checkWaiting": "Checking for operating system updates… this can take a few minutes."
     },
     "run": {
       "title": {
@@ -1026,7 +1037,7 @@
           "Memories an administrator keeps (up to 100, each up to 300 characters; only the ones switched on, never a suggestion nobody accepted) are sent with every call that carries internal data, as fenced data the model is told never to obey, after the same masking and hooks as the rest; calls on public text only (CVE news, advisory translation) do not carry them.",
           "CVE news: the public exploited-list entry and the public text the box fetched for that CVE (flow 8: the NVD record, a vendor advisory, the GitHub repositories that name it, and blog posts that mention it), cleaned and capped, and nothing of your network.",
           "Documents an administrator adds to the knowledge base (PDF, MD, TXT or DOCX, up to 10 MB and 50 documents) are read and indexed on the box, and adding or indexing a document sends nothing anywhere; only the text kept from them, never the file, is stored. When a call is made for a job the document is assigned to, and the job carries internal data (not CVE news or advisory translation), the few passages of the text that match the question (up to 4 passages, 12,000 characters in all) are sent with that call, as fenced data the model is told never to obey, after the same masking and hooks, passage by passage, as the memories.",
-          "Ask your data (a question an operator types on the AI assistant page): the question and then, in answer to what the model asks for, the results of read-only tools: devices of the inventory (name, IP address, kind, vendor, model, operating system, open ports, software, whether approved, when it was first and last seen, whether it was found on the network or added manually, and which source saw it; never its notes), findings (device name and IP, CVE, status, severity, scan evidence summary), the exploited-list entry of a CVE with the devices it matches, whether a feed lists an IP address or a domain the model names, and the text a read tool of a connection you enabled returns from that device or server (never its credential). Each result is capped (4 KB a call, 12 KB a question, 8 calls; a list sends its counts and its first 10 rows), goes through the same masking and hooks as the question, result by result, and is sent as fenced data the model is told never to obey; a result a hook stops is not sent. When the privacy rule is on, only a profile inside your network receives these results.",
+          "Ask your data (a question an operator types on the AI assistant page): the question and then, in answer to what the model asks for, the results of read-only tools: devices of the inventory (name, IP address, kind, vendor, model, operating system, open ports, software, whether approved, when it was first and last seen, whether it was found on the network or added manually, and which source saw it; never its notes), findings (device name and IP, CVE, status, severity, scan evidence summary), the updates of one device (each update with its software, installed and fixed version, how many CVEs it fixes, their worst severity and how they are known), the exploited-list entry of a CVE with the devices it matches, whether a feed lists an IP address or a domain the model names, and the text a read tool of a connection you enabled returns from that device or server (never its credential). Each result is capped (4 KB a call, 12 KB a question, 8 calls; a list sends its counts and its first 10 rows unless the model asks for more: up to 50 rows, or a later page), goes through the same masking and hooks as the question, result by result, and is sent as fenced data the model is told never to obey; a result a hook stops is not sent. When the privacy rule is on, only a profile inside your network receives these results.",
           "Arguments of read tools: for a read tool of a connection the AI writes the arguments itself; they can contain data the AI saw from the box (masked by the personal-data hook, and checked by your before-tool hooks first), and they are sent to that connection. While the privacy rule is on, only tools of connections whose address is inside your network are offered.",
           "Every call: text from feeds and from devices is sent only as fenced data the model is told never to obey. Every call is written to the AI activity log as hashes only: the text sent and received is not stored. A profile marked as inside your network must use a private address or a name that resolves to one; this is checked at every connection."
         ],
@@ -1198,6 +1209,7 @@
       "empty": "No tokens yet. Create one so an outside tool can connect.",
       "never": "Never used",
       "revoke": "Revoke",
+      "revoking": "Revoking…",
       "revokeOf": "Revoke token {{name}}",
       "revoked": "Token {{name}} revoked.",
       "revokeAsk": {
@@ -1474,6 +1486,7 @@
       "end": "End",
       "current": "This session",
       "endBtn": "End",
+      "ending": "Ending…",
       "endOf": "End session {{device}} at {{ip}}",
       "endOthers": "End all other sessions",
       "ended": "Session ended.",
@@ -1514,7 +1527,8 @@
     "current": "Temporary password",
     "currentError": "Enter the temporary password you signed in with.",
     "sameError": "The new password must differ from the temporary one.",
-    "submit": "Save and continue"
+    "submit": "Save and continue",
+    "signingOut": "Signing out…"
   },
   "login": {
     "sso": "Sign in with SSO",
@@ -1540,6 +1554,7 @@
     "back": "Back",
     "next": "Continue",
     "finish": "Finish setup",
+    "finishing": "Setting up…",
     "terms": {
       "title": "Terms of use",
       "desc": "Read the terms of use. You accept them once, for this box.",
@@ -1658,6 +1673,7 @@
       },
       "check": "Check the backup",
       "checking": "Uploading and checking…",
+      "checkWaiting": "Uploading and checking the backup… a large backup can take a few minutes.",
       "checkedLabel": "What the backup holds",
       "checked": "Backup of {{org}}, made {{when}}, with {{users}} active users.",
       "withKey": "The key file is checked against the backup when you restore.",
@@ -1671,6 +1687,7 @@
       "understand": "I understand that without the key these are lost",
       "restore": "Restore",
       "importing": "Storing the backup…",
+      "importWaiting": "Storing the backup… this can take a minute.",
       "running": "Restoring the backup of {{org}}. Vedette restarts during the restore; this page reconnects by itself.",
       "reconnect": "Waiting for Vedette to come back.",
       "reconnectInfo": "If this stays for more than two minutes, reload the page: after a restore the box may show a new certificate, which you accept as on your first visit.",
@@ -1755,6 +1772,7 @@
       "restartNote": "If the box restarts before you confirm, it comes back on the old address.",
       "reverted": "The change was not confirmed in time, so the box went back to the old settings."
     },
+    "applyWaiting": "Applying the network settings… this can take up to 2 minutes.",
     "confirm": {
       "title": "Change the management address?",
       "body": "You will lose this page. Open https://{{ip}}:8443 within 5 minutes and confirm, or the box returns to the old settings.",
@@ -1771,6 +1789,8 @@
       "left": "Time left",
       "confirm": "Confirm: I opened the new address",
       "revert": "Cancel and go back now",
+      "reverting": "Going back…",
+      "waiting": "Waiting for the box… this can take up to a minute.",
       "confirmed": "New address confirmed.",
       "previousSettings": "the previous settings",
       "stuckTitle": "The box could not go back to the old network settings by itself",
@@ -1941,6 +1961,7 @@
       "previousLabel": "Earlier box addresses still answered to",
       "previous": "Also still answering to {{address}} (agents, firewalls and links set up with it).",
       "forget": "Stop answering to {{address}}",
+      "forgetting": "Forgetting…",
       "forgotten": "The box no longer answers to {{address}}.",
       "confirm": {
         "title": "Change the box address?",
@@ -1995,6 +2016,7 @@
     "test": "Test connection",
     "testNamed": "Test connection {{name}}",
     "testing": "Testing…",
+    "testWaiting": "Testing the connection… this can take up to {{s}} seconds.",
     "testOk": "Connected",
     "allowTitle": "Allow-list",
     "allowFor": "Allow-list of {{name}}",

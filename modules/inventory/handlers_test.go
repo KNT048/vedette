@@ -142,6 +142,21 @@ func TestHandlersRolesAndShapes(t *testing.T) {
 	}
 	a.want("POST", "/inventory/devices/"+id+"/approve", "operator", "", 200, "")
 
+	// D-601: the sources of a device, admin only; the device says them, the default resolved
+	if asset["scan_source"] != "off" || asset["snmp_source"] != "off" {
+		t.Fatalf("a hand-added device's sources = %v/%v", asset["scan_source"], asset["snmp_source"])
+	}
+	a.want("PUT", "/inventory/devices/"+id+"/sources", "operator", `{"snmp":"on"}`, 403, "forbidden")
+	if m := a.want("PUT", "/inventory/devices/"+id+"/sources", "admin", `{"snmp":"on"}`, 200, ""); m["snmp_source"] != "on" || m["scan_source"] != "off" {
+		t.Fatalf("sources = %v", m)
+	}
+	a.want("PUT", "/inventory/devices/"+id+"/sources", "admin", `{"snmp":"maybe"}`, 400, "invalid")
+	a.want("PUT", "/inventory/devices/"+id+"/sources", "admin", `{}`, 400, "bad_source")
+	a.want("PUT", "/inventory/devices/a-nope/sources", "admin", `{"scan":"off"}`, 404, "not_found")
+	if s := a.want("GET", "/inventory/devices/"+id, "viewer", "", 200, "")["asset"].(map[string]any); s["snmp_source"] != "on" {
+		t.Fatalf("detail after SNMP on = %v", s["snmp_source"])
+	}
+
 	// software
 	c := a.want("POST", "/inventory/devices/"+id+"/software", "operator", `{"catalog_id":"openvpn-access-server","version":"2.13"}`, 201, "")
 	if _, ok := c["kev_cves"]; !ok {

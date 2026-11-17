@@ -101,7 +101,7 @@ export default function ModulesSection() {
           {confirm?.kind === 'deps' ? <ul className="list-disc pl-5 text-sm">{confirm.missing.map((id) => <li key={id}>{name(id)}</li>)}</ul> : null}
           <DialogFooter>
             <Button onClick={() => setConfirm(null)}>{t('common:cancel')}</Button>
-            <Button variant="primary" disabled={toggle.isPending} onClick={() => confirm?.kind === 'deps' && void run(confirm.mod, true, true)}>{t('modules.deps.confirm')}</Button>
+            <Button variant="primary" busy={toggle.isPending} busyLabel={t('common:busy.turningOn')} onClick={() => confirm?.kind === 'deps' && void run(confirm.mod, true, true)}>{t('modules.deps.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -123,7 +123,7 @@ export default function ModulesSection() {
           {confirm?.kind === 'disable' ? <Slot name="modules.disable" props={{ module: confirm.mod, onClose: () => setConfirm(null) }} /> : null}
           <DialogFooter>
             <Button onClick={() => setConfirm(null)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={toggle.isPending} onClick={() => confirm?.kind === 'disable' && void run(confirm.mod, false)}>{t('modules.disable.confirm')}</Button>
+            <Button variant="danger" busy={toggle.isPending} busyLabel={t('common:busy.turningOff')} onClick={() => confirm?.kind === 'disable' && void run(confirm.mod, false)}>{t('modules.disable.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

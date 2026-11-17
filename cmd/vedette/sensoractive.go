@@ -133,6 +133,12 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 			if !ok {
 				return fmt.Errorf("unexpected payload %T", data)
 			}
+			// A person turned the device's network scan on (D-601): it waits in the queue for the next window, as a new device does.
+			if ev.ScanOn {
+				if err := svc.Enqueue(ctx, ev.AssetID, "scan_on"); err != nil {
+					return err
+				}
+			}
 			return svc.AssetChanged(ctx, ev.AssetID)
 		}))
 	}
@@ -235,6 +241,19 @@ func (a sensorInventory) ScanPolicy(ctx context.Context, assetID string) (sensor
 		Fragile: dec.Fragile, Unclassified: dec.Unclassified, Never: dec.Never}, nil
 }
 
+// SNMPPolicy implements sensoractive.Inventory (D-601).
+func (a sensorInventory) SNMPPolicy(ctx context.Context, assetID string) (sensoractive.Decision, error) {
+	dec, err := a.inv.SNMPPolicy(ctx, assetID)
+	if errors.Is(err, inventory.ErrNotFound) {
+		return sensoractive.Decision{}, sensoractive.ErrNotFound
+	}
+	if err != nil {
+		return sensoractive.Decision{}, err
+	}
+	return sensoractive.Decision{Allowed: dec.Allowed, Rate: dec.Rate, Reason: dec.Reason, FirstGentle: dec.Reason == inventory.ReasonFirstGentleScan,
+		Fragile: dec.Fragile, Unclassified: dec.Unclassified, Never: dec.Never}, nil
+}
+
 // PendingGentleScans implements sensoractive.PendingGentle (D-511).
 func (a sensorInventory) PendingGentleScans(ctx context.Context) ([]string, error) {
 	return a.inv.PendingGentleScans(ctx)
@@ -258,11 +277,11 @@ func (a sensorInventory) Asset(ctx context.Context, assetID string) (sensoractiv
 		return sensoractive.Asset{}, sensoractive.ErrNotFound
 	}
 	ip, _ := netip.ParseAddr(r.IP) // "—" (no IP known) gives the zero Addr
-	// A host name, else the model, else the vendor; else none ("a device"): Display may be a software or a kind.
+	// The name in Vedette or the host name, else the model, else the vendor; else none ("a device"): Display may be a software or a kind.
 	name := r.Vendor
 	switch {
-	case r.Hostname != nil && *r.Hostname != "":
-		name = *r.Hostname
+	case r.NameOrHost() != nil: // the name in Vedette, else the host name (G2)
+		name = *r.NameOrHost()
 	case r.Model != "":
 		name = r.Model
 	}

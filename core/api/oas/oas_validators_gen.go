@@ -50123,6 +50123,17 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.ScanSource.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan_source",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Services == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -50147,6 +50158,17 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "services",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.SnmpSource.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "snmp_source",
 			Error: err,
 		})
 	}
@@ -50995,6 +51017,17 @@ func (s InventoryGetInventoryDevicesIDOKAssetRegularScan) Validate() error {
 	}
 }
 
+func (s InventoryGetInventoryDevicesIDOKAssetScanSource) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *InventoryGetInventoryDevicesIDOKAssetServicesItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -51095,6 +51128,17 @@ func (s InventoryGetInventoryDevicesIDOKAssetServicesItemSource) Validate() erro
 	case "passive":
 		return nil
 	case "scan":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryDevicesIDOKAssetSnmpSource) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -51796,6 +51840,17 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.ScanSource.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan_source",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Services == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -51820,6 +51875,17 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "services",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.SnmpSource.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "snmp_source",
 			Error: err,
 		})
 	}
@@ -52714,6 +52780,17 @@ func (s InventoryGetInventoryDevicesOKItemsItemRegularScan) Validate() error {
 	}
 }
 
+func (s InventoryGetInventoryDevicesOKItemsItemScanSource) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -52814,6 +52891,17 @@ func (s InventoryGetInventoryDevicesOKItemsItemServicesItemSource) Validate() er
 	case "passive":
 		return nil
 	case "scan":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryDevicesOKItemsItemSnmpSource) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -53815,6 +53903,10 @@ func (s InventoryGetInventorySnmpIDReadOKResultsItemReason) Validate() error {
 		return nil
 	case "busy":
 		return nil
+	case "snmp_off":
+		return nil
+	case "excluded":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -54052,6 +54144,36 @@ func (s *InventoryPatchInventoryDevicesIDReq) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "kind",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Name.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     200,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "name",
 			Error: err,
 		})
 	}
@@ -56251,6 +56373,10 @@ func (s InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) Validate() er
 		return nil
 	case "busy":
 		return nil
+	case "snmp_off":
+		return nil
+	case "excluded":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -56327,6 +56453,10 @@ func (s InventoryPostInventorySnmpIDTestOKReason) Validate() error {
 	case "unavailable":
 		return nil
 	case "busy":
+		return nil
+	case "snmp_off":
+		return nil
+	case "excluded":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -56856,6 +56986,132 @@ func (s *InventoryPutInventoryAgentsWazuhReq) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *InventoryPutInventoryDevicesIDSourcesOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.ScanSource.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan_source",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.SnmpSource.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "snmp_source",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryPutInventoryDevicesIDSourcesOKScanSource) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPutInventoryDevicesIDSourcesOKSnmpSource) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryPutInventoryDevicesIDSourcesReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Scan.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scan",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Snmp.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "snmp",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryPutInventoryDevicesIDSourcesReqScan) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPutInventoryDevicesIDSourcesReqSnmp) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *InventoryPutInventorySettingsOK) Validate() error {

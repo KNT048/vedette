@@ -40,15 +40,15 @@ function Handle({ d }: { d: IncidentDetail }) {
             {a.status === 'acknowledged' ? <p className="text-sm">{t('detail.handledBy', { status: t('incidents.status.acknowledged'), user: a.handled_by ?? '', time: fmtDateTime(a.handled_at) })} {a.note ? t('detail.noteShown', { note: a.note }) : null}</p> : null}
             <Field label={t('detail.note')} htmlFor="al-note"><Textarea id="al-note" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder={t('detail.notePlaceholder')} disabled={!can} /></Field>
             <div className="flex flex-wrap gap-2">
-              {a.status === 'new' ? <Button disabled={!can || set.isPending} title={need} onClick={() => go('acknowledged')}>{t('detail.acknowledge')}</Button> : null}
-              <Button variant="primary" disabled={!can || set.isPending} title={need} onClick={() => go('resolved')}>{t('detail.resolve')}</Button>
-              {a.status === 'acknowledged' ? <Button disabled={!can || set.isPending} title={need} onClick={() => go('new')}><RotateCcw />{t('detail.reopen')}</Button> : null}
+              {a.status === 'new' ? <Button disabled={!can || set.isPending} busy={set.isPending && set.variables?.status === 'acknowledged'} busyLabel={t('detail.acknowledging')} title={need} onClick={() => go('acknowledged')}>{t('detail.acknowledge')}</Button> : null}
+              <Button variant="primary" disabled={!can || set.isPending} busy={set.isPending && set.variables?.status === 'resolved'} busyLabel={t('detail.resolving')} title={need} onClick={() => go('resolved')}>{t('detail.resolve')}</Button>
+              {a.status === 'acknowledged' ? <Button disabled={!can || set.isPending} busy={set.isPending && set.variables?.status === 'new'} busyLabel={t('detail.reopening')} title={need} onClick={() => go('new')}><RotateCcw />{t('detail.reopen')}</Button> : null}
             </div>
           </>
         ) : (
           <>
             <p className="text-sm">{a.resolved_reason ? t('detail.closedBy', { reason: a.resolved_reason, time: fmtDateTime(a.handled_at) }) : t('detail.handledBy', { status: t('incidents.status.resolved'), user: a.handled_by ?? '', time: fmtDateTime(a.handled_at) })} {a.note ? t('detail.noteShown', { note: a.note }) : null}</p>
-            <div><Button disabled={!can || set.isPending} title={need} onClick={() => go('new')}><RotateCcw />{t('detail.reopen')}</Button></div>
+            <div><Button disabled={!can || set.isPending} busy={set.isPending && set.variables?.status === 'new'} busyLabel={t('detail.reopening')} title={need} onClick={() => go('new')}><RotateCcw />{t('detail.reopen')}</Button></div>
           </>
         )}
       </div>
@@ -82,7 +82,7 @@ function Content() {
         return (
           <>
             <PageHeader breadcrumbs={crumbs} title={a.title} meta={t('detail.meta', { time: fmtDateTime(a.first_seen) })} stories={['S-ALERT-3']}
-              actions={respond ? <Button asChild><Link to={`/response?incident=${encodeURIComponent(a.id)}`}>{t('detail.respond')}</Link></Button> : undefined} />
+              actions={respond && a.status !== 'resolved' ? <Button asChild><Link to={`/response?incident=${encodeURIComponent(a.id)}`}>{t('detail.respond')}</Link></Button> : undefined} />
             <Section id="summary" title={t('detail.summary')}>
               <Card>
               <KeyValue items={[

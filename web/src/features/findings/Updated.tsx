@@ -9,7 +9,7 @@ import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import { useCan } from '@/lib/session'
 import type { SoftwareView } from '@/features/inventory/types'
-import { deviceName, hasIp } from './basis'
+import { deviceName, hasIp, isOpen } from './basis'
 import { errMsg } from './errors'
 import type { FindingAsset, FindingDetail } from './types'
 import { softwareFor, useDeviceSoftware, useSetVersion, type Outcome } from './rematch'
@@ -17,7 +17,9 @@ import { softwareFor, useDeviceSoftware, useSetVersion, type Outcome } from './r
 const ERRORS = ['bad_version', 'duplicate_software', 'not_manual']
 
 /** One button and its dialog for one software of one device. `fixed` prefills the version (D-488 `fixed`), if known. */
-export function IUpdated({ asset, software, fixed, size }: { asset: FindingAsset; software: SoftwareView; fixed?: string; size?: 'sm' }) {
+/** `active`: an open finding is behind it (kien G5: no "I updated" on what is already closed); the button stays while its own dialog
+ * is open, so the dialog can say what the re-match closed. */
+export function IUpdated({ asset, software, fixed, size, active = true }: { asset: FindingAsset; software: SoftwareView; fixed?: string; size?: 'sm'; active?: boolean }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
   const manual = software.source === 'manual'
@@ -57,9 +59,11 @@ export function IUpdated({ asset, software, fixed, size }: { asset: FindingAsset
 
   return (
     <>
-      <Button size={size} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => show(true)}>
-        {manual ? t('updated.button', { software: sw }) : t('updated.buttonScan')}
-      </Button>
+      {active || open ? (
+        <Button size={size} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => show(true)}>
+          {manual ? t('updated.button', { software: sw }) : t('updated.buttonScan')}
+        </Button>
+      ) : null}
       <Dialog open={open} onOpenChange={show}>
         <DialogContent title={t('updated.title', { software: sw })} description={manual ? t('updated.description', { device }) : undefined} info={manual ? t('updated.descriptionInfo', { software: sw }) : undefined}>
           {software.source === 'agent' ? (
@@ -84,7 +88,7 @@ export function IUpdated({ asset, software, fixed, size }: { asset: FindingAsset
             {manual && !done ? (
               <>
                 <Button onClick={() => show(false)}>{t('common:cancel')}</Button>
-                <Button variant="primary" disabled={set.isPending} onClick={submit}>{set.isPending ? t('updated.checking') : t('updated.submit')}</Button>
+                <Button variant="primary" busy={set.isPending} busyLabel={t('updated.checking')} onClick={submit}>{t('updated.submit')}</Button>
               </>
             ) : <Button onClick={() => show(false)}>{t('common:close')}</Button>}
           </DialogFooter>
@@ -99,5 +103,5 @@ export function IUpdatedFinding({ f }: { f: FindingDetail }) {
   const q = useDeviceSoftware(f.asset?.id)
   if (!f.asset) return null
   const fixed = f.fixed_in?.kind === 'fixed' ? f.fixed_in.fixed : undefined
-  return softwareFor(q.data?.asset.software, f.cve).map((s) => <IUpdated key={s.id} asset={f.asset!} software={s} fixed={fixed} />)
+  return softwareFor(q.data?.asset.software, f.cve).map((s) => <IUpdated key={s.id} asset={f.asset!} software={s} fixed={fixed} active={isOpen(f.status)} />)
 }

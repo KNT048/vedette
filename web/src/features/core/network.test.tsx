@@ -402,13 +402,14 @@ describe('box network: the page', () => {
     // The box keeps nothing until the person confirms, so the toast says so (issue #242).
     expect(await screen.findByText('Applied. Confirm the new address in time or the box goes back to the old one.', undefined, T)).toBeInTheDocument()
     expect(screen.queryByText('Management settings saved.')).not.toBeInTheDocument()
-    const banner = await screen.findByRole('status', undefined, T)
+    // the banner is the status region that holds the pending change (the busy notes beside the forms are status regions too)
+    const banner = (await screen.findByText('Waiting for you to confirm at 192.168.10.200', undefined, T)).closest<HTMLElement>('[role="status"]')!
     expect(banner).toHaveTextContent('Waiting for you to confirm at 192.168.10.200')
     expect(banner).toHaveTextContent(/Time left: 4:5\d|Time left: 5:00/)
     expect(form.getByLabelText('IP address')).toBeDisabled() // no second change while one is pending
     await expectNoA11yViolations()
     await u.click(within(banner).getByRole('button', { name: 'Confirm: I opened the new address' }))
-    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument(), T)
+    await waitFor(() => expect(screen.queryByText('Waiting for you to confirm at 192.168.10.200')).not.toBeInTheDocument(), T)
     expect((await get()).management.address).toBe('192.168.10.200')
     expect(form.getByLabelText('IP address')).toHaveValue('192.168.10.200')
   })

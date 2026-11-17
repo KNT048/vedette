@@ -13,12 +13,13 @@ import type { Safety } from './types'
 
 /** What a device needs for "Check this device now" (nmap), as POST /scanning/engines/nmap-discovery/run refuses it (sensor-active
  *  runnow.go: the box and outside the scope are out_of_scope; never scan, added by hand, no address are not_scannable). */
-type Facts = { is_box: boolean; ip: string; origin: 'discovered' | 'manual'; regular_scan: 'follow' | 'allow' | 'never' }
+type Facts = { is_box: boolean; ip: string; origin: 'discovered' | 'manual'; regular_scan: 'follow' | 'allow' | 'never'; scan_source: 'on' | 'off' }
 type NmapRefusal = 'box' | 'no_ip' | 'manual' | 'never' | 'out_of_scope'
 function nmapRefusal(d: Facts, safety?: Safety): NmapRefusal | null {
   if (d.is_box) return 'box'
   if (!d.ip || d.ip === '—') return 'no_ip'
-  if (d.origin === 'manual') return 'manual'
+  // D-601: the device's network scan, on or off on its Sources card (a device added by hand starts off; off is "never" to the server)
+  if (d.scan_source === 'off') return d.origin === 'manual' ? 'manual' : 'never'
   if (d.regular_scan === 'never') return 'never'
   // the scope check runs only once there are ranges: with none, the button already says the ranges are not confirmed
   if (safety && safety.scope.lan_ranges.length && (!inRanges(d.ip, safety.scope.lan_ranges) || inRanges(d.ip, safety.exclusions))) return 'out_of_scope'

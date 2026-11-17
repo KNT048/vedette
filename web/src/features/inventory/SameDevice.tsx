@@ -123,7 +123,7 @@ function MergeDialog({ me, other, onClose }: { me: Me; other: PossibleSame; onCl
         {error ? <p role="alert" className="text-meta text-danger [overflow-wrap:anywhere]">{error}</p> : null}
         <DialogFooter>
           <DialogClose asChild><Button disabled={merge.isPending}>{t('common:cancel')}</Button></DialogClose>
-          <Button variant="danger" disabled={merge.isPending} onClick={confirm}>{t('same.mergeConfirm', { into: said(kept) })}</Button>
+          <Button variant="danger" busy={merge.isPending} busyLabel={t('same.merging')} onClick={confirm}>{t('same.mergeConfirm', { into: said(kept) })}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -149,7 +149,7 @@ function KeepDialog({ me, other, onClose }: { me: Me; other: PossibleSame; onClo
         {error ? <p role="alert" className="text-meta text-danger [overflow-wrap:anywhere]">{error}</p> : null}
         <DialogFooter>
           <DialogClose asChild><Button disabled={keepSeparate.isPending}>{t('common:cancel')}</Button></DialogClose>
-          <Button variant="primary" disabled={keepSeparate.isPending} onClick={confirm}>{t('same.keepConfirm')}</Button>
+          <Button variant="primary" busy={keepSeparate.isPending} busyLabel={t('common:busy.saving')} onClick={confirm}>{t('same.keepConfirm')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

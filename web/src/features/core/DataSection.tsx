@@ -5,11 +5,12 @@ import { Download } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { DownloadButton } from '@/components/common/DownloadButton'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
-import { api, download } from '@/lib/api'
+import { api } from '@/lib/api'
 import { useMe } from '@/lib/session'
 import { resetMockDb } from '@/mocks/db'
 
@@ -42,7 +43,7 @@ export default function DataSection() {
   const [purgeErr, setPurgeErr] = useState<string | null>(null)
   const [askReset, setAskReset] = useState(false)
 
-  const dl = (path: string, file: string) => () => void download(path, file).then((saved) => toast.success(t('data.downloaded', { file: saved }))).catch((e) => toast.error(errMsg(e, t)))
+  const dl = (path: string, filename: string) => ({ path, filename, onSaved: (saved: string) => toast.success(t('data.downloaded', { file: saved })), onError: (e: unknown) => toast.error(errMsg(e, t)) })
   const [day] = useState(() => new Date().toISOString().slice(0, 10))
 
   const [picked, setCats] = useState<LogCategory[]>(LOG_CATEGORIES.map((c) => c.id))
@@ -76,7 +77,7 @@ export default function DataSection() {
         <>
           <Section id="backup" title={t('data.backup.title')} description={t('data.backup.desc')} info={t('data.backup.info')}>
             <Card className="max-w-3xl">
-              <Button id="backup-download" disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</Button>
+              <DownloadButton id="backup-download" disabled={gate.disabled} title={gate.title} {...dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</DownloadButton>
               <KeyAside disabled={gate.disabled} title={gate.title} />
             </Card>
           </Section>
@@ -86,7 +87,7 @@ export default function DataSection() {
         </>
       ) : <InstallPending />}
       <Section id="export" title={t('data.export.title')} description={t('data.export.desc')} info={t('data.export.info')}>
-        <Card className="max-w-3xl"><Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/export', `vedette-export-${day}.json`)}><Download />{t('data.export.button')}</Button></Card>
+        <Card className="max-w-3xl"><DownloadButton disabled={gate.disabled} title={gate.title} {...dl('/core/data/export', `vedette-export-${day}.json`)}><Download />{t('data.export.button')}</DownloadButton></Card>
       </Section>
       <Section id="logs-export" title={t('data.logs.title')} description={t('data.logs.desc')} info={<><p>{t('data.logs.info')}</p><p>{t('data.logs.verify')}</p></>} stories={['S-CORE-6']}>
         <Card className="grid max-w-3xl gap-4">
@@ -107,7 +108,7 @@ export default function DataSection() {
             <Field label={t('data.logs.format')} htmlFor="log-format"><Select id="log-format" value={fmt} onChange={(e) => setFmt(e.target.value as 'json' | 'csv')} disabled={gate.disabled}><option value="json">JSON</option><option value="csv">CSV</option></Select></Field>
           </div>
           {logsErr ? <p role="alert" className="text-sm text-danger">{logsErr}</p> : null}
-          <div><Button disabled={gate.disabled || !!logsErr} title={gate.title} onClick={dl(`/core/logs/export?${logsExportQuery(cats, fmt, from, to)}`, `vedette-logs-${day}.${fmt}`)}><Download />{t('data.logs.button')}</Button></div>
+          <div><DownloadButton disabled={gate.disabled || !!logsErr} title={gate.title} {...dl(`/core/logs/export?${logsExportQuery(cats, fmt, from, to)}`, `vedette-logs-${day}.${fmt}`)}><Download />{t('data.logs.button')}</DownloadButton></div>
         </Card>
       </Section>
       <Section id="purge" title={t('data.purge.title')} description={t('data.purge.desc')} info={t('data.purge.info')}>
@@ -135,7 +136,7 @@ export default function DataSection() {
           ) : null}
           <DialogFooter>
             <Button onClick={() => setAskPurge(false)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={typed !== org || !password || purge.isPending} onClick={() => void doPurge()}>{t('data.purge.ask.confirm')}</Button>
+            <Button variant="danger" disabled={typed !== org || !password} busy={purge.isPending} busyLabel={t('common:busy.deleting')} onClick={() => void doPurge()}>{t('data.purge.ask.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -219,7 +220,7 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
           {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
           <DialogFooter>
             <Button onClick={() => setPick(null)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={!sure || !password || restore.isPending} onClick={() => void doRestore()}>{t('data.restore.ask.confirm')}</Button>
+            <Button variant="danger" disabled={!sure || !password} busy={restore.isPending} busyLabel={t('common:busy.restoring')} onClick={() => void doRestore()}>{t('data.restore.ask.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -264,7 +265,7 @@ function KeyAside({ disabled, title }: { disabled: boolean; title?: string }) {
           {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
           <DialogFooter>
             <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
-            <Button variant="primary" disabled={!password || key.isPending} onClick={() => void save()}>{t('data.key.ask.confirm')}</Button>
+            <Button variant="primary" disabled={!password} busy={key.isPending} busyLabel={t('common:busy.working')} onClick={() => void save()}>{t('data.key.ask.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -177,23 +177,28 @@ function Weekly() {
   return (
     <Section id="weekly" title={t('weekly.title')} description={t('weekly.description')} info={t('weekly.descriptionInfo')} stories={['S-FEED-2']}>
       <QueryState query={weekly}>
-        {(d) => (
+        {(d) => {
+          const items = d.items.filter((i) => i.answer !== 'not_relevant')
+          // kien G5: no empty bordered list; one line says there is nothing this week
+          if (items.length === 0) return <p className="text-sm text-muted">{t('weekly.none')}</p>
+          return (
           <ol className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
-            {d.items.filter((i) => i.answer !== 'not_relevant').map((i) => (
+            {items.map((i) => (
               <li key={i.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
                 <p className="max-w-[72ch] text-sm leading-relaxed">{i.text} <Link to={`/cve/${i.cve}`} className="text-meta text-accent underline-offset-4 hover:underline">{i.cve}</Link></p>
                 <div className="flex gap-2">
                   {i.answer === 'have' ? <span className="text-meta text-ok">{t('weekly.added')}</span> : (
                     <>
-                      <Button size="sm" variant="primary" disabled={!canAct || answer.isPending} title={canAct ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => send(i.id, 'have')}>{t('weekly.have')}</Button>
-                      <Button size="sm" disabled={!canAct || answer.isPending} onClick={() => send(i.id, 'not_relevant')}>{t('weekly.notRelevant')}</Button>
+                      <Button size="sm" variant="primary" disabled={!canAct || answer.isPending} busy={answer.isPending && answer.variables?.id === i.id && answer.variables.answer === 'have'} busyLabel={t('common:busy.adding')} title={canAct ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => send(i.id, 'have')}>{t('weekly.have')}</Button>
+                      <Button size="sm" disabled={!canAct || answer.isPending} busy={answer.isPending && answer.variables?.id === i.id && answer.variables.answer === 'not_relevant'} busyLabel={t('common:busy.saving')} onClick={() => send(i.id, 'not_relevant')}>{t('weekly.notRelevant')}</Button>
                     </>
                   )}
                 </div>
               </li>
             ))}
           </ol>
-        )}
+          )
+        }}
       </QueryState>
     </Section>
   )

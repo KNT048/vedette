@@ -106,16 +106,34 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(auditStore.get().some((a) => a.action === 'report.weekly.send')).toBe(true)
   })
 
-  it('no recipients: cannot send and the server says how to fix it', async () => {
+  it('kien G1: Send and Write AI commentary show the shared busy state and say what they wait for', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => { release = r })
+    // both wait, then fall through to the mock's own handlers
+    server.use(http.post('*/api/v1/reports/weekly/send', async () => { await gate }), http.post('*/api/v1/reports/weekly/ai-summary', async () => { await gate }))
+    renderApp('/reports')
+    const ai = await screen.findByRole('button', { name: 'Write AI commentary' })
+    await enabled(ai)
+    await userEvent.click(ai)
+    await waitFor(() => expect(ai).toHaveAttribute('aria-busy', 'true'))
+    expect(screen.getByText(/Asking your AI to write the commentary… this can take up to a minute\./)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Send now' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Send the weekly report now?' })
+    await within(dlg).findByText('director@acme.example')
+    const send = within(dlg).getByRole('button', { name: 'Send' })
+    await userEvent.click(send)
+    await waitFor(() => expect(send).toHaveAttribute('aria-busy', 'true'))
+    expect(within(dlg).getByText(/Sending the report through your email channel… this can take up to a minute\./)).toBeInTheDocument()
+    release()
+    expect((await screen.findAllByText('Weekly report sent')).length).toBeGreaterThan(0)
+  })
+
+  it('no recipients: no Send now (kien G5: nothing to send to), one line says what to add, and the server says how to fix it', async () => {
     sessionStore.set({ userId: 'u-admin' })
     expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: false, day: 1, hour: 8, recipients: [] }) })).status).toBe(200)
     renderApp('/reports')
-    const btn = await screen.findByRole('button', { name: 'Send now' })
-    await enabled(btn)
-    await userEvent.click(btn)
-    const dlg = await screen.findByRole('dialog')
-    await waitFor(() => expect(within(dlg).getByText(/No recipients yet/)).toBeInTheDocument())
-    expect(within(dlg).getByRole('button', { name: 'Send' })).toBeDisabled()
+    expect(await screen.findByText('No recipients yet. Add emails under Schedule and recipients.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Send now' })).toBeNull()
     const res = await api('/reports/weekly/send', { method: 'POST', body: '{}' })
     expect(res.status).toBe(400)
     expect(((await res.json()) as { error: { message: string } }).error.message).toMatch(/Add an email/)

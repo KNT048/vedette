@@ -62,7 +62,9 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
   it('D-543: Open holds new and acknowledged, Resolved the closed ones (?tab=); the kind filter narrows; the KPI cells link to the lists', async () => {
     renderApp('/incidents')
     const strip = await screen.findByRole('list', { name: 'Incidents at a glance' })
-    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/incidents?tab=open', '/incidents?tab=open&severity=urgent', '/incidents?tab=open&sent=no'])
+    // kien G5: a 0 opens nothing, so "0 Open, not sent" is plain text, not a link to an empty list
+    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/incidents?tab=open', '/incidents?tab=open&severity=urgent'])
+    expect(strip).toHaveTextContent(/0\s*Open, not sent/)
     expect(within(within(strip).getByRole('link', { name: /High and critical open/ })).getByText('2')).toBeInTheDocument()
     await screen.findByRole('table', { name: 'Incidents' })
     expect(screen.getByText('A new unknown device appeared: 192.168.10.157')).toBeInTheDocument() // acknowledged stays in Open
@@ -680,9 +682,12 @@ describe('notify: alert channels (S-NOT-1)', () => {
     }))
     renderChannels()
     await press('Send test Telegram')
-    expect(await within(screen.getByRole('table', { name: 'Alert channels' })).findByText('Sending test…')).toBeInTheDocument()
+    const table = screen.getByRole('table', { name: 'Alert channels' })
+    expect(await within(table).findByText(/Sending a test message… this can take up to 45 seconds/)).toBeInTheDocument()
+    // kien G1: the pressed button shows the shared busy state
+    expect(within(table).getByRole('button', { name: 'Sending…' })).toHaveAttribute('aria-busy', 'true')
     answer()
-    await waitFor(() => expect(screen.queryByText('Sending test…')).toBeNull())
+    await waitFor(() => expect(screen.queryByText(/Sending a test message/)).toBeNull())
   })
 
   it('Send test (walk 3 G13): a failed last test is shown as text with the reason and an "on but failed" hint', async () => {

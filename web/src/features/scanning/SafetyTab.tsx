@@ -184,7 +184,7 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
               ))}
             </div>
           </fieldset>
-          <Link to="/devices?show=fragile" className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t('safety.fragileDevices', { count: devices })}</Link>
+          {devices > 0 ? <Link to="/devices?show=fragile" className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t('safety.fragileDevices', { count: devices })}</Link> : null}
         </Card>
       </Section>
 
@@ -200,7 +200,7 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
       </Section>
 
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      <div><Button type="submit" variant="primary" disabled={dis || save.isPending}>{t('safety.save')}</Button></div>
+      <div><Button type="submit" variant="primary" disabled={dis} busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('safety.save')}</Button></div>
     </form>
   )
 }

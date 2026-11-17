@@ -8,6 +8,7 @@ import { OldHashToTab, PageTabs } from '@/components/common/PageFrame'
 import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -114,11 +115,12 @@ function Pending({ d }: { d: NetworkState }) {
   return (
     <Notice tone="warn" role="status" className="mb-4" title={t('network.pending.title', { ip })}
       actions={<>
-        <Button variant="primary" disabled={confirm.isPending} onClick={() => { settled.current = true; setError(null); confirm.mutate(undefined, { onSuccess: () => toast.success(t('network.pending.confirmed')), onError: (e) => setError(errMsg(e, t)) }) }}>{t('network.pending.confirm')}</Button>
-        <Button disabled={revert.isPending} onClick={() => { settled.current = true; setError(null); revert.mutate(undefined, { onSuccess: () => toast.success(t('network.management.revertedNow')), onError: (e) => setError(errMsg(e, t)) }) }}>{t('network.pending.revert')}</Button>
+        <Button variant="primary" disabled={revert.isPending} busy={confirm.isPending} busyLabel={t('common:busy.confirming')} onClick={() => { settled.current = true; setError(null); confirm.mutate(undefined, { onSuccess: () => toast.success(t('network.pending.confirmed')), onError: (e) => setError(errMsg(e, t)) }) }}>{t('network.pending.confirm')}</Button>
+        <Button disabled={confirm.isPending} busy={revert.isPending} busyLabel={t('network.pending.reverting')} onClick={() => { settled.current = true; setError(null); revert.mutate(undefined, { onSuccess: () => toast.success(t('network.management.revertedNow')), onError: (e) => setError(errMsg(e, t)) }) }}>{t('network.pending.revert')}</Button>
       </>}>
       <p className="text-ink">{t('network.pending.body', { ip, old: d.pending.previous_address ?? t('network.pending.previousSettings') })}</p>
       <p className="mt-1 text-ink" aria-live="off">{t('network.pending.left')}: <strong className="tabular-nums">{mmss(left)}</strong></p>
+      <BusyNote busy={confirm.isPending || revert.isPending} className="mt-1">{t('network.pending.waiting')}</BusyNote>
       {error ? <p role="alert" className="mt-1 text-danger">{error}</p> : null}
     </Notice>
   )
@@ -179,7 +181,8 @@ function ManagementForm({ d }: { d: NetworkState }) {
           </>
         )}
         {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-        <div><Button type="submit" variant="primary" disabled={locked || management.isPending} title={gate.title}>{t('network.management.save')}</Button></div>
+        <div><Button type="submit" variant="primary" disabled={locked || management.isPending} busy={management.isPending && !ask} busyLabel={t('common:busy.applying')} title={gate.title}>{t('network.management.save')}</Button></div>
+        <BusyNote busy={management.isPending && !ask}>{t('network.applyWaiting')}</BusyNote>
         <p className="max-w-lg text-meta text-muted">{t('network.management.restartNote')}</p>
       </form>
       </Card>
@@ -190,8 +193,9 @@ function ManagementForm({ d }: { d: NetworkState }) {
             <p className="text-sm">{t('network.confirm.signIn')}</p>
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-              <Button variant="primary" disabled={management.isPending} onClick={() => send(true)}>{t('network.confirm.go')}</Button>
+              <Button variant="primary" busy={management.isPending} busyLabel={t('common:busy.applying')} onClick={() => send(true)}>{t('network.confirm.go')}</Button>
             </DialogFooter>
+            <BusyNote busy={management.isPending}>{t('network.applyWaiting')}</BusyNote>
           </DialogContent>
         </Dialog>
       ) : null}
@@ -222,7 +226,8 @@ function NtpForm({ d }: { d: NetworkState }) {
         ? <Field label={t('network.ntp.servers')} htmlFor="ntp-servers" hint={t('network.ntp.serversHint')} info={t('network.ntp.serversInfo')}><Input id="ntp-servers" autoComplete="off" value={servers} disabled={gate.disabled} placeholder="ntp.company.lan" onChange={(e) => setServers(e.target.value)} /></Field>
         : <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('network.ntp.defaultNote')}</p><InfoTip topic={t('network.ntp.default')}>{t('network.ntp.defaultInfo', { pool: d.default_ntp })}</InfoTip></div>}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      <div><Button type="submit" variant="primary" disabled={gate.disabled || ntp.isPending} title={gate.title}>{t('common:save')}</Button></div>
+      <div><Button type="submit" variant="primary" disabled={gate.disabled} busy={ntp.isPending} busyLabel={t('common:busy.applying')} title={gate.title}>{t('common:save')}</Button></div>
+      <BusyNote busy={ntp.isPending}>{t('network.applyWaiting')}</BusyNote>
     </form>
     </Card>
   )
@@ -264,7 +269,7 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
           {b.previous.map((p) => (
             <li key={p} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-meta">
               <span>{t('network.boxAddress.previous', { address: p })}</span>
-              <Button type="button" size="sm" disabled={gate.disabled || forgetBoxAddress.isPending} title={gate.title}
+              <Button type="button" size="sm" disabled={gate.disabled || forgetBoxAddress.isPending} busy={forgetBoxAddress.isPending && forgetBoxAddress.variables === p} busyLabel={t('network.boxAddress.forgetting')} title={gate.title}
                 onClick={() => forgetBoxAddress.mutate(p, { onSuccess: () => toast.success(t('network.boxAddress.forgotten', { address: p })), onError: (er) => toast.error(errMsg(er, t)) })}>
                 {t('network.boxAddress.forget', { address: p })}
               </Button>
@@ -272,13 +277,13 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
           ))}
         </ul>
       ) : null}
-      <div><Button type="submit" variant="primary" disabled={gate.disabled || boxAddress.isPending} title={gate.title}>{t('common:save')}</Button></div>
+      <div><Button type="submit" variant="primary" disabled={gate.disabled} busy={boxAddress.isPending} busyLabel={t('common:busy.saving')} title={gate.title}>{t('common:save')}</Button></div>
       {ask !== null && b.address ? (
         <Dialog open onOpenChange={(o) => { if (!o) setAsk(null) }}>
           <DialogContent title={t('network.boxAddress.confirm.title')} description={t(ask ? 'network.boxAddress.confirm.body' : 'network.boxAddress.confirm.bodyDefault', { from: b.address, to: ask, def: b.default ?? '' })} info={t('network.boxAddress.confirm.keeps', { from: b.address })}>
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-              <Button variant="primary" disabled={boxAddress.isPending} onClick={() => save(ask)}>{t('network.boxAddress.confirm.go')}</Button>
+              <Button variant="primary" busy={boxAddress.isPending} busyLabel={t('common:busy.saving')} onClick={() => save(ask)}>{t('network.boxAddress.confirm.go')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

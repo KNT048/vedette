@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { InfoTip } from '@/components/common/InfoTip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { fmtRelative } from '@/lib/format'
 import { dateText, dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
@@ -78,10 +79,12 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
                 </Select>
               </Field>
             ) : null}
-            <Button onClick={detectNow} disabled={!can || detect.isPending || wait !== null} title={locked ?? waitText}>
-              <RefreshCw className={detect.isPending ? 'animate-spin motion-reduce:animate-none' : undefined} />{detect.isPending ? t('boxIp.detecting') : t('boxIp.detect')}
+            <Button onClick={detectNow} disabled={!can || wait !== null} busy={detect.isPending} busyLabel={t('boxIp.detecting')} title={locked ?? waitText}>
+              <RefreshCw />{t('boxIp.detect')}
             </Button>
           </div>
+          {/* kien G1: a full check asks three public services over 5 rounds (5 s each at most) */}
+          <BusyNote busy={detect.isPending}>{t('boxIp.detectWaiting')}</BusyNote>
           {waitText ? <p className="max-w-3xl text-meta text-warn">{waitText}</p> : null}
           {!can ? <p className="text-meta text-muted">{locked}</p> : null}
           {run ? (
@@ -127,7 +130,7 @@ function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
   const can = useCan('admin')
   const restore = useRestoreIgnored()
   const go = (ip: string) => restore.mutate(ip, { onSuccess: () => toast.success(t('boxIp.ignored.toast', { value: ip })), onError: (e) => toast.error(errMsg(e)) })
-  const btn = (r: IgnoredIp) => <Button onClick={() => go(r.value)} disabled={!can || restore.isPending} aria-label={t('boxIp.ignored.restoreLabel', { value: r.value })} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}>{t('boxIp.ignored.restore')}</Button>
+  const btn = (r: IgnoredIp) => <Button onClick={() => go(r.value)} disabled={!can || restore.isPending} busy={restore.isPending && restore.variables === r.value} busyLabel={t('common:busy.restoring')} aria-label={t('boxIp.ignored.restoreLabel', { value: r.value })} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}>{t('boxIp.ignored.restore')}</Button>
   const columns: ColumnDef<IgnoredIp>[] = [
     { id: 'ip', header: t('boxIp.ignored.col.ip'), accessorFn: (r) => r.value, cell: ({ row }) => <span className="font-medium">{row.original.value}</span> },
     { id: 'by', header: t('boxIp.ignored.col.by'), accessorFn: (r) => r.ignored_by },

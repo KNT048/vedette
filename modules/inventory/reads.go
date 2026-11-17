@@ -15,7 +15,7 @@ import (
 
 const noIP = "—" // what the API says for a device whose IP is unknown (contract.ts Asset.ip)
 
-const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.kind, k.source, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen,
+const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.user_name, a.kind, k.source, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen, coalesce(a.scan_source, ''), coalesce(a.snmp_source, ''),
 	v.value, v.source, v.confidence, v.seen_at, m.value, m.source, m.confidence, m.seen_at, o.value, o.source, o.confidence, o.seen_at,
 	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at`
 
@@ -42,6 +42,10 @@ func (c obsCols) observed() *Observed {
 // loadDevices reads devices (with software and services) for a WHERE clause on inv_asset a; the rows
 // are ordered box first, then newest first. limit 0 = no limit.
 func (s *Service) loadDevices(ctx context.Context, q querier, where string, limit int, args ...any) ([]Device, error) {
+	st, err := loadSettings(ctx, q) // the LAN ranges say whether a default SNMP switch reaches the device (D-601, review r2 M1)
+	if err != nil {
+		return nil, err
+	}
 	query := `SELECT ` + assetColumns + assetFrom + ` ` + where + ` ORDER BY a.is_box DESC, a.first_seen DESC, a.id`
 	if limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", limit)
@@ -54,10 +58,10 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 	var out []Device
 	for rows.Next() {
 		var d Device
-		var ip, mac, host, scan, approvedAt, notes, kindSrc sql.NullString
+		var ip, mac, host, userName, scan, approvedAt, notes, kindSrc sql.NullString
 		var v, m, o, h, x obsCols
 		var approved, fragile, suspicious, box bool
-		if err := rows.Scan(&d.ID, &ip, &mac, &host, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen,
+		if err := rows.Scan(&d.ID, &ip, &mac, &host, &userName, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen, &d.ScanSource, &d.SNMPSource,
 			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen,
 			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
@@ -67,10 +71,11 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		if ip.Valid {
 			d.IP = ip.String
 		}
-		d.MAC, d.Hostname, d.FirstScanAt, d.ApprovedAt, d.Notes, d.KindSource = ptr(mac), ptr(host), ptr(scan), ptr(approvedAt), ptr(notes), ptr(kindSrc)
+		d.MAC, d.Hostname, d.UserName, d.FirstScanAt, d.ApprovedAt, d.Notes, d.KindSource = ptr(mac), ptr(host), ptr(userName), ptr(scan), ptr(approvedAt), ptr(notes), ptr(kindSrc)
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
 		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
+		d.ScanSource, d.SNMPSource = sourceState(d.ScanSource, d.Origin), snmpState(st, d.SNMPSource, d.Origin, ip.String)
 		d.Software, d.Services = []Software{}, []ServiceRow{}
 		out = append(out, d)
 	}
@@ -368,10 +373,14 @@ func (s *Service) cves(ctx context.Context, keys []string) ([]string, error) {
 const NoDevice = " (no device)"
 
 // DisplayName is the one naming rule of every page and module (D-471; web/src/features/inventory/nameOf.ts is the same):
-// the host name (a name typed by hand is one); then a device added by hand is named after its first product, with
-// NoDevice when it has no IP either; any other device after its make and model, then its IP. "" when none of these is
-// known: the caller adds the kind, the IP placeholder or the id.
-func DisplayName(hostname, vendor, model, ip, origin, product string) string {
+// the name a person gave the device in Vedette (G2, user_name) whenever it is set; then the host name (a name typed when the device
+// was added by hand is one); then a device added by hand is named after its first product, with NoDevice when it has no IP either;
+// any other device after its make and model, then its IP. "" when none of these is known: the caller adds the kind, the IP
+// placeholder or the id.
+func DisplayName(name, hostname, vendor, model, ip, origin, product string) string {
+	if n := strings.TrimSpace(name); n != "" {
+		return n
+	}
 	if h := strings.TrimSpace(hostname); h != "" {
 		return h
 	}
@@ -391,13 +400,34 @@ func DisplayName(hostname, vendor, model, ip, origin, product string) string {
 	return ""
 }
 
+// nameOrHost is the name a person gave a device (G2) when set, else its host name; nil when neither is known.
+func nameOrHost(user, host *string) *string {
+	if user != nil && strings.TrimSpace(*user) != "" {
+		return user
+	}
+	if host != nil && strings.TrimSpace(*host) != "" {
+		return host
+	}
+	return nil
+}
+
+// NameOrHost is for the readers that name a device by its host name, else its address or model (response, AI, MCP, honeypot, the
+// CVE page): the name a person gave it in Vedette wins (G2), else the host name; nil when neither is known.
+func (a AssetCore) NameOrHost() *string { return nameOrHost(a.UserName, a.Hostname) }
+
+// NameOrHost is AssetCore.NameOrHost of a DeviceRef.
+func (r DeviceRef) NameOrHost() *string { return nameOrHost(r.UserName, r.Hostname) }
+
+// NameOrHost is AssetCore.NameOrHost of a KindDevice.
+func (k KindDevice) NameOrHost() *string { return nameOrHost(k.UserName, k.Hostname) }
+
 // Name is DisplayName of a listed device; its software is sorted by display name, like firstSoftware.
 func (d Device) Name() string {
 	product := ""
 	if len(d.Software) > 0 {
 		product = d.Software[0].Display
 	}
-	return DisplayName(deref(d.Hostname), obsValue(d.Vendor), obsValue(d.Model), d.IP, d.Origin, product)
+	return DisplayName(deref(d.UserName), deref(d.Hostname), obsValue(d.Vendor), obsValue(d.Model), d.IP, d.Origin, product)
 }
 
 // firstSoftware selects the display name of a device's first software, in the order the pages list it (D-471 naming).
@@ -406,7 +436,7 @@ const firstSoftware = `(SELECT display FROM inv_software WHERE asset_id = a.id O
 // Names maps device ids to the name to show (DisplayName; the id when nothing is known) for findings, notify, honeypot
 // and reports.
 func (s *Service) Names(ctx context.Context) (map[string]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.vendor, a.model, a.ip, a.origin, `+firstSoftware+` FROM inv_asset a`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.user_name, a.hostname, a.vendor, a.model, a.ip, a.origin, `+firstSoftware+` FROM inv_asset a`)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read names: %w", err)
 	}
@@ -414,11 +444,11 @@ func (s *Service) Names(ctx context.Context) (map[string]string, error) {
 	out := map[string]string{}
 	for rows.Next() {
 		var id, origin string
-		var host, vendor, model, ip, product sql.NullString
-		if err := rows.Scan(&id, &host, &vendor, &model, &ip, &origin, &product); err != nil {
+		var name, host, vendor, model, ip, product sql.NullString
+		if err := rows.Scan(&id, &name, &host, &vendor, &model, &ip, &origin, &product); err != nil {
 			return nil, fmt.Errorf("inventory: read names: %w", err)
 		}
-		if out[id] = DisplayName(host.String, vendor.String, model.String, ip.String, origin, product.String); out[id] == "" {
+		if out[id] = DisplayName(name.String, host.String, vendor.String, model.String, ip.String, origin, product.String); out[id] == "" {
 			out[id] = id
 		}
 	}
@@ -437,13 +467,13 @@ func assetExists(ctx context.Context, q querier, id string) (bool, error) {
 // deviceName is how audit rows, the matcher's evidence (MatchInput) and messages name a device: as the pages do
 // (DisplayName, D-471), else the id.
 func deviceName(ctx context.Context, q querier, id string) string {
-	var host, vendor, model, ip, product sql.NullString
+	var name, host, vendor, model, ip, product sql.NullString
 	var origin string
-	if err := q.QueryRowContext(ctx, `SELECT a.hostname, a.vendor, a.model, a.ip, a.origin, `+firstSoftware+` FROM inv_asset a WHERE a.id = ?`, id).
-		Scan(&host, &vendor, &model, &ip, &origin, &product); err != nil {
+	if err := q.QueryRowContext(ctx, `SELECT a.user_name, a.hostname, a.vendor, a.model, a.ip, a.origin, `+firstSoftware+` FROM inv_asset a WHERE a.id = ?`, id).
+		Scan(&name, &host, &vendor, &model, &ip, &origin, &product); err != nil {
 		return id
 	}
-	if n := DisplayName(host.String, vendor.String, model.String, ip.String, origin, product.String); n != "" {
+	if n := DisplayName(name.String, host.String, vendor.String, model.String, ip.String, origin, product.String); n != "" {
 		return n
 	}
 	return id
@@ -514,4 +544,32 @@ func (s *Service) addGuesses(ctx context.Context, items []*AssetCore) {
 			d.Guess = &g
 		}
 	}
+}
+
+// snmpState is the SNMP switch as the device page shows it: what SNMPPolicy does with it (D-601, review r2 M1). Outside lan_ranges the
+// default of a discovered device does not reach it (only a stored "on" does), so it shows off until a person turns it on.
+func snmpState(st Settings, stored, origin, ip string) string {
+	if stored == "" && origin != "manual" {
+		if a, err := netip.ParseAddr(ip); err == nil && !inRanges(st, a) {
+			return SourceOff
+		}
+	}
+	return sourceState(stored, origin)
+}
+
+// inRanges reports whether ip is inside lan_ranges, exclusions aside.
+func inRanges(st Settings, ip netip.Addr) bool {
+	return st.InScope(ip) || st.Excluded(ip)
+}
+
+// sourceState resolves a device's stored setting of one active source (D-601): "" is the default, off for a device added by hand and on
+// for one a sensor found.
+func sourceState(stored, origin string) string {
+	switch {
+	case stored != "":
+		return stored
+	case origin == "manual":
+		return SourceOff
+	}
+	return SourceOn
 }

@@ -65,7 +65,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
   })
 
-  it('D-126, D-470: chọn tay là đồng ý cho thiết bị khai tay, mong manh, chưa phân loại và chính hộp; thiết bị "never" thì không bao giờ', async () => {
+  it('D-126, D-470, D-601: chọn tay là đồng ý cho thiết bị khai tay đã bật quét mạng, mong manh, chưa phân loại và chính hộp; thiết bị "never" thì không bao giờ', async () => {
     const { ensureBox } = await import('@/features/inventory/mocks')
     ensureBox()
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, origin: 'manual' as const } : a.id === 'a-unk01' ? { ...a, approved: true } : a)))
@@ -73,7 +73,11 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await fetch(`${base()}/inventory/devices/a-srvad`, json('PATCH', { regular_scan: 'never' }))).status).toBe(200)
     const items = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; label: string; fragile: boolean; selectable: boolean; reason: string | null }[]
     const byId = (id: string) => items.find((x) => x.id === id)!
-    expect(byId('a-web01')).toMatchObject({ selectable: true, reason: null }) // added by hand, picked by hand
+    // D-601 (review r1 M1): added by hand, its network scan off until a person turns it on: not even a pick; turned on, picked by hand
+    expect(byId('a-web01')).toMatchObject({ selectable: false, reason: 'regular_scan_never' })
+    expect((await fetch(`${base()}/inventory/devices/a-web01/sources`, json('PUT', { scan: 'on' }))).status).toBe(200)
+    const again = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; selectable: boolean; reason: string | null }[]
+    expect(again.find((x) => x.id === 'a-web01')).toMatchObject({ selectable: true, reason: null })
     expect(byId('a-nas02')).toMatchObject({ selectable: true, fragile: true })
     expect(byId('a-unk01')).toMatchObject({ selectable: true, fragile: true }) // unknown kind counts as fragile: a quarter of the speed
     expect(byId('a-box')).toMatchObject({ selectable: true, pick_only: true, box: true, reason: null }) // D-470: a person may scan the box
@@ -209,7 +213,9 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(screen.getByRole('progressbar', { name: 'Finding the device' })).not.toHaveAttribute('aria-valuenow')
     expect(screen.getByText(/Scanning WEB01|Scanning SRV-AD/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Stop now' }))
-    expect(await screen.findByRole('button', { name: 'Stopping' })).toBeDisabled()
+    const stopping = await screen.findByRole('button', { name: 'Stopping…' }) // kien G1: the shared busy state
+    expect(stopping).toBeDisabled()
+    expect(stopping).toHaveAttribute('aria-busy', 'true')
     const t0 = Date.now()
     await waitFor(() => expect(screen.getByText(/Last scan was stopped .*: 0\/2 devices done/)).toBeInTheDocument(), { timeout: 5000 })
     expect(Date.now() - t0).toBeLessThan(5000)

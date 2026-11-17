@@ -5,7 +5,7 @@ import { api, ApiError } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
-  ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SnmpCredential, SnmpCredentialInput, SnmpResponse, SnmpTestResult,
+  ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SnmpCredential, SourcesInput, SourcesState, SnmpCredentialInput, SnmpResponse, SnmpTestResult,
   WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
 
@@ -52,11 +52,18 @@ export function useDeviceAction(id: string) {
     approve: useMutation({ mutationFn: () => api.post(`${base}/approve`), onSuccess: inv }),
     suspicious: useMutation({ mutationFn: (suspicious: boolean) => api.post(`${base}/suspicious`, { suspicious }), onSuccess: inv }),
     remove: useMutation({ mutationFn: () => api.del(base), onSuccess: inv }),
-    patch: useMutation({ mutationFn: (b: { kind?: AssetKind; fragile?: boolean; regular_scan?: RegularScan; notes?: string }) => api.patch(base, b), onSuccess: inv }),
+    patch: useMutation({ mutationFn: (b: { name?: string; kind?: AssetKind; fragile?: boolean; regular_scan?: RegularScan; notes?: string }) => api.patch(base, b), onSuccess: inv }),
     addSoftware: useMutation({ mutationFn: (b: Omit<AddDeviceInput, 'name' | 'ip'>) => api.post<{ kev_cves: number }>(`${base}/software`, b), onSuccess: inv }),
     removeSoftware: useMutation({ mutationFn: (sid: string) => api.del(`${base}/software/${encodeURIComponent(sid)}`), onSuccess: inv }),
     setVersion: useMutation({ mutationFn: (b: { sid: string; version: string }) => api.patch(`${base}/software/${encodeURIComponent(b.sid)}`, { version: b.version }), onSuccess: inv }),
   }
+}
+/** D-601: turn the network scan or the SNMP reads of one device on or off (admin); the answer is both, the default resolved. */
+export function useDeviceSources(id: string) {
+  const inv = useInvalidate()
+  return useMutation({
+    mutationFn: (b: SourcesInput) => api.put<SourcesState>(`/inventory/devices/${encodeURIComponent(id)}/sources`, b), onSuccess: inv,
+  })
 }
 /** D-599 (#829): every pair of devices that may be one machine; one cached read for the To review hints and the `possible:same` filter. */
 export const usePossibleSame = () => useQuery({ queryKey: ['inventory', 'possible-same'], queryFn: () => api.get<SamePairs>('/inventory/possible-same'), retry: false })

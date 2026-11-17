@@ -269,7 +269,10 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Finish setup' })).toBeDisabled())
+    // busy (docs/UI.md §8): the button says what it is doing and cannot be pressed again
+    const finishing = await screen.findByRole('button', { name: 'Setting up…' })
+    expect(finishing).toBeDisabled()
+    expect(finishing).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled()
     release()
     // a failure gives the buttons back, with the box's sentence
@@ -1932,6 +1935,9 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     expect(os().getByText('Release upgrade to Debian 13 (trixie) is available')).toBeInTheDocument()
     expect(os().getByRole('switch', { name: 'Automatic security updates' })).not.toBeChecked()
     expect(os().getByText('Nothing waiting. The operating system is up to date.')).toBeInTheDocument()
+    // kien G5: nothing to install, so no install button
+    expect(os().queryByRole('button', { name: /^Install security updates/ })).toBeNull()
+    expect(os().queryByRole('button', { name: 'Install all updates' })).toBeNull()
   })
 
   it('install security updates: live log, backup, health check, reboot required, then the security rows are gone; a second run is refused meanwhile', async () => {

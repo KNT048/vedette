@@ -3,7 +3,9 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { Field } from '@/components/ui/input'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
@@ -14,7 +16,8 @@ import { TurnOnModule } from './Inline'
 import { CreatableSelect } from '@/components/common/CreatableSelect'
 import { SnmpNext } from './SnmpNext'
 import { SNMP_MAX } from './validate'
-import { useDeviceAction, useSnmp, useSnmpActions } from './api'
+import { useDeviceAction, useDeviceSources, useSettings, useSnmp, useSnmpActions } from './api'
+import { inRanges } from './AddToScopeDialog'
 import { nameOf } from './nameOf'
 import { kindLabel } from '@/lib/deviceTypes'
 import { toast } from 'sonner'
@@ -82,11 +85,11 @@ function SnmpRead({ ip }: { ip: string }) {
             renderCreate={(p) => (p.open ? <CredentialDialog current={null} scope={ip} onClose={() => p.onOpenChange(false)}
               onSaved={(c) => { p.onCreated({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }); saved(c) }} /> : null)} />
         </Field>
-        <Button type="submit" size="sm" variant="primary" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('sources.snmp.read')}</Button>
+        <Button type="submit" size="sm" variant="primary" busy={test.isPending} busyLabel={t('snmp.run.running')}>{t('sources.snmp.read')}</Button>
         {chosenCred ? <Button size="sm" variant="link" onClick={() => setForm({ current: chosenCred, scope: chosenCred.scope.join('\n'), widen: false })}>{t('addDialog.snmp.editCredential', { name: chosenCred.name })}</Button> : null}
       </form>
       {q.data && !q.data.ready ? <p className="text-meta text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
-      {test.isPending ? <p role="status" aria-live="polite" className="text-meta text-muted">{t('snmp.run.pending', { ip })}</p> : null}
+      <BusyNote busy={test.isPending}>{t('snmp.run.pending', { ip })}</BusyNote>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result && !test.isPending ? <SnmpAnswer r={result} ip={ip} /> : null}
       {result && !test.isPending && !result.ok ? (
@@ -101,7 +104,32 @@ function SnmpRead({ ip }: { ip: string }) {
   )
 }
 
-/** S-INV-1 (D-598, issue #829): which sources feed this device, and adding SNMP or osquery to it from here. Both can feed it at once. */
+/** D-601: the person's switch of one active source of the box for this device (network scan, SNMP), with what on and off mean in one
+ *  line. Admin only; others see it locked with the reason. An agent has no switch: it is installed or uninstalled on the machine. */
+function SourceSwitch({ d, which }: { d: DeviceDetail; which: 'scan' | 'snmp' }) {
+  const { t } = useTranslation('inventory')
+  const admin = useCan('admin')
+  const set = useDeviceSources(d.asset.id)
+  const on = (which === 'scan' ? d.asset.scan_source : d.asset.snmp_source) === 'on'
+  // review r2 M1: a discovered device outside the LAN ranges is read with SNMP only once a person turns it on here (the list is admin-only)
+  const lan = useSettings(admin && which === 'snmp' && !on && d.asset.origin !== 'manual').data?.lan_ranges
+  const outside = !!lan && IPV4.test(d.asset.ip) && !inRanges(d.asset.ip, lan)
+  const id = `device-source-${which}`
+  const name = nameOf(d.asset, kindLabel(d.asset.kind))
+  const toggle = (v: boolean) => set.mutate({ [which]: v ? 'on' : 'off' }, {
+    onSuccess: () => toast.success(t(`sources.saved.${which}.${v ? 'on' : 'off'}`, { name })), onError: (e) => toast.error(errMsg(e)),
+  })
+  return (
+    <div className="flex min-w-0 items-start gap-2">
+      <Switch id={id} aria-label={t(`sources.toggle.${which}`)} checked={on} disabled={!admin || set.isPending}
+        title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} onCheckedChange={toggle} />
+      <p className="text-meta text-muted">{t(on ? `sources.meaning.${which}.on` : outside ? 'sources.meaning.snmp.offOutside' : `sources.meaning.${which}.off`)}</p>
+    </div>
+  )
+}
+
+/** S-INV-1 (D-598, issue #829): which sources feed this device, and adding SNMP or osquery to it from here. Both can feed it at once.
+ *  D-601: the network scan and SNMP are switched on or off per device here; a device added by hand starts with both off. */
 export function DeviceSources({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
   const me = useMe()
@@ -112,6 +140,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const [enrol, setEnrol] = useState(false)
   const canOp = useCan('operator')
   const approve = useDeviceAction(d.asset.id).approve
+  const sources = useDeviceSources(d.asset.id)
   const a = d.asset
   // #829 C4: credentials this device answered before it moved out of their scope (the list is admin-only).
   const snmpList = useSnmp(snmpOn && admin)
@@ -123,20 +152,27 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const action = (f: Feed): React.ReactNode => {
     if (f === 'snmp') {
       if (!snmpOn) return <TurnOnModule id="sensor-active" reason={t('sources.snmp.off')} />
-      if (declared) return <span className="text-meta text-muted">{t('sources.snmp.declared')}</span>
       if (!ip) return <span className="text-meta text-muted">{t('sources.noIp')}</span>
       if (!a.approved) {
         // SNMP reads only approved devices (D-512): approve it here, then add SNMP (#842 "do it where you are").
         return (
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-meta text-muted">{t('sources.snmp.approveFirst')}</span>
-            <Button size="sm" disabled={!canOp || approve.isPending} title={canOp ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+            <Button size="sm" disabled={!canOp} busy={approve.isPending} busyLabel={t('common:busy.approving')} title={canOp ? undefined : t('common:needRole', { role: t('common:role.operator') })}
               onClick={() => approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name: nameOf(a, kindLabel(a.kind)) })), onError: (e) => toast.error(errMsg(e)) })}>{t('sources.snmp.approveHere')}</Button>
           </span>
         )
       }
       if (!admin) return <span className="text-meta text-muted">{t('sources.adminOnly')}</span>
-      return reading ? null : <Button size="sm" onClick={() => setReading(true)}>{feeds.has('snmp') ? t('sources.snmp.readAgain') : t('sources.snmp.add')}</Button>
+      if (reading) return null
+      // D-601: with SNMP off for this device, the button says it turns SNMP on (the person's consent, audited) and opens the read here.
+      if (a.snmp_source === 'off') {
+        return (
+          <Button busy={sources.isPending} busyLabel={t('common:busy.saving')} size="sm" disabled={sources.isPending}
+            onClick={() => sources.mutate({ snmp: 'on' }, { onSuccess: () => setReading(true), onError: (e) => toast.error(errMsg(e)) })}>{t('sources.snmp.turnOnAdd')}</Button>
+        )
+      }
+      return <Button size="sm" onClick={() => setReading(true)}>{feeds.has('snmp') ? t('sources.snmp.readAgain') : t('sources.snmp.add')}</Button>
     }
     if (f === 'agent') {
       if (!agentsOn) return <TurnOnModule id="agent-intake" reason={t('sources.agent.off')} />
@@ -166,12 +202,15 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
                 {action(f)}
               </div>
               <p className="text-meta text-muted">{t(`sources.what.${f}`)}</p>
+              {f === 'scan' || (f === 'snmp' && snmpOn) ? <SourceSwitch d={d} which={f} /> : null}
+              {f === 'agent' && agentsOn ? <p className="text-caption text-muted">{t('sources.agent.how')}</p> : null}
               {f === 'snmp' ? movedOut.map((m) => <p key={m.cred} role="status" className="text-meta text-warn">{t('sources.snmp.movedOut', { ip: m.ip, name: m.cred })}</p>) : null}
               {f === 'snmp' && reading && ip ? <SnmpRead ip={ip} /> : null}
             </li>
           )
         })}
       </ul>
+      {declared && a.scan_source === 'off' && a.snmp_source === 'off' ? <p className="mt-3 max-w-3xl text-meta text-muted">{t('sources.declared')}</p> : null}
       <p className="mt-3 max-w-3xl text-meta text-muted">{t('sources.both')}</p>
       {enrol ? <AddDialog open method="osquery" onOpenChange={(o) => { if (!o) setEnrol(false) }} /> : null}
     </Section>

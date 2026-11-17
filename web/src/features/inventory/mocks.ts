@@ -19,7 +19,7 @@ import type {
 } from './types'
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
-import { nameOf } from './nameOf'
+import { badUserName, nameOf } from './nameOf'
 import { actsAs, lookupType, TYPE_IDS } from '@/lib/deviceTypes'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
@@ -31,7 +31,16 @@ const kevVulns = (kev as { vulns: { cve: string; vendor: string; product: string
 const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.vendor}|${v.product}`.toLowerCase())).map((v) => v.cve)
 
 // ---- bảng riêng ----
-interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string }
+interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string; scan_source?: 'on' | 'off'; snmp_source?: 'on' | 'off' }
+/** D-601: a device's network scan and SNMP reads, the default resolved (on for a device a sensor found, off for one added by hand). */
+const sourceOf = (a: Asset, which: 'scan_source' | 'snmp_source'): 'on' | 'off' => {
+  const stored = metaStore.get()[a.id]?.[which]
+  if (stored) return stored
+  if (a.origin === 'manual') return 'off'
+  // review r2 M1: outside the LAN ranges a discovered device's default SNMP does not reach it; it shows off until a person turns it on
+  if (which === 'snmp_source' && IPV4_RE.test(a.ip) && !inList(a.ip, loadSettings().lan_ranges)) return 'off'
+  return 'on'
+}
 export type StoredObs = Omit<Observation, 'current'>
 const metaStore = collection<Record<string, Meta>>('inv_meta', () => ({}))
 const obsStore = collection<Record<string, StoredObs[]>>('inv_obs', () => ({}))
@@ -249,10 +258,12 @@ const scanInfo = (a: Asset) => ({
   first_scan_at: a.origin === 'discovered' && a.id !== BOX_ID && (a.fragile || a.kind === 'unknown' || metaStore.get()[a.id]?.regular_scan === 'never') ? new Date(new Date(a.first_seen).getTime() + 4 * 60_000).toISOString() : null,
   regular_scan: metaStore.get()[a.id]?.regular_scan ?? ('follow' as RegularScan),
   approved_at: metaStore.get()[a.id]?.approved_at ?? null, // D-471: a person's first approval
+  scan_source: sourceOf(a, 'scan_source'),
+  snmp_source: sourceOf(a, 'snmp_source'),
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
-const live = (a: Asset) => ({ ...a, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
+const live = (a: Asset) => ({ ...a, name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
 /** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's when osquery reports the device (its node is
  * bound to it) and Wazuh's when the saved Wazuh connection delivered it (both when both do); not Wazuh's once that connection is gone. */
 const DEVICE_SOURCES: readonly DeviceSource[] = ['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh']
@@ -296,7 +307,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
     && (hasFindings === null || (r.findings_count > 0) === hasFindings)
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
     && (!sources.length || r.sources.some((x) => sources.includes(x)))
-    && (!q || [r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
+    && (!q || [r.name, r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
       || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
 }
 const find = (id: string) => allAssets().find((x) => x.id === id)
@@ -337,13 +348,13 @@ function twoMachines(x: Asset, y: Asset) {
 }
 const notFound = (_request?: Request) => fail(404, 'not_found', 'No such device. It may have been removed; go back to the list to see the remaining devices.')
 
-function createManual(entry: CatalogEntry | null, o: { version?: string; name?: string; ip?: string; kind?: AssetKind }): Asset {
+function createManual(entry: CatalogEntry | null, o: { version?: string; name?: string; ip?: string; kind?: AssetKind; userName?: string }): Asset {
   const now = nowIso()
   const suggested = o.kind ?? entry?.kind ?? 'unknown'
   // A product with neither an IP nor a name is only a product ("(no device)"): no computer type for it (W9-1, D-515); an appliance keeps its type.
   const kind: AssetKind = !o.ip && !o.name && ['pc', 'server', 'web'].includes(actsAs(suggested)) ? 'unknown' : suggested
   const a: Asset = {
-    id: newId('a'), site: 'hq', ip: o.ip || '—', mac: null, hostname: o.name || null, kind,
+    id: newId('a'), site: 'hq', ip: o.ip || '—', mac: null, hostname: o.name || null, name: o.userName || null, kind,
     vendor: entry ? { value: entry.vendor, source: 'manual', confidence: 1, seen_at: now } : null,
     model: null, os: null, services: [], first_seen: now, last_seen: now, approved: true, fragile: policyFragile(kind), origin: 'manual',
     software: entry ? [softwareOf(entry, o.version)] : [],
@@ -376,7 +387,7 @@ function validateAdd(_request: Request, b: Partial<AddDeviceInput>, requireProdu
   if (name && !LABEL_RE.test(name)) return { err: bad(400, 'bad_name', 'The name is at most 64 characters and cannot contain < or >.') }
   const ip = typeof b.ip === 'string' ? b.ip.trim() : ''
   if (ip && !IPV4_RE.test(ip)) return { err: bad(400, 'bad_ip', 'That IP address is not valid. Enter something like 192.168.10.25, or leave it empty if unknown.') }
-  if (ip) { const dup = allAssets().find((x) => x.ip === ip); if (dup) return { err: bad(409, 'duplicate_ip', `IP ${ip} is already in the list (${dup.hostname ?? dup.id}). Open that device instead of adding a new one.`) } }
+  if (ip) { const dup = allAssets().find((x) => x.ip === ip); if (dup) return { err: bad(409, 'duplicate_ip', `IP ${ip} is already in the list (${nameOf(dup, dup.kind)}). Open that device instead of adding a new one.`) } }
   return { entry, version, name, ip }
 }
 
@@ -582,11 +593,13 @@ const SNMP_MSG: Record<Exclude<SnmpTestReason, 'ok' | 'unavailable'>, (ip: strin
   error: () => 'The device answered with an error, or with a message Vedette could not read.',
   not_in_inventory: (ip) => `${ip} is not a device in the inventory. Only devices in the list can be tested.`,
   not_approved: (ip) => `${ip} is not approved yet. SNMP credentials are sent only to devices a person approved: approve it under Devices, To review, then test again.`,
-  out_of_scope: (ip) => `${ip} is outside the scan scope (the LAN ranges and exclusions under Scope and sensors).`,
+  out_of_scope: (ip) => `${ip} is outside the LAN ranges: SNMP reads a device there only once you turn SNMP on for it on its page (Sources). The LAN ranges are not widened for it.`,
   not_for_this_credential: (ip) => `${ip} is outside the scope of this credential, so it is never sent there.`,
   scanning_off: () => 'Active scanning is off under Scope and sensors, so nothing is sent.',
   scope_not_confirmed: () => 'The scan scope commitment is not ticked under Scope and sensors, so nothing is sent.',
-  declared_by_hand: () => 'This device was added manually: Vedette never probes it.',
+  declared_by_hand: () => 'This device was added by hand: Vedette reads it with SNMP only once you turn SNMP on on its page (Sources).',
+  snmp_off: () => 'SNMP is turned off for this device on its page (Sources), so nothing is sent.',
+  excluded: (ip) => `${ip} is on the exclusion list under Scope and sensors: Vedette never touches it, not even with SNMP.`,
   box: () => 'This is the Vedette box itself (or one of its trap addresses): it is never probed.',
   regular_scan_never: () => 'This device is set to never be scanned.',
   busy: () => 'SNMP reads are running for the scan window right now. Try again in a minute.',
@@ -714,16 +727,44 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
 
+  // D-601: turn the network scan or the SNMP reads of one device on or off.
+  http.put(`${API}/inventory/devices/:id/sources`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const b = await body<{ scan?: string; snmp?: string }>(request)
+    const ok = (v: unknown) => v === undefined || v === 'on' || v === 'off'
+    if (!ok(b.scan) || !ok(b.snmp)) return fail(400, 'invalid', 'Each source is on or off.')
+    if (b.scan === undefined && b.snmp === undefined) return fail(400, 'bad_source', 'Say which source to turn on or off: scan, snmp or both.')
+    if (a.id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself: Vedette never scans or reads it on its own.')
+    for (const [key, label, v] of [['scan_source', 'network scan', b.scan], ['snmp_source', 'SNMP', b.snmp]] as const) {
+      if (v === undefined) continue
+      const before = sourceOf(a, key)
+      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], [key]: v as 'on' | 'off' } }))
+      if (before !== v) audit('inventory.set_source', a.hostname ?? a.id, `${label}: ${v}`)
+    }
+    return HttpResponse.json({ scan_source: sourceOf(a, 'scan_source'), snmp_source: sourceOf(a, 'snmp_source') })
+  }),
+
   http.patch(`${API}/inventory/devices/:id`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
     if (!a) return notFound(request)
-    const b = await body<{ kind: AssetKind; fragile: boolean; regular_scan: RegularScan; notes: string }>(request)
+    const b = await body<{ name: string; kind: AssetKind; fragile: boolean; regular_scan: RegularScan; notes: string }>(request)
     const patch: Partial<Asset> = {}
+    if (b.name !== undefined) { // G2: the name in Vedette, as the backend checks it (trimmed, at most 64 characters, no < or >; empty clears it)
+      const n = typeof b.name === 'string' ? b.name.trim() : null
+      if (n === null || badUserName(n)) return fail(400, 'bad_name', 'The name is at most 64 characters and cannot contain < or >, control characters or invisible characters.')
+      if (n !== (a.name ?? '')) {
+        const before = nameOf(a, a.kind)
+        patch.name = n || null
+        audit('inventory.rename', nameOf({ ...a, name: patch.name }, a.kind), `${before} → ${nameOf({ ...a, name: patch.name }, a.kind)}`)
+      }
+    }
     if (b.regular_scan !== undefined) {
       if (!['follow', 'allow', 'never'].includes(b.regular_scan)) return fail(400, 'bad_regular_scan', 'Regular scans must be: follow type setting, allow or never.')
       metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], regular_scan: b.regular_scan } }))
-      audit('inventory.set_regular_scan', a.hostname ?? a.id, b.regular_scan)
+      audit('inventory.set_regular_scan', nameOf(a, a.kind), b.regular_scan)
     }
     if (b.kind !== undefined) {
       if (!KINDS.includes(b.kind)) return fail(400, 'bad_kind', `Device type must be one of: ${KINDS.join(', ')}.`)
@@ -731,19 +772,19 @@ export const handlers = [
         addObs(a, 'kind', b.kind, 'manual', 1)
         patch.kind = b.kind
         if (!metaStore.get()[a.id]?.fragile_manual) patch.fragile = policyFragile(b.kind)
-        audit('inventory.set_kind', a.hostname ?? a.id, `${a.kind} → ${b.kind}`)
+        audit('inventory.set_kind', nameOf(a, a.kind), `${a.kind} → ${b.kind}`)
       }
     }
     if (b.fragile !== undefined) {
       if (typeof b.fragile !== 'boolean') return fail(400, 'bad_fragile', 'fragile must be true or false.')
       patch.fragile = b.fragile
       metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], fragile_manual: true } }))
-      audit('inventory.set_fragile', a.hostname ?? a.id, String(b.fragile))
+      audit('inventory.set_fragile', nameOf(a, a.kind), String(b.fragile))
     }
     if (b.notes !== undefined) {
       if (typeof b.notes !== 'string' || b.notes.length > 2000) return fail(400, 'bad_notes', 'Notes are at most 2000 characters.')
       patch.notes = b.notes
-      audit('inventory.set_notes', a.hostname ?? a.id)
+      audit('inventory.set_notes', nameOf(a, a.kind))
     }
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, ...patch } : x)))
     return HttpResponse.json({ ok: true })
@@ -760,7 +801,7 @@ export const handlers = [
     // Phát hiện gắn thiết bị đã xoá không còn nghĩa: gỡ cùng lúc để không còn phát hiện mồ côi (supervisor).
     const orphaned = findingsStore.get().filter((f) => f.asset_id === a.id).length
     if (orphaned) findingsStore.update((l) => l.filter((f) => f.asset_id !== a.id))
-    audit('inventory.delete', a.hostname ?? a.ip, orphaned ? `${a.id}; removed ${orphaned} findings of the device` : a.id)
+    audit('inventory.delete', nameOf(a, a.kind), orphaned ? `${a.id}; removed ${orphaned} findings of the device` : a.id)
     return new HttpResponse(null, { status: 204 })
   }),
 
@@ -771,7 +812,7 @@ export const handlers = [
     if (!a) return notFound(request)
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, approved: true } : x)))
     metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: false, approved_at: m[a.id]?.approved_at ?? (a.approved ? undefined : nowIso()) } }))
-    audit('inventory.approve', a.hostname ?? a.ip, a.id)
+    audit('inventory.approve', nameOf(a, a.kind), a.id)
     return HttpResponse.json({ ok: true })
   }),
 
@@ -782,7 +823,7 @@ export const handlers = [
     const b = await body<{ suspicious: boolean }>(request)
     if (typeof b.suspicious !== 'boolean') return fail(400, 'bad_flag', 'suspicious must be true or false.')
     metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: b.suspicious } }))
-    audit(b.suspicious ? 'inventory.mark_suspicious' : 'inventory.unmark_suspicious', a.hostname ?? a.ip, a.id)
+    audit(b.suspicious ? 'inventory.mark_suspicious' : 'inventory.unmark_suspicious', nameOf(a, a.kind), a.id)
     return HttpResponse.json({ ok: true })
   }),
 
@@ -796,7 +837,7 @@ export const handlers = [
     const sw = softwareOf(v.entry!, v.version)
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: [...x.software, sw] } : x)))
     matchAssetToKev(a.id)
-    audit('inventory.add_software', `${a.hostname ?? a.id}: ${sw.display}`)
+    audit('inventory.add_software', `${nameOf(a, a.kind)}: ${sw.display}`)
     return HttpResponse.json({ kev_cves: v.entry!.kev_count }, { status: 201 })
   }),
 
@@ -826,7 +867,7 @@ export const handlers = [
     if (!sw) return fail(404, 'not_found', 'No such software on this device.')
     if (sw.source !== 'manual') return fail(400, 'not_manual', 'Only manually declared software can be removed. Software seen by a sensor or agent updates on the next scan.')
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.filter((s) => s.id !== sw.id) } : x)))
-    audit('inventory.remove_software', `${a.hostname ?? a.id}: ${sw.display}`)
+    audit('inventory.remove_software', `${nameOf(a, a.kind)}: ${sw.display}`)
     return new HttpResponse(null, { status: 204 })
   }),
 
@@ -844,10 +885,11 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     const keep = deviceFilter(request.url)
     if (keep instanceof Response) return keep
-    const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen']
+    // name is the host name; name_in_vedette the name a person gave the device (G2, review r1 of #929): import reads both back
+    const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen', 'name_in_vedette']
     const lines = allAssets().filter((a) => keep(toRow(a))).map((a) => {
       const s = summaryOf(a)
-      return [a.hostname ?? '', hasIp(a) ? a.ip : '', a.mac ?? '', a.kind, a.vendor?.value, a.model?.value, a.os?.value, a.software.map((x) => `${x.display}${x.version ? ` ${x.version}` : ''}`).join('; '), a.approved ? 'yes' : 'no', a.fragile ? 'yes' : 'no', a.origin, s?.source, s ? s.confidence.toFixed(2) : '', a.last_seen].map(csvCell).join(',')
+      return [a.hostname ?? '', hasIp(a) ? a.ip : '', a.mac ?? '', a.kind, a.vendor?.value, a.model?.value, a.os?.value, a.software.map((x) => `${x.display}${x.version ? ` ${x.version}` : ''}`).join('; '), a.approved ? 'yes' : 'no', a.fragile ? 'yes' : 'no', a.origin, s?.source, s ? s.confidence.toFixed(2) : '', a.last_seen, a.name ?? ''].map(csvCell).join(',')
     })
     audit('inventory.export', 'devices.csv', `${lines.length} rows`)
     return new HttpResponse(`﻿${[head.join(','), ...lines].join('\r\n')}\r\n`, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=vedette-devices.csv' } })
@@ -870,7 +912,7 @@ export const handlers = [
     const hi = table.findIndex((r) => r.some((c) => c.trim())) // bỏ dòng trống đầu file
     if (problems.has(hi)) return fail(400, 'bad_header', problems.get(hi)!)
     const header = (table[hi] ?? []).map((h) => { const k = fold(h); return HEADER_ALIAS[k] ?? k })
-    if (!header.includes('name') && !header.includes('product')) return fail(400, 'bad_header', 'The first row must be column headers with at least a name or product column. Download the template to see the format.')
+    if (!header.includes('name') && !header.includes('name_in_vedette') && !header.includes('product')) return fail(400, 'bad_header', 'The first row must be column headers with at least a name or product column. Download the template to see the format.')
     const data = table.slice(hi + 1)
     if (!problems.size && !data.some((r) => r.some((c) => c.trim()))) return fail(400, 'no_rows', 'No device rows were found below the column headers. Add at least one row and choose the file again.')
     if (data.length > MAX_IMPORT_ROWS) return fail(400, 'too_many_rows', `At most ${MAX_IMPORT_ROWS} rows per import. This file has ${data.length} rows.`)
@@ -891,7 +933,9 @@ export const handlers = [
       const productText = get('product')
       const entry = productText ? findCatalog(productText) : undefined
       if (productText && !entry) return err(`Product "${productText.slice(0, 40)}" not recognised. Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`)
-      if (!productText && !get('name')) return err('This row has neither name nor product. At least one is needed.')
+      const userName = get('name_in_vedette')
+      if (badUserName(userName)) return err('The name is at most 64 characters and cannot contain < or >, control characters or invisible characters.')
+      if (!productText && !get('name') && !userName) return err('This row has neither name nor product. At least one is needed.')
       const kindText = get('kind')
       const kind = kindText ? parseKind(kindText) : undefined
       if (kindText && !kind) return err(`Type "${kindText.slice(0, 20)}" is not a device type. Use a type the device page lists, for example router, switch, server, laptop, printer, camera, ip_phone or unknown.`)
@@ -904,7 +948,7 @@ export const handlers = [
         if (noIpNames.has(key) || seenNames.has(key)) return err(`A device named "${v.name.slice(0, 40)}" (no IP yet) is already in the list. Add an IP to this row if it is a different device.`)
         seenNames.add(key)
       }
-      createManual(entry ?? null, { version: v.version, name: v.name, ip: v.ip, kind })
+      createManual(entry ?? null, { version: v.version, name: v.name, ip: v.ip, kind, userName })
       res.created++
       const note = v.ip ? ipNote(v.ip, ranges) : ''
       if (note) res.notes.push({ line, message: note })
@@ -1186,9 +1230,12 @@ export const handlers = [
       : !st.scope_confirmed_at ? 'scope_not_confirmed'
       : !a ? 'not_in_inventory'
       : a.id === BOX_ID ? 'box'
-      : a.origin === 'manual' ? 'declared_by_hand'
+      : sourceOf(a, 'snmp_source') === 'off' ? (a.origin === 'manual' && !metaStore.get()[a.id]?.snmp_source ? 'declared_by_hand' : 'snmp_off')
       : !a.approved ? 'not_approved'
-      : !inList(ip, st.lan_ranges) || inList(ip, st.active.exclusions) ? 'out_of_scope'
+      // D-601: SNMP keeps to the exclusions and the credential's own scope, not to the LAN ranges
+      : inList(ip, st.active.exclusions) ? 'excluded'
+      // review r1 M4: outside the LAN ranges only a device whose SNMP a person turned on (stored on, not the default)
+      : !inList(ip, st.lan_ranges) && metaStore.get()[a.id]?.snmp_source !== 'on' ? 'out_of_scope'
       : metaStore.get()[a.id]?.regular_scan === 'never' ? 'regular_scan_never'
       : !inList(ip, c.scope) ? 'not_for_this_credential'
       : c.version === 'v3' || c.community === 'public' ? 'ok' : 'no_answer'
@@ -1216,7 +1263,7 @@ export const handlers = [
     if (!st.scope_confirmed_at) return fail(409, 'scope_not_confirmed', 'The scan scope is not set up and confirmed under Scope and sensors, so nothing is sent.')
     if (Object.values(snmpReads).some((r) => r.status === 'running')) return fail(409, 'busy', 'Another SNMP read is running (a Test, a Read now or the scan window\'s round). Try again in a minute.')
     const inScope = allAssets().filter((a) => hasIp(a) && inList(a.ip, c.scope))
-    const readable = (a: Asset) => a.id !== BOX_ID && a.origin !== 'manual' && a.approved && inList(a.ip, st.lan_ranges) && !inList(a.ip, st.active.exclusions) && metaStore.get()[a.id]?.regular_scan !== 'never'
+    const readable = (a: Asset) => a.id !== BOX_ID && sourceOf(a, 'snmp_source') === 'on' && a.approved && !inList(a.ip, st.active.exclusions) && (inList(a.ip, st.lan_ranges) || metaStore.get()[a.id]?.snmp_source === 'on') && metaStore.get()[a.id]?.regular_scan !== 'never'
     const targets = inScope.filter(readable)
     // #829 C4: a device that answered this credential and moved out of its scope is a skipped row that says so; nothing is sent there.
     const moved: SnmpRead['results'] = c.moved_out.map((m) => ({ ip: m.ip, ok: false, reason: 'not_for_this_credential', message: m.message, device_id: m.device_id, answer: null }))

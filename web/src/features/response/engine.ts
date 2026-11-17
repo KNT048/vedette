@@ -27,7 +27,7 @@ export interface Det { id: string; trigger: Trigger; ts: string; summary: string
 const portOf = (ip: string) => `Gi1/0/${(Number(ip.split('.')[3] ?? 0) % 24) + 1}` // mock of the switch MAC table lookup
 function deviceOf(ip: string, fallback?: string) {
   const a = assetsStore.get().find((x) => x.ip === ip)
-  return { asset_id: a?.id ?? null, name: a ? (a.hostname ?? a.ip) : (fallback ?? ip), kind: a?.kind ?? null }
+  return { asset_id: a?.id ?? null, name: a ? (a.name ?? a.hostname ?? a.ip) : (fallback ?? ip), kind: a?.kind ?? null }
 }
 const openFinding = (f: Finding) => f.status === 'confirmed' || f.status === 'suspected'
 const SEVERITIES = ['critical', 'high', 'medium', 'low']
@@ -76,7 +76,7 @@ export function events(): Det[] {
     const asset = assetsStore.get().find((a) => a.id === f.asset_id)
     if (!asset) continue
     const vip = exposingVip(asset.ip)
-    const name = asset.hostname ?? asset.ip
+    const name = asset.name ?? asset.hostname ?? asset.ip
     // ponytail: the KEV flag comes from the Feeds module on a real box; the mock treats critical findings as exploited in the wild.
     add({ id: `det-f-${f.id}`, trigger: 'finding', ts: f.last_seen, device_kind: asset.kind, asset_id: asset.id, finding_id: f.id, cve: f.cve,
       summary: `${name}: ${f.cve} (${f.severity})${vip ? `, reachable from the Internet through ${vip.name}` : ''}`,

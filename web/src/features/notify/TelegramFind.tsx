@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LoaderCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BusyNote } from '@/components/common/BusyNote'
 import { ApiError } from '@/lib/api'
 import { useFindTelegramChats } from './api'
 import type { TelegramChat } from './types'
@@ -33,12 +33,13 @@ export function TelegramFind({ token, hasSaved, chatId, onPick, onTokenError }: 
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={!ready || find.isPending} onClick={run}>
-          {find.isPending ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : null}
+        <Button disabled={!ready} busy={find.isPending} busyLabel={t('tgFind.finding')} onClick={run}>
           {t('tgFind.button')}
         </Button>
         {!ready ? <span className="text-meta text-muted">{t('tgFind.needToken')}</span> : null}
       </div>
+      {/* kien G1: one getUpdates call to Telegram, 15 s at most */}
+      <BusyNote busy={find.isPending}>{t('tgFind.waiting')}</BusyNote>
       {error ? <p role="alert" className="text-meta text-danger">{error}</p> : null}
       {chats && chats.length === 0 ? <p role="status" className="text-meta text-muted">{t(fresh ? 'tgFind.fresh' : 'tgFind.none')}</p> : null}
       {chats && chats.length > 0 ? (

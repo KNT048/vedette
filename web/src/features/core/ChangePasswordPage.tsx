@@ -22,6 +22,7 @@ export default function ChangePasswordPage() {
   const [v, setV] = useState({ current: '', next: '', again: '' })
   const [err, setErr] = useState<{ current?: string; next?: string; again?: string }>({})
   const [busy, setBusy] = useState(false)
+  const [leaving, setLeaving] = useState(false)
   const next = params.get('next')
   const dest = next && next.startsWith('/') && !next.startsWith('//') ? next : '/'
 
@@ -53,6 +54,7 @@ export default function ChangePasswordPage() {
     }
   }
   async function signOut() {
+    setLeaving(true)
     try { await api.post('/auth/logout') } finally { qc.clear(); navigate('/login', { replace: true }) }
   }
 
@@ -63,8 +65,8 @@ export default function ChangePasswordPage() {
           <Field label={t('changePassword.current')} htmlFor="cp-current" error={err.current}><Input id="cp-current" type="password" autoComplete="current-password" autoFocus value={v.current} aria-invalid={!!err.current} onChange={(e) => setV({ ...v, current: e.target.value })} /></Field>
           <Field label={t('account.password.next')} htmlFor="cp-next" error={err.next}><Input id="cp-next" type="password" autoComplete="new-password" value={v.next} aria-invalid={!!err.next} onChange={(e) => setV({ ...v, next: e.target.value })} /></Field>
           <Field label={t('account.password.again')} htmlFor="cp-again" error={err.again}><Input id="cp-again" type="password" autoComplete="new-password" value={v.again} aria-invalid={!!err.again} onChange={(e) => setV({ ...v, again: e.target.value })} /></Field>
-          <Button type="submit" variant="primary" disabled={busy}>{t('changePassword.submit')}</Button>
-          <Button onClick={() => void signOut()} disabled={busy}>{t('layout.logout', { ns: 'common' })}</Button>
+          <Button type="submit" variant="primary" disabled={leaving} busy={busy} busyLabel={t('common:busy.saving')}>{t('changePassword.submit')}</Button>
+          <Button onClick={() => void signOut()} disabled={busy} busy={leaving} busyLabel={t('changePassword.signingOut')}>{t('layout.logout', { ns: 'common' })}</Button>
         </form>
       </Card>
     </StandalonePage>

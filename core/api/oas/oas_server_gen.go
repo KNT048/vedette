@@ -1396,7 +1396,8 @@ type Handler interface {
 	InventoryGetInventorySnmpIDRead(ctx context.Context, params InventoryGetInventorySnmpIDReadParams) (NilInventoryGetInventorySnmpIDReadOK, error)
 	// InventoryPatchInventoryDevicesID implements inventory_patch_inventory_devices_id operation.
 	//
-	// Change the type, mark as fragile, override regular scans or edit the notes of a device.
+	// Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the
+	// notes of a device. 400 bad_name: a name over 64 characters or with < or >.
 	//
 	// PATCH /inventory/devices/{id}
 	InventoryPatchInventoryDevicesID(ctx context.Context, req *InventoryPatchInventoryDevicesIDReq, params InventoryPatchInventoryDevicesIDParams) (*InventoryPatchInventoryDevicesIDOK, error)
@@ -1550,6 +1551,17 @@ type Handler interface {
 	//
 	// PUT /inventory/agents/wazuh
 	InventoryPutInventoryAgentsWazuh(ctx context.Context, req *InventoryPutInventoryAgentsWazuhReq) (*InventoryPutInventoryAgentsWazuhOK, error)
+	// InventoryPutInventoryDevicesIDSources implements inventory_put_inventory_devices_id_sources operation.
+	//
+	// Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person's consent
+	// to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope,
+	// exclusions, window, fragile, never scan); turning the network scan on queues the device for the next
+	// window. Off stops it for any device (the run on it stops); what the source found stays and manual
+	// values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404
+	// not_found. 409 box_device: the Vedette box itself.
+	//
+	// PUT /inventory/devices/{id}/sources
+	InventoryPutInventoryDevicesIDSources(ctx context.Context, req *InventoryPutInventoryDevicesIDSourcesReq, params InventoryPutInventoryDevicesIDSourcesParams) (*InventoryPutInventoryDevicesIDSourcesOK, error)
 	// InventoryPutInventoryNotifyNew implements inventory_put_inventory_notify_new operation.
 	//
 	// Turn alerts for new devices on or off.

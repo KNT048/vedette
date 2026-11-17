@@ -7,6 +7,7 @@ import { Card } from '@/components/common/Card'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Label, Select, Textarea } from '@/components/ui/input'
@@ -84,11 +85,12 @@ export default function ConnectionsSection() {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <Switch checked={c.enabled} disabled={unsupported && !c.enabled} aria-label={t('connections.enable', { name: c.name })} onCheckedChange={(enabled) => save.mutate({ id: c.id, ...asInput(c, { enabled }) }, { onError: fail })} />
-                        <Button size="sm" onClick={() => runTest(c)} disabled={test.isPending || unsupported || !c.enabled} title={!c.enabled && !unsupported ? t('connections.testOff') : undefined} aria-label={t('connections.testNamed', { name: c.name })}>{test.isPending && test.variables === c.id ? t('connections.testing') : t('connections.test')}</Button>
+                        <Button size="sm" onClick={() => runTest(c)} disabled={test.isPending || unsupported || !c.enabled} busy={test.isPending && test.variables === c.id} busyLabel={t('connections.testing')} title={!c.enabled && !unsupported ? t('connections.testOff') : undefined} aria-label={t('connections.testNamed', { name: c.name })}>{t('connections.test')}</Button>
                         <Button size="sm" onClick={() => setEdit(c)} disabled={unsupported} aria-label={t('connections.editNamed', { name: c.name })}>{t('connections.edit')}</Button>
                         <Button size="sm" onClick={() => { remove.reset(); setDel(c) }} aria-label={t('connections.deleteNamed', { name: c.name })}>{t('connections.delete')}</Button>
                       </div>
                     </div>
+                    <BusyNote busy={test.isPending && test.variables === c.id}>{t('connections.testWaiting', { s: mcp ? 45 : 30 })}</BusyNote>
                     {unsupported ? <p className="text-meta">{t('connections.unsupportedBody')}</p> : null}
                     {result?.id === c.id ? (result.ok ? <p role="status" className="text-sm"><Chip tone="ok">{t('connections.testOk')}</Chip> {result.ok}</p> : <Notice tone="danger" role="alert" className="mb-0" title={result.error} />) : null}
                     <div>
@@ -131,7 +133,7 @@ export default function ConnectionsSection() {
             {remove.error ? <Notice tone="danger" role="alert" className="mb-0" title={errMsg(remove.error, t)} /> : null}
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-              <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate(del.id, { onSuccess: () => { setDel(null); toast.success(t('connections.deleted')) } })}>{t('connections.delete')}</Button>
+              <Button variant="danger" busy={remove.isPending} busyLabel={t('common:busy.deleting')} onClick={() => remove.mutate(del.id, { onSuccess: () => { setDel(null); toast.success(t('connections.deleted')) } })}>{t('connections.delete')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -242,7 +244,7 @@ function ConnDialog({ conn, onClose, onSaved }: { conn: Connector | null; onClos
           {save.error && !placed ? <Notice tone="danger" role="alert" className="mb-0" title={errMsg(save.error, t)} /> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" disabled={save.isPending}>{save.isPending ? t('connections.saving') : conn ? t('common:save') : t('connections.addConfirm')}</Button>
+            <Button type="submit" variant="primary" busy={save.isPending} busyLabel={t('connections.saving')}>{conn ? t('common:save') : t('connections.addConfirm')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

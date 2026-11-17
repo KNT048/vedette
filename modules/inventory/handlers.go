@@ -118,10 +118,35 @@ func (h *Handlers) InventoryPatchInventoryDevicesID(ctx context.Context, req *oa
 	if v, ok := req.Notes.Get(); ok {
 		p.Notes = &v
 	}
+	if v, ok := req.Name.Get(); ok {
+		p.Name = &v
+	}
 	if err := h.svc.PatchDevice(ctx, who, params.ID, p); err != nil {
 		return nil, fail(err)
 	}
 	return &oas.InventoryPatchInventoryDevicesIDOK{Ok: true}, nil
+}
+
+// InventoryPutInventoryDevicesIDSources implements PUT /inventory/devices/{id}/sources (admin; D-601).
+func (h *Handlers) InventoryPutInventoryDevicesIDSources(ctx context.Context, req *oas.InventoryPutInventoryDevicesIDSourcesReq, params oas.InventoryPutInventoryDevicesIDSourcesParams) (*oas.InventoryPutInventoryDevicesIDSourcesOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var scan, snmp *string
+	if v, ok := req.Scan.Get(); ok {
+		x := string(v)
+		scan = &x
+	}
+	if v, ok := req.Snmp.Get(); ok {
+		x := string(v)
+		snmp = &x
+	}
+	r, err := h.svc.SetSources(ctx, who, params.ID, scan, snmp)
+	if err != nil {
+		return nil, fail(err)
+	}
+	return convert[oas.InventoryPutInventoryDevicesIDSourcesOK](r)
 }
 
 // InventoryDeleteInventoryDevicesID implements DELETE /inventory/devices/{id} (operator).

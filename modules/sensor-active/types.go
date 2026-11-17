@@ -47,6 +47,9 @@ type Inventory interface {
 	// InScope reports whether ip is inside lan_ranges and outside the exclusions (SYS-7).
 	InScope(ctx context.Context, ip netip.Addr) (bool, error)
 	ScanPolicy(ctx context.Context, assetID string) (Decision, error)
+	// SNMPPolicy is ScanPolicy for SNMP reads (D-601): the device's own SNMP setting in place of its network scan setting (snmp_off
+	// when a person turned SNMP off for it; a device added by hand only once a person turned its SNMP on).
+	SNMPPolicy(ctx context.Context, assetID string) (Decision, error)
 	MarkFirstScan(ctx context.Context, assetID string) error
 	Asset(ctx context.Context, assetID string) (Asset, error)     // ErrNotFound when unknown
 	Addresses(ctx context.Context) (map[netip.Addr]string, error) // IP -> device id of every known device

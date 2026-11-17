@@ -1533,7 +1533,16 @@ describe('response: screens', () => {
     renderApp(`/approve/${token}`, { role: null })
     expect(await screen.findByText(/Turn off virtual IP NAS-PHOTO-443/, { selector: 'p' })).toBeInTheDocument()
     expect((await getAction(r.json.id)).status).toBe('pending')
+    // kien G1: the approval makes the change on the device before it answers; while it runs the button spins and a note says so.
+    // The held handler returns nothing, so the request then goes on to the mock.
+    let release!: () => void
+    const held = new Promise<void>((res) => { release = res })
+    server.use(http.post(`${location.origin}/api/v1/response/approve/:token`, async () => { await held }))
     await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    expect(await screen.findByRole('button', { name: 'Approving…' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeDisabled()
+    expect(screen.getByText('Approving and making the change on the device… each change can take up to 90 seconds.')).toBeInTheDocument()
+    release()
     expect(await screen.findByText(/Approved\. The action is being carried out/)).toBeInTheDocument()
   })
 

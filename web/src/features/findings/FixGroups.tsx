@@ -37,6 +37,7 @@ export function FixGroupList({ groups, showDevice }: { groups: FixGroup[]; showD
                       </li>
                     ))}
                   </ul>
+                  {/* empty-guard: a fix group has at least two findings by construction (fixGroups) */}
                   <Link to={`/findings?fix=${encodeURIComponent(g.key)}`} className="mt-1 inline-block text-meta text-accent underline underline-offset-4">{t('fix.select', { count: g.members.length })}</Link>
                 </details>
               </li>

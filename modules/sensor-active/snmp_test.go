@@ -290,7 +290,7 @@ func TestSNMPTestRefusesBeforeSendingAnything(t *testing.T) {
 		{all.ID, "192.168.10.21", "not_approved", "not approved yet"},
 		{all.ID, "192.168.10.2", "box", "Vedette box itself"},
 		{all.ID, "192.168.10.23", "regular_scan_never", "never be scanned"},
-		{all.ID, "10.9.9.9", "out_of_scope", "outside the scan scope"},
+		{all.ID, "10.9.9.9", "out_of_scope", "outside the LAN ranges"},
 		{only30.ID, "192.168.10.20", "not_for_this_credential", "outside the scope of this credential"},
 	} {
 		res, err := w.svc.TestSNMP(t.Context(), "admin@example.com", c.cred, c.ip)

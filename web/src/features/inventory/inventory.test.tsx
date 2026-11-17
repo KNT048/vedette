@@ -322,34 +322,19 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(dlg).queryByText(/Enter one IP address/)).toBeNull()
   })
 
-  it('#849, #860: a range outside the scan scope is added from the SNMP method, append-only with what the dialog showed', async () => {
+  it('D-601 (review r1 M3): a range outside the LAN ranges goes into the credential only; the scan scope is never widened for SNMP', async () => {
     const user = userEvent.setup()
-    const bodies: unknown[] = []
-    server.events.on('request:start', async ({ request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/scanning/safety/ranges')) bodies.push(await request.clone().json()) })
+    const widened: string[] = []
+    server.events.on('request:start', ({ request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/scanning/safety/ranges')) widened.push(request.url) })
     renderApp('/devices?add=snmp')
     const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
     await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '10.50.0.0/24')
-    await user.click(await within(dlg).findByRole('button', { name: 'Add 10.50.0.0/24 to the scan scope' }, T))
-    const scope = await screen.findByRole('dialog', { name: 'Add 10.50.0.0/24 to the scan scope' }, T)
-    const shown = inventorySettingsStore.get().lan_ranges
-    await user.click(within(scope).getByRole('checkbox'))
-    await user.click(within(scope).getByRole('button', { name: 'Add to scope' }))
-    await waitFor(() => expect(inventorySettingsStore.get().lan_ranges).toContain('10.50.0.0/24'), T)
-    expect(bodies).toEqual([expect.objectContaining({ range: '10.50.0.0/24', confirm: true, shown_ranges: shown })])
-  })
-
-  it('#860: when the scope changed meanwhile (409 scope_changed) the dialog says so and asks for the tick again; nothing is overwritten', async () => {
-    const user = userEvent.setup()
-    server.use(http.post('*/api/v1/scanning/safety/ranges', () => HttpResponse.json({ error: { code: 'scope_changed', message: 'The scope changed.' } }, { status: 409 })))
-    renderApp('/devices?add=snmp')
-    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
-    await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '10.50.0.0/24')
-    await user.click(await within(dlg).findByRole('button', { name: 'Add 10.50.0.0/24 to the scan scope' }, T))
-    const scope = await screen.findByRole('dialog', { name: 'Add 10.50.0.0/24 to the scan scope' }, T)
-    await user.click(within(scope).getByRole('checkbox'))
-    await user.click(within(scope).getByRole('button', { name: 'Add to scope' }))
-    expect(await within(scope).findByText(/Someone changed the scan scope meanwhile/, undefined, T)).toBeInTheDocument()
-    expect(within(scope).getByRole('checkbox')).not.toBeChecked()
+    expect(await within(dlg).findByText('10.50.0.0/24 is outside the LAN ranges', undefined, T)).toBeInTheDocument()
+    expect(within(dlg).getByText(/the LAN ranges are not widened/)).toBeInTheDocument()
+    expect(within(dlg).queryByRole('button', { name: /to the scan scope/ })).toBeNull()
+    await user.click(within(dlg).getByRole('button', { name: /^Add range to / }))
+    expect(((await screen.findByLabelText('Send only to', undefined, T)) as HTMLTextAreaElement).value).toContain('10.50.0.0/24')
+    expect(widened).toEqual([])
     expect(inventorySettingsStore.get().lan_ranges).not.toContain('10.50.0.0/24')
   })
 
@@ -753,7 +738,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeChecked()
     // D-543: the page frame: numbers that link to the detail, then one tab per area of the device
     const kpis = screen.getByRole('list', { name: 'This device at a glance' })
-    expect(within(kpis).getByRole('link', { name: /Findings/ })).toHaveAttribute('href', '/findings?device=a-nas02')
+    expect(within(kpis).getByRole('link', { name: /Open findings/ })).toHaveAttribute('href', '/findings?device=a-nas02')
     expect(within(kpis).getByRole('link', { name: '3 Open services' })).toHaveAttribute('href', '/devices/a-nas02?tab=services')
     expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Overview', 'Software', 'Services', 'Observations'])
     await expectNoA11yViolations()
@@ -1858,6 +1843,25 @@ describe('inventory: agents (S-INV-4)', () => {
     expect((await call('GET', '/agents')).json!.wazuh).toBeNull() // testing does not save
   })
 
+  it('kien G1: while Test connection waits on the Wazuh manager, the button is busy and a note says it can take up to 30 seconds', async () => {
+    enableModule('agent-intake', true)
+    let release = () => {}
+    const held = new Promise<void>((r) => { release = r })
+    server.use(http.post('*/api/v1/inventory/agents/wazuh/test', async () => { await held; return HttpResponse.json({ version: '4.9.2', agents: 1 }) }))
+    const user = userEvent.setup()
+    renderApp('/devices/setup?tab=agents')
+    await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
+    await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
+    const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
+    await user.type(within(dialog).getByLabelText('Wazuh server API address'), 'https://wazuh-manager:55000')
+    await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
+    expect(await within(dialog).findByRole('button', { name: 'Testing…' }, T)).toHaveAttribute('aria-busy', 'true')
+    expect(within(dialog).getByText(/^Reaching the Wazuh manager… this can take up to 30 seconds\./)).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Save connection' })).toBeDisabled()
+    release()
+    expect(await within(dialog).findByText(/Connected to Wazuh 4\.9\.2/, undefined, T)).toBeInTheDocument()
+  })
+
   it('#847: a Wazuh pull that failed shows why on the card (a password not restored with the backup says to enter it again)', async () => {
     enableModule('agent-intake', true)
     const lost = 'The saved Wazuh password was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the password again and press Save. Nothing is pulled until then.'
@@ -2106,11 +2110,10 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     expect(within(table).getAllByRole('row')[1]).toBe(row) // first row
   })
 
-  it('it is matched against exploited vulnerabilities like any device, and the device page points to the operating system update', async () => {
+  it('it is matched against exploited vulnerabilities like any device (the fix line: boxNotice.test.tsx)', async () => {
     renderApp(`/devices/${BOX_ID}?tab=software`)
     expect(await screen.findByText('This is the Vedette box itself', undefined, T)).toBeInTheDocument()
     expect(findingsStore.get().some((f) => f.asset_id === BOX_ID)).toBe(true)
-    expect(screen.getByRole('link', { name: 'Fix by updating the operating system' })).toHaveAttribute('href', '/settings/updates')
     const sw = screen.getByRole('table', { name: 'Software on the device' })
     expect(within(sw).getAllByText('This box').length).toBeGreaterThan(5)
     expect(screen.getAllByText('This box').length).toBeGreaterThan(1) // badge and software sources
@@ -2329,5 +2332,108 @@ describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
     const agent = assetsStore.get().find((a) => a.software.some((s) => s.source !== 'manual'))!
     const asid = agent.software.find((s) => s.source !== 'manual')!.id
     expect((await call('PATCH', `/devices/${agent.id}/software/${asid}`, { version: '1' })).json!.error.code).toBe('not_manual')
+  })
+})
+
+describe('inventory: G2 rename a device (S-INV-1)', () => {
+  const nas = () => find('a-nas02')
+
+  it('Rename next to the title: Enter saves the name in Vedette, the host name stays apart, empty gives the default name back', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02', { role: 'operator' })
+    expect(await screen.findByRole('heading', { level: 1, name: 'NAS-PHOTOS' }, T)).toBeInTheDocument()
+    expect(screen.getByTestId('device-hostname')).toHaveTextContent('NAS-PHOTOS')
+    await user.click(screen.getByRole('button', { name: 'Rename' }))
+    const field = screen.getByRole('textbox', { name: 'Name in Vedette' })
+    expect(field).toHaveFocus()
+    expect(field).toHaveValue('')
+    expect(field).toHaveAttribute('placeholder', 'NAS-PHOTOS') // what an empty name shows
+    expect(screen.getByText(/Leave it empty for the default name, NAS-PHOTOS/)).toBeInTheDocument()
+    await expectNoA11yViolations()
+    await user.type(field, '  Photo NAS  {Enter}')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Photo NAS' }, T)).toBeInTheDocument()
+    expect(nas().name).toBe('Photo NAS')
+    expect(nas().hostname).toBe('NAS-PHOTOS') // the observed host name is not changed
+    expect(screen.getByTestId('device-hostname')).toHaveTextContent('NAS-PHOTOS')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename' })).toHaveFocus(), T)
+    expect(auditStore.get().find((e) => e.action === 'inventory.rename')).toMatchObject({ target: 'Photo NAS' })
+
+    // Escape cancels without saving
+    await user.click(screen.getByRole('button', { name: 'Rename' }))
+    expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveValue('Photo NAS')
+    await user.type(screen.getByRole('textbox', { name: 'Name in Vedette' }), 'xyz{Escape}')
+    expect(screen.queryByRole('textbox', { name: 'Name in Vedette' })).toBeNull()
+    expect(nas().name).toBe('Photo NAS')
+
+    // empty + Save: the default name again
+    await user.click(screen.getByRole('button', { name: 'Rename' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Name in Vedette' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'NAS-PHOTOS' }, T)).toBeInTheDocument()
+    expect(nas().name ?? null).toBeNull()
+  })
+
+  it('a name with < or > is refused before it is sent', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02', { role: 'operator' })
+    await user.click(await screen.findByRole('button', { name: 'Rename' }, T))
+    await user.type(screen.getByRole('textbox', { name: 'Name in Vedette' }), 'a<b')
+    expect(screen.getByRole('alert')).toHaveTextContent('A name cannot contain < or >, control characters or invisible characters.')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
+  it('review r1 of #929: invisible and bidi characters are refused like < >; a refused save keeps the focus and says why next to the field', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02', { role: 'operator' })
+    await user.click(await screen.findByRole('button', { name: 'Rename' }, T))
+    const field = screen.getByRole('textbox', { name: 'Name in Vedette' })
+    fireEvent.change(field, { target: { value: '\u202eresu-lawerif' } })
+    expect(screen.getByRole('alert')).toHaveTextContent('invisible characters')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    fireEvent.change(field, { target: { value: 'fw\u200bcore' } })
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    server.use(http.patch(`${location.origin}/api/v1/inventory/devices/:id`, () => HttpResponse.json({ error: { code: 'forbidden', message: 'You need the operator role.' } }, { status: 403 })))
+    await user.clear(field)
+    await user.type(field, 'Photo NAS{Enter}')
+    expect(await screen.findByRole('alert', undefined, T)).toHaveTextContent('You need the operator role.')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveFocus(), T)
+    expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveAttribute('aria-invalid', 'true')
+    expect(nas().name ?? null).toBeNull()
+  })
+
+  it('review r1 of #929: the CSV export keeps the host name and the name in Vedette apart, and import reads both back', async () => {
+    asAdmin()
+    expect((await call('PATCH', '/devices/a-nas02', { name: 'Photo NAS' })).status).toBe(200)
+    const csv = (await call('GET', '/export.csv')).text
+    expect(csv).toContain('last_seen,name_in_vedette')
+    expect(csv).toMatch(/\r\nNAS-PHOTOS,[^\r]*,Photo NAS\r\n/)
+    const r = await call('POST', '/import', { filename: 'x.csv', size: 1, sha256: 'x', text: 'name,ip,name_in_vedette\nfw-core,192.168.77.1,Office firewall\n' })
+    expect(r.json!.created).toBe(1)
+    const a = assetsStore.get().find((x) => x.ip === '192.168.77.1')!
+    expect([a.hostname, a.name]).toEqual(['fw-core', 'Office firewall'])
+  })
+
+  it('a viewer cannot rename', async () => {
+    renderApp('/devices/a-nas02', { role: 'viewer' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename' })).toBeDisabled(), T)
+  })
+
+  it('the Devices list shows the name in Vedette and the search finds it', async () => {
+    const user = userEvent.setup()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-nas02' ? { ...a, name: 'Photo NAS' } : a)))
+    renderApp('/devices')
+    const table = await deviceTable()
+    await user.type(screen.getByRole('combobox', { name: 'Search devices' }), 'photo nas')
+    expect(await within(table).findByRole('link', { name: 'Photo NAS' }, T)).toHaveAttribute('href', '/devices/a-nas02')
+  })
+
+  it('PATCH name: trimmed, at most 64 characters, no < or >, empty clears it', async () => {
+    asAdmin()
+    expect((await call('PATCH', '/devices/a-nas02', { name: 'a>b' })).json!.error.code).toBe('bad_name')
+    expect((await call('PATCH', '/devices/a-nas02', { name: 'x'.repeat(65) })).json!.error.code).toBe('bad_name')
+    expect((await call('PATCH', '/devices/a-nas02', { name: ' Photo NAS ' })).status).toBe(200)
+    expect((await call('GET', '/devices/a-nas02')).json!.asset.name).toBe('Photo NAS')
+    expect((await call('PATCH', '/devices/a-nas02', { name: '' })).status).toBe(200)
+    expect((await call('GET', '/devices/a-nas02')).json!.asset.name).toBeNull()
   })
 })

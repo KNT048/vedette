@@ -11,7 +11,7 @@ export function DeleteDialog({ open, onOpenChange, name, findings, pending, onCo
         info={<><p>{t('delete.bodyInfo')}</p>{findings > 0 ? <p>{t('delete.findingsInfo')}</p> : null}</>}>
         <DialogFooter>
           <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-          <Button variant="danger" disabled={pending} onClick={onConfirm}>{t('delete.confirm')}</Button>
+          <Button variant="danger" busy={pending} busyLabel={t('common:busy.deleting')} onClick={onConfirm}>{t('delete.confirm')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

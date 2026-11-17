@@ -10,6 +10,7 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Card } from '@/components/common/Card'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState, Loading, ErrorState } from '@/components/common/States'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
@@ -60,7 +61,7 @@ function AddDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenCha
             <Select id="u-role" value={v.role} onChange={(e) => setV({ ...v, role: e.target.value as Role })}>{ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}</Select>
           </Field>
           {err.form ? <p role="alert" className="text-meta text-danger">{err.form}</p> : null}
-          <DialogFooter><Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button><Button type="submit" variant="primary" disabled={m.create.isPending}>{t('users.add.submit')}</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button><Button type="submit" variant="primary" busy={m.create.isPending} busyLabel={t('common:busy.creating')}>{t('users.add.submit')}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -84,7 +85,7 @@ function OidcPanel({ leaving }: { leaving: boolean }) {
           <p className="text-sm">{t('oidc.off')}</p>
           <InfoTip topic={t('oidc.title')}>{t('oidc.offInfo')}</InfoTip>
         </div>
-        <Button className="mt-3" onClick={() => void enable(true)} disabled={toggle.isPending}>{t('oidc.enable')}</Button>
+        <Button className="mt-3" onClick={() => void enable(true)} busy={toggle.isPending} busyLabel={t('common:busy.turningOn')}>{t('oidc.enable')}</Button>
       </Card>
     )
   }
@@ -98,7 +99,7 @@ function OidcPanel({ leaving }: { leaving: boolean }) {
       <Dialog open={askOff} onOpenChange={setAskOff}>
         <DialogContent title={t('oidc.offAsk.title')} info={t('oidc.offAsk.keptInfo')}
           description={leaving ? (n > 0 ? t('oidc.offAsk.bodyUsersHidden', { count: n }) : t('oidc.offAsk.bodyHidden')) : n > 0 ? t('oidc.offAsk.bodyUsers', { count: n }) : t('oidc.offAsk.body')}>
-          <DialogFooter><Button onClick={() => setAskOff(false)}>{t('common:cancel')}</Button><Button variant="danger" disabled={toggle.isPending} onClick={() => void enable(false)}>{t('oidc.disable')}</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => setAskOff(false)}>{t('common:cancel')}</Button><Button variant="danger" busy={toggle.isPending} busyLabel={t('common:busy.turningOff')} onClick={() => void enable(false)}>{t('oidc.disable')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </>
@@ -113,7 +114,7 @@ function OidcLocked({ cfg, onDisable, busy }: { cfg: OidcConfig; onDisable: () =
     <Card className="grid max-w-xl gap-3">
       <ScopeLine scope="leaving" />
       <KeyValue items={[{ label: t('oidc.issuer'), value: <span className="break-all font-mono text-meta">{cfg.issuer || '–'}</span> }, { label: t('oidc.clientId'), value: <span className="break-all font-mono text-meta">{cfg.client_id || '–'}</span> }]} />
-      <div><Button variant="danger" onClick={onDisable} disabled={busy}>{t('oidc.disable')}</Button></div>
+      <div><Button variant="danger" onClick={onDisable} busy={busy} busyLabel={t('common:busy.turningOff')}>{t('oidc.disable')}</Button></div>
     </Card>
   )
 }
@@ -190,10 +191,11 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
       </Field>
       {errOf('form') ? <p role="alert" className="text-meta text-danger">{errOf('form')}</p> : null}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" variant="primary" disabled={m.save.isPending}>{t('common:save')}</Button>
-        <Button onClick={() => void test()} disabled={m.test.isPending || !cfg.issuer || dirty} title={cfg.issuer && !dirty ? undefined : t('oidc.saveFirst')}>{t('oidc.test')}</Button>
+        <Button type="submit" variant="primary" disabled={m.test.isPending} busy={m.save.isPending} busyLabel={t('common:busy.saving')}>{t('common:save')}</Button>
+        <Button onClick={() => void test()} disabled={!cfg.issuer || dirty || m.save.isPending} busy={m.test.isPending} busyLabel={t('common:busy.testing')} title={cfg.issuer && !dirty ? undefined : t('oidc.saveFirst')}>{t('oidc.test')}</Button>
         <Button variant="ghost" onClick={onDisable}>{t('oidc.disable')}</Button>
       </div>
+      <BusyNote busy={m.test.isPending}>{t('oidc.testWaiting')}</BusyNote>
       {endpoints ? (
         <section className="grid gap-1 border-t border-rule pt-3 text-meta" aria-labelledby="oidc-endpoints">
           <h3 id="oidc-endpoints" className="text-sm font-medium">{t('oidc.endpoints')}</h3>
@@ -247,7 +249,7 @@ export default function UsersSection() {
           const actions = (u: AdminUser) => (
             <div className="flex flex-wrap gap-1.5">
               {u.sso ? null : <Button size="sm" onClick={() => setAskReset(u)} aria-label={t('users.resetOf', { name: u.name })}>{t('users.reset')}</Button>}
-              <Button size="sm" disabled={isMe(u) && !u.disabled} title={isMe(u) && !u.disabled ? t('users.selfDisable') : undefined} onClick={() => void patch(u, { disabled: !u.disabled })} aria-label={t(u.disabled ? 'users.enableOf' : 'users.disableOf', { name: u.name })}>{u.disabled ? t('users.enable') : t('users.disable')}</Button>
+              <Button size="sm" disabled={isMe(u) && !u.disabled} busy={m.patch.isPending && m.patch.variables?.id === u.id && m.patch.variables.disabled !== undefined} busyLabel={t('common:busy.saving')} title={isMe(u) && !u.disabled ? t('users.selfDisable') : undefined} onClick={() => void patch(u, { disabled: !u.disabled })} aria-label={t(u.disabled ? 'users.enableOf' : 'users.disableOf', { name: u.name })}>{u.disabled ? t('users.enable') : t('users.disable')}</Button>
               {u.twofa ? <Button size="sm" disabled={isMe(u)} title={isMe(u) ? t('users.resetTwofaSelf') : undefined} onClick={() => setAskReset2fa(u)} aria-label={t('users.resetTwofaOf', { name: u.name })}>{t('users.resetTwofa')}</Button> : null}
             </div>
           )
@@ -283,13 +285,13 @@ export default function UsersSection() {
 
       <Dialog open={!!askReset} onOpenChange={(o) => !o && setAskReset(null)}>
         <DialogContent title={t('users.resetAsk.title', { name: askReset?.name ?? '' })} description={t('users.resetAsk.body')} info={t('users.resetAsk.bodyInfo')}>
-          <DialogFooter><Button onClick={() => setAskReset(null)}>{t('common:cancel')}</Button><Button variant="danger" disabled={m.reset.isPending} onClick={() => askReset && void reset(askReset)}>{t('users.resetAsk.confirm')}</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => setAskReset(null)}>{t('common:cancel')}</Button><Button variant="danger" busy={m.reset.isPending} busyLabel={t('common:busy.resetting')} onClick={() => askReset && void reset(askReset)}>{t('users.resetAsk.confirm')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!askReset2fa} onOpenChange={(o) => !o && setAskReset2fa(null)}>
         <DialogContent title={t('users.resetTwofaAsk.title', { name: askReset2fa?.name ?? '' })} description={t('users.resetTwofaAsk.body')} info={t('users.resetTwofaAsk.bodyInfo')}>
-          <DialogFooter><Button onClick={() => setAskReset2fa(null)}>{t('common:cancel')}</Button><Button variant="danger" disabled={m.reset2fa.isPending} onClick={() => askReset2fa && void reset2fa(askReset2fa)}>{t('users.resetTwofaAsk.confirm')}</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => setAskReset2fa(null)}>{t('common:cancel')}</Button><Button variant="danger" busy={m.reset2fa.isPending} busyLabel={t('common:busy.resetting')} onClick={() => askReset2fa && void reset2fa(askReset2fa)}>{t('users.resetTwofaAsk.confirm')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

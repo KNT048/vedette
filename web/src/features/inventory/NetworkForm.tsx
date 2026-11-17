@@ -213,7 +213,7 @@ export function NetworkForm({ settings }: { settings: InventorySettings }) {
         </p>
         <p className="text-meta text-muted">{t('scope.asIs')}</p>
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" variant="primary" disabled={!dirty || save.isPending || badRanges > 0}>{t('network.save')}</Button>
+          <Button type="submit" variant="primary" disabled={!dirty || badRanges > 0} busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('network.save')}</Button>
           {badRanges > 0 ? <span role="status" className="text-meta text-danger">{t('network.fixFirst', { count: badRanges })}</span> : dirty ? <span className="text-meta text-muted">{t('network.unsaved')}</span> : null}
         </div>
       </div>

@@ -23,6 +23,7 @@ type AddInput struct {
 	Version   string
 	Name      string
 	IP        string
+	UserName  string // the name in Vedette (G2): only CSV import sets it, from its name_in_vedette column
 }
 
 // AddResult is POST /inventory/devices.
@@ -33,10 +34,11 @@ type AddResult struct {
 }
 
 type addChecked struct {
-	entry   *catEntry
-	version string
-	name    string
-	ip      string
+	entry    *catEntry
+	version  string
+	name     string
+	ip       string
+	userName string
 }
 
 func notFoundDevice() *apierr.Error {
@@ -81,6 +83,10 @@ func checkAdd(c *Catalog, in AddInput, requireProduct bool) (addChecked, *apierr
 	if name != "" && !label(name) {
 		return addChecked{}, badRequest("bad_name", "The name is at most 64 characters and cannot contain < or >.")
 	}
+	user := strings.TrimSpace(in.UserName)
+	if !userName(user) {
+		return addChecked{}, badRequest("bad_name", badUserName)
+	}
 	ip := strings.TrimSpace(in.IP)
 	if ip != "" {
 		a, ok := ipv4(ip)
@@ -89,17 +95,17 @@ func checkAdd(c *Catalog, in AddInput, requireProduct bool) (addChecked, *apierr
 		}
 		ip = a.String()
 	}
-	return addChecked{entry: entry, version: version, name: name, ip: ip}, nil
+	return addChecked{entry: entry, version: version, name: name, ip: ip, userName: user}, nil
 }
 
 // createManual inserts a declared device with its observations and software (INV-4, INV-5): approved, never
 // scanned, source "manual" at confidence 1.
 func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a addChecked, kind string) (string, error) {
 	if a.ip != "" {
-		var dup sql.NullString
-		err := tx.QueryRowContext(ctx, `SELECT coalesce(hostname, id) FROM inv_asset WHERE ip = ?`, a.ip).Scan(&dup)
-		if err == nil {
-			return "", conflict("duplicate_ip", fmt.Sprintf("IP %s is already in the list (%s). Open that device instead of adding a new one.", a.ip, dup.String))
+		var dup string
+		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = ?`, a.ip).Scan(&dup)
+		if err == nil { // named as every page names it (D-471, G2)
+			return "", conflict("duplicate_ip", fmt.Sprintf("IP %s is already in the list (%s). Open that device instead of adding a new one.", a.ip, deviceName(ctx, tx, dup)))
 		} else if !errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("inventory: check IP: %w", err)
 		}
@@ -112,8 +118,8 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 	}
 	now := s.now()
 	id := store.NewID("a")
-	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, ip, ip_confirmed_at, kind, origin, approved, fragile, first_seen, last_seen)
-		VALUES (?1, ?2, CASE WHEN ?2 IS NULL THEN NULL ELSE ?3 END, 'unknown', 'manual', 1, 0, ?3, ?3)`, id, nullStr(a.ip), now); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, ip, ip_confirmed_at, kind, origin, approved, fragile, first_seen, last_seen, user_name)
+		VALUES (?1, ?2, CASE WHEN ?2 IS NULL THEN NULL ELSE ?3 END, 'unknown', 'manual', 1, 0, ?3, ?3, ?4)`, id, nullStr(a.ip), now, nullStr(a.userName)); err != nil {
 		return "", fmt.Errorf("inventory: create device: %w", err)
 	}
 	if a.entry != nil {
@@ -345,13 +351,22 @@ type Patch struct {
 	Fragile     *bool
 	RegularScan *string
 	Notes       *string
+	Name        *string // the name in Vedette (G2): trimmed; "" clears it, back to the naming rule (D-471)
 }
 
-// PatchDevice changes the type, fragile flag, regular-scan override or notes of a device (PRE-4, POST-4).
-// A new type is added as a manual observation: older and weaker values stay in the list (INV-1).
+// PatchDevice changes the name in Vedette, type, fragile flag, regular-scan override or notes of a device (PRE-4, POST-4).
+// A new type is added as a manual observation: older and weaker values stay in the list (INV-1). The name is the device's own
+// column (user_name, G2), never an observation: the host name the network reports stays as it is, shown apart.
 func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) error {
 	if err := s.requireDevice(ctx, id); err != nil { // 404 before 400, like the mock
 		return err
+	}
+	if p.Name != nil {
+		n := strings.TrimSpace(*p.Name)
+		if !userName(n) {
+			return badRequest("bad_name", badUserName)
+		}
+		p.Name = &n
 	}
 	if p.RegularScan != nil && !slices.Contains([]string{"follow", "allow", "never"}, *p.RegularScan) {
 		return badRequest("bad_regular_scan", "Regular scans must be: follow type setting, allow or never.")
@@ -372,6 +387,24 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 			return fmt.Errorf("inventory: read device: %w", err)
 		}
 		name := deviceName(ctx, tx, id)
+		match := false
+		if p.Name != nil {
+			var old sql.NullString
+			if err := tx.QueryRowContext(ctx, `SELECT user_name FROM inv_asset WHERE id = ?`, id).Scan(&old); err != nil {
+				return fmt.Errorf("inventory: read name: %w", err)
+			}
+			if old.String != *p.Name { // the same name again changes nothing and writes no audit row
+				if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET user_name = ? WHERE id = ?`, nullStr(*p.Name), id); err != nil {
+					return fmt.Errorf("inventory: set name: %w", err)
+				}
+				renamed := deviceName(ctx, tx, id)
+				if err := s.auditTx(ctx, tx, actor, "inventory.rename", renamed, name+" → "+renamed); err != nil {
+					return err
+				}
+				// The findings' evidence names the device (MatchDevice.Name): matching it again writes the new name there too.
+				name, match = renamed, true
+			}
+		}
 		if p.RegularScan != nil {
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET regular_scan = ? WHERE id = ?`, *p.RegularScan, id); err != nil {
 				return fmt.Errorf("inventory: set regular scan: %w", err)
@@ -409,9 +442,84 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 				return err
 			}
 		}
-		o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+		o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: match})
 		return nil
 	})
+}
+
+// Sources is the state of a device's active sources (PUT /inventory/devices/{id}/sources; D-601): SourceOn or SourceOff each, the
+// default resolved (on for a device a sensor found, off for one added by hand).
+type Sources struct {
+	Scan string `json:"scan_source"`
+	SNMP string `json:"snmp_source"`
+}
+
+// SetSources turns the network scan and the SNMP reads of one device on or off (D-601); a nil value is left alone, and at least one is
+// needed. Turning one on is a person's consent to that traffic to this device: a device added by hand gets it from then on, inside every
+// other safety rule (scope, exclusions, window, fragile, never, the box). Turning one off stops it for any device: the run in progress on
+// the device stops (inventory.asset.updated), and what that source found stays. One audit row per source changed says who, which device,
+// which source and on or off. The box itself is 409 box_device: nothing automatic ever probes it.
+func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *string) (Sources, error) {
+	for _, v := range []*string{scan, snmp} {
+		if v != nil && *v != SourceOn && *v != SourceOff {
+			return Sources{}, badRequest("bad_source", "Each source is on or off.")
+		}
+	}
+	if scan == nil && snmp == nil {
+		return Sources{}, badRequest("bad_source", "Say which source to turn on or off: scan, snmp or both.")
+	}
+	var out Sources
+	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		var origin, curScan, curSNMP, ip string
+		var box bool
+		err := tx.QueryRowContext(ctx, `SELECT origin, is_box, coalesce(scan_source, ''), coalesce(snmp_source, ''), coalesce(ip, '') FROM inv_asset WHERE id = ?`, id).
+			Scan(&origin, &box, &curScan, &curSNMP, &ip)
+		if errors.Is(err, sql.ErrNoRows) {
+			return notFoundDevice()
+		} else if err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
+		}
+		if box {
+			return conflict("box_device", "This is the Vedette box itself: Vedette never scans or reads it on its own.")
+		}
+		name := deviceName(ctx, tx, id)
+		scanOn, changed := false, false
+		for _, c := range []struct {
+			col, label string
+			cur        *string
+			next       *string
+		}{{"scan_source", "network scan", &curScan, scan}, {"snmp_source", "SNMP", &curSNMP, snmp}} {
+			if c.next == nil {
+				continue
+			}
+			// The stored value is the consent the policies read (a stored "on" lets SNMP past lan_ranges; review r2 M1): any change of it is
+			// a change, audited and announced, even when the resolved default looked the same.
+			before := *c.cur
+			// only the two column names above are concatenated; the value is bound
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET `+c.col+` = ? WHERE id = ?`, *c.next, id); err != nil { //nolint:gosec // G202: see above
+				return fmt.Errorf("inventory: set %s: %w", c.label, err)
+			}
+			*c.cur = *c.next
+			if before == *c.next {
+				continue // saying it again changes nothing and writes no audit row
+			}
+			if err := s.auditTx(ctx, tx, actor, "inventory.set_source", name, c.label+": "+*c.next); err != nil {
+				return err
+			}
+			changed = true
+			scanOn = scanOn || (c.col == "scan_source" && *c.next == SourceOn)
+		}
+		st, err := loadSettings(ctx, tx)
+		if err != nil {
+			return err
+		}
+		out = Sources{Scan: sourceState(curScan, origin), SNMP: snmpState(st, curSNMP, origin, ip)}
+		if changed { // a PUT that changes nothing stops nothing (review r1 L3)
+			o.add(EventAssetUpdated, AssetEvent{AssetID: id, ScanOn: scanOn})
+		}
+		return nil
+	})
+	return out, err
 }
 
 // Approve accepts a device a sensor found (S-INV-3); it also clears the suspicious flag.

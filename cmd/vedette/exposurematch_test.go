@@ -139,7 +139,9 @@ func TestExposureMatcher_NmapServicesAgainstKEV(t *testing.T) {
 		return func(cpe string) []string { asked = append(asked, cpe); return []string{"apache|http server"} }
 	}
 	got, err = m.Match(t.Context(), exposureFixtureServices[2:])
-	if err != nil || len(got.Vulns) != 1 || got.Vulns[0].Basis != "product" || !slices.Equal(asked, []string{"cpe:/a:apache:http_server:2.4.49"}) {
+	// D-602: product name only, so not listed: ruled out with the reason
+	if err != nil || len(got.Vulns) != 0 || len(got.RuledOut) != 1 || !strings.HasPrefix(got.RuledOut[0].Reason, "Only the product name matches") ||
+		!slices.Equal(asked, []string{"cpe:/a:apache:http_server:2.4.49"}) {
 		t.Fatalf("catalog: %+v %v asked %v", got, err, asked)
 	}
 }
@@ -231,7 +233,7 @@ func TestExposureMatcher_CuratedCatalogKevKeys(t *testing.T) {
 		exposure.ServiceRow{IP: "203.0.113.10", Port: 443, Name: "http", Product: "nginx", Version: "1.24.0", CPE: "cpe:/a:igor_sysoev:nginx:1.24.0"},
 		exposure.ServiceRow{IP: "203.0.113.10", Port: 22, Name: "ssh", Product: "OpenSSH", Version: "9.6", CPE: "cpe:/a:openbsd:openssh:9.6"})
 	got, err := m.Match(t.Context(), svcs)
-	if err != nil || got.Compared != 1 || len(got.Vulns) != 1 || got.Vulns[0].CVE != "CVE-2021-41773" || got.Vulns[0].Basis != "product" {
+	if err != nil || got.Compared != 1 || len(got.Vulns) != 0 || len(got.RuledOut) != 1 || got.RuledOut[0].CVE != "CVE-2021-41773" { // D-602: product name only
 		t.Fatalf("apache: %+v %v", got, err)
 	}
 	if !slices.Equal(got.Unlisted, []string{"nginx (igor_sysoev:nginx)", "OpenSSH (openbsd:openssh)"}) {
@@ -340,7 +342,9 @@ func TestExposureMatcher_D616_OldKEVOnlyProductOnlyIsRuledOut(t *testing.T) {
 		t.Fatalf("old CVE, product only: %+v %v", got, err)
 	}
 	m.vulns = func(context.Context) ([]findings.Vuln, error) { return productOnly(now.AddDate(0, -2, 0)), nil }
-	if got, err = m.Match(t.Context(), exposureFixtureServices[2:]); err != nil || len(got.Vulns) != 1 || got.Vulns[0].Basis != "product" || len(got.RuledOut) != 0 {
+	// D-602: a recent one is no finding on the product name alone either, with its own reason
+	if got, err = m.Match(t.Context(), exposureFixtureServices[2:]); err != nil || len(got.Vulns) != 0 || len(got.RuledOut) != 1 ||
+		!strings.Contains(got.RuledOut[0].Reason, "Vedette is waiting for NVD's data for CVE-2021-41773") {
 		t.Fatalf("recent CVE, product only: %+v %v", got, err)
 	}
 }

@@ -130,6 +130,11 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE,
 				Reason: fmt.Sprintf("Published on %s, more than 12 months ago, and only the product name matches: the banner gives no version Vedette can compare. For an old CVE Vedette needs a version or a hit of this page's scans.", findings.FmtDay(v.Published))})
 		}
+		for _, x := range res.NameOnly { // D-602: only the product name matches, whatever the CVE's age
+			s := where[x.SoftwareID]
+			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE,
+				Reason: fmt.Sprintf("Only the product name matches: %s. Vedette lists an exploited CVE when it can compare a version or this page's scans find it.", x.Gap())})
+		}
 		for _, n := range res.NeedVersion {
 			s := where[n.SoftwareID]
 			out.Gaps = append(out.Gaps, exposure.GapRow{IP: s.IP, Port: s.Port, Software: n.Software, CVEs: n.CVEs})

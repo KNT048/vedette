@@ -32397,6 +32397,10 @@
                                       "type": "null"
                                     }
                                   ]
+                                },
+                                "nvd_pending": {
+                                  "description": "D-602: reason no_nvd_data while Vedette has not read NVD's answer for this CVE yet (new box, NVD feed off or failing): say \"waiting for NVD's data\", not \"NVD has not published\"",
+                                  "type": "boolean"
                                 }
                               },
                               "required": [

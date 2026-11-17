@@ -15,7 +15,7 @@ func TestContract_INV1_UniquePair(t *testing.T) {
 	// two software rows and a repeated KEV entry still give one result per CVE
 	a := nas("6.1.1")
 	a.Software = append(a.Software, Software{ID: "s-2", Display: "Photo Station", Version: "6.0", KevKeys: []string{"qnap|photo station"}})
-	res := MatchAsset(a, []Vuln{qnapVuln(), qnapVuln()}, nil, t0)
+	res := MatchAsset(a, []Vuln{qnapScanned(), qnapScanned()}, nil, t0)
 	if len(res.New)+len(res.Existing) != 1 {
 		t.Fatalf("want one result for one (asset, cve): %+v", res)
 	}
@@ -29,7 +29,7 @@ func TestContract_INV2_StatusBasisConfidence(t *testing.T) {
 		}
 	}
 	// every finding the library creates or transitions to passes Validate
-	m := MatchAsset(nas("6.1.1"), []Vuln{qnapVuln()}, nil, t0).New[0]
+	m := MatchAsset(nas("6.1.1"), []Vuln{qnapScanned()}, nil, t0).New[0]
 	f, _ := NewFinding(m, t0)
 	steps := []func(Finding) (Finding, error){
 		func(f Finding) (Finding, error) {
@@ -132,8 +132,8 @@ func TestContract_INV4_KeyAndRanges(t *testing.T) {
 	if r := MatchAsset(nas("6.1.2"), []Vuln{qnapVuln(af)}, nil, t0); len(r.New)+len(r.Existing) != 0 {
 		t.Errorf("outside: %+v", r)
 	}
-	// a usable version that cannot be compared: product, medium (D-500)
-	if r := MatchAsset(nas("6.1.1"), []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "next"}})}, nil, t0); len(r.New) != 1 || r.New[0].Basis != BasisProduct || r.New[0].Severity != SeverityMedium {
+	// a usable version that cannot be compared: no finding, by the product name only (D-602; before, product, medium, D-500)
+	if r := MatchAsset(nas("6.1.1"), []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "next"}})}, nil, t0); len(r.New) != 0 || len(r.NameOnly) != 1 || r.NameOnly[0].Basis != BasisProduct || r.NameOnly[0].Severity != SeverityMedium {
 		t.Errorf("not comparable: %+v", r)
 	}
 	// no usable version: no finding, one "add the version" item (D-500)
@@ -145,7 +145,7 @@ func TestContract_INV4_KeyAndRanges(t *testing.T) {
 func TestContract_INV5_Severity(t *testing.T) {
 	t.Parallel()
 	in := Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "2"}}
-	hi, rw, ep, unchecked := qnapVuln(in), qnapVuln(in), qnapVuln(in), qnapVuln()
+	hi, rw, ep, unchecked := qnapVuln(in), qnapVuln(in), qnapVuln(in), qnapScanned()
 	rw.Ransomware, ep.EPSS, unchecked.Ransomware = true, 0.5, true
 	for v, want := range map[*Vuln]Severity{&hi: SeverityHigh, &rw: SeverityCritical, &ep: SeverityCritical, &unchecked: SeverityMedium} {
 		if got := MatchAsset(nas("1"), []Vuln{*v}, nil, t0).New[0].Severity; got != want {
@@ -156,7 +156,7 @@ func TestContract_INV5_Severity(t *testing.T) {
 
 func TestContract_INV6_Idempotent(t *testing.T) {
 	t.Parallel()
-	vulns := []Vuln{qnapVuln(), {CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Photo Station"}}
+	vulns := []Vuln{qnapScanned(), {CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true}}
 	a := nas("1")
 	have := map[string]bool{}
 	first := MatchAsset(a, vulns, have, t0)

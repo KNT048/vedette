@@ -137,7 +137,7 @@ func TestToFix_G8_CapKeepsTheProvedDevice(t *testing.T) {
 	e := newEnv(t)
 	// two ransomware product-only guesses on Surveillance Station (no range) on four devices; the PC has one ranged CVE, no ransomware
 	guess := func(cve string) Vuln {
-		return Vuln{CVE: cve, Vendor: "QNAP", Product: "Surveillance Station", Ransomware: true}
+		return Vuln{CVE: cve, Vendor: "QNAP", Product: "Surveillance Station", Ransomware: true, HasTemplate: true} // a scan checks it: a product finding stays (D-602)
 	}
 	ranged := Vuln{CVE: "CVE-2099-0001", Vendor: "QNAP", Product: "Photo Station",
 		Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "6.1.2"}}}}

@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -92,13 +93,17 @@ func TestMatchAsset_904_WindowsEntryNVDListsOthersOnly(t *testing.T) {
 	recent := appInstaller
 	recent.Published, recent.DateAdded = now.AddDate(0, -2, 0), now.AddDate(0, -2, 0)
 	res := MatchAsset(winlab01(), []Vuln{recent}, nil, now)
-	if len(res.New) != 1 || len(res.Aged) != 0 {
+	if len(res.New) != 0 || len(res.Aged) != 0 || len(res.NameOnly) != 1 { // D-602: product name only, so no finding
 		t.Fatalf("recent: %+v", res)
 	}
-	m := res.New[0]
+	m := res.NameOnly[0]
 	want := "CISA lists this flaw for Microsoft Windows, but NVD lists CVE-2026-43890 for app installer only, not Windows Server 2025; check the vendor advisory and close it if it does not apply."
-	if m.Basis != BasisProduct || !m.Evidence.AgentRow || confirmedMatch(m) || !strings.Contains(m.Evidence.Summary, want) {
-		t.Errorf("recent: basis %s agent_row %v confirmed %v %q", m.Basis, m.Evidence.AgentRow, confirmedMatch(m), m.Evidence.Summary)
+	if m.Basis != BasisProduct || !m.Evidence.AgentRow || confirmedMatch(m) || !strings.Contains(m.said, want) ||
+		!strings.Contains(m.Evidence.Summary, "NVD lists CVE-2026-43890 for app installer, names Vedette does not tie to Windows Server 2025") {
+		t.Errorf("recent: basis %s agent_row %v confirmed %v %q %q", m.Basis, m.Evidence.AgentRow, confirmedMatch(m), m.said, m.Evidence.Summary)
+	}
+	if len(res.Unchecked) != 1 || res.Unchecked[0].Reason != UncheckedNotNamed {
+		t.Errorf("recent: unchecked %+v", res.Unchecked)
 	}
 	old := appInstaller
 	old.Published, old.DateAdded = now.AddDate(-3, 0, 0), now.AddDate(-3, 0, 0)
@@ -110,14 +115,14 @@ func TestMatchAsset_904_WindowsEntryNVDListsOthersOnly(t *testing.T) {
 		own := old
 		own.Affected = []Affected{{CPE: cpe}}
 		res := MatchAsset(winlab01(), []Vuln{own}, nil, now)
-		if len(res.Aged) != 0 || len(res.New) == 1 && (!res.New[0].Evidence.AgentRow || res.New[0].others != "") {
+		if len(res.Aged) != 1 || len(res.New)+len(res.NameOnly) != 0 || !res.Aged[0].Evidence.AgentRow || res.Aged[0].others != "" { // D-602: no agent-row exception
 			t.Errorf("%s: %+v", cpe, res)
 		}
 	}
 	// no NVD data yet: CISA's own naming of the product is all there is, and the agent row keeps it (TestContract_D615_AgentRowNeverAges)
 	none := old
 	none.Affected = nil
-	if res := MatchAsset(winlab01(), []Vuln{none}, nil, now); len(res.Aged) != 0 || len(res.New) != 1 || !confirmedMatch(res.New[0]) {
+	if res := MatchAsset(winlab01(), []Vuln{none}, nil, now); len(res.Aged) != 1 || len(res.New)+len(res.NameOnly) != 0 || confirmedMatch(res.Aged[0]) {
 		t.Errorf("no NVD data: %+v", res)
 	}
 }
@@ -156,7 +161,7 @@ func TestMatchAsset_D618_NeverGuesses(t *testing.T) {
 	// CVE-2013-3900 with an old list naming only Windows 7 (D-610 winRevised): the month rule does not close it either
 	old := nvdRaw("CVE-2013-3900", "2022-01-10", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*")
 	old.Published = winDay("2013-12-10")
-	if w, m := oneMatch(t, winlab01(), old, true, vulns...); w != "existing" {
+	if w, m := oneMatch(t, winlab01(), old, true, vulns...); w != "nameonly" {
 		t.Errorf("CVE-2013-3900: %s %q", w, m.Evidence.Summary)
 	}
 	// Server 2025 at 26100.32313 (February 2026's update). January and February 2026 give its own fix builds (NVD's real rows of
@@ -167,7 +172,7 @@ func TestMatchAsset_D618_NeverGuesses(t *testing.T) {
 	mar := nvdWindows("CVE-2026-90001", "2026-03-10", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.8037"})
 	apr := nvdWindows("CVE-2026-90002", "2026-04-14", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.8246"}, nvdRow{"windows_10_22h2", "*", "*", "10.0.19045.7184"})
 	jan.Published, feb.Published, mar.Published, apr.Published = winDay("2026-01-13"), winDay("2026-02-10"), winDay("2026-03-10"), winDay("2026-04-14")
-	if w, m := oneMatch(t, srv, mar, true, jan, feb, apr); w != "existing" {
+	if w, m := oneMatch(t, srv, mar, true, jan, feb, apr); w != "nameonly" {
 		t.Errorf("March 2026 (24H2 only) on February's server build: %s %q", w, m.Evidence.Summary)
 	}
 	old.Published = winDay("2025-12-09")
@@ -194,7 +199,7 @@ func TestMatchAsset_D618_PartOfTheListNeverMovesTheMonth(t *testing.T) {
 	srv := winPC(26100, true, "32313", "x64")
 	a := dated("CVE-2026-90010", "2026-10-13", "2026-11-12", nvdRow{"windows_server_2025", "*", "*", "10.0.26100.33650"}, nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.9711"})
 	b := dated("CVE-2026-90011", "2026-03-10", "2026-11-12", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.8037"})
-	if w, m := oneMatch(t, srv, b, true, a); w != "existing" {
+	if w, m := oneMatch(t, srv, b, true, a); w != "nameonly" {
 		t.Errorf("March 2026 24H2-only entry on February's server build: %s %q", w, m.Evidence.Summary)
 	}
 }
@@ -222,8 +227,13 @@ func TestReconcile_D618_BuildMonthFromTheWholeList(t *testing.T) {
 	if _, err := e.reconciler(&markPub{}, e.inv).Reconcile(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if r, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, "CVE-2024-90023"); err != nil || r.Status != StatusSuspected {
+	// D-602: not proved either way, so no finding and no close: the entry is under "Could not be checked"
+	if r, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, "CVE-2024-90023"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("October 2024 entry on a build from August: %+v %v", r.Finding, err)
+	}
+	rows, err := e.svc.ListUnchecked(t.Context(), dev.ID)
+	if err != nil || !slices.ContainsFunc(rows, func(u UncheckedRow) bool { return u.CVE == "CVE-2024-90023" }) {
+		t.Fatalf("October 2024 entry not under could not be checked: %+v %v", rows, err)
 	}
 }
 
@@ -246,7 +256,7 @@ func TestMatchAsset_D618_Margins(t *testing.T) {
 		{"windows_nt row", dated("CVE-2019-90033", "2019-01-08", "2022-03-03", nvdRow{"windows_7", "-", "*", ""}, nvdRow{"windows_nt", "-", "*", ""})},
 		{"unknown release above the build", dated("CVE-2019-90034", "2019-01-08", "2022-03-03", nvdRow{"windows_7", "-", "*", ""}, nvdRow{"windows_server_2025_azure", "*", "*", "10.0.26100.9999"})},
 	} {
-		if w, m := oneMatch(t, srv, tc.v, true, vulns...); w != "existing" {
+		if w, m := oneMatch(t, srv, tc.v, true, vulns...); w != "nameonly" {
 			t.Errorf("%s: %s %q", tc.name, w, m.Evidence.Summary)
 		}
 	}
@@ -255,7 +265,7 @@ func TestMatchAsset_D618_Margins(t *testing.T) {
 	srv = winPC(26100, true, "2314", "x64")
 	undated := nvdWindows("CVE-2024-90035", "2024-10-08", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.2605"})
 	oct := dated("CVE-2024-90036", "2024-10-08", "2024-10-08", noRange, server2022("10.0.20348.2762"))
-	if w, m := oneMatch(t, srv, oct, true, append(slices.Clone(vulns), undated)...); w != "existing" {
+	if w, m := oneMatch(t, srv, oct, true, append(slices.Clone(vulns), undated)...); w != "nameonly" {
 		t.Errorf("undated fix build: %s %q", w, m.Evidence.Summary)
 	}
 	// review r1 #3: two months with the same bar (NVD's November and December 2025 both end at 26100.7392): the month stays at the first
@@ -265,7 +275,7 @@ func TestMatchAsset_D618_Margins(t *testing.T) {
 	}
 	months := []Vuln{own("CVE-2025-90037", "2025-10-14", "10.0.26100.6899"), own("CVE-2025-90038", "2025-11-11", "10.0.26100.7392"), own("CVE-2025-90039", "2025-12-09", "10.0.26100.7392")}
 	nov := dated("CVE-2025-90040", "2025-11-11", "2025-11-11", noRange, server2022("10.0.20348.4405"))
-	if w, m := oneMatch(t, srv, nov, true, months...); w != "existing" {
+	if w, m := oneMatch(t, srv, nov, true, months...); w != "nameonly" {
 		t.Errorf("equal bars: %s %q", w, m.Evidence.Summary)
 	}
 	// review r2 #1 and #2: after Microsoft numbered Server 2025 apart from 24H2, a 24H2 fix build says nothing against the server's
@@ -279,14 +289,14 @@ func TestMatchAsset_D618_Margins(t *testing.T) {
 		dated("CVE-2026-90050", "2026-02-10", "2026-02-20", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.8037"}),
 		dated("CVE-2026-90051", "2026-01-13", "2026-01-20", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.8037"}),
 	} {
-		if w, m := oneMatch(t, srv, v, true, jan, feb); w != "existing" {
+		if w, m := oneMatch(t, srv, v, true, jan, feb); w != "nameonly" {
 			t.Errorf("%s, 24H2 fixed in March, on February's server build: %s %q", v.CVE, w, m.Evidence.Summary)
 		}
 	}
 	// a row of another Microsoft product (Office) next to the Windows rows keeps the entry open: Windows' update does not service it
 	office := dated("CVE-2019-90052", "2019-01-08", "2022-03-03", nvdRow{"windows_7", "-", "*", ""})
 	office.Affected = append(office.Affected, Affected{CPE: "cpe:2.3:a:microsoft:office:2016:*:*:*:*:*:*:*"})
-	if w, m := oneMatch(t, winlab01(), office, true, vulns...); w != "existing" {
+	if w, m := oneMatch(t, winlab01(), office, true, vulns...); w != "nameonly" {
 		t.Errorf("Office row: %s %q", w, m.Evidence.Summary)
 	}
 }

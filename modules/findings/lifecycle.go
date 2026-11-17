@@ -159,6 +159,9 @@ func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 	if strings.HasPrefix(f.ResolutionNote, AgedNote) { // D-615, D-616: closed for its age; whatever brought it back (a version, a template, a new date), say only that it matches
 		note = "The device matches this entry again, so Vedette reopened it (it had closed it as older than 12 months and matched by the product name only)."
 	}
+	if strings.HasPrefix(f.ResolutionNote, NameOnlyNote) { // D-602: closed for want of version evidence; a later match compared one
+		note = "The device matches this entry again, so Vedette reopened it (it had closed it because only the product name matched)."
+	}
 	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = StatusSuspected, "", time.Time{}, "", ""
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: note}, true
 }

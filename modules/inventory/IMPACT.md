@@ -14,7 +14,7 @@
 
 ## Modifying: the declared identity (`declared.go`: `osProducts`, `declaredCandidates`, `applyDeclared`, `modelKeys`; `Config.DeclaredOS`; `Observed.SoftwareID`; INV-45)
 - **The choice is the matcher's** (findings `DeclaredOSRow`, INV-4c (2)): never add a rule here that keeps or drops a candidate on its own, or the page and the findings name two OSes. cmd/vedette `TestWiringDeclaredOSPageIsTheMatchersOS` checks every case.
-- **Every reader of `Device`** gets the declared OS, model and maker (`loadDevices`, one `MatchInput` per device that has a candidate); a reader of `inv_asset.os`/`model` directly (`Names`, `deviceName`, `MatchInput`) does not. The naming rule reads the observations' maker and model on both paths, and the web's `displayName` skips a value with `software_id`.
+- **Every reader of `Device`** gets the declared OS, model and maker (`loadDevices`; one `MatchInput` only per device that has a candidate and a source that may outrank it, `outranking`: keep that gate in step with what `deviceOS` and `withoutCoveredWindows` read); a reader of `inv_asset.os`/`model` directly (`Names`, `deviceName`, `MatchInput`) does not. The naming rule reads the observations' maker and model on both paths, and the web's `displayName` skips a value with `software_id`.
 - **content/catalog**: `"os": true` on a curated row makes a declared product of it an OS candidate (the web catalog ignores the field); a network-os.json row does too.
 - **Web**: `DevicePage.tsx` shows no Software tab OS line when `os.software_id` is set; `nameOf.ts` leaves such a maker or model out of the name.
 

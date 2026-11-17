@@ -264,8 +264,9 @@ func findingsAsset(d inventory.MatchDevice) findings.Asset {
 }
 
 // declaredOS is inventory's Config.DeclaredOS: the matcher's choice among a device's declared OS rows (INV-45).
-func declaredOS(d inventory.MatchDevice, candidates []string) (string, string) {
-	return findings.DeclaredOSRow(findingsAsset(d), candidates)
+func declaredOS(d inventory.MatchDevice, candidates []string) (id, version string, err error) {
+	id, version = findings.DeclaredOSRow(findingsAsset(d), candidates)
+	return id, version, nil
 }
 
 func findingsSoftware(s inventory.MatchSoftware) findings.Software {

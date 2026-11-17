@@ -116,9 +116,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 	}
 	for i := range out {
 		out[i].observedHW = &[2]string{obsValue(out[i].Vendor), obsValue(out[i].Model)}
-		if err := s.applyDeclared(ctx, &out[i]); err != nil {
-			return nil, err
-		}
+		s.applyDeclared(ctx, &out[i])
 	}
 	return out, nil
 }

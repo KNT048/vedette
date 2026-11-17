@@ -98,36 +98,55 @@ func declaredCandidates(sw []Software) []*Software {
 	return out
 }
 
-// applyDeclared puts the declared identity on a listed device (INV-45).
-func (s *Service) applyDeclared(ctx context.Context, d *Device) error {
+// outranking says whether a source the matcher may prefer to a declared row reads the device: an OS from SNMP, a passive frame (its
+// LLDP statement) or the agent, or a row of the agent (its Windows release row covers a person's Windows row). Only then is the
+// matcher asked; otherwise it keeps the newest candidate, as findings.DeclaredOSRow would.
+func outranking(d *Device) bool {
+	if d.OS != nil && (d.OS.Source == "snmp" || d.OS.Source == "passive" || d.OS.Source == "agent") {
+		return true
+	}
+	return slices.ContainsFunc(d.Software, func(sw Software) bool { return sw.Source == "agent" })
+}
+
+// applyDeclared puts the declared identity on a listed device (INV-45). It never fails the read: when the matcher's view of the
+// device cannot be read the device keeps the values its observations give, and the error is logged.
+func (s *Service) applyDeclared(ctx context.Context, d *Device) {
 	cands := declaredCandidates(d.Software)
 	if len(cands) == 0 || d.OS != nil && d.OS.Source == "manual" {
-		return nil // no candidate, or the person typed the OS
+		return // no candidate, or the person typed the OS
 	}
 	var row *Software
 	version := ""
-	if s.declared != nil {
+	switch {
+	case s.declared != nil && outranking(d):
 		md, ok, err := s.MatchInput(ctx, d.ID)
 		if err != nil {
-			return err
+			s.log.WarnContext(ctx, "inventory: the matcher's view of a device could not be read; it shows what its sources read", "device", d.ID, "error", err.Error())
+			return
 		}
 		if ok {
 			ids := make([]string, len(cands))
 			for i, c := range cands {
 				ids[i] = c.ID
 			}
-			id, v := s.declared(md, ids)
+			id, v, err := s.declared(md, ids)
+			if err != nil {
+				s.log.WarnContext(ctx, "inventory: the matcher could not choose a device's declared OS; it shows what its sources read", "device", d.ID, "error", err.Error())
+				return
+			}
 			if i := slices.IndexFunc(cands, func(c *Software) bool { return c.ID == id }); i >= 0 {
 				row, version = cands[i], v
 			}
 		}
+	case s.declared != nil: // nothing outranks the row: the matcher keeps the newest candidate
+		row, version = cands[0], s.osVersion(deref(cands[0].Version))
 	}
 	if row == nil && d.OS == nil { // no matcher (or an ignored device): a candidate only fills an empty OS
 		row = cands[0]
-		version = strings.TrimSpace(deref(row.Version))
+		version = s.osVersion(deref(row.Version))
 	}
 	if row == nil || version == "" && d.OS != nil && d.OS.Basis != basisGuess {
-		return nil // a row without a version never hides an OS a source read
+		return // a row without a version never hides an OS a source read
 	}
 	at := func(v string) *Observed {
 		return &Observed{Value: v, Source: "manual", Confidence: row.Confidence, SeenAt: row.seenAt, SoftwareID: row.ID}
@@ -139,7 +158,14 @@ func (s *Service) applyDeclared(ctx context.Context, d *Device) error {
 	if d.Vendor == nil {
 		d.Vendor = at(row.Vendor)
 	}
-	return nil
+}
+
+// osVersion is a declared version as the matcher reads it (Config.OSVersion), trimmed when there is no matcher.
+func (s *Service) osVersion(v string) string {
+	if s.readVersion != nil {
+		return s.readVersion(v)
+	}
+	return strings.TrimSpace(v)
 }
 
 // modelKeys are the product keys of the OS products named after a model that holds q (the Devices search finds a device by the

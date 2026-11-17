@@ -1,6 +1,8 @@
 package inventory_test
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/core/observe"
@@ -28,18 +30,28 @@ func wantIdentity(t *testing.T, what string, o *inventory.Observed, value, sourc
 type matcher struct {
 	keep    bool
 	version string
+	fail    map[string]bool // devices it fails for
 	asked   [][]string
 }
 
-func (m *matcher) choose(_ inventory.MatchDevice, candidates []string) (string, string) {
+func (m *matcher) choose(d inventory.MatchDevice, candidates []string) (string, string, error) {
 	m.asked = append(m.asked, candidates)
-	if !m.keep || len(candidates) == 0 {
-		return "", ""
+	if m.fail[d.ID] {
+		return "", "", errors.New("the matcher failed")
 	}
-	return candidates[0], m.version
+	if !m.keep || len(candidates) == 0 {
+		return "", "", nil
+	}
+	return candidates[0], m.version, nil
 }
 
-func withMatcher(m *matcher) opt { return func(c *inventory.Config) { c.DeclaredOS = m.choose } }
+// withMatcher wires the stand-in, and a version reader that drops a leading "v" as findings.OSVersion does.
+func withMatcher(m *matcher) opt {
+	return func(c *inventory.Config) {
+		c.DeclaredOS = m.choose
+		c.OSVersion = func(v string) string { return strings.TrimPrefix(strings.TrimSpace(v), "v") }
+	}
+}
 
 // INV-45: a device added by hand as an OS or firmware product is that OS, and the catalog's hardware line is its model, on the
 // detail and the list alike; the name stays one (the observations' maker and model on every path).
@@ -184,5 +196,34 @@ func TestDeclaredIdentityKeepsOneNameAndIsSearchable(t *testing.T) {
 	}
 	if !found[id] || !found[typed] {
 		t.Errorf("q=fortigate found %v, want both devices whose declared row names a FortiGate", found)
+	}
+}
+
+// The matcher is asked only when a source it may prefer reads the device (SNMP, a passive frame, the agent); a device with nothing
+// that outranks its declared row takes it at once. A device whose matcher read fails keeps what its sources read, and the list still
+// loads.
+func TestDeclaredOSAsksTheMatcherOnlyWhenASourceMayOutrankAndNeverFailsTheList(t *testing.T) {
+	m := &matcher{keep: true, version: "7.2.13", fail: map[string]bool{}}
+	e := newEnv(t, withMatcher(m))
+	alone := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.1"})
+	ok := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.2"})
+	broken := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.3"})
+	for _, id := range []string{ok, broken} {
+		e.record(observe.Observation{AssetHint: observe.AssetHint{Device: id}, Field: observe.OS, Value: "FortiOS 7.2.12", Source: observe.SNMP, Confidence: 0.9})
+	}
+	m.fail[broken] = true
+	m.asked = nil
+	l, err := e.svc.Devices(e.ctx())
+	if err != nil {
+		t.Fatalf("the list failed: %v", err)
+	}
+	want := map[string]string{alone: "FortiOS 7.2.13", ok: "FortiOS 7.2.13", broken: "FortiOS 7.2.12"}
+	for _, d := range l.Items {
+		if w, in := want[d.ID]; in && (d.OS == nil || d.OS.Value != w) {
+			t.Errorf("device %s OS %+v, want %q", d.ID, d.OS, w)
+		}
+	}
+	if len(m.asked) != 2 {
+		t.Errorf("the matcher was asked %d times, want 2 (only the devices SNMP reads)", len(m.asked))
 	}
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -176,6 +176,73 @@ describe('Findings › To fix', () => {
     // agent-intake off: one line for the device, no promise that an agent reports (review r1 L2 of #953)
     expect(within(card).getAllByText(/^No agent reports the software of PC-A to Vedette now/)).toHaveLength(1)
     expect(within(card).getAllByRole('button', { name: 'Check this device now' })).toHaveLength(1)
+  })
+
+  // A typed version is saved once per software: an exploited update and a recommended one of the same product are one action.
+  const fortiRows = (devId: string) => ({
+    exploited: [act({ group: `${devId}/s-fgt`, software_id: 's-fgt', software: 'FortiGate', product: 'fortinet|fortios', version: '7.2.0', fixed: '7.2.11', source: 'manual',
+      action: 'Upgrade FortiGate from 7.2.0 to 7.2.11 or later', cves: ['CVE-2024-21762'], finding_ids: ['f-fgt'], worst: 'critical' })],
+    planned: [act({ group: `${devId}/s-fgt`, software_id: 's-fgt', software: 'FortiGate', product: 'fortinet|fortios', version: '7.2.0', fixed: '7.4.8', source: 'manual',
+      action: 'Upgrade FortiGate from 7.2.0 to 7.4.8 or later', cves: ['CVE-2025-24472', 'CVE-2025-32756'], detected: 0 })],
+  })
+
+  it('two update rows of one typed software: one "I updated" button, under the last of them', async () => {
+    serve({ ...sample, devices: [dev('a-fw', 'Edge firewall', { open: 1, ...fortiRows('a-fw') })] })
+    renderApp('/findings')
+    const card = await screen.findByRole('listitem', { name: 'Edge firewall' }, T)
+    expect(within(card).getAllByRole('button', { name: 'I updated FortiGate' })).toHaveLength(1)
+    const rec = within(card).getByRole('list', { name: 'Recommended updates for Edge firewall' })
+    expect(within(rec).getByRole('button', { name: 'I updated FortiGate' })).toBeInTheDocument()
+    // only the recommended row: the button is still there
+    cleanup()
+    serve({ ...sample, devices: [dev('a-fw', 'Edge firewall', { planned: fortiRows('a-fw').planned })] })
+    renderApp('/findings')
+    expect(within(await screen.findByRole('listitem', { name: 'Edge firewall' }, T)).getAllByRole('button', { name: 'I updated FortiGate' })).toHaveLength(1)
+  })
+
+  it('two typed software on one device: one button each, under its own row', async () => {
+    const rows = fortiRows('a-fw')
+    serve({ ...sample, devices: [dev('a-fw', 'Edge firewall', { open: 3, exploited: [...rows.exploited, { ...winrar('a-fw'), source: 'manual' }], planned: rows.planned })] })
+    renderApp('/findings')
+    const card = await screen.findByRole('listitem', { name: 'Edge firewall' }, T)
+    expect(within(card).getAllByRole('button', { name: 'I updated FortiGate' })).toHaveLength(1)
+    expect(within(card).getAllByRole('button', { name: 'I updated RARLAB WinRAR' })).toHaveLength(1)
+    const acts = within(card).getByRole('list', { name: 'What to do on Edge firewall' })
+    expect(within(within(acts).getByText('Upgrade RARLAB WinRAR from 7.01 to 7.13 or later').closest('li')!).getByRole('button', { name: 'I updated RARLAB WinRAR' })).toBeInTheDocument()
+  })
+
+  it('the device page: one "I updated" per typed software, not under each row and again below the list', async () => {
+    const rows = fortiRows('a-srvad')
+    server.use(http.get('*/api/v1/findings/to-fix', () => HttpResponse.json({ ...sample, devices: [dev('a-srvad', 'SRV-AD', { open: 3, exploited: [...rows.exploited, { ...winrar('a-srvad'), source: 'manual' }], planned: rows.planned })] })))
+    renderApp('/devices/a-srvad')
+    const todo = await screen.findByRole('list', { name: 'What to do on this device' }, T)
+    expect(within(todo).getByText('Upgrade FortiGate from 7.2.0 to 7.4.8 or later')).toBeInTheDocument()
+    expect(await screen.findAllByRole('button', { name: 'I updated FortiGate' }, T)).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'I updated RARLAB WinRAR' })).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: 'I updated FortiGate' }))
+    expect(await screen.findByRole('dialog', { name: 'I updated FortiGate' })).toBeInTheDocument()
+  })
+
+  it('the device page: the one button\'s dialog says what the re-match closed after the update rows are gone', async () => {
+    const rows = fortiRows('a-srvad')
+    const exploited = [{ ...rows.exploited[0]!, cves: ['CVE-2026-96951'], finding_ids: ['f-3'] }]
+    let tf: ToFix = { ...sample, devices: [dev('a-srvad', 'SRV-AD', { open: 1, exploited, planned: rows.planned })] }
+    server.use(
+      http.get('*/api/v1/findings/to-fix', () => HttpResponse.json(tf)),
+      http.patch('*/api/v1/inventory/devices/:id/software/:sid', () => {
+        findingsStore.update((l) => l.map((f) => (f.id === 'f-3' ? { ...f, status: 'not_relevant' as const, resolved_by: 'system' } : f)))
+        tf = { ...sample, devices: [] }
+        return HttpResponse.json({ ok: true })
+      }),
+    )
+    renderApp('/devices/a-srvad')
+    await userEvent.click(await screen.findByRole('button', { name: 'I updated FortiGate' }, T))
+    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiGate' })
+    await userEvent.type(within(dlg).getByLabelText('New version'), '7.4.8')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and check' }))
+    expect(await within(dlg).findByRole('status', undefined, T)).toHaveTextContent(/^Version 7\.4\.8 saved\. 1 finding on SRV-AD no longer applies/)
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'What to do on this device' })).toBeNull(), T) // the rows are gone
+    expect(within(screen.getByRole('dialog', { name: 'I updated FortiGate' })).getByRole('status')).toHaveTextContent(/^Version 7\.4\.8 saved\./)
   })
 
   it('S-MIT-1: on a device its osquery agent reports, one "ask the agent now" for the device, busy, then the ask on the card', async () => {

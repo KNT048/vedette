@@ -16,7 +16,7 @@ import { deviceName } from './basis'
 import { kbNote, noCvesKey } from './fix'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 import type { SoftwareView } from '@/features/inventory/types'
-import { isOsSoftware, IUpdated } from './Updated'
+import { isOsSoftware, IUpdated, type UpdatedSoftware } from './Updated'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
 
 /** An action that updates the operating system itself (its new build shows only after a restart): Windows' cumulative update, or a
@@ -51,7 +51,7 @@ function ActionButton({ a, box }: { a: ToFixAction; box: boolean }) {
 }
 
 /** One action: the sentence and what it fixes; it opens to its CVEs, each linking to its finding. */
-function Action({ a, planned, box, asset }: { a: ToFixAction; planned: boolean; box: boolean; asset: ToFixDevice['asset'] }) {
+function Action({ a, planned, box, asset, typed }: { a: ToFixAction; planned: boolean; box: boolean; asset: ToFixDevice['asset']; typed?: UpdatedSoftware }) {
   const { t } = useTranslation('findings')
   const what = planned
     ? t(a.nvd_lag ? 'toFix.plannedFixesAtLeast' : 'toFix.plannedFixes', { count: a.cves.length })
@@ -60,7 +60,7 @@ function Action({ a, planned, box, asset }: { a: ToFixAction; planned: boolean; 
     return (
       <li className="grid gap-1 py-2">
         <p className="text-sm"><span className="font-medium">{a.action}</span><span className="text-muted">{': '}{t(noCvesKey(a.nvd_lag))}</span></p>
-        {a.software_id && a.source === 'manual' ? <IUpdated asset={asset} software={updatedOf(a)} size="sm" progress={false} /> : null}
+        {typed ? <IUpdated asset={asset} software={typed} size="sm" progress={false} /> : null}
       </li>
     )
   }
@@ -92,14 +92,27 @@ function Action({ a, planned, box, asset }: { a: ToFixAction; planned: boolean; 
         ) : null}
       </details>
       <ActionButton a={a} box={box} />
-      {/* The same "I updated it" as the finding page; a typed version is per row, an agent or a check reads the whole device
-          (DeviceUpdated, once per device: n83) */}
-      {a.software_id && a.source === 'manual' ? <IUpdated asset={asset} software={updatedOf(a)} size="sm" progress={false} /> : null}
+      {/* The same "I updated it" as the finding page: a typed version once per software, under its last row (typedSoftware); an
+          agent or a check reads the whole device (DeviceUpdated, once per device) */}
+      {typed ? <IUpdated asset={asset} software={typed} size="sm" progress={false} /> : null}
     </li>
   )
 }
 
-const updatedOf = (a: ToFixAction) => ({ id: a.software_id, display: a.software, version: a.version || null, source: a.source as SoftwareView['source'], kev_cves: a.cves })
+const updatedOf = (a: ToFixAction): UpdatedSoftware => ({ id: a.software_id, display: a.software, version: a.version || null, source: a.source as SoftwareView['source'], kev_cves: a.cves })
+
+/** The typed (hand-entered) software a device's rows name, once each by its software row: "I updated <software>" saves one version,
+ *  however many rows name it (an exploited update and a recommended one of the same product), so it is one button, with the CVEs of
+ *  all its rows. `last`: the row it shows under, the last of that software in the card's order (to fix, then recommended). */
+export function typedSoftware(d: ToFixDevice): Map<string, { software: UpdatedSoftware; last: ToFixAction }> {
+  const m = new Map<string, { software: UpdatedSoftware; last: ToFixAction }>()
+  for (const a of [...actionable(d), ...d.planned]) {
+    if (!a.software_id || a.source !== 'manual') continue
+    const had = m.get(a.software_id)?.software
+    m.set(a.software_id, { software: had ? { ...had, kev_cves: [...new Set([...had.kev_cves, ...a.cves])] } : updatedOf(a), last: a })
+  }
+  return m
+}
 
 /** "I updated it" for what reads the whole device (n83: once per device, not under every row): its agent ("ask the agent now", or how
  *  the new version arrives), and the network check for rows a scan read. An OS update among the agent's rows words it for the restart. */
@@ -116,10 +129,13 @@ function DeviceUpdated({ d, box }: { d: ToFixDevice; box: boolean }) {
   )
 }
 
-/** One device: its name, how bad it is, and its actions (to fix first, then recommended). */
-export function DeviceCard({ d, box, showName = true }: { d: ToFixDevice; box: boolean; showName?: boolean }) {
+/** One device: its name, how bad it is, and its actions (to fix first, then recommended). `typed`: the card shows "I updated
+ *  <software>" for typed software itself (To fix); the device page shows it below the card, where it outlives a row the update closes. */
+export function DeviceCard({ d, box, showName = true, typed = true }: { d: ToFixDevice; box: boolean; showName?: boolean; typed?: boolean }) {
   const { t } = useTranslation('findings')
   const acts = actionable(d)
+  const once = typed ? typedSoftware(d) : undefined
+  const typedOf = (a: ToFixAction) => { const x = once?.get(a.software_id); return x?.last === a ? x.software : undefined }
   const worst = acts.reduce((w, a) => (rank(a.worst) > rank(w) ? a.worst : w), '')
   const check = unproved(d).reduce((n, a) => n + a.cves.length, 0)
   const name = deviceName(d.asset, t('removedDevice'))
@@ -130,11 +146,11 @@ export function DeviceCard({ d, box, showName = true }: { d: ToFixDevice; box: b
         {d.asset.ip && d.asset.ip !== '—' ? <span className="text-meta text-muted">{d.asset.ip}</span> : null}
         {acts.length ? <><Worst worst={worst} /><span className="text-meta text-muted">{t('toFix.deviceCount', { count: acts.reduce((n, a) => n + a.cves.length, 0) })}</span></> : null}
       </div>
-      {acts.length ? <ul aria-label={t('toFix.actionsOf', { device: name })} className="divide-y divide-rule">{acts.map((a) => <Action key={`${a.kind}:${a.group}`} a={a} planned={false} box={box} asset={d.asset} />)}</ul> : null}
+      {acts.length ? <ul aria-label={t('toFix.actionsOf', { device: name })} className="divide-y divide-rule">{acts.map((a) => <Action key={`${a.kind}:${a.group}`} a={a} planned={false} box={box} asset={d.asset} typed={typedOf(a)} />)}</ul> : null}
       {d.planned.length ? (
         <>
           <p className="mt-2 text-meta font-medium text-muted">{t('toFix.recommended')}</p>
-          <ul aria-label={t('toFix.recommendedOf', { device: name })} className="divide-y divide-rule">{d.planned.map((a) => <Action key={`plan:${a.group}`} a={a} planned box={box} asset={d.asset} />)}</ul>
+          <ul aria-label={t('toFix.recommendedOf', { device: name })} className="divide-y divide-rule">{d.planned.map((a) => <Action key={`plan:${a.group}`} a={a} planned box={box} asset={d.asset} typed={typedOf(a)} />)}</ul>
         </>
       ) : null}
       <DeviceUpdated d={d} box={box} />

@@ -187,3 +187,67 @@ func TestMatchAsset_910_ChromiumEntryOnChromeAndEdge(t *testing.T) {
 		t.Errorf("Edge Legacy: %+v", res)
 	}
 }
+
+// Review r1 of #913: on NVD's path only a range with an end is evidence (H1), an Edge Legacy row is never reached (M1), and a CVE that
+// affects one platform keeps its condition (M2). Rows as the N100 stores them.
+func TestMatchAsset_910_NVDPathNeedsAFixAndTheRightProduct(t *testing.T) {
+	t.Parallel()
+	none := func(name string, a Asset, vs ...Vuln) {
+		t.Helper()
+		if res := MatchAsset(a, vs, nil, t0); len(res.New) != 0 || len(res.NeedVersion) != 0 {
+			t.Errorf("%s: %+v", name, res.New)
+		}
+	}
+	// H1: NVD names Android releases (exact 14.0, fixes come by patch level) and lists Edge 117.0.2045.47, the build with the fix.
+	android := Vuln{CVE: "CVE-2025-48595", Vendor: "Android", Product: "Framework", DateAdded: winDay("2026-06-02"), Published: winDay("2026-06-01"),
+		Affected: []Affected{{CPE: "cpe:2.3:o:google:android:14.0:*:*:*:*:*:*:*"}, {CPE: "cpe:2.3:o:google:android:15.0:*:*:*:*:*:*:*"},
+			{CPE: "cpe:2.3:o:google:android:16.0:-:*:*:*:*:*:*"}}}
+	phone := Software{ID: "s-android", Display: "Android", Vendor: "Google", Product: "Android", Version: "14", Source: "manual", KevKeys: []string{"google|android"}}
+	none("Android 14", Asset{ID: "p", Name: "phone", Software: []Software{phone}}, android)
+	phone.CPE = "cpe:2.3:o:google:android:14.0:*:*:*:*:*:*:*"
+	none("Android 14 with its CPE", Asset{ID: "p", Name: "phone", Software: []Software{phone}}, android)
+	libvpx := Vuln{CVE: "CVE-2023-5217", Vendor: "Google", Product: "Chromium libvpx", DateAdded: winDay("2023-10-02"), Published: winDay("2023-09-28"),
+		Affected: []Affected{{CPE: "cpe:2.3:a:microsoft:edge:116.0.1938.98:*:*:*:*:*:*:*"}, {CPE: "cpe:2.3:a:microsoft:edge:117.0.2045.47:*:*:*:*:*:*:*"},
+			{CPE: "cpe:2.3:a:microsoft:edge_chromium:117.0.5938.132:*:*:*:*:*:*:*"},
+			{CPE: "cpe:2.3:a:google:chrome:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "117.0.5938.132"}}}}
+	none("Edge 117.0.2045.47", Asset{ID: "e", Name: "pc", Software: []Software{edgeRow("117.0.2045.47")}}, libvpx)
+
+	// M1: NVD writes Chromium Edge's ranges under microsoft:edge too; EdgeHTML 44 has no V8 or Chromium GPU code.
+	legacy := Asset{ID: "l", Name: "pc", Software: []Software{edgeRow("44.19041.1266.0")}}
+	edgeRange := func(cve, product, end string) Vuln {
+		return Vuln{CVE: cve, Vendor: "Google", Product: product, DateAdded: winDay("2024-08-26"), Published: winDay("2024-08-21"),
+			Affected: []Affected{{CPE: "cpe:2.3:a:microsoft:edge:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: end}}}}
+	}
+	none("Edge Legacy 44", legacy, edgeRange("CVE-2020-16009", "Chromium V8", "86.0.622.63"), edgeRange("CVE-2022-4135", "Chromium GPU", "107.0.1418.62"),
+		edgeRange("CVE-2024-7971", "Chromium V8", "128.0.2739.42"))
+	modern := Asset{ID: "m", Name: "pc", Software: []Software{edgeRow("120.0.2210.61")}}
+	if m := onlyMatch(t, "Chromium Edge 120", MatchAsset(modern, []Vuln{edgeRange("CVE-2024-7971", "Chromium V8", "128.0.2739.42")}, nil, t0)); m.Basis != BasisVersion {
+		t.Errorf("Chromium Edge 120: %+v", m)
+	}
+
+	// M2: CVE-2025-2783 (Mojo) is Chrome on Windows only; NVD's stored row names Chrome on any OS.
+	mojo := Vuln{CVE: "CVE-2025-2783", Vendor: "Google", Product: "Chromium Mojo", DateAdded: winDay("2025-03-27"), Published: winDay("2025-03-26"),
+		Affected: []Affected{{CPE: "cpe:2.3:a:google:chrome:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "134.0.6998.177"}}}}
+	mac := Asset{ID: "mac", Name: "mac", OS: "macOS 15.3", AgentOS: "macOS 15.3", Software: []Software{chromeRow("133.0.6943.141")}}
+	if res := MatchAsset(mac, []Vuln{mojo}, nil, t0); len(res.New) != 0 || len(res.OtherPlatform) != 1 {
+		t.Errorf("Chrome on macOS: %+v", res)
+	}
+	win := Asset{ID: "w", Name: "pc", OS: "Microsoft Windows 11 Pro", AgentOS: "Microsoft Windows 11 Pro", Software: []Software{chromeRow("133.0.6943.141")}}
+	onlyMatch(t, "Chrome on Windows", MatchAsset(win, []Vuln{mojo}, nil, t0))
+}
+
+// Review r1 (4) of #913: Google's own .deb is not the distribution's build (agent-intake maps it upstream: not Packaged), so NVD's range
+// decides it; the same version read from the distribution's package database waits for the distribution's word.
+func TestMatchAsset_910_VendorDebOnLinux(t *testing.T) {
+	t.Parallel()
+	v := cve202687491()
+	deb := chromeRow("150.0.7871.4")
+	a := Asset{ID: "u", Name: "ubuntu", OS: "Ubuntu 24.04.1 LTS", AgentOS: "Ubuntu 24.04.1 LTS", Software: []Software{deb}}
+	if m := onlyMatch(t, "google-chrome-stable", MatchAsset(a, []Vuln{v}, nil, t0)); m.Basis != BasisVersion {
+		t.Errorf("google-chrome-stable: %+v", m)
+	}
+	a.Software[0].Packaged, a.Software[0].PkgVersion, a.Software[0].PkgSource = true, "150.0.7871.4-1", "chromium"
+	if res := MatchAsset(a, []Vuln{v}, nil, t0); len(res.New) != 0 {
+		t.Errorf("a distribution's package without its word: %+v", res.New)
+	}
+}

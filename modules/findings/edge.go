@@ -51,6 +51,13 @@ func edgeIDs(vendor, product, ver string) []identity {
 	return []identity{edgeChromium}
 }
 
+// edgeLegacyRow says the row is Microsoft Edge at an EdgeHTML version (below 79, review r1 M1 of #913): NVD writes Chromium Edge's
+// ranges under microsoft:edge as well ("< 86.0.622.63" for the V8 flaw CVE-2020-16009), and every EdgeHTML version is below them.
+func edgeLegacyRow(s Software, in swInfo) bool {
+	n, ok := edgeMajor(in.ver)
+	return ok && n < chromiumEdgeFirst && norm(s.Vendor) == "microsoft" && norm(s.Product) == "edge"
+}
+
 // edgeMajor is the first number of a version ("157.0.4341.46" → 157, "44" → 44); false when it does not start with one.
 func edgeMajor(v string) (int, bool) {
 	head, _, _ := strings.Cut(strings.TrimSpace(v), ".")

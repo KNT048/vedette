@@ -225,33 +225,33 @@ func findingRow(a Asset, k KevInfo, v *Vuln) (Software, bool) {
 	return matchedRow(a, k, v)
 }
 
-// matchedRow is the software row matchedOn names; ok is false when there is none. A row keyed to the entry first; for "Multiple
-// Products", or when no row is keyed (#910: NVD's list names a row CISA's name does not), the row the matcher matches the stored
-// entry on.
+// matchedRow is the software row matchedOn names; ok is false when there is none. With the stored entry, the row the matcher matches
+// it on (the finding's row, as FixedInFor and RowFixes read it: a version match through NVD's list beats a keyed row's product match,
+// #910, review r1 L1 of #913); else, or when it matches none, a row keyed to the entry (never for "Multiple Products").
 func matchedRow(a Asset, k KevInfo, v *Vuln) (Software, bool) {
 	sws := deviceSoftware(a)
-	if !isMultiProduct(k.Product) {
-		key := Vuln{Vendor: k.Vendor, Product: k.Product}
-		for _, s := range sws {
-			if keyedTo(s, key) {
-				return s, true
+	if v != nil {
+		r := MatchAsset(a, []Vuln{*v}, map[string]bool{v.CVE: true}, time.Now())
+		for _, m := range slices.Concat(r.New, r.Existing) {
+			if m.CVE != v.CVE || m.SoftwareDisplay == "" {
+				continue
 			}
+			for _, s := range sws {
+				if s.ID == m.SoftwareID {
+					return s, true
+				}
+			}
+			return Software{ID: m.SoftwareID, Display: m.SoftwareDisplay}, true
 		}
 	}
-	if v == nil {
+	if isMultiProduct(k.Product) {
 		return Software{}, false
 	}
-	r := MatchAsset(a, []Vuln{*v}, map[string]bool{v.CVE: true}, time.Now())
-	for _, m := range slices.Concat(r.New, r.Existing) {
-		if m.CVE != v.CVE || m.SoftwareDisplay == "" {
-			continue
+	key := Vuln{Vendor: k.Vendor, Product: k.Product}
+	for _, s := range sws {
+		if keyedTo(s, key) {
+			return s, true
 		}
-		for _, s := range sws {
-			if s.ID == m.SoftwareID {
-				return s, true
-			}
-		}
-		return Software{ID: m.SoftwareID, Display: m.SoftwareDisplay}, true
 	}
 	return Software{}, false
 }

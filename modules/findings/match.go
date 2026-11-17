@@ -199,8 +199,9 @@ type Match struct {
 	// others: a product match whose NVD list names only other products than the row (#904, nvdOthersOnly): those products ("app
 	// installer"), "" otherwise. The agent's version is then compared with nothing, so an agent row is no evidence (confirmedMatch).
 	others string
-	// bounded: a version match on a bound, NVD's range or exact version or the distribution's fixed package, not a list of every
-	// version (#910: the only match a row NVD alone ties to the entry may give, viaNVD).
+	// bounded: a version match inside a range with an end (a fix to install) or below the distribution's fixed package; not an
+	// exact version NVD lists, a range with only a start, or every version (#910: the only match a row NVD alone ties to the entry
+	// may give, viaNVD; review r1 H1 of #913).
 	bounded bool
 }
 
@@ -558,9 +559,9 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time)
 // (no comparable version, a list of every version) says nothing: no product finding and no "add the version" item, because CISA
 // never named this software. A row its distribution may have built (a package database row, the Linux kernel) goes only by the
 // distribution's own word (D-516): NVD's upstream ranges do not see the fixes it backports (an Android entry that also lists
-// linux_kernel on Ubuntu's kernel).
+// linux_kernel on Ubuntu's kernel). An Edge Legacy row is never reached: NVD writes Chromium Edge's ranges under microsoft:edge too.
 func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outcome) {
-	if !nvdNames(in, v) {
+	if !nvdNames(in, v) || edgeLegacyRow(s, in) {
 		return Match{}, outNone
 	}
 	if _, ok := distroVerdict(in, v); !ok && distroBuilt(in) {
@@ -573,14 +574,16 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 	return Match{}, outNone
 }
 
-// nvdNames says whether an entry of NVD's list for v names the row's software (its CPE, name or alias, appliesTo) with a version
-// bound (a range or an exact version), or, for a Windows release row, any Windows release or a component Windows' monthly update
-// services (winOSComponents): windowsDecide reads its release and the siblings that take the same update.
+// nvdNames says whether an entry of NVD's list for v names the row's software (its CPE, name or alias, appliesTo) with a range
+// that ends (endBound), or, for a Windows release row, any Windows release or a component Windows' monthly update services
+// (winOSComponents): windowsDecide reads its release and the siblings that take the same update. An exact version NVD lists says
+// nothing on this path (review r1 H1 of #913): Android's rows name the release (14.0) while its fixes come by security patch level,
+// and NVD lists Edge 117.0.2045.47, the build that fixed CVE-2023-5217, as affected.
 func nvdNames(in swInfo, v Vuln) bool {
 	_, win := winDevice(in)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
-		if err != nil || c.Part.Kind == NA || af.Range.IsZero() && c.Version.Kind != Value {
+		if err != nil || c.Part.Kind == NA || !endBound(af.Range) {
 			continue
 		}
 		if own, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids); own {
@@ -591,6 +594,11 @@ func nvdNames(in swInfo, v Vuln) bool {
 		}
 	}
 	return false
+}
+
+// endBound says the range ends (a release fixes it) and is not one version written as a range.
+func endBound(r VersionRange) bool {
+	return r.EndExcl != "" || r.EndIncl != "" && r.EndIncl != r.StartIncl
 }
 
 // winNamesWindows says whether c is a Windows row or a Microsoft component Windows' monthly update services.
@@ -751,7 +759,7 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	}
 	switch {
 	case tri == Yes:
-		m.Basis, m.Confidence, m.Severity, m.bounded = BasisVersion, ConfVersion, SeverityHigh, !within.IsZero()
+		m.Basis, m.Confidence, m.Severity, m.bounded = BasisVersion, ConfVersion, SeverityHigh, endBound(within)
 		if v.Ransomware || v.EPSS >= 0.5 {
 			m.Severity = SeverityCritical
 		}

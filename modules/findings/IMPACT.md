@@ -39,6 +39,9 @@
 - **Gói của bản phân phối/kernel**: đường NVD chỉ theo `distroVerdict` (D-516); đổi `distroVerdict`, `ownBuild` hay `securitySource` đổi cả finding đường này (mục Android + kernel trên Ubuntu có lời "fixed").
 - **`FixedInFor`, `FixedInForAll`, `RowFixes`** (trang finding, danh sách, `cmd/vedette` `reportsRemedies`, `modules/reports`): CVE đến qua đường NVD thuộc đúng dòng bộ khớp chọn (`nvdRows`, chạy `MatchAsset` trên chính các CVE đó, chỉ khi có dòng ứng viên). **`matchedOn`/`matchedRow`** (panel Device, Home `top[].software`): không dòng nào có khoá ⇒ dòng bộ khớp chọn.
 - **cmd/vedette `exposurematch.go`**: dịch vụ nmap có CPE nay cũng được đọc theo đường NVD (cùng luật chỉ phiên bản).
+- **Chỉ khoảng có cận cuối** (rà r1 H1 của #913): hàng NVD chỉ nêu một phiên bản (Android `14.0`, Edge `117.0.2045.47` của CVE-2023-5217) hay khoảng chỉ có cận đầu không đưa dòng vào đường NVD; các mục đó vào danh sách "could not be checked" của PR 2. Dòng Edge Legacy (< 79) không bao giờ vào đường NVD (`edgeLegacyRow`). CVE chỉ một nền tảng mà NVD bỏ điều kiện "running on" (CVE-2025-2783 Chrome trên Windows) nằm ở `platform-limits.json` (INV-16).
+- **agent-intake `pkgmap.json` `upstream`** (rà r1 (4) của #913): gói của chính hãng (google-chrome-*, microsoft-edge-*) không `Packaged`, nên cả hai đường so với khoảng NVD; mọi gói khác vẫn chỉ theo lời bản phân phối trên đường NVD.
+- **"Updates to plan" (INV-20)**: `edgeIDs` cũng cho dòng Edge Chromium thấy hàng `edge_chromium` của CVE tầng 2–3 (trước đây không so được).
 - **Hiệu năng**: `MatchAsset` lập chỉ mục hãng của mọi hàng `Affected` một lần mỗi lần gọi (`nvdCandidates`), không đọc mọi mục cho mọi dòng.
 
 ## Modifying: CVE chỉ ảnh hưởng một nền tảng (D-547, INV-16)

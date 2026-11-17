@@ -26,6 +26,10 @@ var pkgmapJSON []byte
 type pkgPair struct {
 	Vendor  string `json:"vendor"`
 	Product string `json:"product"`
+	// Upstream: the vendor's own package from its repository (google-chrome-stable, microsoft-edge-stable), whose version is the
+	// product's own release, not a distribution's build with backported fixes. Its row is not Packaged, so findings compares it with
+	// NVD's ranges instead of waiting for the distribution's word (#910, review r1 (4) of #913).
+	Upstream bool `json:"upstream,omitempty"`
 }
 
 type pkgPrefix struct {
@@ -87,7 +91,7 @@ func debUpstream(v string) string {
 // mapPackages turns the package snapshots of one request into the software list of the device. Rows whose name or version does not fit
 // the inventory's limits are dropped, and the count is returned. One list per device: the deb, rpm and programs rows are joined (a
 // host has one of them), the same product and version once. deb and rpm rows are Packaged (the distribution's package database,
-// D-474), programs rows are not. At most limit rows are kept; the rows past it are dropped and counted.
+// D-474), programs rows are not, nor a vendor's own package pkgmap marks upstream (google-chrome-stable: its version is Chrome's). At most limit rows are kept; the rows past it are dropped and counted.
 //
 // A deb row also carries its full Debian version and source package (D-516). Binaries of one source that map to the same
 // product and upstream version are one row; when they differ in the full version (openssh-client upgraded,
@@ -155,9 +159,12 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		case !strings.HasPrefix(src, "linux-signed") && !sameSourceRelease(r["source"], full):
 			full = "" // built from another source release: NVD decides (review L1)
 		}
-		if ok {
+		switch {
+		case ok && p.Upstream:
+			add(p.Product, p.Vendor, p.Product, version, true, false, "", "")
+		case ok:
 			add(p.Product, p.Vendor, p.Product, version, true, true, full, src)
-		} else {
+		default:
 			add(name, name, name, version, false, true, full, src)
 		}
 	}
@@ -165,7 +172,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		name := r["name"]
 		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
 		if ok {
-			add(p.Product, p.Vendor, p.Product, r["version"], true, true, "", "")
+			add(p.Product, p.Vendor, p.Product, r["version"], true, !p.Upstream, "", "")
 		} else {
 			add(name, name, name, r["version"], false, true, "", "")
 		}

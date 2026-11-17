@@ -88,7 +88,17 @@ func TestNetworkOS_910_EachOSGetsItsExploitedCVEsByVersion(t *testing.T) {
 			got = append(got, m.CVE)
 		}
 		slices.Sort(got)
-		if !slices.Equal(got, tc.want) || len(res.NeedVersion) != 0 || len(res.NotComparable) != 0 {
+		var other []string // review r1 M1: CISA's key names the OS, NVD's list only another product
+		for _, n := range res.NotComparable {
+			if n.Reason != NotComparableOtherProduct || n.SoftwareID != osSoftwareID("d") || n.Version != tc.ver {
+				t.Errorf("%s: %+v", tc.os, n)
+			}
+			other = append(other, n.CVE)
+		}
+		if want := slices.Contains(tc.want, "CVE-2023-20198") || tc.ver == "17.12.4"; want != slices.Equal(other, []string{"CVE-2018-0171"}) {
+			t.Errorf("%s: CVE-2018-0171 (NVD lists only classic cisco:ios) must be could-not-check on IOS XE only: %v", tc.os, other)
+		}
+		if !slices.Equal(got, tc.want) || len(res.NeedVersion) != 0 {
 			t.Errorf("%s: findings %v, want %v; need version %+v; not comparable %+v", tc.os, got, tc.want, res.NeedVersion, res.NotComparable)
 		}
 	}
@@ -106,7 +116,7 @@ func TestNetworkOS_910_ClassicIOSIsNotComparedButListed(t *testing.T) {
 			t.Fatalf("%s: a not-comparable OS is not compared: %+v", tc.os, sws)
 		}
 		res := MatchAsset(a, vulns, nil, now)
-		want := []NotComparable{{CVE: "CVE-2018-0171", SoftwareID: osSoftwareID("ios"), Software: "Cisco IOS", Version: tc.ver}}
+		want := []NotComparable{{CVE: "CVE-2018-0171", SoftwareID: osSoftwareID("ios"), Software: "Cisco IOS", Version: tc.ver, Reason: NotComparableScheme}}
 		if len(res.New) != 0 || len(res.NeedVersion) != 0 || len(res.NotAffected) != 0 || !slices.Equal(res.NotComparable, want) {
 			t.Errorf("%s: %+v", tc.os, res)
 		}
@@ -146,6 +156,65 @@ func TestNetworkOS_910_WhoseStatementCounts(t *testing.T) {
 	ios := snmpDevice("d", "Cisco IOS 15.2(4)M3")
 	ios.Software = []Software{{ID: "s", Display: "Cisco IOS", Vendor: "Cisco", Product: "IOS", Version: "15.2(4)M3", Source: "manual", KevKeys: []string{"cisco|ios and ios xe"}}}
 	if res := MatchAsset(ios, vulns, nil, now); len(res.NotComparable) != 0 {
-		t.Errorf("a recorded IOS row decides as before: %+v", res.NotComparable)
+		t.Errorf("a recorded IOS row with a version decides as before: %+v", res.NotComparable)
+	}
+}
+
+// Review r1 H1 + L1 of #919: the device's own SNMP answer always wins over an LLDP frame (D-549, D-620), and an LLDP Junos statement
+// counts only with no SNMP answer, on a Juniper card (or a device known only through LLDP).
+func TestNetworkOS_919_SNMPWinsOverLLDP(t *testing.T) {
+	t.Parallel()
+	vulns := loadGolden(t, "testdata/kev-nvd-snmp-os.json")
+	now := time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC)
+	// A FortiGate read over SNMP, then a forged LLDP frame with its MAC as the chassis id: the newest stated OS is Junos.
+	fg := Asset{ID: "fg", SNMPOS: "FortiOS 7.0.1", StatedOS: "JUNOS 12.3R6", MAC: "00:09:0f:aa:bb:cc"}
+	if sws := deviceSoftware(fg); len(sws) != 1 || sws[0].Display != "Fortinet FortiOS" || sws[0].Version != "7.0.1" {
+		t.Fatalf("the SNMP answer decides: %+v", sws)
+	}
+	if res := MatchAsset(fg, vulns, nil, now); len(res.New) != 1 || res.New[0].CVE != "CVE-2022-42475" {
+		t.Errorf("FortiOS findings: %+v", res.New)
+	}
+	ios := Asset{ID: "ios", SNMPOS: "Cisco IOS 15.2(4)M3", StatedOS: "JUNOS 12.3R6"}
+	if res := MatchAsset(ios, vulns, nil, now); len(deviceSoftware(ios)) != 0 || len(res.NotComparable) != 1 {
+		t.Errorf("classic IOS over SNMP, forged LLDP Junos: %+v", res)
+	}
+	for _, tc := range []struct {
+		name, mac, snmp string
+		junos           bool
+	}{
+		{"LLDP only, Juniper card (the N100 EX4200)", "3c:8a:b0:9c:85:ff", "", true},
+		{"LLDP only, known only through LLDP (no address)", "", "", true},
+		{"LLDP only, another maker's card", "00:09:0f:aa:bb:cc", "", false},
+		{"LLDP Junos, SNMP names another OS", "3c:8a:b0:9c:85:ff", "Linux sw 5.10.0", false},
+		{"SNMP Junos, any card", "00:09:0f:aa:bb:cc", "JUNOS 15.1R7.9", true},
+	} {
+		a := Asset{ID: "sw", StatedOS: "JUNOS 15.1R7.9", SNMPOS: tc.snmp, MAC: tc.mac}
+		if tc.snmp != "" && tc.junos {
+			a.StatedOS = tc.snmp
+		}
+		sws := deviceSoftware(a)
+		if got := len(sws) == 1 && sws[0].Display == "Juniper Junos OS"; got != tc.junos {
+			t.Errorf("%s: %+v", tc.name, sws)
+		}
+	}
+}
+
+// Review r1 M2 of #919: the catalog pick "Cisco IOS / IOS XE router or switch" (key cisco|ios, no version) beside the device's SNMP
+// answer "Cisco IOS 15.2(4)M3": the row gives way (no "add the version"), the entries are listed as not comparable.
+func TestNetworkOS_919_VersionlessPickGivesWayToTheNotComparableOS(t *testing.T) {
+	t.Parallel()
+	vulns := loadGolden(t, "testdata/kev-nvd-snmp-os.json")
+	vulns = append(vulns, Vuln{CVE: "CVE-2017-6742", Vendor: "Cisco", Product: "IOS", Name: "Cisco IOS SNMP Remote Code Execution"})
+	now := time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC)
+	a := snmpDevice("d", "Cisco IOS 15.2(4)M3")
+	a.Software = []Software{{ID: "pick", Display: "Cisco IOS / IOS XE router or switch", Vendor: "Cisco", Product: "IOS XE", Source: "manual", KevKeys: []string{"cisco|ios"}}}
+	res := MatchAsset(a, vulns, nil, now)
+	var got []string
+	for _, n := range res.NotComparable {
+		got = append(got, n.CVE)
+	}
+	slices.Sort(got)
+	if len(res.New) != 0 || len(res.NeedVersion) != 0 || !slices.Equal(got, []string{"CVE-2017-6742", "CVE-2018-0171"}) {
+		t.Errorf("%+v", res)
 	}
 }

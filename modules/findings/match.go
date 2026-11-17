@@ -240,7 +240,8 @@ type MatchResult struct {
 	Aged []Match
 	// NotComparable lists the exploited CVEs of the network OS the device states (network-os.json) when its version has no order
 	// Vedette can compare (scheme none, classic Cisco IOS "15.2(4)M3"; #910 phase 1): no finding and no "add the version" item,
-	// for the "could not be checked" list (reason not_comparable).
+	// for the "could not be checked" list (reason not_comparable); and, on the OS row whose version it orders, the entries CISA's key
+	// names but whose NVD list names only another product (Reason NotComparableOtherProduct, review r1 M1 of #919).
 	NotComparable []NotComparable
 }
 
@@ -381,12 +382,19 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			continue
 		}
 		seen[v.CVE] = true
-		var best, proved, unlisted, platform *Match
+		var best, proved, unlisted, platform, other *Match
+		otherVer := ""       // other's version
 		unproved := false    // a software of this product with a No that proves nothing, or one that needs a version
 		othersOnly := true   // every software keyed to the entry is one NVD's list leaves out (D-506)
 		var unnamed []string // their names, for the D-506 sentence
 		for i, s := range sws {
 			m, out := matchOne(a, s, infos[i], v, named[i][vi], now)
+			if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
+				// review r1 M1 of #919: the device's own OS, with a version its scheme orders, that CISA's key names but NVD's list does
+				// not (CVE-2018-0171, "IOS and IOS XE", NVD only classic cisco:ios): could not be checked, not a product finding
+				other, otherVer, unproved = &m, s.Version, true
+				continue
+			}
 			if out != outNone && (out != outRuledOut || m.Evidence.Summary == "") {
 				othersOnly = false
 			}
@@ -430,6 +438,10 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				}
 			}
 		}
+		if best == nil && other != nil {
+			res.NotComparable = append(res.NotComparable, NotComparable{CVE: v.CVE, SoftwareID: other.SoftwareID, Software: other.SoftwareDisplay,
+				Version: clean(otherVer), Reason: NotComparableOtherProduct})
+		}
 		if best == nil && platform != nil && !unproved {
 			r := *platform
 			r.Evidence.Summary, r.why = r.why, ""
@@ -467,7 +479,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		}
 	}
 	if os, orderable, ok := deviceOS(a); ok && !orderable {
-		res.NotComparable = notComparable(os, vulns)
+		res.NotComparable = append(res.NotComparable, notComparable(os, vulns)...)
 	}
 	return res
 }

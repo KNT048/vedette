@@ -1232,7 +1232,7 @@ running_conmons() {
 	for c in "$PROC"/[0-9]*/cmdline; do
 		[ -r "$c" ] || continue
 		tr '\0' '\n' <"$c" 2>/dev/null | awk '
-			NR == 1 { if ($0 !~ /(^|\/)conmon$/) bad = 1; next }
+			NR == 1 { if ($0 !~ /(^|\/)conmon$/) { bad = 1; exit } next }
 			skip { skip = 0; p = ""; next }
 			$0 == "--exit-command-arg" || $0 == "--runtime-arg" { skip = 1; next }
 			(p == "-c" || p == "--cid") && id == "" { id = $0 }
@@ -1549,7 +1549,7 @@ do_uninstall() {
 	for p in 8443 8444 8765; do
 		if port_listening "$p"; then warn "port $p still listens (another program?)"; fi
 	done
-	if [ -n "$KEEP_PODMAN" ] && [ -n "$PODMAN_OURS" ] && { installed_pkg podman || have podman; }; then
+	if [ -n "$KEEP_PODMAN" ] && [ -n "$PODMAN_OURS" ] && { installed_pkg podman || have podman || [ -n "$RUNNING" ]; }; then
 		say "kept podman, the packages it runs with and /var/lib/containers: $KEEP_PODMAN"
 		[ -z "$KEPT_MANUAL" ] || say "  marked$KEPT_MANUAL as installed by hand (apt-mark manual), so apt autoremove keeps them"
 		# a container podman lost (D-600) is stopped by vedette-host at its start when it is Vedette's or OpenVAS's, by a reboot in any case

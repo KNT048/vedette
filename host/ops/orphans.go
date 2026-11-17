@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -32,7 +33,10 @@ import (
 //     systemctl kill --signal=SIGKILL on the container's and conmon's scopes of the ones left, 20 s more. systemd signals every process of
 //     the scope; the empty scopes then go.
 //  4. For each one that ended: its mounts the host can name by the id (the container's /dev/shm under its bundle, and the rootfs crun's
-//     state names when it is an overlay "merged" folder), unmounted with MNT_DETACH, and crun's state folder /run/crun/<id>.
+//     state names when it is an overlay "merged" folder), unmounted with MNT_DETACH, and crun's state folder /run/crun/<id>; and its
+//     network namespace (review r1 M2): netavark keeps it as a bind mount /run/netns/netns-<uuid> that outlives the processes, with the
+//     veth and the IP on the bridge. Its inode is read from the container's process (crun's state pid) before the kill; afterwards the
+//     one /run/netns entry with that device and inode, when no process is left in it, is unmounted and removed.
 //
 // Each orphan is logged with its name, id and start time, and audited (host.start, orphan_container_stopped or orphan_container_stuck).
 // It runs in the background after Start, holding the OpenVAS slot (gbSem), so a greenbone.up waits until Greenbone's orphans are gone.
@@ -45,7 +49,8 @@ const (
 	orphanKillWait  = 20 * time.Second
 	orphanPoll      = 500 * time.Millisecond
 	orphanAskWait   = time.Minute
-	orphanCommand   = "host.start" // the audit command of what the host does at its start
+	orphanRecheck   = 2 * time.Second // between the two questions to podman (review r1 M1)
+	orphanCommand   = "host.start"    // the audit command of what the host does at its start
 )
 
 var (
@@ -103,15 +108,7 @@ func containerExistsArgv(id string) ([]string, error) {
 
 // orphansAtStart finds and stops the orphans (the steps above). It never blocks the start: Start runs it in its own goroutine.
 func (o *Ops) orphansAtStart(ctx context.Context) {
-	var cands []conmonProc
-	for _, c := range o.conmons() {
-		if orphanNameRE.MatchString(c.name) {
-			cands = append(cands, c)
-		}
-	}
-	if len(cands) == 0 {
-		return
-	}
+	// the slot first, then the look (review r1 M1): an OpenVAS operation that recreates Greenbone's containers ends before the snapshot
 	select {
 	case o.gbSem <- struct{}{}:
 	case <-ctx.Done():
@@ -119,23 +116,16 @@ func (o *Ops) orphansAtStart(ctx context.Context) {
 	}
 	defer func() { <-o.gbSem }()
 	var orphans []conmonProc
-	for _, c := range cands {
-		args, err := containerExistsArgv(c.id)
-		if err != nil {
+	for _, c := range o.conmons() {
+		if !orphanNameRE.MatchString(c.name) {
 			continue
 		}
-		_, code, err := o.gbStep(ctx, orphanAskWait, binPodman, args...)
-		switch {
-		case err == nil && code == 0: // podman's own container: never touched here
-		case err == nil && code == 1:
-			orphans = append(orphans, c)
-		default:
-			attrs := []any{"container", c.name, "id", c.id, "exit_code", code}
-			if err != nil {
-				attrs = append(attrs, "error", err.Error())
-			}
-			o.log.WarnContext(ctx, "orphaned containers: podman did not answer whether it knows a running container; none is stopped", attrs...)
+		orphan, ok := o.isOrphan(ctx, c)
+		if !ok {
 			return
+		}
+		if orphan {
+			orphans = append(orphans, c)
 		}
 	}
 	if len(orphans) == 0 {
@@ -146,6 +136,12 @@ func (o *Ops) orphansAtStart(ctx context.Context) {
 	}
 	for _, c := range orphans {
 		o.log.WarnContext(ctx, "orphaned container: it runs but podman does not know it; stopping it", "container", c.name, "id", c.id, "started", c.startedText(), "conmon_pid", c.pid)
+	}
+	netns := map[string]fileKey{}
+	for _, c := range orphans {
+		if k, ok := o.orphanNetns(c.id); ok {
+			netns[c.id] = k
+		}
 	}
 	o.orphanKill(ctx, orphanSignals[0], orphans, false)
 	left := o.orphansWait(ctx, orphans, orphanTermWait)
@@ -167,10 +163,46 @@ func (o *Ops) orphansAtStart(ctx context.Context) {
 		}
 		stopped++
 		o.orphanLeftovers(ctx, c)
+		if k, ok := netns[c.id]; ok {
+			o.orphanNetnsRemove(ctx, c, k)
+		}
 		o.log.InfoContext(ctx, "orphaned container stopped", "container", c.name, "id", c.id, "started", c.startedText())
 		o.note(orphanCommand, "orphan_container_stopped", detail)
 	}
 	o.log.InfoContext(ctx, "orphaned containers: done", "stopped", stopped, "still_running", len(left))
+}
+
+// isOrphan asks podman twice, orphanRecheck apart, whether it knows c, and looks after each answer that c's conmon still runs (review
+// r1 M1): a container podman removes in the normal way (quadlet's --replace or --rm, a compose recreate during the deploy) has left its
+// database while its conmon was ending; only a conmon that still runs while podman says no twice is an orphan. ok is false when podman
+// did not answer (the pass then stops nothing).
+func (o *Ops) isOrphan(ctx context.Context, c conmonProc) (orphan, ok bool) {
+	args, err := containerExistsArgv(c.id)
+	if err != nil {
+		return false, true
+	}
+	for try := range 2 {
+		if try > 0 && !o.d.Sleep(ctx, orphanRecheck) {
+			return false, false
+		}
+		_, code, err := o.gbStep(ctx, orphanAskWait, binPodman, args...)
+		switch {
+		case err == nil && code == 0: // podman's own container: never touched here
+			return false, true
+		case err == nil && code == 1:
+			if !o.procAlive(c.pid, c.start) {
+				return false, true // it ended on its own: podman removed it, nothing to stop
+			}
+		default:
+			attrs := []any{"container", c.name, "id", c.id, "exit_code", code}
+			if err != nil {
+				attrs = append(attrs, "error", err.Error())
+			}
+			o.log.WarnContext(ctx, "orphaned containers: podman did not answer whether it knows a running container; none is stopped", attrs...)
+			return false, false
+		}
+	}
+	return true, true
 }
 
 // orphanKill signals the container scopes of cs (and with conmon, conmon's too) in one systemctl call. Its exit code is not the
@@ -412,4 +444,74 @@ func (o *Ops) unmount(p string) error {
 		return o.orphanUnmount(p)
 	}
 	return unmountDetach(p)
+}
+
+// fileKey is a file's device and inode (a network namespace's identity: /proc/<pid>/ns/net and its bind mount in /run/netns agree).
+type fileKey struct{ dev, ino uint64 }
+
+func statKey(p string) (fileKey, bool) {
+	fi, err := os.Stat(p)
+	if err != nil {
+		return fileKey{}, false
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return fileKey{}, false
+	}
+	return fileKey{dev: uint64(st.Dev), ino: st.Ino}, true //nolint:unconvert // Dev is int32 on darwin, uint64 on linux
+}
+
+// orphanNetnsRE: netavark's names of the namespaces it keeps (netns-<uuid>).
+var orphanNetnsRE = regexp.MustCompile(`^netns-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// orphanNetns is the network namespace of the container's process that crun's state names (read before the kill).
+func (o *Ops) orphanNetns(id string) (fileKey, bool) {
+	var st struct {
+		Pid int `json:"pid"`
+	}
+	b, err := readSmall(filepath.Join(o.path(orphanCrunDir), id, "status"), 64<<10)
+	if err != nil || json.Unmarshal(b, &st) != nil || st.Pid <= 0 {
+		return fileKey{}, false
+	}
+	return statKey(filepath.Join(o.path("/proc"), strconv.Itoa(st.Pid), "ns", "net"))
+}
+
+// orphanNetnsRemove unmounts and removes the /run/netns entry of the namespace k, only when no process of the box is still in it.
+func (o *Ops) orphanNetnsRemove(ctx context.Context, c conmonProc, k fileKey) {
+	proc := o.path("/proc")
+	if ents, err := os.ReadDir(proc); err == nil {
+		for _, e := range ents {
+			if _, err := strconv.Atoi(e.Name()); err != nil {
+				continue
+			}
+			if pk, ok := statKey(filepath.Join(proc, e.Name(), "ns", "net")); ok && pk == k {
+				o.log.WarnContext(ctx, "orphaned container: a process still uses its network namespace; it is left", "container", c.name, "pid", e.Name())
+				return
+			}
+		}
+	}
+	dir := o.path("/run/netns")
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range ents {
+		if !orphanNetnsRE.MatchString(e.Name()) {
+			continue
+		}
+		p := filepath.Join(dir, e.Name())
+		if nk, ok := statKey(p); !ok || nk != k {
+			continue
+		}
+		if err := o.unmount(p); err != nil {
+			o.log.WarnContext(ctx, "orphaned container: its network namespace could not be unmounted", "container", c.name, "netns", e.Name(), "error", err.Error())
+			return
+		}
+		if err := os.Remove(p); err != nil {
+			o.log.WarnContext(ctx, "orphaned container: its network namespace entry could not be removed", "container", c.name, "netns", e.Name(), "error", err.Error())
+			return
+		}
+		o.log.InfoContext(ctx, "orphaned container: its network namespace removed", "container", c.name, "netns", e.Name())
+		return
+	}
 }

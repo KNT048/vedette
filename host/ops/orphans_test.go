@@ -28,6 +28,10 @@ type orphanCtr struct {
 	bundle   string // conmon's -b; "" = the rootful podman's default for its id
 	termDies bool   // ends at SIGTERM (otherwise only at SIGKILL)
 	never    bool   // never ends
+	// review r1 M1: podman removes it in the normal way while the host looks
+	goneOnAsk     bool // its conmon has ended by the time podman answers 1
+	knownOnSecond bool // podman says 1, then 0 (recreated, or a slow write)
+	asks          int
 }
 
 type orphanWorld struct {
@@ -88,6 +92,7 @@ func newOrphanWorld(t *testing.T, ctrs []*orphanCtr) *orphanWorld {
 		cpid := c.pid + 1
 		w.write("proc/"+strconv.Itoa(cpid)+"/cmdline", "/usr/local/bin/gvmd\x00")
 		w.write("proc/"+strconv.Itoa(cpid)+"/stat", strconv.Itoa(cpid)+" (gvmd) S 1 1 1 0 -1 4 0 0 0 0 0 0 0 0 20 0 1 0 6100 0 0\n")
+		w.write("proc/"+strconv.Itoa(cpid)+"/ns/net", "net:["+strconv.Itoa(cpid)+"]") // a file of its own: its own inode
 		w.write("run/crun/"+id+"/status", `{"pid":`+strconv.Itoa(cpid)+`,"rootfs":"/var/lib/containers/storage/overlay/`+strings.Repeat("e", 64)+`/merged"}`)
 		mounts.WriteString("1 2 0:1 / " + orphanBundleDir + id + "/userdata/shm rw - tmpfs shm rw\n")
 	}
@@ -133,8 +138,16 @@ func (w *orphanWorld) exec(ctx context.Context, name string, _ io.Reader, args .
 		if w.exists >= 0 {
 			return vexec.Result{}, w.exists, nil
 		}
-		if c := w.ctrs[args[2]]; c != nil && c.known {
+		c := w.ctrs[args[2]]
+		if c == nil {
+			return vexec.Result{}, 1, nil
+		}
+		c.asks++
+		if c.known || (c.knownOnSecond && c.asks > 1) {
 			return vexec.Result{}, 0, nil
+		}
+		if c.goneOnAsk {
+			w.end(args[2])
 		}
 		return vexec.Result{}, 1, nil
 	case name == binSystemctl && args[0] == "kill":
@@ -189,15 +202,15 @@ func TestOrphansStopsGreenbonesAndVedettesOrphansOnly(t *testing.T) {
 	if got := w.killed(); !slices.Equal(got, want) {
 		t.Fatalf("kills:\n%q\nwant:\n%q", got, want)
 	}
-	// podman was asked about the three candidates with Vedette's or Greenbone's name (not mydb, not the rootless one, not the other bundle)
+	// podman was asked about the three candidates (twice when it said no) with Vedette's or Greenbone's name (not mydb, not the rootless one, not the other bundle)
 	asked := 0
 	for _, c := range w.calls {
 		if strings.HasPrefix(c, "podman container exists ") {
 			asked++
 		}
 	}
-	if asked != 3 {
-		t.Fatalf("podman asked %d times, want 3: %q", asked, w.calls)
+	if asked != 5 { // twice for each of the two orphans (review r1 M1), once for the one podman knows
+		t.Fatalf("podman asked %d times, want 5: %q", asked, w.calls)
 	}
 	if w.crunState(1) || w.crunState(2) || !w.crunState(3) || !w.crunState(4) {
 		t.Fatal("crun's state: removed for the two orphans only")
@@ -303,5 +316,55 @@ func TestOrphanArgvIsValidated(t *testing.T) {
 		if orphanNameRE.MatchString(n) {
 			t.Errorf("%s is an orphan name", n)
 		}
+	}
+}
+
+// Review r1 M1: a container podman removes in the normal way while the host looks (quadlet's --replace, a compose recreate) is not an
+// orphan: its conmon is gone when podman answers no, or podman knows it at the second question. Neither is killed, logged nor audited.
+func TestOrphansNotAContainerPodmanJustRemoved(t *testing.T) {
+	t.Parallel()
+	w := newOrphanWorld(t, []*orphanCtr{
+		{pid: 100, name: "vedette-core", goneOnAsk: true, termDies: true},
+		{pid: 200, name: "greenbone-community-edition-redis-server-1", knownOnSecond: true, termDies: true},
+	})
+	w.o.orphansAtStart(t.Context())
+	if k := w.killed(); len(k) != 0 {
+		t.Fatalf("killed %q", k)
+	}
+	if strings.Contains(w.buf.String(), "orphaned container") {
+		t.Fatalf("log:\n%s", w.buf.String())
+	}
+	if c := w.ctrs[orphanID(2)]; c.asks != 2 {
+		t.Fatalf("podman asked %d times about the recreated one, want 2", c.asks)
+	}
+}
+
+// Review r1 M2: the stopped orphan's network namespace (netavark's bind mount /run/netns/netns-<uuid>, same inode as the container
+// process's ns/net) is unmounted and removed; another namespace stays.
+func TestOrphansRemoveTheirNetworkNamespace(t *testing.T) {
+	t.Parallel()
+	w := newOrphanWorld(t, []*orphanCtr{{pid: 100, name: "greenbone-community-edition-gvmd-1", termDies: true}, {pid: 200, name: "mydb"}})
+	ours, other := "netns-0b8e7f2c-1d2e-4f30-9a1b-2c3d4e5f6a7b", "netns-11111111-2222-4333-8444-555555555555"
+	if err := os.MkdirAll(filepath.Join(w.root, "run/netns"), 0o755); err != nil { //nolint:gosec // the fake root of a test
+		t.Fatal(err)
+	}
+	if err := os.Link(filepath.Join(w.root, "proc/101/ns/net"), filepath.Join(w.root, "run/netns", ours)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(filepath.Join(w.root, "proc/201/ns/net"), filepath.Join(w.root, "run/netns", other)); err != nil {
+		t.Fatal(err)
+	}
+	w.o.orphansAtStart(t.Context())
+	if _, err := os.Lstat(filepath.Join(w.root, "run/netns", ours)); err == nil {
+		t.Fatal("the orphan's namespace is still in /run/netns")
+	}
+	if _, err := os.Lstat(filepath.Join(w.root, "run/netns", other)); err != nil {
+		t.Fatalf("another namespace was removed: %v", err)
+	}
+	if !slices.Contains(w.umount, "/run/netns/"+ours) || slices.Contains(w.umount, "/run/netns/"+other) {
+		t.Fatalf("unmounted %q", w.umount)
+	}
+	if !strings.Contains(w.buf.String(), `msg="orphaned container: its network namespace removed" container=greenbone-community-edition-gvmd-1 netns=`+ours) {
+		t.Fatalf("log:\n%s", w.buf.String())
 	}
 }

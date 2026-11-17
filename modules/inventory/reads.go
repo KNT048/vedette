@@ -43,7 +43,7 @@ func (c obsCols) observed() *Observed {
 // loadDevices reads devices (with software and services) for a WHERE clause on inv_asset a; the rows
 // are ordered box first, then newest first. limit 0 = no limit.
 func (s *Service) loadDevices(ctx context.Context, q querier, where string, limit int, args ...any) ([]Device, error) {
-	st, err := loadSettings(ctx, q) // the LAN ranges say whether a default SNMP switch reaches the device (D-601, review r2 M1)
+	st, err := loadSettings(ctx, q) // the LAN ranges say whether a default SNMP switch reaches the device
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
 		}
-		d.Site = "hq" // one site (D-24)
+		d.Site = "hq" // one site
 		d.IP = noIP
 		if ip.Valid {
 			d.IP = ip.String
@@ -78,7 +78,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
 		d.IgnoredAt = ptr(ignoredAt)
 		d.ScanSource, d.SNMPSource = sourceState(d.ScanSource, d.Origin), snmpState(st, d.SNMPSource, d.Origin, ip.String)
-		if d.IgnoredAt != nil { // D-630: both are off while it is ignored, as the policies apply them; the stored choice stays
+		if d.IgnoredAt != nil { // Both are off while it is ignored, as the policies apply them; the stored choice stays
 			d.ScanSource, d.SNMPSource = SourceOff, SourceOff
 		}
 		d.Software, d.Services = []Software{}, []ServiceRow{}
@@ -161,7 +161,7 @@ func loadServices(ctx context.Context, q querier, sub string, idx map[string]int
 
 // summaryOf is the source of the most trusted of vendor, model, os and the confidence of the weakest. A device with
 // none of them (a router seen only by ARP) takes its hostname and MAC instead, so the list still says which sensor saw
-// it (walk 4: "Unknown 192.168.18.1" with source "–").
+// it ("Unknown 192.168.18.1" with source "–").
 func summaryOf(d *Device) *Summary {
 	if d.Vendor == nil && d.Model == nil && d.OS == nil {
 		return summaryOver(d.ident)
@@ -204,8 +204,8 @@ func riskUnavailable() *apierr.Error {
 		With("retry_after", 5)
 }
 
-// risks is the risk marker of every marked device (G4), from findings through Config.Risk (one batch, cached there); clean devices
-// are absent. Only the Devices page, the device page and the CSV export ask for it (review r1 of #949: the honeypot, scans, reports
+// risks is the risk marker of every marked device, from findings through Config.Risk (one batch, cached there); clean devices
+// are absent. Only the Devices page, the device page and the CSV export ask for it (#949: the honeypot, scans, reports
 // and MCP read devices without it). ok is false when findings could not answer: logged, and the page shows no marker; it never fails
 // the list.
 func (s *Service) risks(ctx context.Context) (out map[string]*Risk, ok bool) {
@@ -227,13 +227,13 @@ func (s *Service) risks(ctx context.Context) (out map[string]*Risk, ok bool) {
 }
 
 // Devices lists the devices for the other modules (scan, reports, honeypot, MCP): at most MaxListed rows, the counts over all of them.
-// It does not read the sources (Device.Sources nil): only the Devices page and the export need them (#855 r1 L3).
+// It does not read the sources (Device.Sources nil): only the Devices page and the export need them (#855).
 func (s *Service) Devices(ctx context.Context) (DeviceList, error) {
 	return s.devices(ctx, DeviceFilter{}, false, false)
 }
 
 // devices is Devices narrowed by the Devices search (#849): at most MaxListed of the devices f keeps, with their sources when
-// withSources and their risk markers when withRisk (G4); the counts stay over the whole inventory (the tabs).
+// withSources and their risk markers when withRisk; the counts stay over the whole inventory (the tabs).
 func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources, withRisk bool) (DeviceList, error) {
 	db := s.db.Reader()
 	items, riskOK, err := s.filtered(ctx, db, f, MaxListed, withSources, withRisk)
@@ -241,7 +241,7 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources, with
 		return DeviceList{}, err
 	}
 	out := DeviceList{Items: items, RiskUnavailable: withRisk && !riskOK}
-	// An ignored device is in no count but its own (D-630): not in All, not in the To review badge.
+	// An ignored device is in no count but its own: not in All, not in the To review badge.
 	err = db.QueryRowContext(ctx, `SELECT ifnull(sum(ignored_at IS NULL), 0), ifnull(sum(approved = 0 AND ignored_at IS NULL), 0), ifnull(sum(fragile AND ignored_at IS NULL), 0),
 		ifnull(sum(origin = 'manual' AND ignored_at IS NULL), 0), ifnull(sum(ignored_at IS NOT NULL), 0) FROM inv_asset`).
 		Scan(&out.Counts.All, &out.Counts.Pending, &out.Counts.Fragile, &out.Counts.Manual, &out.Counts.Ignored)
@@ -256,7 +256,7 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources, with
 }
 
 // DeviceCounts is the "All" and "To review" counts of the device list without the list (Home's device tile, findings
-// GET /findings/summary, #825): one aggregate over inv_asset. Ignored devices are in neither (D-630).
+// GET /findings/summary, #825): one aggregate over inv_asset. Ignored devices are in neither.
 func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err error) {
 	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(approved = 0), 0) FROM inv_asset WHERE ignored_at IS NULL`).Scan(&total, &pending)
 	if err != nil {
@@ -266,7 +266,7 @@ func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err err
 }
 
 // filtered reads the devices f keeps (limit 0 = all), newest first, each with its finding count, summary and, when withSources, its
-// sources (a source filter reads them in any case) and, when withRisk, its risk marker (G4; a risk filter needs withRisk); the box is
+// sources (a source filter reads them in any case) and, when withRisk, its risk marker (a risk filter needs withRisk); the box is
 // always just seen and never marked. riskOK is false when the markers could not be read: the rows have none and a risk filter is not
 // applied (DeviceList.RiskUnavailable says so); with a risk filter that is 503 risk_unavailable instead (never every device).
 func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limit int, withSources, withRisk bool) (items []Device, riskOK bool, err error) {
@@ -284,7 +284,7 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	if withRisk {
 		risks, riskOK = s.risks(ctx)
 	}
-	if withRisk && !riskOK && len(f.Risks) > 0 { // never "every device" for a risk filter (review r2 of #949 L1)
+	if withRisk && !riskOK && len(f.Risks) > 0 { // never "every device" for a risk filter (#949)
 		return nil, false, riskUnavailable()
 	}
 	if !withRisk {
@@ -301,7 +301,7 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	for i := range items {
 		d := &items[i]
 		d.FindingsCount = counts[d.ID]
-		if !d.IsBox { // the box's own updates are in To fix; the box is never marked (G4)
+		if !d.IsBox { // the box's own updates are in To fix; the box is never marked
 			d.Risk = risks[d.ID]
 		}
 		d.Summary = summaryOf(d)
@@ -429,11 +429,11 @@ func (s *Service) cves(ctx context.Context, keys []string) ([]string, error) {
 }
 
 // NoDevice ends the name of a device added by hand that has neither a name nor an IP: it is only a product someone
-// declared ("Microsoft Office (no device)"), never a nameless row (D-471).
+// declared ("Microsoft Office (no device)"), never a nameless row.
 const NoDevice = " (no device)"
 
-// DisplayName is the one naming rule of every page and module (D-471; web/src/features/inventory/nameOf.ts is the same):
-// the name a person gave the device in Vedette (G2, user_name) whenever it is set; then the host name (a name typed when the device
+// DisplayName is the one naming rule of every page and module (web/src/features/inventory/nameOf.ts is the same):
+// the name a person gave the device in Vedette (user_name) whenever it is set; then the host name (a name typed when the device
 // was added by hand is one); then a device added by hand is named after its first product, with NoDevice when it has no IP either;
 // any other device after its make and model, then its IP. "" when none of these is known: the caller adds the kind, the IP
 // placeholder or the id.
@@ -460,7 +460,7 @@ func DisplayName(name, hostname, vendor, model, ip, origin, product string) stri
 	return ""
 }
 
-// nameOrHost is the name a person gave a device (G2) when set, else its host name; nil when neither is known.
+// nameOrHost is the name a person gave a device when set, else its host name; nil when neither is known.
 func nameOrHost(user, host *string) *string {
 	if user != nil && strings.TrimSpace(*user) != "" {
 		return user
@@ -472,7 +472,7 @@ func nameOrHost(user, host *string) *string {
 }
 
 // NameOrHost is for the readers that name a device by its host name, else its address or model (response, AI, MCP, honeypot, the
-// CVE page): the name a person gave it in Vedette wins (G2), else the host name; nil when neither is known.
+// CVE page): the name a person gave it in Vedette wins, else the host name; nil when neither is known.
 func (a AssetCore) NameOrHost() *string { return nameOrHost(a.UserName, a.Hostname) }
 
 // NameOrHost is AssetCore.NameOrHost of a DeviceRef.
@@ -526,7 +526,7 @@ func assetExists(ctx context.Context, q querier, id string) (bool, error) {
 }
 
 // deviceName is how audit rows, the matcher's evidence (MatchInput) and messages name a device: as the pages do
-// (DisplayName, D-471), else the id.
+// (DisplayName), else the id.
 func deviceName(ctx context.Context, q querier, id string) string {
 	var name, host, vendor, model, ip, product sql.NullString
 	var origin string
@@ -540,7 +540,7 @@ func deviceName(ctx context.Context, q querier, id string) string {
 	return id
 }
 
-// DevicesPage is Devices narrowed by the Devices search (#849) with the guesses of the identification rules (D-511): GET
+// DevicesPage is Devices narrowed by the Devices search (#849) with the guesses of the identification rules: GET
 // /inventory/devices. Only the Devices page asks for guesses; every other reader (scan, reports, honeypot, MCP, response) reads Devices
 // or Device, which never ask the host (#714 M3).
 func (s *Service) DevicesPage(ctx context.Context, f DeviceFilter) (DeviceList, error) {
@@ -556,14 +556,14 @@ func (s *Service) DevicesPage(ctx context.Context, f DeviceFilter) (DeviceList, 
 	return l, nil
 }
 
-// DetailPage is Detail with the guess of the identification rules (D-511) and the risk marker (G4): GET /inventory/devices/{id}.
+// DetailPage is Detail with the guess of the identification rules and the risk marker: GET /inventory/devices/{id}.
 func (s *Service) DetailPage(ctx context.Context, id string) (Detail, error) {
 	d, err := s.Detail(ctx, id)
 	if err != nil {
 		return d, err
 	}
 	s.addGuesses(ctx, []*AssetCore{&d.Asset.AssetCore})
-	risks, ok := s.risks(ctx) // G4: the marker next to the title (the box never has one)
+	risks, ok := s.risks(ctx) // the marker next to the title (the box never has one)
 	if !d.Asset.IsBox {
 		d.Risk = risks[id]
 	}
@@ -571,7 +571,7 @@ func (s *Service) DetailPage(ctx context.Context, id string) (Detail, error) {
 	return d, nil
 }
 
-// addGuesses sets Guess on every device whose kind is still unknown and that one identification rule fits (D-511). It reads only what
+// addGuesses sets Guess on every device whose kind is still unknown and that one identification rule fits. It reads only what
 // the rows already hold (make, model, OS, host name, open services) and the box's default gateway, asked once.
 func (s *Service) addGuesses(ctx context.Context, items []*AssetCore) {
 	var gw netip.Addr
@@ -612,7 +612,7 @@ func (s *Service) addGuesses(ctx context.Context, items []*AssetCore) {
 	}
 }
 
-// snmpState is the SNMP switch as the device page shows it: what SNMPPolicy does with it (D-601, review r2 M1). Outside lan_ranges the
+// snmpState is the SNMP switch as the device page shows it: what SNMPPolicy does with it. Outside lan_ranges the
 // default of a discovered device does not reach it (only a stored "on" does), so it shows off until a person turns it on.
 func snmpState(st Settings, stored, origin, ip string) string {
 	if stored == "" && origin != "manual" {
@@ -628,7 +628,7 @@ func inRanges(st Settings, ip netip.Addr) bool {
 	return st.InScope(ip) || st.Excluded(ip)
 }
 
-// sourceState resolves a device's stored setting of one active source (D-601): "" is the default, off for a device added by hand and on
+// sourceState resolves a device's stored setting of one active source: "" is the default, off for a device added by hand and on
 // for one a sensor found.
 func sourceState(stored, origin string) string {
 	switch {

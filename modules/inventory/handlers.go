@@ -130,7 +130,7 @@ func (h *Handlers) InventoryPatchInventoryDevicesID(ctx context.Context, req *oa
 	return &oas.InventoryPatchInventoryDevicesIDOK{Ok: true}, nil
 }
 
-// InventoryPutInventoryDevicesIDSources implements PUT /inventory/devices/{id}/sources (admin; D-601).
+// InventoryPutInventoryDevicesIDSources implements PUT /inventory/devices/{id}/sources (admin).
 func (h *Handlers) InventoryPutInventoryDevicesIDSources(ctx context.Context, req *oas.InventoryPutInventoryDevicesIDSourcesReq, params oas.InventoryPutInventoryDevicesIDSourcesParams) (*oas.InventoryPutInventoryDevicesIDSourcesOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
@@ -173,7 +173,7 @@ func (h *Handlers) InventoryPostInventoryDevicesIDApprove(ctx context.Context, p
 	return &oas.InventoryPostInventoryDevicesIDApproveOK{Ok: true}, nil
 }
 
-// InventoryGetInventoryPossibleSame implements GET /inventory/possible-same (viewer, D-599).
+// InventoryGetInventoryPossibleSame implements GET /inventory/possible-same (viewer).
 func (h *Handlers) InventoryGetInventoryPossibleSame(ctx context.Context) (*oas.InventoryGetInventoryPossibleSameOK, error) {
 	l, err := h.svc.PossibleSamePairs(ctx)
 	if err != nil {
@@ -182,7 +182,7 @@ func (h *Handlers) InventoryGetInventoryPossibleSame(ctx context.Context) (*oas.
 	return convert[oas.InventoryGetInventoryPossibleSameOK](l)
 }
 
-// InventoryPostInventoryDevicesIDMerge implements POST /inventory/devices/{id}/merge (admin, D-599): body.from goes into id.
+// InventoryPostInventoryDevicesIDMerge implements POST /inventory/devices/{id}/merge (admin): body.from goes into id.
 func (h *Handlers) InventoryPostInventoryDevicesIDMerge(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDMergeReq, params oas.InventoryPostInventoryDevicesIDMergeParams) (*oas.InventoryPostInventoryDevicesIDMergeOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
@@ -194,7 +194,7 @@ func (h *Handlers) InventoryPostInventoryDevicesIDMerge(ctx context.Context, req
 	return &oas.InventoryPostInventoryDevicesIDMergeOK{ID: params.ID}, nil
 }
 
-// InventoryPostInventoryDevicesIDKeepSeparate implements POST /inventory/devices/{id}/keep-separate (admin, D-599).
+// InventoryPostInventoryDevicesIDKeepSeparate implements POST /inventory/devices/{id}/keep-separate (admin).
 func (h *Handlers) InventoryPostInventoryDevicesIDKeepSeparate(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDKeepSeparateReq, params oas.InventoryPostInventoryDevicesIDKeepSeparateParams) (*oas.InventoryPostInventoryDevicesIDKeepSeparateOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
@@ -206,7 +206,7 @@ func (h *Handlers) InventoryPostInventoryDevicesIDKeepSeparate(ctx context.Conte
 	return &oas.InventoryPostInventoryDevicesIDKeepSeparateOK{Ok: true}, nil
 }
 
-// InventoryPostInventoryDevicesIDIgnore implements POST /inventory/devices/{id}/ignore (operator, D-630).
+// InventoryPostInventoryDevicesIDIgnore implements POST /inventory/devices/{id}/ignore (operator).
 func (h *Handlers) InventoryPostInventoryDevicesIDIgnore(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDIgnoreReq, params oas.InventoryPostInventoryDevicesIDIgnoreParams) (*oas.InventoryPostInventoryDevicesIDIgnoreOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
@@ -243,7 +243,7 @@ func (h *Handlers) InventoryPostInventoryDevicesIDSoftware(ctx context.Context, 
 	return &oas.InventoryPostInventoryDevicesIDSoftwareCreated{KevCves: n}, nil
 }
 
-// InventoryPatchInventoryDevicesIDSoftwareSid implements PATCH /inventory/devices/{id}/software/{sid} (operator, D-471, INV-41).
+// InventoryPatchInventoryDevicesIDSoftwareSid implements PATCH /inventory/devices/{id}/software/{sid} (operator, INV-41).
 func (h *Handlers) InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Context, req *oas.InventoryPatchInventoryDevicesIDSoftwareSidReq, params oas.InventoryPatchInventoryDevicesIDSoftwareSidParams) (*oas.InventoryPatchInventoryDevicesIDSoftwareSidOK, error) {
 	who, err := actor(ctx)
 	if err != nil {

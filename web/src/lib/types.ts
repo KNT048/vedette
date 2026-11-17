@@ -1,8 +1,8 @@
 // Kiểu dữ liệu dùng chung giữa nhiều module (tài sản là thực thể trung tâm, ARCHITECTURE §4). Kiểu riêng của module ở features/<m>/types.ts.
 export type ObsSource = 'manual' | 'agent' | 'snmp' | 'nmap' | 'passive' | 'scan'
-/** A device type id of content/devicetypes/types.json (D-511): data, not a hand-written union. */
+/** A device type id of content/devicetypes/types.json: data, not a hand-written union. */
 export type AssetKind = string
-/** What the identification rules say a device of unknown kind most likely is (D-511); never its kind. */
+/** What the identification rules say a device of unknown kind most likely is; never its kind. */
 export interface KindGuess { kind: AssetKind; confidence: number; evidence: string; model?: string; alternatives?: AssetKind[] }
 
 export interface Observed { value: string; source: ObsSource; confidence: number; seen_at: string }
@@ -16,7 +16,7 @@ export interface Software {
   kev: string[] // khoá khớp KEV: "vendorproject|product" viết thường
   source: ObsSource
   confidence: number
-  /** The package release (D-516; a person's correction, INV-41) */
+  /** The package release (a person's correction, INV-41) */
   pkg_version?: string | null
   /** Mock only (INV-41): on a person's correction, the id of the reported row it replaces for matching. */
   corrects?: string
@@ -34,10 +34,10 @@ export interface Asset {
   ip: string
   mac: string | null
   hostname: string | null // the host name the network reports (read-only), or the name typed when the device was added manually
-  /** The name a person gave the device in Vedette (G2): it wins on every page (nameOf); null or absent = the default name (D-471). */
+  /** The name a person gave the device in Vedette: it wins on every page (nameOf); null or absent = the default name. */
   name?: string | null
   kind: AssetKind
-  kind_source?: ObsSource | null // the source of the kind; null for the default unknown (D-511)
+  kind_source?: ObsSource | null // the source of the kind; null for the default unknown
   guess?: KindGuess | null
   vendor: Observed | null
   model: Observed | null

@@ -14,15 +14,15 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Corrections (BN340, INV-41): a person says what a device really runs where Vedette shows it. The device's OS is a manual
+// Corrections (INV-41): a person says what a device really runs where Vedette shows it. The device's OS is a manual
 // observation, which wins the field over every sensor and agent (INV-1); a software row a sensor or agent reported is corrected by a
 // manual row linked to exactly that row (inv_software.corrects: its source, product and version), which replaces it for matching
-// while it stands; another install of the product (another version, another source) keeps matching (review r1 H1 of #950). Neither is ever touched by a later
+// while it stands; another install of the product (another version, another source) keeps matching (#950). Neither is ever touched by a later
 // scan or report: what the sources read keeps being recorded, and the device page shows it next to the correction when they disagree.
 // Clearing a correction deletes the person's value, and the device is back to what its sources read. Every change is audited.
 
 // rowKey is the SQL identity of a reported row (alias s) a correction stores in corrects: source, lower(vendor), lower(product) and
-// version, joined by char(31) (no stored name holds a control character, review r1 L5). inv_software_uq allows one row per key.
+// version, joined by char(31) (no stored name holds a control character). inv_software_uq allows one row per key.
 func rowKey(s string) string {
 	return s + `.source || char(31) || lower(` + s + `.vendor) || char(31) || lower(` + s + `.product) || char(31) || ifnull(` + s + `.version, '')`
 }
@@ -32,8 +32,8 @@ func productKey(s string) string {
 	return s + `.source || char(31) || lower(` + s + `.vendor) || char(31) || lower(` + s + `.product) || char(31)`
 }
 
-// correctionLive is the SQL condition on a correction (alias s) that it is in use: the row it corrects is still reported (review r2 M-B
-// of #950). When that source moves on (a scan now reads 10.3 and its 10.2 row is gone) or stops reporting the product (the agent's
+// correctionLive is the SQL condition on a correction (alias s) that it is in use: the row it corrects is still reported
+// (#950). When that source moves on (a scan now reads 10.3 and its 10.2 row is gone) or stops reporting the product (the agent's
 // package was removed, or its row expired), the correction rests: the source's current reading decides again, under the source's own
 // rules, and the device shows the correction as not in use until the person sets it again on what the source reads now.
 var correctionLive = `EXISTS (SELECT 1 FROM inv_software r WHERE r.asset_id = s.asset_id AND r.source <> 'manual' AND ` + rowKey("r") + ` = s.corrects)`
@@ -187,10 +187,10 @@ type SoftwareEdit struct {
 
 func (e SoftwareEdit) product() bool { return e.CatalogID != "" || e.Vendor != "" || e.Product != "" }
 
-// EditSoftware changes a software row of a device (INV-41). A row a person declared changes in place (D-471). A row a sensor or agent
+// EditSoftware changes a software row of a device (INV-41). A row a person declared changes in place. A row a sensor or agent
 // reported is corrected: the person's values go in a manual row linked to exactly that row (its source, product and version), the
 // existing correction of that row when there is one, and that row replaces it for matching while it stands; another install of the
-// product keeps matching. What the person does not change is kept (review r1 M1): the CPE, the packaged flag and the source package,
+// product keeps matching. What the person does not change is kept: the CPE, the packaged flag and the source package,
 // and the package release while the version stays; another product starts clean. The device's findings are matched again after the
 // commit.
 func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID string, e SoftwareEdit) error {
@@ -249,7 +249,7 @@ func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID s
 		}
 	}
 	if source == "manual" && !corrects.Valid && e.PkgVersion == nil && entry == nil {
-		return s.SetSoftwareVersion(ctx, actor, assetID, softwareID, *e.Version) // a declared row's version (D-471)
+		return s.SetSoftwareVersion(ctx, actor, assetID, softwareID, *e.Version) // a declared row's version
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		return s.editSoftwareTx(ctx, tx, o, actor, assetID, softwareID, e, entry)
@@ -295,7 +295,7 @@ func (s *Service) editSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, act
 	}
 	detected := row // what the person corrects, for the audit row
 	target := row   // the manual row that takes the person's values; id "" = a new correction
-	relink := ""    // the reported row a resting correction is set on again (review r2 M-B): the person re-confirms it
+	relink := ""    // the reported row a resting correction is set on again: the person re-confirms it
 	if row.source != "manual" {
 		target, err = readSW(ctx, tx, `asset_id = ? AND corrects = ?`, assetID, row.key)
 		if errors.Is(err, sql.ErrNoRows) { // a resting correction of this source's product is set on this row again
@@ -305,7 +305,7 @@ func (s *Service) editSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, act
 			relink = row.key
 		}
 		switch {
-		case errors.Is(err, sql.ErrNoRows): // a new correction starts from what the source read (review r1 M1)
+		case errors.Is(err, sql.ErrNoRows): // a new correction starts from what the source read
 			target = row
 			target.id, target.source, target.corrects, relink = "", "manual", row.key, ""
 		case err != nil:
@@ -349,7 +349,7 @@ func (s *Service) editSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, act
 	if e.Version != nil && *e.Version != next.version {
 		next.version = *e.Version
 		if e.PkgVersion == nil {
-			next.pkgVersion = "" // the release of another version is not known (review r1 L3)
+			next.pkgVersion = "" // the release of another version is not known
 		}
 	}
 	if e.PkgVersion != nil {
@@ -450,10 +450,10 @@ type SoftwareCorrection struct {
 	SetAt string `json:"set_at"`
 	SetBy string `json:"set_by"`
 	// Detected is the corrected row when its source still reports it, else that source's newest row of the product (another version,
-	// which matches on its own); nil when the source reports the product no more: say so (review r1 L2).
+	// which matches on its own); nil when the source reports the product no more: say so.
 	Detected  *SoftwareDetected `json:"detected"`
 	Disagrees bool              `json:"disagrees"` // the source reads another product, version or package release than the person's
-	// Active: the row it corrects is still reported, so matching uses the correction (review r2 M-B). false: the source moved on
+	// Active: the row it corrects is still reported, so matching uses the correction. false: the source moved on
 	// (Detected is what it reads now) or reports the product no more (Detected nil); the source's reading decides until the person
 	// sets the correction again (PATCH on Detected or on this row), and Disagrees is true.
 	Active bool `json:"active"`
@@ -546,7 +546,7 @@ func addCorrections(ctx context.Context, q querier, assetID string, views []Soft
 	return nil
 }
 
-// correctionNote names a person's software correction for the findings history (review r1 M3): "it@acme.example corrected OpenSSH
+// correctionNote names a person's software correction for the findings history: "it@acme.example corrected OpenSSH
 // 10.2 (nmap) to OpenSSH 10.2p1 (package 10.2_p1-r1) on 17 Nov 2026"; a "not installed" one (INV-41 (6)): "it@acme.example said
 // OpenSSH 10.2 (nmap) is not installed on 17 Nov 2026".
 func correctionNote(display, version, pkg, corrects, setBy, setAt string, notInstalled bool) string {
@@ -561,7 +561,7 @@ func correctionNote(display, version, pkg, corrects, setBy, setAt string, notIns
 	return cmp.Or(setBy, "a person") + " corrected " + swText(was, from, "") + " (" + src + ") to " + swText(display, version, pkg) + " on " + correctionDay(setAt)
 }
 
-// restingCorrections names the device's corrections that rest (review r2 M-B of #950: the row each corrects is no longer reported) on
+// restingCorrections names the device's corrections that rest (#950: the row each corrects is no longer reported) on
 // the reported rows of the same source and product that decide now (Superseded) and in StaleCorrections.
 func restingCorrections(ctx context.Context, q querier, id string, d *MatchDevice, prefix map[string]string) error {
 	rows, err := q.QueryContext(ctx, `SELECT s.display, ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.corrects, ifnull(s.set_by, ''), s.seen_at, s.not_installed

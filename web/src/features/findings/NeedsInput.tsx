@@ -1,10 +1,10 @@
-// kien G15 (J3, S-MIT-1): Needs your input, one block per device, the most urgent first (To fix's own order), collapsed until opened.
+// S-MIT-1: Needs your input, one block per device, the most urgent first (To fix's own order), collapsed until opened.
 // Each item says in plain words what the person can do and offers it right there (docs/UI.md §0, "do it where you are"): type the
 // version of software they added by hand, remove what is not installed, mark unproved findings not affected, check the device now
 // (the same "Check this device now" as the device page), or open the software on the device. When nothing a person does would help,
 // it says so and when Vedette checks again (the next version scan or SNMP read from GET /scanning, the next NVD refresh from the
 // feed's last fetch and interval). As Defender's "Software inventory" and Tenable's asset view group a device's open questions under
-// the device, never one flat list per kind. D-604 (BN340, kien G16): a CVE only the platform or the package release can settle asks its
+// the device, never one flat list per kind. A CVE only the platform or the package release can settle asks its
 // question here, with every answer the box offers (one click for an OS, fields for what the person types), each an inventory correction.
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
@@ -95,7 +95,7 @@ function DeviceBlock({ g, open, onToggle, risk }: { g: InputGroup; open: boolean
   const settle = g.versions.length + g.unproved.length
   const cves = uncheckedCves(g.unchecked)
   const panel = `needs-input-${g.id}`
-  // the block's counts, in its toggle's name; each only when it is not 0 (kien G5)
+  // the block's counts, in its toggle's name; each only when it is not 0
   const settleText = settle ? t('needsInput.toSettle', { count: settle }) : ''
   const cvesText = cves ? t('needsInput.uncheckedCount', { count: cves }) : ''
   return (
@@ -141,7 +141,7 @@ function DeviceBlock({ g, open, onToggle, risk }: { g: InputGroup; open: boolean
   )
 }
 
-/** D-500: a software without a usable version: the version decides its exploited CVEs. */
+/** A software without a usable version: the version decides its exploited CVEs. */
 function VersionItem({ v }: { v: VersionNeeded }) {
   const { t } = useTranslation('findings')
   return (
@@ -155,7 +155,7 @@ function VersionItem({ v }: { v: VersionNeeded }) {
   )
 }
 
-/** Findings no update is named for that the box could not prove (kien G8): their CVEs, and how a person settles them. */
+/** Findings no update is named for that the box could not prove: their CVEs, and how a person settles them. */
 function UnprovedItem({ a, asset }: { a: ToFixAction; asset: FindingAsset | null }) {
   const { t } = useTranslation('findings')
   return (
@@ -382,7 +382,7 @@ function NotAffected({ ids }: { ids: string[] }) {
 }
 
 /**
- * D-604 (BN340): the one question left for a CVE that affects only some platforms or package builds. Its text, the command that prints
+ * The one question left for a CVE that affects only some platforms or package builds. Its text, the command that prints
  * the answer on the device, and every answer the box offers: an OS is one click (PATCH /inventory/devices/{id} {os}); an answer that
  * asks shows its fields (os → the device's OS, pkg_version → the row's package release, PATCH …/software/{sid} {pkg_version}; the bare
  * release or the line the command prints). Each is an inventory correction (INV-41); the device is matched again, so the item leaves

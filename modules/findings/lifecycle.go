@@ -20,7 +20,7 @@ const (
 	StatusPatched       Status = "patched"
 	StatusFalsePositive Status = "false_positive"
 	StatusNotRelevant   Status = "not_relevant"
-	// StatusRiskAccepted is closed by a person until Finding.AcceptedUntil; it reopens by itself after that day (D-498).
+	// StatusRiskAccepted is closed by a person until Finding.AcceptedUntil; it reopens by itself after that day.
 	StatusRiskAccepted Status = "risk_accepted"
 )
 
@@ -45,7 +45,7 @@ const (
 	ActionFalsePositive Action = "false_positive"
 	ActionNotRelevant   Action = "not_relevant"
 	ActionReopen        Action = "reopen"
-	// ActionAcceptRisk needs a note and an until date (Finding.AcceptRisk, D-498).
+	// ActionAcceptRisk needs a note and an until date (Finding.AcceptRisk).
 	ActionAcceptRisk Action = "accept_risk"
 )
 
@@ -54,7 +54,7 @@ const (
 	MaxNote = 500
 	// MinReasonNote is the shortest note for false_positive, not_relevant and accept_risk.
 	MinReasonNote = 3
-	// MaxAcceptDays is how far ahead a risk can be accepted (D-498).
+	// MaxAcceptDays is how far ahead a risk can be accepted.
 	MaxAcceptDays = 365
 	// SystemUser is the history user for automatic events.
 	SystemUser = "system"
@@ -74,14 +74,14 @@ type Finding struct {
 	ResolvedBy     string    // "" = none
 	ResolvedAt     time.Time // zero = none
 	ResolutionNote string    // "" = none
-	// ResolutionReason is set only when Vedette closed the finding by itself (D-530): ReasonNotAffectedVersion. A
+	// ResolutionReason is set only when Vedette closed the finding by itself: ReasonNotAffectedVersion. A
 	// person's action, a reopen or a scan clears it.
 	ResolutionReason string
-	// AcceptedUntil is the last day (00:00 UTC) of a risk acceptance; set only while the status is risk_accepted (D-498).
+	// AcceptedUntil is the last day (00:00 UTC) of a risk acceptance; set only while the status is risk_accepted.
 	AcceptedUntil time.Time
 }
 
-// ReasonRiskExpired is the StatusChangedEvent reason of a finding whose risk acceptance ran out (D-498, INV-13).
+// ReasonRiskExpired is the StatusChangedEvent reason of a finding whose risk acceptance ran out (INV-13).
 const ReasonRiskExpired = "acceptance_expired"
 
 // AcceptanceEnds is when a risk accepted until the day until ends: once that day is over everywhere on Earth, at its end
@@ -99,7 +99,7 @@ func dayOf(t time.Time) time.Time {
 // FmtDay is how a day is written in history notes: "12 Feb 2027", like the GUI.
 func FmtDay(t time.Time) string { return t.UTC().Format("2 Jan 2006") }
 
-// ExpireAcceptance reopens a risk_accepted finding once AcceptanceEnds(its last day) (D-498, INV-13): to the open status a
+// ExpireAcceptance reopens a risk_accepted finding once AcceptanceEnds(its last day) (INV-13): to the open status a
 // fresh match would give (confirmed with a scan basis, else suspected), with a history row by the system user that names
 // who accepted it and until when. ok is false for anything else.
 func (f Finding) ExpireAcceptance(now time.Time) (Finding, HistoryEntry, bool) {
@@ -115,15 +115,15 @@ func (f Finding) ExpireAcceptance(now time.Time) (Finding, HistoryEntry, bool) {
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "reopened", Note: note}, true
 }
 
-// ReasonNotAffectedVersion closes a suspected finding whose version the matcher proved outside every range (D-530).
+// ReasonNotAffectedVersion closes a suspected finding whose version the matcher proved outside every range.
 const ReasonNotAffectedVersion = "not_affected_version"
 
-// AutoResolved reports whether Vedette closed the finding by itself (D-530): only such a finding reopens on a match.
+// AutoResolved reports whether Vedette closed the finding by itself: only such a finding reopens on a match.
 func (f Finding) AutoResolved() bool {
 	return f.Status == StatusNotRelevant && f.ResolutionReason == ReasonNotAffectedVersion
 }
 
-// AutoResolve closes a suspected finding (basis version or product) that the matcher proved not affected (D-530):
+// AutoResolve closes a suspected finding (basis version or product) that the matcher proved not affected:
 // not_relevant by the system user, with the matcher's sentence as note. ok is false for anything else: an open
 // finding a scan confirmed, or a closed one, is never touched.
 func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry, bool) {
@@ -135,8 +135,8 @@ func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry,
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
 }
 
-// SettleAsked gives a finding Vedette closed while waiting for a person's answer (D-604, AskedNote) the reason the answer proved
-// (D-530 path): same status, the proof as its note and a history row. ok is false for any other finding.
+// SettleAsked gives a finding Vedette closed while waiting for a person's answer (AskedNote) the reason the answer proved:
+// same status, the proof as its note and a history row. ok is false for any other finding.
 func (f Finding) SettleAsked(note string, now time.Time) (Finding, HistoryEntry, bool) {
 	if !f.AutoResolved() || f.ResolvedBy != SystemUser || !strings.HasPrefix(f.ResolutionNote, AskedNote) {
 		return f, HistoryEntry{}, false
@@ -146,13 +146,13 @@ func (f Finding) SettleAsked(note string, now time.Time) (Finding, HistoryEntry,
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
 }
 
-// reopenedByPerson reports whether a person reopened the finding after Vedette last closed it by itself (D-530,
-// review M-b of #663): the person overruled the proof, so the matcher never closes it again. hist is oldest first.
+// reopenedByPerson reports whether a person reopened the finding after Vedette last closed it by itself
+// (#663): the person overruled the proof, so the matcher never closes it again. hist is oldest first.
 func reopenedByPerson(hist []HistoryEntry) bool {
 	reopened := false
 	for i := len(hist) - 1; i >= 0; i-- {
 		switch h := hist[i]; {
-		case h.User == SystemUser && h.Action == string(StatusNotRelevant) && !strings.HasPrefix(h.Note, IgnoredNote): // D-630's close is no proof
+		case h.User == SystemUser && h.Action == string(StatusNotRelevant) && !strings.HasPrefix(h.Note, IgnoredNote): // the close of an ignored device is no proof
 			return reopened
 		case h.User != SystemUser && h.Action == "reopened":
 			reopened = true
@@ -161,19 +161,19 @@ func reopenedByPerson(hist []HistoryEntry) bool {
 	return false
 }
 
-// ReopenOnMatch reopens a finding Vedette closed by itself when the matcher says the device matches again (D-530).
+// ReopenOnMatch reopens a finding Vedette closed by itself when the matcher says the device matches again.
 func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 	if !f.AutoResolved() {
 		return f, HistoryEntry{}, false
 	}
 	note := "The device matches this entry again, so Vedette reopened it (it had closed it as not affected)."
-	if strings.HasPrefix(f.ResolutionNote, AgedNote) { // D-615, D-616: closed for its age; whatever brought it back (a version, a template, a new date), say only that it matches
+	if strings.HasPrefix(f.ResolutionNote, AgedNote) { // Closed for its age; whatever brought it back (a version, a template, a new date), say only that it matches
 		note = "The device matches this entry again, so Vedette reopened it (it had closed it as older than 12 months and matched by the product name only)."
 	}
-	if strings.HasPrefix(f.ResolutionNote, NameOnlyNote) { // D-602: closed for want of version evidence; a later match compared one
+	if strings.HasPrefix(f.ResolutionNote, NameOnlyNote) { // Closed for want of version evidence; a later match compared one
 		note = "The device matches this entry again, so Vedette reopened it (it had closed it because only the product name matched)."
 	}
-	if strings.HasPrefix(f.ResolutionNote, AskedNote) { // D-604: the answer says the device is affected
+	if strings.HasPrefix(f.ResolutionNote, AskedNote) { // The answer says the device is affected
 		note = "The answer about the device's system or package release says it is affected, so Vedette reopened it."
 	}
 	if strings.HasPrefix(f.ResolutionNote, NotInstalledNote) { // INV-6c: the person cleared "Not installed", or the source reads a new install
@@ -183,12 +183,12 @@ func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: note}, true
 }
 
-// IgnoredNote starts the note of an open finding Vedette closed because a person ignored its device (inventory INV-38, D-630).
+// IgnoredNote starts the note of an open finding Vedette closed because a person ignored its device (inventory INV-38).
 // With status not_relevant, resolved_by system and no resolution reason it marks the findings Stop ignoring reopens: no other
-// close writes it (a person's close has the person in resolved_by, D-530's has a reason).
+// close writes it (a person's close has the person in resolved_by, Vedette's own proof has a reason).
 const IgnoredNote = "Closed by Vedette: the device was ignored"
 
-// ReasonDeviceIgnored and ReasonDeviceWatched are the StatusChangedEvent reasons of IgnoreClose and UnignoreReopen (D-630): notify
+// ReasonDeviceIgnored and ReasonDeviceWatched are the StatusChangedEvent reasons of IgnoreClose and UnignoreReopen: notify
 // sends nothing for either (a person just acted on the device).
 const (
 	ReasonDeviceIgnored = "device_ignored"
@@ -200,7 +200,7 @@ func (f Finding) ClosedForIgnore() bool {
 	return f.Status == StatusNotRelevant && f.ResolvedBy == SystemUser && f.ResolutionReason == "" && strings.HasPrefix(f.ResolutionNote, IgnoredNote)
 }
 
-// IgnoreClose closes an open finding (suspected or confirmed) of a device a person ignored (D-630): not_relevant by the system
+// IgnoreClose closes an open finding (suspected or confirmed) of a device a person ignored: not_relevant by the system
 // user, the note naming the person. ok is false for a finding that is already closed: what a person settled (patched, mitigated,
 // false positive, not relevant, risk accepted) and Vedette's own closes keep their status.
 func (f Finding) IgnoreClose(by string, now time.Time) (Finding, HistoryEntry, bool) {
@@ -215,7 +215,7 @@ func (f Finding) IgnoreClose(by string, now time.Time) (Finding, HistoryEntry, b
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
 }
 
-// UnignoreReopen reopens a finding IgnoreClose closed, once a person stops ignoring the device (D-630): to the open status a fresh
+// UnignoreReopen reopens a finding IgnoreClose closed, once a person stops ignoring the device: to the open status a fresh
 // match would give (confirmed with a scan basis, else suspected), then the device is matched again as usual. ok is false for any
 // other finding, so nothing a person decided is reopened.
 func (f Finding) UnignoreReopen(by string, now time.Time) (Finding, HistoryEntry, bool) {
@@ -303,13 +303,13 @@ func NewFinding(m Match, now time.Time) (Finding, HistoryEntry) {
 // ApplyMatch merges a repeated match into an existing finding. Only an open
 // finding changes; the basis never goes down, the status never changes and a
 // closed finding is left alone. A stronger basis (product to version) brings the
-// match's evidence and severity when it is higher (review H2: a ransomware CVE
+// match's evidence and severity when it is higher (a ransomware CVE
 // first matched by product becomes critical once its NVD ranges arrive). A
-// finding matched by product only takes the matcher's product severity (medium,
-// D-500) when it was graded higher before that rule (walk 3 W3-3): once, since
+// finding matched by product only takes the matcher's product severity (medium)
+// when it was graded higher before that rule: once, since
 // it then equals the match. A match of the same basis (version or product, never
 // scan, whose evidence is the template's) brings its evidence: the sentence
-// says what the device runs now and in today's words (D-548: an agent row's
+// says what the device runs now and in today's words (an agent row's
 // finding written before says "only suspected" until then). A finding the agent
 // detected whose new match is not the agent's takes the new sentence (no basis change).
 func (f Finding) ApplyMatch(m Match) Finding {
@@ -321,10 +321,10 @@ func (f Finding) ApplyMatch(m Match) Finding {
 		ev := m.Evidence
 		f.Evidence = &ev
 	case f.Basis != BasisScan && f.Evidence != nil && f.Evidence.Agent && !m.Evidence.Agent && m.Evidence.Summary != "" && rank(m.Basis) <= rank(f.Basis):
-		// Review r1 #12: the agent's row is gone (or no longer decides it): drop "Detected by the agent" and take the sentence of
+		// The agent's row is gone (or no longer decides it): drop "Detected by the agent" and take the sentence of
 		// what matches now; the basis never goes down.
 		ev := m.Evidence
-		ev.AgentRow = ev.AgentRow && f.Basis == BasisProduct // D-612: it says what a product-only finding is; a version finding stays one (review r1 #10 of #801)
+		ev.AgentRow = ev.AgentRow && f.Basis == BasisProduct // It says what a product-only finding is; a version finding stays one (#801)
 		f.Evidence = &ev
 	}
 	switch {
@@ -366,14 +366,14 @@ func (f Finding) Apply(action Action, note, user string, now time.Time) (Finding
 	return f.apply(action, note, user, time.Time{}, now)
 }
 
-// AcceptRisk closes the finding as risk_accepted until the end of the UTC day until (D-498): a note of at least
+// AcceptRisk closes the finding as risk_accepted until the end of the UTC day until: a note of at least
 // MinReasonNote and a day from tomorrow to MaxAcceptDays ahead, with one day of slack on each side so a person's local
 // "tomorrow" and "a year from today" always pass (ErrBadUntil otherwise).
 func (f Finding) AcceptRisk(note, user string, until, now time.Time) (Finding, HistoryEntry, error) {
 	return f.apply(ActionAcceptRisk, note, user, until, now)
 }
 
-// ValidUntil checks the until day of accept_risk against now (D-498): it must be set only with accept_risk, and fall
+// ValidUntil checks the until day of accept_risk against now: it must be set only with accept_risk, and fall
 // between today and MaxAcceptDays+1 days ahead in UTC (tomorrow and MaxAcceptDays in any time zone).
 func ValidUntil(action Action, until, now time.Time) error {
 	if action != ActionAcceptRisk {
@@ -453,7 +453,7 @@ func (f Finding) ConfirmFromScan(ev Evidence, now time.Time) (ScanOutcome, error
 	}
 	ev.Summary, ev.Request, ev.Response = truncate(ev.Summary), truncate(ev.Request), truncate(ev.Response)
 	was := f.Status
-	auto := f.AutoResolved() // closed by Vedette, not a person (D-530): a scan reopens it like patched
+	auto := f.AutoResolved() // closed by Vedette, not a person: a scan reopens it like patched
 	closedByPerson := (was == StatusFalsePositive || was == StatusNotRelevant || was == StatusRiskAccepted) && !auto
 	if closedByPerson && f.Basis == BasisScan && f.Evidence != nil && f.Evidence.Template == ev.Template {
 		return ScanOutcome{Finding: f}, nil // this match was already signalled

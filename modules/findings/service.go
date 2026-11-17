@@ -25,14 +25,14 @@ type ServiceConfig struct {
 	Log       *slog.Logger
 	Clock     func() time.Time // nil: time.Now
 	// Backlog marks the context of work whose findings are backlog, not news: Reconcile writes findings of KEV entries
-	// older than RecentKEV under it, and the binary makes the bus carry it to notify (D-78: backlog is silent).
+	// older than RecentKEV under it, and the binary makes the bus carry it to notify (backlog is silent).
 	// nil: nothing is marked. findings does not know notify; the binary supplies notify.WithBaseline.
 	Backlog func(ctx context.Context) context.Context
 	// HaveSince maps the id of each device "I have this" on Home declared (feeds, S-FEED-2) to the product the customer
-	// answered and the CISA date from which that version-less product is matched on that device (INV-11, D-484). Only
+	// answered and the CISA date from which that version-less product is matched on that device (INV-11). Only
 	// that one device is scoped, never the same product on other devices. nil: no such scope.
 	HaveSince func(ctx context.Context) (map[string]Have, error)
-	// Applied reports which of the findings have a mitigation item a person marked applied (mitigation's log, D-515): such a
+	// Applied reports which of the findings have a mitigation item a person marked applied (mitigation's log): such a
 	// finding counts as decided when a merge must keep one of two findings of a CVE. nil: none has.
 	Applied func(ctx context.Context, findingIDs []string) (map[string]bool, error)
 }
@@ -49,9 +49,9 @@ type Have struct {
 type Service struct {
 	cfg        ServiceConfig
 	now        func() time.Time
-	plan       planState       // "Updates to plan" (D-617): in memory, see planpass.go
+	plan       planState       // "Updates to plan": in memory, see planpass.go
 	gen        atomic.Uint64   // counts committed writes: GET /findings/summary drops its cached answer when it moves (summary.go)
-	toFixCache classifiedCache // the classification of every device (To fix, RiskMap; G4)
+	toFixCache classifiedCache // the classification of every device (To fix, RiskMap)
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.
@@ -115,11 +115,11 @@ func (s *Service) Get(ctx context.Context, id string) (Record, error) {
 	return loadByID(ctx, s.cfg.DB.Reader(), id)
 }
 
-// AssetRisk is what a device's risk marker reads (G4, inventory.RiskCounts), from To fix's own classification of the device (RiskOf;
-// review r2 of #949: one rule, never a cheaper test of its own).
+// AssetRisk is what a device's risk marker reads (inventory.RiskCounts), from To fix's own classification of the device (RiskOf;
+// #949: one rule, never a cheaper test of its own).
 type AssetRisk struct{ Exploited, Updates int }
 
-// Level is the risk marker's level (G4, inventory's Risk.level): "exploited" when the device has exploited findings To fix lists,
+// Level is the risk marker's level (inventory's Risk.level): "exploited" when the device has exploited findings To fix lists,
 // else "update" when it has such recommended updates, else "" (clean).
 func (r AssetRisk) Level() string {
 	switch {
@@ -156,7 +156,7 @@ func riskyUpdate(u UpdateAction) bool {
 // 12-month line of the plan's CVEs, which moves with time alone.
 const riskTTL = time.Minute
 
-// RiskMap is the risk of every device To fix classifies (G4; no display cap), read from the cached classification (classified), so the
+// RiskMap is the risk of every device To fix classifies (no display cap), read from the cached classification (classified), so the
 // marker on Devices, the device page, Findings and Recommended updates is what To fix shows. A device with none is absent. feedsOn
 // false: no recommended update counts. The map is shared: read it, never change it.
 func (s *Service) RiskMap(ctx context.Context, feedsOn bool) (map[string]AssetRisk, error) {
@@ -196,15 +196,15 @@ func (s *Service) List(ctx context.Context, assetID string) ([]Record, error) {
 type UpsertResult struct {
 	Created []string // ids of the findings created
 	Touched int      // findings that already existed (open or closed) and only had last_seen refreshed
-	// Regraded counts the product findings graded higher before D-500 that took the product severity (W3-3).
+	// Regraded counts the product findings graded higher before the product-severity rule that took the product severity.
 	Regraded int
-	// Closed counts the findings Vedette closed because the version is proved outside every range (D-530), Retired the
-	// old product findings of settled "Multiple Products" entries NVD's list leaves out (D-506), Aged the findings of KEV
-	// CVEs published over 12 months ago that rest on no confirmed evidence (D-615).
+	// Closed counts the findings Vedette closed because the version is proved outside every range, Retired the
+	// old product findings of settled "Multiple Products" entries NVD's list leaves out, Aged the findings of KEV
+	// CVEs published over 12 months ago that rest on no confirmed evidence.
 	Closed, Retired, Aged int
-	// NameOnly counts the product findings closed because they rest on the product name only (D-602).
+	// NameOnly counts the product findings closed because they rest on the product name only.
 	NameOnly int
-	// Asked counts the findings closed because only a person's answer decides them (D-604).
+	// Asked counts the findings closed because only a person's answer decides them.
 	Asked int
 	// NotInstalled counts the findings closed because a person said their software is not installed (INV-6c).
 	NotInstalled int
@@ -215,7 +215,7 @@ type UpsertResult struct {
 func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertResult, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
-	s.markPlan(assetID) // its "Updates to plan" too, at the next plan run (D-617)
+	s.markPlan(assetID) // its "Updates to plan" too, at the next plan run
 	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
 	if err != nil {
 		return UpsertResult{}, fmt.Errorf("findings: reading the device to match: %w", err)
@@ -234,7 +234,7 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 // a new pair becomes a suspected finding with its "created" history row and a
 // findings.finding.created event; a pair that already exists is never created again: it gets last_seen
 // refreshed and, if open, a stronger basis (product to version, findings.finding.severity_raised when the
-// severity goes up). Nothing is deleted. Only Vedette's own D-530 decisions change a status: a suspected
+// severity goes up). Nothing is deleted. Only Vedette's own proofs change a status: a suspected
 // finding the matcher proves not affected is closed, and one Vedette closed that matches again is reopened;
 // a person's closing is never reopened, and a person's reopen is never closed again.
 func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (UpsertResult, error) {
@@ -243,7 +243,7 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 
 // upsert is UpsertFromMatch. whole, when not nil, is the match of the whole exploited list, whose "add the version" items and
 // unchecked rows (#910) the device's become instead of the ones this vulns list gives: Reconcile writes the backlog and the
-// recent entries in two writes, each of which replaces them, so it passes those of the whole list (W6-1: the recent write
+// recent entries in two writes, each of which replaces them, so it passes those of the whole list (the recent write
 // left "checks 1 exploited CVE" of 30).
 func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *MatchResult) (UpsertResult, error) {
 	var since map[string]Have
@@ -256,7 +256,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 	var res UpsertResult
 	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		res = UpsertResult{}
-		// D-630 (review r1 L3 of #945): a match read before a person ignored the device writes nothing; asked inside the write, so
+		// A match read before a person ignored the device writes nothing; asked inside the write, so
 		// an Ignore that commits later closes what this one wrote (OnAssetIgnored).
 		if ig, err := s.cfg.Inventory.IsIgnored(ctx, a.ID); err != nil {
 			return fmt.Errorf("findings: reading whether the device is ignored: %w", err)
@@ -279,7 +279,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		}
 		hs := haveSet(have)
 		m := haveScope(a, vulns, MatchAsset(a, vulns, hs, now), since, hs, now)
-		for _, list := range [][]Match{m.New, m.Existing} { // a version a person gave is said to be theirs (review r2 M-B of #950)
+		for _, list := range [][]Match{m.New, m.Existing} { // a version a person gave is said to be theirs (#950)
 			for i := range list {
 				if why := usesCorrection(a, list[i].SoftwareID); why != "" && !strings.Contains(list[i].Evidence.Summary, why) {
 					list[i].Evidence.Summary = strings.TrimSpace(list[i].Evidence.Summary + " " + why)
@@ -312,7 +312,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			}
 			before := r.Finding
 			reopened := false
-			if f, h, ok := r.ReopenOnMatch(now); ok { // D-530: Vedette closed it by itself; it applies again
+			if f, h, ok := r.ReopenOnMatch(now); ok { // Vedette closed it by itself; it applies again
 				why, err := reopenReason(ctx, tx, a, r, em.SoftwareID)
 				if err != nil {
 					return err
@@ -340,11 +340,11 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 					Detail: fmt.Sprintf("%s: %s to %s, %s", r.CVE, before.Basis, r.Basis, r.Severity)}); err != nil {
 					return err
 				}
-				if !reopened && sevRank(r.Severity) > sevRank(before.Severity) { // review H2, M-a: its own event; the status did not change. A reopening is one story (MED1 of #698): its event carries the severity
+				if !reopened && sevRank(r.Severity) > sevRank(before.Severity) { // its own event; the status did not change. A reopening is one story (#698): its event carries the severity
 					emit(EventSeverityRaised, SeverityRaisedEvent{FindingID: r.ID, AssetID: r.AssetID, CVE: r.CVE,
 						FromSeverity: before.Severity, ToSeverity: r.Severity, Basis: r.Basis})
 				}
-			} else if r.Severity != before.Severity { // W3-3: a product match graded before D-500 takes the product severity, once
+			} else if r.Severity != before.Severity { // A product match graded before the product-severity rule takes the product severity, once
 				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.regraded", Target: r.ID,
 					Detail: fmt.Sprintf("%s: %s to %s (product match only, version not compared)", r.CVE, before.Severity, r.Severity)}); err != nil {
 					return err
@@ -361,7 +361,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			}
 			res.Touched++
 		}
-		for _, list := range [][]Match{m.NotAffected, m.Retired, m.Aged, m.NameOnly} { // the close note names a person's correction (review r1 M3)
+		for _, list := range [][]Match{m.NotAffected, m.Retired, m.Aged, m.NameOnly} { // the close note names a person's correction
 			for i := range list {
 				list[i].Evidence.Summary = withCorrection(list[i].Evidence.Summary, correctionWhy(a, list[i].SoftwareID))
 			}
@@ -428,13 +428,13 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 	return res, nil
 }
 
-// haveScope drops the matches that "I have this" on Home does not cover (INV-11, D-484). On the one device "I have this"
+// haveScope drops the matches that "I have this" on Home does not cover (INV-11). On the one device "I have this"
 // declared, a software row with no version and the answered KEV key is matched only against CISA entries added on or
 // after the scope's date: older entries are not the customer's to handle unless they type the version, and then the
 // version decides. Every other device, and every other row of that device, is matched as usual. An entry with no known
 // date is kept. The matcher itself is unchanged; this is the customer's own scope.
 //
-// D-500: the matcher gives a version-less row no finding per CVE (only the "add the version" item). "I have this" is the
+// The matcher gives a version-less row no finding per CVE (only the "add the version" item). "I have this" is the
 // customer asking to be alerted about this product without a version, so on the declared device the entries of the
 // answered key from the scope's date on (or with no date) become product findings (medium) again; the older ones stay
 // in the item only.
@@ -483,7 +483,7 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 	for _, x := range append(append([]Match{}, out.New...), out.Existing...) {
 		taken[x.CVE] = true
 	}
-	// D-602, review r1 M3 of #939: a scoped version-less row whose CVE no version could decide is name-only; the customer asked to be
+	// A scoped version-less row whose CVE no version could decide is name-only; the customer asked to be
 	// told about it, so it is listed like the "add the version" ones below, and not closed
 	var asked []VersionNeeded
 	for _, x := range m.NameOnly {
@@ -493,7 +493,7 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 		}
 		out.NameOnly = append(out.NameOnly, x)
 	}
-	for _, x := range slices.Concat(m.Aged, out.NameOnly) { // D-615, D-602: dropped on another row of the same product; not re-added here (review r1 #5 of #803)
+	for _, x := range slices.Concat(m.Aged, out.NameOnly) { // dropped on another row of the same product; not re-added here (#803)
 		taken[x.CVE] = true
 	}
 	name := clean(a.Name)
@@ -516,15 +516,15 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 	return out
 }
 
-// autoResolve closes the suspected findings the matcher proved not affected (D-530): status not_relevant by the system
+// autoResolve closes the suspected findings the matcher proved not affected: status not_relevant by the system
 // user, reason not_affected_version, the matcher's sentence as note and history, audit findings.auto_resolved and a
 // findings.finding.status_changed event. Only a positive proof comes here (MatchResult.NotAffected): an unknown or
 // unreadable version, a scan-confirmed or a closed finding is never closed, nor one a person reopened after Vedette
 // closed it. Nothing is deleted.
 //
-// retired (D-506) closes the old findings of settled "Multiple Products" entries NVD's list leaves out
+// retired closes the old findings of settled "Multiple Products" entries NVD's list leaves out
 // (MatchResult.Retired) the same way, under the same reason: the CHECK of fnd_finding.resolution_reason allows only
-// not_affected_version and a new value needs a rebuild of fnd_finding (D-505), so the note says why. Only basis product
+// not_affected_version and a new value needs a rebuild of fnd_finding, so the note says why. Only basis product
 // closes (a version finding came from NVD naming the software once), and never one a person reopened at any time.
 // It returns how many it closed.
 func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, proved []Match, retired bool, now time.Time, emit func(string, any)) (int, error) {
@@ -538,15 +538,15 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 			return closed, err
 		}
 		if reopenedByPerson(r.History) {
-			continue // a person reopened what Vedette closed: their call stands (review M-b)
+			continue // a person reopened what Vedette closed: their call stands
 		}
 		if retired && (r.Basis != BasisProduct || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" })) {
-			continue // D-506: product findings only, and a person's reopen always stands
+			continue // Product findings only, and a person's reopen always stands
 		}
 		was := r.Status
 		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
 		if !ok && !retired {
-			f, h, ok = r.SettleAsked(p.Evidence.Summary, now) // D-604: closed while waiting for an answer; the answer proves it
+			f, h, ok = r.SettleAsked(p.Evidence.Summary, now) // Closed while waiting for an answer; the answer proves it
 		}
 		if !ok {
 			continue
@@ -564,7 +564,7 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 			detail += " (D-604: the package release is at or above the distribution's fix for the device's branch)"
 		case retired:
 			detail += " (D-506: Multiple Products, NVD names none of the device's software, entry over a year old)"
-		case p.why != "": // the reason code is the one the CHECK allows; the detail says no version was compared (review r1 #6)
+		case p.why != "": // the reason code is the one the CHECK allows; the detail says no version was compared
 			detail += " (D-547: the device or the software names another platform than the one the CVE affects; no version was compared)"
 		}
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID, Detail: detail}); err != nil {
@@ -576,10 +576,10 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 	return closed, nil
 }
 
-// closeAged closes the open findings the age rule drops (D-615, D-616, S-TIER-4, MatchResult.Aged): a KEV CVE published over
-// 12 months ago that the matcher matches by product only (no version compared). Like D-506's retired ones,
+// closeAged closes the open findings the age rule drops (S-TIER-4, MatchResult.Aged): a KEV CVE published over
+// 12 months ago that the matcher matches by product only (no version compared). Like the retired ones,
 // status not_relevant by the system user with the reason not_affected_version (the only one the CHECK of
-// fnd_finding.resolution_reason allows; D-505), the note saying why (AgedNote), a history row, audit findings.auto_resolved
+// fnd_finding.resolution_reason allows), the note saying why (AgedNote), a history row, audit findings.auto_resolved
 // and a status_changed event (notify sends nothing for it). Never a finding a scan confirmed (basis scan), a closed one, or
 // one a person reopened at any time: a person who reopened it decided. ReopenOnMatch reopens it on confirmed evidence.
 func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, aged []Match, now time.Time, emit func(string, any)) (int, error) {
@@ -592,9 +592,9 @@ func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, age
 		if err != nil {
 			return closed, err
 		}
-		// product findings only (review r1 #2 of #803): a version or agent finding whose match fell back to product-only (NVD's
+		// product findings only (#803): a version or agent finding whose match fell back to product-only (NVD's
 		// ranges gone in one pull, a version that became unreadable) stays for the next match, never flip-flops; a person's reopen stands.
-		// A product finding on a row the agent reported (AgentRow) is no exception any more (D-602 replaces D-617's): the agent gave a
+		// A product finding on a row the agent reported (AgentRow) is no exception any more: the agent gave a
 		// version Vedette could not compare, which is no version evidence.
 		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent || personKept(r.History) {
 			continue
@@ -621,9 +621,9 @@ func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, age
 	return closed, nil
 }
 
-// closeNameOnly closes the open findings that rest on the product name only (D-602, MatchResult.NameOnly): the matcher no longer makes
+// closeNameOnly closes the open findings that rest on the product name only (MatchResult.NameOnly): the matcher no longer makes
 // a finding without version evidence, and a rule change reaches the findings it made before at the next match or reconcile. Like the
-// age rule's: status not_relevant by the system user with the reason not_affected_version (the only one the CHECK allows; D-505),
+// age rule's: status not_relevant by the system user with the reason not_affected_version (the only one the CHECK allows),
 // the note saying why and that the CVE is now under "Could not be checked" (NameOnlyNote), a history row, audit
 // findings.auto_resolved and a status_changed event, which notify and response do not send on (only a reopen, an expired
 // acceptance or a scan's confirmation are notices), so closing many at once sends nothing. Only a suspected finding of basis
@@ -657,7 +657,7 @@ func (s *Service) closeNameOnly(ctx context.Context, tx *sql.Tx, assetID string,
 			return closed, err
 		}
 		detail := r.CVE + ": " + ReasonNotAffectedVersion + " (D-602: product name only, no version evidence"
-		if p.listed { // review r1 L2 of #939
+		if p.listed { // #939
 			detail += "; listed under could not be checked"
 		}
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID, Detail: detail + ")"}); err != nil {
@@ -669,7 +669,7 @@ func (s *Service) closeNameOnly(ctx context.Context, tx *sql.Tx, assetID string,
 	return closed, nil
 }
 
-// closeAsked closes the open findings of platform-limited CVEs only a person's answer decides (D-604, MatchResult.Asked), like
+// closeAsked closes the open findings of platform-limited CVEs only a person's answer decides (MatchResult.Asked), like
 // closeNameOnly but whatever the basis (a version inside NVD's range says nothing while the platform condition is open): status
 // not_relevant by the system user, reason not_affected_version, the note (AskedNote first) saying what is not known and that the
 // CVE is under "Could not be checked" with the question, a history row, audit findings.auto_resolved and a status_changed event
@@ -711,8 +711,8 @@ func (s *Service) closeAsked(ctx context.Context, tx *sql.Tx, assetID string, as
 	return closed, nil
 }
 
-// personKept says a person kept the finding open: reopened it, or accepted its risk (review r2 L3 of #939: an expired acceptance reopens
-// as the system, and closing it an hour after "open again" was told would contradict the notice). The age rule and D-602 never close it.
+// personKept says a person kept the finding open: reopened it, or accepted its risk (#939: an expired acceptance reopens
+// as the system, and closing it an hour after "open again" was told would contradict the notice). The age rule and the name-only rule never close it.
 func personKept(hist []HistoryEntry) bool {
 	return slices.ContainsFunc(hist, func(h HistoryEntry) bool {
 		return h.User != SystemUser && (h.Action == "reopened" || h.Action == string(StatusRiskAccepted))
@@ -721,10 +721,10 @@ func personKept(hist []HistoryEntry) bool {
 
 // noteNoLongerMatching records, once, that a suspected finding (basis version or product) is no longer produced by the
 // matcher although its CVE is in the list that was matched: the device's software changed, or CISA changed the vendor or
-// product of the entry (D-439). Nothing closes (FORBID-2): a person reads the history row and closes it. A CVE that is not
+// product of the entry. Nothing closes (FORBID-2): a person reads the history row and closes it. A CVE that is not
 // in vulns says nothing (a partial list never judges a pair), and a finding the scan confirmed (basis scan) is not judged by
-// the version matcher. Such a finding matched by product only and graded above medium before D-500 takes the product
-// severity, once (W3-3 reaches it too: a pair the matcher no longer produces is never in Existing); it returns how many.
+// the version matcher. Such a finding matched by product only and graded above medium before the product-severity rule takes the
+// product severity, once (the re-grade reaches it too: a pair the matcher no longer produces is never in Existing); it returns how many.
 func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, kept map[string]string, corrected string, now time.Time) (regraded int, err error) {
 	rows, err := tx.QueryContext(ctx, `SELECT cve FROM fnd_finding WHERE asset_id = ? AND status = 'suspected'`, assetID)
 	if err != nil {
@@ -756,23 +756,23 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 	for _, x := range m.Existing {
 		matched[x.CVE] = true
 	}
-	awaiting := map[string]string{} // CVE -> software that needs a version to decide it (D-500)
+	awaiting := map[string]string{} // CVE -> software that needs a version to decide it
 	for _, n := range m.NeedVersion {
 		for _, c := range n.CVEs {
 			awaiting[c] = n.Software
 		}
 	}
-	unlisted := make(map[string]string, len(m.Unlisted)+len(m.Aged)) // CVE -> why NVD's list does not name the software (D-505), or the age rule's sentence (D-615)
+	unlisted := make(map[string]string, len(m.Unlisted)+len(m.Aged)) // CVE -> why NVD's list does not name the software, or the age rule's sentence
 	for _, x := range m.Unlisted {
 		unlisted[x.CVE] = x.Evidence.Summary
 	}
 	for _, x := range m.Aged { // a finding the age rule did not close (a person reopened it, a version or agent finding) says why it stays
 		unlisted[x.CVE] = fmt.Sprintf("%s was published more than 12 months ago and Vedette now matches it by the product name only, so it would not list it on a device today. This finding stays open (you reopened it, or it was matched by version before); close it yourself if it does not apply.", x.CVE)
 	}
-	for _, x := range m.NameOnly { // D-602: one closeNameOnly left open (a person reopened it, a version or agent finding) says why it stays
+	for _, x := range m.NameOnly { // One closeNameOnly left open (a person reopened it, a version or agent finding) says why it stays
 		unlisted[x.CVE] = fmt.Sprintf("Vedette now matches %s by the product name only (%s), so it would not list it as a finding on a device today. This finding stays open (you reopened it, or it was matched by version before); close it yourself if it does not apply.", x.CVE, x.gap)
 	}
-	for _, x := range m.Asked { // D-604: one closeAsked left open (a person reopened or accepted it) says what is still asked
+	for _, x := range m.Asked { // One closeAsked left open (a person reopened or accepted it) says what is still asked
 		unlisted[x.CVE] = x.AskedWhy() + ". Vedette lists it under \"Could not be checked\" until you answer there; this finding stays open because you kept it."
 	}
 	for cve, note := range kept { // INV-6c: one closeNotInstalled left open (a person reopened or accepted it) says why it stays
@@ -832,7 +832,7 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		if err != nil {
 			return err
 		}
-		// D-630 (review r1 L3 of #945): a scan that started before a person ignored the device confirms nothing on it
+		// A scan that started before a person ignored the device confirms nothing on it
 		if ig, err := s.cfg.Inventory.IsIgnored(ctx, assetID); err != nil {
 			return fmt.Errorf("findings: reading whether the device is ignored: %w", err)
 		} else if ig {
@@ -901,7 +901,7 @@ func (s *Service) SetStatus(ctx context.Context, id string, action Action, note,
 	return s.setStatus(ctx, id, action, note, user, time.Time{})
 }
 
-// setStatus is SetStatus with the until day of accept_risk (D-498; zero for every other action).
+// setStatus is SetStatus with the until day of accept_risk (zero for every other action).
 func (s *Service) setStatus(ctx context.Context, id string, action Action, note, user string, until time.Time) (Record, error) {
 	if err := ValidUser(user); err != nil {
 		return Record{}, err
@@ -931,7 +931,7 @@ func (s *Service) SetStatusMany(ctx context.Context, ids []string, action Action
 	return s.setStatusMany(ctx, ids, action, note, user, time.Time{})
 }
 
-// setStatusMany is SetStatusMany with the until day of accept_risk (D-498): a bad day is refused before anything, even
+// setStatusMany is SetStatusMany with the until day of accept_risk: a bad day is refused before anything, even
 // when every finding is closed.
 func (s *Service) setStatusMany(ctx context.Context, ids []string, action Action, note, user string, until time.Time) (changed, skipped int, err error) {
 	if err := ValidUser(user); err != nil {
@@ -1023,7 +1023,7 @@ func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, erro
 	return s.deleteAsset(ctx, assetID)
 }
 
-// OnAssetIgnored handles inventory.asset.ignored (D-630, inventory INV-38): a person said the device needs no watching. Its open
+// OnAssetIgnored handles inventory.asset.ignored (inventory INV-38): a person said the device needs no watching. Its open
 // findings close (Finding.IgnoreClose: not_relevant by the system user, "Closed by Vedette: the device was ignored by <person>."),
 // each with its history row, an audit row findings.status and a status_changed event with ReasonDeviceIgnored (notify sends
 // nothing for it). Findings already closed keep their status, note and history. Its "add the version" items and unchecked rows go
@@ -1038,7 +1038,7 @@ func (s *Service) OnAssetIgnored(ctx context.Context, assetID, actor string) (in
 	})
 }
 
-// OnAssetUnignored handles inventory.asset.unignored (D-630): the device is watched again. Only the findings OnAssetIgnored closed
+// OnAssetUnignored handles inventory.asset.unignored: the device is watched again. Only the findings OnAssetIgnored closed
 // and nobody touched since reopen (Finding.UnignoreReopen), with a history row, an audit row and a status_changed event with
 // ReasonDeviceWatched (notify sends nothing for it); the inventory.asset.updated that follows matches the device again as usual.
 // It returns how many findings it reopened.
@@ -1053,7 +1053,7 @@ func (s *Service) OnAssetUnignored(ctx context.Context, assetID, actor string) (
 
 // forAssetFindings runs change on every finding of a device in one write, only while the device is ignored (ignored) or watched
 // (!ignored), asked inside the write, so an event or a reconcile pass that lost a race with the person's next click changes nothing
-// (review r1 L3 of #945). A finding it changes (ok) is validated and stored with its history row, an audit row findings.status and
+// (#945). A finding it changes (ok) is validated and stored with its history row, an audit row findings.status and
 // a status_changed event with reason. On an ignored device it also removes the "add the version" items and unchecked rows.
 func (s *Service) forAssetFindings(ctx context.Context, assetID, reason string, ignored bool, change func(f Finding, now time.Time) (Finding, HistoryEntry, bool)) (int, error) {
 	dropDerived := ignored
@@ -1106,7 +1106,7 @@ func (s *Service) forAssetFindings(ctx context.Context, assetID, reason string, 
 	return n, err
 }
 
-// OnAssetMerged handles inventory.asset.merged (D-515): device from was the same device as into, so its findings become into's,
+// OnAssetMerged handles inventory.asset.merged: device from was the same device as into, so its findings become into's,
 // with their status, history, mitigation log and AI results (those key on the finding id). For a CVE both devices hold, the finding
 // that ranks higher stays and the other goes: decided (a person closed it, wrote its history, or marked a mitigation item applied)
 // over confirmed over suspected; on a tie into's stays, and when both were decided the people's history rows of the one that goes
@@ -1196,8 +1196,8 @@ func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, er
 		for _, q := range []string{
 			`UPDATE OR IGNORE fnd_version_needed SET asset_id = ?2 WHERE asset_id = ?1`,
 			`DELETE FROM fnd_version_needed WHERE asset_id = ?1`,
-			`DELETE FROM fnd_unchecked WHERE asset_id IN (?1, ?2)`,                                                                                        // not moved: recomputed when "into" is matched (r1 L2: one place per CVE)
-			`INSERT OR IGNORE INTO fnd_unchecked_seen (asset_id, cve, first_seen) SELECT ?2, cve, first_seen FROM fnd_unchecked_seen WHERE asset_id = ?1`, // D-602: announced once per device
+			`DELETE FROM fnd_unchecked WHERE asset_id IN (?1, ?2)`,                                                                                        // not moved: recomputed when "into" is matched (one place per CVE)
+			`INSERT OR IGNORE INTO fnd_unchecked_seen (asset_id, cve, first_seen) SELECT ?2, cve, first_seen FROM fnd_unchecked_seen WHERE asset_id = ?1`, // announced once per device
 			`DELETE FROM fnd_unchecked_seen WHERE asset_id = ?1`,
 		} {
 			if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
@@ -1216,7 +1216,7 @@ func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, er
 	return int(n), err
 }
 
-// copyPeoplesHistory appends to finding to the history rows people wrote on finding from (D-515, merge of two decided copies).
+// copyPeoplesHistory appends to finding to the history rows people wrote on finding from (merge of two decided copies).
 func copyPeoplesHistory(ctx context.Context, tx *sql.Tx, from, to string) error {
 	rows, err := tx.QueryContext(ctx, `SELECT ts, user, action, note FROM fnd_finding_history WHERE finding_id = ? AND user <> ? ORDER BY ts, rowid`, from, SystemUser)
 	if err != nil {
@@ -1302,7 +1302,7 @@ func haveSet(cves []string) map[string]bool {
 }
 
 // createdDetail is the audit text of a new finding. It names the device, not its id: the audit page replaces an id with
-// the name and prints the stored text under it, so an id here showed every line twice (W2-13).
+// the name and prints the stored text under it, so an id here showed every line twice.
 func createdDetail(r Record, a Asset) string {
 	dev := clean(a.Name)
 	if dev == "" {

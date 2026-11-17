@@ -1,6 +1,6 @@
 # Vedette terms of use
 
-Version: 2026-11-15
+Version: 2026-11-17
 
 Vedette asks you to read and accept these terms once, when the box is first set up or restored from a backup. Settings → General shows when they were accepted and which version.
 
@@ -19,7 +19,7 @@ Vedette is free, open-source software under the Apache License 2.0 (the LICENSE 
 ## What Vedette tells you, and what it does not
 
 - Vedette alerts you when a CVE on a list of vulnerabilities being exploited (CISA KEV, and VulnCheck KEV if you turn it on) matches a device it knows, whatever the CVE's age. For such a CVE that was published, and added to that list, more than 12 months ago, a match on the product name alone, without a version Vedette could compare, is not reported.
-- It also lists, without alerts, on the page Updates to plan, the CVEs published in the last 12 months that affect the exact version a device reports: the version its agent reads (for an Ubuntu or Debian package, compared with the fixed version that distribution's own security data gives for the device's release), one you entered, or one the device states itself. Among them it marks those likely to be exploited (an EPSS score of 10% or more: FIRST's estimate of the chance of exploitation in the next 30 days). A version guessed from what a service announces on the network, or a product name alone, is not enough for this list. Older CVEs that are not on an exploited list are listed only when a scan found them. These lists help you plan updates; they are not a promise that a CVE left off them is harmless.
+- It also lists, without alerts, on the page Recommended updates, the CVEs published in the last 12 months that affect the exact version a device reports: the version its agent reads (for an Ubuntu or Debian package, compared with the fixed version that distribution's own security data gives for the device's release), one you entered, or one the device states itself. Among them it marks those likely to be exploited (an EPSS score of 10% or more: FIRST's estimate of the chance of exploitation in the next 30 days). A version guessed from what a service announces on the network, or a product name alone, is not enough for this list. Older CVEs that are not on an exploited list are listed only when a scan found them. These lists help you plan updates; they are not a promise that a CVE left off them is harmless.
 - Matches come from public data (CISA, FIRST, NVD, CVE.org, Ubuntu, Debian) and from what Vedette can see of your devices. Public data has gaps and mistakes, and a device or version Vedette cannot see is not checked. Because of these rules, an old vulnerability Vedette cannot confirm is not reported. Vedette does not find every vulnerability, and an empty list does not mean your systems are safe.
 
 ## Your data stays on the box

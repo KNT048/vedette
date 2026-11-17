@@ -39066,6 +39066,23 @@
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991
+                          },
+                          "agent_gone": {
+                            "type": "boolean",
+                            "description": "A CVE of the item rests on an agent's row and no agent of this box reports the device now (agent-intake off, no agent bound, the agent silent past its stale limit; the same answer as the finding page's \"No agent reports\" line): `version` is the last one an agent reported"
+                          },
+                          "agent_reported": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "With agent_gone: the day the agent last reported the row (YYYY-MM-DD); null otherwise or when not known"
                           }
                         },
                         "required": [
@@ -39079,7 +39096,9 @@
                           "pro",
                           "cves",
                           "likely",
-                          "recent"
+                          "recent",
+                          "agent_gone",
+                          "agent_reported"
                         ],
                         "additionalProperties": false
                       }

@@ -263,6 +263,9 @@ func findingsSoftware(s inventory.MatchSoftware) findings.Software {
 	if t, err := time.Parse(time.RFC3339Nano, s.MarkedAt); err == nil {
 		out.MarkedAt = t
 	}
+	if t, err := time.Parse(time.RFC3339Nano, s.SeenAt); err == nil {
+		out.SeenAt = t
+	}
 	return out
 }
 
@@ -605,6 +608,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		home.Devices = d.Inventory.DeviceCounts
 	}
 	d.FindingHandlers.SetHome(home)
+	d.FindingHandlers.SetAgents(agentReports(d))
 	// The ai service comes before mitigation: mitigation reaches the AI only through this door (mitigation.AI), and the door is
 	// unavailable while no profile is assigned, so the page offers no AI button then.
 	d.AIFacts = aiFacts{fs.Store(), d.Findings, inv, aiBoxID(d.Inventory)}
@@ -620,6 +624,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if err != nil {
 		return err
 	}
+	provider.SetAgents(agentReports(d)) // the same agent check as Updates to plan: "How to check" never promises a gone agent
 	d.FindingHandlers.SetGuidance(provider)
 	if d.MitigationHandlers, err = mitigation.NewActionHandlers(d.DB, d.Audit, d.Findings, d.FindingHandlers, aiDoor, d.Clock); err != nil {
 		return err
@@ -1064,5 +1069,33 @@ func mitigationApplied(db *store.DB) func(ctx context.Context, ids []string) (ma
 			out[id] = true
 		}
 		return out, rows.Err()
+	}
+}
+
+// agentReports is findings' AgentReports: whether an agent of this box reads the device's software now, by agent-intake's report
+// state, the answer the finding page's "I updated it" line reads (an osquery node that calls and is not stale, the Wazuh pull, the
+// box itself). agent-intake off, no agent, a silent node or a state that cannot be read: false, so Updates to plan says the version is
+// the one an agent last reported, as the finding page does.
+func agentReports(d *deps) findings.AgentReports {
+	return func(ctx context.Context, id string) bool {
+		if d.Inventory != nil {
+			if dev, found, err := d.Inventory.AgentDevice(ctx, id); err == nil && found && dev.IsBox {
+				return true // the box reads its own packages, agent-intake on or off
+			}
+		}
+		if d.AgentIntake == nil || d.Reg != nil && !d.Reg.Enabled("agent-intake") {
+			return false
+		}
+		st, err := d.AgentIntake.ReportState(ctx, id)
+		if err != nil {
+			return false
+		}
+		switch st.Agent {
+		case agentintake.ReportBox, agentintake.ReportWazuh:
+			return true
+		case agentintake.ReportOsquery:
+			return !st.Stale
+		}
+		return false
 	}
 }

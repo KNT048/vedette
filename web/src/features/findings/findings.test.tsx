@@ -950,7 +950,7 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
     renderApp('/findings')
     const card = await screen.findByRole('listitem', { name: 'SRV-AD' })
     const acts = within(card).getByRole('list', { name: 'What to do on SRV-AD' })
-    expect(within(acts).getByText('Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or later)')).toBeInTheDocument()
+    expect(within(acts).getByText('Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.2314 or later)')).toBeInTheDocument()
     expect(within(acts).getByText(/fixes 2 exploited CVEs/)).toBeInTheDocument()
     expect(within(card).getByRole('link', { name: 'SRV-AD' })).toHaveAttribute('href', '/devices/a-srvad')
     await userEvent.click(within(acts).getByText('Show the 2 CVEs'))
@@ -958,7 +958,7 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
     await expectNoA11yViolations()
     await userEvent.click(within(acts).getByRole('link', { name: 'Handle these 2 findings in the list' }))
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Findings list' })).getAllByRole('row')).toHaveLength(3))
-    expect(screen.getByText('Showing the findings one update fixes: Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or later).')).toBeInTheDocument()
+    expect(screen.getByText('Showing the findings one update fixes: Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.2314 or later).')).toBeInTheDocument()
   })
 
   it('All open lists every unresolved finding as a row, the ones one update fixes too (the grouping is To fix)', async () => {
@@ -971,10 +971,30 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
 
   it('the finding says the agent detected it and asks nothing to look up; the device page groups the same way', async () => {
     agentWindows()
+    // agent-intake on and the device's osquery agent calls: an agent reports the version now
+    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-srvad' ? { ...a, software: a.software.map((x) => ({ ...x, source: 'agent' as const })) } : a)))
+    const reportIs = (agent: string, stale = false) => server.use(http.get('*/api/v1/inventory/agents/devices/:id/report', () =>
+      HttpResponse.json({ agent, asked_at: null, ask_again_at: null, last_seen: '2026-11-10T08:00:00Z', stale, wazuh_interval_minutes: null })))
+    reportIs('osquery')
     renderApp('/findings/f-9')
     expect(await screen.findByRole('heading', { level: 1, name: 'SRV-AD has CVE-2024-43451: its agent reports an affected version' })).toBeInTheDocument()
     expect(screen.getByText(/^Nothing to look up: the agent on SRV-AD reports the installed version/)).toBeInTheDocument()
     expect(screen.queryByText(/About screen/)).toBeNull()
+    cleanup()
+    // no agent reports the device now: no agent bound, the node silent past its limit, or agent-intake off. The title says the version
+    // is the last one an agent reported, as the "I updated it" line beside it does.
+    for (const set of [() => reportIs('none'), () => reportIs('osquery', true), () => modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: false } : m)))]) {
+      set()
+      renderApp('/findings/f-9')
+      expect(await screen.findByRole('heading', { level: 1, name: 'SRV-AD has CVE-2024-43451: an agent last reported an affected version' })).toBeInTheDocument()
+      cleanup()
+    }
+    // agent-intake off (the last case): "How to check" says the same, and promises no new version by itself
+    renderApp('/findings/f-9')
+    expect(await screen.findByText(/^Nothing to look up: an agent last reported the installed version of .* on SRV-AD/)).toBeInTheDocument()
+    expect(screen.queryByText(/usually within two hours/)).toBeNull()
+    cleanup()
     cleanup()
     renderApp('/devices/a-srvad')
     // The device page shows the same To fix card as Findings (one grouping), no warning box

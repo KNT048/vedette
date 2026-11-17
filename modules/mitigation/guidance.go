@@ -21,6 +21,7 @@ type Provider struct {
 	db      *store.DB
 	vendors Vendors
 	ai      AI
+	agents  findings.AgentReports // nil: not known, the steps say nothing about it
 }
 
 // NewProvider returns the provider.
@@ -29,6 +30,17 @@ func NewProvider(db *store.DB, vendors Vendors, ai AI) (*Provider, error) {
 		return nil, errors.New("mitigation: creating provider: db, vendors and ai are required")
 	}
 	return &Provider{db: db, vendors: vendors, ai: ai}, nil
+}
+
+// SetAgents registers whether an agent of this box reads a device now: the same check as Updates to plan and the finding page's
+// "No agent reports" line (cmd/vedette agentReports), so the steps never promise an agent that no longer reports (INV-7).
+func (p *Provider) SetAgents(f findings.AgentReports) { p.agents = f }
+
+// agentGone says no agent reports the device of a finding whose version an agent gave; false when the finding rests on no agent's
+// reading or the check is not set.
+func (p *Provider) agentGone(ctx context.Context, r findings.Row) bool {
+	byAgent := r.Evidence != nil && (r.Evidence.Agent || r.Evidence.AgentRow) || r.Known != nil && r.Known.Source == findings.VersionByAgent
+	return byAgent && p.agents != nil && r.Asset != nil && !p.agents(ctx, r.Asset.ID)
 }
 
 // inventoryVendor maps a guide's vendor to the vendor name the inventory records (INV-5). The generic
@@ -57,7 +69,7 @@ func (p *Provider) Guidance(ctx context.Context, r findings.Row) (findings.Guide
 	}
 	g.Pack, g.Compromise = pack, compromise
 	g.Hardening = hardening(r, compromise) // INV-8: the general checks, when the pack has no signs of its own (no firewall config)
-	g.Recheck = genericRecheck(r)
+	g.Recheck = genericRecheck(r, p.agentGone(ctx, r))
 	if recheck != nil {
 		g.Recheck = *recheck
 	}
@@ -154,8 +166,9 @@ func (p *Provider) aiOutputs(ctx context.Context, findingID string) (findings.AI
 }
 
 // genericRecheck is the "check again" text when the pack carries none (the mock's wording). The device is named as the
-// Devices page names it, never by its id, and "Rescan this device" is only offered for a device with an IP.
-func genericRecheck(r findings.Row) findings.Recheck {
+// Devices page names it, never by its id, and "Rescan this device" is only offered for a device with an IP. gone: no agent reports the
+// device now, so an agent's version is its last list and no new one arrives by itself.
+func genericRecheck(r findings.Row, gone bool) findings.Recheck {
 	reachable := r.Asset.HasIP()
 	if r.Basis == findings.BasisScan && reachable {
 		return findings.Recheck{Steps: []string{`Run the scan template again with the "Rescan this device" button.`}}
@@ -175,6 +188,12 @@ func genericRecheck(r findings.Row) findings.Recheck {
 			fmt.Sprintf("Nothing to look up: the agent on %s reports the installed version of %s, and Vedette compared it with the affected versions (Evidence above).", device, software),
 			"Install the update (What to do below). The agent reports the new version by itself, usually within two hours (after the restart the update needs), and Vedette then closes this finding by itself.",
 		}
+		if gone {
+			steps = []string{
+				fmt.Sprintf("Nothing to look up: an agent last reported the installed version of %s on %s, and Vedette compared it with the affected versions (Evidence above). No agent reports %s now.", software, device, device),
+				"Install the update (What to do below). " + agentGoneAgain(device),
+			}
+		}
 		if hasTemplate && reachable {
 			steps = append(steps, `This CVE also has a safe scan template: "Rescan this device" checks it from the network.`)
 		}
@@ -182,12 +201,15 @@ func genericRecheck(r findings.Row) findings.Recheck {
 	}
 	// The box has the version, whoever gave it; never "find which version". A product match on an agent row keeps its own words.
 	if k := r.Known; k != nil && k.Version != "" && (r.Evidence == nil || !r.Evidence.AgentRow) {
-		return knownRecheck(r, k, device, hasTemplate, reachable)
+		return knownRecheck(r, k, device, hasTemplate, reachable, gone)
 	}
 	last := "This CVE has no safe scan template yet, so Vedette can only conclude from the version. Check by hand as above."
 	first := fmt.Sprintf("Check which version of %s runs on %s (in its settings, its admin page or its About screen).", software, device)
 	if r.Evidence != nil && r.Evidence.AgentRow { // The agent reported the installed version; it is the comparison that failed
 		first = fmt.Sprintf("Nothing to look up on %s: its agent reports the installed version of %s (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE.", device, software)
+		if gone {
+			first = fmt.Sprintf("Nothing to look up on %s: an agent last reported the installed version of %s (Evidence above; no agent reports %s now), but Vedette cannot compare it with the versions NVD lists for this CVE.", device, software, device)
+		}
 	}
 	switch {
 	case hasTemplate && reachable:
@@ -204,13 +226,17 @@ func genericRecheck(r findings.Row) findings.Recheck {
 
 // knownRecheck is genericRecheck for a finding whose software has a version on the box (any
 // source): it says the version, who gave it, and how a newer one reaches Vedette, then what a scan template adds.
-func knownRecheck(r findings.Row, k *findings.KnownVersion, device string, hasTemplate, reachable bool) findings.Recheck {
+func knownRecheck(r findings.Row, k *findings.KnownVersion, device string, hasTemplate, reachable, gone bool) findings.Recheck {
 	sw := k.Software + " " + k.Version
 	var from, again string
 	switch k.Source {
 	case findings.VersionByAgent:
 		from = fmt.Sprintf("the agent on %s reports %s", device, sw)
 		again = "its agent reports the new one by itself, usually within two hours"
+		if gone {
+			from = fmt.Sprintf("an agent last reported %s on %s (no agent reports it now)", sw, device)
+			again = "install its agent again so it reports the new one (nothing reports it by itself now)"
+		}
 	case findings.VersionBySNMP:
 		from = fmt.Sprintf("Vedette read %s from %s over SNMP", sw, device)
 		again = `press "Read with SNMP now" on its device page (Vedette also reads it again in each scan window)`
@@ -297,3 +323,9 @@ func replaceStrings(v any, repl *strings.Replacer) any {
 }
 
 var _ findings.Guidance = (*Provider)(nil)
+
+// agentGoneAgain is how a new version reaches Vedette when no agent reports the device: not by itself. The finding page has no
+// "I updated it" field for an agent's row, so the way is the agent back, or the person's own word.
+func agentGoneAgain(device string) string {
+	return fmt.Sprintf(`No agent reports %s to Vedette now, so the new version does not arrive by itself: install its agent again so it reports the new one, and Vedette then closes the findings it can prove that version fixes. If this one stays open, press "Mark as handled" and choose Patched.`, device)
+}

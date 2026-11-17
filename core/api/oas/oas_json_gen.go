@@ -137778,6 +137778,14 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsPlanOKItemsItem) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("agent_gone")
+		e.Bool(s.AgentGone)
+	}
+	{
+		e.FieldStart("agent_reported")
+		s.AgentReported.Encode(e, json.EncodeDate)
+	}
+	{
 		e.FieldStart("asset")
 		s.Asset.Encode(e)
 	}
@@ -137827,18 +137835,20 @@ func (s *FindingsGetFindingsPlanOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPlanOKItemsItem = [11]string{
-	0:  "asset",
-	1:  "cves",
-	2:  "fixed",
-	3:  "group",
-	4:  "kind",
-	5:  "likely",
-	6:  "pro",
-	7:  "recent",
-	8:  "risk",
-	9:  "software",
-	10: "version",
+var jsonFieldsNameOfFindingsGetFindingsPlanOKItemsItem = [13]string{
+	0:  "agent_gone",
+	1:  "agent_reported",
+	2:  "asset",
+	3:  "cves",
+	4:  "fixed",
+	5:  "group",
+	6:  "kind",
+	7:  "likely",
+	8:  "pro",
+	9:  "recent",
+	10: "risk",
+	11: "software",
+	12: "version",
 }
 
 // Decode decodes FindingsGetFindingsPlanOKItemsItem from json.
@@ -137850,8 +137860,30 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "asset":
+		case "agent_gone":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.AgentGone = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent_gone\"")
+			}
+		case "agent_reported":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.AgentReported.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent_reported\"")
+			}
+		case "asset":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Asset.Decode(d); err != nil {
 					return err
@@ -137861,7 +137893,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"asset\"")
 			}
 		case "cves":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Cves = make([]FindingsGetFindingsPlanOKItemsItemCvesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -137879,7 +137911,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"cves\"")
 			}
 		case "fixed":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Fixed = string(v)
@@ -137891,7 +137923,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"fixed\"")
 			}
 		case "group":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Group = string(v)
@@ -137903,7 +137935,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"group\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -137913,7 +137945,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "likely":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Likely = int(v)
@@ -137925,7 +137957,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"likely\"")
 			}
 		case "pro":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Bool()
 				s.Pro = bool(v)
@@ -137937,7 +137969,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"pro\"")
 			}
 		case "recent":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Recent = int(v)
@@ -137949,7 +137981,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"recent\"")
 			}
 		case "risk":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -137959,7 +137991,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "software":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -137971,7 +138003,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -137993,7 +138025,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

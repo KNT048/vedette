@@ -114,8 +114,12 @@ function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
       cves.sort((x, y) => (x.tier === y.tier ? 0 : x.tier === 'likely' ? -1 : 1)
         || (x.tier === 'likely' ? (y.epss ?? -1) - (x.epss ?? -1) || (y.score ?? -1) - (x.score ?? -1) : (y.score ?? -1) - (x.score ?? -1) || (y.epss ?? -1) - (x.epss ?? -1))
         || y.published.localeCompare(x.published))
+      // As the box: an agent row's version is the last list an agent sent once no agent reports the device (agent-intake off, or no
+      // agent row: the inventory mock binds an osquery agent to a device with one; the box reads its own packages)
+      const gone = cves.some((c) => c.basis === 'agent') && a.id !== 'a-box' && !(isOn('agent-intake') && a.software.some((s) => s.source === 'agent'))
       items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, risk: null, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false,
-        cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length })
+        cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length,
+        agent_gone: gone, agent_reported: gone ? p.reported ?? null : null })
     }
   }
   const top = (i: PlanItem) => Math.max(-1, ...i.cves.map((c) => c.epss ?? -1))
@@ -216,6 +220,14 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null, kv: K
   const reachable = !!a && a.ip !== '—'
   if (kv && !f.evidence?.agent && !f.evidence?.agent_row && !(f.basis === 'scan' && reachable)) return knownRecheck(f, kv, k, a?.name ?? 'the device', reachable)
   if (f.evidence?.agent) { // The agent reports the installed version; nothing to look up (mitigation genericRecheck)
+    // as the box: no agent reports the device now (agent-intake off, or no agent row) → the last report, no promise it arrives
+    const dev = a?.name ?? 'the device'
+    if (a && a.id !== 'a-box' && !(isOn('agent-intake') && assetsStore.get().find((x) => x.id === a.id)?.software.some((s) => s.source === 'agent'))) {
+      return { steps: [
+        `Nothing to look up: an agent last reported the installed version of ${k?.display ?? 'the software'} on ${dev}, and Vedette compared it with the affected versions (Evidence above). No agent reports ${dev} now.`,
+        `Install the update (What to do below). No agent reports ${dev} to Vedette now, so the new version does not arrive by itself: install its agent again so it reports the new one, and Vedette then closes the findings it can prove that version fixes. If this one stays open, press "Mark as handled" and choose Patched.`,
+      ] }
+    }
     return { steps: [
       `Nothing to look up: the agent on ${a?.name ?? 'the device'} reports the installed version of ${k?.display ?? 'the software'}, and Vedette compared it with the affected versions (Evidence above).`,
       'Install the update (What to do below). The agent reports the new version by itself, usually within two hours (after the restart the update needs), and Vedette then closes this finding by itself.',
@@ -438,16 +450,17 @@ const buildOf = (v: string) => v.replace(/^10\.0\./, '')
 function sentence(u: Pick<ToFixAction, 'kind' | 'software' | 'version' | 'fixed' | 'windows' | 'distro' | 'pro'>): string {
   const sw = u.software || 'the software'
   const fixed = u.windows ? buildOf(u.fixed) : u.fixed
+  const build = u.windows && u.version ? `from build ${buildOf(u.version)} to ${fixed}` : `build ${fixed}`
   switch (u.kind) {
     case 'none': return `No update is named that fixes these: follow the vendor's advice for ${sw}`
     case 'distro':
       if (fixed) return `Upgrade the ${sw} package from ${u.version} to ${fixed} or later${u.pro ? ' (Ubuntu Pro)' : ''}`
       return u.distro ? `Install ${u.distro}'s security updates for ${sw}` : `Install the distribution's security updates for ${sw}`
     case 'feature_update': return `Upgrade ${sw} to ${fixed}: some of these get no update for this release`
-    case 'esu': return `Install the Extended Security Update for ${sw} (build ${fixed} or later; it needs an ESU subscription)`
-    case 'windows': return `Install the latest cumulative update for ${sw} (build ${fixed} or later)`
+    case 'esu': return `Install the Extended Security Update for ${sw} (${build} or later; it needs an ESU subscription)`
+    case 'windows': return `Install the latest cumulative update for ${sw} (${build} or later)`
   }
-  return u.windows ? `Install the latest cumulative update for ${sw} (build ${fixed} or later)` : `Upgrade ${sw} from ${u.version} to ${fixed} or later`
+  return u.windows ? `Install the latest cumulative update for ${sw} (${build} or later)` : `Upgrade ${sw} from ${u.version} to ${fixed} or later`
 }
 
 /** GET /findings/to-fix, as findings.ToFix builds it: per device, the open findings grouped by their fix (or by product when

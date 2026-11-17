@@ -213,6 +213,8 @@ export const PlanItem = z.object({
   cves: z.array(PlanCve).min(1).describe('Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest'),
   likely: z.number().int().min(0),
   recent: z.number().int().min(0),
+  agent_gone: z.boolean().describe('A CVE of the item rests on an agent\'s row and no agent of this box reports the device now (agent-intake off, no agent bound, the agent silent past its stale limit; the same answer as the finding page\'s "No agent reports" line): `version` is the last one an agent reported'),
+  agent_reported: z.iso.date().nullable().describe('With agent_gone: the day the agent last reported the row (YYYY-MM-DD); null otherwise or when not known'),
 })
 export const PlanFeed = z.enum(['module_off', 'off', 'loading', 'ready']).describe('module_off = the feeds module is off (SYS-5: its data is not read); off = an admin has not turned the feed on; loading = on, first fill not finished; ready = loaded')
 export const Plan = z.object({

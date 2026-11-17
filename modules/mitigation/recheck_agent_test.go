@@ -21,11 +21,11 @@ func TestGenericRecheck_AgentVersionIsNotAskedFor(t *testing.T) {
 		}
 		return r
 	}
-	got := strings.Join(genericRecheck(row(true)).Steps, " ")
+	got := strings.Join(genericRecheck(row(true), false).Steps, " ")
 	if strings.Contains(got, "About screen") || !strings.Contains(got, "the agent on WIN-LAB reports the installed version of Windows") || !strings.Contains(got, "closes this finding by itself") {
 		t.Fatalf("agent: %s", got)
 	}
-	if got := strings.Join(genericRecheck(row(false)).Steps, " "); !strings.Contains(got, "About screen") {
+	if got := strings.Join(genericRecheck(row(false), false).Steps, " "); !strings.Contains(got, "About screen") {
 		t.Fatalf("scan: %s", got)
 	}
 }
@@ -43,11 +43,11 @@ func TestGenericRecheck_AgentRowProductMatchDoesNotAskForTheVersion(t *testing.T
 		}
 		return r
 	}
-	got := strings.Join(genericRecheck(row(true)).Steps, " ")
+	got := strings.Join(genericRecheck(row(true), false).Steps, " ")
 	if strings.Contains(got, "About screen") || !strings.Contains(got, "Nothing to look up on byn: its agent reports the installed version of OpenSSL") {
 		t.Fatalf("agent row: %s", got)
 	}
-	if got := strings.Join(genericRecheck(row(false)).Steps, " "); !strings.Contains(got, "About screen") {
+	if got := strings.Join(genericRecheck(row(false), false).Steps, " "); !strings.Contains(got, "About screen") {
 		t.Fatalf("typed row: %s", got)
 	}
 }
@@ -78,7 +78,7 @@ func TestGenericRecheck_M23_KnownVersionFromEverySource(t *testing.T) {
 		{findings.VersionByManual, "Nothing to look up: Juniper Junos OS 15.1R7.9 was entered for Juniper Networks EX4200-48T on the Devices page", `press "I updated Juniper Junos OS" at the top of this page`},
 		{findings.VersionByAgent, "Nothing to look up: the agent on Juniper Networks EX4200-48T reports Juniper Junos OS 15.1R7.9", "its agent reports the new one by itself"},
 	} {
-		steps := genericRecheck(row("version", "192.168.18.47", true, kv(c.src))).Steps
+		steps := genericRecheck(row("version", "192.168.18.47", true, kv(c.src)), false).Steps
 		got := strings.Join(steps, " ")
 		if len(steps) != 3 || !strings.HasPrefix(steps[0], c.first) || !strings.Contains(steps[1], c.again) || !strings.Contains(steps[1], `it can prove that version fixes. If this one stays open, press "Mark as handled" and choose Patched.`) || !strings.Contains(steps[2], `"Rescan this device" to confirm`) {
 			t.Errorf("%s: %q", c.src, steps)
@@ -88,12 +88,12 @@ func TestGenericRecheck_M23_KnownVersionFromEverySource(t *testing.T) {
 		}
 	}
 	// No template, a product-only match, a scan-read version on a device without an IP.
-	steps := genericRecheck(row("product", "—", false, kv(findings.VersionByScan))).Steps
+	steps := genericRecheck(row("product", "—", false, kv(findings.VersionByScan)), false).Steps
 	if !strings.Contains(steps[0], "cannot compare it with the versions NVD lists") || !strings.Contains(steps[1], "the next network scan of it reads the new one") || !strings.Contains(steps[2], "concludes from the version alone") {
 		t.Errorf("product, no IP, no template: %q", steps)
 	}
 	// No version known: the old steps, worded without gluing the software to the device.
-	if got := genericRecheck(row("version", "192.168.18.47", false, nil)).Steps[0]; got != "Check which version of Juniper Junos OS runs on Juniper Networks EX4200-48T (in its settings, its admin page or its About screen)." {
+	if got := genericRecheck(row("version", "192.168.18.47", false, nil), false).Steps[0]; got != "Check which version of Juniper Junos OS runs on Juniper Networks EX4200-48T (in its settings, its admin page or its About screen)." {
 		t.Errorf("unknown version: %q", got)
 	}
 }

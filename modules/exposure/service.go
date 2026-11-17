@@ -17,20 +17,22 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Services, Templates, Web, Greenbone, DomainFence, Probes, Matcher, Outside, Location and Clock may be nil.
+// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Appliances, Services, Templates, Web, Greenbone, DomainFence, Probes, Matcher, Outside, Location and Clock may be nil.
 type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
-	Resolver  Resolver        // DNS TXT lookups of domain verification
-	Prober    EgressProber    // the three public IP services (PublicServiceProber); tests pass a fake
-	Publisher Publisher       // nil: no events
-	Runner    Runner          // nil: scanning answers 501 until the scan module registers one
-	TwoStep   TwoStep         // nil: nobody has two-step sign-in, so no first scan can record the commitment
-	Gateway   Gateway         // nil: the page makes no claim about which device answers the open ports
-	Services  ServiceScanner  // nil: every scan of an IP says service identification is not set up (INV-19)
-	Templates TemplateScanner // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
-	Web       WebScanner      // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
-	Greenbone GreenboneHost   // nil: the setting and every scan of an IP say NotAvailableGreenbone, "OpenVAS is not available on this box." (INV-25)
+	Resolver  Resolver     // DNS TXT lookups of domain verification
+	Prober    EgressProber // the three public IP services (PublicServiceProber); tests pass a fake
+	Publisher Publisher    // nil: no events
+	Runner    Runner       // nil: scanning answers 501 until the scan module registers one
+	TwoStep   TwoStep      // nil: nobody has two-step sign-in, so no first scan can record the commitment
+	Gateway   Gateway      // nil: the page makes no claim about which device answers the open ports
+	// Appliances nil: an appliance a port names (appliance.go) is not tied to inventory devices; its Devices stay null.
+	Appliances Appliances
+	Services   ServiceScanner  // nil: every scan of an IP says service identification is not set up (INV-19)
+	Templates  TemplateScanner // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
+	Web        WebScanner      // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
+	Greenbone  GreenboneHost   // nil: the setting and every scan of an IP say NotAvailableGreenbone, "OpenVAS is not available on this box." (INV-25)
 	// DomainFence nil: a domain's deep scan reaches only the box's own verified IP; every other public address of its names
 	// gets a "needs the domain fence" line and nothing more than the by-name checks.
 	DomainFence DomainFence
@@ -68,6 +70,8 @@ type Service struct {
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
 
 	bg context.Context // the service's own context for work the registry's module switch starts (it has none)
+
+	appliances applianceCache // the inventory's last answer about the appliance families (INV-33)
 }
 
 // NewService returns the service. DB, Audit, Resolver, Prober and Log are required.
@@ -273,6 +277,7 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 	if err != nil {
 		return nil, fmt.Errorf("exposure: listing targets: %w", err)
 	}
+	s.tieLatest(ctx, latest)
 	c, err := s.loadChecks(ctx, db)
 	if err != nil {
 		return nil, fmt.Errorf("exposure: listing targets: %w", err)
@@ -308,6 +313,9 @@ func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetV
 	latest, err := latestResults(ctx, q)
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
+	}
+	if r, ok := latest[id]; ok {
+		s.tieAppliances(ctx, r.Ports, nil)
 	}
 	c, err := s.loadChecks(ctx, q)
 	if err != nil {

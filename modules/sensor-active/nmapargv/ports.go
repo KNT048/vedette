@@ -12,7 +12,7 @@ import (
 // misses services moved off their usual port: a test network's firewall answered SSH on 22222 and nothing found it. So every normal
 // or versions scan of a device is followed by an Extra run (-sS -sV and the same four scripts) over ExtraPorts, the union of:
 //
-//   - commonports.List: the 98 ports often exposed to the Internet (exposure's surface scan); 33 of them are not in nmap's
+//   - commonports.List: the 99 ports often exposed to the Internet (exposure's surface scan); about a third of them are not in nmap's
 //     top 1000 (9443, 10443, 6379, 27017, the MikroTik API…);
 //   - AdminPortList: alternate remote-access and management ports, reviewed one by one below.
 //

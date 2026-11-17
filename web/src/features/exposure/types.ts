@@ -15,6 +15,7 @@ export type HostIp = z.infer<typeof C.HostIp>
 export type HostClass = z.infer<typeof C.HostClass>
 export type PortRow = z.infer<typeof C.PortRow>
 export type AdminRow = z.infer<typeof C.AdminRow>
+export type Appliance = z.infer<typeof C.Appliance>
 export type CertRow = z.infer<typeof C.CertRow>
 export type ServiceRow = z.infer<typeof C.ServiceRow>
 export type CheckRow = z.infer<typeof C.CheckRow>

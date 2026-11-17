@@ -91,7 +91,7 @@ func TestScanExternalThroughTheWorker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Ports != 98 || len(got.Services) != 4 || got.Services[2].Product != "Apache httpd" || got.Services[2].Version != "2.4.49" || got.Services[2].CPE != "cpe:/a:apache:http_server:2.4.49" {
+	if got.Ports != 99 || len(got.Services) != 4 || got.Services[2].Product != "Apache httpd" || got.Services[2].Version != "2.4.49" || got.Services[2].CPE != "cpe:/a:apache:http_server:2.4.49" {
 		t.Fatalf("got %+v", got)
 	}
 	if own.asked != 1 {

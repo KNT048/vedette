@@ -85,7 +85,7 @@ const (
 	allPortsRetries     = "1"
 )
 
-// ExternalRate is the fixed --max-rate of the external shape (packets a second): 98 ports with 2 retries are a few hundred SYNs,
+// ExternalRate is the fixed --max-rate of the external shape (packets a second): 99 ports with 2 retries are a few hundred SYNs,
 // a few seconds at this rate, gentle on the customer's own router (plan exposure-real-vulns §3).
 const ExternalRate = 100
 

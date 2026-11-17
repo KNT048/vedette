@@ -43513,6 +43513,8 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKMethod) UnmarshalText(data []byte
 }
 
 type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem struct {
+	// The network appliance the port names, with the inventory devices of that family; absent when none.
+	Appliance OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance `json:"appliance"`
 	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
 	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
@@ -43525,6 +43527,8 @@ type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -43537,6 +43541,11 @@ type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem struct {
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetAppliance() OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance {
+	return s.Appliance
 }
 
 // GetCertNames returns the value of CertNames.
@@ -43557,6 +43566,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -43594,6 +43608,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetUnchecked() Opt
 	return s.Unchecked
 }
 
+// SetAppliance sets the value of Appliance.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetAppliance(val OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) {
+	s.Appliance = val
+}
+
 // SetCertNames sets the value of CertNames.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetCertNames(val []string) {
 	s.CertNames = val
@@ -43612,6 +43631,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetIP(val string) 
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetLocation sets the value of Location.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
 }
 
 // SetMisses sets the value of Misses.
@@ -43647,6 +43671,236 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetTitle(val OptSt
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// The network appliance the port names, with the inventory devices of that family; absent when none.
+type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) GetDevices() []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) GetEvidence() ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) GetKind() ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) SetDevices(val []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) SetEvidence(val ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) SetKind(val ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "certificate"
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle       ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "title"
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer      ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "server"
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect    ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "redirect"
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct     ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence values.
+func (ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) AllValues() []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence {
+	return []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence{
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate,
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle,
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer,
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect,
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdmin      ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind = "admin"
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindVpn        ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind = "vpn"
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdminOrVpn ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind values.
+func (ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind) AllValues() []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind {
+	return []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind{
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdmin,
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindVpn,
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdmin:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdmin
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindVpn:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindVpn
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdminOrVpn:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // How service identification named the service: probed (a probe's answer, or the surface scan's GET
@@ -45863,6 +46117,8 @@ func (s *ExposureGetExposureTargetsIDOKMethod) UnmarshalText(data []byte) error 
 }
 
 type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
+	// The network appliance the port names, with the inventory devices of that family; absent when none.
+	Appliance OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance `json:"appliance"`
 	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
 	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
@@ -45875,6 +46131,8 @@ type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -45887,6 +46145,11 @@ type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetAppliance() OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance {
+	return s.Appliance
 }
 
 // GetCertNames returns the value of CertNames.
@@ -45907,6 +46170,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -45944,6 +46212,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetUnchecked() OptBool {
 	return s.Unchecked
 }
 
+// SetAppliance sets the value of Appliance.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetAppliance(val OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance) {
+	s.Appliance = val
+}
+
 // SetCertNames sets the value of CertNames.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetCertNames(val []string) {
 	s.CertNames = val
@@ -45962,6 +46235,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetIP(val string) {
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetLocation sets the value of Location.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
 }
 
 // SetMisses sets the value of Misses.
@@ -45997,6 +46275,236 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetTitle(val OptString) {
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// The network appliance the port names, with the inventory devices of that family; absent when none.
+type ExposureGetExposureTargetsIDOKOpenPortsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) GetDevices() []ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) GetEvidence() ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) GetKind() ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) SetDevices(val []ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) SetEvidence(val ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) SetKind(val ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence string
+
+const (
+	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceCertificate ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence = "certificate"
+	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceTitle       ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence = "title"
+	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer      ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence = "server"
+	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect    ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence = "redirect"
+	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct     ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence values.
+func (ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence) AllValues() []ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence {
+	return []ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence{
+		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceCertificate,
+		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceTitle,
+		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer,
+		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect,
+		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence(data) {
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceCertificate:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceCertificate
+		return nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceTitle:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceTitle
+		return nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer
+		return nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect
+		return nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind string
+
+const (
+	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindAdmin      ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind = "admin"
+	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindVpn        ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind = "vpn"
+	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindAdminOrVpn ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind values.
+func (ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind) AllValues() []ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind {
+	return []ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind{
+		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindAdmin,
+		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindVpn,
+		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind(data) {
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindAdmin:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindAdmin
+		return nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindVpn:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindVpn
+		return nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindAdminOrVpn:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // How service identification named the service: probed (a probe's answer, or the surface scan's GET
@@ -46632,11 +47140,19 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetWebFindings(val []Expos
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem struct {
-	IP      string                                                         `json:"ip"`
-	Port    int                                                            `json:"port"`
-	Product string                                                         `json:"product"`
-	Risk    ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemRisk `json:"risk"`
-	URL     string                                                         `json:"url"`
+	// The network appliance the page belongs to, with the inventory devices of that family; absent when
+	// none.
+	Appliance OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance `json:"appliance"`
+	IP        string                                                                 `json:"ip"`
+	Port      int                                                                    `json:"port"`
+	Product   string                                                                 `json:"product"`
+	Risk      ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemRisk         `json:"risk"`
+	URL       string                                                                 `json:"url"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem) GetAppliance() OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance {
+	return s.Appliance
 }
 
 // GetIP returns the value of IP.
@@ -46664,6 +47180,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem) GetURL() st
 	return s.URL
 }
 
+// SetAppliance sets the value of Appliance.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem) SetAppliance(val OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) {
+	s.Appliance = val
+}
+
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem) SetIP(val string) {
 	s.IP = val
@@ -46687,6 +47208,237 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem) SetRisk(val
 // SetURL sets the value of URL.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem) SetURL(val string) {
 	s.URL = val
+}
+
+// The network appliance the page belongs to, with the inventory devices of that family; absent when
+// none.
+type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) GetDevices() []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) GetEvidence() ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) GetKind() ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) SetDevices(val []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) SetEvidence(val ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) SetKind(val ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceCertificate ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence = "certificate"
+	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceTitle       ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence = "title"
+	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer      ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence = "server"
+	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect    ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence = "redirect"
+	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct     ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence{
+		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceCertificate,
+		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceTitle,
+		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer,
+		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect,
+		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceCertificate:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceCertificate
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceTitle:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceTitle
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindAdmin      ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind = "admin"
+	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindVpn        ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind = "vpn"
+	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindAdminOrVpn ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind{
+		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindAdmin,
+		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindVpn,
+		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindAdmin:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindAdmin
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindVpn:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindVpn
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindAdminOrVpn:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemRisk string
@@ -47628,6 +48380,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) SetText(val 
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
+	// The network appliance the port names, with the inventory devices of that family; absent when none.
+	Appliance OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance `json:"appliance"`
 	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
 	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
@@ -47640,6 +48394,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -47652,6 +48408,11 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetAppliance() OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance {
+	return s.Appliance
 }
 
 // GetCertNames returns the value of CertNames.
@@ -47672,6 +48433,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -47709,6 +48475,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetUnchecked() Op
 	return s.Unchecked
 }
 
+// SetAppliance sets the value of Appliance.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetAppliance(val OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) {
+	s.Appliance = val
+}
+
 // SetCertNames sets the value of CertNames.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetCertNames(val []string) {
 	s.CertNames = val
@@ -47727,6 +48498,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetIP(val string)
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetLocation sets the value of Location.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetLocation(val OptString) {
+	s.Location = val
 }
 
 // SetMisses sets the value of Misses.
@@ -47762,6 +48538,236 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetTitle(val OptS
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// The network appliance the port names, with the inventory devices of that family; absent when none.
+type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) GetDevices() []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) GetEvidence() ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) GetKind() ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) SetDevices(val []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) SetEvidence(val ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) SetKind(val ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceCertificate ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence = "certificate"
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceTitle       ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence = "title"
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer      ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence = "server"
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect    ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence = "redirect"
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct     ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence{
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceCertificate,
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceTitle,
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer,
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect,
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceCertificate:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceCertificate
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceTitle:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceTitle
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindAdmin      ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind = "admin"
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindVpn        ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind = "vpn"
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindAdminOrVpn ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind{
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindAdmin,
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindVpn,
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindAdmin:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindAdmin
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindVpn:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindVpn
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindAdminOrVpn:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // How service identification named the service: probed (a probe's answer, or the surface scan's GET
@@ -49786,6 +50792,8 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) UnmarshalText(data []byte)
 }
 
 type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
+	// The network appliance the port names, with the inventory devices of that family; absent when none.
+	Appliance OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance `json:"appliance"`
 	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
 	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
@@ -49798,6 +50806,8 @@ type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -49810,6 +50820,11 @@ type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetAppliance() OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance {
+	return s.Appliance
 }
 
 // GetCertNames returns the value of CertNames.
@@ -49830,6 +50845,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -49867,6 +50887,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetUnchecked() OptB
 	return s.Unchecked
 }
 
+// SetAppliance sets the value of Appliance.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetAppliance(val OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) {
+	s.Appliance = val
+}
+
 // SetCertNames sets the value of CertNames.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetCertNames(val []string) {
 	s.CertNames = val
@@ -49885,6 +50910,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetIP(val string) {
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetLocation sets the value of Location.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
 }
 
 // SetMisses sets the value of Misses.
@@ -49920,6 +50950,236 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetTitle(val OptStr
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// The network appliance the port names, with the inventory devices of that family; absent when none.
+type ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) GetDevices() []ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) GetEvidence() ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) GetKind() ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) SetDevices(val []ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) SetEvidence(val ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) SetKind(val ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence string
+
+const (
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceCertificate ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence = "certificate"
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceTitle       ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence = "title"
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer      ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence = "server"
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect    ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence = "redirect"
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct     ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence values.
+func (ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence) AllValues() []ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence {
+	return []ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence{
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceCertificate,
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceTitle,
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer,
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect,
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence(data) {
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceCertificate:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceCertificate
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceTitle:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceTitle
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind string
+
+const (
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindAdmin      ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind = "admin"
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindVpn        ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind = "vpn"
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindAdminOrVpn ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind values.
+func (ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind) AllValues() []ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind {
+	return []ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind{
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindAdmin,
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindVpn,
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind(data) {
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindAdmin:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindAdmin
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindVpn:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindVpn
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindAdminOrVpn:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // How service identification named the service: probed (a probe's answer, or the surface scan's GET
@@ -50849,6 +52109,8 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) UnmarshalText(data []
 }
 
 type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
+	// The network appliance the port names, with the inventory devices of that family; absent when none.
+	Appliance OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance `json:"appliance"`
 	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
 	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
@@ -50861,6 +52123,8 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -50873,6 +52137,11 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetAppliance() OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance {
+	return s.Appliance
 }
 
 // GetCertNames returns the value of CertNames.
@@ -50893,6 +52162,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetIP() string
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -50930,6 +52204,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetUnchecked()
 	return s.Unchecked
 }
 
+// SetAppliance sets the value of Appliance.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetAppliance(val OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) {
+	s.Appliance = val
+}
+
 // SetCertNames sets the value of CertNames.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetCertNames(val []string) {
 	s.CertNames = val
@@ -50948,6 +52227,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetIP(val stri
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetLocation sets the value of Location.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
 }
 
 // SetMisses sets the value of Misses.
@@ -50983,6 +52267,236 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetTitle(val O
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// The network appliance the port names, with the inventory devices of that family; absent when none.
+type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) GetDevices() []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) GetEvidence() ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) GetKind() ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) SetDevices(val []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) SetEvidence(val ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) SetKind(val ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence string
+
+const (
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceCertificate ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence = "certificate"
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceTitle       ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence = "title"
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer      ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence = "server"
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect    ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence = "redirect"
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct     ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence{
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceCertificate,
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceTitle,
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer,
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect,
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceCertificate:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceCertificate
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceTitle:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceTitle
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind string
+
+const (
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindAdmin      ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind = "admin"
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindVpn        ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind = "vpn"
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindAdminOrVpn ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind{
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindAdmin,
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindVpn,
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindAdmin:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindAdmin
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindVpn:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindVpn
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindAdminOrVpn:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // How service identification named the service: probed (a probe's answer, or the surface scan's GET
@@ -52452,6 +53966,8 @@ func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) er
 }
 
 type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
+	// The network appliance the port names, with the inventory devices of that family; absent when none.
+	Appliance OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance `json:"appliance"`
 	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
 	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
@@ -52464,6 +53980,8 @@ type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -52476,6 +53994,11 @@ type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetAppliance() OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance {
+	return s.Appliance
 }
 
 // GetCertNames returns the value of CertNames.
@@ -52496,6 +54019,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -52533,6 +54061,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetUnchecked() OptBool
 	return s.Unchecked
 }
 
+// SetAppliance sets the value of Appliance.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetAppliance(val OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance) {
+	s.Appliance = val
+}
+
 // SetCertNames sets the value of CertNames.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetCertNames(val []string) {
 	s.CertNames = val
@@ -52551,6 +54084,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetIP(val string) {
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetLocation sets the value of Location.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
 }
 
 // SetMisses sets the value of Misses.
@@ -52586,6 +54124,236 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetTitle(val OptString
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// The network appliance the port names, with the inventory devices of that family; absent when none.
+type ExposurePostExposureTargetsCreatedOpenPortsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) GetDevices() []ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) GetEvidence() ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) GetKind() ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) SetDevices(val []ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) SetEvidence(val ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) SetKind(val ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence string
+
+const (
+	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceCertificate ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence = "certificate"
+	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceTitle       ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence = "title"
+	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer      ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence = "server"
+	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect    ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence = "redirect"
+	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct     ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence values.
+func (ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence) AllValues() []ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence {
+	return []ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence{
+		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceCertificate,
+		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceTitle,
+		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer,
+		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect,
+		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence(data) {
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceCertificate:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceCertificate
+		return nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceTitle:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceTitle
+		return nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer
+		return nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect
+		return nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind string
+
+const (
+	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindAdmin      ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind = "admin"
+	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindVpn        ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind = "vpn"
+	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindAdminOrVpn ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind values.
+func (ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind) AllValues() []ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind {
+	return []ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind{
+		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindAdmin,
+		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindVpn,
+		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind(data) {
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindAdmin:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindAdmin
+		return nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindVpn:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindVpn
+		return nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindAdminOrVpn:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // How service identification named the service: probed (a probe's answer, or the surface scan's GET
@@ -54241,6 +56009,8 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) UnmarshalText(data [
 }
 
 type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
+	// The network appliance the port names, with the inventory devices of that family; absent when none.
+	Appliance OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance `json:"appliance"`
 	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
 	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
@@ -54253,6 +56023,8 @@ type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -54265,6 +56037,11 @@ type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetAppliance() OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance {
+	return s.Appliance
 }
 
 // GetCertNames returns the value of CertNames.
@@ -54285,6 +56062,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetIP() strin
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -54322,6 +56104,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetUnchecked(
 	return s.Unchecked
 }
 
+// SetAppliance sets the value of Appliance.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetAppliance(val OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) {
+	s.Appliance = val
+}
+
 // SetCertNames sets the value of CertNames.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetCertNames(val []string) {
 	s.CertNames = val
@@ -54340,6 +56127,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetIP(val str
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetLocation sets the value of Location.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
 }
 
 // SetMisses sets the value of Misses.
@@ -54375,6 +56167,236 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetTitle(val 
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// The network appliance the port names, with the inventory devices of that family; absent when none.
+type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) GetDevices() []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) GetEvidence() ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) GetKind() ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) SetDevices(val []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) SetEvidence(val ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) SetKind(val ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence string
+
+const (
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceCertificate ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence = "certificate"
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceTitle       ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence = "title"
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer      ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence = "server"
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect    ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence = "redirect"
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct     ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence values.
+func (ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence) AllValues() []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence {
+	return []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence{
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceCertificate,
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceTitle,
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer,
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect,
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence(data) {
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceCertificate:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceCertificate
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceTitle:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceTitle
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind string
+
+const (
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindAdmin      ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind = "admin"
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindVpn        ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind = "vpn"
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindAdminOrVpn ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind values.
+func (ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind) AllValues() []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind {
+	return []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind{
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindAdmin,
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindVpn,
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind(data) {
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindAdmin:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindAdmin
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindVpn:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindVpn
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindAdminOrVpn:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // How service identification named the service: probed (a probe's answer, or the surface scan's GET
@@ -55740,6 +57762,8 @@ func (s *ExposurePutExposureTargetsIDTermsOKMethod) UnmarshalText(data []byte) e
 }
 
 type ExposurePutExposureTargetsIDTermsOKOpenPortsItem struct {
+	// The network appliance the port names, with the inventory devices of that family; absent when none.
+	Appliance OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance `json:"appliance"`
 	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
 	// alternative names), at most 5.
 	CertNames []string `json:"cert_names"`
@@ -55752,6 +57776,8 @@ type ExposurePutExposureTargetsIDTermsOKOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -55764,6 +57790,11 @@ type ExposurePutExposureTargetsIDTermsOKOpenPortsItem struct {
 	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetAppliance returns the value of Appliance.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetAppliance() OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance {
+	return s.Appliance
 }
 
 // GetCertNames returns the value of CertNames.
@@ -55784,6 +57815,11 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -55821,6 +57857,11 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetUnchecked() OptBoo
 	return s.Unchecked
 }
 
+// SetAppliance sets the value of Appliance.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetAppliance(val OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) {
+	s.Appliance = val
+}
+
 // SetCertNames sets the value of CertNames.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetCertNames(val []string) {
 	s.CertNames = val
@@ -55839,6 +57880,11 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetIP(val string) {
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetLocation sets the value of Location.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
 }
 
 // SetMisses sets the value of Misses.
@@ -55874,6 +57920,236 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetTitle(val OptStrin
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// The network appliance the port names, with the inventory devices of that family; absent when none.
+type ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance struct {
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
+	Devices []ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem `json:"devices"`
+	// Which statement of the port named it.
+	Evidence ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence `json:"evidence"`
+	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+	Kind ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind `json:"kind"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
+	Vendor string `json:"vendor"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) GetDevices() []ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem {
+	return s.Devices
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) GetEvidence() ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) GetKind() ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) GetName() string {
+	return s.Name
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDevices sets the value of Devices.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) SetDevices(val []ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) {
+	s.Devices = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) SetEvidence(val ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) SetKind(val ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) SetName(val string) {
+	s.Name = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem struct {
+	DeviceID string `json:"device_id"`
+	Name     string `json:"name"`
+	// Open exploited (KEV) findings of the device.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetName returns the value of Name.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+// Which statement of the port named it.
+type ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "certificate"
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle       ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "title"
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer      ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "server"
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect    ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "redirect"
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct     ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "product"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence values.
+func (ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) AllValues() []ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence {
+	return []ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence{
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate,
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle,
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer,
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect,
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence(data) {
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
+type ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdmin      ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind = "admin"
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindVpn        ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind = "vpn"
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdminOrVpn ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind = "admin_or_vpn"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind values.
+func (ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind) AllValues() []ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind {
+	return []ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind{
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdmin,
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindVpn,
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdminOrVpn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdmin:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindVpn:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdminOrVpn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind(data) {
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdmin:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdmin
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindVpn:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindVpn
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdminOrVpn:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKindAdminOrVpn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // How service identification named the service: probed (a probe's answer, or the surface scan's GET
@@ -146220,6 +148496,52 @@ func (o OptExposureDeleteExposureTargetsIDIgnore) Or(d ExposureDeleteExposureTar
 	return d
 }
 
+// NewOptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance returns new OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance with value set to v.
+func NewOptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance(v ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance {
+	return OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance is optional ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance.
+type OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance was set.
+func (o OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) Reset() {
+	var v ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) SetTo(v ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) Get() (v ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) Or(d ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent returns new OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent with value set to v.
 func NewOptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent(v ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent {
 	return OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent{
@@ -146266,6 +148588,52 @@ func (o OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) Or(d Exposu
 	return d
 }
 
+// NewOptExposureGetExposureTargetsIDOKOpenPortsItemAppliance returns new OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance with value set to v.
+func NewOptExposureGetExposureTargetsIDOKOpenPortsItemAppliance(v ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance {
+	return OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance is optional ExposureGetExposureTargetsIDOKOpenPortsItemAppliance.
+type OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance struct {
+	Value ExposureGetExposureTargetsIDOKOpenPortsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance was set.
+func (o OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance) Reset() {
+	var v ExposureGetExposureTargetsIDOKOpenPortsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance) SetTo(v ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance) Get() (v ExposureGetExposureTargetsIDOKOpenPortsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance) Or(d ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) ExposureGetExposureTargetsIDOKOpenPortsItemAppliance {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposureGetExposureTargetsIDOKOpenPortsItemIdent returns new OptExposureGetExposureTargetsIDOKOpenPortsItemIdent with value set to v.
 func NewOptExposureGetExposureTargetsIDOKOpenPortsItemIdent(v ExposureGetExposureTargetsIDOKOpenPortsItemIdent) OptExposureGetExposureTargetsIDOKOpenPortsItemIdent {
 	return OptExposureGetExposureTargetsIDOKOpenPortsItemIdent{
@@ -146306,6 +148674,54 @@ func (o OptExposureGetExposureTargetsIDOKOpenPortsItemIdent) Get() (v ExposureGe
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposureGetExposureTargetsIDOKOpenPortsItemIdent) Or(d ExposureGetExposureTargetsIDOKOpenPortsItemIdent) ExposureGetExposureTargetsIDOKOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance returns new OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance with value set to v.
+func NewOptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance(v ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance {
+	return OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance is optional ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance.
+type OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance struct {
+	Value ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) IsSet() bool {
+	return o.Set
+}
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) Reset() {
+	var v ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) SetTo(v ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) Get() (v ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) Or(d ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -146400,6 +148816,52 @@ func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) Get() (v 
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) Or(d ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance returns new OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance with value set to v.
+func NewOptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance(v ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance {
+	return OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance is optional ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance.
+type OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance struct {
+	Value ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) Reset() {
+	var v ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) SetTo(v ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) Get() (v ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) Or(d ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -146546,6 +149008,52 @@ func (o OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) Or(
 	return d
 }
 
+// NewOptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance returns new OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance with value set to v.
+func NewOptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance(v ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance {
+	return OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance is optional ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance.
+type OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance struct {
+	Value ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance was set.
+func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) Reset() {
+	var v ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) SetTo(v ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) Get() (v ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) Or(d ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent returns new OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent with value set to v.
 func NewOptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent(v ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent {
 	return OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent{
@@ -146592,6 +149100,54 @@ func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) Or(d Exposur
 	return d
 }
 
+// NewOptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance returns new OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance with value set to v.
+func NewOptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance(v ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance {
+	return OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance is optional ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance.
+type OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance was set.
+func (o OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) IsSet() bool {
+	return o.Set
+}
+
+// Reset unsets value.
+func (o *OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) Reset() {
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent returns new OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent with value set to v.
 func NewOptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent(v ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent {
 	return OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent{
@@ -146632,6 +149188,52 @@ func (o OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Get() (
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePostExposureTargetsCreatedOpenPortsItemAppliance returns new OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance with value set to v.
+func NewOptExposurePostExposureTargetsCreatedOpenPortsItemAppliance(v ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance {
+	return OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance is optional ExposurePostExposureTargetsCreatedOpenPortsItemAppliance.
+type OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance struct {
+	Value ExposurePostExposureTargetsCreatedOpenPortsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance was set.
+func (o OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance) Reset() {
+	var v ExposurePostExposureTargetsCreatedOpenPortsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance) SetTo(v ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance) Get() (v ExposurePostExposureTargetsCreatedOpenPortsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePostExposureTargetsCreatedOpenPortsItemAppliance) Or(d ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) ExposurePostExposureTargetsCreatedOpenPortsItemAppliance {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -146730,6 +149332,54 @@ func (o OptExposurePostExposureTargetsIDScanReq) Or(d ExposurePostExposureTarget
 	return d
 }
 
+// NewOptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance returns new OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance with value set to v.
+func NewOptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance(v ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance {
+	return OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance is optional ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance.
+type OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance struct {
+	Value ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance was set.
+func (o OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) IsSet() bool {
+	return o.Set
+}
+
+// Reset unsets value.
+func (o *OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) Reset() {
+	var v ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) SetTo(v ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) Get() (v ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) Or(d ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent returns new OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent with value set to v.
 func NewOptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent(v ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent {
 	return OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent{
@@ -146770,6 +149420,52 @@ func (o OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Get() 
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Or(d ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance returns new OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance with value set to v.
+func NewOptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance(v ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance {
+	return OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance is optional ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance.
+type OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance struct {
+	Value ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance was set.
+func (o OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) Reset() {
+	var v ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) SetTo(v ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) Get() (v ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) Or(d ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -193093,6 +195789,8 @@ func (s *ScanGetScansRunsOKItemsItemCurrent) SetLabel(val string) {
 
 type ScanGetScansRunsOKItemsItemIdentificationItem struct {
 	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	// The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads
+	// "Operating system: scan guess not used now".
 	Found []string `json:"found"`
 	IP    string   `json:"ip"`
 	Label string   `json:"label"`
@@ -195367,6 +198065,8 @@ func (s *ScanPostScansRunsCreatedCurrent) SetLabel(val string) {
 
 type ScanPostScansRunsCreatedIdentificationItem struct {
 	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	// The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads
+	// "Operating system: scan guess not used now".
 	Found []string `json:"found"`
 	IP    string   `json:"ip"`
 	Label string   `json:"label"`
@@ -196343,6 +199043,8 @@ func (s *ScanPostScansRunsIDStopOKCurrent) SetLabel(val string) {
 
 type ScanPostScansRunsIDStopOKIdentificationItem struct {
 	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	// The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads
+	// "Operating system: scan guess not used now".
 	Found []string `json:"found"`
 	IP    string   `json:"ip"`
 	Label string   `json:"label"`
@@ -197765,9 +200467,11 @@ type ScanningGetScanningHistoryOKItemsItem struct {
 	// devices", "2 of 3 devices answered over SNMP", "Failed: the device did not answer over SNMP." (an
 	// SNMP read nothing answered is failed, never partial), "Scanned 192.168.18.20: 3 open ports (22 ssh,
 	// 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check" (a device
-	// check: its open ports, its OS guess, "OS guess now (was )", "since the previous check: port 8080
-	// newly open, port 23 no longer open"), "Scanned 192.168.18.20: it did not answer", "Stopped: . Swept
-	// 64 addresses … before it ended", "Failed: .".
+	// check: its open ports; the OS it recorded only when it is the OS the device page shows now, "OS
+	// guess " for nmap's fingerprint, "OS " for the device's own answer, "OS guess now (changed since the
+	// previous check)"; otherwise "OS: scan guess not used now", never a second OS value; "since the
+	// previous check: port 8080 newly open, port 23 no longer open"), "Scanned 192.168.18.20: it did not
+	// answer", "Stopped: . Swept 64 addresses … before it ended", "Failed: .".
 	Text string `json:"text"`
 	// Sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart);
 	// automatic: the window's queue (a new device, a weekly scan) or its SNMP round; person: a person

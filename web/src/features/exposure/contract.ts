@@ -16,11 +16,27 @@ export const VerifyMethod = z.enum(['dns_txt', 'box_egress'])
 
 export const Counts = z.object({ subdomains: z.number().int(), ips: z.number().int(), ports: z.number().int(), admin_panels: z.number().int(), certs_expiring: z.number().int() })
 
+// S-EXP-1 (INV-33): the admin or VPN page a port names by what it states about itself on any port (content/adminpages, the table the
+// surface scan uses too): a name of its TLS certificate (FortiGate's default certificate is issued to "FortiGate" or its serial
+// number), its page title, its Server header, where its first page redirects, or the product or CPE service identification read.
+// Set when the port is read, never stored.
+export const ApplianceDevice = z.object({ device_id: z.string(), name: z.string(), open_exploited: z.number().int().describe('Open exploited (KEV) findings of the device') })
+export const Appliance = z.object({
+  name: z.string().describe('The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)'),
+  vendor: z.string().describe('The family\'s vendor; "" for a product of no family'),
+  kind: z.enum(['admin', 'vpn', 'admin_or_vpn']).describe('admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both'),
+  evidence: z.enum(['certificate', 'title', 'server', 'redirect', 'product']).describe('Which statement of the port named it'),
+  devices: z.array(ApplianceDevice).nullable().describe('The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor\'s VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family'),
+  more: z.number().int().optional().describe('Devices of the family beyond the 5 listed'),
+})
+
 export const PortRow = z.object({ ip: z.string(), port: z.number().int(), service: z.string(), product: z.string().optional(), last_seen: isoDate.optional().describe('Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)'), misses: z.number().int().optional().describe('With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)'), unchecked: z.boolean().optional().describe('The newest scan did not check the address: the row is as an earlier scan left it'),
   ident: z.enum(['probed', 'port', 'none']).optional().describe('How service identification named the service: probed (a probe\'s answer, or the surface scan\'s GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan'),
   cert_names: z.array(z.string()).optional().describe('The names of the port\'s TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5'),
   title: z.string().optional().describe('The title of the web page on the port (deep scan, http-title)'),
-  server: z.string().optional().describe('The HTTP Server header on the port (deep scan, http-server-header)') })
+  server: z.string().optional().describe('The HTTP Server header on the port (deep scan, http-server-header)'),
+  location: z.string().optional().describe('Where the port\'s first page redirects, when the deep scan did not follow it (http-title)'),
+  appliance: Appliance.optional().describe('The network appliance the port names, with the inventory devices of that family; absent when none') })
 
 /** The sentence an administrator's first Scan now confirms. The backend owns the text (modules/exposure/notice.go) and sends it with the target's name in it; the page shows what it received. These two constants are the mock's copy, held equal to the backend's by a Go test. */
 export const NOTICE_VERSION = '2026-11-14'
@@ -101,7 +117,8 @@ export const HostRow = z.object({
   ips: z.array(HostIp).optional().describe('Every address of the name with its kind (at most 16)'),
   lookup_failed: z.boolean().optional().describe('The name\'s address lookup got no answer this time: the row is the previous scan\'s, carried forward (not gone)'),
 })
-export const AdminRow = z.object({ url: z.string(), product: z.string(), ip: z.string(), port: z.number().int(), risk: z.enum(['danger', 'warn']) })
+export const AdminRow = z.object({ url: z.string(), product: z.string(), ip: z.string(), port: z.number().int(), risk: z.enum(['danger', 'warn']),
+  appliance: Appliance.optional().describe('The network appliance the page belongs to, with the inventory devices of that family; absent when none') })
 export const CertRow = z.object({ host: z.string(), issuer: z.string(), expires_at: z.iso.datetime() })
 
 // S-EXP-2 (INV-19, INV-20): what service identification (nmap -sV) read on the box's own public IP, what the scan checked and

@@ -356,7 +356,7 @@ func TestDomainScan(t *testing.T) {
 			"dns acme.example 5 names listed; DNS lookups via the box's resolver: A, AAAA, CNAME of 5 names from certificates; MX, NS; wildcard check; up to 147 common names true",
 			"http acme.example GET http://acme.example/ true", "http mail.acme.example GET http://mail.acme.example/ false", "http www.acme.example GET http://www.acme.example/ true",
 			"https acme.example GET https://acme.example/ true", "https mail.acme.example GET https://mail.acme.example/ true", "https www.acme.example GET https://www.acme.example/ true",
-			"tcp 203.0.113.10 TCP connect to 98 ports; open: 22, 80, 443 true",
+			"tcp 203.0.113.10 TCP connect to 99 ports; open: 22, 80, 443 true",
 		}; !slices.Equal(log.requests(), want) {
 			t.Fatalf("probe log %q", log.requests())
 		}
@@ -496,7 +496,17 @@ func TestIdentify(t *testing.T) {
 		{page{title: "asus router login"}, "ASUS router"},
 		{page{title: "gpon home gateway"}, "GPON home gateway"},
 		{page{body: `{"name":"x","tagline":"you know, for search"}`}, "Elasticsearch"},
+		// the shared table (content/adminpages): a certificate, a redirect, titles the scan did not know before
+		{page{certNames: []string{"FortiGate"}}, "FortiGate"},
+		{page{certNames: []string{"FG100FTK20012345"}}, "FortiGate"},
+		{page{server: "xxxxxxxx-xxxxx"}, "FortiGate"},
+		{page{location: "https://203.0.113.10:11443/remote/login?lang=en"}, "Fortinet SSL VPN"},
+		{page{title: "log in - juniper web device manager"}, "Juniper J-Web"},
+		{page{title: "ivanti connect secure"}, "Ivanti Connect Secure"},
+		{page{location: "/tmui/login.jsp"}, "F5 BIG-IP"},
 		// ordinary sites are not admin pages
+		{page{title: "fortigate 60f price | example shop"}, ""},
+		{page{certNames: []string{"www.example.com", "fortigate.example.com"}}, ""},
 		{page{title: "acme store - asus laptops"}, ""},
 		{page{title: "grain silo supplies"}, ""},
 		{page{title: "our partners: cisco, fortinet", body: "we resell fortinet and pfsense"}, ""},
@@ -504,7 +514,7 @@ func TestIdentify(t *testing.T) {
 	} {
 		got := ""
 		if fp := identify(c.p); fp != nil {
-			got = fp.product
+			got = fp.Product
 		}
 		if got != c.want {
 			t.Errorf("identify(%+v) = %q, want %q", c.p, got, c.want)
@@ -584,5 +594,8 @@ func TestPortKindsFollowTheList(t *testing.T) {
 	}
 	if len(commonPorts) != len(commonports.List) || commonPorts[16].port != 443 || commonPorts[16].kind != webTLS {
 		t.Fatalf("commonPorts = %v", commonPorts[:17])
+	}
+	if p := portByNumber[11443]; p.kind != webTLS { // FortiGate's SSL-VPN and admin pages are often moved here
+		t.Fatalf("11443 = %+v", p)
 	}
 }

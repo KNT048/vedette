@@ -137,7 +137,8 @@ func countTargets(ctx context.Context, q querier) (int, error) {
 	return n, nil
 }
 
-// latestResult is what the target list shows of a target's newest snapshot: its counts and its first open ports.
+// latestResult is what the target list shows of a target's newest snapshot: its counts and its first open ports, each with the
+// appliance it names (appliance.go; the devices are added by the service).
 type latestResult struct {
 	Counts Counts
 	Ports  []PortRow
@@ -145,7 +146,7 @@ type latestResult struct {
 
 // latestResults returns the counts and the first MaxOpenPorts open ports of the newest snapshot of every target that has one.
 func latestResults(ctx context.Context, q querier) (map[string]latestResult, error) {
-	rows, err := q.QueryContext(ctx, `SELECT s.target_id, s.counts, s.ports FROM exp_snapshot s
+	rows, err := q.QueryContext(ctx, `SELECT s.target_id, s.counts, s.ports, s.admin_panels, s.services FROM exp_snapshot s
 		WHERE s.date = (SELECT max(date) FROM exp_snapshot WHERE target_id = s.target_id)`)
 	if err != nil {
 		return nil, fmt.Errorf("latest counts: %w", err)
@@ -153,20 +154,22 @@ func latestResults(ctx context.Context, q querier) (map[string]latestResult, err
 	defer func() { _ = rows.Close() }()
 	out := map[string]latestResult{}
 	for rows.Next() {
-		var id, doc, ports string
+		var id, doc, ports, admin, services string
 		var r latestResult
-		if err := rows.Scan(&id, &doc, &ports); err != nil {
+		if err := rows.Scan(&id, &doc, &ports, &admin, &services); err != nil {
 			return nil, fmt.Errorf("latest counts: %w", err)
 		}
 		if err := json.Unmarshal([]byte(doc), &r.Counts); err != nil {
-			return nil, fmt.Errorf("latest counts of %s: %w", id, err)
+			return nil, fmt.Errorf("latest result of %s: %w", id, err)
 		}
-		if err := json.Unmarshal([]byte(ports), &r.Ports); err != nil {
-			return nil, fmt.Errorf("latest ports of %s: %w", id, err)
+		svc, err := recountAdmin(&r.Counts, admin, ports, services, &r.Ports)
+		if err != nil {
+			return nil, fmt.Errorf("latest result of %s: %w", id, err)
 		}
 		if len(r.Ports) > MaxOpenPorts {
 			r.Ports = r.Ports[:MaxOpenPorts]
 		}
+		nameAppliances(r.Ports, nil, svc)
 		out[id] = r
 	}
 	return out, rows.Err()
@@ -318,8 +321,34 @@ func upsertSnapshot(ctx context.Context, tx *sql.Tx, targetID string, snap Snaps
 	return nil
 }
 
+// recountAdmin sets counts.AdminPanels as loadSnapshot counts it (INV-33: an admin page a port names counts when the snapshot is
+// read, also in a snapshot stored before the fingerprint existed), from the stored admin, ports and services columns. It returns the
+// service rows, and the port rows into ports when it is not nil.
+func recountAdmin(counts *Counts, admin, ports, services string, into *[]PortRow) ([]ServiceRow, error) {
+	var admins []AdminRow
+	var rows []PortRow
+	var stored []storedService
+	for _, d := range []struct {
+		doc string
+		to  any
+	}{{admin, &admins}, {ports, &rows}, {services, &stored}} {
+		if err := json.Unmarshal([]byte(d.doc), d.to); err != nil {
+			return nil, err
+		}
+	}
+	svc := make([]ServiceRow, 0, len(stored))
+	for _, x := range stored {
+		svc = append(svc, x.ServiceRow)
+	}
+	counts.AdminPanels += len(applianceAdmins(admins, rows, svc)) - len(admins) // the rows it adds; the stored ones are counted
+	if into != nil {
+		*into = rows
+	}
+	return svc, nil
+}
+
 func listSnapshotMetas(ctx context.Context, q querier, targetID string) ([]SnapshotMeta, error) {
-	rows, err := q.QueryContext(ctx, `SELECT id, date, scanned_at, counts FROM exp_snapshot WHERE target_id = ? ORDER BY date DESC`, targetID)
+	rows, err := q.QueryContext(ctx, `SELECT id, date, scanned_at, counts, admin_panels, ports, services FROM exp_snapshot WHERE target_id = ? ORDER BY date DESC`, targetID)
 	if err != nil {
 		return nil, fmt.Errorf("snapshots: %w", err)
 	}
@@ -327,12 +356,15 @@ func listSnapshotMetas(ctx context.Context, q querier, targetID string) ([]Snaps
 	out := []SnapshotMeta{}
 	for rows.Next() {
 		var m SnapshotMeta
-		var doc string
-		if err := rows.Scan(&m.ID, &m.Date, &m.ScannedAt, &doc); err != nil {
+		var doc, admin, ports, services string
+		if err := rows.Scan(&m.ID, &m.Date, &m.ScannedAt, &doc, &admin, &ports, &services); err != nil {
 			return nil, fmt.Errorf("snapshots: %w", err)
 		}
 		if err := json.Unmarshal([]byte(doc), &m.Counts); err != nil {
 			return nil, fmt.Errorf("snapshot %s counts: %w", m.ID, err)
+		}
+		if _, err := recountAdmin(&m.Counts, admin, ports, services, nil); err != nil {
+			return nil, fmt.Errorf("snapshot %s: %w", m.ID, err)
 		}
 		out = append(out, m)
 	}
@@ -370,6 +402,10 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 	s.Content = Content{Hosts: nz(s.Hosts), Ports: nz(s.Ports), AdminPanels: nz(s.AdminPanels), Certs: nz(s.Certs),
 		Services: s.Services, Templates: s.Templates, Checks: nz(s.Checks), NotChecked: nz(s.NotChecked), WebFindings: nz(s.WebFindings), Greenbone: nz(s.Greenbone),
 		Scripts: nz(s.Scripts)}
+	// An appliance's admin page that a snapshot of an older release (or an older rule) did not list counts when it is read.
+	listed := len(s.AdminPanels)
+	s.AdminPanels = applianceAdmins(s.AdminPanels, s.Ports, s.Services)
+	s.Counts.AdminPanels += len(s.AdminPanels) - listed
 	s.GreenboneRun = storedGreenboneRun(s.GreenboneRun, s.Content)
 	if s.GreenboneRun.State == GBRunStopped {
 		s.NotChecked = gbCutOff(s.NotChecked)
@@ -618,7 +654,7 @@ type ScanRecord struct {
 // reached its snapshot is stored: one that failed before has no row (the run lives in memory, INV-8).
 func (s *Service) RecentScans(ctx context.Context, limit int) ([]ScanRecord, error) {
 	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.target_id, t.value, s.scanned_at, s.counts,
-  coalesce(json_array_length(s.not_checked), 0), coalesce(json_extract(s.greenbone_run, '$.state'), '')
+  coalesce(json_array_length(s.not_checked), 0), coalesce(json_extract(s.greenbone_run, '$.state'), ''), s.admin_panels, s.ports, s.services
 FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id ORDER BY s.scanned_at DESC LIMIT ?`, max(1, min(500, limit)))
 	if err != nil {
 		return nil, fmt.Errorf("exposure: recent scans: %w", err)
@@ -627,11 +663,14 @@ FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id ORDER BY s.scanned_a
 	out := []ScanRecord{}
 	for rows.Next() {
 		var r ScanRecord
-		var doc string
-		if err := rows.Scan(&r.TargetID, &r.Target, &r.ScannedAt, &doc, &r.NotChecked, &r.Greenbone); err != nil {
+		var doc, admin, ports, services string
+		if err := rows.Scan(&r.TargetID, &r.Target, &r.ScannedAt, &doc, &r.NotChecked, &r.Greenbone, &admin, &ports, &services); err != nil {
 			return nil, fmt.Errorf("exposure: recent scans: %w", err)
 		}
 		if err := json.Unmarshal([]byte(doc), &r.Counts); err != nil {
+			return nil, fmt.Errorf("exposure: recent scan of %s: %w", r.TargetID, err)
+		}
+		if _, err := recountAdmin(&r.Counts, admin, ports, services, nil); err != nil {
 			return nil, fmt.Errorf("exposure: recent scan of %s: %w", r.TargetID, err)
 		}
 		out = append(out, r)

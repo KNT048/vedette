@@ -524,13 +524,9 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	accepted := firstRunTerms{Version: vedette.TermsVersion(), At: h.now().UTC()}
 	detail += ", terms of use " + accepted.Version + " accepted"
 	err = h.act(ctx, c, false, "data.restore_import", "backup", detail, func(id, actor string) error {
-		// labelRE of the host: letters, digits, space, : and - (no comma), so the day and the time are written apart; in the
-		// organization's zone, like every time on the backup list (orgtime)
-		loc, err := h.location(ctx)
-		if err != nil {
-			return err
-		}
-		label := "Uploaded backup of " + orgtime.ISODay(up.meta.CreatedAt, loc) + " " + orgtime.Clock(up.meta.CreatedAt, loc)
+		// labelRE of the host: letters, digits, space, : and - (no comma). This runs before first-run setup, when the restored
+		// organization's zone is not known yet (a fresh box has only the default), so the time is UTC and says so.
+		label := "Uploaded backup of " + orgtime.ISODay(up.meta.CreatedAt, time.UTC) + " " + orgtime.ClockZone(up.meta.CreatedAt, time.UTC)
 		run, kept, err := h.startBackup(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: key != nil, Label: label, Snapshot: up.ID}, id, actor)
 		if err != nil {
 			keep = kept // the host may be reading it: the start-up sweep removes it later

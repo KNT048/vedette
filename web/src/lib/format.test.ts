@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { dayOf, fmtDate, fmtDateTime, fmtDayMonth, fmtEnd, fmtMonthYear, fmtTime, fmtWhen, isNever, rawProductLine, setDisplayTimeZone } from './format'
+import { dayOf, fmtDate, fmtDateTime, fmtDateTimeZone, fmtDayMonth, fmtEnd, fmtMonthYear, fmtTime, fmtWhen, isNever, rawProductLine, setDisplayTimeZone } from './format'
 
 describe('isNever', () => {
   it('treats empty and Go zero time as never', () => {
@@ -55,6 +55,11 @@ describe("the organization's time zone", () => {
     expect(fmtWhen('2026-11-16T16:30:00Z', now)).toBe('16 Nov 2026, 23:30')
     expect(fmtEnd('2026-11-17T14:01:00Z', '2026-11-17T15:43:00Z')).toBe('22:43')
     expect(fmtEnd('2026-11-17T14:01:00Z', '2026-11-17T17:12:00Z')).toBe('18 Nov 2026, 00:12')
+  })
+
+  it('names the zone on a page outside the signed-in app', () => {
+    setDisplayTimeZone('Asia/Ho_Chi_Minh')
+    expect(fmtDateTimeZone('2026-11-14T21:11:00Z')).toBe('15 Nov 2026, 04:11 GMT+7')
   })
 
   it("keeps the browser's zone for an unknown name", () => {

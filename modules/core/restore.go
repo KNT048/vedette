@@ -177,11 +177,13 @@ func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CoreP
 	if u, err := h.auth.GetUser(ctx, c.ID); err != nil {
 		return nil, fmt.Errorf("core: read user: %w", err)
 	} else if u.TwofaMethod != "" {
+		// The summary goes out in the code email: the time with its zone, UTC (said so) when the organization's cannot be read
 		loc, err := h.location(ctx)
 		if err != nil {
-			return nil, err
+			h.log.WarnContext(ctx, "core: reading the organization time zone failed; the restore summary uses UTC", "error", err)
+			loc = time.UTC
 		}
-		if _, err := h.auth.VerifyTwoStep(ctx, c.ID, req.Code.Or(""), "core.data_restore", "Restore the backup from "+orgtime.Stamp(b.CreatedAt, loc)); err != nil {
+		if _, err := h.auth.VerifyTwoStep(ctx, c.ID, req.Code.Or(""), "core.data_restore", "Restore the backup from "+orgtime.StampZone(b.CreatedAt, loc)); err != nil {
 			return nil, err
 		}
 	}

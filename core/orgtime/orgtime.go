@@ -49,8 +49,22 @@ func Day(t time.Time, loc *time.Location) string { return in(t, loc).Format(dayL
 // Stamp is instant t in loc to the minute: "15 Nov 2026, 04:11".
 func Stamp(t time.Time, loc *time.Location) string { return in(t, loc).Format(stampLayout) }
 
+// StampZone is Stamp with the zone's abbreviation, for a text read away from the box (an alert, an email, a chat message), where
+// the reader cannot tell the zone from the page around it: "15 Nov 2026, 04:11 +07", "15 Nov 2026, 04:11 CET". When the
+// organization's zone could not be read (loc nil, or At's fallback) it says "UTC", so the fallback is never silent.
+func StampZone(t time.Time, loc *time.Location) string {
+	l := in(t, loc)
+	return l.Format(stampLayout) + " " + l.Format("MST")
+}
+
 // Clock is the time of day of instant t in loc: "04:11".
 func Clock(t time.Time, loc *time.Location) string { return in(t, loc).Format(clockLayout) }
+
+// ClockZone is Clock with the zone's abbreviation (see StampZone): "04:11 +07", "08:30 UTC".
+func ClockZone(t time.Time, loc *time.Location) string {
+	l := in(t, loc)
+	return l.Format(clockLayout) + " " + l.Format("MST")
+}
 
 // ISODay is the day of instant t in loc as the API sends a date: "2026-11-15".
 func ISODay(t time.Time, loc *time.Location) string { return in(t, loc).Format(time.DateOnly) }

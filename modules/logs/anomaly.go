@@ -769,7 +769,7 @@ func summaryEvent(src sourceRow, hour string, items []anomaly, det map[string]de
 		}
 	}
 	const why = "(possible brute force or scan)"
-	from := orgtime.Stamp(since, loc) // in the organization's zone, like every time in an alert
+	from := orgtime.StampZone(since, loc) // in the organization's zone, named: an alert is read away from the box
 	var title, target string
 	switch {
 	case spikes == 0:

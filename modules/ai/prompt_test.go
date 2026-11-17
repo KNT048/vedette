@@ -217,10 +217,11 @@ func TestPromptNamesTheOrganizationZone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(p.System, "Data times are UTC; write dates and times for the reader in Asia/Ho_Chi_Minh.") {
+	// ISO timestamps are UTC, but a sentence in the data (a correction note, an alert) is already in the zone: not converted twice
+	if !strings.Contains(p.System, "Times ending in Z are UTC; all other times, and yours, are in Asia/Ho_Chi_Minh.") {
 		t.Fatalf("system: %s", p.System)
 	}
-	if p, _ := (PromptBuilder{}).Build(PromptInput{Job: JobLogDigest, Question: "q"}); strings.Contains(p.System, "Data times") {
+	if p, _ := (PromptBuilder{}).Build(PromptInput{Job: JobLogDigest, Question: "q"}); strings.Contains(p.System, "ending in Z") {
 		t.Fatal("no zone: nothing said")
 	}
 }

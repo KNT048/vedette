@@ -10,6 +10,7 @@ let zone: string | undefined
  *  browser's own zone. */
 export function setDisplayTimeZone(z: string | null | undefined) {
   zone = undefined
+  formatters.clear()
   if (!z) return
   try {
     new Intl.DateTimeFormat(loc(), { timeZone: z })
@@ -22,12 +23,20 @@ export function setDisplayTimeZone(z: string | null | undefined) {
 export const displayTimeZone = () => zone
 
 const DAY = /^(\d{4})-(\d{2})-(\d{2})$/
-/** A calendar day is written in UTC from its own numbers; a moment in the organization's zone. The formatter is made per call, so
- *  it follows the zone set now. */
+// A formatter is costly to build and a table formats thousands of cells: one per zone and options, dropped when the zone changes.
+const formatters = new Map<string, Intl.DateTimeFormat>()
+function formatter(o: Intl.DateTimeFormatOptions) {
+  const key = JSON.stringify(o)
+  let f = formatters.get(key)
+  if (!f) formatters.set(key, (f = new Intl.DateTimeFormat(loc(), o)))
+  return f
+}
+const inZone = (o: Intl.DateTimeFormatOptions) => (zone ? { ...o, timeZone: zone } : o)
+/** A calendar day is written in UTC from its own numbers; a moment in the organization's zone (the browser's while none is set). */
 function write(iso: string, o: Intl.DateTimeFormatOptions) {
   const m = iso.match(DAY)
-  if (m) return new Intl.DateTimeFormat(loc(), { ...o, timeZone: 'UTC' }).format(new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))))
-  return new Intl.DateTimeFormat(loc(), zone ? { ...o, timeZone: zone } : o).format(new Date(iso))
+  if (m) return formatter({ ...o, timeZone: 'UTC' }).format(new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))))
+  return formatter(inZone(o)).format(new Date(iso))
 }
 const DATE: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }
 const CLOCK: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }
@@ -39,6 +48,11 @@ export function fmtDate(iso: string | null | undefined) {
 /** "12 Nov 2026, 20:51" */
 export function fmtDateTime(iso: string | null | undefined) {
   return iso ? write(iso, { ...DATE, ...CLOCK }) : '–'
+}
+/** "12 Nov 2026, 20:51 GMT+7": a moment with its zone named, for a page outside the signed-in app (an approval link), where the
+ *  organization's zone is not known and the reader's browser may be in another. */
+export function fmtDateTimeZone(iso: string | null | undefined) {
+  return iso ? write(iso, { ...DATE, ...CLOCK, timeZoneName: 'short' }) : '–'
 }
 /** The time of day only, "14:03" (with seconds, "14:03:09"), for something that happened minutes ago. */
 export function fmtTime(iso: string | null | undefined, seconds = false) {
@@ -55,7 +69,7 @@ export function fmtMonthYear(iso: string | null | undefined) {
 /** The organization's day of a moment, "2026-11-15" (a calendar day stays as it is). */
 export function dayOf(iso: string) {
   if (DAY.test(iso)) return iso
-  const parts = new Intl.DateTimeFormat(loc(), { year: 'numeric', month: '2-digit', day: '2-digit', ...(zone ? { timeZone: zone } : {}) }).formatToParts(new Date(iso))
+  const parts = formatter(inZone({ year: 'numeric', month: '2-digit', day: '2-digit' })).formatToParts(new Date(iso))
   const part = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? ''
   return `${part('year')}-${part('month')}-${part('day')}`
 }

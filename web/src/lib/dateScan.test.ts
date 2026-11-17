@@ -11,11 +11,15 @@ const own = new Set([
   'features/exposure/data.ts', // the GUI mock's scan data (mocks.ts reads it), never shown by the real box
   'features/exposure/contract.ts', // the example days of the API description
   'features/findings/accept.ts', // calendar arithmetic of the "Accept risk until" date input, on the person's own calendar
+  'features/core/logExport.ts', // the GUI mock of the log export, naming the file by the UTC day as the box does
 ])
+// Lines that cut a UTC day on purpose: a calendar day built from UTC numbers, or a cut-off compared with UTC calendar days.
+const allowed = [/Date\.UTC\(/, /yearAgo|365 \* 86_400_000/]
 const patterns: [string, RegExp][] = [
   ['Intl.DateTimeFormat', /Intl\.DateTimeFormat\(/],
   ['toLocale…String', /\.toLocale(Date|Time)?String\((?!'en-US'\))/],
   ['clock or day parts of a Date', /\.get(Hours|Minutes|Date)\(\)/],
+  ['UTC day of a moment', /toISOString\(\)\.slice\(0, ?10\)/],
 ]
 
 function files(dir: string): string[] {
@@ -35,7 +39,7 @@ describe('dates on screen', () => {
       readFileSync(f, 'utf8').split('\n').forEach((line, i) => {
         for (const [cause, re] of patterns) {
           // Listing the zone names (Settings › General) and checking one is valid are not dates on screen.
-          if (re.test(line) && !/supportedValuesOf|resolvedOptions|timeZone: z\b/.test(line)) (found[cause] ??= []).push(`${rel}:${i + 1}`)
+          if (re.test(line) && !/supportedValuesOf|resolvedOptions|timeZone: z\b/.test(line) && !allowed.some((x) => x.test(line))) (found[cause] ??= []).push(`${rel}:${i + 1}`)
         }
       })
     }

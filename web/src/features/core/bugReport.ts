@@ -1,6 +1,7 @@
 // Gói chẩn đoán báo lỗi (S-CORE-5). Hộp không gửi gì: người dùng tải tệp và tự mở GitHub issue trong trình duyệt của mình.
 import { getClientErrors, redact, type ClientError } from '@/lib/clientErrors'
 import type { ModuleState } from '@/lib/modules'
+import { dayOf } from '@/lib/format'
 
 export const ISSUE_URL = 'https://github.com/KNT048/vedette/issues/new'
 
@@ -44,7 +45,7 @@ export function downloadBundle(text: BugText, b: DiagnosticBundle) {
   const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
   const a = document.createElement('a')
   a.href = url
-  a.download = `vedette-report-${new Date().toISOString().slice(0, 10)}.json`
+  a.download = `vedette-report-${dayOf(new Date().toISOString())}.json` // today in the organization's zone
   document.body.append(a)
   a.click()
   a.remove()

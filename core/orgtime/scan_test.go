@@ -2,6 +2,7 @@ package orgtime
 
 import (
 	"bufio"
+	"bytes"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -54,12 +55,11 @@ func TestDisplayTimesGoThroughOrgTime(t *testing.T) {
 			if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 				return nil
 			}
-			f, err := os.Open(path)
+			b, err := os.ReadFile(path) //nolint:gosec // walks the repository's own source tree in a test
 			if err != nil {
 				return err
 			}
-			defer f.Close()
-			sc := bufio.NewScanner(f)
+			sc := bufio.NewScanner(bytes.NewReader(b))
 			sc.Buffer(make([]byte, 0, 1<<20), 1<<22)
 			for n := 1; sc.Scan(); n++ {
 				line := sc.Text()

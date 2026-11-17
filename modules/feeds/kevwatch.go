@@ -155,9 +155,10 @@ func quietOff(err error) error {
 	return fmt.Errorf("feeds: send the alert about the CISA list: %w", err)
 }
 
-// stamp is a time in an alert, in the organization's time zone like every time Vedette writes (orgtime).
+// stamp is a time in an alert, in the organization's time zone like every time Vedette writes (orgtime), with the zone named: an
+// alert is read away from the box's own screen.
 func (s *Service) stamp(ctx context.Context, t time.Time) string {
-	return orgtime.Stamp(t, orgtime.At(ctx, s.Zone))
+	return orgtime.StampZone(t, orgtime.At(ctx, s.Zone))
 }
 
 // kevStaleTitle is the title of the alert.

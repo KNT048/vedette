@@ -14,7 +14,7 @@ import { EmptyState, ErrorState } from '@/components/common/States'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { Chip, StatusChip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
-import { fmtDateTime, fmtDayMonth, fmtRelative } from '@/lib/format'
+import { dayOf as orgDay, fmtDateTime, fmtDayMonth, fmtRelative } from '@/lib/format'
 import { api, ApiError } from '@/lib/api'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
@@ -40,7 +40,10 @@ function Tiles({ s, noClaim }: { s: HomeSummary; noClaim: boolean }) {
   const first = trend[0]!, last = trend[trend.length - 1]!
   const delta = last - first
   const days = trend.length
-  const dayOf = (i: number) => (i === days - 1 ? t('dash.now') : fmtDayMonth(new Date(Date.parse(s.generated_at) - (days - 1 - i) * 864e5).toISOString()))
+  // The server counts the organization's days: step calendar days back from its day of generated_at (24 h steps miss a day at a
+  // daylight-saving change).
+  const [y, m, d] = orgDay(s.generated_at).split('-').map(Number) as [number, number, number]
+  const dayOf = (i: number) => (i === days - 1 ? t('dash.now') : fmtDayMonth(new Date(Date.UTC(y, m - 1, d - (days - 1 - i))).toISOString().slice(0, 10)))
   const suspected = open.total - open.confirmed
   const notify = !!s.alerts && !!s.incidents
   const link = 'text-accent underline-offset-4 hover:underline'

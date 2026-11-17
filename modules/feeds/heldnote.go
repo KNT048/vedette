@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // The Feeds page shows each feed's count with the note of its last pull. For most feeds the count says itself (entries of a list,
@@ -163,7 +165,7 @@ func heldWinRel(ctx context.Context, tx *sql.Tx) (string, error) {
 	}
 	t := fmt.Sprintf("%s %s on Microsoft's release information pages", grouped(rels), what)
 	if d, err := time.Parse(time.DateOnly, newest.String); err == nil && ups > 0 {
-		t += fmt.Sprintf(", with %s monthly updates, the newest of %s", grouped(ups), d.Format("2 Jan 2006"))
+		t += fmt.Sprintf(", with %s monthly updates, the newest of %s", grouped(ups), orgtime.CalendarDay(d))
 	}
 	return t + ".", nil
 }

@@ -24,6 +24,10 @@ func TestInstantsAreWrittenInTheZoneCalendarDaysAsStored(t *testing.T) {
 		{ISODay(at, hcm), "2026-11-15"},
 		{Day(at, nil), "14 Nov 2026"}, // no zone known: UTC
 		{Stamp(at, ny), "14 Nov 2026, 16:11"},
+		{StampZone(at, hcm), "15 Nov 2026, 04:11 +07"},
+		{StampZone(at, ny), "14 Nov 2026, 16:11 EST"},
+		{StampZone(at, nil), "14 Nov 2026, 21:11 UTC"}, // the zone could not be read: said so
+		{ClockZone(at, time.UTC), "21:11 UTC"},
 	} {
 		if c.got != c.want {
 			t.Errorf("got %q, want %q", c.got, c.want)

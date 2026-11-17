@@ -956,9 +956,10 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 	if err != nil {
 		return updatesStateView{}, err
 	}
-	loc, err := h.location(ctx) // the day an advisory was published, in the organization's zone (orgtime)
+	loc, err := h.location(ctx) // the day an advisory was published, in the organization's zone (orgtime); a date never blocks the page
 	if err != nil {
-		return updatesStateView{}, err
+		h.log.WarnContext(ctx, "core: reading the organization time zone failed; advisory days use UTC", "error", err)
+		loc = time.UTC
 	}
 	r, err := h.releaseNow(ctx)
 	if err != nil {

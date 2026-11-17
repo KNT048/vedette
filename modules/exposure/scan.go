@@ -674,19 +674,27 @@ func cutOff(snap *Snapshot, at *string, stop *GreenboneStop) {
 	snap.NotChecked = gbCutOffWith(snap.NotChecked, gbStoppedLine(stop, false))
 }
 
-// gbCutOff replaces the waiting line of an OpenVAS step nothing runs any more (also the older one with a time) with the line
-// that says it was stopped, so the page never says "scanning" under a "stopped" heading.
-func gbCutOff(rows []NotCheckedRow) []NotCheckedRow { return gbCutOffWith(rows, notGBCutOff) }
-
-// gbCutOffWith is gbCutOff with the line that replaces the waiting one.
+// gbCutOffWith replaces the waiting line of an OpenVAS step nothing runs any more (also the older one with a time), and the line an
+// older start-up stored in its place (notGBCutOff, after a domain address's prefix), with line, the one that says why it stopped, so
+// the page never says "scanning" under a "stopped" heading.
 func gbCutOffWith(rows []NotCheckedRow, line string) []NotCheckedRow {
 	out := slices.Clone(rows)
 	for i, n := range out {
-		if n.Kind == "greenbone" && (n.Text == gbPending || strings.HasPrefix(n.Text, "OpenVAS started at ")) {
+		switch {
+		case n.Kind != "greenbone":
+		case n.Text == gbPending || strings.HasPrefix(n.Text, "OpenVAS started at "):
 			out[i].Text = line
+		case strings.HasSuffix(n.Text, notGBCutOff):
+			out[i].Text = strings.TrimSuffix(n.Text, notGBCutOff) + line
 		}
 	}
 	return out
+}
+
+// cutLine says text is a line of an OpenVAS step that no running Vedette ended: the waiting line (also the older one with a time) or
+// the line an older start-up stored in its place.
+func cutLine(text string) bool {
+	return text == gbPending || strings.HasPrefix(text, "OpenVAS started at ") || strings.HasSuffix(text, notGBCutOff)
 }
 
 // Diff compares two scan days of a target: what appeared, what is gone, what changed (the expiry of a

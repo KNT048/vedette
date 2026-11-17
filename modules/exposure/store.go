@@ -426,8 +426,8 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 	s.AdminPanels = applianceAdmins(s.AdminPanels, s.Ports, s.Services)
 	s.Counts.AdminPanels += len(s.AdminPanels) - listed
 	s.GreenboneRun = storedGreenboneRun(s.GreenboneRun, s.Content)
-	if s.GreenboneRun.State == GBRunStopped {
-		s.NotChecked = gbCutOff(s.NotChecked)
+	if s.GreenboneRun.State == GBRunStopped { // the waiting line, or the cut line of an older version, says why it stopped
+		s.NotChecked = gbCutOffWith(s.NotChecked, gbStoppedLine(s.GreenboneRun.Stop, false))
 	}
 	return s, true, nil
 }
@@ -436,7 +436,30 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 // time, or an address that is not one is not believed. A snapshot older than the column ('{}') gets the state its lines say (a
 // domain's lines carry the address in front): a check row is done; the old waiting line or the stop line is stopped (nothing
 // runs it any more); a failure line is failed; else it did not run.
+// A stopped step stored before stop reasons were kept gets the one its line proves (oldStop).
 func storedGreenboneRun(r GreenboneRun, c Content) GreenboneRun {
+	r = storedGreenboneState(r, c)
+	if r.State == GBRunStopped && r.Stop == nil {
+		r.Stop = oldStop(c.NotChecked)
+	}
+	return r
+}
+
+// oldStop is the reason of a stopped OpenVAS step stored before the reason was kept, when its line proves one; nil otherwise.
+// Older versions stored two lines for five causes. The waiting line (gbPending, or the older "OpenVAS started at …") or the line
+// start-up put in its place (notGBCutOff) means no running Vedette ended the step: it stopped or crashed while OpenVAS ran and found the
+// step still running when it started again, which is StopRestart (a shutdown that outlasted its wait included). notGBStopped and
+// notGBStoppedSome were written by a running Vedette for a Stop, a shutdown, the module switched off and the terms withdrawn alike,
+// so they prove none of them: nil, and the page says the reason was not recorded.
+func oldStop(rows []NotCheckedRow) *GreenboneStop {
+	if slices.ContainsFunc(rows, func(n NotCheckedRow) bool { return n.Kind == "greenbone" && cutLine(n.Text) }) {
+		return &GreenboneStop{Reason: StopRestart}
+	}
+	return nil
+}
+
+// storedGreenboneState is storedGreenboneRun without the reason of an older stop.
+func storedGreenboneState(r GreenboneRun, c Content) GreenboneRun {
 	r.StartedAt, r.EndedAt = storedTS(r.StartedAt), storedTS(r.EndedAt)
 	if r.Stop != nil && (r.State != GBRunStopped || !slices.Contains(stopReasons, r.Stop.Reason)) {
 		r.Stop = nil

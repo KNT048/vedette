@@ -94,7 +94,7 @@ function outsideView(id: string): OutsideView | null {
   if (!o) return null
   const last = (snapshots.get()[id] ?? []).slice().sort((a, b) => b.date.localeCompare(a.date))[0]
   const scan_ports = last ? [...new Set(last.ports.filter((p) => p.ip === o.ip).map((p) => p.port))].sort((a, b) => a - b) : null
-  return { ...o, scan_ports, scan_at: last?.scanned_at ?? null }
+  return { ...o, scan_ports, scan_at: last ? last.started_at ?? last.scanned_at : null } // a scan is named by its start
 }
 
 const MAX_TARGETS = 20

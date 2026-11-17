@@ -1130,6 +1130,9 @@ type swInfo struct {
 	// platformOS), "" otherwise.
 	banner     string
 	platformOS string
+	// personPkg: the package release a person gave on the row (a manual row's Software.PkgVersion: inventory's correction), "" otherwise;
+	// evidence of its platform (D-604, review r2 M-2 of #961).
+	personPkg string
 }
 
 func newSWInfo(s Software, osName string) swInfo {
@@ -1147,6 +1150,9 @@ func newSWInfo(s Software, osName string) swInfo {
 	}
 	in.given = versionGiven(in.ver)
 	in.banner = s.Banner
+	if s.Source == "manual" {
+		in.personPkg = strings.TrimSpace(s.PkgVersion)
+	}
 	in.packaged = s.Packaged && s.builtBy() == "agent"
 	if in.packaged {
 		in.pkgVer, in.pkgSrc = s.PkgVersion, s.PkgSource

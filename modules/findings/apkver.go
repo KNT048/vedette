@@ -10,3 +10,6 @@ func parseAPK(s string) (apkVer, bool) { return apkver.Parse(s) }
 func compareAPK(a, b apkVer) int { return apkver.Compare(a, b) }
 
 func apkUpstream(s string) string { return apkver.Upstream(s) }
+
+// upstreamOrder orders two releases by their upstream version only (the -rN revision left out).
+func upstreamOrder(a, b apkVer) int { return apkver.CompareUpstream(a, b) }

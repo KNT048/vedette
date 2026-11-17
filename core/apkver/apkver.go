@@ -85,6 +85,12 @@ func Compare(a, b Version) int {
 	return cmp.Compare(a.rev, b.rev)
 }
 
+// CompareUpstream orders two releases by their upstream version only (the -rN revision left out).
+func CompareUpstream(a, b Version) int {
+	a.rev, b.rev = 0, 0
+	return Compare(a, b)
+}
+
 // Upstream is the release without its revision ("10.2_p1" of "10.2_p1-r1").
 func Upstream(s string) string {
 	if i := strings.LastIndex(s, "-r"); i > 0 {

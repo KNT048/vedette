@@ -153,7 +153,11 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	s.setPhase(run, PhaseProbing)
 	run.prog.Report(progress.Phase(progress.PhasePorts, "")) // #830: the jobs below report their own phases as they run
 	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode}
-	if t.proofDomain != "" {
+	switch {
+	case t.proofDomain == "":
+	case t.proofOwn && t.proofDomain != t.Value: // D-632: the target's own record on a parent name: checked there, for the target (review r1 M2 of #960)
+		st.Proof = &ProofOwner{Domain: t.Value, Token: t.proofToken, ProofAt: t.proofDomain}
+	default:
 		st.Proof = &ProofOwner{Domain: t.proofDomain, Token: t.proofToken}
 	}
 	content, err := r.Scan(ctx, st)

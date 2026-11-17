@@ -162,12 +162,26 @@ func TestOpenVASStopsWhenTheHostsFenceSaysNoMidRun(t *testing.T) {
 			t.Fatal("the task never started")
 		}
 	}
-	e.advance(gbFenceRecheck)
+	// #958: gbWait takes its baseline (checked := s.clock()) only after start_task, so one advance may land before it and never
+	// reach a recheck. Advance by a recheck period until the run ends, a bounded number of times (20 × 3 min stays under
+	// GreenboneTimeout, so only the fence can end the run) and within a real-time cap.
 	var r res
-	select {
-	case r = <-done:
-	case <-time.After(30 * time.Second):
-		t.Fatal("the task was not stopped")
+	step := time.NewTicker(20 * time.Millisecond)
+	defer step.Stop()
+	deadline := time.After(30 * time.Second)
+	for advances := 0; ; {
+		select {
+		case r = <-done:
+		case <-step.C:
+			if advances < 20 {
+				e.advance(gbFenceRecheck)
+				advances++
+			}
+			continue
+		case <-deadline:
+			t.Fatal("the task was not stopped")
+		}
+		break
 	}
 	// D-595 review M3: the fence ended a scan that ran: its own end (state "ended"), its rows discarded, the task stopped
 	if r.err != nil || r.r.end != gbEndFenced || len(r.r.rows) != 0 || fg.calls != 1 || fg.last != (FenceCheck{Disruptive: true, Recheck: true}) || !h.gvm.seen("stop_task") {

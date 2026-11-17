@@ -64,6 +64,10 @@ type Check struct {
 	At      string `json:"at"`
 	OK      bool   `json:"ok"`
 	Message string `json:"message"`
+	// Covers (stored with the check by checkDoc, never in the API) says the check found this domain target's own record on its own
+	// name or its _vedette-verify name, which covers the names under it (D-628). A record of its own token on a parent name (D-632)
+	// proves it only, so covered_by never names it (review r1 M1 of #960).
+	Covers bool `json:"-"`
 }
 
 // Commitment is who ticked "my company owns it and I am authorized to scan it", and when (D-26).
@@ -108,6 +112,9 @@ type Target struct {
 	// proofDomain and proofToken are, after the scan gate, the domain target whose record proved this one now (itself, or a parent
 	// of the box that covers it) and its token: the domain and token the executors' fence checks (D-628). Never stored.
 	proofDomain, proofToken string
+	// proofOwn: the record is this target's own token (on its name, or on a parent name down to its registered domain, D-632); false:
+	// a parent target's record that covers it (D-628).
+	proofOwn bool
 }
 
 // TargetView is the API shape of a target (contract.ts Target), with the derived fields filled in.

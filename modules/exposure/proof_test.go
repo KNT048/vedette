@@ -144,7 +144,9 @@ func TestProof_D628_ParentCoversChild(t *testing.T) {
 	if r := e.verify(parent.ID); !r.Verified || r.Message != "Found the TXT record vedette-verify="+parent.Token+" on beyondnetglobal.com." {
 		t.Fatalf("parent: %+v", r)
 	}
-	for id, by := range map[string]string{child.ID: "beyondnetglobal.com", deep.ID: "git.beyondnetglobal.com"} { // the nearest verified one
+	// review r1 M1 of #960: only a domain whose own record is on its own name covers the names under it: git is verified by its parent's
+	// record, so it covers nothing, and a.b.git is covered by beyondnetglobal.com
+	for id, by := range map[string]string{child.ID: "beyondnetglobal.com", deep.ID: "beyondnetglobal.com"} {
 		v := e.target(id)
 		if v.Status != "verified" || v.LastCheck == nil || !v.LastCheck.OK || !strings.Contains(v.LastCheck.Message, "Covered by the TXT record on beyondnetglobal.com") {
 			t.Fatalf("a target added before its parent was verified is covered when it is: %+v %+v", v, v.LastCheck)
@@ -181,10 +183,9 @@ func TestProof_D628_ParentCoversChild(t *testing.T) {
 	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", child.ID); ok || why != BlockedTxtMissing {
 		t.Fatalf("parent target removed: %v %v", ok, why)
 	}
-	// the child's own token on a parent name is not the parent's record: one rule with the executors' fence, which checks a domain's
-	// own token on that domain
+	// D-632 (reverses D-628's "only the target at that name"): the child's own token on a parent name proves the child
 	e.dns.put("beyondnetglobal.com", txtRecord(child.Token))
-	if r := e.verify(child.ID); r.Verified {
+	if r := e.verify(child.ID); !r.Verified || !strings.Contains(r.Message, "this target's own record on a parent name") {
 		t.Fatalf("the child's token on its parent: %+v", r)
 	}
 }
@@ -263,7 +264,7 @@ func TestProof_D628_VerifyLabelUnderACNAME(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
 	v := e.add("admin@acme.example", "git.beyondnetglobal.com")
-	if p := v.Proof; p == nil || p.Zone != "beyondnetglobal.com" || p.Host != "git" || p.AltHost == nil || *p.AltHost != "_vedette-verify.git" || p.CoveredBy != nil {
+	if p := v.Proof; p == nil || p.Zone != "beyondnetglobal.com" || p.Host != "@" || p.AltHost == nil || *p.AltHost != "_vedette-verify.git" || p.CoveredBy != nil {
 		t.Fatalf("hint %+v", p)
 	}
 	e.dns.put("beyondhcm.ddns.net", txtRecord(v.Token)) // answered through git's CNAME: the ddns.net name's record, not git's
@@ -326,9 +327,10 @@ func TestProof_D628_TheErrorSaysWhatWasAskedAndWhatCameBack(t *testing.T) {
 	git := e.add("admin@acme.example", "git.beyondnetglobal.com")
 	r := e.verify(git.ID)
 	for _, want := range []string{
-		"No TXT record vedette-verify=" + git.Token + " was found. Vedette asked git.beyondnetglobal.com, _vedette-verify.git.beyondnetglobal.com.",
-		"git.beyondnetglobal.com: a CNAME to beyondhcm.ddns.net, so a TXT record cannot sit on this name: put it on _vedette-verify.git.beyondnetglobal.com instead, or verify a parent domain.",
+		"No TXT record vedette-verify=" + git.Token + " was found. Vedette asked git.beyondnetglobal.com, _vedette-verify.git.beyondnetglobal.com, beyondnetglobal.com, _vedette-verify.beyondnetglobal.com.",
+		"git.beyondnetglobal.com: a CNAME to beyondhcm.ddns.net, so a TXT record cannot sit on this name: put it on @ of the zone (the registered domain) or on _vedette-verify.git.beyondnetglobal.com instead.",
 		"_vedette-verify.git.beyondnetglobal.com: no TXT record.",
+		"beyondnetglobal.com: no TXT record.",
 		"No domain of this box above it covers it.",
 	} {
 		if r.Verified || !strings.Contains(r.Message, want) {
@@ -336,7 +338,7 @@ func TestProof_D628_TheErrorSaysWhatWasAskedAndWhatCameBack(t *testing.T) {
 		}
 	}
 	e.add("admin@acme.example", "beyondnetglobal.com")
-	if r := e.verify(git.ID); !strings.Contains(r.Message, "The box's beyondnetglobal.com, which would cover it, has no record of its own now either.") {
+	if r := e.verify(git.ID); !strings.Contains(r.Message, "The box's beyondnetglobal.com would cover it only with its own record on that name itself (or _vedette-verify before it); there is none there now.") {
 		t.Fatalf("parent named: %q", r.Message)
 	}
 	nx := e.add("admin@acme.example", "nope.beyondnetglobal.com")

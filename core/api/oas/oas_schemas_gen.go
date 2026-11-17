@@ -57797,8 +57797,9 @@ func (s *FeedsGetFeedsSourcesOK) SetItems(val []FeedsGetFeedsSourcesOKItemsItem)
 }
 
 type FeedsGetFeedsSourcesOKItemsItem struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                           `json:"answered_by"`
 	Auth       FeedsGetFeedsSourcesOKItemsItemAuth `json:"auth"`
 	Builtin    bool                                `json:"builtin"`
@@ -58554,9 +58555,16 @@ func (s *FeedsGetFeedsStatusOK) SetSources(val []FeedsGetFeedsStatusOKSourcesIte
 }
 
 type FeedsGetFeedsStatusOKKev struct {
+	// Newest from: the copy the catalog on the box came from, "CISA" (cisa.gov) or "CISA GitHub mirror"
+	// (D-91 as amended, kien G13: both are asked every check and the newer catalog is kept); null before
+	// the first good pull.
+	AnsweredBy NilString `json:"answered_by"`
 	// When the box last asked for the CISA list, whether the pull worked or not; null before the first
 	// pull.
 	CheckedAt NilDateTime `json:"checked_at"`
+	// What each copy of the CISA list said at its last check (D-91 as amended); empty for a list at an
+	// admin's own address or before the first check.
+	Copies []FeedsGetFeedsStatusOKKevCopiesItem `json:"copies"`
 	// One line, cleaned: why the last pull failed (also when an earlier pull had loaded the list); null
 	// when the last pull worked, has not been tried, or the list is off.
 	Error NilString `json:"error"`
@@ -58569,9 +58577,19 @@ type FeedsGetFeedsStatusOKKev struct {
 	State FeedsGetFeedsStatusOKKevState `json:"state"`
 }
 
+// GetAnsweredBy returns the value of AnsweredBy.
+func (s *FeedsGetFeedsStatusOKKev) GetAnsweredBy() NilString {
+	return s.AnsweredBy
+}
+
 // GetCheckedAt returns the value of CheckedAt.
 func (s *FeedsGetFeedsStatusOKKev) GetCheckedAt() NilDateTime {
 	return s.CheckedAt
+}
+
+// GetCopies returns the value of Copies.
+func (s *FeedsGetFeedsStatusOKKev) GetCopies() []FeedsGetFeedsStatusOKKevCopiesItem {
+	return s.Copies
 }
 
 // GetError returns the value of Error.
@@ -58594,9 +58612,19 @@ func (s *FeedsGetFeedsStatusOKKev) GetState() FeedsGetFeedsStatusOKKevState {
 	return s.State
 }
 
+// SetAnsweredBy sets the value of AnsweredBy.
+func (s *FeedsGetFeedsStatusOKKev) SetAnsweredBy(val NilString) {
+	s.AnsweredBy = val
+}
+
 // SetCheckedAt sets the value of CheckedAt.
 func (s *FeedsGetFeedsStatusOKKev) SetCheckedAt(val NilDateTime) {
 	s.CheckedAt = val
+}
+
+// SetCopies sets the value of Copies.
+func (s *FeedsGetFeedsStatusOKKev) SetCopies(val []FeedsGetFeedsStatusOKKevCopiesItem) {
+	s.Copies = val
 }
 
 // SetError sets the value of Error.
@@ -58617,6 +58645,109 @@ func (s *FeedsGetFeedsStatusOKKev) SetLastSuccess(val NilDateTime) {
 // SetState sets the value of State.
 func (s *FeedsGetFeedsStatusOKKev) SetState(val FeedsGetFeedsStatusOKKevState) {
 	s.State = val
+}
+
+type FeedsGetFeedsStatusOKKevCopiesItem struct {
+	// The catalogVersion this copy last gave; null when not known yet.
+	CatalogVersion NilString `json:"catalog_version"`
+	// When the box last asked this copy.
+	CheckedAt time.Time `json:"checked_at"`
+	// Why the last ask failed, one clause naming the copy ("cisa.gov refused this box (HTTP 403)"); null
+	// when it answered.
+	Error NilString                              `json:"error"`
+	Name  FeedsGetFeedsStatusOKKevCopiesItemName `json:"name"`
+	URL   url.URL                                `json:"url"`
+}
+
+// GetCatalogVersion returns the value of CatalogVersion.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetCatalogVersion() NilString {
+	return s.CatalogVersion
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetError returns the value of Error.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetError() NilString {
+	return s.Error
+}
+
+// GetName returns the value of Name.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetName() FeedsGetFeedsStatusOKKevCopiesItemName {
+	return s.Name
+}
+
+// GetURL returns the value of URL.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetURL() url.URL {
+	return s.URL
+}
+
+// SetCatalogVersion sets the value of CatalogVersion.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetCatalogVersion(val NilString) {
+	s.CatalogVersion = val
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetName sets the value of Name.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetName(val FeedsGetFeedsStatusOKKevCopiesItemName) {
+	s.Name = val
+}
+
+// SetURL sets the value of URL.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetURL(val url.URL) {
+	s.URL = val
+}
+
+type FeedsGetFeedsStatusOKKevCopiesItemName string
+
+const (
+	FeedsGetFeedsStatusOKKevCopiesItemNameCISA             FeedsGetFeedsStatusOKKevCopiesItemName = "CISA"
+	FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror FeedsGetFeedsStatusOKKevCopiesItemName = "CISA GitHub mirror"
+)
+
+// AllValues returns all FeedsGetFeedsStatusOKKevCopiesItemName values.
+func (FeedsGetFeedsStatusOKKevCopiesItemName) AllValues() []FeedsGetFeedsStatusOKKevCopiesItemName {
+	return []FeedsGetFeedsStatusOKKevCopiesItemName{
+		FeedsGetFeedsStatusOKKevCopiesItemNameCISA,
+		FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsStatusOKKevCopiesItemName) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISA:
+		return []byte(s), nil
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsStatusOKKevCopiesItemName) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsStatusOKKevCopiesItemName(data) {
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISA:
+		*s = FeedsGetFeedsStatusOKKevCopiesItemNameCISA
+		return nil
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror:
+		*s = FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded"
@@ -58673,7 +58804,8 @@ type FeedsGetFeedsStatusOKSourcesItem struct {
 	FetchedAt time.Time `json:"fetched_at"`
 	License   string    `json:"license"`
 	Name      string    `json:"name"`
-	URL       url.URL   `json:"url"`
+	// The address the data came from: for the CISA list, the copy the newest catalog came from (kien G13).
+	URL url.URL `json:"url"`
 }
 
 // GetFetchedAt returns the value of FetchedAt.
@@ -58841,8 +58973,9 @@ func (s *FeedsGetFeedsWeeklyOKItemsItemAnswer) UnmarshalText(data []byte) error 
 }
 
 type FeedsPostFeedsCustomCreated struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                       `json:"answered_by"`
 	Auth       FeedsPostFeedsCustomCreatedAuth `json:"auth"`
 	Builtin    bool                            `json:"builtin"`
@@ -60608,8 +60741,9 @@ func (s *FeedsPostFeedsParseTestReqParserFormat) UnmarshalText(data []byte) erro
 }
 
 type FeedsPostFeedsSourcesIDFetchOK struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                          `json:"answered_by"`
 	Auth       FeedsPostFeedsSourcesIDFetchOKAuth `json:"auth"`
 	Builtin    bool                               `json:"builtin"`
@@ -61486,8 +61620,9 @@ func (s *FeedsPostFeedsWeeklyIDReqAnswer) UnmarshalText(data []byte) error {
 }
 
 type FeedsPutFeedsCustomIDOK struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                   `json:"answered_by"`
 	Auth       FeedsPutFeedsCustomIDOKAuth `json:"auth"`
 	Builtin    bool                        `json:"builtin"`
@@ -62660,8 +62795,9 @@ func (s *FeedsPutFeedsCustomIDReqParserFormat) UnmarshalText(data []byte) error 
 }
 
 type FeedsPutFeedsSourcesIDOK struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                    `json:"answered_by"`
 	Auth       FeedsPutFeedsSourcesIDOKAuth `json:"auth"`
 	Builtin    bool                         `json:"builtin"`
@@ -63434,7 +63570,7 @@ type FindingsGetFindingsIDOK struct {
 	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
 	// NVD gives none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsGetFindingsIDOKFixedIn `json:"fixed_in"`
-	// Null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off.
+	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
 	Hardening NilFindingsGetFindingsIDOKHardening  `json:"hardening"`
 	History   []FindingsGetFindingsIDOKHistoryItem `json:"history"`
 	ID        string                               `json:"id"`
@@ -66000,45 +66136,16 @@ func (s *FindingsGetFindingsIDOKFixedInKind) UnmarshalText(data []byte) error {
 	}
 }
 
-// M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE
-// (D-21): never shown as "Vedette confirmed", never run by Vedette.
+// Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
+// CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
+// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
 type FindingsGetFindingsIDOKHardening struct {
-	// The example admin network the page starts with; the configs hold {ADMIN_NET}.
-	AdminExample string `json:"admin_example"`
-	// The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when
-	// unknown.
-	Box []string `json:"box"`
-	// General "Have I been hit?" checks for the software family; null when the confirmed pack has its own.
+	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsGetFindingsIDOKHardeningChecks `json:"checks"`
 	// The family the checks are written for ("Linux", "Network device", "General").
 	Family string `json:"family"`
-	// Empty when the confirmed pack has its own firewall guides.
-	Firewall []FindingsGetFindingsIDOKHardeningFirewallItem `json:"firewall"`
-	// Empty when ports_from is all.
-	Ports []FindingsGetFindingsIDOKHardeningPortsItem `json:"ports"`
-	// Seen = ports inventory saw open on the device for this software; usual = the usual admin ports of
-	// the firewall itself; all = none known, the configs block every new inbound connection except from
-	// the admin network.
-	PortsFrom FindingsGetFindingsIDOKHardeningPortsFrom `json:"ports_from"`
-	// The device is itself the firewall: its own guide protects its admin access.
-	Self bool `json:"self"`
 	// The software the checks are for, as the page names it.
 	Software string `json:"software"`
-	// The device address in the configs; "" when the device has no usable IP (INV-4).
-	Target string `json:"target"`
-	// The address the box sees for the browser asking; empty when unknown. The page warns when it is
-	// outside the admin network typed.
-	Viewer string `json:"viewer"`
-}
-
-// GetAdminExample returns the value of AdminExample.
-func (s *FindingsGetFindingsIDOKHardening) GetAdminExample() string {
-	return s.AdminExample
-}
-
-// GetBox returns the value of Box.
-func (s *FindingsGetFindingsIDOKHardening) GetBox() []string {
-	return s.Box
 }
 
 // GetChecks returns the value of Checks.
@@ -66051,49 +66158,9 @@ func (s *FindingsGetFindingsIDOKHardening) GetFamily() string {
 	return s.Family
 }
 
-// GetFirewall returns the value of Firewall.
-func (s *FindingsGetFindingsIDOKHardening) GetFirewall() []FindingsGetFindingsIDOKHardeningFirewallItem {
-	return s.Firewall
-}
-
-// GetPorts returns the value of Ports.
-func (s *FindingsGetFindingsIDOKHardening) GetPorts() []FindingsGetFindingsIDOKHardeningPortsItem {
-	return s.Ports
-}
-
-// GetPortsFrom returns the value of PortsFrom.
-func (s *FindingsGetFindingsIDOKHardening) GetPortsFrom() FindingsGetFindingsIDOKHardeningPortsFrom {
-	return s.PortsFrom
-}
-
-// GetSelf returns the value of Self.
-func (s *FindingsGetFindingsIDOKHardening) GetSelf() bool {
-	return s.Self
-}
-
 // GetSoftware returns the value of Software.
 func (s *FindingsGetFindingsIDOKHardening) GetSoftware() string {
 	return s.Software
-}
-
-// GetTarget returns the value of Target.
-func (s *FindingsGetFindingsIDOKHardening) GetTarget() string {
-	return s.Target
-}
-
-// GetViewer returns the value of Viewer.
-func (s *FindingsGetFindingsIDOKHardening) GetViewer() string {
-	return s.Viewer
-}
-
-// SetAdminExample sets the value of AdminExample.
-func (s *FindingsGetFindingsIDOKHardening) SetAdminExample(val string) {
-	s.AdminExample = val
-}
-
-// SetBox sets the value of Box.
-func (s *FindingsGetFindingsIDOKHardening) SetBox(val []string) {
-	s.Box = val
 }
 
 // SetChecks sets the value of Checks.
@@ -66106,39 +66173,9 @@ func (s *FindingsGetFindingsIDOKHardening) SetFamily(val string) {
 	s.Family = val
 }
 
-// SetFirewall sets the value of Firewall.
-func (s *FindingsGetFindingsIDOKHardening) SetFirewall(val []FindingsGetFindingsIDOKHardeningFirewallItem) {
-	s.Firewall = val
-}
-
-// SetPorts sets the value of Ports.
-func (s *FindingsGetFindingsIDOKHardening) SetPorts(val []FindingsGetFindingsIDOKHardeningPortsItem) {
-	s.Ports = val
-}
-
-// SetPortsFrom sets the value of PortsFrom.
-func (s *FindingsGetFindingsIDOKHardening) SetPortsFrom(val FindingsGetFindingsIDOKHardeningPortsFrom) {
-	s.PortsFrom = val
-}
-
-// SetSelf sets the value of Self.
-func (s *FindingsGetFindingsIDOKHardening) SetSelf(val bool) {
-	s.Self = val
-}
-
 // SetSoftware sets the value of Software.
 func (s *FindingsGetFindingsIDOKHardening) SetSoftware(val string) {
 	s.Software = val
-}
-
-// SetTarget sets the value of Target.
-func (s *FindingsGetFindingsIDOKHardening) SetTarget(val string) {
-	s.Target = val
-}
-
-// SetViewer sets the value of Viewer.
-func (s *FindingsGetFindingsIDOKHardening) SetViewer(val string) {
-	s.Viewer = val
 }
 
 type FindingsGetFindingsIDOKHardeningChecks struct {
@@ -66298,570 +66335,6 @@ func (s *FindingsGetFindingsIDOKHardeningChecksIndicatorsItemKind) UnmarshalText
 		return nil
 	case FindingsGetFindingsIDOKHardeningChecksIndicatorsItemKindProcess:
 		*s = FindingsGetFindingsIDOKHardeningChecksIndicatorsItemKindProcess
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsGetFindingsIDOKHardeningFirewallItem struct {
-	Alternative OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative `json:"alternative"`
-	// The user declared a device of this vendor in the inventory.
-	Detected bool                                                     `json:"detected"`
-	Intro    string                                                   `json:"intro"`
-	Label    string                                                   `json:"label"`
-	Plain    []string                                                 `json:"plain"`
-	Steps    []FindingsGetFindingsIDOKHardeningFirewallItemStepsItem  `json:"steps"`
-	Undo     []FindingsGetFindingsIDOKHardeningFirewallItemUndoItem   `json:"undo"`
-	Vendor   FindingsGetFindingsIDOKHardeningFirewallItemVendor       `json:"vendor"`
-	Verify   []FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem `json:"verify"`
-}
-
-// GetAlternative returns the value of Alternative.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) GetAlternative() OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative {
-	return s.Alternative
-}
-
-// GetDetected returns the value of Detected.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) GetDetected() bool {
-	return s.Detected
-}
-
-// GetIntro returns the value of Intro.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) GetIntro() string {
-	return s.Intro
-}
-
-// GetLabel returns the value of Label.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) GetLabel() string {
-	return s.Label
-}
-
-// GetPlain returns the value of Plain.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) GetPlain() []string {
-	return s.Plain
-}
-
-// GetSteps returns the value of Steps.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) GetSteps() []FindingsGetFindingsIDOKHardeningFirewallItemStepsItem {
-	return s.Steps
-}
-
-// GetUndo returns the value of Undo.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) GetUndo() []FindingsGetFindingsIDOKHardeningFirewallItemUndoItem {
-	return s.Undo
-}
-
-// GetVendor returns the value of Vendor.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) GetVendor() FindingsGetFindingsIDOKHardeningFirewallItemVendor {
-	return s.Vendor
-}
-
-// GetVerify returns the value of Verify.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) GetVerify() []FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem {
-	return s.Verify
-}
-
-// SetAlternative sets the value of Alternative.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) SetAlternative(val OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative) {
-	s.Alternative = val
-}
-
-// SetDetected sets the value of Detected.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) SetDetected(val bool) {
-	s.Detected = val
-}
-
-// SetIntro sets the value of Intro.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) SetIntro(val string) {
-	s.Intro = val
-}
-
-// SetLabel sets the value of Label.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) SetLabel(val string) {
-	s.Label = val
-}
-
-// SetPlain sets the value of Plain.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) SetPlain(val []string) {
-	s.Plain = val
-}
-
-// SetSteps sets the value of Steps.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) SetSteps(val []FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) {
-	s.Steps = val
-}
-
-// SetUndo sets the value of Undo.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) SetUndo(val []FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) {
-	s.Undo = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) SetVendor(val FindingsGetFindingsIDOKHardeningFirewallItemVendor) {
-	s.Vendor = val
-}
-
-// SetVerify sets the value of Verify.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItem) SetVerify(val []FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) {
-	s.Verify = val
-}
-
-type FindingsGetFindingsIDOKHardeningFirewallItemAlternative struct {
-	Intro string                                                             `json:"intro"`
-	Steps []FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem `json:"steps"`
-	Title string                                                             `json:"title"`
-}
-
-// GetIntro returns the value of Intro.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternative) GetIntro() string {
-	return s.Intro
-}
-
-// GetSteps returns the value of Steps.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternative) GetSteps() []FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem {
-	return s.Steps
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternative) GetTitle() string {
-	return s.Title
-}
-
-// SetIntro sets the value of Intro.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternative) SetIntro(val string) {
-	s.Intro = val
-}
-
-// SetSteps sets the value of Steps.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternative) SetSteps(val []FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) {
-	s.Steps = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternative) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemAlternativeStepsItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsGetFindingsIDOKHardeningFirewallItemStepsItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemStepsItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsGetFindingsIDOKHardeningFirewallItemUndoItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemUndoItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsGetFindingsIDOKHardeningFirewallItemVendor string
-
-const (
-	FindingsGetFindingsIDOKHardeningFirewallItemVendorFortigate FindingsGetFindingsIDOKHardeningFirewallItemVendor = "fortigate"
-	FindingsGetFindingsIDOKHardeningFirewallItemVendorMikrotik  FindingsGetFindingsIDOKHardeningFirewallItemVendor = "mikrotik"
-	FindingsGetFindingsIDOKHardeningFirewallItemVendorGeneric   FindingsGetFindingsIDOKHardeningFirewallItemVendor = "generic"
-)
-
-// AllValues returns all FindingsGetFindingsIDOKHardeningFirewallItemVendor values.
-func (FindingsGetFindingsIDOKHardeningFirewallItemVendor) AllValues() []FindingsGetFindingsIDOKHardeningFirewallItemVendor {
-	return []FindingsGetFindingsIDOKHardeningFirewallItemVendor{
-		FindingsGetFindingsIDOKHardeningFirewallItemVendorFortigate,
-		FindingsGetFindingsIDOKHardeningFirewallItemVendorMikrotik,
-		FindingsGetFindingsIDOKHardeningFirewallItemVendorGeneric,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsGetFindingsIDOKHardeningFirewallItemVendor) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsGetFindingsIDOKHardeningFirewallItemVendorFortigate:
-		return []byte(s), nil
-	case FindingsGetFindingsIDOKHardeningFirewallItemVendorMikrotik:
-		return []byte(s), nil
-	case FindingsGetFindingsIDOKHardeningFirewallItemVendorGeneric:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVendor) UnmarshalText(data []byte) error {
-	switch FindingsGetFindingsIDOKHardeningFirewallItemVendor(data) {
-	case FindingsGetFindingsIDOKHardeningFirewallItemVendorFortigate:
-		*s = FindingsGetFindingsIDOKHardeningFirewallItemVendorFortigate
-		return nil
-	case FindingsGetFindingsIDOKHardeningFirewallItemVendorMikrotik:
-		*s = FindingsGetFindingsIDOKHardeningFirewallItemVendorMikrotik
-		return nil
-	case FindingsGetFindingsIDOKHardeningFirewallItemVendorGeneric:
-		*s = FindingsGetFindingsIDOKHardeningFirewallItemVendorGeneric
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsGetFindingsIDOKHardeningFirewallItemVerifyItem) SetTitle(val string) {
-	s.Title = val
-}
-
-// Seen = ports inventory saw open on the device for this software; usual = the usual admin ports of
-// the firewall itself; all = none known, the configs block every new inbound connection except from
-// the admin network.
-type FindingsGetFindingsIDOKHardeningPortsFrom string
-
-const (
-	FindingsGetFindingsIDOKHardeningPortsFromSeen  FindingsGetFindingsIDOKHardeningPortsFrom = "seen"
-	FindingsGetFindingsIDOKHardeningPortsFromUsual FindingsGetFindingsIDOKHardeningPortsFrom = "usual"
-	FindingsGetFindingsIDOKHardeningPortsFromAll   FindingsGetFindingsIDOKHardeningPortsFrom = "all"
-)
-
-// AllValues returns all FindingsGetFindingsIDOKHardeningPortsFrom values.
-func (FindingsGetFindingsIDOKHardeningPortsFrom) AllValues() []FindingsGetFindingsIDOKHardeningPortsFrom {
-	return []FindingsGetFindingsIDOKHardeningPortsFrom{
-		FindingsGetFindingsIDOKHardeningPortsFromSeen,
-		FindingsGetFindingsIDOKHardeningPortsFromUsual,
-		FindingsGetFindingsIDOKHardeningPortsFromAll,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsGetFindingsIDOKHardeningPortsFrom) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsGetFindingsIDOKHardeningPortsFromSeen:
-		return []byte(s), nil
-	case FindingsGetFindingsIDOKHardeningPortsFromUsual:
-		return []byte(s), nil
-	case FindingsGetFindingsIDOKHardeningPortsFromAll:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsGetFindingsIDOKHardeningPortsFrom) UnmarshalText(data []byte) error {
-	switch FindingsGetFindingsIDOKHardeningPortsFrom(data) {
-	case FindingsGetFindingsIDOKHardeningPortsFromSeen:
-		*s = FindingsGetFindingsIDOKHardeningPortsFromSeen
-		return nil
-	case FindingsGetFindingsIDOKHardeningPortsFromUsual:
-		*s = FindingsGetFindingsIDOKHardeningPortsFromUsual
-		return nil
-	case FindingsGetFindingsIDOKHardeningPortsFromAll:
-		*s = FindingsGetFindingsIDOKHardeningPortsFromAll
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsGetFindingsIDOKHardeningPortsItem struct {
-	Port  int                                            `json:"port"`
-	Proto FindingsGetFindingsIDOKHardeningPortsItemProto `json:"proto"`
-	// Service name from inventory or the software defaults; empty when unknown.
-	Service string `json:"service"`
-}
-
-// GetPort returns the value of Port.
-func (s *FindingsGetFindingsIDOKHardeningPortsItem) GetPort() int {
-	return s.Port
-}
-
-// GetProto returns the value of Proto.
-func (s *FindingsGetFindingsIDOKHardeningPortsItem) GetProto() FindingsGetFindingsIDOKHardeningPortsItemProto {
-	return s.Proto
-}
-
-// GetService returns the value of Service.
-func (s *FindingsGetFindingsIDOKHardeningPortsItem) GetService() string {
-	return s.Service
-}
-
-// SetPort sets the value of Port.
-func (s *FindingsGetFindingsIDOKHardeningPortsItem) SetPort(val int) {
-	s.Port = val
-}
-
-// SetProto sets the value of Proto.
-func (s *FindingsGetFindingsIDOKHardeningPortsItem) SetProto(val FindingsGetFindingsIDOKHardeningPortsItemProto) {
-	s.Proto = val
-}
-
-// SetService sets the value of Service.
-func (s *FindingsGetFindingsIDOKHardeningPortsItem) SetService(val string) {
-	s.Service = val
-}
-
-type FindingsGetFindingsIDOKHardeningPortsItemProto string
-
-const (
-	FindingsGetFindingsIDOKHardeningPortsItemProtoTCP FindingsGetFindingsIDOKHardeningPortsItemProto = "tcp"
-	FindingsGetFindingsIDOKHardeningPortsItemProtoUDP FindingsGetFindingsIDOKHardeningPortsItemProto = "udp"
-)
-
-// AllValues returns all FindingsGetFindingsIDOKHardeningPortsItemProto values.
-func (FindingsGetFindingsIDOKHardeningPortsItemProto) AllValues() []FindingsGetFindingsIDOKHardeningPortsItemProto {
-	return []FindingsGetFindingsIDOKHardeningPortsItemProto{
-		FindingsGetFindingsIDOKHardeningPortsItemProtoTCP,
-		FindingsGetFindingsIDOKHardeningPortsItemProtoUDP,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsGetFindingsIDOKHardeningPortsItemProto) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsGetFindingsIDOKHardeningPortsItemProtoTCP:
-		return []byte(s), nil
-	case FindingsGetFindingsIDOKHardeningPortsItemProtoUDP:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsGetFindingsIDOKHardeningPortsItemProto) UnmarshalText(data []byte) error {
-	switch FindingsGetFindingsIDOKHardeningPortsItemProto(data) {
-	case FindingsGetFindingsIDOKHardeningPortsItemProtoTCP:
-		*s = FindingsGetFindingsIDOKHardeningPortsItemProtoTCP
-		return nil
-	case FindingsGetFindingsIDOKHardeningPortsItemProtoUDP:
-		*s = FindingsGetFindingsIDOKHardeningPortsItemProtoUDP
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -75875,7 +75348,7 @@ type FindingsPostFindingsIDAiOK struct {
 	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
 	// NVD gives none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsPostFindingsIDAiOKFixedIn `json:"fixed_in"`
-	// Null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off.
+	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
 	Hardening NilFindingsPostFindingsIDAiOKHardening  `json:"hardening"`
 	History   []FindingsPostFindingsIDAiOKHistoryItem `json:"history"`
 	ID        string                                  `json:"id"`
@@ -78441,45 +77914,16 @@ func (s *FindingsPostFindingsIDAiOKFixedInKind) UnmarshalText(data []byte) error
 	}
 }
 
-// M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE
-// (D-21): never shown as "Vedette confirmed", never run by Vedette.
+// Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
+// CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
+// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
 type FindingsPostFindingsIDAiOKHardening struct {
-	// The example admin network the page starts with; the configs hold {ADMIN_NET}.
-	AdminExample string `json:"admin_example"`
-	// The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when
-	// unknown.
-	Box []string `json:"box"`
-	// General "Have I been hit?" checks for the software family; null when the confirmed pack has its own.
+	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsPostFindingsIDAiOKHardeningChecks `json:"checks"`
 	// The family the checks are written for ("Linux", "Network device", "General").
 	Family string `json:"family"`
-	// Empty when the confirmed pack has its own firewall guides.
-	Firewall []FindingsPostFindingsIDAiOKHardeningFirewallItem `json:"firewall"`
-	// Empty when ports_from is all.
-	Ports []FindingsPostFindingsIDAiOKHardeningPortsItem `json:"ports"`
-	// Seen = ports inventory saw open on the device for this software; usual = the usual admin ports of
-	// the firewall itself; all = none known, the configs block every new inbound connection except from
-	// the admin network.
-	PortsFrom FindingsPostFindingsIDAiOKHardeningPortsFrom `json:"ports_from"`
-	// The device is itself the firewall: its own guide protects its admin access.
-	Self bool `json:"self"`
 	// The software the checks are for, as the page names it.
 	Software string `json:"software"`
-	// The device address in the configs; "" when the device has no usable IP (INV-4).
-	Target string `json:"target"`
-	// The address the box sees for the browser asking; empty when unknown. The page warns when it is
-	// outside the admin network typed.
-	Viewer string `json:"viewer"`
-}
-
-// GetAdminExample returns the value of AdminExample.
-func (s *FindingsPostFindingsIDAiOKHardening) GetAdminExample() string {
-	return s.AdminExample
-}
-
-// GetBox returns the value of Box.
-func (s *FindingsPostFindingsIDAiOKHardening) GetBox() []string {
-	return s.Box
 }
 
 // GetChecks returns the value of Checks.
@@ -78492,49 +77936,9 @@ func (s *FindingsPostFindingsIDAiOKHardening) GetFamily() string {
 	return s.Family
 }
 
-// GetFirewall returns the value of Firewall.
-func (s *FindingsPostFindingsIDAiOKHardening) GetFirewall() []FindingsPostFindingsIDAiOKHardeningFirewallItem {
-	return s.Firewall
-}
-
-// GetPorts returns the value of Ports.
-func (s *FindingsPostFindingsIDAiOKHardening) GetPorts() []FindingsPostFindingsIDAiOKHardeningPortsItem {
-	return s.Ports
-}
-
-// GetPortsFrom returns the value of PortsFrom.
-func (s *FindingsPostFindingsIDAiOKHardening) GetPortsFrom() FindingsPostFindingsIDAiOKHardeningPortsFrom {
-	return s.PortsFrom
-}
-
-// GetSelf returns the value of Self.
-func (s *FindingsPostFindingsIDAiOKHardening) GetSelf() bool {
-	return s.Self
-}
-
 // GetSoftware returns the value of Software.
 func (s *FindingsPostFindingsIDAiOKHardening) GetSoftware() string {
 	return s.Software
-}
-
-// GetTarget returns the value of Target.
-func (s *FindingsPostFindingsIDAiOKHardening) GetTarget() string {
-	return s.Target
-}
-
-// GetViewer returns the value of Viewer.
-func (s *FindingsPostFindingsIDAiOKHardening) GetViewer() string {
-	return s.Viewer
-}
-
-// SetAdminExample sets the value of AdminExample.
-func (s *FindingsPostFindingsIDAiOKHardening) SetAdminExample(val string) {
-	s.AdminExample = val
-}
-
-// SetBox sets the value of Box.
-func (s *FindingsPostFindingsIDAiOKHardening) SetBox(val []string) {
-	s.Box = val
 }
 
 // SetChecks sets the value of Checks.
@@ -78547,39 +77951,9 @@ func (s *FindingsPostFindingsIDAiOKHardening) SetFamily(val string) {
 	s.Family = val
 }
 
-// SetFirewall sets the value of Firewall.
-func (s *FindingsPostFindingsIDAiOKHardening) SetFirewall(val []FindingsPostFindingsIDAiOKHardeningFirewallItem) {
-	s.Firewall = val
-}
-
-// SetPorts sets the value of Ports.
-func (s *FindingsPostFindingsIDAiOKHardening) SetPorts(val []FindingsPostFindingsIDAiOKHardeningPortsItem) {
-	s.Ports = val
-}
-
-// SetPortsFrom sets the value of PortsFrom.
-func (s *FindingsPostFindingsIDAiOKHardening) SetPortsFrom(val FindingsPostFindingsIDAiOKHardeningPortsFrom) {
-	s.PortsFrom = val
-}
-
-// SetSelf sets the value of Self.
-func (s *FindingsPostFindingsIDAiOKHardening) SetSelf(val bool) {
-	s.Self = val
-}
-
 // SetSoftware sets the value of Software.
 func (s *FindingsPostFindingsIDAiOKHardening) SetSoftware(val string) {
 	s.Software = val
-}
-
-// SetTarget sets the value of Target.
-func (s *FindingsPostFindingsIDAiOKHardening) SetTarget(val string) {
-	s.Target = val
-}
-
-// SetViewer sets the value of Viewer.
-func (s *FindingsPostFindingsIDAiOKHardening) SetViewer(val string) {
-	s.Viewer = val
 }
 
 type FindingsPostFindingsIDAiOKHardeningChecks struct {
@@ -78739,570 +78113,6 @@ func (s *FindingsPostFindingsIDAiOKHardeningChecksIndicatorsItemKind) UnmarshalT
 		return nil
 	case FindingsPostFindingsIDAiOKHardeningChecksIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDAiOKHardeningChecksIndicatorsItemKindProcess
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsPostFindingsIDAiOKHardeningFirewallItem struct {
-	Alternative OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative `json:"alternative"`
-	// The user declared a device of this vendor in the inventory.
-	Detected bool                                                        `json:"detected"`
-	Intro    string                                                      `json:"intro"`
-	Label    string                                                      `json:"label"`
-	Plain    []string                                                    `json:"plain"`
-	Steps    []FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem  `json:"steps"`
-	Undo     []FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem   `json:"undo"`
-	Vendor   FindingsPostFindingsIDAiOKHardeningFirewallItemVendor       `json:"vendor"`
-	Verify   []FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem `json:"verify"`
-}
-
-// GetAlternative returns the value of Alternative.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) GetAlternative() OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative {
-	return s.Alternative
-}
-
-// GetDetected returns the value of Detected.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) GetDetected() bool {
-	return s.Detected
-}
-
-// GetIntro returns the value of Intro.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) GetIntro() string {
-	return s.Intro
-}
-
-// GetLabel returns the value of Label.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) GetLabel() string {
-	return s.Label
-}
-
-// GetPlain returns the value of Plain.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) GetPlain() []string {
-	return s.Plain
-}
-
-// GetSteps returns the value of Steps.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) GetSteps() []FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem {
-	return s.Steps
-}
-
-// GetUndo returns the value of Undo.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) GetUndo() []FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem {
-	return s.Undo
-}
-
-// GetVendor returns the value of Vendor.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) GetVendor() FindingsPostFindingsIDAiOKHardeningFirewallItemVendor {
-	return s.Vendor
-}
-
-// GetVerify returns the value of Verify.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) GetVerify() []FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem {
-	return s.Verify
-}
-
-// SetAlternative sets the value of Alternative.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) SetAlternative(val OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) {
-	s.Alternative = val
-}
-
-// SetDetected sets the value of Detected.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) SetDetected(val bool) {
-	s.Detected = val
-}
-
-// SetIntro sets the value of Intro.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) SetIntro(val string) {
-	s.Intro = val
-}
-
-// SetLabel sets the value of Label.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) SetLabel(val string) {
-	s.Label = val
-}
-
-// SetPlain sets the value of Plain.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) SetPlain(val []string) {
-	s.Plain = val
-}
-
-// SetSteps sets the value of Steps.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) SetSteps(val []FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) {
-	s.Steps = val
-}
-
-// SetUndo sets the value of Undo.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) SetUndo(val []FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) {
-	s.Undo = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) SetVendor(val FindingsPostFindingsIDAiOKHardeningFirewallItemVendor) {
-	s.Vendor = val
-}
-
-// SetVerify sets the value of Verify.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItem) SetVerify(val []FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) {
-	s.Verify = val
-}
-
-type FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative struct {
-	Intro string                                                                `json:"intro"`
-	Steps []FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem `json:"steps"`
-	Title string                                                                `json:"title"`
-}
-
-// GetIntro returns the value of Intro.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) GetIntro() string {
-	return s.Intro
-}
-
-// GetSteps returns the value of Steps.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) GetSteps() []FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem {
-	return s.Steps
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) GetTitle() string {
-	return s.Title
-}
-
-// SetIntro sets the value of Intro.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) SetIntro(val string) {
-	s.Intro = val
-}
-
-// SetSteps sets the value of Steps.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) SetSteps(val []FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) {
-	s.Steps = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemAlternativeStepsItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemStepsItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemUndoItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDAiOKHardeningFirewallItemVendor string
-
-const (
-	FindingsPostFindingsIDAiOKHardeningFirewallItemVendorFortigate FindingsPostFindingsIDAiOKHardeningFirewallItemVendor = "fortigate"
-	FindingsPostFindingsIDAiOKHardeningFirewallItemVendorMikrotik  FindingsPostFindingsIDAiOKHardeningFirewallItemVendor = "mikrotik"
-	FindingsPostFindingsIDAiOKHardeningFirewallItemVendorGeneric   FindingsPostFindingsIDAiOKHardeningFirewallItemVendor = "generic"
-)
-
-// AllValues returns all FindingsPostFindingsIDAiOKHardeningFirewallItemVendor values.
-func (FindingsPostFindingsIDAiOKHardeningFirewallItemVendor) AllValues() []FindingsPostFindingsIDAiOKHardeningFirewallItemVendor {
-	return []FindingsPostFindingsIDAiOKHardeningFirewallItemVendor{
-		FindingsPostFindingsIDAiOKHardeningFirewallItemVendorFortigate,
-		FindingsPostFindingsIDAiOKHardeningFirewallItemVendorMikrotik,
-		FindingsPostFindingsIDAiOKHardeningFirewallItemVendorGeneric,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsPostFindingsIDAiOKHardeningFirewallItemVendor) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsPostFindingsIDAiOKHardeningFirewallItemVendorFortigate:
-		return []byte(s), nil
-	case FindingsPostFindingsIDAiOKHardeningFirewallItemVendorMikrotik:
-		return []byte(s), nil
-	case FindingsPostFindingsIDAiOKHardeningFirewallItemVendorGeneric:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVendor) UnmarshalText(data []byte) error {
-	switch FindingsPostFindingsIDAiOKHardeningFirewallItemVendor(data) {
-	case FindingsPostFindingsIDAiOKHardeningFirewallItemVendorFortigate:
-		*s = FindingsPostFindingsIDAiOKHardeningFirewallItemVendorFortigate
-		return nil
-	case FindingsPostFindingsIDAiOKHardeningFirewallItemVendorMikrotik:
-		*s = FindingsPostFindingsIDAiOKHardeningFirewallItemVendorMikrotik
-		return nil
-	case FindingsPostFindingsIDAiOKHardeningFirewallItemVendorGeneric:
-		*s = FindingsPostFindingsIDAiOKHardeningFirewallItemVendorGeneric
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDAiOKHardeningFirewallItemVerifyItem) SetTitle(val string) {
-	s.Title = val
-}
-
-// Seen = ports inventory saw open on the device for this software; usual = the usual admin ports of
-// the firewall itself; all = none known, the configs block every new inbound connection except from
-// the admin network.
-type FindingsPostFindingsIDAiOKHardeningPortsFrom string
-
-const (
-	FindingsPostFindingsIDAiOKHardeningPortsFromSeen  FindingsPostFindingsIDAiOKHardeningPortsFrom = "seen"
-	FindingsPostFindingsIDAiOKHardeningPortsFromUsual FindingsPostFindingsIDAiOKHardeningPortsFrom = "usual"
-	FindingsPostFindingsIDAiOKHardeningPortsFromAll   FindingsPostFindingsIDAiOKHardeningPortsFrom = "all"
-)
-
-// AllValues returns all FindingsPostFindingsIDAiOKHardeningPortsFrom values.
-func (FindingsPostFindingsIDAiOKHardeningPortsFrom) AllValues() []FindingsPostFindingsIDAiOKHardeningPortsFrom {
-	return []FindingsPostFindingsIDAiOKHardeningPortsFrom{
-		FindingsPostFindingsIDAiOKHardeningPortsFromSeen,
-		FindingsPostFindingsIDAiOKHardeningPortsFromUsual,
-		FindingsPostFindingsIDAiOKHardeningPortsFromAll,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsPostFindingsIDAiOKHardeningPortsFrom) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsPostFindingsIDAiOKHardeningPortsFromSeen:
-		return []byte(s), nil
-	case FindingsPostFindingsIDAiOKHardeningPortsFromUsual:
-		return []byte(s), nil
-	case FindingsPostFindingsIDAiOKHardeningPortsFromAll:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsPostFindingsIDAiOKHardeningPortsFrom) UnmarshalText(data []byte) error {
-	switch FindingsPostFindingsIDAiOKHardeningPortsFrom(data) {
-	case FindingsPostFindingsIDAiOKHardeningPortsFromSeen:
-		*s = FindingsPostFindingsIDAiOKHardeningPortsFromSeen
-		return nil
-	case FindingsPostFindingsIDAiOKHardeningPortsFromUsual:
-		*s = FindingsPostFindingsIDAiOKHardeningPortsFromUsual
-		return nil
-	case FindingsPostFindingsIDAiOKHardeningPortsFromAll:
-		*s = FindingsPostFindingsIDAiOKHardeningPortsFromAll
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsPostFindingsIDAiOKHardeningPortsItem struct {
-	Port  int                                               `json:"port"`
-	Proto FindingsPostFindingsIDAiOKHardeningPortsItemProto `json:"proto"`
-	// Service name from inventory or the software defaults; empty when unknown.
-	Service string `json:"service"`
-}
-
-// GetPort returns the value of Port.
-func (s *FindingsPostFindingsIDAiOKHardeningPortsItem) GetPort() int {
-	return s.Port
-}
-
-// GetProto returns the value of Proto.
-func (s *FindingsPostFindingsIDAiOKHardeningPortsItem) GetProto() FindingsPostFindingsIDAiOKHardeningPortsItemProto {
-	return s.Proto
-}
-
-// GetService returns the value of Service.
-func (s *FindingsPostFindingsIDAiOKHardeningPortsItem) GetService() string {
-	return s.Service
-}
-
-// SetPort sets the value of Port.
-func (s *FindingsPostFindingsIDAiOKHardeningPortsItem) SetPort(val int) {
-	s.Port = val
-}
-
-// SetProto sets the value of Proto.
-func (s *FindingsPostFindingsIDAiOKHardeningPortsItem) SetProto(val FindingsPostFindingsIDAiOKHardeningPortsItemProto) {
-	s.Proto = val
-}
-
-// SetService sets the value of Service.
-func (s *FindingsPostFindingsIDAiOKHardeningPortsItem) SetService(val string) {
-	s.Service = val
-}
-
-type FindingsPostFindingsIDAiOKHardeningPortsItemProto string
-
-const (
-	FindingsPostFindingsIDAiOKHardeningPortsItemProtoTCP FindingsPostFindingsIDAiOKHardeningPortsItemProto = "tcp"
-	FindingsPostFindingsIDAiOKHardeningPortsItemProtoUDP FindingsPostFindingsIDAiOKHardeningPortsItemProto = "udp"
-)
-
-// AllValues returns all FindingsPostFindingsIDAiOKHardeningPortsItemProto values.
-func (FindingsPostFindingsIDAiOKHardeningPortsItemProto) AllValues() []FindingsPostFindingsIDAiOKHardeningPortsItemProto {
-	return []FindingsPostFindingsIDAiOKHardeningPortsItemProto{
-		FindingsPostFindingsIDAiOKHardeningPortsItemProtoTCP,
-		FindingsPostFindingsIDAiOKHardeningPortsItemProtoUDP,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsPostFindingsIDAiOKHardeningPortsItemProto) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsPostFindingsIDAiOKHardeningPortsItemProtoTCP:
-		return []byte(s), nil
-	case FindingsPostFindingsIDAiOKHardeningPortsItemProtoUDP:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsPostFindingsIDAiOKHardeningPortsItemProto) UnmarshalText(data []byte) error {
-	switch FindingsPostFindingsIDAiOKHardeningPortsItemProto(data) {
-	case FindingsPostFindingsIDAiOKHardeningPortsItemProtoTCP:
-		*s = FindingsPostFindingsIDAiOKHardeningPortsItemProtoTCP
-		return nil
-	case FindingsPostFindingsIDAiOKHardeningPortsItemProtoUDP:
-		*s = FindingsPostFindingsIDAiOKHardeningPortsItemProtoUDP
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -80555,7 +79365,7 @@ type FindingsPostFindingsIDAppliedOK struct {
 	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
 	// NVD gives none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsPostFindingsIDAppliedOKFixedIn `json:"fixed_in"`
-	// Null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off.
+	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
 	Hardening NilFindingsPostFindingsIDAppliedOKHardening  `json:"hardening"`
 	History   []FindingsPostFindingsIDAppliedOKHistoryItem `json:"history"`
 	ID        string                                       `json:"id"`
@@ -83121,45 +81931,16 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInKind) UnmarshalText(data []byte) 
 	}
 }
 
-// M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE
-// (D-21): never shown as "Vedette confirmed", never run by Vedette.
+// Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
+// CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
+// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
 type FindingsPostFindingsIDAppliedOKHardening struct {
-	// The example admin network the page starts with; the configs hold {ADMIN_NET}.
-	AdminExample string `json:"admin_example"`
-	// The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when
-	// unknown.
-	Box []string `json:"box"`
-	// General "Have I been hit?" checks for the software family; null when the confirmed pack has its own.
+	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsPostFindingsIDAppliedOKHardeningChecks `json:"checks"`
 	// The family the checks are written for ("Linux", "Network device", "General").
 	Family string `json:"family"`
-	// Empty when the confirmed pack has its own firewall guides.
-	Firewall []FindingsPostFindingsIDAppliedOKHardeningFirewallItem `json:"firewall"`
-	// Empty when ports_from is all.
-	Ports []FindingsPostFindingsIDAppliedOKHardeningPortsItem `json:"ports"`
-	// Seen = ports inventory saw open on the device for this software; usual = the usual admin ports of
-	// the firewall itself; all = none known, the configs block every new inbound connection except from
-	// the admin network.
-	PortsFrom FindingsPostFindingsIDAppliedOKHardeningPortsFrom `json:"ports_from"`
-	// The device is itself the firewall: its own guide protects its admin access.
-	Self bool `json:"self"`
 	// The software the checks are for, as the page names it.
 	Software string `json:"software"`
-	// The device address in the configs; "" when the device has no usable IP (INV-4).
-	Target string `json:"target"`
-	// The address the box sees for the browser asking; empty when unknown. The page warns when it is
-	// outside the admin network typed.
-	Viewer string `json:"viewer"`
-}
-
-// GetAdminExample returns the value of AdminExample.
-func (s *FindingsPostFindingsIDAppliedOKHardening) GetAdminExample() string {
-	return s.AdminExample
-}
-
-// GetBox returns the value of Box.
-func (s *FindingsPostFindingsIDAppliedOKHardening) GetBox() []string {
-	return s.Box
 }
 
 // GetChecks returns the value of Checks.
@@ -83172,49 +81953,9 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) GetFamily() string {
 	return s.Family
 }
 
-// GetFirewall returns the value of Firewall.
-func (s *FindingsPostFindingsIDAppliedOKHardening) GetFirewall() []FindingsPostFindingsIDAppliedOKHardeningFirewallItem {
-	return s.Firewall
-}
-
-// GetPorts returns the value of Ports.
-func (s *FindingsPostFindingsIDAppliedOKHardening) GetPorts() []FindingsPostFindingsIDAppliedOKHardeningPortsItem {
-	return s.Ports
-}
-
-// GetPortsFrom returns the value of PortsFrom.
-func (s *FindingsPostFindingsIDAppliedOKHardening) GetPortsFrom() FindingsPostFindingsIDAppliedOKHardeningPortsFrom {
-	return s.PortsFrom
-}
-
-// GetSelf returns the value of Self.
-func (s *FindingsPostFindingsIDAppliedOKHardening) GetSelf() bool {
-	return s.Self
-}
-
 // GetSoftware returns the value of Software.
 func (s *FindingsPostFindingsIDAppliedOKHardening) GetSoftware() string {
 	return s.Software
-}
-
-// GetTarget returns the value of Target.
-func (s *FindingsPostFindingsIDAppliedOKHardening) GetTarget() string {
-	return s.Target
-}
-
-// GetViewer returns the value of Viewer.
-func (s *FindingsPostFindingsIDAppliedOKHardening) GetViewer() string {
-	return s.Viewer
-}
-
-// SetAdminExample sets the value of AdminExample.
-func (s *FindingsPostFindingsIDAppliedOKHardening) SetAdminExample(val string) {
-	s.AdminExample = val
-}
-
-// SetBox sets the value of Box.
-func (s *FindingsPostFindingsIDAppliedOKHardening) SetBox(val []string) {
-	s.Box = val
 }
 
 // SetChecks sets the value of Checks.
@@ -83227,39 +81968,9 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) SetFamily(val string) {
 	s.Family = val
 }
 
-// SetFirewall sets the value of Firewall.
-func (s *FindingsPostFindingsIDAppliedOKHardening) SetFirewall(val []FindingsPostFindingsIDAppliedOKHardeningFirewallItem) {
-	s.Firewall = val
-}
-
-// SetPorts sets the value of Ports.
-func (s *FindingsPostFindingsIDAppliedOKHardening) SetPorts(val []FindingsPostFindingsIDAppliedOKHardeningPortsItem) {
-	s.Ports = val
-}
-
-// SetPortsFrom sets the value of PortsFrom.
-func (s *FindingsPostFindingsIDAppliedOKHardening) SetPortsFrom(val FindingsPostFindingsIDAppliedOKHardeningPortsFrom) {
-	s.PortsFrom = val
-}
-
-// SetSelf sets the value of Self.
-func (s *FindingsPostFindingsIDAppliedOKHardening) SetSelf(val bool) {
-	s.Self = val
-}
-
 // SetSoftware sets the value of Software.
 func (s *FindingsPostFindingsIDAppliedOKHardening) SetSoftware(val string) {
 	s.Software = val
-}
-
-// SetTarget sets the value of Target.
-func (s *FindingsPostFindingsIDAppliedOKHardening) SetTarget(val string) {
-	s.Target = val
-}
-
-// SetViewer sets the value of Viewer.
-func (s *FindingsPostFindingsIDAppliedOKHardening) SetViewer(val string) {
-	s.Viewer = val
 }
 
 type FindingsPostFindingsIDAppliedOKHardeningChecks struct {
@@ -83419,570 +82130,6 @@ func (s *FindingsPostFindingsIDAppliedOKHardeningChecksIndicatorsItemKind) Unmar
 		return nil
 	case FindingsPostFindingsIDAppliedOKHardeningChecksIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDAppliedOKHardeningChecksIndicatorsItemKindProcess
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsPostFindingsIDAppliedOKHardeningFirewallItem struct {
-	Alternative OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative `json:"alternative"`
-	// The user declared a device of this vendor in the inventory.
-	Detected bool                                                             `json:"detected"`
-	Intro    string                                                           `json:"intro"`
-	Label    string                                                           `json:"label"`
-	Plain    []string                                                         `json:"plain"`
-	Steps    []FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem  `json:"steps"`
-	Undo     []FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem   `json:"undo"`
-	Vendor   FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor       `json:"vendor"`
-	Verify   []FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem `json:"verify"`
-}
-
-// GetAlternative returns the value of Alternative.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) GetAlternative() OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative {
-	return s.Alternative
-}
-
-// GetDetected returns the value of Detected.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) GetDetected() bool {
-	return s.Detected
-}
-
-// GetIntro returns the value of Intro.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) GetIntro() string {
-	return s.Intro
-}
-
-// GetLabel returns the value of Label.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) GetLabel() string {
-	return s.Label
-}
-
-// GetPlain returns the value of Plain.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) GetPlain() []string {
-	return s.Plain
-}
-
-// GetSteps returns the value of Steps.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) GetSteps() []FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem {
-	return s.Steps
-}
-
-// GetUndo returns the value of Undo.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) GetUndo() []FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem {
-	return s.Undo
-}
-
-// GetVendor returns the value of Vendor.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) GetVendor() FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor {
-	return s.Vendor
-}
-
-// GetVerify returns the value of Verify.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) GetVerify() []FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem {
-	return s.Verify
-}
-
-// SetAlternative sets the value of Alternative.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) SetAlternative(val OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) {
-	s.Alternative = val
-}
-
-// SetDetected sets the value of Detected.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) SetDetected(val bool) {
-	s.Detected = val
-}
-
-// SetIntro sets the value of Intro.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) SetIntro(val string) {
-	s.Intro = val
-}
-
-// SetLabel sets the value of Label.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) SetLabel(val string) {
-	s.Label = val
-}
-
-// SetPlain sets the value of Plain.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) SetPlain(val []string) {
-	s.Plain = val
-}
-
-// SetSteps sets the value of Steps.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) SetSteps(val []FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) {
-	s.Steps = val
-}
-
-// SetUndo sets the value of Undo.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) SetUndo(val []FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) {
-	s.Undo = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) SetVendor(val FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor) {
-	s.Vendor = val
-}
-
-// SetVerify sets the value of Verify.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItem) SetVerify(val []FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) {
-	s.Verify = val
-}
-
-type FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative struct {
-	Intro string                                                                     `json:"intro"`
-	Steps []FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem `json:"steps"`
-	Title string                                                                     `json:"title"`
-}
-
-// GetIntro returns the value of Intro.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) GetIntro() string {
-	return s.Intro
-}
-
-// GetSteps returns the value of Steps.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) GetSteps() []FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem {
-	return s.Steps
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) GetTitle() string {
-	return s.Title
-}
-
-// SetIntro sets the value of Intro.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) SetIntro(val string) {
-	s.Intro = val
-}
-
-// SetSteps sets the value of Steps.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) SetSteps(val []FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) {
-	s.Steps = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternativeStepsItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemStepsItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemUndoItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor string
-
-const (
-	FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorFortigate FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor = "fortigate"
-	FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorMikrotik  FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor = "mikrotik"
-	FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorGeneric   FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor = "generic"
-)
-
-// AllValues returns all FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor values.
-func (FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor) AllValues() []FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor {
-	return []FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor{
-		FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorFortigate,
-		FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorMikrotik,
-		FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorGeneric,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorFortigate:
-		return []byte(s), nil
-	case FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorMikrotik:
-		return []byte(s), nil
-	case FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorGeneric:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor) UnmarshalText(data []byte) error {
-	switch FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendor(data) {
-	case FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorFortigate:
-		*s = FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorFortigate
-		return nil
-	case FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorMikrotik:
-		*s = FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorMikrotik
-		return nil
-	case FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorGeneric:
-		*s = FindingsPostFindingsIDAppliedOKHardeningFirewallItemVendorGeneric
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDAppliedOKHardeningFirewallItemVerifyItem) SetTitle(val string) {
-	s.Title = val
-}
-
-// Seen = ports inventory saw open on the device for this software; usual = the usual admin ports of
-// the firewall itself; all = none known, the configs block every new inbound connection except from
-// the admin network.
-type FindingsPostFindingsIDAppliedOKHardeningPortsFrom string
-
-const (
-	FindingsPostFindingsIDAppliedOKHardeningPortsFromSeen  FindingsPostFindingsIDAppliedOKHardeningPortsFrom = "seen"
-	FindingsPostFindingsIDAppliedOKHardeningPortsFromUsual FindingsPostFindingsIDAppliedOKHardeningPortsFrom = "usual"
-	FindingsPostFindingsIDAppliedOKHardeningPortsFromAll   FindingsPostFindingsIDAppliedOKHardeningPortsFrom = "all"
-)
-
-// AllValues returns all FindingsPostFindingsIDAppliedOKHardeningPortsFrom values.
-func (FindingsPostFindingsIDAppliedOKHardeningPortsFrom) AllValues() []FindingsPostFindingsIDAppliedOKHardeningPortsFrom {
-	return []FindingsPostFindingsIDAppliedOKHardeningPortsFrom{
-		FindingsPostFindingsIDAppliedOKHardeningPortsFromSeen,
-		FindingsPostFindingsIDAppliedOKHardeningPortsFromUsual,
-		FindingsPostFindingsIDAppliedOKHardeningPortsFromAll,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsPostFindingsIDAppliedOKHardeningPortsFrom) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsPostFindingsIDAppliedOKHardeningPortsFromSeen:
-		return []byte(s), nil
-	case FindingsPostFindingsIDAppliedOKHardeningPortsFromUsual:
-		return []byte(s), nil
-	case FindingsPostFindingsIDAppliedOKHardeningPortsFromAll:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsPostFindingsIDAppliedOKHardeningPortsFrom) UnmarshalText(data []byte) error {
-	switch FindingsPostFindingsIDAppliedOKHardeningPortsFrom(data) {
-	case FindingsPostFindingsIDAppliedOKHardeningPortsFromSeen:
-		*s = FindingsPostFindingsIDAppliedOKHardeningPortsFromSeen
-		return nil
-	case FindingsPostFindingsIDAppliedOKHardeningPortsFromUsual:
-		*s = FindingsPostFindingsIDAppliedOKHardeningPortsFromUsual
-		return nil
-	case FindingsPostFindingsIDAppliedOKHardeningPortsFromAll:
-		*s = FindingsPostFindingsIDAppliedOKHardeningPortsFromAll
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsPostFindingsIDAppliedOKHardeningPortsItem struct {
-	Port  int                                                    `json:"port"`
-	Proto FindingsPostFindingsIDAppliedOKHardeningPortsItemProto `json:"proto"`
-	// Service name from inventory or the software defaults; empty when unknown.
-	Service string `json:"service"`
-}
-
-// GetPort returns the value of Port.
-func (s *FindingsPostFindingsIDAppliedOKHardeningPortsItem) GetPort() int {
-	return s.Port
-}
-
-// GetProto returns the value of Proto.
-func (s *FindingsPostFindingsIDAppliedOKHardeningPortsItem) GetProto() FindingsPostFindingsIDAppliedOKHardeningPortsItemProto {
-	return s.Proto
-}
-
-// GetService returns the value of Service.
-func (s *FindingsPostFindingsIDAppliedOKHardeningPortsItem) GetService() string {
-	return s.Service
-}
-
-// SetPort sets the value of Port.
-func (s *FindingsPostFindingsIDAppliedOKHardeningPortsItem) SetPort(val int) {
-	s.Port = val
-}
-
-// SetProto sets the value of Proto.
-func (s *FindingsPostFindingsIDAppliedOKHardeningPortsItem) SetProto(val FindingsPostFindingsIDAppliedOKHardeningPortsItemProto) {
-	s.Proto = val
-}
-
-// SetService sets the value of Service.
-func (s *FindingsPostFindingsIDAppliedOKHardeningPortsItem) SetService(val string) {
-	s.Service = val
-}
-
-type FindingsPostFindingsIDAppliedOKHardeningPortsItemProto string
-
-const (
-	FindingsPostFindingsIDAppliedOKHardeningPortsItemProtoTCP FindingsPostFindingsIDAppliedOKHardeningPortsItemProto = "tcp"
-	FindingsPostFindingsIDAppliedOKHardeningPortsItemProtoUDP FindingsPostFindingsIDAppliedOKHardeningPortsItemProto = "udp"
-)
-
-// AllValues returns all FindingsPostFindingsIDAppliedOKHardeningPortsItemProto values.
-func (FindingsPostFindingsIDAppliedOKHardeningPortsItemProto) AllValues() []FindingsPostFindingsIDAppliedOKHardeningPortsItemProto {
-	return []FindingsPostFindingsIDAppliedOKHardeningPortsItemProto{
-		FindingsPostFindingsIDAppliedOKHardeningPortsItemProtoTCP,
-		FindingsPostFindingsIDAppliedOKHardeningPortsItemProtoUDP,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsPostFindingsIDAppliedOKHardeningPortsItemProto) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsPostFindingsIDAppliedOKHardeningPortsItemProtoTCP:
-		return []byte(s), nil
-	case FindingsPostFindingsIDAppliedOKHardeningPortsItemProtoUDP:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsPostFindingsIDAppliedOKHardeningPortsItemProto) UnmarshalText(data []byte) error {
-	switch FindingsPostFindingsIDAppliedOKHardeningPortsItemProto(data) {
-	case FindingsPostFindingsIDAppliedOKHardeningPortsItemProtoTCP:
-		*s = FindingsPostFindingsIDAppliedOKHardeningPortsItemProtoTCP
-		return nil
-	case FindingsPostFindingsIDAppliedOKHardeningPortsItemProtoUDP:
-		*s = FindingsPostFindingsIDAppliedOKHardeningPortsItemProtoUDP
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -85256,7 +83403,7 @@ type FindingsPostFindingsIDStatusOK struct {
 	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
 	// NVD gives none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsPostFindingsIDStatusOKFixedIn `json:"fixed_in"`
-	// Null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off.
+	// Null when the confirmed pack has its own compromise signs, or mitigation is off.
 	Hardening NilFindingsPostFindingsIDStatusOKHardening  `json:"hardening"`
 	History   []FindingsPostFindingsIDStatusOKHistoryItem `json:"history"`
 	ID        string                                      `json:"id"`
@@ -87822,45 +85969,16 @@ func (s *FindingsPostFindingsIDStatusOKFixedInKind) UnmarshalText(data []byte) e
 	}
 }
 
-// M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE
-// (D-21): never shown as "Vedette confirmed", never run by Vedette.
+// Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the
+// CVE (D-21): never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs
+// and the admin network field (M2-1) are gone (D-631, kien 2026-11-17).
 type FindingsPostFindingsIDStatusOKHardening struct {
-	// The example admin network the page starts with; the configs hold {ADMIN_NET}.
-	AdminExample string `json:"admin_example"`
-	// The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when
-	// unknown.
-	Box []string `json:"box"`
-	// General "Have I been hit?" checks for the software family; null when the confirmed pack has its own.
+	// General "Have I been hit?" checks for the software family.
 	Checks NilFindingsPostFindingsIDStatusOKHardeningChecks `json:"checks"`
 	// The family the checks are written for ("Linux", "Network device", "General").
 	Family string `json:"family"`
-	// Empty when the confirmed pack has its own firewall guides.
-	Firewall []FindingsPostFindingsIDStatusOKHardeningFirewallItem `json:"firewall"`
-	// Empty when ports_from is all.
-	Ports []FindingsPostFindingsIDStatusOKHardeningPortsItem `json:"ports"`
-	// Seen = ports inventory saw open on the device for this software; usual = the usual admin ports of
-	// the firewall itself; all = none known, the configs block every new inbound connection except from
-	// the admin network.
-	PortsFrom FindingsPostFindingsIDStatusOKHardeningPortsFrom `json:"ports_from"`
-	// The device is itself the firewall: its own guide protects its admin access.
-	Self bool `json:"self"`
 	// The software the checks are for, as the page names it.
 	Software string `json:"software"`
-	// The device address in the configs; "" when the device has no usable IP (INV-4).
-	Target string `json:"target"`
-	// The address the box sees for the browser asking; empty when unknown. The page warns when it is
-	// outside the admin network typed.
-	Viewer string `json:"viewer"`
-}
-
-// GetAdminExample returns the value of AdminExample.
-func (s *FindingsPostFindingsIDStatusOKHardening) GetAdminExample() string {
-	return s.AdminExample
-}
-
-// GetBox returns the value of Box.
-func (s *FindingsPostFindingsIDStatusOKHardening) GetBox() []string {
-	return s.Box
 }
 
 // GetChecks returns the value of Checks.
@@ -87873,49 +85991,9 @@ func (s *FindingsPostFindingsIDStatusOKHardening) GetFamily() string {
 	return s.Family
 }
 
-// GetFirewall returns the value of Firewall.
-func (s *FindingsPostFindingsIDStatusOKHardening) GetFirewall() []FindingsPostFindingsIDStatusOKHardeningFirewallItem {
-	return s.Firewall
-}
-
-// GetPorts returns the value of Ports.
-func (s *FindingsPostFindingsIDStatusOKHardening) GetPorts() []FindingsPostFindingsIDStatusOKHardeningPortsItem {
-	return s.Ports
-}
-
-// GetPortsFrom returns the value of PortsFrom.
-func (s *FindingsPostFindingsIDStatusOKHardening) GetPortsFrom() FindingsPostFindingsIDStatusOKHardeningPortsFrom {
-	return s.PortsFrom
-}
-
-// GetSelf returns the value of Self.
-func (s *FindingsPostFindingsIDStatusOKHardening) GetSelf() bool {
-	return s.Self
-}
-
 // GetSoftware returns the value of Software.
 func (s *FindingsPostFindingsIDStatusOKHardening) GetSoftware() string {
 	return s.Software
-}
-
-// GetTarget returns the value of Target.
-func (s *FindingsPostFindingsIDStatusOKHardening) GetTarget() string {
-	return s.Target
-}
-
-// GetViewer returns the value of Viewer.
-func (s *FindingsPostFindingsIDStatusOKHardening) GetViewer() string {
-	return s.Viewer
-}
-
-// SetAdminExample sets the value of AdminExample.
-func (s *FindingsPostFindingsIDStatusOKHardening) SetAdminExample(val string) {
-	s.AdminExample = val
-}
-
-// SetBox sets the value of Box.
-func (s *FindingsPostFindingsIDStatusOKHardening) SetBox(val []string) {
-	s.Box = val
 }
 
 // SetChecks sets the value of Checks.
@@ -87928,39 +86006,9 @@ func (s *FindingsPostFindingsIDStatusOKHardening) SetFamily(val string) {
 	s.Family = val
 }
 
-// SetFirewall sets the value of Firewall.
-func (s *FindingsPostFindingsIDStatusOKHardening) SetFirewall(val []FindingsPostFindingsIDStatusOKHardeningFirewallItem) {
-	s.Firewall = val
-}
-
-// SetPorts sets the value of Ports.
-func (s *FindingsPostFindingsIDStatusOKHardening) SetPorts(val []FindingsPostFindingsIDStatusOKHardeningPortsItem) {
-	s.Ports = val
-}
-
-// SetPortsFrom sets the value of PortsFrom.
-func (s *FindingsPostFindingsIDStatusOKHardening) SetPortsFrom(val FindingsPostFindingsIDStatusOKHardeningPortsFrom) {
-	s.PortsFrom = val
-}
-
-// SetSelf sets the value of Self.
-func (s *FindingsPostFindingsIDStatusOKHardening) SetSelf(val bool) {
-	s.Self = val
-}
-
 // SetSoftware sets the value of Software.
 func (s *FindingsPostFindingsIDStatusOKHardening) SetSoftware(val string) {
 	s.Software = val
-}
-
-// SetTarget sets the value of Target.
-func (s *FindingsPostFindingsIDStatusOKHardening) SetTarget(val string) {
-	s.Target = val
-}
-
-// SetViewer sets the value of Viewer.
-func (s *FindingsPostFindingsIDStatusOKHardening) SetViewer(val string) {
-	s.Viewer = val
 }
 
 type FindingsPostFindingsIDStatusOKHardeningChecks struct {
@@ -88120,570 +86168,6 @@ func (s *FindingsPostFindingsIDStatusOKHardeningChecksIndicatorsItemKind) Unmars
 		return nil
 	case FindingsPostFindingsIDStatusOKHardeningChecksIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDStatusOKHardeningChecksIndicatorsItemKindProcess
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsPostFindingsIDStatusOKHardeningFirewallItem struct {
-	Alternative OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative `json:"alternative"`
-	// The user declared a device of this vendor in the inventory.
-	Detected bool                                                            `json:"detected"`
-	Intro    string                                                          `json:"intro"`
-	Label    string                                                          `json:"label"`
-	Plain    []string                                                        `json:"plain"`
-	Steps    []FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem  `json:"steps"`
-	Undo     []FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem   `json:"undo"`
-	Vendor   FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor       `json:"vendor"`
-	Verify   []FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem `json:"verify"`
-}
-
-// GetAlternative returns the value of Alternative.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) GetAlternative() OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative {
-	return s.Alternative
-}
-
-// GetDetected returns the value of Detected.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) GetDetected() bool {
-	return s.Detected
-}
-
-// GetIntro returns the value of Intro.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) GetIntro() string {
-	return s.Intro
-}
-
-// GetLabel returns the value of Label.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) GetLabel() string {
-	return s.Label
-}
-
-// GetPlain returns the value of Plain.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) GetPlain() []string {
-	return s.Plain
-}
-
-// GetSteps returns the value of Steps.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) GetSteps() []FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem {
-	return s.Steps
-}
-
-// GetUndo returns the value of Undo.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) GetUndo() []FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem {
-	return s.Undo
-}
-
-// GetVendor returns the value of Vendor.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) GetVendor() FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor {
-	return s.Vendor
-}
-
-// GetVerify returns the value of Verify.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) GetVerify() []FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem {
-	return s.Verify
-}
-
-// SetAlternative sets the value of Alternative.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) SetAlternative(val OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) {
-	s.Alternative = val
-}
-
-// SetDetected sets the value of Detected.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) SetDetected(val bool) {
-	s.Detected = val
-}
-
-// SetIntro sets the value of Intro.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) SetIntro(val string) {
-	s.Intro = val
-}
-
-// SetLabel sets the value of Label.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) SetLabel(val string) {
-	s.Label = val
-}
-
-// SetPlain sets the value of Plain.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) SetPlain(val []string) {
-	s.Plain = val
-}
-
-// SetSteps sets the value of Steps.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) SetSteps(val []FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) {
-	s.Steps = val
-}
-
-// SetUndo sets the value of Undo.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) SetUndo(val []FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) {
-	s.Undo = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) SetVendor(val FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor) {
-	s.Vendor = val
-}
-
-// SetVerify sets the value of Verify.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItem) SetVerify(val []FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) {
-	s.Verify = val
-}
-
-type FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative struct {
-	Intro string                                                                    `json:"intro"`
-	Steps []FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem `json:"steps"`
-	Title string                                                                    `json:"title"`
-}
-
-// GetIntro returns the value of Intro.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) GetIntro() string {
-	return s.Intro
-}
-
-// GetSteps returns the value of Steps.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) GetSteps() []FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem {
-	return s.Steps
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) GetTitle() string {
-	return s.Title
-}
-
-// SetIntro sets the value of Intro.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) SetIntro(val string) {
-	s.Intro = val
-}
-
-// SetSteps sets the value of Steps.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) SetSteps(val []FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) {
-	s.Steps = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternativeStepsItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemStepsItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemUndoItem) SetTitle(val string) {
-	s.Title = val
-}
-
-type FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor string
-
-const (
-	FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorFortigate FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor = "fortigate"
-	FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorMikrotik  FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor = "mikrotik"
-	FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorGeneric   FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor = "generic"
-)
-
-// AllValues returns all FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor values.
-func (FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor) AllValues() []FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor {
-	return []FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor{
-		FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorFortigate,
-		FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorMikrotik,
-		FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorGeneric,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorFortigate:
-		return []byte(s), nil
-	case FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorMikrotik:
-		return []byte(s), nil
-	case FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorGeneric:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor) UnmarshalText(data []byte) error {
-	switch FindingsPostFindingsIDStatusOKHardeningFirewallItemVendor(data) {
-	case FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorFortigate:
-		*s = FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorFortigate
-		return nil
-	case FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorMikrotik:
-		*s = FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorMikrotik
-		return nil
-	case FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorGeneric:
-		*s = FindingsPostFindingsIDStatusOKHardeningFirewallItemVendorGeneric
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem struct {
-	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
-	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
-	// addresses" above the block. Nothing is left out for an address.
-	Check []string  `json:"check"`
-	Code  string    `json:"code"`
-	Note  OptString `json:"note"`
-	// Side effect that must be stated before the user pastes the command.
-	SideEffect OptString `json:"side_effect"`
-	Title      string    `json:"title"`
-}
-
-// GetCheck returns the value of Check.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) GetCheck() []string {
-	return s.Check
-}
-
-// GetCode returns the value of Code.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) GetCode() string {
-	return s.Code
-}
-
-// GetNote returns the value of Note.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) GetNote() OptString {
-	return s.Note
-}
-
-// GetSideEffect returns the value of SideEffect.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) GetSideEffect() OptString {
-	return s.SideEffect
-}
-
-// GetTitle returns the value of Title.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) GetTitle() string {
-	return s.Title
-}
-
-// SetCheck sets the value of Check.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) SetCheck(val []string) {
-	s.Check = val
-}
-
-// SetCode sets the value of Code.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetNote sets the value of Note.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) SetNote(val OptString) {
-	s.Note = val
-}
-
-// SetSideEffect sets the value of SideEffect.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) SetSideEffect(val OptString) {
-	s.SideEffect = val
-}
-
-// SetTitle sets the value of Title.
-func (s *FindingsPostFindingsIDStatusOKHardeningFirewallItemVerifyItem) SetTitle(val string) {
-	s.Title = val
-}
-
-// Seen = ports inventory saw open on the device for this software; usual = the usual admin ports of
-// the firewall itself; all = none known, the configs block every new inbound connection except from
-// the admin network.
-type FindingsPostFindingsIDStatusOKHardeningPortsFrom string
-
-const (
-	FindingsPostFindingsIDStatusOKHardeningPortsFromSeen  FindingsPostFindingsIDStatusOKHardeningPortsFrom = "seen"
-	FindingsPostFindingsIDStatusOKHardeningPortsFromUsual FindingsPostFindingsIDStatusOKHardeningPortsFrom = "usual"
-	FindingsPostFindingsIDStatusOKHardeningPortsFromAll   FindingsPostFindingsIDStatusOKHardeningPortsFrom = "all"
-)
-
-// AllValues returns all FindingsPostFindingsIDStatusOKHardeningPortsFrom values.
-func (FindingsPostFindingsIDStatusOKHardeningPortsFrom) AllValues() []FindingsPostFindingsIDStatusOKHardeningPortsFrom {
-	return []FindingsPostFindingsIDStatusOKHardeningPortsFrom{
-		FindingsPostFindingsIDStatusOKHardeningPortsFromSeen,
-		FindingsPostFindingsIDStatusOKHardeningPortsFromUsual,
-		FindingsPostFindingsIDStatusOKHardeningPortsFromAll,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsPostFindingsIDStatusOKHardeningPortsFrom) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsPostFindingsIDStatusOKHardeningPortsFromSeen:
-		return []byte(s), nil
-	case FindingsPostFindingsIDStatusOKHardeningPortsFromUsual:
-		return []byte(s), nil
-	case FindingsPostFindingsIDStatusOKHardeningPortsFromAll:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsPostFindingsIDStatusOKHardeningPortsFrom) UnmarshalText(data []byte) error {
-	switch FindingsPostFindingsIDStatusOKHardeningPortsFrom(data) {
-	case FindingsPostFindingsIDStatusOKHardeningPortsFromSeen:
-		*s = FindingsPostFindingsIDStatusOKHardeningPortsFromSeen
-		return nil
-	case FindingsPostFindingsIDStatusOKHardeningPortsFromUsual:
-		*s = FindingsPostFindingsIDStatusOKHardeningPortsFromUsual
-		return nil
-	case FindingsPostFindingsIDStatusOKHardeningPortsFromAll:
-		*s = FindingsPostFindingsIDStatusOKHardeningPortsFromAll
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type FindingsPostFindingsIDStatusOKHardeningPortsItem struct {
-	Port  int                                                   `json:"port"`
-	Proto FindingsPostFindingsIDStatusOKHardeningPortsItemProto `json:"proto"`
-	// Service name from inventory or the software defaults; empty when unknown.
-	Service string `json:"service"`
-}
-
-// GetPort returns the value of Port.
-func (s *FindingsPostFindingsIDStatusOKHardeningPortsItem) GetPort() int {
-	return s.Port
-}
-
-// GetProto returns the value of Proto.
-func (s *FindingsPostFindingsIDStatusOKHardeningPortsItem) GetProto() FindingsPostFindingsIDStatusOKHardeningPortsItemProto {
-	return s.Proto
-}
-
-// GetService returns the value of Service.
-func (s *FindingsPostFindingsIDStatusOKHardeningPortsItem) GetService() string {
-	return s.Service
-}
-
-// SetPort sets the value of Port.
-func (s *FindingsPostFindingsIDStatusOKHardeningPortsItem) SetPort(val int) {
-	s.Port = val
-}
-
-// SetProto sets the value of Proto.
-func (s *FindingsPostFindingsIDStatusOKHardeningPortsItem) SetProto(val FindingsPostFindingsIDStatusOKHardeningPortsItemProto) {
-	s.Proto = val
-}
-
-// SetService sets the value of Service.
-func (s *FindingsPostFindingsIDStatusOKHardeningPortsItem) SetService(val string) {
-	s.Service = val
-}
-
-type FindingsPostFindingsIDStatusOKHardeningPortsItemProto string
-
-const (
-	FindingsPostFindingsIDStatusOKHardeningPortsItemProtoTCP FindingsPostFindingsIDStatusOKHardeningPortsItemProto = "tcp"
-	FindingsPostFindingsIDStatusOKHardeningPortsItemProtoUDP FindingsPostFindingsIDStatusOKHardeningPortsItemProto = "udp"
-)
-
-// AllValues returns all FindingsPostFindingsIDStatusOKHardeningPortsItemProto values.
-func (FindingsPostFindingsIDStatusOKHardeningPortsItemProto) AllValues() []FindingsPostFindingsIDStatusOKHardeningPortsItemProto {
-	return []FindingsPostFindingsIDStatusOKHardeningPortsItemProto{
-		FindingsPostFindingsIDStatusOKHardeningPortsItemProtoTCP,
-		FindingsPostFindingsIDStatusOKHardeningPortsItemProtoUDP,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s FindingsPostFindingsIDStatusOKHardeningPortsItemProto) MarshalText() ([]byte, error) {
-	switch s {
-	case FindingsPostFindingsIDStatusOKHardeningPortsItemProtoTCP:
-		return []byte(s), nil
-	case FindingsPostFindingsIDStatusOKHardeningPortsItemProtoUDP:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsPostFindingsIDStatusOKHardeningPortsItemProto) UnmarshalText(data []byte) error {
-	switch FindingsPostFindingsIDStatusOKHardeningPortsItemProto(data) {
-	case FindingsPostFindingsIDStatusOKHardeningPortsItemProtoTCP:
-		*s = FindingsPostFindingsIDStatusOKHardeningPortsItemProtoTCP
-		return nil
-	case FindingsPostFindingsIDStatusOKHardeningPortsItemProtoUDP:
-		*s = FindingsPostFindingsIDStatusOKHardeningPortsItemProtoUDP
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -104035,8 +101519,12 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemSource) UnmarshalText(d
 }
 
 type InventoryGetInventoryDevicesIDOKPossibleSameItem struct {
-	Approved bool      `json:"approved"`
-	ID       string    `json:"id"`
+	Approved bool   `json:"approved"`
+	ID       string `json:"id"`
+	// D-630: a person ignored the other device. A merge keeps the kept device watched or ignored, except
+	// that an approved device a person watches is never hidden: merged with it, an ignored device is
+	// watched again.
+	Ignored  bool      `json:"ignored"`
 	LastSeen time.Time `json:"last_seen"`
 	// The other device, named as every page names it (D-471).
 	Name string `json:"name"`
@@ -104053,6 +101541,11 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetApproved() bool {
 // GetID returns the value of ID.
 func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetID() string {
 	return s.ID
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetIgnored() bool {
+	return s.Ignored
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -104078,6 +101571,11 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetApproved(val bool)
 // SetID sets the value of ID.
 func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -146378,52 +143876,6 @@ func (o OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) Or(d ExposureP
 	return d
 }
 
-// NewOptFindingsGetFindingsIDOKHardeningFirewallItemAlternative returns new OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative with value set to v.
-func NewOptFindingsGetFindingsIDOKHardeningFirewallItemAlternative(v FindingsGetFindingsIDOKHardeningFirewallItemAlternative) OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative {
-	return OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative is optional FindingsGetFindingsIDOKHardeningFirewallItemAlternative.
-type OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative struct {
-	Value FindingsGetFindingsIDOKHardeningFirewallItemAlternative
-	Set   bool
-}
-
-// IsSet returns true if OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative was set.
-func (o OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative) Reset() {
-	var v FindingsGetFindingsIDOKHardeningFirewallItemAlternative
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative) SetTo(v FindingsGetFindingsIDOKHardeningFirewallItemAlternative) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative) Get() (v FindingsGetFindingsIDOKHardeningFirewallItemAlternative, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptFindingsGetFindingsIDOKHardeningFirewallItemAlternative) Or(d FindingsGetFindingsIDOKHardeningFirewallItemAlternative) FindingsGetFindingsIDOKHardeningFirewallItemAlternative {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptFindingsGetFindingsIDOKKevSource returns new OptFindingsGetFindingsIDOKKevSource with value set to v.
 func NewOptFindingsGetFindingsIDOKKevSource(v FindingsGetFindingsIDOKKevSource) OptFindingsGetFindingsIDOKKevSource {
 	return OptFindingsGetFindingsIDOKKevSource{
@@ -146700,52 +144152,6 @@ func (o OptFindingsGetFindingsPlanTier) Or(d FindingsGetFindingsPlanTier) Findin
 	return d
 }
 
-// NewOptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative returns new OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative with value set to v.
-func NewOptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative(v FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative {
-	return OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative is optional FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative.
-type OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative struct {
-	Value FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative
-	Set   bool
-}
-
-// IsSet returns true if OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative was set.
-func (o OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) Reset() {
-	var v FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) SetTo(v FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) Get() (v FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptFindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) Or(d FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative) FindingsPostFindingsIDAiOKHardeningFirewallItemAlternative {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptFindingsPostFindingsIDAiOKKevSource returns new OptFindingsPostFindingsIDAiOKKevSource with value set to v.
 func NewOptFindingsPostFindingsIDAiOKKevSource(v FindingsPostFindingsIDAiOKKevSource) OptFindingsPostFindingsIDAiOKKevSource {
 	return OptFindingsPostFindingsIDAiOKKevSource{
@@ -146838,54 +144244,6 @@ func (o OptFindingsPostFindingsIDAiOKPackFirewallItemAlternative) Or(d FindingsP
 	return d
 }
 
-// NewOptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative returns new OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative with value set to v.
-func NewOptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative(v FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative {
-	return OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative is optional FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative.
-type OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative struct {
-	Value FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative
-	Set   bool
-}
-
-// IsSet returns true if OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative was set.
-func (o OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) IsSet() bool {
-	return o.Set
-}
-
-// Reset unsets value.
-func (o *OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) Reset() {
-	var v FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) SetTo(v FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) Get() (v FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptFindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) Or(d FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative) FindingsPostFindingsIDAppliedOKHardeningFirewallItemAlternative {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptFindingsPostFindingsIDAppliedOKKevSource returns new OptFindingsPostFindingsIDAppliedOKKevSource with value set to v.
 func NewOptFindingsPostFindingsIDAppliedOKKevSource(v FindingsPostFindingsIDAppliedOKKevSource) OptFindingsPostFindingsIDAppliedOKKevSource {
 	return OptFindingsPostFindingsIDAppliedOKKevSource{
@@ -146972,52 +144330,6 @@ func (o OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Get() (v 
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) FindingsPostFindingsIDAppliedOKPackFirewallItemAlternative {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative returns new OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative with value set to v.
-func NewOptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative(v FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative {
-	return OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative is optional FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative.
-type OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative struct {
-	Value FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative
-	Set   bool
-}
-
-// IsSet returns true if OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative was set.
-func (o OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) Reset() {
-	var v FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) SetTo(v FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) Get() (v FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptFindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) Or(d FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative) FindingsPostFindingsIDStatusOKHardeningFirewallItemAlternative {
 	if v, ok := o.Get(); ok {
 		return v
 	}

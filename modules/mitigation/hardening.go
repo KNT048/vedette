@@ -1,119 +1,37 @@
 package mitigation
 
 import (
-	"context"
 	"fmt"
-	"hash/fnv"
-	"net/netip"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/knt048/vedette/content/devicetypes"
-	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules/findings"
 )
 
-// General hardening (INV-8, M2-1): while no maintainer-confirmed pack ships for a CVE, every finding still gets a ready firewall
-// config that lets only the admin network reach the device, for the firewall the inventory lists, and general "Have I been hit?"
-// checks for its software family. Both are written here, by reviewed code, from the device's parsed IP and the ports inventory saw
-// open: nothing in them is about the CVE, so they are not a recommendation (D-21) and the page labels them so. Vedette never runs
-// them (FORBID-1): they are text the person pastes.
+// General hardening (INV-8): while no maintainer-confirmed pack ships its own compromise signs for a CVE, every finding still gets
+// general "Have I been hit?" checks for its software family, written here by reviewed code: signs any intruder tends to leave. Nothing
+// in them is about the CVE, so they are not a recommendation (D-21) and the page labels them so; Vedette never runs them (FORBID-1).
+// The generated firewall configs that let only an admin network reach the device (M2-1) are gone: D-631, kien 2026-11-17 ("remove the
+// General hardening feature that tells the user to allow traffic from the box to devices; it is useless").
 
-// adminExample is the admin network the page starts with, marked there as an example to change.
-const (
-	adminExample4 = "192.168.1.0/24"
-	adminExample6 = "fd00::/64"
-	// maxPorts is the most ports one config lists (iptables multiport takes 15); more than that and the config restricts all.
-	maxPorts = 15
-)
-
-// The ways the ports of a config are known (findings.Hardening.PortsFrom).
-const (
-	portsSeen  = "seen"
-	portsUsual = "usual"
-	portsAll   = "all"
-)
-
-// hardening is the general hardening of a finding, or nil when the confirmed pack covers both parts (POST-1).
-func (p *Provider) hardening(ctx context.Context, r findings.Row, pack *findings.MitigationPack, comp *findings.CompromiseCheck) (*findings.Hardening, error) {
-	in := hardeningInput{Row: r, Firewall: pack == nil || len(pack.Firewall) == 0, Checks: comp == nil}
-	if !in.Firewall && !in.Checks {
-		return nil, nil
+// hardening is the general hardening of a finding, or nil when the confirmed pack has its own compromise signs (POST-1).
+func hardening(r findings.Row, comp *findings.CompromiseCheck) *findings.Hardening {
+	if comp != nil {
+		return nil
 	}
-	if in.Firewall {
-		if r.Asset != nil && r.Asset.ID != "" {
-			// The ports only sharpen the config: a failed read gives the all-inbound config, never a failed finding page (r1 L6).
-			in.Open, _ = p.vendors.OpenPorts(ctx, r.Asset.ID)
-		}
-		in.Box, _ = p.vendors.BoxAddrs(ctx) // unknown: the side effect says to allow the box by hand
-		if x, ok := server.ExchangeFrom(ctx); ok {
-			in.Viewer = x.ClientAddr()
-		}
-		in.Detected = map[string]bool{}
-		var err error
-		for guide, vendor := range inventoryVendor {
-			if in.Detected[guide], err = p.vendors.HasFirewallVendor(ctx, vendor); err != nil {
-				return nil, fmt.Errorf("mitigation: looking up firewall vendor: %w", err)
-			}
-		}
-	}
-	h := generalHardening(in)
-	return &h, nil
+	h := generalHardening(r)
+	return &h
 }
 
-// hardeningInput is what generalHardening needs: the finding, what inventory knows, and which parts the pack leaves open.
-type hardeningInput struct {
-	Row      findings.Row
-	Open     []OpenPort      // ports seen open on the device
-	Detected map[string]bool // guide vendor (fortigate, mikrotik) -> the inventory lists one
-	Box      []netip.Addr    // the Vedette box's own addresses (its scans come from there)
-	Viewer   netip.Addr      // the address of the browser asking (zero when unknown)
-	Firewall bool            // write the firewall configs
-	Checks   bool            // write the compromise checks
-}
-
-// generalHardening builds the hardening block. It is pure, so every case is a unit test.
-func generalHardening(in hardeningInput) findings.Hardening {
-	fam := familyOf(in.Row)
-	h := findings.Hardening{Software: softwareName(in.Row), Family: fam.label}
-	if in.Checks {
-		c := fam.checks(h.Software, in.Row.CVE)
-		h.Checks = &c
-	}
-	if !in.Firewall {
-		return h
-	}
-	t := targetOf(in.Row.Asset)
-	h.Target, h.AdminExample = t.ip, adminExample4
-	if t.v6 {
-		h.AdminExample = adminExample6
-	}
-	h.Self = fam.self != ""
-	var tooMany bool
-	h.Ports, h.PortsFrom, tooMany = portsFor(fam, in.Open)
-	c := cfg{t: t, ports: h.Ports, from: h.PortsFrom, tooMany: tooMany, fam: fam, tag: tagOf(in.Row.CVE), box: boxOf(in.Box, t)}
-	h.Box = c.box
-	if in.Viewer.IsValid() && !in.Viewer.IsLoopback() && !in.Viewer.IsUnspecified() {
-		h.Viewer = in.Viewer.Unmap().WithZone("").String()
-	}
-	h.Firewall = []findings.FirewallGuide{
-		withDetected(fortigateGuide(c, fam.self == "fortigate"), in.Detected),
-		withDetected(mikrotikGuide(c, fam.self == "mikrotik"), in.Detected),
-		genericGuide(c),
-	}
-	if fam.self != "" { // r2 L5: the device is that firewall: its own guide is the one to show first
-		i := slices.IndexFunc(h.Firewall, func(g findings.FirewallGuide) bool { return g.Vendor == fam.self })
-		g := h.Firewall[i]
-		g.Detected = true // the finding's device is a device of that vendor in the inventory
-		h.Firewall = append([]findings.FirewallGuide{g}, slices.Delete(h.Firewall, i, i+1)...)
-	}
+// generalHardening builds the hardening block: the software, its family and the family's checks. It is pure, so every case is a
+// unit test.
+func generalHardening(r findings.Row) findings.Hardening {
+	fam := familyOf(r)
+	h := findings.Hardening{Software: softwareName(r), Family: fam.label}
+	c := fam.checks(h.Software, r.CVE)
+	h.Checks = &c
 	return h
-}
-
-func withDetected(g findings.FirewallGuide, d map[string]bool) findings.FirewallGuide {
-	g.Detected = d[g.Vendor]
-	return g
 }
 
 // softwareName is the software as the page names it (the KEV entry's plain name).
@@ -127,450 +45,10 @@ func softwareName(r findings.Row) string {
 	return strings.TrimSpace(r.Kev.Vendor + " " + r.Kev.Product)
 }
 
-// tagOf is the finding's part of every object name ("cve-2024-6387"), so two findings on one device never share a policy, rule or
-// table and the undo of one never removes the other's (r1 H2). Only letters, digits and dashes.
-func tagOf(cve string) string {
-	var b strings.Builder
-	for _, r := range strings.ToLower(cve) {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' {
-			b.WriteRune(r)
-		}
-	}
-	if b.Len() == 0 || b.Len() > 20 {
-		return "finding"
-	}
-	return b.String()
-}
-
-// boxOf is the box's addresses of the device's address family, valid and not the device itself, as configs write them (INV-4).
-func boxOf(box []netip.Addr, t target) []string {
-	var out []string
-	for _, a := range box {
-		a = a.Unmap().WithZone("")
-		if !a.IsValid() || a.IsLoopback() || a.IsUnspecified() || a.Is6() != t.v6 || a.String() == t.ip || slices.Contains(out, a.String()) {
-			continue
-		}
-		out = append(out, a.String())
-	}
-	return out
-}
-
-// target is the device address as the configs write it. Only a parsed IP (no zone) goes in (INV-4); anything else is "<IP>".
-type target struct {
-	ip   string // "10.0.0.5", or "<IP>"
-	ok   bool
-	v6   bool
-	slug string // the address in object names: dots and colons as dashes ("device" without an address)
-}
-
-func targetOf(a *findings.AssetView) target {
-	if a != nil {
-		if addr, err := netip.ParseAddr(a.IP); err == nil && addr.Zone() == "" {
-			addr = addr.Unmap()
-			s := addr.String()
-			return target{ip: s, ok: true, v6: addr.Is6(), slug: strings.NewReplacer(".", "-", ":", "-").Replace(s)}
-		}
-	}
-	return target{ip: "<IP>", slug: "device"}
-}
-
-// portsFor picks the ports of the config: the open ports of the device of the family's kind, else (the device is the firewall
-// itself) its usual admin ports, else none, which means every new inbound connection. tooMany: more than maxPorts were seen.
-func portsFor(fam family, open []OpenPort) ([]findings.HardeningPort, string, bool) {
-	var out []findings.HardeningPort
-	seen := map[[2]any]bool{}
-	for _, o := range open {
-		if o.Port < 1 || o.Port > 65535 || (o.Proto != "tcp" && o.Proto != "udp") || fam.service == nil || !fam.service(o) {
-			continue
-		}
-		k := [2]any{o.Port, o.Proto}
-		if seen[k] {
-			continue
-		}
-		seen[k] = true
-		out = append(out, findings.HardeningPort{Port: o.Port, Proto: o.Proto, Service: serviceName(o.Name)})
-	}
-	slices.SortFunc(out, func(a, b findings.HardeningPort) int {
-		if a.Proto != b.Proto {
-			return strings.Compare(a.Proto, b.Proto)
-		}
-		return a.Port - b.Port
-	})
-	switch {
-	case len(out) > 0 && len(out) <= maxPorts:
-		return out, portsSeen, false
-	case len(fam.usual) > 0:
-		return slices.Clone(fam.usual), portsUsual, false
-	}
-	return nil, portsAll, len(out) > maxPorts
-}
-
-// serviceName keeps a service name only when it is plain (it is shown on the page, not put in a config).
-func serviceName(s string) string {
-	if len(s) > 40 {
-		return ""
-	}
-	for _, r := range s {
-		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && !strings.ContainsRune("-/_.", r) {
-			return ""
-		}
-	}
-	return s
-}
-
-// cfg is what every vendor's config is written from.
-type cfg struct {
-	t       target
-	ports   []findings.HardeningPort
-	from    string
-	tooMany bool
-	fam     family
-	tag     string   // tagOf the finding's CVE
-	box     []string // the Vedette box's addresses of the device's family, allowed in every config (r2 M2)
-}
-
-// name is an object name of this finding and device: "vedette-cve-2024-6387-10-0-0-5" plus the suffix.
-func (c cfg) name(suffix string) string {
-	n := "vedette-" + c.tag + "-" + c.t.slug
-	if suffix != "" {
-		n += "-" + suffix
-	}
-	return n
-}
-
-// policyName is a FortiGate policy name: at most 35 characters, unique per finding, device (a hash of its address, so IPv6 hosts of
-// one /64 never share one, r1 L7) and role ("a" allow, "d" deny).
-func (c cfg) policyName(role string) string {
-	if n := fmt.Sprintf("vedette-%s-%06x-%s", c.tag, fnv32(c.t.ip)&0xffffff, role); len(n) <= 35 {
-		return n
-	}
-	return fmt.Sprintf("vedette-%08x-%s", fnv32(c.t.ip)^fnv32(c.tag), role)
-}
-
-func fnv32(s string) uint32 {
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(s))
-	return h.Sum32()
-}
-
-func (c cfg) byProto(proto string) []string {
-	var out []string
-	for _, p := range c.ports {
-		if p.Proto == proto {
-			out = append(out, strconv.Itoa(p.Port))
-		}
-	}
-	return out
-}
-
-func (c cfg) protos() []string {
-	var out []string
-	for _, p := range []string{"tcp", "udp"} {
-		if len(c.byProto(p)) > 0 {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
-// portList is the ports in words ("22/tcp (ssh), 443/tcp").
-func (c cfg) portList() string {
-	parts := make([]string, 0, len(c.ports))
-	for _, p := range c.ports {
-		s := fmt.Sprintf("%d/%s", p.Port, p.Proto)
-		if p.Service != "" {
-			s += " (" + p.Service + ")"
-		}
-		parts = append(parts, s)
-	}
-	return strings.Join(parts, ", ")
-}
-
-// intro says what the config does and why these ports, in the same words for every vendor. It names the ports Vedette saw and
-// their kind, never that the CVE's software answers there (r1 M4: no claim about the CVE, D-21).
-func (c cfg) intro(self bool) string {
-	var what string
-	kind := c.fam.portsAre
-	if kind == "" {
-		kind = "services"
-	}
-	switch {
-	case c.from == portsSeen:
-		what = fmt.Sprintf("Vedette saw these %s open on %s: %s. This config lets only your admin network reach them; the rest of the device is unchanged.", kind, c.t.ip, c.portList())
-	case c.from == portsUsual:
-		what = fmt.Sprintf("Vedette has not seen which ports the admin pages of %s answer on, so this config uses their usual ports: %s. If you moved an admin page to another port, change it in the config.", c.t.ip, c.portList())
-	case c.tooMany:
-		what = fmt.Sprintf("Vedette saw more than %d %s open on %s, too many to list, so this config blocks every new connection to the device except from your admin network.", maxPorts, kind, c.t.ip)
-	case c.fam.service == nil:
-		what = fmt.Sprintf("Vedette has no port of this kind of software to single out on %s, so this config blocks every new connection to the device except from your admin network.", c.t.ip)
-	default:
-		what = fmt.Sprintf("Vedette has not seen %s open on %s, so this config blocks every new connection to the device except from your admin network.", kind, c.t.ip)
-	}
-	if self {
-		what += " It protects the firewall's own admin access, so it applies to every connection to it."
-	} else {
-		what += " A firewall only filters what passes through it: computers in the same network segment as the device still reach it directly."
-	}
-	if len(c.box) > 0 {
-		what += fmt.Sprintf(" The Vedette box (%s) is allowed too, so its scans still see the ports.", strings.Join(c.box, ", "))
-	}
-	if !c.t.ok {
-		what += " This device has no IP address in your inventory: replace <IP> with its address."
-	}
-	return what
-}
-
-// scansNote is the impact on Vedette's own scans (r1 M6), in every side effect.
-const scansNote = " Vedette's own scans stop reaching them as well: allow the Vedette box's address too, or the device looks closed to Vedette."
-
-// sideEffect is stated before the person pastes (INV-4), with what stops for whom (r1 M6).
-func (c cfg) sideEffect(self bool) string {
-	scansNote := scansNote
-	if len(c.box) > 0 {
-		scansNote = ""
-	}
-	switch {
-	case self:
-		return "Admins outside the admin network can no longer sign in to the firewall, and a VPN portal on one of these ports stops for everyone outside it. Check the admin network first, or you can lock yourself out." + scansNote
-	case c.from == portsAll:
-		return "Everything the device serves (websites, mail, shared folders, printing, remote desktop) stops for computers outside the admin network that reach it through this firewall." + scansNote
-	}
-	s := "Computers outside the admin network can no longer reach these ports of the device through this firewall."
-	if c.fam.outage != "" {
-		s += " " + c.fam.outage
-	}
-	return s + scansNote
-}
-
-// selfLockout is added where the config may run on the device the admin is signed in to (r1 M3).
-const selfLockout = " Run on the device itself, the session you are in stays, but new sign-ins from outside the admin network fail: check the admin network first, or you can lock yourself out."
-
-const verifyByHand = "From a computer outside the admin network, connect to the device on one of the ports: it must fail. From the admin network it must still work."
-
-// fortigateGuide writes the FortiGate CLI without any negate (r2 M5: a "set …-negate" line that fails to parse would invert the
-// policy): an allow policy from the admin network and the Vedette box above a deny policy from everyone, both to the device's
-// ports; for a FortiGate's own CVE, the same pair as local-in policies. Every object but the shared vedette-admin-net and the box's
-// objects carries the finding's tag (r1 H2).
-func fortigateGuide(c cfg, self bool) findings.FirewallGuide {
-	g := findings.FirewallGuide{Vendor: "fortigate", Label: "FortiGate", Intro: c.intro(self)}
-	addr, addrSet, src, dst, mask := "address", "subnet", "srcaddr", "dstaddr", "/32"
-	if c.t.v6 {
-		addr, addrSet, src, dst, mask = "address6", "ip6", "srcaddr6", "dstaddr6", "/128"
-	}
-	var objs strings.Builder
-	fmt.Fprintf(&objs, "config firewall %s\n    edit \"vedette-admin-net\"\n        set %s %s\n    next\n", addr, addrSet, findings.AdminNetPlaceholder)
-	allowed := []string{`"vedette-admin-net"`}
-	for _, b := range c.box {
-		n := "vedette-box-" + strings.NewReplacer(".", "-", ":", "-").Replace(b)
-		fmt.Fprintf(&objs, "    edit %q\n        set %s %s%s\n    next\n", n, addrSet, b, mask)
-		allowed = append(allowed, strconv.Quote(n))
-	}
-	host := c.name("")
-	if !self {
-		fmt.Fprintf(&objs, "    edit %q\n        set %s %s%s\n    next\n", host, addrSet, c.t.ip, mask)
-	}
-	objs.WriteString("end\n")
-	svcName, service := c.name("ports"), "\"ALL\""
-	if len(c.ports) > 0 {
-		fmt.Fprintf(&objs, "config firewall service custom\n    edit %q\n", svcName)
-		for _, p := range c.protos() {
-			fmt.Fprintf(&objs, "        set %s-portrange %s\n", p, strings.Join(c.byProto(p), " "))
-		}
-		objs.WriteString("    next\nend\n")
-		service = strconv.Quote(svcName)
-	}
-	undoSvc := ""
-	if len(c.ports) > 0 {
-		undoSvc = fmt.Sprintf("\nconfig firewall service custom\n    delete %q\nend", svcName)
-	}
-	shared := "vedette-admin-net (and the vedette-box objects) are shared by every Vedette policy: pasting another admin network changes it for all of them."
-	vdom := " With VDOMs, enter config vdom, then edit <VDOM>, first."
-	allowName, denyName := c.policyName("a"), c.policyName("d")
-	if self {
-		policy := "local-in-policy"
-		if c.t.v6 {
-			policy = "local-in-policy6"
-		}
-		code := objs.String() + fmt.Sprintf("config firewall %s\n    edit 0\n        set intf \"any\"\n        set srcaddr %s\n        set dstaddr \"all\"\n        set action accept\n        set service %s\n        set schedule \"always\"\n        set comments %q\n    next\n    edit 0\n        set intf \"any\"\n        set srcaddr \"all\"\n        set dstaddr \"all\"\n        set action deny\n        set service %s\n        set schedule \"always\"\n        set comments %q\n    next\nend",
-			policy, strings.Join(allowed, " "), service, allowName, service, denyName)
-		g.Steps = []findings.CodeStep{{Title: "FortiGate CLI: allow the admin network to the admin ports, deny everyone else", Code: code,
-			Note:       "Paste it in the CLI console (the >_ icon at the top of the FortiGate page) or over SSH. The first policy allows the admin network, the second denies the rest; FortiGate checks them in that order. " + shared + vdom,
-			SideEffect: c.sideEffect(true)}}
-		trust := "trusthost1"
-		if c.t.v6 {
-			trust = "ip6-trusthost1"
-		}
-		g.Alternative = &findings.Alternative{Title: "Or: trusted hosts on each admin account", Intro: "Trusted hosts limit where an admin account may sign in from. Set them on every admin account (show system admin lists them).",
-			Steps: []findings.CodeStep{{Title: "FortiGate CLI: trusted host of the admin account", Code: fmt.Sprintf("config system admin\n    edit \"admin\"\n        set %s %s\n    next\nend", trust, findings.AdminNetPlaceholder),
-				Note: "Replace admin with the account name; repeat for each account."}}}
-		g.Verify = []findings.CodeStep{{Title: "Show the policies", Code: fmt.Sprintf("show firewall %s | grep -f vedette-%s", policy, c.tag), Note: verifyByHand}}
-		g.Undo = []findings.CodeStep{{Title: "Delete the two policies and the port list", Code: fmt.Sprintf("config firewall %s\n    delete <ID>\n    delete <ID2>\nend", policy) + undoSvc,
-			Note: fmt.Sprintf("Use the IDs the show command above lists for %s and %s. vedette-admin-net stays: other Vedette policies may use it.", allowName, denyName)}}
-		return g
-	}
-	// match-vip: the deny applies to traffic that reaches the device through a Virtual IP (port forward) only with it, and it was off
-	// by default before FortiOS 7.2.4 (r1 H1).
-	code := objs.String() + fmt.Sprintf("config firewall policy\n    edit 0\n        set name %q\n        set srcintf \"any\"\n        set dstintf \"any\"\n        set %s %s\n        set %s %q\n        set action accept\n        set service %s\n        set schedule \"always\"\n    next\n    edit 0\n        set name %q\n        set srcintf \"any\"\n        set dstintf \"any\"\n        set %s \"all\"\n        set %s %q\n        set action deny\n        set service %s\n        set schedule \"always\"\n        set match-vip enable\n        set logtraffic all\n    next\nend",
-		allowName, src, strings.Join(allowed, " "), dst, host, service, denyName, src, dst, host, service)
-	g.Steps = []findings.CodeStep{
-		{Title: "FortiGate CLI: allow the admin network to the device's ports, deny everyone else", Code: code,
-			Note:       "Paste it in the CLI console (the >_ icon at the top of the FortiGate page) or over SSH. FortiGate adds both policies at the bottom of the list. match-vip makes the deny apply to traffic that reaches the device through a Virtual IP (port forward) too. The allow policy has no security profiles: add yours if your policies use them. " + shared + vdom,
-			SideEffect: c.sideEffect(false)},
-		{Title: "Move both policies to the top, allow first", Code: fmt.Sprintf("show firewall policy | grep -f %s\nconfig firewall policy\n    move <ALLOW-ID> before <FIRST-ID>\n    move <DENY-ID> after <ALLOW-ID>\nend", host),
-			Note: fmt.Sprintf("The show command prints the two policies (%s allows, %s denies) with their IDs (edit <ID>). <FIRST-ID> is the top policy in Policy & Objects, Firewall Policy; you can also drag them there. Until they are above your other policies they do nothing; when the device is published through a Virtual IP, they must be above that VIP's allow policy.", allowName, denyName)},
-	}
-	g.Verify = []findings.CodeStep{{Title: "Show the policies", Code: "show firewall policy | grep -f " + host,
-		Note: verifyByHand + " Blocked attempts appear in Log & Report, Forward Traffic."}}
-	undo := "config firewall policy\n    delete <ALLOW-ID>\n    delete <DENY-ID>\nend" + undoSvc + fmt.Sprintf("\nconfig firewall %s\n    delete %q\nend", addr, host)
-	g.Undo = []findings.CodeStep{{Title: "Remove the policies and their objects", Code: undo, Note: "This removes only this finding's policies and objects. vedette-admin-net stays: other Vedette policies may use it."}}
-	return g
-}
-
-// mikrotikGuide writes RouterOS without negation (r2 M5): the admin network and the Vedette box in the vedette-admin address list
-// (each added only when missing, r2 L1), then per port list an accept rule from that list above a drop rule from everyone, for the
-// device (chain forward) or, for a MikroTik's own CVE, the router itself (chain input). The rules go in front of the first static
-// rule found at paste time (no rule numbers, r1 M1); a failed command stops the block before any drop rule (r1 M2).
-func mikrotikGuide(c cfg, self bool) findings.FirewallGuide {
-	g := findings.FirewallGuide{Vendor: "mikrotik", Label: "MikroTik", Intro: c.intro(self)}
-	fw := "/ip firewall"
-	if c.t.v6 {
-		fw = "/ipv6 firewall"
-	}
-	id := strings.ToUpper(c.tag)
-	comment := fmt.Sprintf("Vedette %s: restrict %s", id, c.t.ip)
-	chain, dst := "forward", " dst-address="+c.t.ip
-	if self {
-		comment = fmt.Sprintf("Vedette %s: restrict admin access", id)
-		chain, dst = "input", ""
-	}
-	type spec struct{ accept, drop string }
-	var specs []spec
-	if len(c.ports) == 0 {
-		specs = append(specs, spec{"", " connection-state=new"})
-	}
-	for _, p := range c.protos() {
-		s := fmt.Sprintf(" protocol=%s dst-port=%s", p, strings.Join(c.byProto(p), ","))
-		specs = append(specs, spec{s, s})
-	}
-	var b strings.Builder
-	b.WriteString("{\n")
-	entry := func(address, what string) {
-		fmt.Fprintf(&b, "    :if ([:len [%s address-list find list=vedette-admin address=%q]] = 0) do={ %s address-list add list=vedette-admin address=%s comment=%q }\n", fw, address, fw, address, what)
-	}
-	entry(findings.AdminNetPlaceholder, "Vedette admin network")
-	for _, a := range c.box {
-		entry(a, "Vedette box")
-	}
-	fmt.Fprintf(&b, "    :if ([:len [%s address-list find list=vedette-admin]] = 0) do={ :error \"The vedette-admin list is empty: nothing was added.\" }\n", fw)
-	fmt.Fprintf(&b, "    :local rules [%s filter find where dynamic=no]\n", fw)
-	var rules []string
-	for _, s := range specs {
-		rules = append(rules,
-			fmt.Sprintf("%s filter add chain=%s action=accept%s src-address-list=vedette-admin%s comment=%q", fw, chain, dst, s.accept, comment),
-			fmt.Sprintf("%s filter add chain=%s action=drop%s%s comment=%q", fw, chain, dst, s.drop, comment))
-	}
-	b.WriteString("    :if ([:len $rules] > 0) do={\n")
-	for _, r := range rules {
-		fmt.Fprintf(&b, "        %s place-before=[:pick $rules 0]\n", r)
-	}
-	b.WriteString("    } else={\n")
-	for _, r := range rules {
-		fmt.Fprintf(&b, "        %s\n", r)
-	}
-	b.WriteString("    }\n}")
-	g.Steps = []findings.CodeStep{{Title: "RouterOS terminal: allow the admin network, drop everyone else", Code: b.String(),
-		Note: "Paste it as a whole in a terminal (WinBox, New Terminal, or SSH). The rules go in front of your first filter rule; if a command fails, the block stops before any drop rule. The vedette-admin list is shared by every Vedette rule: to change the admin network later, " +
-			fw + " address-list set [find list=vedette-admin comment=\"Vedette admin network\"] address=<NEW-NETWORK>.",
-		SideEffect: c.sideEffect(self)}}
-	if self {
-		g.Alternative = &findings.Alternative{Title: "Or: limit the router's services to the admin network", Intro: "RouterOS can limit each of its own services (WinBox, SSH, web, API) to a network.",
-			Steps: []findings.CodeStep{{Title: "RouterOS terminal: services only from the admin network", Code: "/ip service set [find] address=" + findings.AdminNetPlaceholder,
-				Note: "This replaces the address limits your services already have (/ip service print shows them). With an IPv6 network only, admin access over IPv4 stops."}}}
-	}
-	g.Verify = []findings.CodeStep{{Title: "Show the rules and their counters", Code: fmt.Sprintf("%s filter print stats where comment=%q", fw, comment),
-		Note: "The rules must be listed; if they are not, the paste failed. " + verifyByHand}}
-	g.Undo = []findings.CodeStep{{Title: "Remove the rules", Code: fmt.Sprintf("%s filter remove [find comment=%q]", fw, comment), Note: "This removes only this finding's rules. The vedette-admin address list stays: other Vedette rules may use it."}}
-	return g
-}
-
-// genericGuide writes nftables (and iptables as the other way) for a Linux firewall or the Linux device itself: one table of its own
-// per finding and device, so removing it touches nothing else. One prerouting chain after conntrack (-150) and before DNAT (-100)
-// sees the device's own address for traffic to the machine, traffic routed through it and services published from Docker or
-// Podman, which never reach input (r2 M3). It accepts the admin network and the Vedette box, then drops new connections
-// (no negation, r2 M5; the admin's open session stays, r1 M3).
-func genericGuide(c cfg) findings.FirewallGuide {
-	g := findings.FirewallGuide{Vendor: "generic", Label: "Linux (nftables)", Intro: c.intro(false) + " The same config works on a Linux firewall or router and on the device itself when it runs Linux, including services it publishes from Docker or Podman."}
-	fam, ipt := "ip", "iptables"
-	if c.t.v6 {
-		fam, ipt = "ip6", "ip6tables"
-	}
-	table := strings.ReplaceAll(c.name(""), "-", "_")
-	allowed := findings.AdminNetPlaceholder
-	if len(c.box) > 0 {
-		allowed = "{ " + strings.Join(append([]string{findings.AdminNetPlaceholder}, c.box...), ", ") + " }"
-	}
-	var drops []string
-	if len(c.ports) == 0 {
-		drops = []string{fmt.Sprintf("%s daddr %s ct state new drop", fam, c.t.ip)}
-	}
-	for _, p := range c.protos() {
-		drops = append(drops, fmt.Sprintf("%s daddr %s %s dport { %s } ct state new drop", fam, c.t.ip, p, strings.Join(c.byProto(p), ", ")))
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "sudo nft -f - <<'EOF'\ntable inet %s {\n    chain prerouting {\n        type filter hook prerouting priority -150; policy accept;\n        iifname \"lo\" accept\n        %s daddr %s %s saddr %s accept\n", table, fam, c.t.ip, fam, allowed)
-	for _, d := range drops {
-		b.WriteString("        " + d + "\n")
-	}
-	b.WriteString("    }\n}\nEOF")
-	side := c.sideEffect(false) + selfLockout
-	g.Steps = []findings.CodeStep{{Title: "nftables: allow the admin network, drop new connections from everyone else", Code: b.String(),
-		Note:       "The prerouting chain sees traffic to this machine, traffic it routes to the device and services published from Docker or Podman containers. The rules last until the next restart: to keep them, add the table to /etc/nftables.conf.",
-		SideEffect: side}}
-	comment := "vedette-" + c.tag
-	var dropSpecs, acceptSpecs []string
-	base := fmt.Sprintf("-t mangle %%s PREROUTING -d %s", c.t.ip)
-	if len(c.ports) == 0 {
-		dropSpecs = append(dropSpecs, " ! -i lo -m conntrack --ctstate NEW")
-	}
-	for _, p := range c.protos() {
-		dropSpecs = append(dropSpecs, fmt.Sprintf(" ! -i lo -p %s -m multiport --dports %s -m conntrack --ctstate NEW", p, strings.Join(c.byProto(p), ",")))
-	}
-	for _, s := range append([]string{findings.AdminNetPlaceholder}, c.box...) {
-		acceptSpecs = append(acceptSpecs, " -s "+s)
-	}
-	var ins, del []string
-	// -I puts each rule first, so the drops go in before the accepts, which then sit above them.
-	for _, s := range dropSpecs {
-		ins = append(ins, fmt.Sprintf("sudo %s %s%s -m comment --comment %s -j DROP", ipt, fmt.Sprintf(base, "-I"), s, comment))
-		del = append(del, fmt.Sprintf("sudo %s %s%s -m comment --comment %s -j DROP", ipt, fmt.Sprintf(base, "-D"), s, comment))
-	}
-	for _, s := range acceptSpecs {
-		ins = append(ins, fmt.Sprintf("sudo %s %s%s -m comment --comment %s -j RETURN", ipt, fmt.Sprintf(base, "-I"), s, comment))
-		del = append(del, fmt.Sprintf("sudo %s %s%s -m comment --comment %s -j RETURN", ipt, fmt.Sprintf(base, "-D"), s, comment))
-	}
-	g.Alternative = &findings.Alternative{Title: "Or: iptables", Intro: "For a system that still uses iptables. The rules go first in the mangle table's PREROUTING chain, which also sees Docker-published services.",
-		Steps: []findings.CodeStep{{Title: "iptables: allow the admin network, drop new connections from everyone else", Code: strings.Join(ins, "\n"), SideEffect: side,
-			Note: "The rules are lost on restart: save them with iptables-save (netfilter-persistent on Debian and Ubuntu)."},
-			{Title: "iptables: remove them again", Code: strings.Join(del, "\n")}}}
-	g.Verify = []findings.CodeStep{{Title: "Show the table", Code: "sudo nft list table inet " + table, Note: verifyByHand}}
-	g.Undo = []findings.CodeStep{{Title: "Remove the table", Code: "sudo nft delete table inet " + table, Note: "This removes only this finding's table."}}
-	return g
-}
-
-// family is a software family the checks and the ports are written for. Only families the KEV entry names reliably.
+// family is a software family the checks are written for. Only families the KEV entry names reliably.
 type family struct {
-	label    string
-	self     string                   // the firewall guide that protects the device itself: "fortigate", "mikrotik" or ""
-	usual    []findings.HardeningPort // the usual admin ports when the device is the firewall itself
-	portsAre string                   // what the ports of the family are, in words ("remote access services")
-	outage   string                   // what stops for users when those ports are restricted (r1 M6), "" when nothing more to say
-	// service reports whether an open port belongs to the software; nil: the family has no port of its own (restrict all)
-	service func(OpenPort) bool
-	checks  func(software, cve string) findings.CompromiseCheck
-}
-
-func tcp(port int, name string) findings.HardeningPort {
-	return findings.HardeningPort{Port: port, Proto: "tcp", Service: name}
+	label  string
+	checks func(software, cve string) findings.CompromiseCheck
 }
 
 func hasAny(s string, words ...string) bool {
@@ -580,33 +58,6 @@ func hasAny(s string, words ...string) bool {
 		}
 	}
 	return false
-}
-
-func isWeb(o OpenPort) bool {
-	n := strings.ToLower(o.Name)
-	return strings.Contains(n, "http") || o.Port == 80 || o.Port == 443 || o.Port == 8080 || o.Port == 8443
-}
-
-// isAdmin is a remote management service of a network device.
-func isAdmin(o OpenPort) bool {
-	n := strings.ToLower(o.Name)
-	return isWeb(o) || hasAny(n, "ssh", "telnet", "snmp", "winbox") || slices.Contains([]int{22, 23, 161, 830, 8291, 8728, 8729}, o.Port)
-}
-
-func isSSH(o OpenPort) bool {
-	return strings.ToLower(o.Name) == "ssh" || strings.Contains(strings.ToLower(o.Product), "openssh") || (o.Port == 22 && o.Proto == "tcp")
-}
-
-// isWindowsRemote is a Windows remote access service: RPC, SMB, RDP, WinRM.
-func isWindowsRemote(o OpenPort) bool {
-	n := strings.ToLower(o.Name)
-	return o.Proto == "tcp" && (slices.Contains([]int{135, 139, 445, 3389, 5985, 5986}, o.Port) || hasAny(n, "msrpc", "microsoft-ds", "netbios-ssn", "ms-wbt-server", "wsman"))
-}
-
-// isLinuxRemote is a Linux remote access service: SSH, telnet, VNC, Cockpit, Webmin.
-func isLinuxRemote(o OpenPort) bool {
-	n := strings.ToLower(o.Name)
-	return isSSH(o) || o.Proto == "tcp" && (slices.Contains([]int{23, 5900, 9090, 10000}, o.Port) || hasAny(n, "telnet", "vnc"))
 }
 
 // familyOf maps the finding to a family from the KEV entry's vendor and product, then the device's type.
@@ -622,45 +73,35 @@ func familyOf(r findings.Row) family {
 	}
 	switch {
 	case vendor == "fortinet" && strings.Contains(product, "forticlient"): // r2 L4: FortiClient EMS is Windows server software
-		return family{label: "Windows", service: isWindowsRemote, checks: windowsChecks, portsAre: "remote access services",
-			outage: "Shared folders, remote desktop and remote management stop for other users outside the admin network."}
+		return family{label: "Windows", checks: windowsChecks}
 	case vendor == "fortinet" && hasAny(product, "fortios", "fortiproxy", "fortigate"):
-		return family{label: "Fortinet FortiOS", self: "fortigate", service: isAdmin, checks: fortiosChecks, portsAre: "admin services",
-			usual: []findings.HardeningPort{tcp(22, "ssh"), tcp(80, "http"), tcp(443, "https")}}
+		return family{label: "Fortinet FortiOS", checks: fortiosChecks}
 	case vendor == "mikrotik" && strings.Contains(product, "routeros"): //nolint:misspell // RouterOS is the product name
-		return family{label: "MikroTik RouterOS", self: "mikrotik", service: isAdmin, checks: routerosChecks, portsAre: "admin services",
-			usual: []findings.HardeningPort{tcp(21, "ftp"), tcp(22, "ssh"), tcp(23, "telnet"), tcp(80, "www"), tcp(443, "www-ssl"), tcp(8291, "winbox"), tcp(8728, "api"), tcp(8729, "api-ssl")}}
+		return family{label: "MikroTik RouterOS", checks: routerosChecks}
 	case vendor == "juniper" && strings.Contains(product, "junos"):
-		return family{label: "Juniper Junos OS", service: isAdmin, checks: junosChecks, portsAre: "admin services"}
+		return family{label: "Juniper Junos OS", checks: junosChecks}
 	case vendor == "cisco" && (strings.HasPrefix(product, "ios") || strings.Contains(product, " ios")) && !strings.Contains(product, "xr"): // r1 L4: IOS XR differs
-		return family{label: "Cisco IOS", service: isAdmin, checks: ciscoChecks, portsAre: "admin services"}
+		return family{label: "Cisco IOS", checks: ciscoChecks}
 	case strings.Contains(product, "openssh"):
-		return family{label: "OpenSSH", service: isSSH, checks: opensshChecks, portsAre: "SSH services"}
+		return family{label: "OpenSSH", checks: opensshChecks}
 	case vendor == "microsoft" && hasAny(product, "exchange"):
-		return family{label: "Windows web server (IIS)", service: isWeb, checks: iisChecks, portsAre: "web services",
-			outage: "Outlook on the web and mail on phones (ActiveSync) stop for every user outside the admin network."}
+		return family{label: "Windows web server (IIS)", checks: iisChecks}
 	case vendor == "microsoft" && hasAny(product, "sharepoint", "internet information services", "iis") || hasAny(vp, "moveit"): // r1 M5: MOVEit runs on IIS
-		return family{label: "Windows web server (IIS)", service: isWeb, checks: iisChecks, portsAre: "web services",
-			outage: "The website or web application stops for its users outside the admin network."}
+		return family{label: "Windows web server (IIS)", checks: iisChecks}
 	case vendor == "microsoft" || hasAny(vp, "veeam", "solarwinds", "serv-u", "kaseya"): // r1 M5: Windows-only software
-		return family{label: "Windows", service: isWindowsRemote, checks: windowsChecks, portsAre: "remote access services",
-			outage: "Shared folders, remote desktop and remote management stop for other users outside the admin network."}
+		return family{label: "Windows", checks: windowsChecks}
 	case hasAny(vp, "http server", "httpd", "nginx", "tomcat", "struts", "weblogic", "confluence", "jira", "gitlab", "jenkins", "drupal",
 		"wordpress", "joomla", "magento", "coldfusion", "ofbiz", "zimbra", "roundcube", "teamcity", "php", "atlassian"):
-		return family{label: "Web server", service: isWeb, checks: webChecks, portsAre: "web services",
-			outage: "The website or web application stops for its users outside the admin network: for a public site, restrict only its admin pages instead."}
+		return family{label: "Web server", checks: webChecks}
 	case hasAny(vendor, "linux", "canonical", "debian", "red hat", "redhat", "suse", "gnu", "sudo", "polkit", "samba") || hasAny(product, "linux", "kernel", "glibc", "polkit", "samba"): // r2 L4: Samba
 		if strings.Contains(vp, "samba") {
-			return family{label: "Linux file server (Samba)", checks: linuxChecks, portsAre: "file sharing and remote access services",
-				service: func(o OpenPort) bool { return isLinuxRemote(o) || o.Proto == "tcp" && (o.Port == 139 || o.Port == 445) },
-				outage:  "Shared folders stop for users outside the admin network."}
+			return family{label: "Linux file server (Samba)", checks: linuxChecks}
 		}
-		return family{label: "Linux", service: isLinuxRemote, checks: linuxChecks, portsAre: "remote access services"}
+		return family{label: "Linux", checks: linuxChecks}
 	case hasAny(vendor, "fortinet", "juniper", "cisco", "palo alto", "citrix", "ivanti", "pulse secure", "sonicwall", "f5", "zyxel", "d-link",
 		"tp-link", "netgear", "draytek", "ubiquiti", "sophos", "watchguard", "array networks", "tenda", "totolink", "mikrotik", "check point") ||
 		slices.Contains([]string{"firewall", "router", "switch", "ap"}, kind):
-		return family{label: "Network device", service: isAdmin, checks: netdeviceChecks, portsAre: "admin services",
-			outage: "A VPN portal on one of these ports stops for its users outside the admin network."}
+		return family{label: "Network device", checks: netdeviceChecks}
 	}
 	return family{label: "General", checks: genericChecks}
 }

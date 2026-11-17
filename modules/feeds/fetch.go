@@ -80,7 +80,8 @@ type Response struct {
 	NotModified  bool
 	ETag         string
 	LastModified string
-	FinalURL     string // may carry a query string: do not log it
+	FinalURL     string    // may carry a query string: do not log it
+	Date         time.Time // the server's Date header (zero when missing or unreadable): its clock, for the CISA list's plausibility (#946 r2)
 }
 
 // Fetcher performs the HTTPS GET of a feed. The zero value works.
@@ -287,6 +288,9 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	out := &Response{ETag: resp.Header.Get("ETag"), LastModified: resp.Header.Get("Last-Modified"), FinalURL: resp.Request.URL.String()}
+	if d, derr := http.ParseTime(resp.Header.Get("Date")); derr == nil {
+		out.Date = d.UTC()
+	}
 	if !validValidator(out.ETag) {
 		out.ETag = ""
 	}

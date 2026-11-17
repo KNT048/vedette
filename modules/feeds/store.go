@@ -305,15 +305,38 @@ WHERE id = ? AND builtin = 0`,
 
 // updateSettings is PUT /feeds/sources/{id}: the three things both kinds of feed allow to change.
 func updateSettings(ctx context.Context, tx *sql.Tx, id string, enabled bool, hours int, url string, urlChanged bool) error {
+	var was bool
+	if err := tx.QueryRowContext(ctx, `SELECT enabled FROM feeds_source WHERE id = ?`, id).Scan(&was); err != nil {
+		return fmt.Errorf("feeds: read feed settings: %w", err)
+	}
 	// turning a feed back on forgets its back-off: the admin fixed what failed
 	q := `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ? WHERE id = ?`
 	args := []any{boolInt(enabled), boolInt(enabled), hours, id}
-	if urlChanged {
-		q = `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL, answered_by = NULL, mirror_etag = NULL, mirror_last_modified = NULL WHERE id = ?`
-		args = []any{boolInt(enabled), boolInt(enabled), hours, url, id}
+	if urlChanged { // a new address starts a new count of failures (#946 r1 Low) and forgets what the old one said: its count, version
+		// and validators (#946 r2: a count from another address must never judge this one)
+		q = `UPDATE feeds_source SET rev = rev + 1, failures = 0, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL,
+answered_by = NULL, mirror_etag = NULL, mirror_last_modified = NULL, kev_copies = NULL, catalog_version = NULL, catalog_released = NULL,
+records = NULL, stale_failed_since = NULL, stale_failed_checks = 0 WHERE id = ?`
+		args = []any{boolInt(enabled), hours, url, id}
 	}
 	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
 		return fmt.Errorf("feeds: update feed settings: %w", err)
+	}
+	if was == enabled {
+		return nil
+	}
+	// Turned on or off: the watch of the CISA list restarts (D-629: the checks count from when it is on again, and an alert open when it
+	// was turned off is not followed by "up to date again"), and the CISA list forgets its held version, count and every validator (#946 r1:
+	// the way out of a catalog the box should not have kept; the next check reads both copies in full).
+	if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET stale_watch_from = NULL, stale_alerted_at = NULL, stale_failed_since = NULL,
+stale_failed_checks = 0 WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("feeds: restart the watch: %w", err)
+	}
+	if id == kevFeedID {
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET catalog_version = NULL, catalog_released = NULL, records = NULL, kev_copies = NULL,
+etag = NULL, last_modified = NULL, mirror_etag = NULL, mirror_last_modified = NULL WHERE id = ?`, id); err != nil {
+			return fmt.Errorf("feeds: forget the held CISA list version: %w", err)
+		}
 	}
 	return nil
 }
@@ -955,8 +978,11 @@ type outcome struct {
 	Bytes             int
 	ETag, LastModif   string
 	CatalogVersion    string
-	AnsweredBy        string // D-91: which address answered ("" leaves the stored answer as it is)
-	Mirror            bool   // ETag and LastModif are the CISA GitHub mirror's (D-485): they go to mirror_etag/mirror_last_modified
+	CatalogReleased   time.Time // dateReleased of the catalog stored (zero leaves it as it is)
+	AnsweredBy        string    // D-91: the copy of the CISA list the stored catalog came from ("" leaves it as it is)
+	// Copies is what each copy of the CISA list said at this check (D-91 as amended, kien G13), with each copy's validators; nil for
+	// every other pull. Written for a failed pull too.
+	Copies *kevCopies
 }
 
 // recordOutcome writes the fetch log row and updates the pull state of the feed.
@@ -1006,13 +1032,15 @@ reject_reasons, error, bytes, etag, last_modified) VALUES (?, ?, ?, ?, ?, ?, ?, 
 		if o.CatalogVersion != "" {
 			ver = o.CatalogVersion
 		}
-		validators := `etag = ?, last_modified = ?`
-		if o.Mirror { // the feed's own validators stay for its own address
-			validators = `mirror_etag = ?, mirror_last_modified = ?`
-		}
 		_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET last_fetch = ?, last_success = ?, failures = 0, status = 'ok', error = ?,
-records = COALESCE(?, records), `+validators+`, catalog_version = COALESCE(?, catalog_version), answered_by = COALESCE(?, answered_by) WHERE id = ?`,
+records = COALESCE(?, records), etag = ?, last_modified = ?, catalog_version = COALESCE(?, catalog_version), answered_by = COALESCE(?, answered_by) WHERE id = ?`,
 			fin, fin, msg, records, etag, lm, ver, answered, id)
+		if err == nil && !o.CatalogReleased.IsZero() {
+			_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET catalog_released = ? WHERE id = ?`, store.FormatTS(o.CatalogReleased), id)
+		}
+	}
+	if err == nil && o.Copies != nil {
+		err = o.Copies.write(ctx, tx, id)
 	}
 	if err != nil {
 		return fmt.Errorf("feeds: update pull state: %w", err)

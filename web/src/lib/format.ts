@@ -12,6 +12,11 @@ export function fmtDateTime(iso: string | null | undefined) {
   if (!iso) return '–'
   return new Intl.DateTimeFormat(loc(), { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso))
 }
+/** The time of day only, "14:03", for something that happened minutes ago. */
+export function fmtTime(iso: string | null | undefined) {
+  if (!iso) return '–'
+  return new Intl.DateTimeFormat(loc(), { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
+}
 /** The server sends Go's zero time (0001-01-01) for "never happened". */
 export function isNever(iso: string | null | undefined) {
   return !iso || new Date(iso).getUTCFullYear() < 1971

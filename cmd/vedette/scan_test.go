@@ -73,3 +73,24 @@ func TestScanAdapterVulnScanPolicyIsOneRead(t *testing.T) {
 		t.Errorf("reads: policy %d, devices %d, settings %d; want 1, 0, 0", f.policy, f.devices, f.settings)
 	}
 }
+
+// Scan INV-14 (review M1 of #933): ports an agent or the box listed are not nuclei targets; a port the scan also found is one target
+// with the scan's service name; UDP is not a target.
+func TestScanPortsAreTheScansOnly(t *testing.T) {
+	t.Parallel()
+	rows := []inventory.ServiceRow{
+		{Port: 22, Proto: "tcp", Name: "sshd", Source: "agent"},
+		{Port: 22, Proto: "tcp", Name: "ssh", Source: "nmap"},
+		{Port: 53, Proto: "udp", Name: "domain", Source: "nmap"},
+		{Port: 443, Proto: "tcp", Name: "nginx", Source: "agent"},
+		{Port: 8443, Proto: "tcp", Name: "ssl/http", Source: "nmap"},
+		{Port: 8443, Proto: "tcp", Name: "https", Source: "scan"},
+	}
+	got := scanPorts(rows)
+	if fmt.Sprint(got) != "[{22 ssh} {8443 ssl/http}]" {
+		t.Fatalf("scan ports %v", got)
+	}
+	if got := scanPorts(rows[3:4]); len(got) != 0 { // agent-only: no target, so nuclei keeps its 80/443 fallback
+		t.Fatalf("an agent-only port became a target: %v", got)
+	}
+}

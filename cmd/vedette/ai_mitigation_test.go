@@ -156,3 +156,22 @@ func TestAITrustedAndMatched_R2(t *testing.T) {
 		t.Fatalf("matched = %q", got)
 	}
 }
+
+// #933 review M2: the ports an agent or the box listed (named by their program) never reach the AI provider; PRIVACY.md says the
+// request carries the open ports with what a scan read.
+func TestAIPortsAreTheScansOnly(t *testing.T) {
+	t.Parallel()
+	var d inventory.Device
+	d.Services = []inventory.ServiceRow{
+		{Port: 22, Proto: "tcp", Name: "sshd", Source: "agent"},
+		{Port: 22, Proto: "tcp", Name: "ssh", Source: "nmap"},
+		{Port: 5432, Proto: "tcp", Name: "postgres", Source: "agent"},
+	}
+	if got := aiPorts(d); got != "22/tcp ssh" {
+		t.Fatalf("ai ports %q", got)
+	}
+	d.Services = d.Services[2:]
+	if got := aiPorts(d); got != "none known" {
+		t.Fatalf("agent-only ports %q", got)
+	}
+}

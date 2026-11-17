@@ -2,16 +2,19 @@ package inventory_test
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/inventory"
@@ -568,5 +571,61 @@ func TestContract_INV3_ATooLongBoxListKeepsTheBoxSoftware(t *testing.T) {
 	}
 	if sw := e.detail(id).Asset.Software; len(sw) != 1 || sw[0].Product != "OpenSSH" {
 		t.Fatalf("box software = %d rows, want the stored row kept", len(sw))
+	}
+}
+
+// INV-3, INV-23 (kien 2026-11-17): the box is never scanned, so it lists its own open ports (vedette-host GET /v1/state/ports) as its
+// services, source agent: a new list replaces the agent rows and leaves the other sources' rows; no list (a host older than the read)
+// keeps them; a list that breaks the bounds is refused whole.
+func TestContract_INV3_TheBoxListsItsOwnOpenPorts(t *testing.T) {
+	t.Parallel()
+	var ports []observe.Service
+	e := newEnv(t, func(c *inventory.Config) {
+		c.BoxPorts = func(context.Context) ([]observe.Service, error) { return ports, nil }
+	})
+	id, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette-hq", IP: "192.168.10.2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// a row of another source: a person's Scan now of the box (D-470) read 22/tcp with nmap; the box's own list never touches it
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at)
+			VALUES ('sv-nmap', ?, 22, 'tcp', 'ssh', 'OpenSSH', '9.6p1', NULL, 'nmap', 0.9, ?)`, id, store.FormatTS(e.now))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	ports = []observe.Service{{Port: 8443, Proto: "tcp", Name: "vedette-core"}, {Port: 22, Proto: "tcp", Name: "sshd"}, {Port: 514, Proto: "udp", Name: "vedette-core"}}
+	if err := e.svc.RefreshBoxServices(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	got := func() []string {
+		var out []string
+		for _, s := range e.detail(id).Asset.Services {
+			out = append(out, fmt.Sprintf("%d/%s %s %s %.1f", s.Port, s.Proto, s.Name, s.Source, s.Confidence))
+		}
+		return out
+	}
+	want := []string{"22/tcp sshd agent 1.0", "22/tcp ssh nmap 0.9", "514/udp vedette-core agent 1.0", "8443/tcp vedette-core agent 1.0"}
+	if g := got(); !slices.Equal(g, want) {
+		t.Fatalf("box services %q, want %q", g, want)
+	}
+	ports = nil // a host older than the read
+	if err := e.svc.RefreshBoxServices(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if g := got(); !slices.Equal(g, want) {
+		t.Fatalf("no list changed the box services: %q", g)
+	}
+	ports = []observe.Service{{Port: 0, Proto: "tcp"}}
+	if err := e.svc.RefreshBoxServices(e.ctx()); err == nil {
+		t.Fatal("port 0 was stored")
+	}
+	ports = []observe.Service{{Port: 8443, Proto: "tcp", Name: "vedette-core"}}
+	if err := e.svc.RefreshBoxServices(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if g := got(); !slices.Equal(g, []string{"22/tcp ssh nmap 0.9", "8443/tcp vedette-core agent 1.0"}) {
+		t.Fatalf("box services %q after sshd stopped (the nmap row stays)", g)
 	}
 }

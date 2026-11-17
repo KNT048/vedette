@@ -34,7 +34,7 @@ var (
 	agentIDRE     = regexp.MustCompile(`^[0-9]{3,10}$`) // the AgentID format of the spec ("numbers", 3 or more)
 	jwtRE         = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$`)
 	apiVersionRE  = regexp.MustCompile(`^v?[0-9]+(\.[0-9]+){0,3}([-+][0-9A-Za-z.]{1,16})?$`)
-	syscollPathRE = regexp.MustCompile(`^/syscollector/[0-9]{3,10}/(netaddr|netiface|packages)$`)
+	syscollPathRE = regexp.MustCompile(`^/syscollector/[0-9]{3,10}/(netaddr|netiface|packages|ports)$`)
 )
 
 // allowedCall is the allow-list of FORBID-4: the login (POST) and the documented read-only GETs, and nothing else.
@@ -354,6 +354,52 @@ func syscollPage[T any](ctx context.Context, c *wazuhClient, id, table, fields s
 	}
 	return page.Data.Items, *page.Data.Total, nil
 }
+
+// wzPort is one row of an agent's syscollector ports: protocol is "tcp", "tcp6", "udp" or "udp6"; state "listening" for a TCP
+// listener (Wazuh's default syscollector reads only listening ports, <ports all="no">); a UDP socket has no state, and one with a
+// remote port is a client.
+type wzPort struct {
+	Local struct {
+		IP   string `json:"ip"`
+		Port int    `json:"port"`
+	} `json:"local"`
+	Remote struct {
+		Port int `json:"port"`
+	} `json:"remote"`
+	Protocol string `json:"protocol"`
+	State    string `json:"state"`
+	Process  string `json:"process"`
+}
+
+// ports reads an agent's open ports (INV-22). complete is false when the read is not one whole list, so the caller keeps what it has
+// (#933 review L4, r2 L1): the server holds more rows than maxPortRows (a busy server whose syscollector reads every socket,
+// <ports all="yes">), a page comes back empty before the total is reached, or the total changes between pages (syscollector rescanned
+// meanwhile, and offset paging skipped or repeated rows).
+func (c *wazuhClient) ports(ctx context.Context, id string) (rows []wzPort, complete bool, err error) {
+	first := -1
+	for offset := 0; ; {
+		items, total, err := syscollPage[wzPort](ctx, c, id, "ports", "local.ip,local.port,remote.port,protocol,state,process", offset)
+		if err != nil {
+			return nil, false, err
+		}
+		if first < 0 {
+			first = total
+		}
+		rows = append(rows, items...)
+		offset += len(items)
+		switch {
+		case total != first:
+			return rows, false, nil
+		case offset >= total:
+			return rows, true, nil
+		case len(items) == 0, len(rows) >= maxPortRows:
+			return rows, false, nil
+		}
+	}
+}
+
+// maxPortRows bounds the rows of one agent's ports read: eight pages, every listener of a server and its connections.
+const maxPortRows = 8 * wazuhPage
 
 // packages reads an agent's packages, at most maxRows (the inventory's limit per device).
 func (c *wazuhClient) packages(ctx context.Context, id string) ([]wzPackage, error) {

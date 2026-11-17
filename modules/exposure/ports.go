@@ -109,17 +109,24 @@ type Gateway interface {
 	Gateway(ctx context.Context) (GatewayDevice, error)
 }
 
-// Appliances finds the inventory devices of an appliance family that a port on the Internet names (S-EXP-1, appliance.go).
-// cmd/vedette implements it from the inventory and the findings; exposure reads no other module's tables.
+// Appliances finds the inventory devices of the appliance families (content/adminpages) that ports on the Internet name (INV-33),
+// all families in one read. cmd/vedette implements it from the inventory and the findings; exposure reads no other module's tables.
 type Appliances interface {
-	ApplianceDevices(ctx context.Context, q ApplianceQuery) ([]ApplianceDevice, error)
+	ApplianceDevices(ctx context.Context, qs []ApplianceQuery) (map[string]ApplianceMatch, error)
 }
 
-// ApplianceQuery says what makes a device one of the family: a software row with one of KevKeys (KEV vendor|product, lower case),
-// or a vendor, model, OS or software text that Device matches.
+// ApplianceQuery says what makes a device one of a family: its own vendor, model or OS that Device matches, or a software row with
+// one of KevKeys (KEV vendor|product of the family's own operating system, lower case). A client device (a PC, a phone) never is.
 type ApplianceQuery struct {
+	Family  string
 	KevKeys []string
 	Device  *regexp.Regexp
+}
+
+// ApplianceMatch is the devices of one family: at most MaxApplianceDevices, More the others.
+type ApplianceMatch struct {
+	Devices []ApplianceDevice
+	More    int
 }
 
 // GatewayDevice is the LAN default gateway and what Vedette knows of it. IP is the zero value when the box cannot tell its gateway;

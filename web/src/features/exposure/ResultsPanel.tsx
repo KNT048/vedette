@@ -68,7 +68,8 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port}</span> },
     { id: 'service', header: t('col.service'), accessorFn: (r) => serviceText(r.service, identOf(r)).name, cell: ({ row }) => <ServiceCell service={row.original.service} ident={identOf(row.original)} port={row.original.port} /> },
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.product ?? '', cell: ({ row }) => (
-      <span className="grid gap-0.5">{row.original.product ?? <span className="text-muted">{t('common:unknown')}</span>}<PortHints p={row.original} className="text-caption text-muted" /></span>
+      <span className="grid gap-0.5">{row.original.product ?? <span className="text-muted">{t('common:unknown')}</span>}<PortHints p={row.original} className="text-caption text-muted" />
+        {row.original.appliance ? <ApplianceNote a={row.original.appliance} className="text-caption" /> : null}</span>
     ) },
     { id: 'note', header: t('col.note'), enableSorting: false, cell: ({ row }) => {
       const risk = riskOf(row.original)

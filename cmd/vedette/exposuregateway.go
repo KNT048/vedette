@@ -71,54 +71,75 @@ func (g exposureGateway) Gateway(ctx context.Context) (exposure.GatewayDevice, e
 	return out, nil
 }
 
-// ApplianceDevices is exposure.Appliances: the inventory devices of an appliance family a port on the Internet names (a FortiGate
-// certificate on the box's public IP), each with its open findings. A device is of the family when one of its software rows carries
-// one of the family's KEV keys, or its vendor, model, OS or software text is the family's. The box itself and ignored devices are
-// never one. Read on demand (the target list, a snapshot), like Gateway.
-func (g exposureGateway) ApplianceDevices(ctx context.Context, q exposure.ApplianceQuery) ([]exposure.ApplianceDevice, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+// ApplianceDevices is exposure.Appliances: for every appliance family a port on the Internet may name (a FortiGate certificate on
+// the box's public IP), the inventory devices that are one, each with its open findings, in one read of the inventory. A device is
+// one by its own identity: its vendor, model or OS (the family's pattern), or a software row with one of the family's KEV keys (the
+// keys of the family's own OS; none a VPN client shares). A client device (a PC, a phone) never is, whatever software it runs, nor
+// the box itself or an ignored device. At most exposure.MaxApplianceDevices a family are listed, More counts the others.
+func (g exposureGateway) ApplianceDevices(ctx context.Context, qs []exposure.ApplianceQuery) (map[string]exposure.ApplianceMatch, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	devs, err := g.inv.AllDevices(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var ids []string
+	ids := map[string][]string{}
 	for _, d := range devs {
-		if !d.IsBox && d.IgnoredAt == nil && applianceDevice(d, q) {
-			ids = append(ids, d.ID)
+		if d.IsBox || d.IgnoredAt != nil || clientKinds[d.Kind] {
+			continue
+		}
+		for _, q := range qs {
+			if applianceDevice(d, q) {
+				ids[q.Family] = append(ids[q.Family], d.ID)
+			}
 		}
 	}
+	out := make(map[string]exposure.ApplianceMatch, len(qs))
+	for _, q := range qs {
+		out[q.Family] = exposure.ApplianceMatch{Devices: []exposure.ApplianceDevice{}}
+	}
 	if len(ids) == 0 {
-		return []exposure.ApplianceDevice{}, nil
+		return out, nil
 	}
 	names, err := g.inv.Names(ctx) // the Devices page's name
 	if err != nil {
 		return nil, err
 	}
-	out := make([]exposure.ApplianceDevice, 0, len(ids))
-	for _, id := range ids {
-		recs, err := g.fnd.List(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		d := exposure.ApplianceDevice{DeviceID: id, Name: names[id]}
-		for _, r := range recs {
-			if r.Status.Open() {
-				d.OpenExploited++
+	for fam, list := range ids {
+		m := exposure.ApplianceMatch{Devices: []exposure.ApplianceDevice{}, More: max(len(list)-exposure.MaxApplianceDevices, 0)}
+		for _, id := range list[:min(len(list), exposure.MaxApplianceDevices)] {
+			recs, err := g.fnd.List(ctx, id)
+			if err != nil {
+				return nil, err
 			}
+			d := exposure.ApplianceDevice{DeviceID: id, Name: names[id]}
+			for _, r := range recs {
+				if r.Status.Open() {
+					d.OpenExploited++
+				}
+			}
+			m.Devices = append(m.Devices, d)
 		}
-		out = append(out, d)
+		out[fam] = m
 	}
 	return out, nil
 }
 
-// applianceDevice says whether a device is of the family the query describes.
+// clientKinds are the device types that run a vendor's VPN client, never its appliance.
+var clientKinds = map[string]bool{"pc": true, "laptop": true, "workstation": true, "thin_client": true, "smartphone": true, "tablet": true,
+	"smartwatch": true, "pos_terminal": true, "kiosk": true, "smart_tv": true, "media_player": true, "game_console": true}
+
+// applianceDevice says whether a device is of the family: its own vendor, model or OS, or a software row (not marked not installed)
+// with one of the family's KEV keys.
 func applianceDevice(d inventory.Device, q exposure.ApplianceQuery) bool {
-	text := []string{}
+	var own []string
 	for _, o := range []*inventory.Observed{d.Vendor, d.Model, d.OS} {
 		if o != nil {
-			text = append(text, o.Value)
+			own = append(own, o.Value)
 		}
+	}
+	if q.Device != nil && q.Device.MatchString(strings.Join(own, " \n ")) {
+		return true
 	}
 	for _, s := range d.Software {
 		if s.NotInstalled {
@@ -129,7 +150,6 @@ func applianceDevice(d inventory.Device, q exposure.ApplianceQuery) bool {
 				return true
 			}
 		}
-		text = append(text, s.Vendor+" "+s.Product, s.Display)
 	}
-	return q.Device != nil && q.Device.MatchString(strings.Join(text, " \n "))
+	return false
 }

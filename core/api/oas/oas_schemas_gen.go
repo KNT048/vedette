@@ -43527,6 +43527,8 @@ type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -43564,6 +43566,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -43626,6 +43633,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetLastSeen(val Op
 	s.LastSeen = val
 }
 
+// SetLocation sets the value of Location.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
+}
+
 // SetMisses sets the value of Misses.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetMisses(val OptInt) {
 	s.Misses = val
@@ -43663,17 +43675,21 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetUnchecked(val O
 
 // The network appliance the port names, with the inventory devices of that family; absent when none.
 type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance struct {
-	// The inventory devices of the family with their open exploited findings; [] when none is in the
-	// inventory; null when Vedette cannot tell.
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
 	Devices []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem `json:"devices"`
-	// Which statement of the port named the family.
+	// Which statement of the port named it.
 	Evidence ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence `json:"evidence"`
 	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-	// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 	Kind ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind `json:"kind"`
-	// The family: FortiGate, Palo Alto firewall, SonicWall, Cisco ASA, Ivanti Connect Secure, Citrix
-	// NetScaler, MikroTik router, Juniper.
-	Name   string `json:"name"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
 	Vendor string `json:"vendor"`
 }
 
@@ -43690,6 +43706,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) GetEviden
 // GetKind returns the value of Kind.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) GetKind() ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind {
 	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
 }
 
 // GetName returns the value of Name.
@@ -43715,6 +43736,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) SetEviden
 // SetKind sets the value of Kind.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) SetKind(val ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind) {
 	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
 }
 
 // SetName sets the value of Name.
@@ -43764,13 +43790,14 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem
 	s.OpenExploited = val
 }
 
-// Which statement of the port named the family.
+// Which statement of the port named it.
 type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence string
 
 const (
 	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "certificate"
 	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle       ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "title"
 	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer      ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "server"
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect    ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "redirect"
 	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct     ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "product"
 )
 
@@ -43780,6 +43807,7 @@ func (ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) AllV
 		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate,
 		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle,
 		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer,
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect,
 		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct,
 	}
 }
@@ -43792,6 +43820,8 @@ func (s ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) Ma
 	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle:
 		return []byte(s), nil
 	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect:
 		return []byte(s), nil
 	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct:
 		return []byte(s), nil
@@ -43812,6 +43842,9 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) U
 	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer:
 		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer
 		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect
+		return nil
 	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct
 		return nil
@@ -43821,7 +43854,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) U
 }
 
 // Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceKind string
 
 const (
@@ -46098,6 +46131,8 @@ type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -46135,6 +46170,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -46197,6 +46237,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetLastSeen(val OptString)
 	s.LastSeen = val
 }
 
+// SetLocation sets the value of Location.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
+}
+
 // SetMisses sets the value of Misses.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetMisses(val OptInt) {
 	s.Misses = val
@@ -46234,17 +46279,21 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetUnchecked(val OptBool) 
 
 // The network appliance the port names, with the inventory devices of that family; absent when none.
 type ExposureGetExposureTargetsIDOKOpenPortsItemAppliance struct {
-	// The inventory devices of the family with their open exploited findings; [] when none is in the
-	// inventory; null when Vedette cannot tell.
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
 	Devices []ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem `json:"devices"`
-	// Which statement of the port named the family.
+	// Which statement of the port named it.
 	Evidence ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence `json:"evidence"`
 	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-	// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 	Kind ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind `json:"kind"`
-	// The family: FortiGate, Palo Alto firewall, SonicWall, Cisco ASA, Ivanti Connect Secure, Citrix
-	// NetScaler, MikroTik router, Juniper.
-	Name   string `json:"name"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
 	Vendor string `json:"vendor"`
 }
 
@@ -46261,6 +46310,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) GetEvidence() Exp
 // GetKind returns the value of Kind.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) GetKind() ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind {
 	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
 }
 
 // GetName returns the value of Name.
@@ -46286,6 +46340,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) SetEvidence(val E
 // SetKind sets the value of Kind.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) SetKind(val ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind) {
 	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
 }
 
 // SetName sets the value of Name.
@@ -46335,13 +46394,14 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceDevicesItem) SetOpe
 	s.OpenExploited = val
 }
 
-// Which statement of the port named the family.
+// Which statement of the port named it.
 type ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence string
 
 const (
 	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceCertificate ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence = "certificate"
 	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceTitle       ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence = "title"
 	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer      ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence = "server"
+	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect    ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence = "redirect"
 	ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct     ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence = "product"
 )
 
@@ -46351,6 +46411,7 @@ func (ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence) AllValues() 
 		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceCertificate,
 		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceTitle,
 		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer,
+		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect,
 		ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct,
 	}
 }
@@ -46363,6 +46424,8 @@ func (s ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence) MarshalTex
 	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceTitle:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct:
 		return []byte(s), nil
@@ -46383,6 +46446,9 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence) Unmarshal
 	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer:
 		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer
 		return nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect
+		return nil
 	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct
 		return nil
@@ -46392,7 +46458,7 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence) Unmarshal
 }
 
 // Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 type ExposureGetExposureTargetsIDOKOpenPortsItemApplianceKind string
 
 const (
@@ -47147,17 +47213,21 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem) SetURL(val 
 // The network appliance the page belongs to, with the inventory devices of that family; absent when
 // none.
 type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance struct {
-	// The inventory devices of the family with their open exploited findings; [] when none is in the
-	// inventory; null when Vedette cannot tell.
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
 	Devices []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevicesItem `json:"devices"`
-	// Which statement of the port named the family.
+	// Which statement of the port named it.
 	Evidence ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence `json:"evidence"`
 	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-	// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 	Kind ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind `json:"kind"`
-	// The family: FortiGate, Palo Alto firewall, SonicWall, Cisco ASA, Ivanti Connect Secure, Citrix
-	// NetScaler, MikroTik router, Juniper.
-	Name   string `json:"name"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
 	Vendor string `json:"vendor"`
 }
 
@@ -47174,6 +47244,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) Ge
 // GetKind returns the value of Kind.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) GetKind() ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind {
 	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) GetMore() OptInt {
+	return s.More
 }
 
 // GetName returns the value of Name.
@@ -47199,6 +47274,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) Se
 // SetKind sets the value of Kind.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) SetKind(val ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind) {
 	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) SetMore(val OptInt) {
+	s.More = val
 }
 
 // SetName sets the value of Name.
@@ -47248,13 +47328,14 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceDevi
 	s.OpenExploited = val
 }
 
-// Which statement of the port named the family.
+// Which statement of the port named it.
 type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence string
 
 const (
 	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceCertificate ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence = "certificate"
 	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceTitle       ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence = "title"
 	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer      ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence = "server"
+	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect    ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence = "redirect"
 	ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct     ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidence = "product"
 )
 
@@ -47264,6 +47345,7 @@ func (ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenc
 		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceCertificate,
 		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceTitle,
 		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer,
+		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect,
 		ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct,
 	}
 }
@@ -47276,6 +47358,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvide
 	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceTitle:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct:
 		return []byte(s), nil
@@ -47296,6 +47380,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvid
 	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer
 		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect
+		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct
 		return nil
@@ -47305,7 +47392,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvid
 }
 
 // Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceKind string
 
 const (
@@ -48307,6 +48394,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -48344,6 +48433,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -48406,6 +48500,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetLastSeen(val O
 	s.LastSeen = val
 }
 
+// SetLocation sets the value of Location.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetLocation(val OptString) {
+	s.Location = val
+}
+
 // SetMisses sets the value of Misses.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetMisses(val OptInt) {
 	s.Misses = val
@@ -48443,17 +48542,21 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetUnchecked(val 
 
 // The network appliance the port names, with the inventory devices of that family; absent when none.
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance struct {
-	// The inventory devices of the family with their open exploited findings; [] when none is in the
-	// inventory; null when Vedette cannot tell.
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
 	Devices []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesItem `json:"devices"`
-	// Which statement of the port named the family.
+	// Which statement of the port named it.
 	Evidence ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence `json:"evidence"`
 	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-	// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 	Kind ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind `json:"kind"`
-	// The family: FortiGate, Palo Alto firewall, SonicWall, Cisco ASA, Ivanti Connect Secure, Citrix
-	// NetScaler, MikroTik router, Juniper.
-	Name   string `json:"name"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
 	Vendor string `json:"vendor"`
 }
 
@@ -48470,6 +48573,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) GetEvide
 // GetKind returns the value of Kind.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) GetKind() ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind {
 	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) GetMore() OptInt {
+	return s.More
 }
 
 // GetName returns the value of Name.
@@ -48495,6 +48603,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) SetEvide
 // SetKind sets the value of Kind.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) SetKind(val ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind) {
 	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
 }
 
 // SetName sets the value of Name.
@@ -48544,13 +48657,14 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceDevicesIte
 	s.OpenExploited = val
 }
 
-// Which statement of the port named the family.
+// Which statement of the port named it.
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence string
 
 const (
 	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceCertificate ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence = "certificate"
 	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceTitle       ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence = "title"
 	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer      ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence = "server"
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect    ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence = "redirect"
 	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct     ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence = "product"
 )
 
@@ -48560,6 +48674,7 @@ func (ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence) All
 		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceCertificate,
 		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceTitle,
 		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer,
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect,
 		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct,
 	}
 }
@@ -48572,6 +48687,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence) M
 	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceTitle:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct:
 		return []byte(s), nil
@@ -48592,6 +48709,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence) 
 	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer
 		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect
+		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct
 		return nil
@@ -48601,7 +48721,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence) 
 }
 
 // Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceKind string
 
 const (
@@ -50686,6 +50806,8 @@ type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -50723,6 +50845,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -50785,6 +50912,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetLastSeen(val Opt
 	s.LastSeen = val
 }
 
+// SetLocation sets the value of Location.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
+}
+
 // SetMisses sets the value of Misses.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetMisses(val OptInt) {
 	s.Misses = val
@@ -50822,17 +50954,21 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetUnchecked(val Op
 
 // The network appliance the port names, with the inventory devices of that family; absent when none.
 type ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance struct {
-	// The inventory devices of the family with their open exploited findings; [] when none is in the
-	// inventory; null when Vedette cannot tell.
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
 	Devices []ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem `json:"devices"`
-	// Which statement of the port named the family.
+	// Which statement of the port named it.
 	Evidence ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence `json:"evidence"`
 	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-	// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 	Kind ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind `json:"kind"`
-	// The family: FortiGate, Palo Alto firewall, SonicWall, Cisco ASA, Ivanti Connect Secure, Citrix
-	// NetScaler, MikroTik router, Juniper.
-	Name   string `json:"name"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
 	Vendor string `json:"vendor"`
 }
 
@@ -50849,6 +50985,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) GetEvidenc
 // GetKind returns the value of Kind.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) GetKind() ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind {
 	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
 }
 
 // GetName returns the value of Name.
@@ -50874,6 +51015,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) SetEvidenc
 // SetKind sets the value of Kind.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) SetKind(val ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind) {
 	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
 }
 
 // SetName sets the value of Name.
@@ -50923,13 +51069,14 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceDevicesItem)
 	s.OpenExploited = val
 }
 
-// Which statement of the port named the family.
+// Which statement of the port named it.
 type ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence string
 
 const (
 	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceCertificate ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence = "certificate"
 	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceTitle       ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence = "title"
 	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer      ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence = "server"
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect    ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence = "redirect"
 	ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct     ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence = "product"
 )
 
@@ -50939,6 +51086,7 @@ func (ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence) AllVa
 		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceCertificate,
 		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceTitle,
 		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer,
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect,
 		ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct,
 	}
 }
@@ -50951,6 +51099,8 @@ func (s ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence) Mar
 	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceTitle:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct:
 		return []byte(s), nil
@@ -50971,6 +51121,9 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence) Un
 	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer:
 		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer
 		return nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect
+		return nil
 	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct
 		return nil
@@ -50980,7 +51133,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence) Un
 }
 
 // Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 type ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceKind string
 
 const (
@@ -51970,6 +52123,8 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -52007,6 +52162,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetIP() string
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -52069,6 +52229,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetLastSeen(va
 	s.LastSeen = val
 }
 
+// SetLocation sets the value of Location.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
+}
+
 // SetMisses sets the value of Misses.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetMisses(val OptInt) {
 	s.Misses = val
@@ -52106,17 +52271,21 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetUnchecked(v
 
 // The network appliance the port names, with the inventory devices of that family; absent when none.
 type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance struct {
-	// The inventory devices of the family with their open exploited findings; [] when none is in the
-	// inventory; null when Vedette cannot tell.
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
 	Devices []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevicesItem `json:"devices"`
-	// Which statement of the port named the family.
+	// Which statement of the port named it.
 	Evidence ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence `json:"evidence"`
 	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-	// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 	Kind ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind `json:"kind"`
-	// The family: FortiGate, Palo Alto firewall, SonicWall, Cisco ASA, Ivanti Connect Secure, Citrix
-	// NetScaler, MikroTik router, Juniper.
-	Name   string `json:"name"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
 	Vendor string `json:"vendor"`
 }
 
@@ -52133,6 +52302,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) GetEv
 // GetKind returns the value of Kind.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) GetKind() ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind {
 	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
 }
 
 // GetName returns the value of Name.
@@ -52158,6 +52332,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) SetEv
 // SetKind sets the value of Kind.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) SetKind(val ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind) {
 	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
 }
 
 // SetName sets the value of Name.
@@ -52207,13 +52386,14 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceDevices
 	s.OpenExploited = val
 }
 
-// Which statement of the port named the family.
+// Which statement of the port named it.
 type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence string
 
 const (
 	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceCertificate ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence = "certificate"
 	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceTitle       ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence = "title"
 	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer      ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence = "server"
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect    ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence = "redirect"
 	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct     ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence = "product"
 )
 
@@ -52223,6 +52403,7 @@ func (ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence) 
 		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceCertificate,
 		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceTitle,
 		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer,
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect,
 		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct,
 	}
 }
@@ -52235,6 +52416,8 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence
 	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceTitle:
 		return []byte(s), nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect:
 		return []byte(s), nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct:
 		return []byte(s), nil
@@ -52255,6 +52438,9 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenc
 	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer
 		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect
+		return nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct
 		return nil
@@ -52264,7 +52450,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenc
 }
 
 // Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceKind string
 
 const (
@@ -53794,6 +53980,8 @@ type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -53831,6 +54019,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -53893,6 +54086,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetLastSeen(val OptStr
 	s.LastSeen = val
 }
 
+// SetLocation sets the value of Location.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
+}
+
 // SetMisses sets the value of Misses.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetMisses(val OptInt) {
 	s.Misses = val
@@ -53930,17 +54128,21 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetUnchecked(val OptBo
 
 // The network appliance the port names, with the inventory devices of that family; absent when none.
 type ExposurePostExposureTargetsCreatedOpenPortsItemAppliance struct {
-	// The inventory devices of the family with their open exploited findings; [] when none is in the
-	// inventory; null when Vedette cannot tell.
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
 	Devices []ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem `json:"devices"`
-	// Which statement of the port named the family.
+	// Which statement of the port named it.
 	Evidence ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence `json:"evidence"`
 	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-	// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 	Kind ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind `json:"kind"`
-	// The family: FortiGate, Palo Alto firewall, SonicWall, Cisco ASA, Ivanti Connect Secure, Citrix
-	// NetScaler, MikroTik router, Juniper.
-	Name   string `json:"name"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
 	Vendor string `json:"vendor"`
 }
 
@@ -53957,6 +54159,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) GetEvidence()
 // GetKind returns the value of Kind.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) GetKind() ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind {
 	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
 }
 
 // GetName returns the value of Name.
@@ -53982,6 +54189,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) SetEvidence(v
 // SetKind sets the value of Kind.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) SetKind(val ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind) {
 	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
 }
 
 // SetName sets the value of Name.
@@ -54031,13 +54243,14 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceDevicesItem) Se
 	s.OpenExploited = val
 }
 
-// Which statement of the port named the family.
+// Which statement of the port named it.
 type ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence string
 
 const (
 	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceCertificate ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence = "certificate"
 	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceTitle       ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence = "title"
 	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer      ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence = "server"
+	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect    ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence = "redirect"
 	ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct     ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence = "product"
 )
 
@@ -54047,6 +54260,7 @@ func (ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence) AllValue
 		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceCertificate,
 		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceTitle,
 		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer,
+		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect,
 		ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct,
 	}
 }
@@ -54059,6 +54273,8 @@ func (s ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence) Marsha
 	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceTitle:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct:
 		return []byte(s), nil
@@ -54079,6 +54295,9 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence) Unmar
 	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer:
 		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer
 		return nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect
+		return nil
 	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct
 		return nil
@@ -54088,7 +54307,7 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence) Unmar
 }
 
 // Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 type ExposurePostExposureTargetsCreatedOpenPortsItemApplianceKind string
 
 const (
@@ -55804,6 +56023,8 @@ type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -55841,6 +56062,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetIP() strin
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -55903,6 +56129,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetLastSeen(v
 	s.LastSeen = val
 }
 
+// SetLocation sets the value of Location.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
+}
+
 // SetMisses sets the value of Misses.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetMisses(val OptInt) {
 	s.Misses = val
@@ -55940,17 +56171,21 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetUnchecked(
 
 // The network appliance the port names, with the inventory devices of that family; absent when none.
 type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance struct {
-	// The inventory devices of the family with their open exploited findings; [] when none is in the
-	// inventory; null when Vedette cannot tell.
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
 	Devices []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevicesItem `json:"devices"`
-	// Which statement of the port named the family.
+	// Which statement of the port named it.
 	Evidence ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence `json:"evidence"`
 	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-	// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 	Kind ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind `json:"kind"`
-	// The family: FortiGate, Palo Alto firewall, SonicWall, Cisco ASA, Ivanti Connect Secure, Citrix
-	// NetScaler, MikroTik router, Juniper.
-	Name   string `json:"name"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
 	Vendor string `json:"vendor"`
 }
 
@@ -55967,6 +56202,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) GetE
 // GetKind returns the value of Kind.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) GetKind() ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind {
 	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
 }
 
 // GetName returns the value of Name.
@@ -55992,6 +56232,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) SetE
 // SetKind sets the value of Kind.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) SetKind(val ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind) {
 	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
 }
 
 // SetName sets the value of Name.
@@ -56041,13 +56286,14 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceDevice
 	s.OpenExploited = val
 }
 
-// Which statement of the port named the family.
+// Which statement of the port named it.
 type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence string
 
 const (
 	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceCertificate ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence = "certificate"
 	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceTitle       ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence = "title"
 	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer      ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence = "server"
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect    ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence = "redirect"
 	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct     ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence = "product"
 )
 
@@ -56057,6 +56303,7 @@ func (ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidence)
 		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceCertificate,
 		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceTitle,
 		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer,
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect,
 		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct,
 	}
 }
@@ -56069,6 +56316,8 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenc
 	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceTitle:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct:
 		return []byte(s), nil
@@ -56089,6 +56338,9 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEviden
 	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer
 		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect
+		return nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct
 		return nil
@@ -56098,7 +56350,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEviden
 }
 
 // Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceKind string
 
 const (
@@ -57524,6 +57776,8 @@ type ExposurePutExposureTargetsIDTermsOKOpenPortsItem struct {
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
+	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
+	Location OptString `json:"location"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
 	// last scan).
 	Misses  OptInt    `json:"misses"`
@@ -57561,6 +57815,11 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetLocation returns the value of Location.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetLocation() OptString {
+	return s.Location
 }
 
 // GetMisses returns the value of Misses.
@@ -57623,6 +57882,11 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetLastSeen(val OptSt
 	s.LastSeen = val
 }
 
+// SetLocation sets the value of Location.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetLocation(val OptString) {
+	s.Location = val
+}
+
 // SetMisses sets the value of Misses.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetMisses(val OptInt) {
 	s.Misses = val
@@ -57660,17 +57924,21 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetUnchecked(val OptB
 
 // The network appliance the port names, with the inventory devices of that family; absent when none.
 type ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance struct {
-	// The inventory devices of the family with their open exploited findings; [] when none is in the
-	// inventory; null when Vedette cannot tell.
+	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
+	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
+	// Vedette cannot tell or the product has no family.
 	Devices []ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem `json:"devices"`
-	// Which statement of the port named the family.
+	// Which statement of the port named it.
 	Evidence ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence `json:"evidence"`
 	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-	// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 	Kind ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind `json:"kind"`
-	// The family: FortiGate, Palo Alto firewall, SonicWall, Cisco ASA, Ivanti Connect Secure, Citrix
-	// NetScaler, MikroTik router, Juniper.
-	Name   string `json:"name"`
+	// Devices of the family beyond the 5 listed.
+	More OptInt `json:"more"`
+	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
+	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
+	Name string `json:"name"`
+	// The family's vendor; "" for a product of no family.
 	Vendor string `json:"vendor"`
 }
 
@@ -57687,6 +57955,11 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) GetEvidence(
 // GetKind returns the value of Kind.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) GetKind() ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind {
 	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) GetMore() OptInt {
+	return s.More
 }
 
 // GetName returns the value of Name.
@@ -57712,6 +57985,11 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) SetEvidence(
 // SetKind sets the value of Kind.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) SetKind(val ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind) {
 	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) SetMore(val OptInt) {
+	s.More = val
 }
 
 // SetName sets the value of Name.
@@ -57761,13 +58039,14 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceDevicesItem) S
 	s.OpenExploited = val
 }
 
-// Which statement of the port named the family.
+// Which statement of the port named it.
 type ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence string
 
 const (
 	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "certificate"
 	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle       ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "title"
 	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer      ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "server"
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect    ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "redirect"
 	ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct     ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence = "product"
 )
 
@@ -57777,6 +58056,7 @@ func (ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) AllValu
 		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceCertificate,
 		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle,
 		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer,
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect,
 		ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct,
 	}
 }
@@ -57789,6 +58069,8 @@ func (s ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) Marsh
 	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle:
 		return []byte(s), nil
 	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect:
 		return []byte(s), nil
 	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct:
 		return []byte(s), nil
@@ -57809,6 +58091,9 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) Unma
 	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer:
 		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer
 		return nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect
+		return nil
 	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct
 		return nil
@@ -57818,7 +58103,7 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) Unma
 }
 
 // Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-// admin interface); admin_or_vpn: the family serves both from one certificate or product name.
+// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
 type ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceKind string
 
 const (

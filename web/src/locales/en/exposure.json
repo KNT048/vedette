@@ -98,17 +98,20 @@
       "certificate": "its certificate names it",
       "title": "its page title names it",
       "server": "its Server header names it",
-      "product": "the service the scan identified names it"
+      "product": "the service the scan identified names it",
+      "redirect": "its first page redirects to its sign-in page"
     },
     "says": "{{what}}: {{from}}.",
-    "adminInfo": "The admin and VPN pages of {{name}} devices are among the first things attackers try: their flaws are on the CISA list of exploited vulnerabilities again and again. Allow only your own addresses to reach the admin page (or close it on the Internet), and keep the firmware up to date.",
+    "adminInfo": "Admin pages of network devices, servers and tools are among the first things attackers try, and the admin and VPN pages of firewalls and VPN gateways are on the CISA list of exploited vulnerabilities again and again. Allow only your own addresses to reach this page (or close it on the Internet), and keep the firmware or software up to date.",
     "vpnInfo": "A VPN portal faces the Internet by design, but the VPN portals of {{name}} devices are attacked first when a flaw is published. Keep the firmware up to date and the admin page off the Internet.",
-    "notListed": "No {{name}} is in your device list, so Vedette cannot say which exploited vulnerabilities it has. Add it under Devices.",
+    "notListed": "No device in your list is recognised as {{name}}, so Vedette cannot say which exploited vulnerabilities it has. If you have one, add it under Devices.",
     "device": {
-      "known_one": "{{device}} in your devices is a {{name}} with {{count}} open exploited vulnerability: fix it first.",
-      "known_other": "{{device}} in your devices is a {{name}} with {{count}} open exploited vulnerabilities: fix these first.",
-      "none": "{{device}} in your devices is a {{name}}; no open exploited vulnerability is known on it.",
-      "link": "Open {{device}}"
+      "known_one": "Your device {{device}} ({{name}}) has {{count}} open exploited vulnerability: fix it first.",
+      "known_other": "Your device {{device}} ({{name}}) has {{count}} open exploited vulnerabilities: fix these first.",
+      "none": "Your device {{device}} ({{name}}): no open exploited vulnerability is known on it.",
+      "link": "Open {{device}}",
+      "more_one": "and {{count}} more {{name}} device in your list.",
+      "more_other": "and {{count}} more {{name}} devices in your list."
     }
   },
   "risky": {

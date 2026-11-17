@@ -70,6 +70,8 @@ type Service struct {
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
 
 	bg context.Context // the service's own context for work the registry's module switch starts (it has none)
+
+	appliances applianceCache // the inventory's last answer about the appliance families (INV-33)
 }
 
 // NewService returns the service. DB, Audit, Resolver, Prober and Log are required.

@@ -43,14 +43,14 @@ var List = []Port{
 	{8090, "http", Web}, {8123, "http", Web}, {8291, "winbox", Plain}, {8443, "https", WebTLS}, {8728, "mikrotik-api", Plain},
 	{8729, "mikrotik-api-ssl", TLSOnly}, {8834, "https", WebTLS}, {8880, "http", Web}, {8883, "mqtts", TLSOnly}, {8888, "http", Web},
 	{9000, "http", Web}, {9042, "cassandra", Plain}, {9090, "http", Web}, {9100, "jetdirect", Plain}, {9200, "http", Web},
-	{9443, "https", WebTLS}, {10000, "https", WebTLS}, {10250, "kubelet", TLSOnly}, {10443, "https", WebTLS}, {11211, "memcached", Plain},
+	{9443, "https", WebTLS}, {10000, "https", WebTLS}, {10250, "kubelet", TLSOnly}, {10443, "https", WebTLS}, {11211, "memcached", Plain}, {11443, "https", WebTLS},
 	{27017, "mongodb", Plain}, {34567, "dvr", Plain}, {37777, "dvr", Plain},
 }
 
 // MaxBelievableOpen is how many ports of List may be open before the address is taken to answer on every port: an
 // ISP router or a firewall with a SYN proxy completes the handshake on all of them, so nmap -sV would read dozens of "tcpwrapped"
 // rows or run into its host timeout. With more open than this, exposure skips service identification and the template checks
-// and says why; sensor-active's external run discards its -sV rows. No real small office exposes 40 of these 98 ports.
+// and says why; sensor-active's external run discards its -sV rows. No real small office exposes 40 of these 99 ports.
 const MaxBelievableOpen = 40
 
 // Numbers returns the port numbers of List, in its order (ascending).

@@ -126,7 +126,7 @@ func TestContract_INV19_NoServiceScannerSaysNotSetUp(t *testing.T) {
 	e := newEnv(t)
 	m := &fakeMatcher{}
 	e.svc.cfg.Matcher = m
-	s := e.scanIP(Content{Ports: []PortRow{{ipA, 443, "https", "nginx", "", 0, false, "", nil, "", "", nil}}})
+	s := e.scanIP(Content{Ports: []PortRow{{ipA, 443, "https", "nginx", "", 0, false, "", nil, "", "", "", nil}}})
 	if len(s.Ports) != 1 || len(s.Services) != 0 || len(s.Vulns) != 0 || len(s.VersionGaps) != 0 {
 		t.Fatalf("snapshot = %+v", s)
 	}
@@ -232,7 +232,7 @@ func TestContract_INV19_UnavailableAndFailedSteps(t *testing.T) {
 			if !tc.noMatch {
 				e.svc.cfg.Matcher = &fakeMatcher{err: tc.matchErr}
 			}
-			s := e.scanIP(Content{Ports: []PortRow{{ipA, 22, "ssh", "", "", 0, false, "", nil, "", "", nil}}})
+			s := e.scanIP(Content{Ports: []PortRow{{ipA, 22, "ssh", "", "", 0, false, "", nil, "", "", "", nil}}})
 			if !slices.Contains(notChecked(s), tc.want) || len(s.Ports) != 1 || len(s.Vulns) != 0 {
 				t.Fatalf("snapshot = %+v", s)
 			}
@@ -481,6 +481,7 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 		{IP: ipA, Port: 10443, ID: "http-title", Output: `Sign in \xC2\xB7 GitLab` + "\nRequested resource was /users/sign_in"}, // As nmap prints it
 		{IP: ipA, Port: 11080, ID: "http-title", Output: "Site doesn't have a title (text/html)."},
 		{IP: ipA, Port: 11080, ID: "http-server-header", Output: "Caddy"},
+		{IP: ipA, Port: 8080, ID: "http-title", Output: "Did not follow redirect to https://203.0.113.10:10443/remote/login?lang=en"},
 		{IP: ipB, Port: 11443, ID: "ssl-cert", Output: "Subject: commonName=other.example"},
 	}}}
 	s := e.scanIP(Content{Ports: []PortRow{
@@ -494,6 +495,9 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 		got[p.Port] = row{p.Service, p.Ident, p.Title, p.Server, strings.Join(p.CertNames, ",")}
 		if p.Port == 2222 && p.Product != "OpenSSH 9.6" { // the product follows the service the probe named
 			t.Errorf("2222 product %q", p.Product)
+		}
+		if want := map[int]string{8080: "https://203.0.113.10:10443/remote/login?lang=en"}[p.Port]; p.Location != want { // a redirect nmap did not follow
+			t.Errorf("%d location %q, want %q", p.Port, p.Location, want)
 		}
 	}
 	want := map[int]row{
@@ -518,8 +522,8 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 		}
 	}
 	// a hostile row is cut to what sanitize allows
-	bad := sanitizePortIdent(PortRow{}, PortRow{Ident: "maybe", Title: "a\u202eb", Server: strings.Repeat("x", maxHint+1), CertNames: []string{"a", "b", "c", "d", "e", "f", "\x00"}})
-	if bad.Ident != "" || bad.Title != "" || bad.Server != "" || len(bad.CertNames) != maxCertNames {
+	bad := sanitizePortIdent(PortRow{}, PortRow{Ident: "maybe", Title: "a\u202eb", Server: strings.Repeat("x", maxHint+1), Location: "/a\nb", CertNames: []string{"a", "b", "c", "d", "e", "f", "\x00"}})
+	if bad.Ident != "" || bad.Title != "" || bad.Server != "" || bad.Location != "" || len(bad.CertNames) != maxCertNames {
 		t.Fatalf("sanitized = %+v", bad)
 	}
 }

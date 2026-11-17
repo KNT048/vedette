@@ -24,6 +24,7 @@ export function ApplianceNote({ a, className = 'text-meta' }: { a: Appliance; cl
               <Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${encodeURIComponent(d.device_id)}`}>{t('appliance.device.link', { device: d.name })}</Link>
             </li>
           ))}
+          {a.more ? <li className="text-muted">{t('appliance.device.more', { count: a.more, name: a.name })}</li> : null}
         </ul>
       )}
     </div>

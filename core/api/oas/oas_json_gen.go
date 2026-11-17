@@ -87541,6 +87541,12 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) encodeFields(e *jx
 		}
 	}
 	{
+		if s.Location.Set {
+			e.FieldStart("location")
+			s.Location.Encode(e)
+		}
+	}
+	{
 		if s.Misses.Set {
 			e.FieldStart("misses")
 			s.Misses.Encode(e)
@@ -87580,19 +87586,20 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) encodeFields(e *jx
 	}
 }
 
-var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOKOpenPortsItem = [12]string{
+var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOKOpenPortsItem = [13]string{
 	0:  "appliance",
 	1:  "cert_names",
 	2:  "ident",
 	3:  "ip",
 	4:  "last_seen",
-	5:  "misses",
-	6:  "port",
-	7:  "product",
-	8:  "server",
-	9:  "service",
-	10: "title",
-	11: "unchecked",
+	5:  "location",
+	6:  "misses",
+	7:  "port",
+	8:  "product",
+	9:  "server",
+	10: "service",
+	11: "title",
+	12: "unchecked",
 }
 
 // Decode decodes ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem from json.
@@ -87665,6 +87672,16 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) Decode(d *jx.Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
+		case "location":
+			if err := func() error {
+				s.Location.Reset()
+				if err := s.Location.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"location\"")
+			}
 		case "misses":
 			if err := func() error {
 				s.Misses.Reset()
@@ -87676,7 +87693,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"misses\"")
 			}
 		case "port":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -87708,7 +87725,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"server\"")
 			}
 		case "service":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -87749,8 +87766,8 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) Decode(d *jx.Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01001000,
-		0b00000010,
+		0b10001000,
+		0b00000100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -87826,6 +87843,12 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) encodeFie
 		s.Kind.Encode(e)
 	}
 	{
+		if s.More.Set {
+			e.FieldStart("more")
+			s.More.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -87835,12 +87858,13 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) encodeFie
 	}
 }
 
-var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance = [5]string{
+var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance = [6]string{
 	0: "devices",
 	1: "evidence",
 	2: "kind",
-	3: "name",
-	4: "vendor",
+	3: "more",
+	4: "name",
+	5: "vendor",
 }
 
 // Decode decodes ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance from json.
@@ -87897,8 +87921,18 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) Decode(d 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "more":
+			if err := func() error {
+				s.More.Reset()
+				if err := s.More.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"more\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -87910,7 +87944,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) Decode(d 
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "vendor":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -87931,7 +87965,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) Decode(d 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -88129,6 +88163,8 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) D
 		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle
 	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer:
 		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect
 	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct
 	default:
@@ -92217,6 +92253,12 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) encodeFields(e *jx.Encoder
 		}
 	}
 	{
+		if s.Location.Set {
+			e.FieldStart("location")
+			s.Location.Encode(e)
+		}
+	}
+	{
 		if s.Misses.Set {
 			e.FieldStart("misses")
 			s.Misses.Encode(e)
@@ -92256,19 +92298,20 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDOKOpenPortsItem = [12]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDOKOpenPortsItem = [13]string{
 	0:  "appliance",
 	1:  "cert_names",
 	2:  "ident",
 	3:  "ip",
 	4:  "last_seen",
-	5:  "misses",
-	6:  "port",
-	7:  "product",
-	8:  "server",
-	9:  "service",
-	10: "title",
-	11: "unchecked",
+	5:  "location",
+	6:  "misses",
+	7:  "port",
+	8:  "product",
+	9:  "server",
+	10: "service",
+	11: "title",
+	12: "unchecked",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDOKOpenPortsItem from json.
@@ -92341,6 +92384,16 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
+		case "location":
+			if err := func() error {
+				s.Location.Reset()
+				if err := s.Location.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"location\"")
+			}
 		case "misses":
 			if err := func() error {
 				s.Misses.Reset()
@@ -92352,7 +92405,7 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"misses\"")
 			}
 		case "port":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -92384,7 +92437,7 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"server\"")
 			}
 		case "service":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -92425,8 +92478,8 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) Decode(d *jx.Decoder) erro
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01001000,
-		0b00000010,
+		0b10001000,
+		0b00000100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -92502,6 +92555,12 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) encodeFields(e *j
 		s.Kind.Encode(e)
 	}
 	{
+		if s.More.Set {
+			e.FieldStart("more")
+			s.More.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -92511,12 +92570,13 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) encodeFields(e *j
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDOKOpenPortsItemAppliance = [5]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDOKOpenPortsItemAppliance = [6]string{
 	0: "devices",
 	1: "evidence",
 	2: "kind",
-	3: "name",
-	4: "vendor",
+	3: "more",
+	4: "name",
+	5: "vendor",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDOKOpenPortsItemAppliance from json.
@@ -92573,8 +92633,18 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) Decode(d *jx.Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "more":
+			if err := func() error {
+				s.More.Reset()
+				if err := s.More.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"more\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -92586,7 +92656,7 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "vendor":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -92607,7 +92677,7 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) Decode(d *jx.Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -92805,6 +92875,8 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence) Decode(d 
 		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceTitle
 	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer:
 		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceServer
+	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceRedirect
 	case ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidenceProduct
 	default:
@@ -94475,6 +94547,12 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) en
 		s.Kind.Encode(e)
 	}
 	{
+		if s.More.Set {
+			e.FieldStart("more")
+			s.More.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -94484,12 +94562,13 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) en
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance = [5]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance = [6]string{
 	0: "devices",
 	1: "evidence",
 	2: "kind",
-	3: "name",
-	4: "vendor",
+	3: "more",
+	4: "name",
+	5: "vendor",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance from json.
@@ -94546,8 +94625,18 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "more":
+			if err := func() error {
+				s.More.Reset()
+				if err := s.More.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"more\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -94559,7 +94648,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) De
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "vendor":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -94580,7 +94669,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) De
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -94778,6 +94867,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvid
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceTitle
 	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceServer
+	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceRedirect
 	case ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvidenceProduct
 	default:
@@ -96612,6 +96703,12 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) encodeFields(e *j
 		}
 	}
 	{
+		if s.Location.Set {
+			e.FieldStart("location")
+			s.Location.Encode(e)
+		}
+	}
+	{
 		if s.Misses.Set {
 			e.FieldStart("misses")
 			s.Misses.Encode(e)
@@ -96651,19 +96748,20 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) encodeFields(e *j
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKPortsItem = [12]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKPortsItem = [13]string{
 	0:  "appliance",
 	1:  "cert_names",
 	2:  "ident",
 	3:  "ip",
 	4:  "last_seen",
-	5:  "misses",
-	6:  "port",
-	7:  "product",
-	8:  "server",
-	9:  "service",
-	10: "title",
-	11: "unchecked",
+	5:  "location",
+	6:  "misses",
+	7:  "port",
+	8:  "product",
+	9:  "server",
+	10: "service",
+	11: "title",
+	12: "unchecked",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem from json.
@@ -96736,6 +96834,16 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) Decode(d *jx.Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
+		case "location":
+			if err := func() error {
+				s.Location.Reset()
+				if err := s.Location.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"location\"")
+			}
 		case "misses":
 			if err := func() error {
 				s.Misses.Reset()
@@ -96747,7 +96855,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"misses\"")
 			}
 		case "port":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -96779,7 +96887,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"server\"")
 			}
 		case "service":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -96820,8 +96928,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) Decode(d *jx.Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01001000,
-		0b00000010,
+		0b10001000,
+		0b00000100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -96897,6 +97005,12 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) encodeFi
 		s.Kind.Encode(e)
 	}
 	{
+		if s.More.Set {
+			e.FieldStart("more")
+			s.More.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -96906,12 +97020,13 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) encodeFi
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance = [5]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance = [6]string{
 	0: "devices",
 	1: "evidence",
 	2: "kind",
-	3: "name",
-	4: "vendor",
+	3: "more",
+	4: "name",
+	5: "vendor",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance from json.
@@ -96968,8 +97083,18 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) Decode(d
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "more":
+			if err := func() error {
+				s.More.Reset()
+				if err := s.More.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"more\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -96981,7 +97106,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) Decode(d
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "vendor":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -97002,7 +97127,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) Decode(d
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -97200,6 +97325,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence) 
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceTitle
 	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceServer
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceRedirect
 	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidenceProduct
 	default:
@@ -101282,6 +101409,12 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) encodeFields(e *jx.
 		}
 	}
 	{
+		if s.Location.Set {
+			e.FieldStart("location")
+			s.Location.Encode(e)
+		}
+	}
+	{
 		if s.Misses.Set {
 			e.FieldStart("misses")
 			s.Misses.Encode(e)
@@ -101321,19 +101454,20 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) encodeFields(e *jx.
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemOpenPortsItem = [12]string{
+var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemOpenPortsItem = [13]string{
 	0:  "appliance",
 	1:  "cert_names",
 	2:  "ident",
 	3:  "ip",
 	4:  "last_seen",
-	5:  "misses",
-	6:  "port",
-	7:  "product",
-	8:  "server",
-	9:  "service",
-	10: "title",
-	11: "unchecked",
+	5:  "location",
+	6:  "misses",
+	7:  "port",
+	8:  "product",
+	9:  "server",
+	10: "service",
+	11: "title",
+	12: "unchecked",
 }
 
 // Decode decodes ExposureGetExposureTargetsOKItemsItemOpenPortsItem from json.
@@ -101406,6 +101540,16 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) Decode(d *jx.Decode
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
+		case "location":
+			if err := func() error {
+				s.Location.Reset()
+				if err := s.Location.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"location\"")
+			}
 		case "misses":
 			if err := func() error {
 				s.Misses.Reset()
@@ -101417,7 +101561,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"misses\"")
 			}
 		case "port":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -101449,7 +101593,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"server\"")
 			}
 		case "service":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -101490,8 +101634,8 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) Decode(d *jx.Decode
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01001000,
-		0b00000010,
+		0b10001000,
+		0b00000100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -101567,6 +101711,12 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) encodeFiel
 		s.Kind.Encode(e)
 	}
 	{
+		if s.More.Set {
+			e.FieldStart("more")
+			s.More.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -101576,12 +101726,13 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) encodeFiel
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance = [5]string{
+var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance = [6]string{
 	0: "devices",
 	1: "evidence",
 	2: "kind",
-	3: "name",
-	4: "vendor",
+	3: "more",
+	4: "name",
+	5: "vendor",
 }
 
 // Decode decodes ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance from json.
@@ -101638,8 +101789,18 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) Decode(d *
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "more":
+			if err := func() error {
+				s.More.Reset()
+				if err := s.More.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"more\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -101651,7 +101812,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) Decode(d *
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "vendor":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -101672,7 +101833,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) Decode(d *
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -101870,6 +102031,8 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence) De
 		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceTitle
 	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer:
 		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceServer
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceRedirect
 	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidenceProduct
 	default:
@@ -103801,6 +103964,12 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) encodeFields(e
 		}
 	}
 	{
+		if s.Location.Set {
+			e.FieldStart("location")
+			s.Location.Encode(e)
+		}
+	}
+	{
 		if s.Misses.Set {
 			e.FieldStart("misses")
 			s.Misses.Encode(e)
@@ -103840,19 +104009,20 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) encodeFields(e
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem = [12]string{
+var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem = [13]string{
 	0:  "appliance",
 	1:  "cert_names",
 	2:  "ident",
 	3:  "ip",
 	4:  "last_seen",
-	5:  "misses",
-	6:  "port",
-	7:  "product",
-	8:  "server",
-	9:  "service",
-	10: "title",
-	11: "unchecked",
+	5:  "location",
+	6:  "misses",
+	7:  "port",
+	8:  "product",
+	9:  "server",
+	10: "service",
+	11: "title",
+	12: "unchecked",
 }
 
 // Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem from json.
@@ -103925,6 +104095,16 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) Decode(d *jx.D
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
+		case "location":
+			if err := func() error {
+				s.Location.Reset()
+				if err := s.Location.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"location\"")
+			}
 		case "misses":
 			if err := func() error {
 				s.Misses.Reset()
@@ -103936,7 +104116,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"misses\"")
 			}
 		case "port":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -103968,7 +104148,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"server\"")
 			}
 		case "service":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -104009,8 +104189,8 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) Decode(d *jx.D
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01001000,
-		0b00000010,
+		0b10001000,
+		0b00000100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -104086,6 +104266,12 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) encod
 		s.Kind.Encode(e)
 	}
 	{
+		if s.More.Set {
+			e.FieldStart("more")
+			s.More.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -104095,12 +104281,13 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) encod
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance = [5]string{
+var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance = [6]string{
 	0: "devices",
 	1: "evidence",
 	2: "kind",
-	3: "name",
-	4: "vendor",
+	3: "more",
+	4: "name",
+	5: "vendor",
 }
 
 // Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance from json.
@@ -104157,8 +104344,18 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "more":
+			if err := func() error {
+				s.More.Reset()
+				if err := s.More.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"more\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -104170,7 +104367,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) Decod
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "vendor":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -104191,7 +104388,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -104389,6 +104586,8 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenc
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceTitle
 	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceServer
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceRedirect
 	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidenceProduct
 	default:
@@ -107015,6 +107214,12 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) encodeFields(e *jx.Enc
 		}
 	}
 	{
+		if s.Location.Set {
+			e.FieldStart("location")
+			s.Location.Encode(e)
+		}
+	}
+	{
 		if s.Misses.Set {
 			e.FieldStart("misses")
 			s.Misses.Encode(e)
@@ -107054,19 +107259,20 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) encodeFields(e *jx.Enc
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsCreatedOpenPortsItem = [12]string{
+var jsonFieldsNameOfExposurePostExposureTargetsCreatedOpenPortsItem = [13]string{
 	0:  "appliance",
 	1:  "cert_names",
 	2:  "ident",
 	3:  "ip",
 	4:  "last_seen",
-	5:  "misses",
-	6:  "port",
-	7:  "product",
-	8:  "server",
-	9:  "service",
-	10: "title",
-	11: "unchecked",
+	5:  "location",
+	6:  "misses",
+	7:  "port",
+	8:  "product",
+	9:  "server",
+	10: "service",
+	11: "title",
+	12: "unchecked",
 }
 
 // Decode decodes ExposurePostExposureTargetsCreatedOpenPortsItem from json.
@@ -107139,6 +107345,16 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) Decode(d *jx.Decoder) 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
+		case "location":
+			if err := func() error {
+				s.Location.Reset()
+				if err := s.Location.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"location\"")
+			}
 		case "misses":
 			if err := func() error {
 				s.Misses.Reset()
@@ -107150,7 +107366,7 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"misses\"")
 			}
 		case "port":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -107182,7 +107398,7 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"server\"")
 			}
 		case "service":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -107223,8 +107439,8 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) Decode(d *jx.Decoder) 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01001000,
-		0b00000010,
+		0b10001000,
+		0b00000100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -107300,6 +107516,12 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) encodeFields(
 		s.Kind.Encode(e)
 	}
 	{
+		if s.More.Set {
+			e.FieldStart("more")
+			s.More.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -107309,12 +107531,13 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) encodeFields(
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsCreatedOpenPortsItemAppliance = [5]string{
+var jsonFieldsNameOfExposurePostExposureTargetsCreatedOpenPortsItemAppliance = [6]string{
 	0: "devices",
 	1: "evidence",
 	2: "kind",
-	3: "name",
-	4: "vendor",
+	3: "more",
+	4: "name",
+	5: "vendor",
 }
 
 // Decode decodes ExposurePostExposureTargetsCreatedOpenPortsItemAppliance from json.
@@ -107371,8 +107594,18 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) Decode(d *jx.
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "more":
+			if err := func() error {
+				s.More.Reset()
+				if err := s.More.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"more\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -107384,7 +107617,7 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) Decode(d *jx.
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "vendor":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -107405,7 +107638,7 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) Decode(d *jx.
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -107603,6 +107836,8 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence) Decod
 		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceTitle
 	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer:
 		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceServer
+	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceRedirect
 	case ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidenceProduct
 	default:
@@ -110768,6 +111003,12 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) encodeFields(
 		}
 	}
 	{
+		if s.Location.Set {
+			e.FieldStart("location")
+			s.Location.Encode(e)
+		}
+	}
+	{
 		if s.Misses.Set {
 			e.FieldStart("misses")
 			s.Misses.Encode(e)
@@ -110807,19 +111048,20 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) encodeFields(
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem = [12]string{
+var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem = [13]string{
 	0:  "appliance",
 	1:  "cert_names",
 	2:  "ident",
 	3:  "ip",
 	4:  "last_seen",
-	5:  "misses",
-	6:  "port",
-	7:  "product",
-	8:  "server",
-	9:  "service",
-	10: "title",
-	11: "unchecked",
+	5:  "location",
+	6:  "misses",
+	7:  "port",
+	8:  "product",
+	9:  "server",
+	10: "service",
+	11: "title",
+	12: "unchecked",
 }
 
 // Decode decodes ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem from json.
@@ -110892,6 +111134,16 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) Decode(d *jx.
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
+		case "location":
+			if err := func() error {
+				s.Location.Reset()
+				if err := s.Location.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"location\"")
+			}
 		case "misses":
 			if err := func() error {
 				s.Misses.Reset()
@@ -110903,7 +111155,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) Decode(d *jx.
 				return errors.Wrap(err, "decode field \"misses\"")
 			}
 		case "port":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -110935,7 +111187,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) Decode(d *jx.
 				return errors.Wrap(err, "decode field \"server\"")
 			}
 		case "service":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -110976,8 +111228,8 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) Decode(d *jx.
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01001000,
-		0b00000010,
+		0b10001000,
+		0b00000100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -111053,6 +111305,12 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) enco
 		s.Kind.Encode(e)
 	}
 	{
+		if s.More.Set {
+			e.FieldStart("more")
+			s.More.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -111062,12 +111320,13 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) enco
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance = [5]string{
+var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance = [6]string{
 	0: "devices",
 	1: "evidence",
 	2: "kind",
-	3: "name",
-	4: "vendor",
+	3: "more",
+	4: "name",
+	5: "vendor",
 }
 
 // Decode decodes ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance from json.
@@ -111124,8 +111383,18 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "more":
+			if err := func() error {
+				s.More.Reset()
+				if err := s.More.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"more\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -111137,7 +111406,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) Deco
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "vendor":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -111158,7 +111427,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -111356,6 +111625,8 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEviden
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceTitle
 	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceServer
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceRedirect
 	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenceProduct
 	default:
@@ -114397,6 +114668,12 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) encodeFields(e *jx.En
 		}
 	}
 	{
+		if s.Location.Set {
+			e.FieldStart("location")
+			s.Location.Encode(e)
+		}
+	}
+	{
 		if s.Misses.Set {
 			e.FieldStart("misses")
 			s.Misses.Encode(e)
@@ -114436,19 +114713,20 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) encodeFields(e *jx.En
 	}
 }
 
-var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOKOpenPortsItem = [12]string{
+var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOKOpenPortsItem = [13]string{
 	0:  "appliance",
 	1:  "cert_names",
 	2:  "ident",
 	3:  "ip",
 	4:  "last_seen",
-	5:  "misses",
-	6:  "port",
-	7:  "product",
-	8:  "server",
-	9:  "service",
-	10: "title",
-	11: "unchecked",
+	5:  "location",
+	6:  "misses",
+	7:  "port",
+	8:  "product",
+	9:  "server",
+	10: "service",
+	11: "title",
+	12: "unchecked",
 }
 
 // Decode decodes ExposurePutExposureTargetsIDTermsOKOpenPortsItem from json.
@@ -114521,6 +114799,16 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) Decode(d *jx.Decoder)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
+		case "location":
+			if err := func() error {
+				s.Location.Reset()
+				if err := s.Location.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"location\"")
+			}
 		case "misses":
 			if err := func() error {
 				s.Misses.Reset()
@@ -114532,7 +114820,7 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"misses\"")
 			}
 		case "port":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -114564,7 +114852,7 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"server\"")
 			}
 		case "service":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -114605,8 +114893,8 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) Decode(d *jx.Decoder)
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01001000,
-		0b00000010,
+		0b10001000,
+		0b00000100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -114682,6 +114970,12 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) encodeFields
 		s.Kind.Encode(e)
 	}
 	{
+		if s.More.Set {
+			e.FieldStart("more")
+			s.More.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -114691,12 +114985,13 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) encodeFields
 	}
 }
 
-var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance = [5]string{
+var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance = [6]string{
 	0: "devices",
 	1: "evidence",
 	2: "kind",
-	3: "name",
-	4: "vendor",
+	3: "more",
+	4: "name",
+	5: "vendor",
 }
 
 // Decode decodes ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance from json.
@@ -114753,8 +115048,18 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) Decode(d *jx
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "more":
+			if err := func() error {
+				s.More.Reset()
+				if err := s.More.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"more\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -114766,7 +115071,7 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) Decode(d *jx
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "vendor":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -114787,7 +115092,7 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) Decode(d *jx
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -114985,6 +115290,8 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) Deco
 		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceTitle
 	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer:
 		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceServer
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceRedirect
 	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct:
 		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidenceProduct
 	default:

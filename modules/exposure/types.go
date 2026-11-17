@@ -248,6 +248,9 @@ type (
 		CertNames []string `json:"cert_names,omitempty"`
 		Title     string   `json:"title,omitempty"`
 		Server    string   `json:"server,omitempty"`
+		// Location is where the port's first page redirects, as the deep scan's http-title read it (a FortiGate SSL-VPN sends
+		// the browser to /remote/login). Untrusted, sanitized.
+		Location string `json:"location,omitempty"`
 		// Appliance is the appliance family the port names (appliance.go), set when the port is read, never stored; nil when none.
 		Appliance *Appliance `json:"appliance,omitempty"`
 	}

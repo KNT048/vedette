@@ -23611,6 +23611,34 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemAppliance) Validate(
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.More.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "more",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -23657,6 +23685,8 @@ func (s ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) Va
 	case "title":
 		return nil
 	case "server":
+		return nil
+	case "redirect":
 		return nil
 	case "product":
 		return nil
@@ -24846,6 +24876,34 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) Validate() error 
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.More.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "more",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -24892,6 +24950,8 @@ func (s ExposureGetExposureTargetsIDOKOpenPortsItemApplianceEvidence) Validate()
 	case "title":
 		return nil
 	case "server":
+		return nil
+	case "redirect":
 		return nil
 	case "product":
 		return nil
@@ -25538,6 +25598,34 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemAppliance) Va
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.More.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "more",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -25584,6 +25672,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItemApplianceEvide
 	case "title":
 		return nil
 	case "server":
+		return nil
+	case "redirect":
 		return nil
 	case "product":
 		return nil
@@ -26277,6 +26367,34 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemAppliance) Validate
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.More.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "more",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -26323,6 +26441,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemApplianceEvidence) V
 	case "title":
 		return nil
 	case "server":
+		return nil
+	case "redirect":
 		return nil
 	case "product":
 		return nil
@@ -27764,6 +27884,34 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemAppliance) Validate()
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.More.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "more",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -27810,6 +27958,8 @@ func (s ExposureGetExposureTargetsOKItemsItemOpenPortsItemApplianceEvidence) Val
 	case "title":
 		return nil
 	case "server":
+		return nil
+	case "redirect":
 		return nil
 	case "product":
 		return nil
@@ -28377,6 +28527,34 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) Valid
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.More.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "more",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -28423,6 +28601,8 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemApplianceEvidence
 	case "title":
 		return nil
 	case "server":
+		return nil
+	case "redirect":
 		return nil
 	case "product":
 		return nil
@@ -29223,6 +29403,34 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemAppliance) Validate() er
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.More.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "more",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -29269,6 +29477,8 @@ func (s ExposurePostExposureTargetsCreatedOpenPortsItemApplianceEvidence) Valida
 	case "title":
 		return nil
 	case "server":
+		return nil
+	case "redirect":
 		return nil
 	case "product":
 		return nil
@@ -30221,6 +30431,34 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemAppliance) Vali
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.More.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "more",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -30267,6 +30505,8 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemApplianceEvidenc
 	case "title":
 		return nil
 	case "server":
+		return nil
+	case "redirect":
 		return nil
 	case "product":
 		return nil
@@ -31009,6 +31249,34 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemAppliance) Validate() e
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.More.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "more",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -31055,6 +31323,8 @@ func (s ExposurePutExposureTargetsIDTermsOKOpenPortsItemApplianceEvidence) Valid
 	case "title":
 		return nil
 	case "server":
+		return nil
+	case "redirect":
 		return nil
 	case "product":
 		return nil

@@ -164,8 +164,8 @@ describe('exposure: list (S-EXP-1)', () => {
   const fortiPort = (devices: unknown) => ({ ip: '203.0.113.10', port: 11443, service: 'ssl/unknown', ident: 'none', cert_names: ['FortiGate'],
     appliance: { name: 'FortiGate', vendor: 'Fortinet', kind: 'admin_or_vpn', evidence: 'certificate', devices } })
   it.each([
-    ['tied to the device', [{ device_id: 'dev-fw', name: 'Edge firewall', open_exploited: 2 }], 'Edge firewall in your devices is a FortiGate with 2 open exploited vulnerabilities: fix these first.', '/devices/dev-fw'],
-    ['not in the inventory', [], 'No FortiGate is in your device list, so Vedette cannot say which exploited vulnerabilities it has. Add it under Devices.', null],
+    ['tied to the device', [{ device_id: 'dev-fw', name: 'Edge firewall', open_exploited: 2 }], 'Your device Edge firewall (FortiGate) has 2 open exploited vulnerabilities: fix these first.', '/devices/dev-fw'],
+    ['not in the inventory', [], 'No device in your list is recognised as FortiGate, so Vedette cannot say which exploited vulnerabilities it has. If you have one, add it under Devices.', null],
     ['inventory unknown', null, null, null],
   ])('an appliance certificate on an open port, %s', async (_n, devices, line, href) => {
     const target = { ...gwTarget(), latest: { subdomains: 0, ips: 1, ports: 2, admin_panels: 1, certs_expiring: 0 },
@@ -180,6 +180,16 @@ describe('exposure: list (S-EXP-1)', () => {
     else expect(within(note).queryByRole('link')).toBeNull()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('1 admin interface is exposed to the Internet')
     expect(within(screen.getByTestId('gateway-note')).getByText('Your gateway edge-router (192.168.1.1) answers the other ports; no open exploited vulnerability is known on it.')).toBeInTheDocument()
+  })
+
+  it('an appliance with more devices than the list shows says how many more', async () => {
+    const port = { ...fortiPort([{ device_id: 'dev-1', name: 'Branch firewall', open_exploited: 0 }]), appliance: { ...fortiPort([]).appliance, devices: [{ device_id: 'dev-1', name: 'Branch firewall', open_exploited: 0 }], more: 4 } }
+    const target = { ...gwTarget(), latest: { subdomains: 0, ips: 1, ports: 1, admin_panels: 1, certs_expiring: 0 }, open_ports: [port] }
+    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [target], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway: null })))
+    renderApp('/exposure?tab=open')
+    const note = await screen.findByTestId('appliance-note')
+    expect(within(note).getByText('Your device Branch firewall (FortiGate): no open exploited vulnerability is known on it.')).toBeInTheDocument()
+    expect(within(note).getByText('and 4 more FortiGate devices in your list.')).toBeInTheDocument()
   })
 
   it('no gateway note when every open port names its appliance', async () => {

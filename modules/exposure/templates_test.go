@@ -256,7 +256,7 @@ func TestContract_INV23_TLSOnANonStandardPortGetsHTTPS(t *testing.T) {
 	}
 }
 
-// An address that answers on more than 40 of the 98 ports (a router or SYN proxy) gets one "Not checked" line: the
+// An address that answers on more than 40 of the 99 ports (a router or SYN proxy) gets one "Not checked" line: the
 // surface scan saw it, so nmap is not even asked (exactly 40 is still scanned; ports of another address do not count; an
 // IPv4-mapped address counts as itself); nmap seeing it, or nmap's 3-minute limit, are their own lines. No template and no web
 // page runs, and no line says "no services": the template and web lines say why they did not run.

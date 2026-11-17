@@ -33,8 +33,8 @@ func openProductFindings(t *testing.T, e *env, a Asset, vulns []Vuln, cves []str
 			guess = append(guess, v)
 		}
 	}
-	if res, err := e.svc.UpsertFromMatch(t.Context(), a, guess); err != nil || len(res.Created) != len(cves) {
-		t.Fatalf("setup: %+v %v", res, err)
+	if got := seedNameOnly(t, e, a, guess); len(got) != len(cves) { // D-602: the matcher no longer makes them
+		t.Fatalf("setup: %v", got)
 	}
 	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET severity = 'high' WHERE asset_id = ?`, a.ID)
@@ -210,7 +210,7 @@ func TestMultipleProducts_UnreadableEntryIsNoProof(t *testing.T) {
 		multi := Vuln{CVE: "CVE-2020-3950", Vendor: "VMware", Product: "Multiple Products", Affected: []Affected{
 			{CPE: "cpe:2.3:a:vmware:fusion:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "11.0.0", EndExcl: "11.5.2"}}, {CPE: odd}}}
 		r := MatchAsset(walk3VMware(), []Vuln{tools, multi}, map[string]bool{multi.CVE: true}, t0)
-		if len(r.NotAffected)+len(r.Unlisted) != 0 || len(r.Existing) != 1 || r.Existing[0].Basis != BasisProduct || r.Existing[0].Severity != SeverityMedium {
+		if len(r.NotAffected)+len(r.Unlisted)+len(r.Existing) != 0 || len(r.NameOnly) != 1 || r.NameOnly[0].Basis != BasisProduct || r.NameOnly[0].Severity != SeverityMedium { // D-602: no finding, no proof
 			t.Errorf("%q: %+v", odd, r)
 		}
 	}
@@ -232,7 +232,7 @@ func TestGolden_BoxOSRulesOutOverlayFS(t *testing.T) {
 		t.Fatalf("%s not proved: %+v", cve, r.NotAffected)
 	}
 	box.OS = ""
-	if r := MatchAsset(box, vulns, nil, t0); !slices.ContainsFunc(r.New, func(m Match) bool { return m.CVE == cve && m.Basis == BasisProduct }) {
-		t.Fatalf("without an OS: %+v", r.New)
+	if r := MatchAsset(box, vulns, nil, t0); !slices.ContainsFunc(r.NameOnly, func(m Match) bool { return m.CVE == cve && m.Basis == BasisProduct }) { // D-602: no finding
+		t.Fatalf("without an OS: %+v", r.NameOnly)
 	}
 }

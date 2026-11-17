@@ -189,7 +189,7 @@ func TestMatchAsset_D530_NotAffectedNeedsEverySoftwareProved(t *testing.T) {
 func TestUpsert_SeverityFollowsTheBasis(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{qnapVuln()}); err != nil {
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{qnapScanned()}); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
@@ -200,7 +200,7 @@ func TestUpsert_SeverityFollowsTheBasis(t *testing.T) {
 	}
 	e.pub.take()
 	for i, want := range []int{1, 0} {
-		res, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{qnapVuln()})
+		res, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{qnapScanned()})
 		if err != nil || res.Regraded != want {
 			t.Fatalf("round %d: %+v %v", i, res, err)
 		}
@@ -240,8 +240,8 @@ func TestUpsert_ReopenAndRaiseInOneMatchIsOneEvent(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	run("6.2.0", []Vuln{qnapVuln()}) // no ranges known: a product finding
-	run("6.2.0", inRange)            // ranges arrive, the version is outside: closed, basis still product
+	run("6.2.0", []Vuln{qnapScanned()}) // no ranges known: a product finding
+	run("6.2.0", inRange)               // ranges arrive, the version is outside: closed, basis still product
 	e.pub.take()
 	run("6.1.1", inRange) // the version is inside: reopened and now a version finding
 	r, _ := loadByPair(t.Context(), e.db.Reader(), "a-1", "CVE-2022-27593")

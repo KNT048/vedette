@@ -58,7 +58,7 @@ func TestFinding_IgnoreCloseAndUnignoreReopen(t *testing.T) {
 func TestService_IgnoreClosesOpenFindingsAndKeepsDecisions(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station"})
+	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true})
 	res, err := e.svc.OnMatchChanged(t.Context(), "a-1")
 	if err != nil || len(res.Created) != 2 {
 		t.Fatalf("seed: %+v %v", res, err)
@@ -154,7 +154,7 @@ func (e *env) ignoreA1(on bool) {
 func TestService_ReconcileHealsALostIgnoreEitherWay(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station"})
+	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true})
 	res, err := e.svc.OnMatchChanged(t.Context(), "a-1")
 	if err != nil || len(res.Created) != 2 {
 		t.Fatalf("seed: %+v %v", res, err)

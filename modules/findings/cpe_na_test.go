@@ -199,7 +199,7 @@ func TestNA_ApplicationEditionAsMain(t *testing.T) {
 		a := dev(tt.v, tt.display, tt.vendor, tt.product, tt.ver)
 		where, m := oneMatch(t, a, tt.v, false)
 		if tt.want == "product" {
-			wantMatch(t, tt.name, where, m, "new", BasisProduct, SeverityMedium)
+			wantMatch(t, tt.name, where, m, "nameonly", BasisProduct, SeverityMedium) // D-602: no finding
 		} else if where != "none" {
 			t.Errorf("%s: %s %s/%s %q", tt.name, where, m.Basis, m.Severity, m.Evidence.Summary)
 		}

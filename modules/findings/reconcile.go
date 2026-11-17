@@ -28,8 +28,10 @@ type ReconcileResult struct {
 	Closed  int // findings Vedette closed by itself: version proved outside every range (D-530)
 	Retired int // old product findings of settled "Multiple Products" entries NVD's list leaves out, closed (D-506)
 	Aged    int // product findings of KEV CVEs published over 12 months ago, closed (D-615, D-616)
-	Orphans int // findings removed because their device no longer exists
-	Expired int // risk acceptances whose day passed, reopened (D-498, INV-13)
+	// NameOnly: product findings with no version evidence, closed and listed under "Could not be checked" (D-602)
+	NameOnly int
+	Orphans  int // findings removed because their device no longer exists
+	Expired  int // risk acceptances whose day passed, reopened (D-498, INV-13)
 	// IgnoreHealed counts the findings a lost inventory.asset.ignored or .unignored left behind (D-630, review r1 M2 of #945): open
 	// findings of an ignored device closed, findings Ignore closed on a watched device reopened.
 	IgnoreHealed int
@@ -139,6 +141,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		res.Closed += up.Closed
 		res.Retired += up.Retired
 		res.Aged += up.Aged
+		res.NameOnly += up.NameOnly
 	}
 	orphans, err := s.orphanAssets(ctx, live)
 	if err != nil {
@@ -169,7 +172,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	}
 	// One line per run, so a box's log shows the pass ran and what it changed (walk 3: the job's own line is debug).
 	s.cfg.Log.InfoContext(ctx, "findings: reconcile pass done", "devices", res.Devices, "created", res.Created,
-		"closed_not_affected", res.Closed, "closed_multiple_products", res.Retired, "closed_older_than_12_months", res.Aged, "removed_with_device", res.Orphans, "risk_acceptances_expired", res.Expired, "ignore_healed", res.IgnoreHealed)
+		"closed_not_affected", res.Closed, "closed_multiple_products", res.Retired, "closed_older_than_12_months", res.Aged, "closed_no_version_evidence", res.NameOnly, "removed_with_device", res.Orphans, "risk_acceptances_expired", res.Expired, "ignore_healed", res.IgnoreHealed)
 	return res, errors.Join(failed...)
 }
 
@@ -399,6 +402,7 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vu
 		sum.Closed += r.Closed
 		sum.Retired += r.Retired
 		sum.Aged += r.Aged
+		sum.NameOnly += r.NameOnly
 		return err
 	}
 	if len(backlog) > 0 {
@@ -423,7 +427,7 @@ func (s *Service) deleteWithin(ctx context.Context, id string) (int, error) {
 
 // orphanAssets lists the devices that have findings, "add the version" items or unchecked rows but are not in live, in id order.
 func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]string, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT asset_id FROM fnd_finding UNION SELECT asset_id FROM fnd_version_needed UNION SELECT asset_id FROM fnd_unchecked ORDER BY asset_id`)
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT asset_id FROM fnd_finding UNION SELECT asset_id FROM fnd_version_needed UNION SELECT asset_id FROM fnd_unchecked UNION SELECT asset_id FROM fnd_unchecked_seen ORDER BY asset_id`)
 	if err != nil {
 		return nil, fmt.Errorf("findings: reconcile: reading the devices with findings: %w", err)
 	}

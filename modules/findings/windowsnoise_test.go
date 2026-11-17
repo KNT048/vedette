@@ -68,33 +68,37 @@ func TestMatchAsset_D610_StaysWhenNVDCannotTell(t *testing.T) {
 		{"this year's CVE listed this year", nvdRaw("CVE-2026-3333", "2026-10-01", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*")},
 		{"last year's CVE listed this year", nvdRaw("CVE-2025-3333", "2026-10-01", "cpe:2.3:o:microsoft:windows_server_2022:-:*:*:*:*:*:*:*")},
 	} {
-		if w, m := oneMatch(t, srv, tc.v, true, cve62215); w != "existing" || m.Basis != BasisProduct {
+		if w, m := oneMatch(t, srv, tc.v, true, cve62215); w != "nameonly" || m.Basis != BasisProduct { // D-602: kept, not a finding
 			t.Errorf("%s: %s %s %q", tc.name, w, m.Basis, m.Evidence.Summary)
 		}
 	}
 	// review H2 guard: a list that never names the device's release proves nothing
-	if w, _ := oneMatch(t, srv, cve0367, true); w != "existing" {
+	if w, _ := oneMatch(t, srv, cve0367, true); w != "nameonly" {
 		t.Errorf("unnamed release: %s", w)
 	}
 }
 
-// N52-2: a product-only match on a row the device's agent reported with its version says so (evidence.agent_row), so the page does not
-// ask to add the version; a typed row's does not.
+// N52-2, as D-602 reads it: a product-only match on a row the device's agent reported with its version is no finding any more,
+// agent row or typed row alike: only the product name matched (NVD has no data yet), so the CVE is dropped (NameOnly) and the
+// AgentRow flag still says the agent gave the version.
 func TestMatchAsset_N52_AgentRowProductMatch(t *testing.T) {
 	sw := func(source string) Asset {
 		return Asset{ID: "a", Name: "byn", Software: []Software{{ID: "s", Display: "Acme Server", Vendor: "acme", Product: "server", Version: "2016", Source: source, KevKeys: []string{"acme|server"}}}}
 	}
-	v := Vuln{CVE: "CVE-2026-11111", Vendor: "Acme", Product: "Server", DateAdded: winDay("2026-10-01")} // no NVD data: product match
+	v := Vuln{CVE: "CVE-2026-11111", Vendor: "Acme", Product: "Server", DateAdded: winDay("2026-10-01"), NVDAnswered: true} // NVD has no data: product match
 	for _, tc := range []struct {
 		source string
 		want   bool
 	}{{"agent", true}, {"manual", false}} {
 		res := MatchAsset(sw(tc.source), []Vuln{v}, map[string]bool{}, winNow)
-		if len(res.New) != 1 || res.New[0].Basis != BasisProduct || res.New[0].Evidence.AgentRow != tc.want || res.New[0].Evidence.Agent {
-			t.Errorf("%s: %+v", tc.source, res.New)
+		if len(res.New) != 0 || len(res.NameOnly) != 1 || res.NameOnly[0].Basis != BasisProduct || res.NameOnly[0].Evidence.AgentRow != tc.want {
+			t.Fatalf("%s: new %+v name-only %+v", tc.source, res.New, res.NameOnly)
 		}
-		if !strings.Contains(res.New[0].Evidence.Summary, "lists no affected versions") {
-			t.Errorf("%s: %q", tc.source, res.New[0].Evidence.Summary)
+		if s := res.NameOnly[0].Evidence.Summary; !strings.HasPrefix(s, NameOnlyNote) || !strings.Contains(s, "NVD has not published which products CVE-2026-11111 affects yet") {
+			t.Errorf("%s: %q", tc.source, s)
+		}
+		if !strings.Contains(res.NameOnly[0].said, "lists no affected versions") {
+			t.Errorf("%s: %q", tc.source, res.NameOnly[0].said)
 		}
 	}
 }
@@ -105,7 +109,7 @@ func TestMatchAsset_D610_ReviewR1NeverCloses(t *testing.T) {
 	pc24 := winPC(26100, false, "1742", "x64")
 	stays := func(name string, a Asset, v Vuln) {
 		t.Helper()
-		if w, m := oneMatch(t, a, v, true, cve62215); w != "existing" || m.Basis != BasisProduct {
+		if w, m := oneMatch(t, a, v, true, cve62215); w != "nameonly" || m.Basis != BasisProduct { // D-602: kept, not a finding
 			t.Errorf("%s: %s %s %q", name, w, m.Basis, m.Evidence.Summary)
 		}
 	}
@@ -144,7 +148,7 @@ func TestMatchAsset_D610_ReviewR1NeverCloses(t *testing.T) {
 	late.Affected[1].Range = VersionRange{EndExcl: "10.0.22631.4460"}
 	stays("CVE-2024 on Server 2025 GA", srv, late)
 	// #8: the CVE-year proof on a build below the release's first public one (a 24H2 Copilot+ PC on 26100.712)
-	if w, m := oneMatch(t, winPC(26100, false, "712", "arm64"), nvdRaw("CVE-2018-8888", "2026-10-01", "cpe:2.3:o:microsoft:windows_10_1809:-:*:*:*:*:*:*:*"), true, cve62215); w != "existing" || !strings.Contains(m.Evidence.Summary, "first public one") {
+	if w, m := oneMatch(t, winPC(26100, false, "712", "arm64"), nvdRaw("CVE-2018-8888", "2026-10-01", "cpe:2.3:o:microsoft:windows_10_1809:-:*:*:*:*:*:*:*"), true, cve62215); w != "nameonly" || !strings.Contains(m.Evidence.Summary, "first public one") {
 		t.Errorf("below the first public build: %s %q", w, m.Evidence.Summary)
 	}
 }
@@ -165,7 +169,7 @@ func TestMatchAsset_D610_ReviewR2NeverCloses(t *testing.T) {
 	srv := winPC(26100, true, "1742", "x64")
 	stays := func(name string, v Vuln) {
 		t.Helper()
-		if w, m := oneMatch(t, srv, v, true, cve62215); w != "existing" || m.Basis != BasisProduct {
+		if w, m := oneMatch(t, srv, v, true, cve62215); w != "nameonly" || m.Basis != BasisProduct { // D-602: kept, not a finding
 			t.Errorf("%s: %s %s %q", name, w, m.Basis, m.Evidence.Summary)
 		}
 	}

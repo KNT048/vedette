@@ -20,13 +20,23 @@ func qnapVuln(affected ...Affected) Vuln {
 	return Vuln{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Photo Station", Affected: affected}
 }
 
+// qnapScanned is qnapVuln with a safe scan template (nuclei): a product match on a row the agent did not report stays a suspected
+// finding, the scan's target (D-602), so the lifecycle tests keep a product finding to work on.
+func qnapScanned() Vuln {
+	v := qnapVuln()
+	v.HasTemplate = true
+	return v
+}
+
+// D-602: a product-only match is no finding; NameOnly keeps the match (and the sentence it had) for the service to close an old one.
 func TestMatchAsset_ProductBasisTextsMatchMock(t *testing.T) {
 	t.Parallel()
 	res := MatchAsset(nas("6.1.2"), []Vuln{qnapVuln()}, nil, t0)
-	if len(res.New) != 1 || len(res.Existing) != 0 {
+	if len(res.New) != 0 || len(res.Existing) != 0 || len(res.NameOnly) != 1 {
 		t.Fatalf("result = %+v", res)
 	}
-	m := res.New[0]
+	m := res.NameOnly[0]
+	m.Evidence.Summary = m.said
 	if m.Basis != BasisProduct || m.Confidence != 0.5 || m.Severity != SeverityMedium || !m.Evidence.CheckedAt.Equal(t0) {
 		t.Fatalf("match = %+v", m)
 	}
@@ -38,7 +48,8 @@ func TestMatchAsset_ProductBasisTextsMatchMock(t *testing.T) {
 
 func TestMatchAsset_NoVersionIsOneItemNotAFinding(t *testing.T) {
 	t.Parallel()
-	res := MatchAsset(nas(""), []Vuln{qnapVuln(), {CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Photo Station"}}, nil, t0)
+	ranged := []Affected{{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}}} // a version decides them (review r1 M3 of #939)
+	res := MatchAsset(nas(""), []Vuln{qnapVuln(ranged...), {CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Photo Station", Affected: ranged}}, nil, t0)
 	if len(res.New)+len(res.Existing) != 0 || len(res.NeedVersion) != 1 {
 		t.Fatalf("result = %+v", res)
 	}
@@ -57,13 +68,17 @@ func TestMatchAsset_MultipleProductsMatchesVendor(t *testing.T) {
 		t.Fatalf("no NVD data yet, but a finding: %+v", r)
 	}
 	v.Affected = []Affected{{CPE: "cpe:2.3:o:fortinet:*:*:*:*:*:*:*:*:*"}}
-	m := MatchAsset(a, []Vuln{v}, nil, t0).New[0]
+	r := MatchAsset(a, []Vuln{v}, nil, t0)
+	if len(r.New) != 0 || len(r.NameOnly) != 1 { // D-602: the vendor's name alone is no finding
+		t.Fatalf("result = %+v", r)
+	}
+	m := r.NameOnly[0]
 	if m.Basis != BasisProduct || m.Confidence != 0.3 {
 		t.Fatalf("match = %+v", m)
 	}
 	want := "fw runs FortiOS 7.0.1. CISA lists this flaw for several Fortinet products; check the advisory to see whether yours is one of them."
-	if m.Evidence.Summary != want {
-		t.Fatalf("summary = %q", m.Evidence.Summary)
+	if m.said != want {
+		t.Fatalf("summary = %q", m.said)
 	}
 	other := Vuln{CVE: "CVE-2023-0002", Vendor: "Cisco", Product: "Multiple Products"}
 	if r := MatchAsset(a, []Vuln{other}, nil, t0); len(r.New) != 0 {
@@ -76,7 +91,7 @@ func TestMatchAsset_KeyNormalisation(t *testing.T) {
 	a := nas("1")
 	a.Software[0].KevKeys = []string{" QNAP | Photo Station "}
 	v := Vuln{CVE: "CVE-2022-27593", Vendor: " qnap", Product: "PHOTO STATION "}
-	if r := MatchAsset(a, []Vuln{v}, nil, t0); len(r.New) != 1 {
+	if r := MatchAsset(a, []Vuln{v}, nil, t0); len(r.NameOnly) != 1 { // a match, by the product name only (D-602)
 		t.Fatalf("normalised key did not match: %+v", r)
 	}
 	if got := KevKey(" QNAP ", " Photo Station"); got != "qnap|photo station" {
@@ -88,7 +103,7 @@ func TestMatchAsset_KeyNormalisation(t *testing.T) {
 	// no key, no match (the matcher does not guess from display names)
 	b := nas("1")
 	b.Software[0].KevKeys = nil
-	if r := MatchAsset(b, []Vuln{qnapVuln()}, nil, t0); len(r.New) != 0 {
+	if r := MatchAsset(b, []Vuln{qnapVuln()}, nil, t0); len(r.New)+len(r.NameOnly) != 0 {
 		t.Fatalf("matched without a KEV key: %+v", r)
 	}
 }
@@ -110,7 +125,7 @@ func TestMatchAsset_Severity(t *testing.T) {
 		}
 		// a version that could not be compared is never more than medium (D-500)
 		v.Affected = nil
-		if got := MatchAsset(nas("1"), []Vuln{v}, nil, t0).New[0].Severity; got != SeverityMedium {
+		if got := MatchAsset(nas("1"), []Vuln{v}, nil, t0).NameOnly[0].Severity; got != SeverityMedium {
 			t.Errorf("ransom=%v epss=%v, no range: severity %s, want medium", tt.ransom, tt.epss, got)
 		}
 	}
@@ -162,8 +177,15 @@ func TestMatchAsset_VersionRanges(t *testing.T) {
 				}
 				return
 			}
-			if len(res.New) != 1 || res.New[0].Basis != tt.want || res.New[0].Confidence != tt.conf {
-				t.Fatalf("got %+v, want basis %s conf %v", res.New, tt.want, tt.conf)
+			got := res.New
+			if tt.want == BasisProduct { // D-602: no finding on the product name alone
+				if len(res.New) != 0 {
+					t.Fatalf("a product finding: %+v", res.New)
+				}
+				got = res.NameOnly
+			}
+			if len(got) != 1 || got[0].Basis != tt.want || got[0].Confidence != tt.conf {
+				t.Fatalf("got %+v, want basis %s conf %v", got, tt.want, tt.conf)
 			}
 		})
 	}
@@ -202,7 +224,8 @@ func TestMatchAsset_SoftwareCPEIdentity(t *testing.T) {
 
 func TestMatchAsset_ExistingIsExplicitAndNotRecreated(t *testing.T) {
 	t.Parallel()
-	vulns := []Vuln{qnapVuln(), {CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Photo Station"}}
+	every := []Affected{{CPE: qnapCPE}} // every version: a version match
+	vulns := []Vuln{qnapVuln(every...), {CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Photo Station", Affected: every}}
 	have := map[string]bool{"CVE-2022-27593": true}
 	res := MatchAsset(nas("1"), vulns, have, t0)
 	if len(res.New) != 1 || res.New[0].CVE != "CVE-2023-0001" || len(res.Existing) != 1 || res.Existing[0].CVE != "CVE-2022-27593" {
@@ -243,14 +266,15 @@ func TestMatchAsset_EvidenceTextIsCleaned(t *testing.T) {
 	a := nas("1.2")
 	a.Name = "evil\x1b[31m" + strings.Repeat("x", 300)
 	a.Software[0].Display = "Photo\x00 Station\n"
-	m := MatchAsset(a, []Vuln{qnapVuln()}, nil, t0).New[0]
-	for _, r := range m.Evidence.Summary {
+	r0 := MatchAsset(a, []Vuln{qnapVuln()}, nil, t0)
+	m := slices.Concat(r0.New, r0.NameOnly)[0] // D-602: a version Vedette cannot compare is no finding; its note is cleaned too
+	for _, r := range m.Evidence.Summary + m.said {
 		if unicode.IsControl(r) {
 			t.Fatalf("control character in summary %q", m.Evidence.Summary)
 		}
 	}
-	a.Software[0].Version = "n/a\x00\n" // no number: the add-the-version item (a version with a number is a product finding, H1)
-	n := MatchAsset(a, []Vuln{qnapVuln()}, nil, t0).NeedVersion[0]
+	a.Software[0].Version = "n/a\x00\n"                                                                                     // no number: the add-the-version item (a version with a number is a product finding, H1)
+	n := MatchAsset(a, []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "2"}})}, nil, t0).NeedVersion[0] // a version would decide (M3 of #939)
 	for _, r := range n.Software + n.Version {
 		if unicode.IsControl(r) {
 			t.Fatalf("control character in item %+v", n)
@@ -288,7 +312,7 @@ func FuzzMatchAsset(f *testing.F) {
 		if eff == "" && scErr == nil {
 			eff, _ = sc.Version.Literal()
 		}
-		if ValidCVE(cve) && !strings.Contains(vendor+product, "|") && (!versionKnown(eff) || scErr != nil) && len(all)+len(res.NeedVersion) != 1 {
+		if ValidCVE(cve) && !strings.Contains(vendor+product, "|") && (!versionKnown(eff) || scErr != nil) && len(all)+len(res.NeedVersion)+len(res.NameOnly)+len(res.Aged) != 1 { // D-602: or name-only
 			t.Fatalf("undecidable input dropped a KEV match: version=%q cpe=%q -> %+v", version, cpe, res)
 		}
 		for _, m := range all {
@@ -321,7 +345,7 @@ func sshVuln(cfg ...string) Vuln {
 
 func basisOf(t *testing.T, res MatchResult) Basis {
 	t.Helper()
-	all := append(append([]Match{}, res.New...), res.Existing...)
+	all := slices.Concat(res.New, res.Existing, res.NameOnly) // D-602: a product-only match is in NameOnly (not ruled out, no finding)
 	if len(all) == 0 {
 		if len(res.NeedVersion) > 0 {
 			return needVersion
@@ -414,8 +438,9 @@ func TestMatchAsset_PlaceholderVersionIsNotEvidence(t *testing.T) {
 	}
 }
 
-// Regression: a configuration that pins attributes the software does not carry
-// must not give basis=version (review risk 6).
+// Regression: a configuration that pins attributes the software does not carry must not give basis=version (review risk 6): a single
+// pinned value says nothing about the values NVD leaves out (the check of review r2 H1 of #939); "product" here is the product-name
+// match D-602 lists under "could not be checked".
 func TestMatchAsset_PinnedAttributesNeedSoftwareSupport(t *testing.T) {
 	t.Parallel()
 	r := VersionRange{EndExcl: "10"}
@@ -490,8 +515,8 @@ func TestMatchAsset_KevKeyAloneProvesNothing(t *testing.T) {
 	v := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
 	for _, have := range []map[string]bool{nil, {v.CVE: true}} {
 		res := MatchAsset(a, []Vuln{v}, have, t0)
-		got := append(slices.Clone(res.New), res.Existing...)
-		if len(got) != 1 || got[0].Basis != BasisProduct || got[0].Severity != SeverityMedium || len(res.NotAffected) != 0 {
+		got := slices.Concat(res.New, res.Existing, res.NameOnly) // D-602: kept (not proved), as a product-only match
+		if len(res.New)+len(res.Existing) != 0 || len(got) != 1 || got[0].Basis != BasisProduct || got[0].Severity != SeverityMedium || len(res.NotAffected) != 0 {
 			t.Fatalf("have %v: result = %+v", have, res)
 		}
 	}
@@ -506,7 +531,7 @@ func TestMatchAsset_NamesTheListOfTheEntry(t *testing.T) {
 	t.Parallel()
 	a := Asset{ID: "a", Name: "fw", Software: []Software{{ID: "s", Display: "FortiOS", Version: "7.0.1", KevKeys: []string{"fortinet|fortios"}}}}
 	v := Vuln{CVE: "CVE-2023-0001", Vendor: "Fortinet", Product: "Multiple Products", Source: SourceVulnCheck, Affected: []Affected{{CPE: "cpe:2.3:o:fortinet:*:*:*:*:*:*:*:*:*"}}}
-	if got := MatchAsset(a, []Vuln{v}, nil, t0).New[0].Evidence.Summary; !strings.Contains(got, "VulnCheck KEV lists this flaw") || strings.Contains(got, "CISA") {
+	if got := MatchAsset(a, []Vuln{v}, nil, t0).NameOnly[0].said; !strings.Contains(got, "VulnCheck KEV lists this flaw") || strings.Contains(got, "CISA") {
 		t.Fatalf("summary = %q", got)
 	}
 }

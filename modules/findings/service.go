@@ -149,6 +149,8 @@ type UpsertResult struct {
 	// old product findings of settled "Multiple Products" entries NVD's list leaves out (D-506), Aged the findings of KEV
 	// CVEs published over 12 months ago that rest on no confirmed evidence (D-615).
 	Closed, Retired, Aged int
+	// NameOnly counts the product findings closed because they rest on the product name only (D-602).
+	NameOnly int
 }
 
 // OnMatchChanged handles inventory.match.changed: it reads the device and the exploited list and
@@ -289,6 +291,9 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		if res.Aged, err = s.closeAged(ctx, tx, a.ID, m.Aged, now, emit); err != nil {
 			return err
 		}
+		if res.NameOnly, err = s.closeNameOnly(ctx, tx, a.ID, m.NameOnly, now, emit); err != nil {
+			return err
+		}
 		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now)
 		if err != nil {
 			return err
@@ -300,6 +305,13 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		}
 		if err := replaceUnchecked(ctx, tx, a.ID, unchecked, now); err != nil {
 			return err
+		}
+		added, err := announceUnchecked(ctx, tx, a.ID, unchecked, vulns, now)
+		if err != nil {
+			return err
+		}
+		if len(added) > 0 {
+			emit(EventUncheckedAdded, UncheckedAddedEvent{AssetID: a.ID, AssetName: clean(a.Name), CVEs: added})
 		}
 		return replaceVersionNeeded(ctx, tx, a.ID, need, now)
 	})
@@ -315,6 +327,9 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 	}
 	if res.Aged > 0 {
 		s.cfg.Log.InfoContext(ctx, "findings: closed (D-615): KEV CVEs published over 12 months ago matched by product only", "asset", a.ID, "count", res.Aged)
+	}
+	if res.NameOnly > 0 {
+		s.cfg.Log.InfoContext(ctx, "findings: closed (D-602): product findings without version evidence, now under could-not-be-checked", "asset", a.ID, "count", res.NameOnly)
 	}
 	return res, nil
 }
@@ -374,11 +389,21 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 	for _, x := range append(append([]Match{}, out.New...), out.Existing...) {
 		taken[x.CVE] = true
 	}
-	for _, x := range m.Aged { // D-615: the age rule dropped it on another row of the same product; not re-added here (review r1 #5 of #803)
+	// D-602, review r1 M3 of #939: a scoped version-less row whose CVE no version could decide is name-only; the customer asked to be
+	// told about it, so it is listed like the "add the version" ones below, and not closed
+	var asked []VersionNeeded
+	for _, x := range m.NameOnly {
+		if _, ok := scoped[x.SoftwareID]; ok && inScope(x.SoftwareID, x.CVE) && !taken[x.CVE] {
+			asked = append(asked, VersionNeeded{SoftwareID: x.SoftwareID, CVEs: []string{x.CVE}})
+			continue
+		}
+		out.NameOnly = append(out.NameOnly, x)
+	}
+	for _, x := range slices.Concat(m.Aged, out.NameOnly) { // D-615, D-602: dropped on another row of the same product; not re-added here (review r1 #5 of #803)
 		taken[x.CVE] = true
 	}
 	name := clean(a.Name)
-	for _, n := range m.NeedVersion {
+	for _, n := range slices.Concat(m.NeedVersion, asked) {
 		for _, cve := range n.CVEs {
 			if taken[cve] || !inScope(n.SoftwareID, cve) {
 				continue
@@ -469,11 +494,10 @@ func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, age
 			return closed, err
 		}
 		// product findings only (review r1 #2 of #803): a version or agent finding whose match fell back to product-only (NVD's
-		// ranges gone in one pull, a version that became unreadable) stays for the next match, never flip-flops; a person's reopen stands
-		// nor one on a row the device's agent reported (AgentRow, D-612: agent evidence; N100 n54), unless the match that ages it is on an
-		// agent row and NVD's list names only other products (#904: the agent's version was compared with nothing)
-		agentRow := r.Evidence != nil && r.Evidence.AgentRow && (!p.Evidence.AgentRow || p.others == "")
-		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent || agentRow || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" }) {
+		// ranges gone in one pull, a version that became unreadable) stays for the next match, never flip-flops; a person's reopen stands.
+		// A product finding on a row the agent reported (AgentRow) is no exception any more (D-602 replaces D-617's): the agent gave a
+		// version Vedette could not compare, which is no version evidence.
+		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent || personKept(r.History) {
 			continue
 		}
 		was := r.Status
@@ -496,6 +520,62 @@ func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, age
 		closed++
 	}
 	return closed, nil
+}
+
+// closeNameOnly closes the open findings that rest on the product name only (D-602, MatchResult.NameOnly): the matcher no longer makes
+// a finding without version evidence, and a rule change reaches the findings it made before at the next match or reconcile. Like the
+// age rule's: status not_relevant by the system user with the reason not_affected_version (the only one the CHECK allows; D-505),
+// the note saying why and that the CVE is now under "Could not be checked" (NameOnlyNote), a history row, audit
+// findings.auto_resolved and a status_changed event, which notify and response do not send on (only a reopen, an expired
+// acceptance or a scan's confirmation are notices), so closing many at once sends nothing. Only a suspected finding of basis
+// product (AutoResolve): never one a scan confirmed, a version or agent-build finding whose match fell back to product-only (it
+// stays and noteNoLongerMatching says why), a closed one (a person's not_relevant, false_positive, mitigated, patched or
+// risk_accepted stands), or one a person reopened at any time. ReopenOnMatch reopens it when a later match compares a version.
+func (s *Service) closeNameOnly(ctx context.Context, tx *sql.Tx, assetID string, dropped []Match, now time.Time, emit func(string, any)) (int, error) {
+	closed := 0
+	for _, p := range dropped {
+		r, err := loadByPair(ctx, tx, assetID, p.CVE)
+		if errors.Is(err, ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return closed, err
+		}
+		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent ||
+			personKept(r.History) {
+			continue
+		}
+		was := r.Status
+		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
+		if !ok {
+			continue
+		}
+		r.Finding = f
+		if err := updateRecord(ctx, tx, r); err != nil {
+			return closed, err
+		}
+		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+			return closed, err
+		}
+		detail := r.CVE + ": " + ReasonNotAffectedVersion + " (D-602: product name only, no version evidence"
+		if p.listed { // review r1 L2 of #939
+			detail += "; listed under could not be checked"
+		}
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID, Detail: detail + ")"}); err != nil {
+			return closed, err
+		}
+		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})
+		closed++
+	}
+	return closed, nil
+}
+
+// personKept says a person kept the finding open: reopened it, or accepted its risk (review r2 L3 of #939: an expired acceptance reopens
+// as the system, and closing it an hour after "open again" was told would contradict the notice). The age rule and D-602 never close it.
+func personKept(hist []HistoryEntry) bool {
+	return slices.ContainsFunc(hist, func(h HistoryEntry) bool {
+		return h.User != SystemUser && (h.Action == "reopened" || h.Action == string(StatusRiskAccepted))
+	})
 }
 
 // noteNoLongerMatching records, once, that a suspected finding (basis version or product) is no longer produced by the
@@ -547,6 +627,9 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 	}
 	for _, x := range m.Aged { // a finding the age rule did not close (a person reopened it, a version or agent finding) says why it stays
 		unlisted[x.CVE] = fmt.Sprintf("%s was published more than 12 months ago and Vedette now matches it by the product name only, so it would not list it on a device today. This finding stays open (you reopened it, or it was matched by version before); close it yourself if it does not apply.", x.CVE)
+	}
+	for _, x := range m.NameOnly { // D-602: one closeNameOnly left open (a person reopened it, a version or agent finding) says why it stays
+		unlisted[x.CVE] = fmt.Sprintf("Vedette now matches %s by the product name only (%s), so it would not list it as a finding on a device today. This finding stays open (you reopened it, or it was matched by version before); close it yourself if it does not apply.", x.CVE, x.gap)
 	}
 	for _, cve := range open {
 		if !listed[cve] || matched[cve] {
@@ -965,7 +1048,9 @@ func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, er
 		for _, q := range []string{
 			`UPDATE OR IGNORE fnd_version_needed SET asset_id = ?2 WHERE asset_id = ?1`,
 			`DELETE FROM fnd_version_needed WHERE asset_id = ?1`,
-			`DELETE FROM fnd_unchecked WHERE asset_id IN (?1, ?2)`, // not moved: recomputed when "into" is matched (r1 L2: one place per CVE)
+			`DELETE FROM fnd_unchecked WHERE asset_id IN (?1, ?2)`,                                                                                        // not moved: recomputed when "into" is matched (r1 L2: one place per CVE)
+			`INSERT OR IGNORE INTO fnd_unchecked_seen (asset_id, cve, first_seen) SELECT ?2, cve, first_seen FROM fnd_unchecked_seen WHERE asset_id = ?1`, // D-602: announced once per device
+			`DELETE FROM fnd_unchecked_seen WHERE asset_id = ?1`,
 		} {
 			if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
 				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
@@ -1029,6 +1114,9 @@ func (s *Service) deleteAsset(ctx context.Context, assetID string) (int, error) 
 			return fmt.Errorf("findings: deleting version-needed items of device: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_unchecked WHERE asset_id = ?`, assetID); err != nil {
+			return fmt.Errorf("findings: deleting unchecked rows of device: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_unchecked_seen WHERE asset_id = ?`, assetID); err != nil {
 			return fmt.Errorf("findings: deleting unchecked rows of device: %w", err)
 		}
 		if n == 0 {

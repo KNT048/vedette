@@ -70707,11 +70707,14 @@ func (s *FindingsGetFindingsOKUncheckedItemAssetKind) UnmarshalText(data []byte)
 }
 
 type FindingsGetFindingsOKUncheckedItemCvesItem struct {
-	Advisory   NilURI    `json:"advisory"`
-	Cve        string    `json:"cve"`
-	DateAdded  time.Time `json:"date_added"`
-	Name       string    `json:"name"`
-	Ransomware bool      `json:"ransomware"`
+	Advisory  NilURI    `json:"advisory"`
+	Cve       string    `json:"cve"`
+	DateAdded time.Time `json:"date_added"`
+	Name      string    `json:"name"`
+	// D-602: reason no_nvd_data while Vedette has not read NVD's answer for this CVE yet (new box, NVD
+	// feed off or failing): say "waiting for NVD's data", not "NVD has not published".
+	NvdPending OptBool `json:"nvd_pending"`
+	Ransomware bool    `json:"ransomware"`
 }
 
 // GetAdvisory returns the value of Advisory.
@@ -70732,6 +70735,11 @@ func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetDateAdded() time.Time {
 // GetName returns the value of Name.
 func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetName() string {
 	return s.Name
+}
+
+// GetNvdPending returns the value of NvdPending.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetNvdPending() OptBool {
+	return s.NvdPending
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -70757,6 +70765,11 @@ func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetDateAdded(val time.Time)
 // SetName sets the value of Name.
 func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetNvdPending sets the value of NvdPending.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetNvdPending(val OptBool) {
+	s.NvdPending = val
 }
 
 // SetRansomware sets the value of Ransomware.

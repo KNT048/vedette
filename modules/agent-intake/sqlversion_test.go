@@ -1,8 +1,12 @@
 package agentintake_test
 
 import (
+	"slices"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // D-606 on the wire, N100's DESKTOP-55UKKFV: one programs snapshot with SQL Server 2022's own Uninstall entry (no DisplayVersion),
@@ -35,30 +39,45 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 		prog("SQL Server 2022 XEvent", rtm),
 		prog("SQL Server Management Studio 21", "21.6.17"),
 	}
-	type sqlRow struct {
-		display, version string
-		confidence       float64
-	}
-	rows := func() []sqlRow {
+	type sqlRow struct{ display, version string }
+	// read through inventory's own API, never its tables (inventory FORBID-4)
+	agentRows := func() []inventory.MatchSoftware {
 		t.Helper()
-		q, err := w.db.Reader().QueryContext(t.Context(), `SELECT display, ifnull(version, ''), confidence FROM inv_software s JOIN inv_software_kev k ON k.software_id = s.id
-			WHERE k.kev_key = 'microsoft|sql server' AND s.source = 'agent' ORDER BY display`)
+		d, ok := w.device(peerA)
+		if !ok {
+			t.Fatal("no device")
+		}
+		in, _, err := w.inv.MatchInput(t.Context(), d.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer func() { _ = q.Close() }()
-		var out []sqlRow
-		for q.Next() {
-			var r sqlRow
-			if err := q.Scan(&r.display, &r.version, &r.confidence); err != nil {
-				t.Fatal(err)
+		var out []inventory.MatchSoftware
+		for _, s := range in.Software {
+			if s.Source == "agent" {
+				out = append(out, s)
 			}
-			out = append(out, r)
-		}
-		if err := q.Err(); err != nil {
-			t.Fatal(err)
 		}
 		return out
+	}
+	rows := func() []sqlRow {
+		t.Helper()
+		var out []sqlRow
+		for _, s := range agentRows() {
+			if slices.Contains(s.KevKeys, "microsoft|sql server") {
+				out = append(out, sqlRow{s.Display, s.Version})
+			}
+		}
+		return out
+	}
+	count := func(keep func(inventory.MatchSoftware) bool) int {
+		t.Helper()
+		n := 0
+		for _, s := range agentRows() {
+			if keep(s) {
+				n++
+			}
+		}
+		return n
 	}
 
 	// an agent whose config predates D-606: the components give the build (the RsFx Driver stated the same one)
@@ -66,7 +85,7 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 	if got := rows(); len(got) != 1 || got[0].version != rtm {
 		t.Fatalf("components: %+v", got)
 	}
-	if n := w.count(`SELECT count(*) FROM inv_software WHERE source = 'agent' AND version IS NULL`); n != 0 {
+	if n := count(func(s inventory.MatchSoftware) bool { return s.Version == "" }); n != 0 {
 		t.Fatalf("%d agent rows without a version", n)
 	}
 
@@ -75,13 +94,15 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 		"sql_setup": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.MSSQLSERVER\Setup`}
 	w.clock.Advance(6 * time.Minute) // past the source's list window
 	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), snap("programs", append([]map[string]string{setup}, list...)...)))
-	if got := rows(); len(got) != 1 || got[0] != (sqlRow{"Microsoft SQL Server 2022 (64-bit)", "16.0.4135.4", 0.95}) {
+	if got := rows(); len(got) != 1 || got[0] != (sqlRow{"Microsoft SQL Server 2022 (64-bit)", "16.0.4135.4"}) {
 		t.Fatalf("setup registry: %+v", got)
 	}
-	if n := w.count(`SELECT count(*) FROM inv_software WHERE display LIKE 'HKEY%' OR version LIKE 'HKEY%' OR display = ''`); n != 0 {
+	if n := count(func(s inventory.MatchSoftware) bool {
+		return strings.HasPrefix(s.Display, "HKEY") || strings.HasPrefix(s.Version, "HKEY") || s.Display == ""
+	}); n != 0 {
 		t.Fatalf("the setup value became %d software rows", n)
 	}
-	if n := w.count(`SELECT count(*) FROM inv_software WHERE source = 'agent'`); n != len(list) {
+	if n := count(func(inventory.MatchSoftware) bool { return true }); n != len(list) {
 		t.Fatalf("%d agent rows for %d programs", n, len(list))
 	}
 }

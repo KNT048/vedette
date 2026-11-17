@@ -43,6 +43,7 @@ type Config struct {
 	Pack      *pack.Index                              // the safe template pack of the scan image; nil: the scanner is unavailable
 	Findings  Findings                                 // nil: results stay in the run, nothing is confirmed
 	Identify  Identifier                               // nil: Scan now does not identify devices first; each says why
+	OSPages   OSPages                                  // nil: the identification rows say the OS as they recorded it
 	External  External                                 // nil: the list has no external targets
 	Publisher Publisher                                // nil: no events
 	KEV       KEVFeed                                  // nil: no catch-up of missed new_kev

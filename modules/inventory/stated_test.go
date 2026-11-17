@@ -247,3 +247,26 @@ func TestScanGuessTheNewerScanWinsOverAMoreConfidentOlderOne(t *testing.T) {
 		t.Errorf("matcher OS %q (%v), want the newer scan's guess", m.OS, err)
 	}
 }
+
+// DeviceRefs gives the OS the ranking chose with its source and basis, so another page (a device check's words in History) can tell
+// whether the page shows the scan's guess: a stated OS wins over the guess (source passive, basis stated); without a statement the
+// guess is the OS (source nmap, basis guess).
+func TestDeviceRefsNameTheSourceOfTheOS(t *testing.T) {
+	e := newEnv(t)
+	scanSwitch(e, juniperMAC, junosGuess.Display)
+	id := e.idOf(switchIP)
+	refs, err := e.svc.DeviceRefs(e.ctx(), []string{id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := refs[id]; r.OS != junosGuess.Display || r.OSSource != "nmap" || r.OSBasis != "guess" {
+		t.Fatalf("scan only: %+v, want the guess from nmap", r)
+	}
+	announce(e, juniperMAC, "EX2300-24T", "JUNOS 15.1R7.9")
+	if refs, err = e.svc.DeviceRefs(e.ctx(), []string{id}); err != nil {
+		t.Fatal(err)
+	}
+	if r := refs[id]; r.OS != "JUNOS 15.1R7.9" || r.OSSource != "passive" || r.OSBasis != "stated" {
+		t.Fatalf("stated: %+v, want the LLDP statement", r)
+	}
+}

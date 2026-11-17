@@ -68,7 +68,7 @@ func hasAnswer(reported, answer string) bool {
 }
 
 // nodeSchedule is the interval of each query for this node at now, asking from src: the first-report interval for an answer still missing
-// in the first hour, the schedule's otherwise. A node bound to an address that now asks from another (a laptop DHCP moved) is asked for
+// in the first hour, and for the software queries while a person's ask is open (report.go askOpen), the schedule's otherwise. A node bound to an address that now asks from another (a laptop DHCP moved) is asked for
 // its interfaces every firstReportInterval until a report binds it again (#829): its reports reach its device by the node meanwhile
 // (ingest.go), but its new address only with that answer. A node behind NAT gets an unbound address with that answer and is back on
 // the hourly schedule.
@@ -77,9 +77,10 @@ func nodeSchedule(n nodeRow, now time.Time, src netip.Addr) map[string]int {
 	young := !n.enrolledAt.IsZero() && now.Sub(n.enrolledAt) < firstReportWindow
 	src = src.Unmap().WithZone("")
 	moved := n.boundIP.IsValid() && src.Is4() && src != n.boundIP
+	asked := askOpen(n, now)
 	for _, q := range schedule {
 		out[q.name] = q.interval
-		if young && !hasAnswer(n.reported, firstReport[q.name]) || moved && q.name == "interfaces" {
+		if young && !hasAnswer(n.reported, firstReport[q.name]) || moved && q.name == "interfaces" || asked && slices.Contains(reportQueries, q.name) {
 			out[q.name] = firstReportInterval
 		}
 	}

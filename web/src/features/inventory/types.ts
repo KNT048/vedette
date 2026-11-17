@@ -39,6 +39,7 @@ export type WazuhConnection = z.infer<typeof C.WazuhConnection>
 export type WazuhInput = z.infer<typeof C.WazuhInput>
 export type WazuhTestResult = z.infer<typeof C.WazuhTestResult>
 export type SampleResult = z.infer<typeof C.SampleResult>
+export type AgentReport = z.infer<typeof C.AgentReport>
 export type Installers = z.infer<typeof C.Installers>
 export type OsqueryPackage = z.infer<typeof C.OsqueryPackage>
 export type OsqueryStatus = z.infer<typeof C.OsqueryStatus>

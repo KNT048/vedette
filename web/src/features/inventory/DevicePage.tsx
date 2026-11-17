@@ -314,7 +314,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
       title={needRole} aria-label={t('software.clearLabel', { name: sw.display })}
       onClick={() => act.removeSoftware.mutate(sw.id, { onSuccess: () => toast.success(t('software.cleared', { name: sw.display })), onError: (e) => toast.error(errMsg(e)) })}>{t('software.clear')}</Button>
   ) : sw.source !== 'manual' && !d.asset.is_box ? (
-    <Button size="sm" variant="ghost" disabled={!can} title={needRole} aria-label={t('software.notInstalledActionLabel', { name: sw.display })} onClick={() => setGone(sw)}>{t('software.notInstalledAction')}</Button>
+    <Button size="sm" variant="secondary" disabled={!can} title={needRole} aria-label={t('software.notInstalledActionLabel', { name: sw.display })} onClick={() => setGone(sw)}>{t('software.notInstalledAction')}</Button>
   ) : sw.source === 'manual' ? (
     <div className="flex">
       <Button size="sm" variant="ghost" disabled={!can} aria-label={t('software.edit', { name: sw.display })} title={needRole ?? t('software.edit', { name: sw.display })} onClick={() => setEditing(sw)}><Pencil /></Button>

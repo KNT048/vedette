@@ -116,14 +116,16 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 	}
 	for i := range out {
 		out[i].observedHW = &[2]string{obsValue(out[i].Vendor), obsValue(out[i].Model)}
-		applyDeclared(&out[i])
+		if err := s.applyDeclared(ctx, &out[i]); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
 
 func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
 	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key, `+notInstalledSW+`,
-		`+fingerprintRow+`, `+liveSW+`, s.seen_at
+		`+fingerprintRow+`, CASE WHEN s.source = 'manual' THEN `+liveSW+` ELSE 0 END, s.seen_at
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id
 		WHERE s.asset_id IN `+sub+` AND NOT `+hiddenGuess+` ORDER BY s.asset_id, s.display, s.id, k.kev_key`, args...)
 	if err != nil {

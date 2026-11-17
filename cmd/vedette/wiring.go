@@ -236,8 +236,7 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 	if err != nil || !ok {
 		return findings.Asset{}, false, err
 	}
-	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Model: d.Model, StatedOS: d.StatedOS, AgentOS: d.AgentOS, SNMPOS: d.SNMPOS, MAC: d.MAC, ManualOS: d.ManualOS,
-		Software: make([]findings.Software, len(d.Software)), OSCorrection: d.OSCorrection, StaleCorrections: d.StaleCorrections}
+	out := findingsAsset(d)
 	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id
 		names, err := a.inv.Names(ctx)
 		if err != nil {
@@ -247,13 +246,26 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 			out.Name = n
 		}
 	}
+	return out, true, nil
+}
+
+// findingsAsset is a device as the matcher reads it. The device page asks the matcher which OS a person's declared row gives it
+// (inventory Config.DeclaredOS, findings.DeclaredOSRow) through the same conversion.
+func findingsAsset(d inventory.MatchDevice) findings.Asset {
+	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Model: d.Model, StatedOS: d.StatedOS, AgentOS: d.AgentOS, SNMPOS: d.SNMPOS, MAC: d.MAC, ManualOS: d.ManualOS,
+		Software: make([]findings.Software, len(d.Software)), OSCorrection: d.OSCorrection, StaleCorrections: d.StaleCorrections}
 	for i, s := range d.Software {
 		out.Software[i] = findingsSoftware(s)
 	}
 	for _, s := range d.NotInstalled { // INV-41 (6): rows a person said are not installed; findings closes what only they produce
 		out.NotInstalled = append(out.NotInstalled, findingsSoftware(s))
 	}
-	return out, true, nil
+	return out
+}
+
+// declaredOS is inventory's Config.DeclaredOS: the matcher's choice among a device's declared OS rows (INV-45).
+func declaredOS(d inventory.MatchDevice, candidates []string) (string, string) {
+	return findings.DeclaredOSRow(findingsAsset(d), candidates)
 }
 
 func findingsSoftware(s inventory.MatchSoftware) findings.Software {

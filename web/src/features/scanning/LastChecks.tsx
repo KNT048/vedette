@@ -49,11 +49,11 @@ function Never({ children }: { children: ReactNode }) {
 }
 
 /**
- * kien G7b/c: "Last checks" on the device page: the last identification of this device (Check this device now, the window's queue,
+ * "Last checks" on the device page: the last identification of this device (Check this device now, the window's queue,
  * the first step of a vulnerability check), its last vulnerability check and its last SNMP read, each with when, the outcome as
  * Settings › Scanning › History says it (shared code) and a link to that run there; a kind that never ran says so and what runs it.
  * Read from GET /scanning/history?asset= (the LAN runs that reached its address) and GET /scans/runs?asset= (its vulnerability
- * checks). A read that failed shows the error with Retry, never "Never" (review r1 of #965).
+ * checks). A read that failed shows the error with Retry, never "Never" (#965).
  */
 export function LastChecks(props: Record<string, unknown>) {
   const assetId = String(props.assetId ?? '')
@@ -67,7 +67,7 @@ export function LastChecks(props: Record<string, unknown>) {
   const history = useScanningHistory(assetId)
   const runs = useDeviceRuns(assetId, scanOn === true)
   if (!assetId) return null
-  // review r1 of #965: a read that failed or has not answered is never "Never"
+  // #965: a read that failed or has not answered is never "Never"
   const failed = [history, modules, device].find((q) => q.isError)
   const loading = history.isPending || modules.isPending || device.isPending || (scanOn === true && runs.isPending)
   const items = history.data?.items ?? []

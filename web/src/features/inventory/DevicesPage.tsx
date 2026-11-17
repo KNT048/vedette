@@ -39,7 +39,7 @@ import type { DeviceRow } from './types'
  *  no selection column. The device page has `device.actions` (`{ assetId }`) for "Check this device now". */
 export const DEVICES_ACTIONS_SLOT = 'devices.actions'
 
-/** Type cell (D-511): icon, type, and the category when it says more than the type ("Switch Network", not "Server Servers");
+/** Type cell: icon, type, and the category when it says more than the type ("Switch Network", not "Server Servers");
  *  a guess says "likely" and its evidence on hover. */
 function TypeCell({ d, dense }: { d: DeviceRow; dense?: boolean }) {
   const { t } = useTranslation('inventory')
@@ -147,7 +147,7 @@ function DeviceSearch({ rows, now, query, same }: { rows: DeviceRow[]; now: numb
   const keys = useMemo(() => deviceKeys(rows, now, same), [rows, now, same])
   const count = (key: string, value: string) => keys.find((x) => x.key === key)?.values?.find((v) => v.value === value)?.count
   const chips: TokenChip[] = [
-    // G4: the devices that carry risk first, as Defender's exposure filter does
+    // The devices that carry risk first, as Defender's exposure filter does
     { token: 'risk:exploited', label: t('search.chip.exploited'), count: count('risk', 'exploited') },
     { token: 'risk:update', label: t('search.chip.update'), count: count('risk', 'update') },
     { token: 'fragile', label: t('search.chip.fragile'), count: rows.filter((d) => d.fragile).length },
@@ -155,7 +155,7 @@ function DeviceSearch({ rows, now, query, same }: { rows: DeviceRow[]; now: numb
     { token: 'source:osquery', label: t('search.chip.osquery'), count: count('source', 'osquery') },
     { token: 'source:manual', label: t('search.chip.manual'), count: count('source', 'manual') },
     { token: 'has:findings', label: t('search.chip.findings'), count: count('has', 'findings') },
-    { token: 'possible:same', label: t('search.chip.same'), count: count('possible', 'same') }, // D-599: rows to merge or keep separate
+    { token: 'possible:same', label: t('search.chip.same'), count: count('possible', 'same') }, // rows to merge or keep separate
   ]
   // A chip that would show 0 is left out (To review would read "SNMP 0, osquery 0, Manual 0"), unless it is on (#849 review L11).
   const shownChips = chips.filter((c) => c.count !== 0 || hasToken(query.q, c.token))
@@ -196,16 +196,16 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
     { id: 'name', header: t('col.name'), accessorFn: (d) => nameOf(d, kindLabel(d.kind)), cell: ({ row }) => (
       <div className="flex items-center gap-x-2 whitespace-nowrap">{nameLink(row.original, 'whitespace-nowrap')}<NameChips d={row.original} dense /><SameChip id={row.original.id} others={same.others.get(row.original.id) ?? []} /></div>
     ) },
-    // G4: the risk marker, sortable (worst first on the first click); empty for a clean device
+    // The risk marker, sortable (worst first on the first click); empty for a clean device
     { id: 'risk', header: t('risk.column'), sortDescFirst: true, accessorFn: (d) => riskRank(d.risk), cell: ({ row }) => <RiskMarker id={row.original.id} risk={row.original.risk} /> },
     { id: 'ip', header: t('col.ip'), accessorFn: (d) => d.ip, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{row.original.ip}</span> },
     { id: 'kind', header: t('col.kind'), accessorFn: (d) => { const k = shownKind(d).kind; return `${kindLabel(k)} ${categoryLabel(categoryOf(k))}` }, cell: ({ row }) => <TypeCell d={row.original} dense /> },
     // #849 review: one line per row at 1280. Make, model and OS share a column, cut with an ellipsis (the whole text on hover, the
     // device page has each value); the OS in muted text after the model.
     { id: 'hw', header: t('col.device'), accessorFn: (d) => [d.vendor?.value, d.model?.value, d.os?.value].filter(Boolean).join(' '), cell: ({ row }) => {
-      // #849 review r2 M1: the OS or firmware version decides the CVE match, so it is never the part cut. Maker and model and the OS
-      // sit on one line when they fit; otherwise the OS wraps to its own line(s) in full (n72: "Windows Server 2025 Standard
-      // Evaluation 10.0.26100.1742" ran over Sources and Last seen; review r1 of #888: a clamp would hide the version). The maker and
+      // #849: the OS or firmware version decides the CVE match, so it is never the part cut. Maker and model and the OS
+      // sit on one line when they fit; otherwise the OS wraps to its own line(s) in full ("Windows Server 2025 Standard
+      // Evaluation 10.0.26100.1742" ran over Sources and Last seen; #888: a clamp would hide the version). The maker and
       // model keep one line with an ellipsis. The whole text stays in the DOM (screen readers) and in the tooltip.
       const d = row.original
       const hw = hardwareLine(d)
@@ -260,7 +260,7 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
                 {hw ? <span className="min-w-0 [overflow-wrap:anywhere]">{hw}</span> : null}
               </div>
               {swWanted.length ? (() => {
-                // the phone's Matched software line (#849 review r2 M2): what software: found on this device, with its version
+                // the phone's Matched software line (#849): what software: found on this device, with its version
                 const m = matchSoftware(d, swWanted)
                 return m.length ? <p className="text-meta">{m.map((x) => `${x.display} ${x.version ?? t('software.noVersion')}`).join(', ')}</p> : null
               })() : null}
@@ -288,7 +288,7 @@ function ReviewList({ rows, now, notifyNew, notifyAvailable, query, same }: { ro
   )
 }
 
-/** D-599 (#829): the pairs of GET /inventory/possible-same by device: the names of the others, and every id in a pair. One cached read. */
+/** #829: the pairs of GET /inventory/possible-same by device: the names of the others, and every id in a pair. One cached read. */
 type SamePairsBy = { ids: SameIds; others: ReadonlyMap<string, string[]> }
 function usePairsByDevice(): SamePairsBy {
   const q = usePossibleSame()
@@ -350,7 +350,7 @@ function Body() {
         meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('list.meta')}</span>} info={t('list.metaInfo')}
         actions={
           <>
-            {/* kien G5: nothing to export before the first device */}
+            {/* Nothing to export before the first device */}
             {all > 0 ? <DownloadButton path="/inventory/export.csv" filename="vedette-devices.csv" onError={(e) => toast.error(errMsg(e))}><Download />{t('export')}</DownloadButton> : null}
             {canAdmin ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}><Settings2 />{t('setup.link')}</Link> : null}
             <Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdd('manual')}><Plus />{t('add.open')}</Button>
@@ -367,12 +367,12 @@ function Body() {
               {all === 1 && lists.approved[0]?.is_box ? (
                 <div className="mb-6"><NoDevices boxOnly canOp={canOp} canAdmin={canAdmin} needRole={needRole} onAdd={setAdd} /></div>
               ) : null}
-              {/* G4 (review r1 of #949): findings could not answer; the list still shows, quietly without risk marks */}
+              {/* #949: findings could not answer; the list still shows, quietly without risk marks */}
               {d.risk_unavailable ? <p role="status" className="mb-3 text-meta text-muted">{t('risk.unavailable')}</p> : null}
               <PageTabs label={t('tabs.label')} tabs={[
                 { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} same={same} /> },
                 { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} />, badge: { count: pending, label: t('tabs.reviewBadge') } },
-                // D-630: the devices a person ignored, only while there are any (an old ?tab=ignored link lands on Devices then)
+                // The devices a person ignored, only while there are any (an old ?tab=ignored link lands on Devices then)
                 ...(d.counts.ignored > 0 ? [{ id: 'ignored', label: t('tabs.ignoredCount', { count: d.counts.ignored }), panel: <IgnoredPanel /> }] : []),
               ]} />
               {declaredLine}

@@ -2,7 +2,14 @@
 // `busyLabel` (spinner, "Saving…", aria-busy, no width jump), so a person knows the box is working. This guard reads every
 // non-test .tsx under features/, components/ and app/ and fails on a <Button> that waits without it. A named exception carries
 // `busy-guard: <reason>` in a comment inside the tag, on its line or on one of the two lines above it, and is listed in ALLOWED below with the
-// same reason; an entry no longer used fails too.
+// same reason and the number of tags it covers; an entry covering more or fewer tags fails too.
+//
+// Known limits (a static, per-file read; #930 review r2, decided by the supervisor: no cross-file analyzer):
+// - a helper or hook imported from another file (`onClick={() => saveThing(v)}` with saveThing in api.ts) is not followed;
+// - props passed by a spread (`<Button {...props}>`) are not seen;
+// - a form whose onSubmit comes from a parent (`<form onSubmit={props.onSubmit}>`) is not known to call the server.
+// What it does follow in one file: `.mutate(`/`.mutateAsync(` and `onClick={save.mutate}`, a destructured
+// `const { mutate: save } = useX()`, a download(), and functions of the file (a hook returning a mutation included) two levels deep.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -18,7 +25,7 @@ const HAND_LABEL = new RegExp(`\\b(?:\\w+\\.)?(?:isPending|isFetching|isMutating
 /** A spinner drawn by hand inside a button. */
 const HAND_SPINNER = /animate-spin|LoaderCircle|Loader2/
 /** A call that waits on the server: a react-query mutation, or a file download (lib/api download() fetches the whole file first). */
-const SERVER_CALL = /\.mutate(?:Async)?\(|(?<![\w.])download\(/
+const SERVER_CALL = /\.mutate(?:Async)?\b|(?<![\w.])download\(/
 /** Cancel, Close and Back are not the action that waits: they are only held while it runs. Exempt only when they do not call the
  * server themselves (an action named "Keep separate" or "Cancel reboot" that runs a mutation is checked like any other). */
 const NOT_THE_ACTION = /t\(\s*['"][\w:.]*\b(?:cancel|close|back)['"]/
@@ -34,11 +41,11 @@ const RULES = {
 }
 type Rule = keyof typeof RULES
 
-/** The named exceptions: file, a piece of the tag's text, and why it stays. */
-const ALLOWED: { file: string; text: string; why: string }[] = [
-  { file: 'components/ui/button.tsx', text: '<button className', why: 'the Button itself: its native button is the one that draws the busy state' },
-  { file: 'features/core/SetupPage.tsx', text: 'key="next"', why: 'Continue only moves to the next step of the wizard; Finish (busy) is the step that calls the server' },
-  { file: 'features/inventory/AddDialog.tsx', text: '<Button type="submit" variant="primary">', why: 'for a range the form only opens a dialog (add to scope, or widen the credential), each with its own busy Save' },
+/** The named exceptions: file, a piece of the tag's text, how many tags it covers (a second identical tag fails), and why. */
+const ALLOWED: { file: string; text: string; count: number; why: string }[] = [
+  { file: 'components/ui/button.tsx', text: '<button className', count: 1, why: 'the Button itself: its native button is the one that draws the busy state' },
+  { file: 'features/core/SetupPage.tsx', text: 'key="next"', count: 1, why: 'Continue only moves to the next step of the wizard; Finish (busy) is the step that calls the server' },
+  { file: 'features/inventory/AddDialog.tsx', text: '<Button type="submit" variant="primary">', count: 2, why: 'for a range the form only opens a dialog (add to scope, or widen the credential), each with its own busy Save' },
 ]
 
 function sources() {
@@ -86,15 +93,27 @@ function bodyOf(text: string, fn: string): string {
   return text.slice(m.index + m[0].length)
 }
 
+/** The names a file binds to a mutation's function by destructuring: `const { mutate } = …`, `const { mutateAsync: save } = …`. */
+function mutators(text: string): RegExp | null {
+  const names: string[] = []
+  for (const m of text.matchAll(/(?:const|let)\s*\{([^{}]*\bmutate(?:Async)?\b[^{}]*)\}\s*=/g)) {
+    for (const part of m[1]!.split(',')) {
+      const [key, alias] = part.split(':').map((x) => x.trim())
+      if (key === 'mutate' || key === 'mutateAsync') names.push(alias || key)
+    }
+  }
+  return names.length ? new RegExp(`(?<![\\w.])(?:${names.join('|')})\\b`) : null
+}
+
 /** Does this handler expression call the server, itself or through functions of this file (two levels deep)? */
-function callsServer(text: string, expr: string | null, depth = 2): boolean {
+function callsServer(text: string, expr: string | null, depth = 2, bound = mutators(text)): boolean {
   if (!expr) return false
-  if (SERVER_CALL.test(expr)) return true
+  if (SERVER_CALL.test(expr) || bound?.test(expr)) return true
   if (depth === 0) return false
   const names = new Set([...expr.matchAll(/(?<![\w.])([A-Za-z_]\w*)\s*\(/g)].map((m) => m[1]!))
   const bare = /^\s*([A-Za-z_]\w*)\s*$/.exec(expr)?.[1]
   if (bare) names.add(bare)
-  return [...names].some((n) => callsServer(text, bodyOf(text, n), depth - 1))
+  return [...names].some((n) => callsServer(text, bodyOf(text, n), depth - 1, bound))
 }
 
 /** The expression of a {…} prop, or null. */
@@ -122,9 +141,10 @@ function scan(files: { file: string; text: string }[]): Hit[] {
       const marked = /busy-guard:/.test(open) || lines.slice(Math.max(0, line - 3), line).some((l) => l.includes('busy-guard:'))
       return (rule: Rule) => hits.push({ file, line, rule, tag: open.replace(/\s+/g, ' ').slice(0, 160), marked })
     }
-    // a form whose onSubmit calls the server: its submit Button waits too
-    const serverForm = tags(text, 'form').some((f) => callsServer(text, prop(f.open, 'onSubmit')))
+    // the forms whose onSubmit calls the server, as spans of the file: a submit Button inside one of them waits too
+    const serverForms = tags(text, 'form').filter((f) => callsServer(text, prop(f.open, 'onSubmit'))).map((f) => [f.at, f.at + f.open.length + f.body.length] as const)
     for (const b of tags(text, 'Button')) {
+      const serverForm = serverForms.some(([from, to]) => b.at > from && b.at < to)
       const hit = at(b.at, b.open)
       const busy = has(b.open, 'busy')
       const disabled = prop(b.open, 'disabled')
@@ -152,7 +172,8 @@ function scan(files: { file: string; text: string }[]): Hit[] {
   return hits
 }
 
-const allowedHit = (h: Hit) => ALLOWED.some((a) => a.file === h.file && h.tag.includes(a.text))
+const covers = (a: (typeof ALLOWED)[number], h: Hit) => a.file === h.file && h.tag.includes(a.text)
+const allowedHit = (h: Hit) => ALLOWED.some((a) => covers(a, h))
 
 describe('busy guard (docs/UI.md §8, kien G1)', () => {
   const files = sources()
@@ -170,8 +191,8 @@ describe('busy guard (docs/UI.md §8, kien G1)', () => {
 
   it('every exception says why (a busy-guard: comment) and is still used', () => {
     expect(hits.filter((h) => allowedHit(h) && !h.marked).map((h) => `${h.file}:${h.line}: add a // busy-guard: <reason> comment`)).toEqual([])
-    const stale = ALLOWED.filter((a) => !hits.some((h) => h.file === a.file && h.tag.includes(a.text))).map((a) => `${a.file} ${a.text}`)
-    expect(stale, 'ALLOWED entries no longer used: remove them').toEqual([])
+    const off = ALLOWED.map((a) => ({ a, n: hits.filter((h) => covers(a, h)).length })).filter(({ a, n }) => n !== a.count).map(({ a, n }) => `${a.file} ${a.text}: covers ${n} tags, the entry says ${a.count}`)
+    expect(off, 'ALLOWED entries must cover exactly the tags they name: a new identical tag needs its own review (and count), an unused entry goes').toEqual([])
   })
 
   it('catches what it must and leaves what it may', () => {
@@ -194,6 +215,13 @@ describe('busy guard (docs/UI.md §8, kien G1)', () => {
     expect(t(`<DropdownMenuItem disabled={del.isPending} onSelect={() => del.mutate(id)}>x</DropdownMenuItem>`)).toEqual(['menuItem'])
     expect(t(`<form onSubmit={submit}><Button type="submit">{t('save')}</Button></form>\nfunction submit() {\n  save.mutate(v)\n}`)).toEqual(['submitNoBusy'])
     expect(t(`<Button busy={x.isPending} busyLabel="">{t('save')}</Button>`)).toEqual(['noLabel'])
+    // #930 review r2: a mutation passed by reference, a destructured mutate, a hook of the file that returns one; a submit button
+    // inside the server form only (the local form beside it is not flagged)
+    expect(t(`<Button onClick={save.mutate}>{t('save')}</Button>`)).toEqual(['noBusy'])
+    expect(t(`const { mutate: saveIt } = useSave()\n<Button onClick={() => saveIt(v)}>{t('save')}</Button>`)).toEqual(['noBusy'])
+    expect(t(`const { mutateAsync } = useSave()\n<Button onClick={() => void mutateAsync(v)}>{t('save')}</Button>`)).toEqual(['noBusy'])
+    expect(t(`function useSaver() {\n  const m = useMutation({ mutationFn })\n  return (v: string) => m.mutate(v)\n}\nconst saveIt = useSaver()\n<Button onClick={() => saveIt(v)}>{t('save')}</Button>`)).toEqual(['noBusy'])
+    expect(t(`<form onSubmit={(e) => { e.preventDefault(); save.mutate(v) }}><Button type="submit">{t('save')}</Button></form>\n<form onSubmit={(e) => { e.preventDefault(); setQ(v) }}><Button type="submit">{t('find')}</Button></form>`)).toEqual(['submitNoBusy'])
     expect(t(`<Button size="sm" busy={x.isPending} aria-label={t('test', { name })}>{t('test')}</Button>`)).toEqual(['noLabel'])
     // left alone: the pattern, icon buttons named by aria-label, Cancel held while the action runs, links, plain disabled
     expect(t(`<Button busy={save.isPending} busyLabel={t('common:busy.saving')} disabled={!dirty}>{t('common:save')}</Button>`)).toEqual([])

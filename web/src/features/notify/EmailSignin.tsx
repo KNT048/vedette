@@ -54,6 +54,9 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
   }
   const poll = (url?: string, byHand = true) => {
     if (!s) return
+    // #930 review r2: a check is already running (the timer's): a press joins it (shows its busy state) instead of starting a
+    // second one on the same mutation; the timer never starts one over a press. A pasted address always goes (it is new input).
+    if (check.isPending && !url) { if (byHand) setManual(true); return }
     setErr(null)
     setManual(byHand)
     check.mutate({ id: s.id, url }, { onSuccess: got, onError: fail })

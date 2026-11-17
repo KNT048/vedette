@@ -32078,7 +32078,7 @@
                               "add_version",
                               "none"
                             ],
-                            "description": "add_version: typing the version as the vendor writes it lets Vedette check these CVEs (not_comparable, and not_named once phase 2 lands); none: only the advisory decides"
+                            "description": "add_version: only not_comparable on a software row a person declared (#920): typing the version as the vendor writes it lets Vedette check these CVEs; none: only the advisory decides"
                           }
                         },
                         "required": [

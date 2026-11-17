@@ -561,35 +561,47 @@ func aiWords(s string) []string {
 	return out
 }
 
-// aiProductWords are the words that name the finding's product: the exploited entry's product and the device's software rows the
-// finding matched (the row's own CVE list, or the row aiMatched names), without the vendor's own words ("Apache" of "Apache Tomcat"
-// names Apache httpd too). vendor: the entry vendor's words.
+// aiProductWords are the words that name the finding's product: the exploited entry's product without the vendor's own words
+// ("Apache" of "Apache Tomcat" names Apache httpd too), else the device's software rows the finding matched. vendor: the entry
+// vendor's words. A port runs the product only when every one of these words is on it ("Windows Server Update Service" is not
+// "Microsoft Windows RPC").
 func aiProductWords(row findings.Row, d inventory.Device) (product, vendor []string) {
 	if k := row.Kev; k != nil {
 		vendor = aiWords(k.Vendor)
-		product = aiWords(strings.ReplaceAll(k.Product, "_", " "))
+		for _, w := range aiWords(strings.ReplaceAll(k.Product, "_", " ")) {
+			if !slices.Contains(vendor, w) {
+				product = append(product, w)
+			}
+		}
+	}
+	if len(product) > 0 {
+		return product, vendor
 	}
 	matched := aiMatched(row, d)
 	for _, s := range d.Software {
 		if s.NotInstalled || !slices.Contains(s.Kev, row.CVE) && (s.Display == "" || !strings.Contains(matched, s.Display)) {
 			continue
 		}
-		product = append(product, aiWords(s.Display+" "+strings.ReplaceAll(s.Product, "_", " "))...)
-	}
-	var out []string
-	for _, w := range product {
-		if !slices.Contains(vendor, w) && !slices.Contains(out, w) {
-			out = append(out, w)
+		for _, w := range aiWords(s.Display) {
+			if !slices.Contains(vendor, w) && !slices.Contains(product, w) {
+				product = append(product, w)
+			}
 		}
+		break // the first matched row names it; two rows' words together would match nothing
 	}
-	return out, vendor
+	return product, vendor
 }
 
-// aiBanner is a value the device chose (a product, a version, a service name) as this line quotes it: without the line's own
-// separators, so a banner cannot fake a "runs it" or "write no rule" part of the line.
+// aiBanner is a value the device chose (a product, a version, a service name) as this line quotes it: brackets for parentheses and
+// no other separator of the line, so a banner cannot fake a "runs it" or "write no rule" part ("15.2(7)E" stays "15.2[7]E").
 func aiBanner(s string, n int) string {
 	return strings.Join(strings.Fields(strings.Map(func(r rune) rune {
-		if strings.ContainsRune(";():,", r) {
+		switch r {
+		case '(':
+			return '['
+		case ')':
+			return ']'
+		case ';', ':', ',':
 			return ' '
 		}
 		return r
@@ -606,18 +618,41 @@ func aiPortLabel(sv inventory.ServiceRow) string {
 }
 
 // aiPlatform reports whether the finding is on the device's own platform (its operating system or firmware: Junos OS, IOS XE,
-// FortiOS, Windows) rather than on an application it runs: the finding's product is in the device's OS, or the device is the
-// entry vendor's own and the entry's product is an OS ("… OS", "…OS", firmware).
+// FortiOS, Windows) rather than on an application it runs, by whole words:
+//   - the entry's whole product (its vendor's words aside) is in the device's OS: "Windows" on "Windows Server 2022", never
+//     "Windows Server Update Service" there; or
+//   - the device is the entry vendor's own and the entry's product is an operating system or firmware: a word "os", "ios", "eos",
+//     "firmware" or one ending in "os" (Junos, FortiOS, PAN-OS, SonicOS), never a word of the vendor's name (Sophos).
 func aiPlatform(row findings.Row, d inventory.Device, product, vendor []string) bool {
-	osWords := aiWords(aiObserved(d.OS))
-	if slices.ContainsFunc(product, func(w string) bool { return slices.Contains(osWords, w) }) {
-		return true
-	}
-	if row.Kev == nil || !slices.ContainsFunc(aiWords(aiObserved(d.Vendor)), func(w string) bool { return slices.Contains(vendor, w) }) {
+	if row.Kev == nil || len(product) == 0 {
 		return false
 	}
-	p := strings.ToLower(strings.TrimSpace(strings.ReplaceAll(row.Kev.Product, "_", " ")))
-	return strings.HasSuffix(p, "os") || strings.Contains(p, "os ") || strings.Contains(p, "firmware")
+	osWords := aiWords(aiObserved(d.OS))
+	if !slices.ContainsFunc(product, func(w string) bool { return !slices.Contains(osWords, w) }) {
+		return true
+	}
+	if !slices.ContainsFunc(aiWords(aiObserved(d.Vendor)), func(w string) bool { return slices.Contains(vendor, w) }) {
+		return false
+	}
+	for _, w := range strings.FieldsFunc(strings.ToLower(row.Kev.Product), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		if slices.Contains(vendor, w) {
+			continue
+		}
+		if w == "os" || w == "ios" || w == "eos" || w == "firmware" || (len(w) >= 5 && strings.HasSuffix(w, "os")) {
+			return true
+		}
+	}
+	return false
+}
+
+// aiTitle is the page title the scan read on a port ("title: …" of its detail), "" when it read none.
+func aiTitle(detail string) string {
+	for _, part := range strings.Split(detail, "; ") {
+		if t, ok := strings.CutPrefix(part, "title: "); ok {
+			return t
+		}
+	}
+	return ""
 }
 
 // aiVulnPorts is the "Ports of the vulnerable product" fact: which open ports a scan read serve the finding's product. The finding
@@ -627,11 +662,13 @@ func aiPlatform(row findings.Row, d inventory.Device, product, vendor []string) 
 //   - A platform finding (the device's own OS or firmware): every interface of the device runs the platform, and a banner that names
 //     it on one port (telnet, SNMP) says nothing about the vulnerable one, so the box lists every named port by service, plain and TLS
 //     together, and the model covers all ports of the interface the vulnerability names.
-//   - An application finding: a port whose scanned product or page names the product runs it. When one does, a port where the scan
-//     read a different product runs another one (no rule), and a port with no product is most likely the same server when it is
-//     of a service the product runs, no other product serves that service and the page or certificate the scan read there does not
-//     name something else; any other port is not known. When none does, every port is a candidate, listed by service with its
-//     product (Exchange runs behind an "IIS" banner).
+//   - An application finding: a port whose scanned product or page names the whole product runs it. The other ports of that
+//     service (plain or TLS) are split: one where the scan read another product runs another one (no rule; a reverse proxy in front
+//     of the product is the case the scan cannot tell); one with no product is most likely the same server unless another product
+//     serves the service, its page title does not name the product, or its title or certificate names another product of the
+//     device; else not known. A port of another service is never excluded, whatever its product: an application often names
+//     itself on one protocol and serves its web front end behind the web server's banner (Exchange: SMTP names Exchange, OWA on 443
+//     says IIS). When no port names the product, every port is a candidate, listed by service.
 //
 // "" when the scan read no named port.
 func aiVulnPorts(row findings.Row, d inventory.Device) string {
@@ -641,7 +678,8 @@ func aiVulnPorts(row findings.Row, d inventory.Device) string {
 	type port struct {
 		sv               inventory.ServiceRow
 		fam, prod, label string
-		runs, detail     bool
+		words, title     []string
+		runs             bool
 	}
 	var ps []port
 	seen := map[string]bool{}
@@ -652,9 +690,10 @@ func aiVulnPorts(row findings.Row, d inventory.Device) string {
 			continue
 		}
 		seen[key] = true
-		text := aiWords(aiStr(sv.Product) + " " + aiStr(sv.Detail))
+		words := aiWords(aiStr(sv.Product) + " " + aiStr(sv.Detail))
 		ps = append(ps, port{sv: sv, fam: aiBanner(fam, 40), prod: strings.ToLower(strings.TrimSpace(aiStr(sv.Product))), label: aiPortLabel(sv),
-			runs: slices.ContainsFunc(product, func(w string) bool { return slices.Contains(text, w) }), detail: strings.TrimSpace(aiStr(sv.Detail)) != ""})
+			words: words, title: aiWords(aiTitle(aiStr(sv.Detail))),
+			runs: len(product) > 0 && !slices.ContainsFunc(product, func(w string) bool { return !slices.Contains(words, w) })})
 	}
 	if len(ps) == 0 {
 		return ""
@@ -687,35 +726,52 @@ func aiVulnPorts(row findings.Row, d inventory.Device) string {
 		return "not known: the scan read the finding's product on no port. Candidates by service: " + byService()
 	}
 	runFam, otherFam := map[string]bool{}, map[string]bool{}
+	var otherWords []string // the words of the other products the scan read on the device
 	for _, p := range ps {
-		if p.runs {
+		switch {
+		case p.runs:
 			runFam[p.fam] = true
-		} else if p.prod != "" {
+		case p.prod != "":
 			otherFam[p.fam] = true
+			for _, w := range aiWords(p.prod) {
+				if !slices.Contains(product, w) && !slices.Contains(vendor, w) {
+					otherWords = append(otherWords, w)
+				}
+			}
 		}
 	}
-	var runs, same, unknown, other []string
+	namesOther := func(p port) bool {
+		return (len(p.title) > 0 && !slices.ContainsFunc(product, func(w string) bool { return slices.Contains(p.title, w) })) ||
+			slices.ContainsFunc(p.words, func(w string) bool { return slices.Contains(otherWords, w) })
+	}
+	var runs, same, unknownSame, unknownOther, other []string
 	for _, p := range ps {
 		switch {
 		case p.runs:
 			runs = append(runs, p.label)
+		case !runFam[p.fam]:
+			unknownOther = append(unknownOther, p.label)
 		case p.prod != "":
 			other = append(other, p.label)
-		case runFam[p.fam] && !otherFam[p.fam] && !p.detail:
+		case !otherFam[p.fam] && !namesOther(p):
 			same = append(same, p.label)
 		default:
-			unknown = append(unknown, p.label)
+			unknownSame = append(unknownSame, p.label)
 		}
 	}
 	out := "runs it (the scan read it there): " + join(runs)
-	if len(same) > 0 {
-		out += "; most likely the same server (the same service, plain or TLS, product not read): " + join(same)
-	}
-	if len(unknown) > 0 {
-		out += "; not known which product (product or service not read): " + join(unknown)
-	}
-	if len(other) > 0 {
-		out += "; runs another product (write no rule for these): " + join(other)
+	for _, part := range []struct {
+		head string
+		ls   []string
+	}{
+		{"most likely the same server (the same service, plain or TLS, product not read)", same},
+		{"the same service, not known which product", unknownSame},
+		{"other services, not known which product (the product may serve one of them behind another banner)", unknownOther},
+		{"the same service, another product (write no rule for these; the scan cannot tell a reverse proxy in front of the product)", other},
+	} {
+		if len(part.ls) > 0 {
+			out += "; " + part.head + ": " + join(part.ls)
+		}
 	}
 	return out
 }

@@ -272,7 +272,33 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 	server := func(rows ...inventory.ServiceRow) inventory.Device {
 		return inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Dell"), OS: obs("Ubuntu 24.04"), Services: rows}}
 	}
-	const platform = "the vulnerability is in the device's own platform, which serves all of its interfaces, so the scan cannot tell which port serves the vulnerable one. Ports by service (a service's plain and TLS ports together): "
+	winNoOS := winHost
+	winNoOS.OS = nil
+	routerNoVendor := router
+	routerNoVendor.Vendor, routerNoVendor.OS = nil, obs("Linux 4.X")
+	exchange := findings.Row{CVE: "CVE-2021-26855", Kev: &findings.KevInfo{Vendor: "Microsoft", Product: "Exchange Server"}}
+	mailHost := inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Dell"), OS: obs("Microsoft Windows Server 2019"), Services: []inventory.ServiceRow{
+		svc(25, "smtp", "Microsoft Exchange smtpd", "", ""), svc(80, "http", "Microsoft IIS httpd", "10.0", ""), svc(443, "ssl/http", "Microsoft IIS httpd", "10.0", ""),
+		svc(135, "msrpc", "Microsoft Windows RPC", "", ""),
+	}}}
+	sophos := findings.Row{CVE: "CVE-2022-1040", Kev: &findings.KevInfo{Vendor: "Sophos", Product: "Firewall"}}
+	sophosDev := inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Sophos"), Model: obs("XGS 2100"), OS: obs("SFOS 19.5.3"), Services: []inventory.ServiceRow{
+		svc(22, "ssh", "", "", ""), svc(443, "ssl/https", "", "", "certificate: commonName=Sophos_XGS"), svc(4444, "ssl/http", "", "", ""),
+	}}}
+	wsus := findings.Row{CVE: "CVE-2025-59287", Kev: &findings.KevInfo{Vendor: "Microsoft", Product: "Windows Server Update Service (WSUS)"}}
+	wsusHost := inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Dell"), OS: obs("Windows Server 2022"), Services: []inventory.ServiceRow{
+		svc(135, "msrpc", "Microsoft Windows RPC", "", ""), svc(8530, "http", "Microsoft IIS httpd", "10.0", ""), svc(8531, "ssl/http", "Microsoft IIS httpd", "10.0", ""),
+		svc(443, "ssl/https", "Microsoft IIS httpd", "10.0", "title: Intranet"),
+	}}}
+	const (
+		platform = "the vulnerability is in the device's own platform, which serves all of its interfaces, so the scan cannot tell which port serves the vulnerable one. Ports by service (a service's plain and TLS ports together): "
+		runs     = "runs it (the scan read it there): "
+		same     = "; most likely the same server (the same service, plain or TLS, product not read): "
+		unSame   = "; the same service, not known which product: "
+		unOther  = "; other services, not known which product (the product may serve one of them behind another banner): "
+		other    = "; the same service, another product (write no rule for these; the scan cannot tell a reverse proxy in front of the product): "
+		none     = "not known: the scan read the finding's product on no port. Candidates by service: "
+	)
 	for _, c := range []struct {
 		name string
 		row  findings.Row
@@ -285,30 +311,45 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 			platform + "snmp: 161/udp snmp (SNMPv3 server); ssh: 22/tcp ssh (OpenSSH 6.9); web: 80/tcp http (Embedthis-Appweb 3.2.3), 443/tcp ssl/https (product not read)"},
 		{"router: an IOS XE web interface behind an nginx banner, telnet names IOS", iosxe, router,
 			platform + "telnet: 23/tcp telnet (Cisco IOS telnetd); ssh: 22/tcp ssh (Cisco SSH 1.25); web: 80/tcp http (nginx), 443/tcp ssl/http (nginx)"},
+		{"router: IOS XE with no vendor and an OS guess of Linux: telnet runs it, the web ports of another service stay", iosxe, routerNoVendor,
+			runs + "23/tcp telnet (Cisco IOS telnetd)" + unOther + "22/tcp ssh (Cisco SSH 1.25), 80/tcp http (nginx), 443/tcp ssl/http (nginx)"},
 		{"Windows: a Windows flaw keeps the IIS port next to RPC and SMB", windows, winHost,
 			platform + "msrpc: 135/tcp msrpc (Microsoft Windows RPC); microsoft-ds: 445/tcp microsoft-ds (product not read); web: 80/tcp http (Microsoft IIS httpd 10.0)"},
+		{"Windows with no OS in the inventory: the IIS port is never excluded", windows, winNoOS,
+			runs + "135/tcp msrpc (Microsoft Windows RPC)" + unOther + "445/tcp microsoft-ds (product not read), 80/tcp http (Microsoft IIS httpd 10.0)"},
+		{"Exchange: the SMTP banner names it, its web front end behind IIS stays a candidate", exchange, mailHost,
+			runs + "25/tcp smtp (Microsoft Exchange smtpd)" + unOther + "80/tcp http (Microsoft IIS httpd 10.0), 443/tcp ssl/http (Microsoft IIS httpd 10.0), 135/tcp msrpc (Microsoft Windows RPC)"},
+		{"Sophos Firewall: the vendor's name ending in os is not an operating system", sophos, sophosDev,
+			none + "ssh: 22/tcp ssh (product not read); web: 443/tcp ssl/https (product not read), 4444/tcp ssl/http (product not read)"},
+		{"WSUS on Windows is an application, not the platform, and Windows RPC does not run it", wsus, wsusHost,
+			none + "msrpc: 135/tcp msrpc (Microsoft Windows RPC); web: 8530/tcp http (Microsoft IIS httpd 10.0), 8531/tcp ssl/http (Microsoft IIS httpd 10.0), 443/tcp ssl/https (Microsoft IIS httpd 10.0)"},
 		{"server: Tomcat on 8080 next to nginx on 80/443", tomcat, server(
 			svc(80, "http", "nginx", "1.24.0", ""), svc(443, "ssl/https", "nginx", "1.24.0", ""), svc(8080, "http-proxy", "Apache Tomcat", "9.0.98", ""), svc(22, "ssh", "OpenSSH", "9.6p1", "")),
-			"runs it (the scan read it there): 8080/tcp http-proxy (Apache Tomcat 9.0.98); runs another product (write no rule for these): " +
-				"80/tcp http (nginx 1.24.0), 443/tcp ssl/https (nginx 1.24.0), 22/tcp ssh (OpenSSH 9.6p1)"},
+			runs + "8080/tcp http-proxy (Apache Tomcat 9.0.98)" + unOther + "22/tcp ssh (OpenSSH 9.6p1)" + other + "80/tcp http (nginx 1.24.0), 443/tcp ssl/https (nginx 1.24.0)"},
 		{"server: Tomcat's TLS port named by its page", tomcat, server(
 			svc(80, "http", "nginx", "1.24.0", ""), svc(8080, "http", "Apache Tomcat", "", ""), svc(8443, "ssl/http", "", "", "title: Apache Tomcat/9.0.98")),
-			"runs it (the scan read it there): 8080/tcp http (Apache Tomcat), 8443/tcp ssl/http (product not read); runs another product (write no rule for these): 80/tcp http (nginx 1.24.0)"},
+			runs + "8080/tcp http (Apache Tomcat), 8443/tcp ssl/http (product not read)" + other + "80/tcp http (nginx 1.24.0)"},
+		{"server: Tomcat 8080 and its TLS port 8443 with only a certificate is the same server", tomcat, server(
+			svc(8080, "http", "Apache Tomcat", "9.0.98", ""), svc(8443, "ssl/https", "", "", "certificate: commonName=localhost")),
+			runs + "8080/tcp http (Apache Tomcat 9.0.98)" + same + "8443/tcp ssl/https (product not read)"},
 		{"server: Tomcat only, its TLS port without a product is the same server", tomcat, server(
 			svc(8080, "http", "Apache Tomcat", "", ""), svc(8443, "https-alt", "", "", ""), svc(9443, "ssl/unknown", "", "", "")),
-			"runs it (the scan read it there): 8080/tcp http (Apache Tomcat); most likely the same server (the same service, plain or TLS, product not read): 8443/tcp https-alt (product not read); " +
-				"not known which product (product or service not read): 9443/tcp ssl/unknown (product not read)"},
+			runs + "8080/tcp http (Apache Tomcat)" + same + "8443/tcp https-alt (product not read)" + unOther + "9443/tcp ssl/unknown (product not read)"},
 		{"server: a port without a product next to another product's is not called the same server", tomcat, server(
 			svc(80, "http", "nginx", "", ""), svc(8080, "http", "Apache Tomcat", "", ""), svc(443, "ssl/https", "", "", "")),
-			"runs it (the scan read it there): 8080/tcp http (Apache Tomcat); not known which product (product or service not read): 443/tcp ssl/https (product not read); " +
-				"runs another product (write no rule for these): 80/tcp http (nginx)"},
-		{"server: a page or certificate that names something else is not the same server", tomcat, server(
+			runs + "8080/tcp http (Apache Tomcat)" + unSame + "443/tcp ssl/https (product not read)" + other + "80/tcp http (nginx)"},
+		{"server: a title that does not name the product is not the same server, a certificate alone is", tomcat, server(
 			svc(8080, "http", "Apache Tomcat", "", ""), svc(443, "ssl/https", "", "", "certificate: commonName=www.example.com"), svc(80, "http", "", "", "title: Example Shop")),
-			"runs it (the scan read it there): 8080/tcp http (Apache Tomcat); not known which product (product or service not read): 443/tcp ssl/https (product not read), 80/tcp http (product not read)"},
+			runs + "8080/tcp http (Apache Tomcat)" + same + "443/tcp ssl/https (product not read)" + unSame + "80/tcp http (product not read)"},
+		{"server: a certificate that names another product of the device is not the same server", tomcat, server(
+			svc(8080, "http", "Apache Tomcat", "", ""), svc(22, "ssh", "Synology DSM sshd", "", ""), svc(8443, "ssl/https", "", "", "certificate: commonName=quickconnect.synology.me")),
+			runs + "8080/tcp http (Apache Tomcat)" + unSame + "8443/tcp ssl/https (product not read)" + unOther + "22/tcp ssh (Synology DSM sshd)"},
 		{"the vendor's word alone does not tie Apache httpd to a Tomcat finding", tomcat, server(svc(80, "http", "Apache httpd", "2.4.58", "")),
-			"not known: the scan read the finding's product on no port. Candidates by service: web: 80/tcp http (Apache httpd 2.4.58)"},
+			none + "web: 80/tcp http (Apache httpd 2.4.58)"},
 		{"a banner cannot fake a part of the line", tomcat, server(svc(8080, "http", "Apache Tomcat", "", ""), svc(22, "ssh", "x); runs it (the scan read it there): 22/tcp ssh (", "", "")),
-			"runs it (the scan read it there): 8080/tcp http (Apache Tomcat); runs another product (write no rule for these): 22/tcp ssh (x runs it the scan read it there 22/tcp ssh)"},
+			runs + "8080/tcp http (Apache Tomcat)" + unOther + "22/tcp ssh (x] runs it [the scan read it there] 22/tcp ssh [)"},
+		{"a version keeps its brackets", iosxe, inventory.Device{AssetCore: inventory.AssetCore{Services: []inventory.ServiceRow{svc(80, "http", "Cisco IOS http config", "15.2(7)E", "")}}},
+			runs + "80/tcp http (Cisco IOS http config 15.2[7]E)"},
 		{"nothing named", tomcat, server(svc(1, "tcpwrapped", "", "", "")), ""},
 	} {
 		if got := aiVulnPorts(c.row, c.dev); got != c.want {

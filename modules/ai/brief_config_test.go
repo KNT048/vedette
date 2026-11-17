@@ -148,7 +148,9 @@ func TestBriefConfig_EveryPortOfTheServiceAndSafeApply(t *testing.T) {
 	all := req.System + req.Messages[0].Text
 	for _, w := range []string{
 		`as the "Ports of the vulnerable product" line gives them`, "plain and TLS alike", "never only one of them",
-		"never a port it says runs another product", "never every web port of the device",
+		"never a port it calls another product", "may be a reverse proxy in front of the vulnerable product",
+		"Of the ports it calls not known which product, cover the ones of the same service as a port that runs it",
+		`say in "no_config_reason" which of them you covered and why`, "never every web port of the device",
 		"When it says the vulnerability is in the device's own platform, choose the interface the vulnerability names",
 		"that target's change is applied that way", `a command it calls a separate step goes in "steps", never in "lines"`,
 		"never end such a block with a plain commit alone",

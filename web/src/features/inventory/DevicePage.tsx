@@ -23,6 +23,9 @@ import type { AssetKind, Service } from '@/lib/types'
 import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/deviceTypes'
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useDevice, useDeviceAction } from './api'
+import { useScanning } from '@/features/scanning/api'
+import { scanRefusal } from '@/features/scanning/canScan'
+import type { Scanning } from '@/features/scanning/types'
 import { useModuleEnabled } from '@/lib/modules'
 import { OsNeeds, SoftwareNeeds, useSoftwareNeeds } from '@/features/findings/SoftwareNeeds'
 import { useDeviceFindingCounts } from '@/features/findings/notRelevant'
@@ -35,16 +38,13 @@ import { PossibleSameNotice } from './SameDevice'
 import { BoxNotice } from './BoxNotice'
 import type { DeviceDetail, Observation, RegularScan, SoftwareView } from './types'
 
-/** kien G12 (n82 walk): what the fragile line promises follows the scan source state: the box itself is never scanned, a device whose
- *  network scan is off (D-601) or that may never be scanned gets no scan, a device without an address cannot be reached. Only a device
- *  Vedette really may scan reads "may scan this device during the scan window". */
-function scanHint(a: DeviceDetail['asset'], t: (k: string) => string): string {
-  if (a.is_box) return t('detail.scanNeverBox')
-  if (a.scan_source === 'off') return t('detail.scanNeverOff')
-  if (!a.ip || a.ip === '—') return t('detail.scanNeverNoIp')
-  if (a.regular_scan === 'never') return t('detail.scanNeverRegular') // never, for every kind of device (D-74)
-  if (a.fragile) return t('detail.fragileOnHint')
-  return t('detail.fragileOffHint')
+/** kien G12 (n82 walk, review r1 of #944): the fragile line promises a scan only when Vedette may scan the device now, by the one rule
+ *  "Check this device now" uses (scanning/canScan.ts: the device, the ranges and exclusions, the ranges confirmed, discovery on);
+ *  otherwise it says why. */
+function scanHint(a: DeviceDetail['asset'], scanning: Scanning | undefined, t: (k: string) => string): string {
+  const r = scanRefusal(a, scanning)
+  if (r) return t(`scanning:selection.device.${r}`)
+  return a.fragile ? t('detail.fragileOnHint') : t('detail.fragileOffHint')
 }
 
 function Overview({ d }: { d: DeviceDetail }) {
@@ -54,6 +54,7 @@ function Overview({ d }: { d: DeviceDetail }) {
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const a = d.asset
   const fail = (e: unknown) => toast.error(errMsg(e))
+  const scanning = useScanning().data
   const guess = a.kind === 'unknown' ? a.guess : null
   const setKind = (kind: AssetKind) => act.patch.mutate({ kind }, { onSuccess: () => toast.success(t('detail.kindSaved', { kind: kindLabel(kind) })), onError: fail })
   const row = (label: string, value: React.ReactNode) => (
@@ -96,7 +97,7 @@ function Overview({ d }: { d: DeviceDetail }) {
       <dd className="flex flex-wrap items-center gap-3">
         <Switch id="device-fragile" checked={a.fragile} disabled={!can || act.patch.isPending} title={needRole}
           onCheckedChange={(v) => act.patch.mutate({ fragile: v }, { onSuccess: () => toast.success(v ? t('detail.fragileOn') : t('detail.fragileOff')), onError: fail })} />
-        <span className="max-w-xl text-meta text-muted">{scanHint(a, t)}</span>
+        <span className="max-w-xl text-meta text-muted">{scanHint(a, scanning, t)}</span>
       </dd>
       {a.fragile ? (
         <>

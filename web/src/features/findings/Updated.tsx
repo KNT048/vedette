@@ -3,6 +3,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { ScanNowButton } from '@/features/scanning/ScanNow'
+import { useScanning } from '@/features/scanning/api'
+import { scanRefusal } from '@/features/scanning/canScan'
+import { useDevices } from '@/features/inventory/api'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
@@ -22,8 +25,9 @@ export type UpdatedSoftware = Pick<SoftwareView, 'id' | 'display' | 'version' | 
  * "I updated it" for one software of one device, the one control the finding page and each To fix action use (kien G12): it does
  * what the update needs, never a control with nothing behind it.
  * - Agent-read software: no button; a line says the agent reports the new version by itself and the findings close on their own.
- * - Scan-read software: the button is "Check this device now" itself (POST /scanning/engines/nmap-discovery/run, admin, the same
- *   ScanNowButton as the device page), with its busy state and its result.
+ * - Scan-read software (nmap, scan, SNMP, passive): the button is "Check this device now" itself (POST
+ *   /scanning/engines/nmap-discovery/run, admin, the same ScanNowButton as the device page), with its busy state and its result,
+ *   where Vedette may scan the device now; elsewhere the reason. Any other source gets nothing.
  * - Typed (manual) software: the version dialog (D-499). `fixed` prefills it (D-488 `fixed`), if known.
  * `active`: an open finding is behind it (kien G5: nothing on what is already closed); the manual button stays while its own dialog is
  * open, so the dialog can say what the re-match closed. `progress`: show the check's progress under the button (the finding page).
@@ -33,12 +37,24 @@ export function IUpdated({ asset, software, fixed, size, active = true, progress
   if (software.source === 'agent') {
     return active ? <p className="text-meta text-muted">{t('updated.agentLine', { device: deviceName(asset, t('removedDevice')) })}</p> : null
   }
-  if (software.source !== 'manual') {
-    if (!active) return null
-    if (!hasIp(asset)) return <p className="text-meta text-muted">{t('evidence.noIpScan')}</p>
-    return <ScanNowButton targets={[asset.id]} label={t('updated.buttonScan')} size={size} variant="secondary" showProgress={progress} />
-  }
+  if (SCAN_READ.has(software.source)) return active ? <CheckNow asset={asset} size={size} progress={progress} /> : null
+  if (software.source !== 'manual') return null // review r1 of #944: an unknown source is not scan-read: no control with nothing behind it
   return <TypedVersion asset={asset} software={software} fixed={fixed} size={size} active={active} />
+}
+
+/** The sources a network check re-reads (review r1 of #944: anything else is not scan-read). */
+const SCAN_READ = new Set<string>(['nmap', 'scan', 'snmp', 'passive'])
+
+/** Scan-read software: "Check this device now" itself, only where Vedette may scan the device now (scanning/canScan.ts, the rule
+ *  of the device page); otherwise the reason, never a button that can only be refused (G5). */
+function CheckNow({ asset, size, progress }: { asset: FindingAsset; size?: 'sm'; progress: boolean }) {
+  const { t } = useTranslation('scanning')
+  const row = useDevices().data?.items.find((x) => x.id === asset.id)
+  const scanning = useScanning().data
+  if (!hasIp(asset)) return <p className="text-meta text-muted">{t('selection.device.no_ip')}</p>
+  const r = row ? scanRefusal(row, scanning) : null
+  if (r) return <p className="text-meta text-muted">{t(`selection.device.${r}`)}</p>
+  return <ScanNowButton targets={[asset.id]} size={size} variant="secondary" showProgress={progress} />
 }
 
 /** Typed (manual) software: "I updated <software>" and its dialog (D-499): the new version, then what the re-match closed. */

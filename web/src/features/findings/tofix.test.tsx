@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
-import { assetsStore, findingsStore } from '@/mocks/stores'
+import { assetsStore, findingsStore, modulesStore } from '@/mocks/stores'
+import { inventorySettingsStore } from '@/features/inventory/mocks'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 
 // kien G8: "when the user opens Findings, they know which devices need patching or an action, and what the action is".
@@ -125,7 +126,21 @@ describe('Findings › To fix (kien G8)', () => {
     expect(within(row('Install the latest cumulative update for Windows 11 Pro (build 26100.33650 or later)')).getByText(/^The agent on PC-A reports the new version by itself/)).toBeInTheDocument()
     expect(within(row('Install the latest cumulative update for Windows 11 Pro (build 26100.33650 or later)')).queryByRole('button', { name: /^I updated/ })).toBeNull()
     expect(within(row('Upgrade RARLAB WinRAR from 7.01 to 7.13 or later')).getByRole('button', { name: 'I updated RARLAB WinRAR' })).toBeInTheDocument()
-    expect(within(row('Upgrade Git from 2.40 to 2.47.3 or later')).getByRole('button', { name: 'I updated it: check the device now' })).toBeInTheDocument()
+    expect(within(row('Upgrade Git from 2.40 to 2.47.3 or later')).getByRole('button', { name: 'Check this device now' })).toBeInTheDocument()
+  })
+
+  it('review r1 of #944: one check per device: starting it on one row shows it running on every row of that device', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'sensor-active' ? { ...m, enabled: true } : m)))
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))
+    const scanRow = (g: string, sw: string) => act({ group: `a-srvad/${g}`, software_id: g, software: sw, version: '1.0', fixed: '2.0', source: 'nmap', action: `Upgrade ${sw} from 1.0 to 2.0 or later`, cves: [`CVE-2026-${g.length}0`], finding_ids: [`f-${g}`] })
+    serve({ ...sample, devices: [{ ...dev('a-srvad', 'SRV-AD', { open: 2, exploited: [scanRow('s-a', 'Apache'), scanRow('s-bb', 'OpenSSH')] }), asset: { id: 'a-srvad', name: 'SRV-AD', hostname: 'SRV-AD', ip: '192.168.10.10', kind: 'server', display: 'Windows Server 2016' } }] })
+    renderApp('/findings')
+    const acts = await screen.findByRole('list', { name: 'What to do on SRV-AD' }, T)
+    const buttons = await within(acts).findAllByRole('button', { name: 'Check this device now' }, T)
+    expect(buttons).toHaveLength(2)
+    await waitFor(() => expect(buttons[0]).toBeEnabled(), T)
+    await userEvent.click(buttons[0]!)
+    await waitFor(() => expect(within(acts).getAllByRole('button', { name: 'Scanning…' })).toHaveLength(2), T)
   })
 
   it('a device with recommended updates only shows them on its page (review r2 of #943)', async () => {

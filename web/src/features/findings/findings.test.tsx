@@ -720,7 +720,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
       return HttpResponse.json({ engine: 'nmap-discovery', id: 'sar-g12', label: 'Check 192.168.10.20', target_id: 'a-srvad', started_at: new Date().toISOString(), progress: null }, { status: 202 })
     }))
     renderApp('/findings/f-3')
-    const btn = await screen.findByRole('button', { name: 'I updated it: check the device now' })
+    const btn = await screen.findByRole('button', { name: 'Check this device now' })
     await waitFor(() => expect(btn).toBeEnabled())
     await userEvent.click(btn)
     expect(await screen.findByRole('button', { name: 'Scanning…' })).toHaveAttribute('aria-busy', 'true')
@@ -730,10 +730,32 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
   })
 
   it('kien G12: a viewer sees the check refused with the role it needs, as on the device page', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'sensor-active' ? { ...m, enabled: true } : m)))
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))
     server.use(device('nmap'))
     renderApp('/findings/f-3', { role: 'viewer' })
-    expect(await screen.findByRole('button', { name: 'I updated it: check the device now' })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: 'Check this device now' })).toBeDisabled()
     expect(screen.getByText('Requires Admin role')).toBeInTheDocument()
+  })
+
+  it('review r1 of #944: scan-read software on a device Vedette may not scan now: the reason, no button (one rule with the device page)', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'sensor-active' ? { ...m, enabled: true } : m)))
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))
+    sessionStore.set({ userId: 'u-admin' })
+    expect((await fetch(`${location.origin}/api/v1/inventory/devices/a-srvad/sources`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scan: 'off' }) })).status).toBe(200)
+    server.use(device('nmap'))
+    renderApp('/findings/f-3')
+    expect(await screen.findByText('Set to never scan, or its network scan is off under Sources: network discovery does not check it.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Check this device now' })).toBeNull()
+  })
+
+  it('review r1 of #944: an unknown source gets no control', async () => {
+    server.use(http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { id: 'a-srvad', software: [
+      { id: 's-srvad', display: 'FortiOS', vendor: 'Fortinet', product: 'FortiOS', version: '7.2.0', source: 'some-new-sensor', confidence: 1, kev_cves: ['CVE-2026-96951'] },
+    ] } })))
+    renderApp('/findings/f-3')
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^I updated|^Check this device now$/ })).toBeNull()
   })
 
   it('kien G12: software an agent reads (the Windows row of osquery, D-546): no button, a line says the agent reports it', async () => {

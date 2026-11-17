@@ -390,7 +390,6 @@
   },
   "updated": {
     "button": "I updated {{software}}",
-    "buttonScan": "I updated it: check the device now",
     "agentLine": "The agent on {{device}} reports the new version by itself after the update and a restart; these findings then close on their own.",
     "title": "I updated {{software}}",
     "description": "Type the version {{device}} runs now.",

@@ -109,6 +109,53 @@ func TestUnchecked_NewerThanListed_N100(t *testing.T) {
 	}
 }
 
+// Review r1 H1 of #970: NVD names many products by their release line ("esxi:8.0" with the update in the CPE, "solaris:11") while
+// the computer reports the whole number. Those versions are inside the listed release, not after it: every row stays listed (NVD's
+// public configurations of the KEV entries, from the N100 copy; Java 11 on a synthetic entry, no KEV entry lists jre:11.0).
+func TestUnchecked_NewerThanListed_ReleaseLines(t *testing.T) {
+	t.Parallel()
+	cpes := func(cve, vendor, product string, cs ...string) Vuln {
+		v := uncVuln(cve, vendor, product, uncNew)
+		for _, c := range cs {
+			v.Affected = append(v.Affected, Affected{CPE: c})
+		}
+		return v
+	}
+	row := func(vendor, product, ver string) Software {
+		return Software{ID: "s", Display: vendor + " " + product, Vendor: vendor, Product: product, Version: ver, Source: "agent"}
+	}
+	for _, tc := range []struct {
+		name string
+		row  Software
+		v    Vuln
+	}{
+		{"ESXi 8.0.3", row("VMware", "ESXi", "8.0.3"), cpes("CVE-2025-22224", "VMware", "ESXi and Workstation",
+			"cpe:2.3:o:vmware:esxi:7.0:-:*:*:*:*:*:*", "cpe:2.3:o:vmware:esxi:7.0:update_3r:*:*:*:*:*:*", "cpe:2.3:o:vmware:esxi:8.0:-:*:*:*:*:*:*",
+			"cpe:2.3:o:vmware:esxi:8.0:c:*:*:*:*:*:*", "cpe:2.3:o:vmware:esxi:8.0:update_3:*:*:*:*:*:*", "cpe:2.3:o:vmware:esxi:8.0:update_3b:*:*:*:*:*:*",
+			"cpe:2.3:o:vmware:esxi:8.0:update_3c:*:*:*:*:*:*")},
+		{"vCenter 6.7.0.44000", row("VMware", "vCenter Server", "6.7.0.44000"), cpes("CVE-2020-3952", "VMware", "vCenter Server",
+			"cpe:2.3:a:vmware:vcenter_server:6.7:-:*:*:*:*:*:*")},
+		{"Solaris 11.4", row("Oracle", "Solaris", "11.4"), cpes("CVE-2019-3010", "Oracle", "Solaris", "cpe:2.3:o:oracle:solaris:11:*:*:*:*:*:*:*")},
+		{"OpenSMTPD 6.6.1p1", row("OpenBSD", "OpenSMTPD", "6.6.1p1"), cpes("CVE-2020-7247", "OpenBSD", "OpenSMTPD",
+			"cpe:2.3:a:openbsd:opensmtpd:6.6:*:*:*:*:*:*:*")},
+		{"Internet Explorer 11.0.26100.1", row("Microsoft", "Internet Explorer", "11.0.26100.1"), cpes("CVE-2021-26411", "Microsoft", "Internet Explorer",
+			"cpe:2.3:a:microsoft:edge:-:*:*:*:*:*:*:*", "cpe:2.3:a:microsoft:internet_explorer:11:-:*:*:*:*:*:*", "cpe:2.3:a:microsoft:internet_explorer:9:*:*:*:*:*:*:*")},
+		{"ColdFusion 2018.0.0.310739", row("Adobe", "ColdFusion", "2018.0.0.310739"), cpes("CVE-2018-15961", "Adobe", "ColdFusion",
+			"cpe:2.3:a:adobe:coldfusion:11.0:-:*:*:*:*:*:*", "cpe:2.3:a:adobe:coldfusion:11.0:update14:*:*:*:*:*:*", "cpe:2.3:a:adobe:coldfusion:2016:-:*:*:*:*:*:*",
+			"cpe:2.3:a:adobe:coldfusion:2016:update6:*:*:*:*:*:*", "cpe:2.3:a:adobe:coldfusion:2018:-:*:*:*:*:*:*")},
+		{"Citrix ADC 13.0.47.22", row("Citrix", "Application Delivery Controller Firmware", "13.0.47.22"), cpes("CVE-2019-19781", "Citrix",
+			"Application Delivery Controller (ADC), Gateway, and SD-WAN WANOP Appliance",
+			"cpe:2.3:o:citrix:application_delivery_controller_firmware:12.1:*:*:*:*:*:*:*", "cpe:2.3:o:citrix:application_delivery_controller_firmware:13.0:*:*:*:*:*:*:*")},
+		{"Java 11.0.22", Software{ID: "s", Display: "Java SE Development Kit 11", Vendor: "Oracle", Product: "Java SE", Version: "11.0.22", Source: "agent"},
+			cpes("CVE-2026-0101", "Oracle", "JavaFX", "cpe:2.3:a:oracle:jre:11.0:*:*:*:*:*:*:*", "cpe:2.3:a:oracle:jdk:11.0:*:*:*:*:*:*:*")},
+	} {
+		res := MatchAsset(Asset{ID: "a", Name: "a", Software: []Software{tc.row}}, []Vuln{tc.v}, nil, uncNow)
+		if len(res.New) != 0 || len(res.NotAffected) != 0 || len(res.Unchecked) != 1 || res.Unchecked[0].CVE != tc.v.CVE {
+			t.Errorf("%s / %s: want listed, got unchecked %+v, new %+v", tc.name, tc.v.CVE, res.Unchecked, res.New)
+		}
+	}
+}
+
 // The class, on a row CISA's key reaches (the "No that proves nothing" branch) and one only NVD's list names: NVD names the row only
 // at exact versions, all older than its own → no row. One entry the row is not later than (the same version, a newer one, "-", a
 // version that does not read, a range, every version) keeps the row as before.
@@ -174,7 +221,29 @@ func TestLaterThan(t *testing.T) {
 		{"cpe:2.3:a:acme:widget:9.0:*:*:*:*:*:*:*", "9.1", true},
 		{"cpe:2.3:a:acme:widget:9.0:*:*:*:*:*:*:*", "9.0", false},
 		{"cpe:2.3:a:acme:widget:9.0:*:*:*:*:*:*:*", "8.5", false},
-		{"cpe:2.3:a:acme:widget:9.0:beta1:*:*:*:*:*:*", "9.1", true}, // a later release, whatever the update
+		{"cpe:2.3:a:acme:widget:9.0:beta1:*:*:*:*:*:*", "9.1", false}, // an update NVD pins: no scheme reads it
+		// review r1 H1 of #970: NVD names a release line by its first numbers; a version inside it is not after it
+		{"cpe:2.3:a:acme:widget:9.0:*:*:*:*:*:*:*", "9.0.1", false},
+		{"cpe:2.3:a:acme:widget:8.0:*:*:*:*:*:*:*", "9.0.1", true},
+		{"cpe:2.3:a:acme:widget:8.0.1:*:*:*:*:*:*:*", "8", false},
+		{"cpe:2.3:o:vmware:esxi:8.0:update_3:*:*:*:*:*:*", "8.0.3", false},
+		{"cpe:2.3:o:vmware:esxi:7.0:update1:*:*:*:*:*:*", "7.0.1", false},
+		{"cpe:2.3:o:vmware:esxi:7.0:-:*:*:*:*:*:*", "8.0.3", true},
+		{"cpe:2.3:o:vmware:esxi:8.0:-:*:*:*:*:*:*", "8.0.3 build-24022510", false},
+		{"cpe:2.3:a:vmware:vcenter_server:6.7:-:*:*:*:*:*:*", "6.7.0.44000", false},
+		{"cpe:2.3:a:vmware:vcenter_server:7.0:c:*:*:*:*:*:*", "8.0.1", false},
+		{"cpe:2.3:o:oracle:solaris:11:*:*:*:*:*:*:*", "11.4", false},
+		{"cpe:2.3:a:openbsd:opensmtpd:6.6:*:*:*:*:*:*:*", "6.6.1p1", false},
+		{"cpe:2.3:a:openbsd:opensmtpd:6.6:*:*:*:*:*:*:*", "6.7.1p1", false}, // letters: no scheme reads them
+		{"cpe:2.3:a:microsoft:internet_explorer:11:-:*:*:*:*:*:*", "11.0.26100.1", false},
+		{"cpe:2.3:a:adobe:coldfusion:2021:update5:*:*:*:*:*:*", "2021.0.05.330109", false},
+		{"cpe:2.3:a:adobe:coldfusion:2018:-:*:*:*:*:*:*", "2021.0.05.330109", false}, // a release named by its year
+		{"cpe:2.3:o:citrix:application_delivery_controller_firmware:13.0:*:*:*:*:*:*:*", "13.0.47.22", false},
+		{"cpe:2.3:a:oracle:openjdk:8:*:*:*:*:*:*:*", "8.0.4910.10", false},
+		{"cpe:2.3:a:oracle:jre:11.0:*:*:*:*:*:*:*", "11.0.22", false},
+		// review r1 L3: a typed year against a year-named product
+		{"cpe:2.3:a:microsoft:exchange_server:2016:-:*:*:*:*:*:*", "2019", false},
+		{"cpe:2.3:a:microsoft:exchange_server:2016:cumulative_update_14:*:*:*:*:*:*", "2019", false},
 		{"cpe:2.3:a:acme:widget:9.0:p2:*:*:*:*:*:*", "9.0", false},
 		{"cpe:2.3:a:acme:widget:15.2\\(4\\)m3:*:*:*:*:*:*:*", "16.0", false},
 		{"cpe:2.3:a:acme:widget:2016:*:*:*:*:*:*:*", "16.0.1", false}, // two schemes (schemeClash)

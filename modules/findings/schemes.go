@@ -223,9 +223,9 @@ func sameVersionText(cfg, ver string) bool {
 
 // laterThan says the software version ver is certainly later than lit, the one version an exact NVD configuration c names (no
 // range), in the scheme the vendor writes it: a SQL Server build against NVD's release name (16.0.1000.6 is SQL Server 2022, later
-// than "sql_server:2008"), Java SE before 9 by line and update (javaRelease), any other by its numbers when both sides read and
-// are written alike (schemeClash). Office editions, Junos and everything that does not read are never later: "later" only takes
-// a row off the "could not be checked" list (newerThanListed), so it must be certain, and it is never a verdict about the flaw.
+// than "sql_server:2008"), Java SE before 9 by line and update (javaRelease), any other by laterRelease. Office editions, Junos and
+// everything that does not read are never later: "later" only takes a row off the "could not be checked" list (newerThanListed),
+// so it must be certain, and it is never a verdict about the flaw.
 func laterThan(c CPE, lit, ver string) bool {
 	if isJunos(c) {
 		return false
@@ -240,12 +240,44 @@ func laterThan(c CPE, lit, ver string) bool {
 		rl, ru, rok := javaRelease(ver)
 		return ok && rok && (rl > el || rl == el && ru > eu)
 	}
-	lv, okL := parseVersion(lit)
-	rv, okR := parseVersion(ver)
-	if !okL || !okR || schemeClash(VersionRange{StartIncl: lit}, ver) {
+	return laterRelease(c, lit, ver)
+}
+
+// plainVersionRE is a version of numbers and dots only: the one form laterRelease compares.
+var plainVersionRE = regexp.MustCompile(`^\d{1,9}(?:\.\d{1,9}){0,7}$`)
+
+// laterRelease is laterThan for a product no scheme rule reads (review r1 H1 of #970). NVD often names a release line by its first
+// numbers ("esxi:8.0" with the update in the CPE, "vcenter_server:6.7", "solaris:11", "internet_explorer:11") while the computer
+// reports the whole number ("8.0.3", "6.7.0.44000", "11.4", "11.0.26100.1"): a version is later only when its first numbers, as
+// many as NVD wrote, are higher (9.0.1 after 8.0; 8.0.3 is inside 8.0). Never later: a configuration that pins an update,
+// edition or other qualifier ("esxi:8.0:update_3", "coldfusion:2016:update5", "vcenter_server:7.0:c"), a version with letters or
+// suffixes on either side ("6.6.1p1", "8.0.3 build-24022510"), a release named by its year or a build-sized number ("2016" of
+// Exchange or ColdFusion against a typed "2019"), and two ways of writing versions (schemeClash).
+func laterRelease(c CPE, lit, ver string) bool {
+	for _, a := range []Attr{c.Update, c.Edition, c.SWEdition, c.Other} {
+		if a.Kind == Value {
+			return false
+		}
+	}
+	ver = strings.TrimSpace(ver)
+	if !plainVersionRE.MatchString(lit) || !plainVersionRE.MatchString(ver) || schemeClash(VersionRange{StartIncl: lit}, ver) {
 		return false
 	}
-	return VersionRange{EndIncl: relString(lv)}.Contains(relString(rv)) == No // the release numbers only: "8.9p1" is not after "8.9"
+	lv, okL := parseVersion(lit)
+	rv, okR := parseVersion(ver)
+	if !okL || !okR || lv.rel[0] >= 1000 {
+		return false
+	}
+	for i, n := range lv.rel {
+		var r uint64
+		if i < len(rv.rel) {
+			r = rv.rel[i]
+		}
+		if r != n {
+			return r > n
+		}
+	}
+	return false // the same release, or a version inside it
 }
 
 // sqlServerLater is laterThan for an exact release configuration of microsoft:sql_server ("sql_server:2008:sp3", D-606): a build a

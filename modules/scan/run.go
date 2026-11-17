@@ -64,6 +64,7 @@ const (
 	noteNoResp     = "No response; scanning stopped so the device is not hung."
 	noteNoRespGoOn = "The device did not respond within the timeout; skipped."
 	noteStoppedMid = "Stopped while this device was being scanned: no result. The requests on their way are in the probe log as stopped."
+	noteTurnedOff  = "Its network scan was turned off (or it may no longer be scanned) while it was being checked: stopped at once, no result. The requests on their way are in the probe log as stopped."
 	noteNoApply    = "No scan template applies to the software on this device."
 	noteEngine     = "The scanner could not finish this device, so nothing was concluded. Try again later."
 	stopNow        = "You pressed Stop now."
@@ -504,8 +505,61 @@ func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, s
 	if sp.onlyCVEs != nil {
 		only = append([]string{}, sp.onlyCVEs[d.ID]...)
 	}
-	rows, end = s.scanDevice(ctx, runID, d, st, rate, only)
+	// D-601 (review r1 M2): this device's part runs under its own context, so DeviceChanged can stop it alone when the device may no
+	// longer be scanned (its network scan turned off while it runs); the run goes on with the next device.
+	dctx, dcancel := context.WithCancel(ctx)
+	s.mu.Lock()
+	s.dev = &devRun{id: d.ID, explicit: explicit, cancel: dcancel}
+	s.mu.Unlock()
+	rows, end = s.scanDevice(dctx, runID, d, st, rate, only)
+	s.mu.Lock()
+	s.dev = nil
+	s.mu.Unlock()
+	dcancel()
+	if end == "stopped" && ctx.Err() == nil && len(rows) > 0 { // only this device's part was stopped
+		rows[len(rows)-1].Note = noteTurnedOff
+		end = ""
+	}
 	return rows, ident, end
+}
+
+// devRun is the device whose vulnerability check is running now (Service.dev).
+type devRun struct {
+	id       string
+	explicit bool
+	cancel   context.CancelFunc
+}
+
+// DeviceChanged stops the check of assetID when it is the device being checked now and the inventory no longer lets it be scanned
+// (D-601: its network scan turned off; also never, excluded, moved, gone). The probes on their way are closed as stopped and its row
+// says why; the run goes on with the next device. A read that fails stops it too (fail closed).
+func (s *Service) DeviceChanged(ctx context.Context, assetID string) error {
+	s.mu.Lock()
+	r := s.dev
+	s.mu.Unlock()
+	if r == nil || r.id != assetID {
+		return nil
+	}
+	st, err := s.settings(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		r.cancel()
+		return err
+	}
+	devs, err := s.devicesByID(ctx)
+	if err != nil {
+		r.cancel()
+		return err
+	}
+	d, ok := devs[assetID]
+	if !ok {
+		r.cancel()
+		return nil
+	}
+	why, _, err := s.consent(ctx, st, d, r.explicit)
+	if err != nil || why != "" {
+		r.cancel()
+	}
+	return err
 }
 
 func (s *Service) skip(d Device, why string) RunRow {

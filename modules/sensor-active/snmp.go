@@ -871,7 +871,7 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	s.mu.Lock()
 	run.credIDs, run.targets, run.assets = ids, ips, assets
 	s.mu.Unlock()
-	// SNMP is bound by the exclusions and each credential's own scope, not by lan_ranges (D-601): a target the exclusions took since the
+	// SNMP reaches past lan_ranges only for a device a person turned SNMP on for (SNMPPolicy, D-601), never an excluded one: a target the exclusions took since the
 	// targets were chosen stops the batch. A target inside lan_ranges is asked again of the inventory, which reads the settings fresh:
 	// one it no longer holds (excluded since, or the ranges changed under the batch) stops it too, fail closed.
 	sc := newScope(st)
@@ -1378,7 +1378,7 @@ func snmpMessage(reason string, ip netip.Addr, version string, port int, extra s
 	case SNMPNotApproved:
 		return fmt.Sprintf("%s is not approved yet. SNMP credentials are sent only to devices a person approved: approve it under Devices, To review, then test again.", ip)
 	case "out_of_scope":
-		return fmt.Sprintf("%s is outside the scan scope (the LAN ranges and exclusions under Scope and sensors).", ip)
+		return fmt.Sprintf("%s is outside the LAN ranges: SNMP reads a device there only once you turn SNMP on for it on its page (Sources). The LAN ranges are not widened for it.", ip)
 	case SNMPNotForThisCredential:
 		return fmt.Sprintf("%s is outside the scope of this credential, so it is never sent there.", ip)
 	case reasonScanningOff:

@@ -132,7 +132,7 @@ func newScope(st Settings) scope {
 	return scope{ranges: mergePrefixes(prefixes(st.LANRanges)), excl: mergePrefixes(exclusionPrefixes(st.Exclusions))}
 }
 
-// excluded reports whether ip is on the exclusion list: the bound of an SNMP read, which lan_ranges do not bind (D-601).
+// excluded reports whether ip is on the exclusion list: the bound of every SNMP read, inside or outside lan_ranges (D-601).
 func (sc scope) excluded(ip netip.Addr) bool {
 	ip = ip.Unmap()
 	return slices.ContainsFunc(sc.excl, func(p netip.Prefix) bool { return p.Contains(ip) })

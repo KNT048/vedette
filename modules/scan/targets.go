@@ -73,8 +73,8 @@ var skipNote = map[string]string{ //nolint:gosec // G101: notes shown to the use
 	"no_ip":                     "The device has no IP address now; not scanned.",
 	"scope_not_confirmed":       "The scan scope commitment is not ticked any more; not scanned.",
 	"box":                       "The Vedette box itself: scanned only when you pick it in Scan now.",
-	"regular_scan_never":        "Set to never be scanned in the inventory; not scanned.",
-	"declared_by_hand":          "Added by hand: scanned only when you pick it in Scan now, or once its network scan is on (its page, Sources).",
+	"regular_scan_never":        "Set to never be scanned, or its network scan is off, on its device page; not scanned.",
+	"declared_by_hand":          "Added by hand: its network scan is off until you turn it on on its page (Sources); not scanned.",
 	"fragile_passive_only":      "Fragile device: scanned only when you pick it in Scan now.",
 	"unclassified_passive_only": "Device type unknown: scanned only when you pick it in Scan now.",
 	"gone":                      "No longer in the inventory; not scanned.",
@@ -159,6 +159,8 @@ func targetReason(r string) string {
 		return ""
 	case "unapproved", "excluded", reasonNever, reasonNoIP: // the box is never a list reason: picked, it is allowed (D-470)
 		return r
+	case "declared_by_hand": // D-601: added by hand, its network scan off: the list says "never" (scan off on its page)
+		return reasonNever
 	}
 	return reasonOutOfScope
 }

@@ -160,11 +160,11 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
       }
       if (!admin) return <span className="text-meta text-muted">{t('sources.adminOnly')}</span>
       if (reading) return null
-      // D-601: with SNMP off for this device, Add SNMP turns it on (the person's consent, audited) and opens the read here.
+      // D-601: with SNMP off for this device, the button says it turns SNMP on (the person's consent, audited) and opens the read here.
       if (a.snmp_source === 'off') {
         return (
           <Button size="sm" disabled={sources.isPending}
-            onClick={() => sources.mutate({ snmp: 'on' }, { onSuccess: () => setReading(true), onError: (e) => toast.error(errMsg(e)) })}>{t('sources.snmp.add')}</Button>
+            onClick={() => sources.mutate({ snmp: 'on' }, { onSuccess: () => setReading(true), onError: (e) => toast.error(errMsg(e)) })}>{t('sources.snmp.turnOnAdd')}</Button>
         )
       }
       return <Button size="sm" onClick={() => setReading(true)}>{feeds.has('snmp') ? t('sources.snmp.readAgain') : t('sources.snmp.add')}</Button>

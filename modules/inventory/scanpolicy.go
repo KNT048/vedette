@@ -85,9 +85,10 @@ func (s *Service) ScanPolicy(ctx context.Context, assetID string) (ScanDecision,
 // SNMPPolicy is ScanPolicy for the SNMP reads of sensor-active (D-601): the same rules, with the device's SNMP setting in place of its
 // network scan setting. SNMP off refuses with ReasonSNMPOff; a device added by hand is read only once a person turned its SNMP on. Its
 // network scan setting does not matter here: a device may be read with SNMP and never port-scanned. sensor-active adds its own SNMP
-// rules on top (a fragile device is read, the box never, only approved devices). lan_ranges do not bind it: an SNMP credential's own
-// "Send only to" list, which a person typed, is the authorization for its reads (kien: the person administers the device); the
-// exclusions still do (ReasonExcluded), and the scan switch and the scope commitment too.
+// rules on top (a fragile device is read, the box never, only approved devices, the credential's own scope). Inside lan_ranges the
+// credential's "Send only to" list decides, as before; outside them only a device whose SNMP a person turned on is read (kien: the
+// person administers the device; review r1 M4); the exclusions always win (ReasonExcluded), and the scan switch and the scope
+// commitment hold too.
 func (s *Service) SNMPPolicy(ctx context.Context, assetID string) (ScanDecision, error) {
 	f, st, err := s.scanFacts(ctx, assetID)
 	if err != nil {
@@ -100,7 +101,7 @@ func (s *Service) SNMPPolicy(ctx context.Context, assetID string) (ScanDecision,
 }
 
 // decideActive is the policy of one active source of the box (the network scan or SNMP) for a device whose setting for that source
-// is not off: src is "on" or "" (the default). snmp: lan_ranges do not bind it, only the exclusions (D-601).
+// is not off: src is "on" or "" (the default). snmp: outside lan_ranges only a stored "on"; the exclusions always (D-601).
 func decideActive(f scanFacts, st Settings, src string, snmp bool) ScanDecision {
 	switch {
 	case f.isBox:
@@ -115,7 +116,10 @@ func decideActive(f scanFacts, st Settings, src string, snmp bool) ScanDecision 
 		return deny(ReasonScopeNotConfirmed)
 	case snmp && st.Excluded(f.addr):
 		return deny(ReasonExcluded)
-	case !snmp && !st.InScope(f.addr):
+	// Outside lan_ranges SNMP reads only a device whose SNMP a person turned on (stored "on"; review r1 M4): a credential's scope alone,
+	// or the default "on" of a discovered device, never reaches past the LAN ranges, so no credential saved before D-601 starts reading
+	// there by itself. Inside them the credential's scope decides, as before.
+	case snmp && !st.InScope(f.addr) && src != SourceOn, !snmp && !st.InScope(f.addr):
 		return deny(ReasonOutOfScope)
 	}
 	d := afterScope(st, f.kind, f.fragile, f.regular, f.firstScan)
@@ -127,16 +131,16 @@ func decideActive(f scanFacts, st Settings, src string, snmp bool) ScanDecision 
 // ScanPolicy without the sensor-active switch (scan has its own) and with one more input: explicit, true when a
 // person picked this very device in "Scan now" (that pick is the consent, audited by the caller).
 //
-// Always refused: no IP, scope not confirmed, outside lan_ranges or inside the exclusions, and
-// regular_scan=never (absolute here, even with explicit; the person changes the setting first).
+// Always refused: no IP, scope not confirmed, outside lan_ranges or inside the exclusions, regular_scan=never, a network scan
+// turned off (D-601), and a device declared by hand whose network scan nobody turned on (INV-5, D-601 review r1 M1): absolute here,
+// even with explicit; the person changes the setting first. A device declared by hand with its network scan on is scanned like a
+// discovered one.
 // The box itself is refused unless explicit (D-470): a person may scan it, nothing automatic does; picked, it goes through
 // the same checks as any device and runs at the normal rate.
-// A fragile device, an unclassified one (kind unknown) and one declared by hand are refused for schedules and the
-// KEV rescan (explicit=false), and allowed when explicit. Fragile and unclassified ones run at a quarter of the
-// configured rate (Active.Rate, packets per second, at least 1); a hand-declared one that is neither runs at the
-// normal rate. regular_scan=allow, or a kind in regular_scan_kinds, lets a fragile or unclassified device be
-// scanned at the normal rate without a pick (INV-8), but never a hand-declared one (INV-5). It never calls
-// MarkFirstScan: the one gentle scan belongs to discovery.
+// A fragile device and an unclassified one (kind unknown) are refused for schedules and the KEV rescan (explicit=false), and
+// allowed when explicit, at a quarter of the configured rate (Active.Rate, packets per second, at least 1). regular_scan=allow,
+// or a kind in regular_scan_kinds, lets a fragile or unclassified device be scanned at the normal rate without a pick (INV-8).
+// It never calls MarkFirstScan: the one gentle scan belongs to discovery.
 func (s *Service) VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (ScanDecision, error) {
 	f, st, err := s.scanFacts(ctx, assetID)
 	if err != nil {
@@ -196,6 +200,8 @@ func decideVuln(f scanFacts, st Settings, explicit bool) ScanDecision {
 		return deny(ReasonOutOfScope)
 	case f.regular == "never", f.scanSrc == SourceOff: // a network scan turned off (D-601) is absolute too
 		return deny(ReasonRegularScanNever)
+	case f.origin == "manual" && f.scanSrc != SourceOn: // added by hand, network scan not turned on: off, even for a pick (review r1 M1)
+		return deny(ReasonDeclaredByHand)
 	}
 	unclassified := f.kind == "unknown"
 	careful := f.fragile || unclassified
@@ -204,8 +210,6 @@ func decideVuln(f scanFacts, st Settings, explicit bool) ScanDecision {
 	}
 	permitted := f.regular == "allow" || (f.regular == "follow" && !unclassified && slices.Contains(st.RegularScanKinds, f.kind))
 	switch {
-	case f.origin == "manual" && !explicit && f.scanSrc != SourceOn:
-		return deny(ReasonDeclaredByHand)
 	case !careful, permitted:
 		return allow(st.Active.Rate)
 	case explicit:

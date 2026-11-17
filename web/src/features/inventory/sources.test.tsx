@@ -116,7 +116,7 @@ describe('Device page: Sources switches (D-601)', () => {
   }
   const sw = (li: HTMLElement) => within(li).getByRole('switch')
 
-  it('a device added by hand starts with scan and SNMP off; Add SNMP turns SNMP on and reads it right there', async () => {
+  it('a device added by hand starts with scan and SNMP off; "Turn SNMP on and add" turns SNMP on and reads it right there', async () => {
     enableModule('agent-intake', true)
     const id = await addByHand('192.168.10.77')
     const user = userEvent.setup()
@@ -130,10 +130,10 @@ describe('Device page: Sources switches (D-601)', () => {
     expect(snmp).toHaveTextContent('Off: no SNMP read goes to this device.')
     expect(screen.getByText(/Vedette sends nothing to it until you turn a source on here/)).toBeInTheDocument()
     expect(item(list, 'Agent (osquery or Wazuh)')).toHaveTextContent('installed or uninstalled on the machine itself')
-    await user.click(within(snmp).getByRole('button', { name: 'Add SNMP' }))
+    await user.click(within(snmp).getByRole('button', { name: 'Turn SNMP on and add' }))
     expect(await within(snmp).findByLabelText('Credential', undefined, T)).toBeInTheDocument()
     await vi.waitFor(() => expect(sw(item(list, 'SNMP'))).toBeChecked(), T)
-    expect(item(list, 'SNMP')).toHaveTextContent('inside or outside the scan scope, never if excluded')
+    expect(item(list, 'SNMP')).toHaveTextContent('outside the LAN ranges only because you turned it on here; never if excluded')
     expect(sw(item(list, 'Network scan'))).not.toBeChecked() // that source only
     await user.click(within(item(list, 'SNMP')).getByRole('button', { name: 'Read this device now' }))
     expect(await within(item(list, 'SNMP')).findByText(/192\.168\.10\.77 (answered|was not read)\./, undefined, T)).toBeInTheDocument()

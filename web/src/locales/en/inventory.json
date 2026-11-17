@@ -63,7 +63,8 @@
       "credential": "Credential",
       "read": "Read this device now",
       "scopeHint": "In the scan window Vedette reads the device again with every credential whose scope holds its address. A credential whose scope does not hold it says so here.",
-      "addTurnsOn": "Add SNMP"
+      "addTurnsOn": "Add SNMP",
+      "turnOnAdd": "Turn SNMP on and add"
     },
     "declared": "Added by hand: Vedette sends nothing to it until you turn a source on here.",
     "toggle": {
@@ -72,11 +73,11 @@
     },
     "meaning": {
       "scan": {
-        "on": "On: scanned in the scan window, inside the scan scope, with every safety rule. Turning it off stops all scan traffic to it.",
+        "on": "On: scanned in the scan window, inside the scan scope, with every safety rule. Turning it off stops all scan traffic to it, a scan running on it included.",
         "off": "Off: no scan packet goes to this device. What scans found stays; values you entered still win."
       },
       "snmp": {
-        "on": "On: read with the SNMP credentials that list its address, inside or outside the scan scope, never if excluded. Turning it off stops all SNMP to it.",
+        "on": "On: read with the SNMP credentials that list its address; outside the LAN ranges only because you turned it on here; never if excluded. Turning it off stops all SNMP to it.",
         "off": "Off: no SNMP read goes to this device. What it read stays; values you entered still win."
       }
     },
@@ -768,7 +769,7 @@
   "snmp": {
     "title": "SNMP credentials",
     "description": "Vedette reads vendor, model and OS from devices with read-only SNMP.",
-    "descriptionInfo": "Vedette reads each approved device in the scan scope once per scan window with read-only SNMP GETs (system description, object ID, name, chassis model and firmware) to learn its vendor, model and OS.",
+    "descriptionInfo": "Once per scan window Vedette reads each approved device whose address a credential lists, with read-only SNMP GETs (system description, object ID, name, chassis model and firmware), to learn its vendor, model and OS. Inside the LAN ranges the credential's list is enough; outside them only a device whose SNMP you turned on on its page is read. Excluded addresses are never read.",
     "descriptionInfo2": "A credential is sent only to the addresses you list with it, and only to approved devices there: a community is readable by any device it reaches, so a laptop someone plugs in and gets approved never receives it.",
     "add": "Add SNMP credential",
     "max": "At most 8 credentials: delete one to add another.",
@@ -954,8 +955,8 @@
       "addRange": "Add range to {{name}}",
       "test": "Test",
       "editCredential": "Edit {{name}}",
-      "outsideLan": "{{range}} is outside the scan scope",
-      "outsideLanWhy": "Vedette only sends SNMP inside the ranges you allowed. Add it to the scan scope here.",
+      "outsideLan": "{{range}} is outside the LAN ranges",
+      "outsideLanWhy": "That is fine for SNMP: the range goes into this credential only, and the LAN ranges are not widened (discovery and network scans keep to them). A device there is read only once you turn SNMP on for it on its page (Sources).",
       "noCredential": "No credential yet",
       "capReason": "{{count}} credentials at most",
       "capWhy": "The box keeps {{count}} credentials at most.",
@@ -1084,7 +1085,6 @@
     "approved": "Approved {{ip}}. Reading it now.",
     "scopeWhy": "An administrator adds it to the scan scope.",
     "scope": "Open the scan scope",
-    "addToScope": "Add {{ip}} to the scan scope",
     "confirmScope": "Confirm the scan scope",
     "scanningWhy": "Active scanning is off, so the box sends nothing to devices.",
     "scanning": "Turn on active scanning in Scope",
@@ -1093,7 +1093,6 @@
     "notListedWhy": "Vedette has not found this address yet. The next scan or the sensor finds it; approve it under To review, then read it here.",
     "notListed": "Open To review",
     "publicWhy": "{{ip}} is a public address: Vedette only reads devices inside your own network.",
-    "excludedWhy": "{{ip}} is inside the scan scope but excluded from it.",
     "excluded": "Change the exclusions in Scope",
     "turnSnmpOn": "Turn SNMP on for {{ip}} and read it",
     "snmpOn": "SNMP is on for {{ip}}. Reading it now.",

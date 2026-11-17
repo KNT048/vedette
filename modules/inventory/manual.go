@@ -450,7 +450,7 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 			return conflict("box_device", "This is the Vedette box itself: Vedette never scans or reads it on its own.")
 		}
 		name := deviceName(ctx, tx, id)
-		scanOn := false
+		scanOn, changed := false, false
 		for _, c := range []struct {
 			col, label string
 			cur        *string
@@ -471,10 +471,13 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 			if err := s.auditTx(ctx, tx, actor, "inventory.set_source", name, c.label+": "+*c.next); err != nil {
 				return err
 			}
+			changed = true
 			scanOn = scanOn || (c.col == "scan_source" && *c.next == SourceOn)
 		}
 		out = Sources{Scan: sourceState(curScan, origin), SNMP: sourceState(curSNMP, origin)}
-		o.add(EventAssetUpdated, AssetEvent{AssetID: id, ScanOn: scanOn})
+		if changed { // a PUT that changes nothing stops nothing (review r1 L3)
+			o.add(EventAssetUpdated, AssetEvent{AssetID: id, ScanOn: scanOn})
+		}
 		return nil
 	})
 	return out, err

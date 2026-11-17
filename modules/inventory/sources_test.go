@@ -52,6 +52,9 @@ func TestContract_D601_SourcesPerDevice(t *testing.T) {
 	if !protected("192.168.30.1") {
 		t.Fatal("the sweep must leave a hand-added device out by default")
 	}
+	if vd, _ := e.svc.VulnScanPolicy(e.ctx(), hand, true); vd.Allowed || vd.Reason != inventory.ReasonDeclaredByHand {
+		t.Fatalf("a pick in Scan now of a hand-added device whose scan is off (review r1 M1): %+v", vd)
+	}
 	if d := e.detail(hand); d.Asset.ScanSource != off || d.Asset.SNMPSource != off {
 		t.Fatalf("hand-added sources = %s/%s, want off/off", d.Asset.ScanSource, d.Asset.SNMPSource)
 	}
@@ -107,16 +110,20 @@ func TestContract_D601_SourcesPerDevice(t *testing.T) {
 		t.Fatal("a discovered device with its scan off must be left out of the sweep")
 	}
 
-	// Audit: who, which device, which source, on or off; saying the same again writes nothing.
+	// Audit: who, which device, which source, on or off; saying the same again writes nothing and publishes nothing (review r1 L3).
 	n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'inventory.set_source'`)
 	if n != 6 { // hand: snmp on, scan on, scan off, snmp off; seen: scan off, snmp off
 		t.Fatalf("audit rows = %d, want 6", n)
 	}
+	e.ev.reset()
 	if _, err := e.svc.SetSources(e.ctx(), who, seen, &off, nil); err != nil {
 		t.Fatal(err)
 	}
 	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'inventory.set_source'`) != n {
 		t.Fatal("turning off what is off must not write an audit row")
+	}
+	if ev := e.ev.named(inventory.EventAssetUpdated); len(ev) != 0 {
+		t.Fatalf("a PUT that changes nothing published %+v", ev)
 	}
 	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'inventory.set_source' AND user = ? AND detail = 'SNMP: on'`, who) != 1 {
 		t.Fatal("the audit row names the person, the source and the state")
@@ -138,9 +145,10 @@ func TestContract_D601_SourcesPerDevice(t *testing.T) {
 	wantAPIError(t, err, 409, "box_device")
 }
 
-// D-601 (kien): SNMP is bound by the exclusions and a credential's own scope, not by lan_ranges: a device outside the LAN ranges may be
-// read, an excluded one never; the network scan still keeps to lan_ranges.
-func TestContract_D601_SNMPIgnoresLANRangesButNotExclusions(t *testing.T) {
+// D-601 (kien; review r1 M4): inside lan_ranges a credential's scope decides as before; outside them SNMP reads only a device whose SNMP a
+// person turned on (so no credential saved before D-601 reaches past the LAN by itself); an excluded address never; the network scan
+// keeps to lan_ranges.
+func TestContract_D601_SNMPOutsideLANRangesNeedsTheSwitch(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	in := okSettings("192.168.30.0/24")
@@ -152,18 +160,28 @@ func TestContract_D601_SNMPIgnoresLANRangesButNotExclusions(t *testing.T) {
 	on := inventory.SourceOn
 	far := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "100.65.255.1"})
 	excl := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "100.65.255.9"})
-	for _, id := range []string{far, excl} {
+	e.record(obs(netip.MustParseAddr("100.65.255.20"), macA, observe.Kind, "switch", observe.Agent, 0.9))
+	seenFar := e.idByMAC(macA) // discovered outside lan_ranges: SNMP "on" by default, which does not reach past the LAN
+	if d, _ := e.svc.SNMPPolicy(e.ctx(), seenFar); d.Allowed || d.Reason != inventory.ReasonOutOfScope {
+		t.Fatalf("outside lan_ranges with the default switch: %+v", d)
+	}
+	if d, _ := e.svc.SNMPPolicy(e.ctx(), far); d.Allowed || d.Reason != inventory.ReasonDeclaredByHand {
+		t.Fatalf("hand-added outside lan_ranges, SNMP not turned on: %+v", d)
+	}
+	for _, id := range []string{far, excl, seenFar} {
 		if _, err := e.svc.SetSources(e.ctx(), "admin@acme.example", id, &on, &on); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if d, _ := e.svc.SNMPPolicy(e.ctx(), far); !d.Allowed {
-		t.Fatalf("SNMP outside lan_ranges: %+v", d)
-	}
-	if d, _ := e.svc.ScanPolicy(e.ctx(), far); d.Allowed || d.Reason != inventory.ReasonOutOfScope {
-		t.Fatalf("the network scan keeps to lan_ranges: %+v", d)
+	for _, id := range []string{far, seenFar} {
+		if d, _ := e.svc.SNMPPolicy(e.ctx(), id); !d.Allowed {
+			t.Fatalf("SNMP turned on, outside lan_ranges: %+v", d)
+		}
+		if d, _ := e.svc.ScanPolicy(e.ctx(), id); d.Allowed || d.Reason != inventory.ReasonOutOfScope {
+			t.Fatalf("the network scan keeps to lan_ranges: %+v", d)
+		}
 	}
 	if d, _ := e.svc.SNMPPolicy(e.ctx(), excl); d.Allowed || d.Reason != inventory.ReasonExcluded {
-		t.Fatalf("SNMP to an excluded address: %+v", d)
+		t.Fatalf("SNMP to an excluded address, switch on: %+v", d)
 	}
 }

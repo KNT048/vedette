@@ -586,7 +586,7 @@ const SNMP_MSG: Record<Exclude<SnmpTestReason, 'ok' | 'unavailable'>, (ip: strin
   error: () => 'The device answered with an error, or with a message Vedette could not read.',
   not_in_inventory: (ip) => `${ip} is not a device in the inventory. Only devices in the list can be tested.`,
   not_approved: (ip) => `${ip} is not approved yet. SNMP credentials are sent only to devices a person approved: approve it under Devices, To review, then test again.`,
-  out_of_scope: (ip) => `${ip} is outside the scan scope (the LAN ranges and exclusions under Scope and sensors).`,
+  out_of_scope: (ip) => `${ip} is outside the LAN ranges: SNMP reads a device there only once you turn SNMP on for it on its page (Sources). The LAN ranges are not widened for it.`,
   not_for_this_credential: (ip) => `${ip} is outside the scope of this credential, so it is never sent there.`,
   scanning_off: () => 'Active scanning is off under Scope and sensors, so nothing is sent.',
   scope_not_confirmed: () => 'The scan scope commitment is not ticked under Scope and sensors, so nothing is sent.',
@@ -1215,6 +1215,8 @@ export const handlers = [
       : !a.approved ? 'not_approved'
       // D-601: SNMP keeps to the exclusions and the credential's own scope, not to the LAN ranges
       : inList(ip, st.active.exclusions) ? 'excluded'
+      // review r1 M4: outside the LAN ranges only a device whose SNMP a person turned on (stored on, not the default)
+      : !inList(ip, st.lan_ranges) && metaStore.get()[a.id]?.snmp_source !== 'on' ? 'out_of_scope'
       : metaStore.get()[a.id]?.regular_scan === 'never' ? 'regular_scan_never'
       : !inList(ip, c.scope) ? 'not_for_this_credential'
       : c.version === 'v3' || c.community === 'public' ? 'ok' : 'no_answer'
@@ -1242,7 +1244,7 @@ export const handlers = [
     if (!st.scope_confirmed_at) return fail(409, 'scope_not_confirmed', 'The scan scope is not set up and confirmed under Scope and sensors, so nothing is sent.')
     if (Object.values(snmpReads).some((r) => r.status === 'running')) return fail(409, 'busy', 'Another SNMP read is running (a Test, a Read now or the scan window\'s round). Try again in a minute.')
     const inScope = allAssets().filter((a) => hasIp(a) && inList(a.ip, c.scope))
-    const readable = (a: Asset) => a.id !== BOX_ID && sourceOf(a, 'snmp_source') === 'on' && a.approved && !inList(a.ip, st.active.exclusions) && metaStore.get()[a.id]?.regular_scan !== 'never'
+    const readable = (a: Asset) => a.id !== BOX_ID && sourceOf(a, 'snmp_source') === 'on' && a.approved && !inList(a.ip, st.active.exclusions) && (inList(a.ip, st.lan_ranges) || metaStore.get()[a.id]?.snmp_source === 'on') && metaStore.get()[a.id]?.regular_scan !== 'never'
     const targets = inScope.filter(readable)
     // #829 C4: a device that answered this credential and moved out of its scope is a skipped row that says so; nothing is sent there.
     const moved: SnmpRead['results'] = c.moved_out.map((m) => ({ ip: m.ip, ok: false, reason: 'not_for_this_credential', message: m.message, device_id: m.device_id, answer: null }))

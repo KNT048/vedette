@@ -15,7 +15,7 @@ import { useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { AddForm } from './AddDeviceDialog'
 import { OsqueryEnrol, WazuhForm } from './AgentsSection'
-import { AddToScopeDialog, inRanges } from './AddToScopeDialog'
+import { inRanges } from './AddToScopeDialog'
 import { useAgents, useDevices, useSettings, useSnmp, useSnmpActions } from './api'
 import { TurnOnModule } from './Inline'
 import { SnmpNext } from './SnmpNext'
@@ -66,7 +66,6 @@ function SnmpMethod() {
   const [targetErr, setTargetErr] = useState<string | null>(null)
   const [cred, setCred] = useState('')
   const [form, setForm] = useState<{ current: SnmpCredential; scope?: string; widen?: boolean } | null>(null)
-  const [toScope, setToScope] = useState<string | null>(null)
   const [result, setResult] = useState<{ ip: string; r: SnmpTestResult } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const known = useMemo(() => (devices.data?.items ?? []).filter((d) => d.approved && !d.is_box && IPV4_RE_UI.test(d.ip)).map((d) => d.ip), [devices.data])
@@ -79,7 +78,8 @@ function SnmpMethod() {
   const isRange = CIDR_RE_UI.test(v)
   const notLocal = isRange && !isPrivateCidr(v)
   const covered = !!chosen && (isIp || isRange) && inRanges(v, chosen.scope)
-  // A credential's scope must lie inside the scan scope (D-512): a range outside it is added there first, from here.
+  // D-601: a range outside the LAN ranges goes into the credential's scope like any other; the LAN ranges are never widened for SNMP
+  // (they govern discovery and network scans). A device there is read only once a person turns SNMP on for it on its page.
   const lan = settings.data?.lan_ranges
   const outsideLan = isRange && !notLocal && !!lan && !inRanges(v, lan)
 
@@ -96,7 +96,7 @@ function SnmpMethod() {
     if (notLocal) { setTargetErr(t('snmp.error.scopeNotLocal', { entry: v, ranges: LOCAL_RANGE_NAMES })); return }
     if (!chosen) { setTargetErr(t('addDialog.snmp.needCredential')); return } // Enter with no credential says what is missing (r2 L5)
     setTargetErr(null)
-    if (isRange) { if (outsideLan) setToScope(v); else if (!covered) setForm({ current: chosen, widen: true, scope: [...chosen.scope, v].join('\n') }); return }
+    if (isRange) { if (!covered) setForm({ current: chosen, widen: true, scope: [...chosen.scope, v].join('\n') }); return }
     read(chosen.id, raw)
   }
   const targetId = `${uid}-target`
@@ -125,13 +125,12 @@ function SnmpMethod() {
           </div>
         </div>
         {q.data && !q.data.ready ? <p className="text-meta text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
-        {outsideLan ? <Notice tone="warn" role="status" className="mb-0" title={t('addDialog.snmp.outsideLan', { range: v })}>{t('addDialog.snmp.outsideLanWhy')}</Notice> : null}
-        {isRange && covered && !outsideLan ? <Notice tone="accent" role="status" className="mb-0" title={t('addDialog.snmp.rangeCovered', { range: v, name: chosen?.name ?? '' })}>{t('addDialog.snmp.rangeWhen')}</Notice> : null}
+        {outsideLan ? <Notice tone="accent" role="status" className="mb-0" title={t('addDialog.snmp.outsideLan', { range: v })}>{t('addDialog.snmp.outsideLanWhy')}</Notice> : null}
+        {isRange && covered ? <Notice tone="accent" role="status" className="mb-0" title={t('addDialog.snmp.rangeCovered', { range: v, name: chosen?.name ?? '' })}>{t('addDialog.snmp.rangeWhen')}</Notice> : null}
         {chosen ? (
           <div className="flex flex-wrap items-center gap-2">
             {isRange ? (
-              outsideLan ? <Button type="submit" variant="primary">{t('snmpNext.addToScope', { ip: v })}</Button>
-                : covered ? null : <Button type="submit" variant="primary">{t('addDialog.snmp.addRange', { name: chosen.name })}</Button>
+              covered ? null : <Button type="submit" variant="primary">{t('addDialog.snmp.addRange', { name: chosen.name })}</Button>
             ) : (
               <Button type="submit" variant="primary" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('addDialog.snmp.test')}</Button>
             )}
@@ -147,7 +146,6 @@ function SnmpMethod() {
           onEdit={() => chosen && setForm({ current: chosen })} onRetry={() => chosen && read(chosen.id, result.ip)} />
       ) : null}
       {form ? <CredentialDialog key={form.current.id} current={form.current} scope={form.scope} widen={form.widen} onClose={() => setForm(null)} onSaved={saved} /> : null}
-      {toScope ? <AddToScopeDialog entry={toScope} onClose={() => setToScope(null)} /> : null}
     </div>
   )
 }

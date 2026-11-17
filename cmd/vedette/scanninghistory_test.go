@@ -45,7 +45,7 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 		{"snmp test, read failed", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.18.30", "failed: the read did not finish")), "test", "SNMP test", "failed", "Failed: the read did not finish."},
 		{"snmp, one batch failed", job("snmp", "done", "window", "", 4, 0, p("a", "ok: 2 of 2 answered"), p("b", "failed: the read did not finish")), "automatic", "SNMP read", "partial", "2 of 2 devices answered over SNMP; 1 part failed"},
 	} {
-		r, ok := jobHistory(c.j)
+		r, ok := jobHistory(c.j, nil)
 		if !ok || r.Trigger != c.trigger || r.Label != c.label || r.Outcome != c.outcome || r.Text != c.text || r.EndedAt == nil {
 			t.Errorf("%s: %+v", c.name, r)
 		}
@@ -53,7 +53,7 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 	// a check made since checks name their device whose result could not be recorded says so, never that it is an old check
 	rec := job("device", "done", "check_now", "", 1, 0, p("192.168.10.20", "ok: 1 hosts up"))
 	rec.AssetID = "a-1"
-	if r, _ := jobHistory(rec); r.Text != "Scanned 192.168.10.20: it answered, but what it found could not be recorded" {
+	if r, _ := jobHistory(rec, nil); r.Text != "Scanned 192.168.10.20: it answered, but what it found could not be recorded" {
 		t.Errorf("unrecorded check: %q", r.Text)
 	}
 	// only a finished check says that; one still running says when its result comes, a stopped or failed one gives its reason
@@ -67,7 +67,7 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 		if c.status == "running" {
 			j.FinishedAt = nil
 		}
-		if r, _ := jobHistory(j); r.Outcome != c.outcome || r.Text != c.text {
+		if r, _ := jobHistory(j, nil); r.Outcome != c.outcome || r.Text != c.text {
 			t.Errorf("%s check: %s %q", c.status, r.Outcome, r.Text)
 		}
 	}
@@ -80,11 +80,11 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 	} {
 		j := job("snmp", "done", "window", "", 2, 0, p("192.168.10.1,192.168.10.9", "ok: 1 of 2 answered"))
 		j.Own = c.own
-		if r, _ := jobHistory(j); r.Outcome != c.outcome || r.Text != c.text {
+		if r, _ := jobHistory(j, nil); r.Outcome != c.outcome || r.Text != c.text {
 			t.Errorf("own %s: %s %q", c.own, r.Outcome, r.Text)
 		}
 	}
-	if _, ok := jobHistory(job("external", "done", "exposure", "", 1, 0)); ok {
+	if _, ok := jobHistory(job("external", "done", "exposure", "", 1, 0), nil); ok {
 		t.Errorf("an external sa_job is exposure's to list")
 	}
 }
@@ -143,9 +143,40 @@ func TestJobHistory_DeviceCheckSaysWhatItFound(t *testing.T) {
 		{"timed out", sensoractive.DeviceFound{Reach: "top1000", TimedOut: true, Compared: true}, "ok: 1 hosts up", "ok",
 			"Scanned 192.168.10.47: it answered, but nmap reached its time limit before it listed the ports; the ports known before are kept"},
 	} {
-		r, ok := jobHistory(job(c.f, c.result))
+		r, ok := jobHistory(job(c.f, c.result), nil)
 		if !ok || r.Outcome != c.outcome || r.Text != c.text || r.Label != "192.168.10.47" {
 			t.Errorf("%s:\n got %q (%s)\nwant %q", c.name, r.Text, r.Outcome, c.text)
+		}
+	}
+}
+
+// A device check names its OS guess only when the device page shows that guess. When a better source won the inventory's ranking
+// (a person, the device's agent, its SNMP answer, its LLDP statement), the words name the OS the page shows and say the guess was not
+// used, never the raw guess or its change; a device whose page shows no OS gets no OS words.
+func TestJobHistory_TheScanGuessOnlyWhenThePageShowsIt(t *testing.T) {
+	end := "2026-11-17T03:19:00.000Z"
+	j := sensoractive.JobRow{JobHead: sensoractive.JobHead{ID: "j", Kind: "device", Status: "done", Reason: "check_now", StartedAt: "2026-11-17T03:18:00.000Z", FinishedAt: &end, Targets: 1},
+		AssetID: "a-sw", Probes: []sensoractive.JobProbe{{Targets: "192.168.10.47", Result: "ok: 1 hosts up"}},
+		Found: &sensoractive.DeviceFound{Reach: "top1000", Open: 1, Ports: []sensoractive.FoundPort{{Port: 22, Proto: "tcp", Name: "ssh"}},
+			OS: "Network switch OS (8.5 - 11.2)", OSWas: "Network switch OS (12)", Compared: true}}
+	const ports = "Scanned 192.168.10.47: 1 open port (22 ssh)"
+	for _, c := range []struct {
+		name  string
+		shown map[string]shownOS
+		text  string
+	}{
+		{"stated over LLDP", map[string]shownOS{"a-sw": {Value: "NetOS 15.1R7.9", Source: "passive", Basis: "stated"}},
+			ports + "; OS NetOS 15.1R7.9, as the device announces it (LLDP) (scan guess not used); nothing changed since the previous check"},
+		{"SNMP", map[string]shownOS{"a-sw": {Value: "NetOS 15.1R7.9", Source: "snmp"}}, ports + "; OS NetOS 15.1R7.9, as the device states over SNMP (scan guess not used); nothing changed since the previous check"},
+		{"a person", map[string]shownOS{"a-sw": {Value: "NetOS 15", Source: "manual"}}, ports + "; OS NetOS 15, as entered by a person (scan guess not used); nothing changed since the previous check"},
+		{"no OS on the page", map[string]shownOS{"a-sw": {}}, ports + "; nothing changed since the previous check"},
+		{"the page shows the guess", map[string]shownOS{"a-sw": {Value: "Network switch OS (8.5 - 11.2)", Source: "nmap", Basis: "guess"}},
+			ports + "; OS guess now Network switch OS (8.5 - 11.2) (was Network switch OS (12))"},
+		{"unknown device: kept", nil, ports + "; OS guess now Network switch OS (8.5 - 11.2) (was Network switch OS (12))"},
+	} {
+		r, ok := jobHistory(j, c.shown)
+		if !ok || r.Text != c.text {
+			t.Errorf("%s:\n got %q\nwant %q", c.name, r.Text, c.text)
 		}
 	}
 }

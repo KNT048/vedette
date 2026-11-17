@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -41,8 +42,12 @@ func (e scanningEngines) history(ctx context.Context, asset string) ([]core.Hist
 			if err != nil {
 				return nil, err
 			}
+			shown, err := e.osShown(ctx, jobs)
+			if err != nil {
+				return nil, err
+			}
 			for _, j := range jobs {
-				if r, ok := jobHistory(j); ok {
+				if r, ok := jobHistory(j, shown); ok {
 					out = append(out, r)
 				}
 			}
@@ -61,6 +66,32 @@ func (e scanningEngines) history(ctx context.Context, asset string) ([]core.Hist
 				out = append(out, r)
 			}
 		}
+	}
+	return out, nil
+}
+
+// osShown is the OS the device page shows now for each device whose checks recorded an OS guess (the inventory's ranking, INV-44),
+// so a check's words never put a scan guess beside a better OS the page shows. Nil without an inventory: the guesses are kept.
+func (e scanningEngines) osShown(ctx context.Context, jobs []sensoractive.JobRow) (map[string]shownOS, error) {
+	if e.d.Inventory == nil {
+		return nil, nil
+	}
+	var ids []string
+	for _, j := range jobs {
+		if j.Found != nil && j.Found.OS != "" && j.AssetID != "" && !slices.Contains(ids, j.AssetID) {
+			ids = append(ids, j.AssetID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	refs, err := e.d.Inventory.DeviceRefs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]shownOS, len(refs))
+	for id, r := range refs {
+		out[id] = shownOS{Value: r.OS, Source: r.OSSource, Basis: r.OSBasis}
 	}
 	return out, nil
 }
@@ -89,7 +120,23 @@ var (
 
 // jobHistory is an sa_job row as a History row. Its words come from what it stored (#940 review r1 H1, M3): the hosts that answered
 // each sweep batch, the devices that answered each SNMP read, the row's own status and error; never the targets it only meant to reach.
-func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
+// shownOS is the OS a device's page shows now: the value the inventory's ranking chose, its source and basis (inventory DeviceRef).
+type shownOS struct{ Value, Source, Basis string }
+
+// guessUsed says whether the device page shows the scan's OS guess: its OS comes from nmap. Unknown (no inventory, a device not
+// found): the guess is kept, as the check recorded it.
+func (o *shownOS) guessUsed() bool { return o == nil || o.Source == "nmap" }
+
+// words is where the OS the page shows comes from, in the words the device page uses for its source.
+func (o *shownOS) words() string {
+	if o.Basis == "stated" {
+		return "as the device announces it (LLDP)"
+	}
+	return map[string]string{"manual": "as entered by a person", "agent": "as the device's agent reports", "snmp": "as the device states over SNMP",
+		"scan": "as a vulnerability check found", "passive": "from passive listening"}[o.Source]
+}
+
+func jobHistory(j sensoractive.JobRow, shown map[string]shownOS) (core.HistoryRun, bool) {
 	start, ok := parseTS(j.StartedAt)
 	if !ok {
 		return core.HistoryRun{}, false
@@ -160,7 +207,11 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 			r.Label = addr
 			switch m := probeUp.FindStringSubmatch(j.Probes[0].Result); {
 			case j.Found != nil: // what it recorded on the device (sa_job.found)
-				found = foundText(addr, *j.Found)
+				var page *shownOS
+				if o, ok := shown[j.AssetID]; ok {
+					page = &o
+				}
+				found = foundText(addr, *j.Found, page)
 			case m != nil && m[1] == "0":
 				found = "scanned " + addr + ": it did not answer"
 			case m != nil:
@@ -281,8 +332,10 @@ const shownPorts = 8
 
 // foundText is what a device check found, in words, from what it stored (sensoractive.DeviceFound): the open ports with nmap's
 // service names, its OS guess, and what changed since the previous check of the same reach ("nothing changed" when the ports and
-// the OS guess are the same). Lower case first: the caller makes the sentence.
-func foundText(addr string, f sensoractive.DeviceFound) string {
+// the OS guess are the same). The guess and its change are said only when the device page shows the scan's guess (page, the OS it
+// shows now; nil: unknown, kept): when a better source won (INV-44 of inventory), the check names that OS and says the guess was not
+// used, or says nothing of the OS when the page shows none. Lower case first: the caller makes the sentence.
+func foundText(addr string, f sensoractive.DeviceFound, page *shownOS) string {
 	var b strings.Builder
 	switch f.Reach {
 	case "top100":
@@ -302,6 +355,16 @@ func foundText(addr string, f sensoractive.DeviceFound) string {
 		b.WriteString(sep + "it answered, but nmap reached its time limit before it listed the ports; the ports known before are kept")
 	} else {
 		b.WriteString(sep + portsText(f))
+	}
+	if f.OS != "" && !page.guessUsed() { // a better source than the scan names the OS: the guess and its change are not said
+		if page.Value != "" {
+			b.WriteString("; OS " + page.Value)
+			if w := page.words(); w != "" {
+				b.WriteString(", " + w)
+			}
+			b.WriteString(" (scan guess not used)")
+		}
+		f.OS, f.OSWas = "", ""
 	}
 	if f.OS != "" {
 		if f.OSWas != "" {

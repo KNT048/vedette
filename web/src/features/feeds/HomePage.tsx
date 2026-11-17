@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { fmtPercent, rawProductLine } from '@/lib/format'
-import { fmtDay, fmtStamp } from './dates'
+import { fmtDay, fmtStamp, fmtWhen } from './dates'
 import { useCan } from '@/lib/session'
 import { useSetup } from '@/app/RequireSession'
 import { ApiError } from '@/lib/api'
@@ -41,6 +41,31 @@ function SearchBox() {
 }
 
 /** D-92/D-134: the sentence that replaces a count or an empty table while the CISA list is off or has never loaded; null when there is nothing to say. */
+/**
+ * kien G11: the board is not a list that ran once at install. It says how often the box checks CISA's list, when it last did, and
+ * CISA's own last addition (CISA may add nothing for days); a failed check says so, with the last good pull and the way to fix it;
+ * a list never pulled says that. All from GET /feeds/status (and the board's own `latest`), times in the reader's time zone.
+ */
+function KevFreshness({ latest }: { latest: { date_added: string; display: string } | null }) {
+  const { t } = useTranslation('feeds')
+  const kev = useFeedStatus().data?.kev
+  // off, or never loaded with a reason: the board's notice already says it, with the link
+  if (!kev || kev.state === 'off' || (kev.state === 'never_loaded' && kev.error)) return null
+  const every = t('fresh.every', { count: kev.interval_hours })
+  const added = latest ? ` ${t('fresh.latest', { date: fmtDay(latest.date_added), product: latest.display })}` : ''
+  const link = <Link to="/settings/feeds#feed-cisa-kev" className="text-accent underline-offset-4 hover:underline">{t('fresh.openFeeds')}</Link>
+  if (kev.error) {
+    return (
+      <p role="status" className="mb-3 text-meta text-danger [overflow-wrap:anywhere]">
+        {t('fresh.failed', { time: fmtWhen(kev.checked_at), reason: kev.error })}{' '}
+        {kev.last_success ? t('fresh.lastGood', { time: fmtWhen(kev.last_success) }) : t('fresh.neverGood')} {link}
+      </p>
+    )
+  }
+  if (!kev.checked_at) return <p className="mb-3 text-meta text-muted">{t('fresh.never', { every })} {link}</p>
+  return <p className="mb-3 text-meta text-muted">{t('fresh.ok', { every, time: fmtWhen(kev.checked_at) })}{added}</p>
+}
+
 function useKevNotice() {
   const { t } = useTranslation('feeds')
   const status = useFeedStatus()
@@ -92,6 +117,7 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
       actions={
         <Segmented label={t('hot.window')} value={win} onChange={setWin} options={[{ value: '24h', label: t('hot.24h') }, { value: '7d', label: t('hot.7d') }]} />
       }>
+      <KevFreshness latest={hot.data?.latest ?? null} />
       <QueryState query={hot}>
         {(d) => d.rows.length ? (
           <DataTable caption={t('hot.title')} data={d.rows} columns={columns} onRowClick={(r) => navigate(`/cve/${r.cves[0]!.cve}`)} rowTone={(r) => (r.you_have === 'yes' ? 'danger' : undefined)}

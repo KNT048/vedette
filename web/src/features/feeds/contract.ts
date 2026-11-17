@@ -45,7 +45,10 @@ export const FeedStatus = z.object({
   inventory_on: z.boolean(),
   kev: z.object({
     state: z.enum(['loaded', 'never_loaded', 'off']).describe('The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded" once a pull has ever succeeded (even if a later pull failed), else "never_loaded"'),
-    error: z.string().nullable().describe('One line, cleaned: why the last pull failed; null when it has not failed or has not been tried'),
+    error: z.string().nullable().describe('One line, cleaned: why the last pull failed (also when an earlier pull had loaded the list); null when the last pull worked, has not been tried, or the list is off'),
+    interval_hours: z.number().int().describe('How often the box pulls the CISA list (kien G11: Home says "checked every hour")'),
+    checked_at: z.iso.datetime().nullable().describe('When the box last asked for the CISA list, whether the pull worked or not; null before the first pull'),
+    last_success: z.iso.datetime().nullable().describe('When a pull of the CISA list last worked; null when none ever did'),
   }),
 })
 

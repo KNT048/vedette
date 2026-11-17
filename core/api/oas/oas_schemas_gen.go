@@ -58091,11 +58091,24 @@ func (s *FeedsGetFeedsStatusOK) SetSources(val []FeedsGetFeedsStatusOKSourcesIte
 }
 
 type FeedsGetFeedsStatusOKKev struct {
-	// One line, cleaned: why the last pull failed; null when it has not failed or has not been tried.
+	// When the box last asked for the CISA list, whether the pull worked or not; null before the first
+	// pull.
+	CheckedAt NilDateTime `json:"checked_at"`
+	// One line, cleaned: why the last pull failed (also when an earlier pull had loaded the list); null
+	// when the last pull worked, has not been tried, or the list is off.
 	Error NilString `json:"error"`
+	// How often the box pulls the CISA list (kien G11: Home says "checked every hour").
+	IntervalHours int `json:"interval_hours"`
+	// When a pull of the CISA list last worked; null when none ever did.
+	LastSuccess NilDateTime `json:"last_success"`
 	// The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded"
 	// once a pull has ever succeeded (even if a later pull failed), else "never_loaded".
 	State FeedsGetFeedsStatusOKKevState `json:"state"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FeedsGetFeedsStatusOKKev) GetCheckedAt() NilDateTime {
+	return s.CheckedAt
 }
 
 // GetError returns the value of Error.
@@ -58103,14 +58116,39 @@ func (s *FeedsGetFeedsStatusOKKev) GetError() NilString {
 	return s.Error
 }
 
+// GetIntervalHours returns the value of IntervalHours.
+func (s *FeedsGetFeedsStatusOKKev) GetIntervalHours() int {
+	return s.IntervalHours
+}
+
+// GetLastSuccess returns the value of LastSuccess.
+func (s *FeedsGetFeedsStatusOKKev) GetLastSuccess() NilDateTime {
+	return s.LastSuccess
+}
+
 // GetState returns the value of State.
 func (s *FeedsGetFeedsStatusOKKev) GetState() FeedsGetFeedsStatusOKKevState {
 	return s.State
 }
 
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FeedsGetFeedsStatusOKKev) SetCheckedAt(val NilDateTime) {
+	s.CheckedAt = val
+}
+
 // SetError sets the value of Error.
 func (s *FeedsGetFeedsStatusOKKev) SetError(val NilString) {
 	s.Error = val
+}
+
+// SetIntervalHours sets the value of IntervalHours.
+func (s *FeedsGetFeedsStatusOKKev) SetIntervalHours(val int) {
+	s.IntervalHours = val
+}
+
+// SetLastSuccess sets the value of LastSuccess.
+func (s *FeedsGetFeedsStatusOKKev) SetLastSuccess(val NilDateTime) {
+	s.LastSuccess = val
 }
 
 // SetState sets the value of State.

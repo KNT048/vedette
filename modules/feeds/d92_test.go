@@ -81,13 +81,26 @@ func TestContract_D92_StatusTellsNeverLoadedFromLoadedFromOff(t *testing.T) {
 		t.Errorf("never loaded with an error: %q %q", s, msg)
 	}
 
-	// loaded once, last pull failed since: still loaded, the count stays honest
+	// loaded once, last pull failed since: still loaded, the count stays honest, and the failure is said with the last good pull
+	// (kien G11: Home says the list is stale since then)
 	write(t, e.db, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET last_success = '2026-11-04T10:00:00.000Z' WHERE id = 'cisa-kev'`)
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET last_success = '2026-11-04T10:00:00.000Z', last_fetch = '2026-11-05T09:00:00.000Z' WHERE id = 'cisa-kev'`)
+		return err
+	})
+	if s, er := kevState(t, e); s != "loaded" || er == nil {
+		t.Errorf("loaded once, last pull failed: %q %v", s, er)
+	}
+	_, b := e.get("/feeds/status")
+	if at(b, "kev", "last_success") != "2026-11-04T10:00:00Z" || at(b, "kev", "checked_at") != "2026-11-05T09:00:00Z" || at(b, "kev", "interval_hours") != float64(1) {
+		t.Errorf("kev times: last_success %v checked_at %v interval %v", at(b, "kev", "last_success"), at(b, "kev", "checked_at"), at(b, "kev", "interval_hours"))
+	}
+	// the next pull works: no error any more
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET status = 'ok', error = NULL WHERE id = 'cisa-kev'`)
 		return err
 	})
 	if s, er := kevState(t, e); s != "loaded" || er != nil {
-		t.Errorf("loaded once: %q %v", s, er)
+		t.Errorf("loaded, last pull fine: %q %v", s, er)
 	}
 
 	// turned off wins over everything

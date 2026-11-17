@@ -13,17 +13,17 @@ import (
 var logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 // The real release public keys, in the form minisign and cosign print them: compile-time constants of
-// a production build, made by the key ceremony of 2026-11-11 (D-256, scripts/release/keygen.sh). The
+// a production build, made by the key ceremony of 2026-11-11 (scripts/release/keygen.sh). The
 // private halves are encrypted, outside the repo and every box, with the maintainer (docs/RELEASE_KEYS.md).
 // A constant left empty makes Embedded refuse everything (fail closed). Rotating a key changes its
-// constant here and moves the old minisign line to prodMinisignRetired (D-130). Never put a private key
+// constant here and moves the old minisign line to prodMinisignRetired. Never put a private key
 // or a test key here (TestProductionConstantsAreNotTestKeys).
 const (
 	// minisign public key 7B78764E550D48D0, the active key: signs index.json and every release manifest
 	prodMinisignActive = "RWTQSA1VTnZ4e4eM2iBmUKE1/t5l9pmrScK2+wR/EohjSfFEZQ8VwT/m"
-	// minisign public key 8DD38917AD864FAE, the offline backup key: signs the index that revokes a key (D-108) and the rescue release after one (D-258)
+	// minisign public key 8DD38917AD864FAE, the offline backup key: signs the index that revokes a key and the rescue release after one
 	prodMinisignBackup = "RWSuT4atF4nTjejJTNkQcFCkxroGAm0jmVNBd0gvgVoNNpP3n1mSe//r"
-	// cosign key (ECDSA P-256), signs the images (legacy format, D-103)
+	// cosign key (ECDSA P-256), signs the images (legacy format)
 	prodCosign = `-----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEm91vgScv6zgXXBX6iJP5qaqydWIx
 KTprVWOY3EIHh6AAysr2ncwvWLztYFqP1hoFK19WWSnT+svtyjSBL+2HZA==

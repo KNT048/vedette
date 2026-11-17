@@ -1,4 +1,4 @@
-// Download logs on the real backend (S-CORE-6, D-132, core INV-13): days are whole days in the ORGANIZATION time zone, a category whose
+// Download logs on the real backend (S-CORE-6, core INV-13): days are whole days in the ORGANIZATION time zone, a category whose
 // module keeps no log is listed as missing (`missing` in JSON, `(no source)` in CSV) instead of looking empty, and a CSV cell that starts with
 // = + - @ cannot run as a formula. The rows come from the real API: accounts whose email starts with those characters, an organization name
 // that starts with @ (put back in `finally`), and the audit rows of the run itself.
@@ -95,7 +95,7 @@ test('a bad request is refused with a code and does not use the export slot', as
   await admin.dispose()
 })
 
-// The Data page sends the day the person picks (YYYY-MM-DD), as the box (D-132) takes it. It runs before the exports so it takes the slot first and the tests after it wait for it.
+// The Data page sends the day the person picks (YYYY-MM-DD), as the box takes it. It runs before the exports so it takes the slot first and the tests after it wait for it.
 test('the Data page downloads the days the person picks', async ({ page }) => {
   test.setTimeout(150_000)
   await slot()

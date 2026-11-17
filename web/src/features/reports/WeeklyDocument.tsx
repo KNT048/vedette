@@ -27,9 +27,9 @@ function Rows({ rows, caption }: { rows: FindingRow[]; caption: string }) {
 }
 
 export function actionText(a: ActionItem, t: (k: string, o?: Record<string, unknown>) => string) {
-  if ((a.kind === 'fix' || a.kind === 'verify') && a.text) return a.text // the box wrote it, naming the fixed version when NVD says (D-490)
+  if ((a.kind === 'fix' || a.kind === 'verify') && a.text) return a.text // the box wrote it, naming the fixed version when NVD says
   if (a.kind === 'fix' || a.kind === 'verify') {
-    // Since D-485 an action is about one top risk (a product); reports sent before it name one CVE.
+    // An action is about one top risk (a product); older reports name one CVE.
     return a.product ? t(`doc.weekly.act.${a.kind}Product`, { product: a.product, device: a.device, count: a.count ?? 1, cve: a.cve }) : t(`doc.weekly.act.${a.kind}`, { cve: a.cve, device: a.device })
   }
   return t(`doc.weekly.act.${a.kind}`, { count: a.count })
@@ -50,14 +50,14 @@ function Risk({ r }: { r: TopRisk }) {
 }
 
 /**
- * Báo cáo tuần (S-REP-1). Trang đầu cho lãnh đạo (W1-24, D-485): số liệu cùng định nghĩa với Home/Devices, 3 rủi ro lớn nhất, đã làm gì, tuần sau làm
+ * Báo cáo tuần (S-REP-1). Trang đầu cho lãnh đạo: số liệu cùng định nghĩa với Home/Devices, 3 rủi ro lớn nhất, đã làm gì, tuần sau làm
  * gì; danh sách đầy đủ ở phụ lục (in: sang trang mới). Dùng cho xem trước, lịch sử và bản in.
  */
 export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: string }) {
   const { t } = useTranslation('reports')
   const c = r.counts
   const open = c.open_confirmed + c.open_suspected
-  // A finding new this week and still open is listed once, under What is new; Remaining lists the older ones (walk 3 G13). New is
+  // A finding new this week and still open is listed once, under What is new; Remaining lists the older ones. New is
   // judged by first seen within the period, as the box does (weekly.go), not by being in the new list: each list is cut at 100.
   const isNew = (f: FindingRow) => f.since > r.period.from && f.since <= r.period.to
   const older = r.open.filter((f) => !isNew(f))

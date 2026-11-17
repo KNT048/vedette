@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// #376 (D-335, D-336, D-339): a known-bad connection of the Logs module (logs.ioc_hit.detected, the IocHit of logs L4) is an event of the
+// #376: a known-bad connection of the Logs module (logs.ioc_hit.detected, the IocHit of logs L4) is an event of the
 // ioc_connection trigger. The hit is read from a syslog line, which a LAN host can forge, so every field is checked at the edge, at most
 // 60 hits an hour reach the rules, and a pre-approved rule leaves a domain-only hit and an action on the device to a person.
 
@@ -36,7 +36,7 @@ func TestIocHitEvent(t *testing.T) {
 		"no id":             iocHit("", "192.168.10.105", "185.220.101.47", "ip"),
 		"id with a newline": iocHit("h\n3", "192.168.10.105", "185.220.101.47", "ip"),
 		"public source":     iocHit("h4", "8.8.8.8", "185.220.101.47", "ip"),
-		"100/8 source":      iocHit("h15", "100.128.0.5", "185.220.101.47", "ip"), // only 100.64/10 is local (D-461)
+		"100/8 source":      iocHit("h15", "100.128.0.5", "185.220.101.47", "ip"), // only 100.64/10 is local
 		"shell in source":   iocHit("h5", "192.168.10.105; reboot", "185.220.101.47", "ip"),
 		"domain as ip":      iocHit("h6", "192.168.10.105", "badhost.example", "ip"),
 		"ip with a quote":   iocHit("h7", "192.168.10.105", "185.220.101.47\"", "ip"),
@@ -75,7 +75,7 @@ func TestIocHitEvent(t *testing.T) {
 	}
 }
 
-// D-461: a device in the RFC 6598 shared address space is a LAN device, as logs reads it (signature.LocalOK).
+// A device in the RFC 6598 shared address space is a LAN device, as logs reads it (signature.LocalOK).
 func TestIocHitFromASharedAddressSpaceDevice(t *testing.T) {
 	e := newEnv(t)
 	e.svc.Subscribe(e.bus)
@@ -99,7 +99,7 @@ func TestIocPreApprovalOnlyBlocksAListedAddress(t *testing.T) {
 			in.PreApproved = true
 			in.Conditions = []response.Condition{{Field: "dest_kind", Op: "eq", Value: "ip"}}
 		})
-	// D-469: putting the LAN device of the hit on the block list is refused when it is planned (not_publishable), pre-approved or not
+	// putting the LAN device of the hit on the block list is refused when it is planned (not_publishable), pre-approved or not
 	e.rule("Block the device", "ioc_connection", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.src_ip}}"}, TTLMin: intp(60)}},
 		func(in *response.RuleInput) { in.PreApproved = true })
 	e.rule("Block a fixed address on a domain hit", "ioc_connection", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "203.0.113.200"}, TTLMin: intp(60)}},

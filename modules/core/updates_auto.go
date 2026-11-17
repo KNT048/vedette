@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// The automatic side of the software update (S-CORE-2; update-manifest.md §6, §12; D-53, D-388): a job of core checks for
+// The automatic side of the software update (S-CORE-2; update-manifest.md §6): a job of core checks for
 // releases every 6 hours ± 30 minutes through the same check as POST /core/updates/check, and in automatic mode starts
 // the run of the release on offer as user "system", only inside the maintenance window (os.settings) and never while
 // another run is busy. Nothing here when update checks are off under Privacy: no request and no install (PRIVACY flow 6).
@@ -23,13 +23,13 @@ const (
 	updateCheckEvery  = 6 * time.Hour    // update-manifest §12
 	updateCheckJitter = 30 * time.Minute // ± around updateCheckEvery
 	// firstCheckAfter is when a box that never checked (no last_check, no last_check_error) checks after its process
-	// started (D-398): a box set up a minute ago, or recreated with `up -d` before its first check, learns of updates
+	// started: a box set up a minute ago, or recreated with `up -d` before its first check, learns of updates
 	// within minutes instead of waiting for a tick that a restart keeps pushing away. A restart loop shorter than this
 	// makes no request, and once a check is stored the 6-hour rule applies.
 	firstCheckAfter = 2 * time.Minute
 	// autoFresh is how old the last good check may be when the automatic mode installs: one regular interval and a tick.
 	// A check that fails (an index held back to hide a revocation, §13) stops installs until a check succeeds (upd.failed,
-	// and the stored last_check_error that a restart keeps, D-392); last_check (moved only by a good check) growing past
+	// and the stored last_check_error that a restart keeps); last_check (moved only by a good check) growing past
 	// this does the same.
 	autoFresh = updateCheckEvery + updateCheckJitter + UpdateTickEvery
 	// autoMinLeft: a run does not start when less of the window is left (pulls and core's switch take a while).
@@ -53,7 +53,7 @@ var errAutoSkip = errors.New("core: the automatic mode does not install now")
 
 // UpdateTick is the job: a check when one is due (6 hours ± 30 minutes after the last one this process made, or after the
 // stored last_check when it has made none, never before UpdateTickEvery after the process started; on a box that never
-// checked, firstCheckAfter after the process started, D-398, the job being woken then), then the automatic
+// checked, firstCheckAfter after the process started, the job being woken then), then the automatic
 // install unless that check failed. Off under Privacy, or before first-run setup (no install id: the administrator has not
 // seen Privacy yet): nothing.
 func (h *OSHandlers) UpdateTick(ctx context.Context) error {
@@ -86,7 +86,7 @@ func (h *OSHandlers) checkDue(ctx context.Context) (bool, error) {
 		}
 		// Never at the first tick of a process: a core that restarts (its own update switch does) adds no check. A box
 		// that never checked (nothing stored, not even a failure) checks firstCheckAfter after it started: the job is
-		// woken then (D-398); without a wake, at the first tick after that, as at setup on a fresh box.
+		// woken then; without a wake, at the first tick after that, as at setup on a fresh box.
 		if s.LastCheck.IsZero() && s.LastCheckError == nil {
 			h.upd.next = h.upd.started.Add(firstCheckAfter)
 			if d := h.upd.next.Sub(h.now()); d > 0 && h.upd.wake != nil {
@@ -160,9 +160,9 @@ func (h *OSHandlers) autoInstall(ctx context.Context, by string) error {
 }
 
 // autoPlan is the release the automatic mode installs now, read under urun.mu: the mode is still automatic, the latest
-// check did not fail (from the page or the job: this process's flag, or the stored last_check_error after a restart, D-392), the last good
+// check did not fail (from the page or the job: this process's flag, or the stored last_check_error after a restart), the last good
 // check is at most autoFresh old and its index is not past expires_at (revocations are known, §6, §13), something is
-// offered (verified again, revoked releases dropped), and no run to that release was made yet (D-388: one that failed or
+// offered (verified again, revoked releases dropped), and no run to that release was made yet (one that failed or
 // was reverted is left to an administrator; one that ended done while this build still runs the older version would
 // otherwise repeat).
 func (h *OSHandlers) autoPlan(ctx context.Context) (*verifiedRelease, error) {

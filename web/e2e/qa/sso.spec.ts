@@ -1,4 +1,4 @@
-// QA as a real admin and user for D-194..D-196 (S-CORE-3): SSO sign-in (OIDC) on the mock API, desktop and phone, light and dark.
+// QA as a real admin and user (S-CORE-3): SSO sign-in (OIDC) on the mock API, desktop and phone, light and dark.
 // Run: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/sso.spec.ts --workers=1
 // (needs the dev server on http://localhost:5173; screenshots go to qa-shots/sso/)
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
@@ -63,7 +63,7 @@ async function configureViaApi(page: Page, roleMap: { group: string; role: strin
 }
 
 test('A-C, E: admin sets up SSO, a person signs in, admin sees them, admin turns SSO off', async ({ page }, info) => {
-  test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
+  test.skip(!POST_V1_IN_UI, 'post-v1 hidden')
   test.setTimeout(240_000)
   const errors = collectErrors(page)
   await finishClean(page)

@@ -102,7 +102,7 @@ func parseAuditBound(s string, loc *time.Location, end bool) (string, bool) {
 func (h *APIHandlers) auditFilter(ctx context.Context, q, user, group, from, to oas.OptString, people bool) (auditFilter, error) {
 	var f auditFilter
 	var parts []string
-	if people { // D-416: leave out the automatic lines (user "system" or "system:<part>")
+	if people { // Leave out the automatic lines (user "system" or "system:<part>")
 		f.people = "1"
 		parts = append(parts, "actor=people")
 	}
@@ -210,7 +210,7 @@ func (h *APIHandlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCo
 }
 
 // CoreGetCoreAuditExport implements GET /core/audit/export (admin): the matching rows as CSV, newest first,
-// no 200-row limit. The download is itself a row of core_audit (INV-2, D-48), written before the file is
+// no 200-row limit. The download is itself a row of core_audit (INV-2), written before the file is
 // read, so the file is a snapshot that ends at that row. The rows are read page by page while the response
 // is written, so a large log is never held in memory.
 func (h *APIHandlers) CoreGetCoreAuditExport(ctx context.Context, params oas.CoreGetCoreAuditExportParams) (oas.CoreGetCoreAuditExportOK, error) {
@@ -376,7 +376,7 @@ func (h *APIHandlers) CorePutCoreGeneral(ctx context.Context, req *oas.CorePutCo
 	return &oas.CorePutCoreGeneralOK{Name: name, Timezone: req.Timezone}, nil
 }
 
-// AuditNamer names the devices and findings that audit rows refer to by id (D-416): a device by its host name, else its IP, else what
+// AuditNamer names the devices and findings that audit rows refer to by id: a device by its host name, else its IP, else what
 // the box knows of it; a finding as "<CVE> on <device>". Ids it does not know are left out. cmd/vedette implements it over inventory and
 // findings, so core imports neither module.
 type AuditNamer interface {

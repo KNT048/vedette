@@ -1,4 +1,4 @@
-// Command scanpack builds the safe nuclei template pack that the signed `scan` image carries (D-125 (4), D-146): the templates of
+// Command scanpack builds the safe nuclei template pack that the signed `scan` image carries: the templates of
 // the KEV sets (tags kev, vkev) that are plain http, tcp or ssl checks for exactly one CVE, copied byte for byte, and the index
 // (modules/scan/pack) that core reads to choose them and the worker reads to check them. Run it with `make scan-pack`.
 //
@@ -7,9 +7,9 @@
 // out, never repaired, when it has any of: no KEV tag, a tag of nucleiargv.ForbiddenTags or oast, a mention of
 // interactsh, a top-level key other than id, info, variables, http, tcp, ssl (headless, code, javascript, file, dns, whois,
 // websocket, flow, self-contained and everything a later nuclei adds), not exactly one CVE, an id nuclei would take for a flag, or no
-// printable request line for the probe log. Next to that KEV set, D-527 adds the deep and disruptive sets that a full job (testing
+// printable request line for the probe log. Next to that KEV set come the deep and disruptive sets that a full job (testing
 // terms accepted) runs: see fullSet. Each index entry names its sets. Every set, KEV included, leaves out anything of the
-// state-change, destination and third-party rule of D-528 (nochange.go). The product never runs this: it ships the result. Network,
+// state-change, destination and third-party rule (nochange.go). The product never runs this: it ships the result. Network,
 // for a maintainer only: github.com and codeload.github.com, 60 s limit.
 package main
 
@@ -240,7 +240,7 @@ func buildWith(src, out, version string, rv allowlist) (Report, error) {
 		if reason == "" && ids[tpl.ID] {
 			reason = "id"
 		}
-		// D-528 step 2: a KEV template out of the KEV set (left out, or only behind the tick) waits for a person
+		// A KEV template out of the KEV set (left out, or only behind the tick) waits for a person
 		// (scripts/scanpack/kev-review-queue.md)
 		if (reason == "likely read-only" || reason == "not reviewed" || reason == "state name" || reason == "" && !tpl.InKEV()) && kevCandidate(body) {
 			queue = append(queue, queueRow(rel, body, reason))
@@ -259,7 +259,7 @@ func buildWith(src, out, version string, rv allowlist) (Report, error) {
 	if err := writeQueue(filepath.Join(out, "review-queue.md"), version, queue); err != nil {
 		return rep, err
 	}
-	if n := rep.Left["stale review"]; n > 0 { // D-528 step 2: a reviewed template changed: a person reads it again before it ships
+	if n := rep.Left["stale review"]; n > 0 { // A reviewed template changed: a person reads it again before it ships
 		return rep, fmt.Errorf("%d templates of reviewed.tsv changed since they were read (their sha256 differs): read them again and update the list", n)
 	}
 	if len(all) == 0 || len(all) > pack.MaxTemplates {
@@ -280,7 +280,7 @@ func buildWith(src, out, version string, rv allowlist) (Report, error) {
 		if k.tpl.Generic && slices.ContainsFunc(k.tpl.Tags, func(t string) bool { return products[t] }) {
 			k.tpl.Generic = false // a tag names a product a technologies template detects: it runs when that product is found
 		}
-		mark := "" // the own_ip mark is part of what the label covers (review round 2 L2), and the sets (D-527)
+		mark := "" // the own_ip mark is part of what the label covers (review round 2 L2), and the sets
 		if k.tpl.OwnIP {
 			mark = "\town_ip"
 		}
@@ -322,7 +322,7 @@ func buildWith(src, out, version string, rv allowlist) (Report, error) {
 }
 
 // qualify decides one file: the index entry with its sets, or the reason it is left out. A template is in the KEV set by the
-// rule of D-125/D-520 (kevReason), and in the deep or disruptive set by the rule of D-527 (fullSet); the reason of a template in
+// KEV rule (kevReason), and in the deep or disruptive set by the full-set rule (fullSet); the reason of a template in
 // neither is the full rule's when the template sits in a folder of a full set, else the KEV rule's.
 func qualify(rel string, body []byte) (pack.Template, string) {
 	return qualifyWith(rel, body, reviewedState)
@@ -341,7 +341,7 @@ func qualifyWith(rel string, body []byte, rv allowlist) (pack.Template, string) 
 		return zero, "yaml"
 	}
 	sum := sha256.Sum256(body)
-	if id, _ := doc["id"].(string); id != "" { // review r1 M-4: a reviewed file that changed stops the build, whatever else it now fails
+	if id, _ := doc["id"].(string); id != "" { // A reviewed file that changed stops the build, whatever else it now fails
 		if _, stale := rv(id, hex.EncodeToString(sum[:])); stale {
 			return zero, "stale review"
 		}
@@ -373,10 +373,10 @@ func qualifyWith(rel string, body []byte, rv allowlist) (pack.Template, string) 
 		}
 		return zero, kr
 	}
-	if why, _ := changeReason(id, doc, body, tags); why != "" { // D-528, every set: no state change, no other destination, no third party
+	if why, _ := changeReason(id, doc, body, tags); why != "" { // every set: no state change, no other destination, no third party
 		return zero, why
 	}
-	// D-528 step 2: the KEV set (no tick) only a template a person read (reviewed.tsv, by sha256); the deep set (no tick) a reviewed
+	// The KEV set (no tick) only a template a person read (reviewed.tsv, by sha256); the deep set (no tick) a reviewed
 	// template or a read-only GET whose name names no change (rule (a), the lead keeps it for the deep set: the terms say a deep scan
 	// may change data); a template whose name says a change is in no set; any other goes behind the tick (disruptive) when it is of
 	// a full set, and waits for a reader
@@ -398,7 +398,7 @@ func qualifyWith(rel string, body []byte, rv allowlist) (pack.Template, string) 
 	default: // "state name": never at any depth; "stale review": the build stops
 		return zero, why
 	}
-	ownIP := kr == "" && ownIPSafe(rel, doc, tags, body) // the D-520 mark, only on a template of the (reviewed) KEV set
+	ownIP := kr == "" && ownIPSafe(rel, doc, tags, body) // the own_ip mark, only on a template of the (reviewed) KEV set
 	var sets []string
 	if kr == "" {
 		sets = append(sets, pack.SetKEV)
@@ -417,7 +417,7 @@ func qualifyWith(rel string, body []byte, rv allowlist) (pack.Template, string) 
 	return t, ""
 }
 
-// kevReason is the KEV rule of D-125 (unchanged by D-527): the KEV tags, no forbidden or oast tag, no interactsh, no fuzzing,
+// kevReason is the KEV rule: the KEV tags, no forbidden or oast tag, no interactsh, no fuzzing,
 // payloads or race, and exactly one CVE. "" when the template is in the KEV set.
 func kevReason(doc map[string]any, body []byte, tags []string, cve string) string {
 	switch {
@@ -435,7 +435,7 @@ func kevReason(doc map[string]any, body []byte, tags []string, cve string) strin
 	return ""
 }
 
-// The folders of the full sets (D-527). deepDirs are the categories a deep external scan uses: nuclei's cves, vulnerabilities,
+// The folders of the full sets. deepDirs are the categories a deep external scan uses: nuclei's cves, vulnerabilities,
 // exposures, misconfiguration, exposed-panels and technologies, plus cnvd (product vulnerabilities by their Chinese id, like cves),
 // iot (the vulnerabilities of routers, cameras and NAS, what a home or office public IP shows), miscellaneous (directory listing,
 // TRACE, security.txt: hardening notes) and on the network side cves, vulnerabilities, exposures, misconfig, detection (the service
@@ -466,17 +466,17 @@ var fullKeys = []string{"fuzzing", "race", "race_count", "pipeline", "threads"}
 const maxPayloadValues = 64
 
 var (
-	// credKeyRE is a payload name that holds user names or passwords: the template tries to log in with them (review FULL-4b r1 M2).
+	// credKeyRE is a payload name that holds user names or passwords: the template tries to log in with them.
 	credKeyRE = regexp.MustCompile(`(?i)pass|pwd|user|login|cred`)
 	// credTags mark a template that logs in with known credentials.
 	credTags = []string{"hardcoded-credentials", "default-credentials", "default-credential", "weak-credentials"}
 )
 
-// fullSet is the D-527 rule: the set of a template at full depth (SetDeep or SetDisruptive) with "", or "" with the reason it is
+// fullSet is the full-set rule: the set of a template at full depth (SetDeep or SetDisruptive) with "", or "" with the reason it is
 // left out. Always out: a folder of no full set ("dir"), the tags intrusive, fuzz and oast and any use of an out-of-band server (a
 // third party), a file pack.FullText refuses (the worker's own check), fuzzing, race, pipeline and thread keys, a payload read from a
 // file (it is not in the pack) or a list of more than maxPayloadValues requests, and a request method pack.MethodOK refuses; the
-// D-528 rule (changeReason) applies after. Disruptive: a default-login folder, a tag of nucleiargv.DisruptiveTags (dos, brute-force,
+// no-change rule (changeReason) applies after. Disruptive: a default-login folder, a tag of nucleiargv.DisruptiveTags (dos, brute-force,
 // default-login, authenticated) or credTags, or payloads named like user names or passwords (credKeyRE).
 func fullSet(rel string, doc map[string]any, body []byte, tags []string) (string, string) {
 	disruptive := under(rel, disruptiveDirs)
@@ -489,7 +489,7 @@ func fullSet(rel string, doc map[string]any, body []byte, tags []string) (string
 	if pack.NeedsOAST(body) { // a matcher that only names interactsh (tech-detect) is no use of it
 		return "", "interactsh"
 	}
-	if pack.FullText(body, strings.HasPrefix(rel, "http/technologies/")) != nil { // the worker's own check must pass (D-527, D-528)
+	if pack.FullText(body, strings.HasPrefix(rel, "http/technologies/")) != nil { // the worker's own check must pass
 		return "", "full text"
 	}
 	creds := slices.ContainsFunc(tags, func(t string) bool { return slices.Contains(credTags, t) })
@@ -520,7 +520,7 @@ func fullSet(rel string, doc map[string]any, body []byte, tags []string) (string
 				if !payloadsInline(p) {
 					return "", "payloads"
 				}
-				for k := range p.(map[string]any) { // review FULL-4b r1 M2: a list of user names or passwords is a login attempt
+				for k := range p.(map[string]any) { // A list of user names or passwords is a login attempt
 					creds = creds || credKeyRE.MatchString(k)
 				}
 			}
@@ -631,8 +631,8 @@ var ownIPKeys = []string{"raw", "path", "method", "headers", "matchers", "matche
 // credName is a header or variable name that carries a credential.
 var credName = regexp.MustCompile(`(?i)auth|cookie|token|key|session|secret|pass|user|login|cred`)
 
-// ownIPSafe is the D-520 decision for one template that qualified: may it run on the box's own public IP? Conservative (the lead's
-// rule): only http checks under http/, every request GET or HEAD with no body (raw requests read line by line, path requests by
+// ownIPSafe is the own_ip decision for one template that qualified: may it run on the box's own public IP? Conservative:
+// only http checks under http/, every request GET or HEAD with no body (raw requests read line by line, path requests by
 // their method key), no header or variable that carries a credential, no injection-shaped payload in a request target or header
 // value (pack.RequestPayloadOK), no refused tag (pack.OwnIPRefusedTag), and the file passes the worker's own text check
 // (pack.OwnIPText), so the worker never refuses what the builder allowed.

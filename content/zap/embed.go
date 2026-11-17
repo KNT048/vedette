@@ -1,4 +1,4 @@
-// Package zapdata embeds Vedette's rule list for ZAP's baseline scan (D-565, exposure INV-24): ONE file that the host hands to ZAP
+// Package zapdata embeds Vedette's rule list for ZAP's baseline scan (exposure INV-24): ONE file that the host hands to ZAP
 // with -c and that exposure applies itself when it reads a report, so both agree on what is noise, hardening or "fix this".
 //
 //   - vedette-baseline.conf: zap-baseline.py -c format, rule ids from https://www.zaproxy.org/docs/alerts/.

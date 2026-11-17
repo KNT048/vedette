@@ -14,10 +14,10 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// The Box address (D-465): the host name or IP address the LAN reaches the box at, which every link the box makes carries (notify
+// The Box address: the host name or IP address the LAN reaches the box at, which every link the box makes carries (notify
 // messages and their approval links, sign-in mail, the test message, the block list URL, URL honey tokens, the agent install commands).
 // An administrator sets it in Settings → Box network (core keeps it); the default is the management IPv4 vedette-host reports. The fixed
-// name "vedette" (fallbackBoxName, still a name of the box's own certificate for old bookmarks) is never used for a link: before D-465 the
+// name "vedette" (fallbackBoxName, still a name of the box's own certificate for old bookmarks) is never used for a link: in older releases the
 // links took the first name of the certificate, which was that name, so every link of an appliance read https://vedette:8443.
 
 const (
@@ -36,7 +36,7 @@ type boxAddrState struct {
 
 // boxAddr holds the Box address for the links, the certificate and the Host allowlist. read is core's NetworkHandlers.BoxAddress (the
 // saved address, else the management IPv4, "" when neither is known; and the earlier addresses). flag is the address of an install without
-// vedette-host (the container-only compose, D-168, which requires -hosts): the first usable -hosts entry (flagAddress); it is used only
+// vedette-host (the container-only compose, which requires -hosts): the first usable -hosts entry (flagAddress); it is used only
 // while read gives "". A read that fails keeps the last answer: a host restarting does not make the links vanish. Safe on nil ("") and for
 // concurrent use. No lock is held across read (review L2): the answer is an atomic pointer, so links, the certificate and every request's
 // Host test go on with the last answer while one read runs; a read started before an Invalidate never replaces the answer of one after it.
@@ -208,7 +208,7 @@ func baseURL(addr, listen string) string {
 	return "https://" + net.JoinHostPort(addr, port)
 }
 
-// testBaseURL is the test seam of D-173 (WP-30 slice 9b): the end-to-end box listens on loopback, where baseURL answers "" and notify refuses
+// testBaseURL is a test seam (WP-30): the end-to-end box listens on loopback, where baseURL answers "" and notify refuses
 // every approval request, so the box of `make e2e-real` answers http://127.0.0.1:<port> for its own listen address. Unexported, no flag, nil in the
 // shipped binary: only a _test.go file sets it, so the production derivation above is the only one a real box ever runs.
 var testBaseURL func(listen string) string

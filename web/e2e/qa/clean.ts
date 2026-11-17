@@ -7,7 +7,7 @@ export async function sampleStart(page: Page) {
   await page.evaluate(() => localStorage.clear())
   await page.goto('/')
   await expect(page).toHaveURL(/\/setup/)
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Use sample data' }).click()
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
@@ -18,9 +18,9 @@ export async function finishClean(page: Page) {
   await page.goto('/')
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // D-75: the code the mock accepts
+  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // The code the mock accepts
   await page.getByLabel('Organization name', { exact: true }).fill('Test Company')
   await page.getByLabel('Administrator name', { exact: true }).fill('Alex Admin')
   await page.getByLabel('Sign-in email', { exact: true }).fill('admin@testco.example')
@@ -32,7 +32,7 @@ export async function finishClean(page: Page) {
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
   await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
-  // D-624: a bundle turns on v1 modules only; the specs that start here use the preview modules, so turn them on from their rows
+  // A bundle turns on v1 modules only; the specs that start here use the preview modules, so turn them on from their rows
   await turnOnModules(page, PREVIEW_NAMES)
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()

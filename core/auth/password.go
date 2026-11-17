@@ -143,8 +143,8 @@ func ValidatePassword(password, email string) *apierr.Error {
 }
 
 // commonStems are the words the most used passwords are built on (the top of every leaked-password list, and the
-// name of the product), kept as stems: "password1234", "Qwerty123456!" and "iloveyou2024" all reduce to one (D-389,
-// NIST SP 800-63B 5.1.1.2: compare against commonly used values, repetitive or sequential characters, context words).
+// name of the product), kept as stems: "password1234", "Qwerty123456!" and "iloveyou2024" all reduce to one
+// (NIST SP 800-63B 5.1.1.2: compare against commonly used values, repetitive or sequential characters, context words).
 // ponytail: a hand-kept list of stems, not a leaked-password corpus; upgrade path: an embedded list such as the
 // NCSC top 100k filtered to 12+ characters, with its notice.
 var commonStems = map[string]bool{

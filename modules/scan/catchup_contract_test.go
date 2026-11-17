@@ -63,7 +63,7 @@ func announced(cve string, at time.Time, template bool) AnnouncedKEV {
 	return AnnouncedKEV{NewKEV: NewKEV{CVE: cve, Vendor: "Palo Alto Networks", Product: "PAN-OS", HasTemplate: template}, At: at}
 }
 
-// INV-9, D-144 (S4b): a new KEV entry feeds announced while scan was off or the process was down (the bus is
+// INV-9: a new KEV entry feeds announced while scan was off or the process was down (the bus is
 // best-effort) is found in feeds' record and rescanned like one that came on the bus. The event keeps the time feeds
 // announced it, so the latency is honest; an entry without a template is not queued; the next pass asks from the last
 // entry read; the same entry from the bus too is one event.

@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// The NVD records of every CVE published in the last 12 months (tier 3, D-613, D-614). Measured 2026-11-15 without a key:
+// The NVD records of every CVE published in the last 12 months (tier 3). Measured 2026-11-15 without a key:
 // 104,135 CVEs in the 12 months (19,630 + 26,874 + 57,631 in three 120-day windows); a page of 2,000 records was 1.2 MB
 // on the wire (gzip) and 10.4 MB of JSON, answered in 13 s; NVD changes about 1,700 records a day. The first fill is about
 // 105 requests of RecentPageSize records (about 60 MB on the wire, about 25 minutes with nvdPause between requests),
@@ -30,7 +30,7 @@ const (
 	RecentPageSize = 1000
 	// recentMaxBytes caps one answer (three times the measured average page).
 	recentMaxBytes = 16_000_000
-	// recentDays is how far back tier 3 goes (kien 2026-11-15: "mọi cve trong 12 tháng").
+	// recentDays is how far back tier 3 goes ("mọi cve trong 12 tháng").
 	recentDays = 365
 	// recentWindow is NVD's largest date range for one query (120 days).
 	recentWindow = 120 * 24 * time.Hour
@@ -60,7 +60,7 @@ type RecentCVE struct {
 	Affected                []AffectedRow
 	// Platforms is, per entry of Affected, the operating systems ("microsoft:windows", vendor and product of the CPE) of NVD's "running
 	// on" condition of its configuration (an AND of the vulnerable entries with non-vulnerable operating-system entries); nil for an
-	// entry without one (D-617, review r1 #6 of #804).
+	// entry without one.
 	Platforms [][]string
 }
 
@@ -377,13 +377,13 @@ ON CONFLICT(id) DO UPDATE SET url = excluded.url, mode = excluded.mode, win_from
 
 // recentComplete says the data of nvd-recent is complete for url: its last pull finished (mode done) at this address. Anything
 // else (no cursor, as after migration 0013; an unfinished fill or update; another address) is a pull the feed still owes, due at
-// the next check whatever its last success says (N55-2). ponytail: a done cursor with no CVE stored (only a source that
+// the next check whatever its last success says. ponytail: a done cursor with no CVE stored (only a source that
 // answers nothing) waits for the feed's interval, so such a source is not asked every 5 minutes.
 func recentComplete(cur *recentCursor, url string) bool {
 	return cur != nil && cur.Mode == modeDone && cur.URL == url
 }
 
-// recentIdleText is the progress line of nvd-recent while no pull is running and the data is not complete (N55-1): where the
+// recentIdleText is the progress line of nvd-recent while no pull is running and the data is not complete: where the
 // next pull goes on, from the cursor; "" when the data is complete or cannot be read. next: the line says the next 5-minute
 // check goes on (false during the back-off after a failure).
 func (s *Service) recentIdleText(ctx context.Context, url string, next bool) string {

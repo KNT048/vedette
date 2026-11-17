@@ -517,7 +517,7 @@ func TestNewRunnerRejectsBadEnv(t *testing.T) {
 	}
 }
 
-// The two needrestart keys of vedette-host's applier (D-316) are accepted with their one value each.
+// The two needrestart keys of vedette-host's applier are accepted with their one value each.
 func TestNewRunnerAcceptsTheConstantNeedrestartKeys(t *testing.T) {
 	t.Parallel()
 	b := testBinary(t, nil, 0)

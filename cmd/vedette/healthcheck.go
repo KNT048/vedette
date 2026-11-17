@@ -21,11 +21,11 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// The container health checks (D-137): `vedette healthcheck` (core) and `vedette honeypot healthcheck` (the honeypot image), the
+// The container health checks: `vedette healthcheck` (core) and `vedette honeypot healthcheck` (the honeypot image), the
 // HealthCmd= lines of the units in host/ops/quadlet.go. Neither takes arguments, because the unit passes none; neither opens the
 // database or reads the master key, so a check cannot hold a lock or leak a secret. Failure is one short line on stderr and exit 1
 // (main prints the error). healthCommand is the one place that decides which of them an argv is, and the gate test of the units
-// parses their HealthCmd= (a JSON array, the exec form, D-137) through it.
+// parses their HealthCmd= (a JSON array, the exec form) through it.
 const (
 	defaultHoneypotDir = "/var/lib/vedette/honeypot" // the default of -honeypot-dir, and where the honeypot unit mounts config/ and log/
 
@@ -150,8 +150,8 @@ func unwrapURL(err error) error {
 
 // honeypotHealthcheck connects to one port OpenCanary was configured to listen on, on 127.0.0.1, within limit. The port comes
 // from opencanary.conf, which core writes and the unit mounts read-only: never a number in this code. In the namespace vedette-hp
-// `lo` is up and the output chain accepts `oif lo` (D-121 L8), so a loopback connection works there. The connection is a hit
-// the trap logs from 127.0.0.1, which core drops as a source that cannot be real (D-89 (e)).
+// `lo` is up and the output chain accepts `oif lo`, so a loopback connection works there. The connection is a hit
+// the trap logs from 127.0.0.1, which core drops as a source that cannot be real.
 //
 // Only services with a port key count: `smb` has none (OpenCanary only follows the log of Samba, the port is Samba's), so a
 // configuration with no other trap enabled has nothing of OpenCanary's to connect to, and the check is healthy: nothing

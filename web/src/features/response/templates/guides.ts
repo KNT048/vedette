@@ -1,5 +1,5 @@
-// Step-by-step setup of the pull method for each device (D-44): one-time setup shown as a guide, never run by Vedette (action-templates §12 point 11).
-// This is template data (D-58): vendor names are allowed here. Menu paths are those of current releases; names differ a little between versions.
+// Step-by-step setup of the pull method for each device: one-time setup shown as a guide, never run by Vedette (action-templates §12 point 11).
+// This is template data: vendor names are allowed here. Menu paths are those of current releases; names differ a little between versions.
 export interface Guide { id: string; title: string; steps: string[]; note?: string; code?: { label: string; text: string } }
 
 export const guides = (url: string): Guide[] => [

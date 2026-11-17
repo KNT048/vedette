@@ -23,8 +23,8 @@ var (
 var syslogHost string
 
 // syslogTestTLS stands in for deps.SyslogTLS when the box serves no TLS. Only the end-to-end box sets it (TestE2EBox, e2ebox_test.go), to a
-// certificate of its own: that box serves plain HTTP on loopback, and the TLS listener (D-214) is otherwise unreachable from a browser spec
-// (D-427). nil in production and in every other test.
+// certificate of its own: that box serves plain HTTP on loopback, and the TLS listener is otherwise unreachable from a browser spec.
+// nil in production and in every other test.
 var syslogTestTLS *tls.Config
 
 // logsService builds the logs service once per database, so the handlers, the purge job and the log export share it
@@ -41,7 +41,7 @@ func logsService(d deps) *logs.Service {
 		return s
 	}
 	cfg := logs.Config{Config: d.DB, Volume: d.LogsDB, Audit: d.Audit, Inventory: logsInventory{d.Inventory}, Box: logsBox{d}, Log: d.Log, Clock: d.Clock,
-		Secrets: d.Secrets, BoxAddrs: machineAddrs(&d), SelfAddrs: vedetteSelf(&d)} // the SIEM key is sealed; no SIEM on Vedette itself (D-446)
+		Secrets: d.Secrets, BoxAddrs: machineAddrs(&d), SelfAddrs: vedetteSelf(&d)} // the SIEM key is sealed; no SIEM on Vedette itself
 	if d.Bus != nil { // logs.anomaly.detected, which notify opens an incident from (a nil *events.Bus in the interface would not be nil)
 		cfg.Events = d.Bus
 	}
@@ -49,13 +49,13 @@ func logsService(d deps) *logs.Service {
 		cfg.Syslog.Ports = []int{d.SyslogPort}
 	}
 	cfg.Syslog.Host = syslogHost
-	// nil on a loopback or dev box: proto tls is refused and nothing listens for TLS (D-214)
+	// nil on a loopback or dev box: proto tls is refused and nothing listens for TLS
 	cfg.Syslog.TLS = d.SyslogTLS
-	cfg.TrustAnchor = d.TrustAnchor // what a device must trust for the box certificate (the box CA, or the owner's chain), shown on the Sources page (D-434)
+	cfg.TrustAnchor = d.TrustAnchor // what a device must trust for the box certificate (the box CA, or the owner's chain), shown on the Sources page
 	if cfg.Syslog.TLS == nil {
 		cfg.Syslog.TLS = syslogTestTLS
 	}
-	cfg.NeverCount = logsNeverCount(&d) // D-210: TopAddresses never counts the box, its gateway or a decoy
+	cfg.NeverCount = logsNeverCount(&d) // TopAddresses never counts the box, its gateway or a decoy
 	cfg.Feeds = logsFeeds{&d}           // L4: destinations are looked up in the indicators of the feeds module (off: no hits)
 	cfg.Hostname = d.BoxName.Name       // the HOSTNAME of SIEM records: the machine's name, not the container's (#471)
 	svc, err := logs.NewService(cfg)
@@ -126,7 +126,7 @@ func logsJobs(d deps) []jobs.Job {
 
 // logsInventory answers "which device has this IP" for the sources list. inventory has no read by IP, so it lists every
 // device with DevicesOfKind (no row cap, a read error is an error) and picks the addresses asked for; the list is small.
-// A by-IP read in inventory would replace this (deferred, for Kiên).
+// A by-IP read in inventory would replace this (deferred).
 type logsInventory struct{ inv *inventory.Service }
 
 func (a logsInventory) DevicesByIP(ctx context.Context, ips []string) (map[string]logs.Device, error) {
@@ -146,7 +146,7 @@ func (a logsInventory) DevicesByIP(ctx context.Context, ips []string) (map[strin
 			ids = append(ids, d.ID)
 		}
 	}
-	// The name is the Devices page's (D-471, W8-2): one light read of the matches. No address beside it: the sources list and a log
+	// The name is the Devices page's: one light read of the matches. No address beside it: the sources list and a log
 	// incident already show the sender's IP.
 	st, err := notifyDevices(a).DeviceStates(ctx, ids)
 	if err != nil {
@@ -192,10 +192,10 @@ func (b logsBox) Info(ctx context.Context) (logs.BoxInfo, error) {
 	return info, nil
 }
 
-// syslogTLS is the TLS configuration of the syslog-over-TLS listener (port 6514, D-203 (3), #266 item 2): the HTTPS listener's own,
-// cloned, so it presents the same certificate; the clone keeps the GetCertificate of a box-made pair, so a renewal (D-139) is picked up with
+// syslogTLS is the TLS configuration of the syslog-over-TLS listener (port 6514, #266 item 2): the HTTPS listener's own,
+// cloned, so it presents the same certificate; the clone keeps the GetCertificate of a box-made pair, so a renewal is picked up with
 // no restart, and the HTTPS-only parts (the "http/1.1" ALPN) are left behind. nil when the box serves no TLS (loopback or dev): there is
-// no certificate to serve, so nothing may listen for TLS. logsService hands it to logs.Config.Syslog.TLS: the listener on 5515 (published as 6514) and the lifting of `tls_unavailable` (D-214).
+// no certificate to serve, so nothing may listen for TLS. logsService hands it to logs.Config.Syslog.TLS: the listener on 5515 (published as 6514) and the lifting of `tls_unavailable`.
 func syslogTLS(https *tls.Config) *tls.Config {
 	if https == nil {
 		return nil

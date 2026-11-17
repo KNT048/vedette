@@ -1,4 +1,4 @@
-// Generic connection kinds (D-58): the core knows how to talk, not to which brand. Device knowledge (commands, API paths, least
+// Generic connection kinds: the core knows how to talk, not to which brand. Device knowledge (commands, API paths, least
 // privilege, undo) is data in the action template library (features/response/templates). Shared by the ai module (connections)
 // and the response module (action catalog).
 //
@@ -25,7 +25,7 @@ export const KIND_AUTH: Record<ConnectionKindId, Auth[]> = {
 export const HTTP_KINDS: ConnectionKindId[] = ['http', 'netconf-restconf', 'automation']
 export const isHttpKind = (k: string | null | undefined): boolean => HTTP_KINDS.includes(k as ConnectionKindId)
 export const isMcpKind = (k: string | null | undefined): boolean => k === 'mcp-http' || k === 'mcp-stdio'
-/** Sign-in that carries a user name: SSH always, and Basic on any kind (D-94). */
+/** Sign-in that carries a user name: SSH always, and Basic on any kind. */
 export const usesUsername = (kind: string, auth: string): boolean => kind === 'ssh' || auth === 'basic'
 /** The identity of the server a connection talks to: host and port after normalisation (a path, a trailing slash or letter case do not count). Its pin and its saved secret belong to it. */
 export const hostPort = (kind: string, target: string): string => {

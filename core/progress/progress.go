@@ -1,4 +1,4 @@
-// Package progress is the one shape of "how far is it" for the long jobs a customer waits on (#830, J2): a scan of a device, the
+// Package progress is the one shape of "how far is it" for the long jobs a customer waits on (#830): a scan of a device, the
 // scan of a public IP, its OpenVAS step. A job owns a Tracker; the code that does the work reports to the Sink it finds in its
 // context, so the modules between the two (scan, exposure, sensor-active's Dispatcher, the adapters of cmd/vedette) need no new
 // parameter. Only the latest state is kept, in memory: no history, no table, and it goes with the job (the owner drops the

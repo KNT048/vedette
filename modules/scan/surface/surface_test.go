@@ -263,7 +263,7 @@ func allLogged(t *testing.T, n *fakeNet, log *probeLog) {
 	}
 }
 
-// A domain (D-57 (7)): the names come from CT (only valid names under the domain, sorted), resolved and listed. A name on a public
+// A domain: the names come from CT (only valid names under the domain, sorted), resolved and listed. A name on a public
 // address gets HTTP checks by name on 80 and 443 only; a private one is never dialed; an address is port-scanned only when
 // mayScanPorts accepts it (a verified IP target). Every probe is in the probe log before and after.
 func TestDomainScan(t *testing.T) {
@@ -568,7 +568,7 @@ func FuzzParseCT(f *testing.F) {
 	})
 }
 
-// The port list is fixed and documented (D-229): no port twice, about a hundred.
+// The port list is fixed and documented: no port twice, about a hundred.
 func TestPortList(t *testing.T) {
 	t.Parallel()
 	if len(portByNumber) != len(commonPorts) || len(commonPorts) < 80 || len(commonPorts) > 110 {
@@ -576,7 +576,7 @@ func TestPortList(t *testing.T) {
 	}
 }
 
-// The kinds of this package are commonports.Use value for value: the list is shared with sensor-active's external nmap shape (D-514).
+// The kinds of this package are commonports.Use value for value: the list is shared with sensor-active's external nmap shape.
 func TestPortKindsFollowTheList(t *testing.T) {
 	t.Parallel()
 	if plain != kind(commonports.Plain) || web != kind(commonports.Web) || webTLS != kind(commonports.WebTLS) || tlsOnly != kind(commonports.TLSOnly) {

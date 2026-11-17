@@ -18,13 +18,13 @@ import (
 )
 
 // The box fetches the public pages about a CVE itself (S-AI-3, INV-6, FORBID-6): the AI never browses. Only the hosts below are
-// ever contacted, over HTTPS on port 443, with no proxy, and only the CVE id travels in a request (D-280).
+// ever contacted, over HTTPS on port 443, with no proxy, and only the CVE id travels in a request.
 
 // newsFeed is one public RSS or Atom feed of the fixed list. The whole feed is fetched (nothing of the box is in the request) and
 // the box looks for the CVE id in it.
 type newsFeed struct{ Title, URL string }
 
-// newsFeeds is the fixed feed list (D-280): research and threat-intelligence blogs that write about exploited CVEs.
+// newsFeeds is the fixed feed list: research and threat-intelligence blogs that write about exploited CVEs.
 var newsFeeds = []newsFeed{
 	{"watchTowr Labs", "https://labs.watchtowr.com/rss/"},
 	{"GreyNoise blog", "https://www.greynoise.io/blog/rss.xml"},
@@ -40,7 +40,7 @@ const (
 )
 
 // advisoryHosts are the vendor sites whose advisory pages the box reads when the exploited-list entry or the NVD record links to
-// them (D-280). A link to any other host is shown as not fetched: links in a feed are untrusted and are never followed off this list.
+// them. A link to any other host is shown as not fetched: links in a feed are untrusted and are never followed off this list.
 // Each serves its advisory as HTML a plain GET can read (checked 2026-11-11); sites that need JavaScript are left out.
 var advisoryHosts = map[string]bool{
 	"sec.cloudapps.cisco.com":          true,
@@ -113,7 +113,7 @@ type newsFetcher struct {
 	mu       sync.Mutex
 	cache    map[string]newsCacheEntry
 	inflight map[string]*cveLock   // the news calls running or waiting, per CVE (lockCVE)
-	limited  map[string]limitEntry // per host: a rate-limit answer, remembered newsLimitTTL (D-284)
+	limited  map[string]limitEntry // per host: a rate-limit answer, remembered newsLimitTTL
 }
 
 type limitEntry struct {
@@ -211,7 +211,7 @@ func newsControl(_, address string, _ syscall.RawConn) error {
 	return nil
 }
 
-// newsNonGlobal lists ranges that are not global unicast and are not caught by the netip predicates (D-208's list).
+// newsNonGlobal lists ranges that are not global unicast and are not caught by the netip predicates.
 var newsNonGlobal = []netip.Prefix{
 	netip.MustParsePrefix("0.0.0.0/8"), netip.MustParsePrefix("100.64.0.0/10"), netip.MustParsePrefix("192.0.0.0/24"),
 	netip.MustParsePrefix("192.0.2.0/24"), netip.MustParsePrefix("192.88.99.0/24"), netip.MustParsePrefix("198.18.0.0/15"),
@@ -222,7 +222,7 @@ var newsNonGlobal = []netip.Prefix{
 // newsPublicAddr reports whether ip is a global unicast address: never loopback, private (RFC 1918, ULA), link-local (which holds
 // the metadata services), CGNAT, multicast, a documentation or reserved range, or an IPv6 form that carries an IPv4 address (NAT64,
 // 6to4, Teredo, IPv4-compatible; provider.Forbidden refuses those for every AI connection). Every host the fetcher may contact is
-// a public site, so nothing else is needed; the box's own public address, if it has one, is not checked (D-280, as D-208 (2)).
+// a public site, so nothing else is needed; the box's own public address, if it has one, is not checked.
 func newsPublicAddr(ip netip.Addr) bool {
 	ip = ip.Unmap().WithZone("")
 	if !ip.IsValid() || provider.Forbidden(ip) || !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() {
@@ -327,7 +327,7 @@ func cachedFetch[T any](f *newsFetcher, key string, fn func() (T, error)) (T, er
 	return v, nil
 }
 
-// lockCVE serialises the news calls of one CVE (D-284): a second press while the first is fetching or asking waits for it, then
+// lockCVE serialises the news calls of one CVE: a second press while the first is fetching or asking waits for it, then
 // finds the fetched pages in the cache and the answer stored, so it fetches nothing and spends no tokens. A caller that gives up
 // while waiting gets its context's error.
 func (f *newsFetcher) lockCVE(ctx context.Context, cve string) (unlock func(), err error) {

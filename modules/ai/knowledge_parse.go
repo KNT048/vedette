@@ -39,7 +39,7 @@ var (
 	errDocBad     = errors.New("it could not be read as a document of its type")
 	errDocBomb    = errors.New("it is too large when unpacked")
 	errDocTimeout = errors.New("reading it took too long")
-	// The PDF reader runs in a limited child process (core/pdftext, D-264); its errors become these plain reasons. Nothing of the
+	// The PDF reader runs in a limited child process (core/pdftext); its errors become these plain reasons. Nothing of the
 	// child's own text is ever shown.
 	errDocPassword = errors.New("the PDF is protected with a password; remove the password and upload it again")
 	errDocLimit    = errors.New("the PDF could not be read safely (it is damaged, or too complex to open); save it again or export it to text")
@@ -179,7 +179,7 @@ func extractText(ctx context.Context, kind string, data []byte) (text string, tr
 	return text, truncated, nil
 }
 
-// pdfText reads a PDF through the limited child process of core/pdftext (D-264). cut is true when the child cut the text at its cap.
+// pdfText reads a PDF through the limited child process of core/pdftext. cut is true when the child cut the text at its cap.
 func pdfText(ctx context.Context, data []byte) (text string, cut bool, err error) {
 	text, err = pdftext.PDFText(ctx, bytes.NewReader(data))
 	switch {

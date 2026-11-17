@@ -27,7 +27,7 @@ func installShFunc(t *testing.T, name string) string {
 	return s[i+1:i+1+j+2] + "\n"
 }
 
-// D-267, D-396: what install.sh checks (fwd_rules_present) and removes (remove_forward_rules, --uninstall) is what the
+// What install.sh checks (fwd_rules_present) and removes (remove_forward_rules, --uninstall) is what the
 // host writes. The host fills the fake DOCKER-USER chain (an uplink br-lan, an administrator's rules), then install.sh's
 // own sh functions run against the same fake iptables: -C in the host's words finds all five fixed rules, the DROP among
 // them; -D removes every rule of ours, the DROP and a gone bridge's ACCEPT too, and nothing of the administrator's.
@@ -67,7 +67,7 @@ func TestInstallSh_ForwardRulesOfTheHost(t *testing.T) {
 	}
 	m.DockerDelete(drop)
 	if run("fwd_rules_present 172.30.77.0/24") == nil {
-		t.Fatal("fwd_rules_present says present without the DROP of D-396")
+		t.Fatal("fwd_rules_present says present without the trailing DROP")
 	}
 	m.DockerAdminRule(drop) // back, below the administrator's rules: remove_forward_rules finds ours wherever they stand
 

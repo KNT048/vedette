@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-8 (D-96 (5), response INV-3) in the real wiring: notify's Config.Decisions is the adapter over the response service, and a
+// WP-13b slice 13b-8 (response INV-3) in the real wiring: notify's Config.Decisions is the adapter over the response service, and a
 // decision a chat listener hands to it is mapped to a Vedette person and goes through the same gates as the app. The listeners are not built
 // yet, so the test calls the port the way a listener will, after the platform was checked.
 
@@ -55,7 +55,7 @@ func TestWiringChatDecisionsPort(t *testing.T) {
 	if s.count(`SELECT count(*) FROM resp_log WHERE kind = 'refused' AND actor = '999 via telegram'`) != 1 || s.count(`SELECT count(*) FROM resp_block_entries`) != 0 {
 		t.Fatal("the refusal is not logged, or something ran")
 	}
-	// D-191, D-414: the person on the list has not linked the ID yet: nothing is decided and the answer holds no code; Bao confirms the
+	// The person on the list has not linked the ID yet: nothing is decided and the answer holds no code; Bao confirms the
 	// link the bot sent (here: a token made the same way), signed in.
 	r, err = port.Decide(ctx, notify.Decision{Channel: channel.Telegram, ExternalID: "100200", RequestID: a.ID, Approve: true})
 	if err != nil || r.Status != "approver_not_linked" || regexp.MustCompile(`\d{6}`).MatchString(r.Message) {
@@ -77,7 +77,7 @@ func TestWiringChatDecisionsPort(t *testing.T) {
 	if err != nil || r.Status != "approved" || r.Message == "" {
 		t.Fatalf("decision: %+v %v", r, err)
 	}
-	for range 1000 { // the items run in the background after the decision was answered (D-135 (9))
+	for range 1000 { // the items run in the background after the decision was answered
 		if s.count(`SELECT count(*) FROM resp_block_entries WHERE value = '198.51.100.7'`) == 1 {
 			break
 		}

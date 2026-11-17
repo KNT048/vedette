@@ -17,12 +17,12 @@ import (
 // historyRead is how many rows each source gives GET /scanning/history (core keeps the newest 200 of all of them).
 const historyRead = 200
 
-// history is Settings › Scanning › History of the runs that are not vulnerability checks (kien G7a): every sa_job of the LAN
+// history is Settings › Scanning › History of the runs that are not vulnerability checks: every sa_job of the LAN
 // (discovery sweeps, device identifications, SNMP reads) and every stored scan of a public target, each with its outcome in words
 // from what it stored. The vulnerability checks keep their own list (GET /scans/runs). A source that is not built or not readable
 // gives nothing; it never fails the page.
 //
-// With asset (kien G7b/c, the device page's Last checks): only the LAN jobs that reached that device's address now, its
+// With asset (the device page's Last checks): only the LAN jobs that reached that device's address now, its
 // identifications and the SNMP reads that asked it, at most historyRead of each kind; no sweep, no public scan. The jobs record
 // addresses, not devices: an unknown device, or one without an address, has none.
 func (e scanningEngines) history(ctx context.Context, asset string) ([]core.HistoryRun, error) {

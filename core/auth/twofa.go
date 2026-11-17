@@ -50,11 +50,11 @@ func (s *Service) user(ctx context.Context, id string) (coredb.CoreUser, error) 
 	return t, nil
 }
 
-// enableWrongPassword is the message of a wrong password when two-step sign-in is being turned on (D-76).
+// enableWrongPassword is the message of a wrong password when two-step sign-in is being turned on.
 const enableWrongPassword = "Wrong password. The password is needed to turn on two-step sign-in."
 
 // StartTOTP creates a new unconfirmed key for the user (replacing an earlier unconfirmed one) and returns it.
-// Turning two-step on needs the current password, like turning it off (D-76): 400 wrong_password, counted by
+// Turning two-step on needs the current password, like turning it off: 400 wrong_password, counted by
 // the same account limiter as a wrong sign-in password. 409 already_on when two-step sign-in is already on.
 // Nothing changes for sign-in until ConfirmTOTP. keepSessionID is the caller's session: when it has ended
 // by the time the key is written, nothing is written (401).
@@ -268,7 +268,7 @@ func (p *pendingTries) forget(secretID string) {
 }
 
 // StartEmail2FA mails a code to the user's address so they can prove the mailbox works before email-code
-// sign-in turns on. It needs the current password (D-76: 400 wrong_password, counted like a wrong sign-in
+// sign-in turns on. It needs the current password (400 wrong_password, counted like a wrong sign-in
 // password). 409 already_on; 409 email_channel_not_ready when the email channel cannot send; the send
 // limits of EmailCodes.Send (resend_too_soon, too_many_codes). A caller whose account or session is gone
 // (keepSessionID) gets nothing sent.

@@ -29,7 +29,7 @@ const (
 	keepRuns      = 100              // GET /scans/runs lists the newest runs (the mock keeps 100)
 	deviceTimeout = 15 * time.Minute // one device's job; nuclei's own per-request timeout is 10 s
 	// stopGrace is how long a stopped run waits for the engine to confirm before it is shown stopped anyway: Stop
-	// now takes effect within 5 seconds (INV-6). The engine's lease still kills nuclei (D-113 (4)).
+	// now takes effect within 5 seconds (INV-6). The engine's lease still kills nuclei.
 	stopGrace = 4 * time.Second
 	// finishTimeout bounds the writes that must happen after the run's context is gone.
 	finishTimeout = 30 * time.Second
@@ -109,7 +109,7 @@ type RunView struct {
 	Results    []RunRow       `json:"results"`
 	Matched    int            `json:"matched"`
 	StopReason *string        `json:"stop_reason"`
-	// Identification is one row per device of a Scan now run: what it was identified as, or why it was not (D-501). Empty for
+	// Identification is one row per device of a Scan now run: what it was identified as, or why it was not. Empty for
 	// schedules and KEV rescans, which do not identify, and while the run is going.
 	Identification []IdentRow `json:"identification"`
 }
@@ -135,7 +135,7 @@ var (
 func (s *Service) scannerReady(ctx context.Context) bool { return s.cfg.Pack != nil && s.ready(ctx) }
 
 // StartRun starts a scan of the targets a person picked in Scan now (PRE-1, POST-1): the commitment, 1..200 known
-// targets that can be picked (INV-1..INV-3), the scanner ready. The pick is the consent of D-126 for each device;
+// targets that can be picked (INV-1..INV-3), the scanner ready. The pick is the consent for each device;
 // it is audited with the person and the ids.
 func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunView, error) {
 	sc, err := s.cfg.Inventory.Scope(ctx)
@@ -157,7 +157,7 @@ func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunV
 	if s.liveRun() != "" {
 		return RunView{}, errRunning
 	}
-	all, err := s.Targets(ctx) // one batch policy read for every device (D-472)
+	all, err := s.Targets(ctx) // one batch policy read for every device
 	if err != nil {
 		return RunView{}, err
 	}
@@ -198,7 +198,7 @@ type runSpec struct {
 	note     *string
 	user     string
 	ids      []string
-	picked   []string            // the ids picked by a person that needed the pick (D-126 (2)); empty for schedules and KEV rescans
+	picked   []string            // the ids picked by a person that needed the pick; empty for schedules and KEV rescans
 	first    Current             // the device the run begins with: shown as current from the start (POST-1)
 	onlyCVEs map[string][]string // nil: every CVE of the devices' findings; else device id -> the only CVEs it is probed for (the KEV rescan, INV-9; a backlog in one run keeps each event's pairs, #189 review L2)
 	end      time.Time           // zero: none; else the run stops by itself then (the end of the window of a scheduled run)
@@ -253,7 +253,7 @@ VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)`, id, sp.trigger, sp.note, now, sp
 			}
 			return fmt.Errorf("scan: writing the run: %w", err)
 		}
-		// Review L2: the start counts and hashes the whole list; each pick, the consent of D-126 (2), is a row of its own.
+		// The start counts and hashes the whole list; each pick, the consent, is a row of its own.
 		sum := sha256.Sum256([]byte(strings.Join(sp.ids, ",")))
 		detail := fmt.Sprintf("%d targets, %d picked by hand, sha256 %s", len(sp.ids), len(sp.picked), hex.EncodeToString(sum[:8]))
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: sp.user, Action: "scan.start", Target: id, Detail: detail}); err != nil {
@@ -407,7 +407,7 @@ func (s *Service) execute(ctx context.Context, runID string, sp runSpec) {
 	s.finish(fctx, runID, status, reason, rows, idents, done)
 }
 
-// identifies says a run identifies its devices before checking them (D-501): Scan now only. A schedule and a KEV rescan check
+// identifies says a run identifies its devices before checking them: Scan now only. A schedule and a KEV rescan check
 // what is known; discovery identifies devices in its own window.
 func identifies(sp runSpec) bool { return sp.trigger == "manual" }
 
@@ -428,7 +428,7 @@ func (s *Service) devicesByID(ctx context.Context) (map[string]Device, error) {
 }
 
 // scanTarget scans one device. end is "" to go on, "stopped" after Stop now, or the stop reason of an
-// unresponsive device when stop_on_unresponsive is set. ident is the device's identification row in a Scan now run (D-501), nil
+// unresponsive device when stop_on_unresponsive is set. ident is the device's identification row in a Scan now run, nil
 // in other runs.
 func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, sp runSpec) (rows []RunRow, ident *IdentRow, end string) {
 	explicit := slices.Contains(sp.picked, id) // M1: the pick is per device
@@ -501,13 +501,13 @@ func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, s
 	}
 	rate := st.Rate
 	if careful {
-		rate = max(1, st.Rate/4) // D-126 (2): fragile and unclassified devices at a quarter of the speed
+		rate = max(1, st.Rate/4) // Fragile and unclassified devices at a quarter of the speed
 	}
 	var only []string // nil: every CVE; a device the map does not name gets an empty list and is probed for nothing
 	if sp.onlyCVEs != nil {
 		only = append([]string{}, sp.onlyCVEs[d.ID]...)
 	}
-	// D-601 (review r1 M2): this device's part runs under its own context, so DeviceChanged can stop it alone when the device may no
+	// This device's part runs under its own context, so DeviceChanged can stop it alone when the device may no
 	// longer be scanned (its network scan turned off while it runs); the run goes on with the next device.
 	dctx, dcancel := context.WithCancel(ctx)
 	dr := &devRun{id: d.ID, explicit: explicit, cancel: dcancel}
@@ -538,7 +538,7 @@ type devRun struct {
 }
 
 // DeviceChanged stops the check of assetID when it is the device being checked now and the inventory no longer lets it be scanned
-// (D-601: its network scan turned off; also never, excluded, moved, gone). The probes on their way are closed as stopped and its row
+// (its network scan turned off; also never, excluded, moved, gone). The probes on their way are closed as stopped and its row
 // says why; the run goes on with the next device. A read that fails stops it too (fail closed).
 func (s *Service) DeviceChanged(ctx context.Context, assetID string) error {
 	s.mu.Lock()
@@ -673,15 +673,15 @@ func (s *Service) plan(ctx context.Context, d Device, onlyCVEs []string) (checks
 	return checks, rows, nil
 }
 
-// dismissed is a finding a person closed (false positive, not relevant, patched, risk accepted until a day, D-498): its
-// CVE is not probed again (review L3). Mitigated findings are rescanned: a match shows the mitigation did not hold; no match changes nothing (D-133 (5)).
+// dismissed is a finding a person closed (false positive, not relevant, patched, risk accepted until a day): its
+// CVE is not probed again (review L3). Mitigated findings are rescanned: a match shows the mitigation did not hold; no match changes nothing.
 func dismissed(status string) bool {
 	return status == "false_positive" || status == "not_relevant" || status == "patched" || status == "risk_accepted"
 }
 
 // endpoints are where nuclei sends requests on a device: its known web services first, then its other TCP ports
 // (network templates), at most nucleiargv.MaxTargets; a device with no known port gets ports 80 and 443. TLS comes from the
-// service name: nmap's tunnel="ssl" reaches the inventory as "ssl/http" (D-522, N1), and a port that any source names TLS is
+// service name: nmap's tunnel="ssl" reaches the inventory as "ssl/http", and a port that any source names TLS is
 // only spoken to over https (a plain-HTTP request to it is a wasted probe and a silent miss).
 func endpoints(d Device) []nucleiargv.Target {
 	isTLS := func(name string) bool { return strings.Contains(name, "https") || strings.HasPrefix(name, "ssl/http") }
@@ -775,7 +775,7 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: fmt.Sprintf("The device did not finish within %d minutes; skipped.", mins)}), ""
 	}
 	if unresponsive(res) || allUnreachable(out.HostErrors, job.Targets) {
-		// A device nuclei gave up on mid-run may already have matched (D-165): those matches are recorded as usual, a
+		// A device nuclei gave up on mid-run may already have matched: those matches are recorded as usual, a
 		// no_response never drops them. Every other template of the device closes as no_response.
 		for _, c := range checks {
 			if checkMatched(c, res) {
@@ -876,8 +876,8 @@ func checkMatched(c check, res []nucleiout.Result) bool {
 
 // allUnreachable says every target of the job stopped answering: the worker counted at least max-host-errors timeouts on each
 // of them, from nuclei's error log. That is a run total, not nuclei's own -mhe count (consecutive errors, reset by a success,
-// and applied to http targets only), so a very flaky but alive device can count here too: the safe side for the device (D-165 (4)). It holds even when the
-// device answered some templates before it died: the device is lost for this run (INV-6, D-165). One target that did not
+// and applied to http targets only), so a very flaky but alive device can count here too: the safe side for the device. It holds even when the
+// device answered some templates before it died: the device is lost for this run (INV-6). One target that did not
 // reach the limit means the device still answers on it, so it is not this case.
 func allUnreachable(he []nucleiout.HostError, targets []nucleiargv.Target) bool {
 	if len(targets) == 0 {
@@ -902,7 +902,7 @@ func unresponsive(res []nucleiout.Result) bool {
 }
 
 // templateResult is the probe-log result of one template: matched; no_response when it has lines and every one is an
-// error; otherwise not_matched, which means only "no match reported" (D-133 (5)).
+// error; otherwise not_matched, which means only "no match reported".
 func templateResult(id string, res []nucleiout.Result) string {
 	seen, answered := false, false
 	for _, r := range res {
@@ -959,7 +959,7 @@ func (s *Service) conclude(ctx context.Context, d Device, c check, res []nucleio
 	case seen && !answered:
 		row.Result, row.Note = "no_response", cve+": no answer for this check."
 	default:
-		// D-133 (5), D-165: a not-matched line is "no match reported", never "not vulnerable". It never
+		// A not-matched line is "no match reported", never "not vulnerable". It never
 		// resolves, downgrades or marks the finding: nothing is sent to the findings module.
 		row.Result, row.Note = "not_matched", cve+": no match reported by the scan template."
 	}
@@ -991,7 +991,7 @@ func (s *Service) writeProbes(ctx context.Context, runID string, d Device, check
 	return out, err
 }
 
-// noteSkipped writes what nucleiout skipped (lines that cannot be a result of the job, N45-1: the run is kept) to the core log
+// noteSkipped writes what nucleiout skipped (lines that cannot be a result of the job: the run is kept) to the core log
 // and after the request text of the probe rows of the templates those lines were of (cut to the row, never the request: review
 // r1 L7), so the probe log says it.
 func (s *Service) noteSkipped(ctx context.Context, runID string, d Device, rows []probeRow, sk nucleiout.Skipped) {

@@ -19,8 +19,8 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Passive web scan of the web ports of a verified target with the ZAP baseline (S-EXP-2, CONTRACT INV-24, D-562, plan
-// exposure-real-vulns §5 slice c). ZAP runs in its own one-shot container with the spider and the passive rules only: no form is
+// Passive web scan of the web ports of a verified target with the ZAP baseline (S-EXP-2, CONTRACT INV-24).
+// ZAP runs in its own one-shot container with the spider and the passive rules only: no form is
 // posted, no AJAX spider, no active scan. The container and its network are the host's (vedette-host op zap.baseline); exposure
 // decides what to ask for (the web ports of a target that passed this run's gate), reads the report as untrusted data, and keeps
 // the alerts apart from the exploited CVEs (a passive alert is something ZAP noticed, not a known exploited vulnerability).
@@ -32,7 +32,7 @@ import (
 // Host:IP, a network that allows egress only to IP:Port (no DNS, so a redirect to another host or port fails at the network layer and
 // is not followed), a non-public IP refused (it checks again itself), and, on every call, the host's own re-check that IP is the box's
 // own egress (IP target), or that the domain's TXT token is still there and the name still points at IP (domain; the host resolves it
-// only to check, D-521). ZAP runs with -silent (no unsolicited requests, no add-on
+// only to check). ZAP runs with -silent (no unsolicited requests, no add-on
 // update), never -a (active scan) and never -u. zap-baseline.py exits 0, 1 (a FAIL rule matched) or 2 (a WARN rule matched) with a
 // report on success: all three are success when the report is there; 3 or no report is an error. The report is untrusted. A step that
 // could not run for a reason the page may show (not set up, busy, the image is not pulled) returns *Unavailable; a reason that holds
@@ -41,7 +41,7 @@ type WebScanner interface {
 	Baseline(ctx context.Context, t ScanTarget, page WebPage) (WebScan, error)
 }
 
-// PageSkipped is a page the WebScanner did not scan for a reason of this page alone (D-521: its name no longer points at the address
+// PageSkipped is a page the WebScanner did not scan for a reason of this page alone (its name no longer points at the address
 // exposure approved); the scan says why on that page's line and goes on with the next page.
 type PageSkipped struct{ Reason string }
 
@@ -57,7 +57,7 @@ type WebPage struct {
 
 // WebProbe is the probe log row of a page ZAP is about to be started on (LEGAL §3). A spider finds its URLs while it runs, so the
 // probe-log unit of a ZAP run is the page with its scope, written before it starts: one address and port, the URL, the tool and its
-// options, the time (D-562 as amended by D-521). The spider's own requests stay inside that scope because the host's network fence
+// options, the time. The spider's own requests stay inside that scope because the host's network fence
 // allows nothing else; they are not logged one by one.
 type WebProbe struct {
 	ID   string
@@ -82,7 +82,7 @@ type WebScan struct {
 const (
 	MaxWebReport = 4 << 20 // bytes of a ZAP report that are read; a bigger one is refused
 	// MaxWebScans bounds the pages one scan hands to ZAP (each run takes up to 1 GiB and minutes: ponytail: four, then "not scanned"
-	// lines; upgrade: a setting once the N100 measurement says how many fit).
+	// lines; upgrade: a setting once a measurement on real hardware says how many fit).
 	MaxWebScans    = 4
 	WebScanTimeout = 8 * time.Minute // one page: the spider runs 1 minute and the passive rules wait at most 5 (-m 1 -T 5)
 
@@ -101,7 +101,7 @@ const (
 	notSetUpWeb = "Passive web scan (ZAP) is not set up on this box yet." //nolint:gosec // a sentence about the passive web scan, not a credential
 	notWebNoLog = "Passive web scan (ZAP) did not run: the probe log is not available, and nothing is sent without it."
 	notWebNone  = "Passive web scan (ZAP): no web port was identified, so no page was scanned."
-	// D-522: the line of an IP scan whose service identification did not complete (notWebNone would read as "no web site"),
+	// The line of an IP scan whose service identification did not complete (notWebNone would read as "no web site"),
 	// and of an address that answers on every port (its "open" web ports are the router's, not sites).
 	notWebNoIdent = "Passive web scan (ZAP) did not run: service identification did not run or did not finish, so the web ports are not known."
 	notWebTarpit  = "Passive web scan (ZAP) did not run: this address answers on more ports than a normal box exposes, so its web ports cannot be told apart."
@@ -125,7 +125,7 @@ type WebFindingRow struct {
 	Solution    string   `json:"solution"`
 	URLs        []string `json:"urls"`
 	Count       int      `json:"count"`
-	// D-565 (zaprules.go): Group is "fix" or "hardening" by content/zap/vedette-baseline.conf; Software the versions ZAP read.
+	// zaprules.go: Group is "fix" or "hardening" by content/zap/vedette-baseline.conf; Software the versions ZAP read.
 	Group    string        `json:"group"`
 	Software []WebSoftware `json:"software"`
 }
@@ -275,7 +275,7 @@ func sampleURL(raw, site string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	// Path parameters carry session ids too ("/app;jsessionid=…"): the path ends at the first ';' (review r2).
+	// Path parameters carry session ids too ("/app;jsessionid=…"): the path ends at the first ';'.
 	if i := strings.IndexByte(u.Path, ';'); i >= 0 {
 		u.Path, u.RawPath = u.Path[:i], ""
 	}
@@ -353,7 +353,7 @@ func sanitizeWeb(in []WebFindingRow) []WebFindingRow {
 			out = append(out, r)
 		}
 	}
-	sortWebGroups(out) // D-565: "Fix this" first, so the cap never cuts them before hardening rows (review r1 L5)
+	sortWebGroups(out) // "Fix this" first, so the cap never cuts them before hardening rows
 	if len(out) > maxWebFindings {
 		out = out[:maxWebFindings]
 	}
@@ -502,7 +502,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		slow := wctx.Err() != nil
 		cancel()
 		if err == nil {
-			rows, perr := parseZAPWithRules(res.Report, page.URL) // D-565: the rule list applied
+			rows, perr := parseZAPWithRules(res.Report, page.URL) // The rule list applied
 			switch {
 			case perr == nil:
 				c.WebFindings = append(c.WebFindings, rows...)

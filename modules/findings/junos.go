@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Juniper Junos OS (W1-32, D-510). A Junos version is a release ("15.1"), a release type and number ("R7": the 7th
+// Juniper Junos OS. A Junos version is a release ("15.1"), a release type and number ("R7": the 7th
 // maintenance release; "F6": feature release), an optional service release ("-S5") and a build ("R7.9": build 9 of
 // R7, which is still R7). The "X" trains ("12.3X48-D105", "15.1X49-D200") are special releases of their own, with
 // maintenance releases "D". NVD writes them as version and update: "junos:15.1:r7", "junos:21.4:r3-s5",
@@ -107,7 +107,7 @@ func isJunos(c CPE) bool {
 	return okV && okP && norm(v) == "juniper" && norm(p) == "junos"
 }
 
-// junosEval decides a Junos configuration for a Junos version (D-510). ok is false when the rule does not apply (not
+// junosEval decides a Junos configuration for a Junos version. ok is false when the rule does not apply (not
 // Junos, or a version that is not written the Junos way): the generic comparison then answers. Like every scheme rule
 // it gives No only when sure: a range bound or an update it cannot read is Unknown.
 func junosEval(c CPE, r VersionRange, ver string) (t Tri, within VersionRange, ok bool) {
@@ -233,7 +233,7 @@ type junosList struct {
 // not list: between listed releases (a range's end counts: "before 15.1" and 16.1 rows leave 15.1 out) Unknown; the
 // range's end release itself, a release with only other trains or unread rows listed ("15.1:f"), or one before every
 // listed release, no finding, no proof ("15.1:-" alone: Unknown). Only a version after every release NVD lists is proved
-// outside (proof true: D-530 may close a finding).
+// outside (proof true: auto-resolve may close a finding).
 //
 // ponytail: the tail of a branch is a guess from NVD's list: a build after the last listed update is taken as fixed (the
 // usual case; Unknown would flag every patched build), so a build NVD forgot (15.1R7-S6 of CVE-2020-1631) gets no finding.
@@ -313,14 +313,14 @@ func junosEnd(r VersionRange) (junosVer, bool) {
 
 // Juniper names its platforms by series, and CISA's entry names the series a Junos flaw is about ("Juniper Junos OS
 // EX Series and SRX Series PHP External Variable Modification Vulnerability"). The model a device states ("EX4200-48T")
-// gives its series (D-510).
+// gives its series.
 var (
 	kevSeriesRe   = regexp.MustCompile(`\b(vSRX|SRX|EX|MX|QFX|ACX|PTX|NFX)(\d*)\b`)
 	modelSeriesRe = regexp.MustCompile(`(?i)^(?:juniper\s+(?:networks\s+)?)?(v?srx|ex|mx|qfx|acx|ptx|nfx)(?:\d|-|\s|$)`)
 )
 
 // otherSeries reports whether a Juniper entry names platform series (named) and the device's model is none of them: an
-// SRX-only flaw on an EX4200 (D-510). Every series token of the name counts, in any list form ("SRX and EX Series", "MX
+// SRX-only flaw on an EX4200. Every series token of the name counts, in any list form ("SRX and EX Series", "MX
 // Series and EX9200 Series", review M1 of #703): the device is ruled out only when its own series appears nowhere in the
 // name. An unknown model, a name without "Series", or another vendor's entry never rules anything out.
 func otherSeries(model string, v Vuln) (named []string, out bool) {

@@ -25,13 +25,13 @@ type ApprovalRequest struct {
 	Severity Severity
 	Risk     Risk
 	Expires  time.Time
-	// Channels are the channels the response module allows for this request; empty sends nothing (PRE-4, D-96). Only
+	// Channels are the channels the response module allows for this request; empty sends nothing (PRE-4). Only
 	// a channel that is in the list and has approvals on receives a message.
 	Channels []channel.Type
 	// InAppOnly is a high-risk request from the AI (INV-16 of response): every channel only gets a message that says
 	// to open Vedette. No approval link, no button, no reply code, and no token is made or recorded.
 	InAppOnly bool
-	// NoChatButtons: no chat channel gets Approve/Reject buttons, only a message that says to open Vedette (D-175: response decides, from
+	// NoChatButtons: no chat channel gets Approve/Reject buttons, only a message that says to open Vedette (response decides, from
 	// the risk and from whether the whole change fits one message; notify only obeys).
 	NoChatButtons bool
 }
@@ -44,7 +44,7 @@ const (
 // SendApprovalRequest tells the approvers (PRE-4, S-RESP-2 transport for email). Every email approver gets
 // their own message at their own address, never the alert list: with a signed one-time link when the risk
 // allows a link and a token recorder is wired (spec approval-tokens.md 4; the record of the token, with the
-// address, is stored by the TokenRecorder before the mail goes out), otherwise (high risk, D-57 item 20, or no
+// address, is stored by the TokenRecorder before the mail goes out), otherwise (high risk, or no
 // recorder) a message that says to open Vedette. Other channels with approvals on get one message without a
 // link that approves; on Telegram and Slack it carries Approve/Reject buttons (tglisten.go, slacklisten.go) unless the
 // request is in-app only. On Zalo personal, when reply codes are allowed (replyCodesAllowed), every approver instead gets
@@ -139,7 +139,7 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 			if len(plan) > planned {
 				continue
 			}
-			// every approver was skipped (left, demoted, or an address saved before D-242): the channel still hears about the
+			// every approver was skipped (left, demoted, or an address saved by an older release): the channel still hears about the
 			// request, with the message that says to open Vedette
 		}
 		if ac.Type != channel.Email {
@@ -297,7 +297,7 @@ func (s *Service) VerifyApprovalLink(ctx context.Context, token string, b Bindin
 
 // approverProblem re-checks an approver before a link is minted for them (the saved list may be old): the user must still
 // exist, be active and be an operator or administrator, and on the email channel the saved address must still be their sign-in email.
-// With Config.ApproverLinks set, the address must also be linked by the user in My account (D-191); an error from it is a problem too.
+// With Config.ApproverLinks set, the address must also be linked by the user in My account; an error from it is a problem too.
 // It returns why not, or "" when the approver is fine. A directory that cannot answer counts as not fine (fail closed).
 func (s *Service) approverProblem(ctx context.Context, ch channel.Type, a Approver) string {
 	why, err := s.approverCheck(ctx, ch, a)

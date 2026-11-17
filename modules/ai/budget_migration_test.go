@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// D-531, migration 0009: a box upgraded from daily caps keeps the same allowance over a month: the shared cap of ai_setting config
+// Migration 0009: a box upgraded from daily caps keeps the same allowance over a month: the shared cap of ai_setting config
 // and each profile's cap become 30 times themselves, under the new names; the daily column is gone.
 func TestUpgradeTurnsDailyCapsIntoMonthlyBudgets(t *testing.T) {
 	db := storetest.New(t)

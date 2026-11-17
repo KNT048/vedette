@@ -9,12 +9,12 @@ import { useEvents } from './api'
 import { runHref } from './links'
 import type { RescanEvent } from './types'
 
-// clear is only "no match reported" (D-133 (5)): neutral, never green; pick_only and stopped are neutral too (D-145 (7))
+// clear is only "no match reported": neutral, never green; pick_only and stopped are neutral too
 const tone = { matched: 'danger', clear: 'off', skipped_off: 'off', no_match: 'off', pick_only: 'off', stopped: 'off', expired_no_template: 'off', expired_scanner: 'off', expired_zone: 'off' } as const
 const linkClass = 'font-medium text-accent underline underline-offset-4'
 
 // The result of a rescan. pick_only says how many devices need a hand pick and links to Scan now (the device column names
-// them; Scan now never ticks them for you, D-126 (2)); stopped links to the run, whose results show what was not checked.
+// them; Scan now never ticks them for you); stopped links to the run, whose results show what was not checked.
 function ResultCell({ r }: { r: RescanEvent }) {
   const { t } = useTranslation('scan')
   if (r.result === 'pick_only') {

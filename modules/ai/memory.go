@@ -410,7 +410,7 @@ func (s *Service) RejectSuggestion(ctx context.Context, who, id string) error {
 
 // SuggestMemory stores a suggestion of the AI (INV-8). It is the only way a suggestion enters the box: it does nothing unless an
 // administrator allowed suggestions (ErrSuggestionsOff), at most MaxSuggestions wait (ErrTooManySuggestions), and a text that is
-// already remembered or already waiting is not stored again. The log digest (D-223) and Ask (D-225) call it. The suggestion is
+// already remembered or already waiting is not stored again. The log digest and Ask call it. The suggestion is
 // not memory: it reaches no prompt until an administrator accepts it.
 func (s *Service) SuggestMemory(ctx context.Context, text, evidence string) error {
 	_, err := s.suggestMemory(ctx, text, evidence)

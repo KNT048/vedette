@@ -18,7 +18,7 @@ const (
 // MatchedAsset is a device that matches a vulnerable product.
 type MatchedAsset struct {
 	ID       string  `json:"id"`
-	Hostname *string `json:"hostname"` // the name a person gave the device in Vedette (G2), else its host name; nil when neither
+	Hostname *string `json:"hostname"` // the name a person gave the device in Vedette, else its host name; nil when neither
 	IP       string  `json:"ip"`
 	Display  string  `json:"display"`
 	How      YouHave `json:"how"` // yes or maybe, never no
@@ -43,11 +43,11 @@ type Inventory interface {
 	// AddManualDevice declares one manually added device that runs the product. It runs inside the caller's
 	// write transaction (tx) so the device, the audit row of the inventory and the answer commit together. It
 	// returns the new device's id, or "" when the inventory does not say it: then "I have this" scopes no device
-	// (D-484, HaveSince) and findings match it like any other device.
+	// (HaveSince) and findings match it like any other device.
 	AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d ManualDevice) (deviceID string, err error)
 }
 
-// DistroLister is an optional extension of Inventory (D-570, D-622): the distributions ("ubuntu", "debian") of the devices the
+// DistroLister is an optional extension of Inventory: the distributions ("ubuntu", "debian") of the devices the
 // distribution feeds can answer for (an Ubuntu or Debian device with deb packages an agent read), each with the source packages of
 // those devices as the security data names them (findings.DevicePackages): the tier rows are kept for them only. Without it, or
 // with the inventory module off, feeds pulls every enabled distribution feed as before and keeps no tier row.
@@ -55,8 +55,8 @@ type DistroLister interface {
 	Distros(ctx context.Context) (map[string]map[string]bool, error)
 }
 
-// PlatformChecker is an optional extension of Inventory (D-549, KF-CVEPAGE): among ids, the devices that the findings matcher's platform
-// rules (D-547) prove are not affected by the CVE (an Ubuntu box for an Alpine-only OpenSSH flaw), so "Do you have it?" on the CVE
+// PlatformChecker is an optional extension of Inventory (KF-CVEPAGE): among ids, the devices that the findings matcher's platform
+// rules prove are not affected by the CVE (an Ubuntu box for an Alpine-only OpenSSH flaw), so "Do you have it?" on the CVE
 // page agrees with the device's findings. distro is what the distribution feeds that are on say about the CVE (DistroFixesOf): a package
 // release a person gave is read against it. Without it the page answers by product only, as before.
 type PlatformChecker interface {

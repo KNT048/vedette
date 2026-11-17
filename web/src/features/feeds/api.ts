@@ -20,7 +20,7 @@ export function useAnswerWeekly() {
 
 export const CVE_ID = /^CVE-\d{4}-\d{4,}$/
 export const useCve = (id: string) => useQuery({ queryKey: ['feeds', 'cve', id], queryFn: () => api.get<CveDetail>(`/feeds/cve/${encodeURIComponent(id)}`), retry: false, enabled: CVE_ID.test(id) })
-/** D-613 (S-TIER-1): a CVE on no exploited list, from the tier data; asked only after the exploited list answered not_in_kev. */
+/** S-TIER-1: a CVE on no exploited list, from the tier data; asked only after the exploited list answered not_in_kev. */
 export const useTierCve = (id: string, enabled: boolean) => useQuery({ queryKey: ['feeds', 'cve', id, 'tier'], queryFn: () => api.get<TierCve>(`/feeds/cve/${encodeURIComponent(id)}/tier`), retry: false, enabled: enabled && CVE_ID.test(id) })
 
 export const useSearch = (q: string) =>

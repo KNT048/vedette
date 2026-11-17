@@ -5,7 +5,7 @@
 // paths use a stand-in model on loopback (fake-ai.ts) that answers by what the box asks for: explain with its cache and a fallback profile, Ask your data with
 // read-only tools and the hooks, the log digest, memory suggestions and the knowledge base (S-AI-2, S-AI-4, S-AI-5, S-AI-7).
 // Hooks, rules, the token level, retention and the profile forms are real and need no provider. Global project: all of it is box-wide, and every test puts it back.
-// CVE news fetches NVD, GitHub and blogs: the e2e box answers them from a fake internet on loopback (D-426), so the refusals and the fetch-and-summarise path are both tested.
+// CVE news fetches NVD, GitHub and blogs: the e2e box answers them from a fake internet on loopback, so the refusals and the fetch-and-summarise path are both tested.
 import { createSocket } from 'node:dgram'
 import { createServer, type Server } from 'node:net'
 import { crc32 } from 'node:zlib'
@@ -473,7 +473,7 @@ async function rule(c: APIRequestContext, jobs: string[]): Promise<string> {
   expect((await api(c, 'POST', '/ai/rules', { text, jobs, enabled: true })).status).toBe(200)
   return text
 }
-/** A one-page PDF whose only content is `text` (no parentheses or backslashes in it): the box reads it in its limited child process (INV-10, D-264). */
+/** A one-page PDF whose only content is `text` (no parentheses or backslashes in it): the box reads it in its limited child process (INV-10). */
 function pdf(text: string): Buffer {
   const content = `BT /F1 12 Tf 72 700 Td (${text}) Tj ET`
   const bodies = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',

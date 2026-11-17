@@ -640,7 +640,7 @@ func allDigits(s string) bool {
 	return true
 }
 
-// findPhones finds phone numbers. An IP address literal (IPv4 or IPv6) that stands alone is not a phone number (D-205): the
+// findPhones finds phone numbers. An IP address literal (IPv4 or IPv6) that stands alone is not a phone number: the
 // finder reads the text with each such address blanked out (same length, so offsets are unchanged), so it never matches inside
 // or across one, and a number written next to an address is still found. After a match the search goes on one byte past its
 // start, so a number that begins inside an earlier, longer candidate (the "01" of NAS-01 before "(0912 345 678)") is masked

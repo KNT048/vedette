@@ -87,7 +87,7 @@ func TestQueueDeviceStoppedBySettingsKeepsItsAttempts(t *testing.T) {
 	}
 }
 
-// POST-1 / D-84 (6) / M5: a sweep cut by the window's end continues where it stopped in the next window, so a range
+// POST-1: a sweep cut by the window's end continues where it stopped in the next window, so a range
 // that one window cannot cover is finished over several days.
 func TestSweepCutByTheWindowResumesWhereItStopped(t *testing.T) {
 	t.Parallel()
@@ -152,7 +152,7 @@ func TestContract_INV5_SweepSkipsProtectedAddresses(t *testing.T) {
 	}
 }
 
-// L2 / D-45: nmap finished the gentle scan but storing its results failed (a busy database, say). The one
+// nmap finished the gentle scan but storing its results failed (a busy database, say). The one
 // scan happened, so first_scan_at is set and the fragile device is not scanned a second time.
 func TestContract_INV5_FirstScanIsMarkedWhenNmapFinishedEvenIfRecordingFails(t *testing.T) {
 	t.Parallel()
@@ -169,7 +169,7 @@ func TestContract_INV5_FirstScanIsMarkedWhenNmapFinishedEvenIfRecordingFails(t *
 		return sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true}, true
 	}
 	sw := &failingSoftware{sink: e.sink, fail: errors.New("database is locked")}
-	// the gentle scan records only its ports (it leaves the software alone, D-501), so that is the write that fails
+	// the gentle scan records only its ports (it leaves the software alone), so that is the write that fails
 	svc, err := sa.New(sa.Config{DB: e.db, Inventory: h, Observe: e.sink, Software: sw, Services: sw, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
@@ -320,7 +320,7 @@ func (p *pendingInv) PendingGentleScans(context.Context) ([]string, error) {
 	return p.ids, nil
 }
 
-// D-511 (#714 round 2, M1): a device whose first scan inventory migration 0004 cleared gets no inventory.asset.discovered event;
+// #714 round 2, M1: a device whose first scan inventory migration 0004 cleared gets no inventory.asset.discovered event;
 // the first tick queues it (once per start) and the window runs its gentle scan with titles.
 func TestPendingGentleScanRunsAtTheFirstWindowTick(t *testing.T) {
 	t.Parallel()

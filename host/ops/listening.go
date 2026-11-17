@@ -189,7 +189,7 @@ func validUnitName(name string) bool {
 // readPorts is GET /v1/state/ports (inventory INV-3, host INV-9b): the ports the box listens on at an address other than loopback,
 // for its own device's Open services. The box is never scanned by its own sensor, and an agent-style list is what it can give of
 // itself (Defender, runZero and Lansweeper list an agent's listening ports the same way). It reads the kernel's socket tables and,
-// for the sockets it keeps, which processes hold them (the reading of D-455's port check): no program runs, no socket is opened.
+// for the sockets it keeps, which processes hold them (the reading of the port check): no program runs, no socket is opened.
 // A TCP socket in LISTEN or a UDP socket with no peer counts when another machine of the network can reach it: bound to every
 // address (0.0.0.0, ::) or to an address of one of the box's network cards (a device with a hardware parent, or the management
 // interface). One bound to loopback, to a container bridge (Podman's aardvark-dns on 10.89.0.1:53, docker0) or to any other virtual

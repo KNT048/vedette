@@ -17,7 +17,7 @@ import (
 )
 
 // A minimal client of the Greenbone Management Protocol (GMP, XML over the gvmd unix socket) for the optional deep scan
-// (S-EXP-2, CONTRACT INV-25, D-563). It speaks only the commands the scan needs: authenticate, get_feeds and get_configs
+// (S-EXP-2, CONTRACT INV-25). It speaks only the commands the scan needs: authenticate, get_feeds and get_configs
 // (readiness), create/modify_config, create_port_list, create_target, create_task, start_task, get_tasks, get_reports, stop_task and
 // the deletes that clean up after a scan (get_port_lists only to find Vedette's leftover port lists). gvmd is a separate program in Greenbone's own containers; nothing of it is linked here.
 //
@@ -35,15 +35,15 @@ const (
 	gbObjectPrefix = "vedette-scan-"
 	// gmpBruteOID is the feed's "Options for Brute Force NVTs" (family Settings): its checkboxes "Disable brute force checks" and
 	// "Disable default account checks" set the KB keys that credential tests in other families read, so turning the families off
-	// alone does not stop them (D-563 review r1 M2).
+	// alone does not stop them.
 	gmpBruteOID = "1.3.6.1.4.1.25623.1.0.103697"
 	// gmpGlobalOID is the feed's "Global variable settings" (family Settings): its checkbox "Enable generic web application scanning"
-	// turns on the generic SQL injection, XSS and directory-traversal fuzzing of the web application tests: off in the deep level (Greenbone's default; on the N100 it kept three CPU-bound NVTs running 40+ min, #915), on only with the disruptive tick (D-566).
+	// turns on the generic SQL injection, XSS and directory-traversal fuzzing of the web application tests: off in the deep level (Greenbone's default; on a test box it kept three CPU-bound NVTs running 40+ min, #915), on only with the disruptive tick.
 	gmpGlobalOID = "1.3.6.1.4.1.25623.1.0.12288"
 	// gmpWebRootTravOID is the feed's "Generic HTTP Directory Traversal / File Inclusion (Web Root) - Active Check" (family Web
 	// application abuses, ACT_ATTACK, its own 30-minute script_timeout). It is the one generic web traversal test that the checkbox
 	// above does not gate (it reads only "Enable CGI scanning"), so the deep level leaves it out of its config by name (#915: on
-	// the N100 it ran its full 30 minutes at 98% on every deep scan and found nothing).
+	// a test box it ran its full 30 minutes at 98% on every deep scan and found nothing).
 	gmpWebRootTravOID = "1.3.6.1.4.1.25623.1.0.106756"
 	gmpWebFamily      = "Web application abuses"
 	// GreenboneMinQoD is the lowest quality of detection a result is read with (Greenbone's own default filter is 70).
@@ -51,8 +51,8 @@ const (
 
 	gmpMaxAnswer = 1 << 20 // bytes of an answer other than a report
 	gmpMaxReport = 8 << 20 // bytes of a report; a bigger one is refused, never cut
-	// gmpMaxPrefs bounds the one answer that lists every preference of a scan config (readBack, N45-5): a copy of "Full and fast"
-	// carries the scanner preferences and every NVT preference of the feed (measured on the N100's gvmd, 2026-11-14: 394 KB, 1,301
+	// gmpMaxPrefs bounds the one answer that lists every preference of a scan config (readBack): a copy of "Full and fast"
+	// carries the scanner preferences and every NVT preference of the feed (measured on a test box's gvmd: 394 KB, 1,301
 	// preferences; the cap leaves room for ten times that). A bigger answer is refused, never cut.
 	gmpMaxPrefs = 4 << 20
 	// gmpMaxNVTs bounds a get_nvts answer of one family without details (levelNVTs): the community feed's Web application abuses
@@ -66,7 +66,7 @@ const (
 )
 
 // gmpDisruptiveFamilies are the families of "Full and fast" that guess passwords, log in with default accounts or try to crash a
-// service: on only with the disruptive tick of the testing terms (D-566).
+// service: on only with the disruptive tick of the testing terms.
 var gmpDisruptiveFamilies = []string{"Brute force attacks", "Default Accounts", "Denial of Service"}
 
 // gmpCheckbox is one checkbox of an NVT's preferences that Vedette's config must hold before a task starts: set on every scan and
@@ -75,7 +75,7 @@ type gmpCheckbox struct {
 	oid, name, value string
 }
 
-// gbLevel is one of Vedette's two scan configs, each a copy of "Full and fast" of its own (D-566): which disruptive families are
+// gbLevel is one of Vedette's two scan configs, each a copy of "Full and fast" of its own: which disruptive families are
 // on, safe_checks and the checkboxes. A level never changes into the other: each has its config, found by name.
 type gbLevel struct {
 	name       string // the config's name in Greenbone
@@ -86,7 +86,7 @@ type gbLevel struct {
 	webOff     []string // NVTs of the family Web application abuses left out of the config (#915); none keeps the whole family
 }
 
-// The two levels (D-566): the deep scan of accepted testing terms, and the deep scan with the disruptive tick.
+// The two levels: the deep scan of accepted testing terms, and the deep scan with the disruptive tick.
 var (
 	gbDeep = gbLevel{
 		name: "vedette-deep-full-and-fast", disruptive: false, safeChecks: "yes",
@@ -129,7 +129,7 @@ var (
 	ErrGMPBad      = errors.New("exposure: unreadable GMP answer")
 	errGMPNotFound = errors.New("exposure: GMP: not found")
 	errGMPAuth     = errors.New("exposure: GMP: authentication failed")
-	// errGMPSlow: gvmd did not answer within the command's deadline. It is slow, not unreadable (review r1 M3).
+	// errGMPSlow: gvmd did not answer within the command's deadline. It is slow, not unreadable.
 	errGMPSlow = errors.New("exposure: GMP: no answer in time")
 )
 
@@ -368,7 +368,7 @@ func (g *gmpConn) readiness(ctx context.Context) (loading bool, feeds gmpFeeds, 
 // levelConfig returns the id of Vedette's config of one level, creating it once as a copy of "Full and fast" (reused by name only
 // when the GMP user owns it), and on every scan puts back and reads back what the level needs, so a half-made or edited copy is put
 // right (fail closed): the disruptive families on or off, safe_checks, and the checkboxes of "Options for Brute Force NVTs" and
-// "Global variable settings" (D-566). A config used by a task Vedette did not start cannot be changed: that is said, and nothing
+// "Global variable settings". A config used by a task Vedette did not start cannot be changed: that is said, and nothing
 // starts.
 func (g *gmpConn) levelConfig(ctx context.Context, user string, lv gbLevel) (string, error) {
 	var full gmpConfigs
@@ -438,7 +438,7 @@ func (g *gmpConn) levelConfig(ctx context.Context, user string, lv gbLevel) (str
 	return id, g.readBack(ctx, id, lv)
 }
 
-// readBack checks the families and safe_checks of the config after they were set (D-566): a disruptive family on in the deep config,
+// readBack checks the families and safe_checks of the config after they were set: a disruptive family on in the deep config,
 // or off in the disruptive one, or safe_checks not as set, starts nothing.
 func (g *gmpConn) readBack(ctx context.Context, id string, lv gbLevel) error {
 	var got gmpConfigs
@@ -454,10 +454,10 @@ func (g *gmpConn) readBack(ctx context.Context, id string, lv gbLevel) error {
 			return &Unavailable{Reason: "OpenVAS did not keep the family \"" + f + "\" " + onOff(lv.disruptive) + " in Vedette's scan config " + lv.name + ", so nothing was started."}
 		}
 	}
-	// N45-5: gvmd matches get_preferences preference="safe_checks" against NVT preferences only (no nvt_oid given), and
-	// safe_checks is a scanner preference: the N100's gvmd answered that filter with an empty 200, so the read-back said "not
+	// gvmd matches get_preferences preference="safe_checks" against NVT preferences only (no nvt_oid given), and
+	// safe_checks is a scanner preference: a real gvmd answered that filter with an empty 200, so the read-back said "not
 	// kept" while the value was stored. The whole list of the config holds it as the preference named safe_checks whose nvt oid
-	// is empty (measured on the N100: `<nvt oid=""><name></name></nvt>…<name>safe_checks</name>…<value>yes</value>`).
+	// is empty (measured on a test box: `<nvt oid=""><name></name></nvt>…<name>safe_checks</name>…<value>yes</value>`).
 	var p gmpPrefs
 	if _, err := g.do(ctx, "get_preferences", `<get_preferences config_id="`+id+`"/>`, gmpMaxPrefs, &p); err != nil {
 		return err
@@ -475,7 +475,7 @@ func onOff(on bool) string {
 	return "off"
 }
 
-// modifyConfig sends one modify_config; gvmd's refusal because a task uses the config is said as such (review r1 M4).
+// modifyConfig sends one modify_config; gvmd's refusal because a task uses the config is said as such.
 func (g *gmpConn) modifyConfig(ctx context.Context, name, body string) error {
 	_, err := g.do(ctx, "modify_config", body, gmpMaxAnswer, nil)
 	var se *gmpStatusError
@@ -510,7 +510,7 @@ func (p gmpPrefs) find(name string) (gmpPref, bool) {
 }
 
 // scanner finds a scanner preference (no NVT: an empty or absent nvt oid) by its name; an NVT preference of the same name does not
-// count (N45-5).
+// count.
 func (p gmpPrefs) scanner(name string) (gmpPref, bool) {
 	for _, x := range p.Prefs {
 		if strings.TrimSpace(x.NVT.OID) == "" && strings.TrimSpace(x.Name) == name {
@@ -639,7 +639,7 @@ func (g *gmpConn) levelNVTs(ctx context.Context, config string, lv gbLevel) erro
 	return nil
 }
 
-// gbPortRange is the port_range of a scan's own port list (N49-4, D-595): the TCP ports this run found open, "T:22,80,443". Greenbone's
+// gbPortRange is the port_range of a scan's own port list: the TCP ports this run found open, "T:22,80,443". Greenbone's
 // port_range is comma-separated entries, each optionally prefixed with T: or U:, an entry without one being TCP (GSM manual 9.7.1).
 func gbPortRange(ports []int) string {
 	parts := make([]string, len(ports))
@@ -649,7 +649,7 @@ func gbPortRange(ports []int) string {
 	return "T:" + strings.Join(parts, ",")
 }
 
-// createPortList makes the port list of one scan (N49-4, D-595): exactly the open TCP ports the run found, so OpenVAS runs its tests on
+// createPortList makes the port list of one scan: exactly the open TCP ports the run found, so OpenVAS runs its tests on
 // them instead of its own port discovery over the ~5,800 ports of "All IANA assigned TCP" (Greenbone's own advice: tune the port list
 // to the ports in use; a firewall that drops the rest makes the port scan wait for each one). It is deleted with the target.
 func (g *gmpConn) createPortList(ctx context.Context, name string, ports []int) (string, error) {
@@ -731,7 +731,7 @@ func (g *gmpConn) taskStatus(ctx context.Context, task string) (string, int, err
 	return st, p, nil
 }
 
-// report reads the results of a finished task (or of one stopped at the cap: gvmd writes what it found when it stops, D-595) with QoD at least GreenboneMinQoD, levels high, medium and low (log notes are not read).
+// report reads the results of a finished task (or of one stopped at the cap: gvmd writes what it found when it stops) with QoD at least GreenboneMinQoD, levels high, medium and low (log notes are not read).
 func (g *gmpConn) report(ctx context.Context, report, ip string) ([]GreenboneRow, error) {
 	r := &gmpReport{}
 	if _, err := g.do(ctx, "get_reports", `<get_reports report_id="`+report+`" details="1" ignore_pagination="1" filter="min_qod=`+
@@ -833,7 +833,7 @@ func (g *gmpConn) leftovers(ctx context.Context, user string) (problems []string
 			problems = append(problems, "an earlier target of Vedette's could not be deleted: "+clipText(err.Error(), 160))
 		}
 	}
-	o = gmpObjects{} // N49-4: after the targets, which use them
+	o = gmpObjects{} // After the targets, which use them
 	if _, err := g.do(ctx, "get_port_lists", `<get_port_lists filter="name~`+gbObjectPrefix+` rows=-1"/>`, gmpMaxAnswer, &o); err != nil {
 		return problems, err
 	}

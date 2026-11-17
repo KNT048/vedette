@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make sbom / make vuln-scan (WP-08i, D-159): CycloneDX SBOMs and the vulnerability gate, with trivy run from its official container image
+# make sbom / make vuln-scan (WP-08i): CycloneDX SBOMs and the vulnerability gate, with trivy run from its official container image
 # (pinned by digest in deploy/tools.env), on the LOCAL images of `make images` (tag IMAGE_TAG, every platform of PLATFORMS) and on the source tree.
 #   supply-chain.sh sbom   writes dist/sbom/<image>-<arch>.cdx.json for core, sensor, scan-base, honeypot and dist/sbom/source.cdx.json
 #   supply-chain.sh scan   prints every finding (all severities), then fails when an image or the source has a HIGH or CRITICAL vulnerability
@@ -127,7 +127,7 @@ scan_one() { # $1 = label, rest = the trivy scan command
 	local label=$1
 	shift
 	# the report gets its name <label>.json only once its gate is green: `release gates` requires that name (and the source's), so a
-	# red gate (<label>.gate-failed.json) or a run stopped before its gate (<label>.unchecked.json) leaves nothing it accepts (D-410)
+	# red gate (<label>.gate-failed.json) or a run stopped before its gate (<label>.unchecked.json) leaves nothing it accepts
 	"$@" --scanners vuln --format json --output "/dist/vuln/$label.unchecked.json" >/dev/null
 	say "report $label: every severity, fixed or not (full list: dist/vuln/$label.json with RELEASE=1)"
 	"$@" --scanners vuln --format table --report summary 2>/dev/null | sed 's/^/    /'

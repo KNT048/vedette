@@ -215,7 +215,7 @@ func TestContract_INV4_ConnectionTestsCountAgainstTheBudget(t *testing.T) {
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "AI budget of 1,000 tokens is used up") {
 		t.Fatalf("message = %q", msg)
 	}
-	// at a higher level a probe that passes the budget lowers no level (D-531): the budget stops, it does not slide
+	// at a higher level a probe that passes the budget lowers no level: the budget stops, it does not slide
 	a2 := newAPI(t)
 	a2.want("PUT", "/ai/config", "admin", `{"tier":"max","monthly_budget":1000,"redact_pii":true}`, 200, "")
 	a2.fake.setProbeUsage(600, 400)
@@ -261,7 +261,7 @@ func TestContract_INV3_NoAddressThatReachesTheBoxItselfOrTheNeighbourhood(t *tes
 	for _, ok := range []string{"http://10.0.0.7:8000/v1", "http://100.64.1.1:8000/v1", "http://[fd00::7]:11434/v1"} {
 		a.want("POST", "/ai/profiles", "admin", strings.Replace(internalBody("n-"+ok[7:12]), "http://192.168.10.5:11434/v1", ok, 1), 200, "")
 	}
-	// D-446: loopback is Vedette itself (in the container, core); so are Vedette's own ports (here on every address: the test box
+	// loopback is Vedette itself (in the container, core); so are Vedette's own ports (here on every address: the test box
 	// does not know the machine's addresses). Same sentence at save and at Test.
 	for _, own := range []string{"http://127.0.0.1:11434/v1", "http://[::1]:11434/v1", "http://localhost:11434/v1", "http://10.0.0.7:8443/v1"} {
 		for _, call := range []string{"/ai/profiles", "/ai/profiles/test"} {

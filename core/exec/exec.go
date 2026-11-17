@@ -125,13 +125,13 @@ func NewRunner(log *slog.Logger, bins ...Binary) (*Runner, error) {
 }
 
 // allowedEnv is the whole list of keys a binary may add to the fixed environment: what vedette-host needs, and HOME for the
-// scan container's nuclei (an absolute path on a tmpfs, so that no ~/.config of the image is read: D-125 (2), D-136 (5)).
+// scan container's nuclei (an absolute path on a tmpfs, so that no ~/.config of the image is read).
 // Everything else (LD_*, LC_*, PATH, LANG, PYTHON*, ...) is refused by name,
 // so a typo or a hostile caller cannot reshape how the child loads code or localises output.
 var allowedEnv = map[string]bool{"DEBIAN_FRONTEND": true, "HOME": true, "NEEDRESTART_MODE": true, "NEEDRESTART_SUSPEND": true}
 
 // constEnv are the keys of allowedEnv that take one value only: the applier of vedette-host's self-update runs apt and
-// dpkg with needrestart told to list, not restart, and to stay out of the way (as install.sh apt_run does, D-316).
+// dpkg with needrestart told to list, not restart, and to stay out of the way (as install.sh apt_run does).
 var constEnv = map[string]string{"NEEDRESTART_MODE": "l", "NEEDRESTART_SUSPEND": "1"}
 
 // checkEnv accepts KEY=value entries whose key is on allowedEnv, once each, without NUL.

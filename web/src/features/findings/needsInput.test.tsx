@@ -8,7 +8,7 @@ import { assetsStore } from '@/mocks/stores'
 import type { Asset } from '@/lib/types'
 import type { FindingAsset, ToFix, ToFixAction, ToFixDevice, UncheckedItem, VersionNeeded } from './types'
 
-// kien G15 (J3, S-MIT-1): Needs your input, one block per device, the worst first; every item says what to do and offers it there.
+// S-MIT-1: Needs your input, one block per device, the worst first; every item says what to do and offers it there.
 const T = { timeout: 5000 }
 const asset = (id: string, name: string): FindingAsset => ({ id, name, hostname: name, ip: '192.168.18.20', kind: 'server', display: name })
 const act = (o: Partial<ToFixAction>): ToFixAction => ({ group: 'g', software_id: '', software: '', version: '', product: '', source: '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, action: '',
@@ -26,7 +26,7 @@ const names = async () => { const l = await blocks(); return within(l).getAllByR
 const toggle = async (device: string) => within(await blocks()).findByRole('button', { name: new RegExp(`^${device.replace(/[()]/g, '\\$&')}`) }, T)
 const expand = async (device: string) => { await userEvent.click(await toggle(device)); return screen.findByRole('listitem', { name: device }, T) }
 
-describe('Findings › Needs your input by device (kien G15)', () => {
+describe('Findings › Needs your input by device', () => {
   it('one block per device, To fix\'s order first, then what is to settle, then what could not be checked; collapsed by default', async () => {
     const pc = asset('a-pc', 'PC-A'), desk = asset('a-desk', 'DESK-B'), zz = asset('a-zz', 'ZZ-SERVER'), yy = asset('a-yy', 'AA-PRINTER')
     serve({ version_needed: [need(zz, 'Microsoft Office'), need(pc, 'Microsoft SQL Server')], unchecked: [unc(yy, 'Printer firmware', ['CVE-2026-1']), unc(desk, 'Windows 11 Pro', ['CVE-2026-2', 'CVE-2026-3'])] },
@@ -58,7 +58,7 @@ describe('Findings › Needs your input by device (kien G15)', () => {
     expect(await screen.findByRole('list', { name: 'What only you can settle on SRV-FILE' }, T)).toHaveTextContent(/Microsoft SQL Server has no version: adding it checks 6 exploited CVEs\./)
   })
 
-  it('software a person added: the version is typed in place, Vedette checks it at once and the item leaves (the N100\'s SQL Server)', async () => {
+  it('software a person added: the version is typed in place, Vedette checks it at once and the item leaves (a SQL Server)', async () => {
     renderApp('/findings?tab=input')
     const block = await expand('SRV-FILE')
     expect(await within(block).findByText(/You added it by hand: type the version it runs/, undefined, T)).toBeInTheDocument()
@@ -78,7 +78,7 @@ describe('Findings › Needs your input by device (kien G15)', () => {
     await waitFor(() => expect(screen.queryByRole('listitem', { name: 'SRV-FILE' }) ?? document.body).not.toHaveTextContent(/Microsoft SQL Server has no version/), T)
   })
 
-  it('a version Vedette cannot compare is corrected in place too (the N100\'s FortiGate "latest")', async () => {
+  it('a version Vedette cannot compare is corrected in place too (a FortiGate "latest")', async () => {
     renderApp('/findings?tab=input')
     const block = await expand('Fortinet')
     expect(block).toHaveTextContent(/FortiGate version "latest" cannot be compared/)

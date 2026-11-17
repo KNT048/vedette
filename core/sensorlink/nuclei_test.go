@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/internal/jsonstrict"
 )
 
-// Protocol 2 (D-125): Job.kind, the nuclei job and result, the nuclei heartbeat, two running ids.
+// Protocol 2: Job.kind, the nuclei job and result, the nuclei heartbeat, two running ids.
 
 const nucleiJobJSON = `{"id":"c0ffee00c0ffee00c0ffee00c0ffee00","kind":"nuclei","timeout_s":600,"pack":{"version":"2026.11.10","sha256":"` +
 	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + `"},"templates":["CVE-2024-1","CVE-2024-2"],` +
@@ -188,7 +188,7 @@ func FuzzJobUnmarshal(f *testing.F) {
 	})
 }
 
-// D-165 (protocol 3): host_errors on a nuclei result is bounded and shaped; a result without it still decodes.
+// protocol 3: host_errors on a nuclei result is bounded and shaped; a result without it still decodes.
 func TestNucleiResultHostErrors(t *testing.T) {
 	t.Parallel()
 	head := `{"status":"done","reason":"","exit_code":0,"truncated":false,"xml_b64":""`
@@ -220,7 +220,7 @@ func TestNucleiResultHostErrors(t *testing.T) {
 	}
 }
 
-// D-520 (protocol 5, before its first release): the scope of a nuclei job and own_ip in the nuclei heartbeat. A LAN job keeps the
+// protocol 5, before its first release: the scope of a nuclei job and own_ip in the nuclei heartbeat. A LAN job keeps the
 // shape it had (no scope), so an older worker still reads it; an own_ip job carries its scope; an older decoder, which knows no
 // scope, refuses the own_ip job (strict decoding: fail closed, nothing runs).
 func TestNucleiScopeOnTheWire(t *testing.T) {
@@ -239,7 +239,7 @@ func TestNucleiScopeOnTheWire(t *testing.T) {
 	if err != nil || json.Unmarshal(out, &back) != nil || back.Nuclei.Scope != "own_ip" {
 		t.Fatalf("round trip %s %v %+v", out, err, back)
 	}
-	type nucleiJobOld struct { // the nuclei job before D-520
+	type nucleiJobOld struct { // the nuclei job of an older release
 		ID            string         `json:"id"`
 		Kind          string         `json:"kind"`
 		TimeoutS      int            `json:"timeout_s"`

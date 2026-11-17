@@ -8,7 +8,7 @@ import (
 )
 
 // ExternalTarget is a target of the exposure module as the scan list shows it. External targets are listed but
-// not scanned by this version (D-126 (4)): the reason is always one of unverified, expired, not_supported.
+// not scanned by this version: the reason is always one of unverified, expired, not_supported.
 type ExternalTarget struct {
 	ID       string // exposure target id, without the "ext:" prefix
 	Value    string // the domain or the IP
@@ -35,10 +35,10 @@ type TargetView struct {
 	Fragile    bool    `json:"fragile"`
 	Findings   int     `json:"findings"`
 	Selectable bool    `json:"selectable"`
-	PickOnly   bool    `json:"pick_only"` // only a person's tick picks it (D-126 (2)); the GUI never ticks it for them
-	Box        bool    `json:"box"`       // the Vedette box itself: pick-only (D-470), the GUI says so
+	PickOnly   bool    `json:"pick_only"` // only a person's tick picks it; the GUI never ticks it for them
+	Box        bool    `json:"box"`       // the Vedette box itself: pick-only, the GUI says so
 	Reason     *string `json:"reason"`
-	// For the picker's search and filters (D-472); nil (false for Approved) on an external target.
+	// For the picker's search and filters; nil (false for Approved) on an external target.
 	MAC      *string `json:"mac"`
 	Vendor   *string `json:"vendor"`
 	Approved bool    `json:"approved"`
@@ -98,7 +98,7 @@ func excluded(ip string, list []string) bool {
 	return false
 }
 
-// consent is D-126 in one place: may device d be scanned now, and how. explicit is true for a device a person
+// consent is the scan-consent rule in one place: may device d be scanned now, and how. explicit is true for a device a person
 // picked in Scan now (that pick is the consent for fragile, unclassified and hand-declared devices); schedules and
 // KEV rescans pass false. It returns the inventory's decision folded with scan's own rules (approved, scan
 // exclusions) as a scan reason: "" when allowed.
@@ -111,7 +111,7 @@ func (s *Service) consent(ctx context.Context, st Settings, d Device, explicit b
 	return reason, careful, nil
 }
 
-// policies reads the D-126 decision of every device in devs in one inventory read (D-472): no read per device. A
+// policies reads the consent decision of every device in devs in one inventory read: no read per device. A
 // device deleted since devs was read gets the decision of a gone device, as VulnScanPolicy's adapter gives it.
 func (s *Service) policies(ctx context.Context, devs []Device, explicit bool) (map[string]Decision, error) {
 	if len(devs) == 0 {
@@ -140,7 +140,7 @@ func fold(st Settings, d Device, dec Decision) (reason string, careful bool) {
 	case dec.Reason == reasonBox || dec.Reason == reasonNever:
 		return dec.Reason, false
 	case !d.Approved:
-		return "unapproved", false // D-84 (2): discovery may look at it, the vulnerability scan does not
+		return "unapproved", false // Discovery may look at it, the vulnerability scan does not
 	case excluded(d.IP, st.Exclusions):
 		return "excluded", false
 	case !dec.Allowed:
@@ -157,9 +157,9 @@ func targetReason(r string) string {
 	switch r {
 	case "", reasonNoScope:
 		return ""
-	case "unapproved", "excluded", reasonNever, reasonNoIP: // the box is never a list reason: picked, it is allowed (D-470)
+	case "unapproved", "excluded", reasonNever, reasonNoIP: // the box is never a list reason: picked, it is allowed
 		return r
-	case "declared_by_hand": // D-601: added by hand, its network scan off: the list says "never" (scan off on its page)
+	case "declared_by_hand": // Added by hand, its network scan off: the list says "never" (scan off on its page)
 		return reasonNever
 	}
 	return reasonOutOfScope
@@ -175,7 +175,7 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 	if err != nil {
 		return nil, fmt.Errorf("scan: reading the devices: %w", err)
 	}
-	// Two batch reads for the whole list (D-472): the decision when picked, and the one of an automatic run.
+	// Two batch reads for the whole list: the decision when picked, and the one of an automatic run.
 	picked, err := s.policies(ctx, devs, true)
 	if err != nil {
 		return nil, err

@@ -45,10 +45,10 @@ func deviceErrAuth(a Auth, format string, args ...any) *DeviceError {
 // redactions are the strings of this credential that must not appear in any text (Secrets).
 func (a Auth) redactions() []string { return Secrets(a.Type, a.Username, a.Secret.Reveal()) }
 
-// Auth is how the box signs in to an HTTP server (D-94 (1)). The secret is read from the vault by the caller.
+// Auth is how the box signs in to an HTTP server. The secret is read from the vault by the caller.
 type Auth struct {
 	Type     string // none, token or basic
-	Header   string // token only: the header the token goes in; "" sends Authorization: Bearer <token> (D-174)
+	Header   string // token only: the header the token goes in; "" sends Authorization: Bearer <token>
 	Username string
 	Secret   secrets.Value
 }
@@ -72,7 +72,7 @@ type Seen struct {
 	SystemTrusted bool   // a public authority vouches for the certificate and the name
 }
 
-// Client sends requests over HTTPS with the rules of D-94: TLS 1.2 or later, the pin or the roots decide, no redirect, no proxy,
+// Client sends requests over HTTPS with these rules: TLS 1.2 or later, the pin or the roots decide, no redirect, no proxy,
 // no retry, capped request, response and time.
 type Client struct {
 	cfg  HTTPSConfig
@@ -170,7 +170,7 @@ func (c *Client) verify(host string, cs tls.ConnectionState) error {
 	return nil
 }
 
-// ForbiddenHeader reports whether a template may not set a header (D-94 (1)): the sign-in is the connection's, the route is the
+// ForbiddenHeader reports whether a template may not set a header: the sign-in is the connection's, the route is the
 // box's, and hop-by-hop headers belong to the transport.
 func ForbiddenHeader(name string) bool {
 	n := strings.ToLower(strings.TrimSpace(name))
@@ -186,12 +186,12 @@ func ForbiddenHeader(name string) bool {
 var authHeaderRE = regexp.MustCompile("^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$") // an RFC 7230 token
 
 // authHeaderRefused are headers besides ForbiddenHeader's that a token may not be put in: they say what the request is or who sent it, so
-// a token there would be wrong or be sent where it does not belong (D-174). The same list is in web/src/features/core/connectionsMock.ts;
+// a token there would be wrong or be sent where it does not belong. The same list is in web/src/features/core/connectionsMock.ts;
 // web/src/features/core/testdata/auth_header_refused.json is the one set of names both sides are tested with.
 var authHeaderRefused = map[string]bool{"content-type": true, "user-agent": true, "referer": true, "mcp-session-id": true, "expect": true,
 	"accept": true, "accept-encoding": true, "range": true, "origin": true}
 
-// ValidAuthHeader reports whether name may carry a connection's token (D-174): an RFC 7230 token that is not one the transport owns
+// ValidAuthHeader reports whether name may carry a connection's token: an RFC 7230 token that is not one the transport owns
 // (Host, Content-Length, Transfer-Encoding, Connection and the rest of ForbiddenHeader, bar Authorization itself) and not in
 // authHeaderRefused.
 func ValidAuthHeader(name string) bool {

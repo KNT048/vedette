@@ -20,7 +20,7 @@ const (
 	rebootStaleAt   = 5 * time.Minute // a schedule found this late after a host restart is dropped, not run
 	rebootRetryBusy = time.Minute
 	rebootGateTTL   = 10 * time.Minute // a started reboot that has not happened this long after is assumed not to be coming
-	// A started reboot that logind refuses because of a block inhibitor (apt running, D-453) is tried again
+	// A started reboot that logind refuses because of a block inhibitor (apt running) is tried again
 	// this often, for this long, with the write gate raised again at every try; then it is given up.
 	rebootInhibitRetry = 30 * time.Second
 	rebootInhibitWait  = 30 * time.Minute
@@ -67,7 +67,7 @@ type rebootPending struct {
 	BootID    string    `json:"boot_id"`
 	StartedAt time.Time `json:"started_at"`
 	Kind      string    `json:"kind"` // "now" | "scheduled"
-	// Issued: systemctl reboot was accepted, so the box is going down (D-453). Until then the host may still be
+	// Issued: systemctl reboot was accepted, so the box is going down. Until then the host may still be
 	// waiting for a shutdown lock, and a host start on the same boot finds a reboot that will not come.
 	Issued bool `json:"issued,omitempty"`
 }
@@ -178,7 +178,7 @@ func (o *Ops) cmdReboot() server.Command {
 			if n >= rebootNowLimit {
 				return refuse409(api.CodeRebootLimit, "The box already rebooted 3 times in the last 24 hours.")
 			}
-			// A block inhibitor (apt installing) refuses now (D-453). An unknown list does not (logged once):
+			// A block inhibitor (apt installing) refuses now. An unknown list does not (logged once):
 			// doReboot reads it again before systemctl reboot, and systemd 257 and later also refuse a locked
 			// reboot themselves (255 does not, for root).
 			bl, err := o.shutdownBlockers(ctx, inhibitReadCheck)
@@ -296,7 +296,7 @@ func (o *Ops) clearPending() {
 }
 
 // doReboot audits and runs systemctl reboot. It is the only place the host reboots the machine. It never
-// passes --check-inhibitors=no or --force (D-453): rebooting while dpkg configures can leave packages broken.
+// passes --check-inhibitors=no or --force: rebooting while dpkg configures can leave packages broken.
 func (o *Ops) doReboot(ctx context.Context, kind string) {
 	o.note("os.reboot", "reboot_started", map[string]any{"kind": kind})
 	o.tryReboot(ctx, kind, o.d.Now().Add(rebootInhibitWait), false)
@@ -304,7 +304,7 @@ func (o *Ops) doReboot(ctx context.Context, kind string) {
 
 // tryReboot reads logind's list and, when no block inhibitor is held, runs systemctl reboot once. The read
 // comes first on every try because systemd 255 (Ubuntu 24.04) lets root reboot past a block lock of uid 0,
-// which APT's is: there the host's own read is the only guard (D-453). A lock in the list before the call, or
+// which APT's is: there the host's own read is the only guard. A lock in the list before the call, or
 // in the list read again after a failed call (systemd 257 and later refuse; systemctl's text is never parsed),
 // raises the write gate again and tries again in rebootInhibitRetry until deadline; the wait is audited once
 // (reboot_waiting_inhibitor). Any other failure, an unknown list after a failure, or the deadline:
@@ -391,7 +391,7 @@ func (o *Ops) gateThenBusy() bool {
 
 // fireScheduled runs when the timer of the scheduled reboot goes off.
 func (o *Ops) fireScheduled() {
-	// A block inhibitor (apt installing) postpones a due scheduled reboot like a running command does (D-453):
+	// A block inhibitor (apt installing) postpones a due scheduled reboot like a running command does:
 	// the schedule stays (reboot_scheduled_at), the wait is audited once, and the 24 hour expiry bounds it. The
 	// list is read first, outside rbMu and before the write gate goes up, so the minute-by-minute waits never
 	// hold either. An unknown list goes on; doReboot reads it again before systemctl reboot.
@@ -479,7 +479,7 @@ func (o *Ops) startReboot() {
 			o.gate.Store(&rebootGate{BootID: p.BootID, At: p.StartedAt})
 		case cur != "" && p.BootID == cur:
 			// Same boot: the reboot never happened (it was not issued yet, e.g. waiting for a shutdown lock, or it
-			// was issued long ago). Nothing re-arms it; say so instead of dropping it silently (D-453).
+			// was issued long ago). Nothing re-arms it; say so instead of dropping it silently.
 			st.Pending = nil
 			kind, started, issued := p.Kind, p.StartedAt.Format(time.RFC3339), p.Issued
 			notes = append(notes, func() {

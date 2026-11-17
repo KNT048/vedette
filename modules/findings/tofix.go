@@ -14,9 +14,9 @@ import (
 // ToFixLimit is how many devices GET /findings/to-fix lists at most (the most urgent first); Truncated says more had something.
 const ToFixLimit = 500
 
-// ToFix is the Findings page's "To fix" list (kien G8): every device that needs an update or an action, the most urgent first, each
+// ToFix is the Findings page's "To fix" list: every device that needs an update or an action, the most urgent first, each
 // with its actions (DeviceUpdates), so a person reads "device → what to do" without opening a finding. Built from the same groupings
-// as DeviceUpdates (RowFixes, D-545; the plan's items, D-613); nothing is stored.
+// as DeviceUpdates (RowFixes; the plan's items); nothing is stored.
 type ToFix struct {
 	Devices   []DeviceUpdates
 	Truncated bool // more devices had something than ToFixLimit

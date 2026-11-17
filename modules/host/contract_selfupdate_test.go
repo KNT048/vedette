@@ -20,12 +20,12 @@ import (
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
-// host.self_update (D-316, spec 6.14), slice 2a. Check and Run up to the park are tested in
+// host.self_update (spec 6.14), slice 2a. Check and Run up to the park are tested in
 // host/ops/selfupdate_test.go and the validators in host/ops/selfupdate_internal_test.go; the command joins
 // the registry, and the rows of INV-28, INV-30 and POST-5 their tests here, with slice 2b.
 
 // FORBID-7 (second layer): os.install never upgrades vedette-host from the host's own cgroup, even when a
-// mirror offered it (none does, D-81): the name is dropped from the host's own list, with an architecture
+// mirror offered it (none does): the name is dropped from the host's own list, with an architecture
 // suffix too, and apt's validator refuses it.
 func TestContract_FORBID7_OSInstallNeverUpgradesTheHostPackage(t *testing.T) {
 	t.Parallel()
@@ -149,10 +149,10 @@ func TestContract_SelfUpdate_TheHostRestartedByPostinstKeepsTheRunAndSettlesIt(t
 		t.Fatalf("dispatches %q", argv)
 	}
 	assertSettledOn(t, w, suTo, suFrom)
-	assertAddedPackages(t, w, "conntrack\n") // the new dependency of the simulation, for install.sh --uninstall (D-316 (9))
+	assertAddedPackages(t, w, "conntrack\n") // the new dependency of the simulation, for install.sh --uninstall
 }
 
-// assertAddedPackages: selfupdate/installed-by-us holds exactly want ("" = no file), D-316 (9).
+// assertAddedPackages: selfupdate/installed-by-us holds exactly want ("" = no file).
 func assertAddedPackages(t *testing.T, w *opstest.SUWorld, want string) {
 	t.Helper()
 	b, err := os.ReadFile(suFile(w, "installed-by-us"))
@@ -579,7 +579,7 @@ func TestContract_SelfUpdate_AnApplierCutAtRollingBackRollsBack(t *testing.T) {
 	}
 }
 
-// Review H1: an applier whose own context ends (RuntimeMaxSec, a reboot, systemctl stop) writes nothing more, so
+// An applier whose own context ends (RuntimeMaxSec, a reboot, systemctl stop) writes nothing more, so
 // the last real phase stays and the host starts it again: no rollback decided on children that only failed
 // because of the stop.
 func TestContract_SelfUpdate_AStoppedApplierWritesNothingMoreAndIsStartedAgain(t *testing.T) {

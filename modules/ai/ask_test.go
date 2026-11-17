@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// Slice 5a of WP-25: "Ask your data" (S-AI-5, S-AI-6, INV-3, INV-13, INV-14, D-211). The model reads the box with read tools only. The
+// Slice 5a of WP-25: "Ask your data" (S-AI-5, S-AI-6, INV-3, INV-13, INV-14). The model reads the box with read tools only. The
 // provider is a script (no network); the data and the connections are fakes behind the ports of the module.
 
 type fakeData struct {
@@ -521,7 +521,7 @@ func TestAskToolArgumentsAreCheckedAtTheEdge(t *testing.T) {
 	}
 	a := newAskAPI(t)
 	for _, c := range cases {
-		a.clock.Add(3 * time.Second) // more cases than the runaway fuse lets one job make in a minute (D-531)
+		a.clock.Add(3 * time.Second) // more cases than the runaway fuse lets one job make in a minute
 		a.fake.play(turn{calls: []provider.ToolCall{call(c.tool, c.args)}}, turn{text: "I could not read that."})
 		before := a.data.readCount()
 		a.ask("Check "+c.name+" please", 200, "")
@@ -594,7 +594,7 @@ func TestAskResultsAreCapped(t *testing.T) {
 			}
 		}
 	}
-	if sent == 0 || sent > 3 || refused == 0 { // 12 KiB in all: three results of about 4 KiB, then the rest are not sent (D-482)
+	if sent == 0 || sent > 3 || refused == 0 { // 12 KiB in all: three results of about 4 KiB, then the rest are not sent
 		t.Fatalf("results sent = %d, refused for size = %d", sent, refused)
 	}
 	table := got["table"].(map[string]any)
@@ -609,7 +609,7 @@ func TestAskLoopIsBounded(t *testing.T) {
 	a.fake.play(turn{calls: []provider.ToolCall{c, c, c, c}}) // a model that never stops
 	a.ask("Keep going please", 502, "ai_bad_format")
 	reqs := a.fake.askRequests()
-	if len(reqs) != 6 { // 4 turns in which tools run, 2 that only take an answer (D-482)
+	if len(reqs) != 6 { // 4 turns in which tools run, 2 that only take an answer
 		t.Fatalf("provider turns = %d", len(reqs))
 	}
 	if n := a.data.readCount(); n != 8 { // at most 8 calls in all
@@ -939,7 +939,7 @@ func TestAskHistoryKeepsTheNewestAndPrunes(t *testing.T) {
 	}
 }
 
-// D-531: a question that passes the monthly budget keeps its answer and lowers no level; the next one is refused at the budget.
+// A question that passes the monthly budget keeps its answer and lowers no level; the next one is refused at the budget.
 func TestAskOverTheBudgetLowersNoLevel(t *testing.T) {
 	a := newAskAPI(t)
 	a.want("PUT", "/ai/config", "admin", `{"tier":"max","monthly_budget":1000,"redact_pii":true}`, 200, "")
@@ -1094,7 +1094,7 @@ func TestAskFourCallsPerTurn(t *testing.T) {
 	}
 }
 
-// S-AI-7, D-445: a knowledge document that went with the question is named in the sources and in the evidence of a memory suggestion;
+// S-AI-7: a knowledge document that went with the question is named in the sources and in the evidence of a memory suggestion;
 // a question that took no document names none.
 func TestAskNamesTheDocumentsItSent(t *testing.T) {
 	a := newAskAPI(t)

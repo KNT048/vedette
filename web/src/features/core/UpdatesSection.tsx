@@ -28,8 +28,8 @@ import { MAX_UPLOAD, sha256Hex, toBase64 } from './util'
 import type { ManagedPackage, UpdateAvailable, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
 
 /**
- * The software install or rollback (D-340): its steps while it runs, its end in words, and one toast (with Reload: the page now runs the old code) when a run this page saw running ends.
- * `after`: the run on screen when this page last pressed Apply on the software; a different run is one Apply started, announced even when it ended at once (D-316 (h), host_too_old).
+ * The software install or rollback: its steps while it runs, its end in words, and one toast (with Reload: the page now runs the old code) when a run this page saw running ends.
+ * `after`: the run on screen when this page last pressed Apply on the software; a different run is one Apply started, announced even when it ended at once (host_too_old).
  */
 function RunPanel({ run, name, reconnecting, after }: { run: UpdateRun; name: string; reconnecting: boolean; after?: string | null }) {
   const { t } = useTranslation('core')
@@ -94,7 +94,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   const file = useRef<HTMLInputElement>(null)
   const comp = (id: string) => t(`updates.comp.${id}`, { defaultValue: id })
   const availableOf = (id: string): UpdateAvailable | undefined => s.available.find((a) => a.component === id)
-  // The system helper (D-316) has no Apply of its own: the software release brings it, and the software run updates it first.
+  // The system helper has no Apply of its own: the software release brings it, and the software run updates it first.
   const hostNext = availableOf('software')?.host_version
   const includesHost = (a: UpdateAvailable) => (a.host_version ? <span className="max-w-xs text-caption text-muted">{t('updates.host.includes', { version: a.host_version })}</span> : null)
 
@@ -182,7 +182,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     <>
       <section id="managed" aria-labelledby="managed-band" className="mt-12">
         <Band id="managed-band" n="2" title={t('updates.managed.title')} desc={t('updates.managed.desc')} info={t('updates.managed.info')} />
-        {/* No empty table (D-407): the list comes from the running release's signed manifest, which a build without a release never gets. */}
+        {/* No empty table: the list comes from the running release's signed manifest, which a build without a release never gets. */}
         {s.managed.length ? (
           <DataTable data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
             mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{p.name}</span><span className="font-mono text-caption text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
@@ -211,7 +211,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             <p className="text-meta text-muted">{t(`updates.modeHint.${s.mode}`)}</p>
           </div>
         </fieldset>
-        {/* One status line (D-407): a failed check says why, then the last good one if any; never "Never checked." above a failure. */}
+        {/* One status line: a failed check says why, then the last good one if any; never "Never checked." above a failure. */}
         <p className={`mt-3 text-meta ${s.last_check_error && s.last_check_error.code !== 'update_not_published' ? 'text-warn' : 'text-muted'}`}>
           {s.last_check_error ? t('updates.checkFailed', { time: fmtRelative(s.last_check_error.at), reason: s.last_check_error.message }) : isNever(s.last_check) ? t('updates.neverChecked') : t('updates.lastCheck', { time: fmtRelative(s.last_check) })}
           {s.last_check_error && !isNever(s.last_check) ? ` ${t('updates.lastGood', { time: fmtRelative(s.last_check) })}` : ''} {s.check_enabled ? '' : t('updates.checkOff')}
@@ -292,7 +292,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
 export default function UpdatesSection() {
   const { t } = useTranslation('core')
   const install = useInstallKind()
-  // D-381: a container-only install has no spare slot, rollback, channels or packages: the customer pulls the new images (S-CORE-9 G4).
+  // A container-only install has no spare slot, rollback, channels or packages: the customer pulls the new images (S-CORE-9).
   if (install === 'container') return (
     <>
       <PageHeader title={t('settings.updates')} meta={t('container.updates.meta')} info={t('container.updates.metaInfo')} stories={['S-CORE-2', 'S-CORE-9']} />
@@ -303,7 +303,7 @@ export default function UpdatesSection() {
   return install ? <ApplianceUpdates /> : <><PageHeader title={t('settings.updates')} stories={['S-CORE-2', 'S-CORE-9']} /><InstallPending /></>
 }
 
-/** D-386 on a container-only install: the same notices, from the same read; nothing while it fails. */
+/** The withdrawal and stale-information notices on a container-only install: the same notices, from the same read; nothing while it fails. */
 function ContainerNotices() {
   const { data } = useUpdates()
   return data ? <UpdateNotices s={data} bundle={false} /> : null
@@ -314,7 +314,7 @@ function ApplianceUpdates() {
   const q = useUpdates()
   const os = useOsState()
   const sec = os.data?.pending.filter((p) => p.security).length ?? 0
-  const name = os.data?.os?.name // null before the box first looked for updates (D-407)
+  const name = os.data?.os?.name // null before the box first looked for updates
   const title = !name ? t('settings.updates') : sec ? t('updates.titleOs', { name, count: sec }) : t('updates.titleOsClean', { name })
   return (
     <>
@@ -322,7 +322,7 @@ function ApplianceUpdates() {
       <ReadOnlyNote role="admin" />
       <OsBlock />
       {/* The software part has its own query: when it fails or is not built yet (501), the operating system part above still shows (issue #230). */}
-      {/* While the software updates, Vedette restarts and a read fails for a moment: keep the page and say it reconnects (D-340). */}
+      {/* While the software updates, Vedette restarts and a read fails for a moment: keep the page and say it reconnects. */}
       {/* One branch for every answer with data, so the run panel is not remounted when the run ends (its toast would be lost). */}
       {q.data && (!q.error || q.data.run?.status === 'running') ? <Body s={q.data} reconnecting={!!q.error} /> : <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>}
     </>

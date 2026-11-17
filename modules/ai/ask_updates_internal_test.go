@@ -73,7 +73,7 @@ func manyUpdates(n int, what string) []UpdateRow {
 // Review r2 L4 of #935: a first call that cannot hold every row keeps a few of each list (the recommended rows go first, then those with
 // no named update, then the exploited ones), says the totals and where the next page starts; a page has one list, without the status
 // words and the device's details (they came with the first call), and pages read to the end.
-func TestDeviceUpdates_G9_FirstCallKeepsEachListAndPagesAreLean(t *testing.T) {
+func TestDeviceUpdates_FirstCallKeepsEachListAndPagesAreLean(t *testing.T) {
 	b := updatesBox{assets: []AssetRow{{ID: "a-pc", Name: "PC-134", IP: "192.168.18.134"}},
 		updates: map[string]DeviceUpdates{"a-pc": {Open: 200, Exploited: manyUpdates(60, "exploited"), NoUpdate: manyUpdates(10, "unnamed"), Planned: manyUpdates(20, "recommended"),
 			PlanRan: true, PlanCompared: true}}}
@@ -105,7 +105,7 @@ func TestDeviceUpdates_G9_FirstCallKeepsEachListAndPagesAreLean(t *testing.T) {
 
 // Review r1 M2, L4 of #935: an IP matches only that IP, never a name that contains it; an exact name beside names that contain it is
 // not picked; an empty device is refused at the edge.
-func TestDeviceUpdates_G9_DeviceIsNeverGuessed(t *testing.T) {
+func TestDeviceUpdates_DeviceIsNeverGuessed(t *testing.T) {
 	b := updatesBox{assets: []AssetRow{{ID: "a-100", Name: "192.168.1.100", IP: "192.168.1.100"}, {ID: "a-rogue", Name: "ws-07", IP: "192.168.1.50"},
 		{ID: "a-pc", Name: "WS-07.corp.local", IP: "192.168.1.7"}, {ID: "a-lldp", Name: ""}},
 		updates: map[string]DeviceUpdates{"a-100": {}, "a-rogue": {}, "a-pc": {}, "a-lldp": {}}}
@@ -134,7 +134,7 @@ func TestDeviceUpdates_G9_DeviceIsNeverGuessed(t *testing.T) {
 
 // Review r1 M1, M4, L1 of #935: an agent's version Vedette could not compare is "reported" (not "inside the range"); an empty
 // recommended list says why when the device was not compared or the feeds are off, never a bare 0.
-func TestDeviceUpdates_G9_WordsForWhatIsNotProved(t *testing.T) {
+func TestDeviceUpdates_WordsForWhatIsNotProved(t *testing.T) {
 	b := updatesBox{assets: []AssetRow{{ID: "a-1", Name: "nas", IP: "10.0.0.1"}, {ID: "a-2", Name: "cam", IP: "10.0.0.2"}},
 		updates: map[string]DeviceUpdates{
 			"a-1": {Open: 1, NoUpdate: []UpdateRow{{Action: "No update is named that fixes these: follow the vendor's advice for Photo Station", CVEs: []string{"CVE-2022-27593"}, Reported: 1}}, PlanRan: true},

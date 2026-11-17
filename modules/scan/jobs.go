@@ -36,7 +36,7 @@ const (
 const noteWindowEnded = "The scan window ended; the devices not reached are scanned at the next scheduled run."
 
 // Jobs are the module's background work; core/jobs runs them only while the module is on (SYS-5), except retention: it only
-// deletes rows past the retention (INV-7), so it is housekeeping and keeps its timer while the module is off (D-160).
+// deletes rows past the retention (INV-7), so it is housekeeping and keeps its timer while the module is off.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "rescan", Every: JobTick, Run: svc.RunRescans},
@@ -96,12 +96,12 @@ type pendingEvent struct {
 
 // RunRescans moves every pending KEV event on (INV-9, POST-4): auto rescan off → skipped_off; no device with an
 // open finding for the CVE that may be scanned without a pick → no_match; otherwise one new_kev run with only that
-// CVE's templates, outside the time window (D-126 (3)); when the run has ended → matched or clear.
+// CVE's templates, outside the time window; when the run has ended → matched or clear.
 func (s *Service) RunRescans(ctx context.Context) error {
 	if err := s.reapOrphan(ctx); err != nil {
 		return err
 	}
-	// The entries announced while scan was off or down are queued first (S4b, D-144); feeds unreadable does not hold up
+	// The entries announced while scan was off or down are queued first (S4b); feeds unreadable does not hold up
 	// the queue: the bus events are there, and the next pass reads from the same point.
 	if err := s.catchUp(ctx); err != nil {
 		if ctx.Err() != nil {
@@ -150,7 +150,7 @@ type readyEvent struct {
 
 // startRescan starts one new_kev run for the events of a pass (S4b: a backlog is not rescanned one CVE at a time):
 // their CVEs' templates only, at most MaxRunTargets devices (an event that would go over waits for the next run),
-// outside the time window (D-126 (3)). Each event is linked to the run in the transaction that writes it (#164 review
+// outside the time window. Each event is linked to the run in the transaction that writes it (#164 review
 // L4), with its own devices and latency.
 func (s *Service) startRescan(ctx context.Context, batch []readyEvent) error {
 	var ids, cves []string
@@ -268,8 +268,8 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent, room int) (*ready
 		if v.Status == "running" || v.Status == "stopping" {
 			return nil, nil
 		}
-		// "clear" means only that no match was reported (D-133 (5)), never "not affected"; it changes no finding. A run
-		// stopped before every device was done is "stopped" (D-145 (7)): "clear" would hide what was not checked.
+		// "clear" means only that no match was reported, never "not affected"; it changes no finding. A run
+		// stopped before every device was done is "stopped": "clear" would hide what was not checked.
 		// A run may hold the CVEs of several events (S4b): each closes on the rows of its own CVE's templates, and keeps
 		// the devices it was linked with.
 		hit, err := s.matchedCVE(ctx, v, ev.cve)
@@ -331,7 +331,7 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent, room int) (*ready
 	if err != nil {
 		return nil, err
 	}
-	if len(ids) == 0 && len(pickOnly) > 0 { // matching devices, all of them a hand pick only (D-126 (2), D-145 (7))
+	if len(ids) == 0 && len(pickOnly) > 0 { // matching devices, all of them a hand pick only
 		return nil, s.closeEvent(ctx, ev.id, "pick_only", pickOnly)
 	}
 	if len(ids) == 0 {
@@ -363,15 +363,15 @@ func (s *Service) matchedCVE(ctx context.Context, v RunView, cve string) (bool, 
 }
 
 // dropEvent closes an event that waited pendingFor without a scan with an expired_* result, so the rescan log shows it
-// and why (D-261 (2)); the log says it too. The scheduled scan still covers the CVE's devices. The row stays (cve is
+// and why; the log says it too. The scheduled scan still covers the CVE's devices. The row stays (cve is
 // unique), so the catch-up does not queue the CVE again.
 func (s *Service) dropEvent(ctx context.Context, ev pendingEvent, result, why string) error {
 	s.cfg.Log.WarnContext(ctx, "scan: a KEV rescan was dropped after 7 days", "cve", ev.cve, "reason", why)
 	return s.closeEvent(ctx, ev.id, result, nil)
 }
 
-// affected are the devices with an open finding for cve that may be scanned without a pick (D-126 (2)), and the names
-// of those that may be scanned only by a hand pick (pickOnly, for the pick_only result of D-145 (7)).
+// affected are the devices with an open finding for cve that may be scanned without a pick, and the names
+// of those that may be scanned only by a hand pick (pickOnly, for the pick_only result).
 func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, names, pickOnly []string, first Current, err error) {
 	if s.cfg.Findings == nil {
 		return nil, nil, nil, Current{}, nil
@@ -395,7 +395,7 @@ func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, n
 			cands = append(cands, d)
 		}
 	}
-	// One batch read per decision kind (D-472); a KEV of a common product matches hundreds of devices.
+	// One batch read per decision kind; a KEV of a common product matches hundreds of devices.
 	auto, err := s.policies(ctx, cands, false)
 	if err != nil {
 		return nil, nil, nil, Current{}, err
@@ -428,7 +428,7 @@ func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, n
 	return ids, names, pickOnly, first, nil
 }
 
-// startAuto starts a run nobody picked: schedule or new_kev. Devices are checked with explicit=false (D-126 (2)).
+// startAuto starts a run nobody picked: schedule or new_kev. Devices are checked with explicit=false.
 // onlyCVEs limits each device to the CVEs listed for it (the KEV rescan); end, when set, is where the run stops by itself (the end of
 // the window of a scheduled run); inTx records what the run is for in the transaction of its row (runSpec.inTx).
 func (s *Service) startAuto(ctx context.Context, trigger string, note *string, ids []string, first Current, onlyCVEs map[string][]string, end time.Time,
@@ -439,8 +439,8 @@ func (s *Service) startAuto(ctx context.Context, trigger string, note *string, i
 // RunSchedule starts the scheduled run of the latest slot while that slot's own window is open (S-SCAN-4, POST-3);
 // the run stops when that window ends. A slot that found a scan running, or the scanner not ready, is tried again at
 // the next tick while its window is open; once the window has closed the slot is recorded as missed, never run late
-// in a later window (#164 review M1). A slot starts at most one run. Until a first scheduled run has started (firstPending, W3-9;
-// not sched_last, which a missed or empty slot also records) the slots are those of every window day (slotOK first, W3-6); such an extra slot (not on the weekly weekday) that closed or had nothing to
+// in a later window (#164 review M1). A slot starts at most one run. Until a first scheduled run has started (firstPending;
+// not sched_last, which a missed or empty slot also records) the slots are those of every window day (slotOK first); such an extra slot (not on the weekly weekday) that closed or had nothing to
 // scan is not recorded, so a new box's first scheduled run is the next window that scans something, not the next weekday. An extra
 // slot counts only when the schedule was saved and the scope confirmed before it (review M4, as missSlot judges "due"): a box set up
 // inside an open window waits for the next one instead of starting at once.
@@ -490,7 +490,7 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	auto, err := s.policies(ctx, devs, false) // one batch read (D-472)
+	auto, err := s.policies(ctx, devs, false) // one batch read
 	if err != nil {
 		return err
 	}
@@ -521,7 +521,7 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	return nil
 }
 
-// firstPending says whether the box's first scheduled run is still to come: no run with trigger schedule ever started (W3-9).
+// firstPending says whether the box's first scheduled run is still to come: no run with trigger schedule ever started.
 // sched_last cannot say it: a weekday slot that was missed or had nothing to scan is recorded without a run, and on a box that
 // was off or empty that first Sunday the first-run rule never applied. Run rows are never deleted, so the answer does not go back.
 func firstPending(ctx context.Context, q interface {

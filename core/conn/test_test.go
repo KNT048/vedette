@@ -23,7 +23,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// The Test operation (D-94, core INV-23): a real, harmless read over HTTPS, SSH or MCP against in-process fakes on loopback, with the
+// The Test operation (core INV-23): a real, harmless read over HTTPS, SSH or MCP against in-process fakes on loopback, with the
 // pin taken at the first success and every later attempt held to it.
 
 type tester struct {
@@ -326,7 +326,7 @@ func TestTestRestconfAndAutomationProbes(t *testing.T) {
 	}
 }
 
-// D-94 (3): tools found on an MCP server are write tools and start off; a later Test keeps what the administrator set.
+// tools found on an MCP server are write tools and start off; a later Test keeps what the administrator set.
 func TestTestMCPDiscoversWriteToolsThatStartOff(t *testing.T) {
 	t.Parallel()
 	for name, sse := range map[string]bool{"json": false, "sse": true} {

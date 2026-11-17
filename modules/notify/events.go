@@ -25,10 +25,10 @@ const (
 	EventFindingRaised        = "findings.finding.severity_raised"
 	EventAssetDiscovered      = "inventory.asset.discovered"
 	EventAssetDeleted         = "inventory.asset.deleted"
-	EventAssetApproved        = "inventory.asset.approved" // B9 (D-474): {asset_id, actor}
-	EventAssetIgnored         = "inventory.asset.ignored"  // D-630: {asset_id, actor}: a person said the device needs no watching
-	EventAssetUpdated         = "inventory.asset.updated"  // {asset_id}: also what a person's Approve publishes today (D-552)
-	EventAssetMerged          = "inventory.asset.merged"   // {from, into}: inventory joined two rows of one device (D-515, D-554)
+	EventAssetApproved        = "inventory.asset.approved" // B9: {asset_id, actor}
+	EventAssetIgnored         = "inventory.asset.ignored"  // {asset_id, actor}: a person said the device needs no watching
+	EventAssetUpdated         = "inventory.asset.updated"  // {asset_id}: also what a person's Approve publishes today
+	EventAssetMerged          = "inventory.asset.merged"   // {from, into}: inventory joined two rows of one device
 	EventNewKEV               = "feeds.vuln.new_kev"
 	EventHoneypotHit          = "honeypot.hit.created"
 	EventLogAnomaly           = "logs.anomaly.detected"
@@ -107,7 +107,7 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 		Severity  string `json:"severity"`
 		To        string `json:"to"`
 		Reason    string `json:"reason"`
-		// acceptance_expired only (D-498): who accepted the risk and its last day (YYYY-MM-DD)
+		// acceptance_expired only: who accepted the risk and its last day (YYYY-MM-DD)
 		AcceptedBy    string `json:"accepted_by"`
 		AcceptedUntil string `json:"accepted_until"`
 	}
@@ -117,10 +117,10 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 	if e.FindingID == "" {
 		return nil
 	}
-	if statusChange && (e.Reason == "device_ignored" || e.Reason == "device_watched") { // D-630: a person ignored the device or watches it again
+	if statusChange && (e.Reason == "device_ignored" || e.Reason == "device_watched") { // A person ignored the device or watches it again
 		return nil
 	}
-	if statusChange && e.Reason == "matches_again" { // Vedette reopened a finding it had closed as not affected (D-530)
+	if statusChange && e.Reason == "matches_again" { // Vedette reopened a finding it had closed as not affected
 		if IsBaseline(ctx) {
 			return nil
 		}
@@ -131,12 +131,12 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 			n.What = "Vedette had closed this finding by itself, and the device matches the entry again. " + f.What
 		})
 	}
-	if statusChange && e.Reason == "acceptance_expired" { // a risk a person accepted until a day is open again (D-498, INV-21)
+	if statusChange && e.Reason == "acceptance_expired" { // a risk a person accepted until a day is open again (INV-21)
 		if IsBaseline(ctx) {
 			return nil
 		}
 		return s.findingChange(ctx, e.FindingID, e.CVE, "", func(f FindingInfo, cve string, n *Notice) {
-			n.ID += "-expired-" + n.At.UTC().Format("20060102") // its own id: a matches_again reopen the same day is a different notice (D-498)
+			n.ID += "-expired-" + n.At.UTC().Format("20060102") // its own id: a matches_again reopen the same day is a different notice
 			n.Change = "risk acceptance ended, open again"
 			n.Title = "Risk acceptance ended: " + about(cve, f) + " is open again"
 			n.What = acceptedText(e.AcceptedBy, e.AcceptedUntil) + "; that date has passed. " + f.What
@@ -150,7 +150,7 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 	if statusChange && e.To != "confirmed" {
 		return nil
 	}
-	if !statusChange && IsBaseline(ctx) { // the re-match after the first CISA pull (D-78): nothing is queued, so nothing can leak later
+	if !statusChange && IsBaseline(ctx) { // the re-match after the first CISA pull: nothing is queued, so nothing can leak later
 		s.cfg.Log.DebugContext(ctx, "finding event ignored: it belongs to the first CISA pull", "finding", e.FindingID)
 		return nil
 	}
@@ -278,8 +278,8 @@ func (s *Service) findingChange(ctx context.Context, id, eventCVE string, overri
 
 // assetEvent opens an unknown_device incident for a newly discovered device when the notify_new setting
 // of inventory was on at that moment (the event says so). During the first discovery every device is new, so they go into one
-// summary incident instead (firstDiscovery, D-483); so does a device that a sensor found while it was learning the network (learning:
-// its source first reported to the box less than 36 hours ago, inventory INV-28, D-554), whenever that sensor was added.
+// summary incident instead (firstDiscovery); so does a device that a sensor found while it was learning the network (learning:
+// its source first reported to the box less than 36 hours ago, inventory INV-28), whenever that sensor was added.
 func (s *Service) assetEvent(ctx context.Context, data any) error {
 	var e struct {
 		AssetID  string `json:"asset_id"`
@@ -316,7 +316,7 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 	return err
 }
 
-// deviceLabel names a device on its new-device incidents (D-552, W8-2): the name the Devices page shows (inventory's one naming rule,
+// deviceLabel names a device on its new-device incidents: the name the Devices page shows (inventory's one naming rule,
 // so a host name learnt later or a name typed by hand shows), then its address when that is not the name already: "byn
 // (192.168.18.181)", "Hon Hai Precision Ind. Co.,Ltd. (192.168.18.181)", "192.168.18.254".
 func deviceLabel(st DeviceState) string {
@@ -331,11 +331,11 @@ func newDeviceTexts(label string) (title, what string) {
 	return clip("A new unknown device appeared: "+label, 200), "A device that is not in your inventory joined the network: " + label + "."
 }
 
-// approvedInDevices closes a device's new-device incident when inventory.asset.updated shows the device approved (D-552): that event
+// approvedInDevices closes a device's new-device incident when inventory.asset.updated shows the device approved: that event
 // does not say who approved it.
 const approvedInDevices = "Closed by Vedette: the device was approved in Devices."
 
-// assetUpdated follows a device that changed in Devices (inventory.asset.updated {asset_id}, D-552): a person's Approve publishes it
+// assetUpdated follows a device that changed in Devices (inventory.asset.updated {asset_id}): a person's Approve publishes it
 // (B9's inventory.asset.approved is not published yet). When the device is on an open new-device incident, the incident takes the
 // name Devices shows now, and an approved device leaves it as INV-22 (1) says (approvedInDevices). An update of a device on no open
 // new-device incident, the usual case, costs one indexed read and no inventory read; nothing changed means no write. A deleted
@@ -407,8 +407,8 @@ func (s *Service) openDeviceRows(ctx context.Context, assetID string) ([]openDev
 }
 
 // reopenedSinceApproval says whether a device's own new-device incident showed life after the device was approved: a person reopened
-// it (active_at), or the device was found again. Vedette then leaves it open: the person took it back (Opus review LOW-2 of D-552).
-// Approved at an unknown time (before D-471), any reopen counts.
+// it (active_at), or the device was found again. Vedette then leaves it open: the person took it back.
+// Approved at an unknown time (recorded by an older release), any reopen counts.
 func reopenedSinceApproval(approvedAt time.Time, firstSeen, active string) bool {
 	since := firstSeen
 	if !approvedAt.IsZero() {
@@ -434,7 +434,7 @@ func needsFollow(st DeviceState, rows []openDeviceRow) bool {
 	return false
 }
 
-// followDevice brings the open new-device incidents of a device up to date with Devices (D-552): the device's own incident and its
+// followDevice brings the open new-device incidents of a device up to date with Devices: the device's own incident and its
 // entry on the first-discovery summary take its current label, and an approved device leaves them (leaveDevice, INV-22), except an
 // own incident a person reopened after the approval. Nothing is sent; a renamed incident keeps its history.
 func (s *Service) followDevice(ctx context.Context, tx *sql.Tx, assetID string, st DeviceState) error {
@@ -457,11 +457,11 @@ func (s *Service) followDevice(ctx context.Context, tx *sql.Tx, assetID string, 
 	return s.leaveDevice(ctx, tx, assetID, approvedInDevices, &st.ApprovedAt)
 }
 
-// assetDeleted takes a device deleted in Devices off the open new-device incidents (W6-3, D-497, INV-20): see leaveDeviceIncidents.
+// assetDeleted takes a device deleted in Devices off the open new-device incidents (INV-20): see leaveDeviceIncidents.
 func (s *Service) assetDeleted(ctx context.Context, data any) error {
 	var e struct {
 		AssetID string `json:"asset_id"`
-		Actor   string `json:"actor"` // B9 (D-474) adds who deleted it; older producers leave it out
+		Actor   string `json:"actor"` // B9 adds who deleted it; older producers leave it out
 	}
 	if err := decode(data, &e); err != nil {
 		return err
@@ -469,8 +469,8 @@ func (s *Service) assetDeleted(ctx context.Context, data any) error {
 	return s.leaveDeviceIncidents(ctx, e.AssetID, deletedInDevices+byActor(e.Actor)+".")
 }
 
-// assetApproved takes a device a person approved in Devices (inventory.asset.approved {asset_id, actor}, B9 / D-474) off the open
-// new-device incidents the way a delete does (D-550, INV-22): there is nothing left to approve.
+// assetApproved takes a device a person approved in Devices (inventory.asset.approved {asset_id, actor}) off the open
+// new-device incidents the way a delete does (INV-22): there is nothing left to approve.
 func (s *Service) assetApproved(ctx context.Context, data any) error {
 	var e struct {
 		AssetID string `json:"asset_id"`
@@ -483,7 +483,7 @@ func (s *Service) assetApproved(ctx context.Context, data any) error {
 	if err := s.leaveDeviceIncidents(ctx, e.AssetID, "Closed by Vedette: the device was approved"+by+"."); err != nil || by == "" {
 		return err
 	}
-	// The inventory.asset.updated of the same approval may have come first and closed the incident without the person (D-552): name
+	// The inventory.asset.updated of the same approval may have come first and closed the incident without the person: name
 	// them in its reason now. No second close and no second audit row; only a close of the last minute, so an old approval is never
 	// credited to whoever approves the device again later.
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
@@ -497,9 +497,9 @@ func (s *Service) assetApproved(ctx context.Context, data any) error {
 	})
 }
 
-// assetIgnored takes a device a person ignored in Devices (inventory.asset.ignored {asset_id, actor}, D-630: a staff phone, known and
+// assetIgnored takes a device a person ignored in Devices (inventory.asset.ignored {asset_id, actor}: a staff phone, known and
 // not watched) off the open new-device incidents the way an approval does: there is nothing left to review. Only the new-device
-// incidents: a trap hit or an intrusion-detection incident from the device stays open and new ones still come (D-630).
+// incidents: a trap hit or an intrusion-detection incident from the device stays open and new ones still come.
 func (s *Service) assetIgnored(ctx context.Context, data any) error {
 	var e struct {
 		AssetID string `json:"asset_id"`
@@ -517,11 +517,11 @@ const deletedInDevices = "Closed by Vedette: the device was deleted in Devices"
 // mergedInto starts the reason of a device inventory joined into another (assetMerged).
 const mergedInto = "Closed by Vedette: merged into "
 
-// assetMerged takes the row inventory joined into another device (inventory.asset.merged {from, into}, D-515) off the open new-device
-// incidents like a delete (INV-20), with the reason that says where it went (D-554): "Closed by Vedette: merged into <name>.". The
+// assetMerged takes the row inventory joined into another device (inventory.asset.merged {from, into}) off the open new-device
+// incidents like a delete (INV-20), with the reason that says where it went: "Closed by Vedette: merged into <name>.". The
 // device it joined keeps its own incident: it is still to approve. Inventory also publishes inventory.asset.deleted for from, in
 // either order: when the delete came first and closed from's own incident (within the last minute), only its reason is rewritten, so
-// there is one close and one audit row, as the approver rewrite of D-552 does.
+// there is one close and one audit row, as the approver rewrite does.
 func (s *Service) assetMerged(ctx context.Context, data any) error {
 	var e struct {
 		From string `json:"from"`
@@ -582,7 +582,7 @@ func (s *Service) leaveDeviceIncidents(ctx context.Context, assetID, reason stri
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.leaveDevice(ctx, tx, assetID, reason, nil) })
 }
 
-// leaveDevice is leaveDeviceIncidents inside a transaction. With approvedAt (the device's approval as an update showed it, D-552), the
+// leaveDevice is leaveDeviceIncidents inside a transaction. With approvedAt (the device's approval as an update showed it), the
 // device's own incident stays open when a person reopened it after that approval (reopenedSinceApproval).
 func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason string, approvedAt *time.Time) error {
 	rows, err := tx.QueryContext(ctx, `SELECT i.id, i.title, i.link, i.first_seen, COALESCE(i.active_at, i.last_seen) FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
@@ -636,7 +636,7 @@ func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason s
 		n := max(rows-1, count-1)
 		if n == 0 {
 			why := "Closed by Vedette: every device on it was approved, ignored or deleted in Devices."
-			if strings.HasPrefix(reason, mergedInto) { // the last one was merged: say where it went (D-554)
+			if strings.HasPrefix(reason, mergedInto) { // the last one was merged: say where it went
 				why = "Closed by Vedette: every device on it was approved, ignored or deleted in Devices, the last one " + strings.TrimPrefix(reason, "Closed by Vedette: ")
 			}
 			if err := s.closeBySystem(ctx, tx, o.id, o.title, why); err != nil {
@@ -652,7 +652,7 @@ func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason s
 }
 
 const (
-	// firstDiscoveryWindow is how long after notify first ran on the box new devices go into the one summary (D-483): the passive
+	// firstDiscoveryWindow is how long after notify first ran on the box new devices go into the one summary: the passive
 	// sensor finds most devices in the first hours, the active sensor (23:00-05:00 by default) the rest the first night.
 	firstDiscoveryWindow = 36 * time.Hour
 	firstDiscoverySource = "first-discovery" // the source of the summary incident: one per box while it is open
@@ -663,7 +663,7 @@ const (
 // firstDiscovery reports whether a new device belongs to the first discovery: notify first ran on this box (notify_box, migration
 // 0011: an upgraded box takes its earliest notify record) less than firstDiscoveryWindow ago. A box that turns new-device alerts on
 // later, or whose incidents passed retention, never opens the window again. A sensor's own first 36 hours come from inventory instead
-// (AssetEvent.Learning, D-554), so a setup finished days after the install, or a sensor added later, still folds its first sweep.
+// (AssetEvent.Learning), so a setup finished days after the install, or a sensor added later, still folds its first sweep.
 func (s *Service) firstDiscovery(ctx context.Context) (bool, error) {
 	var first string
 	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT first_run_at FROM notify_box WHERE id = 1`).Scan(&first)
@@ -680,7 +680,7 @@ func (s *Service) firstDiscovery(ctx context.Context) (bool, error) {
 	return s.now().Sub(at) < firstDiscoveryWindow, nil
 }
 
-// discoveryIncident adds a device to the summary incident of the first discovery (D-483) or of a sensor's learning (D-554): the first
+// discoveryIncident adds a device to the summary incident of the first discovery or of a sensor's learning: the first
 // device opens it (and its one message goes out, if the channels take medium), the next ones add to its list and count, and its title
 // says how many there are. An acknowledged summary that takes a new device goes back to New: a person acknowledged the devices they
 // saw, not this one. Devices added since its last message are told again (tellDiscovery) with the device, and by the hourly autoclose
@@ -823,7 +823,7 @@ func (s *Service) hitEvent(ctx context.Context, data any) error {
 		title = src + " " + verb + " the " + label
 		what = src + " " + verb + " the " + label + ". It is bait nobody has a reason to touch, so someone is reading where it was planted, or a machine there is infected."
 	}
-	var devs []Device // W1-13: the incident names the source device the inventory knew when the hit was stored
+	var devs []Device // The incident names the source device the inventory knew when the hit was stored
 	if id, name := clip(strings.TrimSpace(e.SrcAssetID), 64), clip(strings.TrimSpace(e.SrcName), 120); id != "" && name != "" {
 		devs = []Device{{ID: id, Name: name}}
 	}
@@ -832,7 +832,7 @@ func (s *Service) hitEvent(ctx context.Context, data any) error {
 		Title: title, Severity: Critical, What: what,
 		Action: "Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing. Do not change passwords from that machine.",
 		Link:   "/honeypot/hits/" + e.ID, Devices: devs, At: at}
-	if e.Kind == "scan" { // W1-13: one High incident per scanning source while it is open; the touches themselves stay Critical
+	if e.Kind == "scan" { // One High incident per scanning source while it is open; the touches themselves stay Critical
 		decoys := clip(strings.TrimSpace(e.Decoy), 120)
 		in.Target, in.Severity = "scan", High
 		in.Title = src + " scanned the Trap IPs"
@@ -853,7 +853,7 @@ func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) err
 		Action   string   `json:"action"`
 		Severity Severity `json:"severity"`
 		Devices  []Device `json:"devices"`
-		Blocked  bool     `json:"blocked"` // logs.bad_address.detected only: the device that logged it blocked the connection (D-227)
+		Blocked  bool     `json:"blocked"` // logs.bad_address.detected only: the device that logged it blocked the connection
 	}
 	if err := decode(data, &e); err != nil {
 		return err
@@ -869,7 +869,7 @@ func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) err
 // Jobs returns the scheduler jobs of the module: "deliver" sends what is due (held notices when quiet
 // hours end, grouped batches at their DueAt, the rest at once); "autoclose" sends the first-run summary and closes quiet incidents
 // (autoclose.go); "telegram-listen" and "slack-listen" take approval button presses
-// while the Telegram / Slack channel takes approvals (tglisten.go, slacklisten.go). The five above run only while the module is on: `deliver` sends and its deletes are queue upkeep, not a customer retention, so it is not housekeeping (D-160). "retention" is Housekeeping (retention.go).
+// while the Telegram / Slack channel takes approvals (tglisten.go, slacklisten.go). The five above run only while the module is on: `deliver` sends and its deletes are queue upkeep, not a customer retention, so it is not housekeeping. "retention" is Housekeeping (retention.go).
 func (s *Service) Jobs() []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "deliver", Every: flushEvery, Run: s.Flush},
@@ -877,7 +877,7 @@ func (s *Service) Jobs() []jobs.Job {
 		{Module: ModuleID, Name: slackListenJob, Every: slackListenEvery, Run: s.listenSlack},
 		{Module: ModuleID, Name: zaloListenJob, Every: zaloListenEvery, Run: s.listenZalo},
 		{Module: ModuleID, Name: autoCloseJob, Every: autoCloseEvery, Run: s.runAutoClose},                     // INV-22, INV-23: a normal job, only while notify is on
-		{Module: ModuleID, Name: retentionJob, Every: retentionEvery, Housekeeping: true, Run: s.RunRetention}, // D-160: deletes history past 1 year, also while the module is off
+		{Module: ModuleID, Name: retentionJob, Every: retentionEvery, Housekeeping: true, Run: s.RunRetention}, // deletes history past 1 year, also while the module is off
 	}
 }
 

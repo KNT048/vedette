@@ -19,15 +19,15 @@ import type { Role } from '@/lib/session'
 import { restartWait } from './BoxRestarting'
 import { nav, compareVersion, toBase64 } from './util'
 
-// D-408: the offline bundle is hidden in the GUI for v1 (BUNDLE_IN_UI false) but its code is kept, so this file runs the bundle as
+// The offline bundle is hidden in the GUI for v1 (BUNDLE_IN_UI false) but its code is kept, so this file runs the bundle as
 // offered; one test runs the v1 page.
 const bundleFlag = vi.hoisted(() => ({ BUNDLE_IN_UI: true }))
 vi.mock('@/lib/bundle', () => bundleFlag)
-// D-417: same for the credentialed scan: this file lists it as offered (the deps dialog uses it); one test runs the v1 list.
+// Same for the credentialed scan: this file lists it as offered (the deps dialog uses it); one test runs the v1 list.
 const credFlag = vi.hoisted(() => ({ CREDENTIALED_IN_UI: true }))
 vi.mock('@/lib/credentialed', () => credFlag)
-// D-624 (#819): response, mcp-server, auth-oidc and scan-credentialed are hidden in the GUI for v1 (POST_V1_IN_UI false) but their
-// code is kept, so this file runs them as offered; the D-624 tests run the v1 GUI.
+// Response, mcp-server, auth-oidc and scan-credentialed are hidden in the GUI for v1 (POST_V1_IN_UI false) but their
+// code is kept, so this file runs them as offered; the v1 scope tests run the v1 GUI.
 const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
 vi.mock('@/lib/postV1', () => postV1)
 
@@ -37,14 +37,14 @@ const user = () => userEvent.setup()
 const NOHASH = { prev_hash: '0'.repeat(64), hash: '0'.repeat(64) } // rows written straight into the store, the chain is not under test here
 
 const AGREE = 'I have read, understood and agree to the terms of use'
-/** D-544: the first step of setup: tick the terms of use, then Continue. */
+/** The first step of setup: tick the terms of use, then Continue. */
 async function acceptTerms(u: ReturnType<typeof user>) {
   await u.click(await screen.findByRole('checkbox', { name: AGREE }))
   await u.click(screen.getByRole('button', { name: 'Continue' }))
 }
 
 describe('core: cài đặt ban đầu', () => {
-  it('D-544: the terms of use come first; Continue stays off with its reason until they are ticked, and Back keeps the tick', async () => {
+  it('the terms of use come first; Continue stays off with its reason until they are ticked, and Back keeps the tick', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     expect(await screen.findByRole('heading', { level: 2, name: 'Terms of use' })).toBeInTheDocument()
@@ -71,7 +71,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(await screen.findByRole('checkbox', { name: AGREE })).toBeChecked()
   })
 
-  it('đi hết 4 bước (D-462: không có bước kênh; D-544: điều khoản trước), tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
+  it('đi hết 4 bước (không có bước kênh; điều khoản trước), tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     await acceptTerms(u)
@@ -85,7 +85,7 @@ describe('core: cài đặt ban đầu', () => {
     await u.type(screen.getByLabelText('Repeat password'), 'ngan')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/The password needs at least 12 characters, it has 4 so far/)).toBeInTheDocument()
-    // D-75: the one-time setup code from the box's log is asked for on the first step
+    // The one-time setup code from the box's log is asked for on the first step
     expect(screen.getByText("Enter the setup code from the box's log.")).toBeInTheDocument()
     await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
     await u.clear(screen.getByLabelText('Password'))
@@ -95,7 +95,7 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     // bước 2
     expect(await screen.findByRole('heading', { level: 2, name: 'Network to watch' })).toBeInTheDocument()
-    // D-405: the box's own network (GET /core/setup/modules lan) is the first row
+    // The box's own network (GET /core/setup/modules lan) is the first row
     expect(screen.getByLabelText('Range 1')).toHaveValue('192.168.10.0/24')
     expect(screen.getByText(/The first row is the box's own network \(192.168.10.0\/24\)/)).toBeInTheDocument()
     await u.clear(screen.getByLabelText('Range 1'))
@@ -103,7 +103,7 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/"192.168.10.0\/33" is not a valid range/)).toBeInTheDocument()
     await u.clear(screen.getByLabelText('Range 1'))
-    // địa chỉ trần thiếu tiền tố: báo lỗi, không tự đoán /24 (kien: có thể là /25)
+    // địa chỉ trần thiếu tiền tố: báo lỗi, không tự đoán /24 (có thể là /25)
     await u.type(screen.getByLabelText('Range 1'), '192.168.10.0')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/"192.168.10.0" has no prefix length/)).toBeInTheDocument()
@@ -126,7 +126,7 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(await screen.findByRole('checkbox', { name: /^Vulnerability scan/ }))
     expect(screen.getByRole('checkbox', { name: /^Inventory/ })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /^Vulnerability feeds/ })).toBeChecked()
-    // D-462: Modules is the last step; there is no Continue and no Alerts step
+    // Modules is the last step; there is no Continue and no Alerts step
     expect(within(screen.getByRole('list', { name: 'Setup steps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Terms of use', 'Account', 'Network', '4Modules'])
     expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
     await u.click(screen.getByRole('button', { name: 'Finish setup' }))
@@ -143,12 +143,12 @@ describe('core: cài đặt ban đầu', () => {
     expect(inv.scope_confirmed_by).toBe('lan@abc.vn')
     expect(inv.active.enabled).toBe(true)
     expect(auditStore.get().some((a) => a.action === 'core.setup' && a.detail?.includes('commitment confirmed'))).toBe(true)
-    // D-544: the acceptance is kept with who, when and which version, and Settings → General shows it
+    // The acceptance is kept with who, when and which version, and Settings → General shows it
     const terms = (await (await fetch(`${location.origin}/api/v1/core/terms`)).json()) as { version: string; accepted: { by: string; version: string; via: string } | null }
     expect(terms.accepted).toMatchObject({ by: 'lan@abc.vn', version: TERMS_VERSION, via: 'setup' })
   })
 
-  it('D-462: xong cài đặt mới (chưa có kênh), Home nhắc bước "Get alerts" và dẫn tới Settings → Alert channels', async () => {
+  it('xong cài đặt mới (chưa có kênh), Home nhắc bước "Get alerts" và dẫn tới Settings → Alert channels', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     await acceptTerms(u)
@@ -168,7 +168,7 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/0.0.0.0\/0 is not a private range/)).toBeInTheDocument()
     await u.clear(screen.getByLabelText('Range 1'))
-    await u.type(screen.getByLabelText('Range 1'), '100.128.0.0/24') // 100/8 outside RFC 6598 is public (D-461)
+    await u.type(screen.getByLabelText('Range 1'), '100.128.0.0/24') // 100/8 outside RFC 6598 is public
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText('100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.')).toBeInTheDocument()
     await u.clear(screen.getByLabelText('Range 1'))
@@ -189,7 +189,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(inv.active.enabled).toBe(false) // không tick xác nhận: chỉ nghe thụ động
   })
 
-  it('D-75: a wrong setup code sends you back to the first step with the error on the code field; nothing is created', async () => {
+  it('a wrong setup code sends you back to the first step with the error on the code field; nothing is created', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     await acceptTerms(u)
@@ -220,7 +220,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(orgStore.get().setup_complete).toBe(true)
   })
 
-  it('D-462 review: a double-click on Continue moves one step and never finishes setup; a repeated click on Finish setup does not submit', async () => {
+  it('a double-click on Continue moves one step and never finishes setup; a repeated click on Finish setup does not submit', async () => {
     const u = user()
     let posts = 0
     const seen = ({ request }: { request: Request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/core/setup')) posts++ }
@@ -253,7 +253,7 @@ describe('core: cài đặt ban đầu', () => {
     } finally { server.events.removeListener('request:start', seen) }
   })
 
-  it('D-462 review: Finish setup and Back are disabled while finishing', async () => {
+  it('Finish setup and Back are disabled while finishing', async () => {
     const u = user()
     let release!: () => void
     const gate = new Promise<void>((r) => { release = r })
@@ -281,7 +281,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(screen.getByRole('button', { name: 'Back' })).toBeEnabled()
   })
 
-  it('D-462 review: ranges the box refuses on Finish send you back to the Network step with its sentence under the list', async () => {
+  it('ranges the box refuses on Finish send you back to the Network step with its sentence under the list', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     await acceptTerms(u)
@@ -304,7 +304,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(orgStore.get().setup_complete).toBe(false)
   })
 
-  it('D-75 API: the code is judged before every other field and never needed for the sample path', async () => {
+  it('setup code API: the code is judged before every other field and never needed for the sample path', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
     const post = (b: object) => fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
     for (const body of [{}, { setup_code: '' }, { setup_code: 'wrong' }, { setup_code: 'wrong', org: '' }]) {
@@ -312,7 +312,7 @@ describe('core: cài đặt ban đầu', () => {
       expect(r.status).toBe(403)
       expect(((await r.json()) as { error: { code: string } }).error.code).toBe('invalid_setup_code')
     }
-    // D-544: then the terms of use, then the fields
+    // Then the terms of use, then the fields
     const unticked = await post({ setup_code: MOCK_SETUP_CODE, org: '' })
     expect(unticked.status).toBe(400)
     expect(((await unticked.json()) as { error: { code: string } }).error.code).toBe('terms_not_accepted')
@@ -331,7 +331,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(usersStore.get().find((x) => x.id === sessionStore.get().userId)?.email).toBe('admin@acme.example')
   })
 
-  it('the release build (VITE_API_MOCK=off) shows no Use sample data in setup (D-369)', async () => {
+  it('the release build (VITE_API_MOCK=off) shows no Use sample data in setup', async () => {
     vi.stubEnv('VITE_API_MOCK', 'off')
     try {
       renderApp('/setup', { role: null, setupComplete: false })
@@ -352,7 +352,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(scan.scope.networks).toEqual(['192.168.18.0/24', '10.1.0.0/16'])
   })
 
-  it('setup takes a network in the RFC 6598 shared address space (100.64/10) and refuses the rest of 100/8, with the backend sentence (D-461)', async () => {
+  it('setup takes a network in the RFC 6598 shared address space (100.64/10) and refuses the rest of 100/8, with the backend sentence', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
     const body = (lan: string[]) => JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan, bundle: 'smb', commitment: true })
     const pub = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.128.0.0/24']) })
@@ -387,7 +387,7 @@ describe('core: cài đặt ban đầu', () => {
     ])
   })
 
-  it('W2-8: a box not set up never asks /me (its 401 would be logged by the browser) and step 1 (terms, D-544) has no Back', async () => {
+  it('a box not set up never asks /me (its 401 would be logged by the browser) and step 1 (terms) has no Back', async () => {
     const asked: string[] = []
     const seen = ({ request }: { request: Request }) => { asked.push(new URL(request.url).pathname) }
     server.events.on('request:start', seen)
@@ -435,12 +435,12 @@ describe('core: khung Cài đặt và vai', () => {
     expect(await screen.findByText('No such settings section')).toBeInTheDocument()
   })
 
-  it('My account is a Settings section: the menu entry and the old /account land inside Settings (W1-26, S-CORE-3)', async () => {
+  it('My account is a Settings section: the menu entry and the old /account land inside Settings (S-CORE-3)', async () => {
     renderApp('/account#two-step')
     const nav = await screen.findByRole('navigation', { name: 'Settings sections' })
     expect(await within(nav).findByRole('link', { name: 'My account' })).toHaveAttribute('aria-current', 'page')
     expect(await screen.findByRole('heading', { name: 'Change password' })).toBeInTheDocument()
-    // D-519: the old #two-step anchor opens the Sign-in tab
+    // The old #two-step anchor opens the Sign-in tab
     expect(screen.getByRole('tab', { name: 'Sign-in and two-step' })).toHaveAttribute('aria-selected', 'true')
   })
 
@@ -478,7 +478,7 @@ describe('core: module (S-CORE-1)', () => {
     expect(modulesStore.get().find((m) => m.id === 'scan')!.enabled).toBe(true)
   })
 
-  it('v1 does not list the credentialed scan, which has no backend in this build (D-417, walk-1 W1-36)', async () => {
+  it('v1 does not list the credentialed scan, which has no backend in this build', async () => {
     credFlag.CREDENTIALED_IN_UI = false
     try {
       renderApp('/settings/modules')
@@ -517,7 +517,7 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
     expect((await screen.findAllByText('Your own feeds right now: intel.partner.example.')).length).toBeGreaterThan(0)
     expect(document.body.textContent).not.toContain('s3cret')
   })
-  it('hiện đủ 16 luồng; tín hiệu ẩn danh ghi "không gửi", không công tắc, không payload (D-82, D-153)', async () => {
+  it('hiện đủ 16 luồng; tín hiệu ẩn danh ghi "không gửi", không công tắc, không payload', async () => {
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
     expect(within(table).getAllByRole('row')).toHaveLength(17)
@@ -527,11 +527,11 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
     expect(screen.getByText(/Anonymous signal: not sent\. The box sends nothing to the Vedette project\./)).toBeInTheDocument()
     const row = within(table).getByText(/2\. Anonymous signal/).closest('tr')!
     expect(within(row).getAllByText('Not sent').length).toBeGreaterThan(0)
-    expect(document.body.textContent).not.toMatch(/\bIDS\b|ids_matches/i) // there is no IDS on the box (D-43)
+    expect(document.body.textContent).not.toMatch(/\bIDS\b|ids_matches/i) // there is no IDS on the box
     await expectNoA11yViolations()
   })
 
-  it('the anonymous signal cannot be turned on: 400 telemetry_unavailable, and it reads as off (D-154)', async () => {
+  it('the anonymous signal cannot be turned on: 400 telemetry_unavailable, and it reads as off', async () => {
     renderApp('/settings/privacy')
     await screen.findByRole('heading', { level: 1 })
     const on = await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: true }) })
@@ -568,7 +568,7 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
 })
 
 describe('core: dữ liệu', () => {
-  it('khôi phục bản sao lưu trên hộp: cần "I understand", bản dữ liệu hiện tại được giữ thành Before restore (D-377)', async () => {
+  it('khôi phục bản sao lưu trên hộp: cần "I understand", bản dữ liệu hiện tại được giữ thành Before restore', async () => {
     const u = user()
     renderApp('/settings/data')
     const before = await screen.findAllByRole('button', { name: 'Restore' })
@@ -594,7 +594,7 @@ describe('core: dữ liệu', () => {
     expect(await screen.findAllByRole('button', { name: 'Restore' })).toHaveLength(before.length + 1)
   })
 
-  it('khôi phục không có confirm_data_loss: 409 confirm_required, không gì đổi (D-377)', async () => {
+  it('khôi phục không có confirm_data_loss: 409 confirm_required, không gì đổi', async () => {
     renderApp('/settings/data')
     await screen.findAllByRole('button', { name: 'Restore' })
     const r = await fetch(`${location.origin}/api/v1/core/data/backups`).then((x) => x.json()) as { backups: { id: string }[] }
@@ -614,7 +614,7 @@ describe('core: dữ liệu', () => {
     await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample')
     expect(confirm).toBeDisabled()
     await u.type(within(dlg).getByLabelText(/Type the organization name/), ' Company')
-    expect(confirm).toBeDisabled() // the password is needed too (D-154)
+    expect(confirm).toBeDisabled() // the password is needed too
     expect(within(dlg).queryByLabelText('Two-step code')).toBeNull() // no two-step on this account
     await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
     expect(confirm).toBeEnabled()
@@ -733,7 +733,7 @@ describe('core: dữ liệu', () => {
 
   it('the release build (VITE_API_MOCK=off) does not offer to restore sample data a real box does not have (issue #244)', async () => {
     vi.stubEnv('VITE_API_MOCK', 'off')
-    // a release build asks /me only when the box's readable CSRF cookie says a session exists (N44-2)
+    // a release build asks /me only when the box's readable CSRF cookie says a session exists
     document.cookie = '__Host-vedette_csrf=t; Path=/; Secure'
     try {
       renderApp('/settings/data')
@@ -848,9 +848,9 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await u.type(await screen.findByLabelText('Issuer'), 'http://sso.acme.example')
     await u.type(screen.getByLabelText('Client ID'), 'vedette')
     await u.type(screen.getByLabelText('Client secret'), 'bi-mat-rat-dai')
-    // D-194 (5): the redirect address is the SPA callback page, not an API path
+    // The redirect address is the SPA callback page, not an API path
     expect(screen.getByText(`${location.origin}/sso/callback`)).toBeInTheDocument()
-    // D-195: no access by default
+    // No access by default
     expect((screen.getByLabelText('People in none of these groups') as HTMLSelectElement).value).toBe('none')
     await u.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/The issuer must be an https address/)).toBeInTheDocument()
@@ -872,8 +872,8 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await expectNoA11yViolations()
   })
 
-  // D-378: an IdP behind a private CA (the mock stands for one with an issuer under .internal).
-  it('OIDC: CA nội bộ của IdP: dán, kiểm, hiện hạn, gỡ (D-378)', async () => {
+  // An IdP behind a private CA (the mock stands for one with an issuer under .internal).
+  it('OIDC: CA nội bộ của IdP: dán, kiểm, hiện hạn, gỡ', async () => {
     const u = user()
     const pem = '-----BEGIN CERTIFICATE-----\nMIIBszCCAVmgAwIBAgIBATAKBggqhkjOPQQDAjAUMRIwEAYDVQQDEwlBY21lIFJvb3Q=\n-----END CERTIFICATE-----\n'
     renderApp('/settings/users')
@@ -918,9 +918,9 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
   })
 })
 
-// D-194, D-195, D-196: the SSO round trip on the mock. The mock skips the identity provider: its authorization address is the
+// The SSO round trip on the mock. The mock skips the identity provider: its authorization address is the
 // callback page itself, with a code. The identity there is MOCK_IDP_USER (groups vedette-operators and staff).
-describe('core: đăng nhập SSO (S-CORE-3, D-194..D-196)', () => {
+describe('core: đăng nhập SSO (S-CORE-3)', () => {
   const ISSUER = 'https://sso.acme.example'
   async function configure(map: { group: string; role: Role }[], default_role: Role | null = null) {
     setModule('auth-oidc', true)
@@ -961,7 +961,7 @@ describe('core: đăng nhập SSO (S-CORE-3, D-194..D-196)', () => {
     expect(sessionStore.get().userId).toBe(ssoUser()!.id)
     const rows = auditStore.get().map((r) => `${r.action} ${r.detail ?? ''}`)
     expect(rows).toEqual(expect.arrayContaining(['user.create SSO', 'auth.login SSO']))
-    // D-195 (5), D-196 (1): no password, no Vedette two-step sign-in
+    // No password, no Vedette two-step sign-in
     expect(screen.queryByRole('button', { name: 'Change password' })).toBeNull()
     const login = await fetch(`${location.origin}/api/v1/auth/login`, { method: 'POST', body: JSON.stringify({ email: MOCK_IDP_USER.email, password: '' }) })
     expect(login.status).toBe(400)
@@ -1069,7 +1069,7 @@ describe('core: đăng nhập SSO (S-CORE-3, D-194..D-196)', () => {
     expect(auditStore.get().some((r) => r.action === 'user.sso_relink')).toBe(true)
   })
 
-  it('email đã thuộc tài khoản mật khẩu → không nối (D-195 (3))', async () => {
+  it('email đã thuộc tài khoản mật khẩu → không nối', async () => {
     usersStore.update((l) => [...l, { id: 'u-pw', name: 'Same', email: MOCK_IDP_USER.email, role: 'admin', password: 'x'.repeat(12), twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null }])
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     renderApp(await start(), { role: null })
@@ -1096,7 +1096,7 @@ describe('core: đăng nhập SSO (S-CORE-3, D-194..D-196)', () => {
     expect(screen.queryAllByRole('button', { name: 'Reset password of Sso Admin' })).toHaveLength(0)
     const patch = await fetch(`${location.origin}/api/v1/core/users/u-sso`, { method: 'PATCH', body: JSON.stringify({ role: 'viewer' }) })
     expect(patch.status).toBe(409)
-    // D-196 (3): the SSO admin does not count; the only password admin stays
+    // The SSO admin does not count; the only password admin stays
     await u.selectOptions((await screen.findAllByLabelText('Role of Admin'))[0]!, 'viewer')
     expect((await screen.findAllByText(/who signs in with a password must remain/))[0]).toBeInTheDocument()
   })
@@ -1132,7 +1132,7 @@ describe('core: nhật ký (S-CORE-3)', () => {
     await expectNoA11yViolations()
   })
 
-  it('names devices and findings by name with the id below, says the retention, and hides automatic lines on request (D-416)', async () => {
+  it('names devices and findings by name with the id below, says the retention, and hides automatic lines on request', async () => {
     const u = user()
     const asset = assetsStore.get().find((a) => a.hostname)!
     auditStore.set([
@@ -1171,16 +1171,16 @@ describe('core: cập nhật (S-CORE-2)', () => {
     renderApp('/settings/updates')
     expect(await screen.findByRole('alert')).toHaveTextContent('1 known vulnerabilities')
     await u.click(screen.getByRole('button', { name: 'Update Vedette software' }))
-    // D-340: the software update is a run with steps; Apply and Rollback wait for it, the toast comes at its end
+    // The software update is a run with steps; Apply and Rollback wait for it, the toast comes at its end
     expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
-    expect(screen.getByText(/^Step 1 of 4: update the system helper/)).toBeInTheDocument() // D-316: the release brings a newer helper
+    expect(screen.getByText(/^Step 1 of 4: update the system helper/)).toBeInTheDocument() // The release brings a newer helper
     expect(screen.getByRole('button', { name: /^Back to .*Vedette software/i })).toBeDisabled()
     expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
     expect(screen.getByRole('table', { name: 'Versions in use' })).toHaveTextContent('0.9.4')
   })
 
-  it('rollback that restores the database: warns, needs the box ticked, then goes back (D-340)', async () => {
+  it('rollback that restores the database: warns, needs the box ticked, then goes back', async () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
@@ -1207,7 +1207,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     expect(((await r.json()) as { error: { code: string } }).error.code).toBe('confirm_required')
   })
 
-  it('a run that went back shows why and no success toast (D-340)', async () => {
+  it('a run that went back shows why and no success toast', async () => {
     const success = vi.spyOn(toast, 'success')
     const run = { id: 'ur1', action: 'update', component: 'software', from: '0.9.3', to: '0.9.4', status: 'reverted', steps: ['download', 'restart', 'start'], step: null, started_at: '2026-11-12T08:00:00Z', finished_at: '2026-11-12T08:09:00Z', user: 'admin@acme.example', error: 'core did not pass its health check, so the box went back to 0.9.3.' }
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ channel: 'stable', mode: 'manual', check_enabled: true, last_check: '2026-11-12T08:00:00Z', components: [], available: [], history: [], advisories: [], managed: [], run })))
@@ -1220,7 +1220,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     success.mockRestore()
   })
 
-  it('while Vedette restarts a read fails: the page stays and says it reconnects, then one toast at the end (D-340)', async () => {
+  it('while Vedette restarts a read fails: the page stays and says it reconnects, then one toast at the end', async () => {
     toast.dismiss() // toasts of the tests before still show for a few seconds
     const u = user()
     renderApp('/settings/updates')
@@ -1272,12 +1272,12 @@ describe('core: cập nhật (S-CORE-2)', () => {
     expect(await screen.findByText(/Installed \d+ new items automatically/)).toBeInTheDocument()
   })
 
-  it('a failed check says so under the settings with the reason, and a good check clears it (D-392)', async () => {
+  it('a failed check says so under the settings with the reason, and a good check clears it', async () => {
     const u = user()
     checkScenario.set({ code: 'update_source_unreachable' })
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Check for Vedette releases' }))
-    // One status line (D-407): the failure with its reason, then the last good check, which stays.
+    // One status line: the failure with its reason, then the last good check, which stays.
     expect(await screen.findByText(/^Last check failed .+: Could not reach the update source \(github\.com\): it did not answer in time\. Try again later.* Last successful check /)).toBeInTheDocument()
     expect(screen.queryByText(/^Last checked |^Never checked/)).toBeNull()
     checkScenario.set({ code: null })
@@ -1285,7 +1285,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     await waitFor(() => expect(screen.queryByText(/^Last check failed/)).toBeNull())
   })
 
-  it('a check that finds nothing newer says which version is running, not "failed" (M5-181, D-540)', async () => {
+  it('a check that finds nothing newer says which version is running, not "failed"', async () => {
     const u = user()
     sessionStore.set({ userId: 'u-admin' })
     const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
@@ -1297,7 +1297,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     expect(screen.queryByText(/failed/i)).toBeNull()
   })
 
-  it('a build with no release: one status line that does not blame the network, no empty tables, the version in the sidebar (D-407)', async () => {
+  it('a build with no release: one status line that does not blame the network, no empty tables, the version in the sidebar', async () => {
     sessionStore.set({ userId: 'u-admin' })
     const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
     const e = { at: new Date(Date.now() - 6 * 60_000).toISOString(), code: 'update_not_published', message: CHECK_FAILURES.update_not_published.message }
@@ -1329,7 +1329,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     expect(await screen.findByText('Bundle imported, 1 new items installed.')).toBeInTheDocument()
   })
 
-  it('v1 (D-408): no offline bundle on the Updates page, and no sentence that points to one', async () => {
+  it('v1: no offline bundle on the Updates page, and no sentence that points to one', async () => {
     bundleFlag.BUNDLE_IN_UI = false
     try {
       renderApp('/settings/updates')
@@ -1382,7 +1382,7 @@ describe('core: MCP (S-MCP-1)', () => {
     expect(screen.getByRole('table', { name: 'Tools the MCP server offers' })).toBeInTheDocument()
     await expectNoA11yViolations()
   })
-  it('the switch is the module (D-230): off, no /core/mcp path answers and the page asks for none', async () => {
+  it('the switch is the module: off, no /core/mcp path answers and the page asks for none', async () => {
     const u = user()
     setModule('mcp-server', true)
     renderApp('/settings/mcp')
@@ -1401,7 +1401,7 @@ describe('core: MCP (S-MCP-1)', () => {
     expect((await call('/core/mcp/tokens', 'POST', { name: 'x', scopes: ['feeds'] })).status).toBe(404)
     expect((await call('/core/mcp/tokens/t-1', 'DELETE')).status).toBe(404)
   })
-  it('a port another program holds is said plainly, so no token goes to it (D-230)', async () => {
+  it('a port another program holds is said plainly, so no token goes to it', async () => {
     setModule('mcp-server', true)
     server.use(http.get('*/api/v1/core/mcp', () => HttpResponse.json({ enabled: true, bind: '127.0.0.1', port: 8765, endpoint: 'http://127.0.0.1:8765/mcp', listening: false,
       listen_error: 'The port 127.0.0.1:8765 could not be opened: another program may hold it. Vedette tries again every 15 seconds.', tokens: [], tools: [], scopes: ['assets'] })))
@@ -1443,7 +1443,7 @@ describe('core: tài khoản', () => {
     const u = user()
     renderApp('/settings/account?tab=sign-in')
     const start = await screen.findByRole('button', { name: 'Set up authenticator app' })
-    // D-76: the current password comes first; without it neither method can be started
+    // The current password comes first; without it neither method can be started
     expect(start).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Set up email code' })).toBeDisabled()
     await u.type(screen.getByLabelText('Your current password'), 'wrong password here')
@@ -1466,7 +1466,7 @@ describe('core: tài khoản', () => {
     expect(Math.min(...xs.map(([x]) => x))).toBeGreaterThanOrEqual(4)
     expect(Math.max(...xs.map(([x, y]) => Math.max(x, y)))).toBeLessThanOrEqual(size + 3)
     expect(screen.getByText('Scan this QR code with your authenticator app, or enter the key by hand.')).toBeInTheDocument()
-    // D-414: three steps recommending Google Authenticator, with both stores
+    // Three steps recommending Google Authenticator, with both stores
     expect(screen.getByRole('link', { name: 'App Store (iPhone)' })).toHaveAttribute('href', 'https://apps.apple.com/app/google-authenticator/id388497605')
     expect(screen.getByRole('link', { name: 'Google Play (Android)' })).toHaveAttribute('href', 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2')
     expect(screen.getByText(/tap \+ and choose Scan a QR code/)).toBeInTheDocument()
@@ -1493,12 +1493,12 @@ describe('core: tài khoản', () => {
     await expectNoA11yViolations()
   })
 
-  it('walk 2026-11-12: short device label with the raw text as tooltip; a guessable new password is refused under New password (D-389)', async () => {
+  it('short device label with the raw text as tooltip; a guessable new password is refused under New password', async () => {
     const u = user()
     renderApp('/settings/account?tab=sessions')
     const label = await screen.findByText('Firefox on Windows')
     expect(label).toHaveAttribute('title', expect.stringMatching(/^Mozilla\/5\.0 \(Windows NT 10\.0/))
-    await u.click(screen.getByRole('tab', { name: 'Sign-in and two-step' })) // D-519
+    await u.click(screen.getByRole('tab', { name: 'Sign-in and two-step' }))
     await u.type(screen.getByLabelText('Current password'), 'vedette-demo')
     await u.type(screen.getByLabelText('New password'), 'password1234')
     await u.type(screen.getByLabelText('Repeat new password'), 'password1234')
@@ -1508,7 +1508,7 @@ describe('core: tài khoản', () => {
     expect(usersStore.get().find((x) => x.id === 'u-admin')!.password).toBe('vedette-demo')
   })
 
-  it('two-step on: an administrator sees the box-console reset with their email, another user is told to ask an administrator (D-389)', async () => {
+  it('two-step on: an administrator sees the box-console reset with their email, another user is told to ask an administrator', async () => {
     usersStore.update((l) => l.map((x) => (x.id === 'u-admin' || x.id === 'u-op' ? { ...x, twofa: true, twofa_method: 'app' } : x)))
     const { unmount } = renderApp('/settings/account?tab=sign-in')
     expect(await screen.findByText("docker exec vedette-core /vedette reset-admin 'admin@acme.example'")).toBeInTheDocument()
@@ -1519,7 +1519,7 @@ describe('core: tài khoản', () => {
   })
 })
 
-// ---------- D-35: hai kiểu đăng nhập hai bước ----------
+// ---------- hai kiểu đăng nhập hai bước ----------
 const call = (path: string, method = 'POST', body: object = {}) => fetch(`${location.origin}/api/v1${path}`, { method, body: method === 'GET' ? undefined : JSON.stringify(body) })
 const errCode = async (r: Response) => ((await r.json()) as { error: { code: string } }).error.code
 const setUser = (id: string, patch: object) => usersStore.update((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)))
@@ -1529,7 +1529,7 @@ const startEmail = (password = 'vedette-demo') => call('/core/account/2fa/email/
 const startApp = (password = 'vedette-demo') => call('/core/account/2fa/start', 'POST', { password })
 const loginAs = (email: string, extra: object = {}) => call('/auth/login', 'POST', { email, password: 'vedette-demo', ...extra })
 
-describe('core: turning two-step on needs the current password (D-76)', () => {
+describe('core: turning two-step on needs the current password', () => {
   it('both start calls refuse a wrong or missing password and create nothing', async () => {
     sessionStore.set({ userId: 'u-admin' })
     for (const body of [{}, { password: '' }, { password: 'wrong' }]) {
@@ -1543,11 +1543,11 @@ describe('core: turning two-step on needs the current password (D-76)', () => {
   })
 })
 
-describe('core: two-step sign-in, email code method (D-35)', () => {
+describe('core: two-step sign-in, email code method', () => {
   it('account: both methods are offered; email is enabled when the email channel is on', async () => {
     const u = user()
     renderApp('/settings/account?tab=sign-in')
-    expect(await screen.findByRole('button', { name: 'Set up authenticator app' })).toBeDisabled() // until the password is typed (D-76)
+    expect(await screen.findByRole('button', { name: 'Set up authenticator app' })).toBeDisabled() // until the password is typed
     await u.type(screen.getByLabelText('Your current password'), 'vedette-demo')
     expect(screen.getByRole('button', { name: 'Set up authenticator app' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Set up email code' })).toBeEnabled()
@@ -1781,7 +1781,7 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
   })
 })
 
-describe('core: admin reset of two-step sign-in (D-35)', () => {
+describe('core: admin reset of two-step sign-in', () => {
   it('users list shows the method; reset asks first, turns it off and writes an audit entry', async () => {
     const u = user()
     setUser('u-op', { twofa: true, twofa_method: 'email' })
@@ -1820,7 +1820,7 @@ describe('core: admin reset of two-step sign-in (D-35)', () => {
   })
 })
 
-describe('core: turning off Notifications warns about email-code users (D-35)', () => {
+describe('core: turning off Notifications warns about email-code users', () => {
   it('the module dialog says how many users will be locked out; no warning when there are none', async () => {
     const u = user()
     renderApp('/settings/modules')
@@ -1838,7 +1838,7 @@ describe('core: turning off Notifications warns about email-code users (D-35)', 
   })
 })
 
-describe('core: operating system of the box (S-CORE-7, D-53)', () => {
+describe('core: operating system of the box (S-CORE-7)', () => {
   const BASE = `${location.origin}/api/v1/core/updates/os`
   const post = (path: string, body?: unknown) => fetch(`${BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
   const patch = (body: unknown) => fetch(`${BASE}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -1858,7 +1858,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     collection<{ on: boolean }>('core_os_never_checked', () => ({ on: false })).set({ on: true })
     asAdmin()
     const r = await fetch(BASE)
-    expect([r.status, (await r.json()).os]).toEqual([200, null]) // not a 409 in the console on every open (D-407)
+    expect([r.status, (await r.json()).os]).toEqual([200, null]) // not a 409 in the console on every open
     const u = user()
     renderApp('/settings/updates')
     expect(await screen.findByText('The box has not looked for operating system updates yet. Click Check now.', undefined, T)).toBeInTheDocument()
@@ -1935,7 +1935,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     expect(os().getByText('Release upgrade to Debian 13 (trixie) is available')).toBeInTheDocument()
     expect(os().getByRole('switch', { name: 'Automatic security updates' })).not.toBeChecked()
     expect(os().getByText('Nothing waiting. The operating system is up to date.')).toBeInTheDocument()
-    // kien G5: nothing to install, so no install button
+    // Nothing to install, so no install button
     expect(os().queryByRole('button', { name: /^Install security updates/ })).toBeNull()
     expect(os().queryByRole('button', { name: 'Install all updates' })).toBeNull()
   })
@@ -2156,7 +2156,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     for (const h of ['archive.ubuntu.com', 'security.ubuntu.com', 'deb.debian.org', 'security.debian.org', 'local mirror']) expect(row).toHaveTextContent(h)
   })
 
-  it('privacy flow 6 says the scan image build contacts deb.debian.org from inside the build container, ignoring the local mirror (D-147)', async () => {
+  it('privacy flow 6 says the scan image build contacts deb.debian.org from inside the build container, ignoring the local mirror', async () => {
     renderApp('/settings/privacy')
     const row = (await screen.findByText(/^6\. Update checks/)).closest('tr')!
     expect(row).toHaveTextContent('builds the `scan` image on the box')

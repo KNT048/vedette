@@ -1,6 +1,6 @@
 package channel
 
-// Finding the recipient and the approvers of the Zalo personal channel (D-447): the account's friends and groups, a group behind an invite
+// Finding the recipient and the approvers of the Zalo personal channel: the account's friends and groups, a group behind an invite
 // link, a person behind a phone number. Read from zca-js v2.2.0 (MIT) src/apis/getAllFriends.ts, getAllGroups.ts, getGroupInfo.ts,
 // getGroupLinkInfo.ts and findUser.ts, re-implemented here. Every answer is untrusted: ids must be digits, names are cleaned and cut,
 // lists are capped.
@@ -441,7 +441,7 @@ func parseZaloFoundUser(data json.RawMessage) (ZaloContact, error) {
 
 // ZaloSelf returns the user ID of the account the session of snd is signed in to (the uid of the sign-in answer), signing in first if
 // needed, under the same pause and one-at-a-time rule as a send. "" when the answer named none. It is the one Zalo account the box
-// knows is the administrator's own without a confirm link: the QR sign-in proved it (D-447).
+// knows is the administrator's own without a confirm link: the QR sign-in proved it.
 func ZaloSelf(ctx context.Context, snd Sender) (string, error) {
 	z, err := accountOf(snd)
 	if err != nil {

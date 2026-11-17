@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-// D-103 (2): real minisign output verifies; Ed is refused; the key id must match.
+// Real minisign output verifies; Ed is refused; the key id must match.
 func TestMinisignRealVectors(t *testing.T) {
 	tr := tdTrust(t)
 	doc := td(t, "minisign/doc.json")

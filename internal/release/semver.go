@@ -23,7 +23,7 @@ func CompareVersions(a, b string) (int, error) {
 	return compareVersions(a, b), nil
 }
 
-// CheckUpgrade applies the start rules of D-104 (4) for moving a service from running to m's
+// CheckUpgrade applies the start rules for moving a service from running to m's
 // release: a lower version is ErrDowngrade (going back is container.rollback), and a running
 // version below min_upgrade_from is ErrUpgradePath. The same version is allowed (idempotent start).
 // An empty running means nothing is installed yet.
@@ -44,7 +44,7 @@ func CheckUpgrade(m *Manifest, running string) error {
 	return nil
 }
 
-// CheckRollback applies D-104 (5): running is the manifest of the release that is running, previous
+// CheckRollback applies the rollback rules: running is the manifest of the release that is running, previous
 // the version to go back to. previous must be below the running version, and not below
 // running.rollback.min_version.
 func CheckRollback(running *Manifest, previous string) error {

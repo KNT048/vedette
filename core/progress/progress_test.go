@@ -184,7 +184,7 @@ func TestNeverBackwardsWithinAPass(t *testing.T) {
 	tr := NewTracker(c.now)
 	tr.Report(Update{Phase: PhaseVulns, Percent: -1, Done: 170, Total: 200, Unit: UnitChecks})
 	c.add(5 * time.Second)
-	tr.Report(Update{Phase: PhaseVulns, Percent: -1, Done: 78, Total: 200, Unit: UnitChecks}) // what the N100 showed
+	tr.Report(Update{Phase: PhaseVulns, Percent: -1, Done: 78, Total: 200, Unit: UnitChecks}) // what a real scan showed
 	v := tr.View()
 	if d, _ := val(v.Done); d != 170 || *v.Percent != 85 || v.PhaseStartedAt != "2026-11-16T08:00:00.000Z" {
 		t.Fatalf("after a lower count: done %v percent %v phase start %s, want 170, 85, the same pass", d, *v.Percent, v.PhaseStartedAt)
@@ -203,7 +203,7 @@ func TestNeverBackwardsWithinAPass(t *testing.T) {
 }
 
 // #830 FAIL 2: the jobs of a Series add up, whatever each reports of its own, and the count of the pass only grows. The reports
-// come as the N100's exposure deep scan sent them: one 200-template job after another, each from 0, with a late report of a job
+// come as a real exposure deep scan sent them: one 200-template job after another, each from 0, with a late report of a job
 // that already ended.
 func TestSeriesAddsItsJobsUp(t *testing.T) {
 	c := newClock()

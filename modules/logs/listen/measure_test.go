@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// TestMeasureLimits measures the defaults of Limits on the box it runs on (VEDETTE_MEASURE=1; numbers in D-222): the memory of
+// TestMeasureLimits measures the defaults of Limits on the box it runs on (VEDETTE_MEASURE=1): the memory of
 // 1,000 idle TCP connections (4 senders x 250, the clients live in the same process and are counted too), and how many lines a
 // second the listener hands to a Sink that does nothing, over one TCP connection and over UDP.
 func TestMeasureLimits(t *testing.T) {

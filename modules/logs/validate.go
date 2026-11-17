@@ -47,7 +47,7 @@ var nameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 
 // normalize checks a source input in the order the mock does (kind, name, IP, protocol, port) and returns it with the name
 // trimmed. The messages are the mock's: the GUI shows them as they are. Limits that contract.ts states (the enums, the
-// name pattern, the port range) are refused first by the generated validator as 400 invalid (D-73); these codes remain
+// name pattern, the port range) are refused first by the generated validator as 400 invalid; these codes remain
 // for what the schema cannot say (the protocol a kind can send, an IP that is not a dotted quad) and for the service
 // used directly.
 func (in Input) normalize(tlsOK bool) (Input, error) {
@@ -65,7 +65,7 @@ func (in Input) normalize(tlsOK bool) (Input, error) {
 	if !slices.Contains(k.Protos, in.Proto) {
 		return in, apierr.New(400, "bad_proto", "This device type cannot send logs with the chosen protocol. Pick another protocol from the list.")
 	}
-	if in.Proto == "tls" && !tlsOK { // D-203, D-214: the box has no certificate to serve (loopback or dev, plain HTTP); a source that would silently never receive is refused
+	if in.Proto == "tls" && !tlsOK { // The box has no certificate to serve (loopback or dev, plain HTTP); a source that would silently never receive is refused
 		return in, apierr.New(400, "tls_unavailable", "Syslog over TLS needs the box's HTTPS certificate; this box serves plain HTTP. Choose UDP or TCP.")
 	}
 	if in.Port < 1 || in.Port > 65535 {

@@ -1,6 +1,6 @@
 package server_test
 
-// Tests that came out of the independent security review of slice 3-1 (D-100): the lock handover,
+// Tests that came out of the independent security review of slice 3-1: the lock handover,
 // Awaits validation, events saved while waiting, resume hardening, Claim/Finish, OnParked and the
 // RevertAt bounds.
 
@@ -72,7 +72,7 @@ func startReview(t *testing.T, mutate ...func(*server.Options)) (*servertest.Har
 				return server.Awaiting{RevertAt: time.Now().Add(time.Minute)}, nil
 			},
 		}),
-		// The shape of net.confirm per D-100 (2): settle, then finish its own work (remove the
+		// The shape of net.confirm: settle, then finish its own work (remove the
 		// /run copy, pending.json, write the result) before returning.
 		server.Define(server.Spec[runIDArgs]{
 			Name: "rv.confirm_then_work", Write: true, WhileAwaiting: true, Timeout: 10 * time.Second, Validate: validRunID,
@@ -158,7 +158,7 @@ func TestAwaiting_LockStaysHeldWhenTheTimerSettlesWhileAConfirmStillRuns(t *test
 	finish(t, h.Client, held.RunID)
 }
 
-// Same defect, the path net.confirm will take (D-100 (2)): it calls Settle and then still has
+// Same defect, the path net.confirm will take: it calls Settle and then still has
 // work to do before Run returns; from Settle on, another write may run beside it.
 func TestAwaiting_LockStaysHeldWhenAConfirmSettledItselfAndStillHasWork(t *testing.T) {
 	t.Parallel()

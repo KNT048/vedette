@@ -24,7 +24,7 @@ import (
 	"github.com/knt048/vedette/modules/ai"
 )
 
-// Slice 6 of WP-25: CVE news (S-AI-3, INV-3, INV-6, FORBID-6, D-280..D-283). The box fetches the public sources itself, from a fixed
+// Slice 6 of WP-25: CVE news (S-AI-3, INV-3, INV-6, FORBID-6). The box fetches the public sources itself, from a fixed
 // list of hosts, through a fake Internet: a TLS server that answers for every host, reached through the fetcher's own dialer with
 // only the final connect replaced.
 
@@ -568,7 +568,7 @@ func TestContract_INV10_TheNewsNeverGetsAKnowledgeDocumentOrMemory(t *testing.T)
 	}
 }
 
-// D-284 (1): two presses on one CVE at the same time fetch once and ask once; the second waits for the first and reads its result.
+// Two presses on one CVE at the same time fetch once and ask once; the second waits for the first and reads its result.
 func TestContract_INV6_TwoPressesAtOnceAskOnce(t *testing.T) {
 	a := newNewsAPI(t)
 	started := make(chan struct{})
@@ -606,7 +606,7 @@ func TestContract_INV6_TwoPressesAtOnceAskOnce(t *testing.T) {
 	}
 }
 
-// D-284 (2): GitHub's limit for requests without a key is remembered for a minute, per host: presses in that minute, for any CVE,
+// GitHub's limit for requests without a key is remembered for a minute, per host: presses in that minute, for any CVE,
 // do not ask GitHub again.
 func TestNewsRateLimitIsRemembered(t *testing.T) {
 	a := newNewsAPI(t)
@@ -649,7 +649,7 @@ func TestNewsRateLimitIsRemembered(t *testing.T) {
 	}
 }
 
-// D-284 (3): the box's own list of sources it could not read goes through the before-AI hooks like the fetched blocks: a hook that
+// The box's own list of sources it could not read goes through the before-AI hooks like the fetched blocks: a hook that
 // stops it leaves it out, and the call goes on.
 func TestNewsHookLeavesOutTheUnreadSourcesList(t *testing.T) {
 	a := newNewsAPI(t)

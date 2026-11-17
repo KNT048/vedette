@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useSearchParams } from 'react-router'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Counter } from './Counter'
 
-// Khung trang D-464 (S-UI-1): PageHeader → KpiStrip (tuỳ chọn) → PageTabs. Settings giữ menu dọc.
+// Khung trang (S-UI-1): PageHeader → KpiStrip (tuỳ chọn) → PageTabs. Settings giữ menu dọc.
 
 export type Kpi = { value: ReactNode; label: string; to: string }
 
@@ -15,14 +15,14 @@ const isZero = (v: ReactNode) => v === 0 || v === '0'
 
 export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string }) {
   // Lỗi lập trình: báo khi phát triển, không làm vỡ trang của người dùng.
-  if (all.length > 4 && import.meta.env.DEV) console.error(`KpiStrip "${label}": at most 4 items (D-464), got ${all.length}; the rest are dropped`)
+  if (all.length > 4 && import.meta.env.DEV) console.error(`KpiStrip "${label}": at most 4 items, got ${all.length}; the rest are dropped`)
   const items = all.slice(0, 4)
   return (
     <ul aria-label={label} className={`mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-rule bg-rule ${COLS[items.length]}`}>
       {items.map((k) => (
         <li key={k.label} className="bg-surface [&:last-child:nth-child(odd)]:col-span-2 sm:[&:last-child:nth-child(odd)]:col-span-1">
           {/* Cả ô là liên kết (không phải chữ trong đoạn văn): không gạch chân cả số lẫn nhãn; di chuột → nền và gạch chân nhãn.
-              kien G5: a 0 opens nothing (a link to an empty list is an action with nothing behind it), so it is plain text. */}
+              A 0 opens nothing (a link to an empty list is an action with nothing behind it), so it is plain text. */}
           {isZero(k.value) ? (
             <div className="grid h-full gap-0.5 px-3 py-2">
               <span className="text-lg font-semibold leading-tight tabular-nums">{k.value}</span>{' '}
@@ -82,7 +82,7 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
   )
 }
 
-/** Liên kết cũ `#<phần>` của một trang đã chuyển sang tab (D-464, D-519) → `?tab=<id>`, giữ các tham số khác, bỏ hash.
+/** Liên kết cũ `#<phần>` của một trang đã chuyển sang tab → `?tab=<id>`, giữ các tham số khác, bỏ hash.
  *  Chỉ các tên trong `map`; hash khác (ví dụ `#main` của "Skip to content") để nguyên. Trả về null khi không có gì để chuyển. */
 export function OldHashToTab({ map }: { map: Record<string, string> }) {
   const { hash, search } = useLocation()

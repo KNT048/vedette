@@ -1,8 +1,8 @@
-// Package greenbone checks the two compose files of OpenVAS (Greenbone Community Edition, D-529, FULL-2, LEAN-1) that the vedette-host
+// Package greenbone checks the two compose files of OpenVAS (Greenbone Community Edition) that the vedette-host
 // package ships: Greenbone's official file is unmodified apart from its digest pins, the pins are those of pins.env, and Vedette's
-// override hands gvmd's socket to the host directory core mounts, gives gvmd Vedette's GMP login at the creation of its admin user
-// (D-590), publishes no port and runs only what Vedette's GMP path uses (no web interface, no SCAP or CERT data: D-593). It starts no
-// container: the N100 walk of D-529 checks the effect.
+// override hands gvmd's socket to the host directory core mounts, gives gvmd Vedette's GMP login at the creation of its admin user,
+// publishes no port and runs only what Vedette's GMP path uses (no web interface, no SCAP or CERT data). It starts no
+// container: a run on a test box checks the effect.
 package greenbone
 
 import (
@@ -25,15 +25,15 @@ import (
 const officialSHA256 = "5b5117a7c200491de13bc7b79c97dc858c016c51017982d8f1de7ca077c1a868"
 
 // feedServices are the seven feed data services of Greenbone's file: Greenbone's tag, no digest (the weekly update pulls their new
-// versions; Vedette runs four of them, D-593).
+// versions; Vedette runs four of them).
 var feedServices = []string{"notus-data", "vulnerability-tests", "scap-data", "dfn-cert-data", "cert-bund-data", "report-formats", "data-objects"}
 
-// disabled are the services Vedette never starts (LEAN-1): the web interface and its helpers, the log viewer, and the SCAP and CERT
-// data (stage A, D-593).
+// disabled are the services Vedette never starts: the web interface and its helpers, the log viewer, and the SCAP and CERT
+// data (stage A).
 var disabled = []string{"gsa", "gsad", "nginx", "gvm-config", "gvm-tools", "openvas", "scap-data", "cert-bund-data", "dfn-cert-data"}
 
-// gvmdDropped are gvmd's mounts of Greenbone's file that the override takes out (D-593); the third is replaced by the host's socket
-// directory (D-529).
+// gvmdDropped are gvmd's mounts of Greenbone's file that the override takes out; the third is replaced by the host's socket
+// directory.
 var gvmdDropped = []string{"scap_data_vol:/var/lib/gvm/scap-data/", "cert_data_vol:/var/lib/gvm/cert-data", "gvmd_socket_vol:/run/gvmd"}
 
 var pinRE = regexp.MustCompile(`@sha256:[0-9a-f]{64}`)
@@ -169,7 +169,7 @@ type bindMount struct {
 	} `yaml:"bind"`
 }
 
-// The override hands gvmd's socket to the host directory core mounts, adds labels and a bounded log file (D-600), turns the web interface, its helpers and the SCAP
+// The override hands gvmd's socket to the host directory core mounts, adds labels and a bounded log file, turns the web interface, its helpers and the SCAP
 // and CERT data off and takes their mounts and dependencies out of gvmd, and nothing else: no port, no capability, no other mount
 // (decoded with KnownFields, so any other key fails here).
 func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
@@ -196,7 +196,7 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 		if s.Labels["io.vedette.started-by"] != "vedette-host" || len(s.Labels) != 1 {
 			t.Errorf("%s: labels %v, want exactly io.vedette.started-by=vedette-host", name, s.Labels)
 		}
-		// D-600: each service logs to its own bounded file, never to the box's journal
+		// Each service logs to its own bounded file, never to the box's journal
 		if l := s.Logging; l == nil || l.Driver != "json-file" || len(l.Options) != 1 || l.Options["max-size"] != "10m" {
 			t.Errorf("%s: logging %+v, want json-file with max-size 10m", name, s.Logging)
 		}
@@ -286,7 +286,7 @@ func checkGvmdDependencies(t *testing.T, n yaml.Node, upstream []string) []strin
 	return reset
 }
 
-// N42-4 (D-590): gvmd takes Vedette's GMP login at the creation of its admin user. The override gives gvmd the host's password file
+// gvmd takes Vedette's GMP login at the creation of its admin user. The override gives gvmd the host's password file
 // as its only secret, and its command reads it and runs the image's own start-gvmd; a missing or empty file never reaches start-gvmd
 // (which would create admin/admin). The command runs here under /bin/sh as compose hands it over ($$ → $), with the two paths moved
 // into a temporary directory and a start-gvmd that prints what it got.

@@ -21,7 +21,7 @@ const BundleName = "sensor.pem"
 // directory where the file or the role directory should be.
 var ErrCredsPath = errors.New("pki: credentials path is not a plain directory and file")
 
-// WriteBundle puts data at <dir>/<role>/sensor.pem the way the D-89 files are written, so that a reader sees the old bundle or
+// WriteBundle puts data at <dir>/<role>/sensor.pem atomically, so that a reader sees the old bundle or
 // the whole new one and never half of one: os.OpenRoot (no component can leave dir), a new file with a random name opened
 // O_EXCL|O_NOFOLLOW at mode 0640, fsync, Rename, fsync of the directory. Core never reads the file back.
 //

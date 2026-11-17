@@ -7,9 +7,9 @@ import (
 	"testing"
 )
 
-// D-520: the own_ip scope of exposure's safe checks (D-561) takes exactly one public IPv4 literal, at OwnIPRate, with the classes of
-// D-559 K-6 excluded on top of the forbidden tags; the LAN scope still takes private addresses only.
-// The own_ip fixed part as D-520 approved it, written out on purpose: a change in argv.go must change this too.
+// The own_ip scope of exposure's safe checks takes exactly one public IPv4 literal, at OwnIPRate, with the refused tag classes
+// excluded on top of the forbidden tags; the LAN scope still takes private addresses only.
+// The own_ip fixed part as approved, written out on purpose: a change in argv.go must change this too.
 var approvedOwnIPFixed = []string{"-jsonl", "-silent", "-nc", "-duc", "-ni", "-ms", "-dr", "-nh", "-etags", "dos,intrusive,fuzz,default-login,brute-force,sqli,time-based-sqli,xss,injection,code-injection,argument-injection,ssti,file-upload,rce,authenticated,login",
 	"-pt", "http,tcp,ssl", "-elog", "/dev/stderr", "-c", "1", "-bs", "1", "-timeout", "10", "-retries", "1"}
 

@@ -1,12 +1,12 @@
 package api
 
-// decoy_ip.add, decoy_ip.set_ports and decoy_ip.remove (docs/specs/host-api.md section 6.6, D-102, D-466).
+// decoy_ip.add, decoy_ip.set_ports and decoy_ip.remove (docs/specs/host-api.md section 6.6).
 
 // Commands of the decoy part.
 const (
 	CmdDecoyAdd    = "decoy_ip.add"
 	CmdDecoyRemove = "decoy_ip.remove"
-	// CmdDecoySetPorts replaces the ports a decoy address answers on (D-466). Core sends ports (here
+	// CmdDecoySetPorts replaces the ports a decoy address answers on. Core sends ports (here
 	// and in decoy_ip.add) only when GET /v1/info lists this command: an older host refuses the field.
 	CmdDecoySetPorts = "decoy_ip.set_ports"
 )
@@ -17,7 +17,7 @@ const (
 	ProtoUDP = "udp"
 )
 
-// MaxDecoyPorts is the most ports one decoy address may answer on (D-466).
+// MaxDecoyPorts is the most ports one decoy address may answer on.
 const MaxDecoyPorts = 64
 
 // DecoyPort is one port a decoy address answers on: Proto "tcp" or "udp", Port 1 to 65535.
@@ -58,7 +58,7 @@ const (
 // DecoyAddArgs are the args of decoy_ip.add. OUI is six hex digits (unicast, globally
 // administered); empty means "no OUI": the MAC is then locally administered. Ports nil means no
 // allow-list: the address answers on every port the honeypot listens on (what an older core gets);
-// a list, even an empty one, means only those ports (D-466).
+// a list, even an empty one, means only those ports.
 type DecoyAddArgs struct {
 	IP    string       `json:"ip"`
 	OUI   string       `json:"oui,omitempty"`
@@ -85,7 +85,7 @@ type DecoyAddResult struct {
 }
 
 // HPTouch is one source that tried a new TCP or UDP connection to a decoy address (allowed port or not): AgeS is the seconds
-// since it first did within the set's two minutes (D-466, B2 review M2).
+// since it first did within the set's two minutes.
 type HPTouch struct {
 	Src  string `json:"src"`
 	Dst  string `json:"dst"`

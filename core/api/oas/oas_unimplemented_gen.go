@@ -541,8 +541,7 @@ func (UnimplementedHandler) CoreGetCoreDataBackup(ctx context.Context) (r CoreGe
 
 // CoreGetCoreDataBackups implements core_get_core_data_backups operation.
 //
-// Backups the operating system helper keeps on this box (D-377); 409 not_appliance on a container-only
-// install.
+// Backups the operating system helper keeps on this box; 409 not_appliance on a container-only install.
 //
 // GET /core/data/backups
 func (UnimplementedHandler) CoreGetCoreDataBackups(ctx context.Context) (r *CoreGetCoreDataBackupsOK, _ error) {
@@ -593,7 +592,7 @@ func (UnimplementedHandler) CoreGetCoreLogsExport(ctx context.Context, params Co
 // CoreGetCoreMcp implements core_get_core_mcp operation.
 //
 // MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the
-// mcp-server module: turn it on and off with PATCH /modules/mcp-server (D-230); while it is off every
+// mcp-server module: turn it on and off with PATCH /modules/mcp-server; while it is off every
 // /core/mcp path answers 404.
 //
 // GET /core/mcp
@@ -640,7 +639,7 @@ func (UnimplementedHandler) CoreGetCorePrivacy(ctx context.Context) (r *CoreGetC
 // CoreGetCoreSetupModules implements core_get_core_setup_modules operation.
 //
 // Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for
-// the setup code hint and the modules this install cannot run (D-381).
+// the setup code hint and the modules this install cannot run.
 //
 // GET /core/setup/modules
 func (UnimplementedHandler) CoreGetCoreSetupModules(ctx context.Context) (r *CoreGetCoreSetupModulesOK, _ error) {
@@ -660,8 +659,8 @@ func (UnimplementedHandler) CoreGetCoreSetupRestore(ctx context.Context) (r NilC
 
 // CoreGetCoreTerms implements core_get_core_terms operation.
 //
-// The terms of use this box ships and who accepted them, when and which version (D-544); the text is
-// TERMS.md, which the interface carries.
+// The terms of use this box ships and who accepted them, when and which version; the text is TERMS.md,
+// which the interface carries.
 //
 // GET /core/terms
 func (UnimplementedHandler) CoreGetCoreTerms(ctx context.Context) (r *CoreGetCoreTermsOK, _ error) {
@@ -789,7 +788,7 @@ func (UnimplementedHandler) CorePatchCoreUsersID(ctx context.Context, req *CoreP
 // CorePatchModulesID implements core_patch_modules_id operation.
 //
 // Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies;
-// turning on a module this install cannot run (available false) gives 409 not_appliance (D-381).
+// turning on a module this install cannot run (available false) gives 409 not_appliance.
 //
 // PATCH /modules/{id}
 func (UnimplementedHandler) CorePatchModulesID(ctx context.Context, req *CorePatchModulesIDReq, params CorePatchModulesIDParams) (r *CorePatchModulesIDOK, _ error) {
@@ -799,7 +798,7 @@ func (UnimplementedHandler) CorePatchModulesID(ctx context.Context, req *CorePat
 // CorePostAuthLogin implements core_post_auth_login operation.
 //
 // Sign in with email and password (plus the two-step code when on; email-code users get a code sent
-// and 401 twofa_required). An expired temporary password is 400 temp_password_expired (D-180).
+// and 401 twofa_required). An expired temporary password is 400 temp_password_expired.
 //
 // POST /auth/login
 func (UnimplementedHandler) CorePostAuthLogin(ctx context.Context, req *CorePostAuthLoginReq) (r *CorePostAuthLoginOK, _ error) {
@@ -827,10 +826,10 @@ func (UnimplementedHandler) CorePostAuthLogout(ctx context.Context) error {
 
 // CorePostAuthOidcCallback implements core_post_auth_oidc_callback operation.
 //
-// Finish an SSO sign-in (D-194, D-195): the page posts the code and state from /sso/callback with its
-// binding; the box exchanges the code, checks the ID token and signs the person in like a password
-// sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403
-// email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable.
+// Finish an SSO sign-in: the page posts the code and state from /sso/callback with its binding; the
+// box exchanges the code, checks the ID token and signs the person in like a password sign-in (session
+// and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403 email_unverified, 403
+// disabled, 409 email_in_use, 502 idp_unreachable.
 //
 // POST /auth/oidc/callback
 func (UnimplementedHandler) CorePostAuthOidcCallback(ctx context.Context, req *CorePostAuthOidcCallbackReq) (r *CorePostAuthOidcCallbackOK, _ error) {
@@ -839,9 +838,9 @@ func (UnimplementedHandler) CorePostAuthOidcCallback(ctx context.Context, req *C
 
 // CorePostAuthOidcStart implements core_post_auth_oidc_start operation.
 //
-// Start an SSO sign-in (D-194): returns the identity provider address to open, with state, nonce and a
-// PKCE challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not
-// set up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited.
+// Start an SSO sign-in: returns the identity provider address to open, with state, nonce and a PKCE
+// challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not set
+// up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited.
 //
 // POST /auth/oidc/start
 func (UnimplementedHandler) CorePostAuthOidcStart(ctx context.Context) (r *CorePostAuthOidcStartOK, _ error) {
@@ -879,7 +878,7 @@ func (UnimplementedHandler) CorePostCoreAccount2FAEmailConfirm(ctx context.Conte
 // CorePostCoreAccount2FAEmailStart implements core_post_core_account_2fa_email_start operation.
 //
 // Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or
-// two-step is already on; same limits as sign-in codes; needs the current password, D-76).
+// two-step is already on; same limits as sign-in codes; needs the current password).
 //
 // POST /core/account/2fa/email/start
 func (UnimplementedHandler) CorePostCoreAccount2FAEmailStart(ctx context.Context, req *CorePostCoreAccount2FAEmailStartReq) (r *CorePostCoreAccount2FAEmailStartOK, _ error) {
@@ -888,8 +887,8 @@ func (UnimplementedHandler) CorePostCoreAccount2FAEmailStart(ctx context.Context
 
 // CorePostCoreAccount2FAStart implements core_post_core_account_2fa_start operation.
 //
-// Authenticator app: create a TOTP key waiting for confirmation (needs the current password, D-76;
-// wrong password 400 wrong_password, counted like a failed sign-in).
+// Authenticator app: create a TOTP key waiting for confirmation (needs the current password; wrong
+// password 400 wrong_password, counted like a failed sign-in).
 //
 // POST /core/account/2fa/start
 func (UnimplementedHandler) CorePostCoreAccount2FAStart(ctx context.Context, req *CorePostCoreAccount2FAStartReq) (r *CorePostCoreAccount2FAStartOK, _ error) {
@@ -898,8 +897,8 @@ func (UnimplementedHandler) CorePostCoreAccount2FAStart(ctx context.Context, req
 
 // CorePostCoreAccountPassword implements core_post_core_account_password operation.
 //
-// Change password (needs the current password). The same call ends the temporary-password limit of
-// D-180: the new password must differ from the temporary one.
+// Change password (needs the current password). The same call ends the temporary-password limit: the
+// new password must differ from the temporary one.
 //
 // POST /core/account/password
 func (UnimplementedHandler) CorePostCoreAccountPassword(ctx context.Context, req *CorePostCoreAccountPasswordReq) (r *CorePostCoreAccountPasswordOK, _ error) {
@@ -937,8 +936,8 @@ func (UnimplementedHandler) CorePostCoreConnectionsIDTest(ctx context.Context, p
 
 // CorePostCoreDataKey implements core_post_core_data_key operation.
 //
-// Download the decryption key once, to keep apart from the backups (D-518): without it a backup
-// restores on another box with its saved secrets and two-step sign-in lost. The current password (400
+// Download the decryption key once, to keep apart from the backups: without it a backup restores on
+// another box with its saved secrets and two-step sign-in lost. The current password (400
 // wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a
 // fresh code (400 code_required / invalid_code), as for the purge; audited (data.key_download). The 32
 // bytes of vedette.key, never logged.
@@ -950,11 +949,11 @@ func (UnimplementedHandler) CorePostCoreDataKey(ctx context.Context, req *CorePo
 
 // CorePostCoreDataPurge implements core_post_core_data_purge operation.
 //
-// Delete all data back to a fresh install and replace the decryption key (D-154). Needs the exact
-// organization name (400 confirm_mismatch), the current password (400 wrong_password, counted like a
-// failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required
-// / invalid_code). 409 busy while a host run, an update or another purge runs; 502 host_unreachable
-// when the configured helper does not answer, its socket missing included (nothing is deleted); 412
+// Delete all data back to a fresh install and replace the decryption key. Needs the exact organization
+// name (400 confirm_mismatch), the current password (400 wrong_password, counted like a failed
+// sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required /
+// invalid_code). 409 busy while a host run, an update or another purge runs; 502 host_unreachable when
+// the configured helper does not answer, its socket missing included (nothing is deleted); 412
 // transition_pending; 500 backups_already_deleted when the purge fails after the helper deleted its
 // backups (the data on the box is still there). kept lists what was not done or not touched
 // (host_backups: this box is configured without a helper, so there were no helper backups to delete;
@@ -968,7 +967,7 @@ func (UnimplementedHandler) CorePostCoreDataPurge(ctx context.Context, req *Core
 
 // CorePostCoreDataRestore implements core_post_core_data_restore operation.
 //
-// Restore a backup kept on this box (D-377): core first takes a copy of the current data, kept as a
+// Restore a backup kept on this box: core first takes a copy of the current data, kept as a
 // pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409
 // confirm_required without confirm_data_loss: true; 404 backup_unknown; then the current password (400
 // wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a
@@ -991,8 +990,8 @@ func (UnimplementedHandler) CorePostCoreMcpTokens(ctx context.Context, req *Core
 
 // CorePostCoreNetworkBoxAddressForget implements core_post_core_network_box_address_forget operation.
 //
-// Stop answering to an earlier Box address (D-465): it leaves the Host allowlist at once and the
-// certificate at its next re-issue. 404 not_found when the box does not answer to it.
+// Stop answering to an earlier Box address: it leaves the Host allowlist at once and the certificate
+// at its next re-issue. 404 not_found when the box does not answer to it.
 //
 // POST /core/network/box-address/forget
 func (UnimplementedHandler) CorePostCoreNetworkBoxAddressForget(ctx context.Context, req *CorePostCoreNetworkBoxAddressForgetReq) (r *CorePostCoreNetworkBoxAddressForgetOK, _ error) {
@@ -1029,8 +1028,8 @@ func (UnimplementedHandler) CorePostCoreOidcTest(ctx context.Context) (r *CorePo
 // CorePostCoreSetup implements core_post_core_setup operation.
 //
 // First-run setup: create the organization and administrator, choose a module bundle, or use sample
-// data. A bundle leaves out the modules this install cannot run (available false, D-381); naming one
-// under custom gives 409 not_appliance.
+// data. A bundle leaves out the modules this install cannot run (available false); naming one under
+// custom gives 409 not_appliance.
 //
 // POST /core/setup
 func (UnimplementedHandler) CorePostCoreSetup(ctx context.Context, req *CorePostCoreSetupReq) (r *CorePostCoreSetupOK, _ error) {
@@ -1039,13 +1038,12 @@ func (UnimplementedHandler) CorePostCoreSetup(ctx context.Context, req *CorePost
 
 // CorePostCoreSetupRestore implements core_post_core_setup_restore operation.
 //
-// First-run restore, step 2 (D-518): restore the uploaded backup as the box's data, with the setup
-// code. With key (the key file downloaded from Settings -> Data, base64) the saved secrets and
-// two-step sign-in come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of
-// the backup's secrets 400 wrong_key, before anything changes. Without key, a backup that holds
-// secrets needs confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload
-// is gone (older than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for
-// a restore.
+// First-run restore, step 2: restore the uploaded backup as the box's data, with the setup code. With
+// key (the key file downloaded from Settings -> Data, base64) the saved secrets and two-step sign-in
+// come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of the backup's
+// secrets 400 wrong_key, before anything changes. Without key, a backup that holds secrets needs
+// confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload is gone (older
+// than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for a restore.
 //
 // POST /core/setup/restore
 func (UnimplementedHandler) CorePostCoreSetupRestore(ctx context.Context, req *CorePostCoreSetupRestoreReq) (r *CorePostCoreSetupRestoreAccepted, _ error) {
@@ -1054,8 +1052,8 @@ func (UnimplementedHandler) CorePostCoreSetupRestore(ctx context.Context, req *C
 
 // CorePostCoreSetupRestoreUpload implements core_post_core_setup_restore_upload operation.
 //
-// First-run restore, step 1 (D-518): upload a backup downloaded from Settings -> Data (the .tar.gz as
-// the body). Only before setup is done (409 already_setup) and with the setup code (403
+// First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz as the
+// body). Only before setup is done (409 already_setup) and with the setup code (403
 // invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a
 // Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps
 // it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a
@@ -1137,7 +1135,7 @@ func (UnimplementedHandler) CorePostCoreUpdatesRollback(ctx context.Context, req
 // CorePostCoreUsers implements core_post_core_users operation.
 //
 // Create a user with a role; returns a temporary password once. The user must change it at first
-// sign-in and it expires after 72 hours (D-180).
+// sign-in and it expires after 72 hours.
 //
 // POST /core/users
 func (UnimplementedHandler) CorePostCoreUsers(ctx context.Context, req *CorePostCoreUsersReq) (r *CorePostCoreUsersCreated, _ error) {
@@ -1156,8 +1154,8 @@ func (UnimplementedHandler) CorePostCoreUsersID2FAReset(ctx context.Context, par
 
 // CorePostCoreUsersIDResetPassword implements core_post_core_users_id_reset_password operation.
 //
-// Reset password: temporary password once (changed at first sign-in, expires after 72 hours, D-180),
-// ends all of that user's sessions.
+// Reset password: temporary password once (changed at first sign-in, expires after 72 hours), ends all
+// of that user's sessions.
 //
 // POST /core/users/{id}/reset-password
 func (UnimplementedHandler) CorePostCoreUsersIDResetPassword(ctx context.Context, params CorePostCoreUsersIDResetPasswordParams) (r *CorePostCoreUsersIDResetPasswordOK, _ error) {
@@ -1185,10 +1183,9 @@ func (UnimplementedHandler) CorePutCoreGeneral(ctx context.Context, req *CorePut
 
 // CorePutCoreNetworkBoxAddress implements core_put_core_network_box_address operation.
 //
-// Box address (D-465): the host name or IPv4 address the LAN reaches the box at, used by every link
-// the box makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a
-// path or anything that is not a host name or IPv4 address. The box re-issues its own certificate with
-// it.
+// Box address: the host name or IPv4 address the LAN reaches the box at, used by every link the box
+// makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a path or
+// anything that is not a host name or IPv4 address. The box re-issues its own certificate with it.
 //
 // PUT /core/network/box-address
 func (UnimplementedHandler) CorePutCoreNetworkBoxAddress(ctx context.Context, req *CorePutCoreNetworkBoxAddressReq) (r *CorePutCoreNetworkBoxAddressOK, _ error) {
@@ -1268,8 +1265,8 @@ func (UnimplementedHandler) ExposureDeleteExposureTargetsID(ctx context.Context,
 
 // ExposureDeleteExposureTargetsIDTerms implements exposure_delete_exposure_targets_id_terms operation.
 //
-// Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the
-// K-4 scope again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason).
+// Withdraw the testing terms of a target: always possible; the next scan runs in the scope of the Scan
+// now sentence again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason).
 // Audited (exposure.terms_revoke) when there was an acceptance.
 //
 // DELETE /exposure/targets/{id}/terms
@@ -1279,9 +1276,9 @@ func (UnimplementedHandler) ExposureDeleteExposureTargetsIDTerms(ctx context.Con
 
 // ExposureGetExposureGreenbone implements exposure_get_exposure_greenbone operation.
 //
-// The optional deep scan with OpenVAS (Greenbone Community Edition, D-563, D-568): its state and this
-// box's memory and free disk against the thresholds. Reading may ask OpenVAS whether it is ready; it
-// never starts a scan.
+// The optional deep scan with OpenVAS (Greenbone Community Edition): its state and this box's memory
+// and free disk against the thresholds. Reading may ask OpenVAS whether it is ready; it never starts a
+// scan.
 //
 // GET /exposure/greenbone
 func (UnimplementedHandler) ExposureGetExposureGreenbone(ctx context.Context) (r *ExposureGetExposureGreenboneOK, _ error) {
@@ -1328,9 +1325,9 @@ func (UnimplementedHandler) ExposureGetExposureTargetsIDDiff(ctx context.Context
 
 // ExposureGetExposureTargetsIDOutside implements exposure_get_exposure_targets_id_outside operation.
 //
-// What the Internet sees (D-558): the last answer of Shodan InternetDB about this public IP of the
-// box, with the open ports of Vedette's own newest scan of it; null when nobody has asked yet. Reading
-// sends nothing.
+// What the Internet sees: the last answer of Shodan InternetDB about this public IP of the box, with
+// the open ports of Vedette's own newest scan of it; null when nobody has asked yet. Reading sends
+// nothing.
 //
 // GET /exposure/targets/{id}/outside
 func (UnimplementedHandler) ExposureGetExposureTargetsIDOutside(ctx context.Context, params ExposureGetExposureTargetsIDOutsideParams) (r NilExposureGetExposureTargetsIDOutsideOK, _ error) {
@@ -1391,13 +1388,13 @@ func (UnimplementedHandler) ExposurePostExposureTargets(ctx context.Context, req
 
 // ExposurePostExposureTargetsIDOutside implements exposure_post_exposure_targets_id_outside operation.
 //
-// Ask Shodan InternetDB what it has seen on this public IP (D-558). Only an administrator's click
-// sends it: no job, no polling. Only a public IP of this box that is verified and still the one the
-// box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain,
-// 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of
-// https://internetdb.shodan.io/, nothing else sent; 404 there is a normal answer (found false). At
-// most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer
-// or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited.
+// Ask Shodan InternetDB what it has seen on this public IP. Only an administrator's click sends it: no
+// job, no polling. Only a public IP of this box that is verified and still the one the box goes out
+// through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain, 409
+// not_verified, expired or ip_not_current otherwise. One HTTPS GET of https://internetdb.shodan.io/,
+// nothing else sent; 404 there is a normal answer (found false). At most one check a minute on the box
+// (429 rate_limited); 502 unreachable when Shodan does not answer or its answer cannot be read. The
+// answer is kept (one per IP) and every request sent is audited.
 //
 // POST /exposure/targets/{id}/outside
 func (UnimplementedHandler) ExposurePostExposureTargetsIDOutside(ctx context.Context, params ExposurePostExposureTargetsIDOutsideParams) (r *ExposurePostExposureTargetsIDOutsideOK, _ error) {
@@ -1412,24 +1409,24 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDOutside(ctx context.Con
 // the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest
 // check, or a fresh full check just before the scan, must see it); 400 commitment_required when the
 // commitment is missing and the caller is an operator (an administrator must run the first scan). For
-// an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in
-// on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the
-// button (400 commitment_required when left out, 409 notice_changed when it is not the current one);
-// the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A
-// target whose commitment is of the current sentence records nothing again; one of an older sentence
-// (D-559) is asked again once: it counts as missing (operators get 400 commitment_required "the
-// confirmation text changed"), a request without notice_version gets 409 notice_changed, and the
-// administrator's press replaces it. After those checks the scan module's runner does the scan (D-229,
-// D-57 (7); it follows this module's switch, so the Vulnerability scans module may be off): ports are
-// scanned only on the box's own verified public IPs; a domain's names from certificate transparency,
-// its MX and NS records and a list of common names (looked up through the box's DNS resolver) are
-// listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only
-// the box's own address is scanned beyond that. 409 module_off while the External exposure module is
-// off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's
-// last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300
-// names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer
-// or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile)
-// end the run as status failed with that code and text, and nothing is saved. Every attempt is audited.
+// an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403
+// twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400
+// commitment_required when left out, 409 notice_changed when it is not the current one); the
+// commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target
+// whose commitment is of the current sentence records nothing again; one of an older sentence is asked
+// again once: it counts as missing (operators get 400 commitment_required "the confirmation text
+// changed"), a request without notice_version gets 409 notice_changed, and the administrator's press
+// replaces it. After those checks the scan module's runner does the scan (it follows this module's
+// switch, so the Vulnerability scans module may be off): ports are scanned only on the box's own
+// verified public IPs; a domain's names from certificate transparency, its MX and NS records and a
+// list of common names (looked up through the box's DNS resolver) are listed with the kind of each
+// address (INV-27) and get one GET of / by name on ports 80 and 443; only the box's own address is
+// scanned beyond that. 409 module_off while the External exposure module is off; 409 busy while
+// another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures
+// that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502
+// unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not
+// finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status
+// failed with that code and text, and nothing is saved. Every attempt is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (UnimplementedHandler) ExposurePostExposureTargetsIDScan(ctx context.Context, req OptExposurePostExposureTargetsIDScanReq, params ExposurePostExposureTargetsIDScanParams) (r *ExposurePostExposureTargetsIDScanAccepted, _ error) {
@@ -1460,11 +1457,11 @@ func (UnimplementedHandler) ExposurePutExposureBoxIPSettings(ctx context.Context
 // ExposurePutExposureGreenbone implements exposure_put_exposure_greenbone operation.
 //
 // Turn the optional deep scan with OpenVAS on or off (off by default). On: refused with 409 low_memory
-// or low_disk and the measured numbers below 6 GB of memory (D-569) or 60 GB free; else OpenVAS starts
-// in the background (starting, then loading while it loads its feed, about 2 hours the first time).
-// Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not
-// be stopped). 501 not_implemented when OpenVAS is not available on this box. A scan uses it only on a
-// target whose testing terms are accepted (D-566). Audited.
+// or low_disk and the measured numbers below 6 GB of memory or 60 GB free; else OpenVAS starts in the
+// background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no
+// scan uses it, its containers stop and its data is kept (502 host_error when they could not be
+// stopped). 501 not_implemented when OpenVAS is not available on this box. A scan uses it only on a
+// target whose testing terms are accepted. Audited.
 //
 // PUT /exposure/greenbone
 func (UnimplementedHandler) ExposurePutExposureGreenbone(ctx context.Context, req *ExposurePutExposureGreenboneReq) (r *ExposurePutExposureGreenboneOK, _ error) {
@@ -1473,15 +1470,15 @@ func (UnimplementedHandler) ExposurePutExposureGreenbone(ctx context.Context, re
 
 // ExposurePutExposureTargetsIDTerms implements exposure_put_exposure_targets_id_terms operation.
 //
-// Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan;
-// disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks
-// that send more than a harmless read (off by default). Admin with two-step sign-in (403
-// twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409
-// not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP
-// behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target
-// that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the
-// target has none of the current sentence. Accepting what is accepted changes nothing. Audited
-// (exposure.terms_accept, with the flag).
+// Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds
+// denial-of-service, password-guessing, default-password checks and exploit checks that send more than
+// a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409
+// notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or
+// ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT
+// (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new
+// level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the
+// current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with
+// the flag).
 //
 // PUT /exposure/targets/{id}/terms
 func (UnimplementedHandler) ExposurePutExposureTargetsIDTerms(ctx context.Context, req *ExposurePutExposureTargetsIDTermsReq, params ExposurePutExposureTargetsIDTermsParams) (r *ExposurePutExposureTargetsIDTermsOK, _ error) {
@@ -1656,8 +1653,8 @@ func (UnimplementedHandler) FindingsGetFindingsSummary(ctx context.Context) (r *
 
 // FindingsGetFindingsToFix implements findings_get_findings_to_fix operation.
 //
-// To fix (kien G8): every device that needs an update or an action, the most urgent first, each with
-// its actions in plain sentences (findings.DeviceUpdates), at most 500 devices.
+// To fix: every device that needs an update or an action, the most urgent first, each with its actions
+// in plain sentences (findings.DeviceUpdates), at most 500 devices.
 //
 // GET /findings/to-fix
 func (UnimplementedHandler) FindingsGetFindingsToFix(ctx context.Context, params FindingsGetFindingsToFixParams) (r *FindingsGetFindingsToFixOK, _ error) {
@@ -1796,7 +1793,7 @@ func (UnimplementedHandler) HoneypotPostHoneypotTestScan(ctx context.Context) (r
 
 // HoneypotPostHoneypotTokens implements honeypot_post_honeypot_tokens operation.
 //
-// Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468).
+// Create a honey token (decoy file, fake credentials or URL); a DNS token is refused.
 //
 // POST /honeypot/tokens
 func (UnimplementedHandler) HoneypotPostHoneypotTokens(ctx context.Context, req *HoneypotPostHoneypotTokensReq) (r *HoneypotPostHoneypotTokensCreated, _ error) {
@@ -1988,7 +1985,7 @@ func (UnimplementedHandler) InventoryGetInventoryImportTemplateCsv(ctx context.C
 
 // InventoryGetInventoryPossibleSame implements inventory_get_inventory_possible_same operation.
 //
-// Every pair of devices that may be the same machine, for a person to merge or keep separate (D-599).
+// Every pair of devices that may be the same machine, for a person to merge or keep separate.
 //
 // GET /inventory/possible-same
 func (UnimplementedHandler) InventoryGetInventoryPossibleSame(ctx context.Context) (r *InventoryGetInventoryPossibleSameOK, _ error) {
@@ -2069,8 +2066,8 @@ func (UnimplementedHandler) InventoryPatchInventoryDevicesIDSoftwareSid(ctx cont
 // InventoryPatchInventorySensorsID implements inventory_patch_inventory_sensors_id operation.
 //
 // Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or
-// without an address; null: back to the default card) and whether it is the SPAN card (D-387, D-393).
-// 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409
+// without an address; null: back to the default card) and whether it is the SPAN card. 400
+// bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409
 // set_in_box_network on an appliance, where Settings → Box network sets it.
 //
 // PATCH /inventory/sensors/{id}
@@ -2187,8 +2184,8 @@ func (UnimplementedHandler) InventoryPostInventoryDevicesIDApprove(ctx context.C
 
 // InventoryPostInventoryDevicesIDIgnore implements inventory_post_inventory_devices_id_ignore operation.
 //
-// Ignore a device that needs no watching, such as a staff phone, or stop ignoring it (D-630). Ignored:
-// it stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the
+// Ignore a device that needs no watching, such as a staff phone, or stop ignoring it. Ignored: it
+// stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the
 // Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its open
 // findings close as not relevant ("Closed by Vedette: the device was ignored by .", no notice;
 // findings a person settled keep their status); a trap hit or an intrusion-detection incident from it
@@ -2204,8 +2201,7 @@ func (UnimplementedHandler) InventoryPostInventoryDevicesIDIgnore(ctx context.Co
 // InventoryPostInventoryDevicesIDKeepSeparate implements inventory_post_inventory_devices_id_keep_separate operation.
 //
 // Two machines: the pair is never offered as possibly the same device again, until either is deleted
-// or merged (D-599). Saying it again changes nothing. 400 invalid, 404 not_found, 409 box_device as
-// for merge.
+// or merged. Saying it again changes nothing. 400 invalid, 404 not_found, 409 box_device as for merge.
 //
 // POST /inventory/devices/{id}/keep-separate
 func (UnimplementedHandler) InventoryPostInventoryDevicesIDKeepSeparate(ctx context.Context, req *InventoryPostInventoryDevicesIDKeepSeparateReq, params InventoryPostInventoryDevicesIDKeepSeparateParams) (r *InventoryPostInventoryDevicesIDKeepSeparateOK, _ error) {
@@ -2214,11 +2210,11 @@ func (UnimplementedHandler) InventoryPostInventoryDevicesIDKeepSeparate(ctx cont
 
 // InventoryPostInventoryDevicesIDMerge implements inventory_post_inventory_devices_id_merge operation.
 //
-// The same machine: device `from` joins this device and is gone (D-599). This device keeps its id,
-// approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes
-// (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it,
-// and its address when it was seen later and this device was found by a sensor (a device added by hand
-// keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409
+// The same machine: device `from` joins this device and is gone. This device keeps its id, approval
+// (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept),
+// findings and settings; the MACs, sources, software and open ports of `from` move to it, and its
+// address when it was seen later and this device was found by a sensor (a device added by hand keeps
+// the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409
 // box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in
 // MACs, say two machines.
 //
@@ -2286,13 +2282,13 @@ func (UnimplementedHandler) InventoryPutInventoryAgentsWazuh(ctx context.Context
 
 // InventoryPutInventoryDevicesIDSources implements inventory_put_inventory_devices_id_sources operation.
 //
-// Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person's consent
-// to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope,
+// Turn the network scan or the SNMP reads of one device on or off. On is the person's consent to that
+// traffic: a device added by hand gets it from then on, inside every other safety rule (scope,
 // exclusions, window, fragile, never scan); turning the network scan on queues the device for the next
 // window. Off stops it for any device (the run on it stops); what the source found stays and manual
 // values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404
 // not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an
-// ignored device (D-630).
+// ignored device.
 //
 // PUT /inventory/devices/{id}/sources
 func (UnimplementedHandler) InventoryPutInventoryDevicesIDSources(ctx context.Context, req *InventoryPutInventoryDevicesIDSourcesReq, params InventoryPutInventoryDevicesIDSourcesParams) (r *InventoryPutInventoryDevicesIDSourcesOK, _ error) {
@@ -2455,7 +2451,7 @@ func (UnimplementedHandler) NotifyDeleteNotifyZaloLogin(ctx context.Context) err
 
 // NotifyGetNotifyAlertsIDTarget implements notify_get_notify_alerts_id_target operation.
 //
-// Old alert link: the incident or the finding it became (D-52).
+// Old alert link: the incident or the finding it became.
 //
 // GET /notify/alerts/{id}/target
 func (UnimplementedHandler) NotifyGetNotifyAlertsIDTarget(ctx context.Context, params NotifyGetNotifyAlertsIDTargetParams) (r *NotifyGetNotifyAlertsIDTargetOK, _ error) {
@@ -2513,7 +2509,7 @@ func (UnimplementedHandler) NotifyGetNotifyIncidentsID(ctx context.Context, para
 // NotifyGetNotifyTelegramApprovers implements notify_get_notify_telegram_approvers operation.
 //
 // Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed
-// in as themself (linked); box_account is always false (D-414).
+// in as themself (linked); box_account is always false.
 //
 // GET /notify/telegram/approvers
 func (UnimplementedHandler) NotifyGetNotifyTelegramApprovers(ctx context.Context) (r *NotifyGetNotifyTelegramApproversOK, _ error) {
@@ -2568,8 +2564,8 @@ func (UnimplementedHandler) NotifyPostNotifyChannelsTypeTest(ctx context.Context
 
 // NotifyPostNotifyEmailSignin implements notify_post_notify_email_signin operation.
 //
-// Start a user sign-in for the email channel (D-480): a Microsoft device code, or a Google consent
-// address to open and paste back.
+// Start a user sign-in for the email channel: a Microsoft device code, or a Google consent address to
+// open and paste back.
 //
 // POST /notify/email-signin
 func (UnimplementedHandler) NotifyPostNotifyEmailSignin(ctx context.Context, req *NotifyPostNotifyEmailSigninReq) (r *NotifyPostNotifyEmailSigninOK, _ error) {
@@ -2609,7 +2605,7 @@ func (UnimplementedHandler) NotifyPostNotifyIncidentsStatus(ctx context.Context,
 //
 // Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately
 // to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the
-// link in the approval chat asks them to press Start (D-414).
+// link in the approval chat asks them to press Start.
 //
 // POST /notify/telegram/approvers/{user_id}/code
 func (UnimplementedHandler) NotifyPostNotifyTelegramApproversUserIDCode(ctx context.Context, params NotifyPostNotifyTelegramApproversUserIDCodeParams) (r *NotifyPostNotifyTelegramApproversUserIDCodeOK, _ error) {
@@ -2618,9 +2614,9 @@ func (UnimplementedHandler) NotifyPostNotifyTelegramApproversUserIDCode(ctx cont
 
 // NotifyPostNotifyTelegramChats implements notify_post_notify_telegram_chats operation.
 //
-// Find the chats a Telegram bot has seen, for the Chat ID picker (D-491): the token in the body, or
-// the saved one when empty; asks Telegram once without confirming any update. 400 bad_token (not
-// valid), 409 telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed.
+// Find the chats a Telegram bot has seen, for the Chat ID picker: the token in the body, or the saved
+// one when empty; asks Telegram once without confirming any update. 400 bad_token (not valid), 409
+// telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed.
 //
 // POST /notify/telegram/chats
 func (UnimplementedHandler) NotifyPostNotifyTelegramChats(ctx context.Context, req *NotifyPostNotifyTelegramChatsReq) (r *NotifyPostNotifyTelegramChatsOK, _ error) {
@@ -2863,8 +2859,8 @@ func (UnimplementedHandler) ResponseGetResponseBlocklistTokenTxt(ctx context.Con
 
 // ResponseGetResponseCatalog implements response_get_response_catalog operation.
 //
-// Action catalog in plain words: template packs from the library (data, D-58), generic actions and
-// custom ones; connections with their kind and whether they can write.
+// Action catalog in plain words: template packs from the library (data), generic actions and custom
+// ones; connections with their kind and whether they can write.
 //
 // GET /response/catalog
 func (UnimplementedHandler) ResponseGetResponseCatalog(ctx context.Context) (r *ResponseGetResponseCatalogOK, _ error) {
@@ -2883,8 +2879,8 @@ func (UnimplementedHandler) ResponseGetResponseEvents(ctx context.Context) (r *R
 
 // ResponseGetResponseIncidentsID implements response_get_response_incidents_id operation.
 //
-// Respond to an incident (D-509): its source address and device, LAN or public, and the actions that
-// can really be asked for it, each with why it is not ready.
+// Respond to an incident: its source address and device, LAN or public, and the actions that can
+// really be asked for it, each with why it is not ready.
 //
 // GET /response/incidents/{id}
 func (UnimplementedHandler) ResponseGetResponseIncidentsID(ctx context.Context, params ResponseGetResponseIncidentsIDParams) (r *ResponseGetResponseIncidentsIDOK, _ error) {
@@ -2904,7 +2900,7 @@ func (UnimplementedHandler) ResponseGetResponseLog(ctx context.Context) (r *Resp
 // ResponseGetResponseMeIdentities implements response_get_response_me_identities operation.
 //
 // My approver identities: each approval channel whose approver list names me, with the address,
-// whether I linked it myself and how to link it (D-191).
+// whether I linked it myself and how to link it.
 //
 // GET /response/me/identities
 func (UnimplementedHandler) ResponseGetResponseMeIdentities(ctx context.Context) (r *ResponseGetResponseMeIdentitiesOK, _ error) {
@@ -3008,7 +3004,7 @@ func (UnimplementedHandler) ResponsePostResponseActionsIDRollback(ctx context.Co
 
 // ResponsePostResponseAiProposals implements response_post_response_ai_proposals operation.
 //
-// Preview build only (D-97): on a real box the AI sends its requests inside the process and this route
+// Preview build only: on a real box the AI sends its requests inside the process and this route
 // answers 404. The gates it applies: allowed trigger, action flagged for AI, real evidence, confidence
 // of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily
 // budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200
@@ -3086,8 +3082,8 @@ func (UnimplementedHandler) ResponsePostResponseExecution(ctx context.Context, r
 
 // ResponsePostResponseIncidentsIDRequest implements response_post_response_incidents_id_request operation.
 //
-// Ask for approval of one offered action on the incident's source (D-509). The server reads the source
-// from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log).
+// Ask for approval of one offered action on the incident's source. The server reads the source from
+// the incident; the request waits for approval like any other (expiry, undo after 24 hours, log).
 // Refused when the action is not offered for this source, a device action while execution is off, a
 // request is already open, the incident is resolved (incident_resolved) or the source of a scan may be
 // forged (source_unconfirmed).
@@ -3100,8 +3096,8 @@ func (UnimplementedHandler) ResponsePostResponseIncidentsIDRequest(ctx context.C
 // ResponsePostResponseMeIdentitiesChannelCode implements response_post_response_me_identities_channel_code operation.
 //
 // Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email).
-// Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (D-414; sent_to
-// names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour.
+// Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (sent_to names
+// it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour.
 //
 // POST /response/me/identities/{channel}/code
 func (UnimplementedHandler) ResponsePostResponseMeIdentitiesChannelCode(ctx context.Context, params ResponsePostResponseMeIdentitiesChannelCodeParams) (r *ResponsePostResponseMeIdentitiesChannelCodeOK, _ error) {
@@ -3346,9 +3342,9 @@ func (UnimplementedHandler) ScanningGetScanning(ctx context.Context) (r *Scannin
 // ScanningGetScanningHistory implements scanning_get_scanning_history operation.
 //
 // Every run of the LAN engines (discovery sweeps, device identifications, SNMP reads) and every stored
-// scan of a public target, newest first, at most 200, with its outcome in words (kien G7a). The
-// vulnerability checks keep their own list (GET /scans/runs). Answers whether or not the Vulnerability
-// scans module is on.
+// scan of a public target, newest first, at most 200, with its outcome in words. The vulnerability
+// checks keep their own list (GET /scans/runs). Answers whether or not the Vulnerability scans module
+// is on.
 //
 // GET /scanning/history
 func (UnimplementedHandler) ScanningGetScanningHistory(ctx context.Context, params ScanningGetScanningHistoryParams) (r *ScanningGetScanningHistoryOK, _ error) {

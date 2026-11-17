@@ -62,7 +62,7 @@ function Content() {
   const q = useIncident(id)
   const admin = useCan('admin') // the fix links open Settings, Alert channels: an admin's page
   const newChannel = useNewChannel()
-  const respond = useScope('response') !== 'hidden' // D-624 (#819): the response module is not offered in v1
+  const respond = useScope('response') !== 'hidden' // The response module is not offered in v1
   // docs/UI.md §3: the parent above the title, also while the incident loads or is missing, so the way back is always there.
   const crumbs = [{ label: t('nav.incidents'), to: '/incidents' }]
   return (
@@ -102,7 +102,7 @@ function Content() {
             <Section id="sent" title={t('detail.sentTitle')} description={t('detail.sentDescription')}>
               {d.previews.length === 0 ? (
                 a.not_sent ? (
-                  // D-551: why no channel has it, from the box's decision, and where to fix it
+                  // Why no channel has it, from the box's decision, and where to fix it
                   <EmptyState title={a.not_sent.reason === 'queued' || a.not_sent.reason === 'quiet_hours' ? t('detail.notYetTitle') : t('detail.noSendsTitle')} action={<NotSentFix notSent={a.not_sent} admin={admin} />}>{a.not_sent.text}</EmptyState>
                 ) : <EmptyState title={t('detail.noSendsTitle')} action={newChannel.button(t('incidents.setupChannels'))} info={t('detail.noSendsBodyInfo')}>{t('detail.noSendsBody')}</EmptyState>
               ) : (

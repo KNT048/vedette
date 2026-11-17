@@ -7,11 +7,11 @@ import { useModuleEnabled } from '@/lib/modules'
 import { useMe } from '@/lib/session'
 import { useAiConfig, useProfiles } from './api'
 
-/** D-531: the share of a monthly budget used, rounded down, as the box counts it (80 % warns, 100 % stops). */
+/** The share of a monthly budget used, rounded down, as the box counts it (80 % warns, 100 % stops). */
 export const budgetPct = (used: number, budget: number) => (budget > 0 ? Math.floor((used * 100) / budget) : 0)
 const tone = (pct: number) => (pct >= 100 ? 'font-medium text-danger' : pct >= 80 ? 'font-medium text-warn' : undefined)
 
-/** "1,234 of 6,000,000 tokens (0 %)", red at 100 %, amber from 80 % (S-AI-4, D-531). */
+/** "1,234 of 6,000,000 tokens (0 %)", red at 100 %, amber from 80 % (S-AI-4). */
 export function BudgetUse({ used, budget }: { used: number; budget: number }) {
   const { t } = useTranslation('ai')
   const pct = budgetPct(used, budget)
@@ -19,7 +19,7 @@ export function BudgetUse({ used, budget }: { used: number; budget: number }) {
 }
 
 /**
- * S-AI-4 criterion D-531: Home says when this month's AI budget (the box's, or a profile's own) is at 80 % or used up, before AI jobs
+ * S-AI-4: Home says when this month's AI budget (the box's, or a profile's own) is at 80 % or used up, before AI jobs
  * stop and when they have stopped, with the renewal day and, for an administrator, a link to raise it. Shown while the AI module is on.
  */
 export function AiBudgetPrompt() {

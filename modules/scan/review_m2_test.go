@@ -50,7 +50,7 @@ func TestReview_M2_NoNewRunWhileTheEngineIsBusy(t *testing.T) {
 	r.wait()
 }
 
-// D-261 (4): GET /scans/runs says engine_busy while the engine has not returned from a run that already shows stopped,
+// GET /scans/runs says engine_busy while the engine has not returned from a run that already shows stopped,
 // so the GUI locks Scan now instead of offering a click that gets 409 already_running.
 func TestReview_M2_RunsViewSaysEngineBusyAfterStop(t *testing.T) {
 	t.Parallel()

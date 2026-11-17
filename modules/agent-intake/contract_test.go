@@ -700,7 +700,7 @@ func TestContract_SYS5_ModuleOffIs404(t *testing.T) {
 	}
 }
 
-// The node-prune job: a node silent for 90 days goes, an expired token goes only when no node uses it; it is a normal job (D-265 (8)),
+// The node-prune job: a node silent for 90 days goes, an expired token goes only when no node uses it; it is a normal job,
 // and the 90 days count only while it runs unbroken.
 func TestContract_PruneRetention(t *testing.T) {
 	w := newWorld(t)
@@ -899,7 +899,7 @@ func TestContract_SYS4_NoSecretInLogsOrAudit(t *testing.T) {
 	}
 }
 
-// INV-22 (kien 2026-11-17): a machine's agent reports the ports it listens on, so a machine the scan never reaches has Open services. Only
+// INV-22: a machine's agent reports the ports it listens on, so a machine the scan never reaches has Open services. Only
 // ports another machine can reach count (loopback is left out even when the node sends it), one row per port and protocol named by its
 // program, source agent; a protocol other than TCP or UDP or a port out of range is dropped; the next answer replaces the list, an
 // empty one empties it; the first report asks for it every minute until the inventory took it.

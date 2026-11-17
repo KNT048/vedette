@@ -27,7 +27,7 @@ func switchRequest(t *testing.T) *env {
 
 const staticAccess = "Name: Gi1/0/12\nAdministrative Mode: static access\nSwitchport: Enabled"
 
-// INV-22, D-95 (1): a check before that prints a refusal text fails the item, and nothing is written (no run step is sent).
+// INV-22: a check before that prints a refusal text fails the item, and nothing is written (no run step is sent).
 func TestDevice_PrecheckRefusalSendsNothingToWrite(t *testing.T) {
 	t.Parallel()
 	e := switchRequest(t)
@@ -49,7 +49,7 @@ func TestDevice_PrecheckRefusalSendsNothingToWrite(t *testing.T) {
 	}
 }
 
-// D-95 (1a): the check before must contain precheck_expect; an output that does not is refused (a text nobody foresaw is not an all-clear).
+// The check before must contain precheck_expect; an output that does not is refused (a text nobody foresaw is not an all-clear).
 func TestDevice_PrecheckExpectMissingIsRefused(t *testing.T) {
 	t.Parallel()
 	e := switchRequest(t)
@@ -61,7 +61,7 @@ func TestDevice_PrecheckExpectMissingIsRefused(t *testing.T) {
 	}
 }
 
-// D-95 (1b): a check that prints nothing (after the output is normalised) is refused, whatever the device meant by it.
+// A check that prints nothing (after the output is normalised) is refused, whatever the device meant by it.
 func TestDevice_EmptyPrecheckOutputFailsClosed(t *testing.T) {
 	t.Parallel()
 	for _, out := range []string{" ", "\r\n", "\x1b[0m \t"} {
@@ -85,7 +85,7 @@ func TestDevice_StepsAreTheRenderedTemplatesInOrder(t *testing.T) {
 	req := e.only()
 	got, err := e.svc.Approve(e.ctx(), oper, req.ID, nil, "")
 	e.must(err)
-	if strings.Join(e.exec.phases(), ",") != "precheck,verify,run,verify" { // the read before the run (D-356): not the same read as the check
+	if strings.Join(e.exec.phases(), ",") != "precheck,verify,run,verify" { // the read before the run: not the same read as the check
 		t.Fatalf("steps = %v", e.exec.phases())
 	}
 	want := map[string]string{
@@ -116,7 +116,7 @@ func TestDevice_StepsAreTheRenderedTemplatesInOrder(t *testing.T) {
 	}
 }
 
-// D-95 (2): after the undo the read-back must NOT hold the text. A device that still shows the change leaves the item executed with the
+// After the undo the read-back must NOT hold the text. A device that still shows the change leaves the item executed with the
 // reason (the sweep tries again), and the failure is logged once.
 func TestDevice_RollbackReadBackMustNotContainExpect(t *testing.T) {
 	t.Parallel()
@@ -124,7 +124,7 @@ func TestDevice_RollbackReadBackMustNotContainExpect(t *testing.T) {
 	e.exec.pre, e.exec.present = staticAccess, "Gi1/0/12 disabled"
 	_, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
 	e.must(err)
-	e.exec.after = "Gi1/0/12 disabled" // after the run (not before it: that would be a change already there, D-356)
+	e.exec.after = "Gi1/0/12 disabled" // after the run (not before it: that would be a change already there)
 	e.clock.Advance(31 * time.Minute)
 	e.must(e.svc.Sweep(e.ctx()))
 	e.must(e.svc.Sweep(e.ctx()))
@@ -143,7 +143,7 @@ func TestDevice_RollbackReadBackMustNotContainExpect(t *testing.T) {
 	}
 }
 
-// D-95 (2): a read-back needs a text to look for. Without one the item is not "checked" and the read-back is not even sent (a 2xx or a
+// A read-back needs a text to look for. Without one the item is not "checked" and the read-back is not even sent (a 2xx or a
 // silent command is never "verified").
 func TestDevice_VerifyNeedsExpect(t *testing.T) {
 	t.Parallel()
@@ -181,7 +181,7 @@ func TestDevice_VerifyNeedsExpect(t *testing.T) {
 	}
 }
 
-// D-94 (4): {expiry_s} is the undo time in seconds, filled when the request is made; an item without an undo time cannot use it.
+// {expiry_s} is the undo time in seconds, filled when the request is made; an item without an undo time cannot use it.
 func TestDevice_ExpirySecondsAreTheUndoTime(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -226,7 +226,7 @@ func TestDevice_RunStepIsWhatTheApproverSaw(t *testing.T) {
 	}
 }
 
-// D-94 (4): an action that needs a value read from the device while it runs is not available until 13c.
+// An action that needs a value read from the device while it runs is not available until 13c.
 func TestDevice_RuntimeValueIsUnavailable(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -246,7 +246,7 @@ func TestDevice_RuntimeValueIsUnavailable(t *testing.T) {
 	}
 }
 
-// D-95 (3): an action that names a port needs a check before it with a refusal text. A row whose check was emptied behind the API is
+// An action that names a port needs a check before it with a refusal text. A row whose check was emptied behind the API is
 // not available, so it cannot be requested or run.
 func TestDevice_PortActionNeedsAPrecheck(t *testing.T) {
 	t.Parallel()
@@ -333,7 +333,7 @@ func TestDevice_ItemWithoutExecFails(t *testing.T) {
 	}
 }
 
-// D-94 (5), INV-22: what a device printed is compared and dropped. It is in no table, no log line and no result.
+// INV-22: what a device printed is compared and dropped. It is in no table, no log line and no result.
 func TestDevice_OutputIsNeverStoredOrLogged(t *testing.T) {
 	t.Parallel()
 	e := switchRequest(t)
@@ -389,7 +389,7 @@ func TestDevice_StepStatusesAreRecordedForWhatTheyMean(t *testing.T) {
 		}
 		// An outcome that is not clear is read back once at once (fgt_ban_ip has a read-back text); the read-back prints nothing here, which
 		// settles nothing, so the item stays unknown.
-		want := "verify,run" // the read before the run (D-356), then the run
+		want := "verify,run" // the read before the run, then the run
 		if c.inForce {
 			want = "verify,run,verify"
 		}

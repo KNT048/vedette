@@ -19,14 +19,14 @@ import { errMsg, ReadOnlyNote, useGate } from './parts'
 
 type Confirm = { kind: 'disable'; mod: ModuleId; affected: ModuleId[] } | { kind: 'deps'; mod: ModuleId; missing: ModuleId[] } | null
 
-/** Tắt module notify khi còn người dùng mã email: họ sẽ không đăng nhập được (D-35). Chỉ mở khi hộp thoại hiện, và chỉ quản trị đọc được danh sách người dùng. */
+/** Tắt module notify khi còn người dùng mã email: họ sẽ không đăng nhập được. Chỉ mở khi hộp thoại hiện, và chỉ quản trị đọc được danh sách người dùng. */
 function EmailCodeWarning() {
   const { t } = useTranslation('core')
   const count = (useUsers().data?.items ?? []).filter((u) => !u.disabled && u.twofa_method === 'email').length
   return count > 0 ? <Notice tone="danger" role="alert" className="mb-0" title={t('modules.disable.emailCodes', { count })} info={t('modules.disable.emailCodesInfo')} /> : null
 }
 
-/** D-624 (M1): turning SSO off here locks out the people who only sign in through it, as on the Users page; in v1 it never comes back. */
+/** Turning SSO off here locks out the people who only sign in through it, as on the Users page; in v1 it never comes back. */
 function SsoUsersWarning() {
   const { t } = useTranslation('core')
   const n = useOidc(true).data?.sso_users ?? 0
@@ -41,7 +41,7 @@ export default function ModulesSection() {
   const toggle = useToggleModule()
   const [confirm, setConfirm] = useState<Confirm>(null)
   const name = (id: ModuleId) => t(`modules.${id}.name`, { ns: 'common' })
-  // D-624 (#819), D-417: a module this build does not offer is not listed unless this box has it on; then it is listed
+  // #819: a module this build does not offer is not listed unless this box has it on; then it is listed
   // read-only, and its switch can only turn it off.
   const listed = q.data?.modules.filter((m) => scopeOf(m.id, m.enabled) !== 'hidden')
 
@@ -55,7 +55,7 @@ export default function ModulesSection() {
   }
 
   function onSwitch(all: ModuleState[], m: ModuleState, next: boolean) {
-    if (next && notOffered(m.id)) return // D-624: only the way out
+    if (next && notOffered(m.id)) return // Only the way out
     if (next) { void run(m.id, true); return }
     setConfirm({ kind: 'disable', mod: m.id, affected: all.filter((x) => x.enabled && x.depends.includes(m.id)).map((x) => x.id) })
   }
@@ -75,7 +75,7 @@ export default function ModulesSection() {
           // #842 §0: `module-<id>` is the deep-link target of every "turn on <module>" link (/settings/modules#module-<id>): it lands on the switch.
           const toggleOf = (m: ModuleState) => {
             const locked = m.tier === 'core'
-            const notHere = !m.available && !m.enabled // D-381: a module this install cannot run cannot be turned on; one left on can be turned off
+            const notHere = !m.available && !m.enabled // A module this install cannot run cannot be turned on; one left on can be turned off
             return <Switch id={`module-${m.id}`} checked={m.enabled} disabled={locked || notHere || gate.disabled || toggle.isPending} title={locked ? t('modules.coreLocked') : notHere ? t('modules.notHereWhy') : gate.title} aria-label={t(m.enabled ? 'modules.toggleOff' : 'modules.toggle', { name: name(m.id) })} onCheckedChange={(v) => onSwitch(modules, m, v)} />
           }
           const columns: ColumnDef<ModuleState>[] = [
@@ -119,7 +119,7 @@ export default function ModulesSection() {
           ) : null}
           {confirm?.kind === 'disable' && confirm.mod === 'notify' ? <EmailCodeWarning /> : null}
           {confirm?.kind === 'disable' && confirm.mod === 'auth-oidc' ? <SsoUsersWarning /> : null}
-          {/* what a module says stays in force once it is off (response: CONTRACT "Khi tắt module", D-624) */}
+          {/* what a module says stays in force once it is off (response: CONTRACT "Khi tắt module") */}
           {confirm?.kind === 'disable' ? <Slot name="modules.disable" props={{ module: confirm.mod, onClose: () => setConfirm(null) }} /> : null}
           <DialogFooter>
             <Button onClick={() => setConfirm(null)}>{t('common:cancel')}</Button>

@@ -19,7 +19,7 @@ func TestRunsTellAProfileCapAndANotSentCallFromAProviderFailure(t *testing.T) {
 	a.facts.assets["CVE-2022-27593"][0].Name = "NAS-2" // a cache miss
 	a.facts.mu.Unlock()
 	calls := a.fake.total()
-	m := a.explain("CVE-2022-27593", 429, "budget_reached") // D-531: the profile's budget stops it, it is not "not set up"
+	m := a.explain("CVE-2022-27593", 429, "budget_reached") // The profile's budget stops it, it is not "not set up"
 	if a.fake.total() != calls {
 		t.Fatal("the capped profile was asked")
 	}

@@ -30,7 +30,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// The honeypot over the real vedette-host (D-161, WP-30 slice 8a): the real host server and the real client on a unix
+// The honeypot over the real vedette-host (WP-30 slice 8a): the real host server and the real client on a unix
 // socket, a fake machine under them (opstest), the module and the adapter as cmd/vedette wires them. Nothing here runs
 // a container or touches a network card.
 
@@ -607,7 +607,7 @@ func TestHoneypotHostStopIsNotRepeated(t *testing.T) {
 	}
 }
 
-// oldHost is a vedette-host from before D-466: its command list has no decoy_ip.set_ports.
+// oldHost is a vedette-host from an older release: its command list has no decoy_ip.set_ports.
 type oldHost struct{ hostAPI }
 
 func (o oldHost) Info(ctx context.Context) (api.Info, error) {
@@ -630,7 +630,7 @@ func (e *hpHost) heldDecoy(t *testing.T, ip string) (api.NetDecoy, bool) {
 	return api.NetDecoy{}, false
 }
 
-// D-466, W1-14: the adapter hands the host each Trap IP's own ports and its vendor's MAC prefix, and later changes only what
+// The adapter hands the host each Trap IP's own ports and its vendor's MAC prefix, and later changes only what
 // differs: new ports go by decoy_ip.set_ports (the link stays), a new prefix by remove + add, the same spec costs no write.
 func TestHoneypotHostSendsEachTrapIPItsPortsAndPrefix(t *testing.T) {
 	t.Parallel()

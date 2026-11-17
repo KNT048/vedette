@@ -22,7 +22,7 @@ import { actsAs } from '@/lib/deviceTypes'
 
 const MAX_KEY = 16 * 1024
 /** Quét có tài khoản qua SSH chỉ hợp với máy chủ: không liệt kê camera, máy in, switch, máy trạm. */
-/** Devices an SSH login can check: types acting as server, NAS or web (D-511: a virtual machine or a hypervisor acts as server). */
+/** Devices an SSH login can check: types acting as server, NAS or web (a virtual machine or a hypervisor acts as server). */
 const SSH_KINDS = ['server', 'nas', 'web']
 
 function Prepare() {
@@ -137,7 +137,7 @@ function List({ items }: { items: CredTarget[] }) {
   return (
     <>
       <DataTable caption={t('cred.caption')} data={items} columns={columns} empty={<EmptyState title={t('cred.empty')}>{t('cred.emptyHelp')}</EmptyState>} />
-      {/* kien G1: an SSH login check waits on the server; say so while it runs */}
+      {/* An SSH login check waits on the server; say so while it runs */}
       <BusyNote busy={test.isPending} className="mt-2">{t('cred.testWaiting', { name: testing?.label ?? '' })}</BusyNote>
       <Dialog open={!!rm} onOpenChange={(o) => { if (!o) setRm(null) }}>
         {shownRm ? (

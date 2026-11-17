@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-9 (D-97, D-98, response INV-16, INV-18) in the real wiring: the two-step code of core/auth (authenticator app)
+// WP-13b slice 13b-9 (response INV-16, INV-18) in the real wiring: the two-step code of core/auth (authenticator app)
 // guards the approval of a high-risk AI request, once per person, once per code.
 
 type aiPerson struct {
@@ -82,7 +82,7 @@ func TestWiringApproveHighRiskAIRequestWithTwoStepCodes(t *testing.T) {
 	if _, err := svc.ChangeRule(ctx, boss, rule.ID, ri); err != nil {
 		t.Fatal(err)
 	}
-	for _, ev := range []struct{ id, dest, src string }{{"e1", "198.51.100.7", "203.0.113.105"}, {"e2", "198.51.100.8", "203.0.113.106"}} { // public sources: a block on a LAN address is refused (D-469)
+	for _, ev := range []struct{ id, dest, src string }{{"e1", "198.51.100.7", "203.0.113.105"}, {"e2", "198.51.100.8", "203.0.113.106"}} { // public sources: a block on a LAN address is refused
 		d := response.Det{ID: ev.id, Trigger: "ioc_connection", TS: store.FormatTS(clock.now()), Summary: "PC connected to " + ev.dest,
 			Fields: map[string]string{"src_ip": ev.src, "device": "PC-SALES-02", "dest": ev.dest, "dest_kind": "ip", "dest_ip": ev.dest, "dest_domain": "", "feeds": "IPsum", "confidence": "0.92", "switch_port": ""}}
 		if err := svc.StoreEvent(ctx, d); err != nil {
@@ -181,7 +181,7 @@ func TestWiringOneTOTPCodeRacingTwoRequestsPassesOnce(t *testing.T) {
 	if _, err := svc.ChangeRule(ctx, boss, rule.ID, ri); err != nil {
 		t.Fatal(err)
 	}
-	for _, ev := range []struct{ id, dest, src string }{{"e1", "198.51.100.7", "203.0.113.105"}, {"e2", "198.51.100.8", "203.0.113.106"}} { // public sources: a block on a LAN address is refused (D-469)
+	for _, ev := range []struct{ id, dest, src string }{{"e1", "198.51.100.7", "203.0.113.105"}, {"e2", "198.51.100.8", "203.0.113.106"}} { // public sources: a block on a LAN address is refused
 		d := response.Det{ID: ev.id, Trigger: "ioc_connection", TS: store.FormatTS(clock.now()), Summary: "PC connected to " + ev.dest,
 			Fields: map[string]string{"src_ip": ev.src, "device": "PC-SALES-02", "dest": ev.dest, "dest_kind": "ip", "dest_ip": ev.dest, "dest_domain": "", "feeds": "IPsum", "confidence": "0.92", "switch_port": ""}}
 		if err := svc.StoreEvent(ctx, d); err != nil {

@@ -100,7 +100,7 @@ func TestContract_INV2_CreateRefusals(t *testing.T) {
 	}
 }
 
-// D-231: at most MaxTokens tokens; the next one is 400 too_many and nothing is saved.
+// At most MaxTokens tokens; the next one is 400 too_many and nothing is saved.
 func TestContract_TokenCap(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)
@@ -487,7 +487,7 @@ func TestContract_INV5_LoopbackOnly(t *testing.T) {
 			t.Errorf("%s: %v", addr, err)
 		}
 	}
-	// D-395: in a container the unspecified address of its own namespace is allowed (the unit publishes the port on the host's
+	// In a container the unspecified address of its own namespace is allowed (the unit publishes the port on the host's
 	// 127.0.0.1 only), and the endpoint shown is the host's side of that publish; a named address off loopback stays refused.
 	for _, addr := range []string{"192.168.1.5:8765", "10.0.0.1:1", "172.30.0.2:8765"} {
 		_, err := mcpserver.New(mcpserver.Config{DB: db, Audit: audit.New(nil), Log: slog.New(slog.DiscardHandler), Source: sampleSource(), Modules: &switches{},
@@ -573,7 +573,7 @@ func waitFor(t *testing.T, ok func() bool) {
 	}
 }
 
-// Streamable HTTP rules (D-230): POST only, no browser origin, JSON only, one message per request, notifications 202.
+// Streamable HTTP rules: POST only, no browser origin, JSON only, one message per request, notifications 202.
 func TestContract_Transport(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)
@@ -705,7 +705,7 @@ func toStrings(v any) []string {
 	return out
 }
 
-// D-232: a token gets a burst of 30 requests, then 429 with Retry-After until its bucket refills; tool calls are also capped per day.
+// A token gets a burst of 30 requests, then 429 with Retry-After until its bucket refills; tool calls are also capped per day.
 func TestContract_RateLimits(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)

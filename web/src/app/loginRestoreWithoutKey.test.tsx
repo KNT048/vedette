@@ -1,4 +1,4 @@
-// J7 (#812): after a backup restored without its decryption key, the box refuses an account whose two-step key or SSO client
+// #812: after a backup restored without its decryption key, the box refuses an account whose two-step key or SSO client
 // secret was lost with its own error; the sign-in page shows that sentence (who fixes it and where), not a generic failure.
 import { describe, expect, it } from 'vitest'
 import { screen } from '@testing-library/react'

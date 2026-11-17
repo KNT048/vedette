@@ -72,7 +72,7 @@ func identOf(v RunView, id string) *IdentRow {
 	return nil
 }
 
-// D-501: Scan now identifies each device before it checks it. A device known only by its address (no finding before) gets the
+// Scan now identifies each device before it checks it. A device known only by its address (no finding before) gets the
 // finding its identified software matched and is checked for it; each device says what was identified, or exactly why nothing was.
 func TestScanNowIdentifiesBeforeItChecks(t *testing.T) {
 	t.Parallel()

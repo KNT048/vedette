@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// D-591 (FULL-5 slice 2): the host makes the fence key once and keeps it, gives a domain's box-bound token, checks the fence for OpenVAS
+// The host makes the fence key once and keeps it, gives a domain's box-bound token, checks the fence for OpenVAS
 // and for zap.baseline, and the key's copy reaches the scan container only. No test asks real DNS.
 
 func TestFenceKeyIsMadeOnceAndKept(t *testing.T) {
@@ -72,7 +72,7 @@ func TestExposureTokenIsListedCappedAndAudited(t *testing.T) {
 	if _, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: "Acme.example;reboot"}); err == nil {
 		t.Fatal("a bad domain was accepted")
 	}
-	for _, suffix := range []string{"co.uk", "ddns.net", "github.io"} { // D-628 (review r2 L4 of #941): never a public suffix
+	for _, suffix := range []string{"co.uk", "ddns.net", "github.io"} { // Never a public suffix
 		got, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: suffix})
 		if l, _ := w.o.loadFenceList(); err == nil || got != nil || l[suffix] {
 			t.Fatalf("%s: %+v %v, listed %v", suffix, got, err, l[suffix])
@@ -145,7 +145,7 @@ func TestFenceRecheckNeverUsesTheCache(t *testing.T) {
 	}
 }
 
-// Review r1 H2: zap.baseline of a domain verified before D-591 (its own random token, not the box-bound one) runs exactly as before:
+// zap.baseline of a domain verified by an older release (its own random token, not the box-bound one) runs exactly as before:
 // the TXT record carries that token and the name points at the address; without the record it is refused as before.
 func TestZapBaselineKeepsAnOldDomainsToken(t *testing.T) {
 	t.Parallel()
@@ -171,7 +171,7 @@ func TestZapBaselineKeepsAnOldDomainsToken(t *testing.T) {
 	}
 }
 
-// D-628 (review r2 L2 of #941): the older-token path of zap.baseline asks the one ownership rule (domainfence.Owned): the record on
+// The older-token path of zap.baseline asks the one ownership rule (domainfence.Owned): the record on
 // _vedette-verify.<domain> proves the domain, and a record reached through a CNAME on that name does not.
 func TestZapBaselineOldTokenUsesTheOwnershipRule(t *testing.T) {
 	t.Parallel()
@@ -206,7 +206,7 @@ func TestExposureFenceCheck(t *testing.T) {
 	args := func(tok string, disruptive bool) api.ExposureFenceCheckArgs {
 		return api.ExposureFenceCheckArgs{Domain: "example.com", Name: "www.example.com", IP: zapTestIP, Token: tok, Disruptive: disruptive}
 	}
-	outside := func(_ context.Context, name string) (string, error) { // the page's name only: the domain itself is no CNAME (D-628)
+	outside := func(_ context.Context, name string) (string, error) { // the page's name only: the domain itself is no CNAME
 		if name == "www.example.com" {
 			return "example.cdn.example.net.", nil
 		}
@@ -238,7 +238,7 @@ func TestExposureFenceCheck(t *testing.T) {
 			}
 		})
 	}
-	// D-632: the record's parent name (ProofAt) is checked like the domain, and never a public suffix, whatever core sends
+	// The record's parent name (ProofAt) is checked like the domain, and never a public suffix, whatever core sends
 	if j, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "git.example.com", Name: "git.example.com", IP: zapTestIP, Token: zapTestTok, ProofAt: "example.com"}); err != nil || j.ProofAt != "example.com" {
 		t.Fatalf("a parent name: %+v %v", j, err)
 	}
@@ -454,7 +454,7 @@ func TestFenceScanCopyIsRewrittenAndSurvivesABadKey(t *testing.T) {
 	}
 }
 
-// D-632 (review r1 M2 and L1 of #960): a page of git.example.com whose own record sits on example.com goes through the domain fence
+// A page of git.example.com whose own record sits on example.com goes through the domain fence
 // with ProofAt (git's box-bound token, git on the host's list), never through the older-token path; a ProofAt with a token that is
 // not git's bound one is refused, and so is one outside git's registered domain.
 func TestZapBaselineProofAtGoesThroughTheFence(t *testing.T) {

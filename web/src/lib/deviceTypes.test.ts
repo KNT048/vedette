@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { actsAs, BEHAVIOUR_KINDS, kindLabel, lookupType, matchesKind } from './deviceTypes'
 
-describe('device types (D-511)', () => {
+describe('device types', () => {
   it('the 13 kinds behaviour is keyed on are the Go list (content/devicetypes Kinds)', () => {
     const goSrc = readFileSync(join(import.meta.dirname, '../../../content/devicetypes/types.go'), 'utf8')
     const goKinds = /var Kinds = \[\]string\{([^}]*)\}/.exec(goSrc)?.[1]?.split(',').map((s) => s.trim().replace(/"/g, ''))

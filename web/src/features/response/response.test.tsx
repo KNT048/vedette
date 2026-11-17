@@ -25,8 +25,8 @@ import { actionsStore, buildChange, catalogStore, identityStore, settingsStore }
 import { newLinkToken } from './identity'
 import { telegramMessagesForTest } from '@/features/notify/mocks'
 
-// D-624 (#819): AI response is hidden in the GUI for v1 (POST_V1_IN_UI false); its screens are kept, so this file runs them as
-// offered, and the D-624 test at the end runs the read-only v1 view of a box that already has it on.
+// AI response is hidden in the GUI for v1 (POST_V1_IN_UI false); its screens are kept, so this file runs them as
+// offered, and the v1 scope test at the end runs the read-only v1 view of a box that already has it on.
 const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
 vi.mock('@/lib/postV1', () => postV1)
 
@@ -54,7 +54,7 @@ const auditActions = () => auditStore.get().map((a) => a.action)
 const list = <T,>(role: Role, path: string) => call<{ items: T[] }>(role, 'GET', path).then((r) => r.json.items)
 const logList = () => list<LogEntry>('admin', '/response/log')
 const getAction = async (id: string) => (await list<ActionRequest>('admin', '/response/actions')).find((a) => a.id === id)!
-/** The notify channels of a test; every approver on them has linked their address (D-191), unless `linked` is false. */
+/** The notify channels of a test; every approver on them has linked their address, unless `linked` is false. */
 function setChannels(list: { type: string; approvers?: { user_id: string; address: string }[]; [k: string]: unknown }[], linked = true) {
   collection<unknown>('notify_channels', () => []).set(list)
   identityStore.set(linked ? list.flatMap((c) => (c.approvers ?? []).map((a) => ({ user_id: a.user_id, channel: c.type, address: a.address, linked_at: new Date().toISOString() }))) : [])
@@ -98,7 +98,7 @@ const iocHits = (dests: string[]) => collection<unknown>('logs_ioc_hits', () => 
 const propose = (over: Record<string, unknown> = {}) => call<ProposeResult>('operator', 'POST', '/response/ai/proposals', {
   trigger: 'ioc_connection', action_id: 'blocklist_add', params: { ip: '185.220.101.77' }, confidence: 0.9, evidence: [{ kind: 'ioc_hit', id: 'h1' }], why: 'It keeps talking to a listed address.', ...over })
 
-describe('response: AI plans (S-RESP-1, D-40)', () => {
+describe('response: AI plans (S-RESP-1)', () => {
   it('drafts the NAS plan from the inventory and the FortiGate read, with the exact change', async () => {
     mapChat()
     const { json } = await call<PlanList>('viewer', 'GET', '/response/plans?finding=f-1')
@@ -115,7 +115,7 @@ describe('response: AI plans (S-RESP-1, D-40)', () => {
     expect(p.state).toBe('execution_off')
   })
 
-  it('from 80 % of the month\'s AI budget the scheduled plan job drafts nothing (D-531a)', async () => {
+  it('from 80 % of the month\'s AI budget the scheduled plan job drafts nothing', async () => {
     mapChat()
     collection<unknown[]>('resp_plans', () => []).set([]) // no plan drafted yet: only the job could add one
     aiConfigStore.update((c) => ({ ...c, monthly_budget: 10_000_000 }))
@@ -133,7 +133,7 @@ describe('response: AI plans (S-RESP-1, D-40)', () => {
   })
 })
 
-describe('response: security gates (S-RESP-2, D-41) G-1..G-8', () => {
+describe('response: security gates (S-RESP-2) G-1..G-8', () => {
   it('G-1 no request and no approval while the switch is off, and the refusal is audited', async () => {
     expect((await request()).code).toBe('execution_off')
     expect(auditActions()).toContain('response.refused')
@@ -293,7 +293,7 @@ describe('response: security gates (S-RESP-2, D-41) G-1..G-8', () => {
   })
 })
 
-describe('response: approval model (D-51)', () => {
+describe('response: approval model', () => {
   it('every action needs approval by default: a live rule creates a pending bundled request and runs nothing', async () => {
     iocHits(['198.51.100.50'])
     const rule = await liveRule({ actions: [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }, { action_id: 'msg_send', params: { text: 'Bad connection from {{trigger.device}}' }, ttl_min: null }] })
@@ -421,7 +421,7 @@ describe('response: approval model (D-51)', () => {
     expect((await pub('POST', `/response/approve/${token}`, { decision: 'approve' })).json.error?.code).toBe('approver_not_listed') // the page shows no link; the decision is refused 403, as in Go
   })
 
-  it('two people, at most one by email link (D-124)', async () => {
+  it('two people, at most one by email link', async () => {
     await turnOn()
     setChannels([{ type: 'email', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }, { user_id: 'u-admin', address: 'admin@acme.example' }] }])
     await saveSettings({ approval_channels: ['email'] })
@@ -440,7 +440,7 @@ describe('response: approval model (D-51)', () => {
   })
 })
 
-describe('response: approvers prove their channel identity (S-RESP-2, D-191)', () => {
+describe('response: approvers prove their channel identity (S-RESP-2)', () => {
   const ids = (role: Role) => list<{ channel: string; address: string; linked: boolean; method: string; code_waiting: boolean }>(role, '/response/me/identities')
   const codeOf = (msg: string) => /code (\d{6})/.exec(msg)?.[1]
   const confirm = (role: Role, channel: string, code: string) => call(role, 'POST', `/response/me/identities/${channel}/confirm`, { code })
@@ -455,7 +455,7 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     return (await request()).json.id
   }
 
-  it('Telegram: a press from a listed ID that is not linked decides nothing and holds no code; the person confirms the link signed in (D-414)', async () => {
+  it('Telegram: a press from a listed ID that is not linked decides nothing and holds no code; the person confirms the link signed in', async () => {
     const id = await unlinkedChat()
     const r = await tg(id, '555')
     expect(r.status).toBe(403)
@@ -478,14 +478,14 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect(ok.json.approvals[0]!.via).toBe('telegram')
   })
 
-  it('Zalo personal: My account shows the status only; only the listed person, signed in, confirms the link the box sent (D-447)', async () => {
+  it('Zalo personal: My account shows the status only; only the listed person, signed in, confirms the link the box sent', async () => {
     await turnOn()
     setChannels([{ type: 'zalo-personal', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: '2938475610293847561' }] }], false)
     expect((await ids('operator')).find((r) => r.channel === 'zalo-personal')).toEqual(expect.objectContaining({ address: '2938475610293847561', linked: false, method: 'send_code' }))
     renderApp('/settings/account?tab=approvers', { role: 'operator' })
     const card = await screen.findByRole('region', { name: 'Approval channels' })
     const row = (await within(card).findByText('2938475610293847561')).closest('li')!
-    expect(within(row).queryByLabelText('Code')).toBeNull() // status and Send again only: the link comes to the Zalo account (D-414)
+    expect(within(row).queryByLabelText('Code')).toBeNull() // status and Send again only: the link comes to the Zalo account
     expect(within(row).getByRole('button', { name: 'Send again' })).toBeInTheDocument()
     const made = newLinkToken('u-op', 'zalo-personal', '2938475610293847561')
     if (!('token' in made)) throw new Error(made.message)
@@ -503,7 +503,7 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect(codeOf(r.json.error!.message)).toBeUndefined()
   })
 
-  it('Telegram: My account shows Not linked and Send again; the bot sends a new link; the confirm page links it (D-414)', async () => {
+  it('Telegram: My account shows Not linked and Send again; the bot sends a new link; the confirm page links it', async () => {
     await unlinkedChat()
     renderApp('/settings/account?tab=approvers', { role: 'operator' })
     const card = await screen.findByRole('region', { name: 'Approval channels' })
@@ -564,7 +564,7 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('address_mismatch')
   })
 
-  it('a channel that is off lists nobody; Send again on a chat channel sends a new confirm link (D-414); viewers have no identities', async () => {
+  it('a channel that is off lists nobody; Send again on a chat channel sends a new confirm link; viewers have no identities', async () => {
     setChannels([{ type: 'email', configured: true, enabled: false, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }] }, { type: 'telegram', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: '42' }] }], false)
     expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('not_listed')
     const again = await call<{ sent_to: string }>('operator', 'POST', '/response/me/identities/telegram/code')
@@ -581,13 +581,13 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
 
   it('My account: no card for a viewer', async () => {
     renderApp('/settings/account?tab=approvers', { role: 'viewer' })
-    await screen.findByRole('tab', { name: 'Sessions' }) // D-519: the tab is left out, so ?tab=approvers opens Profile
+    await screen.findByRole('tab', { name: 'Sessions' }) // The tab is left out, so ?tab=approvers opens Profile
     expect(screen.getByRole('tab', { name: 'Profile' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.queryByText('Approval channels')).toBeNull()
   })
 })
 
-describe('response: typed placeholders and trigger data (D-51)', () => {
+describe('response: typed placeholders and trigger data', () => {
   it('every placeholder type accepts valid values and rejects injection', () => {
     const ok: Record<string, string> = { ip: '10.0.0.1', cidr: '10.0.0.0/24', domain: 'bad.example.com', port: '8080', mac: '3c:22:fb:10:aa:01', vlan: '999', interface: 'Gi1/0/12', id: '1042', name: 'NAS-PHOTO-443', text: 'NAS-PHOTO-443' }
     for (const p of PARAM_TYPES) expect(PARAM_CHECK[p](ok[p]!), p).toBe(true)
@@ -646,7 +646,7 @@ describe('response: typed placeholders and trigger data (D-51)', () => {
   })
 })
 
-describe('response: safety envelope (D-51)', () => {
+describe('response: safety envelope', () => {
   it('dry run: a new rule starts in dry run, a match is logged and nothing is requested or run', async () => {
     iocHits(['198.51.100.50'])
     const r = await call<Rule>('admin', 'POST', '/response/rules', { ...RULE, live: true })
@@ -664,7 +664,7 @@ describe('response: safety envelope (D-51)', () => {
     expect(auditActions()).not.toContain('response.execute')
   })
 
-  it('a log rule counts one pasted signature in 5 to 1440 minutes; it bans the address that sent N lines, and with none the ban is not available (D-287, D-288)', async () => {
+  it('a log rule counts one pasted signature in 5 to 1440 minutes; it bans the address that sent N lines, and with none the ban is not available', async () => {
     const sig = (value: string, window_min = 5, n = 10) => ({ field: 'signature', op: 'count_window' as const, value, n, window_min })
     const log = (conditions: RuleInput['conditions'], actions: RuleInput['actions'] = [{ action_id: 'msg_send', params: { text: '{{trigger.count}}' }, ttl_min: null }]) =>
       ({ ...RULE, trigger: 'log_threshold' as const, conditions, actions })
@@ -701,7 +701,7 @@ describe('response: safety envelope (D-51)', () => {
     expect(auditActions()).not.toContain('response.execute')
     const pre = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, pre_approved: true } })
     expect(pre.json.notes.join(' ')).toMatch(/Pre-approved: a live run/)
-    expect(pre.json.notes.join(' ')).not.toMatch(/needs approval|can be forged/) // review of D-286: one answer, not both
+    expect(pre.json.notes.join(' ')).not.toMatch(/needs approval|can be forged/) // One answer, not both
     expect((await call('viewer', 'POST', '/response/rules/simulate', { rule: RULE })).status).toBe(403)
     expect((await call('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, actions: [{ action_id: 'blocklist_add', params: { ip: 'x; y' }, ttl_min: 60 }] } })).status).toBe(400)
   })
@@ -821,7 +821,7 @@ describe('response: safety envelope (D-51)', () => {
   })
 })
 
-describe('response: AI requests, server-side gates (D-51)', () => {
+describe('response: AI requests, server-side gates', () => {
   // Two known-bad connections seen on port Gi1/0/7 of the switch, and a finding that tells the server which device the port belongs to (the never-touch subject).
   const OK_HIGH = { trigger: 'ioc_connection', action_id: 'cisco_port_vlan_quarantine', params: { interface: 'Gi1/0/7', vlan: '999' }, confidence: 0.95, evidence: [{ kind: 'ioc_hit', id: 'hp1' }, { kind: 'ioc_hit', id: 'hp2' }, { kind: 'finding', id: 'f-1' }] }
   const portHits = () => collection<unknown>('logs_ioc_hits', () => []).update((l) => [...(l as unknown[]), ...['hp1', 'hp2'].map((id, i) => ({ id, ts: new Date().toISOString(), asset_id: null, src_ip: '192.168.10.105', dest: `203.0.113.${i + 1}`, dest_kind: 'ip', switch_port: 'Gi1/0/7', seen_via: 'span_flow', feeds: ['IPsum'], confidence: 0.9 }))])
@@ -879,7 +879,7 @@ describe('response: AI requests, server-side gates (D-51)', () => {
     expect((await propose({ confidence: 0.8 })).json.outcome).toBe('request')
   })
 
-  it('a connection read is evidence only for a device action through that same connection; a box action needs a finding or a known-bad connection about its target (D-119)', async () => {
+  it('a connection read is evidence only for a device action through that same connection; a box action needs a finding or a known-bad connection about its target', async () => {
     await setup()
     // the read happened, but it says nothing about a block-list address: the block list is not on a connection
     expect((await propose({ evidence: [{ kind: 'ioc_hit', id: 'h2' }, { kind: 'config_read', id: 'cn-fgt/get_virtual_ips' }] })).code).toBe('evidence_mismatch')
@@ -895,7 +895,7 @@ describe('response: AI requests, server-side gates (D-51)', () => {
     expect((await propose(own)).status).toBe(201)
   })
 
-  it('the trigger must be proven by a kind of evidence, and some triggers cannot be proven at all (D-119)', async () => {
+  it('the trigger must be proven by a kind of evidence, and some triggers cannot be proven at all', async () => {
     await setup()
     expect((await propose({ trigger: 'finding' })).code).toBe('evidence_mismatch') // a finding trigger needs a finding among the evidence
     await saveSettings({ ai: { triggers: ['ioc_connection', 'finding', 'honeypot'], budget_hour: 20, budget_day: 100 } })
@@ -913,13 +913,13 @@ describe('response: AI requests, server-side gates (D-51)', () => {
     expect((await propose({ trigger: 'finding', action_id: 'fgt_addrgrp_add', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).code).toBe('evidence_invalid')
   })
 
-  it('a never-touch address is refused for the device of every cited finding; a port action needs a finding for its subject (D-119)', async () => {
+  it('a never-touch address is refused for the device of every cited finding; a port action needs a finding for its subject', async () => {
     await setup(); await turnOn(); await enableSwitchActions(); portHits()
     expect((await propose({ ...OK_HIGH, evidence: [{ kind: 'ioc_hit', id: 'hp1' }, { kind: 'ioc_hit', id: 'hp2' }] })).code).toBe('never_touch') // no finding: no subject
     expect((await propose({ ...OK_HIGH, evidence: [...OK_HIGH.evidence] })).status).toBe(201)
   })
 
-  it('a cancellation (emergency stop) is not a rejection: it neither blocks a repeat nor counts for the quality breaker (D-119)', async () => {
+  it('a cancellation (emergency stop) is not a rejection: it neither blocks a repeat nor counts for the quality breaker', async () => {
     await setup()
     const before = (await call<AiState>('viewer', 'GET', '/response/ai')).json.quality
     expect((await propose()).status).toBe(201)
@@ -929,7 +929,7 @@ describe('response: AI requests, server-side gates (D-51)', () => {
     expect((await propose()).status).toBe(201)
   })
 
-  it('more than 60 proposals in an hour are refused with 429; notes of each kind are capped at 50 (D-119)', async () => {
+  it('more than 60 proposals in an hour are refused with 429; notes of each kind are capped at 50', async () => {
     await setup()
     for (let i = 0; i < 60; i++) expect((await propose({ confidence: 0.5 })).json.outcome ?? 'x').toBe('suggestion')
     const over = await propose({ confidence: 0.5 })
@@ -1043,7 +1043,7 @@ describe('response: action catalog (S-RESP-4)', () => {
     expect(validateTpl({ ...EMPTY_TPL, method: 'POST', path: '/x', headers: 'X-Token: {name}' }, 'Action')).toBeNull()
   })
 
-  it('check before and read-back are typed and checked on the server (INV-14c, D-95)', async () => {
+  it('check before and read-back are typed and checked on the server (INV-14c)', async () => {
     const post = (o: Record<string, unknown>) => call('admin', 'POST', '/response/catalog', { ...CUSTOM, ...o })
     const get = { ...EMPTY_TPL, method: 'GET', path: '/api/v2/cmdb/webfilter/urlfilter/1/entries/{domain}' }
     // read-back text: only on the read-back, 200 characters, typed placeholders only
@@ -1092,7 +1092,7 @@ describe('response: action catalog (S-RESP-4)', () => {
     expect((await call<Catalog>('admin', 'GET', '/response/catalog')).json.items.find((a) => a.id === 'cisco_port_shut')!.precheck_refuse).toHaveLength(6)
   })
 
-  it('no template can set a credential, address or hop-by-hop header, in a custom action or a built-in one (D-94)', async () => {
+  it('no template can set a credential, address or hop-by-hop header, in a custom action or a built-in one', async () => {
     const bad = ['Authorization: Bearer {name}', 'authorization: x', 'Cookie: a=b', 'Host: evil.lan', 'Proxy-Authorization: x', 'Proxy-Foo: x', 'Connection: close', 'Keep-Alive: 5', 'TE: trailers', 'Transfer-Encoding: chunked', 'Upgrade: x', 'Proxy-Connection: x', 'Forwarded: for=1.2.3.4', 'X-Forwarded-For: 1.2.3.4', 'X-Forwarded-Host: x', 'X-Test: a\nAUTHORIZATION: b']
     for (const h of bad) {
       expect(validateTpl({ ...EMPTY_TPL, method: 'POST', path: '/x', headers: h }, 'Action'), h).toMatch(/set by the connection/)
@@ -1126,7 +1126,7 @@ describe('response: action catalog (S-RESP-4)', () => {
     expect(now.find((x) => x.id === 'fgt_ban_ip')!.unavailable_reason ?? '').not.toMatch(/Not available yet/)
   })
 
-  it('the proposals route is documented as preview only (FORBID-5, D-97)', async () => {
+  it('the proposals route is documented as preview only (FORBID-5)', async () => {
     const { endpoints } = await import('./contract')
     const r = endpoints.find((x) => x.path === '/response/ai/proposals')!
     expect(r.summary).toMatch(/^Preview build only/)
@@ -1157,7 +1157,7 @@ describe('response: action catalog (S-RESP-4)', () => {
     expect((await post({ precheck: get, precheck_refuse: [], precheck_expect: 'ok' })).status).toBe(201)
   })
 
-  it('GET /response/catalog hides the header values of every step from non-admins, the check before included (D-88 (26))', async () => {
+  it('GET /response/catalog hides the header values of every step from non-admins, the check before included', async () => {
     const secret = { ...EMPTY_TPL, method: 'GET', path: '/d/{domain}', headers: 'X-Api-Key: s3cretvalue' }
     const made = await call('admin', 'POST', '/response/catalog', { ...CUSTOM, run: { ...CUSTOM.run, headers: 'X-Api-Key: s3cretrun' }, verify: secret, precheck: secret, precheck_refuse: ['x'] })
     expect(made.status).toBe(201)
@@ -1188,7 +1188,7 @@ describe('response: action catalog (S-RESP-4)', () => {
     expect(buildChange(catalogStore.get().find((x) => x.id === 'blocklist_add')!, { ip: '1.2.3.4' }, undefined, 'r').precheck).toBe('')
   })
 
-  it('the approver sees the headers with their typed values, and {expiry_s} as the number that will be sent (13b-6 review M3)', () => {
+  it('the approver sees the headers with their typed values, and {expiry_s} as the number that will be sent', () => {
     const conn = { kind: 'http', target: 'https://fw.lan' } as never
     const ban = catalogStore.get().find((x) => x.id === 'fgt_ban_ip')!
     const withHeaders = { ...ban, run: { ...ban.run, headers: 'X-Block-Scope: {ip}\nX-Commit: now' } }
@@ -1199,7 +1199,7 @@ describe('response: action catalog (S-RESP-4)', () => {
     expect(buildChange(ban, { ip: '198.51.100.7' }, conn, 'r', 30).rest?.headers).toEqual({})
   })
 
-  it('an item whose outcome is not known can be undone, and the card says why (13b-6 review M2)', async () => {
+  it('an item whose outcome is not known can be undone, and the card says why', async () => {
     await turnOn()
     const a = await request()
     expect((await call('operator', 'POST', `/response/actions/${a.json.id}/approve`)).status).toBe(200)
@@ -1219,7 +1219,7 @@ describe('response: action catalog (S-RESP-4)', () => {
     expect((await call('operator', 'POST', `/response/actions/${b.json.id}/rollback`)).code).toBe('not_executed')
   })
 
-  it('an executed item shows the undo time the box set (remove_at), and "not undone automatically" when there is none (D-356)', async () => {
+  it('an executed item shows the undo time the box set (remove_at), and "not undone automatically" when there is none', async () => {
     await turnOn()
     const a = await request()
     actionsDb.update((l) => l.map((x) => (x.id === a.json.id ? { ...x, items: x.items.map((i) => ({ ...i, ttl_min: 60 })) } : x))) // an undo time of one hour
@@ -1295,7 +1295,7 @@ describe('response: block list (pull)', () => {
     expect((await fetch(`${location.origin}${path}`)).status).toBe(404)
   })
 
-  it('a block on an address the list never publishes is refused when it is planned, with not_publishable and a refused line (D-469)', async () => {
+  it('a block on an address the list never publishes is refused when it is planned, with not_publishable and a refused line', async () => {
     iocHits(['192.168.1.5'])
     const priv = { action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }
     const tell = { action_id: 'msg_send', params: { text: 'Bad connection from {{trigger.device}}' }, ttl_min: null }
@@ -1325,7 +1325,7 @@ describe('response: block list (pull)', () => {
   })
 })
 
-describe('response: tamper-evident log (D-48)', () => {
+describe('response: tamper-evident log', () => {
   it('every step is chained, the chain verifies, and editing or deleting a line breaks it', async () => {
     await turnOn(); mapChat()
     const r = await request()
@@ -1394,7 +1394,7 @@ describe('response: screens', () => {
     expect(screen.getByRole('region', { name: 'This box' })).toBeInTheDocument() // built-in groups are translated, library packs show the name the library gives them
   })
 
-  it('Response opens on the inbox; the tabs are Requests, Rules, Actions, Log, Settings; Rules shows rules and the template gallery (D-513)', async () => {
+  it('Response opens on the inbox; the tabs are Requests, Rules, Actions, Log, Settings; Rules shows rules and the template gallery', async () => {
     renderApp('/response')
     expect(await screen.findByRole('heading', { level: 1, name: 'Response' })).toBeInTheDocument()
     expect(screen.getAllByRole('tab').map((x) => x.textContent?.replace(/\d+.*$/, '').trim())).toEqual(['Requests', 'Rules', 'Actions', 'Log', 'Settings'])
@@ -1408,7 +1408,7 @@ describe('response: screens', () => {
     expect(screen.getAllByText('Pre-approved, no person').length).toBeGreaterThan(0)
   })
 
-  it('the high-risk banner counts the waiting requests in words, never a raw {{count}} (walk-1 W1-17)', async () => {
+  it('the high-risk banner counts the waiting requests in words, never a raw {{count}}', async () => {
     await turnOn()
     const pending = (await list<ActionRequest>('admin', '/response/actions')).filter((a) => a.status === 'pending').length
     renderApp('/response')
@@ -1431,7 +1431,7 @@ describe('response: screens', () => {
     expect((await screen.findAllByText('Add 203.0.113.77 to the block list')).length).toBeGreaterThan(0)
   })
 
-  it('page frame (D-464): old #hash links open the tab through ?tab=, Requests carries the pending count, a tab the role may not see opens the inbox', async () => {
+  it('page frame: old #hash links open the tab through ?tab=, Requests carries the pending count, a tab the role may not see opens the inbox', async () => {
     // ResponsePage on its own router, so the test can read the address after the redirect.
     const at = (url: string) => {
       sessionStore.set({ userId: 'u-admin' })
@@ -1449,7 +1449,7 @@ describe('response: screens', () => {
     expect(await screen.findByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
     expect(ai.where()).toBe('/response?tab=requests')
     ai.view.unmount()
-    // any other hash (the skip link's #main) is not an old tab name: no redirect; a tab that moved (D-513) opens where it went
+    // any other hash (the skip link's #main) is not an old tab name: no redirect; a tab that moved opens where it went
     const skip = at('/response?tab=metrics#main')
     expect(await screen.findByRole('tab', { name: 'Log' })).toHaveAttribute('aria-selected', 'true')
     expect(skip.where()).toBe('/response?tab=log#main')
@@ -1481,7 +1481,7 @@ describe('response: screens', () => {
     expect(await screen.findByText('Chain verified')).toBeInTheDocument()
   })
 
-  it('an empty Block list says what fills it, that it holds public addresses only, and links to the template that is off (D-469)', async () => {
+  it('an empty Block list says what fills it, that it holds public addresses only, and links to the template that is off', async () => {
     actionsDb.set([])
     renderApp('/response#blocklist')
     expect(await screen.findByText('Nothing is blocked right now.')).toBeInTheDocument()
@@ -1500,7 +1500,7 @@ describe('response: screens', () => {
     expect(await screen.findByText(/Turn off virtual IP NAS-PHOTO-443 on FW-HQ/, { selector: 'p' })).toBeInTheDocument()
   })
 
-  it('response off: the finding page does not call the module, also while the module list loads (W10-1, no 404 in the console)', async () => {
+  it('response off: the finding page does not call the module, also while the module list loads (no 404 in the console)', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'response' ? { ...m, enabled: false } : m)))
     const asked: string[] = []
     let modules = false
@@ -1516,7 +1516,7 @@ describe('response: screens', () => {
     server.events.removeAllListeners()
   })
 
-  it('a requested proposal on the finding page links to the Requests tab (D-464: ?tab=, not #requests)', async () => {
+  it('a requested proposal on the finding page links to the Requests tab (?tab=, not #requests)', async () => {
     await turnOn()
     expect((await request()).status).toBe(201)
     renderApp('/findings/f-1')
@@ -1533,7 +1533,7 @@ describe('response: screens', () => {
     renderApp(`/approve/${token}`, { role: null })
     expect(await screen.findByText(/Turn off virtual IP NAS-PHOTO-443/, { selector: 'p' })).toBeInTheDocument()
     expect((await getAction(r.json.id)).status).toBe('pending')
-    // kien G1: the approval makes the change on the device before it answers; while it runs the button spins and a note says so.
+    // The approval makes the change on the device before it answers; while it runs the button spins and a note says so.
     // The held handler returns nothing, so the request then goes on to the mock.
     let release!: () => void
     const held = new Promise<void>((res) => { release = res })
@@ -1586,7 +1586,7 @@ describe('response: custom action form follows the connection kind', () => {
     const cat = (await call<Catalog>('admin', 'GET', '/response/catalog')).json
     renderUi(<ActionDialog action={null} cat={cat} onClose={() => undefined} />)
     const conn = await screen.findByLabelText('Connection')
-    // the dialog opens on the first connection that can write; no brand prefill (D-58): the fields start empty
+    // the dialog opens on the first connection that can write; no brand prefill: the fields start empty
     expect(screen.getAllByLabelText(L.path)[0]).toHaveValue('')
     const pick = async (name: string) => { await userEvent.selectOptions(conn, within(conn).getByRole('option', { name: new RegExp(name) })) }
     await eachOption([
@@ -1632,7 +1632,7 @@ describe('response: custom action form follows the connection kind', () => {
     expect(within(conn).getByRole('option', { name: 'Core switch (SSH)' })).toBeEnabled()
   })
 
-  it('form matrix: the check before and the read-back text, on and off, for each kind (D-95)', async () => {
+  it('form matrix: the check before and the read-back text, on and off, for each kind', async () => {
     connectorsStore.update((l) => [...l, ...extra])
     orgStore.update((o) => ({ ...o, setup_complete: true }))
     const cat = (await call<Catalog>('admin', 'GET', '/response/catalog')).json
@@ -1674,7 +1674,7 @@ describe('response: custom action form follows the connection kind', () => {
     await userEvent.type(within(screen.getByRole('group', { name: 'Action' })).getByLabelText(L.command), 'interface {{interface}{enter}shutdown')
     await userEvent.type(within(screen.getByRole('group', { name: 'Rollback (undo)' })).getByLabelText(L.command), 'interface {{interface}{enter}no shutdown')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await within(pre()).findByText(/needs a check before it/)).toBeInTheDocument() // under the group it is about (D-390)
+    expect(await within(pre()).findByText(/needs a check before it/)).toBeInTheDocument() // under the group it is about
     await userEvent.type(within(pre()).getByLabelText(L.command), 'show interfaces {{interface} switchport')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await within(pre()).findByText(/at least one text that makes it refuse/)).toBeInTheDocument()
@@ -1778,7 +1778,7 @@ describe('response: rule editor form matrix', () => {
     expect((await call('admin', 'POST', '/response/rules', input)).status).toBe(400)
   })
 
-  it('a condition value must fit its field: the range or the choices of the trigger catalog (D-390)', async () => {
+  it('a condition value must fit its field: the range or the choices of the trigger catalog', async () => {
     const trig = (await list<{ id: string; fields: { key: string; min: number | null; max: number | null }[] }>('viewer', '/response/triggers')).find((x) => x.id === 'ioc_connection')!
     expect(trig.fields.find((f) => f.key === 'confidence')).toMatchObject({ min: 0, max: 1 })
     expect(trig.fields.find((f) => f.key === 'device')).toMatchObject({ min: null, max: null })
@@ -1794,7 +1794,7 @@ describe('response: rule editor form matrix', () => {
     expect((await cond('dest_kind', 'in', 'IP, domain')).status).toBe(201)
   })
 
-  it('form errors show under their input: the name, a confidence of 7, an empty action value; fixing one clears it (D-390)', async () => {
+  it('form errors show under their input: the name, a confidence of 7, an empty action value; fixing one clears it', async () => {
     renderUi(<RuleDialog rule={null} onClose={() => undefined} />)
     const dlg = await screen.findByRole('dialog')
     await screen.findByRole('heading', { name: 'IF' })
@@ -1818,7 +1818,7 @@ describe('response: rule editor form matrix', () => {
     expect((await list<Rule>('admin', '/response/rules')).some((r) => r.conditions.some((c) => c.value === '7'))).toBe(false)
   })
 
-  it('a rule card asks before Delete and says when a rule is switched or a template cloned (D-390)', async () => {
+  it('a rule card asks before Delete and says when a rule is switched or a template cloned', async () => {
     renderApp('/response?tab=rules')
     const name = (await list<Rule>('admin', '/response/rules')).find((r) => r.enabled)!.name
     await userEvent.click(await screen.findByRole('switch', { name: `Rule ${name} is on` }))
@@ -1837,11 +1837,11 @@ describe('response: rule editor form matrix', () => {
   })
 })
 
-// ---- Item 20 (S-RESP-2, D-513): the inbox, the guided "Let the AI propose actions" setup, and why an empty inbox is empty ----
-describe('response: inbox and guided setup (item 20, D-513)', () => {
+// ---- Item 20 (S-RESP-2): the inbox, the guided "Let the AI propose actions" setup, and why an empty inbox is empty ----
+describe('response: inbox and guided setup (item 20)', () => {
   const triggersOf = () => list<{ id: string; ai_allowed: boolean; ai_evidence: string[] }>('admin', '/response/triggers')
 
-  it('the plans carry what the plan job did and why nothing was sent; the triggers say what proves them to the AI (D-119)', async () => {
+  it('the plans carry what the plan job did and why nothing was sent; the triggers say what proves them to the AI', async () => {
     const { json } = await call<PlanList>('operator', 'GET', '/response/plans')
     expect(json.planner.ran_at).not.toBeNull()
     expect(json.planner.sending).toBe(false)
@@ -1895,7 +1895,7 @@ describe('response: inbox and guided setup (item 20, D-513)', () => {
     expect(within(setup).getByRole('checkbox', { name: /Critical findings/ })).toBeDisabled()
   })
 
-  it('only a device action counts: the block list never covers a device on your network, so steps 1 and 2 stay to do with it alone (review M1)', async () => {
+  it('only a device action counts: the block list never covers a device on your network, so steps 1 and 2 stay to do with it alone', async () => {
     actionsDb.set([])
     // nothing reaches a device: every device action switched off in the catalog and without a connection; the block list is on and the AI may propose it
     catalogStore.update((l) => l.map((c) => (c.kind === 'device' ? { ...c, enabled: false, connection_id: null, ai_may_propose: false } : c.id === 'blocklist_add' ? { ...c, enabled: true, ai_may_propose: true } : c)))
@@ -1907,7 +1907,7 @@ describe('response: inbox and guided setup (item 20, D-513)', () => {
     expect(within(setup).getAllByText(/it does not cover devices on your network/).length).toBeGreaterThan(0)
   })
 
-  it('the AI profile waits for steps 1, 2 and 4, with the reason; a plan written before them is never sent (review M2)', async () => {
+  it('the AI profile waits for steps 1, 2 and 4, with the reason; a plan written before them is never sent', async () => {
     actionsDb.set([])
     renderApp('/response')
     const select = await screen.findByRole('combobox', { name: 'AI profile for Response plans' })
@@ -1916,7 +1916,7 @@ describe('response: inbox and guided setup (item 20, D-513)', () => {
     expect(select).toHaveAccessibleDescription(/Finish steps 1, 2 and 4 first/)
   })
 
-  it('a non-admin sees "Ask an administrator" for step 1 when no device action is ready (review L2)', async () => {
+  it('a non-admin sees "Ask an administrator" for step 1 when no device action is ready', async () => {
     actionsDb.set([])
     catalogStore.update((l) => l.map((c) => (c.kind === 'device' ? { ...c, connection_id: null } : c)))
     renderApp('/response', { role: 'operator' })
@@ -1924,7 +1924,7 @@ describe('response: inbox and guided setup (item 20, D-513)', () => {
     expect(within(within(setup).getByRole('heading', { name: '1. Connect a firewall or switch' }).parentElement!).getByText('Ask an administrator')).toBeInTheDocument()
   })
 
-  it('a viewer gets the planner counts and outcome codes, not the sentences of the operator log (review L1)', async () => {
+  it('a viewer gets the planner counts and outcome codes, not the sentences of the operator log', async () => {
     const viewer = (await call<PlanList>('viewer', 'GET', '/response/plans')).json.planner
     const op = (await call<PlanList>('operator', 'GET', '/response/plans')).json.planner
     expect(viewer.findings.length).toBeGreaterThan(0)
@@ -1932,7 +1932,7 @@ describe('response: inbox and guided setup (item 20, D-513)', () => {
     expect(op.findings.every((f) => f.reason !== '')).toBe(true)
   })
 
-  it('links that meant rules or requests name their tab now that the inbox opens first (review L4)', async () => {
+  it('links that meant rules or requests name their tab now that the inbox opens first', async () => {
     const { recordActivity } = await import('@/features/ai/activity')
     recordActivity({ job: 'response-plan', profile: '', model: '', hooks: [], tools: [], links: [{ kind: 'proposal', id: 'pr-x' }, { kind: 'action', id: 'act-x' }], input: 'i', output: 'o', summary: 'Sent 1 AI-generated proposal', tokens_in: 0, tokens_out: 0, result: 'ok' })
     const { default: ActivityPanel } = await import('@/features/ai/ActivityPanel')
@@ -1961,7 +1961,7 @@ describe('response: inbox and guided setup (item 20, D-513)', () => {
   })
 })
 
-describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
+describe('response: Respond from an incident (S-RESP-3)', () => {
   type Panel = import('./types').IncidentPanel
   const hitRow = (id: string, src: string, asset: string | null, kind = 'service') => ({ id, ts: new Date().toISOString(), kind, service: 'ssh', port: 22, src_ip: src, src_asset_id: asset, is_test: false, excerpt: '', events: [], trap_ip: '192.168.10.240', trap_hostname: 'FILESRV-OLD' })
   const incident = (id: string, hit: string, title: string, status = 'new', kind = 'trap') => ({ id, kind, attempt: false, link: `/honeypot/hits/${hit}`, title, asset_ids: [], severity: 'critical', status, first_seen: new Date().toISOString(), last_seen: new Date().toISOString(), count: 1,
@@ -2006,7 +2006,7 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
     expect(await within(panel).findByText('192.168.10.107')).toBeInTheDocument()
     expect(within(panel).getByText('On your network')).toBeInTheDocument()
     expect(within(panel).getByText('Vedette cannot cut this machine off for you yet.')).toBeInTheDocument()
-    // Settings, Connections and the Actions tab are the administrator's: an operator is told to ask one, not sent there (#875 r1)
+    // Settings, Connections and the Actions tab are the administrator's: an operator is told to ask one, not sent there (#875)
     expect(within(panel).getByText(/ask an administrator to connect your firewall or switch and turn on a trap rule/)).toBeInTheDocument()
     expect(within(panel).queryByRole('link', { name: 'Settings, Connections' })).toBeNull()
     expect(within(panel).getByText(/The block list only carries public addresses, so it cannot hold 192.168.10.107/)).toBeInTheDocument()
@@ -2020,7 +2020,7 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
     expect(within(panel).getByRole('link', { name: 'the action catalog' })).toHaveAttribute('href', '/response?tab=actions#catalog')
   })
 
-  it('the response module off (the default): Respond still shows what to do by hand and how to let Vedette help (W7-1)', async () => {
+  it('the response module off (the default): Respond still shows what to do by hand and how to let Vedette help', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'response' ? { ...m, enabled: false } : m)))
     const inc = (await call<{ incident: { action: string } }>('viewer', 'GET', '/notify/incidents/al-4')).json.incident
     renderApp('/response?incident=al-4', { role: 'operator' })
@@ -2071,7 +2071,7 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
   })
 })
 
-describe('D-624 (#819): a box that had AI response on before v1', () => {
+describe('a box that had AI response on before v1', () => {
   const NOTE = 'Not part of v1: you can turn it off; once off it is hidden.'
   const enabled = (b: HTMLElement) => !b.matches(':disabled') // inside a disabled fieldset only :disabled tells
 

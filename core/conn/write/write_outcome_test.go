@@ -14,13 +14,13 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// Outcomes and read-only steps (D-94 (1), M1 and M4 of the review of 13b-6): an answer that does not say "refused" is never "nothing changed", and the
+// Outcomes and read-only steps (M1 and M4 of the review of 13b-6): an answer that does not say "refused" is never "nothing changed", and the
 // writer is the last gate of a step that must only read.
 
 // a write that the server answers with a redirect was received and, in the common Post/Redirect/Get pattern, applied: "303 See
 // Other" after a POST means "done, look over there". The writer records it as failed ("as far as the answer shows, did not apply the
 // step"), so response says "Nothing was changed", the item is not in force, the connection can be deleted and no undo is offered. An
-// answer that does not say "refused" and does not say "done" is an unknown outcome (D-94 (1): ambiguous -> read back, never assume).
+// answer that does not say "refused" and does not say "done" is an unknown outcome (ambiguous -> read back, never assume).
 func TestWriterRedirectAfterAWriteIsUnknown(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

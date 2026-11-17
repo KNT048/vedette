@@ -39,7 +39,7 @@ if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
   throw "PowerShell runs in $($ExecutionContext.SessionState.LanguageMode) mode on this machine (a WDAC or AppLocker policy), which blocks the check of the box's certificate this script needs. Nothing was installed. Use 'Advanced: manual setup' in Vedette (Devices, Scope and sensors, Agents) instead."
 }
 
-# HTTPS to the box with .NET, not curl.exe (D-596): curl.exe's Schannel asks for the revocation status of the box CA, which has none, and
+# HTTPS to the box with .NET, not curl.exe: curl.exe's Schannel asks for the revocation status of the box CA, which has none, and
 # with a CA file it does not match an IP address in the certificate, so it cannot reach a box at its default (IPv4) address. The check
 # below accepts the box only when its certificate chain contains a certificate embedded in this script, every signature and date in the
 # chain is valid, the certificate is for server use, and it names the box address (Windows' own name check, or the IP address entry
@@ -222,7 +222,7 @@ try {
   $CaPem | Set-Content -Path $Ca -Encoding ascii
 
   # osqueryd keeps the node key of its enrolment in its database and does not enrol again while the box accepts that key. Unless this
-  # machine already holds this very token (a repair keeps its key), its database is removed so that it enrols under this token (D-411).
+  # machine already holds this very token (a repair keeps its key), its database is removed so that it enrols under this token.
   $held = if (Test-Path $Secret) { Get-Content -Raw -Path $Secret } else { '' }
   if ($held -cne $Token) {
     if ($held) { Write-Host 'This machine was enrolled with another token; it enrols again under this one. The old token lists it until it has been silent for 90 days or you revoke that token in Vedette.' }

@@ -40,9 +40,9 @@ function SearchBox() {
   )
 }
 
-/** D-92/D-134: the sentence that replaces a count or an empty table while the CISA list is off or has never loaded; null when there is nothing to say. */
+/** The sentence that replaces a count or an empty table while the CISA list is off or has never loaded; null when there is nothing to say. */
 /**
- * kien G11: the board is not a list that ran once at install. It says how often the box checks CISA's list, when it last did, and
+ * The board is not a list that ran once at install. It says how often the box checks CISA's list, when it last did, and
  * CISA's own last addition (CISA may add nothing for days); a failed check says so, with the last good pull and the way to fix it;
  * a list never pulled says that. All from GET /feeds/status (and the board's own `latest`), times in the reader's time zone.
  */
@@ -65,7 +65,7 @@ function KevFreshness({ latest }: { latest: { date_added: string; display: strin
     )
   }
   if (!kev.checked_at) return <p className="mb-3 text-meta text-muted">{t('fresh.never', { every })} {link}</p>
-  // kien G13 (D-91 as amended): both copies are asked every check; the line says which one the newest list came from, and a copy that
+  // Both copies are asked every check; the line says which one the newest list came from, and a copy that
   // failed alone is a quiet note (cisa.gov answers 403 to some countries), never an alarm
   const time = fmtWhen(kev.checked_at, now)
   const copies = kev.copies ?? [] // an older box (or a test fixture) without the field
@@ -97,7 +97,7 @@ function useKevNotice() {
   const link = <Link to="/settings/feeds" className="text-accent underline-offset-4 hover:underline">{t('home.kevSeeFeeds')}</Link>
   const notice = kev?.state === 'off' ? <>{t('home.kevOff')} {link}</>
     : kev?.state === 'never_loaded' && !(never && !kev.error) ? <>{t('home.kevNever', { reason: kev.error ?? t('home.kevNoAttempt') })}{kev.checked_at ? ` ${t('fresh.lastTried', { time: fmtWhen(kev.checked_at), count: kev.interval_hours })}` : ''} {link}</> : null
-  // What Home's dashboard says instead of "nothing exploited" (D-92): the notice, or, on a box that has never fetched (no notice, the
+  // What Home's dashboard says instead of "nothing exploited": the notice, or, on a box that has never fetched (no notice, the
   // headline says "no data yet"), that nothing was fetched yet.
   const noClaim = notice ?? (never ? <>{t('home.kevNoData')} {link}</> : null)
   return { never, notice, noClaim }
@@ -189,7 +189,7 @@ function Weekly() {
       <QueryState query={weekly}>
         {(d) => {
           const items = d.items.filter((i) => i.answer !== 'not_relevant')
-          // kien G5: no empty bordered list; one line says there is nothing this week
+          // No empty bordered list; one line says there is nothing this week
           if (items.length === 0) return <p className="text-sm text-muted">{t('weekly.none')}</p>
           return (
           <ol className="grid divide-y divide-rule rounded-md border border-rule bg-surface">

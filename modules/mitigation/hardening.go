@@ -11,9 +11,9 @@ import (
 
 // General hardening (INV-8): while no maintainer-confirmed pack ships its own compromise signs for a CVE, every finding still gets
 // general "Have I been hit?" checks for its software family, written here by reviewed code: signs any intruder tends to leave. Nothing
-// in them is about the CVE, so they are not a recommendation (D-21) and the page labels them so; Vedette never runs them (FORBID-1).
-// The generated firewall configs that let only an admin network reach the device (M2-1) are gone: D-631, kien 2026-11-17 ("remove the
-// General hardening feature that tells the user to allow traffic from the box to devices; it is useless").
+// in them is about the CVE, so they are not a recommendation and the page labels them so; Vedette never runs them (FORBID-1).
+// The generated firewall configs that let only an admin network reach the device are gone: they told the user to allow
+// traffic from the box to devices, which did not help.
 
 // hardening is the general hardening of a finding, or nil when the confirmed pack has its own compromise signs (POST-1).
 func hardening(r findings.Row, comp *findings.CompromiseCheck) *findings.Hardening {
@@ -111,7 +111,7 @@ func familyOf(r findings.Row) family {
 // familyProduct is the product name that alone says a vendor's family, for a KEV display name without the vendor ("Junos OS").
 var familyProduct = map[string]string{"Juniper Junos OS": "Junos", "Fortinet FortiOS": "FortiOS", "MikroTik RouterOS": "RouterOS", "Cisco IOS": "IOS"}
 
-// summaryFor names the family after the software only when the software's name does not already say it (W76-2: "General checks for
+// summaryFor names the family after the software only when the software's name does not already say it ("General checks for
 // Juniper Junos OS (Juniper Junos OS)"), and never the catch-all "General" family, which says nothing more.
 func summaryFor(family, software, cve string) string {
 	sw := strings.ToLower(software)

@@ -22,14 +22,14 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Approver identities (S-RESP-2, D-191, WP-31 R3). An administrator types each approver's address or ID on a notify channel; a button
+// Approver identities (S-RESP-2, WP-31 R3). An administrator types each approver's address or ID on a notify channel; a button
 // press or an email link counts as that person only after the person proved the address themselves: a code mailed to it (email), or a code
 // answered privately to a button press from that ID (chat). The code is typed in My account by the person signed in. A proof is held to the
 // exact address: a list changed by an administrator, or a changed sign-in email, is not linked any more. Approving in the app is not touched.
 
-// LinkSender asks notify to send the person's own listed chat ID a new confirm link (D-414: Send again in My account on a sendLink
+// LinkSender asks notify to send the person's own listed chat ID a new confirm link (Send again in My account on a sendLink
 // channel; cmd/vedette adapts notify). actor is the signed-in person's email (audit). link is set only when notify sends nothing because
-// the person confirms in this session (the box's own Zalo account, D-447): the page to open. The token comes from ChatLinkToken, so its
+// the person confirms in this session (the box's own Zalo account): the page to open. The token comes from ChatLinkToken, so its
 // limits hold.
 type LinkSender interface {
 	SendApproverLink(ctx context.Context, actor, channel, userID string) (link string, err error)
@@ -47,7 +47,7 @@ type Identity struct {
 	Channel     string  `json:"channel"`
 	Label       string  `json:"label"`
 	Address     string  `json:"address"`
-	Name        string  `json:"name,omitempty"` // the shown name of the address (Zalo personal, D-447)
+	Name        string  `json:"name,omitempty"` // the shown name of the address (Zalo personal)
 	Linked      bool    `json:"linked"`
 	LinkedAt    *string `json:"linked_at"`
 	Method      string  `json:"method"` // email_code, send_code (a confirm link sent to the chat ID), or unavailable
@@ -71,10 +71,10 @@ const (
 
 var chatNames = map[string]string{"slack": "Slack", "telegram": "Telegram", "zalo-personal": "Zalo"}
 
-// sendLink lists the chat channels linked by a confirm link (D-447 for Zalo personal, D-414 for Telegram, which replaced the private code
+// sendLink lists the chat channels linked by a confirm link (Zalo personal, and Telegram, where it replaced the private code
 // answered to a press): when an administrator lists the person with an ID, the box sends that ID a single-use link (ChatLinkToken), and only
 // the person, signed in to Vedette as themself, confirms it (ConfirmLink, POST). The message proves the link reached that account (Telegram:
-// privately when the bot can write to the ID, else in the approval chat, D-414); signing in proves who the person is; a reply from the
+// privately when the bot can write to the ID, else in the approval chat); signing in proves who the person is; a reply from the
 // account proves nothing and links nothing. No administrator path links on someone's behalf. Slack is not here: it cannot be linked yet.
 var sendLink = []string{"zalo-personal", "telegram"}
 
@@ -97,7 +97,7 @@ func newLinkToken(userID string) (string, error) {
 }
 
 // linkable says whether a person can prove an address on the channel at all: email by a mailed code, a chat channel by a press. The Zalo OA
-// channel has neither (its approvals are links, which notify makes for email only, D-124 (2)), so it is not listed.
+// channel has neither (its approvals are links, which notify makes for email only), so it is not listed.
 func linkable(channel string) bool {
 	_, chat := chatVia(channel)
 	return channel == "email" || chat
@@ -150,7 +150,7 @@ func (s *Service) isLinked(ctx context.Context, u User, channel, address string)
 	return sameAddress(channel, got, address), nil
 }
 
-// Linked says whether the person proved exactly this address on the channel (D-191). notify asks it before it mails an approval link to an
+// Linked says whether the person proved exactly this address on the channel. notify asks it before it mails an approval link to an
 // approver (notify INV-13, Config.ApproverLinks): an unproved address gets no mail. The error never holds the address (notify logs it).
 func (s *Service) Linked(ctx context.Context, userID, channel, address string) (bool, error) {
 	if s.cfg.Users == nil {
@@ -290,7 +290,7 @@ func (s *Service) putCode(ctx context.Context, tx *sql.Tx, userID, channel, addr
 }
 
 // SendLinkCode is POST /response/me/identities/{channel}/code (operator): a code mailed to the person's address on the email approval channel,
-// or on a sendLink channel a new confirm link sent to the person's own listed ID (LinkSender, D-414).
+// or on a sendLink channel a new confirm link sent to the person's own listed ID (LinkSender).
 func (s *Service) SendLinkCode(ctx context.Context, who Actor, channel string) (CodeSent, error) {
 	u, err := s.person(ctx, who)
 	if err != nil {
@@ -358,7 +358,7 @@ func (s *Service) SendLinkCode(ctx context.Context, who Actor, channel string) (
 }
 
 // ConfirmLink is POST /response/me/identities/{channel}/confirm (operator): the code proves the address it was made for, if that address is
-// still the person's on the channel's list. On a sendLink channel the code is the token of the confirm link the box sent to the ID (D-447):
+// still the person's on the channel's list. On a sendLink channel the code is the token of the confirm link the box sent to the ID:
 // a token for another person is refused before anything is read, so it stays valid for its person.
 func (s *Service) ConfirmLink(ctx context.Context, who Actor, channel, code string) (Identity, error) {
 	u, err := s.person(ctx, who)
@@ -373,7 +373,7 @@ func (s *Service) ConfirmLink(ctx context.Context, who Actor, channel, code stri
 	case !linkTokenRE.MatchString(c):
 		return Identity{}, fail(http.StatusBadRequest, "invalid_link", "This link is not complete. Open it again from the "+chatNames[channel]+" message.")
 	case subtle.ConstantTimeCompare([]byte(c[:8]), []byte(linkHint(u.ID))) != 1:
-		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { // D-414: a refusal leaves a row; the token is never written
+		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { // A refusal leaves a row; the token is never written
 			return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: u.Email, Action: "response.identity_link_refused", Target: channel,
 				Detail: truncRunes(cleanLine(u.Email+" opened a "+chatNames[channel]+" confirm link made for another Vedette account; nothing was linked"), 400)})
 		}); err != nil {
@@ -535,7 +535,7 @@ func errChatNotLinked(channel string) *apierr.Error {
 }
 
 // chatNotLinked answers a press from a listed approver whose ID is not linked: nothing is decided, and the answer, which notify shows only to the
-// person who pressed (notify POST-8), says how to link (D-414: no code is shown any more; a confirm link is sent to the ID).
+// person who pressed (notify POST-8), says how to link (no code is shown any more; a confirm link is sent to the ID).
 func (s *Service) chatNotLinked(ctx context.Context, channel, ext, target, actor string) error {
 	name := chatNames[channel]
 	if slices.Contains(sendLink, channel) {
@@ -547,7 +547,7 @@ func (s *Service) chatNotLinked(ctx context.Context, channel, ext, target, actor
 }
 
 // ChatLinkToken makes the token of a confirm link for a sendLink channel when an administrator lists the person with that ID (notify sends
-// https://<box>/link/<telegram|zalo>?c=<token> to the ID: Config.LinkCodes, D-447, D-414). The token is 128 random bits after the person's hint, single use,
+// https://<box>/link/<telegram|zalo>?c=<token> to the ID: Config.LinkCodes). The token is 128 random bits after the person's hint, single use,
 // valid 10 minutes, kept hashed with (person, channel, address), and only ConfirmLink by that person, signed in, uses it: making it links
 // nothing. The person must be an active operator or admin listed with exactly that address and not linked yet; one a minute and five an
 // hour; a new one replaces the one waiting. name is how the message names the person (their name, else their email).
@@ -589,7 +589,7 @@ func (s *Service) ChatLinkToken(ctx context.Context, userID, channel, address st
 }
 
 // DropChatLink ends the person's proof of exactly this address on the channel, and any code waiting for it, when an administrator removes
-// them as an approver or gives them another address (notify Config.LinkCodes, D-447): a proof held to an old address must not count again
+// them as an approver or gives them another address (notify Config.LinkCodes): a proof held to an old address must not count again
 // if the list later names that address once more. Nothing linked is no error. The audit row is response.identity_unlink by the actor.
 func (s *Service) DropChatLink(ctx context.Context, actor, userID, channel, address string) error {
 	s.mu.Lock() // as Unlink: a decision that passed its re-check under the lock runs before the proof goes, never after

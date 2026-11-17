@@ -71,7 +71,7 @@ type osEnv struct {
 	admin     *client
 	oper      *client
 	viewer    *client
-	installed atomic.Int32 // calls of OSConfig.Installed (D-470)
+	installed atomic.Int32 // calls of OSConfig.Installed
 }
 
 type osOpts struct {
@@ -250,7 +250,7 @@ func getVal(r reply, path ...string) any {
 func TestOSStateBeforeAndAfterTheFirstCheck(t *testing.T) {
 	t.Parallel()
 	e := newOSEnv(t, osOpts{})
-	// Before the first check: 200 with os null and core's own part (D-407), not 409 no_check_yet.
+	// Before the first check: 200 with os null and core's own part, not 409 no_check_yet.
 	g0 := e.viewer.get("/core/updates/os")
 	wantOK(t, g0, 200)
 	if v, ok := g0.JSON["os"]; !ok || v != nil || len(getArr(g0, "pending")) != 0 || getVal(g0, "window", "mode") == nil || getVal(g0, "release_upgrade") != nil {
@@ -411,7 +411,7 @@ func TestOSInstallRunsThroughTheHostAndCleansUp(t *testing.T) {
 	if n != 1 {
 		t.Errorf("os.install_done audited %d times", n)
 	}
-	// D-470: the box's package list is read again once after a successful install, not again when a restart rebuilds the run.
+	// The box's package list is read again once after a successful install, not again when a restart rebuilds the run.
 	eventuallyOS(t, "OSConfig.Installed after the install", func() bool { return e.installed.Load() >= 1 })
 	if got := e.installed.Load(); got != 1 {
 		t.Errorf("OSConfig.Installed called %d times, want once", got)
@@ -486,7 +486,7 @@ func TestOSInstallRunThatFailsSaysSoInItsLinesAndResult(t *testing.T) {
 	e.newHandlers(t, e.hh.Client, 0) // a restart rebuilds the ended run: still no call
 	wantOK(t, e.viewer.get("/core/updates/os/run"), 200)
 	if got := e.installed.Load(); got != 0 {
-		t.Errorf("OSConfig.Installed called %d times after a failed install (D-470: only after success)", got)
+		t.Errorf("OSConfig.Installed called %d times after a failed install (only after success)", got)
 	}
 }
 

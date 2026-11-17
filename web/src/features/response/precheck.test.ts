@@ -1,4 +1,4 @@
-// The check before and the read-back as data (D-95), pure checks of logic.ts: what a template may not do. The mock API and the Go module
+// The check before and the read-back as data, pure checks of logic.ts: what a template may not do. The mock API and the Go module
 // apply the same rules (response.test.tsx, modules/response/precheck_test.go).
 import { describe, expect, it } from 'vitest'
 import { cliProblem, EMPTY_TPL, forbiddenHeader, needsPrecheck, readBackProblem, tplEmpty, validatePrecheck, validateTpl, type Tpl } from './logic'
@@ -7,7 +7,7 @@ import { CLI_BAN } from './templates'
 const T = (o: Partial<Tpl>): Tpl => ({ ...EMPTY_TPL, ...o })
 const steps = (o: { run?: Partial<Tpl>; rollback?: Partial<Tpl>; verify?: Partial<Tpl>; pre?: Partial<Tpl> }) => ({ run: T(o.run ?? {}), rollback: T(o.rollback ?? {}), verify: T(o.verify ?? {}), pre: T(o.pre ?? {}) })
 
-describe('port guard (D-95 (3))', () => {
+describe('port guard', () => {
   it('a port named through {port}, {id} or {name} in a custom command or path still needs the check before', () => {
     for (const cli of ['interface GigabitEthernet1/0/{port}\nshutdown', 'interface Port-channel{id}\nshutdown', 'interface {name}\nshutdown']) {
       const run = T({ cli }), rollback = T({ cli: cli.replace('\nshutdown', '\nno shutdown') })
@@ -28,7 +28,7 @@ describe('port guard (D-95 (3))', () => {
   })
 })
 
-describe('the check before and the read-back only read (D-95 (1), spec 1.6, 9.1 (3))', () => {
+describe('the check before and the read-back only read (spec 1.6, 9.1 (3))', () => {
   it('an SSH check before cannot write: no change command, no line of the action or its undo', () => {
     const run = { cli: 'configure terminal\ninterface {interface}\nshutdown\nend' }, rollback = { cli: 'configure terminal\ninterface {interface}\nno shutdown\nend' }
     expect(cliProblem(CLI_BAN, steps({ run, rollback, pre: { cli: 'configure terminal\nshow interfaces {interface}' } }), true)).toMatch(/can change the device/)
@@ -69,7 +69,7 @@ describe('the check before and the read-back only read (D-95 (1), spec 1.6, 9.1 
   })
 })
 
-describe('headers a template may not set (D-94, review of 13b-2)', () => {
+describe('headers a template may not set (review of 13b-2)', () => {
   it('method override, forwarding and credential headers are refused, in any case', () => {
     for (const h of ['X-HTTP-Method-Override', 'X-HTTP-Method', 'X-Method-Override', 'X-Real-IP', 'X-Original-URL', 'X-Rewrite-URL', 'Via', 'X-Forwarded', 'X-Forwarded-For', 'Authorization', 'Cookie', 'Host', 'Proxy-Foo', 'TE', 'Trailer', 'x-http-method-override']) {
       expect(forbiddenHeader(h), h).toBe(true)

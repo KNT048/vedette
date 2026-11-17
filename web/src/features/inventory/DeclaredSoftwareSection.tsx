@@ -22,7 +22,7 @@ import { VersionDialog } from './VersionDialog'
 
 // Settings › Declared software (#849): products someone said they run with no device and no address (the weekly "I have this", a CSV
 // row with only a product, Add with no IP). They are not devices, so they left the Devices list, but they still feed Findings: each one
-// is matched against exploited vulnerabilities by its product (D-515, D-598). Same API as Devices: GET /inventory/devices, rows where
+// is matched against exploited vulnerabilities by its product. Same API as Devices: GET /inventory/devices, rows where
 // declaredSoftwareOnly holds; add = POST /inventory/devices with only a product; remove = DELETE the row; version = PATCH its software.
 
 /** An icon-only action: its name in a Tooltip (UI.md §8); without the role it is disabled and the tooltip says why. */
@@ -51,7 +51,7 @@ function Body() {
   const q = useDevices()
   const can = useCan('operator')
   const findingsOn = useModuleEnabled('findings')
-  // kien G5: the link opens the device's open findings, so it counts those (findings_count counts every status)
+  // The link opens the device's open findings, so it counts those (findings_count counts every status)
   const openBy = useOpenFindingsByAsset(findingsOn === true)
   const openOf = (r: Row) => openBy?.get(r.d.id) ?? 0
   const [adding, setAdding] = useState(false)

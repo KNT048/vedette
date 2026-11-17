@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// The first install (docs/specs/host-api.md "Khởi động lần đầu", D-138 M4, D-142): vedette-host
+// The first install (docs/specs/host-api.md "Khởi động lần đầu"): vedette-host
 // -bootstrap runs once, as root, from the installer, and never from the socket. It is the only way to get
 // the first unit onto the box, because the installer is not core and cannot pass the peer check.
 //
@@ -27,7 +27,7 @@ import (
 // stored index and its sequence floor, revocation, platform, install mode, the manifest's hash and the
 // cosign signature of every image, which travels inside the manifest), pulls by digest through the same
 // podman grammar (pullAndRecord), and then writes what container.start of a version would leave:
-// containers/pulled-<service>.json, the unit from the constant template (the D-105 writer) and
+// containers/pulled-<service>.json, the unit from the constant template and
 // containers/versions-<service>.json with current = the verified record, so that the next
 // container.start with a newer version is judged against it (no current_version_unknown).
 //
@@ -39,7 +39,7 @@ import (
 // verified, and a rerun with the same documents finishes the job. Rerunning on a finished box changes
 // nothing. A different release on a box that already runs one is refused (already_installed): upgrades go
 // through container.pull and container.start. It does not start anything: the installer reloads systemd,
-// starts the services and looks at their health itself (D-142).
+// starts the services and looks at their health itself.
 
 // Codes of the bootstrap that are not in spec section 11 (the command is not on the socket).
 const (
@@ -61,7 +61,7 @@ var ErrStateLocked = errors.New("ops: the state directory is locked by another v
 
 // LockState takes the one lock of the state directory (<state>/host.lock, flock, non-blocking). The daemon
 // holds it for its whole life and the bootstrap for its run, so a bootstrap never runs beside a daemon or
-// beside another bootstrap (D-142). The returned function lets it go.
+// beside another bootstrap. The returned function lets it go.
 func (o *Ops) LockState(ctx context.Context) (unlock func(), err error) {
 	f, err := os.OpenFile(o.stateFile("host.lock"), os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0o600)
 	if err != nil {
@@ -155,7 +155,7 @@ type bsStep struct {
 	write   bool   // the unit file is to be written
 	versOK  bool   // versions already say current = this digest
 	reason  string // why a unit is replaced, for the line printed
-	// late: the image the unit pins does not exist yet (scan: it is built on the box after the pull, D-147), so the rest of the decision
+	// late: the image the unit pins does not exist yet (scan: it is built on the box after the pull), so the rest of the decision
 	// is made again, with the image's ID, after the pulls and before anything is written.
 	late bool
 }
@@ -223,8 +223,8 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 		logf(fmt.Sprintf("verified %s %s (index sequence %d, signed by %s)", svc, plan.version, plan.idx.Sequence, plan.keyID))
 		idxSigner = plan.idx.KeyID
 	}
-	// An index signed with the offline backup key is a rescue release or a key revocation (D-108, D-259). The WARN "release
-	// index stored" (backup_signed) goes to the journal; the person at the terminal reads it in words (N100).
+	// An index signed with the offline backup key is a rescue release or a key revocation. The WARN "release
+	// index stored" (backup_signed) goes to the journal; the person at the terminal reads it in words.
 	if tr, err := o.trust(); err == nil && idxSigner != "" && idxSigner == tr.Backup.KeyID() {
 		logf("the release index is signed with Vedette's offline backup key, which signs only a rescue release (the everyday signing key was replaced) or a key revocation; the release notes say which")
 	}
@@ -248,12 +248,12 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 				return bsErr(api.CodeUnitUnsafe, volumeFileName(role)+" is not a regular file the host can trust")
 			}
 		}
-		// Even with -force-units: rewriting the volume unit for new ids would not change the owner of a volume that exists (D-316 (10)).
+		// Even with -force-units: rewriting the volume unit for new ids would not change the owner of a volume that exists.
 		if name := o.volumeOwnerChanged(ctx); name != "" {
 			return bsErr(api.CodeUnitUnsafe, name+": "+volumeOwnerText)
 		}
 	}
-	// The honeypot log volume unit is written with the first unit of core or honeypot (D-318): same refusal.
+	// The honeypot log volume unit is written with the first unit of core or honeypot: same refusal.
 	if slices.ContainsFunc(steps, func(s *bsStep) bool {
 		return s.plan.service == api.ServiceCore || s.plan.service == api.ServiceHoneypot
 	}) {
@@ -261,7 +261,7 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 			return bsErr(api.CodeUnitUnsafe, hpLogVolumeFileName+" is not a regular file the host can trust")
 		}
 	}
-	// core and honeypot share the log volume (D-318): one on the new template and the other on the old bind would make core read an
+	// core and honeypot share the log volume: one on the new template and the other on the old bind would make core read an
 	// empty tmpfs while the honeypot writes to disk, and every hit would be lost without an error. So when one of them is written, the
 	// other must be written too or already mount the volume.
 	for _, pair := range [][2]string{{api.ServiceCore, api.ServiceHoneypot}, {api.ServiceHoneypot, api.ServiceCore}} {
@@ -279,17 +279,17 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 		return err
 	}
 
-	// 2. Pull every image (nothing that is already pulled and tagged is touched). The scan image is built on the box from its base
-	// (D-147), which needs the Debian package mirror: a box that cannot reach it must still get core, sensor and honeypot, so a failed
+	// 2. Pull every image (nothing that is already pulled and tagged is touched). The scan image is built on the box from its base,
+	// which needs the Debian package mirror: a box that cannot reach it must still get core, sensor and honeypot, so a failed
 	// build skips scan (no unit, no version, no record) and a later container.pull of scan tries again. Any other failure stops here.
-	// The build runs on vedette-int (#467). On a box with Docker its traffic passes only by the DOCKER-USER rules of D-267, which the
+	// The build runs on vedette-int (#467). On a box with Docker its traffic passes only by Vedette's DOCKER-USER rules, which the
 	// daemon keeps but which are not there yet on a first install (the daemon starts after this): put them in place now, the same sync the
 	// daemon runs (no Docker or no network file: it changes nothing). The daemon is not running (the state lock), so nothing races it.
 	if slices.ContainsFunc(steps, func(s *bsStep) bool { return s.plan.service == api.ServiceScan }) {
 		fctx, cancel := context.WithTimeout(ctx, dockerFwdLimit)
 		switch state, added := o.dockerFwdSync(fctx); {
 		case added > 0:
-			logf(fmt.Sprintf("added %d DOCKER-USER rules for the vedette-int bridge so the scan build can reach the Debian package mirror (D-267)", added))
+			logf(fmt.Sprintf("added %d DOCKER-USER rules for the vedette-int bridge so the scan build can reach the Debian package mirror", added))
 		case state == "failed" || state == "iptables_unavailable" || state == "unexpected" || state == "no_bridge" || state == "too_many_bridges":
 			logf("the DOCKER-USER rules for the vedette-int bridge are not in place (" + state + "); on a box with Docker the scan build may not reach the Debian package mirror")
 		}
@@ -505,9 +505,9 @@ func (o *Ops) bootstrapSpace(ctx context.Context, steps []*bsStep) error {
 }
 
 // ensureCoreData makes core's data directory when host.conf names one and it is not there: 0700, owned by
-// core_uid:core_gid, under parents that are root's and closed (D-87 checkChain demands that of every
+// core_uid:core_gid, under parents that are root's and closed (checkChain demands that of every
 // command that opens it). The key is not made here: it lives in this directory as vedette.key, which is
-// what backup.* reads and restores, and core creates it with mode 0600 at its first start (D-142). An
+// what backup.* reads and restores, and core creates it with mode 0600 at its first start. An
 // existing directory is core's own and is left as it is.
 func (o *Ops) ensureCoreData(logf func(string)) error {
 	dir := o.cfg.CoreData

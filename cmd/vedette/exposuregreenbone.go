@@ -17,17 +17,17 @@ import (
 	"github.com/knt048/vedette/modules/exposure"
 )
 
-// exposureGreenbone is exposure's GreenboneHost (S-EXP-2, exposure INV-25, D-563, D-529, FULL-2): OpenVAS (Greenbone Community
+// exposureGreenbone is exposure's GreenboneHost (S-EXP-2, exposure INV-25): OpenVAS (Greenbone Community
 // Edition) as vedette-host runs it, Greenbone's official compose project under its own name. Up, Down and SyncFeed are the host's
 // greenbone.up, greenbone.down and greenbone.sync_feed; Dial opens gvmd's unix socket, which the host hands to core through
 // /run/vedette-greenbone (core's unit mounts that directory and nothing else of Greenbone), and returns the GMP login.
 //
 // The GMP password is the box's own: 24 random bytes in core/secrets (purpose gbSecretPurpose, AES-256-GCM), written as 48 hex
-// characters. Up gives it to the host, which sets it on gvmd at every start, so a wiped volume gets it back (W4-1); Dial hands it to
+// characters. Up gives it to the host, which sets it on gvmd at every start, so a wiped volume gets it back; Dial hands it to
 // exposure. It is never logged, audited or put in an error (the host's audit line redacts it by its key).
 type exposureGreenbone struct {
 	host   greenboneHostClient
-	fence  fenceCheckHost // D-591: the host's own domain fence for OpenVAS on an address that is not the box's
+	fence  fenceCheckHost // The host's own domain fence for OpenVAS on an address that is not the box's
 	login  func(ctx context.Context) (string, error)
 	socket string
 }
@@ -37,7 +37,7 @@ type fenceCheckHost interface {
 	ExposureFenceCheck(ctx context.Context, args api.ExposureFenceCheckArgs, requestID, actor string) (string, error)
 }
 
-// CheckDomainIP implements exposure.GreenboneFence (D-591): vedette-host checks the domain fence itself (its key, the TXT record, the
+// CheckDomainIP implements exposure.GreenboneFence: vedette-host checks the domain fence itself (its key, the TXT record, the
 // name's address now) right before the task starts and every 3 minutes while it runs. A nil error is a yes.
 func (g exposureGreenbone) CheckDomainIP(ctx context.Context, scope exposure.DomainScope, ip netip.Addr, c exposure.FenceCheck) error {
 	if g.fence == nil {
@@ -134,7 +134,7 @@ func (g exposureGreenbone) Down(ctx context.Context) error {
 
 // SyncFeed is Greenbone's feed update. When ctx ends first it returns at once and never stops OpenVAS itself (review r1 M2: a slow
 // pull past exposure's 60 minutes must not switch an enabled OpenVAS off): turning OpenVAS off and switching the module off send their
-// own Down, and the host's down cancels the pull that runs there (exposure INV-25, D-564 G6). When only the box stops, the host
+// own Down, and the host's down cancels the pull that runs there (exposure INV-25). When only the box stops, the host
 // finishes the pull on its own bound.
 func (g exposureGreenbone) SyncFeed(ctx context.Context) error {
 	err := g.run(ctx, api.CmdGreenboneSyncFeed, nil)

@@ -27,7 +27,7 @@ const (
 
 	// New codes (not yet in section 3.3, proposed [DX] in the WP-04a report).
 	CodeCSRFInvalid = "csrf_invalid"
-	// CodePasswordChangeRequired is the 403 of a session opened with an administrator-set password (D-180).
+	// CodePasswordChangeRequired is the 403 of a session opened with an administrator-set password.
 	CodePasswordChangeRequired = "password_change_required"
 	CodeNotImplemented         = "not_implemented"
 	CodeInternal               = "internal"
@@ -94,7 +94,7 @@ func CSRFInvalid() *Error {
 }
 
 // PasswordChangeRequired is 403: the session was opened with a password an administrator set, and only
-// GET /me, the password change and sign-out work until the user chooses their own (D-180).
+// GET /me, the password change and sign-out work until the user chooses their own.
 func PasswordChangeRequired() *Error {
 	return New(http.StatusForbidden, CodePasswordChangeRequired, "Choose a new password before you continue.")
 }

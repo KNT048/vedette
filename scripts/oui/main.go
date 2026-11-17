@@ -1,5 +1,5 @@
 // Command oui builds content/oui/oui.tsv.gz, the table that turns the first bits of a MAC address into the
-// name of the company the IEEE registered them to (D-83). It downloads runZero's mac-tracker file
+// name of the company the IEEE registered them to. It downloads runZero's mac-tracker file
 // (MIT; rebuilt twice a day from the IEEE registries oui, mam, oui36, iab and cid), keeps the latest
 // organisation of every /24, /28 and /36 prefix, drops pointer and "private" entries, and writes the table
 // in a fixed order. Run it with `make oui`; the result is committed, the product never downloads it.

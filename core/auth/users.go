@@ -24,7 +24,7 @@ func validRole(r routes.Role) bool {
 	return r == routes.Viewer || r == routes.Operator || r == routes.Admin
 }
 
-// ssoUser refuses what only a password account has: a password, Vedette two-step sign-in, a role set by hand (D-195).
+// ssoUser refuses what only a password account has: a password, Vedette two-step sign-in, a role set by hand.
 func ssoUser() *apierr.Error {
 	return apierr.New(409, CodeSSOUser, "This account signs in through SSO. Its password, two-step sign-in and role come from the identity provider.")
 }
@@ -38,7 +38,7 @@ type NewUser struct {
 	Email        string
 	Role         routes.Role
 	PasswordHash string
-	// Temporary: an administrator chose the password (D-180): it works for TempPasswordLifetime and the user must replace it.
+	// Temporary: an administrator chose the password: it works for TempPasswordLifetime and the user must replace it.
 	Temporary bool
 }
 
@@ -144,7 +144,7 @@ func (s *Service) UpdateUser(ctx context.Context, actorID, actorEmail, actorSess
 		role, disabled := routes.Role(t.Role), t.Disabled != 0
 		if p.Role != nil {
 			if *p.Role != role && t.SsoIssuer != nil {
-				return User{}, ssoUser(), nil // D-195 (2): the groups at the identity provider set it at every sign-in
+				return User{}, ssoUser(), nil // The groups at the identity provider set it at every sign-in
 			}
 			role = *p.Role
 		}
@@ -200,7 +200,7 @@ func (s *Service) UpdateUser(ctx context.Context, actorID, actorEmail, actorSess
 }
 
 // ResetPassword is POST /core/users/{id}/reset-password (admin): it sets a new random temporary password
-// (TempPasswordLifetime, replaced by the user at the next sign-in, D-180), ends every session of that user
+// (TempPasswordLifetime, replaced by the user at the next sign-in), ends every session of that user
 // (INV-7) and returns the password. It is returned this once and never
 // stored in the clear: the handler passes it on in the response and nowhere else.
 func (s *Service) ResetPassword(ctx context.Context, actorID, actorEmail, actorSessionID, targetID string) (string, error) {
@@ -212,7 +212,7 @@ func (s *Service) ResetPassword(ctx context.Context, actorID, actorEmail, actorS
 		return "", fmt.Errorf("auth: read user: %w", err)
 	}
 	if t.SsoIssuer != nil {
-		return "", ssoUser() // D-195 (5): a password would open a way in around the identity provider
+		return "", ssoUser() // A password would open a way in around the identity provider
 	}
 	temp, err := NewTempPassword()
 	if err != nil {
@@ -246,10 +246,10 @@ func (s *Service) ResetPassword(ctx context.Context, actorID, actorEmail, actorS
 	return temp, nil
 }
 
-// ConsoleReset is `vedette reset-admin <email>` on the box console (D-389): the way back in for an administrator
+// ConsoleReset is `vedette reset-admin <email>` on the box console: the way back in for an administrator
 // who lost the two-step device or the password when no other administrator can help. Whoever runs it already
 // holds the database and its key, so it asks for nothing else; the web has no such path. In one transaction it
-// sets a temporary password (TempPasswordLifetime, replaced at the next sign-in, D-180), turns two-step sign-in
+// sets a temporary password (TempPasswordLifetime, replaced at the next sign-in), turns two-step sign-in
 // off, ends every session of the account and writes the audit row user.console_reset. Only an active
 // administrator who signs in with a password qualifies: others are reset by an administrator in Settings -> Users,
 // and an SSO account signs in at its identity provider. The errors are sentences for the console.
@@ -320,8 +320,8 @@ func consoleResetRefusal(u coredb.CoreUser) error {
 // counted by the same rate limit as sign-in), the new one must pass the policy (weak_password) and differ
 // (same_password). Every session of the user ends, the current one (currentSessionID) included, and a new
 // session for the same browser is returned for the handler to set as cookies (Sessions.Replace): the user
-// stays signed in, a copy of the old cookie does not. It also ends the limit of a temporary password
-// (D-180): the statement that stores the hash clears core_user.temp_password_expires_at.
+// stays signed in, a copy of the old cookie does not. It also ends the limit of a temporary password:
+// the statement that stores the hash clears core_user.temp_password_expires_at.
 func (s *Service) ChangeOwnPassword(ctx context.Context, userID, currentSessionID, current, next string) (Issued, error) {
 	t, err := coredb.New(s.db.Reader()).GetUserByID(ctx, userID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -444,7 +444,7 @@ func (s *Service) CheckAdmin(ctx context.Context, tx *sql.Tx, actorID, actorSess
 // guesses the password leaves a trace for the administrator like a wrong sign-in does.
 func (s *Service) checkOwnPassword(ctx context.Context, t coredb.CoreUser, password, wrongMsg string) error {
 	if t.SsoIssuer != nil {
-		return ssoUser() // D-195 (5): no Vedette password to check; changing it or turning on two-step is the identity provider's
+		return ssoUser() // No Vedette password to check; changing it or turning on two-step is the identity provider's
 	}
 	try, e := s.limit.begin(accountKey, t.Email)
 	if e != nil {
@@ -470,7 +470,7 @@ func (s *Service) checkOwnPassword(ctx context.Context, t coredb.CoreUser, passw
 	return nil
 }
 
-// VerifyOwnPassword is the password step-up of a sensitive act of the signed-in user (D-76) for callers outside this package, such
+// VerifyOwnPassword is the password step-up of a sensitive act of the signed-in user for callers outside this package, such
 // as the factory reset: the same limiter and audit row as turning two-step on or off. A wrong password is 400 wrong_password with
 // wrongMsg; too many wrong ones, 429 rate_limited.
 func (s *Service) VerifyOwnPassword(ctx context.Context, userID, password, wrongMsg string) error {

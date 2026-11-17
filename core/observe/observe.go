@@ -82,7 +82,7 @@ type AssetHint struct {
 	IP  netip.Addr // IPv4 only; the zero value means unknown
 	MAC string     // any common notation; stored lower-case aa:bb:cc:dd:ee:ff
 	// Agent is the identity the box gave the reporting agent ("osquery:<node id>"), never a value the agent
-	// chose; only an Agent source may set it (D-598). The device it is bound to keeps receiving that agent's reports when its
+	// chose; only an Agent source may set it. The device it is bound to keeps receiving that agent's reports when its
 	// address changes. Lower-case letters, then ':', then 1 to 64 of [A-Za-z0-9._-].
 	Agent string
 	// From is the address an agent's report came from when the agent did not confirm it as one of its own (agent-intake: the
@@ -137,20 +137,20 @@ type Software struct {
 	CPE        string // optional
 	KevKeys    []string
 	Confidence float64
-	// Guess marks software a sensor only guessed (an OS from nmap's fingerprint, D-501): it is stored and shown, but gets no KEV match
+	// Guess marks software a sensor only guessed (an OS from nmap's fingerprint): it is stored and shown, but gets no KEV match
 	// keys, so it raises no finding until a person adds it with its version. A Windows release a device named in its NTLM answer is
-	// one too, with a version but no patch level (D-504).
+	// one too, with a version but no patch level.
 	Guess bool
 	// Packaged marks an agent's row read from the operating system's package database (osquery deb_packages or rpm_packages, Wazuh's
 	// deb and rpm packages, the box's dpkg list): the distribution ships its fixes, so findings can say "install your distribution's
-	// security updates" (D-474, MK-2). Programs and apps from other lists are false.
+	// security updates". Programs and apps from other lists are false.
 	Packaged bool
 	// PkgVersion and PkgSource are a deb row's full Debian version ("1:9.6p1-3ubuntu13.14") and source package ("openssh"), so
-	// findings can compare it with the version Ubuntu or Debian fixed a CVE in (D-516). "" for every other row.
+	// findings can compare it with the version Ubuntu or Debian fixed a CVE in. "" for every other row.
 	PkgVersion, PkgSource string
 }
 
-// Approver accepts the device an enrolled agent reports on (D-503): the person who made the enrolment token and ran the install
+// Approver accepts the device an enrolled agent reports on: the person who made the enrolment token and ran the install
 // vouched for the machine. mac is the MAC of the agent's card that holds hint.IP ("" when it reported none): the device is approved
 // only when it was never seen with another MAC, so an address DHCP gave to a new machine never approves the old machine's row.
 // found says the hint points to a device at all; a device a person marked suspicious, the box, one already approved or one seen with
@@ -164,7 +164,7 @@ type Approver interface {
 }
 
 // AgentReleaser is told the agents (AssetHint.Agent) that no longer exist: a node replaced by a re-enrolment, revoked with its token, or
-// pruned. The devices bound to them can then be bound by the next agent that reports on them (D-598). Optional: the inventory
+// pruned. The devices bound to them can then be bound by the next agent that reports on them. Optional: the inventory
 // implements it next to Approver.
 type AgentReleaser interface {
 	ReleaseAgents(ctx context.Context, agents []string) error
@@ -192,7 +192,7 @@ type SoftwareSink interface {
 	ReplaceSoftware(ctx context.Context, hint AssetHint, source Source, items []Software) error
 }
 
-// Service is one port a sensor saw open on a device (D-350).
+// Service is one port a sensor saw open on a device.
 type Service struct {
 	Port    int    // 1..65535
 	Proto   string // "tcp" or "udp"
@@ -200,7 +200,7 @@ type Service struct {
 	Product string // may be empty
 	Version string // may be empty
 	// Detail is what the service said about the device besides product and version (nmap's extra info and device type, the page
-	// title, the certificate subject; D-511): evidence for identifying the device, never software. May be empty.
+	// title, the certificate subject): evidence for identifying the device, never software. May be empty.
 	Detail     string
 	Confidence float64
 }

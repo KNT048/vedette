@@ -11,7 +11,7 @@ import (
 type ServiceName string
 
 // The services, with the fixed ports of INV-2. The first five are the services of before B3; the others are the OpenCanary
-// modules that work in the honeypot image without anything more (D-467): snmp and llmnr need scapy (GPL-2) and raw sockets,
+// modules that work in the honeypot image without anything more: snmp and llmnr need scapy (GPL-2) and raw sockets,
 // portscan needs iptables in the container, and none of them is offered.
 const (
 	SMB       ServiceName = "smb"
@@ -92,7 +92,7 @@ const (
 	StateFailed = "failed"
 )
 
-// Trap is one service across the Trap IPs (contract.ts Trap): on when at least one enabled Trap IP has it (D-466).
+// Trap is one service across the Trap IPs (contract.ts Trap): on when at least one enabled Trap IP has it.
 type Trap struct {
 	Service   ServiceName `json:"service"`
 	Port      int         `json:"port"`
@@ -132,7 +132,7 @@ type Overview struct {
 	Box       BoxRef       `json:"box"`
 	Ignored7d int          `json:"ignored_7d"`
 	TrapIPs   TrapIPCounts `json:"trap_ips"`
-	// SMBName is the one NetBIOS name of the share: the name of the first Trap IP handed to the host that has SMB (D-466 (4)).
+	// SMBName is the one NetBIOS name of the share: the name of the first Trap IP handed to the host that has SMB.
 	SMBName *string `json:"smb_name"`
 	// HTTPPage is the one HTTP login page: "nas" when the first Trap IP handed to the host that has HTTP is a NAS, else "login".
 	HTTPPage  *string `json:"http_page"`
@@ -156,12 +156,12 @@ type Hit struct {
 	IsTest     bool         `json:"is_test"`
 	Excerpt    string       `json:"excerpt"`
 	// TrapIP is the address that was touched (a scan: the Trap IPs it touched, comma-separated; a token: its value),
-	// TrapHostname the name of the Trap IP there (D-466), the token's label, or the names a scan touched: the "Trap IP"
-	// column of the hit list (W1-13).
+	// TrapHostname the name of the Trap IP there, the token's label, or the names a scan touched: the "Trap IP"
+	// column of the hit list.
 	TrapIP       string `json:"trap_ip"`
 	TrapHostname string `json:"trap_hostname"`
 	// NoHandshake: a UDP service hit (TFTP, NTP, SIP). UDP has no handshake, so its source can be forged like a scan's: it never
-	// confirms a source (SourceConnected) and response holds it from pre-approved rules (D-467 review H1). Not part of the API: the
+	// confirms a source (SourceConnected) and response holds it from pre-approved rules. Not part of the API: the
 	// excerpt says it.
 	NoHandshake bool `json:"-"`
 }
@@ -199,7 +199,7 @@ const WindowMinutes = 60
 // Preset is what a Trap IP looks like (contract.ts TrapPreset): it fills the services and the vendor, which stay editable.
 type Preset string
 
-// The presets of D-466 (presets.go has their services and vendors).
+// The presets (presets.go has their services and vendors).
 const (
 	FileServer Preset = "file_server"
 	NAS        Preset = "nas"
@@ -210,7 +210,7 @@ const (
 	Custom     Preset = "custom"
 )
 
-// TrapIP is one Trap IP, a profile (contract.ts TrapIP, D-466).
+// TrapIP is one Trap IP, a profile (contract.ts TrapIP).
 type TrapIP struct {
 	ID       string        `json:"id"`
 	Name     string        `json:"name"`
@@ -222,7 +222,7 @@ type TrapIP struct {
 	State    string        `json:"state"`  // what the host reports (Trap states), not the switch
 	Reason   *string       `json:"reason"` // why state is failed, conflict, or a note while it listens
 	MAC      *string       `json:"mac"`    // the MAC the host gave the address, nil while unknown
-	// MACVendor is the company the IEEE registered the MAC's prefix to (D-83 table), what a scanner on the LAN shows; nil for
+	// MACVendor is the company the IEEE registered the MAC's prefix to (the vendor MAC table), what a scanner on the LAN shows; nil for
 	// a locally administered MAC or while the MAC is unknown.
 	MACVendor *string `json:"mac_vendor"`
 	// Attachment is how the address sits on the box (host-api 6.6: its own macvlan link on the management card, moved into
@@ -238,7 +238,7 @@ type TrapIP struct {
 	CreatedAt  string  `json:"created_at"`
 }
 
-// Attachment is how a Trap IP address sits on the box: Kind "macvlan" (the only way the host makes one, D-102), Link the
+// Attachment is how a Trap IP address sits on the box: Kind "macvlan" (the only way the host makes one), Link the
 // name of the link, Parent the card it hangs off ("" when the host does not say).
 type Attachment struct {
 	Kind   string `json:"kind"`
@@ -373,7 +373,7 @@ type Port struct {
 	Port  int
 }
 
-// DecoySpec is how the host builds one Trap IP address (D-466): OUI is the six hex digits of the vendor's MAC prefix ("" = the
+// DecoySpec is how the host builds one Trap IP address: OUI is the six hex digits of the vendor's MAC prefix ("" = the
 // host's locally administered MAC), Ports the only ports the address answers on (the services of its profile).
 type DecoySpec struct {
 	OUI   string
@@ -455,8 +455,8 @@ type HitEventData struct {
 	Label      string  `json:"label"`
 	Decoy      string  `json:"decoy"`
 	SrcAssetID string  `json:"src_asset_id"`
-	SrcName    string  `json:"src_name"` // the name of that device, "" for none (notify names it on the incident, W1-13)
+	SrcName    string  `json:"src_name"` // the name of that device, "" for none (notify names it on the incident)
 	// Unconfirmed: the source completed no handshake (a UDP service hit), so it may be forged: response holds it from pre-approved
-	// rules and from its scan budget as it does a scan (D-467 review H1). Absent (false) on every other hit.
+	// rules and from its scan budget as it does a scan. Absent (false) on every other hit.
 	Unconfirmed bool `json:"unconfirmed,omitempty"`
 }

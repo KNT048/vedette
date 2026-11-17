@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/host/ops"
 )
 
-// The containers' AppArmor profile at host start (D-458): every unit selects vedette-container and Podman refuses a container
+// The containers' AppArmor profile at host start: every unit selects vedette-container and Podman refuses a container
 // whose named profile is not loaded, core's included. Where AppArmor is on and the kernel does not list the profile, Start loads
 // it with the one fixed apparmor_parser argv, unless an administrator disabled it or the file is gone, and audits the outcome;
 // it never blocks the start.

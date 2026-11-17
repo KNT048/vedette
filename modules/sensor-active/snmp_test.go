@@ -466,7 +466,7 @@ func TestSNMPRoundOncePerWindow(t *testing.T) {
 	}
 }
 
-// D-512 (INV-1): scanning turned off while a batch waits for the worker stops it; nothing is recorded.
+// INV-1: scanning turned off while a batch waits for the worker stops it; nothing is recorded.
 func TestSNMPSettingsChangeStopsTheRead(t *testing.T) {
 	t.Parallel()
 	started := make(chan struct{})

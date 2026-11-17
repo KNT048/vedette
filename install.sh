@@ -1,5 +1,5 @@
 #!/bin/sh
-# Vedette installer for a fresh Ubuntu 24.04 / 26.04 or Debian 13 box (WP-08h, D-166). Run as root:
+# Vedette installer for a fresh Ubuntu 24.04 / 26.04 or Debian 13 box (WP-08h). Run as root:
 #
 #   curl -fsSL https://github.com/KNT048/vedette/releases/download/v<version>/install.sh | sudo sh
 #   sh install.sh [--network-handover] [--uninstall --yes [--keep-data]] [--test-artifacts DIR]
@@ -10,7 +10,7 @@
 #      a package that is already there
 #   3. downloads the vedette-host .deb of THIS release, checks its sha256 against the value written into this script by the
 #      release job, keeps it as /var/lib/vedette-host/selfupdate/packages/vedette-host_<version>_<arch>.deb (vedette-host goes
-#      back to it when a later self-update fails, D-316) and installs it (the package makes the users, folders and the unit)
+#      back to it when a later self-update fails) and installs it (the package makes the users, folders and the unit)
 #   4. writes /etc/vedette/host.conf from the users' real ids and the network of the containers (chrony's own configuration is
 #      left as it is)
 #   5. optional, only with --network-handover and only when netplan holds nothing but one DHCP wired card: gives netplan to
@@ -21,7 +21,7 @@
 # Running it again repairs (also after a run that stopped half way) or upgrades the host package and changes nothing that is
 # already right. --uninstall --yes puts the box back as it was (--keep-data keeps the data and the users; running this script again
 # then installs its release over them, and refuses a release older than the one that last ran on them); a podman that holds anything
-# that is not Vedette's stays with its storage, and so does any podman with --keep-data (D-508). Nothing is read from the environment.
+# that is not Vedette's stays with its storage, and so does any podman with --keep-data. Nothing is read from the environment.
 #
 # The three values below are filled by the release job (WP-08k) and are empty in the repository: an empty value makes the
 # customer path stop with a clear message, so a script that is not tied to a release can never install anything. A script that
@@ -50,11 +50,11 @@ MIRROR_FILE=/etc/containers/registries.conf.d/vedette-test-mirror.conf
 REGISTRY_UNIT=vedette-testregistry
 REGISTRY_ADDR=127.0.0.1:5077
 CLOUD_FILE=/etc/cloud/cloud.cfg.d/99-vedette-network.cfg
-# the ZAP image vedette-host pulls when a box first runs a passive web scan (zap.baseline, D-521): ZAP_IMAGE of deploy/containers/pins.env
+# the ZAP image vedette-host pulls when a box first runs a passive web scan (zap.baseline): ZAP_IMAGE of deploy/containers/pins.env
 # without its tag (TestZapPinsAgree); --uninstall removes it by this digest and nothing else of ghcr.io/zaproxy
 ZAP_IMAGE=ghcr.io/zaproxy/zaproxy@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af
 # iptables: netavark 1.4 (Ubuntu 24.04) programs the firewall through it and fails with "No such file" without it (found by install-check)
-# conntrack: vedette-host deletes the stale UDP conntrack entries of the published syslog port after core restarts (D-268)
+# conntrack: vedette-host deletes the stale UDP conntrack entries of the published syslog port after core restarts
 PACKAGES="ca-certificates curl podman chrony netplan.io nftables iptables iproute2 procps unattended-upgrades passwd conntrack"
 OPTIONAL_PACKAGES="netavark aardvark-dns catatonit"
 MIN_FREE_KB=6291456 # 6 GiB under /var/lib and /var/tmp: the images are about 1 GB, the data grows
@@ -69,7 +69,7 @@ PODMAN_OURS=
 PODMAN_IN_USE=
 OTHERS=
 RUNNING=
-# where running_conmons reads the processes, and how long still_running waits for a conmon that is ending (D-600)
+# where running_conmons reads the processes, and how long still_running waits for a conmon that is ending
 PROC=/proc
 CONMON_WAIT=10
 HOST_STOPPED=
@@ -117,7 +117,7 @@ cleanup() {
 		rm -f "$MIRROR_FILE"
 	fi
 	[ -z "$TMP" ] || rm -rf "$TMP"
-	# a run that stopped vedette-host for the bootstrap and then failed leaves it running again, as it was, with the honeypot (W2-10)
+	# a run that stopped vedette-host for the bootstrap and then failed leaves it running again, as it was, with the honeypot
 	if [ "$rc" -ne 0 ] && [ -n "$HOST_STOPPED" ]; then
 		systemctl start vedette-host.service >/dev/null 2>&1 || true
 		[ -z "$HP_STOPPED" ] || systemctl start vedette-honeypot.service >/dev/null 2>&1 || true
@@ -198,7 +198,7 @@ port_listening_any() { ss -H -ltnu 2>/dev/null | awk '{print $5}' | grep -Eq "[:
 
 installed_pkg() { dpkg-query -W -f='${db:Status-Status}' "$1" 2>/dev/null | grep -qx installed; }
 
-# host_version_ok <version>: the one name rule of a host package (host-api 6.14, D-316; release.ParseHostPackageName in Go, a test
+# host_version_ok <version>: the one name rule of a host package (host-api 6.14; release.ParseHostPackageName in Go, a test
 # keeps the two the same): SemVer of at most 64 characters, no build metadata, and a prerelease of at most 32 characters made of
 # dot-separated identifiers with no "-" inside, so that the Debian version (its first "-" turned into "~") is exact
 host_version_ok() {
@@ -325,7 +325,7 @@ preflight() {
 		printf '%s' "$DEB_SUM" | grep -Eq '^[0-9a-f]{64}$' || die "this install.sh has no package checksum for $ARCH. Nothing was changed."
 	fi
 	kept_release_ok "$RELEASE"
-	# a self-update of vedette-host under way (D-316) owns the package until it ends: installing over it would race its applier
+	# a self-update of vedette-host under way owns the package until it ends: installing over it would race its applier
 	if [ -e "$HOST_STATE/selfupdate/journal.json" ]; then
 		die "a self-update of vedette-host is under way or stopped half way ($HOST_STATE/selfupdate/journal.json): wait for it to end, or follow docs/RUNBOOK.md if it does not. Nothing was changed."
 	fi
@@ -401,7 +401,7 @@ install_packages() {
 	podman_ver=$(podman --version | awk '{print $3}')
 	[ "$(printf '4.8\n%s\n' "${podman_ver%%-*}" | sort -V | head -n 1)" = 4.8 ] || die "podman $podman_ver is older than 4.8 (Quadlet ContainersConfModule=)"
 	say "podman $podman_ver"
-	# effect, not exit code of apt: the tool vedette-host runs after core restarts (D-268) answers
+	# effect, not exit code of apt: the tool vedette-host runs after core restarts answers
 	/usr/sbin/conntrack --version >/dev/null 2>&1 || die "conntrack is not usable at /usr/sbin/conntrack after the install"
 }
 
@@ -476,7 +476,7 @@ install_deb() {
 # host_pkg_state: <Debian version>|<status> of vedette-host, empty when dpkg does not know it
 host_pkg_state() { dpkg-query -W -f='${Version}|${db:Status-Status}' vedette-host 2>/dev/null || true; }
 
-# keep_package (D-316, host-api 6.14 "Nhận bản đầu"): the verified .deb is kept as
+# keep_package (host-api 6.14 "Nhận bản đầu"): the verified .deb is kept as
 # selfupdate/packages/vedette-host_<SemVer>_<arch>.deb, the name of the release asset and of host.files[].name (never Debian's "~"),
 # so that vedette-host can go back to this version when a later self-update fails. It goes there BEFORE apt installs it: on an
 # upgrade the package's postinst restarts vedette-host inside that apt run, and the host adopts the file when it starts (a first
@@ -605,7 +605,7 @@ pick_subnet() {
 NetworkName=vedette-int
 Subnet=$SUBNET
 Gateway=$GATEWAY
-# The bridge has a fixed name so that vedette-host can bind its DOCKER-USER rules to it (D-267). PodmanArgs= is the key every supported Podman
+# The bridge has a fixed name so that vedette-host can bind its DOCKER-USER rules to it. PodmanArgs= is the key every supported Podman
 # knows (4.9 on Ubuntu 24.04, 5.x on 26.04 and Debian 13); InterfaceName= is only in Podman 5.7 and newer.
 PodmanArgs=--interface-name=vedette0
 # Picked by install.sh so that it clashes with no route or container network of this box (docs/DEPLOYMENT.md 6.1)
@@ -738,7 +738,7 @@ vedette_units() {
 # kept_records: no unit of Vedette's containers is left, but the host recorded what they ran (containers/versions-<service>.json,
 # written only with the units), or this script noted it in $STATE/kept-release before it cleared those records in a run that then
 # stopped: the state an --uninstall --keep-data leaves (it removes the units and the images and keeps /var/lib/vedette-host and
-# $STATE). The records say which release last ran on the kept data (W2-9, D-418).
+# $STATE). The records say which release last ran on the kept data.
 kept_records() {
 	! vedette_units || return 1
 	if [ -e "$STATE/kept-release" ] || [ -L "$STATE/kept-release" ]; then return 0; fi
@@ -763,7 +763,7 @@ kept_release() {
 }
 
 # kept_release_ok <release>: a release older than the one core last ran on the kept data is refused before any change: core's
-# migrations only go forward, so an older core would run on a newer database (D-418). A record that cannot be read is no record (the
+# migrations only go forward, so an older core would run on a newer database. A record that cannot be read is no record (the
 # host ignores it too): a warning, and the install goes on.
 kept_release_ok() {
 	kept_records || return 0
@@ -778,14 +778,14 @@ kept_release_ok() {
 	if [ "$had" = "$1" ]; then
 		say "the kept data last ran with release $had, the release of this script"
 	else
-		# the normal update (Settings -> Updates) takes a pre_update backup first; this path cannot (D-418)
+		# the normal update (Settings -> Updates) takes a pre_update backup first; this path cannot
 		warn "the kept data last ran with release $had: core $1 moves it forward at its first start and it cannot go back to $had. A backup of $had made before the uninstall (Settings -> Backups) is the only way back."
 	fi
 }
 
 # forget_containers: the host's records of what the containers ran (versions, pulled images, the journals of unit changes and the old
 # unit texts) describe units and images that the uninstall removed. They are cleared, so that the bootstrap installs this release over
-# the kept data and records what then runs (W2-9, D-418). The data, the backups, the release index and the host's package records stay.
+# the kept data and records what then runs. The data, the backups, the release index and the host's package records stay.
 # A link is removed, never followed.
 forget_containers() {
 	d=$HOST_STATE/containers
@@ -808,8 +808,8 @@ bootstrap() {
 		fetch "$REPO_URL/releases/download/v$RELEASE/release-manifest.json" "$DOCS/release-manifest.json" 1048576
 		fetch "$REPO_URL/releases/download/v$RELEASE/release-manifest.json.minisig" "$DOCS/release-manifest.json.minisig" 4096
 	fi
-	# the bootstrap runs only while vedette-host does not (one owner of the state and the units, D-142): a re-run finds it running when
-	# the package install restarted it or an earlier run started it and then stopped (W2-10). start_and_wait starts it again, and so
+	# the bootstrap runs only while vedette-host does not (one owner of the state and the units): a re-run finds it running when
+	# the package install restarted it or an earlier run started it and then stopped. start_and_wait starts it again, and so
 	# does cleanup when this run fails.
 	# The honeypot Requires= the host, so it stops with it and is started again with it.
 	case $(systemctl is-active vedette-host.service 2>/dev/null || true) in
@@ -920,26 +920,26 @@ do_install() {
 	summary
 }
 
-# forward_check (D-267): Docker sets the iptables FORWARD policy to DROP, and an accept in netavark's nftables table does not undo that:
+# forward_check: Docker sets the iptables FORWARD policy to DROP, and an accept in netavark's nftables table does not undo that:
 # without a rule in DOCKER-USER the LAN cannot reach 8443, 514 or 6514 and the containers cannot reach the internet. vedette-host keeps five
 # fixed rules in DOCKER-USER for the container network while that chain exists, and above them one ACCEPT per uplink bridge of the box named
-# br-… (D-396); here the five are checked, and a firewall that is not Docker's is only reported, never changed.
+# br-…; here the five are checked, and a firewall that is not Docker's is only reported, never changed.
 forward_check() {
 	have iptables || return 0
 	fw_net=$(sed -n 's/^Subnet=//p' "$NETWORK_FILE" | head -n 1)
 	printf '%s' "$fw_net" | grep -Eq '^172\.30\.[0-9]{1,3}\.0/24$' || return 0
 	if iptables -w 5 -S DOCKER-USER >/dev/null 2>&1; then
 		if ! grep -qx 'PodmanArgs=--interface-name=vedette0' "$NETWORK_FILE"; then
-			warn "$NETWORK_FILE is from an install that did not name the bridge vedette0, so vedette-host puts no rules in DOCKER-USER (D-267): run --uninstall --yes and install again"
+			warn "$NETWORK_FILE is from an install that did not name the bridge vedette0, so vedette-host puts no rules in DOCKER-USER: run --uninstall --yes and install again"
 			return 0
 		fi
 		# the file names the bridge, but Podman keeps the bridge of a network vedette-int that existed before (left by an earlier install
 		# or made by hand): then there is no vedette0, and the rules below are written and found but never match a packet
 		if ! ip -o link show dev vedette0 >/dev/null 2>&1; then
-			warn "the container network vedette-int has no bridge named vedette0 (a network left by an earlier install keeps its old bridge; podman network inspect vedette-int shows it), so the DOCKER-USER rules of vedette-host never match: the LAN may not reach 8443, 514 or 6514 and the containers may not reach the internet. Run --uninstall --yes and install again (D-267)"
+			warn "the container network vedette-int has no bridge named vedette0 (a network left by an earlier install keeps its old bridge; podman network inspect vedette-int shows it), so the DOCKER-USER rules of vedette-host never match: the LAN may not reach 8443, 514 or 6514 and the containers may not reach the internet. Run --uninstall --yes and install again"
 			return 0
 		fi
-		say "Docker is on this box: vedette-host keeps five rules in its DOCKER-USER chain for the bridge vedette0 and $fw_net, plus one ACCEPT per uplink bridge of the box named br-… (comment vedette-int; --uninstall removes them; D-267, D-396)"
+		say "Docker is on this box: vedette-host keeps five rules in its DOCKER-USER chain for the bridge vedette0 and $fw_net, plus one ACCEPT per uplink bridge of the box named br-… (comment vedette-int; --uninstall removes them)"
 		n=0
 		while [ "$n" -lt 15 ]; do
 			fwd_rules_present "$fw_net" && return 0
@@ -952,7 +952,7 @@ forward_check() {
 	fi
 }
 
-# fwd_rules_present <subnet>: the five fixed rules of D-267 and D-396 are in DOCKER-USER (same words as fwdRules in host/ops/dockerfwd.go;
+# fwd_rules_present <subnet>: the five fixed rules are in DOCKER-USER (same words as fwdRules in host/ops/dockerfwd.go;
 # TestInstallSh_ForwardRulesOfTheHost holds that); the ACCEPTs of the box's own bridges are the host's to keep and are not looked at here
 fwd_rules_present() {
 	iptables -w 5 -C DOCKER-USER -i vedette0 -o docker0 -m comment --comment vedette-int -j RETURN >/dev/null 2>&1 &&
@@ -962,7 +962,7 @@ fwd_rules_present() {
 		iptables -w 5 -C DOCKER-USER ! -i vedette0 -o vedette0 -m comment --comment vedette-int -j DROP >/dev/null 2>&1
 }
 
-# remove_forward_rules: the rules vedette-host put in DOCKER-USER (D-267, D-396): the lines bound to the bridge vedette0 that carry the
+# remove_forward_rules: the rules vedette-host put in DOCKER-USER: the lines bound to the bridge vedette0 that carry the
 # comment vedette-int and end in ACCEPT, RETURN or DROP (the fixed five and the ACCEPT of every bridge of the box, gone ones too); nothing
 # else (iptables prints -i and -o after -s and -d, so they are not at a fixed place; the DROP prints "! -i vedette0", a word of its own)
 remove_forward_rules() {
@@ -979,7 +979,7 @@ remove_forward_rules() {
 # pm: podman as the uninstall asks it: the rootful podman of this box, never one that a variable points elsewhere (a remote service,
 # another storage.conf or containers.conf), at most 60 s (then KILL 5 s later), its messages dropped. A call that hangs leaves
 # $TMP/podman.hung: every later call fails at once, podman_others with it, so podman and its storage stay and the uninstall goes on
-# (D-508 review M4)
+#
 pm() {
 	[ ! -e "$TMP/podman.hung" ] || return 1
 	env -u CONTAINER_HOST -u CONTAINER_CONNECTION -u CONTAINERS_STORAGE_CONF -u CONTAINERS_CONF timeout -k 5 60 podman "$@" 2>/dev/null && return 0
@@ -993,7 +993,7 @@ pm() {
 
 # others_use <ps filter>: true when a container that is not Vedette's (stopped ones too) matches the filter (network=, volume=,
 # ancestor=), and when podman cannot say. Vedette's own containers are removed by name before; a thing of ours that someone else's
-# container uses stays, and podman_others then counts that container (a forced removal would have deleted it unseen; D-508 review M1)
+# container uses stays, and podman_others then counts that container (a forced removal would have deleted it unseen)
 others_use() {
 	ou=$(pm ps -a --filter "$1" --format '{{.Names}}') || return 0
 	printf '%s\n' "$ou" | grep -vxE 'vedette-(core|sensor|scan|honeypot|greenbone)' | grep -q .
@@ -1036,7 +1036,7 @@ remove_images() {
 			warn "image $id is Vedette's but also has a name that is not Vedette's: left in place (podman images | grep $id)"
 		fi
 	done
-	# the ZAP image of the passive web scan (D-521), by its pinned digest only: a zaproxy image of any other digest, or ours that someone
+	# the ZAP image of the passive web scan, by its pinned digest only: a zaproxy image of any other digest, or ours that someone
 	# also tagged (podman pulls ours by digest, with no tag), is the administrator's
 	zap=$(pm image inspect --format '{{.Id}} {{len .RepoTags}}' "$ZAP_IMAGE") || zap=
 	[ -z "${ZAP_STUCK:-}" ] || zap= # Vedette's ZAP container could not be removed: its image stays (remove_zap said so)
@@ -1056,7 +1056,7 @@ remove_images() {
 	done
 }
 
-# remove_zap: the container and the network of the passive web scan (zap.baseline, D-521), only when they carry the label vedette-host
+# remove_zap: the container and the network of the passive web scan (zap.baseline), only when they carry the label vedette-host
 # gives them (io.vedette.owner=vedette-host); a container or network of that name without it is someone else's and stays (podman_others
 # then counts it)
 remove_zap() {
@@ -1078,7 +1078,7 @@ remove_zap() {
 	fi
 }
 
-# remove_zap_fence: the nft table of the passive web scan (zap.baseline, D-521), only when podman says plainly that there is no
+# remove_zap_fence: the nft table of the passive web scan (zap.baseline), only when podman says plainly that there is no
 # container vedette-zap (exit 1 of "container exists") and has not been found hung: a ZAP that may still run keeps its fence (any other
 # answer, or no answer). Without podman there is no container. The table matches only the bridge vedette-zap0, so keeping it costs
 # nothing.
@@ -1096,9 +1096,9 @@ remove_zap_fence() {
 	fi
 }
 
-# remove_podman_socket: podman's API socket, which vedette-host enables for OpenVAS's provider (D-529), disabled again only when
+# remove_podman_socket: podman's API socket, which vedette-host enables for OpenVAS's provider, disabled again only when
 # vedette-host's marker says it was vedette-host that enabled it (an administrator's own enable stays theirs). OpenVAS's containers,
-# which stay (D-529), keep running without it; only managing them through podman's API needs it again
+# which stay, keep running without it; only managing them through podman's API needs it again
 remove_podman_socket() {
 	[ -e "$HOST_STATE/greenbone-podman-socket.enabled" ] || return 0
 	systemctl disable --now podman.socket >/dev/null 2>&1 || warn "could not disable podman.socket, which Vedette enabled for OpenVAS (systemctl disable --now podman.socket)"
@@ -1151,7 +1151,7 @@ restore_runtime() {
 		fi
 	fi
 	if [ -n "$PODMAN_IN_USE" ]; then
-		# netavark's tables carry the NAT and port forwards of those containers too (W4-1, D-508)
+		# netavark's tables carry the NAT and port forwards of those containers too
 		say "left the nft tables of netavark as they are: podman containers or pods that are not Vedette's use them"
 	elif [ -e "$STATE/nft.before" ] && have nft; then
 		nft list tables 2>/dev/null | while read -r _ fam name; do
@@ -1172,8 +1172,8 @@ restore_runtime() {
 # and images are removed: containers (stopped ones and buildah's too), pods, networks other than podman's default and vedette-int (a vedette-zap still there after remove_zap is not Vedette's),
 # volumes, and images with a name, one per image ID (a nameless layer is no one's to keep; podman's own localhost/podman-pause is not
 # counted). One "<kind> <name>" line each in OTHERS, in that order, the name cut to printable characters and 64 bytes (podman's output
-# is not trusted). Every answer is kept in memory, never in a file, so a full disk cannot make it read as "nothing" (D-508 review M2).
-# Returns 1 when podman cannot be asked (then it is kept: fail closed). Rootless storage under /home is never read nor touched (W4-1).
+# is not trusted). Every answer is kept in memory, never in a file, so a full disk cannot make it read as "nothing".
+# Returns 1 when podman cannot be asked (then it is kept: fail closed). Rootless storage under /home is never read nor touched.
 podman_others() {
 	OTHERS=
 	have podman || return 1
@@ -1224,10 +1224,10 @@ others_text() {
 		}'
 }
 
-# running_conmons: the containers that still run on this box as the kernel shows them, whatever podman's database says (D-600): one
+# running_conmons: the containers that still run on this box as the kernel shows them, whatever podman's database says: one
 # "<id> <name>" line per conmon process ($PROC/<pid>/cmdline whose argv[0] is conmon: its -c and -n), rootful and rootless alike, the
 # name cut to printable characters and 64 bytes. podman ps lists only what its database holds: a container it lost (its storage wiped
-# or reset under it, kien's N100 on 2026-11-13) still runs and shows only here.
+# or reset under it, seen on a test box on 2026-11-13) still runs and shows only here.
 running_conmons() {
 	for c in "$PROC"/[0-9]*/cmdline; do
 		[ -r "$c" ] || continue
@@ -1272,15 +1272,15 @@ running_text() {
 		}'
 }
 
-# podman_stays (W4-1, D-508): podman stays, with the packages it runs with and /var/lib/containers, when it holds anything that is not
+# podman_stays: podman stays, with the packages it runs with and /var/lib/containers, when it holds anything that is not
 # Vedette's, when that cannot be read (fail closed), and always with --keep-data (Vedette comes back on it; the storage stays even when
 # podman is not installed, buildah or CRI-O may share it: review M3); KEEP_PODMAN says why. Only a podman this script added and that
-# holds nothing else is purged and its storage removed (D-463). PODMAN_IN_USE: containers or pods of someone else, or no answer, so IP
+# holds nothing else is purged and its storage removed. PODMAN_IN_USE: containers or pods of someone else, or no answer, so IP
 # forwarding and netavark's nft tables stay too. PODMAN_OURS: this script or a self-update added podman (only then is the summary about it).
 podman_stays() {
 	if grep -qx podman "$STATE/asked-packages" 2>/dev/null || by_us_packages | grep -qx podman; then PODMAN_OURS=1; fi
 	[ -z "$KEEP_DATA" ] || KEEP_PODMAN="--keep-data was given, and the next install runs Vedette on it again"
-	# D-600: a container that still runs keeps podman, the packages it runs with and its storage, whatever podman lists (one it lost is
+	# A container that still runs keeps podman, the packages it runs with and its storage, whatever podman lists (one it lost is
 	# not in podman ps) and also when podman is not installed any more; read from the kernel, before anything asks podman
 	RUNNING=$(still_running)
 	if [ -n "$RUNNING" ]; then
@@ -1302,7 +1302,7 @@ podman_stays() {
 
 # podman_pkgs: podman and what it runs with: the runtime packages by name (also when apt-cache cannot answer; nftables and iptables, which
 # netavark drives), and every installed package podman Depends on or Recommends, down the tree (netavark Recommends nftables and
-# aardvark-dns; a purge of a Recommends is not stopped by apt: D-508 review H1). apt-cache reads the local cache only. One valid name
+# aardvark-dns; a purge of a Recommends is not stopped by apt). apt-cache reads the local cache only. One valid name
 # per line, sorted.
 podman_pkgs() {
 	{
@@ -1312,7 +1312,7 @@ podman_pkgs() {
 }
 
 # by_us_packages: the packages apt newly installed for Vedette, one valid name per line, sorted: this script's own list and the one
-# vedette-host keeps of what its self-updates added (D-316 (9); a plain file, never a link)
+# vedette-host keeps of what its self-updates added (a plain file, never a link)
 by_us_packages() {
 	for f in "$STATE/installed-by-us" "$HOST_STATE/selfupdate/installed-by-us"; do
 		if [ -f "$f" ] && [ ! -L "$f" ]; then cat "$f"; fi
@@ -1323,8 +1323,8 @@ by_us_packages() {
 # unneeded (and was not removable before) is purged. A package someone else installed on top of ours keeps ours (H2 of review 1).
 purge_added_packages() {
 	if installed_pkg vedette-host; then apt_run purge vedette-host >/dev/null || warn "apt could not purge vedette-host"; fi
-	# a podman that stays keeps every package it runs with (D-508): one kept by podman_stays, and the administrator's own podman, which
-	# this script did not add (D-463; review H1). None of them is a candidate, and the ones this script asked for by name are marked manual
+	# a podman that stays keeps every package it runs with: one kept by podman_stays, and the administrator's own podman, which
+	# this script did not add. None of them is a candidate, and the ones this script asked for by name are marked manual
 	# again (the install asked for them by name, so they were manual), so a later apt autoremove keeps them too
 	: >"$TMP/keep"
 	if [ -n "$KEEP_PODMAN" ] || { installed_pkg podman && ! grep -qx podman "$STATE/asked-packages" 2>/dev/null && ! by_us_packages | grep -qx podman; }; then
@@ -1344,7 +1344,7 @@ purge_added_packages() {
 	# shellcheck disable=SC2086 # package names, one word each
 	[ -z "$KEPT_MANUAL" ] || apt-mark manual $KEPT_MANUAL >/dev/null || warn "apt-mark manual$KEPT_MANUAL failed"
 	# the only packages this script may remove: the ones it asked for, and the ones apt NEWLY installed for them (N1, N2), by this script
-	# or by a self-update of vedette-host (a Depends a later release added; the host records them before it installs, D-316 (9)).
+	# or by a self-update of vedette-host (a Depends a later release added; the host records them before it installs).
 	# Whatever else became removable meanwhile (old kernels after an unattended upgrade) is the administrator's, and so is a package
 	# marked manual.
 	touch "$STATE/asked-packages" "$STATE/installed-by-us"
@@ -1416,7 +1416,7 @@ do_uninstall() {
 		[ -n "$KEEP_DATA" ] || say "and DELETE the database and the master key in /var/lib/vedette (no way back), /etc/vedette and the users vedette and vedette-sensor"
 		say "podman, the packages it runs with and /var/lib/containers stay when podman holds anything that is not Vedette's (containers, pods,"
 		say "networks, volumes, images), while any container still runs${KEEP_DATA:+, and always with --keep-data}; only Vedette's own containers, images, volumes and network are removed from it"
-		say "OpenVAS, if it was ever enabled, stays as it is: Greenbone's own containers, images and feed volumes are not Vedette's (D-529)"
+		say "OpenVAS, if it was ever enabled, stays as it is: Greenbone's own containers, images and feed volumes are not Vedette's"
 		die "run again with --yes to do it"
 	fi
 	if [ -d "$STATE" ]; then TMP=$(mktemp -d "$STATE/tmp.XXXXXX"); else TMP=$(mktemp -d /var/tmp/vedette-install.XXXXXX); fi
@@ -1426,10 +1426,10 @@ do_uninstall() {
 	for u in vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-host "$REGISTRY_UNIT" vedette-int-network vedette-creds-passive-volume vedette-creds-active-volume vedette-hp-log-volume; do
 		systemctl stop "$u.service" >/dev/null 2>&1 || true
 	done
-	# OpenVAS (D-529): vedette-host runs Greenbone's own project under Greenbone's own name. It is not Vedette's, and nothing here
+	# OpenVAS: vedette-host runs Greenbone's own project under Greenbone's own name. It is not Vedette's, and nothing here
 	# touches it, its containers, volumes or images, the provider package or the socket folder (TestInstallSh_UninstallNeverNamesOpenVAS);
-	# its containers are someone else's to podman_stays, so podman stays with them (W4-1). vedette-greenbone below is a container name
-	# Vedette never made (no unit, D-123 (2)), kept so an old box is cleaned.
+	# its containers are someone else's to podman_stays, so podman stays with them. vedette-greenbone below is a container name
+	# Vedette never made (no unit), kept so an old box is cleaned.
 	if have podman; then
 		for c in vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-greenbone; do
 			pm rm -f -t 5 "$c" >/dev/null || true
@@ -1450,7 +1450,7 @@ do_uninstall() {
 		remove_ours network vedette-int
 		remove_zap
 	fi
-	# the egress fence of a passive web scan the host did not get to clean up (zap.baseline, D-521), after its container
+	# the egress fence of a passive web scan the host did not get to clean up (zap.baseline), after its container
 	remove_zap_fence
 	remove_podman_socket
 	if have podman; then
@@ -1481,9 +1481,9 @@ do_uninstall() {
 	fi
 	# what podman, when this script added it and apt then purged it, left behind: its storage and runtime files (a purge keeps them),
 	# and the folders the package (/etc/containers, its systemd/) and podman for vedette-int (networks/, /var/lib/cni) made. A podman
-	# that apt kept (another package needs it, or it is marked manual) is the administrator's: nothing of it is touched (D-463).
+	# that apt kept (another package needs it, or it is marked manual) is the administrator's: nothing of it is touched.
 	if [ -z "$KEEP_PODMAN" ] && grep -qx podman "$STATE/asked-packages" 2>/dev/null && ! installed_pkg podman; then
-		# D-600: looked at again right before the wipe, with no wait: a container that started meanwhile keeps the storage
+		# looked at again right before the wipe, with no wait: a container that started meanwhile keeps the storage
 		if [ -n "$(running_conmons)" ]; then
 			warn "a container runs on this box: /var/lib/containers and /run/containers are left in place"
 		else
@@ -1493,7 +1493,7 @@ do_uninstall() {
 		fi
 		rm -rf /root/.config/cni
 		# rmdir only, deepest first, and never a folder an installed package owns (buildah's containers-common): a folder with anything
-		# left in it is somebody else's and stays (N100)
+		# left in it is somebody else's and stays
 		for d in /etc/containers/networks /etc/containers/systemd/users /etc/containers/systemd /etc/containers/registries.conf.d /etc/containers /var/lib/cni/networks /var/lib/cni /root/.config; do
 			if [ -d "$d" ] && ! dpkg-query -S "$d" >/dev/null 2>&1; then rmdir "$d" 2>/dev/null || true; fi
 		done
@@ -1510,7 +1510,7 @@ do_uninstall() {
 	rm -f "$CLOUD_FILE"
 	if [ -n "$KEEP_DATA" ]; then
 		# a kept podman and the packages it runs with stay on the lists, so that a later --uninstall without --keep-data decides about
-		# them again (D-508); every other line is done with
+		# them again; every other line is done with
 		# only packages still installed: a podman that is not there must not come back as ours if the administrator installs it later
 		: >"$TMP/keep.inst"
 		while read -r p; do if installed_pkg "$p"; then echo "$p"; fi; done <"$TMP/keep" >"$TMP/keep.inst"
@@ -1526,7 +1526,7 @@ do_uninstall() {
 		say "kept: /var/lib/vedette*, /etc/vedette and the users. Running install.sh again (this release or a newer one) brings Vedette back with them."
 	else
 		rm -rf /var/lib/vedette /var/lib/vedette-host /var/lib/vedette-honeypot /var/lib/vedette-creds /var/lib/vedette-fence /etc/vedette /var/log/vedette-host /run/vedette
-		# a kept podman's containers with --userns=auto take their ids from the containers: range (review LOW)
+		# a kept podman's containers with --userns=auto take their ids from the containers: range
 		if [ -z "$KEEP_PODMAN" ]; then
 			remove_subid /etc/subuid subuid
 			remove_subid /etc/subgid subgid
@@ -1552,9 +1552,9 @@ do_uninstall() {
 	if [ -n "$KEEP_PODMAN" ] && [ -n "$PODMAN_OURS" ] && { installed_pkg podman || have podman || [ -n "$RUNNING" ]; }; then
 		say "kept podman, the packages it runs with and /var/lib/containers: $KEEP_PODMAN"
 		[ -z "$KEPT_MANUAL" ] || say "  marked$KEPT_MANUAL as installed by hand (apt-mark manual), so apt autoremove keeps them"
-		# a container podman lost (D-600) is stopped by vedette-host at its start when it is Vedette's or OpenVAS's, by a reboot in any case
+		# a container podman lost is stopped by vedette-host at its start when it is Vedette's or OpenVAS's, by a reboot in any case
 		[ -z "$RUNNING" ] || say "  a running container that podman ps does not list is one podman lost: install.sh again (vedette-host stops Vedette's and OpenVAS's at its start) or a reboot ends it; then --uninstall again"
-		# never suggest wiping podman's storage: it may hold OpenVAS's feed and database volumes, which stay (D-529, review r1 L5)
+		# never suggest wiping podman's storage: it may hold OpenVAS's feed and database volumes, which stay
 		[ -n "$KEEP_DATA" ] || say "  to remove podman too, first remove what still uses it yourself (podman ps -a, podman volume ls, podman images; OpenVAS's feed and database are volumes), then apt-get purge podman, then apt-get autoremove"
 	fi
 	say "Vedette is removed."

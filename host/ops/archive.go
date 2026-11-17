@@ -14,8 +14,8 @@ import (
 	"github.com/knt048/vedette/host/archive"
 )
 
-// A backup is one tar.gz with fixed member names (host/archive, shared with core, which reads uploaded backups back,
-// D-518). The archive is untrusted when read back, even though the host wrote it: a restore must never extract anything
+// A backup is one tar.gz with fixed member names (host/archive, shared with core, which reads uploaded backups back).
+// The archive is untrusted when read back, even though the host wrote it: a restore must never extract anything
 // but these members, with size caps, no matter what the file holds.
 const (
 	memberManifest = archive.MemberManifest

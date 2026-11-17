@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-// W-1 (D-548, TUNE-5b walk): the build a Windows server's own agent reports, inside NVD's range, is a detection: the evidence says
+// W-1 (TUNE-5b walk): the build a Windows server's own agent reports, inside NVD's range, is a detection: the evidence says
 // what the agent reports and which build fixes it, never "only suspected". The same build read by a scan keeps the old words.
-func TestMatchAsset_D548_AgentBuildIsADetection(t *testing.T) {
+func TestMatchAsset_AgentBuildIsADetection(t *testing.T) {
 	srv := winPC(26100, true, "1742", "x64")
 	srv.Name = "WIN-LAB"
 	_, m := oneMatch(t, srv, cve62215, false)
@@ -26,9 +26,9 @@ func TestMatchAsset_D548_AgentBuildIsADetection(t *testing.T) {
 	}
 }
 
-// D-548: a repeated match of the same basis brings today's evidence, so a finding written before says the agent's words; a scan's
+// A repeated match of the same basis brings today's evidence, so a finding written before says the agent's words; a scan's
 // evidence is the template's and stays.
-func TestApplyMatch_D548_SameBasisBringsTheEvidence(t *testing.T) {
+func TestApplyMatch_SameBasisBringsTheEvidence(t *testing.T) {
 	old := &Evidence{Summary: "pc-01 runs Windows 11 24H2 10.0.26100.1742. … only suspected."}
 	m := Match{Basis: BasisVersion, Severity: SeverityHigh, Evidence: Evidence{Summary: "The agent on pc-01 reports …", Agent: true}}
 	f := Finding{Status: StatusSuspected, Basis: BasisVersion, Severity: SeverityHigh, Evidence: old}.ApplyMatch(m)
@@ -42,9 +42,9 @@ func TestApplyMatch_D548_SameBasisBringsTheEvidence(t *testing.T) {
 	}
 }
 
-// W-3 (D-545): one missing monthly update is one item: every open finding of the Windows row gets the same group, the build that
+// W-3: one missing monthly update is one item: every open finding of the Windows row gets the same group, the build that
 // fixes them all, and the mark that it is Windows's cumulative update.
-func TestRowFixes_D545_OneWindowsUpdate(t *testing.T) {
+func TestRowFixes_OneWindowsUpdate(t *testing.T) {
 	a := winPC(26100, true, "1742", "x64")
 	got := RowFixes(a, []Vuln{cve62215, cve29824, cve33073})
 	for _, cve := range []string{cve62215.CVE, cve29824.CVE, cve33073.CVE} {
@@ -58,9 +58,9 @@ func TestRowFixes_D545_OneWindowsUpdate(t *testing.T) {
 	}
 }
 
-// N47-1 and KF-CVEPAGE (D-549): what the CVE page asks. An agent's Ubuntu reading and a Junos switch's own statement rule the
+// What the CVE page asks. An agent's Ubuntu reading and a Junos switch's own statement rule the
 // Alpine-only CVE out; a scan-seen OpenSSH with no platform, a guessed OS and a CVE not on the list do not.
-func TestPlatformRuledOut_D549(t *testing.T) {
+func TestPlatformRuledOut(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		a    Asset
@@ -80,8 +80,8 @@ func TestPlatformRuledOut_D549(t *testing.T) {
 	}
 }
 
-// W-1 + W-3 through GET /findings: the Windows server's open findings carry one fix group and the agent's evidence (D-545, D-548).
-func TestContract_D545_ListCarriesTheFixGroup(t *testing.T) {
+// W-1 + W-3 through GET /findings: the Windows server's open findings carry one fix group and the agent's evidence.
+func TestContract_ListCarriesTheFixGroup(t *testing.T) {
 	e := newHTTPEnv(t)
 	srv := winPC(26100, true, "1742", "x64")
 	srv.ID, srv.Name = "a-1", "WIN-LAB"
@@ -108,7 +108,7 @@ func TestContract_D545_ListCarriesTheFixGroup(t *testing.T) {
 }
 
 // Review r1 #1: a CVE NVD has no range for keeps its own row: the upgrade that clears the others proves nothing about it.
-func TestRowFixes_D545_NoRangeKeepsItsRow(t *testing.T) {
+func TestRowFixes_NoRangeKeepsItsRow(t *testing.T) {
 	ranged := func(cve, end string) Vuln {
 		return Vuln{CVE: cve, Vendor: "QNAP", Product: "Photo Station", Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: end}}}}
 	}
@@ -121,9 +121,9 @@ func TestRowFixes_D545_NoRangeKeepsItsRow(t *testing.T) {
 
 // Review r1 #5, #6, #7: no "Detected by the agent" while the platform condition is open or when NVD names no end; an ESU-only or a
 // feature-update fix says so instead of "that monthly update".
-func TestMatchAsset_D548_AgentWordsOnlyWhenTheyHold(t *testing.T) {
+func TestMatchAsset_AgentWordsOnlyWhenTheyHold(t *testing.T) {
 	r := MatchAsset(Asset{ID: "a", Name: "fw1", Software: []Software{sshRow("10.2", "", "agent")}}, []Vuln{sshhole()}, nil, t0)
-	if len(r.New) != 0 || len(r.Asked) != 1 { // D-604: no finding while the platform condition is open
+	if len(r.New) != 0 || len(r.Asked) != 1 { // No finding while the platform condition is open
 		t.Fatalf("platform open: %+v", r)
 	}
 	m := MatchAsset(Asset{ID: "a", Name: "alp1", AgentOS: "Alpine Linux v3.23", Software: []Software{sshRow("10.2_p1-r0", "", "agent")}}, []Vuln{sshhole()}, nil, t0).New
@@ -143,7 +143,7 @@ func TestMatchAsset_D548_AgentWordsOnlyWhenTheyHold(t *testing.T) {
 }
 
 // Review r1 #12: once the agent's row no longer decides it, "Detected by the agent" goes, the basis stays.
-func TestApplyMatch_D548_AgentFlagGoesWithTheAgentRow(t *testing.T) {
+func TestApplyMatch_AgentFlagGoesWithTheAgentRow(t *testing.T) {
 	f := Finding{Status: StatusSuspected, Basis: BasisVersion, Severity: SeverityHigh, Evidence: &Evidence{Summary: "The agent on pc-01 reports …", Agent: true}}
 	f = f.ApplyMatch(Match{Basis: BasisProduct, Severity: SeverityMedium, Evidence: Evidence{Summary: "pc-01 runs X. Vedette cannot compare …"}})
 	if f.Basis != BasisVersion || f.Evidence.Agent || f.Evidence.Summary != "pc-01 runs X. Vedette cannot compare …" {
@@ -153,7 +153,7 @@ func TestApplyMatch_D548_AgentFlagGoesWithTheAgentRow(t *testing.T) {
 
 // Review r2 #1: a NAS with Photo Station and QTS. The QTS-only CVE (a vendor-keyed "Multiple Products" entry) is QTS's to fix: it is not
 // swallowed into "Upgrade Photo Station … fixes N", though Photo Station's upgrade is outside every range of the list.
-func TestRowFixes_D545_AnotherRowsRangeStaysWithThatRow(t *testing.T) {
+func TestRowFixes_AnotherRowsRangeStaysWithThatRow(t *testing.T) {
 	ps := func(cve, end string) Vuln {
 		return Vuln{CVE: cve, Vendor: "QNAP", Product: "Photo Station", Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: end}}}}
 	}
@@ -175,7 +175,7 @@ func TestRowFixes_D545_AnotherRowsRangeStaysWithThatRow(t *testing.T) {
 }
 
 // Review r2 nit: an ended release read through a later sibling's rows says no update for it carries the fix (winFix feature_update).
-func TestMatchAsset_D548_FeatureUpdateSentence(t *testing.T) {
+func TestMatchAsset_FeatureUpdateSentence(t *testing.T) {
 	_, m := oneMatch(t, winPC(22621, false, "6060", "x64"), cve62215, false) // Windows 11 22H2, out of service, NVD lists 23H2
 	if !m.Evidence.Agent || !strings.Contains(m.Evidence.Summary, "but no update for this release carries it: this device has the flaw until it moves to Windows 11 23H2 or later") {
 		t.Fatalf("%q", m.Evidence.Summary)

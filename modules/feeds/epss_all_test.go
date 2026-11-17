@@ -25,7 +25,7 @@ const epssFile = "#model_version:v2026.06.15,score_date:2026-11-14T12:00:22Z\ncv
 	"CVE-1999-0001,0.04753,0.92024\nCVE-2026-1234,0.69289,0.99369\ncve-2025-0002,0.1,0.95\n" +
 	"CVE-2025-x,0.1,0.5\nCVE-2025-0003,1.5,0.5\nCVE-2025-0004,0.2\n"
 
-// D-614: the daily file of every score, gzip or plain: rows checked one by one (bad id, value outside 0..1, wrong field
+// The daily file of every score, gzip or plain: rows checked one by one (bad id, value outside 0..1, wrong field
 // count rejected and counted), the model and the score date read from the first line.
 func TestParseEPSSCSV(t *testing.T) {
 	t.Parallel()
@@ -54,7 +54,7 @@ func TestParseEPSSCSV(t *testing.T) {
 	}
 }
 
-// D-614: a pull stores every score; the next file replaces them and drops a CVE it no longer lists; an unchanged file
+// A pull stores every score; the next file replaces them and drops a CVE it no longer lists; an unchanged file
 // (304) keeps them; the feed's line gives the score date and the count.
 func TestEPSSAllPull_StoresEveryScoreAndDropsTheGoneOnes(t *testing.T) {
 	t.Parallel()
@@ -93,7 +93,7 @@ func TestEPSSAllPull_StoresEveryScoreAndDropsTheGoneOnes(t *testing.T) {
 	}
 }
 
-// D-614, INV-3: a file Vedette cannot read fails the pull and keeps the scores stored before.
+// INV-3: a file Vedette cannot read fails the pull and keeps the scores stored before.
 func TestEPSSAllPull_BadFileKeepsTheScores(t *testing.T) {
 	t.Parallel()
 	e, o := pullEnv(t)

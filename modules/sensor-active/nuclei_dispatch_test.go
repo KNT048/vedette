@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// The nuclei slot of the Dispatcher (D-125 (3), (5)). The worker is played by hand over the real mutual-TLS link, like the nmap
+// The nuclei slot of the Dispatcher ((5)). The worker is played by hand over the real mutual-TLS link, like the nmap
 // tests of dispatch_test.go.
 
 const packSHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -93,7 +93,7 @@ func withHostErrors(jsonl []byte, he ...sensorlink.HostError) *sensorlink.JobRes
 	return r
 }
 
-// D-165: the host errors the worker counted come back with the lines, checked against the request.
+// The host errors the worker counted come back with the lines, checked against the request.
 func TestNucleiHostErrorsComeBackWithTheResult(t *testing.T) {
 	t.Parallel()
 	r := newDRig(t)
@@ -121,7 +121,7 @@ func fixture(t *testing.T, name string) []byte {
 }
 
 // The job on the wire is what protocol 2 says: kind, pack, template ids, targets with host, port and scheme, rate, max_host_errors
-// and a timeout of the probe's deadline up to an hour; no argv, no path (D-111 (3)). The result's JSONL is parsed in core.
+// and a timeout of the probe's deadline up to an hour; no argv, no path. The result's JSONL is parsed in core.
 func TestNucleiJobGoesOutAndItsResultComesBackParsed(t *testing.T) {
 	t.Parallel()
 	r := newDRig(t)
@@ -208,7 +208,7 @@ func TestScannerUnavailableFollowsTheHeartbeat(t *testing.T) {
 	}
 }
 
-// Core checks the grammar before anything leaves (D-125 (1), D-136 (4)); the worker checks it again.
+// Core checks the grammar before anything leaves; the worker checks it again.
 func TestRunNucleiRefusesWhatTheGrammarForbidsBeforeDispatch(t *testing.T) {
 	t.Parallel()
 	r := newDRig(t)
@@ -230,7 +230,7 @@ func TestRunNucleiRefusesWhatTheGrammarForbidsBeforeDispatch(t *testing.T) {
 		"a public address":   func(q *sa.NucleiRequest) { q.Targets = tg("8.8.8.8") },
 		"loopback":           func(q *sa.NucleiRequest) { q.Targets = tg("127.0.0.1") },
 		"link-local":         func(q *sa.NucleiRequest) { q.Targets = tg("169.254.169.254") },
-		"100/8 not RFC 6598": func(q *sa.NucleiRequest) { q.Targets = tg("100.128.0.1") },     // 100.64/10 is local (D-461)
+		"100/8 not RFC 6598": func(q *sa.NucleiRequest) { q.Targets = tg("100.128.0.1") },     // 100.64/10 is local
 		"Alibaba metadata":   func(q *sa.NucleiRequest) { q.Targets = tg("100.100.100.200") }, // but never its metadata address
 		"benchmark":          func(q *sa.NucleiRequest) { q.Targets = tg("198.18.0.1") },
 		"240/4":              func(q *sa.NucleiRequest) { q.Targets = tg("240.0.0.1") },
@@ -272,7 +272,7 @@ func itoa(i int) string {
 	return string(b)
 }
 
-// D-125 (3): one nmap job and one nuclei job run at once, and a second nuclei job waits for the first. A long nmap sweep never
+// One nmap job and one nuclei job run at once, and a second nuclei job waits for the first. A long nmap sweep never
 // holds a "Scan now" back.
 func TestNmapAndNucleiRunAtOnceAndASecondNucleiWaits(t *testing.T) {
 	t.Parallel()
@@ -360,7 +360,7 @@ func TestOneReplyCanCarryOneJobOfEachKind(t *testing.T) {
 	awaitN(t, n)
 }
 
-// D-125 (3): the end of the probe's context wakes the open long poll, so Stop lands within seconds; the job is cancelled by id,
+// The end of the probe's context wakes the open long poll, so Stop lands within seconds; the job is cancelled by id,
 // and the other slot's job is not touched.
 func TestNucleiCancelWakesTheLongPollWithinFiveSeconds(t *testing.T) {
 	t.Parallel()
@@ -535,7 +535,7 @@ func TestNucleiResultsAreChecked(t *testing.T) {
 		"one hostile line among good":    {jsonlResult(append(append([]byte{}, good...), []byte("not json\n")...)), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		"a repeated key":                 {jsonlResult([]byte(`{"template-id":"CVE-2024-1","template-id":"CVE-2024-2","host":"10.0.0.7:22","matcher-status":true}` + "\n")), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		"a line that is an array":        {jsonlResult([]byte("[1,2]\n")), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
-		// D-165: host_errors is checked against the request, fail closed.
+		// host_errors is checked against the request, fail closed.
 		"host_errors names another target":     {withHostErrors(good, sensorlink.HostError{Target: "192.168.10.99:80", Errors: 1}), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		"unreachable below the job's limit":    {withHostErrors(good, sensorlink.HostError{Target: "10.0.0.7:22", Errors: 2, Unreachable: true}), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		"reachable at or over the job's limit": {withHostErrors(good, sensorlink.HostError{Target: "10.0.0.7:22", Errors: 3}), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
@@ -617,7 +617,7 @@ func TestNmapResultWithJSONLIsRejected(t *testing.T) {
 	}
 }
 
-// N45-1: a well-formed line about an address the job did not name (another host, or the right host on another port) is skipped and
+// A well-formed line about an address the job did not name (another host, or the right host on another port) is skipped and
 // counted; the run is kept with the lines of the job's own targets.
 func TestRunNucleiSkipsALineForAnotherTarget(t *testing.T) {
 	t.Parallel()

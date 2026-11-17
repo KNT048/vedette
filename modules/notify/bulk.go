@@ -23,7 +23,7 @@ type BulkResult struct {
 }
 
 // HandleIncidents acknowledges or resolves several incidents with one note (POST /notify/incidents/status, INV-25), like the
-// findings bulk change (D-484). Every incident that changes gets what PATCH gives it: who, when, the note and its own core_audit row
+// findings bulk change. Every incident that changes gets what PATCH gives it: who, when, the note and its own core_audit row
 // (INV-10), except that with no note the note already there stays. A resolved incident keeps its state and its note (already_resolved),
 // and acknowledging an acknowledged one changes nothing (already_acknowledged): a bulk change never overwrites what someone wrote. Reopening is not a bulk action. All or nothing:
 // an unknown id writes nothing. A duplicate id counts once.
@@ -66,7 +66,7 @@ func (s *Service) HandleIncidents(ctx context.Context, actor string, ids []strin
 				continue
 			}
 			// no note given: the one already there stays (an acknowledge note is not erased by a bulk Resolve); a person's action replaces
-			// Vedette's reason (D-550, INV-22)
+			// Vedette's reason (INV-22)
 			if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = ?, handled_by = ?, handled_at = ?, note = COALESCE(?, note), resolved_reason = NULL WHERE id = ?`,
 				string(status), actor, at, nullable(note), id); err != nil {
 				return fmt.Errorf("notify: update incident: %w", err)

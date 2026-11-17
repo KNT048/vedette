@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// Docker's FORWARD drop (D-267, D-396). When Docker enables IP forwarding it sets the iptables filter FORWARD
+// Docker's FORWARD drop. When Docker enables IP forwarding it sets the iptables filter FORWARD
 // policy to DROP; netavark (Podman, nftables driver) keeps its rules in its own table, and an accept in
 // one nftables table is not final, so the packets of Vedette's own network are still dropped: the GUI on
 // 8443 and syslog on 514 are unreachable from the LAN and the containers cannot reach the internet.
@@ -25,19 +25,19 @@ import (
 // to Vedette's bridge vedette0 (install.sh names it) and its subnet, and only while that chain exists (no
 // Docker, or Docker's nftables backend: nothing is done). In the order they keep:
 //
-//	-s <subnet> -i vedette0 -o br-lan -j ACCEPT   one per uplink bridge of the box named br-… (D-396)
+//	-s <subnet> -i vedette0 -o br-lan -j ACCEPT   one per uplink bridge of the box named br-…
 //	-i vedette0 -o docker0 -j RETURN              Docker keeps protecting its own networks from Vedette's containers:
 //	-i vedette0 -o br-+    -j RETURN              the packet goes on to Docker's own chains, which decide as before
 //	-o vedette0 -d <subnet> -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -j ACCEPT   published ports, replies
 //	-i vedette0 -s <subnet> -j ACCEPT                                                    the containers' traffic out
-//	! -i vedette0 -o vedette0 -j DROP             nothing else reaches Vedette's containers (D-396)
+//	! -i vedette0 -o vedette0 -j DROP             nothing else reaches Vedette's containers
 //
 // The br-+ RETURN covers Docker's user-defined networks (Docker names their bridges "br-" and 12 hex digits
 // of the network ID) from the moment Docker makes one; iptables matches an interface name only exactly or by
 // a "+" prefix, so it also matches a bridge of the box itself such as an uplink br-lan, and the containers
 // lost the internet through it. The host lists /sys/class/net and keeps, above the RETURNs, an ACCEPT for
 // every bridge named br-… that is not of Docker's form and holds a port that is not a container's veth: a
-// network card, a bond, or a link on top of another (a VLAN) (D-396). Docker's bridges, its custom-named
+// network card, a bond, or a link on top of another (a VLAN). Docker's bridges, its custom-named
 // ones too (com.docker.network.bridge.name: br-app), hold only veths, so they stay behind the RETURN. Fail
 // closed: a new uplink bridge has no internet for at most one look (30 s); a new Docker network is never
 // open to Vedette's containers. An ACCEPT of a bridge that is gone stays (it matches nothing; install.sh
@@ -239,7 +239,7 @@ func (o *Ops) vedetteIntSubnet() (netip.Prefix, error) {
 
 // boxBridges are the uplink bridges of the box (<root>/sys/class/net) that the br-+ RETURN would catch:
 // named br-…, not of Docker's form, holding a port uplinkPort accepts; sorted. Anything that cannot be
-// read gives none: fail closed (such a bridge then has no internet for Vedette's containers, as before D-396).
+// read gives none: fail closed (such a bridge then has no internet for Vedette's containers, as in older releases).
 func (o *Ops) boxBridges() ([]string, error) {
 	ents, err := os.ReadDir(o.path("sys/class/net"))
 	if err != nil {
@@ -416,7 +416,7 @@ func (o *Ops) dockerFwdTick(ctx context.Context) {
 	o.mu.Unlock()
 	switch {
 	case added > 0:
-		o.log.InfoContext(ctx, "docker forward rules: added to DOCKER-USER for the vedette-int bridge (D-267, D-396)", "rules", added)
+		o.log.InfoContext(ctx, "docker forward rules: added to DOCKER-USER for the vedette-int bridge", "rules", added)
 	case !changed:
 	case state == "present":
 		o.log.InfoContext(ctx, "docker forward rules: DOCKER-USER already has the rules for the vedette-int bridge")

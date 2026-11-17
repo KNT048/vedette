@@ -1,4 +1,4 @@
-// G4 (kien): which devices carry risk, at a glance wherever a device is named in a list. One marker, two levels, like Defender's
+// Which devices carry risk, at a glance wherever a device is named in a list. One marker, two levels, like Defender's
 // device "exposure level", Tenable's asset exposure and runZero's risk column, read from what Findings › To fix shows for the device
 // (the server's findings.RiskOf, one rule): red = open exploited findings To fix lists (with the count), amber = none of those but a
 // Recommended update fixes a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity; nothing when clean. Words, not

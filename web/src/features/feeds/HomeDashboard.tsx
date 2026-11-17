@@ -34,7 +34,7 @@ const AddRangeDialog = lazy(() => import('./AddRangeDialog').then((m) => ({ defa
 const dayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 /** The tiles: what needs action now (with its 30-day trend), devices, and, while Notifications is on, alerts and incidents.
- *  `noClaim` (D-92): the exploited list is off or was never fetched, so a 0 open is not good news and is not shown green. */
+ *  `noClaim`: the exploited list is off or was never fetched, so a 0 open is not good news and is not shown green. */
 function Tiles({ s, noClaim }: { s: HomeSummary; noClaim: boolean }) {
   const { t } = useTranslation('feeds')
   const admin = useCan('admin') // the history of sent messages is on an administrator's page
@@ -61,7 +61,7 @@ function Tiles({ s, noClaim }: { s: HomeSummary; noClaim: boolean }) {
           <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-4">
             <Sparkline values={trend} tone={last ? 'danger' : noClaim ? 'accent' : 'ok'} label={t('dash.trendLabel', { days, first, last })}
               point={(i) => t('dash.trendDay', { day: dayOf(i), count: trend[i] })} start={dayOf(0)} end={dayOf(days - 1)} />
-            {/* n73: "49 more than 30 days ago" in red read like an alarm about old findings; it is the change since the first day */}
+            {/* "49 more than 30 days ago" in red read like an alarm about old findings; it is the change since the first day */}
             <p className="text-meta text-muted sm:pb-5">
               {delta === 0 ? t('dash.trendSame', { since: dayOf(0) }) : t(delta > 0 ? 'dash.trendUp' : 'dash.trendDown', { count: Math.abs(delta), since: dayOf(0), first })}
             </p>
@@ -105,7 +105,7 @@ function UncheckedLine({ s }: { s: HomeSummary }) {
 /** One "Fix first" row: product (link to the finding), CVE, device, age; certainty, the exploited list, ransomware; CVSS under them. */
 function FixRow({ f, rank }: { f: SummaryItem; rank: number }) {
   const { t } = useTranslation('feeds')
-  // n73: lead with the software the device runs ("Windows Server 2025"); the exploited list's product group is context after it
+  // lead with the software the device runs ("Windows Server 2025"); the exploited list's product group is context after it
   const name = f.software || f.product || f.cve
   const group = f.software && f.product && f.product !== f.software ? f.product : ''
   return (
@@ -137,7 +137,7 @@ function FixRow({ f, rank }: { f: SummaryItem; rank: number }) {
 function FixFirst({ s, kevNotice }: { s: HomeSummary; kevNotice: ReactNode }) {
   const { t } = useTranslation('feeds')
   if (!s.top.length) {
-    // D-92: while the CISA list is off, never loaded or never fetched, "nothing exploited" would be a claim Vedette cannot make.
+    // While the CISA list is off, never loaded or never fetched, "nothing exploited" would be a claim Vedette cannot make.
     if (kevNotice) return <div className="mb-8"><EmptyState title={t('dash.fixFirst')}>{kevNotice}</EmptyState></div>
     return (
       <div className="mb-8">
@@ -167,7 +167,7 @@ function writeSetup(user: string, v: 'seen' | 'hidden') {
 
 type Step = { id: string; done: boolean; title: string; line: string; note?: string; action?: ReactNode }
 
-/** The first-run steps: what Home needs before it can say anything (devices), then what makes the alert arrive (J3), then the sign-in. */
+/** The first-run steps: what Home needs before it can say anything (devices), then what makes the alert arrive, then the sign-in. */
 function useSteps(s: HomeSummary, onAdd: () => void, onRange: () => void): Step[] | null {
   const { t } = useTranslation('feeds')
   const qc = useQueryClient()
@@ -297,7 +297,7 @@ function Onboarding({ s, firstRun, prompts }: { s: HomeSummary; firstRun: boolea
  * Home at a glance (#825, S-UI-1): the first-run path, or the tiles and "Fix first", all from one read. Without the findings module, or
  * when the read fails, only `prompts`; a placeholder of the same height while the module list or the read is on its way (never a 0 that
  * is really "unknown"). `prompts` mount once the card's place is known, so a notice never shows, goes and comes back. `kevNotice`: why
- * Vedette cannot say "nothing exploited" (D-92: the CISA list off, never loaded or never fetched); null when it can.
+ * Vedette cannot say "nothing exploited" (the CISA list off, never loaded or never fetched); null when it can.
  */
 export function HomeDashboard({ kevNotice, prompts }: { kevNotice: ReactNode; prompts: ReactNode }) {
   const { t } = useTranslation('feeds')

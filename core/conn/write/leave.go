@@ -12,8 +12,8 @@ import (
 	"github.com/knt048/vedette/core/conn/cliban"
 )
 
-// leave.json is the line that leaves configuration mode after a refused SSH line, per way of entering it (D-358). It is data, like
-// cli-ban.json (D-58): the core knows connection kinds, not vendors.
+// leave.json is the line that leaves configuration mode after a refused SSH line, per way of entering it. It is data, like
+// cli-ban.json: the core knows connection kinds, not vendors.
 //
 //go:embed leave.json
 var leaveData []byte
@@ -51,8 +51,8 @@ var leaveRules = sync.OnceValues(func() ([]leaveRule, error) {
 // leaveLine is the line to type after the lines sent were accepted and the next one was refused: the rule of the nearest line that
 // entered configuration mode and that no later "end" closed, or "" (nothing is typed; the session just closes). Looking back, each
 // "end" closes one block (FortiOS nests config blocks; an IOS end closes every level, and a leave line typed at the exec prompt
-// after it is refused as an unknown command, which changes nothing). A file that does not load gives "" too: the behaviour before
-// D-358, and TestLeaveRulesLoad keeps it from shipping.
+// after it is refused as an unknown command, which changes nothing). A file that does not load gives "" too: the behaviour of older
+// releases, and TestLeaveRulesLoad keeps it from shipping.
 func leaveLine(sent []string) string {
 	rules, err := leaveRules()
 	if err != nil {

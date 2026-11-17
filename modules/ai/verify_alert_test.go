@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/ai"
 )
 
-// S-AI-8, D-430: the daily verify raises one incident when the chain is broken, and says nothing while it holds.
+// S-AI-8: the daily verify raises one incident when the chain is broken, and says nothing while it holds.
 func TestVerifyJobAlertsOncePerBreak(t *testing.T) {
 	a := newAPI(t)
 	rows := a.threeCalls()

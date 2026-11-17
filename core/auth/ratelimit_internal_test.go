@@ -164,7 +164,7 @@ func TestMaxHashingFor(t *testing.T) {
 	}
 }
 
-// The core Quadlet unit sets Environment=GOMEMLIMIT=<n>MiB (D-150). The test binary is run again with exactly that variable, so the Go runtime reads
+// The core Quadlet unit sets Environment=GOMEMLIMIT=<n>MiB. The test binary is run again with exactly that variable, so the Go runtime reads
 // it the way it does in the container; the helper reports the gate defaultMaxHashing computes: min(GOMAXPROCS/2, n MiB/4/64 MiB), at least 1.
 // n comes from the golden core unit (the rendered template), not from a second literal here.
 func TestDefaultMaxHashingUnderTheCoreUnitMemoryLimit(t *testing.T) {

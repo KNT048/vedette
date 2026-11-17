@@ -129,7 +129,7 @@ func TestContract_INV3_GroupsSameProductInsideWindow(t *testing.T) {
 		}
 	}
 	other := e.vulnNotice("z", "WordPress", "CVE-2026-9", notify.High, "WEB01")
-	other.At = t0.Add(10 * time.Minute) // due in a later run: batches due in the same run become one digest (D-483)
+	other.At = t0.Add(10 * time.Minute) // due in a later run: batches due in the same run become one digest
 	if err := e.svc.Publish(e.ctx(), other); err != nil {
 		t.Fatal(err)
 	}

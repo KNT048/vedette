@@ -19,10 +19,10 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// Host ports a unit change adds (D-455). A unit that publishes a host port another program listens on does not start: Podman
+// Host ports a unit change adds. A unit that publishes a host port another program listens on does not start: Podman
 // cannot reserve the port, the container exits, and for core that takes 8443 down with it. install.sh refuses a busy port on a
 // fresh box, but an update in place never runs install.sh, so the host looks itself, right before it restarts a service on a unit
-// that publishes a port the unit it replaces did not (D-395 added 127.0.0.1:8765, D-214 6514): container.start and
+// that publishes a port the unit it replaces did not (such as 127.0.0.1:8765 or 6514): container.start and
 // container.rollback refuse 412 port_in_use and leave the running release alone. A change that would only take effect at a later
 // restart never adds a port: the unit migration at host start (which runs at boot, before other services have bound their ports)
 // and a container.start without restart of a running service keep the unit on its earlier template (unit_migration_deferred), and
@@ -193,7 +193,7 @@ var socketTables = []struct {
 
 // socketsWhole reads the four socket tables for GET /v1/state/ports, strictly (#933 review r2 L2): a table that is not there (no IPv6)
 // has nothing, the IPv4 TCP table must be there, and any table that exists but cannot be opened or read to its end fails the read,
-// so core keeps the box's list rather than replacing it with part of one. The port check of D-455 keeps its lenient sockets.
+// so core keeps the box's list rather than replacing it with part of one. The port check keeps its lenient sockets.
 func (o *Ops) socketsWhole() ([]sockEntry, error) {
 	var out []sockEntry
 	for i, t := range socketTables {

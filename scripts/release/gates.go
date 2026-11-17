@@ -26,11 +26,11 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The release gates (WP-08k part B, step 3; D-457, D-401). `make release-gates` runs
+// The release gates (WP-08k part B). `make release-gates` runs
 // vuln-scan, sbom and notices-check, then this command: the checks that need the built artifacts and nothing else. Nothing here
 // signs, pushes or publishes; every external command is a fixed argv through runFunc.
 
-// minSequenceLabel is the label the core Containerfile sets from MIN_SEQUENCE, the floor linked into core (D-347, D-401).
+// minSequenceLabel is the label the core Containerfile sets from MIN_SEQUENCE, the floor linked into core.
 const minSequenceLabel = "io.github.knt048.vedette.min-sequence"
 
 // hostBinaryInDeb is where deploy/deb/nfpm.yaml installs vedette-host.
@@ -53,7 +53,7 @@ type gatesOpts struct {
 	Out         string      // where the final run writes gates.json, the record push and in compare with (dist/release)
 	VulnDir     string      // where make vuln-scan RELEASE=1 wrote the trivy reports <local>-<arch>.json (dist/vuln)
 	SBOMDir     string      // where make sbom RELEASE=1 wrote <local>-<arch>.cdx.json (dist/sbom)
-	Expect      imageExpect // what the files inside core and scan-base must be (D-410); Expect.Keys are Rules.Keys
+	Expect      imageExpect // what the files inside core and scan-base must be; Expect.Keys are Rules.Keys
 }
 
 // checkVulnReport refuses a trivy JSON report (rel, inside dir) that is missing, not a regular file reached without a symlink, or not
@@ -180,7 +180,7 @@ func gatesPreflight(ctx context.Context, run runFunc, o gatesOpts) error {
 
 // Gates runs, in order and stopping at the first failure: check-binaries -release on the vedette-host inside each .deb; the
 // version label of every platform of the four local lists (and core's floor label), and the files inside core and scan-base
-// (checkImageFiles: core's /vedette holds the production keys, scan-base's nuclei, pack and no nmap; D-410); the floor of each .deb, by building it again
+// (checkImageFiles: core's /vedette holds the production keys, scan-base's nuclei, pack and no nmap); the floor of each .deb, by building it again
 // from this tree with MinSequence and comparing the bytes (the .deb is reproducible: SOURCE_DATE_EPOCH, -trimpath). Only when all
 // passed does it write <Out>/gates.json (GatesDoc); a record left by an earlier run is removed first, so a failed run leaves none.
 func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) error {
@@ -199,7 +199,7 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 		say(stdout, "ok: %s is a release version, the floor is %s and the tree is the clean tag v%s", o.Version, o.MinSequence, o.Version)
 		return nil
 	}
-	// vuln-scan names a report <label>.json only when that target's gate was green (D-410): the source's too, which no image names
+	// vuln-scan names a report <label>.json only when that target's gate was green: the source's too, which no image names
 	if err := checkSourceReport(o.VulnDir); err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 			if err := checkSBOM(o.SBOMDir, base+".cdx.json", p.Config); err != nil {
 				return fmt.Errorf("%s %s: %w; run make release-gates again (the images changed during the scans?)", name, p.Platform, err)
 			}
-			// the files inside, of the very platform image recorded (its config digest): what push publishes and cosign signs (D-410)
+			// the files inside, of the very platform image recorded (its config digest): what push publishes and cosign signs
 			if imageKinds[im.local] {
 				if err := checkImageFiles(ctx, run, "podman", p.Config, im.local, o.Expect); err != nil {
 					return fmt.Errorf("%s %s: %w", name, p.Platform, err)

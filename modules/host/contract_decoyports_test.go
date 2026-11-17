@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
-// D-466: each decoy address answers only its own services. decoy_ip.add takes an optional allow-list,
+// Each decoy address answers only its own services. decoy_ip.add takes an optional allow-list,
 // decoy_ip.set_ports replaces it, and the namespace's ruleset holds it (input chain, sets open and
 // allow), loaded whole and listed back after every change. The fake nft prints back what was loaded.
 

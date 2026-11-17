@@ -1,5 +1,5 @@
 {
-"source": "WIN-NOISE-2 (customer walk 3 n55): the 17 CISA KEV entries WINLAB01 (Windows Server 2025, osquery, build 10.0.26100.1742) had open, and CVE-2024-49039 and CVE-2024-49138 (the first Windows Server 2025 fix builds), with their NVD affected configurations as the feeds module stores them (vulnerable entries of nodes that are not negated, feeds.ParseNVD) and NVD's published day (feeds_published, D-616). NVD CVE API 2.0 and the cisagov/kev-data catalog, read from the Mac on 2026-11-15.",
+"source": "WIN-NOISE-2: the 17 CISA KEV entries WINLAB01 (Windows Server 2025, osquery, build 10.0.26100.1742) had open, and CVE-2024-49039 and CVE-2024-49138 (the first Windows Server 2025 fix builds), with their NVD affected configurations as the feeds module stores them (vulnerable entries of nodes that are not negated, feeds.ParseNVD) and NVD's published day (feeds_published). NVD CVE API 2.0 and the cisagov/kev-data catalog, read from the Mac on 2026-11-15.",
 "vulns": [
 {"cve": "CVE-2015-1671", "vendor": "Microsoft", "product": "Windows", "ransomware": false, "date_added": "2022-05-25", "published": "2015-05-13", "affected": [
   {"cpe": "cpe:2.3:a:microsoft:.net_framework:3.0:sp2:*:*:*:*:*:*"},

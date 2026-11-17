@@ -84,7 +84,7 @@ describe('exposure: list (S-EXP-1)', () => {
     expect(screen.getAllByText(/Select Detect now to look right away/).length).toBeGreaterThan(0)
   })
 
-  it('W1-23: with no admin page, the first sentence says what is open and SIP is called out with "is that on purpose?"', async () => {
+  it('with no admin page, the first sentence says what is open and SIP is called out with "is that on purpose?"', async () => {
     const at = '2026-11-13T06:02:00.000Z'
     const ip = { id: 't-ip', kind: 'ip', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: at, expires_at: '2026-12-13T06:02:00.000Z', validity: 'valid', last_check: null,
       commitment: { by: 'An', at }, scannable: true, blocked_reason: null, created_at: at, last_scan_at: at,
@@ -102,7 +102,7 @@ describe('exposure: list (S-EXP-1)', () => {
     expect([riskOf({ service: 'constructor' }), portLabel({ service: 'constructor', port: 1 })]).toEqual([null, 'constructor 1'])
   })
 
-  it('M2-7: a port only the port number names says "probably" and is attacked only "if it is" that; an unidentified port says so with its certificate names; no raw nmap names', async () => {
+  it('a port only the port number names says "probably" and is attacked only "if it is" that; an unidentified port says so with its certificate names; no raw nmap names', async () => {
     const at = '2026-11-16T06:41:00.000Z'
     const ip = { id: 't-ip', kind: 'ip', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: at, expires_at: '2026-12-16T06:41:00.000Z', validity: 'valid', last_check: null,
       commitment: { by: 'An', at }, scannable: true, blocked_reason: null, created_at: at, last_scan_at: at,
@@ -143,13 +143,13 @@ describe('exposure: list (S-EXP-1)', () => {
       'Your gateway fortigate-hq (192.168.18.1) has 1 open exploited vulnerability: fix these first.', /answered by your gateway, or a device it forwards them to/, '/findings?tab=open&device=d-gw'],
     ['known without findings', { ip: '192.168.18.1', device_id: 'd-gw', name: 'fortigate-hq', open_exploited: 0 },
       'Your gateway fortigate-hq (192.168.18.1) answers these ports; no open exploited vulnerability is known on it.', /on fortigate-hq does not prove the device it forwards to is safe/, null],
-    ['known, named by its IP (M2-8)', { ip: '192.168.18.1', device_id: 'd-gw', name: '192.168.18.1', open_exploited: 1 },
+    ['known, named by its IP', { ip: '192.168.18.1', device_id: 'd-gw', name: '192.168.18.1', open_exploited: 1 },
       'Your gateway 192.168.18.1 has 1 open exploited vulnerability: fix these first.', /answered by your gateway, or a device it forwards them to/, '/findings?tab=open&device=d-gw'],
     ['gateway not in the device list', { ip: '192.168.18.1', device_id: null, name: null, open_exploited: 0 },
       'Your gateway (192.168.18.1) answers these ports, but it is not in your device list yet.', /Vedette cannot say what is exploited on it\. Scan your network to add it\./, null],
     ['gateway unknown', { ip: null, device_id: null, name: null, open_exploited: 0 },
       'Vedette cannot see which gateway your network uses from here.', /cannot say which device answers these ports/, null],
-  ])('D-492: open ports and the gateway, %s', async (_n, gateway, text, info, href) => {
+  ])('open ports and the gateway, %s', async (_n, gateway, text, info, href) => {
     server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [gwTarget()], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway })))
     renderApp('/exposure?tab=open')
     const note = await screen.findByTestId('gateway-note')
@@ -159,14 +159,14 @@ describe('exposure: list (S-EXP-1)', () => {
     else expect(within(note).queryByRole('link')).toBeNull()
   })
 
-  it('D-492: no gateway note when the server sends none', async () => {
+  it('no gateway note when the server sends none', async () => {
     server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [gwTarget()], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway: null })))
     renderApp('/exposure?tab=open')
     await screen.findByRole('region', { name: '1 port open to the Internet' })
     expect(screen.queryByTestId('gateway-note')).toBeNull()
   })
 
-  it('module off says where to turn it on and calls none of its API (N49-1, modules.md)', async () => {
+  it('module off says where to turn it on and calls none of its API (modules.md)', async () => {
     const calls: string[] = []
     const seen = ({ request }: { request: Request }) => { if (new URL(request.url).pathname.startsWith('/api/v1/exposure/')) calls.push(request.url) }
     server.events.on('request:start', seen)
@@ -216,14 +216,14 @@ describe('exposure: a verified and confirmed domain', () => {
     expect(within(row(/^mail\.acme\.example/)).getByText('Found in the MX records')).toBeInTheDocument()
     expect(within(row(/^intranet\.acme\.example/)).getByText('Private address: never contacted')).toBeInTheDocument()
     expect(within(row(/^acme\.example/)).getByText('IPv6 is not scanned yet.')).toBeInTheDocument()
-    expect(screen.queryByText(/CDN|not yours|your OK/)).not.toBeInTheDocument() // what serves a name does not matter (kien 2026-11-14)
+    expect(screen.queryByText(/CDN|not yours|your OK/)).not.toBeInTheDocument() // what serves a name does not matter
     expect(within(screen.getByRole('list', { name: 'Not checked on the surface' })).getByText(/Names on public addresses that are not this box's \(2 names\)/)).toBeInTheDocument()
-    // Review r2 M3: a name whose lookup failed this time is kept as the last scan found it, and the Surface tab says so.
+    // a name whose lookup failed this time is kept as the last scan found it, and the Surface tab says so.
     expect(within(row(/^nas\.acme\.example/)).getByText('Lookup failed this time: shown as the last scan found it')).toBeInTheDocument()
     expect(within(screen.getByRole('list', { name: 'Not checked on the surface' })).getByText(/Names whose address lookup got no answer this time \(1 name\)/)).toBeInTheDocument()
-    // Review r1 L3: the check by name went to one address of a name; the other says so.
+    // the check by name went to one address of a name; the other says so.
     expect(within(row(/^mail\.acme\.example/)).getByText('Not contacted: the check by name used 203.0.113.21.')).toBeInTheDocument()
-    // Review r1 M2: the tiles count names (acme.example and www share one address), the IP tile distinct addresses.
+    // the tiles count names (acme.example and www share one address), the IP tile distinct addresses.
     expect(screen.getByText('Names on this box').nextSibling?.textContent).toBe('4')
     expect(screen.getByText('Names on other public addresses').nextSibling?.textContent).toBe('2')
     expect(screen.getByText('Names with IPv6 addresses (not scanned)').nextSibling?.textContent).toBe('1')
@@ -278,7 +278,7 @@ describe('exposure: a verified and confirmed domain', () => {
     expect((await call('POST', '/exposure/scan/stop')).json.error.code).toBe('not_running')
   })
 
-  it('with the Vulnerability scans module off (v1 bundles), Scan now still scans: the runner follows exposure\'s switch (J6)', async () => {
+  it('with the Vulnerability scans module off (v1 bundles), Scan now still scans: the runner follows exposure\'s switch', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'scan' ? { ...m, enabled: false } : m)))
     const r = await call('POST', '/exposure/targets/xt-1/scan')
     expect(r.status).toBe(202)
@@ -299,28 +299,28 @@ describe('exposure: domain ownership = DNS TXT only', () => {
     expect(await screen.findByText(/No TXT record vedette-verify=9be41c0a77d2e358 was found\. Vedette asked acme-demo\.example/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Check' }))
     expect(await screen.findByText(/Verified with a DNS TXT record/)).toBeInTheDocument()
-    // verified but not confirmed: the administrator sees the sentence beside an enabled button (the server decides about two-step, D-473)
+    // verified but not confirmed: the administrator sees the sentence beside an enabled button (the server decides about two-step)
     expect(await screen.findByRole('note', { name: 'Pressing Scan now records this confirmation' })).toBeInTheDocument()
   })
 
-  // D-632 (kien G10 reopen: "Name (host) phải là @ hoặc beyondnetglobal.com mới đúng!"): the main Name is "@" of the registered
+  // The main Name is "@" of the registered
   // domain for every target, the subdomain too; a subdomain gets _vedette-verify.<host> as the alternative, never its own name.
   it.each([
-    ['beyondnetglobal.com', 'Add a TXT record at @ of the DNS zone beyondnetglobal.com.', null],
-    ['git.beyondnetglobal.com', 'Add a TXT record at @ of the DNS zone beyondnetglobal.com, where you manage git.beyondnetglobal.com: a record there proves git.beyondnetglobal.com, and git.beyondnetglobal.com itself needs no record.', '_vedette-verify.git'],
-    ['a.b.beyondnetglobal.com', 'Add a TXT record at @ of the DNS zone beyondnetglobal.com, where you manage a.b.beyondnetglobal.com: a record there proves a.b.beyondnetglobal.com, and a.b.beyondnetglobal.com itself needs no record.', '_vedette-verify.a.b'],
-  ])('D-632: %s shows the Name @ of its zone', async (value, intro, alt) => {
+    ['example.com', 'Add a TXT record at @ of the DNS zone example.com.', null],
+    ['git.example.com', 'Add a TXT record at @ of the DNS zone example.com, where you manage git.example.com: a record there proves git.example.com, and git.example.com itself needs no record.', '_vedette-verify.git'],
+    ['a.b.example.com', 'Add a TXT record at @ of the DNS zone example.com, where you manage a.b.example.com: a record there proves a.b.example.com, and a.b.example.com itself needs no record.', '_vedette-verify.a.b'],
+  ])('%s shows the Name @ of its zone', async (value, intro, alt) => {
     renderApp('/exposure')
     await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
     await userEvent.type(screen.getByRole('textbox', { name: 'Domain' }), value)
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     await userEvent.click(await screen.findByRole('tab', { name: /Ownership/ }))
-    expect(await screen.findByTestId('proof-host')).toHaveTextContent('@ (that is beyondnetglobal.com)')
+    expect(await screen.findByTestId('proof-host')).toHaveTextContent('@ (that is example.com)')
     expect(screen.getByText(intro)).toBeInTheDocument()
     if (alt) {
-      expect(screen.getByTestId('proof-cname')).toHaveTextContent(`If you cannot add a record at @ of beyondnetglobal.com, use the Name ${alt} instead`)
+      expect(screen.getByTestId('proof-cname')).toHaveTextContent(`If you cannot add a record at @ of example.com, use the Name ${alt} instead`)
       expect(screen.getByTestId('proof-cname')).toHaveTextContent(`Not on ${value} itself if it is a CNAME`)
-      expect(screen.getByTestId('proof-delegated')).toHaveTextContent(`If ${value} sits in a sub-zone of beyondnetglobal.com whose DNS is managed separately, add the record at @ of that sub-zone instead`)
+      expect(screen.getByTestId('proof-delegated')).toHaveTextContent(`If ${value} sits in a sub-zone of example.com whose DNS is managed separately, add the record at @ of that sub-zone instead`)
     } else {
       expect(screen.queryByTestId('proof-cname')).not.toBeInTheDocument()
       expect(screen.queryByTestId('proof-delegated')).not.toBeInTheDocument()
@@ -328,7 +328,7 @@ describe('exposure: domain ownership = DNS TXT only', () => {
     expect(screen.queryByText(/^git \(that is|@ \(or /)).not.toBeInTheDocument()
   })
 
-  it('D-628: a subdomain of a verified domain says it is covered, and one Check verifies it', async () => {
+  it('a subdomain of a verified domain says it is covered, and one Check verifies it', async () => {
     renderApp('/exposure')
     await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
     await userEvent.type(screen.getByRole('textbox', { name: 'Domain' }), 'git.acme.example')
@@ -428,7 +428,7 @@ describe('exposure: public IP = only an IP this box uses to reach the Internet',
   })
 })
 
-describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => {
+describe('exposure: auto-detect of the box public IPs', () => {
   type State = { items: { id: string; value: string; kind: string }[]; box_ip: { auto: boolean; interval_min: number; last_run: { at: string; ok: boolean; message: string } | null } }
   const state = async () => (await call('GET', '/exposure/targets')).json as State
   const ipsOf = async () => (await state()).items.filter((t) => t.kind === 'ip').map((t) => t.value).sort()
@@ -672,7 +672,7 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     expect(within(ips).getByRole('link', { name: '198.51.100.7' })).toBeInTheDocument()
     await userEvent.click(within(ips).getByRole('button', { name: 'Remove 198.51.100.8' }))
     const dlg = await screen.findByRole('dialog', { name: 'Remove 198.51.100.8 from the list?' })
-    expect(within(dlg).getByRole('checkbox', { name: "Don't add it again if detected" })).toBeChecked() // D-79: on by default
+    expect(within(dlg).getByRole('checkbox', { name: "Don't add it again if detected" })).toBeChecked() // On by default
     await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog')).toBeNull()
     await userEvent.click(within(ips).getByRole('button', { name: 'Remove 198.51.100.8' }))
@@ -693,7 +693,7 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     expect(screen.getAllByText('Requires Admin role').length).toBeGreaterThan(0)
   })
 
-  it('kien G1: while Detect now runs the button is busy and a note says what the box is doing and how long it may take', async () => {
+  it('while Detect now runs the button is busy and a note says what the box is doing and how long it may take', async () => {
     let answer!: () => void
     const held = new Promise<void>((r) => { answer = r })
     server.use(http.post('*/api/v1/exposure/box-ip/verify', async () => { await held; return HttpResponse.json({ message: 'Done.' }) }))
@@ -707,7 +707,7 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
   })
 })
 
-describe('exposure: the Ignored list (D-79 (3))', () => {
+describe('exposure: the Ignored list', () => {
   const clean = async () => {
     const { setDataMode } = await import('@/mocks/db')
     const { usersStore } = await import('@/mocks/stores')
@@ -826,7 +826,7 @@ describe('exposure: the Ignored list (D-79 (3))', () => {
   })
 })
 
-describe('exposure: scan-time check of an IP (D-79 (2), INV-13)', () => {
+describe('exposure: scan-time check of an IP (INV-13)', () => {
   const advance = (min: number) => { if (!vi.isFakeTimers()) vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(Date.now() + min * 60_000) }
   const scanXt2 = () => call('POST', '/exposure/targets/xt-2/scan')
 
@@ -875,7 +875,7 @@ describe('exposure: scan-time check of an IP (D-79 (2), INV-13)', () => {
 })
 
 
-describe("exposure: an administrator's first Scan now is the confirmation (D-473)", () => {
+describe("exposure: an administrator's first Scan now is the confirmation", () => {
   const verifiedTarget = async (value: string) => {
     await call('POST', '/exposure/targets', { value })
     const id = ((await call('GET', '/exposure/targets')).json.items as { id: string; value: string }[]).find((t) => t.value === value)!.id
@@ -1190,7 +1190,7 @@ describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, 
   })
 })
 
-describe('exposure: Add a domain form matrix (QA walk 2026-11-12)', () => {
+describe('exposure: Add a domain form matrix', () => {
   it('Cancel drops the text and its error: the next opening is empty', async () => {
     renderApp('/exposure')
     const add = await screen.findByRole('button', { name: 'Add domain' })
@@ -1225,7 +1225,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(within(services).getByRole('row', { name: /18443/ })).getByText('2 exploited')).toBeInTheDocument()
     expect(within(within(services).getByRole('row', { name: /^443/ })).getByText('No version sent')).toBeInTheDocument()
     expect(within(services).getByText('Closed at once (tcpwrapped)')).toBeInTheDocument()
-    // M2-7: nmap's table name is a guess, an unknown TLS service says what its certificate names; neither "sent" no version
+    // nmap's table name is a guess, an unknown TLS service says what its certificate names; neither "sent" no version
     const sip = within(services).getByRole('row', { name: /^5060/ })
     expect(within(sip).getByText('Probably SIP')).toBeInTheDocument()
     expect(within(sip).getByText('By port number, not confirmed')).toBeInTheDocument()
@@ -1242,7 +1242,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     await expectNoA11yViolations()
   })
 
-  it('N44-3: the matched deep templates are listed by severity with their template and port; the section says these are not in Findings', async () => {
+  it('the matched deep templates are listed by severity with their template and port; the section says these are not in Findings', async () => {
     renderApp('/exposure/xt-2')
     const deep = await screen.findByRole('table', { name: 'Found by the deep scan (nuclei templates that matched)' })
     const rows = within(deep).getAllByRole('row').slice(1)
@@ -1275,7 +1275,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(changed).getByText('Changed')).toBeInTheDocument()
   })
 
-  it('review r1 L4: with no exploited CVE but deep-scan rows, the empty state is not an all-clear and points to them', async () => {
+  it('with no exploited CVE but deep-scan rows, the empty state is not an all-clear and points to them', async () => {
     const at = new Date(Date.now() - 864e5).toISOString()
     const date = at.slice(0, 10)
     const ip = '203.0.113.10'
@@ -1305,7 +1305,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     )
     renderApp('/exposure/xt-2')
     const section = await screen.findByRole('region', { name: 'Exploited vulnerabilities' })
-    expect(await within(section).findByText('Services were not identified')).toBeInTheDocument() // D-522: never "No service was identified" here
+    expect(await within(section).findByText('Services were not identified')).toBeInTheDocument() // Never "No service was identified" here
     expect(within(section).queryByText('No service was identified')).toBeNull()
     expect(within(section).getByText('Service identification (nmap -sV) is not set up on this box yet.')).toBeInTheDocument()
     expect(within(section).queryByRole('table')).toBeNull()
@@ -1334,7 +1334,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(services).queryByText('1 exploited')).toBeNull()
   })
 
-  it('D-565 (review r1 M1): a JavaScript library CVE on a page is listed but not counted on the service of that port', async () => {
+  it('a JavaScript library CVE on a page is listed but not counted on the service of that port', async () => {
     const at = new Date(Date.now() - 864e5).toISOString()
     const date = at.slice(0, 10)
     const snap = { id: 'sn-x', date, scanned_at: at, hosts: [], ports: [{ ip: '203.0.113.10', port: 443, service: 'https' }], admin_panels: [], certs: [], counts: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 },
@@ -1354,7 +1354,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(services).queryByText('1 exploited')).toBeNull()
   })
 
-  it('D-565 (review r1 L2): a domain whose page header names a version with an exploited CVE gets the section in the words of a domain; axe clean', async () => {
+  it('a domain whose page header names a version with an exploited CVE gets the section in the words of a domain; axe clean', async () => {
     const at = new Date(Date.now() - 864e5).toISOString()
     const date = at.slice(0, 10)
     const snap = { id: 'sn-d', date, scanned_at: at, hosts: [{ name: 'www.acme.example', ip: '198.51.100.20' }], ports: [{ ip: '198.51.100.20', port: 443, service: 'https' }], admin_panels: [], certs: [],
@@ -1401,7 +1401,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(none).queryByText(/not vulnerable/i)).toBeNull()
   })
 
-  it('INV-24, D-565: passive web findings in two groups, "Fix this" first then "Hardening", riskiest first, with the CWE link, three sample pages and the advice; axe clean', async () => {
+  it('INV-24: passive web findings in two groups, "Fix this" first then "Hardening", riskiest first, with the CWE link, three sample pages and the advice; axe clean', async () => {
     renderApp('/exposure/xt-2')
     const section = await screen.findByRole('region', { name: 'Web findings (passive)' })
     expect(within(section).getByText(/ZAP looked at the pages without sending forms; these are things it noticed\./)).toBeInTheDocument()
@@ -1466,7 +1466,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
   })
 })
 
-describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)', () => {
+describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => {
   afterEach(() => { for (const k of ['memory', 'swap', 'disk']) localStorage.removeItem(`vedette-mock-box-${k}`) })
   const section = () => screen.findByRole('region', { name: 'Optional deep scan: OpenVAS' })
 
@@ -1484,12 +1484,12 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     expect(await within(s).findByText('Starting')).toBeInTheDocument()
     expect(within(s).getByRole('button', { name: 'Turn off OpenVAS' })).toBeInTheDocument()
     expect(auditStore.get().some((a) => a.action === 'exposure.greenbone' && a.detail === 'enabled (memory 16.0 GB, free disk 180.0 GB)')).toBe(true)
-    // D-564 G6: the weekly feed update shows when the next one is due; T10: the tests' line shows once OpenVAS was read (review L2)
+    // The weekly feed update shows when the next one is due; T10: the tests' line shows once OpenVAS was read
     expect(within(s).queryByText('Vulnerability tests')).toBeNull()
     expect(within(s).getByText('Next feed update')).toBeInTheDocument()
   })
 
-  it('D-569: a 7.1 GB box may enable it, with the swap note', async () => {
+  it('a 7.1 GB box may enable it, with the swap note', async () => {
     localStorage.setItem('vedette-mock-box-memory', '7100000000')
     renderApp('/exposure')
     const s = await section()
@@ -1499,7 +1499,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeEnabled()
   })
 
-  it('D-569: under 8 GB without 2 GB of swap it is refused with both numbers; at exactly 8 GB no swap is needed and no note shows', async () => {
+  it('under 8 GB without 2 GB of swap it is refused with both numbers; at exactly 8 GB no swap is needed and no note shows', async () => {
     localStorage.setItem('vedette-mock-box-memory', '7100000000')
     localStorage.setItem('vedette-mock-box-swap', '0')
     const { unmount } = renderApp('/exposure')
@@ -1541,7 +1541,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     expect(within(s).getByRole('button', { name: 'Turn off OpenVAS' })).toBeDisabled()
   })
 
-  it('ready before its first weekly update: the first full feed load is done, never "not yet" (N45-4)', async () => {
+  it('ready before its first weekly update: the first full feed load is done, never "not yet"', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'ready', reason: null, changed_by: 'admin@acme.example', changed_at: '2026-11-14T13:00:00Z',
       preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: '2026-11-21T13:00:00Z' }, feed: null, enabled: true })))
     renderApp('/exposure')
@@ -1574,7 +1574,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     expect(within(s).queryAllByRole('button').filter((b) => !b.getAttribute('aria-label')?.startsWith('About '))).toEqual([]) // only the section's ⓘ
   })
 
-  it('results: their own section with the unauthenticated header, severity first, QoD and CVEs; Low results are hardening notes apart (D-564 G3); axe clean', async () => {
+  it('results: their own section with the unauthenticated header, severity first, QoD and CVEs; Low results are hardening notes apart; axe clean', async () => {
     renderApp('/exposure/xt-2')
     const s = await screen.findByRole('region', { name: 'OpenVAS results (unauthenticated, QoD ≥ 70)' })
     expect(within(s).getByText(/Finding nothing is not proof the services are not affected \(distributions backport fixes\)\. For the same reason, on Ubuntu or Debian a result read from a version banner can be a false positive, so Vedette's own package-based result wins when both exist\./)).toBeInTheDocument()
@@ -1610,7 +1610,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
   })
 })
 
-describe('exposure: the OpenVAS heading follows its one state, its start in the page\'s time (N49-3, N49-2, D-595)', () => {
+describe('exposure: the OpenVAS heading follows its one state, its start in the page\'s time', () => {
   const ip = '203.0.113.10'
   const started = '2026-11-14T18:16:00.000Z'
   const high = { ip, port: '443/tcp', severity: 7.5, name: 'Weak TLS', qod: 98, cves: [], solution: 'Fix TLS.', oid: '1.3.6.1.4.1.25623.1.0.1' }
@@ -1628,7 +1628,7 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
     renderApp('/exposure/xt-2')
     return screen.findByRole('region', { name: 'OpenVAS results (unauthenticated, QoD ≥ 70)' })
   }
-  // the time every other part of the page shows: the viewer's time zone, never the box's text. D-595 review L6: pinned to a zone that is
+  // the time every other part of the page shows: the viewer's time zone, never the box's text. Pinned to a zone that is
   // not UTC (CI runs in UTC), so going back to the box's UTC text fails: 18:16 UTC is 01:16 the next day in Ho Chi Minh City (UTC+7).
   let tz: string | undefined
   beforeAll(() => { tz = process.env.TZ; process.env.TZ = 'Asia/Ho_Chi_Minh' })
@@ -1657,7 +1657,7 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
     expect(within(s).queryByText('OpenVAS reported no high or medium result with QoD 70 or more')).toBeNull()
   })
 
-  it('review M1: a domain stopped on its second address shows the rows of the first, with the line that says so', async () => {
+  it('a domain stopped on its second address shows the rows of the first, with the line that says so', async () => {
     const s = await showing({ state: 'stopped', started_at: started, addresses: [{ ip, state: 'done' }, { ip: '203.0.113.11', state: 'stopped' }] }, [high],
       [{ kind: 'greenbone', text: 'OpenVAS was stopped before it had scanned every address; the results of the addresses it finished are shown. The results of the other checks above are kept.' }])
     expect(await within(s).findByRole('status')).toHaveTextContent('OpenVAS did not finish every address of this domain; these are the results it found. The "Not checked" list below says which address ended early and why.')
@@ -1681,20 +1681,20 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
   })
 
   const ended = 'OpenVAS ended the scan before it finished: OpenVAS reports it as interrupted; Vedette did not stop it.'
-  it('review M3: a scan OpenVAS ended is "ended", never "did not scan"', async () => {
+  it('a scan OpenVAS ended is "ended", never "did not scan"', async () => {
     const s = await showing({ state: 'ended', started_at: started }, [], [{ kind: 'greenbone', text: ended }])
     expect(await within(s).findByText('OpenVAS ended the scan before it finished')).toBeInTheDocument()
     expect(within(s).getByText(ended)).toBeInTheDocument()
     expect(within(s).queryByText('OpenVAS did not scan this time')).toBeNull()
   })
 
-  it('review M3: the rows of a scan OpenVAS ended are shown with the line that says so', async () => {
+  it('the rows of a scan OpenVAS ended are shown with the line that says so', async () => {
     const s = await showing({ state: 'ended', started_at: started }, [high], [{ kind: 'greenbone', text: ended }])
     expect(await within(s).findByRole('status')).toHaveTextContent('OpenVAS ended the scan before it finished; these are the results it had found by then.')
     expect(within(s).getByRole('table', { name: 'What OpenVAS reported on this IP' })).toBeInTheDocument()
   })
 
-  it('review L2: a domain\'s body is the line of an address in the run\'s state, not the first OpenVAS line', async () => {
+  it('a domain\'s body is the line of an address in the run\'s state, not the first OpenVAS line', async () => {
     const s = await showing({ state: 'failed', started_at: started, addresses: [{ ip: '203.0.113.11', state: 'not_run' }, { ip, state: 'failed' }] }, [], [
       { kind: 'greenbone', text: '203.0.113.11 (www.acme.example): OpenVAS did not scan: this scan found no open port to check.' },
       { kind: 'greenbone', text: `${ip} (shop.acme.example): OpenVAS failed, so its results are not shown. The box log has the error.` },
@@ -1724,7 +1724,7 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
     await expectNoA11yViolations()
   })
 
-  it('review L6: when the run enters the OpenVAS phase the page reads the saved snapshot again, without waiting for OpenVAS', async () => {
+  it('when the run enters the OpenVAS phase the page reads the saved snapshot again, without waiting for OpenVAS', async () => {
     const at = new Date().toISOString()
     let phase = 'probing'
     let lists = 0
@@ -1758,7 +1758,7 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
   })
 })
 
-describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
+describe('exposure: testing terms per target (S-EXP-2)', () => {
   const withTwoStep = (on: boolean) => usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, twofa: on } : x)))
 
   it('one screen says what each tool may send and the risk; the disruptive tick is its own box, off by default; axe clean', async () => {
@@ -1791,7 +1791,7 @@ describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
     expect(auditStore.get().some((a) => a.action === 'exposure.terms_revoke')).toBe(true)
   })
 
-  it('review r1 M2: behind carrier-grade NAT the step warns and the disruptive tick cannot be ticked', async () => {
+  it('behind carrier-grade NAT the step warns and the disruptive tick cannot be ticked', async () => {
     const v = (await call('GET', '/exposure/targets/xt-2')).json as Record<string, unknown>
     const warning = 'This box reaches the Internet through carrier-grade NAT (its gateway 100.64.0.1 is in 100.64.0.0/10), so 203.0.113.10 is probably shared with your provider\'s other customers and its open ports are the provider\'s. The disruptive checks cannot be accepted for it; accept the deep scan only if your provider confirms the address is yours alone.'
     server.use(http.get('*/api/v1/exposure/targets/xt-2', () => HttpResponse.json({ ...v, terms_warning: warning })))
@@ -1803,7 +1803,7 @@ describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
     expect(within(s).getByText(/is yours alone: not an address shared through your Internet provider \(carrier-grade NAT\)/)).toBeInTheDocument()
   })
 
-  it('review r2 L2: without a warning, an IP target says what Vedette cannot see', async () => {
+  it('without a warning, an IP target says what Vedette cannot see', async () => {
     renderApp('/exposure/xt-2?tab=ownership')
     const s = await screen.findByRole('region', { name: 'Testing terms (deep scan)' })
     expect(await within(s).findByText("If your router gets its address from your provider's shared range, ask your provider before accepting.")).toBeInTheDocument()
@@ -1811,7 +1811,7 @@ describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
     expect(within(s).getByRole('checkbox')).toBeEnabled()
   })
 
-  it('review r1 M1: a run the box stopped because the terms were withdrawn says why', async () => {
+  it('a run the box stopped because the terms were withdrawn says why', async () => {
     const at = new Date().toISOString()
     server.use(http.get('*/api/v1/exposure/scan', () => HttpResponse.json({ id: 'sr-1', target_id: 'xt-2', target_value: '203.0.113.10', by: 'admin@acme.example', started_at: at, finished_at: at,
       status: 'stopped', phase: 'greenbone', snapshot_id: 'sn-1', error: null, stop_reason: 'the testing terms of this target were withdrawn' })))
@@ -1831,7 +1831,7 @@ describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
   })
 })
 
-describe('exposure: deep scan of a domain\'s addresses (S-EXP-2, FULL-5 slice 3, D-571)', () => {
+describe('exposure: deep scan of a domain\'s addresses (S-EXP-2)', () => {
   const withTwoStep = (on: boolean) => usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, twofa: on } : x)))
 
   it('LEGAL-2: a domain\'s terms say the scan reaches third-party hosting, CDN or proxy, name the tools and the customer\'s responsibility; an IP keeps "yours alone"', async () => {
@@ -1883,7 +1883,7 @@ describe('exposure: deep scan of a domain\'s addresses (S-EXP-2, FULL-5 slice 3,
     await expectNoA11yViolations()
   })
 
-  it('N100: the line under Scan now and the Results intro say what the scan does: Scan now scope, then the deep scan with or without the disruptive checks', async () => {
+  it('the line under Scan now and the Results intro say what the scan does: Scan now scope, then the deep scan with or without the disruptive checks', async () => {
     withTwoStep(true)
     setEgress('203.0.113.10')
     expect((await call('DELETE', '/exposure/targets/xt-2/terms')).status).toBe(200) // the sample IP has them accepted
@@ -1901,7 +1901,7 @@ describe('exposure: deep scan of a domain\'s addresses (S-EXP-2, FULL-5 slice 3,
     expect(screen.queryByText(/Ports are scanned only on this box/)).toBeNull()
   })
 
-  it('N100: a domain with accepted terms (no disruptive tick) says its names are deep-scanned at every address they resolve to', async () => {
+  it('a domain with accepted terms (no disruptive tick) says its names are deep-scanned at every address they resolve to', async () => {
     withTwoStep(true)
     const v = (await call('GET', '/exposure/targets/xt-1')).json as { terms_notice: { version: string } }
     expect((await call('PUT', '/exposure/targets/xt-1/terms', { version: v.terms_notice.version, disruptive: false })).status).toBe(200)
@@ -1928,7 +1928,7 @@ describe('exposure: deep scan of a domain\'s addresses (S-EXP-2, FULL-5 slice 3,
     const deep = await screen.findByRole('table', { name: "Addresses of this domain's names and their deep scan" })
     expect(within(deep).getByText('Needs the domain fence')).toBeInTheDocument()
     expect(within(deep).getByText('Refused at the check')).toBeInTheDocument()
-    expect(within(deep).getByText('Not finished')).toBeInTheDocument() // review r1 M2: nmap did not finish: not "scanned"
+    expect(within(deep).getByText('Not finished')).toBeInTheDocument() // nmap did not finish: not "scanned"
     await expectNoA11yViolations()
     await userEvent.click(screen.getByRole('tab', { name: 'Surface' }))
     const table = await screen.findByRole('table', { name: 'Names under this domain and their addresses' })
@@ -1941,7 +1941,7 @@ describe('exposure: deep scan of a domain\'s addresses (S-EXP-2, FULL-5 slice 3,
   })
 })
 
-describe('exposure: one page style (S-UI-1, D-543)', () => {
+describe('exposure: one page style (S-UI-1)', () => {
   it('the list has a KPI strip and Targets / Open exposures / What the Internet sees tabs; old #anchors land on their tab', async () => {
     const view = renderApp('/exposure')
     const strip = await screen.findByRole('list', { name: 'External exposure at a glance' })
@@ -1971,7 +1971,7 @@ describe('exposure: one page style (S-UI-1, D-543)', () => {
   })
 })
 
-describe('exposure: what the Internet sees, Shodan InternetDB (S-EXP-1, D-558)', () => {
+describe('exposure: what the Internet sees, Shodan InternetDB (S-EXP-1)', () => {
   it('shows Shodan\'s ports beside our own scan, the differences called out, and Shodan\'s CVEs as its claim; axe clean', async () => {
     renderApp('/exposure/xt-2?tab=outside')
     expect(await screen.findByRole('heading', { name: 'What the Internet sees' })).toBeInTheDocument()

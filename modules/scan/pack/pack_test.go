@@ -125,7 +125,7 @@ func TestForbiddenTagsAreTheExcludedTags(t *testing.T) {
 	}
 }
 
-// D-520: the worker's own text check of a template file before an own_ip job, and the index rule for an entry marked own_ip.
+// The worker's own text check of a template file before an own_ip job, and the index rule for an entry marked own_ip.
 func TestOwnIPText(t *testing.T) {
 	t.Parallel()
 	ok := "id: x\nhttp:\n  - raw:\n      - |\n        GET /a HTTP/1.1\n        Host: {{Hostname}}\n  - method: GET\n    path:\n      - \"{{BaseURL}}/etc/passwd\"\n"

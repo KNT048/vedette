@@ -210,7 +210,7 @@ func checkDoc(c *Check) (any, error) {
 	return string(b), nil
 }
 
-// storedCheck is the column's JSON: the check as the API shows it, plus Covers, which only the box reads (review r1 M1 of #960).
+// storedCheck is the column's JSON: the check as the API shows it, plus Covers, which only the box reads.
 type storedCheck struct {
 	*Check
 	Covers bool `json:"covers,omitempty"`
@@ -254,7 +254,7 @@ func setCommitment(ctx context.Context, tx *sql.Tx, id, by string, at time.Time,
 func snapshotDocs(c Content, counts Counts) ([11]string, error) {
 	var docs [11]string
 	for i, v := range []any{nz(c.Hosts), nz(c.Ports), nz(c.AdminPanels), nz(c.Certs), counts, storedServices(c), nz(c.Checks), nz(c.NotChecked), nz(c.WebFindings), nz(c.Greenbone),
-		nz(c.Scripts)} { // FULL-4 (Trưởng), for Mlee: scripts (D-526)
+		nz(c.Scripts)} {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return docs, fmt.Errorf("encoding snapshot: %w", err)
@@ -345,7 +345,7 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 	var hosts, ports, admin, certs, counts, services, checks, notChecked, web, gb, scripts, gbRun string
 	var stored []storedService
 	err := q.QueryRowContext(ctx, `SELECT id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts, greenbone_run FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, date).
-		Scan(&s.ID, &s.Date, &s.ScannedAt, &hosts, &ports, &admin, &certs, &counts, &services, &checks, &notChecked, &web, &gb, &scripts, &gbRun) // FULL-4 (Trưởng), for Mlee: scripts
+		Scan(&s.ID, &s.Date, &s.ScannedAt, &hosts, &ports, &admin, &certs, &counts, &services, &checks, &notChecked, &web, &gb, &scripts, &gbRun)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Snapshot{}, false, nil
 	}
@@ -377,9 +377,9 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 	return s, true, nil
 }
 
-// storedGreenboneRun is the state of a stored OpenVAS step (N49-3, D-595), checked: a state that is not one, a start that is not a
+// storedGreenboneRun is the state of a stored OpenVAS step, checked: a state that is not one, a start that is not a
 // time, or an address that is not one is not believed. A snapshot older than the column ('{}') gets the state its lines say (a
-// domain's lines carry the address in front, review L1): a check row is done; the old waiting line or the stop line is stopped (nothing
+// domain's lines carry the address in front): a check row is done; the old waiting line or the stop line is stopped (nothing
 // runs it any more); a failure line is failed; else it did not run.
 func storedGreenboneRun(r GreenboneRun, c Content) GreenboneRun {
 	if r.StartedAt != nil {
@@ -539,7 +539,7 @@ func loadLastDeep(ctx context.Context, q querier) (time.Time, error) {
 	return optTS(s)
 }
 
-// ---- the Ignored list (D-79 (3), INV-14) ----
+// ---- the Ignored list (INV-14) ----
 
 // loadIgnored returns the Ignored list, newest first.
 func loadIgnored(ctx context.Context, q querier) ([]IgnoredIP, error) {
@@ -606,7 +606,7 @@ func nullIf(s string) any {
 }
 
 // ScanRecord is one stored scan of a public target (one per target and day: a rescan the same day replaces it), for Settings ›
-// Scanning › History (kien G7a).
+// Scanning › History.
 type ScanRecord struct {
 	TargetID, Target, ScannedAt string
 	Counts                      Counts

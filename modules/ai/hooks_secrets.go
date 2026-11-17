@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Device secrets (D-220, INV-12). Text that comes from a device (a configuration, a log line, the output of a read tool of a
+// Device secrets (INV-12). Text that comes from a device (a configuration, a log line, the output of a read tool of a
 // connection) can carry passwords, hashes, SNMP communities and keys. The block-pii hook masks the value and keeps the keyword,
 // so the AI still sees that a password is set, not what it is.
 //
@@ -23,7 +23,7 @@ import (
 // ponytail: only secrets that carry such a marker or sit where the vendor's syntax puts them (` password x` under `line vty|con|aux`,
 // a YAML key, the body of a PuTTY key file, a FortiGate `set name` inside `config system snmp community`, an IOS `snmp-server host`
 // with a version); other vendors' blocks are not recognised; upgrade path: a config-aware parser per vendor, if a customer needs it.
-// Over-masking costs one word and is kept (D-428): `password 3 times` at the start of a lower-case line, `The password authentication
+// Over-masking costs one word and is kept: `password 3 times` at the start of a lower-case line, `The password authentication
 // encrypted`; the value shape is all a pattern can tell, and a secret that leaks costs more.
 const secretValue = `("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|\S+)` //nolint:gosec // a regexp fragment, not a credential
 

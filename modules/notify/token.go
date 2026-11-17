@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// Approval tokens (docs/specs/approval-tokens.md §4, D-46, D-57 item 20): the
+// Approval tokens (docs/specs/approval-tokens.md §4): the
 // link in an approval email carries
 //
 //	v1.<base64url(token_id)>.<base64url(mac)>
@@ -31,7 +31,7 @@ import (
 const (
 	approvalTokenVersion = "v1."
 	approvalMACPrefix    = "vedette-approval-v1\n"
-	// ApprovalTTL is the lifetime of an email or Zalo OA approval link (D-46).
+	// ApprovalTTL is the lifetime of an email or Zalo OA approval link.
 	ApprovalTTL = 30 * time.Minute
 	// MinApprovalKeyLen is the shortest accepted K_approval (256 bits).
 	MinApprovalKeyLen = 32
@@ -98,7 +98,7 @@ const (
 )
 
 // ApprovalViaChannelAllowed reports whether a request of the given risk may be
-// approved from channel (D-57 item 20): high risk never over a link channel
+// approved from channel: high risk never over a link channel
 // (email, zalo), because a link is a bearer credential. An unknown risk is
 // treated as high. Core calls it again when the decision arrives (spec §3.5).
 func ApprovalViaChannelAllowed(channel string, risk Risk) error {
@@ -124,7 +124,7 @@ func encode(id TokenID, m []byte) string {
 // MintApprovalToken creates a token for b. The caller stores the TokenID with
 // the binding and the key id. It refuses a key shorter than 32 bytes, a binding
 // outside the alphabet, an expiry that is not in the future or is more than 30
-// minutes away, and (D-57 item 20) a high-risk request for the email channel.
+// minutes away, and a high-risk request for the email channel.
 func MintApprovalToken(key []byte, b Binding, risk Risk, now time.Time) (string, TokenID, error) {
 	var id TokenID
 	if len(key) < MinApprovalKeyLen {

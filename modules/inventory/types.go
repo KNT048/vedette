@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/content/devicetypes"
 )
 
-// Kinds are the 13 kinds behaviour is keyed on (D-511): the fragile and regular-scan settings list them, and every device type acts
+// Kinds are the 13 kinds behaviour is keyed on: the fragile and regular-scan settings list them, and every device type acts
 // as one of them (devicetypes.ActsAs). The device types themselves are devicetypes.IDs (contract.ts AssetKind).
 var Kinds = devicetypes.Kinds
 
@@ -56,9 +56,9 @@ const (
 	EventAssetUpdated    = "inventory.asset.updated"
 	EventAssetDeleted    = "inventory.asset.deleted"
 	EventAssetMerged     = "inventory.asset.merged"
-	EventAssetApproved   = "inventory.asset.approved"  // a person approved a discovered device (D-474, B9b)
-	EventAssetIgnored    = "inventory.asset.ignored"   // a person ignored a device (D-630): {asset_id, actor}
-	EventAssetUnignored  = "inventory.asset.unignored" // a person stopped ignoring a device (D-630): {asset_id, actor}
+	EventAssetApproved   = "inventory.asset.approved"  // a person approved a discovered device (B9b)
+	EventAssetIgnored    = "inventory.asset.ignored"   // a person ignored a device: {asset_id, actor}
+	EventAssetUnignored  = "inventory.asset.unignored" // a person stopped ignoring a device: {asset_id, actor}
 	EventSoftwareChanged = "inventory.software.changed"
 	EventMatchChanged    = "inventory.match.changed"
 	EventSettingsChanged = "inventory.settings.changed"
@@ -69,13 +69,13 @@ const (
 type AssetEvent struct {
 	AssetID string `json:"asset_id"`
 	Notify  bool   `json:"notify,omitempty"`
-	// Match is set when what the findings matcher reads of the device besides its software changed (D-510): the folded OS,
+	// Match is set when what the findings matcher reads of the device besides its software changed: the folded OS,
 	// the model, or the OS the device states itself (MatchDevice.StatedOS). Only observations set it.
 	Match bool `json:"match,omitempty"`
 	// Learning is set on discovered events when the source that found the device (passive sensor, active scan, SNMP, agent, vulnerability
-	// scan) first reported to this box less than LearningWindow ago (D-474, MK-1): notify folds such devices into one summary.
+	// scan) first reported to this box less than LearningWindow ago (MK-1): notify folds such devices into one summary.
 	Learning bool `json:"learning,omitempty"`
-	// ScanOn is set on inventory.asset.updated when a person turned the device's network scan on (D-601): sensor-active queues it for
+	// ScanOn is set on inventory.asset.updated when a person turned the device's network scan on: sensor-active queues it for
 	// the next window, as a newly discovered device.
 	ScanOn bool `json:"scan_on,omitempty"`
 	// Actor is the person who approved (inventory.asset.approved), ignored (inventory.asset.ignored) or deleted
@@ -83,7 +83,7 @@ type AssetEvent struct {
 	Actor string `json:"actor,omitempty"`
 }
 
-// MergeEvent is the data of inventory.asset.merged (D-515): device From was the same device as Into and is gone; what other modules
+// MergeEvent is the data of inventory.asset.merged: device From was the same device as Into and is gone; what other modules
 // keep about From belongs to Into now. It goes out before the inventory.asset.deleted of From.
 type MergeEvent struct {
 	From  string `json:"from"`
@@ -103,7 +103,7 @@ type SettingsEvent struct {
 	Scope string `json:"scope"` // "scan" or "notify_new"
 }
 
-// KEVProduct is one vendor/product pair of CISA KEV with the number of exploited CVEs (D-30).
+// KEVProduct is one vendor/product pair of CISA KEV with the number of exploited CVEs.
 type KEVProduct struct {
 	Vendor  string `json:"vendor"`
 	Product string `json:"product"`
@@ -120,7 +120,7 @@ type KEV interface {
 	CVEs(ctx context.Context, keys []string) ([]string, error)
 }
 
-// BoxPackages lists the packages installed on the box itself (dpkg, confidence 1.0; D-53, D-470). cmd/vedette implements it
+// BoxPackages lists the packages installed on the box itself (dpkg, confidence 1.0). cmd/vedette implements it
 // with vedette-host's GET /v1/state/packages on an appliance; a container-only install has none. A nil list means "no list
 // from this host" (kept as is), never "no packages".
 type BoxPackages interface {
@@ -133,7 +133,7 @@ type FindingCounter interface {
 	CountByAsset(ctx context.Context) (map[string]int, error)
 }
 
-// RiskCounts is what findings says about one device (G4), read from what its "To fix" shows (findings DeviceUpdates, one rule):
+// RiskCounts is what findings says about one device, read from what its "To fix" shows (findings DeviceUpdates, one rule):
 // Exploited = its open exploited findings To fix lists (an update is named for them, or the box proved them); Updates = its
 // Recommended updates (findings INV-20) that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity.
 type RiskCounts struct{ Exploited, Updates int }
@@ -144,7 +144,7 @@ type RiskSource interface {
 	RiskByAsset(ctx context.Context) (map[string]RiskCounts, error)
 }
 
-// Risk levels of a device (G4), worst first: the words of DeviceRisk.level and of the Devices search's risk filter ("none" = clean).
+// Risk levels of a device, worst first: the words of DeviceRisk.level and of the Devices search's risk filter ("none" = clean).
 const (
 	RiskExploited = "exploited" // open exploited findings
 	RiskUpdate    = "update"    // none of those, but a Recommended update for a likely-exploited or High+ CVE
@@ -154,7 +154,7 @@ const (
 // RiskLevels are the words of the risk filter, worst first.
 var RiskLevels = []string{RiskExploited, RiskUpdate, RiskNone}
 
-// Risk is the marker of a device in every list (G4, contract.ts DeviceRisk): nil when the device is clean.
+// Risk is the marker of a device in every list (contract.ts DeviceRisk): nil when the device is clean.
 type Risk struct {
 	Level     string `json:"level"`     // RiskExploited or RiskUpdate
 	Exploited int    `json:"exploited"` // open exploited findings
@@ -172,7 +172,7 @@ func riskOf(c RiskCounts) *Risk {
 	return nil
 }
 
-// riskWords is the marker's text, as the pages show it (G4: the CSV's risk column): "2 exploited", "Update recommended", "" when clean.
+// riskWords is the marker's text, as the pages show it (also the CSV's risk column): "2 exploited", "Update recommended", "" when clean.
 func riskWords(r *Risk) string {
 	switch {
 	case r == nil:
@@ -199,12 +199,12 @@ type SoftwareItem struct {
 	Display, Vendor, Product, Version, CPE string
 	KevKeys                                []string
 	Confidence                             float64
-	// Guess is a sensor's guess (observe.Software.Guess, D-501): stored without match keys, so it raises no finding.
+	// Guess is a sensor's guess (observe.Software.Guess): stored without match keys, so it raises no finding.
 	Guess bool
-	// Packaged: an agent read it from the operating system's package database (observe.Software.Packaged, D-474). Stored only for
+	// Packaged: an agent read it from the operating system's package database (observe.Software.Packaged). Stored only for
 	// source agent.
 	Packaged bool
-	// PkgVersion and PkgSource: a deb row's full Debian version and source package (D-516). Stored only with Packaged; a value
+	// PkgVersion and PkgSource: a deb row's full Debian version and source package. Stored only with Packaged; a value
 	// that is not a Debian version or package name is dropped (the row stays, without a distribution decision).
 	PkgVersion, PkgSource string
 }
@@ -242,7 +242,7 @@ type SoftwareView struct {
 	KevCVEs    []string `json:"kev_cves"`
 	Source     string   `json:"source"`
 	Confidence float64  `json:"confidence"`
-	// PkgVersion is the full package release (an agent's packaged row, D-516, or a person's correction, INV-41); absent when none.
+	// PkgVersion is the full package release (an agent's packaged row, or a person's correction, INV-41); absent when none.
 	PkgVersion *string `json:"pkg_version,omitempty"`
 	// CorrectedBy, on a row a sensor or agent reported, is the id of the person's correction that replaces it for matching (INV-41).
 	CorrectedBy *string `json:"corrected_by,omitempty"`
@@ -257,7 +257,7 @@ type ServiceRow struct {
 	Name       string  `json:"name"`
 	Product    *string `json:"product,omitempty"`
 	Version    *string `json:"version,omitempty"`
-	Detail     *string `json:"detail,omitempty"` // what the service said about the device besides product and version (D-511)
+	Detail     *string `json:"detail,omitempty"` // what the service said about the device besides product and version
 	Source     string  `json:"source"`
 	Confidence float64 `json:"confidence"`
 }
@@ -269,11 +269,11 @@ type AssetCore struct {
 	IP       string  `json:"ip"` // "—" when unknown
 	MAC      *string `json:"mac"`
 	Hostname *string `json:"hostname"` // the host name the network reports (observations), never a person's name for the device
-	// UserName is the name a person gave the device in Vedette (G2); nil = none, the naming rule names it (DisplayName, D-471).
+	// UserName is the name a person gave the device in Vedette; nil = none, the naming rule names it (DisplayName).
 	UserName   *string `json:"name"`
 	Kind       string  `json:"kind"`
-	KindSource *string `json:"kind_source"` // the source of the kind's observation; nil for the default unknown (D-511)
-	// Guess is what the identification rules say the device most likely is, only while Kind is unknown (D-511). It is never the kind:
+	KindSource *string `json:"kind_source"` // the source of the kind's observation; nil for the default unknown
+	// Guess is what the identification rules say the device most likely is, only while Kind is unknown. It is never the kind:
 	// nothing behaves on it; a person confirms it by setting the kind.
 	Guess       *devicetypes.Guess `json:"guess"`
 	Vendor      *Observed          `json:"vendor"`
@@ -288,13 +288,13 @@ type AssetCore struct {
 	Notes       *string            `json:"notes,omitempty"`
 	IsBox       bool               `json:"is_box"`
 	FirstScanAt *string            `json:"first_scan_at"`
-	ApprovedAt  *string            `json:"approved_at"` // when a person (or osquery enrolment) approved it; nil when not approved, added by hand, or approved before D-471
+	ApprovedAt  *string            `json:"approved_at"` // when a person (or osquery enrolment) approved it; nil when not approved, added by hand, or approved before approval times were recorded
 	RegularScan string             `json:"regular_scan"`
 	// ScanSource and SNMPSource say whether the box's network scan and its SNMP reads are on for this device ("on" or "off", the
-	// default resolved: on for a device a sensor found, off for one added by hand; D-601).
+	// default resolved: on for a device a sensor found, off for one added by hand).
 	ScanSource string `json:"scan_source"`
 	SNMPSource string `json:"snmp_source"`
-	// IgnoredAt is when a person ignored the device (D-630): known, not watched. nil = watched.
+	// IgnoredAt is when a person ignored the device: known, not watched. nil = watched.
 	IgnoredAt *string `json:"ignored_at"`
 }
 
@@ -310,7 +310,7 @@ type Device struct {
 	Software      []Software  `json:"software"`
 	Suspicious    bool        `json:"suspicious"`
 	FindingsCount int         `json:"findings_count"`
-	Risk          *Risk       `json:"risk"` // G4: the device's risk marker, nil when clean
+	Risk          *Risk       `json:"risk"` // the device's risk marker, nil when clean
 	Summary       *Summary    `json:"summary"`
 	Sources       []string    `json:"sources"` // what feeds the device, in the words of the Devices search (#849, DeviceSources); set by DevicesPage only
 	ident         []*Observed // current hostname and MAC observations: the summary of a device with no vendor, model or OS
@@ -342,16 +342,16 @@ type Detail struct {
 	Asset         DetailAsset `json:"asset"`
 	Suspicious    bool        `json:"suspicious"`
 	FindingsCount int         `json:"findings_count"`
-	Risk          *Risk       `json:"risk"` // G4: the device's risk marker, nil when clean, for the box, or when not read
-	// RiskUnavailable: the marker could not be read (findings failed, G4).
+	Risk          *Risk       `json:"risk"` // the device's risk marker, nil when clean, for the box, or when not read
+	// RiskUnavailable: the marker could not be read (findings failed).
 	RiskUnavailable bool             `json:"risk_unavailable"`
 	Observations    []ObservationRow `json:"observations"`
 	Kinds           []string         `json:"kinds"`
-	PossibleSame    []PossibleSame   `json:"possible_same"` // devices that may be the same machine (D-599)
+	PossibleSame    []PossibleSame   `json:"possible_same"` // devices that may be the same machine
 }
 
 // Counts are the numbers behind the filter chips of the device list.
-// Every count but Ignored leaves the ignored devices out (D-630).
+// Every count but Ignored leaves the ignored devices out.
 type Counts struct {
 	All     int `json:"all"`
 	Pending int `json:"pending"`
@@ -366,6 +366,6 @@ type DeviceList struct {
 	Counts          Counts   `json:"counts"`
 	NotifyNew       bool     `json:"notify_new"`
 	NotifyAvailable bool     `json:"notify_available"`
-	// RiskUnavailable: the risk markers could not be read (findings failed, G4): no row has one and a risk filter was not applied.
+	// RiskUnavailable: the risk markers could not be read (findings failed): no row has one and a risk filter was not applied.
 	RiskUnavailable bool `json:"risk_unavailable"`
 }

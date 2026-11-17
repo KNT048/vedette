@@ -112,7 +112,7 @@ func TestSessionLifetimes(t *testing.T) {
 		t.Fatal("alive past the absolute timeout")
 	}
 	if auth.IdleTimeout != 4*time.Hour || auth.AbsoluteTimeout != 7*24*time.Hour {
-		t.Fatal("lifetimes changed: D-71 and API_CONVENTIONS must change with them")
+		t.Fatal("lifetimes changed: the spec and API_CONVENTIONS must change with them")
 	}
 }
 

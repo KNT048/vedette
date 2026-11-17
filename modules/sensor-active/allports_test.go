@@ -65,7 +65,7 @@ func (e *env) webPorts() []int {
 	return out
 }
 
-// D-592 (review r1 H2): inside the window, a device that is not fragile gets one port discovery over every port a week (no -sV, no
+// Inside the window, a device that is not fragile gets one port discovery over every port a week (no -sV, no
 // script, no -O, at most AllPortsMaxRate packets/s), then one -sV run on just the open ports the normal scan does not cover; both
 // in the probe log. A fragile device never; a second tick of the same week sends nothing; a week later it runs again.
 func TestAllPortsOncePerWeekAndNeverForAFragileDevice(t *testing.T) {
@@ -104,7 +104,7 @@ func TestAllPortsOncePerWeekAndNeverForAFragileDevice(t *testing.T) {
 	}
 }
 
-// D-592: a weekly scan needs a whole run's room in the window (AllPortsHostTimeout) and a rate of at least AllPortsMinRate;
+// A weekly scan needs a whole run's room in the window (AllPortsHostTimeout) and a rate of at least AllPortsMinRate;
 // otherwise nothing is sent and Health says why for the rate. Unknown kind, never, first gentle, the box (by policy and by its
 // addresses, review r1 L1), declared by hand and out of scope get none either.
 func TestAllPortsNeedsRoomRateAndAKnownSafeDevice(t *testing.T) {
@@ -156,7 +156,7 @@ func TestAllPortsNeedsRoomRateAndAKnownSafeDevice(t *testing.T) {
 	}
 }
 
-// D-592 (review r1 M3, M4): the weekly run only adds ports (the device's nmap software, its OS guess among them, is untouched);
+// The weekly run only adds ports (the device's nmap software, its OS guess among them, is untouched);
 // a normal scan afterwards keeps the ports the weekly run found outside its own lists; the next done weekly run that no longer sees
 // a port drops it from that carry.
 func TestAllPortsAddsPortsKeepsSoftwareAndTheNextWeekReplacesTheCarry(t *testing.T) {
@@ -259,7 +259,7 @@ func TestAllPortsVersionChangeReachesSoftwareAndServices(t *testing.T) {
 	}
 }
 
-// D-592 (review r1 M4): with no later weekly run, a port the weekly run found is carried by the normal scans for 14 days after that
+// With no later weekly run, a port the weekly run found is carried by the normal scans for 14 days after that
 // run, not for ever.
 func TestAllPortsCarryEndsAfter14Days(t *testing.T) {
 	t.Parallel()

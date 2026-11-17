@@ -395,7 +395,7 @@ const (
 	id2 = "00000000000000000000000000000002"
 )
 
-// A job runs with the argv the worker built, and its result carries the XML and the exit code (D-113 (3), (5)).
+// A job runs with the argv the worker built, and its result carries the XML and the exit code ((5)).
 func TestRunsAJobWithTheFixedGrammar(t *testing.T) {
 	t.Parallel()
 	nm := writeNmap(t, printXML)
@@ -412,7 +412,7 @@ func TestRunsAJobWithTheFixedGrammar(t *testing.T) {
 	waitFor(t, "running to clear", func() bool { return r.core.runningNow() == "" })
 }
 
-// The worker holds no scope, but it refuses what the grammar forbids, and nmap never starts (D-113 (3)).
+// The worker holds no scope, but it refuses what the grammar forbids, and nmap never starts.
 func TestRefusesWhatTheGrammarForbids(t *testing.T) {
 	t.Parallel()
 	many := make([]string, 65)
@@ -436,7 +436,7 @@ func TestRefusesWhatTheGrammarForbids(t *testing.T) {
 		"not canonical":    job(id1, "010.0.0.1"),
 		"ipv6":             job(id1, "fd00::1"),
 		"a flag":           job(id1, "-sC"),
-		// D-592: only a port_versions job carries ports, 1..20 ascending, one target
+		// Only a port_versions job carries ports, 1..20 ascending, one target
 		"ports on a normal job":      {ID: id1, Shape: "normal", Rate: 10, Targets: []string{"10.0.0.1"}, TimeoutS: 60, Ports: []int{22}},
 		"port_versions no ports":     {ID: id1, Shape: "port_versions", Rate: 10, Targets: []string{"10.0.0.1"}, TimeoutS: 60},
 		"port_versions unsorted":     {ID: id1, Shape: "port_versions", Rate: 10, Targets: []string{"10.0.0.1"}, TimeoutS: 60, Ports: []int{80, 22}},
@@ -460,7 +460,7 @@ func TestRefusesWhatTheGrammarForbids(t *testing.T) {
 	}
 }
 
-// D-592: a port_versions job runs -sV and the four scripts on just its ports.
+// A port_versions job runs -sV and the four scripts on just its ports.
 func TestRunsAPortVersionsJob(t *testing.T) {
 	t.Parallel()
 	nm := writeNmap(t, printXML)
@@ -498,7 +498,7 @@ func TestBusyRefusesTheSecondJob(t *testing.T) {
 	}
 }
 
-// D-113 (4): a cancel in the poll reply kills the whole process group, the SIGTERM-ignoring script and its child, and the
+// A cancel in the poll reply kills the whole process group, the SIGTERM-ignoring script and its child, and the
 // result is stopped/cancelled.
 func TestCancelKillsTheProcessGroup(t *testing.T) {
 	t.Parallel()
@@ -531,7 +531,7 @@ func TestCancelRacingStart(t *testing.T) {
 	}
 }
 
-// D-113 (4): no successful poll for the lease kills nmap and drops the result; nothing is posted.
+// No successful poll for the lease kills nmap and drops the result; nothing is posted.
 func TestLeaseLossKillsNmap(t *testing.T) {
 	t.Parallel()
 	nm := writeNmap(t, sleeper)
@@ -549,7 +549,7 @@ func TestLeaseLossKillsNmap(t *testing.T) {
 	r.core.noResult(t, 300*time.Millisecond)
 }
 
-// D-113 (4): a new instance nonce of core (it restarted) kills nmap and drops the result, in a poll reply and in a heartbeat.
+// A new instance nonce of core (it restarted) kills nmap and drops the result, in a poll reply and in a heartbeat.
 func TestInstanceChangeKillsNmap(t *testing.T) {
 	t.Parallel()
 	nm := writeNmap(t, sleeper)

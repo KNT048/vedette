@@ -1,5 +1,5 @@
 // Package cliban is the list of command lines that a step which must only read may not hold, and that no template may hold at all
-// (D-58, D-95: the list is data, cli-ban.json, never Go literals). It has one copy, here; modules/response reads it when a template is saved
+// (the list is data, cli-ban.json, never Go literals). It has one copy, here; modules/response reads it when a template is saved
 // and when a read step is about to go out, and core/conn/write reads it as the last gate before a read step is typed into a device. The GUI
 // mock carries a copy that a test keeps equal.
 package cliban

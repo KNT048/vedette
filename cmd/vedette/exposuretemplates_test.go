@@ -22,10 +22,10 @@ import (
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// The template scanner of exposure (INV-23, D-561, D-520) over fakes of the gate, the probe log and the Dispatcher: no process runs
+// The template scanner of exposure (INV-23) over fakes of the gate, the probe log and the Dispatcher: no process runs
 // and no packet leaves. The pack is the committed index core plans with: CVE-2018-13379 and CVE-2019-19781 are read-only GETs it marks
 // own_ip; CVE-2001-0537 (Cisco IOS exec/show/config through the URL) and CVE-2010-0738 (a HEAD with an action parameter) are in it
-// but not marked (D-520).
+// but not marked.
 
 type templatesFake struct {
 	events  []string // in order: gate, log <ids>, run <ids>, done <id=result...>
@@ -132,7 +132,7 @@ func TestExposureTemplatesLogBeforeSendingAndMapResults(t *testing.T) {
 	}
 }
 
-// N44-4, review r1 M1: with -ms nuclei prints a line for every template it runs, so a template a finished run printed nothing for was
+// With -ms nuclei prints a line for every template it runs, so a template a finished run printed nothing for was
 // not run: its probe row says "Not run" (and is not "No match reported") and a "Not checked" line counts it. A
 // template that failed because the address stopped answering is an error, not "not run".
 func TestExposureTemplatesSilentTemplateIsNotRun(t *testing.T) {
@@ -202,7 +202,7 @@ func TestExposureTemplatesUnavailableReasons(t *testing.T) {
 	}
 }
 
-// N45-1, review r1 M7/L7: a run whose output had lines that cannot be a result of the job is kept; a template whose only lines were
+// A run whose output had lines that cannot be a result of the job is kept; a template whose only lines were
 // skipped ran (no match reported, never "not run"), and its probe row says why after its request text.
 func TestExposureTemplatesSkippedLinesAreNoted(t *testing.T) {
 	t.Parallel()
@@ -238,7 +238,7 @@ func TestExposureTemplatesOutcomes(t *testing.T) {
 	}
 }
 
-// D-520 end to end through the production builder (exposureTemplatesFor: the module switch, the pack index, the Dispatcher, the scan
+// End to end through the production builder (exposureTemplatesFor: the module switch, the pack index, the Dispatcher, the scan
 // module's probe log) with a fake worker that says own_ip over the real mutual-TLS link: the job is scope own_ip on the one address
 // and port, the probe log holds a row per template id with its outcome, and CVE-2018-13379 comes back matched.
 func TestExposureTemplatesEndToEndWithAFakeWorker(t *testing.T) {

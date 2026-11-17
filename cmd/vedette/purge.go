@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// What the factory reset (POST /core/data/purge, D-154) needs from the rest of the binary.
+// What the factory reset (POST /core/data/purge) needs from the rest of the binary.
 
 // purgeHost is vedette-host for the purge: nil on a box without a helper (no -host-socket), which skips the backups and says so.
 func purgeHost(d *deps) core.PurgeHost {
@@ -22,7 +22,7 @@ func purgeHost(d *deps) core.PurgeHost {
 	return hostPurger{hostclient.New(d.HostSocket)}
 }
 
-// hostPurger is the host client as core.PurgeHost: ListRuns comes from the client, BackupPurge (host command backup.purge, D-156) is
+// hostPurger is the host client as core.PurgeHost: ListRuns comes from the client, BackupPurge (host command backup.purge) is
 // the client's own, minus the run id. The client reports a run that failed as a plain error that names the code; the two codes the
 // purge treats specially (transition_pending, busy) are turned back into a *client.Error so core maps them (412, 409) like a refusal
 // at the door. core makes a fresh request id for every purge.

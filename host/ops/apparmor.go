@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// The AppArmor profile of the containers at host start (D-458). Every unit selects the profile vedette-container
+// The AppArmor profile of the containers at host start. Every unit selects the profile vedette-container
 // (AppArmorConfModule), and Podman refuses to start a container whose named profile is not loaded ("AppArmor profile
 // vedette-container specified but not loaded"), core's included. apparmor.service loads it at boot from /etc/apparmor.d and the
 // package's postinst at install; this is the repair when neither did (the service failed, the file came back after a boot, an
@@ -31,7 +31,7 @@ const (
 	appArmorFSRel       = "sys/kernel/security/apparmor"
 	appArmorProfilesRel = appArmorFSRel + "/profiles"
 	// appArmorLoadLimit bounds one compile and load (a second or two on the target machines). The step runs beside startHP and is
-	// joined before READY, so it adds nothing to the start budget of vedette-host.service (D-121) while it stays under startHP's 120 s.
+	// joined before READY, so it adds nothing to the start budget of vedette-host.service while it stays under startHP's 120 s.
 	appArmorLoadLimit = 20 * time.Second
 	// maxProfilesList bounds the read of the kernel's list (a few hundred profiles on a desktop, a few dozen on a server).
 	maxProfilesList = 4 << 20

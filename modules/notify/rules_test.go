@@ -78,7 +78,7 @@ func TestContract_INV5_QuietHours(t *testing.T) {
 		t.Error("EndsAt outside the window must be zero")
 	}
 
-	// D-57(8): held, except critical when allow_critical.
+	// held, except critical when allow_critical.
 	v, until := Decide(at(23, 0), Low, night, High)
 	if v != Hold || !until.Equal(time.Date(2026, 11, 10, 6, 30, 0, 0, zone)) {
 		t.Errorf("high at night = %v until %v", v, until)

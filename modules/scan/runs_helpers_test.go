@@ -33,8 +33,8 @@ func sampleDevices() []Device {
 	}
 }
 
-// fakePolicy answers VulnScanPolicy like inventory does for the sample (D-126): "never" always refused, a fragile device
-// and the box (D-470) only when explicit.
+// fakePolicy answers VulnScanPolicy like inventory does for the sample: "never" always refused, a fragile device
+// and the box only when explicit.
 func samplePolicy(id string, explicit bool) Decision {
 	switch id {
 	case "a-box":
@@ -68,7 +68,7 @@ type runInventory struct {
 	policy  func(id string, explicit bool) Decision
 	calls   []policyCall
 	single  int // VulnScanPolicy calls: the per-device re-check right before a job (INV-1)
-	batches int // VulnScanPolicies calls (D-472)
+	batches int // VulnScanPolicies calls
 }
 
 func (f *runInventory) Devices(context.Context) ([]Device, error) {
@@ -193,7 +193,7 @@ type runEngine struct {
 type Output struct {
 	JSONL      []byte
 	Truncated  bool
-	HostErrors []nucleiout.HostError // what the worker counted from nuclei's error log (D-165)
+	HostErrors []nucleiout.HostError // what the worker counted from nuclei's error log
 }
 
 // Run answers with what reply prints and parses it the way the real engine does (nucleiout.Read against the job's

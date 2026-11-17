@@ -147,11 +147,11 @@ func publishable(a netip.Addr) bool {
 	return !slices.ContainsFunc(notPublishable, func(p netip.Prefix) bool { return p.Contains(a) })
 }
 
-// codeNotPublishable is the refusal of a block the list could never publish (D-469). Not not_public: exposure uses that for the box's own
+// codeNotPublishable is the refusal of a block the list could never publish. Not not_public: exposure uses that for the box's own
 // address, with another meaning.
 const codeNotPublishable = "not_publishable"
 
-// notPublicMsg is the reason a block on ip is refused with not_publishable (D-469), "" when ip is publishable. The list is pulled by
+// notPublicMsg is the reason a block on ip is refused with not_publishable, "" when ip is publishable. The list is pulled by
 // the customer's firewall and blocks traffic to what it holds: a private or reserved address would never be published, and a
 // device inside the LAN is isolated with a device action, not through this list (blocklist-format section 1).
 func notPublicMsg(ip string) string {
@@ -162,7 +162,7 @@ func notPublicMsg(ip string) string {
 		"The block list only carries public addresses, so your firewall never blocks your own network. To stop a device on your LAN, use a device action (for example, shut its switch port). Nothing was changed."
 }
 
-// dropUnpublishable removes, once per start, the entries a block made before D-469 left on addresses the list never publishes (they
+// dropUnpublishable removes, once per start, the entries a block made by an older release left on addresses the list never publishes (they
 // were never served, the admin view never listed them), with one log and audit line giving the count. tx is a write transaction.
 func (s *Service) dropUnpublishable(ctx context.Context, tx *sql.Tx) error {
 	rows, err := tx.QueryContext(ctx, `SELECT value FROM resp_block_entries`)
@@ -196,7 +196,7 @@ func (s *Service) dropUnpublishable(ctx context.Context, tx *sql.Tx) error {
 		what = "1 block list entry"
 	}
 	return s.step(ctx, tx, "response.blocklist.cleanup", "response", LogRefused, codeNotPublishable+": removed "+what+
-		" on addresses the list never publishes (private or reserved; D-469). They were never served to the firewall.", "system")
+		" on addresses the list never publishes (private or reserved). They were never served to the firewall.", "system")
 }
 
 // blockListFull is true when value would be a new entry and the list already holds maxBlockEntries entries in force.

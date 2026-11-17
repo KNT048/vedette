@@ -1,4 +1,4 @@
-// Mock API: hệ điều hành của chính hộp (D-53, S-CORE-7). Bản thật chạy qua `vedette-host` (systemd, đặc quyền) với danh sách lệnh apt cố định;
+// Mock API: hệ điều hành của chính hộp (S-CORE-7). Bản thật chạy qua `vedette-host` (systemd, đặc quyền) với danh sách lệnh apt cố định;
 // web không bao giờ chạy shell. Tiến trình cài đặt mô phỏng theo đồng hồ: log hiện dần theo thời gian từ lúc bắt đầu, không cần timer phía máy chủ.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
@@ -131,7 +131,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
       audit('os.reboot_done', 'scheduled')
     }
     const { pending, reboot_required, reboot_reasons, reboot_scheduled_at, auto_security, window, ...info } = s // eslint-disable-line @typescript-eslint/no-unused-vars
-    // A box that has never run a check (D-407): no host part, only core's own settings, as the real box answers.
+    // A box that has never run a check: no host part, only core's own settings, as the real box answers.
     if (neverChecked.get().on) return { os: null, pending: [], reboot_required: false, reboot_reasons: [], reboot_scheduled_at: null, auto_security: false, window, release_upgrade: null, busy: false }
     return {
       os: { distro: info.distro, name: info.name, release: info.release, kernel: info.kernel, support_end: info.support_end, extended_end: info.extended_end, booted_at: info.booted_at, last_check: info.last_check, mirrors: MIRRORS[info.distro] },
@@ -164,7 +164,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
   return [
     http.get(`${API}/core/updates/os`, () => {
       const denied = guard('viewer'); if (denied) return denied
-      // A box that has never run a check answers 200 with os null (D-407; it was 409 no_check_yet, issue #231). Off by default; a test turns it on.
+      // A box that has never run a check answers 200 with os null (it was 409 no_check_yet, issue #231). Off by default; a test turns it on.
       return HttpResponse.json(state())
     }),
     http.get(`${API}/core/updates/os/run`, () => {

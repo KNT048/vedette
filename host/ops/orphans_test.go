@@ -17,7 +17,7 @@ import (
 	vexec "github.com/knt048/vedette/core/exec"
 )
 
-// D-600: the host stops, at its start, the containers that run while the rootful podman no longer knows them, when their name is
+// The host stops, at its start, the containers that run while the rootful podman no longer knows them, when their name is
 // Vedette's or Greenbone's project's; a fake /proc and fake podman and systemctl answers, nothing runs.
 
 type orphanCtr struct {

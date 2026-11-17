@@ -1,5 +1,5 @@
 // Package chain implements the tamper-evident hash chains shared by core_audit,
-// ai_activity and resp_log. One formula (D-57 (14)):
+// ai_activity and resp_log. One formula:
 //
 //	hash = lowercase hex SHA-256( prev_hash + "\n" + canon(entry) )
 //

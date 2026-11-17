@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// manifestURL is where a release's manifest is published (D-150: GitHub Releases of the repository).
+// manifestURL is where a release's manifest is published (GitHub Releases of the repository).
 func manifestURL(version string) string {
 	return "https://github.com/knt048/vedette/releases/download/v" + version + "/release-manifest.json"
 }
@@ -20,7 +20,7 @@ func manifestURL(version string) string {
 // indexSchema is the schema of the index the builder writes; it is the schema internal/release verifies.
 var indexSchema = 1
 
-// legacyWriters turn the index being published into the document of an older schema (D-108: the previous schema's index keeps
+// legacyWriters turn the index being published into the document of an older schema (the previous schema's index keeps
 // being published beside the new one for at least 12 months, so boxes that cannot read the new schema still see revocations).
 // Schema 1 is the first schema, so there is nothing to write yet. When indexSchema becomes 2, add legacyWriters[1] here: until
 // then BuildIndex refuses to publish, instead of publishing an index no old box can read.
@@ -32,7 +32,7 @@ type IndexFile struct {
 	Data []byte
 }
 
-// IndexParams says what changes in the index. A zero Manifest only refreshes it (the weekly re-sign, D-150).
+// IndexParams says what changes in the index. A zero Manifest only refreshes it (the weekly re-sign).
 type IndexParams struct {
 	Now      time.Time
 	ValidFor time.Duration // expires_at = generated_at + ValidFor; 0 = 14 days, the maximum
@@ -47,7 +47,7 @@ type IndexParams struct {
 	ManifestRaw     []byte // the signed bytes of that manifest: the index carries their SHA-256
 
 	// RevokeKeys are key ids (minisign: 16 upper-case hex; cosign: CosignKeyID) to revoke, with RevokeReason. A key revocation
-	// counts only in an index the backup key signs (D-108 M1), and it is never dropped again; BackupKeyID can never be revoked.
+	// counts only in an index the backup key signs, and it is never dropped again; BackupKeyID can never be revoked.
 	RevokeKeys   []string
 	RevokeReason string
 	BackupKeyID  string
@@ -167,7 +167,7 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 	for s := 1; s < indexSchema; s++ {
 		w, ok := legacyWriters[s]
 		if !ok {
-			return nil, fmt.Errorf("no writer for the schema %d index: D-108 requires publishing it beside schema %d for at least 12 months", s, indexSchema)
+			return nil, fmt.Errorf("no writer for the schema %d index: it must be published beside schema %d for at least 12 months", s, indexSchema)
 		}
 		b, err := w(x)
 		if err != nil {
@@ -178,7 +178,7 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 	return files, nil
 }
 
-// addKeyRevocations appends the key revocations of p to x (D-259): the rescue index revokes the leaked active key.
+// addKeyRevocations appends the key revocations of p to x: the rescue index revokes the leaked active key.
 func addKeyRevocations(x *release.Index, p IndexParams) error {
 	if len(p.RevokeKeys) == 0 {
 		if p.RevokeReason != "" {
@@ -197,7 +197,7 @@ func addKeyRevocations(x *release.Index, p IndexParams) error {
 		case !keyIDRE.MatchString(id):
 			return fmt.Errorf("%q is not a key id (minisign: 16 upper-case hex; cosign: 64 lower-case hex)", id)
 		case id == p.BackupKeyID:
-			return fmt.Errorf("%s is the backup key: no index can revoke it (D-108)", id)
+			return fmt.Errorf("%s is the backup key: no index can revoke it", id)
 		case x.KeyRevoked(id):
 			return fmt.Errorf("key %s is already revoked", id)
 		}

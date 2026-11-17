@@ -224,7 +224,7 @@ func (r Revocation) validate() error {
 	return nil
 }
 
-// Expired reports whether the index is past expires_at at now. Expiry only warns (§4.1, D-104).
+// Expired reports whether the index is past expires_at at now. Expiry only warns.
 func (x *Index) Expired(now time.Time) bool { return now.After(x.ExpiresAt) }
 
 // revoked returns the blocking revocation of kind and id, if any.

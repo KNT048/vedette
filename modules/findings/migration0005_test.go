@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/modules/mitigation"
 )
 
-// Migration 0005 (D-498) rebuilds fnd_finding, the parent of the ON DELETE CASCADE keys of findings and mitigation: every
+// Migration 0005 rebuilds fnd_finding, the parent of the ON DELETE CASCADE keys of findings and mitigation: every
 // child row and every copied value survives it, the history stays append-only, and foreign keys are on again afterwards.
 func TestMigration0005_KeepsTheRowsThatHangOffAFinding(t *testing.T) {
 	t.Parallel()

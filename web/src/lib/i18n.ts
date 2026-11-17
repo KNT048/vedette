@@ -1,4 +1,4 @@
-// i18n: sản phẩm chỉ có tiếng Anh (D-28). Giữ i18next + t() để chuỗi tập trung ở src/locales/en/<ns>.json
+// i18n: sản phẩm chỉ có tiếng Anh. Giữ i18next + t() để chuỗi tập trung ở src/locales/en/<ns>.json
 // (mỗi module một namespace) và để thêm ngôn ngữ sau này mà không sửa component.
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'

@@ -23,10 +23,10 @@ export default function CvePage() {
   const { id: raw = '' } = useParams()
   const id = raw.trim().toUpperCase() // the API only knows CVE ids in capitals; the mock used to forgive a lower-case address
   const cve = useCve(id)
-  // D-613 (S-TIER-1): a CVE on no exploited list answers from the tier data instead of a dead end
+  // S-TIER-1: a CVE on no exploited list answers from the tier data instead of a dead end
   const notInKev = cve.error instanceof ApiError && cve.error.code === 'not_in_kev'
   const tier = useTierCve(id, notInKev)
-  // kien G5: "See findings" only when this CVE has open findings (a matched device may not be a finding: D-616, or all are closed)
+  // "See findings" only when this CVE has open findings (a matched device may not be a finding, or all are closed)
   const findingsOn = useModuleEnabled('findings') === true
   const openFindings = useFindings(undefined, findingsOn && CVE_ID.test(id)).data?.items.filter((f) => f.cve === id && isOpen(f.status)).length ?? 0
   // docs/UI.md §3: a CVE page's parent is Lookup (where any CVE is looked up), shown in every state of the page. Breadcrumbs show where

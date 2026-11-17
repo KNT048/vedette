@@ -6,11 +6,11 @@ import (
 	"time"
 )
 
-// G9 (J4, kien: "an osquery device needs confirming too? I want which apps to update"): many exploited CVEs of one product on a device
+// Many exploited CVEs of one product on a device
 // whose agent reports the version are ONE action ("Upgrade Photo Station from 6.1.1 to 6.3.0 or later", 4 CVEs, worst critical), all
 // detected, none "suspected"; a banner-read version on another device is suspected; the plan's items of the device come in the same
 // answer with their software row.
-func TestDeviceUpdates_G9_OneActionPerUpdateAgentIsDetected(t *testing.T) {
+func TestDeviceUpdates_OneActionPerUpdateAgentIsDetected(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ranged := func(cve, end string, ransom bool) Vuln {
@@ -81,7 +81,7 @@ func TestDeviceUpdates_G9_OneActionPerUpdateAgentIsDetected(t *testing.T) {
 
 // A product-only finding names no update: it is listed apart, by its software row; on an agent's row it is "reported" (the agent gave
 // the version, Vedette could not compare it: review r1 M1 of #935), never suspected nor "inside the range".
-func TestDeviceUpdates_G9_ProductOnlyIsNoNamedUpdate(t *testing.T) {
+func TestDeviceUpdates_ProductOnlyIsNoNamedUpdate(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t) // qnapVuln has no ranges: a product match on Photo Station
 	pc := nas("6.1.1")
@@ -102,11 +102,11 @@ func TestDeviceUpdates_G9_ProductOnlyIsNoNamedUpdate(t *testing.T) {
 
 // Review r1 L2, L5 of #935: a version a person typed is one the plan trusts (tierSource): detected; a finding whose CVE left the
 // exploited list has no row and no update: it is listed under no named update with an empty software row, and the counts still sum.
-func TestDeviceUpdates_G9_ManualRowIsDetectedAndALeftCVEStays(t *testing.T) {
+func TestDeviceUpdates_ManualRowIsDetectedAndALeftCVEStays(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	v := Vuln{CVE: "CVE-2099-0001", Vendor: "QNAP", Product: "Photo Station", Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "6.2.0"}}}}
-	e.feeds.vulns = []Vuln{v, qnapScanned()} // the scannable one stays a product finding (D-602)
+	e.feeds.vulns = []Vuln{v, qnapScanned()} // the scannable one stays a product finding
 	typed := nas("6.1.1")
 	typed.Software[0].Source = "manual"
 	e.inv.mu.Lock()
@@ -127,9 +127,9 @@ func TestDeviceUpdates_G9_ManualRowIsDetectedAndALeftCVEStays(t *testing.T) {
 
 // Review r2 L1, L2 of #935. The status is read from the row the finding matched on, never from the fix group's row when they differ
 // (a banner-matched CVE grouped under a person's row of the same product stays suspected), and an agent's row is "detected" only
-// when the matcher set evidence.agent (D-548: unset while the range has no end or a platform condition is open, so the person still
+// when the matcher set evidence.agent (unset while the range has no end or a platform condition is open, so the person still
 // checks it): otherwise "reported".
-func TestDeviceUpdates_G9_ProofReadsTheMatchedRowAndD548(t *testing.T) {
+func TestDeviceUpdates_ProofReadsTheMatchedRowAndTheAgentFlag(t *testing.T) {
 	t.Parallel()
 	banner := Software{ID: "s-nmap", Display: "Photo Station", Version: "6.1.1", Source: "nmap"}
 	typed := Software{ID: "s-man", Display: "Photo Station", Version: "6.0.0", Source: "manual"}

@@ -48,7 +48,7 @@ function SnmpMethod() {
   return <p className="text-meta text-muted">{t('addDialog.snmp.perDevice')}</p>
 }
 
-/** osquery (S-INV-4): a token, then the one-line install for Linux or Windows servers. macOS has no installer (D-33). */
+/** osquery (S-INV-4): a token, then the one-line install for Linux or Windows servers. macOS has no installer. */
 function OsqueryMethod({ onCreated }: { onCreated: (on: boolean) => void }) {
   const { t } = useTranslation('inventory')
   const q = useAgents(true)

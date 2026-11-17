@@ -193,7 +193,7 @@ func TestEnableRefusals(t *testing.T) {
 
 func errOf(_ modreg.Change, err error) error { return err }
 
-// D-381: on a container-only install a needs_host module is listed as not available and cannot be turned on; the appliance runs it.
+// On a container-only install a needs_host module is listed as not available and cannot be turned on; the appliance runs it.
 func TestNeedsHostOnContainerOnly(t *testing.T) {
 	t.Parallel()
 	fx := map[string]string{"core": coreYAML, "hp": "id: hp\ntier: optional\ndefault: off\nneeds_host: true\ndepends: [core]\n",
@@ -466,7 +466,7 @@ func TestNewRejectsBadConfig(t *testing.T) {
 	}
 }
 
-// Reset (the factory reset, D-154) puts every module at its manifest default inside the caller's transaction, whether the table was
+// Reset (the factory reset) puts every module at its manifest default inside the caller's transaction, whether the table was
 // emptied first or still holds the admin's choices; the cache and the subscribers follow only after Publish, and a rolled-back reset
 // changes neither the database nor the cache.
 func TestResetBringsBackTheDefaults(t *testing.T) {

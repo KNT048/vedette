@@ -18,7 +18,7 @@ import type { ActivityEntry, ActivityResult } from './types'
 const RESULTS: ActivityResult[] = ['ok', 'blocked_by_hook', 'fallback_used', 'error']
 const TONE: Record<ActivityResult, Tone> = { ok: 'ok', blocked_by_hook: 'warn', fallback_used: 'accent', error: 'danger' }
 const JOBS = ['ask-my-data', 'explain-finding', 'cve-news', 'log-digest', 'log-investigate', 'mitigation-config', 'weekly-report', 'pdpl-assessment', 'translate-advisory', 'response-plan', 'connection-test']
-// a proposal and a request are both in the inbox (D-513), named so the link does not depend on which tab opens first
+// a proposal and a request are both in the inbox, named so the link does not depend on which tab opens first
 const LINK_TO: Record<string, string> = { proposal: '/response?tab=requests', action: '/response?tab=requests' }
 
 /** Assistant, Activity (S-AI-8): everything the AI did, newest first. Read only; the chain check shows whether anything was changed. */
@@ -75,7 +75,7 @@ export default function ActivityPanel() {
 
 function Detail({ e, job }: { e: ActivityEntry; job: string }) {
   const { t } = useTranslation('ai')
-  const respond = useScope('response') !== 'hidden' // D-624 (#819): no link into a module this build does not offer
+  const respond = useScope('response') !== 'hidden' // No link into a module this build does not offer
   const admin = useCan('admin') // Settings, Data (the log download) is the administrator's
   const row = (k: string, v: React.ReactNode) => <div className="grid gap-0.5 sm:grid-cols-[9rem_minmax(0,1fr)]"><dt className="text-muted">{k}</dt><dd className="min-w-0 break-words">{v}</dd></div>
   const mono = (s: string) => <code className="break-all font-mono text-caption">{s}</code>

@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// N100: the one-shot commands keep their log lines (JSON, as the daemon writes them) for the journal, at the record's priority, and
+// The one-shot commands keep their log lines (JSON, as the daemon writes them) for the journal, at the record's priority, and
 // put only errors, readable and without the time, on the terminal.
 func TestOneShotLogSendsJSONToTheJournalAndOnlyErrorsToTheTerminal(t *testing.T) {
 	t.Parallel()

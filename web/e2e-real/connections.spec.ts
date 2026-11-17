@@ -1,4 +1,4 @@
-// Settings -> Connections on the real backend (D-93, D-94, D-127, S-AI-7). The devices are the loopback fakes of the box process
+// Settings -> Connections on the real backend (S-AI-7). The devices are the loopback fakes of the box process
 // (cmd/vedette/e2edevices_test.go): an HTTPS, an SSH and an MCP server reachable under their own names. The form matrix is that of
 // e2e/qa/wp06-connections.spec.ts; what only a real box shows is new: Test reaches the fake and the fake saw the credential, the first test pins
 // the certificate or host key, a changed key is refused before anything is sent, "Forget pinned key" lets the next test pin again, the real

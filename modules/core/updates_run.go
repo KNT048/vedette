@@ -21,9 +21,9 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The run side of the software update (S-CORE-2, D-340, D-342; update-manifest.md §7 and §10; host-api 6.7, 6.8,
+// The run side of the software update (S-CORE-2; update-manifest.md §7 and §10; host-api 6.7, 6.8,
 // 6.10). Apply and Rollback are one run over every service. Apply switches Vedette itself (core) FIRST and the other
-// services after it; Rollback takes the others back first and core last (D-459: a sensor or scan worker is never newer
+// services after it; Rollback takes the others back first and core last (a sensor or scan worker is never newer
 // than core, which takes their protocol and the one before it, like Kubernetes' control plane before the kubelets).
 // The whole plan, with one idempotency key per host call, is stored in core_setting core_update_run BEFORE the first
 // host call, and every step is written down as it goes: core's own switch restarts this process, and the next one
@@ -109,7 +109,7 @@ type updateRunRec struct {
 	Calls      []updateCall `json:"calls"`
 	Snapshot   string       `json:"snapshot,omitempty"` // backs core's container.start; removed when the run ends
 	Release    *runRelease  `json:"release,omitempty"`  // update only, until the run ends
-	Host       *runHost     `json:"host,omitempty"`     // update only, when the release brings a newer system helper (D-316)
+	Host       *runHost     `json:"host,omitempty"`     // update only, when the release brings a newer system helper
 	// Progress is when the run last moved (a step began, the host took a call or a call ended); a resend or a wait
 	// does not count, so a host that refuses for ever still meets the 6-hour rule. The rule counts from it (or from
 	// this process's start).
@@ -120,7 +120,7 @@ type updateRunRec struct {
 	// Outcome and Why are the end decided by a failure while the undo calls still run.
 	Outcome string `json:"outcome,omitempty"`
 	Why     string `json:"why,omitempty"`
-	// Moved: an update that failed after core's switch succeeded (D-459): core stays on To, so the end writes a history
+	// Moved: an update that failed after core's switch succeeded: core stays on To, so the end writes a history
 	// entry although the run is not done.
 	Moved bool `json:"moved,omitempty"`
 }
@@ -202,7 +202,7 @@ func errUpdateBusy() *apierr.Error {
 
 // CorePostCoreUpdatesApply implements POST /core/updates/apply (admin): the software only (the other components
 // have no update of their own yet: 404 no_update). It stores the run and answers at once with the run going; a
-// follower does the host calls (pull every installed service, switch core, then start the others: D-459).
+// follower does the host calls (pull every installed service, switch core, then start the others).
 func (h *OSHandlers) CorePostCoreUpdatesApply(ctx context.Context, req *oas.CorePostCoreUpdatesApplyReq) (*oas.CorePostCoreUpdatesApplyOK, error) {
 	c, err := callerOf(ctx, h.auth)
 	if err != nil {
@@ -244,7 +244,7 @@ func errNoUpdateAPI() *apierr.Error {
 // CorePostCoreUpdatesRollback implements POST /core/updates/rollback (admin): every service that moved with core
 // goes back to its previous version, core last. 409 confirm_required when the running release says the database
 // must be put back too and the caller did not confirm the loss. The mode becomes manual in the same transaction
-// as the stored run (D-340 (4)).
+// as the stored run.
 func (h *OSHandlers) CorePostCoreUpdatesRollback(ctx context.Context, req *oas.CorePostCoreUpdatesRollbackReq) (*oas.CorePostCoreUpdatesRollbackOK, error) {
 	c, err := callerOf(ctx, h.auth)
 	if err != nil {
@@ -363,13 +363,13 @@ func (r *updateRunRec) add(step, command, service string, undo bool) error {
 	return nil
 }
 
-// planApply: host = host.self_update when the release brings a newer system helper (planHost, D-316); download =
+// planApply: host = host.self_update when the release brings a newer system helper (planHost); download =
 // container.pull of every installed service the release has an image for (core included); restart = core's
 // container.start with a snapshot; start = container.start with the version for the other services that run
-// (enabled), AFTER core (D-459): the host judges a sensor or scan worker healthy only when core takes its heartbeat,
+// (enabled), AFTER core: the host judges a sensor or scan worker healthy only when core takes its heartbeat,
 // and an old core refuses a newer protocol, so a sensor switched before core never passes. A service that is
-// installed but off (its module is off, its unit has no [Install], D-260) is pulled but not started: a start would
-// turn it on (SYS-5) (D-342 (2)).
+// installed but off (its module is off, its unit has no [Install]) is pulled but not started: a start would
+// turn it on (SYS-5).
 func (h *OSHandlers) planApply(ctx context.Context, c caller, rel *verifiedRelease) (*updateRunRec, string, error) {
 	st, core, err := h.containers(ctx)
 	if err != nil {
@@ -386,7 +386,7 @@ func (h *OSHandlers) planApply(ctx context.Context, c caller, rel *verifiedRelea
 	rec.StartedAt, rec.Progress = h.now(), h.now()
 	rec.Release = &runRelease{Index: rel.Index, IndexSig: rel.IndexSig, Manifest: rel.Manifest, ManifestSig: rel.ManifestSig}
 	detail := fmt.Sprintf("%s to %s", orDash(core.Version), to)
-	hostDetail, err := h.planHost(ctx, rec, rel.M) // first: the new images may need the new helper (D-316 (8))
+	hostDetail, err := h.planHost(ctx, rec, rel.M) // first: the new images may need the new helper
 	if err != nil {
 		return nil, "", err
 	}
@@ -432,8 +432,8 @@ func (h *OSHandlers) planApply(ctx context.Context, c caller, rel *verifiedRelea
 
 // planRollback: start = container.rollback of every other service that runs and moved with core (the same
 // current and previous versions); restore (only shown) and restart = core's container.rollback, which puts the
-// database back in the same host run when the running release says rollback.safe=false. The reverse of Apply
-// (D-459): the others go back first, to a protocol the running core still takes, and core last, so no sensor or
+// database back in the same host run when the running release says rollback.safe=false. The reverse of Apply:
+// the others go back first, to a protocol the running core still takes, and core last, so no sensor or
 // scan worker is ever left newer than core.
 func (h *OSHandlers) planRollback(ctx context.Context, c caller, confirmed bool) (*updateRunRec, string, error) {
 	st, core, err := h.containers(ctx)
@@ -622,7 +622,7 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 	// back by a rollback holds an old run that must still be settled from the host's record).
 	if last := rec.Progress; h.now().Sub(later(last, f.started)) > updateRunMax {
 		why := "The update stopped because Vedette lost contact with its operating system helper for too long. Check the versions below and try again."
-		if rec.coreSwitched() { // core is on the new release: history, and say so (D-459)
+		if rec.coreSwitched() { // core is on the new release: history, and say so
 			rec.Moved = true
 			why += " Vedette itself runs " + rec.To + "; to put the whole box back on " + orDash(rec.From) + ", use Rollback."
 		}
@@ -641,7 +641,7 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 			continue
 		}
 		if !c.Undo && c.Service != api.ServiceCore && c.Command == api.CmdContainerStart && rec.coreSwitched() {
-			// Only up to the release core runs (D-459). It runs something else after its switch when a rollback that put
+			// Only up to the release core runs. It runs something else after its switch when a rollback that put
 			// the database back resumed this run from the copy made before the switch: nothing more goes up, and the end
 			// below rebuilds that rollback from the host's record. Not stored: a later try looks again.
 			v, err := f.coreVersion(ctx)
@@ -753,8 +753,8 @@ func (f *updFollower) call(ctx context.Context, rec *updateRunRec, i int) (api.R
 		}
 		if c.Service == api.ServiceCore && !c.Undo && !f.sent[c.RequestID] {
 			// core stopped before the host took its switch: a switch is never sent from a run that was cut, it
-			// could undo a rollback that came after it (D-342 (1)). Nothing changed on core, and no other service switched
-			// before it (D-459): the run just ends.
+			// could undo a rollback that came after it. Nothing changed on core, and no other service switched
+			// before it: the run just ends.
 			return api.Run{Status: api.StatusFailed, Error: &api.RunError{Code: codeInterrupted}}, nil
 		}
 	}
@@ -930,11 +930,11 @@ func (h *OSHandlers) findRun(ctx context.Context, command, requestID string) (ap
 }
 
 // failed decides the end of a run whose call i did not succeed: the calls after it are skipped. An update switches
-// core first (D-459): a failure up to core's switch has changed no service; one after it leaves core, and every
+// core first: a failure up to core's switch has changed no service; one after it leaves core, and every
 // service that already switched, on the new release (core takes the protocol of the services still on the old one,
 // like a Kubernetes control plane that stays upgraded when a node's upgrade fails), the run ends failed and says so.
 // Otherwise every other service the run switched (and that still runs the version it switched to) is put back by a
-// container.rollback of its own (D-342 (3)): after a rollback's failure at core, the others go forward again. The end
+// container.rollback of its own: after a rollback's failure at core, the others go forward again. The end
 // is reverted when the host put the failed service back by itself and the others went back too; failed otherwise. A
 // failing undo call only adds to the words.
 func (f *updFollower) failed(ctx context.Context, rec *updateRunRec, i int, run api.Run) error {
@@ -966,11 +966,11 @@ func (f *updFollower) failed(ctx context.Context, rec *updateRunRec, i int, run 
 	if run.Status == api.StatusReverted {
 		rec.Outcome = runReverted
 	}
-	// An update planned core first has switched nothing here (pulls and the helper do not count); a plan stored by a
-	// release before D-459 (core last) may have.
+	// An update planned core first has switched nothing here (pulls and the helper do not count); a plan stored by an
+	// older release (core last) may have.
 	switched := map[string]bool{}
 	for _, x := range rec.Calls[:i] {
-		// the system helper is never taken back (D-316 (f))
+		// the system helper is never taken back
 		if !x.Undo && x.Service != api.ServiceCore && x.Command != api.CmdContainerPull && x.Command != api.CmdHostSelfUpdate && x.Status == string(api.StatusSucceeded) {
 			switched[x.Service] = true
 		}
@@ -1096,7 +1096,7 @@ func runMessage(run api.Run) string {
 }
 
 // portInUseReason names the taken port and the program holding it (what `ss -ltnp` would show), so the administrator
-// knows what to stop without a shell on the box (D-412). The names come from the host's message (api.PortsInUse); a
+// knows what to stop without a shell on the box. The names come from the host's message (api.PortsInUse); a
 // message of another shape gives the sentence without them.
 func portInUseReason(msg string) string {
 	const fix = " Stop that program or move it to another port, then try again."
@@ -1186,7 +1186,7 @@ func (h *OSHandlers) settleUpdate(parent context.Context, rec *updateRunRec, sta
 		return err
 	}
 	shown := rec
-	if status == runDone || rec.Moved { // Moved: core switched, a later service did not (D-459)
+	if status == runDone || rec.Moved { // Moved: core switched, a later service did not
 		hist = append([]updateHistoryView{{ID: "h_" + rec.ID, TS: fin, Component: rec.Component, From: rec.From, To: rec.To, Action: rec.Action, User: rec.User}}, hist...)
 	}
 	if rb != nil {

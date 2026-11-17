@@ -12,9 +12,9 @@ import (
 
 // The "What to do" part of FindingDetail (web/src/features/findings/contract.ts). The shapes live here,
 // next to the detail that carries them, so findings can compose the response without importing
-// mitigation (D-57 (6)); mitigation builds them. The JSON tags are the API's.
+// mitigation; mitigation builds them. The JSON tags are the API's.
 
-// CodeStep is a command or setting the person pastes themselves (D-3: Vedette never runs it).
+// CodeStep is a command or setting the person pastes themselves (Vedette never runs it).
 type CodeStep struct {
 	Title      string `json:"title"`
 	Code       string `json:"code"`
@@ -67,7 +67,7 @@ type Workaround struct {
 	SideEffect string   `json:"side_effect"`
 }
 
-// MitigationPack is a recommendation confirmed by the Vedette maintainers (D-21).
+// MitigationPack is a recommendation confirmed by the Vedette maintainers.
 type MitigationPack struct {
 	CVE         string          `json:"cve"`
 	ConfirmedBy string          `json:"confirmed_by"`
@@ -102,8 +102,8 @@ type CompromiseCheck struct {
 }
 
 // Hardening is the general hardening of a finding (mitigation INV-8): general compromise checks for its software family, written by
-// reviewed code. It says nothing about the CVE, so it is not a confirmed recommendation (D-21) and is never shown as one. The
-// generated firewall configs it held (M2-1) are gone (D-631).
+// reviewed code. It says nothing about the CVE, so it is not a confirmed recommendation and is never shown as one. The
+// generated firewall configs it held (M2-1) are gone.
 type Hardening struct {
 	Software string           `json:"software"` // the software the checks are for ("OpenSSH", "Juniper Junos OS")
 	Family   string           `json:"family"`   // the family the checks are written for ("Linux", "Network device")
@@ -154,7 +154,7 @@ type AIResults struct {
 	Config  *AIResult `json:"config"`
 }
 
-// AIAvailable says whether an AI profile is assigned and allowed for each job (D-29).
+// AIAvailable says whether an AI profile is assigned and allowed for each job.
 type AIAvailable struct {
 	Explain bool `json:"explain"`
 	Config  bool `json:"config"`
@@ -235,12 +235,12 @@ type Row struct {
 	ResolvedBy     *string      `json:"resolved_by"`
 	ResolvedAt     *time.Time   `json:"resolved_at"`
 	ResolutionNote *string      `json:"resolution_note"`
-	AcceptedUntil  *string      `json:"accepted_until"` // YYYY-MM-DD, the last day of a risk acceptance (D-498)
+	AcceptedUntil  *string      `json:"accepted_until"` // YYYY-MM-DD, the last day of a risk acceptance
 	History        []historyDoc `json:"history"`
 	Asset          *AssetView   `json:"asset"`
 	Kev            *KevInfo     `json:"kev"`
 	CVSS           *CVSS        `json:"cvss"` // nil: no score known ("No score", never 0; INV-22)
-	// Fix is the one update that fixes this finding together with the device's other open findings of the same software (D-545):
+	// Fix is the one update that fixes this finding together with the device's other open findings of the same software:
 	// set on the list only, for an open finding; nil when Vedette cannot name one.
 	Fix *RowFix `json:"fix"`
 	// Known is the version of the software the finding was matched on, set by Detail for the guidance (Guidance reads the Row); the
@@ -257,8 +257,8 @@ const (
 	VersionByManual = "manual" // a person typed it on the Devices page
 )
 
-// KnownVersion is the version of the software a finding was matched on, as the device's row gives it, and who gave it (M2-3,
-// widening D-548/D-612 from agent rows to every source): the page says it and how it is refreshed, never "find which version".
+// KnownVersion is the version of the software a finding was matched on, as the device's row gives it, and who gave it
+// (any source, not only agent rows): the page says it and how it is refreshed, never "find which version".
 type KnownVersion struct {
 	Software string `json:"software"` // display name of the row
 	Version  string `json:"version"`
@@ -304,7 +304,7 @@ type historyDoc struct {
 type Detail struct {
 	Row
 	Guide
-	FixedIn *FixedIn `json:"fixed_in"` // null when NVD's ranges do not say which release fixes it (D-488)
+	FixedIn *FixedIn `json:"fixed_in"` // null when NVD's ranges do not say which release fixes it
 	// KnownVersion is Row.Known on the page: the version the box has for the matched software and who gave it (M2-3); null when none.
 	KnownVersion *KnownVersion `json:"known_version"`
 }
@@ -345,7 +345,7 @@ func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	if a != nil {
 		aa := shownAsset(*a)
 		row.Asset = &aa
-		// Findings created before D-484 named a device without hostname or IP by its id in the evidence.
+		// Findings created by older versions named a device without hostname or IP by its id in the evidence.
 		if row.Evidence != nil && r.AssetID != "" && strings.Contains(row.Evidence.Summary, r.AssetID) {
 			ev := *row.Evidence
 			ev.Summary = strings.ReplaceAll(ev.Summary, r.AssetID, aa.Name)
@@ -356,7 +356,7 @@ func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 }
 
 // shownAsset is a device as every findings answer shows it (GET /findings, GET /findings/{id}, GET /findings/summary): a kind outside
-// the inventory's device types is "unknown", and the name is never the internal id (D-484): its Display (the OS, else the kind, #905), else the kind.
+// the inventory's device types is "unknown", and the name is never the internal id: its Display (the OS, else the kind, #905), else the kind.
 func shownAsset(a AssetView) AssetView {
 	if !validKind(a.Kind) {
 		a.Kind = "unknown"
@@ -370,7 +370,7 @@ func shownAsset(a AssetView) AssetView {
 	return a
 }
 
-// validKind: k is one of the inventory's device types (D-511, content/devicetypes).
+// validKind: k is one of the inventory's device types (content/devicetypes).
 func validKind(k string) bool { return devicetypes.Valid(k) }
 
 // Into encodes v as JSON and decodes it into one of the generated response types, which all describe

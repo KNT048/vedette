@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// The read tools of "Ask your data" (S-AI-5, INV-14, D-211): six of the box (search_assets, list_findings, get_finding,
+// The read tools of "Ask your data" (S-AI-5, INV-14): six of the box (search_assets, list_findings, get_finding,
 // device_updates, lookup_cve, lookup_ioc) and the read tools of the connections. All of them only read. Arguments are checked at the edge against a closed
 // schema (unknown fields, wrong types, out-of-range numbers and malformed ids are refused before anything is read), the answer is
 // capped in rows and bytes, and every text field is cleaned: the loop fences it and runs the hooks on it (ask_loop.go).
@@ -49,12 +49,12 @@ type toolImpl struct {
 	// reader of a connection against the tool's own schema).
 	parse func(raw json.RawMessage) (map[string]any, error)
 	// internal: the connection of a connection tool is inside the network (private, loopback, ULA or CGNAT address); false when that
-	// could not be checked (D-212).
+	// could not be checked.
 	internal bool
 	run      func(ctx context.Context, args map[string]any) (toolOut, error)
 }
 
-// Limits of the result of one call (D-211, D-482). Every turn of a question sends the whole conversation again, so a result is paid for
+// Limits of the result of one call. Every turn of a question sends the whole conversation again, so a result is paid for
 // once per turn that follows it: the lists are summaries (counts over everything that matched, then the first rows) and small.
 const (
 	askResultBytes = 4 << 10  // what one call returns to the model
@@ -172,7 +172,7 @@ func plural(n int, one, many string) string {
 
 // fit returns the JSON of build(rows, extra) with as many rows, and then as many extra entries (the per-device counts), as fit the
 // byte cap. build puts the totals and the note first (a struct, whose fields keep their order), so they are never what gets cut, and a
-// result whose totals alone are over the cap still starts with them (W1-27: a model read the first page as the whole and reported 39
+// result whose totals alone are over the cap still starts with them (a model read the first page as the whole and reported 39
 // findings of 126).
 func fit(rows, extra int, build func(rows, extra int) any) (string, int) {
 	for {
@@ -245,7 +245,7 @@ var (
 		"asset_id": {kind: "string", re: idArgRE, max: 96}, "limit": {kind: "int", min: 1, max: askRowsMax}}
 )
 
-// productTool is a tool of the box for "Ask your data" and the jobs named; log investigation gets the four of D-223.
+// productTool is a tool of the box for "Ask your data" and the jobs named; log investigation gets its own four.
 func productTool(name, desc, schema string, spec map[string]argSpec, required []string, run func(context.Context, map[string]any) (toolOut, error), jobs ...Job) toolImpl {
 	return toolImpl{Tool: Tool{Name: name, Description: desc, Access: AccessRead, Enabled: true, Jobs: append([]Job{JobAskMyData}, jobs...), Schema: json.RawMessage(schema)},
 		parse: func(raw json.RawMessage) (map[string]any, error) { return parseArgs(raw, spec, required...) }, run: run}
@@ -317,7 +317,7 @@ func (a AssetRow) matches(f map[string]any) bool {
 	return true
 }
 
-// boxApart counts devices with the Vedette box named apart (D-422): Devices says "Only the Vedette box so far" and Reports counts no
+// boxApart counts devices with the Vedette box named apart: Devices says "Only the Vedette box so far" and Reports counts no
 // device then, so "1 device" would read as a device of the network that the rest of the app does not show. "3 devices", "only the
 // Vedette box", "2 devices and the Vedette box".
 func boxApart(others int, box bool) string {
@@ -370,7 +370,7 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 			nPorts, nSw = 12, 8
 		}
 		r := map[string]any{"id": clip(a.ID, 96), "name": clip(a.Name, 80), "approved": a.Approved}
-		if a.Ignored { // D-630: an ignored device is not one waiting for review
+		if a.Ignored { // An ignored device is not one waiting for review
 			r["ignored"] = true
 		}
 		put(r, "ip", clip(a.IP, 45))
@@ -434,7 +434,7 @@ func cleanAll(in []string, n int) []string {
 func findingMap(f FindingRow) map[string]any {
 	m := map[string]any{"id": clip(f.ID, 96), "device": clip(f.Asset, 80), "device_ip": clip(f.AssetIP, 45), "asset_id": clip(f.AssetID, 96), "cve": clip(f.CVE, 24), "status": clip(f.Status, 20),
 		"severity": clip(f.Severity, 12), "basis": clip(f.Basis, 12), "confidence": f.Confidence, "first_seen": clip(f.FirstSeen, 32), "last_seen": clip(f.LastSeen, 32)}
-	if f.AcceptedUntil != "" { // D-498: when an accepted risk comes back by itself
+	if f.AcceptedUntil != "" { // When an accepted risk comes back by itself
 		m["accepted_until"] = clip(f.AcceptedUntil, 10)
 	}
 	return m
@@ -704,7 +704,7 @@ func validDomain(v string) bool {
 
 func isLetter(r rune) bool { return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' }
 
-// ---------- the read tools of the connections (core/conn/read, D-127)
+// ---------- the read tools of the connections (core/conn/read)
 
 var nameCharsRE = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 
@@ -812,7 +812,7 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 		return nil
 	}
 	// Whether the connection is inside the network is read from the connection list of core (Config.ConnTargets). While the privacy rule
-	// is on, a tool of a connection that is not inside, or whose address cannot be read, is not offered (fail closed, D-212).
+	// is on, a tool of a connection that is not inside, or whose address cannot be read, is not offered (fail closed).
 	targets := map[string]string{}
 	if s.cfg.ConnTargets != nil {
 		t, err := s.cfg.ConnTargets(ctx)
@@ -848,7 +848,7 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 				case err != nil:
 					return toolOut{}, errToolFailed{"the read failed: " + clip(err.Error(), 200)}
 				}
-				// The box's own record of the read, the only thing a config_read evidence can name (D-311). Its id is not shown to the model.
+				// The box's own record of the read, the only thing a config_read evidence can name. Its id is not shown to the model.
 				s.recordRead(ctx, JobAskMyData, connID, connName, tool)
 				return toolOut{Text: sanitizeWeb(text), Summary: fmt.Sprintf("read %d bytes", len(text)), Cite: connName + ": " + clip(tool, 60)}, nil
 			},

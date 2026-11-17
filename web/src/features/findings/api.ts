@@ -5,11 +5,11 @@ import type { ApplyItem, BulkAction, FindingDetail, FindingRow, Plan, PlanFilter
 export const useFindings = (asset?: string, enabled = true) =>
   useQuery({ queryKey: ['findings', 'list', asset ?? null], enabled, queryFn: () => api.get<{ items: FindingRow[]; version_needed: VersionNeeded[]; unchecked: UncheckedItem[] }>(asset ? `/findings?asset=${encodeURIComponent(asset)}` : '/findings') })
 
-/** GET /findings/to-fix (kien G8): what each device needs, the most urgent first; one device with `asset` (its Software tab). */
+/** GET /findings/to-fix: what each device needs, the most urgent first; one device with `asset` (its Software tab). */
 export const useToFix = (asset?: string, enabled = true) =>
   useQuery({ queryKey: ['findings', 'to-fix', asset ?? null], enabled, queryFn: () => api.get<ToFix>(asset ? `/findings/to-fix?asset=${encodeURIComponent(asset)}` : '/findings/to-fix') })
 
-/** Updates to plan (D-613): tier 2 and 3 CVEs grouped by update; all devices or one. */
+/** Updates to plan: tier 2 and 3 CVEs grouped by update; all devices or one. */
 export const usePlan = (tier: PlanFilter = 'all', asset?: string, enabled = true) => {
   const q = new URLSearchParams()
   if (tier !== 'all') q.set('tier', tier)
@@ -44,7 +44,7 @@ export const useApplied = (id: string) =>
 export const useAskAi = (id: string) =>
   useWrite<'explain' | 'mitigation-config'>(id, (skill) => api.post<FindingDetail>(`/findings/${encodeURIComponent(id)}/ai`, { skill }))
 
-/** Một hành động, một ghi chú cho nhiều phát hiện (W1-12, INV-10): tất cả hoặc không gì. */
+/** Một hành động, một ghi chú cho nhiều phát hiện (INV-10): tất cả hoặc không gì. */
 export function useBulkStatus() {
   const qc = useQueryClient()
   return useMutation({

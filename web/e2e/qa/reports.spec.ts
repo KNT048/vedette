@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, finishClean, sampleStart } from './clean'
 
-// QA như người dùng thật cho module reports (S-REP-1, S-REP-2). UI chỉ có tiếng Anh (D-28); báo cáo đánh giá nói về Luật 91/2025/QH15.
+// QA như người dùng thật cho module reports (S-REP-1, S-REP-2). UI chỉ có tiếng Anh; báo cáo đánh giá nói về Luật 91/2025/QH15.
 // Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/reports.spec.ts
 // Máy dùng chung với nhiều agent nên chậm: nới thời gian mỗi test.
 test.describe.configure({ timeout: 150_000 })

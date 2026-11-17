@@ -32,13 +32,13 @@ import (
 	"github.com/knt048/vedette/host/archive"
 )
 
-// Restore from a backup file on a new box, and the decryption key that goes with it (S-CORE-1, D-518). The first-run page
+// Restore from a backup file on a new box, and the decryption key that goes with it (S-CORE-1). The first-run page
 // uploads the .tar.gz downloaded from Settings -> Data (step 1, POST /core/setup/restore/upload): core reads it as untrusted
 // bytes (host/archive, the host's own rules), stages the database in snapshots/<id>/ with upload.json and NO snapshot.json,
 // opens it read-only to check it and says what it holds. Step 2 (POST /core/setup/restore) checks the key file against the
 // backup's secrets, writes the key and snapshot.json, so the staged upload becomes a snapshot of the host contract
 // (host-api 6.11), and has the host import it with backup.create {manual}; then the restore is the one of Settings -> Data
-// (startRestore, D-377): a snapshot of the fresh box becomes pre_restore and is put back when the restored data does not
+// (startRestore): a snapshot of the fresh box becomes pre_restore and is put back when the restored data does not
 // start. No second restore mechanism and no new host command. Both steps need the setup code and are refused once setup is
 // done. The box keeps one upload at a time: a new upload replaces the older one, and the start-up sweep removes one that
 // was never restored (snapshotMaxAge).
@@ -409,7 +409,7 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 	if err := h.needHost(); err != nil {
 		return nil, err
 	}
-	if !h.setup.firstRun.TryLock() { // held to the end: setup cannot finish meanwhile (D-518)
+	if !h.setup.firstRun.TryLock() { // held to the end: setup cannot finish meanwhile
 		return nil, firstRunBusy()
 	}
 	defer h.setup.firstRun.Unlock()
@@ -457,14 +457,14 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	if err := h.needHost(); err != nil {
 		return nil, err
 	}
-	if !h.setup.firstRun.TryLock() { // held to the end: setup cannot finish while this imports and starts the restore (D-518)
+	if !h.setup.firstRun.TryLock() { // held to the end: setup cannot finish while this imports and starts the restore
 		return nil, firstRunBusy()
 	}
 	defer h.setup.firstRun.Unlock()
 	if err := h.setup.CheckSetupCode(ctx, req.SetupCode); err != nil {
 		return nil, err
 	}
-	if !req.AcceptTerms.Or(false) { // a new operator takes the box over: the same terms as setup (D-544)
+	if !req.AcceptTerms.Or(false) { // a new operator takes the box over: the same terms as setup
 		return nil, termsNotAccepted()
 	}
 	var key []byte
@@ -490,7 +490,7 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	if ins.secrets == 0 {
 		// Nothing to check the key against: an unchecked file never becomes the box's master key. The box keeps its own and
 		// the page says so. (A key that opens some secrets but not all is right: rows a keyless restore left, like an old box
-		// CA, stay sealed under another key by design, D-351.)
+		// CA, stay sealed under another key by design.)
 		key = nil
 	}
 	switch {
@@ -566,7 +566,7 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	return &oas.CorePostCoreSetupRestoreAccepted{Status: oas.CorePostCoreSetupRestoreAcceptedStatus(rec.view().Status), Error: oas.NilString{Null: true}}, nil
 }
 
-// ---- the terms accepted before a first-run restore (D-544) ----
+// ---- the terms accepted before a first-run restore ----
 
 const (
 	termsMarkerFile = "first-run-terms.json"
@@ -684,7 +684,7 @@ func (h *OSHandlers) CoreGetCoreSetupRestore(ctx context.Context) (oas.NilCoreGe
 
 // ---- POST /core/data/key ----
 
-// CorePostCoreDataKey implements POST /core/data/key (admin): the master key file, to keep apart from the backups (D-518).
+// CorePostCoreDataKey implements POST /core/data/key (admin): the master key file, to keep apart from the backups.
 // Step-up as for a restore: the current password, then a fresh two-step code when it is on; then one audit row. The bytes
 // go only into this response: never a log line, never another response.
 func (h *OSHandlers) CorePostCoreDataKey(ctx context.Context, req *oas.CorePostCoreDataKeyReq) (oas.CorePostCoreDataKeyOK, error) {

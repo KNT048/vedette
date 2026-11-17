@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// GET /v1/state/packages (D-470, INV-9): the box's own package list for the inventory. One fixed dpkg-query, no shell, no
+// GET /v1/state/packages (INV-9): the box's own package list for the inventory. One fixed dpkg-query, no shell, no
 // argument from the request; the structure is parsed fail-closed: a line without exactly 5 fields, a status dpkg does not
 // have, too many lines, no installed package, a cut output or a failed exit and the whole read fails (core keeps what it
 // had). An installed package whose own fields break dpkg's rules is left out, counted and logged (parsePackages). A

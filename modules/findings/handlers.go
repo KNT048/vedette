@@ -165,13 +165,13 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 		d.Asset = &aa
 	}
 	if rec.Status.Open() && v != nil {
-		d.FixedIn = FixedInFor(a, *v) // the release that fixes it on this device, from NVD's ranges (D-488); closed: nothing to upgrade
+		d.FixedIn = FixedInFor(a, *v) // the release that fixes it on this device, from NVD's ranges; closed: nothing to upgrade
 	}
 	return d, nil
 }
 
 // matchedOn names the device's software row the finding's KEV entry is keyed to, as the matcher reads the device (its rows and the network
-// OS it states, deviceSoftware): the Device panel of the finding names it (N53-1, D-619), not the device's first software by name, which
+// OS it states, deviceSoftware): the Device panel of the finding names it, not the device's first software by name, which
 // showed "Microsoft Edge" for a Windows CVE. A "Multiple Products" entry is keyed to every row of its vendor, so there it is the row the
 // matcher matches through NVD's list (review r1 #2 of #807: MatchAsset on that entry alone, v the stored entry), as it is for an entry no
 // row is keyed to (#910: NVD's list names the row). "" when no row is keyed to the entry and the entry is not read or the matcher
@@ -256,7 +256,7 @@ func matchedRow(a Asset, k KevInfo, v *Vuln) (Software, bool) {
 	return Software{}, false
 }
 
-// addFixes sets Row.Fix on the open findings of the list (D-545): per device, the update that fixes its open findings of one software
+// addFixes sets Row.Fix on the open findings of the list: per device, the update that fixes its open findings of one software
 // together (RowFixes). Like fixedIn it only informs the page: a device or a list it cannot read leaves the rows without one.
 func (h *FindingHandlers) addFixes(ctx context.Context, rows []Row) {
 	byAsset := map[string][]int{}
@@ -338,7 +338,7 @@ func (h *FindingHandlers) FindingsGetFindings(ctx context.Context, params oas.Fi
 	}{rows, need, unchecked})
 }
 
-// versionNeededJS is contract.ts VersionNeeded (D-500).
+// versionNeededJS is contract.ts VersionNeeded.
 type versionNeededJS struct {
 	Asset      *AssetView `json:"asset"`
 	AssetID    string     `json:"asset_id"`
@@ -427,7 +427,7 @@ type Guidance interface {
 	Guidance(ctx context.Context, r Row) (Guide, error)
 }
 
-// FindingsGetFindingsPlan implements findings_get_findings_plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616, D-617): "Updates to
+// FindingsGetFindingsPlan implements findings_get_findings_plan (S-TIER-1, S-TIER-2): "Updates to
 // plan", the last comparison of the plan job (Service.Plan), filtered by tier and device. compared is false until the job's first run
 // since the start; the counts of devices are of every device, whatever the filter. The feeds module off: no item and no feed data is
 // read (modules.md), the page says the module is off.
@@ -473,7 +473,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 		k := shown{it: it}
 		for _, c := range it.CVEs {
 			// a CVE that crossed the 12-month line since the pass is not listed (review r1 #2 of #804): only a scan may list an older
-			// one, and no scan basis exists yet (D-617 (2))
+			// one, and no scan basis exists yet
 			if c.Published < cut && c.Basis != "scan" {
 				continue
 			}
@@ -494,7 +494,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading the devices of the plan: %w", err)
 	}
-	var risks map[string]AssetRisk // G4: each device's marker, so the page needs no device list
+	var risks map[string]AssetRisk // each device's marker, so the page needs no device list
 	if len(keep) > 0 {
 		risks = h.risks(ctx, feedsOn)
 	}

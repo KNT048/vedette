@@ -10,7 +10,7 @@ import (
 	"unicode"
 )
 
-// NVD affected versions of the exploited list (D-500). The box asks the NVD CVE API 2.0 for the CVEs CISA lists
+// NVD affected versions of the exploited list. The box asks the NVD CVE API 2.0 for the CVEs CISA lists
 // (?hasKev), NVDPageSize per request, and keeps each CVE's vulnerable CPE match entries (criteria + version range)
 // so that findings can compare a device's version with the versions a CVE affects. Nothing of the customer is in a
 // request: only the page index and, after the first full pull, the date of the previous pull.
@@ -45,7 +45,7 @@ type NVDPage struct {
 	Total    int                      // totalResults
 	Returned int                      // records in this answer
 	Affected map[string][]AffectedRow // CVE -> vulnerable entries; a CVE with none is present with an empty list
-	// Published is the day NVD published each accepted CVE ("2017-03-14", D-615); a record without a readable date is absent.
+	// Published is the day NVD published each accepted CVE ("2017-03-14"); a record without a readable date is absent.
 	Published map[string]string
 	// CVSS is the base score of each CVE read with a valid id (INV-28, cvssOf), also of one rejected for its affected entries (review
 	// r1 L2: the score does not depend on them); a CVE without one is absent. Seen lists every such CVE, so an update knows whose

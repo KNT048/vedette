@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// BN340 (n82): nmap's fingerprint guesses "Android 9 - 10 (Linux 4.9 - 4.14)"; the device's SNMP answer (net-snmp's uname layout) says
+// nmap's fingerprint guesses "Android 9 - 10 (Linux 4.9 - 4.14)"; the device's SNMP answer (net-snmp's uname layout) says
 // Alpine Linux and wins over the guess (INV-1); a person's correction wins over both, drives matching, survives later reads, says when
 // the sources disagree, and can be cleared (INV-41).
 func TestINV41_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
@@ -102,7 +102,7 @@ func TestINV41_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 	}
 }
 
-// INV-41: a person corrects the OpenSSH row a scan reported (BN340: package release 10.2_p1-r1). The correction replaces exactly that
+// INV-41: a person corrects the OpenSSH row a scan reported (package release 10.2_p1-r1). The correction replaces exactly that
 // row for matching, and its re-reports; a later scan that reads another version is another row, which matches and makes the device
 // say the scan disagrees. The correction can change the product (the wrong row's CVEs stop matching); clearing it brings the scanned
 // row back.

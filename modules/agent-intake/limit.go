@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Rate limits of the public operations (D-169 (8), plan 2.3). In memory: counts reset on restart and are per process.
+// Rate limits of the public operations (plan 2.3). In memory: counts reset on restart and are per process.
 // ponytail: a flood of distinct source addresses can evict others' entries (the oldest go first); upgrade path: a table pruned by a job.
 const (
 	failMax      = 10               // credential failures per source per failWindow before the source is blocked

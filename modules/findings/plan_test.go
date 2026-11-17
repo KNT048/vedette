@@ -38,9 +38,9 @@ func cvesOf(it PlanItem) []string {
 	return out
 }
 
-// S-TIER-1/2 guards (D-613 (2), D-615, D-617): only a version proved inside a range that ends gives a plan CVE; an exploited CVE, one
+// S-TIER-1/2 guards: only a version proved inside a range that ends gives a plan CVE; an exploited CVE, one
 // older than 12 months, a product-only entry (no range), a version outside, a banner version and a distribution's package give none.
-// One item per update (D-545): "Upgrade nginx from 1.18.0 to 1.26.0", likely first.
+// One item per update: "Upgrade nginx from 1.18.0 to 1.26.0", likely first.
 func TestPlan_VersionConfirmedOnly(t *testing.T) {
 	t.Parallel()
 	tv := []TierVuln{
@@ -79,7 +79,7 @@ func TestPlan_VersionConfirmedOnly(t *testing.T) {
 			t.Fatalf("source %q: compared %v, %+v", src, compared, items)
 		}
 	}
-	// A distribution's package: its fixes are backported, NVD's upstream range would put a patched build inside (D-617).
+	// A distribution's package: its fixes are backported, NVD's upstream range would put a patched build inside.
 	pkg := nginxRow("1.18.0", "agent")
 	pkg.Packaged, pkg.PkgVersion, pkg.PkgSource = true, "1.18.0-6ubuntu14.6", "nginx"
 	marked := nginxRow("1.18.0-6ubuntu14.6", "manual")
@@ -91,7 +91,7 @@ func TestPlan_VersionConfirmedOnly(t *testing.T) {
 	}
 }
 
-// D-545 grouping when no one release fixes every CVE of a row: each CVE goes to the item of its own nearest fix, and a CVE NVD names no
+// Grouping when no one release fixes every CVE of a row: each CVE goes to the item of its own nearest fix, and a CVE NVD names no
 // fixed release for (only an inclusive end) is left out: there is no update to plan for it.
 func TestPlan_SplitsByFixWhenNoReleaseFixesAll(t *testing.T) {
 	t.Parallel()
@@ -105,7 +105,7 @@ func TestPlan_SplitsByFixWhenNoReleaseFixesAll(t *testing.T) {
 	}
 }
 
-// D-546, D-610 on tier CVEs: a Windows release row reads NVD's entries by its monthly update; the item is the cumulative update with
+// Windows releases on tier CVEs: a Windows release row reads NVD's entries by its monthly update; the item is the cumulative update with
 // the build that fixes them all. An entry naming only older Windows releases (XP) is never a match.
 func TestPlan_WindowsByMonthlyUpdate(t *testing.T) {
 	t.Parallel()
@@ -127,7 +127,7 @@ func TestPlan_WindowsByMonthlyUpdate(t *testing.T) {
 	}
 }
 
-// The scope asks feeds only for the products the devices run (D-617): a compared row's product, its aliases and Windows releases for a
+// The scope asks feeds only for the products the devices run: a compared row's product, its aliases and Windows releases for a
 // Windows row; never the product of a banner row.
 func TestPlan_TierScopeKeepsOnlyTheDevicesProducts(t *testing.T) {
 	t.Parallel()
@@ -148,7 +148,7 @@ func TestPlan_TierScopeKeepsOnlyTheDevicesProducts(t *testing.T) {
 	}
 }
 
-// The plan job and GET /findings/plan (S-TIER-1, S-TIER-2, D-617): "Not compared yet" until the job's first run, then the items with
+// The plan job and GET /findings/plan (S-TIER-1, S-TIER-2): "Not compared yet" until the job's first run, then the items with
 // the device's name, the tier filter, the counts of compared and unchecked devices; a device whose software changed is compared again
 // at the next run without a full pass, and a deleted device's items go at once.
 func TestPlan_JobAndEndpoint(t *testing.T) {
@@ -223,7 +223,7 @@ func TestPlan_JobAndEndpoint(t *testing.T) {
 	}
 }
 
-// Measured for the PR (D-617): a pass over tier data sized like the N100 (104,448 CVEs, about 2 NVD entries each, 21 devices with
+// Measured for the PR: a pass over tier data sized like a test box's (104,448 CVEs, about 2 NVD entries each, 21 devices with
 // about 40 compared rows each) once feeds kept only the devices' products, and the index and match without that filter (the worst
 // case: every CVE in memory), and a Windows device. Run: go test ./modules/findings -run '^$' -bench Plan -benchmem
 func BenchmarkPlanPass(b *testing.B) {
@@ -453,7 +453,7 @@ func TestPlan_TwoInstallsKeepTheirItems(t *testing.T) {
 	}
 }
 
-// M2-10 (walk n74): WINLAB01, Windows Server 2025 build 26100.1742 reported by the agent, gets one cumulative update fixing 2786
+// WINLAB01, Windows Server 2025 build 26100.1742 reported by the agent, gets one cumulative update fixing 2786
 // tier CVEs. Only the OS's own NVD entries count, in NVD's real shapes: an OS CVE with a windows_server_2025 range (CVE-2026-69902,
 // also listing the 24H2 client of the same build); never an
 // application CVE NVD lists "running on" Windows Server 2025 (.NET Framework CVE-2026-23666, as feeds stores it: only its .NET entries

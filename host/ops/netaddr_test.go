@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// --- the address flags (D-405) ---------------------------------------------------------------------------
+// --- the address flags ---------------------------------------------------------------------------
 
 // nlAddr is one RTM_NEWADDR message as the kernel sends it in a dump: struct ifaddrmsg with flags8, IFA_ADDRESS (the peer: a
 // different address for IPv4, as on a point-to-point link), IFA_LOCAL for IPv4, and IFA_FLAGS when flags32 is set.
@@ -78,7 +78,7 @@ func FuzzDynamicAddrs(f *testing.F) {
 	})
 }
 
-// state/net lists the leased addresses of a card under dynamic, a subset of addresses; a card with none has [] (D-405).
+// state/net lists the leased addresses of a card under dynamic, a subset of addresses; a card with none has [].
 func TestNetStateSaysWhichAddressesHaveALease(t *testing.T) {
 	t.Parallel()
 	o, root := netOps(t, withIfaces(

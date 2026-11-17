@@ -85,7 +85,7 @@ func TestAppendVerify(t *testing.T) {
 	}
 }
 
-// The preimage is fixed by D-57 (14): SHA-256(prev + "\n" + canon(row without hash/seq)), NULL as null.
+// The preimage is fixed: SHA-256(prev + "\n" + canon(row without hash/seq)), NULL as null.
 func TestAppendHashMatchesSpec(t *testing.T) {
 	t.Parallel()
 	db := storetest.NewMigrated(t, "core", coreMigrations)

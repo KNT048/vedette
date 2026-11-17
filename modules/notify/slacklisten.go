@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// Approvals from Slack buttons (PRE-8, POST-8, D-38, D-240, docs/specs/approval-tokens.md 5). The approval message is posted with
+// Approvals from Slack buttons (PRE-8, POST-8, docs/specs/approval-tokens.md 5). The approval message is posted with
 // the bot token (chat.postMessage) with Approve/Reject buttons; the job "slack-listen" opens a Socket Mode connection OUT with the app
 // token (no inbound port, FORBID-4) and reads the presses. Like the Telegram listener it runs only while the module is on, the Slack
 // channel is configured, enabled, takes approvals and has both tokens and the Decisions port is wired. notify checks the platform

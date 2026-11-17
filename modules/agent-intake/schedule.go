@@ -11,13 +11,13 @@ import (
 
 // scheduleQuery is one query of the config every valid node gets. The list is the text the approved GUI shows under "What Vedette asks
 // osquery for" (web/src/features/inventory/agentConfig.ts, OSQUERY_SCHEDULE); a test compares the two. Snapshot-only, read-only tables,
-// no exec, file, hash or curl table, no distributed queries (D-169 (1)).
+// no exec, file, hash or curl table, no distributed queries.
 type scheduleQuery struct {
 	name, query, platform string
 	interval              int
 }
 
-// programsQuery is the Windows package list with each SQL Server instance's PatchLevel (D-606). The registry arm is first: a compound
+// programsQuery is the Windows package list with each SQL Server instance's PatchLevel. The registry arm is first: a compound
 // SELECT takes its column names from it, and its rows come before the list's.
 const programsQuery = `SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS sql_setup FROM registry r ` +
 	`WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL%\Setup' AND r.name = 'PatchLevel' ` +
@@ -31,28 +31,28 @@ var schedule = []scheduleQuery{
 	{name: "interfaces", query: "SELECT d.mac, a.address FROM interface_details d JOIN interface_addresses a USING (interface) WHERE a.address NOT LIKE '%:%' AND a.address NOT LIKE '127.%' AND a.address NOT LIKE '169.254.%' AND d.mac != '00:00:00:00:00:00';", interval: 3600},
 	{name: "deb_packages", query: "SELECT name, version, arch, source FROM deb_packages;", interval: 3600, platform: "linux"},
 	{name: "rpm_packages", query: "SELECT name, version, release, arch, epoch FROM rpm_packages;", interval: 3600, platform: "linux"},
-	// D-606: with the installed programs, one registry value: the build of each SQL Server instance (Setup\PatchLevel, cumulative updates
+	// With the installed programs, one registry value: the build of each SQL Server instance (Setup\PatchLevel, cumulative updates
 	// included), whose release's own Uninstall entry has no version. In the same query so the value and the list come in one snapshot
 	// (the mapper sets the release's row from it; a query of its own would arrive in another request). First, so a list cut at maxRows
 	// keeps it; marked by sql_setup, '' on every program row. The key pattern is exact: osquery lists the subkeys of
 	// "Microsoft SQL Server" and reads their Setup key, and only MSSQL<n>.<instance>\Setup PatchLevel is returned.
 	{name: "programs", query: programsQuery, interval: 3600, platform: "windows"},
-	// D-516: the running kernel release ("7.0.0-43-generic"), its own one-row query (a column on every package row would make a
+	// The running kernel release ("7.0.0-43-generic"), its own one-row query (a column on every package row would make a
 	// big host's package list longer than osquery's logger_tls_max_linesize, and osquery drops such a line whole).
 	{name: "kernel_info", query: "SELECT version FROM kernel_info;", interval: 3600, platform: "linux"},
-	// D-524: Windows's monthly update revision (UBR, the 4460 of 10.0.22631.4460), without which no Windows range of NVD can be
+	// Windows's monthly update revision (UBR, the 4460 of 10.0.22631.4460), without which no Windows range of NVD can be
 	// read. osquery (5.12 and later) reads it from the registry itself (HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion, value
 	// UBR) into os_version.revision, a Windows-only column: a query of its own, so the os_version query above stays valid on Linux
-	// and an older osquery without the column fails this query alone. The registry table is read for one value only (programs, D-606).
+	// and an older osquery without the column fails this query alone. The registry table is read for one value only (programs).
 	{name: "os_revision", query: "SELECT name, version, revision, arch FROM os_version;", interval: 3600, platform: "windows"},
-	// INV-22 (kien 2026-11-17): the ports the machine listens on and the program behind each, so a machine known only through its agent
+	// INV-22: the ports the machine listens on and the program behind each, so a machine known only through its agent
 	// has Open services. Loopback is left out on the machine; on Linux only the host's own network namespace (pid 1's) counts, not the
 	// inside of its containers (net_namespace is a Linux-only column, so Windows has its own query without it).
 	{name: "listening_ports", query: "SELECT DISTINCT l.port, l.protocol, l.address, p.name FROM listening_ports l LEFT JOIN processes p USING (pid) WHERE l.port > 0 AND l.protocol IN (6, 17) AND l.address NOT LIKE '127.%' AND l.address != '::1' AND l.net_namespace = (SELECT net_namespace FROM process_namespaces WHERE pid = 1);", interval: 3600, platform: "linux"},
 	{name: "listening_ports_windows", query: "SELECT DISTINCT l.port, l.protocol, l.address, p.name FROM listening_ports l LEFT JOIN processes p USING (pid) WHERE l.port > 0 AND l.protocol IN (6, 17) AND l.address NOT LIKE '127.%' AND l.address != '::1';", interval: 3600, platform: "windows"},
 }
 
-// The first report (D-503). osquery 5.12 runs a scheduled query when the Unix time is a multiple of its (splayed, ±10 %) interval, never at
+// The first report. osquery 5.12 runs a scheduled query when the Unix time is a multiple of its (splayed, ±10 %) interval, never at
 // start (osquery/dispatcher/scheduler.cpp at 5.12.1), so with the hourly schedule a new machine showed its OS after up to an hour and
 // its system_info after up to a day. Within firstReportWindow of its enrolment a node is asked every firstReportInterval seconds for each
 // answer of its first report that the inventory has not taken yet (nodeRow.reported); osquery re-reads its config every 300 s
@@ -67,7 +67,7 @@ const (
 var firstReport = map[string]string{
 	"os_version": "os_version", "system_info": "system_info", "interfaces": "interfaces",
 	"deb_packages": "packages", "rpm_packages": "packages", "programs": "packages", "kernel_info": "packages",
-	// its own answer (D-524): asked every minute until a usable revision came, not until os_version did
+	// its own answer: asked every minute until a usable revision came, not until os_version did
 	"os_revision": "os_revision",
 	// INV-22: the open ports, taken when the inventory stored the list
 	"listening_ports": "services", "listening_ports_windows": "services",

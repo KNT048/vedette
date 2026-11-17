@@ -9,7 +9,7 @@ import (
 
 // Start and callback are public: each is counted per client address, 30 per 15 minutes (INV-5); IPv6 per /64, the block one
 // machine usually holds, and also per /48 (100 per 15 minutes), the block one site usually gets, so one network cannot spread over
-// thousands of /64s. Starts are also counted for the whole box (startBudget per flowLifetime, D-299): fewer than maxFlows, so a
+// thousands of /64s. Starts are also counted for the whole box (startBudget per flowLifetime): fewer than maxFlows, so a
 // flood can delay new SSO sign-ins but never push out one in progress (password sign-in is not touched). ponytail: in memory, lost
 // on restart and per process.
 const (
@@ -54,7 +54,7 @@ func limitKey(kind string, a netip.Addr) string {
 }
 
 // allowStart counts one start: per address (or IPv6 /64), per IPv6 /48, and against the box's budget. Nothing is counted unless all
-// three allow it, so a refused start creates no key and costs no try (D-299). site is true when the box's budget refused it (the
+// three allow it, so a refused start creates no key and costs no try. site is true when the box's budget refused it (the
 // message is not "your address").
 func (l *limiter) allowStart(a netip.Addr) (ok bool, wait time.Duration, site bool) {
 	rules := []rule{{limitKey("start", a), limitN, limitWindow}}

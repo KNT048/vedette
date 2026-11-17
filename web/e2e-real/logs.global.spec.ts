@@ -2,9 +2,9 @@
 // the list of sources (one source per sender IP, and the only IP a spec can send from is 127.0.0.1) and the retention are box-wide, so this runs alone and
 // every test puts them back. The lines come over the real listener: the box declares a source with sender 127.0.0.1 and the spec sends UDP and TCP to the
 // port in ready.json (`syslog_port`, a free port of the run, not 514). SIEM forwarding (L5) is its own test.
-// What is not built is test.fixme with the real flow in its body (D-171 (2)): the digest's new log types and spikes (a 24 h warm-up a box cannot skip).
-// The box serves plain HTTP, so it has no HTTPS certificate for the TLS listener (D-214): the box of the run gives that listener a test certificate of its own and puts
-// the TLS port and the certificate in ready.json (`syslog_tls_port`, `syslog_tls_cert`, D-427), so `proto: tls` is accepted here; the refusal on a box with no
+// What is not built is test.fixme with the real flow in its body: the digest's new log types and spikes (a 24 h warm-up a box cannot skip).
+// The box serves plain HTTP, so it has no HTTPS certificate for the TLS listener: the box of the run gives that listener a test certificate of its own and puts
+// the TLS port and the certificate in ready.json (`syslog_tls_port`, `syslog_tls_cert`), so `proto: tls` is accepted here; the refusal on a box with no
 // certificate (`tls_unavailable`) is carried by the Go tests TestASourceOverTLSIsRefusedOnCreateAndEdit and TestWithoutATLSConfigTLSIsRefusedAndNothingListens.
 // Bad connections (L4, INV-7) are real: a custom feed pulled from a loopback server lists a made-up domain, and one FortiGate DNS line from a LAN address is matched.
 // Steps from e2e/qa/logs.spec.ts (the mock QA).
@@ -516,7 +516,7 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
     expect(d.lines_24h).toBeGreaterThanOrEqual(25)
     expect([d.new, d.spikes, d.bad_connections], 'a source in its first 24 hours has no new log type, no spike and no bad connection').toEqual([[], [], []])
     await page.goto('/logs')
-    if (d.history_days < 7) { // a box with less than 7 days of logs says it is still learning (D-224), not that logs look normal
+    if (d.history_days < 7) { // a box with less than 7 days of logs says it is still learning, not that logs look normal
       await expect(h1(page)).toContainText(`Learning what is normal: ${d.history_days} of 7 days of logs so far.`)
       await expect(page.getByText(/^No new log types yet\./)).toBeVisible()
     } else {
@@ -540,7 +540,7 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
   } finally { await c.dispose() }
 })
 
-// every device type the catalog offers, with every protocol: the ones it can send are saved (UDP, TCP, and TLS: the box of the run serves a test certificate, D-427), the others are bad_proto
+// every device type the catalog offers, with every protocol: the ones it can send are saved (UDP, TCP, and TLS: the box of the run serves a test certificate), the others are bad_proto
 const KINDS: { id: string; protos: string[] }[] = JSON.parse(readFileSync(new URL('../../content/logs/kinds.json', import.meta.url), 'utf8'))
 test('every device type with every protocol on the real backend: allowed UDP/TCP/TLS saved, any other combination bad_proto (INV-3, QA row 44)', async () => {
   test.setTimeout(120_000)
@@ -593,7 +593,7 @@ test('phone width: the Logs page with a source and lines fits a 390 px screen: n
   } finally { await ctx.close(); await c.dispose() }
 })
 
-// L4: the box matches a connection that a firewall line names against the indicators of the feeds module (S-LOG-2, S-LOG-4, INV-7, POST-2, D-213). No public
+// L4: the box matches a connection that a firewall line names against the indicators of the feeds module (S-LOG-2, S-LOG-4, INV-7, POST-2). No public
 // address is touched: the feed is a custom one pulled from a loopback server (like feeds.spec.ts) and lists a domain under a made-up TLD, so only this feed lists
 // it; the line is one FortiGate DNS-filter line sent over loopback UDP, from the LAN address 192.168.100.23, which is not in the inventory.
 test('bad connections: a LAN device that asks for a domain a feed lists is in the digest and on the page (S-LOG-2, S-LOG-4, INV-7, POST-2)', async ({ page }) => {
@@ -606,7 +606,7 @@ test('bad connections: a LAN device that asks for a domain a feed lists is in th
   await new Promise<void>((ok) => srv.listen(0, '127.0.0.1', ok))
   let feedId = ''
   try {
-    const url = `http://e2e-loopback.lan:${(srv.address() as AddressInfo).port}/list.txt` // the box sends this name to 127.0.0.1 (e2eOffline, D-420)
+    const url = `http://e2e-loopback.lan:${(srv.address() as AddressInfo).port}/list.txt` // the box sends this name to 127.0.0.1 (e2eOffline)
     const lines = { format: 'lines', records_path: '', delimiter: '', has_header: false, fields: { indicator: { source: '', regex: '', trim: true, lowercase: false, date_format: 'auto' } } }
     const made = await api<{ id: string }>(c, 'POST', '/feeds/custom', { name: feed, kind: 'ioc', url, enabled: true, interval_hours: 24, auth: { type: 'none', header_name: null, username: null }, parser: lines })
     expect(made.status, JSON.stringify(made.body)).toBe(201)
@@ -642,7 +642,7 @@ test('bad connections: a LAN device that asks for a domain a feed lists is in th
   }
 })
 
-// ---- not built yet: the whole flow is in the body (D-171 (2)) ----
+// ---- not built yet: the whole flow is in the body ----
 interface Siem { enabled: boolean; format: string; host: string; port: number; proto: string; url: string; secret_last4: string | null; events: string[]; last_test: { ok: boolean; detail: string } | null }
 const KEY = 'a-signing-key-of-16+'
 const siemBody = (over: Record<string, unknown> = {}) => ({ enabled: false, format: 'syslog', host: '192.0.2.10', port: 514, proto: 'udp', url: '', events: ['findings'], ...over })
@@ -736,14 +736,14 @@ test('SIEM forwarding on the real backend: validation, the three formats, the ke
     await c.dispose()
   }
 })
-test.fixme('digest: after the 24 h warm-up a log type never seen before is "new" and a flood is a spike (INV-6): a box cannot skip the warm-up, so the Go tests carry it (accepted, D-427: TestContract_INV6_WarmUpIsSilent, TestContract_INV6_SpikeMaths, TestContract_INV6_BaselineOverTenFakeDays)', async () => {
+test.fixme('digest: after the 24 h warm-up a log type never seen before is "new" and a flood is a spike (INV-6): a box cannot skip the warm-up, so the Go tests carry it (accepted: TestContract_INV6_WarmUpIsSilent, TestContract_INV6_SpikeMaths, TestContract_INV6_BaselineOverTenFakeDays)', async () => {
   const c = await as('admin')
   await add(c)
   await sendUdp(`<34>Nov 11 12:33:00 gw app[1]: ${uniq('tok')} a log type with a signature`)
   await expect.poll(async () => (await api<{ new: unknown[] }>(c, 'GET', '/logs/digest')).body.new.length).toBeGreaterThan(0)
   await c.dispose()
 })
-test('a TLS source is served on the TLS port with the box certificate: the line sent over TLS is stored and the source is Receiving; the socket opens with the first TLS source and closes with the last (POST-1, D-214, D-427)', async () => {
+test('a TLS source is served on the TLS port with the box certificate: the line sent over TLS is stored and the source is Receiving; the socket opens with the first TLS source and closes with the last (POST-1)', async () => {
   test.setTimeout(90_000)
   const tlsPort = Number(box().syslog_tls_port)
   expect(tlsPort, 'the box of the run serves syslog over TLS (ready.json)').toBeGreaterThan(0)

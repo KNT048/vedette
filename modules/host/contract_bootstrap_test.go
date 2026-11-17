@@ -15,8 +15,8 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// vedette-host -bootstrap, the first install (WP-07b part 3, slice 3-8b; spec "Khởi động lần đầu", D-138 M4,
-// D-142). Ops.Bootstrap is what the command line calls; the daemon check and the exit codes are tested in
+// vedette-host -bootstrap, the first install (WP-07b part 3, slice 3-8b; spec "Khởi động lần đầu").
+// Ops.Bootstrap is what the command line calls; the daemon check and the exit codes are tested in
 // cmd/vedette-host. The machine is the stateful fake of opstest and a signing environment made for the test.
 
 var bsDigest = map[string]string{
@@ -26,7 +26,7 @@ var bsDigest = map[string]string{
 var bsOrder = []string{api.ServiceCore, api.ServiceSensor, api.ServiceHoneypot, api.ServiceScan}
 
 // bsUnitDigest is the digest the unit of a service pins after a first bootstrap: the manifest's, except for scan, whose unit pins the ID of
-// the image the host built from the verified base (the first build of the fake podman, D-147).
+// the image the host built from the verified base (the first build of the fake podman).
 func bsUnitDigest(s string) string {
 	if s == api.ServiceScan {
 		return "sha256:" + opstest.BuiltID(1)
@@ -118,7 +118,7 @@ func TestContract_Bootstrap_HappyPathWritesUnitsPulledAndVersions(t *testing.T) 
 		if err != nil {
 			t.Fatalf("%s: %v", s, err)
 		}
-		// Golden: byte for byte what container.start would write (the D-105 writer, install=true).
+		// Golden: byte for byte what container.start would write (the unit writer, install=true).
 		if want := e.render(t, s, bsUnitDigest(s)); got != want {
 			t.Errorf("%s: unit differs from the template:\n%s", s, got)
 		}
@@ -150,7 +150,7 @@ func TestContract_Bootstrap_HappyPathWritesUnitsPulledAndVersions(t *testing.T) 
 	}
 }
 
-// #467: on a box with Docker the scan build on vedette-int passes only by the DOCKER-USER rules (D-267); the daemon that keeps them is not
+// #467: on a box with Docker the scan build on vedette-int passes only by the DOCKER-USER rules; the daemon that keeps them is not
 // running at a first install, so the bootstrap puts them in place before it builds.
 func TestContract_Bootstrap_PutsTheDockerForwardRulesInPlaceBeforeTheScanBuild(t *testing.T) {
 	t.Parallel()
@@ -213,7 +213,7 @@ func TestContract_Bootstrap_SecondRunIsANoOp(t *testing.T) {
 	}
 }
 
-// N100: the WARN "release index stored" goes to the journal; an index signed with the offline backup key is also said in words
+// The WARN "release index stored" goes to the journal; an index signed with the offline backup key is also said in words
 // on the installer's terminal (a progress line), and only then.
 func TestContract_Bootstrap_ABackupSignedIndexIsSaidInWords(t *testing.T) {
 	t.Parallel()
@@ -571,7 +571,7 @@ func TestContract_Bootstrap_TheCommittedVectorsOfThisBuild(t *testing.T) {
 		}
 		return
 	}
-	if !tr.TestOnly { // the real release keys (D-256): the vectors are signed by the throwaway test keys
+	if !tr.TestOnly { // the real release keys: the vectors are signed by the throwaway test keys
 		if code, _ := ops.BootstrapCode(run(a)); code != api.CodeSignatureInvalid {
 			t.Fatalf("test-key vectors in a production build: %s", code)
 		}
@@ -599,7 +599,7 @@ func TestContract_Bootstrap_TheCommittedVectorsOfThisBuild(t *testing.T) {
 
 // ---- the way out of core_data_unrecoverable ------------------------------------------------------------
 
-// unrecoverable writes the journal the host leaves when it gave up putting core's data back (D-138 N1c).
+// unrecoverable writes the journal the host leaves when it gave up putting core's data back.
 func (e *updEnv) unrecoverable(t *testing.T, unrecoverable bool) {
 	t.Helper()
 	sha := strings.Repeat("a", 64)

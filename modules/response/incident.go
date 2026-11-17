@@ -9,9 +9,9 @@ import (
 	"sort"
 )
 
-// Respond from an incident (D-509, S-RESP-3, customer walk W1-16). Respond on an incident opens a panel for that incident's source and
+// Respond from an incident (S-RESP-3). Respond on an incident opens a panel for that incident's source and
 // offers only what can really happen to it. Asking for one creates a pending request through the same planner and gates as a rule
-// run (typed values, never-touch, D-469, the connection), with source "person": it waits for approval, expires, is undone after
+// run (typed values, never-touch, the connection), with source "person": it waits for approval, expires, is undone after
 // incidentTTL and is logged like every request. Nothing here sends a step to a device (FORBID-1).
 
 // IncidentInfo is what response needs of an incident: the notify incident, and for a trap the source of its hit (honeypot), joined
@@ -23,7 +23,7 @@ type IncidentInfo struct {
 	AssetID                 string // the inventory device of the source, "" when not known
 	HitKind                 string // a trap's hit: service, token or scan
 	// Unconfirmed: the source may be forged. A scan hit can be made from attempts that completed no handshake, and a UDP trap hit
-	// from one datagram (honeypot D-467); it counts as confirmed only when the same source also completed a connection to a trap
+	// from one datagram; it counts as confirmed only when the same source also completed a connection to a trap
 	// service (a TCP service hit) near it. Nothing is offered for an unconfirmed source.
 	Unconfirmed bool
 }
@@ -56,7 +56,7 @@ type IncidentSource struct {
 	IP      string  `json:"ip"`
 	Device  *string `json:"device"`
 	AssetID *string `json:"asset_id"`
-	Scope   string  `json:"scope"` // "lan" (the block list never publishes it, D-469) or "public"
+	Scope   string  `json:"scope"` // "lan" (the block list never publishes it) or "public"
 }
 
 // IncidentOption is one action that can be asked for the source.
@@ -251,7 +251,7 @@ func (s *Service) IncidentPanel(ctx context.Context, id string) (IncidentPanel, 
 
 // RequestFromIncident is POST /response/incidents/{id}/request: ask for approval of one offered action on the incident's source. The
 // source is read again here (the browser never sends it); the gates are those of RequestProposal without the AI ones. The request is
-// pending: a person approves it (D-41).
+// pending: a person approves it.
 func (s *Service) RequestFromIncident(ctx context.Context, who Actor, id, actionID string) (ActionRequest, error) {
 	if err := s.ensureSeeded(ctx); err != nil {
 		return ActionRequest{}, err

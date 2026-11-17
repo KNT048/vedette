@@ -122,7 +122,7 @@ func TestValidatePassword(t *testing.T) {
 		{"eleven multi-byte characters", string([]rune(strings.Repeat("ấbcd", 3))[:11]), "u@acme.example", false},
 		{"256 characters", strings.Repeat("abcd", 64), "u@acme.example", true},
 		{"257 characters", strings.Repeat("abcd", 64) + "e", "u@acme.example", false},
-		// D-389: long enough but among the first guesses (NIST SP 800-63B 5.1.1.2).
+		// Long enough but among the first guesses (NIST SP 800-63B 5.1.1.2).
 		{"common stem with digits", "password1234", "u@acme.example", false},
 		{"common stem with symbols and case", "Qwerty123456!", "u@acme.example", false},
 		{"common stem in look-alikes", "P@$$word2024", "u@acme.example", false},

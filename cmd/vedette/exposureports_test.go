@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/exposure"
 )
 
-// D-384: a scan day of an exposure target that shows a port the previous scan day did not makes one new_port event in response,
+// A scan day of an exposure target that shows a port the previous scan day did not makes one new_port event in response,
 // through exposure's own Diff. The first scan day is the baseline; a second scan on the same day does not repeat an event; nothing
 // is read while exposure is off, and nothing reaches response while it is off.
 func TestExposureSnapshotOpensNewPorts(t *testing.T) {

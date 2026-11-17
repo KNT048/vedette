@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/sensorlink"
 )
 
-// The container health check of `sensor` and `scan` (`HealthCmd=["/vedette-sensor","healthcheck"]`, host/ops/quadlet.go, D-137). The
+// The container health check of `sensor` and `scan` (`HealthCmd=["/vedette-sensor","healthcheck"]`, host/ops/quadlet.go). The
 // process says it is alive and talking to core by touching a file after every heartbeat core accepted; the check reads the file's
 // age. The file lives on /tmp, a tmpfs in both units, so a restart starts without it (and unhealthy until the first heartbeat, inside
 // the unit's start period). The check needs no credentials and no network: a heartbeat that core refuses or that never arrives

@@ -1,6 +1,6 @@
 {
   "library": "Vedette sample rule templates",
-  "notice": "Ready-made rules (data, D-58). They name template actions by id; vendor names appear only here and in action-templates.sample.json.",
+  "notice": "Ready-made rules (data). They name template actions by id; vendor names appear only here and in action-templates.sample.json.",
   "templates": [
     {
       "id": "tpl-trap-fgt",

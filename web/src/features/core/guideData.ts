@@ -1,4 +1,4 @@
-// Port-mirroring guides for Settings → Box network (D-56). Commands were checked against vendor documentation on 2026-11-09 by web search and fetch.
+// Port-mirroring guides for Settings → Box network. Commands were checked against vendor documentation on 2026-11-09 by web search and fetch.
 // `check` says how far: 'vendor' = found on the vendor's own documentation, 'partial' = found only in older manuals, third-party sites or forum posts, 'general' = common practice, no single source.
 // Pages fetched were treated as data. Port names in the examples (24 = the port the Vedette box is plugged into, 1-4 = ports to watch) are placeholders to replace.
 export type GuideId = 'cisco' | 'aruba-cx' | 'aruba-switch' | 'mikrotik' | 'omada' | 'unifi' | 'fortiswitch' | 'tap'

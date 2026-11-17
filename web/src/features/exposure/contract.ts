@@ -1,5 +1,5 @@
-// API contract of module exposure (D-18, S-EXP-1). UI types are inferred from here (types.ts).
-// Hard rule (LEGAL §3): POST .../scan returns 409 unless ownership is verified (IPs: not more than 30 days since the box last saw them) and the DNS TXT record is still there, and 400 `commitment_required` (D-57) until the commitment is recorded.
+// API contract of module exposure (S-EXP-1). UI types are inferred from here (types.ts).
+// Hard rule (LEGAL §3): POST .../scan returns 409 unless ownership is verified (IPs: not more than 30 days since the box last saw them) and the DNS TXT record is still there, and 400 `commitment_required` until the commitment is recorded.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { JobProgress } from '@/lib/progress'
@@ -17,21 +17,21 @@ export const VerifyMethod = z.enum(['dns_txt', 'box_egress'])
 export const Counts = z.object({ subdomains: z.number().int(), ips: z.number().int(), ports: z.number().int(), admin_panels: z.number().int(), certs_expiring: z.number().int() })
 
 export const PortRow = z.object({ ip: z.string(), port: z.number().int(), service: z.string(), product: z.string().optional(), last_seen: isoDate.optional().describe('Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)'), misses: z.number().int().optional().describe('With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)'), unchecked: z.boolean().optional().describe('The newest scan did not check the address: the row is as an earlier scan left it'),
-  ident: z.enum(['probed', 'port', 'none']).optional().describe('M2-7: how service identification named the service: probed (a probe\'s answer, or the surface scan\'s GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan'),
-  cert_names: z.array(z.string()).optional().describe('M2-7: the names of the port\'s TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5'),
-  title: z.string().optional().describe('M2-7: the title of the web page on the port (deep scan, http-title)'),
-  server: z.string().optional().describe('M2-7: the HTTP Server header on the port (deep scan, http-server-header)') })
+  ident: z.enum(['probed', 'port', 'none']).optional().describe('How service identification named the service: probed (a probe\'s answer, or the surface scan\'s GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan'),
+  cert_names: z.array(z.string()).optional().describe('The names of the port\'s TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5'),
+  title: z.string().optional().describe('The title of the web page on the port (deep scan, http-title)'),
+  server: z.string().optional().describe('The HTTP Server header on the port (deep scan, http-server-header)') })
 
-/** The sentence an administrator's first Scan now confirms (D-473). The backend owns the text (modules/exposure/notice.go) and sends it with the target's name in it; the page shows what it received. These two constants are the mock's copy, held equal to the backend's by a Go test. */
+/** The sentence an administrator's first Scan now confirms. The backend owns the text (modules/exposure/notice.go) and sends it with the target's name in it; the page shows what it received. These two constants are the mock's copy, held equal to the backend's by a Go test. */
 export const NOTICE_VERSION = '2026-11-14'
 export const NOTICE_TEMPLATE = 'By choosing Scan now I confirm that my company owns {value} and that I am authorized to scan it, including identifying its services and versions, safe checks for known exploited vulnerabilities and a passive web scan. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.'
 export const Notice = z.object({ version: z.string(), text: z.string() })
-/** FULL-1 (D-566): the testing terms of a verified target, one paragraph per line, and the one extra tick (off by default). The backend
+/** The testing terms of a verified target, one paragraph per line, and the one extra tick (off by default). The backend
  * owns the text (modules/exposure/terms.go) and sends it with the target in it; these are the mock's copy, held equal by a Go test. */
 export const TERMS_VERSION = '2026-11-14e'
 export const TERMS_TEMPLATE = 'I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette\'s tools may send it:\nAll ports: every TCP port, and the service and version behind each one.\nVulnerability checks: tests for known vulnerabilities, including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command). Some checks, OpenVAS\'s in particular, may write a harmless test file or record to confirm a flaw and then try to remove it. Checks that can crash a service, guess passwords or sign in with default passwords, and the exploit checks of nuclei and nmap that send more than a harmless read, run only with the disruptive checks below.\nWeb scanning: a scan of the web pages that follows links and may submit forms.\nAuthentication checks: whether login pages, admin interfaces and services let anyone in without a password, through a known authentication bypass or with weak settings, including the public anonymous login a service may offer (for example anonymous FTP). Passwords are not guessed and default or well-known passwords are not tried unless the disruptive checks below are ticked.\nAccept only if {value} is yours alone: not an address shared through your Internet provider (carrier-grade NAT), a hosting provider\'s NAT or proxy, or a CDN or hosted service that serves your names. Their servers are not yours to test. The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.'
-// D-571 (FULL-5 slice 3, LEGAL-2): a domain's terms: the IP text with the "yours alone" sentence replaced by what reaches every address
-// its names resolve to and who answers for a provider's permission (TERMS.md's own sentences, D-544). modules/exposure/terms.go termsTemplateDomain, held equal by a test.
+// LEGAL-2: a domain's terms: the IP text with the "yours alone" sentence replaced by what reaches every address
+// its names resolve to and who answers for a provider's permission (TERMS.md's own sentences). modules/exposure/terms.go termsTemplateDomain, held equal by a test.
 export const TERMS_TEMPLATE_DOMAIN = 'I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette\'s tools may send it:\nAll ports: every TCP port, and the service and version behind each one.\nVulnerability checks: tests for known vulnerabilities, including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command). Some checks, OpenVAS\'s in particular, may write a harmless test file or record to confirm a flaw and then try to remove it. Checks that can crash a service, guess passwords or sign in with default passwords, and the exploit checks of nuclei and nmap that send more than a harmless read, run only with the disruptive checks below.\nWeb scanning: a scan of the web pages that follows links and may submit forms.\nAuthentication checks: whether login pages, admin interfaces and services let anyone in without a password, through a known authentication bypass or with weak settings, including the public anonymous login a service may offer (for example anonymous FTP). Passwords are not guessed and default or well-known passwords are not tried unless the disruptive checks below are ticked.\nEvery name under {value} that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN. If a provider serves a name, its testing policy applies to you (for example, Cloudflare and AWS forbid denial-of-service tests); leave the disruptive checks off unless that provider allows them. Vedette\'s tools reach each address a name under {value} resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the web scan (ZAP). Verifying a name proves you control its DNS, not that you own the machines behind it or may test them. With shared or cloud hosting, a CDN or a proxy, that address can also serve other people\'s systems: you are responsible for having the provider\'s permission. Vedette does not check who owns those addresses. A name that points (CNAME) to a name outside {value} is scanned at whatever address the owner of that other name sets, so the disruptive checks never run on an address reached only that way. The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.'
 export const TERMS_DISRUPTIVE = 'Include disruptive checks (denial of service, password guessing, sign-in attempts with default or well-known passwords, and exploit checks that send more than a harmless read, such as nuclei\'s POST exploit requests that may create or change data and nmap\'s SQL injection probes): these can crash a service, lock accounts, change data or take a device offline.'
 export const TermsNotice = z.object({ version: z.string(), text: z.string().describe('The terms with the target in them, one paragraph per line'), disruptive: z.string().describe('The sentence of the extra tick, off by default') })
@@ -42,16 +42,16 @@ export const Terms = z.object({
 })
 export const Commitment = z.object({
   by: z.string(), at: z.iso.datetime(),
-  version: z.string().nullable().describe('Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before D-473'),
-  sentence: z.string().nullable().describe('The exact sentence, with the target in it, kept with who and when; null on a commitment recorded before D-473'),
+  version: z.string().nullable().describe('Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an older version'),
+  sentence: z.string().nullable().describe('The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by an older version'),
 })
 
-// D-628, D-632 (J6, kien G10): where a domain's ownership record goes. The target's own record at "@" of its zone (the registered
+// Where a domain's ownership record goes. The target's own record at "@" of its zone (the registered
 // domain, Public Suffix List, both sections: never across co.uk or ddns.net) proves it, as on its own name or on _vedette-verify.<name>;
 // a box domain's record on its own name covers every name under it. Never through a CNAME or a wildcard.
 export const ProofHint = z.object({
   zone: z.string().describe('The registered domain: the DNS zone the record is added in ("beyondnetglobal.com")'),
-  host: z.string().describe('The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target\'s own record there proves it, and an apex takes a record whatever the subdomain is)'),
+  host: z.string().describe('The Name (host) to type in that zone: "@", the zone apex, for every target (the target\'s own record there proves it, and an apex takes a record whatever the subdomain is)'),
   alt_host: z.string().nullable().describe('The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)'),
   covered_by: z.string().nullable().describe('A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none'),
 })
@@ -67,36 +67,36 @@ export const Target = z.object({
   expires_at: z.iso.datetime().nullable().describe('IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan)'),
   validity: z.enum(['valid', 'expiring', 'expired']).nullable().describe('IPs only: expiring = 5 days or less left'),
   last_check: z.object({ at: z.iso.datetime(), ok: z.boolean(), message: z.string() }).nullable(),
-  commitment: Commitment.nullable().describe('Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the exact sentence shown next to the button'),
-  commitment_notice: Notice.nullable().describe('The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too'),
-  terms: Terms.nullable().describe('FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again'),
+  commitment: Commitment.nullable().describe('Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact sentence shown next to the button'),
+  commitment_notice: Notice.nullable().describe('The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once, so a target with a commitment can carry it too'),
+  terms: Terms.nullable().describe('the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again'),
   terms_notice: TermsNotice.describe('The current testing terms for this target, to accept or to read again'),
-  terms_warning: z.string().nullable().optional().describe('GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows (D-566)'),
-  full_scan: z.boolean().describe('Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence'),
+  terms_warning: z.string().nullable().optional().describe('GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows'),
+  full_scan: z.boolean().describe('Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of the Scan now sentence'),
   scannable: z.boolean(),
   blocked_reason: z.enum(['unverified', 'expired', 'txt_missing', 'no_commitment', 'ip_not_current']).nullable().describe('Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it'),
   created_at: z.iso.datetime(),
   last_scan_at: z.iso.datetime().nullable(),
   latest: Counts.nullable(),
   open_ports: z.array(PortRow).nullable().describe('The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned'),
-  proof: ProofHint.nullable().describe('Domains: where the TXT record goes and which verified domain covers this one already (D-628); null for an IP'),
+  proof: ProofHint.nullable().describe('Domains: where the TXT record goes and which verified domain covers this one already; null for an IP'),
 })
 
-// INV-27 (D-567, S-EXP-1): the surface of a verified domain. Every (name, address) has one kind; what serves a name (a CDN or not)
-// does not matter (kien 2026-11-14). With the domain's testing terms accepted, each public IPv4 address gets the deep scan (D-571, at most 3 a run).
+// INV-27 (S-EXP-1): the surface of a verified domain. Every (name, address) has one kind; what serves a name (a CDN or not)
+// does not matter. With the domain's testing terms accepted, each public IPv4 address gets the deep scan (at most 3 a run).
 export const HostClass = z.enum(['box', 'public', 'private'])
 export const HostIp = z.object({
   ip: z.string(), family: z.enum(['ipv4', 'ipv6']).describe('IPv6 is listed, not scanned yet'),
   class: HostClass.describe('box: this box\'s verified, current IP; public: any other public address; private: not a public address (or an IPv6 special-purpose range), never dialed'),
   contacted: z.boolean().optional().describe('The check by name (one GET / on ports 80 and 443) went to this address: the name\'s first public IPv4. Missing or false: not contacted'),
-  deep: z.enum(['scanned', 'waiting', 'fence', 'refused', 'incomplete']).optional().describe('D-571: what this run\'s deep scan did with the address (domain terms accepted): scanned (service identification ran), waiting (left by the cap, next_in_line), fence (not this box\'s, and the box has no domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent), incomplete (the re-check passed but service identification did not finish: its ports are not known this run). Missing: no deep scan (terms not accepted, IPv6 or private)'),
-  last_deep: z.iso.datetime().optional().describe('D-571: when a run last deep-scanned this address (rotation: the least recently scanned go first)'),
-  last_tried: z.iso.datetime().optional().describe('D-571 review r1 M3: when a run last took this address in turn (scanned, incomplete or refused); the rotation goes by the later of last_deep and last_tried'),
-  next_in_line: z.number().int().min(1).optional().describe('D-571: its place among the addresses the cap left for the next runs'),
+  deep: z.enum(['scanned', 'waiting', 'fence', 'refused', 'incomplete']).optional().describe('what this run\'s deep scan did with the address (domain terms accepted): scanned (service identification ran), waiting (left by the cap, next_in_line), fence (not this box\'s, and the box has no domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent), incomplete (the re-check passed but service identification did not finish: its ports are not known this run). Missing: no deep scan (terms not accepted, IPv6 or private)'),
+  last_deep: z.iso.datetime().optional().describe('when a run last deep-scanned this address (rotation: the least recently scanned go first)'),
+  last_tried: z.iso.datetime().optional().describe('when a run last took this address in turn (scanned, incomplete or refused); the rotation goes by the later of last_deep and last_tried'),
+  next_in_line: z.number().int().min(1).optional().describe('its place among the addresses the cap left for the next runs'),
 })
 export const HostRow = z.object({
   name: z.string(), ip: z.string().describe('The first IPv4 address; "" when the name has none (IPv6 only, or a CNAME that leads nowhere)'),
-  source: z.enum(['ct', 'dns', 'mx', 'ns', 'wordlist']).optional().describe('Where the name was found: a certificate-transparency log, the domain itself, its MX or NS records, or the list of common names. Missing on a snapshot older than D-567: its classes are unknown'),
+  source: z.enum(['ct', 'dns', 'mx', 'ns', 'wordlist']).optional().describe('Where the name was found: a certificate-transparency log, the domain itself, its MX or NS records, or the list of common names. Missing on a snapshot taken by an older version: its classes are unknown'),
   cname: z.string().optional().describe('The final CNAME target'),
   ips: z.array(HostIp).optional().describe('Every address of the name with its kind (at most 16)'),
   lookup_failed: z.boolean().optional().describe('The name\'s address lookup got no answer this time: the row is the previous scan\'s, carried forward (not gone)'),
@@ -104,22 +104,22 @@ export const HostRow = z.object({
 export const AdminRow = z.object({ url: z.string(), product: z.string(), ip: z.string(), port: z.number().int(), risk: z.enum(['danger', 'warn']) })
 export const CertRow = z.object({ host: z.string(), issuer: z.string(), expires_at: z.iso.datetime() })
 
-// S-EXP-2 (INV-19, INV-20, D-553): what service identification (nmap -sV) read on the box's own public IP, what the scan checked and
+// S-EXP-2 (INV-19, INV-20): what service identification (nmap -sV) read on the box's own public IP, what the scan checked and
 // did not, and the exploited CVEs (CISA KEV) of the identified services, computed when the snapshot is read (not stored).
 export const ServiceRow = z.object({
   ip: z.string(), port: z.number().int(),
   name: z.string().describe('nmap\'s service name: http, ssh, tcpwrapped'), product: z.string().describe('"" when nmap named none'),
   version: z.string().describe('"" when the service sent none'), cpe: z.string().describe('The CPE 2.2 URI nmap printed; "" when none'),
   extra: z.string().describe('nmap\'s extrainfo, e.g. (Debian); "" when none'),
-  method: z.enum(['probed', 'table']).optional().describe('M2-7: how nmap named the service: probed (a probe\'s answer matched) or table (only the usual service of the port number, not confirmed). Missing: an older scan'),
-  conf: z.number().int().min(1).max(10).optional().describe('M2-7: nmap\'s confidence in the name, 1 to 10 (a table name is 3)'),
+  method: z.enum(['probed', 'table']).optional().describe('How nmap named the service: probed (a probe\'s answer matched) or table (only the usual service of the port number, not confirmed). Missing: an older scan'),
+  conf: z.number().int().min(1).max(10).optional().describe('nmap\'s confidence in the name, 1 to 10 (a table name is 3)'),
 })
 export const CheckRow = z.object({ kind: z.string().describe('ports, names, services, templates, cve, web or greenbone'), text: z.string(), at: z.iso.datetime() })
-export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates, cve, web, greenbone; a domain\'s surface (INV-27): wordlist (common names not tried: wildcard DNS), by_name (names on other public addresses: checked by name only), address_family (IPv6 not scanned), lookup (names whose address lookup got no answer: left as the last scan found them); deep (D-571: the deep scan of the names\' addresses: the cap, needs the domain fence, private addresses, a refused re-check)'), text: z.string() })
+export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates, cve, web, greenbone; a domain\'s surface (INV-27): wordlist (common names not tried: wildcard DNS), by_name (names on other public addresses: checked by name only), address_family (IPv6 not scanned), lookup (names whose address lookup got no answer: left as the last scan found them); deep (the deep scan of the names\' addresses: the cap, needs the domain fence, private addresses, a refused re-check)'), text: z.string() })
 export const VulnBasis = z.enum(['version', 'product', 'template', 'greenbone', 'js_library'])
 export const VulnRow = z.object({
   ip: z.string(), port: z.number().int(), cve: z.string(), name: z.string(),
-  basis: VulnBasis.describe('version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP read, D-565); product: only the product matches; template: a safe template matched (INV-23), the strongest evidence; greenbone: Greenbone named this CVE and it is on the list (INV-25), shown next to any other row of the same CVE, never instead of it; js_library: Retire.js names this CVE for a JavaScript library version ZAP saw on a page (D-565)'),
+  basis: VulnBasis.describe('version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP read); product: only the product matches; template: a safe template matched (INV-23), the strongest evidence; greenbone: Greenbone named this CVE and it is on the list (INV-25), shown next to any other row of the same CVE, never instead of it; js_library: Retire.js names this CVE for a JavaScript library version ZAP saw on a page'),
   summary: z.string(), date_added: isoDate.nullable().describe('When CISA listed it as exploited'), ransomware: z.boolean(),
   backport: z.string().describe('The distribution the service names (Debian, Ubuntu…), which may have backported the fix without changing the version; "" when none'),
   template: z.string().describe('Id of the safe template that ran for this CVE; "" when none ran'),
@@ -130,12 +130,12 @@ export const DeepSeverity = z.enum(['info', 'low', 'medium', 'high', 'critical',
 export const TemplateRow = z.object({
   ip: z.string(), port: z.number().int(), cve: z.string().describe('The CVE the template is for (one the job asked about); "" on a deep row about no CVE (an exposed .git, an admin panel)'),
   template: z.string(), outcome: z.enum(['matched', 'no_match', 'error']),
-  name: z.string().optional().describe('D-527 (deep scan, testing terms accepted): the template\'s name from the pack index, one plain line; absent on a row of a scan without the terms'),
-  severity: DeepSeverity.optional().describe('D-527: the template\'s severity from the pack index; absent on a row of a scan without the terms. A deep row is kept only when it matched'),
+  name: z.string().optional().describe('deep scan, testing terms accepted: the template\'s name from the pack index, one plain line; absent on a row of a scan without the terms'),
+  severity: DeepSeverity.optional().describe('the template\'s severity from the pack index; absent on a row of a scan without the terms. A deep row is kept only when it matched'),
 })
 export const GapRow = z.object({ ip: z.string(), port: z.number().int(), software: z.string(), cves: z.array(z.string()).describe('Exploited CVEs of the product that only a version would decide') })
 
-// S-EXP-2 (INV-24, D-562): what ZAP's passive web scan (spider and passive rules, no form sent) noticed on a scanned page. Not exploited CVEs.
+// S-EXP-2 (INV-24): what ZAP's passive web scan (spider and passive rules, no form sent) noticed on a scanned page. Not exploited CVEs.
 export const WebRisk = z.enum(['high', 'medium', 'low', 'info'])
 export const WebSoftware = z.object({
   product: z.string(), version: z.string(),
@@ -147,25 +147,25 @@ export const WebFinding = z.object({
   name: z.string().describe('ZAP\'s alert name; plain text'), risk: WebRisk, confidence: z.enum(['low', 'medium', 'high', 'confirmed']),
   cwe: z.number().int().describe('CWE number, 0 when ZAP names none'), description: z.string().describe('Plain text, clipped'), solution: z.string().describe('ZAP\'s advice, plain text, clipped'),
   urls: z.array(z.string()).describe('At most 3 sample pages of the site that showed it'), count: z.number().int().describe('How many pages showed it'),
-  group: z.enum(['fix', 'hardening']).describe('D-565, content/zap/vedette-baseline.conf: fix = a FAIL rule, shown first as "Fix this"; hardening = a WARN rule or one the list does not name'),
-  software: z.array(WebSoftware).describe('D-565: versions ZAP read (10003 JavaScript library, 10036 Server header, 10037 X-Powered-By); [] for other rules'),
+  group: z.enum(['fix', 'hardening']).describe('content/zap/vedette-baseline.conf: fix = a FAIL rule, shown first as "Fix this"; hardening = a WARN rule or one the list does not name'),
+  software: z.array(WebSoftware).describe('versions ZAP read (10003 JavaScript library, 10036 Server header, 10037 X-Powered-By); [] for other rules'),
 })
 
-// S-EXP-2 (INV-25, D-563): the optional deep scan. Greenbone looked at the IP from outside without logging in; QoD >= 70 only.
+// S-EXP-2 (INV-25): the optional deep scan. Greenbone looked at the IP from outside without logging in; QoD >= 70 only.
 export const GreenboneResult = z.object({
   ip: z.string(), port: z.string().describe('"443/tcp", "general/tcp"; "" when Greenbone gave none'),
-  severity: z.number().describe('CVSS score, 0.1 to 10. Below 4.0 (Low) it is a hardening note, shown apart and never counted as an alert (D-564)'), name: z.string().describe('Name of Greenbone\'s test; plain text'),
+  severity: z.number().describe('CVSS score, 0.1 to 10. Below 4.0 (Low) it is a hardening note, shown apart and never counted as an alert'), name: z.string().describe('Name of Greenbone\'s test; plain text'),
   qod: z.number().int().describe('Quality of detection, 70 to 100'), cves: z.array(z.string()).describe('CVE ids the test names'),
   solution: z.string().describe('Greenbone\'s advice, plain text, clipped'), oid: z.string().describe('OID of the test; "" when not read'),
 })
 
-// N49-3, N49-2 (D-595): the one state of the snapshot's OpenVAS step, which its heading follows, and when it started (shown in the viewer's
+// The one state of the snapshot's OpenVAS step, which its heading follows, and when it started (shown in the viewer's
 // time zone like every other time of the page).
 export const GreenboneRunState = z.enum(['running', 'done', 'partial', 'not_run', 'failed', 'stopped', 'ended'])
 export const GreenboneRun = z.object({
   state: GreenboneRunState.describe('running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a domain keeps the rows of the addresses that finished); ended: it scanned and ended before it finished without a stop from Vedette (OpenVAS reports it stopped or interrupted, or the domain fence stopped it), with the rows it had found if any; a task OpenVAS ended before it was seen scanning is not_run'),
   started_at: z.iso.datetime().nullable().describe('When the OpenVAS step started; null when it did not'),
-  addresses: z.array(z.object({ ip: z.string(), state: GreenboneRunState })).describe('A domain\'s run: the OpenVAS state of each deep-scanned address (D-571); [] for an IP'),
+  addresses: z.array(z.object({ ip: z.string(), state: GreenboneRunState })).describe('A domain\'s run: the OpenVAS state of each deep-scanned address; [] for an IP'),
 })
 
 export const Snapshot = z.object({
@@ -189,7 +189,7 @@ export const Diff = z.object({ from: isoDate, to: isoDate, added: z.array(DiffIt
 
 export const VerifyResult = z.object({ verified: z.boolean(), message: z.string(), target: Target })
 
-/** Auto-detect of the box's public IPs (kien 2026-11-09). interval_min is 1 to 1440 (one minute to 24 hours); the server checks it (400 bad_interval). */
+/** Auto-detect of the box's public IPs. interval_min is 1 to 1440 (one minute to 24 hours); the server checks it (400 bad_interval). */
 export const BoxIpRun = z.object({ at: z.iso.datetime(), ok: z.boolean(), message: z.string().describe('What the last check saw, or why it failed') })
 export const BoxIpSettings = z.object({
   auto: z.boolean().describe('On: the box detects its public IPs at first start and then every interval_min minutes. Off: only "Detect now". Default on'),
@@ -197,29 +197,29 @@ export const BoxIpSettings = z.object({
   last_run: BoxIpRun.nullable().describe('The last automatic or manual detection; null before the first one'),
   retry_in_min: z.number().int().nullable().describe('null while attempts are left. When the 10 attempts an hour (shared by Detect now, Verify again and the DNS Check of a domain) are used up: minutes until the next one is possible, 1 or more'),
 })
-/** An IP the customer removed and told Vedette not to add again (D-79). The list only blocks, it never allows: restoring only lets detection add the IP again. */
+/** An IP the customer removed and told Vedette not to add again. The list only blocks, it never allows: restoring only lets detection add the IP again. */
 export const IgnoredIp = z.object({ value: z.string().describe('A public IPv4 address'), ignored_by: z.string(), ignored_at: z.iso.datetime() })
-/** D-492: the device that probably answers the open ports of the box's own public IP. Never a sure claim: NAT may forward the port to another device. */
+/** The device that probably answers the open ports of the box's own public IP. Never a sure claim: NAT may forward the port to another device. */
 export const Gateway = z.object({
   ip: z.string().nullable().describe('The LAN default gateway the host reports; null when the box cannot tell'),
   device_id: z.string().nullable().describe('The inventory device with that IP; null when the gateway is not in the device list'),
   name: z.string().nullable().describe('That device\'s name as the Devices page shows it (untrusted label, at most 80 characters)'),
   open_exploited: z.number().int().describe('Open findings (exploited vulnerabilities, confirmed or suspected) of that device; 0 when device_id is null'),
 })
-export const TargetList = z.object({ items: z.array(Target), box_ip: BoxIpSettings, ignored: z.array(IgnoredIp).describe('The Ignored list, newest first'), gateway: Gateway.nullable().describe('null unless one of the box\'s own IPs has an open port in its newest scan; then who probably answers it (D-492)') })
+export const TargetList = z.object({ items: z.array(Target), box_ip: BoxIpSettings, ignored: z.array(IgnoredIp).describe('The Ignored list, newest first'), gateway: Gateway.nullable().describe('null unless one of the box\'s own IPs has an open port in its newest scan; then who probably answers it') })
 export const ScanPhase = z.enum(['queued', 'probing', 'saving', 'greenbone', 'done'])
 export const ScanRun = z.object({
   id: z.string(), target_id: z.string(), target_value: z.string(), by: z.string().describe('Who pressed Scan now (an e-mail)'),
   started_at: z.iso.datetime(), finished_at: z.iso.datetime().nullable(),
   status: z.enum(['running', 'done', 'failed', 'stopped']),
-  phase: ScanPhase.describe('queued: accepted, about to start; probing: the scan module\'s runner is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes, D-563), the box\'s one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached'),
+  phase: ScanPhase.describe('queued: accepted, about to start; probing: the scan module\'s runner is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes), the box\'s one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached'),
   snapshot_id: z.string().nullable().describe('The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept'),
   error: z.object({ code: z.string(), message: z.string() }).nullable().describe('Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise'),
-  stop_reason: z.string().nullable().optional().describe('Why the box stopped this run when it was not a person\'s Stop, e.g. "the testing terms of this target were withdrawn" (D-566)'),
+  stop_reason: z.string().nullable().optional().describe('Why the box stopped this run when it was not a person\'s Stop, e.g. "the testing terms of this target were withdrawn"'),
   progress: JobProgress.nullable().describe('How far the step that runs now is (#830): the port scan, service detection and vulnerability checks as the scan worker reports them, the passive web checks, and OpenVAS\'s own percent during the greenbone phase. Set while status is running; null otherwise'),
 })
 
-/** D-558: what Shodan InternetDB says about one of the box's own verified public IPs, next to Vedette's own scan. It is Shodan's claim, never Vedette's finding. */
+/** What Shodan InternetDB says about one of the box's own verified public IPs, next to Vedette's own scan. It is Shodan's claim, never Vedette's finding. */
 export const OutsideView = z.object({
   ip: z.string().describe('The public IP that was sent to Shodan'),
   checked_at: z.iso.datetime().describe('When the box asked Shodan (InternetDB itself gives no date; its data is updated about once a week)'),
@@ -234,7 +234,7 @@ export const OutsideView = z.object({
   scan_at: z.iso.datetime().nullable().describe('When that scan ran; null when never'),
 })
 
-/** D-563: the optional deep scan with Greenbone (OpenVAS), off by default. Greenbone runs as its own containers next to Vedette. */
+/** The optional deep scan with Greenbone (OpenVAS), off by default. Greenbone runs as its own containers next to Vedette. */
 export const GreenboneState = z.enum(['unavailable', 'off', 'starting', 'loading', 'ready', 'error'])
 export const Greenbone = z.object({
   state: GreenboneState.describe('unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes about 2 hours) or its weekly feed update, a phase and not a hang'),
@@ -243,7 +243,7 @@ export const Greenbone = z.object({
   preflight: z.object({
     memory_bytes: z.number().int().nullable().describe('MemTotal of the box; null when it could not be read'),
     disk_free_bytes: z.number().int().nullable().describe('Free space of the box data directory\'s filesystem; null when it could not be read'),
-    ok: z.boolean().describe('Both meet the thresholds: 6 GB (decimal) of memory (under 8 GB, also 2 GB of swap) and 60 GB free (D-569)'),
+    ok: z.boolean().describe('Both meet the thresholds: 6 GB (decimal) of memory (under 8 GB, also 2 GB of swap) and 60 GB free'),
     reason: z.string().nullable().describe('Why it cannot be enabled, with the measured number, e.g. "This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB."'),
   }),
   feed_sync: z.object({
@@ -251,7 +251,7 @@ export const Greenbone = z.object({
     ok: z.boolean().nullable().describe('Whether it worked; null before the first'),
     note: z.string().nullable().describe('What happened, e.g. "Not updated: this box has 41.3 GB of free disk space; OpenVAS needs at least 60.0 GB free."'),
     next_at: z.iso.datetime().nullable().describe('When the next one is due: a week after the last that worked (or after enabling), a day after one that did not; null while Greenbone is off or unavailable'),
-  }).describe('The weekly update of Greenbone\'s feed while it is enabled (D-564): never during a scan, refused below 60 GB free, audited'),
+  }).describe('The weekly update of Greenbone\'s feed while it is enabled: never during a scan, refused below 60 GB free, audited'),
   feed: z.object({
     nvt_version: z.string().nullable().describe('Version of the vulnerability tests (NVT feed) OpenVAS reports in GMP get_feeds, e.g. "202611140611"; null when it gave none or one Vedette does not show'),
     nvt_date: z.iso.datetime().nullable().describe('When that feed was built (UTC), read from its version; null when the version is not of the form YYYYMMDDhhmm'),
@@ -274,15 +274,15 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/exposure/targets/{id}', summary: 'One external-exposure target', stories: ['S-EXP-1'], role: 'viewer', params: id, response: Target, example: idEx },
   { method: 'delete', path: '/exposure/targets/{id}', summary: 'Delete a target with its snapshots and commitment. For a public IP this removes it from the list; with ignore=true it also goes on the Ignored list and is never added again or scanned (ignore is only for IPs, else 400 bad_value); without it, auto-detect brings it back (as a new target) the next time the box sees it', stories: ['S-EXP-1'], role: 'admin', params: id, query: z.object({ ignore: z.enum(['true', 'false']).optional() }), response: null },
   { method: 'post', path: '/exposure/targets/{id}/verify', summary: 'Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited', stories: ['S-EXP-1'], role: 'operator', params: id, response: VerifyResult },
-  { method: 'put', path: '/exposure/targets/{id}/terms', summary: 'Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)', stories: ['S-EXP-2'], role: 'admin', params: id, body: z.object({ version: z.string().describe('terms_notice.version as the page showed it'), disruptive: z.boolean() }), response: Target },
-  { method: 'delete', path: '/exposure/targets/{id}/terms', summary: 'Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the K-4 scope again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason). Audited (exposure.terms_revoke) when there was an acceptance', stories: ['S-EXP-2'], role: 'admin', params: id, response: Target },
-  { method: 'post', path: '/exposure/targets/{id}/scan', status: 202, summary: 'Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence (D-559) is asked again once: it counts as missing (operators get 400 commitment_required "the confirmation text changed"), a request without notice_version gets 409 notice_changed, and the administrator\'s press replaces it. After those checks the scan module\'s runner does the scan (D-229, D-57 (7); it follows this module\'s switch, so the Vulnerability scans module may be off): ports are scanned only on the box\'s own verified public IPs; a domain\'s names from certificate transparency, its MX and NS records and a list of common names (looked up through the box\'s DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only the box\'s own address is scanned beyond that. 409 module_off while the External exposure module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target\'s last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited', stories: ['S-EXP-1'], role: 'operator', params: id, body: z.object({ notice_version: z.string().optional().describe('The `commitment_notice.version` the page showed next to Scan now; needed only for the first scan of a target, by an administrator') }), bodyOptional: true, response: ScanRun },
+  { method: 'put', path: '/exposure/targets/{id}/terms', summary: 'Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)', stories: ['S-EXP-2'], role: 'admin', params: id, body: z.object({ version: z.string().describe('terms_notice.version as the page showed it'), disruptive: z.boolean() }), response: Target },
+  { method: 'delete', path: '/exposure/targets/{id}/terms', summary: 'Withdraw the testing terms of a target: always possible; the next scan runs in the scope of the Scan now sentence again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason). Audited (exposure.terms_revoke) when there was an acceptance', stories: ['S-EXP-2'], role: 'admin', params: id, response: Target },
+  { method: 'post', path: '/exposure/targets/{id}/scan', status: 202, summary: 'Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence is asked again once: it counts as missing (operators get 400 commitment_required "the confirmation text changed"), a request without notice_version gets 409 notice_changed, and the administrator\'s press replaces it. After those checks the scan module\'s runner does the scan (it follows this module\'s switch, so the Vulnerability scans module may be off): ports are scanned only on the box\'s own verified public IPs; a domain\'s names from certificate transparency, its MX and NS records and a list of common names (looked up through the box\'s DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only the box\'s own address is scanned beyond that. 409 module_off while the External exposure module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target\'s last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited', stories: ['S-EXP-1'], role: 'operator', params: id, body: z.object({ notice_version: z.string().optional().describe('The `commitment_notice.version` the page showed next to Scan now; needed only for the first scan of a target, by an administrator') }), bodyOptional: true, response: ScanRun },
   { method: 'get', path: '/exposure/scan', summary: 'The scan that runs now, or the last one (status done, failed or stopped, with its error or snapshot_id); null when no scan has run since the box started (the run is kept in memory only)', stories: ['S-EXP-1'], role: 'viewer', response: ScanRun.nullable() },
   { method: 'post', path: '/exposure/scan/stop', summary: 'Stop the scan that runs now (status stopped, nothing is saved; audited). 409 not_running when no scan runs', stories: ['S-EXP-1'], role: 'operator', response: ScanRun },
-  { method: 'get', path: '/exposure/targets/{id}/outside', summary: 'What the Internet sees (D-558): the last answer of Shodan InternetDB about this public IP of the box, with the open ports of Vedette\'s own newest scan of it; null when nobody has asked yet. Reading sends nothing', stories: ['S-EXP-1'], role: 'viewer', params: id, response: OutsideView.nullable(), example: { params: { id: 'xt-2' } } },
-  { method: 'post', path: '/exposure/targets/{id}/outside', summary: 'Ask Shodan InternetDB what it has seen on this public IP (D-558). Only an administrator\'s click sends it: no job, no polling. Only a public IP of this box that is verified and still the one the box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain, 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of https://internetdb.shodan.io/<ip>, nothing else sent; 404 there is a normal answer (found false). At most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited', stories: ['S-EXP-1'], role: 'admin', params: id, response: OutsideView },
-  { method: 'get', path: '/exposure/greenbone', summary: 'The optional deep scan with OpenVAS (Greenbone Community Edition, D-563, D-568): its state and this box\'s memory and free disk against the thresholds. Reading may ask OpenVAS whether it is ready; it never starts a scan', stories: ['S-EXP-2'], role: 'viewer', response: Greenbone },
-  { method: 'put', path: '/exposure/greenbone', summary: 'Turn the optional deep scan with OpenVAS on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 6 GB of memory (D-569) or 60 GB free; else OpenVAS starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when OpenVAS is not available on this box. A scan uses it only on a target whose testing terms are accepted (D-566). Audited', stories: ['S-EXP-2'], role: 'admin', body: z.object({ enabled: z.boolean() }), response: Greenbone },
+  { method: 'get', path: '/exposure/targets/{id}/outside', summary: 'What the Internet sees: the last answer of Shodan InternetDB about this public IP of the box, with the open ports of Vedette\'s own newest scan of it; null when nobody has asked yet. Reading sends nothing', stories: ['S-EXP-1'], role: 'viewer', params: id, response: OutsideView.nullable(), example: { params: { id: 'xt-2' } } },
+  { method: 'post', path: '/exposure/targets/{id}/outside', summary: 'Ask Shodan InternetDB what it has seen on this public IP. Only an administrator\'s click sends it: no job, no polling. Only a public IP of this box that is verified and still the one the box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain, 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of https://internetdb.shodan.io/<ip>, nothing else sent; 404 there is a normal answer (found false). At most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited', stories: ['S-EXP-1'], role: 'admin', params: id, response: OutsideView },
+  { method: 'get', path: '/exposure/greenbone', summary: 'The optional deep scan with OpenVAS (Greenbone Community Edition): its state and this box\'s memory and free disk against the thresholds. Reading may ask OpenVAS whether it is ready; it never starts a scan', stories: ['S-EXP-2'], role: 'viewer', response: Greenbone },
+  { method: 'put', path: '/exposure/greenbone', summary: 'Turn the optional deep scan with OpenVAS on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 6 GB of memory or 60 GB free; else OpenVAS starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when OpenVAS is not available on this box. A scan uses it only on a target whose testing terms are accepted. Audited', stories: ['S-EXP-2'], role: 'admin', body: z.object({ enabled: z.boolean() }), response: Greenbone },
   { method: 'get', path: '/exposure/targets/{id}/snapshots', summary: 'Scan days of a target, newest first', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(SnapshotMeta) }), example: idEx },
   { method: 'get', path: '/exposure/targets/{id}/snapshots/{date}', summary: 'Scan result of one day', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: z.object({ id: z.string(), date: isoDate }), response: Snapshot, example: { params: { id: 'xt-1', date: day(1) } } },
   { method: 'get', path: '/exposure/targets/{id}/diff', summary: 'Compare two scan days: newly exposed, gone, changed', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: id, query: z.object({ from: isoDate, to: isoDate }), response: Diff, example: { params: { id: 'xt-1' }, query: { from: day(7), to: day(1) } } },

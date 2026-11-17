@@ -7,13 +7,13 @@ import { PageModule } from '@/lib/v1'
 import { Breadcrumbs, type Crumb } from './Breadcrumbs'
 
 /** Dòng đầu mỗi trang trả lời câu hỏi của persona (FRONTEND §3 "thứ bậc thông tin").
- *  Khung trang D-464: tiêu đề ~20 px và mô tả ngắn chung một dòng (mô tả xuống dòng khi không đủ chỗ); sau đó KpiStrip, PageTabs (`PageFrame.tsx`). */
+ *  Khung trang: tiêu đề ~20 px và mô tả ngắn chung một dòng (mô tả xuống dòng khi không đủ chỗ); sau đó KpiStrip, PageTabs (`PageFrame.tsx`). */
 /*  `meta` là một dòng ngắn (≈ 12 từ); giải thích dài hơn vào `info` (ⓘ cạnh tiêu đề, #824). */
 /*  `breadcrumbs`: the parents of a detail page (docs/UI.md §3), drawn above the title. */
-/** `titleAction` sits right after the title, outside the heading (a Rename button, G2); `editing` replaces the visible title with an
+/** `titleAction` sits right after the title, outside the heading (a Rename button); `editing` replaces the visible title with an
  *  edit-in-place field while the heading stays for screen readers. */
 export function PageHeader({ title, meta, info, actions, stories, breadcrumbs, titleAction, editing }: { title: ReactNode; meta?: ReactNode; info?: ReactNode; actions?: ReactNode; stories?: string[]; breadcrumbs?: Crumb[]; titleAction?: ReactNode; editing?: ReactNode }) {
-  const mod = useContext(PageModule) // D-624: a preview or leaving module's page says so under its title (#818, #819)
+  const mod = useContext(PageModule) // A preview or leaving module's page says so under its title (#818, #819)
   return (
     <header className="mb-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div className="grid min-w-0 max-w-4xl gap-1">
@@ -63,7 +63,7 @@ const NOTICE = {
   off: 'border-rule bg-off-soft',
 } as const
 
-/** Khung báo một trạng thái của trang (D-543, một kiểu cho cả ứng dụng): tiêu đề, một đoạn giải thích, nút hành động bên phải (xuống dòng trên điện thoại).
+/** Khung báo một trạng thái của trang (một kiểu cho cả ứng dụng): tiêu đề, một đoạn giải thích, nút hành động bên phải (xuống dòng trên điện thoại).
  *  `tone` mang nghĩa cố định của FRONTEND §3: danger = hỏng/khẩn, warn = cần người xem, accent = thông tin của sản phẩm, off = tắt/không có. */
 /*  `className` thắng lớp mặc định (cn), ví dụ `mb-0` cho lỗi nằm trong một form có `gap`. */
 /*  Cảnh báo, lỗi, trạng thái luôn hiện (#824): `title` + tối đa một dòng `children`; chi tiết vào `info`. */

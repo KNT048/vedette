@@ -24,7 +24,7 @@ function renderHere(node: React.ReactNode, role: 'admin' | 'operator' | 'viewer'
   return render(<QueryClientProvider client={makeQueryClient()}><RouterProvider router={router} /></QueryClientProvider>)
 }
 
-describe('Settings › Scanning: every engine on one page (#850, D-627)', () => {
+describe('Settings › Scanning: every engine on one page', () => {
   it('groups the engines by what they do; each card has its state, memory, runs; Preview engines say so; no a11y errors', async () => {
     renderApp('/settings/scanning')
     for (const g of ['Discover', 'Identify', 'Check vulnerabilities', 'Traps']) expect(await screen.findByRole('heading', { level: 2, name: g }, { timeout: 4000 })).toBeInTheDocument()
@@ -126,7 +126,7 @@ describe('Settings › Scanning: every engine on one page (#850, D-627)', () => 
       expect(await screen.findByRole('tab', { name: want, selected: true })).toBeInTheDocument()
       view.unmount()
     }
-    const v2 = renderApp('/scans?target=a-nas02&run=run-seed-3') // ?run= wins (review r1 L5)
+    const v2 = renderApp('/scans?target=a-nas02&run=run-seed-3') // ?run= wins
     expect(within(await screen.findByRole('dialog')).getByText('You pressed Stop now.')).toBeInTheDocument()
     v2.unmount()
     renderApp('/scans?target=a-nas02') // the device page, with its buttons (slot device.actions)
@@ -171,7 +171,7 @@ describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', 
     expect(await screen.findByText('Requires Admin role')).toBeInTheDocument()
   })
 
-  it('the top-bar indicator: nothing while idle; "1 scan running" opens the place of the run, public scans included (review M5, M7, L8)', async () => {
+  it('the top-bar indicator: nothing while idle; "1 scan running" opens the place of the run, public scans included', async () => {
     const view = renderHere(<ScansRunningIndicator />, 'viewer')
     await waitFor(() => expect(screen.queryByText(/scan running/)).toBeNull())
     view.unmount()
@@ -182,7 +182,7 @@ describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', 
   })
 })
 
-describe('#850 review r2: dead ends and the buttons of the Devices pages', () => {
+describe('#850: dead ends and the buttons of the Devices pages', () => {
   it('N1: turning on Network discovery with the scope not confirmed opens the scope dialog, and the switch is tried again on save', async () => {
     unconfirm()
     inventorySettingsStore.update((s) => ({ ...s, active: { ...s.active, enabled: false } }))
@@ -196,7 +196,7 @@ describe('#850 review r2: dead ends and the buttons of the Devices pages', () =>
     expect(inventorySettingsStore.get().active.enabled).toBe(true)
   })
 
-  it('n73: limits above the box\'s memory say it is fine while the box responds, name the biggest engine and take an admin to its switch', async () => {
+  it('limits above the box\'s memory say it is fine while the box responds, name the biggest engine and take an admin to its switch', async () => {
     const { server } = await import('@/test/server')
     const { http, HttpResponse } = await import('msw')
     const { scanningView } = await import('./mocks')
@@ -311,7 +311,7 @@ describe('#860: the scope dialog adds one range atomically and never overwrites 
   })
 })
 
-describe('#877 review r1', () => {
+describe('#877', () => {
   /** The requests a test cares about, with their JSON body. */
   async function capture(match: (method: string, path: string) => boolean) {
     const { server } = await import('@/test/server')
@@ -359,7 +359,7 @@ describe('#877 review r1', () => {
     expect(targets).toContain('a-web01')
   })
 
-  it('M5: "Run vulnerability checks on selected" sends the selection; a fragile device goes only when ticked by name (D-126)', async () => {
+  it('M5: "Run vulnerability checks on selected" sends the selection; a fragile device goes only when ticked by name', async () => {
     const cap = await capture((m, p) => m === 'POST' && p.endsWith('/scans/runs'))
     renderApp('/devices')
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Select WEB01' }, { timeout: 4000 }))
@@ -375,7 +375,7 @@ describe('#877 review r1', () => {
 
   it('L6: the box\'s own page says why it is not checked instead of a button that always fails', async () => {
     renderApp('/devices/a-box')
-    // kien G12: the device page's fragile line reads the same rule and says the same (review r1 of #944)
+    // The device page's fragile line reads the same rule and says the same (#944)
     expect((await screen.findAllByText('The Vedette box itself is never part of a network scan.', {}, { timeout: 4000 })).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Check this device now' })).toBeNull()
   })

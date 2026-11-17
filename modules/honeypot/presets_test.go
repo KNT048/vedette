@@ -42,7 +42,7 @@ func TestUsableRefusesNetworkAndBroadcast(t *testing.T) {
 	}
 }
 
-// presets.go and web/src/features/honeypot/presets.ts are the same data (D-466): the form fills what the box checks.
+// presets.go and web/src/features/honeypot/presets.ts are the same data: the form fills what the box checks.
 func TestPresetsMatchTheGUI(t *testing.T) {
 	t.Parallel()
 	raw, err := os.ReadFile("../../web/src/features/honeypot/presets.ts")
@@ -82,7 +82,7 @@ func TestPresetsMatchTheGUI(t *testing.T) {
 	}
 }
 
-// Each vendor's MAC prefix is registered to that vendor in the D-83 table: a scanner on the LAN shows the vendor the owner picked.
+// Each vendor's MAC prefix is registered to that vendor in the vendor MAC table: a scanner on the LAN shows the vendor the owner picked.
 func TestVendorOUIsBelongToTheVendor(t *testing.T) {
 	t.Parallel()
 	for _, v := range vendors {

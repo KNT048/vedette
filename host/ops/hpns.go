@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// The honeypot namespace vedette-hp (D-102 (1), (3), (4), D-121). The host creates it in Ops.Start,
+// The honeypot namespace vedette-hp ((3), (4)). The host creates it in Ops.Start,
 // before it says READY, and again whenever it finds it missing (/run/netns is a tmpfs). It sets the
 // sysctls, brings lo up and loads the egress ruleset whenever it creates the namespace and at every
 // start, and it checks the effect: the sysctls read back, and the ruleset listed from inside the

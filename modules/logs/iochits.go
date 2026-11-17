@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/modules/logs/signature"
 )
 
-// IOC matching (L4, S-LOG-2, S-LOG-4 syslog half, INV-7, POST-2, PRE-3, D-213). A line of a device with a profile can say which LAN device
+// IOC matching (S-LOG-2, S-LOG-4 syslog half, INV-7, POST-2, PRE-3). A line of a device with a profile can say which LAN device
 // connected to which public address or name (signature.Conn: read only from fields the format names, once, outside quotes). The
 // destination is looked up through the Feeds port (an adapter on the feeds module's indicators, in the box: nothing leaves it); a
 // listed one is a hit, stored in logs_ioc_hits (once per (device, destination) per 24 hours), shown in the digest with the device
@@ -27,7 +27,7 @@ const (
 	// EventIocHit is what response's ioc_connection trigger listens to; EventBadAddress is what notify opens an incident from.
 	EventIocHit     = "logs.ioc_hit.detected"
 	EventBadAddress = "logs.bad_address.detected"
-	// IocDedupe is how long one (device, destination) pair is one hit; the destination is the listed name (D-425): the subdomains of a
+	// IocDedupe is how long one (device, destination) pair is one hit; the destination is the listed name: the subdomains of a
 	// name listed with all of its subdomains are one destination.
 	IocDedupe = 24 * time.Hour
 	// MaxIocRows is the most hits the table keeps; the oldest go first. MaxIocHitsPerBatch is the most new hits one batch stores (the
@@ -44,7 +44,7 @@ const (
 	iocLookupTimeout = 5 * time.Second
 	// iocAnnounceTimeout bounds the publishing of the events of one batch.
 	iocAnnounceTimeout = 10 * time.Second
-	// maxIocParents is how many parent names of a domain destination are looked up (D-228): the shortest ones (bad.example,
+	// maxIocParents is how many parent names of a domain destination are looked up: the shortest ones (bad.example,
 	// x.bad.example, …), where a list that covers subdomains holds its names. A name has at most 127 labels; ten lookups is the bound.
 	maxIocParents = 10
 )
@@ -54,7 +54,7 @@ var ErrFeedsOff = errors.New("logs: the Feeds module is off")
 
 // Listing is what the feeds say about one destination: the names of the feeds that list it now, and how sure they are (0 to 1).
 // SubFeeds and SubConfidence are the same for the feeds among them that list a name for itself and all of its subdomains (hagezi TIF,
-// feeds' Source.Subdomains, D-228): a subdomain of the name is a hit only through these.
+// feeds' Source.Subdomains): a subdomain of the name is a hit only through these.
 type Listing struct {
 	Feeds         []string
 	Confidence    float64
@@ -71,8 +71,8 @@ type Feeds interface {
 	On() bool
 	// Listed says whether a switched-on feed lists at least one indicator now (Digest.IOCMatching).
 	Listed(ctx context.Context) (bool, error)
-	// Subdomains says whether a switched-on feed lists names with all of their subdomains (D-228): without one, the parents of an
-	// unlisted name are not looked up (D-425).
+	// Subdomains says whether a switched-on feed lists names with all of their subdomains: without one, the parents of an
+	// unlisted name are not looked up.
 	Subdomains(ctx context.Context) (bool, error)
 }
 
@@ -90,9 +90,9 @@ type IocHit struct {
 	// Confidence is the highest confidence of the feeds that list the destination, between 0 and 1.
 	Confidence float64 `json:"confidence"`
 	// Blocked says that the device that logged the line stopped the connection (an attempt: a FortiGate deny, a blocked web-filter
-	// request; the profile's conn_blocked, D-227). False when the line does not say so.
+	// request; the profile's conn_blocked). False when the line does not say so.
 	Blocked bool `json:"blocked"`
-	// ListedAs is the parent name a feed lists with all of its subdomains when Dest is one of them (D-228, D-425); nil when a feed
+	// ListedAs is the parent name a feed lists with all of its subdomains when Dest is one of them; nil when a feed
 	// lists Dest itself. Feeds → Look up finds this name, not Dest.
 	ListedAs *string `json:"listed_as"`
 }
@@ -115,9 +115,9 @@ type BadAddressEvent struct {
 	DestKind string       `json:"dest_kind"`
 	SeenVia  string       `json:"seen_via"`
 	AssetID  *string      `json:"asset_id"`
-	// Blocked is IocHit.Blocked (D-227): the SIEM bad_conn record carries it.
+	// Blocked is IocHit.Blocked: the SIEM bad_conn record carries it.
 	Blocked bool `json:"blocked"`
-	// ListedAs is IocHit.ListedAs (D-228, D-433): the SIEM bad_conn record carries it, so a SIEM can group the subdomains of one listed name.
+	// ListedAs is IocHit.ListedAs: the SIEM bad_conn record carries it, so a SIEM can group the subdomains of one listed name.
 	ListedAs *string `json:"listed_as"`
 }
 
@@ -133,7 +133,7 @@ type connObs struct {
 	blocked bool // every line of the batch that showed it says the device stopped it
 }
 
-// iocRow is a hit before it is stored. listed is the parent name a feed lists when dest is one of its subdomains (D-228), else "".
+// iocRow is a hit before it is stored. listed is the parent name a feed lists when dest is one of its subdomains, else "".
 type iocRow struct {
 	id, src, dest, kind, via, source, listed string
 	at                                       time.Time
@@ -189,7 +189,7 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 	defer cancel()
 	cache := &lookups{res: map[[2]string]lookupResult{}}
 	var out []iocRow
-	seen := map[[2]string]seenPair{} // the pairs kept or found stored so far: the random subdomains of one listed name are one hit (D-425)
+	seen := map[[2]string]seenPair{} // the pairs kept or found stored so far: the random subdomains of one listed name are one hit
 	cutoff := store.FormatTS(s.ts().Add(-IocDedupe))
 	for _, k := range keys {
 		if len(out) >= MaxIocHitsPerBatch {
@@ -220,9 +220,9 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 }
 
 // listing is what the feeds say about a destination: its own listing; else, for a domain, the listing of its nearest parent by the
-// feeds that list a name with all of its subdomains (D-228), with that parent as listed. A feed that lists names exactly never makes a
+// feeds that list a name with all of its subdomains, with that parent as listed. A feed that lists names exactly never makes a
 // subdomain a hit. Every lookup goes through the cache of the batch, so the parents that many names of a batch share are read once.
-// Without a switched-on feed that lists subdomains the parents are not looked up (D-425).
+// Without a switched-on feed that lists subdomains the parents are not looked up.
 func (s *Service) listing(ctx context.Context, cache *lookups, kind, dest string) (l Listing, listed string, err error) {
 	res, err := s.lookup(ctx, cache, kind, dest)
 	if err != nil || (res.found && len(res.l.Feeds) > 0) || kind != signature.KindDomain || !s.subdomainsOn(ctx, cache) {
@@ -239,8 +239,8 @@ func (s *Service) listing(ctx context.Context, cache *lookups, kind, dest string
 	return Listing{}, "", nil
 }
 
-// subdomainsOn asks the feeds, once per batch, whether a feed that lists subdomains is on. A failure says yes: the walk is what D-228
-// does without this check, and a lookup that fails after it is noted as any other.
+// subdomainsOn asks the feeds, once per batch, whether a feed that lists subdomains is on. A failure says yes: the walk is what
+// happens without this check, and a lookup that fails after it is noted as any other.
 func (s *Service) subdomainsOn(ctx context.Context, cache *lookups) bool {
 	if cache.sub == nil {
 		on, err := s.cfg.Feeds.Subdomains(ctx)
@@ -285,8 +285,8 @@ func parentDomains(name string) []string {
 }
 
 // recentHitSQL finds a stored hit of a pair newer than a cutoff that makes a new one a repeat: any hit for a blocked attempt, only a hit
-// that went through for a connection that went through (a blocked attempt must not hide, for 24 hours, the connection that follows it; D-227).
-// The pair is (device, listed name) (D-425): a hit on the listed name itself or on any of its subdomains, each found through its index
+// that went through for a connection that went through (a blocked attempt must not hide, for 24 hours, the connection that follows it).
+// The pair is (device, listed name): a hit on the listed name itself or on any of its subdomains, each found through its index
 // (logs_ioc_hits_pair, logs_ioc_hits_listed). A hit surer than the recent one (an exact feed at 0.9 after a subdomain feed at 0.6) is
 // not a repeat: the higher severity is news.
 const recentHitSQL = `SELECT 1 WHERE EXISTS (SELECT 1 FROM logs_ioc_hits WHERE src_ip = ?1 AND dest = ?2 AND ts > ?3 AND (?4 OR blocked = 0) AND confidence >= ?5)
@@ -478,8 +478,8 @@ func (r iocRow) hit(devices map[string]Device) IocHit {
 }
 
 // badAddressEvent is the event notify and the SIEM forwarder read. A blocked attempt (h.Blocked) is said as one: "tried to reach … (blocked
-// by <the device that logged it>)", never "connected to" (D-227). h.ListedAs is the parent name a feed lists when h.Dest is one of its
-// subdomains (D-228): the text names it, and the incident is keyed on it, so the many subdomains of one listed name that a device asks
+// by <the device that logged it>)", never "connected to". h.ListedAs is the parent name a feed lists when h.Dest is one of its
+// subdomains: the text names it, and the incident is keyed on it, so the many subdomains of one listed name that a device asks
 // for are one incident.
 func badAddressEvent(h IocHit) BadAddressEvent {
 	listed := ""

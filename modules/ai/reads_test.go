@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// Slice 7 (D-311, D-312, D-119): the box's record of the reads it made through a connection is the only thing a config_read evidence
+// Slice 7: the box's record of the reads it made through a connection is the only thing a config_read evidence
 // can name, at most 24 hours old; and the activity row that links a plan to the proposals sent for it.
 
 type offModules struct{}

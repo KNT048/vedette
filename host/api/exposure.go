@@ -1,13 +1,13 @@
 package api
 
-// The domain fence commands (docs/specs/host-api.md §6.17, D-591, FULL-5 slice 2): vedette-host holds the box's fence key (core never
+// The domain fence commands (docs/specs/host-api.md §6.17): vedette-host holds the box's fence key (core never
 // does) and gives core a verified domain's box-bound token, and checks the fence itself for the OpenVAS scan of an address a name under
 // the domain resolves to.
 
 // Names of the commands.
 const (
 	// CmdExposureToken gives the box-bound token of a domain: hex(HMAC-SHA256(fence key, "vedette-verify\x00"+domain)), its first 16
-	// hex digits (the length of every domain token, D-591).
+	// hex digits (the length of every domain token).
 	CmdExposureToken = "exposure.token"
 	// CmdExposureFenceCheck checks a domain_ip scan with the host's own fence (core/domainfence): the token is this box's, the domain's
 	// TXT record carries it, the name resolves to the address now (and, for a disruptive scan, the name stays inside the domain).
@@ -48,7 +48,7 @@ type ExposureFenceCheckArgs struct {
 	IP         string `json:"ip"`
 	Token      string `json:"token"`
 	Disruptive bool   `json:"disruptive,omitempty"`
-	// ProofAt (D-632): the parent name of Domain where Domain's own record sits (the zone apex); "" = on Domain. Never a public suffix.
+	// ProofAt: the parent name of Domain where Domain's own record sits (the zone apex); "" = on Domain. Never a public suffix.
 	ProofAt string `json:"proof_at,omitempty"`
 	// Recheck: the check of a task that runs (every 3 minutes): the host asks DNS again instead of answering from its 5-minute cache.
 	Recheck bool `json:"recheck,omitempty"`

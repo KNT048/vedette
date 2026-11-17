@@ -3,7 +3,7 @@ import type { z } from 'zod'
 import * as C from './contract'
 
 export const KINDS = C.AssetKind.options
-/** The 13 kinds the fragile and regular-scan settings list (D-511). */
+/** The 13 kinds the fragile and regular-scan settings list. */
 export const BEHAVIOUR_KINDS = C.BehaviourKind.options
 export type ObsField = z.infer<typeof C.ObsField>
 export type Observation = z.infer<typeof C.Observation>
@@ -57,5 +57,5 @@ export type SnmpDeviceRow = z.infer<typeof C.SnmpDeviceRow>
 export type SnmpNotice = z.infer<typeof C.SnmpNotice>
 export type DeviceSource = z.infer<typeof C.DeviceSource>
 export type DevicesQuery = z.infer<typeof C.DevicesQuery>
-/** G4: a device's risk marker (exploited findings, or a recommended update); null when clean. */
+/** A device's risk marker (exploited findings, or a recommended update); null when clean. */
 export type DeviceRisk = z.infer<typeof C.DeviceRisk>

@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// INV-25 (D-503, review #665): the enrolment approves only the row that is the agent's machine. An address the box answers on is no
+// INV-25: the enrolment approves only the row that is the agent's machine. An address the box answers on is no
 // device (as in Record); a row once seen with another MAC (DHCP gave the address to a new machine) is found but left for a person;
 // a row seen with the agent's MAC only, or with no MAC at all, is approved.
 func TestContract_INV25_ApproveEnrolledOnlyTheAgentsMachine(t *testing.T) {
@@ -72,7 +72,7 @@ func TestContract_INV25_ApproveEnrolledOnlyTheAgentsMachine(t *testing.T) {
 	}
 }
 
-// INV-25 (D-503, the upgrade path): an OS the agent reported before agents sent a kind types the device when the enrolment approves it,
+// INV-25 (the upgrade path): an OS the agent reported before agents sent a kind types the device when the enrolment approves it,
 // at the agent's rank; an OS another source saw types nothing, a person's kind wins, and the row of another machine is left as it is.
 func TestContract_INV25_ApproveEnrolledTypesFromTheAgentsOS(t *testing.T) {
 	t.Parallel()

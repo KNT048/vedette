@@ -106,7 +106,7 @@ func TestContract_INV4_MeterSaturates(t *testing.T) {
 	}
 }
 
-// F4 / item 5: a clock that steps back never starts a new month (D-531: the budget is monthly).
+// F4 / item 5: a clock that steps back never starts a new month (the budget is monthly).
 func TestContract_INV4_ClockBackwardsKeepsUsage(t *testing.T) {
 	t.Parallel()
 	c := &clock{time.Date(2026, 11, 9, 0, 0, 30, 0, time.UTC)}
@@ -131,7 +131,7 @@ func TestContract_INV4_ClockBackwardsKeepsUsage(t *testing.T) {
 }
 
 // F13 / item 5: after a restart the meter stands where it stood: Seed and live recording agree on the use and on the stop at the
-// budget; the level never moves by itself (D-531).
+// budget; the level never moves by itself.
 func TestContract_INV4_RestartKeepsTheMonthsUse(t *testing.T) {
 	t.Parallel()
 	c := startClock()
@@ -240,7 +240,7 @@ func TestFailedCallsAndProbeAreMetered(t *testing.T) {
 	// The connection test goes through the meter.
 	before := r.meter.Used()
 	pr, err := r.Probe(context.Background(), internal("i1"), time.Now)
-	// three requests of 100 in and 50 out: the result reports all three, the same tokens the meter counts (walk 3)
+	// three requests of 100 in and 50 out: the result reports all three, the same tokens the meter counts
 	if err != nil || !pr.Tools || pr.TokensIn != 300 || pr.TokensOut != 150 {
 		t.Fatalf("%+v %v", pr, err)
 	}

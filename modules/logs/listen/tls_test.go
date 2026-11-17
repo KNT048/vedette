@@ -145,7 +145,7 @@ func TestTLSFromAnUnknownSenderIsDroppedBeforeTheHandshake(t *testing.T) {
 	}
 }
 
-// D-443, D-444: every socket is open, and a source is taken only over what it was declared with. A TLS source (here with a client
+// Every socket is open, and a source is taken only over what it was declared with. A TLS source (here with a client
 // certificate pin) gets nothing stored over plain TCP or UDP: the datagram is dropped and the connection closed before a read, both counted.
 func TestATLSSourceIsNotTakenOverPlainTCPOrUDP(t *testing.T) {
 	t.Parallel()
@@ -269,7 +269,7 @@ func TestNoTLSConfigMeansNoTLSSocket(t *testing.T) {
 	tr := newTLSRig(t, Limits{}, false)
 	tr.start()
 	tr.set("tls")
-	tr.tcpAddr() // the plain sockets are open (D-443): Run has applied the sources
+	tr.tcpAddr() // the plain sockets are open: Run has applied the sources
 	if st := tr.srv.Status(); st.TLS || st.TLSErr != "" {
 		t.Errorf("status %+v", st)
 	}
@@ -278,7 +278,7 @@ func TestNoTLSConfigMeansNoTLSSocket(t *testing.T) {
 	}
 }
 
-// D-443: the TLS socket stays open when the last TLS source goes; the open connection of that source is cut, and a new one from the
+// The TLS socket stays open when the last TLS source goes; the open connection of that source is cut, and a new one from the
 // same address is closed before any handshake and counted.
 func TestTheTLSSocketOutlivesItsLastSourceButItsConnectionsGo(t *testing.T) {
 	t.Parallel()
@@ -501,7 +501,7 @@ func closedByServer(t *testing.T, c net.Conn) bool {
 	return err != nil && (!errors.As(err, &ne) || !ne.Timeout())
 }
 
-// D-435: a source that pins a client certificate takes lines only from the connection that presents exactly that certificate; no
+// A source that pins a client certificate takes lines only from the connection that presents exactly that certificate; no
 // certificate, another one, and a pin changed under a live connection all end it, and nothing is stored.
 func TestTLSPinnedClientCertificate(t *testing.T) {
 	t.Parallel()
@@ -560,7 +560,7 @@ func TestPinMatches(t *testing.T) {
 	}
 }
 
-// D-436: a declared sender may start HandshakeBurst TLS connections at once and HandshakeRate a second after that; the rest are closed before a
+// A declared sender may start HandshakeBurst TLS connections at once and HandshakeRate a second after that; the rest are closed before a
 // handshake is paid for and counted as rejected.
 func TestTLSHandshakeRatePerSender(t *testing.T) {
 	t.Parallel()

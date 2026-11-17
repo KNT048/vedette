@@ -16,7 +16,7 @@ func (s *Service) dayStart(now time.Time) string {
 }
 
 // seedMeter loads this month's tokens from ai_activity into the meter, per profile id, so the shared and the per-profile budgets
-// survive a restart (D-531). Usage of a profile that no longer exists counts in the shared total only.
+// survive a restart. Usage of a profile that no longer exists counts in the shared total only.
 func (s *Service) seedMeter(ctx context.Context) error {
 	// By profile id: a rename does not reset a profile's cap, and a new profile that takes an old name does not inherit its usage. A row
 	// with no id (the test of a draft that was never saved) counts in the shared total only.
@@ -67,8 +67,8 @@ type DowngradeView struct {
 	Reason string `json:"reason"`
 }
 
-// UsageView is the token meter: today, this month (what the budget counts, D-531), per job this month, and the drops of the level
-// of earlier days (the budget lowers no level since D-531).
+// UsageView is the token meter: today, this month (what the budget counts), per job this month, and the drops of the level
+// of earlier days (the monthly budget lowers no level).
 type UsageView struct {
 	Tier          Tier            `json:"tier"`
 	MonthlyBudget int             `json:"monthly_budget"`
@@ -162,7 +162,7 @@ func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
 		switch {
 		case result == string(ResultOK) || result == string(ResultFallbackUsed):
 			r.Status = "ok"
-		// a question the cap stopped partway through spent tokens and is still the cap's (W1-27: it read "Bad format"); rows written
+		// a question the cap stopped partway through spent tokens and is still the cap's (it read "Bad format"); rows written
 		// before the outcome column (migration 0007) have no outcome, and their summary says the cap stopped them
 		case outcome == OutcomeCapped || (outcome == "" && summary == capSummary):
 			r.Status = "capped"

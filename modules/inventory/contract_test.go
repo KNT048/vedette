@@ -72,7 +72,7 @@ func currentOf(d inventory.Detail, field string) (inventory.ObservationRow, bool
 
 var rank = map[string]int{"manual": 5, "agent": 4, "snmp": 3, "nmap": 2, "scan": 2, "passive": 1}
 
-// foldWinner is the specification of DATA_MODEL 5.1 (2), written again here on purpose (INV1 (i)), with its MAC exception (D-598 (4)).
+// foldWinner is the specification of DATA_MODEL 5.1 (2), written again here on purpose (INV1 (i)), with its MAC exception.
 func foldWinner(list []inventory.ObservationRow, field string) (inventory.ObservationRow, bool) {
 	var best inventory.ObservationRow
 	found := false
@@ -83,7 +83,7 @@ func foldWinner(list []inventory.ObservationRow, field string) (inventory.Observ
 		win := !found
 		if found {
 			switch {
-			case field == "mac" && o.Source != "manual" && best.Source != "manual" && o.SeenAt != best.SeenAt: // D-598 (4): the MAC seen last
+			case field == "mac" && o.Source != "manual" && best.Source != "manual" && o.SeenAt != best.SeenAt: // The MAC seen last
 				win = o.SeenAt > best.SeenAt
 			case rank[o.Source] != rank[best.Source]:
 				win = rank[o.Source] > rank[best.Source]
@@ -492,7 +492,7 @@ func TestMigrationsUsePrefix(t *testing.T) {
 	storetest.AssertMigrationsUsePrefix(t, "inventory", inventory.Migrations, "inv_", storetest.Migration{Module: "core", FS: core.Migrations})
 }
 
-// Walk 4: a device seen only by ARP (a MAC and an IP, no vendor, model or OS) listed source "–". Its summary is the
+// A device seen only by ARP (a MAC and an IP, no vendor, model or OS) listed source "–". Its summary is the
 // source of its MAC; once a vendor is known, the summary is the vendor's again.
 func TestSummaryOfADeviceSeenOnlyByARP(t *testing.T) {
 	t.Parallel()
@@ -525,7 +525,7 @@ type swapBox struct{ items *[]inventory.SoftwareItem }
 
 func (s swapBox) Packages(context.Context) ([]inventory.SoftwareItem, error) { return *s.items, nil }
 
-// D-470: a host that gives no list (nil: older than the packages read) leaves the box's software as it is; it is never
+// A host that gives no list (nil: older than the packages read) leaves the box's software as it is; it is never
 // read as "no packages".
 func TestContract_INV3_NoListFromTheHostKeepsTheBoxSoftware(t *testing.T) {
 	t.Parallel()
@@ -547,7 +547,7 @@ func TestContract_INV3_NoListFromTheHostKeepsTheBoxSoftware(t *testing.T) {
 	}
 }
 
-// D-470: a box list longer than the inventory stores (5 000 items) is refused whole, and the stored list stays: never a part
+// A box list longer than the inventory stores (5 000 items) is refused whole, and the stored list stays: never a part
 // of the box.
 func TestContract_INV3_ATooLongBoxListKeepsTheBoxSoftware(t *testing.T) {
 	t.Parallel()
@@ -574,7 +574,7 @@ func TestContract_INV3_ATooLongBoxListKeepsTheBoxSoftware(t *testing.T) {
 	}
 }
 
-// INV-3, INV-23 (kien 2026-11-17): the box is never scanned, so it lists its own open ports (vedette-host GET /v1/state/ports) as its
+// INV-3, INV-23: the box is never scanned, so it lists its own open ports (vedette-host GET /v1/state/ports) as its
 // services, source agent: a new list replaces the agent rows and leaves the other sources' rows; no list (a host older than the read)
 // keeps them; a list that breaks the bounds is refused whole.
 func TestContract_INV3_TheBoxListsItsOwnOpenPorts(t *testing.T) {
@@ -587,7 +587,7 @@ func TestContract_INV3_TheBoxListsItsOwnOpenPorts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// a row of another source: a person's Scan now of the box (D-470) read 22/tcp with nmap; the box's own list never touches it
+	// a row of another source: a person's Scan now of the box read 22/tcp with nmap; the box's own list never touches it
 	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(e.ctx(), `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at)
 			VALUES ('sv-nmap', ?, 22, 'tcp', 'ssh', 'OpenSSH', '9.6p1', NULL, 'nmap', 0.9, ?)`, id, store.FormatTS(e.now))

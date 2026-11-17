@@ -1,6 +1,6 @@
 package api
 
-// The OpenVAS commands (Greenbone Community Edition, docs/specs/host-api.md §6.16, D-529, FULL-2): vedette-host runs Greenbone's official
+// The OpenVAS commands (Greenbone Community Edition, docs/specs/host-api.md §6.16): vedette-host runs Greenbone's official
 // compose project (deploy/greenbone) under its own project name, hands gvmd's socket to core and sets the GMP login core keeps.
 
 // Names of the commands.
@@ -10,7 +10,7 @@ const (
 	CmdGreenboneUp = "greenbone.up"
 	// CmdGreenboneDown stops the project and keeps its volumes; it first cancels an up or a feed update that runs.
 	CmdGreenboneDown = "greenbone.down"
-	// CmdGreenboneSyncFeed is Greenbone's feed update: pull the four feed data images Vedette runs (D-593), then start those services again.
+	// CmdGreenboneSyncFeed is Greenbone's feed update: pull the four feed data images Vedette runs, then start those services again.
 	CmdGreenboneSyncFeed = "greenbone.sync_feed"
 )
 
@@ -36,7 +36,7 @@ const (
 
 // GreenboneUpArgs are the args of greenbone.up. Password is the GMP password core generated and keeps in core/secrets (48 lower-case
 // hex characters); the host hands it to gvmd at every up as a file only root and gvmd read, so gvmd creates its admin user with it,
-// and sets it again in the background on a volume that keeps another one (host-api §6.16, D-590). The server's audit line redacts it
+// and sets it again in the background on a volume that keeps another one (host-api §6.16). The server's audit line redacts it
 // by its key and records only a digest of the args.
 type GreenboneUpArgs struct {
 	Password string `json:"password"`

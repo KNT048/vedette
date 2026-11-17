@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// net.apply, net.confirm and net.revert (spec 6.5, D-99, D-100, D-101, D-106).
+// net.apply, net.confirm and net.revert (spec 6.5).
 //
 // Every net.apply carries the whole desired state of what Vedette manages. A change of the
 // management part (card, mode, address with prefix, gateway) goes through the confirm window: the
@@ -402,7 +402,7 @@ func (o *Ops) revertNow(ctx context.Context, rc *server.RunContext, g *overlayGu
 	return nil, &server.Reverted{Code: code, Message: msg}
 }
 
-// undoOverlay is the revert (D-100 (3)): remove the overlay, netplan apply (three tries, D-100 (8)),
+// undoOverlay is the revert: remove the overlay, netplan apply (three tries),
 // drop the note, apply the decoys again, check that the old configuration works. The note is
 // dropped only once the overlay is gone and netplan has run, so a failure in between is retried at
 // the next start; when netplan cannot be applied at all the host reboots the box in a minute (the
@@ -470,7 +470,7 @@ func (o *Ops) checkOldSHA(ctx context.Context, p netPending, ps pendState) {
 }
 
 // rebootAfterFailedRevert schedules os.reboot in a minute when a revert could not be applied and the
-// change touched management (D-100 (8), as VyOS and EdgeOS commit-confirm reboot an unconfirmed
+// change touched management (as VyOS and EdgeOS commit-confirm reboot an unconfirmed
 // change): /etc holds the old file, so a reboot restores the way in. It goes through the one
 // reboot schedule, is audited, and shows in state/net as pending.reboot_at. A confirm in that
 // minute changes nothing: the overlay is already gone.
@@ -549,7 +549,7 @@ func (o *Ops) sourceAddr(iface string, match func(netip.Prefix) bool) netip.Addr
 	return netip.Addr{}
 }
 
-// effectCheck verifies what the configuration should have done (D-100 (1), D-101): the address is
+// effectCheck verifies what the configuration should have done: the address is
 // on the card (DHCP: some IPv4 address within the wait) and the gateway answers ARP from it. It
 // looks at the system, not at an exit code.
 func (o *Ops) effectCheck(ctx context.Context, rc *server.RunContext, cfg NetplanConfig) error {

@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
-// The bundle readers (D-452) against hand-built PAX GNU sparse entries (review M2) and fuzzing, seeded with those entries.
+// The bundle readers against hand-built PAX GNU sparse entries (review M2) and fuzzing, seeded with those entries.
 
 func hexOf(b []byte) string {
 	s := sha256.Sum256(b)

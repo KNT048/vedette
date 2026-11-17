@@ -32,7 +32,7 @@ import (
 // implement disjoint operations. The handlers are thin: the rules live in core/auth, the checks of the
 // contract (route table, roles, CSRF) in core/server.
 type APIHandlers struct {
-	// firstRun is held by one first-run operation at a time: POST /core/setup, a backup upload or a first-run restore (D-518).
+	// firstRun is held by one first-run operation at a time: POST /core/setup, a backup upload or a first-run restore.
 	// restoring (OSHandlers.restoreRunning) keeps setup closed while a first-run restore runs on the host after its request
 	// ended, and dropUploads (OSHandlers' snapshotter.dropUploads) removes a staged upload once setup is done. Both are nil
 	// without a host; NewOSHandlers sets them before the server serves.
@@ -63,7 +63,7 @@ type APIHandlers struct {
 	exporting atomic.Bool // one /core/data/export at a time, from the audit row until the body is closed
 	exportCap int64       // test hook: the size cap of /core/data/export (0 = exportMaxBytes)
 
-	// The factory reset (/core/data/purge, D-154).
+	// The factory reset (/core/data/purge).
 	dataDir    string      // core_data: where the module data files and snapshots/ are ("" = none to remove)
 	dataFiles  []string    // plain names of the module data files in dataDir (logs.db)
 	schema     []SchemaSet // migrations of every module, to learn what a fresh install holds
@@ -90,7 +90,7 @@ type HandlersConfig struct {
 	Secrets *secrets.Store
 	Log     *slog.Logger
 	Facts   PrivacyFacts // optional
-	// Names gives GET /core/audit the display names of the devices and findings its rows name (D-416). Optional: without it the
+	// Names gives GET /core/audit the display names of the devices and findings its rows name. Optional: without it the
 	// rows show their ids only. cmd/vedette reads them from inventory and findings, so core imports neither.
 	Names AuditNamer
 	Conns *conn.Service // optional: without it /core/connections answers 501 not_implemented
@@ -100,8 +100,8 @@ type HandlersConfig struct {
 	Logs     *logexport.Registry // optional: where the modules register their log sources (INV-13); core adds "audit"; nil = a registry of its own
 	Clock    func() time.Time    // nil: time.Now
 
-	// The factory reset, POST /core/data/purge (D-154). DataDir is core_data (the directory of the database file); DataFiles are plain
-	// names of the data files the modules keep there besides vedette.db (today logs.db, D-151), checked against dataFileRE; both
+	// The factory reset, POST /core/data/purge. DataDir is core_data (the directory of the database file); DataFiles are plain
+	// names of the data files the modules keep there besides vedette.db (today logs.db), checked against dataFileRE; both
 	// optional (no DataDir: no files are removed). Schema is the migrations of every module in order and is required for the purge.
 	// Restart, when not nil, is called shortly after a purge has answered: the process must start again, because what its modules
 	// hold in memory (the sensor CA, caches) belongs to the data that is gone; the supervisor (Quadlet, Restart=always) brings it back.
@@ -109,7 +109,7 @@ type HandlersConfig struct {
 	DataFiles []string
 	Schema    []SchemaSet
 	Restart   func()
-	// KeyPath is the encryption key file (-key): the purge replaces it with a fresh key (D-154). Host is vedette-host as far as the purge
+	// KeyPath is the encryption key file (-key): the purge replaces it with a fresh key. Host is vedette-host as far as the purge
 	// needs it (nil = no helper: backups are not deleted and the answer says so). OSBusy reports a running OS update of core itself.
 	// BeforeWipe runs before anything is deleted and may refuse the purge with an error; cmd/vedette turns the honeypot off (decoy
 	// addresses leave the host) and empties its log there. All optional.
@@ -132,7 +132,7 @@ type HandlersConfig struct {
 	// the scope of Devices -> Scope and sensors in the setup's own transaction. nil = a build without the inventory: the ranges stay only
 	// in core_setting setup.scope.
 	Scope SetupScope
-	// BoxLAN is the network of the box's management address (the Box network's management card, D-405), offered by GET
+	// BoxLAN is the network of the box's management address (the Box network's management card), offered by GET
 	// /core/setup/modules as the first range of the network step while setup is open. nil or ok=false: none (container-only).
 	BoxLAN func(context.Context) (netip.Prefix, bool)
 }

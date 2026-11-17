@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 
 /**
- * Row selection kept outside the list (D-472): ids survive paging, search and filters. Shared by the scan picker,
+ * Row selection kept outside the list: ids survive paging, search and filters. Shared by the scan picker,
  * and meant for the devices list (B7) and incidents. Only a Set of ids; what may be selected is the caller's rule.
  */
 export function useRowSelection(init?: () => Iterable<string>) {

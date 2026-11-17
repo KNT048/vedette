@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# make honeypot-check (WP-08e, D-162): build the honeypot image, run it the way the unit does and check BY EFFECT, not by the exit code of the build:
+# make honeypot-check (WP-08e): build the honeypot image, run it the way the unit does and check BY EFFECT, not by the exit code of the build:
 #   * OpenCanary starts with the files core's own code writes (honeypot.RenderConfig / RenderTokens, through a Go test), and a connection to
 #     each trap writes a JSON line into the mounted log/ that modules/honeypot's parser accepts (a Go test runs ParseLine on the log);
 #   * every enabled trap is proven: OpenCanary reports it started (its start_mod only logs a module that fails to start), and a client gets the
 #     trap's own log type: an SSH password login is 4002 with the default key exchange AND with diffie-hellman-group-exchange only (the start-up fix
-#     in init.py, without which the trap crashed before logging the login), RDP 14001, MSSQL 9001, HTTP 3000, SMB 5000; and every service D-467
-#     added: HTTPS 3000 on 443 with core's certificate, FTP 2000, Telnet 6002/6001, MySQL 9003/8001, MongoDB 20001, Redis 17001, VNC 12001,
+#     in init.py, without which the trap crashed before logging the login), RDP 14001, MSSQL 9001, HTTP 3000, SMB 5000; and every
+#     other service: HTTPS 3000 on 443 with core's certificate, FTP 2000, Telnet 6002/6001, MySQL 9003/8001, MongoDB 20001, Redis 17001, VNC 12001,
 #     Git 16001, HTTP proxy 7001, SMTP banner 18001, TFTP 10001, NTP 11001, SIP 15001; no Twisted traceback;
 #   * Samba serves the planted file token, and opening it reaches OpenCanary as a log type 5000 line whose file name is the token and whose source is
 #     the real client (a client user name with `|` in it cannot forge another source);
@@ -55,7 +55,7 @@ VEDETTE_HP_OUT="$work/config" go test ./deploy/containers -run '^TestHoneypotWri
 [ -s "$work/config/opencanary.conf" ] && [ -s "$work/config/honeytokens.json" ] || fail "fixture files missing"
 ok "opencanary.conf and honeytokens.json written by modules/honeypot"
 
-# 2. run it as the unit does. log/ is the size-capped tmpfs volume of the unit (D-318): its options are read from the golden file of
+# 2. run it as the unit does. log/ is the size-capped tmpfs volume of the unit: its options are read from the golden file of
 # vedette-hp-log.volume, so this check and the shipped unit cannot drift apart.
 volfile=host/ops/testdata/units/vedette-hp-log.volume
 grep -qx 'Type=tmpfs' "$volfile" && grep -qx 'Device=tmpfs' "$volfile" || fail "$volfile is not a tmpfs volume"
@@ -135,7 +135,7 @@ hl = 94
 ib = [hl, 0, hl, len(user) // 2, hl + len(user), len(pw) // 2] + [hl + len(user) + len(pw), 0] * 6
 body = struct.pack("<6I4BlI18H6s6HI", hl + len(user) + len(pw), 0x74000004, 4096, 7, 1, 0, 0, 0, 0, 0, 0, 0x409, *ib, b"\0" * 6, 0, 0, 0, 0, 0, 0, 0) + user + pw
 s = socket.create_connection((ip, 1433), 5); s.sendall(struct.pack(">BBHHBB", 0x10, 1, 8 + len(body), 0, 1, 0) + body); print("mssql: reply type", s.recv(100)[:1].hex()); s.close()
-# D-467: every service added in B3, once each, the way a scanner or a script tries it
+# Every service added in B3, once each, the way a scanner or a script tries it
 import ssl, time
 def tcp(port):
     s = socket.create_connection((ip, port), 5); s.settimeout(5); return s
@@ -202,7 +202,7 @@ grep -q '^rdp: reply 0300' "$work/client.out" || fail "the RDP trap did not answ
 grep -q '^mssql: reply type 04$' "$work/client.out" || fail "the MSSQL trap did not answer LOGIN7: $(cat "$work/client.out")"
 for want_line in '^https: HTTP/1.1 200 OK cert True$' '^ftp: 220 ' '^ftp: reply 530' '^telnet: True$' '^mysql: ' '^mongodb: reply True$' '^redis: -NOAUTH' '^vnc: RFB 003.008$' \
 	'^git: .*ERR no such repository' '^httpproxy: HTTP/1.1 407' '^smtp: 220 '; do
-	grep -q "$want_line" "$work/client.out" || fail "a D-467 trap did not answer ($want_line): $(cat "$work/client.out")"
+	grep -q "$want_line" "$work/client.out" || fail "a TCP trap did not answer ($want_line): $(cat "$work/client.out")"
 done
 sed 's/^/    /' "$work/client.out"
 # SSH: a real OpenSSH client logs in with a password (SSH_ASKPASS, no terminal), once with its default key exchange and once offering only
@@ -219,7 +219,7 @@ for kex in default gex; do
 done
 out=$($c exec "$client" smbclient -N "//$ip/Shared" -c 'ls; get passwords.txt /dev/null' 2>&1) || fail "smbclient: $out"
 echo "$out" | grep -q 'passwords.txt' || fail "the share does not list the planted token: $out"
-ok "SMB share lists the planted token; SSH, HTTP, RDP, MSSQL and every D-467 TCP trap answered (HTTPS with core's certificate)"
+ok "SMB share lists the planted token; SSH, HTTP, RDP, MSSQL and every other TCP trap answered (HTTPS with core's certificate)"
 # a client user name carrying `|` and a fake address reaches no field of the audit line
 $c exec "$client" smbclient -U 'x|6.6.6.6|7.7.7.7%y' "//$ip/Shared" -c 'get "Q4 payroll.xlsx" /dev/null' >/dev/null 2>&1 || true
 
@@ -282,7 +282,7 @@ gone=$(missing)
 # OpenCanary's start_mod swallows a module that fails to start; Twisted logs a crash inside a protocol (the group-exchange bug) and goes on
 bad=$({ $c logs "$name" 2>&1; cat "$work/log/opencanary.jsonl"; } | grep -E 'Failed to (add service|instantiate|run startYourEngines|load class)|does not have any required starting method|Unhandled Error|Traceback' | cut -c1-300 || true)
 [ -z "$bad" ] || fail "OpenCanary reported a failure: $bad"
-ok "every enabled trap started and logged its client: SSH 4002 with the default key exchange and with group exchange only, RDP 14001, MSSQL 9001, HTTP 3000, SMB 5000, and each D-467 service; no start failure, no traceback"
+ok "every enabled trap started and logged its client: SSH 4002 with the default key exchange and with group exchange only, RDP 14001, MSSQL 9001, HTTP 3000, SMB 5000, and each other service; no start failure, no traceback"
 python3 -I -c '
 import json, sys
 for l in open(sys.argv[1]):
@@ -301,7 +301,7 @@ VEDETTE_HP_LOGFILE="$work/log/opencanary.jsonl" VEDETTE_HP_WANT=$want go test ./
 VEDETTE_HP_LOGFILE="$work/log/opencanary.jsonl" VEDETTE_HP_WANT=$want go test ./deploy/containers -run '^TestHoneypotLogFileParses$' -count=1 >/dev/null || fail "honeypot.ParseLine does not accept the log"
 ok "modules/honeypot ParseLine accepts every line"
 
-# 5b. the cap (D-318): the mount has the unit's options, and a container that writes past size= gets ENOSPC (and so does the 1025th file);
+# 5b. the cap: the mount has the unit's options, and a container that writes past size= gets ENOSPC (and so does the 1025th file);
 # the second container still cannot write (:ro). Done last: log/ is full for a moment, so OpenCanary could lose a line meanwhile.
 mnt=$($c exec "$name" /usr/bin/python3 -I -c 'print([l for l in open("/proc/mounts") if " /var/lib/vedette/honeypot/log " in l][0].strip())')
 echo "    log mount: $mnt"
@@ -353,11 +353,11 @@ ok "a stop (SIGTERM) ends init.py with exit 0 in $took s"
 $c image inspect "$img" --format 'honeypot image: {{.Size}} bytes, user {{.Config.User}}, arch {{.Architecture}}'
 inv=$($c run --rm --entrypoint /bin/cat "$img" /usr/share/vedette/honeypot-inventory.txt)
 echo "$inv" | awk '{print $1}' | sort | uniq -c | sed 's/^/    inventory: /'
-# no GPL Python package ships (hpfeeds is a stub, D-162); Debian packages (Samba) are a separate process and keep their licences
+# no GPL Python package ships (hpfeeds is a stub); Debian packages (Samba) are a separate process and keep their licences
 if echo "$inv" | grep -E '^pip ' | grep -iE 'GPL|GNU General'; then fail "a GPL Python package is in the image (see above)"; fi
 if echo "$inv" | grep -qi '^pip hpfeeds'; then fail "hpfeeds is in the image, not the stub"; fi
 ok "no GPL Python package in the image (hpfeeds is the stub)"
-# D-594: the pinned Debian security update over the base, in dpkg and in the inventory (the honeypot keeps only the copyright file of
+# The pinned Debian security update over the base, in dpkg and in the inventory (the honeypot keeps only the copyright file of
 # each package's docs, so no dpkg --verify; skipped once the update is retired and ZLIB1G_VERSION is gone from pins.env)
 if [ -n "${ZLIB1G_VERSION:-}" ]; then
 	# shellcheck disable=SC2016 # dpkg-query's own format

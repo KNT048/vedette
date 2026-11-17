@@ -16,8 +16,8 @@ import (
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
-// Service identification on the box's own public IP and the comparison with exploited CVEs (S-EXP-2, CONTRACT INV-19, INV-20,
-// D-553). Both steps sit behind a port so that the scan container's nmap -sV (sensor-active, owned by another module) and the
+// Service identification on the box's own public IP and the comparison with exploited CVEs (S-EXP-2, CONTRACT INV-19, INV-20).
+// Both steps sit behind a port so that the scan container's nmap -sV (sensor-active, owned by another module) and the
 // KEV/NVD matcher (findings and feeds) are wired by cmd/vedette; exposure reads no other module's tables.
 
 // The S-EXP-2 rows. A ServiceRow came from the network (nmap printed what the port answered), so it is untrusted and sanitize
@@ -27,13 +27,13 @@ type (
 	ServiceRow struct {
 		IP      string `json:"ip"`
 		Port    int    `json:"port"`
-		Name    string `json:"name"`    // nmap's service name: "http", "ssl/http" (tunnel="ssl", D-522), "ssh", "tcpwrapped"
+		Name    string `json:"name"`    // nmap's service name: "http", "ssl/http" (tunnel="ssl"), "ssh", "tcpwrapped"
 		Product string `json:"product"` // "Apache httpd"; "" when nmap named none
 		Version string `json:"version"` // "2.4.49"; "" when the service sent none
 		CPE     string `json:"cpe"`     // the application CPE 2.2 URI nmap printed ("cpe:/a:apache:http_server:2.4.49"); "" when none
 		Extra   string `json:"extra"`   // nmap's extrainfo ("(Debian)", "Ubuntu Linux; protocol 2.0"); "" when none
-		// Method is how nmap named the service (M2-7): "probed" (a probe's answer matched), "table" (only the usual service of the
-		// port number: not confirmed), "" when not known (a snapshot from before M2-7). Conf is nmap's confidence 1..10, 0 when absent.
+		// Method is how nmap named the service: "probed" (a probe's answer matched), "table" (only the usual service of the
+		// port number: not confirmed), "" when not known (a snapshot from an older release). Conf is nmap's confidence 1..10, 0 when absent.
 		Method string `json:"method,omitempty"`
 		Conf   int    `json:"conf,omitempty"`
 	}
@@ -54,7 +54,7 @@ type (
 	// changing the upstream version, so a version in range is weaker evidence there (INV-20). Basis "template": a safe template
 	// matched (INV-23). Basis "greenbone": Greenbone named the CVE and it is on the list (INV-25), next to any other row. Template is the id of the template that ran for this CVE and TemplateResult its outcome ("matched",
 	// "no_match", "error"; "" when none ran). Basis "js_library": Retire.js names the CVE for a JavaScript library version ZAP saw on a
-	// page (D-565, zaprules.go); IP is then the page's host, a name for a domain.
+	// page (zaprules.go); IP is then the page's host, a name for a domain.
 	VulnRow struct {
 		IP             string  `json:"ip"`
 		Port           int     `json:"port"`
@@ -91,13 +91,13 @@ type ServiceScanner interface {
 type ServiceScan struct {
 	Services []ServiceRow
 	Ports    int
-	// FULL-4 (Trưởng), for Mlee: the NSE script results of a deep scan (ScanMode.Full, D-526): nmap's "default", "safe" and
+	// The NSE script results of a deep scan (ScanMode.Full): nmap's "default", "safe" and
 	// "vuln" scripts (and "dos", "brute" with the disruptive tick) on the open ports and the host. Untrusted; sanitizeScripts
 	// limits them before they are stored. nil for a scan that is not deep.
 	Scripts []ScriptRow
 }
 
-// ScriptRow is one NSE script result of a deep scan (FULL-4 (Trưởng), for Mlee: D-526). Port is the open TCP port it ran on, 0
+// ScriptRow is one NSE script result of a deep scan. Port is the open TCP port it ran on, 0
 // for a script about the whole host (smb-vuln-ms17-010 is one); ID is nmap's script name; Output its text (printable, line breaks
 // kept, at most maxScriptOutput runes; "Output not stored: it can hold credentials." for a script that can print them);
 // Findings the findings of nmap's vulns library, read by the scanner from the script's structured output only (never from text a
@@ -110,7 +110,7 @@ type ScriptRow struct {
 	Findings []ScriptFinding `json:"findings"`
 }
 
-// ScriptFinding is one finding of a script (FULL-4 (Trưởng), for Mlee: D-526): State "vulnerable" (the script confirmed it),
+// ScriptFinding is one finding of a script: State "vulnerable" (the script confirmed it),
 // "likely" (LIKELY VULNERABLE) or "not_vulnerable"; Title the script's name for it; CVEs its CVE ids.
 type ScriptFinding struct {
 	State string   `json:"state"`
@@ -124,7 +124,7 @@ func (r ScriptRow) vulnerable() bool {
 }
 
 // Matcher compares identified services with the exploited CVEs: the CISA KEV list with the NVD version ranges the feeds keep
-// (D-553: exploited CVEs only). It is pure with respect to exposure: it reads the list and returns rows, it stores nothing. A
+// (exploited CVEs only). It is pure with respect to exposure: it reads the list and returns rows, it stores nothing. A
 // list that cannot be read for a reason the page may show returns *Unavailable.
 type Matcher interface {
 	Match(ctx context.Context, services []ServiceRow) (Matches, error)
@@ -140,7 +140,7 @@ type Matches struct {
 	Unlisted []string
 	Listed   int
 	// RuledOut are the exploited CVEs not listed because the service names another platform than the one the CVE affects
-	// (D-547: an OpenSSH that says it is Ubuntu's build against an Alpine-only flaw); each is a "checked" line with its reason.
+	// (an OpenSSH that says it is Ubuntu's build against an Alpine-only flaw); each is a "checked" line with its reason.
 	RuledOut []RuledOutRow
 }
 
@@ -158,8 +158,8 @@ type Unavailable struct{ Reason string }
 
 func (e *Unavailable) Error() string { return e.Reason }
 
-// The errors of a ServiceScanner whose nmap ran but whose result says nothing about the services (D-522, N5; TUNE-1a, a change
-// to Mlee's module by the scan side): ErrAnswersEverywhere, the address answered on more than commonports.MaxBelievableOpen
+// The errors of a ServiceScanner whose nmap ran but whose result says nothing about the services:
+// ErrAnswersEverywhere, the address answered on more than commonports.MaxBelievableOpen
 // ports (a router or SYN proxy answering for all of them), so its rows are not services; ErrServicesTimedOut, nmap hit its
 // 3-minute limit on the address and printed no port table. Each is its own "Not checked" line, never "0 services".
 var (
@@ -178,7 +178,7 @@ const (
 	NotSetUpServices = "Service identification (nmap -sV) is not set up on this box yet."
 	notServicesFail  = "Service identification (nmap -sV) failed, so no service versions were read. The box log has the error."
 	notServicesSlow  = "Service identification (nmap -sV) did not finish within 5 minutes, so no service versions were read."
-	// D-522 (N5): the lines of ErrServicesTimedOut and ErrAnswersEverywhere. "3 minutes" is nmapargv's --host-timeout of the
+	// The lines of ErrServicesTimedOut and ErrAnswersEverywhere. "3 minutes" is nmapargv's --host-timeout of the
 	// external shape (externalHostTimeout); "40" is commonports.MaxBelievableOpen: change them together.
 	notServicesGaveUp    = "Service identification (nmap -sV) did not finish within 3 minutes, nmap's limit for one address, so no service versions were read. Services may still be open there; scan again later."
 	notAnswersEverywhere = "More than 40 of the 98 ports checked answered, more than a normal box exposes: a router or firewall that answers for every port looks like this, so service identification and the template checks were skipped. If real services run here, forward only the ports you use."
@@ -203,7 +203,7 @@ const (
 // "Not checked" line and the rest of the scan is kept.
 const ServicesTimeout = 5 * time.Minute
 
-// FULL-4 (Trưởng), for Mlee: the step bound of a deep scan (D-526). nmap's full shapes give up on the address after 60 minutes
+// The step bound of a deep scan. nmap's full shapes give up on the address after 60 minutes
 // (nmapargv.FullHostTimeout, its --host-timeout); the scanner also waits up to 2 minutes for the box's one nmap slot and checks
 // the address and the terms again (about a minute), so the step gets 70 minutes. FullHostLimit is nmap's limit as the line of
 // ErrServicesTimedOut says it. cmd/vedette holds both to nmapargv in a test.
@@ -212,7 +212,7 @@ const (
 	FullHostLimit       = 60 * time.Minute
 )
 
-// FULL-4 (Trưởng), for Mlee: the lines of a deep scan's service step (D-526), with its own bounds in them (%d minutes).
+// The lines of a deep scan's service step, with its own bounds in them (%d minutes).
 const (
 	notOtherPortsDeep        = "Every TCP port: the deep scan's nmap run did not finish, so only the fixed list of commonly exposed ports was checked."
 	notDeepSlow              = "The deep scan (nmap on every TCP port, with its scripts) did not finish within %d minutes, so no service versions were read."
@@ -220,7 +220,7 @@ const (
 	notAnswersEverywhereDeep = "More than 40 TCP ports answered the deep scan, more than a normal box exposes: a router or firewall that answers for every port looks like this, so its service and script results and the template checks were skipped. If real services run here, forward only the ports you use."
 )
 
-// FULL-4 (Trưởng), for Mlee: limits of the script results kept per scan (D-526). sensor-active already cut each output to
+// Limits of the script results kept per scan. sensor-active already cut each output to
 // maxScriptOutput runes; a deep scan of a box with a few web ports prints a few dozen results, so maxScripts keeps all of a real
 // one (findings first, sanitizeScripts) and bounds what a hostile answer can make the snapshot hold (300 × 2000 runes).
 const (
@@ -242,7 +242,7 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	}
 	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "udp", Text: notUDP})
 	if st.Kind != KindIP {
-		if !st.Mode.Full { // D-571: with the testing terms each address gets the deep scan (deepDomain), whose lines replace these
+		if !st.Mode.Full { // With the testing terms each address gets the deep scan (deepDomain), whose lines replace these
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsDom}, NotCheckedRow{Kind: "services", Text: notServicesDom})
 		}
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "non_exploited", Text: notNonExploited})
@@ -252,7 +252,7 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 		c.NotChecked = append(c.NotChecked, surfaceNotChecked(c.Hosts, st.Mode.Full)...) // INV-27
 		return c, nil
 	}
-	if !st.Mode.Full { // FULL-4 (Trưởng), for Mlee: a deep scan probes every TCP port (D-526); its "ports" line is said by identifyIP
+	if !st.Mode.Full { // a deep scan probes every TCP port; its "ports" line is said by identifyIP
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsIP})
 	}
 	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "non_exploited", Text: notNonExploited})
@@ -261,14 +261,14 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 		return c, fmt.Errorf("exposure: identifying services on %q: %w", st.Value, err)
 	}
 	c, err = s.identifyIP(ctx, st, ip, c)
-	// N44-5: a port only service identification found (a deep scan probes every TCP port, the runner a fixed list) is an open port
+	// A port only service identification found (a deep scan probes every TCP port, the runner a fixed list) is an open port
 	// of the target too: the counts, the first sentence, the day diff, INV-22 and the outside view (INV-21) read the ports.
 	c.Ports = addServicePorts(c.Ports, c.Services, c.Scripts, ip.String())
 	return c, err
 }
 
 // addServicePorts appends a PortRow for each service on ip whose port the rows do not have yet, then says on each row of ip how its
-// service was identified and what the deep scan's scripts read there (identifyPorts, M2-7).
+// service was identified and what the deep scan's scripts read there (identifyPorts).
 func addServicePorts(ports []PortRow, services []ServiceRow, scripts []ScriptRow, ip string) []PortRow {
 	have := map[string]bool{}
 	for _, p := range ports {
@@ -284,9 +284,9 @@ func addServicePorts(ports []PortRow, services []ServiceRow, scripts []ScriptRow
 }
 
 // identifyIP is service identification of one address, then its templates (INV-19, INV-23): an IP target's own address, or one address
-// of a domain's names at the domain's terms depth (D-571, deepIP), whose ScanTarget then carries the domain (and its scope).
+// of a domain's names at the domain's terms depth (deepIP), whose ScanTarget then carries the domain (and its scope).
 func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, c Content) (Content, error) {
-	// FULL-4 (Trưởng), for Mlee: a deep scan probes every TCP port (D-526), so its "ports" line is said only when that run did not
+	// A deep scan probes every TCP port, so its "ports" line is said only when that run did not
 	// finish (notDeep); the bound of its step and the numbers of its lines are its own.
 	limit, slow, gaveUp, everywhere := ServicesTimeout, notServicesSlow, notServicesGaveUp, notAnswersEverywhere
 	notDeep := func() {}
@@ -299,7 +299,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: NotSetUpServices})
 		return s.runTemplates(ctx, st, netip.Addr{}, c) // no services, so it only says why it did not run
 	}
-	if answersEverywhere(c.Ports, ip) { // D-522 (N5): the surface scan already saw it; nmap -sV is not sent at all
+	if answersEverywhere(c.Ports, ip) { // The surface scan already saw it; nmap -sV is not sent at all
 		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notAnswersEverywhere})
 		return c, nil
@@ -317,7 +317,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			}
 		}
 		c.Services = append(c.Services, got...)
-		// review r2 L3: only what a probe named counts as identified; the guesses and the unknown ones are said apart
+		// Only what a probe named counts as identified; the guesses and the unknown ones are said apart
 		probed, guess, none := identifiedCounts(got)
 		read := plural(probed, "service") + " identified"
 		if guess > 0 {
@@ -330,7 +330,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		if res.Ports > 0 {
 			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s.", plural(res.Ports, "TCP port"), read)
 		}
-		if st.Mode.Full { // FULL-4 (Trưởng), for Mlee: the script results of the deep scan, kept apart from the services
+		if st.Mode.Full { // the script results of the deep scan, kept apart from the services
 			vuln := 0
 			for _, r := range sanitizeScripts(res.Scripts) {
 				if r.IP == ip.String() {
@@ -365,7 +365,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 	return s.runTemplates(ctx, st, ip, c) // INV-23: safe templates for the exploited CVEs the services match
 }
 
-// answersEverywhere says the surface scan saw more than commonports.MaxBelievableOpen ports of ip open (D-522, N5); ports of
+// answersEverywhere says the surface scan saw more than commonports.MaxBelievableOpen ports of ip open; ports of
 // another address are not counted.
 func answersEverywhere(ports []PortRow, ip netip.Addr) bool {
 	n := 0
@@ -379,7 +379,7 @@ func answersEverywhere(ports []PortRow, ip netip.Addr) bool {
 
 // identificationIncomplete says this IP scan has a "Not checked" line of service identification (it was not set up, did not run,
 // failed, did not finish, or was skipped on an address that answers on every port), and returns that line: the later steps then
-// say they did not run because of it, never "no services were identified" (D-522, M1 of the TUNE-1a review).
+// say they did not run because of it, never "no services were identified".
 func identificationIncomplete(c Content) (bool, string) {
 	for _, n := range c.NotChecked {
 		if n.Kind == "services" {
@@ -412,7 +412,7 @@ func plural(n int, noun string) string {
 func (s *Service) withVulns(ctx context.Context, snap *Snapshot) {
 	snap.Vulns, snap.VersionGaps = []VulnRow{}, []GapRow{}
 	s.withServiceVulns(ctx, snap)
-	s.withWebVersions(ctx, snap)    // D-565: the rule list and the versions ZAP read, after the services
+	s.withWebVersions(ctx, snap)    // The rule list and the versions ZAP read, after the services
 	s.withGreenboneVulns(ctx, snap) // INV-25: after every other row, never changing one
 }
 
@@ -450,7 +450,7 @@ func (s *Service) withServiceVulns(ctx context.Context, snap *Snapshot) {
 		text += fmt.Sprintf(" %s gave no product to look up, so not compared.", plural(n, "service"))
 	}
 	snap.Checks = append(snap.Checks, CheckRow{Kind: "cve", Text: text, At: store.FormatTS(s.clock())})
-	for i, r := range m.RuledOut { // D-547: not listed, and the page says why (Tenable's and Qualys's "not applicable" reason)
+	for i, r := range m.RuledOut { // Not listed, and the page says why (Tenable's and Qualys's "not applicable" reason)
 		if i == maxUnlisted {
 			break
 		}
@@ -546,11 +546,11 @@ func sanitizeServices(in []ServiceRow) []ServiceRow {
 	return out
 }
 
-// FULL-4 (Trưởng), for Mlee: sanitizeScripts keeps the script rows of an IPv4 address and a port 0..65535 (0: the host) with an
+// sanitizeScripts keeps the script rows of an IPv4 address and a port 0..65535 (0: the host) with an
 // id of nmap's form (others are dropped), each output printable with its line breaks and cut to maxScriptOutput runes, each
 // finding of a known state (at most maxScriptFindings) with a printable title and CVE ids of the right form (at most
 // maxScriptCVEs); the rows with a VULNERABLE finding first, then those with a LIKELY one, at most maxScripts, so the cap drops the
-// rest first (INV-10, D-526).
+// rest first (INV-10).
 func sanitizeScripts(in []ScriptRow) []ScriptRow {
 	out := []ScriptRow{}
 	for _, r := range in {

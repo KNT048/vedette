@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Limits of one token (D-232). The minute bucket keeps a looping agent from hammering the box and counts every authenticated
+// Limits of one token. The minute bucket keeps a looping agent from hammering the box and counts every authenticated
 // request, refused or not; the daily cap bounds the audit rows one token can write (MaxTokens x callsPerDay rows a day at
 // most). ponytail: in memory, so a restart resets the counts; upgrade path: keep the day's count in mcp_tokens if a restart
 // loop ever matters.

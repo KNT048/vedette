@@ -70,7 +70,7 @@ type Settings struct {
 // SettingsInput is PUT /inventory/settings.
 type SettingsInput struct {
 	Settings
-	ScopeConfirmed bool `json:"scope_confirmed"` // the attestation of D-26
+	ScopeConfirmed bool `json:"scope_confirmed"` // the person's scan-scope attestation
 }
 
 // SafetyVersion names the safety block's stored values (INV-32): the ranges and their attestation, the switch of active discovery
@@ -121,7 +121,7 @@ func (st Settings) InScope(ip netip.Addr) bool {
 }
 
 // Excluded reports whether ip is on the exclusion list ("never touch"): nothing active goes there, not discovery, not a scan, not an
-// SNMP read (D-601: outside lan_ranges SNMP reads a device a person turned SNMP on for, never an excluded one).
+// SNMP read (outside lan_ranges SNMP reads a device a person turned SNMP on for, never an excluded one).
 func (st Settings) Excluded(ip netip.Addr) bool {
 	ip = ip.Unmap()
 	for _, x := range st.Active.Exclusions {
@@ -254,7 +254,7 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	if act.Enabled && !in.ScopeConfirmed {
 		return in, nil, badRequest("scope_not_confirmed", "Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.")
 	}
-	for _, k := range in.FragileKinds { // the 13 kinds behaviour is keyed on; every device type acts as one of them (D-511)
+	for _, k := range in.FragileKinds { // the 13 kinds behaviour is keyed on; every device type acts as one of them
 		if !slices.Contains(Kinds, k) {
 			return in, nil, badRequest("bad_kinds", "The list of fragile device types is not valid.")
 		}
@@ -406,8 +406,8 @@ func (s *Service) SetupScope(ctx context.Context, tx *sql.Tx, actor string, rang
 	if err := putSetting(ctx, tx, "scope", sc, now, actorOrSystem(actor)); err != nil {
 		return err
 	}
-	// The commitment ticked at setup is the consent to scan these ranges (D-26), so active scanning goes on with it, as the setup
-	// page says (D-501, walk 2 W2-4: it stayed off). Unticked leaves the setting as it was (off on a new box).
+	// The commitment ticked at setup is the consent to scan these ranges, so active scanning goes on with it, as the setup
+	// page says. Unticked leaves the setting as it was (off on a new box).
 	if confirmed {
 		var act ActiveWindow
 		if err := loadSetting(ctx, tx, "active", &act); err != nil {
@@ -449,8 +449,7 @@ func kindList(kinds []string) (string, []any) {
 	return "(" + strings.TrimSuffix(strings.Repeat("?,", len(kinds)), ",") + ")", args
 }
 
-// applyFragilePolicy sets fragile on every device whose flag was not set by hand (D-45): a device whose type acts as one of kinds
-// (D-511).
+// applyFragilePolicy sets fragile on every device whose flag was not set by hand: a device whose type acts as one of kinds.
 func applyFragilePolicy(ctx context.Context, tx *sql.Tx, kinds []string) error {
 	list, args := kindList(devicetypes.ActingAs(kinds))
 	_, err := tx.ExecContext(ctx, `UPDATE inv_asset SET fragile = (kind IN `+list+`) WHERE fragile_manual = 0 AND fragile <> (kind IN `+list+`)`, append(args, args...)...) //nolint:gosec // list is only "?" placeholders, the kinds travel as arguments

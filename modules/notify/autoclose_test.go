@@ -47,7 +47,7 @@ func (e *env) detail(id string) notify.Incident {
 	return d.Incident
 }
 
-// INV-22 (D-550): approving a device in Devices (B9's inventory.asset.approved) closes its own new-device incident with the
+// INV-22: approving a device in Devices (B9's inventory.asset.approved) closes its own new-device incident with the
 // approver named and takes it off an open first-discovery summary, as a delete does (INV-20).
 func TestApprovedDeviceClosesItsIncidentWithTheApprover(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) { c.Devices = fakeDevices{"a1": "PC-01", "a2": "NAS-01", "a9": "LAPTOP-NEW"} })
@@ -70,7 +70,7 @@ func TestApprovedDeviceClosesItsIncidentWithTheApprover(t *testing.T) {
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a9", Notify: true})
 	publish(notify.EventAssetApproved, map[string]string{"asset_id": "a9", "actor": "an@acme.example\n\u202e"})
 	l, _ = e.svc.Incidents(e.ctx())
-	var own, summary notify.Incident // by title: the list puts open incidents first (G6), so the order is not the time order
+	var own, summary notify.Incident // by title: the list puts open incidents first, so the order is not the time order
 	for _, i := range l {
 		if i.Title == "A new unknown device appeared: LAPTOP-NEW" {
 			own = i
@@ -95,7 +95,7 @@ func TestApprovedDeviceClosesItsIncidentWithTheApprover(t *testing.T) {
 	}
 }
 
-// INV-22 (D-550): a trap or bad connection quiet for 7 days and a log anomaly quiet for 3 close themselves, acknowledged ones too; a
+// INV-22: a trap or bad connection quiet for 7 days and a log anomaly quiet for 3 close themselves, acknowledged ones too; a
 // repeat keeps an incident open, and a new hit after the close opens a new incident.
 func TestQuietIncidentsCloseThemselves(t *testing.T) {
 	e := newEnv(t)
@@ -160,7 +160,7 @@ func TestQuietIncidentsCloseThemselves(t *testing.T) {
 	}
 }
 
-// INV-23 (D-550): in the first 36 hours low and medium bad-connection and log incidents are recorded but told in one hourly summary;
+// INV-23: in the first 36 hours low and medium bad-connection and log incidents are recorded but told in one hourly summary;
 // high, critical and trap incidents go out at once.
 func TestFirstRunHoldsLowAndMediumIncidentsForOneSummary(t *testing.T) {
 	e := newEnv(t)
@@ -205,7 +205,7 @@ func TestFirstRunHoldsLowAndMediumIncidentsForOneSummary(t *testing.T) {
 	}
 }
 
-// INV-23 (D-550, Opus r1 MED-3, LOW-4, LOW-7): a second run in the same hour tells the incidents held since, never colliding with the
+// INV-23: a second run in the same hour tells the incidents held since, never colliding with the
 // first summary; a held incident that turns high is sent at once and leaves the summary; summaries waiting through quiet hours become
 // one.
 func TestFirstRunSummaryIsNeverLostAndWaitsAsOne(t *testing.T) {
@@ -258,7 +258,7 @@ func TestFirstRunSummaryIsNeverLostAndWaitsAsOne(t *testing.T) {
 	}
 }
 
-// INV-23 (Opus r2): a summary waiting through quiet hours whose incidents were all resolved meanwhile is dropped, not sent with a stale count.
+// INV-23: a summary waiting through quiet hours whose incidents were all resolved meanwhile is dropped, not sent with a stale count.
 func TestFirstRunSummaryOfResolvedIncidentsIsDropped(t *testing.T) {
 	e := newEnv(t)
 	e.firstRunAt(e.clock.Now())
@@ -317,7 +317,7 @@ func (f *stateDevices) DeviceStates(_ context.Context, ids []string) (map[string
 	return out, nil
 }
 
-// D-552 (W8-1, W8-2): a person's Approve publishes inventory.asset.updated, not B9's inventory.asset.approved. The update closes the
+// A person's Approve publishes inventory.asset.updated, not B9's inventory.asset.approved. The update closes the
 // device's own new-device incident and takes it off the first-discovery summary; an update before that renames the incident to the
 // name Devices shows. B9's event afterwards names the approver in the reason, without a second close or audit row.
 func TestApprovedInDevicesClosesTheNewDeviceIncident(t *testing.T) {
@@ -371,7 +371,7 @@ func TestApprovedInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	}
 }
 
-// D-552 (W8-1): devices approved before this version (no event will come) leave their new-device incidents on the next autoclose
+// devices approved before this version (no event will come) leave their new-device incidents on the next autoclose
 // run; a device not approved stays open with its current name, and a device the inventory no longer has is left to INV-20.
 func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
 	devs := &stateDevices{m: map[string]notify.DeviceState{
@@ -388,7 +388,7 @@ func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
 		}
 	}
 	devs.set("181", notify.DeviceState{Name: "byn", Address: "192.168.18.181", Approved: true}) // approved by the version before
-	devs.set("145", notify.DeviceState{Name: "kiens-macbook-air", Address: "192.168.18.145"})
+	devs.set("145", notify.DeviceState{Name: "annas-macbook-air", Address: "192.168.18.145"})
 	devs.mu.Lock()
 	delete(devs.m, "gone")
 	devs.mu.Unlock()
@@ -406,7 +406,7 @@ func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
 		i.Title != "A new unknown device appeared: byn (192.168.18.181)" {
 		t.Fatalf("approved device = %+v", i)
 	}
-	if i := got["145"]; i.Status != notify.StatusNew || i.Title != "A new unknown device appeared: kiens-macbook-air (192.168.18.145)" {
+	if i := got["145"]; i.Status != notify.StatusNew || i.Title != "A new unknown device appeared: annas-macbook-air (192.168.18.145)" {
 		t.Fatalf("device not approved = %+v", i)
 	}
 	if i := got["gone"]; i.Status != notify.StatusNew || i.Title != "A new unknown device appeared: old-phone" {
@@ -418,10 +418,10 @@ func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
 	}
 }
 
-// D-552 review LOW-2: a person who reopens the incident of an approved device keeps it open; neither the next update of the device
+// A person who reopens the incident of an approved device keeps it open; neither the next update of the device
 // nor the job closes it again. An update of a device on no open incident does not read the inventory.
 func TestReopenedIncidentOfAnApprovedDeviceStaysOpen(t *testing.T) {
-	devs := &stateDevices{m: map[string]notify.DeviceState{"145": {Name: "kiens-macbook-air", Address: "192.168.18.145"}}}
+	devs := &stateDevices{m: map[string]notify.DeviceState{"145": {Name: "annas-macbook-air", Address: "192.168.18.145"}}}
 	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
 	e.firstRunAt(e.clock.Now().AddDate(0, -1, 0))
 	e.svc.Subscribe(e.bus)
@@ -435,7 +435,7 @@ func TestReopenedIncidentOfAnApprovedDeviceStaysOpen(t *testing.T) {
 	l, _ := e.svc.Incidents(e.ctx())
 	id := l[0].ID
 	e.clock.Add(time.Minute)
-	devs.set("145", notify.DeviceState{Name: "kiens-macbook-air", Address: "192.168.18.145", Approved: true, ApprovedAt: e.clock.Now()})
+	devs.set("145", notify.DeviceState{Name: "annas-macbook-air", Address: "192.168.18.145", Approved: true, ApprovedAt: e.clock.Now()})
 	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "145"})
 	if e.detail(id).Status != notify.StatusResolved {
 		t.Fatal("approving did not close the incident")

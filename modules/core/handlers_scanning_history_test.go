@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// kien G7a: GET /scanning/history lists the runs of every source newest first, at most 200, and an empty list without a source.
+// GET /scanning/history lists the runs of every source newest first, at most 200, and an empty list without a source.
 func TestScanningHistory_NewestFirstCappedAndEmptyWithoutSource(t *testing.T) {
 	db := migrated(t)
 	reg, err := modreg.New(t.Context(), modreg.Config{DB: db, Audit: audit.New(nil), Manifests: modules.Manifests, Version: "test", Log: slog.New(slog.DiscardHandler)})
@@ -48,7 +48,7 @@ func TestScanningHistory_NewestFirstCappedAndEmptyWithoutSource(t *testing.T) {
 	if got.Items[0].TargetID.Null != true || got.Items[0].EndedAt.Null != true || got.Items[0].Text != "Scanned 192.168.18.20" {
 		t.Errorf("item: %+v", got.Items[0])
 	}
-	// kien G7b/c: ?asset= hands the device to the source, which caps its runs per kind: core does not cut them at 200
+	// ?asset= hands the device to the source, which caps its runs per kind: core does not cut them at 200
 	dev, err := mk(src).ScanningGetScanningHistory(t.Context(), oas.ScanningGetScanningHistoryParams{Asset: oas.NewOptString("a-bn340")})
 	if err != nil || len(dev.Items) != 205 || asked[0] != "" || asked[1] != "a-bn340" {
 		t.Errorf("asset: %d items, sources asked %q, %v", len(dev.Items), asked, err)

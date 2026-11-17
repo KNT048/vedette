@@ -242,7 +242,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	defer func() { stop() }() // the box is started again below
 	cookies := map[string]*http.Cookie{}
 	// call retries a 503 server_busy (nothing was written: the writer or the password-check queue was full) after its Retry-After, as the GUI
-	// does, for at most about 30 s: under a loaded machine the write wait limit (D-246) can fire before this request gets the writer (#320).
+	// does, for at most about 30 s: under a loaded machine the write wait limit can fire before this request gets the writer (#320).
 	call := func(method, path string, body any) (int, []byte, http.Header) {
 		t.Helper()
 		var payload []byte
@@ -281,7 +281,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		!strings.Contains(string(b), `"scope_confirmed_by":"ann@acme.example"`) {
 		t.Fatalf("inventory settings after setup = %d %s", c, b)
 	}
-	// D-381: -host-socket "" is a container-only install, where setup leaves the honeypot out and it cannot be turned on. The purge keeps
+	// -host-socket "" is a container-only install, where setup leaves the honeypot out and it cannot be turned on. The purge keeps
 	// the honeypot's log on a box that has it on (an appliance, or a box upgraded with it on): switch it on in the database and start again.
 	stop()
 	if err := <-done; err != nil {
@@ -601,7 +601,7 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The box CA (D-351) is a core_secret row: its key never leaves in the export, nor does the row.
+	// The box CA is a core_secret row: its key never leaves in the export, nor does the row.
 	boxCAs, err := newBoxCAStore(s.d.DB, s.d.Secrets, s.d.Audit, t.TempDir())
 	if err != nil {
 		t.Fatal(err)

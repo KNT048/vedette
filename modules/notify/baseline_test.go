@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/notify"
 )
 
-// ---- D-78: the re-match after the first CISA pull is silent, by a marker on the context ----
+// ---- The re-match after the first CISA pull is silent, by a marker on the context ----
 
 func baselineEnv(t *testing.T) (*env, func(context.Context, string, any)) {
 	t.Helper()

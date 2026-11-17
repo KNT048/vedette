@@ -38,7 +38,7 @@ func asciiLower(s string) string {
 // all, and a keyword matched in the line and in the source's name, case-insensitively for ASCII letters. It returns the
 // EventsPage newest; with no keyword Total counts the matching rows up to CountCap (INV-5). A keyword search is a scan, so at most
 // MaxSearches run at once on a box and each has SearchTimeout: it walks back from the newest line (scanNewest) and, when the time is
-// up first, answers with what it found and where to continue (D-441); only a search that could not search anything is 503 server_busy.
+// up first, answers with what it found and where to continue; only a search that could not search anything is 503 server_busy.
 func (s *Service) Events(ctx context.Context, q EventQuery) (EventsView, error) {
 	span, ok := windows[q.Window]
 	if !ok {
@@ -129,7 +129,7 @@ func parseCursor(s string) (cursor, error) {
 	return cursor{ts: ts, id: id}, nil
 }
 
-// scanNewest is the keyword search (D-441): it walks the window newest first in steps of s.scanRows rows of the ts index, keeps the
+// scanNewest is the keyword search: it walks the window newest first in steps of s.scanRows rows of the ts index, keeps the
 // lines that match and stops at EventsPage matches, at the start of the window, or when the time budget of ctx is spent. In the last
 // two cases the answer says how far back it looked (SearchedBackTo) and gives the cursor (NextCursor) that continues from there, so a
 // keyword that matches nothing over days of a big box is an honest "searched back to ..." and not a 503. A budget spent before the

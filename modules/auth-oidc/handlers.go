@@ -156,7 +156,7 @@ func (h *OIDCHandlers) CorePostAuthOidcStart(ctx context.Context) (*oas.CorePost
 }
 
 // CorePostAuthOidcCallback implements POST /auth/oidc/callback (public): on success the session and CSRF cookies, never the device
-// cookie (D-196 (2)).
+// cookie.
 func (h *OIDCHandlers) CorePostAuthOidcCallback(ctx context.Context, req *oas.CorePostAuthOidcCallbackReq) (*oas.CorePostAuthOidcCallbackOK, error) {
 	if h.s == nil {
 		return nil, apierr.NotImplemented()

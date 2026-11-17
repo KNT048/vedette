@@ -284,7 +284,7 @@ func TestGatesPassInOrder(t *testing.T) {
 }
 
 // A timeout or Ctrl-C kills the whole process group of a command (make host-deb's go build and nfpm), not only its first process:
-// the grandchild sleep must be gone afterwards (state, not elapsed time; D-373: a 30 s bound on a hang).
+// the grandchild sleep must be gone afterwards (state, not elapsed time; a 30 s bound on a hang).
 func TestExecRunKillsTheGroup(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	pidFile := filepath.Join(t.TempDir(), "pid")
@@ -566,7 +566,7 @@ func TestDebMember(t *testing.T) {
 	}
 }
 
-// The core Containerfile labels the floor it links (D-401) under the name the gate reads, from the same MIN_SEQUENCE.
+// The core Containerfile labels the floor it links under the name the gate reads, from the same MIN_SEQUENCE.
 func TestCoreImageLabelsItsFloor(t *testing.T) {
 	cf, err := os.ReadFile("../../deploy/containers/core/Containerfile")
 	must(t, err)

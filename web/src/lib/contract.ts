@@ -1,4 +1,4 @@
-// Hợp đồng API (D-18): mỗi module khai endpoint bằng schema Zod trong features/<m>/contract.ts.
+// Hợp đồng API: mỗi module khai endpoint bằng schema Zod trong features/<m>/contract.ts.
 // Từ đây sinh api/openapi.json (`pnpm openapi`); test hợp đồng gọi mock và kiểm phản hồi khớp schema.
 // Kiểu dùng trong UI lấy bằng z.infer từ chính schema này → UI, mock và backend M2 không lệch nhau.
 import type { z } from 'zod'
@@ -19,7 +19,7 @@ export interface Endpoint {
   query?: z.ZodObject
   /** Request headers the operation reads (OpenAPI `in: header`), for an upload whose body is the file itself. */
   headers?: z.ZodObject
-  /** 'file' = the body is the raw bytes of a file the user uploads (`application/octet-stream`, D-518). */
+  /** 'file' = the body is the raw bytes of a file the user uploads (`application/octet-stream`). */
   body?: z.ZodType | 'file'
   /** true = the request body may be left out (an empty request is accepted); `requestBody.required` is false. Only where an older caller sends none. */
   bodyOptional?: boolean

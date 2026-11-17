@@ -1,5 +1,5 @@
 // Mock API module ai (S-AI-1, S-AI-3..6). Cấu hình chung, hồ sơ, phân việc, đồng hồ dùng chung nằm ở mocks/stores.ts.
-// Khoá API KHÔNG bao giờ được lưu hay trả lại: chỉ giữ 4 ký tự cuối (SYS-4). Toàn bộ chữ hiển thị là tiếng Anh (D-28).
+// Khoá API KHÔNG bao giờ được lưu hay trả lại: chỉ giữ 4 ký tự cuối (SYS-4). Toàn bộ chữ hiển thị là tiếng Anh.
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
@@ -18,13 +18,13 @@ interface Kev { cve: string; vendor: string; product: string; name: string; desc
 const vulns = (kev as { vulns: Kev[] }).vulns
 const CVE_RE = /^CVE-\d{4}-\d{4,}$/i
 const DAY = 864e5
-const fmtDay = (iso: string) => fmtDate(iso) // one date format (D-389)
+const fmtDay = (iso: string) => fmtDate(iso) // one date format
 const num = (n: number) => n.toLocaleString('en-US')
 const plural = (n: number, one: string, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`
 
 const ESTIMATES: AiConfigView['tier_estimates'] = { min: 10_000, med: 60_000, max: null }
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime() }
-/** D-531: the budgets count the calendar month (the box's time zone; the browser's in the mock) and renew on the 1st. */
+/** The budgets count the calendar month (the box's time zone; the browser's in the mock) and renew on the 1st. */
 const startOfMonth = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime() }
 const renewsOn = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 1) }
 const isoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -42,7 +42,7 @@ export function scheduledPause(): Response | null {
   return fail(429, 'budget_reached', text, { retry_after: Math.max(Math.ceil((renewsOn().getTime() - Date.now()) / 1000), 1) })
 }
 
-/** W5-4/W5-5: a scheduled job whose every profile has used its own monthly budget is stopped like the shared pause (backend run.go,
+/** A scheduled job whose every profile has used its own monthly budget is stopped like the shared pause (backend run.go,
  *  Actor "system": no call, no activity row, 429 budget_reached naming the profile). The text, or null while a profile can take it. */
 export function scheduledProfileStop(job: AiJob): string | null {
   const cands = aiCandidates(job)
@@ -90,7 +90,7 @@ const lastTests = collection<Record<string, LastTest>>('ai_last_tests', () => ({
 }), () => ({}))
 const setLastTest = (id: string, t: LastTest | null) => lastTests.update((m) => { const n = { ...m }; if (t) n[id] = t; else delete n[id]; return n })
 const sameConnection = (a: StoredProfile, b: StoredProfile) => a.kind === b.kind && a.api_style === b.api_style && a.base_url === b.base_url && a.model === b.model && a.location === b.location && a.key_last4 === b.key_last4
-// D-445: per admin, the box keeps the test of settings not saved yet for the profile then saved with exactly them (15 minutes); every
+// Per admin, the box keeps the test of settings not saved yet for the profile then saved with exactly them (15 minutes); every
 // save by that admin ends it. The mock knows a key by its last 4 (as sameConnection), so the same key typed again matches the kept one.
 const draftTests = collection<Record<string, { p: StoredProfile; test: LastTest; at: number }>>('ai_draft_tests', () => ({}))
 const me = () => currentUser()?.id ?? ''
@@ -117,7 +117,7 @@ function notReady(job: AiJob) {
   return fail(409, 'ai_unavailable', `No AI profile is assigned to ${JOB_NAME[job]}. Assign one in Settings, AI assistant.`)
 }
 
-/** Chọn hồ sơ trả lời một việc: chính, rồi dự phòng khi hồ sơ chính lỗi, hết ngân sách tháng riêng hoặc bị luật riêng tư loại. Ghi lần chạy; ngân sách tháng chung dùng hết → mọi việc dừng, không hạ mức (D-531). */
+/** Chọn hồ sơ trả lời một việc: chính, rồi dự phòng khi hồ sơ chính lỗi, hết ngân sách tháng riêng hoặc bị luật riêng tư loại. Ghi lần chạy; ngân sách tháng chung dùng hết → mọi việc dừng, không hạ mức. */
 /** What the activity log needs to know about one call (S-AI-8). Missing parts get a plain default. */
 type Act = Partial<Pick<ActivityInput, 'hooks' | 'tools' | 'links' | 'input' | 'output' | 'summary' | 'result' | 'trigger'>>
 function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act = {}) {
@@ -143,7 +143,7 @@ function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act
   }
   if (!pick) {
     const reason = `No AI profile could answer ${JOB_NAME[job]} (${why.join('; ')}). Check the profiles in Settings, AI assistant, or add a fallback.`
-    // D-531: every profile out of its own monthly budget is the budget's stop (429 budget_reached), as on the box
+    // Every profile out of its own monthly budget is the budget's stop (429 budget_reached), as on the box
     const out = cands.find((p) => profileUsed(p) >= p.monthly_budget)
     if (out && why.every((w) => w.endsWith('monthly budget reached'))) return capped(reason, 'capped', fail(429, 'budget_reached', `The monthly budget of the AI profile ${out.name} is used up and no other profile could take ${JOB_NAME[job]}, so nothing was sent. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on ${renewDay()}.`))
     return capped(reason, 'failed', fail(409, 'ai_unavailable', reason))
@@ -155,7 +155,7 @@ function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act
 
 // ---- Hồ sơ
 const KIND_STYLE: Record<string, ProfileInput['api_style']> = { anthropic: 'anthropic', openai: 'openai', gemini: 'gemini', 'openai-compatible': 'openai' }
-/** The box's sentence for Vedette itself (provider.OwnText, D-446): the same in feeds, notify, logs and ai. */
+/** The box's sentence for Vedette itself (provider.OwnText): the same in feeds, notify, logs and ai. */
 const AI_OWN_TEXT = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
 
 function checkProfile(b: Partial<ProfileInput>, existing?: StoredProfile): Response | { name: string; url: URL; key: string | null; keepOld: boolean; style: ProfileInput['api_style'] } {
@@ -172,7 +172,7 @@ function checkProfile(b: Partial<ProfileInput>, existing?: StoredProfile): Respo
   try { url = new URL(String(b.base_url ?? '').trim()) } catch { return fail(400, 'invalid_base_url', 'The server address is not valid. Enter it in full, for example https://api.anthropic.com or http://192.168.1.20:11434/v1.') }
   if (url.username || url.password) return fail(400, 'invalid_base_url', 'The address must not contain a user name or password. Enter the API key in its own field.')
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && location === 'internal')) return fail(400, 'invalid_base_url', 'The address must start with https://. Only a server inside your own network may use http://.')
-  // D-446: Vedette itself (loopback, localhost: in the container that is core) is never an AI server; the box also refuses Vedette's own ports
+  // Vedette itself (loopback, localhost: in the container that is core) is never an AI server; the box also refuses Vedette's own ports
   // on the machine's address, which the mock does not know
   const host = url.hostname.toLowerCase().replace(/\.$/, '')
   if (host === 'localhost' || host.endsWith('.localhost') || /^127\./.test(host) || host === '[::1]' || /^\[::ffff:7f[0-9a-f]{2}:/.test(host)) return fail(400, 'invalid_base_url', AI_OWN_TEXT)
@@ -281,7 +281,7 @@ function buildNews(v: Kev): Omit<NewsResult, 'generated_at' | 'model' | 'profile
 }
 
 function buildDigest(tier: AiTier): Omit<LogDigest, 'generated_at' | 'model' | 'profile' | 'tokens'> {
-  // the same words as the box (modules/ai/logdigest.go digestCadence): every digest is made when someone asks (D-221, D-223)
+  // the same words as the box (modules/ai/logdigest.go digestCadence): every digest is made when someone asks
   const cadence = tier === 'min' ? 'A short summary of the most serious points, made when you ask' : tier === 'med' ? 'A full summary of new kinds of line, spikes and bad connections, made when you ask' : 'A full summary made when you ask, with the AI checking points through read-only tools (what the logs counted for an address, devices, threat feeds, the exploited list)'
   // Cài sạch: chưa có nguồn log nào gửi về nên không có gì để tóm tắt; không gọi AI, không tốn token.
   if (dataMode() === 'clean') return { tier, cadence, empty: true, summary: 'There are no log events to summarise yet. Add a log source on the Logs page; once events arrive, the summary appears here.', items: [], tool_calls: [], memories_suggested: 0 }
@@ -292,7 +292,7 @@ function buildDigest(tier: AiTier): Omit<LogDigest, 'generated_at' | 'model' | '
   const rdp: DigestItem = { severity: 'high', title: `${nm('a-srvad', 'SRV-AD')} is under RDP password guessing from 103.75.190.12`, asset_id: 'a-srvad', evidence: [`EventID 4625 ${nm('a-srvad', 'SRV-AD')} user=administrator src=103.75.190.12 (1,240 times in the last hour)`], recommendation: 'Close port 3389 to the Internet, allow RDP only through the VPN and lock accounts after 5 failures.' }
   const tor: DigestItem = { severity: 'high', title: `${nm('a-pc03', 'PC-ACCOUNTS-03')} connects to an IP on the bad list`, asset_id: 'a-pc03', evidence: [`FW-HQ allow ${ipOf('a-pc03', '192.168.10.103')} -> 185.220.101.47:443 (Tor exit node), 14 times`], recommendation: 'Isolate the device from the network, scan for malware and change the passwords used on it.' }
   const cam: DigestItem = { severity: 'medium', title: `${nm('a-cam01', 'CAM-GATE')} outbound traffic spiked`, asset_id: 'a-cam01', evidence: [`${ipOf('a-cam01', '192.168.20.11')} -> 45.148.10.95:80, 4.2 GB in 6 hours (normally about 120 MB)`], recommendation: 'Change the camera default password and block it from the Internet; the destination 45.148.10.95 is on the bad IP list.' }
-  // the blocked hit of the logs mock (b-3): the box tells the AI it was a blocked attempt (D-227), so the AI does not call it a connection
+  // the blocked hit of the logs mock (b-3): the box tells the AI it was a blocked attempt, so the AI does not call it a connection
   const tried: DigestItem = { severity: 'medium', title: '192.168.10.157 tried to reach 45.148.10.95; FW-HQ blocked it', evidence: ['FW-HQ deny 192.168.10.157 -> 45.148.10.95 (ET Open compromised, IPsum), a blocked attempt'], recommendation: 'Nothing got through, but a device that tries to reach a listed address may be infected: find out what on 192.168.10.157 made the request.' }
   const fresh: DigestItem = { severity: 'info', title: `${plural(unapproved.length, 'new unapproved device')} in 7 days`, evidence: unapproved.map((a) => `DHCP ${a.ip} mac=${a.mac ?? 'unknown'} (${a.hostname ?? 'no name'})`), recommendation: 'Open Devices to approve or mark as unknown.' }
   const items = tier === 'min' ? [rdp, tor] : tier === 'med' ? [rdp, tor, cam, tried, ...(unapproved.length ? [fresh] : [])] : [{ ...rdp, recommendation: `${rdp.recommendation} Checked: no successful logon (4624) from this IP within ±1 hour.` }, tor, cam, tried, ...(unapproved.length ? [fresh] : [])]
@@ -380,7 +380,7 @@ export const handlers = [
     const b = await body<ProfileInput>(request)
     const cur = b.id ? aiProfilesStore.get().find((p) => p.id === b.id) : undefined
     const ok = checkProfile({ ...b, name: b.name || cur?.name || 'Test', monthly_budget: 1000 }, cur); if (ok instanceof Response) return ok
-    // a test of the profile exactly as saved is its last test (the saved key typed again counts, like the box); a test of other settings waits for the profile saved with them (D-445)
+    // a test of the profile exactly as saved is its last test (the saved key typed again counts, like the box); a test of other settings waits for the profile saved with them
     const asSaved = cur && sameConnection(cur, toStored({ ...(b as ProfileInput), monthly_budget: cur.monthly_budget }, ok, cur.id, cur)) ? cur : undefined
     const tried = toStored({ ...(b as ProfileInput), monthly_budget: 1000 }, ok, cur?.id ?? 'draft', cur)
     const record = (t: LastTest) => { if (asSaved) setLastTest(asSaved.id, t); else draftTests.update((m) => ({ ...m, [me()]: { p: tried, test: t, at: Date.now() } })) }
@@ -464,7 +464,7 @@ export const handlers = [
     const uniq = hooks.filter((h, i) => hooks.findIndex((x) => x.id === h.id && x.action === h.action && x.when === h.when && x.message === h.message && x.step === h.step && x.tool === h.tool) === i)
     const res: AskResult = { id: newId('ask'), question: sent, asked_at: nowIso(), ...ans, model: c.profile!.model, profile: c.profile!.name, tokens: { input: tin, output: tout }, hooks: uniq, memories_suggested: 0 }
     asks.update((l) => [res, ...l].slice(0, 10))
-    // memory suggestions (S-AI-7, D-225): at most one per answer that used a tool, only while allowed, never the same text twice; history reads back 0
+    // memory suggestions (S-AI-7): at most one per answer that used a tool, only while allowed, never the same text twice; history reads back 0
     const fact = 'FW-HQ is the only firewall and the gateway of the office network.'
     const fresh = !stop && ans.tool_calls.length > 0 && memorySettings.get().suggest_enabled && !suggestionsStore.get().some((x) => x.text === fact) && !memoryStore.get().some((x) => x.text === fact) && !rejectedTexts.get().includes(fact)
     if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `From the question "${sent.slice(0, 150)}"; tools read: ${[...new Set(ans.tool_calls.map((tc) => tc.tool))].join(', ')}` }])
@@ -535,7 +535,7 @@ export const handlers = [
     const t = aiConfigStore.get().tier // có thể vừa bị hạ mức
     const d: LogDigest = { ...buildDigest(t), generated_at: nowIso(), model: c.profile!.model, profile: c.profile!.name, tokens: { input: i, output: o } }
     digests.update((m) => ({ ...m, [t]: d }))
-    // memory suggestions (S-AI-7, D-223): only while allowed, never the same text twice; the stored digest reads back 0
+    // memory suggestions (S-AI-7): only while allowed, never the same text twice; the stored digest reads back 0
     const fact = 'SRV-AD receives RDP only through the VPN.'
     const fresh = memorySettings.get().suggest_enabled && !suggestionsStore.get().some((x) => x.text === fact) && !memoryStore.get().some((x) => x.text === fact) && !rejectedTexts.get().includes(fact)
     if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `From the log summary of ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` }])

@@ -1,11 +1,11 @@
 // Package localnet says which IPv4 addresses can belong to a customer's own network, the networks Vedette may watch and scan
 // (setup, Devices -> Scope, nmap and nuclei targets, the LAN device of a logged connection): the private ranges of RFC 1918
 // (10/8, 172.16/12, 192.168/16) and the shared address space of RFC 6598 (100.64.0.0/10: carrier-grade NAT inside an ISP or
-// a company network, Tailscale), D-461. Only 100.64/10: the rest of 100/8 is public.
+// a company network, Tailscale). Only 100.64/10: the rest of 100/8 is public.
 //
 // Addr is not a public-address test: the guards that ask "is this on the Internet" (feeds, webhooks, SIEM, the block list) keep
 // refusing 100.64/10 by their own rules. Public is the one public-address rule of the scans of the box's own public IP (exposure
-// INV-3; core/egressip.IsPublicIPv4 is it, and nucleiargv applies it to the own_ip scope, D-520). Standard library only: the sensor
+// INV-3; core/egressip.IsPublicIPv4 is it, and nucleiargv applies it to the own_ip scope). Standard library only: the sensor
 // binary links it through nmapargv, nucleiargv and core/egressip.
 package localnet
 

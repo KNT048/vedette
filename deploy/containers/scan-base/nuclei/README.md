@@ -1,4 +1,4 @@
-# Patched go.mod / go.sum of nuclei (D-319)
+# Patched go.mod / go.sum of nuclei
 
 The `scan-base` image does not ship the upstream nuclei release binary. It builds nuclei from the source archive of the tag pinned in
 `../../pins.env` (`NUCLEI_VERSION`, `NUCLEI_SRC_SHA256`) with the pinned Go (`GOLANG_IMAGE`) and these two files copied over the

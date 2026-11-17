@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// D-79 (3), CONTRACT INV-14: the Ignored list. It only blocks: an ignored IP is never added by detection and never
+// CONTRACT INV-14: the Ignored list. It only blocks: an ignored IP is never added by detection and never
 // scanned, and restoring one only lets detection add it again.
 
 func (e *env) ignoredValues() []string {

@@ -24,7 +24,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// The reader (D-93 (3), core INV-23, ai INV-14): the AI's only way to a device. Each refusal sends nothing; what is sent is a GET, one
+// The reader (core INV-23, ai INV-14): the AI's only way to a device. Each refusal sends nothing; what is sent is a GET, one
 // allow-listed command line, or a call of an MCP tool marked read.
 
 const (
@@ -464,7 +464,7 @@ func TestCallRead_HTTPArgumentsAreCheckedAtTheEdge(t *testing.T) {
 	}
 }
 
-// A redirect is an answer, not an instruction (D-94 (1)).
+// A redirect is an answer, not an instruction.
 func TestCallRead_RedirectIsNotFollowed(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

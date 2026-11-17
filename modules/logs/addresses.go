@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Limits of the address counters (D-210; INV-1: the address a line names is as untrusted as the line).
+// Limits of the address counters (INV-1: the address a line names is as untrusted as the line).
 const (
 	// MaxAddrsPerSignature is how many addresses one signature of one source keeps in one 5-minute bucket; MaxAddrRowsPerBucket is how many
 	// address rows one source keeps in one bucket, over every signature. An address past them is replaced by a better one (see

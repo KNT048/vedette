@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// The D-183 guard. goose does not refuse a database newer than the binary (D-151, D-138), so the only thing that makes
+// The rollback guard. goose does not refuse a database newer than the binary, so the only thing that makes
 // "the previous version runs on the new database" true is that every migration since the previous release is add-only. A
 // release may declare rollback.safe=true only when the guard below finds nothing; anything it cannot classify counts as
 // not add-only (fail closed).
@@ -171,7 +171,7 @@ type Finding struct{ File, Reason string }
 
 func (f Finding) String() string { return f.File + ": " + f.Reason }
 
-// CheckMigrations compares the migrations at the rollback baseline (the tree of release rollback.min_version, D-164: a box may
+// CheckMigrations compares the migrations at the rollback baseline (the tree of release rollback.min_version: a box may
 // roll back to any release from there, so the whole span counts, not only the step since the previous release) with the tree
 // being released, and returns every reason the change is not add-only. No findings means rollback.safe=true may be declared as
 // far as the database goes.

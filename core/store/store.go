@@ -32,7 +32,7 @@ type DB struct {
 	path string // absolute path of the database file
 	log  *slog.Logger
 	// frozen makes every later Write fail: the factory reset sets it inside its own transaction, so nothing (a job, a request) can
-	// write between the wipe and the process stopping (D-154). It is not a lock for normal use.
+	// write between the wipe and the process stopping. It is not a lock for normal use.
 	frozen atomic.Bool
 }
 
@@ -148,13 +148,13 @@ func (db *DB) Close() error {
 // Reader returns the read-only pool. Writes through it fail (query_only).
 func (db *DB) Reader() *sql.DB { return db.r }
 
-// RequestWriteWait is how long a request waits for the writer connection before it is refused with ErrBusy (D-246). The HTTP
+// RequestWriteWait is how long a request waits for the writer connection before it is refused with ErrBusy. The HTTP
 // servers set it on every request context with LimitWriteWait; jobs and other background work wait on their own context. (BEGIN
 // IMMEDIATE may then still wait up to the busy_timeout of 5 s if another process held the file's write lock; nothing in the
 // box does that in normal running.)
 const RequestWriteWait = 5 * time.Second
 
-// SlowWrite is the time holding the writer past which Write logs a warning with its caller (D-246): every other write waits
+// SlowWrite is the time holding the writer past which Write logs a warning with its caller: every other write waits
 // that long.
 const SlowWrite = time.Second
 
@@ -172,7 +172,7 @@ type waitLimit struct {
 // LimitWriteWait returns ctx with a limit of d on the time a Write waits for the writer connection; past it Write answers
 // ErrBusy. The limit binds only while the request behind ctx is live and only on contexts that still end with it: a context
 // detached with context.WithoutCancel (whose Done is nil: "this write must happen even if the caller leaves") waits on its own,
-// and so does any write once the request has ended, also one that was already waiting (D-246).
+// and so does any write once the request has ended, also one that was already waiting.
 func LimitWriteWait(ctx context.Context, d time.Duration) context.Context {
 	return context.WithValue(ctx, waitKey{}, waitLimit{d: d, done: ctx.Done()})
 }
@@ -427,7 +427,7 @@ func (db *DB) SnapshotTo(ctx context.Context, path string) error {
 }
 
 // Compact rewrites the database file without its free pages and truncates the write-ahead log, so rows that were
-// deleted are no longer in the bytes on disk (the factory reset, D-154). It is VACUUM on the writer connection, outside
+// deleted are no longer in the bytes on disk (the factory reset). It is VACUUM on the writer connection, outside
 // a transaction, so it waits for the writer like any write. A reader that is still open holds the truncate back: the log
 // is then shortened at its next checkpoint, and that is not an error.
 func (db *DB) Compact(ctx context.Context) error {
@@ -465,7 +465,7 @@ var migrationTableRE = regexp.MustCompile(`^core_migration_[a-z][a-z0-9_]{0,40}$
 func (db *DB) SchemaVersions(ctx context.Context) (string, error) { return SchemaVersionsOf(ctx, db.r) }
 
 // SchemaVersionsOf is SchemaVersions of any database handle: a backup a person uploaded is read with it before it is
-// restored (D-518), so a backup made by a newer Vedette is refused with words instead of a core that does not start.
+// restored, so a backup made by a newer Vedette is refused with words instead of a core that does not start.
 func SchemaVersionsOf(ctx context.Context, q *sql.DB) (string, error) {
 	rows, err := q.QueryContext(ctx, "SELECT name FROM sqlite_master WHERE type = 'table' AND name GLOB 'core_migration_*' ORDER BY name")
 	if err != nil {
@@ -502,7 +502,7 @@ func SchemaVersionsOf(ctx context.Context, q *sql.DB) (string, error) {
 
 // SchemaObjectsOf reports the triggers, views and virtual tables of a database, "type name" -> its SQL with runs of white space
 // made one space. They are the objects that run code of the file's own when the database is used: a backup a person uploads must
-// have exactly the ones this software's migrations make (D-518).
+// have exactly the ones this software's migrations make.
 func SchemaObjectsOf(ctx context.Context, q *sql.DB) (map[string]string, error) {
 	rows, err := q.QueryContext(ctx, `SELECT type, name, coalesce(sql, '') FROM sqlite_master WHERE type IN ('trigger', 'view') OR (type = 'table' AND sql LIKE 'CREATE VIRTUAL%')`)
 	if err != nil {
@@ -536,7 +536,7 @@ func Migrate(ctx context.Context, db *DB, module string, fsys fs.FS) error {
 }
 
 // MigrateTo is Migrate up to version (inclusive): the schema a module had at that version. A backup a person uploads is compared
-// with the schema objects this software's migrations make at the backup's own versions (D-518).
+// with the schema objects this software's migrations make at the backup's own versions.
 func MigrateTo(ctx context.Context, db *DB, module string, fsys fs.FS, version int64) error {
 	return migrate(ctx, db, module, fsys, version)
 }

@@ -26,7 +26,7 @@ import { INCIDENT_KINDS, type Incident, type IncidentKind } from './types'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 type BulkStatus = 'acknowledged' | 'resolved'
-/** The two lists (D-543): Open = new + acknowledged, Resolved. `?severity=urgent` (high and critical) and `?sent=no` narrow Open; the KPI cells link there. */
+/** The two lists: Open = new + acknowledged, Resolved. `?severity=urgent` (high and critical) and `?sent=no` narrow Open; the KPI cells link there. */
 type Tab = 'open' | 'resolved'
 const urgent = (i: Incident) => i.severity === 'high' || i.severity === 'critical'
 
@@ -37,7 +37,7 @@ function PageWatch({ ids, onChange }: { ids: string[]; onChange: (key: string) =
   return null
 }
 
-/** Một trạng thái, một ghi chú cho các incident đã chọn (D-551, INV-25): mỗi incident vẫn có dòng kiểm toán riêng; incident đã Resolved giữ nguyên. */
+/** Một trạng thái, một ghi chú cho các incident đã chọn (INV-25): mỗi incident vẫn có dòng kiểm toán riêng; incident đã Resolved giữ nguyên. */
 function BulkDialog({ ids, status, onOpenChange, opener, onDone }: { ids: string[]; status: BulkStatus | null; onOpenChange: (v: boolean) => void; opener: RefObject<HTMLButtonElement | null>; onDone: () => void }) {
   const { t } = useTranslation('notify')
   const bulk = useBulkIncidents()
@@ -85,7 +85,7 @@ function Handled({ i }: { i: Incident }) {
 }
 function RespondLink({ i }: { i: Incident }) {
   const { t } = useTranslation('notify')
-  if (i.status === 'resolved') return null // kien G5: nothing to respond to on a resolved incident
+  if (i.status === 'resolved') return null // Nothing to respond to on a resolved incident
   return <Link to={`/response?incident=${encodeURIComponent(i.id)}`} onClick={(e) => e.stopPropagation()} aria-label={t('incidents.respondFor', { title: i.title })} className={`${link} whitespace-nowrap`}>{t('incidents.respond')}</Link>
 }
 
@@ -105,7 +105,7 @@ function Content() {
   const onlyUnsent = params.get('sent') === 'no'
   const setParam = (k: string, v: string) => { const p = new URLSearchParams(params); if (v) p.set(k, v); else p.delete(k); setParams(p, { replace: true }) }
   const [kind, setKind] = useState<IncidentKind | 'all'>('all')
-  // a container-only install cannot run the honeypot (module state available=false, D-381): no trap can be touched, so no trap filter
+  // a container-only install cannot run the honeypot (module state available=false): no trap can be touched, so no trap filter
   const noTraps = useModules().data?.modules.find((m) => m.id === 'honeypot')?.available === false
   const kinds = INCIDENT_KINDS.filter((k) => k !== 'trap' || !noTraps)
   const can = useCan('operator')
@@ -123,7 +123,7 @@ function Content() {
     { value: openRows.filter(urgent).length, label: t('kpi.urgent'), to: '?tab=open&severity=urgent' },
     { value: openRows.filter((a) => needsFix(a.not_sent)).length, label: t('kpi.notSent'), to: '?tab=open&sent=no' },
   ] : []
-  // Only what is shown can stay selected: changing a filter never acts on hidden rows (as on Findings, D-484).
+  // Only what is shown can stay selected: changing a filter never acts on hidden rows (as on Findings).
   const shown = rows.filter((r) => selected.has(r.id)).map((r) => r.id)
   // Gmail pattern (Opus r1 MED-3): the header box selects the page the table shows; a banner then offers every matching incident.
   const [pageIds, setPageIds] = useState<string[] | null>(null)
@@ -142,7 +142,7 @@ function Content() {
     </span>
   )
   const open = (s: BulkStatus) => (e: MouseEvent<HTMLButtonElement>) => { opener.current = e.currentTarget; setBulk(s) }
-  const respond = responseScope !== 'hidden' // D-624 (#819): Respond opens the response module, not offered in v1
+  const respond = responseScope !== 'hidden' // Respond opens the response module, not offered in v1
   const columns: ColumnDef<Incident>[] = [
     ...(can && tab === 'open' ? [{ id: 'select', enableSorting: false, header: ({ table }) => {
       const page = table.getRowModel().rows.map((r) => r.original.id)
@@ -151,7 +151,7 @@ function Content() {
         setSelected((s) => { const n = new Set(s); for (const id of page) { if (v) n.add(id); else n.delete(id) } return n })
         setPageIds(v ? page : null)
       }
-      if (page.length === 0) return null // kien G5: no "Select all 0" on an empty page
+      if (page.length === 0) return null // No "Select all 0" on an empty page
       return <><Checkbox checked={page.length > 0 && on === page.length ? true : on > 0 ? 'indeterminate' : false} onCheckedChange={(v) => set(v === true)} aria-label={t('bulk.selectPage', { count: page.length })} /><PageWatch ids={page} onChange={onPage} /></>
     }, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<Incident>] : []),
     { id: 'incident', header: t('incidents.col.incident'), accessorFn: (r) => r.title, cell: ({ row: { original: r } }) => (

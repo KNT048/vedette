@@ -65,7 +65,7 @@ func newWorldWith(t *testing.T, tune func(*core.HandlersConfig), modify ...func(
 	return newWorldKind(t, false, tune, modify...)
 }
 
-// newWorldKind is newWorldWith on a container-only install (no vedette-host, D-381) when containerOnly is true.
+// newWorldKind is newWorldWith on a container-only install (no vedette-host) when containerOnly is true.
 func newWorldKind(t *testing.T, containerOnly bool, tune func(*core.HandlersConfig), modify ...func(*auth.Config)) *world {
 	t.Helper()
 	env := authtest.New(t, modify...)
@@ -226,7 +226,7 @@ func (c *client) login(email string) reply {
 }
 
 // loginTemp signs in with the temporary password an administrator handed out and replaces it with authtest.Password, the way
-// the Choose a new password screen does (D-180). Afterwards the client is an ordinary signed-in session.
+// the Choose a new password screen does. Afterwards the client is an ordinary signed-in session.
 func (c *client) loginTemp(email, temp string) {
 	c.w.t.Helper()
 	wantOK(c.w.t, c.post("/auth/login", map[string]any{"email": email, "password": temp}), 200)

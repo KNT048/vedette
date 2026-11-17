@@ -1,4 +1,4 @@
-// Package wordlist is the short list of common names a domain scan tries under a verified domain (D-567 (1), exposure INV-27): the
+// Package wordlist is the short list of common names a domain scan tries under a verified domain (exposure INV-27): the
 // names attackers try first (vpn, mail, remote, owa…) that a certificate log does not show. It ships with the release (labels.txt,
 // kept by hand) and is tried only after a wildcard check, at most 20 lookups a second, through the box's own resolver.
 package wordlist
@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-// MaxLabels bounds the list (D-567 (1)): enough for the names attackers try first, small enough to be ordinary DNS load.
+// MaxLabels bounds the list: enough for the names attackers try first, small enough to be ordinary DNS load.
 const MaxLabels = 150
 
 //go:embed labels.txt

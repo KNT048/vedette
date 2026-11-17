@@ -1,4 +1,4 @@
-// Hợp đồng API module ai (D-18). Kiểu UI suy ra từ schema ở đây (types.ts).
+// Hợp đồng API module ai. Kiểu UI suy ra từ schema ở đây (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 
@@ -15,10 +15,10 @@ export const AiProfile = z.object({
   id: z.string(), name: z.string(), kind: ProfileKind, api_style: ApiStyle, base_url: z.string(), model: z.string(),
   key_last4: z.string().nullable().describe('Last 4 characters of the key; the full key is never returned (SYS-4). null = no key yet (valid for internal profiles)'),
   key_lost: z.boolean().describe('A key is saved but this box cannot open it (a backup restored without its decryption key, or the box key changed, #847). The profile is not usable and is never called; Test and Edit without a new key answer 409 secret_lost. Enter the key again in Edit, or delete the profile'),
-  location: Location, monthly_budget: z.number().int().describe('Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback profile or stop with 429 budget_reached'),
+  location: Location, monthly_budget: z.number().int().describe('Monthly token budget of this profile alone; when used up, its jobs switch to the fallback profile or stop with 429 budget_reached'),
   usable: z.boolean(), used_month: z.number().int().describe('Tokens this profile used this calendar month (box time zone)'),
   last_test: z.object({ at: iso, ok: z.boolean(), detail: z.string().describe("On failure the box's own sentence, which may name the server's host but never the key or the provider's raw text; empty on success") }).nullable()
-    .describe('Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly the settings saved (within 15 minutes) counts (D-445); the request cannot carry one'),
+    .describe('Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly the settings saved (within 15 minutes) counts; the request cannot carry one'),
 })
 export const ProfileInput = z.object({
   id: z.string().optional().describe('Present when editing or testing a saved profile: leave the key blank to keep the old key, only while the provider type and the server address (scheme, host and port) stay the same; another address needs the key entered again'),
@@ -32,9 +32,9 @@ export const TestResult = z.object({ ok: z.literal(true), latency_ms: z.number()
 const Slot = z.object({ primary: z.string().nullable(), fallback: z.string().nullable() })
 export const Assignments = z.object({ internal_only: z.boolean().describe('On: jobs that send logs/device data may only be assigned internal profiles'), jobs: z.record(AiJob, Slot) })
 export const AiConfigView = z.object({
-  configured: z.boolean().describe('At least one usable profile exists'), tier: AiTier, monthly_budget: z.number().int().describe('Shared monthly token budget, summed across all profiles (D-531): warning at 80 %, every AI job stops at 100 % until it renews or is raised'),
+  configured: z.boolean().describe('At least one usable profile exists'), tier: AiTier, monthly_budget: z.number().int().describe('Shared monthly token budget, summed across all profiles: warning at 80 %, every AI job stops at 100 % until it renews or is raised'),
   month_used: z.number().int().describe('Tokens used this calendar month by all profiles'), renews_on: z.string().describe('Local date (YYYY-MM-DD) the monthly budgets start again'), redact_pii: z.boolean(),
-  tier_estimates: z.record(AiTier, z.number().nullable()).describe('Estimated tokens/day per tier (no money, D-6). null = depends on alert count'),
+  tier_estimates: z.record(AiTier, z.number().nullable()).describe('Estimated tokens/day per tier (no money). null = depends on alert count'),
   jobs_ready: z.record(AiJob, z.boolean()).describe('Which jobs have a usable, permitted profile'),
 })
 export const ConfigInput = z.object({ tier: AiTier, monthly_budget: z.number().int().min(1000).max(150_000_000), redact_pii: z.boolean() })
@@ -47,7 +47,7 @@ export const Usage = z.object({
   downgrades: z.array(z.object({ id: z.string(), ts: iso, from: AiTier, to: AiTier, reason: z.string() })),
 })
 export const AiRun = z.object({ id: z.string(), ts: iso, skill: z.string(), model: z.string(), tokens_in: z.number(), tokens_out: z.number(), status: z.enum(['ok', 'schema_error', 'capped', 'failed']), target: z.string().optional(), profile: z.string().optional().describe('AI profile that answered'), fallback: z.boolean().optional().describe('true = ran on the fallback profile') })
-// ---- Activity log (S-AI-8, D-48): guaranteed record of what the AI did, hash-chained
+// ---- Activity log (S-AI-8): guaranteed record of what the AI did, hash-chained
 export const ActivityResult = z.enum(['ok', 'blocked_by_hook', 'fallback_used', 'error'])
 export const ActivityTool = z.object({ name: z.string(), access: z.enum(['read', 'write']), args: z.string().describe('Arguments summarised, never secrets') })
 export const ActivityEntry = z.object({
@@ -78,7 +78,7 @@ export const AskResult = z.object({
   id: z.string(), question: z.string(), asked_at: iso, answer: z.array(z.string()), table: AskTable.nullable(),
   tool_calls: z.array(ToolCall), citations: z.array(Citation), model: z.string(), profile: z.string(), tokens: Tokens,
   hooks: z.array(AskHookHit).describe('Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did'),
-  memories_suggested: z.number().int().min(0).describe('memories the AI suggested with this answer (0 when read back); they wait for an administrator (S-AI-7, D-225)'),
+  memories_suggested: z.number().int().min(0).describe('memories the AI suggested with this answer (0 when read back); they wait for an administrator (S-AI-7)'),
 })
 export const ExplainResult = z.object({
   cve: z.string(), generated_at: iso, cached: z.boolean(), affected: z.enum(['yes', 'no', 'unknown']), why: z.string(),
@@ -91,10 +91,10 @@ export const DigestItem = z.object({ severity: z.enum(['high', 'medium', 'info']
 export const LogDigest = z.object({
   tier: AiTier, generated_at: iso, cadence: z.string(), summary: z.string(), items: z.array(DigestItem), tool_calls: z.array(ToolCall), model: z.string(), profile: z.string(), tokens: Tokens,
   empty: z.boolean().describe('true = no log events to summarize yet; AI not called, no tokens spent'),
-  memories_suggested: z.number().int().min(0).describe('memories the AI suggested while making this digest (0 when read back); they wait for an administrator (S-AI-7, D-223)'),
+  memories_suggested: z.number().int().min(0).describe('memories the AI suggested while making this digest (0 when read back); they wait for an administrator (S-AI-7)'),
 })
 
-// ---- AI harness (D-39, S-AI-7): rules, memory, skills, knowledge, hooks (connections moved to core, D-93)
+// ---- AI harness (S-AI-7): rules, memory, skills, knowledge, hooks (connections moved to core)
 export const BuiltinRule = z.object({ id: z.string(), text: z.string() })
 export const Rule = z.object({ id: z.string(), text: z.string(), jobs: z.array(AiJob).describe('Empty = applies to every job'), enabled: z.boolean() })
 export const RuleInput = z.object({ text: z.string().min(3).max(300), jobs: z.array(AiJob), enabled: z.boolean() })
@@ -110,7 +110,7 @@ export const Skill = z.object({ id: z.string(), name: z.string(), what: z.string
 
 export const KnowledgeStatus = z.enum(['uploading', 'indexing', 'ready'])
 export const KnowledgeDoc = z.object({ id: z.string(), name: z.string(), size: z.number().int(), status: KnowledgeStatus, chunks: z.number().int().nullable().describe('null until the document is indexed'), jobs: z.array(AiJob), uploaded_at: iso })
-export const KnowledgeView = z.object({ index_profile: z.string().nullable().describe('AI profile id chosen for the index (required; it builds nothing until embeddings exist, D-209); null = none chosen'), items: z.array(KnowledgeDoc) })
+export const KnowledgeView = z.object({ index_profile: z.string().nullable().describe('AI profile id chosen for the index (required; it builds nothing until embeddings exist); null = none chosen'), items: z.array(KnowledgeDoc) })
 export const KnowledgeInput = z.object({ name: z.string().min(1).max(120), size: z.number().int().min(1).describe('Bytes of the file; 10 MB at most. PDF, MD, TXT or DOCX'), content: z.string().min(1).describe('The file itself, base64 (standard alphabet, no line breaks); it decodes to exactly `size` bytes. The box keeps only the text it finds in it, never the file'), jobs: z.array(AiJob).optional() })
 export const KnowledgeSettings = z.object({ index_profile: z.string().nullable() })
 export const KnowledgePatch = z.object({ jobs: z.array(AiJob) })
@@ -146,7 +146,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/ai/activity/verify', summary: 'Check the hash chain of the activity log: intact, or the first broken entry', stories: ['S-AI-8'], role: 'operator', response: ActivityVerify },
   { method: 'get', path: '/ai/activity/settings', summary: 'Activity log retention (days)', stories: ['S-AI-8'], role: 'admin', response: ActivitySettings },
   { method: 'put', path: '/ai/activity/settings', summary: 'Set retention: default 365 days, minimum 90', stories: ['S-AI-8'], role: 'admin', body: ActivitySettings, response: ActivitySettings },
-  // ---- AI harness (D-39)
+  // ---- AI harness
   { method: 'get', path: '/ai/rules', summary: 'Rules sent with every AI call: built-in (read-only) and custom', stories: ['S-AI-7'], role: 'admin', response: RulesView },
   { method: 'post', path: '/ai/rules', summary: 'Add a custom rule for all jobs or chosen jobs', stories: ['S-AI-7'], role: 'admin', body: RuleInput, response: Rule },
   { method: 'put', path: '/ai/rules/{id}', summary: 'Edit or enable/disable a custom rule', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), body: RuleInput, response: Rule },

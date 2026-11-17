@@ -28,7 +28,7 @@ func noble(pkg, fixed string, pro bool) DistroFix {
 	return DistroFix{Distro: "ubuntu", Release: "24.04", Package: pkg, Status: "fixed", Fixed: fixed, Pro: pro}
 }
 
-// D-622: an Ubuntu device's packages are compared with Ubuntu's own first fixed version for its release and source package: below it
+// An Ubuntu device's packages are compared with Ubuntu's own first fixed version for its release and source package: below it
 // (and Ubuntu's own build) the CVE is listed with basis distro, one item per source package naming the highest fixed version, Pro-only
 // fixes apart. Left out: a CVE Ubuntu's data does not name for that release, a package at or above the fix, a PPA build, an exploited
 // CVE, one older than 12 months. A device of a release the feeds hold no row for is not compared.
@@ -82,7 +82,7 @@ func TestPlan_DistroPackages(t *testing.T) {
 	}
 }
 
-// D-622 through the job and the endpoint: the item says kind distro, the fixed version and pro, and the device counts as compared.
+// Distribution items through the job and the endpoint: the item says kind distro, the fixed version and pro, and the device counts as compared.
 func TestPlan_DistroThroughTheEndpoint(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
@@ -110,7 +110,7 @@ func TestPlan_DistroThroughTheEndpoint(t *testing.T) {
 	}
 }
 
-// D-623: a long list opens on what matters: likely first by EPSS, then the recent ones by CVSS score (their EPSS is under 10 % and
+// A long list opens on what matters: likely first by EPSS, then the recent ones by CVSS score (their EPSS is under 10 % and
 // close together), then by EPSS, then newest.
 func TestPlan_CVEOrderLikelyThenSeverity(t *testing.T) {
 	t.Parallel()

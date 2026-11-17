@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// D-630, review r2 N2 of #945: of two rows of one machine, an automatic join keeps an approved row a person watches over an ignored
+// Of two rows of one machine, an automatic join keeps an approved row a person watches over an ignored
 // one, even an older or approved ignored one (a duplicate a person ignored by mistake), so a join never hides a watched server's
 // findings. An ignored row next to a row nobody approved still follows the usual order (the re-sighted staff phone stays ignored).
 func TestKeptOrderKeepsAWatchedApprovedRowOverAnIgnoredOne(t *testing.T) {
@@ -65,7 +65,7 @@ func TestKeptOrderKeepsAWatchedApprovedRowOverAnIgnoredOne(t *testing.T) {
 // row an osquery enrolment approved (agentOrphan, sameMAC), stays the kept row with its origin and typed address, is watched again
 // and keeps the enrolment's approval: no watched, unapproved device in To review whose approval nobody will give again. The approval
 // still never moves onto a discovered row (review H1 of #722), a suspicious mark on either row keeps the declared row waiting for a
-// person, an ignored row's approval never carries (D-630, review r1 M1 of #959) and a chassis join never carries (r1 L1 of #959).
+// person, an ignored row's approval never carries and a chassis join never carries (r1 L1 of #959).
 // The merge audit row says so only when the approval was kept (r1 L2 of #959).
 func TestAJoinCarriesTheApprovalOntoADeclaredRow(t *testing.T) {
 	t.Parallel()
@@ -108,7 +108,7 @@ func TestAJoinCarriesTheApprovalOntoADeclaredRow(t *testing.T) {
 		{name: "declared", declared: true, mode: joinMachine, wantApproved: true},
 		{name: "declared and marked suspicious", declared: true, suspicious: true, mode: joinMachine},
 		{name: "the approved row marked suspicious", declared: true, fromSuspicious: true, mode: joinMachine},
-		{name: "the approved row ignored (D-630)", declared: true, fromIgnored: true, mode: joinMachine},
+		{name: "the approved row ignored", declared: true, fromIgnored: true, mode: joinMachine},
 		{name: "a chassis join (review r1 L1 of #959)", declared: true, mode: joinChassis},
 		{name: "discovered (H1 of #722)", mode: joinMachine},
 	} {

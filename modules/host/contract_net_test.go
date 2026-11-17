@@ -36,7 +36,7 @@ func netCard(t *testing.T, root, name string, rxBytes string) {
 	}
 }
 
-// GET /v1/state/net (D-101, spec 5): cards with counters read from sysfs through a root, the default route from
+// GET /v1/state/net (spec 5): cards with counters read from sysfs through a root, the default route from
 // /proc/net/route, no traffic facts, and the same body through the client and as raw JSON.
 func TestContract_Net_StateNetReportsCardsCountersAndRoute(t *testing.T) {
 	t.Parallel()
@@ -64,7 +64,7 @@ func TestContract_Net_StateNetReportsCardsCountersAndRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.m.WriteRoot("proc/net/route", "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT\neth0\t00000000\t010AA8C0\t0003\t0\t0\t100\t00000000\t0\t0\t0\n")
-	// D-450: the IPv6 default route and the DNS servers a lease gave (systemd-resolved's list; /etc/resolv.conf is its stub).
+	// The IPv6 default route and the DNS servers a lease gave (systemd-resolved's list; /etc/resolv.conf is its stub).
 	e.m.WriteRoot("proc/net/ipv6_route", "00000000000000000000000000000000 00 00000000000000000000000000000000 00 fe800000000000000000000000000001 00000400 00000001 00000000 00450003     eth0\n")
 	e.m.WriteRoot("run/systemd/resolve/resolv.conf", "nameserver 192.168.10.53\n")
 	e.m.WriteRoot("etc/resolv.conf", "nameserver 127.0.0.53\n")
@@ -161,7 +161,7 @@ func filepathWalkGo(root string, f func(path, src string)) error {
 }
 
 // The grammar for netplan is "apply" and nothing else: "generate --root-dir" checks a string, so no production argv has it
-// (TestProductionRunnerOnlyAppliesNetplan in host/ops). chronyc has two argv shapes (D-106).
+// (TestProductionRunnerOnlyAppliesNetplan in host/ops). chronyc has two argv shapes.
 func TestContract_Net_NetplanAndChronycArgvAreTheFixedGrammar(t *testing.T) {
 	t.Parallel()
 	if err := ops.ValidateNetplan([]string{"apply"}); err != nil {

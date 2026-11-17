@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Review r1 #1 of #804 (D-617): a version change of a product with no exploited-list key emits only inventory.software.changed, and
+// Review r1 #1 of #804: a version change of a product with no exploited-list key emits only inventory.software.changed, and
 // "Updates to plan" still follows it at the next run of the plan job, without waiting for the hourly full pass. Through the real
 // inventory and bus, not by calling findings.
 func TestWiringPlanFollowsASoftwareVersionChange(t *testing.T) {

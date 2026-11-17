@@ -31,7 +31,7 @@ var (
 
 // scanService builds the scan service once per database, so the handlers and (later) the jobs share it.
 // ponytail: no Engine and no template pack yet: the remote nuclei engine over the sensor protocol is slice S5 and the
-// pack ships with the scan image (SP-5, D-125), so the scanner is "not available" (can_scan=false, 503
+// pack ships with the scan image (SP-5), so the scanner is "not available" (can_scan=false, 503
 // scanner_unavailable) and nothing is ever sent until then.
 func scanService(d deps) *scan.Service {
 	scanMu.Lock()
@@ -51,14 +51,14 @@ func scanService(d deps) *scan.Service {
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		cfg.Publisher = d.Bus
 	}
-	cfg.KEV = scanKEV{feedsKEV{&d}} // the catch-up of new_kev the bus did not bring (S4b, D-144)
+	cfg.KEV = scanKEV{feedsKEV{&d}} // the catch-up of new_kev the bus did not bring (S4b)
 	if d.SensorDispatcher != nil {  // S5: the worker in the scan container, over the sensor link, against the pack of its image
 		ix, err := nucleipack.Index()
 		if err != nil { // a test holds the committed index to pack.Parse: a programming error
 			panic("vedette: the embedded nuclei pack index: " + err.Error())
 		}
 		cfg.Engine, cfg.Pack = scanEngine{d.SensorDispatcher}, ix
-		cfg.Identify = scanIdentify{d} // D-501: Scan now identifies each device with sensor-active's nmap scan first
+		cfg.Identify = scanIdentify{d} // Scan now identifies each device with sensor-active's nmap scan first
 	}
 	svc, err := scan.NewService(cfg)
 	if err != nil { // only a missing dependency: a programming error in serve
@@ -97,9 +97,9 @@ func (s scanInventory) Scope(ctx context.Context) (scan.Scope, error) {
 	return sc, nil
 }
 
-// deviceLabel names a device as the Devices page does (inventory.DisplayName, D-471): hostname, else a hand-added
+// deviceLabel names a device as the Devices page does (inventory.DisplayName): hostname, else a hand-added
 // device's product ("Microsoft Office (no device)" without an IP), else vendor and model, else the IP. A hand-added or
-// LLDP-only device has no IP and must still show its name in the scan list and the reports (D-484).
+// LLDP-only device has no IP and must still show its name in the scan list and the reports.
 func deviceLabel(d inventory.Device) string {
 	if n := d.Name(); n != "" {
 		return n
@@ -135,7 +135,7 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	out := make([]scan.Device, 0, len(list.Items))
 	for _, d := range list.Items {
 		if d.IgnoredAt != nil {
-			continue // D-630: an ignored device is not scanned (VulnScanPolicy refuses it too: its network scan is off)
+			continue // An ignored device is not scanned (VulnScanPolicy refuses it too: its network scan is off)
 		}
 		sd := scan.Device{ID: d.ID, Label: deviceLabel(d), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, LastSeen: d.LastSeen, Box: d.IsBox}
 		if d.MAC != nil {
@@ -150,7 +150,7 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	return out, nil
 }
 
-// VulnScanPolicy is inventory's D-126 policy; Careful (fragile or unclassified, slowed even when regular scans are
+// VulnScanPolicy is inventory's policy; Careful (fragile or unclassified, slowed even when regular scans are
 // allowed: the safe side) and the IP come from the same read as the decision. Used for the re-check of one device
 // right before its job leaves core (scan INV-1); lists use VulnScanPolicies.
 func (s scanInventory) VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (scan.Decision, error) {
@@ -167,7 +167,7 @@ func (s scanInventory) VulnScanPolicy(ctx context.Context, assetID string, expli
 	return scanDecision(dec), nil
 }
 
-// VulnScanPolicies is inventory.VulnScanPolicies in chunks of inventory.MaxPolicyBatch (D-472): one settings read and
+// VulnScanPolicies is inventory.VulnScanPolicies in chunks of inventory.MaxPolicyBatch: one settings read and
 // one query per chunk instead of one read per device. A device deleted since the list was read is absent.
 func (s scanInventory) VulnScanPolicies(ctx context.Context, assetIDs []string, explicit bool) (map[string]scan.Decision, error) {
 	if s.inv == nil {
@@ -214,7 +214,7 @@ func (f scanFindings) ConfirmFromScan(ctx context.Context, assetID, cve string, 
 	return r.ID, err
 }
 
-// scanIdentify is sensor-active's identification as scan sees it (scan.Identifier, D-501): an nmap device scan of a device a person
+// scanIdentify is sensor-active's identification as scan sees it (scan.Identifier): an nmap device scan of a device a person
 // picked in Scan now, recorded in the inventory. It runs only while sensor-active is on (SYS-5); off, every device says unavailable.
 // The service is looked up at each call: scanService and sensorActiveService are built in either order.
 type scanIdentify struct{ d deps }
@@ -241,7 +241,7 @@ func (i scanIdentify) Identify(ctx context.Context, assetID string) (scan.Identi
 	return scan.Identification{Found: got.Found, Why: got.Why}, nil
 }
 
-// scanExternal lists the exposure targets for the scan list (listed, not scanned yet: D-126 (4)).
+// scanExternal lists the exposure targets for the scan list (listed, not scanned yet).
 type scanExternal struct{ svc *exposure.Service }
 
 func (e scanExternal) Targets(ctx context.Context) ([]scan.ExternalTarget, error) {
@@ -295,8 +295,8 @@ func (k scanKEV) NewKEVSince(ctx context.Context, at time.Time, cve string, limi
 }
 
 // scanEngine is the scan container's worker as scan sees it (scan.Engine, S5): the Dispatcher of sensor-active, over the
-// sensor protocol (D-125). A run goes out as template ids of the pack core planned with; the Dispatcher checks the
-// grammar again, refuses a job planned for another pack before anything is sent (D-133 (4)), and parses nuclei's lines
+// sensor protocol. A run goes out as template ids of the pack core planned with; the Dispatcher checks the
+// grammar again, refuses a job planned for another pack before anything is sent, and parses nuclei's lines
 // fail closed. "Cannot run any job now" (the worker gone or not ready, another pack, a pack that failed its integrity
 // check) is handed to scan as scan.ErrEngineDown, so the run stops with the Dispatcher's message.
 type scanEngine struct{ d sensoractive.Scanner }
@@ -312,11 +312,11 @@ func (e scanEngine) Run(ctx context.Context, j scan.Job) (nucleiout.Outcome, err
 	return res, err
 }
 
-// scanRunner is the scan module's exposure.Runner (D-229, exposure INV-12, scan INV-12): the surface scan of modules/scan/surface,
-// within D-57 (7) and LEGAL §3. A domain's names (certificate transparency) are resolved and listed and get HTTP checks by name on
+// scanRunner is the scan module's exposure.Runner (exposure INV-12, scan INV-12): the surface scan of modules/scan/surface,
+// within LEGAL §3. A domain's names (certificate transparency) are resolved and listed and get HTTP checks by name on
 // 80 and 443; an address is port-scanned only when exposure says it is a verified IP target that may be scanned now
-// (ScannableIP). Every probe goes to the scan module's probe log first. The code is the scan module's, the switch is exposure's (J6,
-// #841): it runs while the External exposure module is on, whatever the Vulnerability scans module (LAN nuclei scans, Preview, off
+// (ScannableIP). Every probe goes to the scan module's probe log first. The code is the scan module's, the switch is exposure's
+// (#841): it runs while the External exposure module is on, whatever the Vulnerability scans module (LAN nuclei scans, Preview, off
 // in v1's bundles) is. Exposure off, a scan answers 409 module_off and nothing is probed, and switching it off stops a scan that
 // runs (SYS-5).
 func scanRunner(d deps) exposure.Runner {

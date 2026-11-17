@@ -26,7 +26,7 @@ func vcPage(totalPages int, entries ...string) string {
 	return fmt.Sprintf(`{"_benchmark":0.01,"_meta":{"timestamp":"2026-11-05T12:00:00Z","index":"vulncheck-kev","limit":100,"total_pages":%d,"page":1},"data":[%s]}`, totalPages, strings.Join(entries, ","))
 }
 
-// D-557: only recent entries CISA does not list become vulncheck-kev entries; a bad entry is rejected and counted.
+// Only recent entries CISA does not list become vulncheck-kev entries; a bad entry is rejected and counted.
 func TestParseVulnCheckPage(t *testing.T) {
 	t.Parallel()
 	res, err := ParseVulnCheckPage([]byte(vcPage(3,
@@ -77,7 +77,7 @@ func TestVulnCheckPageURL(t *testing.T) {
 	}
 }
 
-// D-557: OFF means no request; the key is stored sealed and shown as its last four characters; the feed sends it only as
+// OFF means no request; the key is stored sealed and shown as its last four characters; the feed sends it only as
 // the bearer header; its CVEs become exploited entries next to CISA's (CISA wins), get CVE.org ranges, and everything
 // goes when the key is removed.
 func TestContract_VulnCheckKEV_BYOK(t *testing.T) {

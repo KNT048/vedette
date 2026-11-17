@@ -24,7 +24,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// The first-run restore from an uploaded backup and the key download (S-CORE-1, D-518).
+// The first-run restore from an uploaded backup and the key download (S-CORE-1).
 
 type member struct {
 	name string
@@ -195,7 +195,7 @@ func TestSetupRestoreIsRefusedAfterSetup(t *testing.T) {
 
 // Step 2 refuses a key of the wrong shape, a key that opens none of the backup's secrets, and a restore without a key that
 // was not confirmed, before the host is asked anything; with the right key the host imports the upload as a manual backup
-// that holds the key, the restore of D-377 starts on it, and the page follows it until it ends.
+// that holds the key, the restore starts on it, and the page follows it until it ends.
 func TestSetupRestoreChecksTheKeyThenImportsAndRestores(t *testing.T) {
 	t.Parallel()
 	e, f := newRestoreEnv(t)
@@ -339,7 +339,7 @@ func (g *gateBody) Read([]byte) (int, error) {
 	return 0, io.EOF
 }
 
-// D-544: a first-run restore needs the terms of use too, before the host is asked. Core starts on the restored database (an
+// A first-run restore needs the terms of use too, before the host is asked. Core starts on the restored database (an
 // organization that finished setup) and settles the run once from the marker the restore left next to the database: the
 // restored data keeps the acceptance (who: setup, the version shown, when it was ticked) with its audit row.
 func TestSetupRestoreNeedsTheTermsAndADoneRestoreKeepsThem(t *testing.T) {
@@ -377,7 +377,7 @@ func TestSetupRestoreNeedsTheTermsAndADoneRestoreKeepsThem(t *testing.T) {
 	}
 }
 
-// D-544: a marker that cannot be trusted (another version shape, a time in the future) is not recorded: the restored data
+// A marker that cannot be trusted (another version shape, a time in the future) is not recorded: the restored data
 // gets this software's version and the start of the run, and the marker is gone.
 func TestSetupRestoreIgnoresAMarkerItCannotTrust(t *testing.T) {
 	t.Parallel()
@@ -405,7 +405,7 @@ func TestSetupRestoreIgnoresAMarkerItCannotTrust(t *testing.T) {
 	}
 }
 
-// D-544: GET /core/setup/restore on a box that is set up never reaches the host; a first-run restore whose host is down at
+// GET /core/setup/restore on a box that is set up never reaches the host; a first-run restore whose host is down at
 // start-up is asked about once, and the page still reads done.
 func TestSetupRestoreDoneNeverAsksTheHost(t *testing.T) {
 	t.Parallel()
@@ -437,7 +437,7 @@ func TestSetupRestoreDoneNeverAsksTheHost(t *testing.T) {
 	}
 }
 
-// D-544: a restore from Settings -> Data (an administrator, on a box that is set up) is not a first-run restore: it records
+// A restore from Settings -> Data (an administrator, on a box that is set up) is not a first-run restore: it records
 // no acceptance of the terms.
 func TestSettingsRestoreRecordsNoTermsAcceptance(t *testing.T) {
 	t.Parallel()

@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// The list is fixed and documented (D-229): no port twice, ascending (nmap's -p names them in this order, D-514), about a hundred,
+// The list is fixed and documented: no port twice, ascending (nmap's -p names them in this order), about a hundred,
 // every number a TCP port.
 func TestList(t *testing.T) {
 	t.Parallel()

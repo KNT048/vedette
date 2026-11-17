@@ -210,9 +210,9 @@ func TestCross_Lines(t *testing.T) {
 	}
 }
 
-// Walk 2 (S-FEED-5): a pasted plain list names the rejected lines, with the value, and a
+// S-FEED-5: a pasted plain list names the rejected lines, with the value, and a
 // reserved test name is not called a local host; the grouped reasons stay masked.
-func TestWalk2_LinesRejectsNameTheLineAndValue(t *testing.T) {
+func TestLinesRejectsNameTheLineAndValue(t *testing.T) {
 	t.Parallel()
 	text := "# partner list\n203.0.113.9\nbad.evil-site.top extra words\nhttp://evil.example/x\nnot an ip!!\n10.0.0.1\n44d88612fea8a8f36de82e1278abb02f\n"
 	r, err := ParseFeed(context.Background(), []byte(text), KindIOC, DefaultParser(KindIOC, FormatLines))
@@ -235,7 +235,7 @@ func TestWalk2_LinesRejectsNameTheLineAndValue(t *testing.T) {
 	}
 }
 
-func TestWalk2_URLHostReasons(t *testing.T) {
+func TestURLHostReasons(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{
 		"http://evil.example/x":      "%s points at a reserved example or test name",
@@ -245,7 +245,7 @@ func TestWalk2_URLHostReasons(t *testing.T) {
 		"http://intranet/":           "%s points at a local or private host",
 		"http://10.1.2.3/":           "%s points at a private, reserved or special-purpose address",
 		"http://[::1]/":              "%s points at a private, reserved or special-purpose address",
-		"https://evil.example.com/x": "%s points at a reserved example or test name", // RFC 2606 §3 (D-420 (6))
+		"https://evil.example.com/x": "%s points at a reserved example or test name", // RFC 2606 §3
 		"https://x.example.org/":     "%s points at a reserved example or test name",
 		"http://x.localhost/":        "%s points at a reserved example or test name",
 		"https://evil-site.top/x":    "",
@@ -668,7 +668,7 @@ func TestIndicatorNormalisation(t *testing.T) {
 		{"dead:beef", "", ""},
 		{"::::", "", ""},
 		{"Evil-Site.TOP", "", "domain:evil-site.top"},
-		{"Example.COM", "", ""}, // RFC 2606 §3 (D-420 (6))
+		{"Example.COM", "", ""}, // RFC 2606 §3
 		{"bad.test", "", ""},    // a test name, not a local host
 		{"-bad.example.com", "", ""},
 		{"example.com.", "", ""},

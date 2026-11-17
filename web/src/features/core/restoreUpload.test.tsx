@@ -1,4 +1,4 @@
-// Restore from a backup file on a new box, the decryption key kept apart, and the list read again after a restore (S-CORE-1, D-518).
+// Restore from a backup file on a new box, the decryption key kept apart, and the list read again after a restore (S-CORE-1).
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -14,7 +14,7 @@ import type { RestoreRun } from './types'
 const user = () => userEvent.setup()
 const gzip = () => new File([new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0])], 'vedette-backup-2026-11-01.tar.gz', { type: 'application/gzip' })
 
-/** D-544: the restore is offered on the Account step, after the terms of use were ticked on the first. */
+/** The restore is offered on the Account step, after the terms of use were ticked on the first. */
 async function openRestore(u: ReturnType<typeof user>) {
   renderApp('/setup', { role: null, setupComplete: false })
   await u.click(await screen.findByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }))
@@ -28,7 +28,7 @@ async function checkBackup(u: ReturnType<typeof user>) {
   await u.upload(screen.getByLabelText('Backup file'), gzip())
 }
 
-describe('first-run restore from a backup file (D-518)', () => {
+describe('first-run restore from a backup file', () => {
   it('without the key: says what is lost before Restore, which waits for "I understand", then sends to sign in', async () => {
     const u = user()
     await checkBackup(u)
@@ -73,7 +73,7 @@ describe('first-run restore from a backup file (D-518)', () => {
     await u.click(screen.getByRole('button', { name: 'Restore' }))
     await waitFor(() => expect(sent.upload_id).toBe('a'.repeat(32)))
     expect(sent.key).toBeUndefined()
-    expect(sent.accept_terms).toBe(true) // the box refuses a restore without it (D-544)
+    expect(sent.accept_terms).toBe(true) // the box refuses a restore without it
   })
 
   it('a wrong setup code is said next to the code', async () => {

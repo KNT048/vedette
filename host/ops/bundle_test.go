@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-// The two tar readers of a bundle (D-452) read untrusted bytes: they are fuzzed, and what they accept or write is bounded.
+// The two tar readers of a bundle read untrusted bytes: they are fuzzed, and what they accept or write is bounded.
 
 func tarOf(t testing.TB, entries ...[2]string) []byte {
 	t.Helper()

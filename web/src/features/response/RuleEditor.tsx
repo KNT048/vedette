@@ -105,7 +105,7 @@ function ActionRow({ a, i, n, cat, trig, errs, onChange, onMove, onRemove }: { a
   )
 }
 
-/** Errors of the form by the id of the input they belong to (D-390): shown under that input, which is marked invalid. */
+/** Errors of the form by the id of the input they belong to: shown under that input, which is marked invalid. */
 type Errs = Record<string, string>
 const inv = (errs: Errs, id: string) => (errs[id] ? { 'aria-invalid': true, 'aria-describedby': `${id}-error` } : {})
 
@@ -123,7 +123,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
   const [result, setResult] = useState<Simulation | null>(null)
   const [custom, setCustom] = useState(false)
   const alertRef = useRef<HTMLDivElement>(null)
-  // S-CORE-9 G5, D-390: a trigger that needs a module this install cannot run is not offered; a rule that already uses it keeps it, marked
+  // S-CORE-9: a trigger that needs a module this install cannot run is not offered; a rule that already uses it keeps it, marked
   const noHoneypot = useModuleAvailable('honeypot') === false
   const triggers = (trigQ.data?.items ?? []).filter((x) => !(noHoneypot && x.id === 'honeypot' && rule?.trigger !== 'honeypot')), cat = catQ.data
   const seeded = useRef(false)

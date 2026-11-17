@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// D-528: the text rule every template file passes, in the builder and in the worker.
+// The text rule every template file passes, in the builder and in the worker.
 func TestNoChangeText(t *testing.T) {
 	t.Parallel()
 	ok := "id: x\nhttp:\n  - raw:\n      - |\n        POST /login HTTP/1.1\n        Host: {{Hostname}}\n\n        a=b\n  - method: GET\n    path:\n      - \"{{BaseURL}}/\"\n" +

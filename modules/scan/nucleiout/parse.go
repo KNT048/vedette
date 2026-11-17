@@ -1,4 +1,4 @@
-// Package nucleiout reads what the worker's nuclei run printed (-jsonl -ms) into results core can trust (D-125 (2),
+// Package nucleiout reads what the worker's nuclei run printed (-jsonl -ms) into results core can trust (
 // INV-8, INV-10). The output came from a process that talked to devices an attacker may control, through a worker that
 // may be compromised (SYS-6), so the parser fails closed: one line it cannot read without doubt throws the whole run
 // away; it never returns a result for a template or a target (host and port) the job did not ask for; and evidence is
@@ -25,10 +25,10 @@ import (
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 )
 
-// Limits (sensor protocol §9, D-125 (1)); the output cap is nucleiargv.MaxOutput.
+// Limits (sensor protocol §9); the output cap is nucleiargv.MaxOutput.
 const (
 	MaxLines = 1024 // 32 templates x 16 targets is 512 lines with -ms; twice that is suspicious
-	// LinesPerTemplate sizes the line limit of a run with many templates (D-527: a full run, up to 200 templates on one target):
+	// LinesPerTemplate sizes the line limit of a run with many templates (a full run, up to 200 templates on one target):
 	// MaxLines or this many lines a template, whichever is more. The assumption, from nuclei v3.11.1's -ms (one failure line per
 	// template and target that matched nothing) and its JSONL writer (one line per matcher name, and per request of a template with
 	// several, that matched): a template prints one line when nothing matched and one per match otherwise; tech-detect prints one per
@@ -51,7 +51,7 @@ type Result struct {
 	Request  string // cleaned and capped
 	Response string // cleaned and capped
 	Error    string // cleaned and capped; non-empty when the target did not answer properly (INV-6)
-	// MatcherName is the name of the matcher that matched, cleaned and capped at MaxMatcherName (D-527: a technologies template
+	// MatcherName is the name of the matcher that matched, cleaned and capped at MaxMatcherName (a technologies template
 	// such as tech-detect names the product it found there; core keeps only a name that is a product tag of the pack).
 	MatcherName string
 }
@@ -71,7 +71,7 @@ type line struct {
 	MatcherName   string `json:"matcher-name"`
 }
 
-// Skipped says what Read left out (N45-1, review r1 M6/M7, r2 M3/L5): Lines lines of the job's templates whose JSON is valid but
+// Skipped says what Read left out: Lines lines of the job's templates whose JSON is valid but
 // that cannot be a result of the job: about a host:port the job did not name, a target that cannot be read, no matcher-status, a
 // match with an error. Matched counts the ones that said matched; MatchedTemplates are their templates (every one, all of the
 // job's): such a template never reads "no match reported", its result is inconclusive (InconclusiveNote). Templates are the first
@@ -137,13 +137,13 @@ func Parse(out []byte, templates, targets []string) ([]Result, error) {
 
 // Read reads a whole run. templates are the job's template ids and targets its host:port pairs. Output over the cap, a line that
 // is not valid JSON (or is ambiguous) and a line for a template outside the job throw the run away; any other line that cannot be a
-// result of the job is skipped and counted in Skipped (N45-1, review r1 M6).
+// result of the job is skipped and counted in Skipped.
 func Read(out []byte, templates, targets []string) ([]Result, Skipped, error) {
 	var skip Skipped
 	if len(out) > nucleiargv.MaxOutput {
 		return nil, skip, fmt.Errorf("nucleiout: output of %d bytes is over the %d cap", len(out), nucleiargv.MaxOutput)
 	}
-	limit := max(MaxLines, LinesPerTemplate*len(templates)) // a full run of 200 templates (D-527): 8000
+	limit := max(MaxLines, LinesPerTemplate*len(templates)) // a full run of 200 templates: 8000
 	var res []Result
 	over := map[string]bool{} // templates of skipped lines past MaxSkippedTemplates
 	for i, raw := range bytes.Split(out, []byte("\n")) {

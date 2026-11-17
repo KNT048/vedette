@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// nmapargv and nucleiargv import this package, and the sensor binary links them (D-113, D-125 (2)): its non-test files may import
+// nmapargv and nucleiargv import this package, and the sensor binary links them: its non-test files may import
 // net/netip and slices only (no net, no process, no other Vedette package), so their leaf tests can let it through.
 func TestIsALeaf(t *testing.T) {
 	t.Parallel()

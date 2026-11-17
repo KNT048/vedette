@@ -69,13 +69,13 @@ curl -fsS --cacert "$CA" "$BOX/api/v1/install/osquery/SHA256SUMS" -o "$TMP/SHA25
 curl -fsS --cacert "$CA" "$BOX/api/v1/install/osquery/$FILE" -o "$TMP/$FILE"
 ( cd "$TMP" && grep " $FILE\$" SHA256SUMS | sha256sum -c - ) || { echo "Checksum of $FILE does not match. Nothing was installed." >&2; exit 1; }
 # The package manager's output (and whatever osquery's own package scripts print, such as a bare line of numbers) goes to a log shown
-# only when the install fails, so a normal run prints Vedette's lines only (customer walk 2, W2-2).
+# only when the install fails, so a normal run prints Vedette's lines only.
 echo "Installing osquery $OSQ_VERSION..."
 if [ "$FMT" = deb ]; then set -- dpkg -i "$TMP/$FILE"; else set -- rpm -Uvh --replacepkgs "$TMP/$FILE"; fi
 "$@" >"$TMP/install.log" 2>&1 || { cat "$TMP/install.log" >&2; echo "Installing $FILE failed (output above)." >&2; exit 1; }
 
 # osqueryd keeps the node key of its enrolment in its database and does not enrol again while the box accepts that key. Unless this
-# machine already holds this very token (a repair keeps its key), its database is removed so that it enrols under this token (D-411).
+# machine already holds this very token (a repair keeps its key), its database is removed so that it enrols under this token.
 if [ "$(cat "$DIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then
   [ ! -s "$DIR/enroll.secret" ] || echo "This machine was enrolled with another token; it enrols again under this one. The old token lists it until it has been silent for 90 days or you revoke that token in Vedette."
   # stopped whenever the unit exists (also while it is activating or restarting); a failed stop ends the script: a running osqueryd keeps its key

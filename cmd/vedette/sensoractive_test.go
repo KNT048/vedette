@@ -145,8 +145,8 @@ func (s *stack) idByIP(t *testing.T, ip string) string {
 }
 
 // A device a passive sensor saw first, inside an open window: the event queues it, the tick scans it with the right
-// argv, and the inventory shows the software the CPEs gave. A device the person never approved is scanned too
-// (D-84 (2)); a device declared by hand is not.
+// argv, and the inventory shows the software the CPEs gave. A device the person never approved is scanned too;
+// a device declared by hand is not.
 func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -166,7 +166,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 	}
 	calls := nm.calls(t)
 	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
-	// the queue's normal scan and its extra ports, then (D-592) the device's first weekly scan of every port in the same window
+	// the queue's normal scan and its extra ports, then the device's first weekly scan of every port in the same window
 	if got := scanTargets(calls, "192.168.10.20"); len(got) != 3 || !slices.Equal(got[0], want) || !slices.Contains(got[1], nmapargv.ExtraPorts) ||
 		!slices.Contains(got[2], "-p-") || slices.Contains(got[2], "-O") {
 		t.Fatalf("device scans = %q\nwant %q", got, want)
@@ -197,7 +197,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 	if d.Asset.OS == nil || d.Asset.OS.Value != "Linux 5.4 - 5.15" || d.Asset.OS.Source != "nmap" {
 		t.Fatalf("os = %+v", d.Asset.OS)
 	}
-	var ports []string // the open ports reach inv_service through observe.ServiceSink (D-350); the closed one does not
+	var ports []string // the open ports reach inv_service through observe.ServiceSink; the closed one does not
 	for _, sv := range d.Asset.Services {
 		ports = append(ports, strconv.Itoa(sv.Port)+"/"+sv.Proto+" "+sv.Name+" "+sv.Source)
 	}
@@ -226,7 +226,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 	}
 }
 
-// Fragile devices (D-45) through the real inventory policy: the first scan is the gentle one; afterwards "never"
+// Fragile devices through the real inventory policy: the first scan is the gentle one; afterwards "never"
 // beats the type setting and nothing runs.
 func TestSensorActiveFragileDevicePolicy(t *testing.T) {
 	t.Parallel()
@@ -277,7 +277,7 @@ func TestSensorActiveFragileDevicePolicy(t *testing.T) {
 		t.Fatalf("regular_scan allow: %v", err)
 	}
 	if got := scanTargets(nm.calls(t), "192.168.10.30"); len(got) != 3 || !slices.Contains(got[1], "-O") || !slices.Contains(got[2], nmapargv.ExtraPorts) {
-		t.Fatalf("scans = %q, want the second to be a normal one, then its extra ports (D-592)", got)
+		t.Fatalf("scans = %q, want the second to be a normal one, then its extra ports", got)
 	}
 }
 
@@ -340,7 +340,7 @@ func mustAddr(t *testing.T, s string) netip.Addr {
 	return a
 }
 
-// D-45 "afterwards passive only", inventory INV-5 "never scanned", M2: the daily sweep (-sn) skips the addresses of
+// "Afterwards passive only", inventory INV-5 "never scanned", M2: the daily sweep (-sn) skips the addresses of
 // a fragile device that already had its one gentle scan (and is marked regular_scan=never), of a device declared
 // by hand and of the box itself, though they are inside the scope; their neighbours are still swept.
 func TestSensorActiveSweepSkipsProtectedAddresses(t *testing.T) {
@@ -393,7 +393,7 @@ func TestSensorActiveSweepSkipsProtectedAddresses(t *testing.T) {
 	}
 }
 
-// H1 / D-45: the first active scan of a device whose kind is unknown (everything a sweep finds) is the gentle one,
+// The first active scan of a device whose kind is unknown (everything a sweep finds) is the gentle one,
 // never -O or the 1000-port list; it is not scanned any heavier until a person or passive data classifies it.
 func TestSensorActiveFirstScanOfAnUnclassifiedDeviceIsGentle(t *testing.T) {
 	t.Parallel()
@@ -436,7 +436,7 @@ func TestSensorActiveFirstScanOfAnUnclassifiedDeviceIsGentle(t *testing.T) {
 		t.Fatalf("classified as server: %v", err)
 	}
 	if got := scanTargets(nm.calls(t), "192.168.10.2"); len(got) != 3 || !slices.Contains(got[1], "-O") || !slices.Contains(got[2], nmapargv.ExtraPorts) {
-		t.Fatalf("scans = %q, want the second to be a normal one, then its extra ports (D-592)", got)
+		t.Fatalf("scans = %q, want the second to be a normal one, then its extra ports", got)
 	}
 }
 

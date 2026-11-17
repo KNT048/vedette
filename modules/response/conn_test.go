@@ -83,7 +83,7 @@ func TestContract_INV9_EditingTheSecretAfterTheRequestIsConnectionChanged(t *tes
 	}
 }
 
-// ChangesInForce (what core/conn asks before it deletes a connection, D-93): an item that was executed and not rolled back, or
+// ChangesInForce (what core/conn asks before it deletes a connection): an item that was executed and not rolled back, or
 // that was sent and whose outcome is not known; not a pending one, a failed one, a rolled back one, or another connection's.
 func TestChangesInForce(t *testing.T) {
 	t.Parallel()

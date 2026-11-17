@@ -36,7 +36,7 @@ var (
 	operator = Actor{ID: "u-op", Email: "it@acme.example"}
 )
 
-// D-473: the first Scan now of an administrator with two-step sign-in records who, when, which target, the sentence and its
+// The first Scan now of an administrator with two-step sign-in records who, when, which target, the sentence and its
 // version, and writes the audit row; a second scan, by anyone, does not record again.
 func TestContract_INV17_FirstScanByAdminWithTwoStepRecordsCommitment(t *testing.T) {
 	t.Parallel()
@@ -84,7 +84,7 @@ func TestContract_INV17_FirstScanByAdminWithTwoStepRecordsCommitment(t *testing.
 	}
 }
 
-// D-473: an administrator without two-step sign-in is refused and nothing is recorded or scanned.
+// An administrator without two-step sign-in is refused and nothing is recorded or scanned.
 func TestContract_INV17_AdminWithoutTwoStepIsRefused(t *testing.T) {
 	t.Parallel()
 	for name, ts := range map[string]TwoStep{"off": twoStep("u-admin"), "no checker": nil} {
@@ -104,7 +104,7 @@ func TestContract_INV17_AdminWithoutTwoStepIsRefused(t *testing.T) {
 	}
 }
 
-// D-473: an operator cannot scan an unconfirmed target; a confirmed one is open to them.
+// An operator cannot scan an unconfirmed target; a confirmed one is open to them.
 func TestContract_INV17_OperatorNeedsAnAdminsFirstScan(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -125,7 +125,7 @@ func TestContract_INV17_OperatorNeedsAnAdminsFirstScan(t *testing.T) {
 	}
 }
 
-// D-473: the request must carry the version of the sentence the page showed; an old or missing one records nothing.
+// The request must carry the version of the sentence the page showed; an old or missing one records nothing.
 func TestContract_INV17_StaleOrMissingNoticeVersionIsRefused(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -149,7 +149,7 @@ func (e *env) oldCommitted(version *string) TargetView {
 		if err := setCommitment(e.ctx(), tx, d.ID, "first@acme.example", t0, Notice{Version: "2026-11-13", Text: "old sentence"}, "u-first", "app"); err != nil {
 			return err
 		}
-		if version == nil { // recorded before D-473: no version, no sentence
+		if version == nil { // recorded by an older release: no version, no sentence
 			_, err := tx.ExecContext(e.ctx(), `UPDATE exp_target SET commitment_version = NULL, commitment_sentence = NULL, commitment_user_id = NULL, commitment_method = NULL WHERE id = ?`, d.ID)
 			return err
 		}
@@ -161,7 +161,7 @@ func (e *env) oldCommitted(version *string) TargetView {
 	return e.target(d.ID)
 }
 
-// D-559: a commitment of an older sentence (or none recorded) is not confirmed for the current one: the gate blocks, the new sentence is
+// A commitment of an older sentence (or none recorded) is not confirmed for the current one: the gate blocks, the new sentence is
 // offered, an operator and a schedule are refused, and the administrator's first Scan now replaces it, with an audit row naming the old version.
 func TestContract_INV17_OlderCommitmentIsAskedAgainOnce(t *testing.T) {
 	t.Parallel()
@@ -230,7 +230,7 @@ func TestContract_INV17_OlderCommitmentIsAskedAgainOnce(t *testing.T) {
 	}
 }
 
-// D-473: the sentence the mock shows is the backend's: contract.ts holds the same version and text.
+// The sentence the mock shows is the backend's: contract.ts holds the same version and text.
 func TestNoticeMatchesTheContractOfTheGUI(t *testing.T) {
 	t.Parallel()
 	b, err := os.ReadFile("../../web/src/features/exposure/contract.ts")
@@ -290,7 +290,7 @@ func TestContract_INV17_ConcurrentFirstScansRecordOnce(t *testing.T) {
 	}
 }
 
-// The first scan of an IP the box no longer goes out through: the administrator did confirm, so the commitment stays (D-473), but nothing is scanned.
+// The first scan of an IP the box no longer goes out through: the administrator did confirm, so the commitment stays, but nothing is scanned.
 func TestContract_INV17_IPNotCurrentRecordsButDoesNotScan(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -307,7 +307,7 @@ func TestContract_INV17_IPNotCurrentRecordsButDoesNotScan(t *testing.T) {
 	}
 }
 
-// The record keeps the user id and how two-step was met; a commitment written before D-473 (no sentence, no id) still loads.
+// The record keeps the user id and how two-step was met; a commitment written by an older release (no sentence, no id) still loads.
 func TestCommitmentRecordKeepsUserAndMethod(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

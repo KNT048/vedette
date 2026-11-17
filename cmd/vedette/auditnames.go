@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// auditNamer is core.AuditNamer over inventory and findings (D-416): Settings → Audit log shows a device or finding by name, its id
+// auditNamer is core.AuditNamer over inventory and findings: Settings → Audit log shows a device or finding by name, its id
 // below. It reads the services lazily from deps: core is built before them.
 type auditNamer struct{ d *deps }
 
@@ -57,7 +57,7 @@ func (n auditNamer) AuditNames(ctx context.Context, ids []string) (map[string]st
 
 func deviceName(r inventory.DeviceRef) string {
 	switch {
-	case r.NameOrHost() != nil: // the name in Vedette, else the host name (G2)
+	case r.NameOrHost() != nil: // the name in Vedette, else the host name
 		return *r.NameOrHost()
 	case r.IP != "" && r.IP != "—":
 		return r.IP

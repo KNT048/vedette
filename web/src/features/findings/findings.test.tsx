@@ -34,7 +34,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
   })
 
   it('lọc theo trạng thái và theo ?cve= từ trang CVE', async () => {
-    renderApp('/findings?cve=CVE-2022-27593') // review r1 of #943: the CVE page's link has no tab: it must open the findings table
+    renderApp('/findings?cve=CVE-2022-27593') // #943: the CVE page's link has no tab: it must open the findings table
     const table = await screen.findByRole('table', { name: 'Findings list' })
     expect(within(table).getAllByRole('row')).toHaveLength(2)
     expect(within(table).getByText('NAS-PHOTOS')).toBeInTheDocument()
@@ -44,7 +44,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3))
   })
 
-  it('D-543: KPI cells link to the lists; Open / Accepted risk / Handled are tabs; narrower filters survive a tab change; "?status=" narrows Open', async () => {
+  it('KPI cells link to the lists; Open / Accepted risk / Handled are tabs; narrower filters survive a tab change; "?status=" narrows Open', async () => {
     findingsStore.update((l) => l.map((f) => (f.id === 'f-2' ? { ...f, status: 'not_relevant' as const } : f.id === 'f-3' ? { ...f, status: 'patched' as const } : f)))
     accepted.update((m) => ({ ...m, 'f-2': dayAfter(new Date(), 3) }))
     renderApp('/findings?tab=open&device=a-nas02&status=confirmed')
@@ -73,14 +73,14 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(screen.getAllByRole('link', { name: 'Open Devices' })[0]).toHaveAttribute('href', '/devices')
   })
 
-  it('D-500: phần mềm không có phiên bản là MỘT dòng "add the version", không phải một finding mỗi CVE; sản phẩm khai tay không thiết bị gọi một lần theo D-471 (W5-1)', async () => {
+  it('phần mềm không có phiên bản là MỘT dòng "add the version", không phải một finding mỗi CVE; sản phẩm khai tay không thiết bị gọi một lần', async () => {
     server.use(http.get('*/api/v1/findings', () => HttpResponse.json({ items: [], version_needed: [
       { asset: { id: 'a-pc', name: 'PC-KE-TOAN', hostname: 'PC-KE-TOAN', ip: '192.168.10.40', kind: 'pc', display: 'Microsoft Office' }, asset_id: 'a-pc', software_id: 's-1', software: 'Microsoft Office', version: null, cves: 32 },
       { asset: { id: 'a-man', name: 'Microsoft Office (no device)', hostname: null, ip: '—', kind: 'unknown', display: 'Microsoft Office' }, asset_id: 'a-man', software_id: 's-3', software: 'Microsoft Office', version: null, cves: 30 },
       { asset: null, asset_id: 'a-fw', software_id: 's-2', software: 'FortiGate', version: 'latest', cves: 21 },
     ] })), http.get('*/api/v1/findings/to-fix', () => HttpResponse.json({ devices: [], truncated: false, plan_ran: true, plan_off: false, risks: {} })))
     renderApp('/findings?tab=input')
-    // kien G15: one block per device (none is in To fix here: the name orders them), each item without the device's name again
+    // One block per device (none is in To fix here: the name orders them), each item without the device's name again
     const blocks = await screen.findByRole('list', { name: 'Devices that need your input, the most urgent first' })
     const cards = within(blocks).getAllByRole('listitem').filter((li) => li.parentElement === blocks)
     expect(cards.map((c) => c.getAttribute('aria-label'))).toEqual(['A removed device', 'Microsoft Office (no device)', 'PC-KE-TOAN'])
@@ -114,7 +114,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 
-  it('module mitigation tắt: phát hiện vẫn còn, chỉ phần "What to do" báo module tắt (D-57 (6))', async () => {
+  it('module mitigation tắt: phát hiện vẫn còn, chỉ phần "What to do" báo module tắt', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'mitigation' ? { ...m, enabled: false } : m)))
     renderApp('/findings/f-1')
     expect(await screen.findByRole('heading', { level: 1, name: /NAS-PHOTOS has a confirmed vulnerability/ })).toBeInTheDocument()
@@ -130,7 +130,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
   })
 })
 
-describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (D-21, S-MIT-1, S-SCAN-3)', () => {
+describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (S-MIT-1, S-SCAN-3)', () => {
   it('hiện Vedette đã xác nhận, người, ngày, soạn với AI, link khuyến cáo QNAP; không lỗi a11y', async () => {
     renderApp('/findings/f-1')
     expect(await screen.findByRole('heading', { level: 1, name: /NAS-PHOTOS has a confirmed vulnerability \(CVE-2022-27593\)/ })).toBeInTheDocument()
@@ -206,27 +206,27 @@ describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (D-21, S-MI
   })
 })
 
-describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)', () => {
+describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận', () => {
   it('hiện "Chưa có khuyến nghị đã xác nhận", yêu cầu của CISA và link hãng, không có nhãn xác nhận', async () => {
     renderApp('/findings/f-2')
     expect(await screen.findByText('No confirmed recommendation yet')).toBeInTheDocument()
     expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()
     expect(screen.getByText(/Apply mitigations in accordance with vendor instructions/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Vendor advisory (wordpress.org)' })).toHaveAttribute('href', 'https://wordpress.org/news/2026/10/wordpress-7-1-4')
-    expect(screen.getByText('Steps you can take now')).toBeInTheDocument() // W1-31: what the box knows, without a pack
-    expect(screen.queryByText(/No confirmed exploitation signs/)).not.toBeInTheDocument() // M2-1: general checks instead (INV-8)
+    expect(screen.getByText('Steps you can take now')).toBeInTheDocument() // What the box knows, without a pack
+    expect(screen.queryByText(/No confirmed exploitation signs/)).not.toBeInTheDocument() // general checks instead (INV-8)
     expect(screen.getByTestId('general-checks')).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
-  it('D-488: "What to do" nói phiên bản vá cho đúng thiết bị, đúng nhánh, và không bịa khi NVD không cho', () => {
+  it('"What to do" nói phiên bản vá cho đúng thiết bị, đúng nhánh, và không bịa khi NVD không cho', () => {
     const note = (fixed_in: FindingDetail['fixed_in']) => render(<FixedInNote finding={{ asset: { name: 'FortiGate-60F' }, fixed_in } as FindingDetail} />)
     const src = { source: 'NVD affected versions', more: 0, no_fix: 0, distro: '', branches: [], distro_fixed: '', distro_release: '', distro_pro: false }
     const a = note({ ...src, kind: 'fixed', version: '7.4.1', fixed: '7.4.3' })
     expect(screen.getByText('Fixed in 7.4.3: upgrade FortiGate-60F from 7.4.1 to 7.4.3 or later.')).toBeInTheDocument()
     expect(screen.getByText(/Source: NVD affected versions/)).toBeInTheDocument()
     a.unmount()
-    // D-556: ranges from the CVE.org record name that source, not NVD
+    // ranges from the CVE.org record name that source, not NVD
     const o = note({ ...src, source: "CVE.org affected versions (from the CVE record's CNA)", kind: 'fixed', version: '10.2.5', fixed: '10.2.9-h1' })
     expect(screen.getByText(/Source: CVE\.org affected versions \(from the CVE record's CNA\)\. Check the vendor advisory/)).toBeInTheDocument()
     expect(screen.queryByText(/NVD/)).not.toBeInTheDocument()
@@ -242,7 +242,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.getByText(/runs the software 1\.9\.4-1ubuntu2 from Ubuntu's packages, in the affected range: install Ubuntu's security updates/)).toBeInTheDocument()
     expect(screen.queryByText(/Fixed in|backports|If you installed/)).not.toBeInTheDocument()
     d.unmount()
-    // An agent row read from the package database (D-488 follow-up): the distribution's updates, the upstream number only as a reference.
+    // An agent row read from the package database: the distribution's updates, the upstream number only as a reference.
     const p = render(<FixedInNote finding={{ asset: { name: 'web-01' }, kev: { display: 'OpenSSL' }, fixed_in: { ...src, kind: 'distro', version: '3.0.2', fixed: '3.0.7', distro: 'Ubuntu' } } as unknown as FindingDetail} />)
     expect(screen.getByText("web-01 runs OpenSSL 3.0.2 from Ubuntu's packages, in the affected range: install Ubuntu's security updates for it (for example apt upgrade) and check Ubuntu's notice for this CVE.")).toBeInTheDocument()
     expect(screen.getByText("Ubuntu backports fixes, so the package's version number may stay below 3.0.7, the upstream release that fixes it.")).toBeInTheDocument()
@@ -260,7 +260,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.getByText(/cannot read the version "7\.0\.x" of FortiGate-60F.*7\.0 \u2192 7\.0\.9, no fixed release named for 4 more line\(s\)/)).toBeInTheDocument()
     expect(screen.queryByText(/has no version yet/)).not.toBeInTheDocument()
     e.unmount()
-    // D-516: the distribution's own fixed package for the device's release, with its source
+    // The distribution's own fixed package for the device's release, with its source
     const u = render(<FixedInNote finding={{ asset: { name: 'web-01' }, kev: { display: 'OpenSSH' }, fixed_in: { ...src, kind: 'distro', version: '1:9.6p1-3ubuntu13.4', fixed: '', distro: 'Ubuntu', distro_fixed: '1:9.6p1-3ubuntu13.5', distro_release: '24.04', source: 'Ubuntu security data' } } as unknown as FindingDetail} />)
     expect(screen.getByText("Fixed in 1:9.6p1-3ubuntu13.5 for Ubuntu 24.04: web-01 has OpenSSH 1:9.6p1-3ubuntu13.4 from Ubuntu's packages. Install Ubuntu's security updates for it (for example apt upgrade).")).toBeInTheDocument()
     expect(screen.getByText('Source: Ubuntu security data.')).toBeInTheDocument()
@@ -269,7 +269,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     const pro = note({ ...src, kind: 'distro', version: '1:2.25.1-1ubuntu3.14', fixed: '', distro: 'Ubuntu', distro_fixed: '1:2.25.1-1ubuntu3.14+esm6', distro_release: '20.04', distro_pro: true, source: 'Ubuntu security data' })
     expect(screen.getByText(/Ubuntu Pro \(ESM\) only/)).toBeInTheDocument()
     pro.unmount()
-    // D-546 (review r1 M2): a Windows release Microsoft no longer updates is told to take a feature update, never a build it cannot get
+    // A Windows release Microsoft no longer updates is told to take a feature update, never a build it cannot get
     const fu = note({ ...src, kind: 'feature_update', version: '10.0.22621.6060', fixed: '10.0.22631.6199', branches: [{ branch: 'Windows 11 23H2', fixed: '10.0.22631.6199' }] })
     expect(screen.getByText(/^NVD names the fix for Windows 11 23H2 \(10\.0\.22631\.6199\), not for the Windows release FortiGate-60F runs \(10\.0\.22621\.6060\).*a feature update/)).toBeInTheDocument()
     expect(screen.queryByText(/upgrade FortiGate-60F from/)).not.toBeInTheDocument()
@@ -281,7 +281,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.queryByTestId('fixed-in')).not.toBeInTheDocument()
   })
 
-  // #897 r1 H1, L4, L5: an honest "no rule helps" answer shows its reason, repeated titles both render, a shortened answer says so
+  // #897: an honest "no rule helps" answer shows its reason, repeated titles both render, a shortened answer says so
   it('Ask my AI: the reason when no config helps, repeated titles, shortened', () => {
     const base = { skill: 'mitigation-config' as const, ts: '2026-11-16T00:00:00Z', model: 'm', tokens: { input: 1, output: 1 }, paragraphs: ['A local flaw.'], steps: ['Patch.'], citations: [] }
     const a = render(<AiOutput r={{ ...base, configs: [], no_config_reason: 'The attack is local: no firewall rule helps.', shortened: true }} />)
@@ -291,7 +291,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.getByText(/^Vedette shortened or left out part of this answer/)).toBeInTheDocument()
     a.unmount()
     render(<AiOutput r={{ ...base, configs: [{ title: 'Configuration', code: 'set a 203.0.113.9', check: ['203.0.113.9'] }, { title: 'Configuration', code: 'set b' }], no_config_reason: 'Only the device needs a change.' }} />)
-    // #897 r2: every AI block carries the fixed caution; an address the box does not know is named above its block
+    // #897: every AI block carries the fixed caution; an address the box does not know is named above its block
     expect(screen.getAllByText(/^AI-generated: read every line before pasting/)).toHaveLength(2)
     expect(screen.getAllByText((_, el) => el?.tagName === 'P' && /^Check these addresses: .* 203\.0\.113\.9$/.test(el.textContent ?? ''))).toHaveLength(1)
     expect(screen.getByText('Note from the AI')).toBeInTheDocument()
@@ -313,7 +313,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     const block = label.closest('[data-ai="true"]') as HTMLElement
     expect(within(block).getByText('AI-generated, needs human review')).toBeInTheDocument()
     expect(within(block).getByText(/Update WordPress to the latest release/)).toBeInTheDocument()
-    // M2-2: the config skill answers with a config block to copy, with its source and side effect
+    // the config skill answers with a config block to copy, with its source and side effect
     expect(within(block).getByText('Configuration to review before pasting')).toBeInTheDocument()
     expect(within(block).getByText(/^nft add rule inet filter forward/)).toBeInTheDocument()
     expect(within(block).getByText('Based on: general practice, no source in the data names it')).toBeInTheDocument()
@@ -328,7 +328,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(await screen.findByText('Your AI')).toBeInTheDocument()
   })
 
-  // kien G1: the button went grey for 10–20 s with no sign of work. While the AI answers it spins, says "Asking…", and a note under
+  // The button went grey for 10–20 s with no sign of work. While the AI answers it spins, says "Asking…", and a note under
   // it says what is happening and how long it can take.
   it('Ask my AI shows the busy state and the waiting note while the AI answers', async () => {
     let release!: () => void
@@ -390,7 +390,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
 
 describe('findings: đổi trạng thái và quyền', () => {
   it('đánh dấu đã vá kèm ghi chú: lưu trạng thái, lịch sử, kiểm toán, còn sau khi tải lại', async () => {
-    // The inventory mock adds the box, and its finding, on its first read ("I updated", D-499, reads the device); this test counts the seed only.
+    // The inventory mock adds the box, and its finding, on its first read ("I updated", reads the device); this test counts the seed only.
     server.use(http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { software: [] } })))
     const view = renderApp('/findings/f-1')
     await userEvent.click(await screen.findByRole('button', { name: 'Mark as handled' }))
@@ -483,7 +483,7 @@ describe('findings: slot device.panels', () => {
   })
 })
 
-describe('findings: Mark as handled form matrix (QA walk 2026-11-12)', () => {
+describe('findings: Mark as handled form matrix', () => {
   it('Cancel drops the draft: the next opening starts at Patched with an empty note', async () => {
     renderApp('/findings/f-1')
     const open = async () => { await userEvent.click(await screen.findByRole('button', { name: 'Mark as handled' })); return screen.findByRole('dialog', { name: 'Mark as handled' }) }
@@ -517,7 +517,7 @@ describe('findings: CVSS score (#825)', () => {
     expect(tip).toHaveTextContent('AV:N/AC:M/Au:N/C:C/I:C/A:C')
   })
 
-  it('kien G8: the list shows one severity (the exploited risk), not a CVSS band next to it; "Sort by CVSS" still puts the highest first and no score last', async () => {
+  it('the list shows one severity (the exploited risk), not a CVSS band next to it; "Sort by CVSS" still puts the highest first and no score last', async () => {
     renderApp('/findings?tab=open')
     const table = await screen.findByRole('table', { name: 'Findings list' })
     expect(cves(table)).toEqual(['CVE-2022-27593', 'CVE-2026-96951', 'CVE-2026-119977'])
@@ -528,7 +528,7 @@ describe('findings: CVSS score (#825)', () => {
     expect(within(table).queryByText('0.0')).toBeNull()
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by CVSS')
     await waitFor(() => expect(cves(screen.getByRole('table'))).toEqual(['CVE-2022-27593', 'CVE-2026-119977', 'CVE-2026-96951']))
-    // review r1 L5: "Sort by Last seen" puts the newest first
+    // "Sort by Last seen" puts the newest first
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by Last seen')
     await waitFor(() => expect(cves(screen.getByRole('table'))[0]).toBe('CVE-2022-27593'))
     expect(within(screen.getByRole('table')).getByRole('columnheader', { name: /Last seen/ })).toHaveAttribute('aria-sort', 'descending')
@@ -544,7 +544,7 @@ describe('findings: CVSS score (#825)', () => {
       renderApp('/findings?tab=open')
       const list = await screen.findByRole('list', { name: 'Findings list' })
       const order = () => within(screen.getByRole('list', { name: 'Findings list' })).getAllByRole('link', { name: /^CVE-/ }).map((a) => a.textContent)
-      expect(within(list).queryByRole('button', { name: /^About CVSS/ })).toBeNull() // kien G8: one severity in the list
+      expect(within(list).queryByRole('button', { name: /^About CVSS/ })).toBeNull() // One severity in the list
       await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by CVSS')
       await waitFor(() => expect(order()).toEqual(['CVE-2022-27593', 'CVE-2026-119977', 'CVE-2026-96951']))
     } finally {
@@ -570,8 +570,8 @@ describe('findings: CVSS score (#825)', () => {
   })
 })
 
-describe('findings: customer walk 1 (D-484)', () => {
-  it('W1-4: real risk first; a product-only guess shows its severity muted as unverified; certainty filter', async () => {
+describe('findings: as a customer', () => {
+  it('real risk first; a product-only guess shows its severity muted as unverified; certainty filter', async () => {
     renderApp('/findings?tab=open')
     const table = await screen.findByRole('table', { name: 'Findings list' })
     const rows = within(table).getAllByRole('row').slice(1)
@@ -581,7 +581,7 @@ describe('findings: customer walk 1 (D-484)', () => {
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2))
   })
 
-  it('N52-2: a product-only match on a row the agent reported with its version does not say the version is missing', async () => {
+  it('a product-only match on a row the agent reported with its version does not say the version is missing', async () => {
     const id = findingsStore.get().find((f) => f.cve === 'CVE-2026-119977')!.id
     findingsStore.update((l) => l.map((f) => (f.id === id ? { ...f, evidence: { summary: 's', checked_at: f.first_seen, agent_row: true } } : f)))
     renderApp('/findings?tab=open')
@@ -591,14 +591,14 @@ describe('findings: customer walk 1 (D-484)', () => {
     const why = row.getByRole('button', { name: 'About High, unverified' }) // #824: the explanation is behind the chip's ⓘ
     expect(why).toHaveAccessibleDescription(expect.stringContaining("The device's agent reports the installed version") as string)
     expect(why).not.toHaveAccessibleDescription(/Add the version/)
-    // the mock's "How to check it yourself" agrees with mitigation genericRecheck (review r1 #6 of #801)
+    // the mock's "How to check it yourself" agrees with mitigation genericRecheck (#801)
     sessionStore.set({ userId: 'u-admin' })
     const d = await (await fetch(`${location.origin}/api/v1/findings/${id}`)).json() as { recheck: { steps: string[] } }
     expect(d.recheck.steps[0]).toMatch(/^Nothing to look up on .+: its agent reports the installed version of /)
     expect(d.recheck.steps.join(' ')).not.toMatch(/About screen/)
   })
 
-  it('W1-12: select all shown, one action and one note, one history and audit row per finding', async () => {
+  it('select all shown, one action and one note, one history and audit row per finding', async () => {
     renderApp('/findings?tab=open')
     await screen.findByRole('table', { name: 'Findings list' })
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
@@ -614,7 +614,7 @@ describe('findings: customer walk 1 (D-484)', () => {
     expect(auditStore.get().filter((a) => a.action === 'findings.status')).toHaveLength(3)
   })
 
-  it('W1-12: a closed finding in the selection keeps its status and reason; the toast says so', async () => {
+  it('a closed finding in the selection keeps its status and reason; the toast says so', async () => {
     renderApp('/findings?tab=open')
     await screen.findByRole('table', { name: 'Findings list' })
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
@@ -630,7 +630,7 @@ describe('findings: customer walk 1 (D-484)', () => {
     expect([f1.status, f1.resolution_note]).toEqual(['patched', 'Updated to 6.1.2'])
   })
 
-  it('W1-2, W1-32: a device with no IP is named, says "No IP address" and offers no rescan', async () => {
+  it('a device with no IP is named, says "No IP address" and offers no rescan', async () => {
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, ip: '—', hostname: null } : a)))
     renderApp('/findings/f-2')
     expect(await screen.findByRole('heading', { level: 1, name: /^VMware may be affected/ })).toBeInTheDocument()
@@ -640,7 +640,7 @@ describe('findings: customer walk 1 (D-484)', () => {
   })
 })
 
-describe('findings: accept risk until a day (D-498, S-MIT-1)', () => {
+describe('findings: accept risk until a day (S-MIT-1)', () => {
   it('the day runs from tomorrow to a year ahead, on the local calendar', () => {
     const today = new Date(2026, 10, 13, 23, 30)
     expect(untilBounds(today)).toEqual({ min: '2026-11-14', max: '2027-11-13' })
@@ -669,7 +669,7 @@ describe('findings: accept risk until a day (D-498, S-MIT-1)', () => {
   })
 })
 
-describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
+describe('findings: "I updated <software>" (S-MIT-1, item 14)', () => {
   const device = (source: 'manual' | 'nmap' | 'agent', version = '7.2.0') => http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { id: 'a-srvad', software: [
     { id: 's-srvad', display: 'FortiOS', vendor: 'Fortinet', product: 'FortiOS', version, source, confidence: 1, kev_cves: ['CVE-2026-96951'] },
   ] } }))
@@ -678,7 +678,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     let sent: unknown = null
     server.use(device('manual'), http.patch('*/api/v1/inventory/devices/:id/software/:sid', async ({ params, request }) => {
       sent = { sid: params.sid, ...(await request.json() as object) }
-      // The backend re-match (D-530): the version is outside every range, so the finding closes by itself.
+      // The backend re-match: the version is outside every range, so the finding closes by itself.
       findingsStore.update((l) => l.map((f) => (f.id === 'f-3' ? { ...f, status: 'not_relevant' as const, resolved_by: 'system' } : f)))
       return HttpResponse.json({ ok: true })
     }))
@@ -712,7 +712,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(await within(dlg).findByText('FortiOS 7.4.5 is already on SRV-AD. Remove the older FortiOS on the device page instead.')).toBeInTheDocument()
   })
 
-  it('kien G12: software a scan reads: the button is "Check this device now" itself, with its busy state, no detour', async () => {
+  it('software a scan reads: the button is "Check this device now" itself, with its busy state, no detour', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'sensor-active' ? { ...m, enabled: true } : m)))
     inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))
     let sent: unknown = null
@@ -733,7 +733,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     release()
   })
 
-  it('kien G12: a viewer sees the check refused with the role it needs, as on the device page', async () => {
+  it('a viewer sees the check refused with the role it needs, as on the device page', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'sensor-active' ? { ...m, enabled: true } : m)))
     inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))
     server.use(device('nmap'))
@@ -742,7 +742,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(screen.getByText('Requires Admin role')).toBeInTheDocument()
   })
 
-  it('review r1 of #944: scan-read software on a device Vedette may not scan now: the reason, no button (one rule with the device page)', async () => {
+  it('#944: scan-read software on a device Vedette may not scan now: the reason, no button (one rule with the device page)', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'sensor-active' ? { ...m, enabled: true } : m)))
     inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))
     sessionStore.set({ userId: 'u-admin' })
@@ -753,7 +753,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(screen.queryByRole('button', { name: 'Check this device now' })).toBeNull()
   })
 
-  it('review r1 of #944: an unknown source gets no control', async () => {
+  it('#944: an unknown source gets no control', async () => {
     server.use(http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { id: 'a-srvad', software: [
       { id: 's-srvad', display: 'FortiOS', vendor: 'Fortinet', product: 'FortiOS', version: '7.2.0', source: 'some-new-sensor', confidence: 1, kev_cves: ['CVE-2026-96951'] },
     ] } })))
@@ -762,7 +762,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(screen.queryByRole('button', { name: /^I updated|^Check this device now$/ })).toBeNull()
   })
 
-  // S-MIT-1 (kien G12 follow-up, agent-intake INV-23): "I updated it" on software an agent reads.
+  // S-MIT-1 (agent-intake INV-23): "I updated it" on software an agent reads.
   const agentOn = () => modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
   type Report = { agent: 'osquery' | 'wazuh' | 'none' | 'box'; asked_at?: string | null; ask_again_at?: string | null; last_seen?: string | null; stale?: boolean; wazuh_interval_minutes?: number | null }
   const reportOf = (r: Report) => ({ asked_at: null, ask_again_at: null, last_seen: null, stale: false, wazuh_interval_minutes: null, ...r })
@@ -805,11 +805,11 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     renderApp('/findings/f-3')
     expect(await screen.findByText('Restart SRV-AD first if the update asks for it: the new build shows only after the restart.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'I updated it: ask the agent now' }))
-    // review r1 L3 of #953: "ask again" names the time a new ask is possible
+    // #953: "ask again" names the time a new ask is possible
     expect(await screen.findByText(/^Asked at \d\d:\d\d\. SRV-AD sends its software list within about 5 minutes\. The new build shows only after the restart the update needs: if SRV-AD has not restarted yet, restart it; its agent then reports the new build within the hour, or ask again from \d\d:\d\d\.$/)).toBeInTheDocument()
   })
 
-  it('review r1 L4 of #953: a Linux kernel row is an OS row too: the restart wording', async () => {
+  it('#953: a Linux kernel row is an OS row too: the restart wording', async () => {
     agentOn()
     server.use(kernel, report({ agent: 'osquery' }))
     renderApp('/findings/f-3')
@@ -817,7 +817,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(screen.getByRole('button', { name: 'I updated it: ask the agent now' })).toBeEnabled()
   })
 
-  it('review r1 L3 of #953: before a new ask is possible, the button waits with the time it comes back', async () => {
+  it('#953: before a new ask is possible, the button waits with the time it comes back', async () => {
     agentOn()
     const at = new Date(Date.now() + 5 * 60_000).toISOString()
     server.use(device('agent'), report({ agent: 'osquery', ask_again_at: at }))
@@ -826,7 +826,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(screen.getAllByText(/^You can ask again from \d\d:\d\d\.$/).length).toBeGreaterThan(0)
   })
 
-  it('review r1 L1 of #953: an agent that has not called for a while: said before the ask, and the ask promises no 5 minutes', async () => {
+  it('#953: an agent that has not called for a while: said before the ask, and the ask promises no 5 minutes', async () => {
     agentOn()
     server.use(device('agent'), report({ agent: 'osquery', stale: true, last_seen: '2026-11-15T08:00:00Z' }), asked({ agent: 'osquery', stale: true, last_seen: '2026-11-15T08:00:00Z' }))
     renderApp('/findings/f-3')
@@ -866,7 +866,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(screen.queryByRole('button', { name: /^I updated/ })).toBeNull()
   })
 
-  it('review r1 L2 of #953: agent-intake off, or no agent of this box reads the device: no button and no promise that one reports', async () => {
+  it('#953: agent-intake off, or no agent of this box reads the device: no button and no promise that one reports', async () => {
     const none = /^No agent reports the software of SRV-AD to Vedette now: its last list stays until an agent reports again\./
     server.use(device('agent'))
     renderApp('/findings/f-3')
@@ -889,7 +889,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
   })
 })
 
-describe('findings: a closed finding opens with why it was closed (S-MIT-1, W12-1)', () => {
+describe('findings: a closed finding opens with why it was closed (S-MIT-1)', () => {
   const close = (patch: Partial<Pick<FindingDetail, 'resolved_by' | 'resolved_at' | 'resolution_note'>> & { status: 'not_relevant' | 'false_positive' }) => findingsStore.update((l) => l.map((f) => (f.id === 'f-2' ? { ...f, ...patch } : f)))
   const AT = '2026-11-12T09:00:00Z'
 
@@ -936,7 +936,7 @@ describe('findings: a closed finding opens with why it was closed (S-MIT-1, W12-
   })
 })
 
-describe('findings: one update, one item; the agent\'s build is a detection (D-545, D-548, TUNE-5b W-1/W-3)', () => {
+describe('findings: one update, one item; the agent\'s build is a detection (TUNE-5b W-1/W-3)', () => {
   const fix = { group: 'a-srvad/s-win', kind: 'fixed' as const, windows: true, software: 'Windows Server 2025', version: '10.0.26100.1742', fixed: '10.0.26100.2314', distro: '', pro: false }
   const agentWindows = () => {
     const ev = (cve: string) => ({ summary: `The agent on SRV-AD reports Windows Server 2025 build 26100.1742. Microsoft fixed ${cve} in build 26100.2314.`, checked_at: new Date().toISOString(), agent: true })
@@ -945,7 +945,7 @@ describe('findings: one update, one item; the agent\'s build is a detection (D-5
     fixes.set({ 'f-3': fix, 'f-9': fix })
   }
 
-  it('kien G8: To fix shows the device and the one update with its CVEs inside; "Handle these" lists them as rows of All open', async () => {
+  it('To fix shows the device and the one update with its CVEs inside; "Handle these" lists them as rows of All open', async () => {
     agentWindows()
     renderApp('/findings')
     const card = await screen.findByRole('listitem', { name: 'SRV-AD' })
@@ -977,7 +977,7 @@ describe('findings: one update, one item; the agent\'s build is a detection (D-5
     expect(screen.queryByText(/About screen/)).toBeNull()
     cleanup()
     renderApp('/devices/a-srvad')
-    // kien G8 (review r1 of #943): the device page shows the same To fix card as Findings (one grouping), no warning box
+    // The device page shows the same To fix card as Findings (one grouping), no warning box
     const todo = await screen.findByRole('list', { name: 'What to do on this device' })
     expect(within(todo).getByText(/fixes 2 exploited CVEs/)).toBeInTheDocument()
     expect(within(todo).queryByRole('link', { name: 'SRV-AD' })).toBeNull()

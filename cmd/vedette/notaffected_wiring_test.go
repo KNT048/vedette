@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-549, KF-CVEPAGE (review r1 #13): the CVE page's check runs on the device as findings reads it. The Ubuntu box whose agent reads
+// The CVE page's check runs on the device as findings reads it. The Ubuntu box whose agent reads
 // OpenSSH is not affected by the Alpine-only CVE; a CVE with no platform limit reads no device.
 func TestWiringCVEPageNotAffected(t *testing.T) {
 	t.Parallel()

@@ -9,9 +9,9 @@ import (
 	"github.com/knt048/vedette/content/devicetypes"
 )
 
-// presets follows web/src/features/honeypot/presets.ts (D-466): what a Trap IP of each kind answers on, the vendor whose MAC
+// presets follows web/src/features/honeypot/presets.ts: what a Trap IP of each kind answers on, the vendor whose MAC
 // prefix it gets, the device kinds of the inventory it blends in with (INV-11) and the example name the messages give. Data, so
-// a service B3 adds is a row here, not a new screen. The defaults stay small (D-467): what such a device really answers on and
+// a service B3 adds is a row here, not a new screen. The defaults stay small: what such a device really answers on and
 // an attacker tries first; a preset only fills the form, so an existing Trap IP keeps exactly the services it has.
 type presetDef struct {
 	id       Preset
@@ -32,7 +32,7 @@ var presets = []presetDef{
 }
 
 // vendors are the MAC prefixes a Trap IP may carry (IEEE OUIs, six hex digits; TestVendorOUIsBelongToTheVendor checks each
-// against the D-83 table). The host makes the MAC from the prefix and three bytes of its own key (host-api 6.6).
+// against the vendor MAC table). The host makes the MAC from the prefix and three bytes of its own key (host-api 6.6).
 var vendors = []struct{ id, oui, name string }{
 	{"dell", "f8bc12", "Dell"}, {"hp", "3cd92b", "Hewlett Packard"}, {"vmware", "005056", "VMware"}, {"hyperv", "00155d", "Microsoft"},
 	{"supermicro", "0cc47a", "Super Micro"}, {"synology", "001132", "Synology"}, {"qnap", "245ebe", "QNAP"}, {"brother", "30055c", "Brother"},
@@ -106,7 +106,7 @@ func suggestions(devices []Device) []TrapSuggestion {
 			case Database:
 				hit = devicetypes.ActsAs(d.Kind) == "server" && (slices.Contains(d.Ports, 1433) || slices.Contains(d.Ports, 3306))
 			default:
-				hit = slices.Contains(p.kinds, devicetypes.ActsAs(d.Kind)) // a type of D-511 blends in as the kind it acts as
+				hit = slices.Contains(p.kinds, devicetypes.ActsAs(d.Kind)) // a device type blends in as the kind it acts as
 			}
 			if hit {
 				m = append(m, d)

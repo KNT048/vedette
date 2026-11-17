@@ -322,7 +322,7 @@ func TestContract_INV20_BackportsAndUnlistedNames(t *testing.T) {
 	}
 }
 
-// INV-20, D-547 (KF-4, N45-3): an exploited CVE the matcher ruled out because the service names another platform is not listed, and
+// INV-20: an exploited CVE the matcher ruled out because the service names another platform is not listed, and
 // a "checked" line says which and why.
 func TestContract_INV20_RuledOutByPlatformIsACheckLine(t *testing.T) {
 	t.Parallel()
@@ -358,7 +358,7 @@ func TestContract_INV20_DiffVersionNotRead(t *testing.T) {
 	}
 }
 
-// N44-5: a port that only service identification found (the deep scan's nmap probes every TCP port; the runner a fixed list) is an
+// A port that only service identification found (the deep scan's nmap probes every TCP port; the runner a fixed list) is an
 // open port of the snapshot, so the counts, the first sentence and the outside view (INV-21 scan_ports) name it.
 func TestServicePortsAreOpenPorts(t *testing.T) {
 	t.Parallel()
@@ -390,7 +390,7 @@ func (matchSSH) Match(_ context.Context, ss []ServiceRow) (Matches, error) {
 	return m, nil
 }
 
-// review r1 M2: a port only a deep scan found (10022, outside the fixed list) is kept, unchecked, with its service and exploited CVE,
+// A port only a deep scan found (10022, outside the fixed list) is kept, unchecked, with its service and exploited CVE,
 // by scans that do not probe every port (here: the terms withdrawn); it is never "missed" or closed by them.
 func TestDeepOnlyPortIsKeptByScansThatDoNotProbeIt(t *testing.T) {
 	t.Parallel()
@@ -435,11 +435,11 @@ func TestDeepOnlyPortIsKeptByScansThatDoNotProbeIt(t *testing.T) {
 	}
 }
 
-// M2-7 (J6): each open port says how its service was named. A probe's answer is "probed" (the surface's port-list name stays when
+// Each open port says how its service was named. A probe's answer is "probed" (the surface's port-list name stays when
 // it is the same service), nmap's table name is "port" (not confirmed), "unknown", a bare TLS layer and tcpwrapped are "none" and
 // replace the port list's guess; a surface GET that read a product keeps the port identified. The deep scan's ssl-cert, http-title
 // and http-server-header outputs become the port's certificate names, title and Server header, which are sanitized when stored.
-// W76-4 (walk n76): nmap prints the bytes outside printable ASCII as \xNN; a run that forms UTF-8 is the text the service sent, one that
+// nmap prints the bytes outside printable ASCII as \xNN; a run that forms UTF-8 is the text the service sent, one that
 // does not stays as nmap printed it.
 func TestNmapTextDecodesEscapedUTF8(t *testing.T) {
 	t.Parallel()
@@ -475,10 +475,10 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 		{IP: ipA, Port: 8080, Name: "http-proxy", Method: "table", Conf: 3},
 		{IP: ipA, Port: 9000, Name: "http", Product: "Go", Method: "bogus", Conf: 99},
 		{IP: ipA, Port: 2222, Name: "ssh", Product: "OpenSSH", Version: "9.6", Method: "probed", Conf: 10},
-		{IP: ipA, Port: 23, Name: "telnet"}, // no method word: the intake's guess mark stays (review r2 L1)
+		{IP: ipA, Port: 23, Name: "telnet"}, // no method word: the intake's guess mark stays
 	}, Scripts: []ScriptRow{
 		{IP: ipA, Port: 11443, ID: "ssl-cert", Output: cert},
-		{IP: ipA, Port: 10443, ID: "http-title", Output: `Sign in \xC2\xB7 GitLab` + "\nRequested resource was /users/sign_in"}, // W76-4: as nmap prints it
+		{IP: ipA, Port: 10443, ID: "http-title", Output: `Sign in \xC2\xB7 GitLab` + "\nRequested resource was /users/sign_in"}, // As nmap prints it
 		{IP: ipA, Port: 11080, ID: "http-title", Output: "Site doesn't have a title (text/html)."},
 		{IP: ipA, Port: 11080, ID: "http-server-header", Output: "Caddy"},
 		{IP: ipB, Port: 11443, ID: "ssl-cert", Output: "Subject: commonName=other.example"},
@@ -492,7 +492,7 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 	got := map[int]row{}
 	for _, p := range s.Ports {
 		got[p.Port] = row{p.Service, p.Ident, p.Title, p.Server, strings.Join(p.CertNames, ",")}
-		if p.Port == 2222 && p.Product != "OpenSSH 9.6" { // review r1 L4: the product follows the service the probe named
+		if p.Port == 2222 && p.Product != "OpenSSH 9.6" { // the product follows the service the probe named
 			t.Errorf("2222 product %q", p.Product)
 		}
 	}
@@ -524,7 +524,7 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 	}
 }
 
-// M2-7 review r1 M1: a surface port only the port number named stays a guess when nmap -sV does not run (here: unavailable), so
+// A surface port only the port number named stays a guess when nmap -sV does not run (here: unavailable), so
 // the page says "Probably SIP 5060"; the "New open port" alert says the same in words (L3).
 func TestSurfaceGuessStaysAGuessWithoutServiceIdentification(t *testing.T) {
 	t.Parallel()
@@ -549,7 +549,7 @@ func TestSurfaceGuessStaysAGuessWithoutServiceIdentification(t *testing.T) {
 	}
 }
 
-// M2-7 (#899 review r2 L5): the alert and the page give a service one name: serviceNames is the page's LABEL table, entry for entry.
+// The alert and the page give a service one name: serviceNames is the page's LABEL table, entry for entry.
 func TestServiceNamesMatchThePage(t *testing.T) {
 	t.Parallel()
 	src, err := os.ReadFile("../../web/src/features/exposure/services.ts")

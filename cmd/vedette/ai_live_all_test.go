@@ -72,7 +72,7 @@ func liveAround(context.Context, netip.Addr, time.Time, time.Time) (ai.LogAround
 	return ai.LogAroundData{Lines: 40, Kinds: []ai.LogAroundKind{{Signature: "allow tcp <ip>:<port> -> <ip>:443", SourceName: "FW-HQ", Count: 40}}}, true, nil
 }
 
-// TestLiveEveryAIJob runs every AI job that has a caller once against a real model (kien's machine only: VEDETTE_LIVE_AI=1, never CI;
+// TestLiveEveryAIJob runs every AI job that has a caller once against a real model (local only: VEDETTE_LIVE_AI=1, never CI;
 // translate-advisory has no caller yet). The key is read from ANTHROPIC_API_KEY, held in memory for the calls, and never printed or
 // stored. Each job must come back parsed, and no answer may be cut at the output limit (beta 0.1.0-beta.1: Claude Haiku 5.5 cut every
 // explanation at 1,000 tokens). Run:

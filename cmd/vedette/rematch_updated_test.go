@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-328 (deferred sweep item 10): a CISA entry whose vendor or product changed reaches the devices of its new product through
+// deferred sweep item 10: a CISA entry whose vendor or product changed reaches the devices of its new product through
 // feeds.vuln.updated; an update that moved no key (a has_template flip) announces nothing to a device that already has the finding.
 func TestVulnUpdatedRematchesAChangedProduct(t *testing.T) {
 	t.Parallel()
@@ -51,7 +51,7 @@ func TestVulnUpdatedRematchesAChangedProduct(t *testing.T) {
 	}
 }
 
-// D-328 review: a pull that lists many CVEs of one product (a has_template flip) announces each device once, not once per CVE; findings
+// A pull that lists many CVEs of one product (a has_template flip) announces each device once, not once per CVE; findings
 // matches the whole device on that one announcement.
 func TestVulnUpdatedAnnouncesEachDeviceOncePerEvent(t *testing.T) {
 	t.Parallel()

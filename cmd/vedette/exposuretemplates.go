@@ -22,10 +22,10 @@ import (
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// exposureTemplateScan is exposure's TemplateScanner (S-EXP-2, exposure INV-23, D-561, D-520): the safe nuclei templates of the
+// exposureTemplateScan is exposure's TemplateScanner (S-EXP-2, exposure INV-23): the safe nuclei templates of the
 // exploited CVEs matched on a port of the box's own verified public IP, run by the scan container's worker through sensor-active's
-// Dispatcher with scope own_ip. exposureService sets it as cfg.Templates; the commitment sentence of NoticeVersion 2026-11-14 (D-559,
-// K-4) names "safe checks for known exploited vulnerabilities", and PRIVACY flow 9 says what is sent.
+// Dispatcher with scope own_ip. exposureService sets it as cfg.Templates; the commitment sentence of NoticeVersion 2026-11-14 (K-4)
+// names "safe checks for known exploited vulnerabilities", and PRIVACY flow 9 says what is sent.
 //
 // Two fences before a packet leaves, both fail closed: (1) core: right before each run, exposure's ScannableIP with the person who
 // pressed Scan now as the actor (verified, committed, the box's own IP seen within 5 minutes, else a fresh full check); (2) the
@@ -35,7 +35,7 @@ import (
 //
 // Templates come only from the verified pack core plans with (content/nucleipack, the index of the image; the worker refuses a job
 // planned for another pack): the template of each CVE of a job (pack.ForCVE; in the KEV pack its id is the CVE id), none chosen by
-// tag, and only one the pack marks own_ip (pack.Template.OwnIP: http GET or HEAD only, no body, no credential, no command, D-520).
+// tag, and only one the pack marks own_ip (pack.Template.OwnIP: http GET or HEAD only, no body, no credential, no command).
 // A CVE whose template is not marked gets a "not run on a public IP" line. Each template is a row of the probe log, with its real
 // id, before its run is handed out (LEGAL §3), and is completed with its outcome after.
 type exposureTemplateScan struct {
@@ -45,7 +45,7 @@ type exposureTemplateScan struct {
 	gate   func(ctx context.Context, actor string, ip netip.Addr) (bool, error)
 	probes func(ctx context.Context, ps []scan.ExternalProbe) error // the scan module's probe log
 	log    *slog.Logger
-	// mode is exposure's ModeNow (FULL-4, D-527): the scan mode of the target right before each full run leaves core.
+	// mode is exposure's ModeNow: the scan mode of the target right before each full run leaves core.
 	mode func(ctx context.Context, actor, id string) (exposure.ScanMode, error)
 }
 
@@ -66,7 +66,7 @@ const (
 	templatesNoLog   = "the probe log could not be written, and nothing is sent without it."
 	templatesFailed  = "they failed. The box log has the error."
 
-	// notReadOnly is the line of the CVEs of a port whose template may not run on a public IP (D-520).
+	// notReadOnly is the line of the CVEs of a port whose template may not run on a public IP.
 	notReadOnly = "Safe templates for exploited vulnerabilities: %s on port %d: not run on a public IP: this check is not a read-only request."
 	// runSlow and runFailed are the lines of the runs that were not reported after earlier ones were kept (review M2, L2).
 	runSlow   = "Safe templates for exploited vulnerabilities did not finish within 5 minutes, so the ones that had not finished are not reported (%s)."
@@ -78,14 +78,14 @@ const (
 )
 
 // templateRun is one nuclei job: at most nucleiargv.MaxTemplates templates on one port, or nucleiargv.MaxFullTemplates for a full
-// run (D-527: depth full, the disruptive set too when disruptive).
+// run (depth full, the disruptive set too when disruptive).
 type templateRun struct {
 	port       int
 	target     nucleiargv.Target
 	tmpls      []pack.Template
 	full       bool
 	disruptive bool
-	domain     *exposure.DomainScope // D-591: a full run on an address of a verified domain's name (domain_ip); nil otherwise
+	domain     *exposure.DomainScope // A full run on an address of a verified domain's name (domain_ip); nil otherwise
 }
 
 func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
@@ -99,16 +99,16 @@ func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.Scan
 	if err != nil {
 		return exposure.TemplateScan{}, err
 	}
-	if t.Domain != nil && !t.Mode.Full { // D-591: an address that is not the box's gets the deep templates only, as a domain_ip job
+	if t.Domain != nil && !t.Mode.Full { // An address that is not the box's gets the deep templates only, as a domain_ip job
 		return exposure.TemplateScan{}, errNotFull
 	}
-	if t.Mode.Full { // FULL-4 (D-527): the deep scan of a target whose testing terms were accepted
+	if t.Mode.Full { // The deep scan of a target whose testing terms were accepted
 		return a.scanFull(ctx, t, ip, ix, jobs)
 	}
 	return a.scanBaseline(ctx, t, ip, ix, jobs)
 }
 
-// scanBaseline runs the read-only KEV templates of the jobs (D-520), the scan of a target without accepted testing terms.
+// scanBaseline runs the read-only KEV templates of the jobs, the scan of a target without accepted testing terms.
 func (a exposureTemplateScan) scanBaseline(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ix *pack.Index, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
 	runs, notes := templateRuns(ix, ip, jobs)
 	out := exposure.TemplateScan{NotChecked: notes}
@@ -207,11 +207,11 @@ func (a exposureTemplateScan) runOne(ctx context.Context, actor string, ip netip
 	return res, silent, err
 }
 
-// send is runOne with the parsed lines of the run too (a full run reads the matcher names of the technologies templates, D-527).
+// send is runOne with the parsed lines of the run too (a full run reads the matcher names of the technologies templates).
 // silent are the templates nuclei printed nothing for (not run, review r1 M1).
 func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.Addr, ix *pack.Index, r templateRun) (res []exposure.TemplateResult, got nucleiout.Outcome, silent []string, err error) {
 	ok := true
-	if r.domain == nil { // D-591: a domain_ip run is not the box's own IP; exposure's deepGate checked it, and the worker's fence does
+	if r.domain == nil { // A domain_ip run is not the box's own IP; exposure's deepGate checked it, and the worker's fence does
 		ok, err = a.gate(ctx, actor, ip)
 	}
 	switch {
@@ -225,7 +225,7 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		return nil, nucleiout.Outcome{}, nil, errNotFull
 	}
 	rate, depth, what := nucleiargv.OwnIPRate, "", "own IP"
-	if r.full { // FULL-4 (D-527)
+	if r.full { // FULL-4
 		rate, depth, what = nucleiargv.FullRate, nucleiargv.DepthFull, "own IP, deep scan, testing terms accepted"
 		if r.domain != nil {
 			// review r1 L4: short, so the template's own request (the probe itself) is not what scan_probe.request's 300 cut off
@@ -290,7 +290,7 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		return nil, nucleiout.Outcome{}, nil, templatesErr(ctx, ip, err)
 	}
 	res = outcomes(r, got)
-	if sk := got.Skipped; sk.Lines > 0 { // N45-1: lines that cannot be a result of the job were skipped, the run is kept
+	if sk := got.Skipped; sk.Lines > 0 { // lines that cannot be a result of the job were skipped, the run is kept
 		a.log.WarnContext(ctx, "exposure: nuclei printed lines that cannot be a result of the job; skipped, the run is kept", "ip", ip.String(), "port", r.port,
 			"lines", sk.Lines, "matched", sk.Matched, "template", sk.Template, "host", sk.Host, "skipped_port", sk.Port)
 		for i := range rows {
@@ -302,7 +302,7 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 			}
 		}
 	}
-	// N44-4, review r1 M1: with -ms nuclei prints a line for every template it executes (a failure line when nothing matched), so a
+	// With -ms nuclei prints a line for every template it executes (a failure line when nothing matched), so a
 	// template of a finished run with no line and no unreachable target (outcomes gives it no result) was not run: dropped at load or
 	// not parsed. Its probe row has the result not_run (scan migration 0007, kf-scan item 5), and the caller adds a "Not checked"
 	// line (it stays in Sent: it was logged and handed to nuclei). "No match reported" is only a template nuclei says it ran.
@@ -374,7 +374,7 @@ func outcomes(r templateRun, o nucleiout.Outcome) []exposure.TemplateResult {
 			continue
 		}
 		res := exposure.TemplateResult{Port: r.port, Template: tp.ID, CVE: tp.CVE, Outcome: outcome}
-		if r.full { // D-527: a deep result shows the template's name and severity, from the pack index
+		if r.full { // A deep result shows the template's name and severity, from the pack index
 			res.Name, res.Severity = tp.Name, tp.Severity
 		}
 		out = append(out, res)
@@ -389,7 +389,7 @@ func templatesErr(ctx context.Context, ip netip.Addr, err error) error {
 	switch {
 	case ctx.Err() != nil:
 		return ctx.Err()
-	case errors.Is(err, sensoractive.ErrOwnIPUnsupported), errors.Is(err, sensoractive.ErrNucleiFullUnsupported): // D-527: a worker without full gets no full job
+	case errors.Is(err, sensoractive.ErrOwnIPUnsupported), errors.Is(err, sensoractive.ErrNucleiFullUnsupported): // A worker without full gets no full job
 		reason = templatesOld
 	case errors.Is(err, sensoractive.ErrNucleiBusy):
 		reason = templatesBusy

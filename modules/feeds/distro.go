@@ -18,10 +18,10 @@ import (
 	"github.com/knt048/vedette/core/debver"
 )
 
-// Distribution backport data (D-516). Ubuntu and Debian fix their packages without changing the upstream version, so a
+// Distribution backport data. Ubuntu and Debian fix their packages without changing the upstream version, so a
 // patched OpenSSH stays inside NVD's affected range. Three built-in feeds say, for the CVEs of the CISA list, which source
 // package of which release is fixed in which distribution version, or not affected; ubuntu-osv and debian-tracker also keep
-// the fixed versions of the tier CVEs for the packages the devices run (D-622, DistroWant), for findings' "Updates to plan":
+// the fixed versions of the tier CVEs for the packages the devices run (DistroWant), for findings' "Updates to plan":
 //   - ubuntu-osv: Canonical's osv-all.tar.xz, every Ubuntu release in one file; a "fixed" event is the first fixed version.
 //   - ubuntu-vex: Canonical's vex-all.tar.xz; only its not_affected statements are kept (its "fixed" statements name the
 //     archive's current version, not the first fixed one, so they would keep a patched device suspected).
@@ -82,8 +82,8 @@ type DistroFix struct {
 	Pro     bool   // the fix is in Ubuntu Pro (ESM) only
 }
 
-// DistroWant says which rows a pull keeps (D-516, D-622): every row of a CVE of the CISA list, as before; of a tier CVE
-// (nvd-recent's last 12 months, D-613) only the "fixed" rows of a source package some device runs, since the plan lists only
+// DistroWant says which rows a pull keeps: every row of a CVE of the CISA list, as before; of a tier CVE
+// (nvd-recent's last 12 months) only the "fixed" rows of a source package some device runs, since the plan lists only
 // packages below their fix and the parse of every package of every tier CVE held 434,162 rows (418k of them kernel flavours
 // no device runs) and 366 MB of peak RSS for Ubuntu's file on 2026-11-15 (KEV only: 2,131 rows, 159 MB).
 type DistroWant struct {

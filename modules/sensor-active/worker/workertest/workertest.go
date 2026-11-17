@@ -47,7 +47,7 @@ func NewPack(t testing.TB, ids ...string) *Pack {
 		Tags    []string `json:"tags"`
 		Request string   `json:"request"`
 		OwnIP   bool     `json:"own_ip,omitempty"`
-		Sets    []string `json:"sets"` // D-527: kev, and deep so a full job may run it too
+		Sets    []string `json:"sets"` // kev, and deep so a full job may run it too
 		Name    string   `json:"name"`
 		Sev     string   `json:"severity"`
 	}

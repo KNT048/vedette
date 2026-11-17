@@ -1,4 +1,4 @@
-// Contract tests of the security review of WP-07b part 1 (D-87 and the findings around it): root
+// Contract tests of the security review of WP-07b part 1 and the findings around it: root
 // never opens or parses core's data, never touches core's tree by path, refuses writes once a
 // reboot has started, and bounds what logs.export can write. They run on the fake machine (opstest)
 // like the rest of the system-command tests.
@@ -56,7 +56,7 @@ func sourcesUnder(t *testing.T, roots ...string) map[string]*ast.File {
 	return files
 }
 
-// INV-13 (D-87): the root host never opens, parses or runs SQL on core's data. No package under
+// INV-13: the root host never opens, parses or runs SQL on core's data. No package under
 // host/ or cmd/vedette-host (test support and test files included) imports database/sql or a SQL
 // driver: core makes its own snapshot and the host copies bytes by file descriptor.
 func TestContract_INV13_RootNeverImportsASQLDriver(t *testing.T) {
@@ -76,14 +76,14 @@ func TestContract_INV13_RootNeverImportsASQLDriver(t *testing.T) {
 			for _, b := range banned {
 				b = strings.TrimSuffix(b, "/")
 				if p == b || strings.HasPrefix(p, b+"/") {
-					t.Errorf("%s imports %s: the root host must not touch SQL (D-87)", path, p)
+					t.Errorf("%s imports %s: the root host must not touch SQL", path, p)
 				}
 			}
 		}
 	}
 }
 
-// INV-13 (D-87), the whole binary: the direct-import check above misses a dependency of a dependency (core/chain
+// INV-13, the whole binary: the direct-import check above misses a dependency of a dependency (core/chain
 // once pulled in core/store and with it the SQLite driver). Walk the import graph of vedette-host inside this
 // module, as built for Linux, and refuse any SQL package anywhere in it. Packages outside the module (the
 // standard library, golang.org/x/sys) are leaves here: none of them imports a SQL driver, and an import of one
@@ -107,7 +107,7 @@ func TestContract_INV13_RootBinaryLinksNoSQL(t *testing.T) {
 		}
 		for _, imp := range bp.Imports {
 			if imp == "database/sql" || strings.Contains(imp, "sqlite") || strings.HasPrefix(imp, mod+"/core/store") || strings.HasPrefix(imp, "github.com/pressly/goose") {
-				t.Errorf("%s imports %s: vedette-host must not carry SQL code (D-87)", pkg, imp)
+				t.Errorf("%s imports %s: vedette-host must not carry SQL code", pkg, imp)
 			}
 			if strings.HasPrefix(imp, mod+"/") {
 				walk(imp)
@@ -293,7 +293,7 @@ func TestContract_Reboot_TheGateSurvivesAHostRestartDuringTheShutdown(t *testing
 	e := startSys(t)
 	e.ok(t, "os.reboot", api.OSRebootArgs{When: "now"})
 	eventually(t, "systemctl reboot", func() bool { return rebootCalls(e) == 1 })
-	eventually(t, "the reboot recorded as issued (D-453)", func() bool {
+	eventually(t, "the reboot recorded as issued", func() bool {
 		raw, _ := os.ReadFile(filepath.Join(e.m.State, "os", "reboot.json"))
 		return bytes.Contains(raw, []byte(`"issued":true`))
 	})

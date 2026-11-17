@@ -80,7 +80,7 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 			return it, invalid("software %d: confidence must be between 0 and 1", i)
 		}
 		if !debver.Valid(it.PkgVersion) || !pkgSourceRE.MatchString(it.PkgSource) || !it.Packaged {
-			it.PkgVersion, it.PkgSource = "", "" // D-516: only a well-formed pair of a package database row is kept
+			it.PkgVersion, it.PkgSource = "", "" // Only a well-formed pair of a package database row is kept
 		}
 		if len(it.KevKeys) > maxKeys {
 			return it, invalid("software %d: at most %d match keys", i, maxKeys)
@@ -98,7 +98,7 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 		if len(keys) == 0 {
 			keys = []string{kevKey(it.Vendor, it.Product)}
 		}
-		if it.Guess { // a guess is never matched (D-501): it waits for a person to add the software with its version
+		if it.Guess { // a guess is never matched: it waits for a person to add the software with its version
 			keys = nil
 		}
 		it.KevKeys = keys
@@ -151,12 +151,12 @@ func insertSoftware(ctx context.Context, tx *sql.Tx, assetID string, it Software
 	return insertKeys(ctx, tx, id, it.KevKeys)
 }
 
-// packaged is the stored flag of a row (D-474, MK-2): only an agent reads a package database; a sensor's claim is not stored.
+// packaged is the stored flag of a row (MK-2): only an agent reads a package database; a sensor's claim is not stored.
 func packaged(it SoftwareItem, source string) bool {
 	return it.Packaged && source == string(observe.Agent)
 }
 
-// pkgOf is the stored full version and source package of a row (D-516): only with packaged, both or neither.
+// pkgOf is the stored full version and source package of a row: only with packaged, both or neither.
 func pkgOf(it SoftwareItem, source string) (version, src any) {
 	if !packaged(it, source) || it.PkgVersion == "" || it.PkgSource == "" {
 		return nil, nil
@@ -199,7 +199,7 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 		return fmt.Errorf("inventory: read software: %w", err)
 	}
 	have := map[string]string{}
-	havePkg := map[string]string{} // D-516: the full version a row had, to see a package update that keeps the upstream number
+	havePkg := map[string]string{} // The full version a row had, to see a package update that keeps the upstream number
 	for rows.Next() {
 		var id, v, p, ver, pv string
 		if err := rows.Scan(&id, &v, &p, &ver, &pv); err != nil {
@@ -269,7 +269,7 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 	}
 	o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID})
 	o.after = append(o.after, s.matchEvents(assetID, before, after))
-	if pkgChanged { // D-516: the keys did not change, so matchEvents says nothing; one event makes findings read the device again
+	if pkgChanged { // The keys did not change, so matchEvents says nothing; one event makes findings read the device again
 		o.after = append(o.after, func(ctx context.Context) []Event {
 			cves, err := s.cves(ctx, after)
 			if err != nil || len(cves) == 0 {
@@ -327,7 +327,7 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 		conv[i] = SoftwareItem{Display: it.Display, Vendor: it.Vendor, Product: it.Product, Version: it.Version, CPE: it.CPE, KevKeys: it.KevKeys, Confidence: it.Confidence, Guess: it.Guess, Packaged: it.Packaged,
 			PkgVersion: it.PkgVersion, PkgSource: it.PkgSource}
 		if len(it.KevKeys) == 0 && it.CPE != "" && cat != nil && !it.Guess {
-			conv[i].KevKeys = cat.keysForCPE(it.CPE) // nmap's "apple:iphone_os" is CISA's "Apple|iOS" (D-501); nil keeps the vendor|product key
+			conv[i].KevKeys = cat.keysForCPE(it.CPE) // nmap's "apple:iphone_os" is CISA's "Apple|iOS"; nil keeps the vendor|product key
 		}
 	}
 	clean, err := s.checkItems(ctx, conv)
@@ -349,7 +349,7 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 }
 
 // cpeCatalog is the catalog when an item of the list has a CPE, for its KEV keys (keysForCPE); nil otherwise, or when it cannot
-// be read: the items then keep their vendor|product key, as before D-501, and the failure is logged.
+// be read: the items then keep their vendor|product key, and the failure is logged.
 func (s *Service) cpeCatalog(ctx context.Context, items []observe.Software) *Catalog {
 	if !slices.ContainsFunc(items, func(it observe.Software) bool { return it.CPE != "" && len(it.KevKeys) == 0 && !it.Guess }) {
 		return nil
@@ -364,7 +364,7 @@ func (s *Service) cpeCatalog(ctx context.Context, items []observe.Software) *Cat
 
 // deviceFor finds the device of a sensor's list (software, services) by its MAC or IP, or creates it unapproved and announces it;
 // "" when no device may take it (resolve: an agent's key alone that is bound to nothing, an address no sighting confirmed lately).
-// Every call is a contact of the source (D-474), whether or not it creates a device.
+// Every call is a contact of the source, whether or not it creates a device.
 func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (string, error) {
 	ip, mac, source, now := c.ip, c.mac, observe.Source(c.source), c.seenAt
 	learning, err := s.learning(ctx, tx, string(source))
@@ -373,7 +373,7 @@ func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanO
 	}
 	find := c
 	find.list = true
-	find.source = ""                              // a list moves no address by its source (as before D-598); the agent bound to a device does, in resolve
+	find.source = ""                              // a list moves no address by its source; the agent bound to a device does, in resolve
 	id, isNew, err := s.resolve(ctx, tx, o, find) // binds no agent: the observation batch of the same report does (Record)
 	if err != nil || id == "" {
 		return "", err
@@ -408,7 +408,7 @@ func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanO
 	return id, nil
 }
 
-// settle runs the join rules (joinSame) on the device a list reached, as Record does for its batch (D-598, review #831 L6): finding
+// settle runs the join rules (joinSame) on the device a list reached, as Record does for its batch: finding
 // the device may have taken an address from another row (claimIP), which a join then resolves. It returns the device the list
 // belongs to: the one a joined row went into. A device that received another is folded again and announced updated.
 func (s *Service) settle(ctx context.Context, tx *sql.Tx, o *outbox, id string, isNew bool) (string, error) {

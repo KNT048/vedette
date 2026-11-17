@@ -1,6 +1,6 @@
 package api
 
-// host.self_update (docs/specs/host-api.md section 6.14, D-316): the host upgrades its own .deb to the
+// host.self_update (docs/specs/host-api.md section 6.14): the host upgrades its own .deb to the
 // vedette-host package of a signed release that core downloaded into core_data.
 
 // CmdHostSelfUpdate is the command name.

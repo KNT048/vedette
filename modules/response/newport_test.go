@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// D-384: exposure.port.opened (published by cmd/vedette from exposure's diff) is an event of the new_port trigger. Its fields came
+// exposure.port.opened (published by cmd/vedette from exposure's diff) is an event of the new_port trigger. Its fields came
 // from a scan, so each is checked at the edge; one port of one target on one scan day is one event, however often that day is scanned.
 func TestNewPortEvent(t *testing.T) {
 	t.Parallel()
@@ -62,7 +62,7 @@ func TestNewPortEvent(t *testing.T) {
 	}
 }
 
-// Review of D-384: the address of a new port is the customer's own or whatever their name points at, so a pre-approved rule never
+// The address of a new port is the customer's own or whatever their name points at, so a pre-approved rule never
 // blocks it by itself; a pre-approved action on another address still runs.
 func TestNewPortPreApprovalNeverActsOnTheAddress(t *testing.T) {
 	t.Parallel()
@@ -94,7 +94,7 @@ func TestNewPortPreApprovalNeverActsOnTheAddress(t *testing.T) {
 	}
 }
 
-// M2-7 (#899 review r2 M1): the summary reads the person's label of a port-number guess, while the rule fields keep nmap's name, so
+// The summary reads the person's label of a port-number guess, while the rule fields keep nmap's name, so
 // a rule "service eq sip" still fires on a guessed SIP port, and "identified eq probed" tells a confirmed one apart.
 func TestNewPortLabelInSummaryNameInFields(t *testing.T) {
 	t.Parallel()

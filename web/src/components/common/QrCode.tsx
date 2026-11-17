@@ -17,7 +17,7 @@ export function QrSvg({ size, path, label }: { size: number; path: string; label
   )
 }
 
-/** A QR code drawn here with uqr (no outside service, D-35), with the 4-module quiet zone. */
+/** A QR code drawn here with uqr (no outside service), with the 4-module quiet zone. */
 export function QrCode({ value, label }: { value: string; label: string }) {
   const { n, d } = useMemo(() => {
     const qr = encode(value, { ecc: 'M', border: 0 })

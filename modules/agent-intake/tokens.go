@@ -76,7 +76,7 @@ func (s *Service) IssueToken(ctx context.Context, actor, name string, ttlDays in
 		if !t.ExpiresAt.IsZero() {
 			exp = store.FormatTS(t.ExpiresAt)
 		}
-		// created_by: the enrolment approves its machines in this person's name (D-503).
+		// created_by: the enrolment approves its machines in this person's name.
 		if _, err := tx.ExecContext(ctx, `INSERT INTO intake_agent_tokens (id, name, kind, token_hash, last4, created_at, expires_at, created_by) VALUES (?, ?, 'osquery', ?, ?, ?, ?, NULLIF(substr(?, 1, 256), ''))`,
 			t.ID, t.Name, hashHex(secret), t.Last4, store.FormatTS(now), exp, actor); err != nil {
 			return fmt.Errorf("agentintake: insert token: %w", err)
@@ -112,7 +112,7 @@ func (s *Service) RevokeToken(ctx context.Context, actor, id string) error {
 		return s.auditTx(ctx, tx, actor, "inventory.agent_token_revoke", name, "")
 	})
 	if err == nil {
-		s.releaseNodes(ctx, nodes) // D-598: their devices may be bound by the next node
+		s.releaseNodes(ctx, nodes) // Their devices may be bound by the next node
 	}
 	return err
 }

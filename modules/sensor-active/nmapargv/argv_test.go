@@ -33,11 +33,11 @@ func TestBuild(t *testing.T) {
 			[]string{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "50", "--stats-every", "5s", "-oX", "-", "192.168.10.1", "192.168.10.2"}},
 		{"normal", Normal, 100, one,
 			[]string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
-		{"versions: no -O, the same two scripts (D-504)", Versions, 25, one,
+		{"versions: no -O, the same two scripts", Versions, 25, one,
 			[]string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
 		{"gentle ignores the rate given: 1 packet per second, no -sV", Gentle, 500, one,
 			[]string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
-		{"gentle with titles (D-511): the gentle line plus http-title and ssl-cert, each capped at 20 s", GentleTitles, 500, one,
+		{"gentle with titles: the gentle line plus http-title and ssl-cert, each capped at 20 s", GentleTitles, 500, one,
 			[]string{"--privileged", "-sS", "--script", "http-title,ssl-cert", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
 	}
 	for _, tt := range tests {
@@ -56,7 +56,7 @@ func TestBuild(t *testing.T) {
 		})
 	}
 	// The gentle line never carries OS detection, version detection (which runs the "version" NSE scripts) or
-	// a script (D-45, FORBID-6).
+	// a script (FORBID-6).
 	g, _ := Build(Gentle, 10, one)
 	for _, a := range g {
 		if a == "-O" || a == "-sV" || strings.HasPrefix(a, "--script") || strings.HasPrefix(a, "--version") || a == "-A" || a == "-sC" {
@@ -93,25 +93,25 @@ func TestBuildRefuses(t *testing.T) {
 	}
 }
 
-// The six shapes written out apart from the code under test (INV-4, SYS-2; versions: D-501; external: D-514).
+// The six shapes written out apart from the code under test (INV-4, SYS-2).
 var (
 	shapeSweep    = []string{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "50", "--stats-every", "5s", "-oX", "-", "192.168.10.1"}
 	shapeNormal   = []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	shapeGentle   = []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.30"}
 	shapeVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.40"}
 	shapeTitles   = []string{"--privileged", "-sS", "--script", "http-title,ssl-cert", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.50"}
-	// D-514: the ports written out here are those of modules/scan/commonports (TestExternalPortsAreTheSurfaceList).
+	// The ports written out here are those of modules/scan/commonports (TestExternalPortsAreTheSurfaceList).
 	externalPorts = "21,22,23,25,53,80,81,88,102,110,111,135,139,143,179,389,443,445,465,502,515,554,587,631,636,873,993,995,1080,1194,1433,1521,1723,1883,2049,2082,2083,2086,2087,2222,2375,2376,2379,3000,3128,3306,3389,4443,4899,5000,5001,5060,5061,5432,5601,5672,5900,5901,5938,5984,5985,5986,6379,6443,7001,7002,7547,8000,8006,8008,8009,8080,8081,8088,8089,8090,8123,8291,8443,8728,8729,8834,8880,8883,8888,9000,9042,9090,9100,9200,9443,10000,10250,10443,11211,27017,34567,37777"
 	shapeExternal = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", externalPorts, "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
-	// D-592: the run after a normal or versions scan over the surface list and the reviewed admin ports.
+	// The run after a normal or versions scan over the surface list and the reviewed admin ports.
 	shapeExtra = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100",
 		"--max-retries", "3", "-p", ExtraPorts, "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
-	// D-592: the weekly scan of every port of a LAN device that is not fragile.
+	// The weekly scan of every port of a LAN device that is not fragile.
 	shapeAllPorts = []string{"--privileged", "-sS", "-n", "--max-rate", "100", "--max-retries", "1", "-p-", "--host-timeout", "90m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
-	// D-592 (review r1 H2): the -sV follow-up of the weekly scan on the open ports the normal scan does not cover.
+	// The -sV follow-up of the weekly scan on the open ports the normal scan does not cover.
 	shapePortVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "50",
 		"--max-retries", "3", "-p", "22222,40000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
-	// D-526: the two full shapes of a target whose testing terms are accepted.
+	// The two full shapes of a target whose testing terms are accepted.
 	shapeFull = []string{"--privileged", "-sS", "-sV", "--version-all", "-Pn", "-n", "-p-", "--script", FullScripts,
 		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
 	shapeDisruptive = []string{"--privileged", "-sS", "-sV", "--version-all", "-Pn", "-n", "-p-", "--script", DisruptiveScripts,
@@ -241,7 +241,7 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-// L1: lan_ranges can only be RFC 1918 or RFC 6598 shared address space ranges (D-461), so no legitimate argv names a
+// L1: lan_ranges can only be RFC 1918 or RFC 6598 shared address space ranges, so no legitimate argv names a
 // public (the rest of 100/8 too), loopback, link-local, multicast, reserved, broadcast or unspecified address, and the
 // validator refuses them all.
 func TestValidateRefusesNonPrivateTargets(t *testing.T) {
@@ -260,7 +260,7 @@ func TestValidateRefusesNonPrivateTargets(t *testing.T) {
 	}
 }
 
-// private is the oracle's own idea of RFC 1918 and RFC 6598 (100.64-127.x, D-461), not netip's or localnet's.
+// private is the oracle's own idea of RFC 1918 and RFC 6598 (100.64-127.x), not netip's or localnet's.
 var private = regexp.MustCompile(`^(10\.([0-9]{1,3}\.){2}[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3})$`)
 
 // shapeOracle knows the six shapes and nothing else: the flags before "-oX" must be one of them, with the
@@ -273,7 +273,7 @@ func shapeOracle(flags []string) bool {
 			slices.Equal(flags[:at], want[:at]) && slices.Equal(flags[at+1:], want[at+1:])
 	}
 	at := func(shape []string) int { return slices.Index(shape, "--max-rate") + 1 }
-	allPortsRate := regexp.MustCompile(`^([1-9][0-9]?|100)$`) // all_ports: at most 100 (D-592)
+	allPortsRate := regexp.MustCompile(`^([1-9][0-9]?|100)$`) // all_ports: at most 100
 	if a := at(shapeAllPorts); len(flags) > a && allPortsRate.MatchString(flags[a]) && withRate(shapeAllPorts, a) {
 		return true
 	}
@@ -368,7 +368,7 @@ func FuzzValidate(f *testing.F) {
 		if portVersionsOracle(argv[:i]) && len(targets) != 1 {
 			t.Fatalf("accepted port_versions with targets %q", targets)
 		}
-		if externalOracle(argv[:i]) { // D-514: one public address, never a local one, never two
+		if externalOracle(argv[:i]) { // One public address, never a local one, never two
 			if len(targets) != 1 || !public(targets[0]) || private.MatchString(targets[0]) {
 				t.Fatalf("accepted the external shape with targets %q", targets)
 			}
@@ -449,7 +449,7 @@ func FuzzParseBuild(f *testing.F) {
 	})
 }
 
-// D-514: the external shape is -sV on the fixed TCP list of the surface scan, one public address, the fixed rate, no -O, no
+// The external shape is -sV on the fixed TCP list of the surface scan, one public address, the fixed rate, no -O, no
 // script; it is the only shape that names a public address, and only one.
 func TestExternalShape(t *testing.T) {
 	t.Parallel()
@@ -507,7 +507,7 @@ func TestExternalShape(t *testing.T) {
 	}
 }
 
-// The -p list is the surface scan's, the one list of modules/scan/commonports (D-514): written out above apart from the code.
+// The -p list is the surface scan's, the one list of modules/scan/commonports: written out above apart from the code.
 func TestExternalPortsAreTheSurfaceList(t *testing.T) {
 	t.Parallel()
 	if ExternalPorts != externalPorts {
@@ -515,7 +515,7 @@ func TestExternalPortsAreTheSurfaceList(t *testing.T) {
 	}
 }
 
-// D-526: the two full shapes are built, validated and parsed back exactly as written above, with one public target at FullRate;
+// The two full shapes are built, validated and parsed back exactly as written above, with one public target at FullRate;
 // anything else in their place is refused: a LAN target, two targets, another rate, the other shape's script expression or a
 // mix of the two, a script argument, a port list instead of -p-.
 func TestFullShapes(t *testing.T) {
@@ -571,7 +571,7 @@ func TestFullShapes(t *testing.T) {
 	}
 }
 
-// D-523: the sweep sends 17 probes a round to an address behind a router: ICMP echo and timestamp, 13 SYNs, 2 ACKs.
+// The sweep sends 17 probes a round to an address behind a router: ICMP echo and timestamp, 13 SYNs, 2 ACKs.
 func TestSweepProbes(t *testing.T) {
 	t.Parallel()
 	f, _ := Flags(Sweep, 50)
@@ -589,10 +589,10 @@ func TestSweepProbes(t *testing.T) {
 	}
 }
 
-// N7, D-523: no shape ever turns on what nmap's guides keep off fragile devices and printers: --allports (version detection then
+// No shape ever turns on what nmap's guides keep off fragile devices and printers: --allports (version detection then
 // probes TCP 9100 too, where some printers print what they are sent), -A or -sC (the "default" script category), a script
 // category or wildcard, or a script argument. Every --script value is a fixed list of the scripts named in this package, except
-// the two full shapes of the box's own public IP (D-526), whose value is exactly their fixed category expression, written out here.
+// the two full shapes of the box's own public IP, whose value is exactly their fixed category expression, written out here.
 func TestNoShapeWidensScripts(t *testing.T) {
 	t.Parallel()
 	named := regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)

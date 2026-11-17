@@ -334,7 +334,7 @@ func TestBackupPurge(t *testing.T) {
 	// The ctx must end after the host has accepted the run, so its clock starts when the command
 	// does, not at the call: a fixed budget from the call is overrun by a loaded CI machine while
 	// the POST is still in flight (no run id yet).
-	// It ends once the client asks for the run, which proves it holds the run id: a state, not a delay (D-373).
+	// It ends once the client asks for the run, which proves it holds the run id: a state, not a delay.
 	h = servertest.Start(t, []server.Command{purge(func() (any, error) { <-release; return api.BackupPurgeResult{}, nil })})
 	sock, polled := relayWatching(t, h.Socket, "GET /v1/runs/")
 	c := client.New(sock)

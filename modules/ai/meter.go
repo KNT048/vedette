@@ -46,7 +46,7 @@ type MeterConfig struct {
 	Tier      Tier
 }
 
-// Meter counts tokens per calendar month, for the whole box and per profile (D-531). It is safe for concurrent use. Usage lives in
+// Meter counts tokens per calendar month, for the whole box and per profile. It is safe for concurrent use. Usage lives in
 // memory; the service rebuilds it from ai_activity at start-up with Seed.
 //
 // The budget is a plain stop rule: below it every call may go, at it (counting the holds of calls in flight) none may, until the
@@ -130,7 +130,7 @@ func (m *Meter) Seed(perProfile map[string]int) {
 	}
 }
 
-// Tier returns the level in force: the configured one (the budget never lowers it, D-531).
+// Tier returns the level in force: the configured one (the budget never lowers it).
 func (m *Meter) Tier() Tier {
 	m.mu.Lock()
 	defer m.mu.Unlock()

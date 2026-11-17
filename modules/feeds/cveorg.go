@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// CVE.org affected versions (D-556). NVD lags: an exploited CVE CISA adds today often has no NVD configuration for days,
+// CVE.org affected versions. NVD lags: an exploited CVE CISA adds today often has no NVD configuration for days,
 // so findings can only say "product match". The CNA (most often the vendor) publishes the affected versions in its CVE
 // record, and the CVE Program mirrors every record to the public cvelistV5 repository. For the CISA KEV CVEs NVD gave no
 // usable ranges, the box reads that record and turns its affected versions into the same rows nvd-kev writes. Only the
@@ -56,17 +56,17 @@ type CVEOrgResult struct {
 	Rows    []AffectedRow // only with CVEOrgRanges
 	// Complete: every matched CNA product says what a version it does not list is (defaultStatus "unaffected", or
 	// "affected" with nothing unaffected), so a version outside every row is not affected. Without it the list may skip
-	// branches the CNA did not assess: findings may raise a match on its rows but never close one by them (D-556 (4)).
+	// branches the CNA did not assess: findings may raise a match on its rows but never close one by them.
 	Complete bool
 	// Published is the day the record says the CVE was published (cveMetadata.datePublished, "2024-02-09"), "" when it gives none or
-	// one that is not a date; findings' age rule reads it for a KEV CVE NVD gives no day for (D-615 (2), D-617). Set for every
+	// one that is not a date; findings' age rule reads it for a KEV CVE NVD gives no day for. Set for every
 	// outcome but rejected.
 	Published string
 }
 
 // cveOrgSkipVendors are the vendors whose NVD rows findings reads with a comparator of their own: CNA versions written
 // another way would reach the generic one and could close an affected device (review H1 of F6a). Juniper: Junos
-// "21.4R3-S5" (D-510); Microsoft: Office editions and Windows builds; Citrix: builds written "13.1-49.13" or "13.1.49.13"
+// "21.4R3-S5"; Microsoft: Office editions and Windows builds; Citrix: builds written "13.1-49.13" or "13.1.49.13"
 // (review R2-M1 of F6a).
 var cveOrgSkipVendors = map[string]bool{"juniper": true, "microsoft": true, "citrix": true}
 
@@ -107,7 +107,7 @@ type cnaVersion struct {
 }
 
 // ParseCVERecord reads one CVE JSON 5.x record of cve and converts the affected versions the CNA gives for the CISA KEV
-// entry's vendor and product into NVD-shaped rows (D-556). It invents nothing, and when in doubt it skips the CVE
+// entry's vendor and product into NVD-shaped rows. It invents nothing, and when in doubt it skips the CVE
 // (CVEOrgUnusable: no rows, findings keeps its product match):
 //   - only a CNA product whose vendor and product clearly are CISA's (cnaVendorKey, cnaProductKey) is read; a record
 //     that names only others, or a KEV entry for "Multiple Products", is CVEOrgNoMatch; a vendor of cveOrgSkipVendors

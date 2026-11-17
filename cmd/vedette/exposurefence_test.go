@@ -21,7 +21,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// D-591 (FULL-5 slice 2): a deep step of exposure that carries ScanTarget.Domain goes out as a domain_ip job (nmap, nuclei) with the
+// A deep step of exposure that carries ScanTarget.Domain goes out as a domain_ip job (nmap, nuclei) with the
 // scope's fields and the CNAME chain in the probe log, never through the box's own-IP gate; the worker's refusals become lines.
 
 var testScope = &exposure.DomainScope{Domain: "acme.example", Name: "www.acme.example", Token: strings.Repeat("ab", 8), Chain: "www.acme.example -> acme.edge.example.net"}
@@ -130,8 +130,8 @@ func TestDomainTemplatesGoOutAsADomainIPJob(t *testing.T) {
 	}
 }
 
-// Review r1 H2: zap.baseline of a domain's page carries the domain's stored token, as before D-591 (the host accepts a domain verified
-// before the fence for the passive scan); core asks the host for no token per page (review r1 L5).
+// zap.baseline of a domain's page carries the domain's stored token, as in older releases (the host accepts a domain verified
+// before the fence for the passive scan); core asks the host for no token per page.
 func TestDomainWebSendsTheStoredToken(t *testing.T) {
 	t.Parallel()
 	h := &fakeZapHost{run: zapRun(t, api.StatusRefused, api.CodeTargetNotOwned, nil)}

@@ -41,7 +41,7 @@ const (
 	suVersionsName = "versions.json"
 	suJournalName  = "journal.json"
 	suStartedName  = "started.json"
-	// suAddedName lists the packages a self-update had apt newly install (D-316 (9)); install.sh --uninstall reads it.
+	// suAddedName lists the packages a self-update had apt newly install; install.sh --uninstall reads it.
 	suAddedName = "installed-by-us"
 	// maxSUFile caps each of the three JSON files: a journal holds at most 50 lines of 512 bytes.
 	maxSUFile = 64 << 10
@@ -67,7 +67,7 @@ func parseHostPkgName(name string) (version, arch string, ok bool) {
 	return release.ParseHostPackageName(name)
 }
 
-// debVersion is the Debian form of a host version: the prerelease "-" becomes "~" (D-155 (1)).
+// debVersion is the Debian form of a host version: the prerelease "-" becomes "~".
 func debVersion(v string) string { return strings.Replace(v, "-", "~", 1) }
 
 // isTestVersion is the rule of scripts/release refuseTestVersion and install.sh: a -test. prerelease or a -test suffix.
@@ -78,7 +78,7 @@ func isTestVersion(v string) bool {
 
 // refuseTestBuild: a test build of the system helper is installed only by a host that is itself a test build, either
 // built with the test keys (releasetestkeys) or a test-channel build (make install-artifacts: a -test. version that trusts
-// the throwaway keys through the key overlay, D-166, D-382). A release host never installs one: scripts/release refuses a
+// the throwaway keys through the key overlay). A release host never installs one: scripts/release refuses a
 // -test. version, so no released host carries one, and the release documents are verified with its own keys anyway.
 func refuseTestBuild(target, running string, testOnly bool) bool {
 	return isTestVersion(target) && !testOnly && !isTestVersion(running)
@@ -225,7 +225,7 @@ func parseSUJournal(b []byte) (suJournal, error) {
 
 // --- started.json -------------------------------------------------------------------------------
 
-// suStarted is started.json: the witness a host writes after READY (spec 6.14, D-316 (4)).
+// suStarted is started.json: the witness a host writes after READY (spec 6.14).
 type suStarted struct {
 	Version string    `json:"version"`
 	PID     int       `json:"pid"`

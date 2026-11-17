@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 )
 
-// exposureMatcher is exposure's Matcher (S-EXP-2, exposure INV-20, D-553): the services nmap -sV identified on the box's own public
+// exposureMatcher is exposure's Matcher (S-EXP-2, exposure INV-20): the services nmap -sV identified on the box's own public
 // IP, matched by findings.MatchAsset against the CISA KEV list with the NVD version ranges the feeds keep, so exploited CVEs only.
 // Nothing is stored: exposure calls it each time a snapshot is read, so a new KEV entry shows without a rescan. A service counts as
 // compared only when the list has exploited CVEs under its CPE's vendor and product; otherwise it is Unlisted (nginx is
@@ -69,7 +69,7 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		}
 		base := cpeBase(cpe)
 		keys := byCPE[base]
-		for _, alt := range nmapAliases[base] { // nmap's old vendor name (igor_sysoev:nginx) for the product NVD lists (f5:nginx), W11-2
+		for _, alt := range nmapAliases[base] { // nmap's old vendor name (igor_sysoev:nginx) for the product NVD lists (f5:nginx)
 			if len(keys) > 0 {
 				break
 			}
@@ -118,11 +118,11 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 			}
 			out.Vulns = append(out.Vulns, row)
 		}
-		for _, x := range res.OtherPlatform { // D-547: the banner names another platform than the one the CVE affects
+		for _, x := range res.OtherPlatform { // The banner names another platform than the one the CVE affects
 			s := where[x.SoftwareID]
 			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE, Reason: x.Evidence.Summary})
 		}
-		for _, x := range res.Aged { // D-615, D-616: an exploited CVE published over 12 months ago needs a version compared or a scan hit
+		for _, x := range res.Aged { // An exploited CVE published over 12 months ago needs a version compared or a scan hit
 			s, v := where[x.SoftwareID], byCVE[x.CVE]
 			if v == nil {
 				continue
@@ -130,12 +130,12 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE,
 				Reason: fmt.Sprintf("Published on %s, more than 12 months ago, and only the product name matches: the banner gives no version Vedette can compare. For an old CVE Vedette needs a version or a hit of this page's scans.", findings.FmtDay(v.Published))})
 		}
-		for _, x := range res.NameOnly { // D-602: only the product name matches, whatever the CVE's age
+		for _, x := range res.NameOnly { // Only the product name matches, whatever the CVE's age
 			s := where[x.SoftwareID]
 			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE,
 				Reason: fmt.Sprintf("Only the product name matches: %s. Vedette lists an exploited CVE when it can compare a version or this page's scans find it.", x.Gap())})
 		}
-		for _, x := range res.Asked { // D-604: a platform-limited CVE whose platform the banner does not name is not listed, with why
+		for _, x := range res.Asked { // A platform-limited CVE whose platform the banner does not name is not listed, with why
 			s := where[x.SoftwareID]
 			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE,
 				Reason: x.AskedWhy() + ". This page cannot tell; if the port is a device you watch, answer the question in its Could not be checked list."})
@@ -148,7 +148,7 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 	return out, nil
 }
 
-// Exploited is exposure's ExploitedLookup (D-565, D-563): the CVE ids among cves that today's list carries, with their name, date and
+// Exploited is exposure's ExploitedLookup: the CVE ids among cves that today's list carries, with their name, date and
 // ransomware flag (the CVEs Retire.js names for a JavaScript library ZAP saw on a page, and those Greenbone names).
 func (m exposureMatcher) Exploited(ctx context.Context, cves []string) (map[string]exposure.KEVEntry, error) {
 	vulns, err := m.vulns(ctx)

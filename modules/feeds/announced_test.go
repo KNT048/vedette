@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// POST-1, D-144: feeds keeps a record of every new_kev it announced, so a subscriber that missed the event (module
-// off, process down) can catch up. The baseline pull (D-78) and custom feeds announce nothing; paging is by (At, CVE).
+// POST-1: feeds keeps a record of every new_kev it announced, so a subscriber that missed the event (module
+// off, process down) can catch up. The baseline pull and custom feeds announce nothing; paging is by (At, CVE).
 func TestContract_POST1_NewKEVSinceListsWhatWasAnnounced(t *testing.T) {
 	t.Parallel()
 	e, o := pullEnv(t)
@@ -21,7 +21,7 @@ func TestContract_POST1_NewKEVSinceListsWhatWasAnnounced(t *testing.T) {
 	st := e.svc.st
 	zero := time.Time{}
 	if got, err := st.NewKEVSince(t.Context(), zero, "", 10); err != nil || len(got) != 0 {
-		t.Fatalf("after the baseline pull: %v %v (D-78: it announces nothing)", got, err)
+		t.Fatalf("after the baseline pull: %v %v (it announces nothing)", got, err)
 	}
 
 	entry := func(cve string) string {

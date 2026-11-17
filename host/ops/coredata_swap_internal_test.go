@@ -98,7 +98,7 @@ func TestOpenCoreNeverBlocksOnAFIFOSwappedIntoPlace(t *testing.T) {
 	}()
 	// The host opens until 100 of its opens met the entry while it was swapped out (absent, or the FIFO, which the racer
 	// holds across a Gosched; openCore refuses both), so the race was exercised whatever the speed of the machine. One
-	// open that does not return within HangBound is a hang (D-373).
+	// open that does not return within HangBound is a hang.
 	const met = 100
 	hung, hits, opens := false, 0, 0
 	end := time.Now().Add(HangBound)

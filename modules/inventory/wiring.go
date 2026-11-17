@@ -21,18 +21,18 @@ import (
 type DeviceRef struct {
 	ID       string
 	Hostname *string // the host name the network reports (observations)
-	UserName *string // the name a person gave the device in Vedette (G2); nil = none
-	IsBox    bool    // the Vedette box itself (G4: never given a risk marker)
+	UserName *string // the name a person gave the device in Vedette; nil = none
+	IsBox    bool    // the Vedette box itself (never given a risk marker)
 	IP       string  // "—" when unknown, like the API
 	MAC      string  // "" when unknown
 	Vendor   string  // the current vendor value, "" when none
 	Kind     string
 	Display  string // the first software's display name, else the kind (DisplayName's product of a declared device, notify)
 	OS       string // the current operating system value ("Microsoft Windows Server 2025 10.0.26100.1742"), "" when unknown (#905)
-	Approved bool   // a person approved it, or osquery enrolment did (sensor-active sends SNMP credentials only to approved devices, D-512)
-	Model    string // the current model value, "" when none (D-474: notify names a device without inv.Device)
+	Approved bool   // a person approved it, or osquery enrolment did (sensor-active sends SNMP credentials only to approved devices)
+	Model    string // the current model value, "" when none (notify names a device without inv.Device)
 	Origin   string // "discovered" or "manual"
-	// ApprovedAt is when a person or osquery enrolment approved it; nil when not approved, declared by hand, or approved before D-471.
+	// ApprovedAt is when a person or osquery enrolment approved it; nil when not approved, declared by hand, or approved before approval times were recorded.
 	ApprovedAt *time.Time
 }
 
@@ -89,20 +89,20 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 type MatchSoftware struct {
 	ID, Display, Vendor, Product, Version, CPE string
 	KevKeys                                    []string
-	// Source is who reported the row (D-474, MK-2): "agent" (osquery, Wazuh, the box's dpkg list), "manual" (a person), "scan" (the
+	// Source is who reported the row (MK-2): "agent" (osquery, Wazuh, the box's dpkg list), "manual" (a person), "scan" (the
 	// vulnerability scan), or a sensor ("nmap", "snmp", "passive").
 	Source string
 	// Packaged: an agent row read from the operating system's package database (deb/rpm), so the distribution ships its fixes.
 	Packaged bool
-	// PkgVersion and PkgSource: a packaged deb row's full Debian version and source package, "" otherwise (D-516); on a person's
+	// PkgVersion and PkgSource: a packaged deb row's full Debian version and source package, "" otherwise; on a person's
 	// correction, the package release the person gave or kept (INV-41).
 	PkgVersion, PkgSource string
 	// ReportedSource is, on a person's correction of a reported row (Source "manual", INV-41), the source of the row it replaces, so
-	// the matcher keeps that row's distribution and platform rules (review r1 M1 of #950); "" otherwise and when the person changed the
-	// product. Correction names the person's correction for the findings history (review r1 M3): who, from what, to what, when.
+	// the matcher keeps that row's distribution and platform rules (#950); "" otherwise and when the person changed the
+	// product. Correction names the person's correction for the findings history: who, from what, to what, when.
 	ReportedSource, Correction string
 	// Superseded, on a reported row, names a person's correction of an earlier reading of the same product from the same source that
-	// rests since the source moved on (review r2 M-B of #950): "op corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2p1 on 17 Nov 2026;
+	// rests since the source moved on (#950): "op corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2p1 on 17 Nov 2026;
 	// nmap now reads OpenSSH 10.3, so Vedette uses that until the correction is set again"; "" otherwise.
 	Superseded string
 	// Key is the row's identity: its source, lower(vendor), lower(product) and version, joined by char(31) (rowKey; a correction's
@@ -116,26 +116,26 @@ type MatchSoftware struct {
 // MatchDevice is a device with its software, for the matcher of findings.
 type MatchDevice struct {
 	ID    string
-	Name  string // DisplayName (D-471), else the id
-	OS    string // the current operating system ("Ubuntu 26.04.1 LTS", LLDP "JUNOS 15.1R7.9"), "" when unknown (D-500, D-510)
-	Model string // the current model ("EX4200-48T"), "" when unknown (D-510: the Juniper series of a Junos flaw)
+	Name  string // DisplayName, else the id
+	OS    string // the current operating system ("Ubuntu 26.04.1 LTS", LLDP "JUNOS 15.1R7.9"), "" when unknown
+	Model string // the current model ("EX4200-48T"), "" when unknown (the Juniper series of a Junos flaw)
 	// StatedOS is the newest OS the device states itself (an LLDP or SNMP system description, source passive or snmp),
-	// even when nmap's guess won OS; "" when none (D-510, review M2 of #703).
+	// even when nmap's guess won OS; "" when none.
 	StatedOS string
 	// AgentOS is the newest OS the device's own agent reports (source agent: osquery, Wazuh, the box's own reading), even when a
-	// person's value won OS; "" when no agent reported one (D-549: the platform of an agent's software rows, findings INV-16).
+	// person's value won OS; "" when no agent reported one (the platform of an agent's software rows, findings INV-16).
 	AgentOS string
-	// SNMPOS is the newest OS the device stated to Vedette's own SNMP read of its address (source snmp), "" when none (D-549, review r1
-	// #3: unlike LLDP, which any host can send with another device's MAC).
+	// SNMPOS is the newest OS the device stated to Vedette's own SNMP read of its address (source snmp), "" when none (unlike
+	// LLDP, which any host can send with another device's MAC).
 	SNMPOS string
 	// MAC is the device's MAC when it has an IP (the MAC it answers with at that address), "" otherwise: findings reads its OUI before an
-	// LLDP statement of Junos counts for the device's scan-seen rows (D-620).
+	// LLDP statement of Junos counts for the device's scan-seen rows.
 	MAC string
-	// ManualOS is the OS a person set on the device (INV-41), "" when none: findings reads it as the platform of every row (D-604).
+	// ManualOS is the OS a person set on the device (INV-41), "" when none: findings reads it as the platform of every row.
 	ManualOS string
 	Software []MatchSoftware
 	// OSCorrection names a person's corrected OS for the findings history ("it@acme.example set the OS to Alpine Linux 3.23 on 17 Nov
-	// 2026", INV-41, review r1 M3); "" when none.
+	// 2026", INV-41); "" when none.
 	OSCorrection string
 	// StaleCorrections names every resting correction of the device (Superseded's sentences, and "…; nmap reports it no more" for a
 	// product its source stopped reporting), for the history of a finding that stops matching because of it; nil when none.
@@ -147,7 +147,7 @@ type MatchDevice struct {
 	NotInstalled []MatchSoftware
 }
 
-// MatchInput returns the device with its software; ok is false when it does not exist or a person ignored it (D-630: an ignored
+// MatchInput returns the device with its software; ok is false when it does not exist or a person ignored it (an ignored
 // device is outside every vulnerability reader, so nothing new is matched for it).
 func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok bool, err error) {
 	q := s.db.Reader()
@@ -297,8 +297,8 @@ func osFrom(ctx context.Context, q querier, id, source string) (string, error) {
 	return v, nil
 }
 
-// matchView is what the findings matcher reads of a device besides its software (D-510): folded OS, model, stated OS, the agent's and
-// SNMP's OS, and the MAC at its address (D-620).
+// matchView is what the findings matcher reads of a device besides its software: folded OS, model, stated OS, the agent's and
+// SNMP's OS, and the MAC at its address.
 func matchView(ctx context.Context, q querier, id string) (string, error) {
 	var osName, model, mac sql.NullString
 	if err := q.QueryRowContext(ctx, `SELECT os, model, CASE WHEN ip IS NOT NULL THEN mac END FROM inv_asset WHERE id = ?`, id).Scan(&osName, &model, &mac); err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -320,7 +320,7 @@ func matchView(ctx context.Context, q querier, id string) (string, error) {
 // or that of one of its software rows) is the given one, compared without case.
 func (s *Service) HasDevice(ctx context.Context, kinds []string, vendor string) (bool, error) {
 	vendor = strings.ToLower(strings.TrimSpace(vendor))
-	kinds = devicetypes.ActingAs(kinds) // every type that acts as one of the kinds (D-511)
+	kinds = devicetypes.ActingAs(kinds) // every type that acts as one of the kinds
 	if vendor == "" || len(kinds) == 0 {
 		return false, nil
 	}
@@ -342,17 +342,17 @@ func (s *Service) HasDevice(ctx context.Context, kinds []string, vendor string) 
 type KindDevice struct {
 	ID       string
 	Hostname *string
-	UserName *string // the name a person gave the device in Vedette (G2); nil = none
+	UserName *string // the name a person gave the device in Vedette; nil = none
 	IP       string  // "—" when unknown, like the API
 	MAC      *string // lower case aa:bb:cc:dd:ee:ff
 	Kind     string
 	// Approved: a person approved the device. KindSource is the source of the observation the kind came from ("" when the kind
-	// has none: the default unknown). Passive-only kinds (SSDP, LLDP, DHCP, mDNS) are self-announced hints (D-177): see TrustedKind.
+	// has none: the default unknown). Passive-only kinds (SSDP, LLDP, DHCP, mDNS) are self-announced hints: see TrustedKind.
 	Approved   bool
 	KindSource string
 }
 
-// TrustedKind says whether the kind may feed a safety list (the never-touch gateways, D-177): a person or an agent set it, or the
+// TrustedKind says whether the kind may feed a safety list (the never-touch gateways): a person or an agent set it, or the
 // device is approved and SNMP or nmap set it. A kind that only a passive frame claimed (SSDP, LLDP, DHCP, mDNS) is a hint any host on
 // the wire can send; nmap runs in the untrusted scan container and its guess is shaped by the target (an SSDP claim earns the host an -O
 // scan, and a drop box answers like a router), so an unapproved device's nmap or snmp kind is not enough either. An approved device
@@ -368,9 +368,9 @@ func (d KindDevice) TrustedKind() bool {
 }
 
 // AssetIDs returns the id of every device, with no kind filter and no row cap, ordered by id: the list a reconcile compares
-// against (findings, D-144), so a device of any kind, even one added to the schema later, is never missing. Any read error is
+// against (findings), so a device of any kind, even one added to the schema later, is never missing. Any read error is
 // returned and the caller must fail closed: a short list would make the caller drop data of devices that still exist. A device a
-// person ignored is left out (D-630): every caller reads vulnerabilities (findings, the plan, the distribution feeds), and an ignored
+// person ignored is left out: every caller reads vulnerabilities (findings, the plan, the distribution feeds), and an ignored
 // device has none.
 func (s *Service) AssetIDs(ctx context.Context) ([]string, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM inv_asset WHERE ignored_at IS NULL ORDER BY id`)
@@ -396,7 +396,7 @@ func (s *Service) AssetIDs(ctx context.Context) ([]string, error) {
 // wrong read for a safety list: the oldest device, usually the gateway, would be the one cut). Read-only, ordered by id. An empty
 // kinds is an empty answer. Any read error is returned and the caller must fail closed: a short list is never a valid answer.
 func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevice, error) {
-	kinds = devicetypes.ActingAs(kinds) // every type that acts as one of the kinds: a VPN gateway is a firewall, a modem a router (D-511)
+	kinds = devicetypes.ActingAs(kinds) // every type that acts as one of the kinds: a VPN gateway is a firewall, a modem a router
 	if len(kinds) == 0 {
 		return nil, nil
 	}
@@ -428,10 +428,10 @@ func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevi
 	return s.trustedKindUnion(ctx, kinds, out)
 }
 
-// trustedKindUnion is the union guard of the never-touch list (D-512, INV-20): a device is listed as one of the kinds while ANY trusted
+// trustedKindUnion is the union guard of the never-touch list (INV-20): a device is listed as one of the kinds while ANY trusted
 // machine observation (agent, or snmp or nmap on an approved device) says so, whatever its current kind, except those older than a
 // person's latest kind: a person's explicit choice wins (it is the current kind, manual ranks first), so a person can take a wrongly
-// typed device off the list, and a machine observation seen after that choice puts it back (review #715 M4). A source that ranks higher can
+// typed device off the list, and a machine observation seen after that choice puts it back (#715). A source that ranks higher can
 // change the current kind (SNMP outranks nmap, DATA_MODEL 5.1), but it can only ever add a device to the list, never take one off it: an
 // on-path host answering a router's SNMP read as a printer does not make the router blockable. A device whose current kind is in kinds
 // but not trusted gets the trusted observation's kind and source; a device whose current kind is another one is added with them.
@@ -483,8 +483,8 @@ func (s *Service) trustedKindUnion(ctx context.Context, kinds []string, out []Ki
 	return out, nil
 }
 
-// AddressInUse says whether a device other than the box has the address: an indexed read (inv_asset_ip_uq), with no row cap (D-178;
-// Devices stops at MaxListed and would forget the oldest device). A read error is returned and the caller must fail closed.
+// AddressInUse says whether a device other than the box has the address: an indexed read (inv_asset_ip_uq), with no row cap
+// (Devices stops at MaxListed and would forget the oldest device). A read error is returned and the caller must fail closed.
 func (s *Service) AddressInUse(ctx context.Context, ip string) (bool, error) {
 	var n int
 	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM inv_asset WHERE ip = ? AND is_box = 0`, ip).Scan(&n); err != nil {
@@ -493,7 +493,7 @@ func (s *Service) AddressInUse(ctx context.Context, ip string) (bool, error) {
 	return n > 0, nil
 }
 
-// KnownMACs returns the MAC of every device that has one, with no row cap (D-178): the sensor's new-device budget counts a device
+// KnownMACs returns the MAC of every device that has one, with no row cap: the sensor's new-device budget counts a device
 // absent from it as new, so a capped list would make old devices eat the budget of real new ones. Lower case, ordered; a read error is
 // returned, never a short list.
 func (s *Service) KnownMACs(ctx context.Context) ([]string, error) {
@@ -516,7 +516,7 @@ func (s *Service) KnownMACs(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-// AddressMap returns the device id of every IP the inventory knows, with no row cap (D-178). Read error: returned, never a short map.
+// AddressMap returns the device id of every IP the inventory knows, with no row cap. Read error: returned, never a short map.
 func (s *Service) AddressMap(ctx context.Context) (map[string]string, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT ip, id FROM inv_asset WHERE ip IS NOT NULL`)
 	if err != nil {
@@ -550,7 +550,7 @@ func (s *Service) BoxName(ctx context.Context) (hostname, ip string, ok bool, er
 	return h.String, i.String, true, nil
 }
 
-// AllDevices lists every device with no row cap (D-178), for readers that must see them all (the honeypot's conflict and spare-IP
+// AllDevices lists every device with no row cap, for readers that must see them all (the honeypot's conflict and spare-IP
 // checks). Devices is the capped list of the API.
 // ponytail: loads software and services of every device; fine to about 1,000 devices, about 100-300 ms per call at 10k-50k. Upgrade
 // path: a narrow read (id, IP, hostname, kind, approved, is_box, OS, ports) with no software.
@@ -577,9 +577,9 @@ const multiProducts = "multiple products"
 // a product with no device has no entry. A normal product matches the devices with a software row carrying
 // its key. A "Multiple products" entry matches exactly only a software row declared with that product (the
 // "I have it" device); a device that has any software of the vendor, or that the vendor made, matches by
-// vendor only. Display is the software row that matched (KF-3: not the device's first row by name, "3cpio" on
+// vendor only. Display is the software row that matched (not the device's first row by name, "3cpio" on
 // an Ubuntu box whose OpenSSH matched); when only its maker matched, DeviceRefs' display (first row by name, else the kind).
-// A device a person ignored runs nothing here (D-630).
+// A device a person ignored runs nothing here.
 func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (map[string][]DeviceMatch, error) {
 	out := map[string][]DeviceMatch{}
 	var ignored map[string]bool
@@ -625,7 +625,7 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 		var list []DeviceMatch
 		for _, id := range slices.Concat(exact, byVendor) {
 			if ignored[id] {
-				continue // D-630: an ignored device does not answer "Do you have it?"
+				continue // An ignored device does not answer "Do you have it?"
 			}
 			if r, ok := refs[id]; ok {
 				if d, ok := shown[id]; ok {
@@ -642,14 +642,14 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 	return out, nil
 }
 
-// IgnoredIDs lists the devices a person ignored (D-630), ordered by id, no cap; a read error is an error, never a short list. findings'
-// reconcile closes their open findings and keeps their findings out of the orphan pass (review r1 M2, L10 of #945).
+// IgnoredIDs lists the devices a person ignored, ordered by id, no cap; a read error is an error, never a short list. findings'
+// reconcile closes their open findings and keeps their findings out of the orphan pass (#945).
 func (s *Service) IgnoredIDs(ctx context.Context) ([]string, error) {
 	return s.assetIDs(ctx, `SELECT id FROM inv_asset WHERE ignored_at IS NOT NULL`)
 }
 
-// IsIgnored says whether a person ignored the device (D-630); false for a device that does not exist. findings asks it inside its
-// write, so a match or a scan result that raced an Ignore never opens a finding on the ignored device (review r1 L3 of #945).
+// IsIgnored says whether a person ignored the device; false for a device that does not exist. findings asks it inside its
+// write, so a match or a scan result that raced an Ignore never opens a finding on the ignored device (#945).
 func (s *Service) IsIgnored(ctx context.Context, id string) (bool, error) {
 	var ignored bool
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT ignored_at IS NOT NULL FROM inv_asset WHERE id = ?`, id).Scan(&ignored)
@@ -662,7 +662,7 @@ func (s *Service) IsIgnored(ctx context.Context, id string) (bool, error) {
 	return ignored, nil
 }
 
-// ignoredIDs is the set of devices a person ignored (D-630).
+// ignoredIDs is the set of devices a person ignored.
 func (s *Service) ignoredIDs(ctx context.Context) (map[string]bool, error) {
 	ids, err := s.assetIDs(ctx, `SELECT id FROM inv_asset WHERE ignored_at IS NOT NULL`)
 	if err != nil {
@@ -736,7 +736,7 @@ type ManualDevice struct {
 // product from the catalog or typed by hand, the same length and character rules). The one difference: a
 // vendor and product that are an exact pair of the KEV list may be longer than 64 characters, because that is
 // data from the CISA list, not something a person typed. The events are kept until the caller calls Settle. It returns
-// the new device's id: feeds scopes "I have this" to that one device (D-484 (4), W1-3).
+// the new device's id: feeds scopes "I have this" to that one device.
 func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, in ManualDevice) (string, error) {
 	if in.Key != kevKey(in.Vendor, in.Product) {
 		return "", badRequest("bad_product", "The product key does not match the vendor and product.")
@@ -762,7 +762,7 @@ func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string,
 	a.entry = &e
 	kind := ""
 	if validKind(in.Kind) {
-		kind = suggestedKind(in.Kind, a) // feeds' suggestion (W9-1, D-515)
+		kind = suggestedKind(in.Kind, a) // feeds' suggestion
 	}
 	var o outbox
 	id, err := s.createManual(ctx, tx, &o, a, kind)
@@ -809,9 +809,9 @@ func (s *Service) Settle(ctx context.Context, tx *sql.Tx, committed bool) {
 	s.publish(ctx, events)
 }
 
-// RematchAll announces inventory.match.changed once for every device with software keyed to a CISA entry (D-78: after
-// a baseline pull, or when matching must be recomputed from scratch, e.g. the first NVD fill of D-500). The event names
-// the device's first CVE; findings matches the whole device on it (review H3: one event per device, not per device and
+// RematchAll announces inventory.match.changed once for every device with software keyed to a CISA entry (after
+// a baseline pull, or when matching must be recomputed from scratch, e.g. the first NVD fill). The event names
+// the device's first CVE; findings matches the whole device on it (one event per device, not per device and
 // CVE, so a rematch of hundreds of devices fits its deadline). It returns how many events it published.
 func (s *Service) RematchAll(ctx context.Context) (int, error) {
 	if s.kev == nil {
@@ -860,7 +860,7 @@ func (s *Service) RematchAll(ctx context.Context) (int, error) {
 type KevRef struct{ CVE, Vendor, Product string }
 
 // RematchMany announces inventory.match.changed once for every device that runs the product of one of refs (a
-// "Multiple products" entry: any product of its vendor), naming the first such CVE. D-500 review H3: after an NVD
+// "Multiple products" entry: any product of its vendor), naming the first such CVE. After an NVD
 // update of a few CVEs only their devices are matched again, each once. It returns how many events it published.
 func (s *Service) RematchMany(ctx context.Context, refs []KevRef) (int, error) {
 	if s.kev == nil {
@@ -903,7 +903,7 @@ func (s *Service) RematchCVE(ctx context.Context, cve, vendor, product string) (
 	return s.RematchCVEExcept(ctx, cve, vendor, product, nil)
 }
 
-// RematchCVEExcept is RematchCVE that leaves out the devices known says already match the CVE (D-328: a CVE whose vendor or product
+// RematchCVEExcept is RematchCVE that leaves out the devices known says already match the CVE (a CVE whose vendor or product
 // changed is announced to the devices of its new product that have no finding for it, so a flag that changed on hundreds of entries does
 // not announce each device once per entry).
 // known returning an error is that error; nil known leaves nobody out.

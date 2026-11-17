@@ -309,7 +309,7 @@ func TestTrapIPCannotBeSwitchedOnAfterItWasDeleted(t *testing.T) {
 	}
 }
 
-// With the first Trap IP clashing with a device the other Trap IPs still listen (each address stands alone, D-466); a Trap
+// With the first Trap IP clashing with a device the other Trap IPs still listen (each address stands alone); a Trap
 // IP just switched off is "stopping" until the Apply that removes its address.
 func TestTrapIPStateWhenAnotherIsUnusableAndWhenOneGoesOff(t *testing.T) {
 	t.Parallel()

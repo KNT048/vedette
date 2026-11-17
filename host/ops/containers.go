@@ -19,10 +19,10 @@ import (
 )
 
 // container.start (the current image; with a version and container.rollback: update.go), container.stop
-// (spec 6.8, 6.9, D-105, D-123, D-138), and the journal of the unit changes they make.
+// (spec 6.8, 6.9), and the journal of the unit changes they make.
 //
 // A unit change is: journal it (containers/transition-<service>.json, phase "pending"), write the unit
-// (D-105 (2): units.go), systemctl daemon-reload, then restart or stop, then look at the effect: the
+// (units.go), systemctl daemon-reload, then restart or stop, then look at the effect: the
 // container reports the right image digest and "healthy" (Podman 4.9 has no Notify=healthy, so the host
 // asks again and again for up to 120 s), or systemctl is-active says the unit is stopped. When the effect
 // is seen the journal gets the phase "verified" (fsynced) and is removed. A start that does not get
@@ -32,7 +32,7 @@ import (
 // A host that died in the middle finds the journals at Start. Before it is READY the host only puts the
 // unit bytes back and reloads systemd: the container units are After=vedette-host.service, so a
 // synchronous restart now would wait for the host's own start job. The restore of the state (restart or
-// stop, then the health look) is AfterReady, under the write lock (D-123 amendment H1).
+// stop, then the health look) is AfterReady, under the write lock.
 
 const (
 	maxInspectOutput = 1 << 20
@@ -44,8 +44,8 @@ const (
 	stopVerifyWait = 20 * time.Second
 	// fileSlack covers the file work (journal, unit, .prev) of one step.
 	fileSlack = 30 * time.Second
-	// recoverLimit bounds recoverTransitions at Start, a term of the TimeoutStartSec sum (D-121 (6),
-	// D-123): at most one daemon-reload plus the file work for the four units.
+	// recoverLimit bounds recoverTransitions at Start, a term of the TimeoutStartSec sum:
+	// at most one daemon-reload plus the file work for the four units.
 	recoverLimit = reloadLimit + fileSlack
 	// afterReadyLimit bounds the restore of the state after READY: per unit a reload, a restart (the
 	// unit's start timeout) and the health wait.
@@ -90,7 +90,7 @@ func rcID(rc *server.RunContext) string {
 
 func (o *Ops) cmdContainerStart() server.Command {
 	return server.Define(server.Spec[api.ContainerStartArgs]{
-		// One number covers the command (D-123 L6, D-138): a core start with a version makes a backup (up to
+		// One number covers the command: a core start with a version makes a backup (up to
 		// backupLimit), waits for a restart of up to its TimeoutStartSec and the health, then may restore the
 		// backup and start the old release again.
 		Name: api.CmdContainerStart, Write: true, Timeout: startTimeout,
@@ -118,7 +118,7 @@ func (o *Ops) cmdContainerStart() server.Command {
 
 func (o *Ops) cmdContainerRollback() server.Command {
 	return server.Define(server.Spec[api.ContainerRollbackArgs]{
-		// Spec 6.10: 3 minutes, core 30 (as backup.restore); one number for the command (D-138).
+		// Spec 6.10: 3 minutes, core 30 (as backup.restore); one number for the command.
 		Name: api.CmdContainerRollback, Write: true, Timeout: rollbackTimeout,
 		Validate: func(a *api.ContainerRollbackArgs) error { return serviceArg(a.Service) },
 		Check:    o.checkContainerRollback,
@@ -192,7 +192,7 @@ func (o *Ops) coreDataUsable() error {
 const zeroDigest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 
 // checkCommon is what both commands settle before a run: the appliance, a service with a template,
-// the ids it needs, and no journal of an earlier change waiting to be recovered (D-123, M3).
+// the ids it needs, and no journal of an earlier change waiting to be recovered.
 func (o *Ops) checkCommon(service string) error {
 	if _, err := o.platform(); err != nil {
 		return err
@@ -208,7 +208,7 @@ func (o *Ops) checkCommon(service string) error {
 
 // currentUnit reads the unit of a service. A missing unit is not_pulled (no image has been
 // installed); a link, an odd file or one that is not byte for byte what this host would write is
-// unit_unsafe (D-123 L2).
+// unit_unsafe.
 func (o *Ops) currentUnit(service string) (text []byte, digest string, err error) {
 	text, st := o.readUnit(service)
 	switch st {
@@ -224,7 +224,7 @@ func (o *Ops) currentUnit(service string) (text []byte, digest string, err error
 	return text, digest, nil
 }
 
-// checkContainerStart settles every refusal before a run (D-104 (4), D-138). With a version that is
+// checkContainerStart settles every refusal before a run. With a version that is
 // the stored index, the record of the pulled version and its image, the version rules and, for core, the
 // snapshot and the disk: no write call of podman, no change of any file.
 func (o *Ops) checkContainerStart(ctx context.Context, a api.ContainerStartArgs) error {
@@ -238,10 +238,10 @@ func (o *Ops) checkContainerStart(ctx context.Context, a api.ContainerStartArgs)
 	if err != nil {
 		return err
 	}
-	if a.Service != api.ServiceHoneypot && o.volumeOwnerChanged(ctx) != "" { // the start writes the credential volume units (D-316 (10))
+	if a.Service != api.ServiceHoneypot && o.volumeOwnerChanged(ctx) != "" { // the start writes the credential volume units
 		return refuse412(api.CodeUnitUnsafe, volumeOwnerText)
 	}
-	// The ports a restart would add (D-455) are judged here only when the run restarts for sure (restart asked, or another digest);
+	// The ports a restart would add are judged here only when the run restarts for sure (restart asked, or another digest);
 	// a start without restart of a running, healthy service keeps the unit's template, so Run decides that once it has looked.
 	if a.Version == "" {
 		if !a.Restart {
@@ -321,7 +321,7 @@ func ClassifyActive(out []byte) string {
 }
 
 // isStopped says whether a unit state means no process runs: inactive, and failed (a unit that failed
-// has nothing running, and "systemctl stop" would only reset it; D-123 M2).
+// has nothing running, and "systemctl stop" would only reset it).
 func isStopped(state string) bool { return state == api.UnitInactive || state == api.UnitFailed }
 
 // unitActive asks systemd what state the service's unit is in.
@@ -356,7 +356,7 @@ type inspectDoc struct {
 	ID          string `json:"Id"`
 	ImageDigest string `json:"ImageDigest"`
 	// Image is the ID of the image the container was made from: for scan, whose image is built on the box and has no registry digest,
-	// it is the "digest" the host compares (D-147).
+	// it is the "digest" the host compares.
 	Image string `json:"Image"`
 	State struct {
 		Running     bool           `json:"Running"`
@@ -452,7 +452,7 @@ func (o *Ops) waitHealthy(ctx context.Context, rc *server.RunContext, service, d
 		if err == nil {
 			seen = fmt.Sprintf("health %s, running %t, image matches %t", info.Health, info.Running, info.Digest == digest)
 			if service == api.ServiceCore && info.Digest == digest && info.Running {
-				o.coreLooked(ctx, info) // the host just (re)started core: stale syslog flows go as soon as the new run is seen, not after the 30 to 60 s health wait or the next watch tick (D-268); one run clears once
+				o.coreLooked(ctx, info) // the host just (re)started core: stale syslog flows go as soon as the new run is seen, not after the 30 to 60 s health wait or the next watch tick; one run clears once
 			}
 			if info.Digest == digest && info.Running && info.Health == api.HealthHealthy {
 				return true
@@ -511,7 +511,7 @@ type transition struct {
 	WasActive bool      `json:"was_active"`  // the unit was active before the change (is-active)
 	At        time.Time `json:"at"`
 	RunID     string    `json:"run_id"`
-	// A start with a version and a rollback also say (D-138): the version moved to, the digest moved
+	// A start with a version and a rollback also say: the version moved to, the digest moved
 	// from, the pre_update backup that belongs to the change, how core's database goes back when the
 	// change is undone ("backup": restore BackupID; "aside": the files moved aside come back), and
 	// whether the change took effect (Applied: the versions are then recorded, once, even after a crash).
@@ -524,9 +524,9 @@ type transition struct {
 	// directory, journaled before the moves; only these are put back or dropped.
 	Aside []string `json:"aside,omitempty"`
 	// Unrecoverable says the host gave up putting core's data back (errUnrecoverable): the journal stays so
-	// that commands for core keep refusing, but nothing retries and core is left as it is (D-138 N1).
+	// that commands for core keep refusing, but nothing retries and core is left as it is.
 	Unrecoverable bool `json:"unrecoverable,omitempty"`
-	// Recover is the progress of vedette-host -recover-core-data (D-317), written before its first rename so that
+	// Recover is the progress of vedette-host -recover-core-data, written before its first rename so that
 	// a rerun finishes the job instead of guessing from the files. Nothing else reads or writes it.
 	Recover *recoverState `json:"recover,omitempty"`
 }
@@ -689,7 +689,7 @@ func (o *Ops) loadJournal(service string) (transition, jstate, error) {
 	return t, jOK, nil
 }
 
-// keepInvalid is how many quarantined journals of a service are kept (D-121 (7)).
+// keepInvalid is how many quarantined journals of a service are kept.
 const keepInvalid = 3
 
 // quarantineJournal moves a journal that does not parse aside under a timestamped name (keeping the
@@ -760,7 +760,7 @@ func (o *Ops) runContainerStart(ctx context.Context, rc *server.RunContext, a ap
 	return res, nil
 }
 
-// runStartCurrent is container.start of the image the unit pins now (slice 3-6, D-123).
+// runStartCurrent is container.start of the image the unit pins now (slice 3-6).
 func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.ContainerStartArgs) (any, error) {
 	svc := a.Service
 	old, digest, err := o.currentUnit(svc)
@@ -780,7 +780,7 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 	if !a.Restart && o.runningHealthy(ctx, svc, digest) {
 		if added := addedPorts(old, want); len(added) > 0 {
 			// The current template adds host ports, which would only take effect at a later restart with no check and no revert
-			// behind it (D-455): the unit keeps its own template (only [Install] may come back), and the next start that
+			// behind it: the unit keeps its own template (only [Install] may come back), and the next start that
 			// restarts the service checks the ports and moves it.
 			_, install, err := o.ourUnit(svc, old)
 			if err == nil {
@@ -813,7 +813,7 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 		rcLog(rc, "unit written with [Install]; the running container was left alone")
 		return res, nil
 	}
-	if err := o.portsFreeToStart(ctx, svc, old, want, state); err != nil { // before the journal: nothing changes (D-455)
+	if err := o.portsFreeToStart(ctx, svc, old, want, state); err != nil { // before the journal: nothing changes
 		return nil, err
 	}
 	tr := o.newJournal(rc, opStart, svc, digest, old, want, wasActive)
@@ -929,7 +929,7 @@ func (o *Ops) dropInstall(ctx context.Context, rc *server.RunContext, svc string
 	if !install {
 		return false, nil, nil
 	}
-	want, err := o.ownTemplate(svc, text, digest, true, false) // the same template without [Install]: a stop never adds a port (D-455)
+	want, err := o.ownTemplate(svc, text, digest, true, false) // the same template without [Install]: a stop never adds a port
 	if err != nil {
 		return false, nil, fail(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid this unit needs.")
 	}
@@ -954,7 +954,7 @@ func (o *Ops) dropInstall(ctx context.Context, rc *server.RunContext, svc string
 // ---- recovery -----------------------------------------------------------------------------------
 
 // recoverTransitions runs at Start, before the host is READY, and only puts unit bytes back and
-// reloads systemd (D-123 H1): the container units are After=vedette-host.service, so a synchronous
+// reloads systemd: the container units are After=vedette-host.service, so a synchronous
 // restart now would wait for this very start job, and no container can be judged healthy before the
 // host is ready. A journal in phase verified is only deleted; one in phase pending gets the bytes it
 // recorded back (from .prev, which must match its hash) and becomes "restored"; the service state
@@ -962,7 +962,7 @@ func (o *Ops) dropInstall(ctx context.Context, rc *server.RunContext, svc string
 // moved aside; one that cannot be read is left alone and says so. Until a journal is gone, container
 // commands for that service are refused (transition_pending). Bounded by recoverLimit. atStart is Start's
 // call (not the retries of the loops after READY): only then are the units of an earlier host release moved
-// to the current template (migrateUnits, once per start, D-316 (10)), inside the same one reload.
+// to the current template (migrateUnits, once per start), inside the same one reload.
 func (o *Ops) recoverTransitions(ctx context.Context, atStart bool) {
 	rctx, cancel := context.WithTimeout(ctx, recoverLimit)
 	defer cancel()
@@ -990,7 +990,7 @@ func (o *Ops) recoverTransitions(ctx context.Context, atStart bool) {
 		}
 		switch t.Phase {
 		case phaseVerified:
-			o.settleVerified(t) // what a change that took effect still had to do, once (D-138)
+			o.settleVerified(t) // what a change that took effect still had to do, once
 			o.removeJournal(svc)
 			detail["action"] = "completed"
 			o.note(t.command(), "transition_interrupted", detail)
@@ -1024,7 +1024,7 @@ func (o *Ops) recoverTransitions(ctx context.Context, atStart bool) {
 			o.note(t.command(), "transition_interrupted", detail)
 		}
 	}
-	if atStart && o.migrateUnits(rctx) { // units of an earlier host release, to the current template (D-316 (10)): the same one reload
+	if atStart && o.migrateUnits(rctx) { // units of an earlier host release, to the current template: the same one reload
 		changed = true
 	}
 	if changed && !o.sctl(rctx, reloadLimit, "daemon-reload") {
@@ -1067,12 +1067,12 @@ type Locker interface {
 // start job, and no --no-block is needed. A journal that cannot be completed stays (phase restored) and
 // the next start tries again.
 func (o *Ops) AfterReady(ctx context.Context, l Locker) {
-	o.afterReadySelfUpdate(ctx) // started.json first, then the self-update's settle loop (D-316): nothing waits before READY
+	o.afterReadySelfUpdate(ctx) // started.json first, then the self-update's settle loop: nothing waits before READY
 	o.mu.Lock()
 	o.afterCtx, o.afterL = ctx, l
 	o.mu.Unlock()
 	// Nothing to do when no journal waits. This reads the disk, not restorePending: that is written under the
-	// write lock by the loops, so reading it here would race (D-138 L2). It also covers a run that failed
+	// write lock by the loops, so reading it here would race. It also covers a run that failed
 	// before this was called and so could not start a retry itself (kickRestore).
 	if !o.anyJournal() {
 		return
@@ -1099,7 +1099,7 @@ func (o *Ops) recoverAndFinish(ctx context.Context) {
 
 // afterFailedRevert is what a run does when it could not put the old release back: a failure that no retry
 // can cure (errUnrecoverable) is marked at once (a retry would find the quarantined aside copy and skip the
-// sidecar cleanup, D-138 L1); anything else starts the retry loop.
+// sidecar cleanup); anything else starts the retry loop.
 func (o *Ops) afterFailedRevert(ctx context.Context, t transition, rerr error) {
 	if errors.Is(rerr, errUnrecoverable) {
 		o.markUnrecoverable(t)
@@ -1128,7 +1128,7 @@ func (o *Ops) kickRestore(_ context.Context) { //nolint:contextcheck // delibera
 
 // restoreLoop runs body under the write lock until nothing waits for core's database any more. A
 // database that has not been put back is retried slowly and never given up on, unless the failure cannot
-// be cured by trying again (errUnrecoverable), which marks the journal and stops the loop (D-138 M2, N1).
+// be cured by trying again (errUnrecoverable), which marks the journal and stops the loop.
 func (o *Ops) restoreLoop(ctx context.Context, l Locker, body func(context.Context)) {
 	give := time.Now().Add(afterReadyGiveUp)
 	backoff := afterReadyRetry
@@ -1139,7 +1139,7 @@ func (o *Ops) restoreLoop(ctx context.Context, l Locker, body func(context.Conte
 			if !o.dbRevertPending() {
 				return
 			}
-			// A database that has not been put back is never given up on (D-138 M2): the write gate refuses
+			// A database that has not been put back is never given up on: the write gate refuses
 			// every write command meanwhile, so try again, slowly, until it works or the host stops.
 			o.log.ErrorContext(ctx, "core's database has not been put back yet; trying again", "in", backoff.String())
 			if !o.d.Sleep(ctx, backoff) {
@@ -1262,7 +1262,7 @@ func (o *Ops) finishRestores(ctx context.Context) {
 		}
 		if t.DBRevert != "" && svc == api.ServiceCore {
 			// The change moved core's database (a restore from the pre_update backup, or the files moved
-			// aside for a rollback): stop core and put it back before the old release starts (D-138).
+			// aside for a rollback): stop core and put it back before the old release starts.
 			if err := o.revertDatabase(rctx, t); err != nil {
 				o.log.ErrorContext(ctx, "could not put core's database back after an interrupted change", "error", err.Error())
 				detail["action"] = "failed"

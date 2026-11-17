@@ -57,14 +57,14 @@ func checkURL(raw string, maxLen int) error {
 	return fail(ErrInvalidURL, "Enter a full address such as https://example.com/feed.json.")
 }
 
-// blockedText is the sentence for an address no feed may ever be pulled from (D-208), at save (CheckDest) and at pull (userError).
+// blockedText is the sentence for an address no feed may ever be pulled from, at save (CheckDest) and at pull (userError).
 const blockedText = "Vedette does not pull feeds from link-local, multicast, unspecified or cloud metadata addresses."
 
-// ownText is the sentence for Vedette itself (ErrOwnAddress, D-446): the same sentence in feeds, notify, logs and ai.
+// ownText is the sentence for Vedette itself (ErrOwnAddress): the same sentence in feeds, notify, logs and ai.
 const ownText = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
 
-// CheckDest is the save-time half of INV-17 (D-420 (1)): an address whose host is a literal IP the pull would refuse
-// (link-local, cloud metadata, unspecified, multicast, in any transition form: blockedText; Vedette itself, D-446: loopback,
+// CheckDest is the save-time half of INV-17: an address whose host is a literal IP the pull would refuse
+// (link-local, cloud metadata, unspecified, multicast, in any transition form: blockedText; Vedette itself: loopback,
 // an address of own.self, or one of own.machine on a port of vedettePorts: ownText) or a loopback name (localhost, *.localhost:
 // ownText) is refused when the feed is saved, with the pull's sentence.
 // Other names are not resolved here (no DNS lookup in a request; the answer could change before the pull anyway): a name
@@ -101,7 +101,7 @@ func urlPort(u *url.URL) uint16 {
 	return 443
 }
 
-// sameAddress reports whether two feed addresses fetch the same document (D-420 (2)): scheme and host compared without
+// sameAddress reports whether two feed addresses fetch the same document: scheme and host compared without
 // case, a default port left out, the fragment ignored; the path and query must match exactly.
 func sameAddress(a, b string) bool {
 	ka, oka := addressKey(a)

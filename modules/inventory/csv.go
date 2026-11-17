@@ -131,7 +131,7 @@ var headerAlias = map[string]string{
 }
 
 // parseKind reads a type the way a person writes it: its id, the label the interface shows ("Wi-Fi (AP)", "IP phone") or one of its
-// aliases ("camera_recorder", "notebook"), without case or accents (D-511). "" when it is none.
+// aliases ("camera_recorder", "notebook"), without case or accents. "" when it is none.
 func parseKind(text string) string {
 	if k := foldKey(text); validKind(k) {
 		return k
@@ -314,7 +314,7 @@ func prepareRow(cat *Catalog, get func(string) string) (msg string, a addChecked
 			return fmt.Sprintf(`Type "%s" is not a device type. Use a type the device page lists, for example router, switch, server, laptop, printer, camera, ip_phone or unknown.`, clip(kindText, 20)), a, ""
 		}
 	}
-	// name is the host name (typed, a manual hostname observation); name_in_vedette is the name a person gave the device (G2,
+	// name is the host name (typed, a manual hostname observation); name_in_vedette is the name a person gave the device (
 	// user_name), never a host name: an export of a renamed device imports back as the same two names.
 	a, aerr := checkAdd(cat, AddInput{Version: get("version"), Name: get("name"), IP: get("ip"), UserName: get("name_in_vedette")}, false)
 	if aerr != nil {
@@ -364,7 +364,7 @@ func ipNote(st Settings, ip string) string {
 			return ""
 		}
 	}
-	if !localnet.Addr(a) && !a.IsLinkLocalUnicast() && !a.IsLoopback() { // a 100.64/10 device is on a local network, not public (D-461)
+	if !localnet.Addr(a) && !a.IsLinkLocalUnicast() && !a.IsLoopback() { // a 100.64/10 device is on a local network, not public
 		return fmt.Sprintf("IP %s is a public address. The device was added, but Vedette only scans your own network ranges.", ip)
 	}
 	if len(st.LANRanges) > 0 {
@@ -399,7 +399,7 @@ func namesWithoutIP(ctx context.Context, q querier) (map[string]bool, error) {
 	return out, rows.Err()
 }
 
-// ipOwner returns the name of the device that has ip (as every page names it, D-471, G2), or "".
+// ipOwner returns the name of the device that has ip (as every page names it), or "".
 func ipOwner(ctx context.Context, q querier, ip string) (string, error) {
 	var id string
 	err := q.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = ?`, ip).Scan(&id)
@@ -415,7 +415,7 @@ func ipOwner(ctx context.Context, q querier, ip string) (string, error) {
 // ExportCSV writes the devices f keeps (the Devices search, #849; the zero filter: all) as CSV, UTF-8 with a BOM so Excel opens it
 // right (INV-13). Values that start like a formula are defused (csvCell).
 func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (io.Reader, error) {
-	// the CSV has no sources column; its risk column (G4) says what the marker says; when the markers cannot be read it is empty, and a
+	// the CSV has no sources column; its risk column says what the marker says; when the markers cannot be read it is empty, and a
 	// risk filter is 503 risk_unavailable (filtered), never every device
 	items, _, err := s.filtered(ctx, s.db.Reader(), f, 0, false, true)
 	if err != nil {
@@ -423,7 +423,7 @@ func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (
 	}
 	var b strings.Builder
 	b.WriteString(bom)
-	// name is the host name (seen on the network, or typed when the device was added); name_in_vedette the name a person gave it (G2).
+	// name is the host name (seen on the network, or typed when the device was added); name_in_vedette the name a person gave it.
 	// Import reads both back the same way.
 	b.WriteString("name,ip,mac,kind,vendor,model,os,software,approved,fragile,origin,source,confidence,last_seen,name_in_vedette,risk\r\n")
 	for i := range items {

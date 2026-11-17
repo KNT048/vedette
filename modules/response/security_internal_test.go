@@ -1,6 +1,6 @@
 package response
 
-// Permanent tests of the security review of WP-13a on the internal helpers (D-88 amendment 2026-11-09).
+// Permanent tests of the security review of WP-13a on the internal helpers.
 
 import (
 	"net/netip"
@@ -216,7 +216,7 @@ func FuzzCheckValueThenFill(f *testing.F) {
 	})
 }
 
-// D-390: a rule stored before the range check (confidence at most -3 matched every event) matches nothing until it is saved again.
+// A rule stored before the range check (confidence at most -3 matched every event) matches nothing until it is saved again.
 func TestStoredRuleWithAValueOutOfRangeMatchesNothing(t *testing.T) {
 	t.Parallel()
 	s := &Service{}

@@ -23,7 +23,7 @@ type TestResult struct {
 type Approver struct {
 	UserID  string `json:"user_id"`
 	Address string `json:"address"`
-	// Name is the display name of the approver's account on the channel, as the picker showed it (Zalo personal, D-447); "" elsewhere.
+	// Name is the display name of the approver's account on the channel, as the picker showed it (Zalo personal); "" elsewhere.
 	Name string `json:"name,omitempty"`
 }
 
@@ -57,12 +57,12 @@ type ChannelInput struct {
 	Approvers   []Approver
 	AppToken    string
 	BotToken    string
-	Signin      string // email: a finished user sign-in whose refresh token becomes the secret (D-480)
-	// SecretKey and RefreshToken (Zalo OA, D-483): the app's secret key and the OA refresh token; Secret is then the current access
+	Signin      string // email: a finished user sign-in whose refresh token becomes the secret
+	// SecretKey and RefreshToken (Zalo OA): the app's secret key and the OA refresh token; Secret is then the current access
 	// token, optional. Empty keeps the saved one.
 	SecretKey    string
 	RefreshToken string
-	// ZaloLogin (Zalo personal, D-447): the session of the saving administrator's finished QR sign-in becomes the channel's secret.
+	// ZaloLogin (Zalo personal): the session of the saving administrator's finished QR sign-in becomes the channel's secret.
 	ZaloLogin bool
 }
 
@@ -88,7 +88,7 @@ type SendView struct {
 	At      string       `json:"at"`
 	OK      bool         `json:"ok"`
 	Error   string       `json:"error,omitempty"`
-	// Delayed: the provider asked to slow down and the message waits in the queue; it is sent again by itself (D-483).
+	// Delayed: the provider asked to slow down and the message waits in the queue; it is sent again by itself.
 	Delayed bool `json:"delayed"`
 }
 
@@ -150,7 +150,7 @@ type Device struct {
 type Incident struct {
 	ID   string       `json:"id"`
 	Kind IncidentKind `json:"kind"`
-	// Attempt (bad_address only): the device that logged the connection blocked it, so it was an attempt, not a connection (D-227).
+	// Attempt (bad_address only): the device that logged the connection blocked it, so it was an attempt, not a connection.
 	Attempt   bool           `json:"attempt"`
 	Title     string         `json:"title"`
 	Link      string         `json:"link"`
@@ -165,14 +165,14 @@ type Incident struct {
 	HandledBy *string        `json:"handled_by"`
 	HandledAt *string        `json:"handled_at"`
 	Note      *string        `json:"note"`
-	// ResolvedReason is why Vedette closed the incident by itself (D-550, INV-22), a plain-English sentence such as "Closed by
+	// ResolvedReason is why Vedette closed the incident by itself (INV-22), a plain-English sentence such as "Closed by
 	// Vedette: no new activity for 7 days."; nil when a person handled it last or it is open.
 	ResolvedReason *string `json:"resolved_reason"`
 	// FirstRunSummary: opened in the box's first 36 hours as a low or medium bad-connection or log incident, so it was told in the
 	// hourly first-run summary message, not one by one (INV-23).
 	FirstRunSummary bool       `json:"first_run_summary"`
 	Sends           []SendView `json:"sends"`
-	// NotSent says why no channel has the incident (INV-24, D-551); nil when any attempt delivered it.
+	// NotSent says why no channel has the incident (INV-24); nil when any attempt delivered it.
 	NotSent *NotSent `json:"not_sent"`
 }
 
@@ -190,7 +190,7 @@ const (
 	UnsentBelowMin     NotSentReason = "below_min_severity" // every channel that was on sends only higher severities (INV-4)
 	UnsentFailed       NotSentReason = "failed"             // a channel tried and failed (INV-6)
 	UnsentDroppedStale NotSentReason = "dropped_stale"      // it waited while the module was off and was too old when it came back on
-	UnsentFirstRun     NotSentReason = "first_run_summary"  // held by D-550's first-run window (INV-23), told in the hourly summary
+	UnsentFirstRun     NotSentReason = "first_run_summary"  // held by the first-run window (INV-23), told in the hourly summary
 	UnsentUnknown      NotSentReason = "unknown"            // opened before the reason was kept, and today's channels would take it
 )
 
@@ -230,9 +230,9 @@ type IncidentInput struct {
 	Link     string // where to see the source, a path inside Vedette: /honeypot/hits/<id>, /logs, /devices/<id>
 	Devices  []Device
 	At       time.Time // zero = now
-	// Attempt (bad_address only) says the connection was blocked (logs.bad_address.detected "blocked", D-227). An attempt is a
+	// Attempt (bad_address only) says the connection was blocked (logs.bad_address.detected "blocked"). An attempt is a
 	// repeat of an open incident of the same source and target, attempt or not; a connection is never a repeat of an attempt, so
-	// a blocked attempt never hides the connection that follows it (D-227 (4)).
+	// a blocked attempt never hides the connection that follows it.
 	Attempt bool
 }
 
@@ -246,7 +246,7 @@ type User struct {
 	Active bool
 }
 
-// Users is implemented by the code that owns users (core/auth, Kiên). notify never reads core tables.
+// Users is implemented by the code that owns users (core/auth). notify never reads core tables.
 type Users interface {
 	// Lookup returns the user, or found=false when there is none.
 	Lookup(ctx context.Context, id string) (u User, found bool, err error)
@@ -255,15 +255,15 @@ type Users interface {
 }
 
 // ApproverLinks is implemented by the code that owns users (core/auth, wired in cmd/vedette). It says whether the user has
-// linked this address on this channel in My account (D-191). An error is not an answer: the approver is skipped.
+// linked this address on this channel in My account. An error is not an answer: the approver is skipped.
 // Rules for the adapter: an error must not carry the address (it is logged); email addresses are compared case-insensitively;
 // chat ids (Telegram, Slack, Zalo) are exact decimal or opaque strings and are compared exactly.
 type ApproverLinks interface {
 	Linked(ctx context.Context, userID string, ch channel.Type, address string) (bool, error)
 }
 
-// LinkCodes makes the token of the confirm link the box sends to an approver's chat ID (Zalo personal, D-447, option A; module response
-// keeps the token and the proof, D-191): only the person, signed in to Vedette as themself, confirms it, so no administrator links anyone.
+// LinkCodes makes the token of the confirm link the box sends to an approver's chat ID (Zalo personal; module response
+// keeps the token and the proof): only the person, signed in to Vedette as themself, confirms it, so no administrator links anyone.
 // name is the Vedette user's name for the message. A refusal is an *apierr.Error (not listed, already linked, a new link too soon,
 // Response off): it goes to the administrator as it is. DropChatLink ends the proof of one address when an administrator removes that
 // approver or gives them another address, so the old address never counts again without a new proof.
@@ -278,7 +278,7 @@ type HitRef struct {
 	At time.Time
 }
 
-// HitConnections is what notify reads from the honeypot at render time (D-496): how many connections each hit saw (hp_hits.conn_count;
+// HitConnections is what notify reads from the honeypot at render time: how many connections each hit saw (hp_hits.conn_count;
 // later connections of the same source, service and trap IP fold into the hit and raise no event, honeypot INV-17). Hits it does not
 // know are left out. ponytail: read at render, not kept; switch to the honeypot.hit.updated event {id, conn_count} when honeypot sends it.
 type HitConnections interface {
@@ -314,17 +314,17 @@ type FindingDirectory interface {
 // DeviceDirectory names a device by inventory id. Without one, device events show the id.
 type DeviceDirectory interface {
 	DeviceName(ctx context.Context, assetID string) (string, bool, error)
-	// DeviceStates is the devices as the Devices page shows them now, for their unknown_device incidents (D-552); a device the
+	// DeviceStates is the devices as the Devices page shows them now, for their unknown_device incidents; a device the
 	// inventory does not have is absent from the map.
 	DeviceStates(ctx context.Context, assetIDs []string) (map[string]DeviceState, error)
 }
 
-// DeviceState is a device as the Devices page shows it now (D-552).
+// DeviceState is a device as the Devices page shows it now.
 type DeviceState struct {
-	Name       string    // inventory's one naming rule (D-471), else the MAC, else the kind; plain text, at most 160 characters
+	Name       string    // inventory's one naming rule, else the MAC, else the kind; plain text, at most 160 characters
 	Address    string    // the IP, else the MAC; "" when neither is known
 	Approved   bool      // a person (or an osquery enrolment) approved it
-	ApprovedAt time.Time // when; zero when unknown (approved before inventory kept it, D-471)
+	ApprovedAt time.Time // when; zero when unknown (approved before inventory kept it)
 }
 
 // TokenRecorder stores an approval token record (spec approval-tokens.md 4.1: the record in the
@@ -371,7 +371,7 @@ type DecisionResult struct {
 }
 
 // Decisions is the port of the response module that takes decisions made in chat (PRE-8). notify decides nothing itself. Nothing a
-// chat account sends links it to a Vedette user (D-447): a Zalo personal approver is linked only by confirming a link while signed in.
+// chat account sends links it to a Vedette user: a Zalo personal approver is linked only by confirming a link while signed in.
 type Decisions interface {
 	Decide(ctx context.Context, d Decision) (DecisionResult, error)
 }

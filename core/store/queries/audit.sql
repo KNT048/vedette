@@ -23,7 +23,7 @@ SELECT CAST(COALESCE(MAX(seq), 0) AS INTEGER) FROM core_audit;
 -- The audit screen and its CSV export (GET /core/audit, /core/audit/export): newest first, keyset on seq
 -- (seq < before_seq), every filter optional. The text filter is a case-insensitive substring over the
 -- same four columns the screen shows; lower() folds ASCII only. The group is the part of the action before
--- the first dot. people (D-416), when set, leaves out the automatic lines: user "system" or "system:<part>".
+-- the first dot. people, when set, leaves out the automatic lines: user "system" or "system:<part>".
 -- name: ListAuditFiltered :many
 SELECT seq, id, ts, user, action, target, detail
 FROM core_audit

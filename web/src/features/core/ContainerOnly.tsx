@@ -1,4 +1,4 @@
-// What a container-only install (no vedette-host, D-168) shows instead of the controls of the appliance (D-381): what
+// What a container-only install (no vedette-host) shows instead of the controls of the appliance: what
 // the customer does on their own machine, with the commands of docs/INSTALL-CONTAINER.md. The pages never call the
 // host endpoints there, which can only answer 409 not_appliance.
 import { useState, type ReactNode } from 'react'
@@ -40,7 +40,7 @@ type Engine = 'docker' | 'podman'
 const forEngine = (cmd: string, e: Engine) => (e === 'docker' ? cmd : cmd.replace(/^docker /gm, 'podman '))
 /** The images a container-only install runs (compose.yaml, compose.sensors.yaml): the cosign lines name only these. */
 const CONTAINER_SERVICES = ['core', 'sensor', 'scan']
-/** release.RegistryPrefix: the only registry and repository family of the release images (D-104 (1)). */
+/** release.RegistryPrefix: the only registry and repository family of the release images. */
 const REGISTRY = 'ghcr.io/knt048/vedette-'
 type Image = { service: string; digest: string }
 /** Only a known service with a well-formed digest goes into a command line (the manifest was verified, this is the page's own guard). */
@@ -51,11 +51,11 @@ const verifyCmd = (images: readonly Image[]) => images.map((i) => `cosign verify
 /** The image lines of the downloaded vedette.env must name those same digests: it prints how many lines do (one per image). */
 const matchCmd = (images: readonly Image[]) => `grep -cF ${images.map((i) => `-e '${REGISTRY}${i.service}@${i.digest}'`).join(' ')} vedette.env`
 const SAFE_VERSION = /^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$/
-/** The four files every release publishes for this install, each with a .minisig (D-451): an update replaces all of them. */
+/** The four files every release publishes for this install, each with a .minisig: an update replaces all of them. */
 const RELEASE_FILES = ['vedette.env', 'compose.yaml', 'compose.sensors.yaml', 'compose.syslog.yaml']
 /** The kept folder is named after the release it runs; mkdir (no -p) refuses an existing one, so nothing kept is overwritten. */
 const keepCmd = (kept: string) => `mkdir ${kept} && mv -n ${RELEASE_FILES.join(' ')} ${kept}/`
-/** The release assets on GitHub Releases (D-150, D-451), the same place install.sh and the box download from; stops at the first failure. */
+/** The release assets on GitHub Releases, the same place install.sh and the box download from; stops at the first failure. */
 const fetchCmd = (version: string) => `u=https://github.com/KNT048/vedette/releases/download/v${version}
 for f in ${RELEASE_FILES.join(' ')}; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done`
 /** `minisign -VQm` prints only the trusted comment (measured with the pinned 0.12, TestInteropMinisignCLI): it must be exactly
@@ -66,10 +66,10 @@ const checkCmd = (version: string) =>
 const ADDON_FILES = '-f compose.yaml -f compose.sensors.yaml -f compose.syslog.yaml'
 
 /**
- * Settings → Updates on a container-only install (S-CORE-9 G4, D-381): core's own update check says whether a newer
+ * Settings → Updates on a container-only install (S-CORE-9): core's own update check says whether a newer
  * release exists (it runs without a host); the customer updates with two blocks of commands on their machine, for Docker
  * or Podman. No Apply: nothing here installs anything. The four release files are the assets of the offered version on
- * GitHub Releases (D-451); the customer checks each with the vedette.pub kept from the install, never a key from that page.
+ * GitHub Releases; the customer checks each with the vedette.pub kept from the install, never a key from that page.
  */
 export function ContainerUpdates() {
   const { t } = useTranslation('core')
@@ -131,7 +131,7 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
   )
   : <p className="text-sm">{t('container.updates.latest')}</p>
   // The running version and the last check, always (the offer and "never" texts alone do not say both); a failed check
-  // says why itself, so "never read" then drops its guess at the cause (D-392).
+  // says why itself, so "never read" then drops its guess at the cause.
   const read = s.last_check ? t('container.updates.checked', { when: fmtRelative(s.last_check) }) : s.last_check_error ? '' : t('container.updates.neverChecked')
   return (
     <>
@@ -142,15 +142,15 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
   )
 }
 
-/** "Last check failed <when>: <reason>" (S-CORE-2 D-392), on both install kinds: the reason is the box's own sentence for the failure code. */
+/** "Last check failed <when>: <reason>" (S-CORE-2), on both install kinds: the reason is the box's own sentence for the failure code. */
 export function CheckFailed({ e }: { e: UpdateCheckError }) {
   const { t } = useTranslation('core')
   return <p className="text-meta text-warn">{t('updates.checkFailed', { time: fmtRelative(e.at), reason: e.message })}</p>
 }
 
 /**
- * The steps of S-CORE-9 G4 for the offered release, in the order they are safe to run: move the four files of the running
- * release into a kept folder, download the new release's four files and check their minisign signatures (D-451: a release
+ * The steps of S-CORE-9 for the offered release, in the order they are safe to run: move the four files of the running
+ * release into a kept folder, download the new release's four files and check their minisign signatures (a release
  * that changes a compose file reaches the customer), check each image with cosign and that vedette.env names those same
  * digests (block 2), and only then copy the two local lines, pull and start (block 1).
  */
@@ -208,7 +208,7 @@ function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; runnin
   )
 }
 
-/** Settings → Data on a container-only install (S-CORE-9 G2): a backup is a copy of the volume vedette_data, with the Docker / Podman switch of Updates. */
+/** Settings → Data on a container-only install (S-CORE-9): a backup is a copy of the volume vedette_data, with the Docker / Podman switch of Updates. */
 export function ContainerBackup() {
   const { t } = useTranslation('core')
   const [engine, setEngine] = useState<Engine>('docker')
@@ -226,7 +226,7 @@ export function ContainerBackup() {
   )
 }
 
-/** Settings → Box network on a container-only install (S-CORE-9 G2, G6): the machine's network is the customer's. */
+/** Settings → Box network on a container-only install (S-CORE-9): the machine's network is the customer's. */
 export function ContainerNetwork() {
   const { t } = useTranslation('core')
   return <Section title={t('container.network.title')} description={t('container.network.desc')} info={t(SPAN_IN_UI ? 'container.network.descInfo' : 'container.network.descNoSpanInfo')}>{null}</Section>

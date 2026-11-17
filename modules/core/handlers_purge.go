@@ -30,11 +30,11 @@ import (
 	"github.com/knt048/vedette/host/client"
 )
 
-// POST /core/data/purge (S-CORE-1, INV-14, D-154): the box goes back to a fresh install. Every row of every table is deleted
+// POST /core/data/purge (S-CORE-1, INV-14): the box goes back to a fresh install. Every row of every table is deleted
 // in one transaction, except the migration records (the schema stays); then the rows a fresh install has (the seeds of the
 // migrations, the default state of the modules) are put back; the module data files and the snapshots are removed with it;
 // one audit row says it happened. The encryption key (vedette.key) and the TLS certificate are not touched: the box must still
-// start and be reachable. The box CA (a core_secret row, D-351, cmd/vedette/boxca.go) is a row like the others, so it goes too: the next
+// start and be reachable. The box CA (a core_secret row, cmd/vedette/boxca.go) is a row like the others, so it goes too: the next
 // start makes a new CA and re-issues the leaf under it (same leaf key), browsers warn again about the new certificate, and
 // enrolled osquery agents must run the install command again (their nodes are deleted by the purge anyway).
 
@@ -52,7 +52,7 @@ type SchemaSet struct {
 	FS     fs.FS
 }
 
-// dataFileRE is what cmd/vedette may name as a module data file: a plain file name in core_data, never a path (D-151).
+// dataFileRE is what cmd/vedette may name as a module data file: a plain file name in core_data, never a path.
 var dataFileRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,63}$`)
 
 // dataFileSuffixes are the files SQLite keeps beside a database.
@@ -85,7 +85,7 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 	if req.Confirm != org.Name || org.Name == "" {
 		return nil, confirmMismatch()
 	}
-	// Step-up (H2, D-76, D-98): the current password, counted against the re-auth limiter, then a fresh two-step code when it is on.
+	// Step-up: the current password, counted against the re-auth limiter, then a fresh two-step code when it is on.
 	if err := h.auth.VerifyOwnPassword(ctx, c.ID, req.Password, "Wrong password. The password is needed to delete all data."); err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func (h *APIHandlers) CorePostCoreDataPurge(ctx context.Context, req *oas.CorePo
 }
 
 // PurgeHost is the part of vedette-host the purge needs: the runs in progress and the deletion of every backup it holds
-// (host command backup.purge, D-156; the host client's method may be named differently, cmd/vedette adapts it).
+// (host command backup.purge; the host client's method may be named differently, cmd/vedette adapts it).
 type PurgeHost interface {
 	ListRuns(ctx context.Context, limit int) ([]api.Run, error)
 	BackupPurge(ctx context.Context, requestID, actor string) (deleted int, err error)

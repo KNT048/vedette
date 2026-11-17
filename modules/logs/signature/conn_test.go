@@ -38,7 +38,7 @@ func TestConnFortiGateTraffic(t *testing.T) {
 	}
 }
 
-// Private, special and not-LAN endpoints make no connection (D-213).
+// Private, special and not-LAN endpoints make no connection.
 func TestConnRefusesPrivateAndSpecial(t *testing.T) {
 	set := shipped(t)
 	dests := []string{"10.1.1.1", "172.16.5.5", "192.168.1.1", "127.0.0.1", "169.254.1.1", "224.0.0.1", "100.64.0.1", "203.0.113.9", "198.51.100.1", "192.0.2.1",
@@ -55,7 +55,7 @@ func TestConnRefusesPrivateAndSpecial(t *testing.T) {
 			t.Errorf("source %q made a connection from %q", src, l)
 		}
 	}
-	// D-461: a device in the RFC 6598 shared address space (a LAN behind carrier-grade NAT, Tailscale) is a LAN device.
+	// A device in the RFC 6598 shared address space (a LAN behind carrier-grade NAT, Tailscale) is a LAN device.
 	for _, src := range []string{"100.64.0.9", "100.65.254.7", "100.127.255.254"} {
 		line := strings.Replace(fgTraffic, "srcip=192.168.10.113", "srcip="+src, 1)
 		if l, got := connOf(t, set, "fortigate", line); l != src || len(got) != 1 {
@@ -69,7 +69,7 @@ func TestConnRefusesPrivateAndSpecial(t *testing.T) {
 	}
 }
 
-// The anti-framing rule: a field counts only when it is written exactly once, outside quotes (D-213, like D-210).
+// The anti-framing rule: a field counts only when it is written exactly once, outside quotes.
 func TestConnAmbiguityGivesNothing(t *testing.T) {
 	set := shipped(t)
 	cases := map[string]string{

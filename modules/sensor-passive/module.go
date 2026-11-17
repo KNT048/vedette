@@ -6,7 +6,7 @@
 //   - discovery (ARP, DHCP, mDNS, SSDP, LLDP) goes to the inventory as observations with source "passive";
 //   - on a SPAN/TAP port, metadata (DNS query names, TLS SNI, HTTP Host, IP flow counters) goes to a capture.MetadataSink.
 //
-// Packet contents are never stored (D-43, INV-3). Everything a sensor sends is untrusted (SYS-6): core validates each item,
+// Packet contents are never stored (INV-3). Everything a sensor sends is untrusted (SYS-6): core validates each item,
 // applies its own budgets and clamps the confidence. Until SP-5 the capture also runs inside core (Service.Run).
 package sensorpassive
 

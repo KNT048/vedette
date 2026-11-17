@@ -51,7 +51,7 @@ const (
 
 	interruptedText = "The box was interrupted while this message was being sent, so it may or may not have been sent. It was not sent again. Use Resend if it is still needed."
 
-	// A provider that answers "too many requests" (HTTP 429, Zalo -32) is waited for, not given up on (D-483): the message goes back to
+	// A provider that answers "too many requests" (HTTP 429, Zalo -32) is waited for, not given up on: the message goes back to
 	// the queue, due when the provider said, and the channel sends nothing else until then. defaultRateWait is the wait when the provider
 	// named none; after maxRateTries refusals in a row the message is recorded as failed, so a provider that never lets go cannot hold
 	// the queue for ever.
@@ -241,7 +241,7 @@ type claim struct {
 	channel  channel.Type
 	batch    Batch
 	rows     []string // notify_pending ids
-	attempts int      // the most rate-limit refusals any of its rows had (D-483)
+	attempts int      // the most rate-limit refusals any of its rows had
 }
 
 type pendingRow struct {
@@ -331,7 +331,7 @@ func (s *Service) Flush(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// staleAfter is how old a queued notice may be when the module is turned on again (D-86 (7)): a notice that waited
+// staleAfter is how old a queued notice may be when the module is turned on again: a notice that waited
 // days in the queue is noise, the finding is still in the interface.
 const staleAfter = 24 * time.Hour
 
@@ -452,7 +452,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 				continue
 			}
 			nowTS := store.FormatTS(now)
-			held := false // a message the provider refused waits until its due_at, and the whole channel with it (D-483; lasts a restart)
+			held := false // a message the provider refused waits until its due_at, and the whole channel with it (lasts a restart)
 			for _, r := range list {
 				held = held || (r.attempts > 0 && r.due > nowTS)
 			}
@@ -559,7 +559,7 @@ func refOf(n Notice) (kind, ref, link string) {
 }
 
 // findingsList is where a digest or a notice that names no finding links: every open finding as rows (the All open tab), which also
-// lists new product-only matches; the Findings page opens on To fix, which leaves those to Needs your input (kien G8, review r2 of #943).
+// lists new product-only matches; the Findings page opens on To fix, which leaves those to Needs your input.
 const findingsList = "/findings?tab=open"
 
 // fallbackMessage is a single-notice message for a record of an attempt that never rendered one.
@@ -614,7 +614,7 @@ func (s *Service) deliver(ctx context.Context, cl claim) error {
 		if kind == "vuln" {
 			told := cl.batch.Listed() // a failure: the findings it would have named, so their page says "Not delivered"
 			if rec.OK {
-				told = cl.batch.Told(cl.channel, msg) // only the lines the channel sent whole: "Notified" must be true (W1-11)
+				told = cl.batch.Told(cl.channel, msg) // only the lines the channel sent whole: "Notified" must be true
 			}
 			for _, n := range told {
 				if _, err := tx.ExecContext(wctx, `INSERT INTO notify_send_notice (send_id, notice_id) VALUES (?, ?) ON CONFLICT DO NOTHING`, rec.ID, n.ID); err != nil {
@@ -641,7 +641,7 @@ func (s *Service) deliver(ctx context.Context, cl claim) error {
 	return nil
 }
 
-// delay handles a send the provider refused with "too many requests" (D-483): the rows go back to the queue due when the provider
+// delay handles a send the provider refused with "too many requests": the rows go back to the queue due when the provider
 // said (defaultRateWait when it did not), which holds the whole channel until then (claim), and the first time a message is held back the
 // history gets one "Delayed (rate limited)" row, not linked to the findings (nothing reached anyone yet). It returns errRateLimited.
 func (s *Service) delay(ctx context.Context, cl claim, rec SendRecord, msg channel.Message) error {

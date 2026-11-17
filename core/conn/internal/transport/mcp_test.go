@@ -18,7 +18,7 @@ func mcpFor(t *testing.T, o conntest.MCPOpts) (*conntest.MCP, *transport.MCP) {
 	return f, transport.NewMCP(c, f.URL+"/mcp", transport.Auth{Type: "token", Secret: secrets.NewValue("tok-0123456789")})
 }
 
-// D-94 (3): initialize, notifications/initialized, then tools/list with the session id; JSON and event-stream answers alike.
+// Initialize, notifications/initialized, then tools/list with the session id; JSON and event-stream answers alike.
 func TestMCPSessionAndDiscovery(t *testing.T) {
 	t.Parallel()
 	for name, sse := range map[string]bool{"json": false, "sse": true} {

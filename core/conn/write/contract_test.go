@@ -15,8 +15,8 @@ const (
 	writerPath = module + "/core/conn/write"
 )
 
-// FORBID-1 (response), D-93 (1): the writer is the only way to change a device through a connection, and only the binary may import it
-// (tests may, to drive it). Like the host contract (D-87), the walk reads the source tree: no package but cmd/vedette imports the writer
+// FORBID-1 (response): the writer is the only way to change a device through a connection, and only the binary may import it
+// (tests may, to drive it). Like the host contract, the walk reads the source tree: no package but cmd/vedette imports the writer
 // in its production code, and inside cmd/vedette one file does (the executor of response). The import graph of response and of core
 // does not reach it either, so no module can call it by way of a dependency.
 func TestContract_FORBID1_OnlyTheBinaryImportsTheWriter(t *testing.T) {

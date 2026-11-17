@@ -24,7 +24,7 @@ import (
 )
 
 // container.start (the current image), container.stop and GET /v1/state/containers (WP-07b part 3, slice
-// 3-6; spec 6.8, 6.9, D-105, D-123; host CONTRACT INV-17). The machine is the fake of opstest with a
+// 3-6; spec 6.8, 6.9; host CONTRACT INV-17). The machine is the fake of opstest with a
 // stateful systemctl and podman: restart copies the unit file as the container's own record, and the
 // fake podman reports that record's digest. The tests assert the argv of every step, the unit text,
 // the journal and the effect.
@@ -722,7 +722,7 @@ func TestContract_Container_StateParsesHostileOutputStrictlyAndBounded(t *testin
 	}
 }
 
-// --- the journal at Start and after READY (D-123 H1, M1, M3, L7) ---------------------------------------
+// --- the journal at Start and after READY ---------------------------------------
 
 func shaOf(s string) string {
 	h := sha256.Sum256([]byte(s))
@@ -1285,7 +1285,7 @@ func parseBuilt(t *testing.T, text string) unitLines {
 }
 
 // TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable scans the units the host builds, for every
-// service, with and without [Install], and checks the table of DEPLOYMENT.md 2 and D-105 (6), D-114
+// service, with and without [Install], and checks the table of DEPLOYMENT.md 2
 // against the text, independently of the templates.
 func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.T) {
 	t.Parallel()
@@ -1306,11 +1306,11 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 		api.ServiceCore: {network: "vedette-int.network", user: "10001:10002", publishes: []string{"8443:8443", "127.0.0.1:8444:8444", "127.0.0.1:8765:8765", "514:5514/udp", "514:5514/tcp", "6514:5515/tcp"},
 			exec: "-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -syslog-port 5514",
 			volumes: []string{
-				"/var/lib/vedette:/var/lib/vedette", // core_data bound: the database and the key core reads are the files the host backs up (D-142)
+				"/var/lib/vedette:/var/lib/vedette", // core_data bound: the database and the key core reads are the files the host backs up
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config",
-				"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec", // the size-capped tmpfs volume (D-318)
+				"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec", // the size-capped tmpfs volume
 				"/run/vedette:/run/vedette",
-				"/run/vedette-greenbone:/run/vedette-greenbone:ro", // gvmd's socket only (D-529); a missing folder = OpenVAS "starting"
+				"/run/vedette-greenbone:/run/vedette-greenbone:ro", // gvmd's socket only; a missing folder = OpenVAS "starting"
 				keys + "passive.volume:/var/lib/vedette-creds/passive",
 				keys + "active.volume:/var/lib/vedette-creds/active",
 			}},
@@ -1318,9 +1318,9 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			volumes: []string{keys + "passive.volume:/var/lib/vedette-creds:ro"},
 			exec:    "passive --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem"},
 		api.ServiceScan: {network: "host", addCaps: []string{"NET_RAW"}, user: "10003:10004", wants: []string{"vedette-core.service"},
-			volumes: []string{keys + "active.volume:/var/lib/vedette-creds:ro", "/var/lib/vedette-fence:/var/lib/vedette-fence:ro"}, // D-591: the fence key and domain list, read-only, scan only
+			volumes: []string{keys + "active.volume:/var/lib/vedette-creds:ro", "/var/lib/vedette-fence:/var/lib/vedette-fence:ro"}, // The fence key and domain list, read-only, scan only
 			exec:    "active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem"},
-		// The image's user is 1000:0 from the start and the unit adds no capability (deploy/containers/honeypot/init.py, D-162). :U gives the
+		// The image's user is 1000:0 from the start and the unit adds no capability (deploy/containers/honeypot/init.py). :U gives the
 		// log volume to that user (UserNS=auto picks the range at start).
 		api.ServiceHoneypot: {network: "ns:/run/netns/vedette-hp", userns: "auto", requires: []string{"vedette-host.service"},
 			volumes: []string{
@@ -1371,7 +1371,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			if (svc == api.ServiceCore || svc == api.ServiceSensor || svc == api.ServiceScan) && strings.Contains(text, "UserNS") {
 				t.Errorf("%s runs without UserNS", svc)
 			}
-			// ContainersConfModule=: every unit the packaged module that selects the AppArmor profile vedette-container (D-458); the
+			// ContainersConfModule=: every unit the packaged module that selects the AppArmor profile vedette-container; the
 			// honeypot alone also the one that clears default_sysctls in vedette-hp (#486)
 			wantMod := []string{ops.AppArmorConfModule}
 			if svc == api.ServiceHoneypot {
@@ -1385,7 +1385,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 				t.Errorf("%s: PublishPort=%v", svc, u["PublishPort"])
 			}
 			// Image: a pinned digest of the service's repository.
-			// The scan image is built on the box and has no registry digest: its unit pins the image ID (D-147).
+			// The scan image is built on the box and has no registry digest: its unit pins the image ID.
 			imageRE := `^ghcr\.io/knt048/vedette-` + svc + `@` + digA + `$`
 			if svc == api.ServiceScan {
 				imageRE = `^` + strings.TrimPrefix(digA, "sha256:") + `$`
@@ -1402,7 +1402,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			}
 			for _, v := range u["Volume"] {
 				parts := strings.Split(v, ":")
-				// "U" (podman gives the volume to the container's user) is for the honeypot's log volume alone (D-162)
+				// "U" (podman gives the volume to the container's user) is for the honeypot's log volume alone
 				honeypotLog := svc == api.ServiceHoneypot && v == "vedette-hp-log.volume:/var/lib/vedette/honeypot/log:U,noexec"
 				coreLog := svc == api.ServiceCore && v == "vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec"
 				if len(parts) < 2 || len(parts) > 3 || (len(parts) == 3 && parts[2] != "ro" && !honeypotLog && !coreLog) || strings.Contains(v, "shared") || strings.Contains(v, "slave") {
@@ -1417,7 +1417,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			}
 			wantTmpfs := "/tmp"
 			if svc == api.ServiceCore {
-				wantTmpfs = "/tmp:size=64m" // D-150: a bounded tmpfs, so a runaway temp file cannot eat the 2 GiB container memory
+				wantTmpfs = "/tmp:size=64m" // A bounded tmpfs, so a runaway temp file cannot eat the 2 GiB container memory
 			}
 			if !slices.Equal(u["Tmpfs"], []string{wantTmpfs}) {
 				t.Errorf("%s: Tmpfs=%v", svc, u["Tmpfs"])
@@ -1457,16 +1457,16 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 					t.Errorf("%s has the key %s", svc, k)
 				}
 			}
-			// D-150: the only environment variable is core's Go memory limit.
+			// The only environment variable is core's Go memory limit.
 			if want := []string(nil); svc != api.ServiceCore && !slices.Equal(u["Environment"], want) || svc == api.ServiceCore && !slices.Equal(u["Environment"], []string{"GOMEMLIMIT=1800MiB"}) {
-				t.Errorf("%s: Environment=%v (only core has GOMEMLIMIT=1800MiB, D-150)", svc, u["Environment"])
+				t.Errorf("%s: Environment=%v (only core has GOMEMLIMIT=1800MiB)", svc, u["Environment"])
 			}
 			// #471: core alone has HostName=vedette. The current core takes every name from GET /v1/info; the line stays for an older core
-			// a newer host may run (D-316 (8)), which still names its certificate and passive sensor after os.Hostname().
+			// a newer host may run, which still names its certificate and passive sensor after os.Hostname().
 			if want := []string(nil); svc != api.ServiceCore && !slices.Equal(u["HostName"], want) || svc == api.ServiceCore && !slices.Equal(u["HostName"], []string{"vedette"}) {
 				t.Errorf("%s: HostName=%v (only core has HostName=vedette)", svc, u["HostName"])
 			}
-			// D-146: only scan runs under an init (nmap can leave children that detach from the process group the worker kills).
+			// Only scan runs under an init (nmap can leave children that detach from the process group the worker kills).
 			if _, has := u["RunInit"]; has != (svc == api.ServiceScan) {
 				t.Errorf("%s: RunInit present = %t, only scan has it", svc, has)
 			}
@@ -1506,7 +1506,7 @@ func TestContract_INV17_TheHostWritesNoDropIns(t *testing.T) {
 
 // TestContract_INV17_CredentialVolumes: the two .volume units are written by the host from constant text with the host.conf ids, beside
 // the first unit that mounts them; each is mounted read-write by core only and read-only by exactly one sensor role (passive in
-// sensor, active in scan), and the honeypot mounts none (D-110 (4), D-114 (4), D-147).
+// sensor, active in scan), and the honeypot mounts none.
 func TestContract_INV17_CredentialVolumes(t *testing.T) {
 	t.Parallel()
 	const cuid, cgid, suid, sgid = 10001, 10002, 10003, 10004
@@ -1601,7 +1601,7 @@ func TestContract_INV17_CredentialVolumes(t *testing.T) {
 
 // TestContract_INV17_HoneypotLogVolumeIsACappedTmpfs: log/ of the honeypot is a Quadlet volume of constant text, a tmpfs of at most 64 MiB
 // and 1024 files with no suid, no device and no exec; the honeypot writes it, core reads it and nothing else mounts it. The host writes
-// the file with the first start of core or honeypot, refuses a link at its name, and writes nothing through it (D-318).
+// the file with the first start of core or honeypot, refuses a link at its name, and writes nothing through it.
 func TestContract_INV17_HoneypotLogVolumeIsACappedTmpfs(t *testing.T) {
 	t.Parallel()
 	want := "[Unit]\nDescription=Vedette honeypot log (tmpfs, size-capped)\n\n[Volume]\nVolumeName=vedette-hp-log\nType=tmpfs\nDevice=tmpfs\nOptions=size=64m,nr_inodes=1024,nosuid,nodev,noexec\n"

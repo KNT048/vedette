@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Ask your data (S-AI-5, S-AI-6, INV-13, INV-14, D-211). The person types a question; the box checks it against the before-AI hooks,
+// Ask your data (S-AI-5, S-AI-6, INV-13, INV-14). The person types a question; the box checks it against the before-AI hooks,
 // lets the model read the box with read tools only, and answers with the model's words, a table the box built from what the tools
 // returned, the calls that were made, the box's own sources, and the hooks that acted. The answer is labelled as AI generated (model
 // and profile are part of it, the page shows them), carries no button that does anything, and is stored as an `ai_result` row.
@@ -119,7 +119,7 @@ type AskResult struct {
 	Profile   string        `json:"profile"`
 	Tokens    askTokens     `json:"tokens"`
 	Hooks     []AskHook     `json:"hooks"`
-	// MemoriesSuggested is how many memories the AI suggested with this answer (D-225); 0 when the history is read back.
+	// MemoriesSuggested is how many memories the AI suggested with this answer; 0 when the history is read back.
 	MemoriesSuggested int `json:"memories_suggested"`
 }
 
@@ -156,13 +156,13 @@ const askTask = `Answer the question about this company's network using only wha
 // askLeftOut ends an answer for which some tool data was not read, to keep the question within its token budget.
 const askLeftOut = "Some data was left out to stay within the token budget of a question; ask a narrower question to see the rest."
 
-// askRememberTask is added while the AI may suggest memories (D-225): one trailing line the box takes out of the answer.
+// askRememberTask is added while the AI may suggest memories: one trailing line the box takes out of the answer.
 const askRememberTask = ` If the tool results show a lasting fact about this network that would help later answers (for example which device makes a nightly backup), end the answer with one line "Remember: " and that fact in one short sentence, at most one such line. Never put a person's name, a password, a key or an address of a threat feed there. An administrator reviews it before it is kept.`
 
-// rememberLine is the trailing line of an answer that suggests a memory (D-225); markdown bold or a list mark around it is allowed.
+// rememberLine is the trailing line of an answer that suggests a memory; markdown bold or a list mark around it is allowed.
 var rememberLine = regexp.MustCompile(`(?i)^[\s*•-]*remember\s*:[\s*]*(.+?)[\s*]*$`)
 
-// takeRemember takes the last line of the answer out when it is a "Remember:" line and returns its fact (D-225). A "Remember:" line
+// takeRemember takes the last line of the answer out when it is a "Remember:" line and returns its fact. A "Remember:" line
 // elsewhere is advice, and stays. An answer that is only that line keeps the fact as its text. A fact that does not end like a
 // sentence is an answer cut at the token limit: the line is taken out and no memory is suggested from half a sentence.
 func takeRemember(text string) (string, []string) {
@@ -298,10 +298,10 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 			return perr
 		},
 		Store: func(ctx context.Context, tx *sql.Tx, r JobResult) error {
-			docs = r.Documents // the documents that went with the question are named first among the sources (D-445)
+			docs = r.Documents // the documents that went with the question are named first among the sources
 			out = AskResult{ID: id, Question: sent, AskedAt: FormatTS(now), Answer: answer, Table: ts.table, ToolCalls: nonNilCalls(ts.calls), Citations: nonNilCites(append(documentsCite(docs), ts.cites...)),
 				Model: r.Model, Profile: r.Profile, Tokens: askTokens{r.TokensIn, r.TokensOut}, Hooks: askHooks(stepHooks(StepQuestion, "", pre.Hits), ts.hits, stepHooks(StepAnswer, "", r.Hits))}
-			if ts.leftOut { // the box says so, not the model: an answer from part of the data must not read as complete (D-482)
+			if ts.leftOut { // the box says so, not the model: an answer from part of the data must not read as complete
 				out.Answer = append(out.Answer, askLeftOut)
 			}
 			if r.Blocked { // an after_ai hook stopped the answer: the hook's message stands in for it, and no table or source is shown
@@ -315,7 +315,7 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 	}
 	sctx, cancel := detached(ctx) // the tokens are spent: the suggestion is kept even if the person has gone
 	defer cancel()
-	if len(ts.calls) > 0 { // the fact must come from what the tools returned, not from the question alone (D-225)
+	if len(ts.calls) > 0 { // the fact must come from what the tools returned, not from the question alone
 		out.MemoriesSuggested = s.suggestFrom(sctx, remember, askEvidence(sent, ts.calls, docs), "a question")
 	}
 	return out, nil

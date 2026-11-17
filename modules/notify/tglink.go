@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// Telegram approvers are linked by the confirm link of D-447, sent by the channel's bot (D-414). It replaced the private code answered to
+// Telegram approvers are linked by a confirm link, sent by the channel's bot. It replaced the private code answered to
 // a press: a code shown in Telegram proves who holds the Telegram account, not which Vedette user they are. The token and the proof belong
 // to module response (Config.LinkCodes); only the person, signed in to Vedette as themself, confirms the link (response INV-24). The
 // state per approver is kept with Zalo's (zaloSetup.codes, codeKey).
@@ -61,8 +61,8 @@ func (s *Service) SendTelegramLink(ctx context.Context, actor, userID string) (L
 	return s.approverState(ctx, channel.Telegram, list[i], actor, ""), nil
 }
 
-// SendApproverLink sends the approver userID of a confirm-link channel a new confirm link: response's Send again in My account (D-414,
-// response Config.LinkSender), where actor is that person. link is set when nothing was sent because the person confirms in their session
+// SendApproverLink sends the approver userID of a confirm-link channel a new confirm link: response's Send again in My account
+// (response Config.LinkSender), where actor is that person. link is set when nothing was sent because the person confirms in their session
 // (Zalo: their own row with the box's own account).
 func (s *Service) SendApproverLink(ctx context.Context, actor string, t channel.Type, userID string) (link string, err error) {
 	switch t {
@@ -78,7 +78,7 @@ func (s *Service) SendApproverLink(ctx context.Context, actor string, t channel.
 
 // sendTelegramLink asks response for a new token and sends the link privately: "<name>: open this link to link your Telegram account to
 // Vedette". The link needs the address people open Vedette at (Config.BaseURL). The token goes only to the listed user ID, never into a
-// shared chat (review of D-414): only that account can open it. A link that could not be delivered is dropped (response DropChatLink: no
+// shared chat: only that account can open it. A link that could not be delivered is dropped (response DropChatLink: no
 // token waits that nobody received) and answered as 502 send_failed; the approver's state keeps why. The token is never logged nor audited.
 func (s *Service) sendTelegramLink(ctx context.Context, actor string, c channelRow, a Approver) error {
 	if s.cfg.LinkCodes == nil {

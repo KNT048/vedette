@@ -62,7 +62,7 @@ function ApplyButton({ finding, item }: { finding: FindingDetail; item: ApplyIte
   )
 }
 
-/** Phiên bản vá cho đúng thiết bị này, từ khoảng phiên bản NVD hoặc bản ghi CVE.org (D-488, D-556): chỉ nói điều dữ liệu cho, luôn ghi đúng nguồn (`fixed_in.source`). */
+/** Phiên bản vá cho đúng thiết bị này, từ khoảng phiên bản NVD hoặc bản ghi CVE.org: chỉ nói điều dữ liệu cho, luôn ghi đúng nguồn (`fixed_in.source`). */
 export function FixedInNote({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const f = finding.fixed_in
@@ -73,7 +73,7 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   let extra: string | null = f.distro ? t('rec.fixedIfDistro', { distro: f.distro, product }) : null
   let source = t('rec.fixedSource', { source: f.source })
   if (f.kind === 'distro' && f.distro_fixed) {
-    // D-516: the distribution's own fixed package for this release
+    // The distribution's own fixed package for this release
     text = t('rec.fixedDistroIn', { fixed: f.distro_fixed, distro: f.distro, release: f.distro_release, device, product, version: f.version })
     extra = f.distro_pro ? t('rec.fixedDistroPro') : null
     source = t('rec.fixedSourceDistro', { source: f.source })
@@ -164,7 +164,7 @@ function Checklist({ items }: { items: string[] }) {
   )
 }
 
-/** Khuyến nghị Vedette đã xác nhận (D-21): luôn nói rõ ai xác nhận, ngày nào, và "soạn với AI". */
+/** Khuyến nghị Vedette đã xác nhận: luôn nói rõ ai xác nhận, ngày nào, và "soạn với AI". */
 export function PackView({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const p = finding.pack!
@@ -247,14 +247,14 @@ export function AskAi({ finding, skill, result, label, hint }: { finding: Findin
         </p>
         {ready && can && !hint ? <InfoTip topic={label}>{t('ai.privacyInfo')}</InfoTip> : null}
       </div>
-      {/* kien G1: an AI answer takes 10–60 s; say so while it runs */}
+      {/* An AI answer takes 10–60 s; say so while it runs */}
       <BusyNote id={`ai-wait-${skill}`} busy={ask.isPending}>{t('ai.waiting')}</BusyNote>
       <div aria-live="polite">{result ? <AiOutput r={result} /> : null}</div>
     </div>
   )
 }
 
-/** Liên kết trong ghi chú KEV: trang của CISA, NVD, còn lại coi là khuyến cáo của hãng (W1-31). */
+/** Liên kết trong ghi chú KEV: trang của CISA, NVD, còn lại coi là khuyến cáo của hãng. */
 function linkKind(u: string): 'cisa' | 'nvd' | 'vendor' {
   let host = ''
   try { host = new URL(u).hostname.toLowerCase() } catch { return 'vendor' }
@@ -265,7 +265,7 @@ function linkKind(u: string): 'cisa' | 'nvd' | 'vendor' {
 const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch { return u } }
 
 /**
- * "Steps you can take now" without a pack (W1-31). M2-3: a version the box has (any source: agent, SNMP, LLDP, a scan, a person) is
+ * "Steps you can take now" without a pack. M2-3: a version the box has (any source: agent, SNMP, LLDP, a scan, a person) is
  * said, never asked for, and step 3 names how the new version reaches Vedette. M2-5: the controls named are the page's own
  * ("Mark as handled", then Patched or False positive; "I updated <software>" for a typed row, "I updated it" otherwise).
  */
@@ -303,9 +303,9 @@ export function NowSteps({ finding, kev, updatable, manual, today }: { finding: 
 }
 
 /**
- * Chưa có gói đã xác nhận (S-MIT-1, D-21, W1-31): nói hết điều hộp đang biết, không tự bịa biện pháp: yêu cầu và hạn của CISA,
+ * Chưa có gói đã xác nhận (S-MIT-1): nói hết điều hộp đang biết, không tự bịa biện pháp: yêu cầu và hạn của CISA,
  * khuyến cáo của hãng và NVD từ ghi chú KEV, các bước kiểm tra phiên bản, rồi "Hỏi AI của tôi". Hộp chưa có dữ liệu phiên bản
- * đã vá (cần feed mới, W1-29), nên trang nói thẳng chỗ lấy nó.
+ * đã vá (cần feed mới), nên trang nói thẳng chỗ lấy nó.
  */
 export function NoPack({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
@@ -314,7 +314,7 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
   const vendor = k?.links.filter((u) => linkKind(u) === 'vendor') ?? []
   const other = k?.links.filter((u) => linkKind(u) !== 'vendor') ?? []
   const product = k?.display || t('rec.theSoftware')
-  // D-499: step 3 points to "I updated" when the page shows it (the software the CVE was matched to is known).
+  // Step 3 points to "I updated" when the page shows it (the software the CVE was matched to is known).
   const sw = useDeviceSoftware(finding.asset?.id)
   const rows = softwareFor(sw.data?.asset.software, finding.cve)
   const updatable = isOpen(finding.status) && rows.length > 0

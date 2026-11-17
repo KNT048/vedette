@@ -8,7 +8,7 @@ import (
 // schemaNewer reports whether the backup's schema is ahead of the current one: some module has a
 // higher version in the backup, or exists only there. Both strings are core's own report
 // ("module=version,..." from snapshot.json, kept in the archive manifest); the host never reads
-// them from the database (D-87), so this is an early warning, and core's own check when it starts
+// them from the database, so this is an early warning, and core's own check when it starts
 // is the authority (a newer schema makes core refuse to start, the health check fails, the host
 // puts the previous state back).
 func schemaNewer(backup, live string) bool {

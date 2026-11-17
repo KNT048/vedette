@@ -80,7 +80,7 @@ func nvdEnv(t *testing.T) (*env, *nvdScript) {
 	return e, n
 }
 
-// W3-1: a busy page is tried again after 6 s, 30 s, 2 min, or NVD's Retry-After when longer; the pull then finishes.
+// A busy page is tried again after 6 s, 30 s, 2 min, or NVD's Retry-After when longer; the pull then finishes.
 func TestNVDPull_BusyPageIsTriedAgain(t *testing.T) {
 	t.Parallel()
 	e, n := nvdEnv(t)
@@ -100,7 +100,7 @@ func TestNVDPull_BusyPageIsTriedAgain(t *testing.T) {
 	}
 }
 
-// W3-1: without Retry-After the waits are 6 s, 30 s, 2 min; after the fourth busy answer the pull pauses with the
+// Without Retry-After the waits are 6 s, 30 s, 2 min; after the fourth busy answer the pull pauses with the
 // pages it has: nothing is written, the feed is not an error, the row says how far it got, and the next pull goes
 // on from the next page (page 1 is not asked again).
 func TestNVDPull_PausesAndResumesFromTheLastGoodPage(t *testing.T) {
@@ -199,7 +199,7 @@ func TestNVDPull_FailuresSayWhy(t *testing.T) {
 	}
 }
 
-// W3-1: one pull at a time. While a pull runs, "Fetch now" answers at once with how far it got, the job skips the
+// One pull at a time. While a pull runs, "Fetch now" answers at once with how far it got, the job skips the
 // feed, and a second Fetch joins the running pull: NVD is asked each page once.
 func TestNVDPull_OnePullAtATime(t *testing.T) {
 	t.Parallel()
@@ -265,7 +265,7 @@ func TestRetryAfter(t *testing.T) {
 	}
 }
 
-// W3-1: NVD may take over 30 s before it answers: its requests wait up to nvdHeaderTimeout (at least 90 s) for the
+// NVD may take over 30 s before it answers: its requests wait up to nvdHeaderTimeout (at least 90 s) for the
 // headers, on a clone of the guarded transport; the shared client is left as it was.
 func TestSlowHeaders(t *testing.T) {
 	t.Parallel()
@@ -301,7 +301,7 @@ func (e *env) fetchList(t *testing.T, id string) (status, line string) {
 	return "", ""
 }
 
-// Review LOWs of #663 (W3-1, D-500).
+// Review LOWs of #663.
 func TestNVDPull_ReviewLows(t *testing.T) {
 	t.Parallel()
 	t.Run("turning the feed off forgets the paused pull", func(t *testing.T) {

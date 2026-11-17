@@ -130,8 +130,8 @@ func hostLines(hs []Host) []string {
 	return out
 }
 
-// D-567 (1), INV-27: CT names, the apex's MX and NS under the domain (another company's mail or DNS server is not listed), the common
-// names that resolve, the final CNAME of each, and one kind per (name, address). Nothing beyond the D-229 checks is dialed.
+// INV-27: CT names, the apex's MX and NS under the domain (another company's mail or DNS server is not listed), the common
+// names that resolve, the final CNAME of each, and one kind per (name, address). Nothing beyond the checks by name is dialed.
 func TestDiscoveryAndKinds(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
@@ -184,7 +184,7 @@ func TestDiscoveryAndKinds(t *testing.T) {
 				t.Fatalf("%s has no IPv4 but IP %s", h.Name, h.IP)
 			}
 		}
-		// Only the box's own address is port-scanned; the rest get the D-229 checks by name on 80 and 443, as before.
+		// Only the box's own address is port-scanned; the rest get the checks by name on 80 and 443, as before.
 		for _, d := range n.dialed {
 			if host, port, _ := net.SplitHostPort(d); host != "203.0.113.10" && port != "80" && port != "443" {
 				t.Fatalf("dialed %s", d)
@@ -222,7 +222,7 @@ func TestWildcardSkipsTheWordlist(t *testing.T) {
 	})
 }
 
-// The 300-name rule counts every source and stays whole or nothing (D-229 (6)): CT names plus MX names over the limit stop the scan
+// The 300-name rule counts every source and stays whole or nothing: CT names plus MX names over the limit stop the scan
 // before anything is dialed.
 func TestNameCapCountsEverySource(t *testing.T) {
 	t.Parallel()

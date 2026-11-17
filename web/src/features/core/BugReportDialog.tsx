@@ -10,7 +10,7 @@ import { Field, Textarea } from '@/components/ui/input'
 import { useModules } from '@/lib/modules'
 import { buildBundle, downloadBundle, issueUrl } from './bugReport'
 
-/** S-CORE-5 (D-42): mô tả, xem trước gói chẩn đoán đã lọc, tải về, mở GitHub issue điền sẵn. Hộp không tự gửi gì. */
+/** S-CORE-5: mô tả, xem trước gói chẩn đoán đã lọc, tải về, mở GitHub issue điền sẵn. Hộp không tự gửi gì. */
 export function BugReportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { t } = useTranslation('core')
   const { data } = useModules()

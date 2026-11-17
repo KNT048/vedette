@@ -27,7 +27,7 @@ var errProfileHeldSkip = errors.New("the rest of its monthly budget is held by A
 // keyLostReason is why a profile whose saved key this box cannot open is skipped (#847); Service.unavailable turns it into secret_lost.
 const keyLostReason = "its saved API key was not restored (the backup was restored without its decryption key, or the box key changed)"
 
-// ErrCapped means this month's shared token budget is used up (D-531).
+// ErrCapped means this month's shared token budget is used up.
 var ErrCapped = errors.New("ai: this month's AI token budget is used up")
 
 // UnavailableError carries why every candidate was rejected.

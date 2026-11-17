@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Log investigation (S-AI-4 at the maximum level, D-223): the log digest made with read-only tools. Besides the tools of the box that
+// Log investigation (S-AI-4 at the maximum level): the log digest made with read-only tools. Besides the tools of the box that
 // "Ask your data" uses (search_assets, lookup_ioc, lookup_cve), the model gets events_around, which reads through Config.LogAround
 // what the logs counted about one address: kinds of line and counts, and connections to listed destinations. Never a log line
 // (INV-11 of logs), like the digest itself.

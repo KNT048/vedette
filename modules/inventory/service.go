@@ -30,7 +30,7 @@ type Config struct {
 	KEV      KEV
 	Box      BoxPackages
 	Findings FindingCounter
-	// Risk says which devices carry risk (G4): their open exploited findings and their Recommended updates, owned by findings; nil
+	// Risk says which devices carry risk: their open exploited findings and their Recommended updates, owned by findings; nil
 	// means none (no marker, every device "clean").
 	Risk    RiskSource
 	Modules ModuleGate // to tell whether notify is on (notify_available)
@@ -50,7 +50,7 @@ type Config struct {
 	// IP added a second ago became a device and then a conflict of itself). At a box-owned address only no MAC, a box MAC or this
 	// one is the box; any other MAC is a machine on the address. nil = not known: the rule of BoxOwnedMACs alone.
 	BoxDecoyMACs func(ctx context.Context, fresh bool) (map[netip.Addr]string, error)
-	// Gateway is the box's IPv4 default gateway (vedette-host state/net), one signal of the identification rules (D-511): the
+	// Gateway is the box's IPv4 default gateway (vedette-host state/net), one signal of the identification rules: the
 	// zero address when it is not known (no host, or the host did not answer). nil means never known.
 	Gateway func(ctx context.Context) netip.Addr
 	// WazuhAgents lists the addresses and MACs of the agents the saved Wazuh connection delivered (agent-intake): a device at one of
@@ -311,7 +311,7 @@ type outbox struct {
 	events []Event
 	// readdressed are the devices whose address this write took away or changed (claimIP). write announces each one updated first
 	// (readdressedEvents): a job holding the old address (an SNMP batch, an nmap run) stops when
-	// its device leaves it, so a device that took the address mid-run is never sent a credential (#874, D-512 (3)).
+	// its device leaves it, so a device that took the address mid-run is never sent a credential.
 	readdressed []string
 	// after run once the transaction has committed, to compute events that need data from other modules
 	// (the CVEs feeds knows) which must not be read while the write transaction holds the database.

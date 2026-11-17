@@ -1,12 +1,12 @@
-// Hợp đồng API module inventory (D-18). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// Hợp đồng API module inventory. Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { BEHAVIOUR_KINDS, TYPE_IDS } from '@/lib/deviceTypes'
 
 export const ObsSource = z.enum(['manual', 'agent', 'snmp', 'nmap', 'passive', 'scan'])
-/** Device type (D-511): one of content/devicetypes/types.json, grouped in categories; the 13 types of before keep their ids. */
-export const AssetKind = z.enum(TYPE_IDS).describe('Device type (content/devicetypes/types.json, D-511)')
-/** The 13 kinds behaviour is keyed on (fragile defaults, never-touch gateways, …); every device type acts as one of them (D-511). */
+/** Device type: one of content/devicetypes/types.json, grouped in categories; the 13 types of before keep their ids. */
+export const AssetKind = z.enum(TYPE_IDS).describe('Device type (content/devicetypes/types.json)')
+/** The 13 kinds behaviour is keyed on (fragile defaults, never-touch gateways, …); every device type acts as one of them. */
 export const BehaviourKind = z.enum(BEHAVIOUR_KINDS)
 export const ObsField = z.enum(['hostname', 'mac', 'vendor', 'model', 'os', 'kind'])
 const dt = z.iso.datetime()
@@ -19,20 +19,20 @@ export const Software = z.object({
 })
 export const Service = z.object({
   port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']), name: z.string(), product: z.string().optional(), version: z.string().optional(),
-  detail: z.string().optional().describe('What the service said about the device besides product and version: nmap extra info and device type, page title, certificate subject (D-511). Evidence only, never software'),
+  detail: z.string().optional().describe('What the service said about the device besides product and version: nmap extra info and device type, page title, certificate subject. Evidence only, never software'),
   source: ObsSource, confidence,
 })
 export const KindGuess = z.object({
   kind: AssetKind, confidence, evidence: z.string().describe('What matched and what it most likely means, one sentence'),
   model: z.string().optional().describe('A model a certificate or page title states'),
   alternatives: z.array(AssetKind).optional().describe('Other types the same signals fit, offered next to the guess'),
-}).describe('What the identification rules say the device most likely is (D-511), only while kind is unknown; it changes no behaviour until a person sets the kind')
+}).describe('What the identification rules say the device most likely is, only while kind is unknown; it changes no behaviour until a person sets the kind')
 export const Asset = z.object({
   id: z.string(), site: z.string(), ip: z.string().describe('"—" when declared manually and the IP is unknown'), mac: z.string().nullable(),
   hostname: z.string().nullable().describe('The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device was added manually; read-only'),
-  name: z.string().nullable().describe('The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on every page; null = the default name (the naming rule, D-471)'),
+  name: z.string().nullable().describe('The name a person gave the device in Vedette (PATCH name): it wins over every other name on every page; null = the default name (the naming rule)'),
   kind: AssetKind,
-  kind_source: ObsSource.nullable().describe('Source of the kind; null for the default unknown (D-511)'), guess: KindGuess.nullable(),
+  kind_source: ObsSource.nullable().describe('Source of the kind; null for the default unknown'), guess: KindGuess.nullable(),
   vendor: Observed.nullable(), model: Observed.nullable(), os: Observed.nullable(), software: z.array(Software), services: z.array(Service),
   first_seen: dt, last_seen: dt, approved: z.boolean(), fragile: z.boolean(), origin: z.enum(['discovered', 'manual']), notes: z.string().optional(),
 })
@@ -41,25 +41,25 @@ export const Asset = z.object({
 export const Observation = z.object({ id: z.string(), field: ObsField, value: z.string(), source: ObsSource, confidence, seen_at: dt, current: z.boolean(),
   contradicts_type: z.boolean().optional().describe('An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS; absent otherwise') })
 
-/** D-601: a person turns each active source of the box on or off per device, on its Sources card. */
+/** A person turns each active source of the box on or off per device, on its Sources card. */
 export const SourceState = z.enum(['on', 'off'])
 export const SourcesInput = z.object({ scan: SourceState.optional(), snmp: SourceState.optional() }).describe('At least one; a source left out is left alone')
 export const SourcesState = z.object({ scan_source: SourceState, snmp_source: SourceState })
-export const RegularScan = z.enum(['follow', 'allow', 'never']).describe('Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)')
-/** D-45, D-84: a fragile device, or one of unknown kind, gets ONE gentle scan when first seen (lowest speed, no service/OS detection), then it is passive-only until classified or allowed; regular_scan=never means never for every kind; discovery never scans the box itself (only a person's pick in Scan now does, D-470). */
+export const RegularScan = z.enum(['follow', 'allow', 'never']).describe('Per-device override of the type setting for regular scans after the one gentle scan; never = never actively scanned again, for every kind of device')
+/** A fragile device, or one of unknown kind, gets ONE gentle scan when first seen (lowest speed, no service/OS detection), then it is passive-only until classified or allowed; regular_scan=never means never for every kind; discovery never scans the box itself (only a person's pick in Scan now does). */
 const ScanInfo = z.object({
   is_box: z.boolean().describe('true for the Vedette box itself: the first device, always present, cannot be deleted (409)'),
   first_scan_at: dt.nullable().describe('When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or a known kind that is not fragile and not set to never)'),
   regular_scan: RegularScan,
-  scan_source: SourceState.describe('D-601: the box\'s network scan of this device (discovery\'s nmap and the vulnerability scans). on: the box\'s own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals'),
+  scan_source: SourceState.describe('the box\'s network scan of this device (discovery\'s nmap and the vulnerability scans). on: the box\'s own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals'),
   snmp_source: SourceState.describe('The box\'s SNMP reads of this device, as scan_source (default on for a device a sensor found, off for one added by hand); saving the device\'s SNMP settings turns it on. Off: no SNMP read goes to it (Check now answers snmp_off, and the device\'s SNMP says so in blocked)'),
-  approved_at: dt.nullable().describe('When a person approved the device, or osquery enrolment did (D-471: "Approved in the last 24 h"); approving again does not move it; null = not approved, added by hand, or approved before this field existed'),
-  ignored_at: dt.nullable().describe('D-630: when a person ignored the device (a staff phone: known, not watched); null = watched. An ignored device is out of To review, the counts and the Devices list (ignored=true lists them), sends no new-device alert, is not scanned or read over SNMP, its open findings are closed (what a person settled keeps its status) and none are made; a trap hit or an intrusion-detection incident from it still alerts'),
+  approved_at: dt.nullable().describe('When a person approved the device, or osquery enrolment did ("Approved in the last 24 h"); approving again does not move it; null = not approved, added by hand, or approved before this field existed'),
+  ignored_at: dt.nullable().describe('when a person ignored the device (a staff phone: known, not watched); null = watched. An ignored device is out of To review, the counts and the Devices list (ignored=true lists them), sends no new-device alert, is not scanned or read over SNMP, its open findings are closed (what a person settled keeps its status) and none are made; a trap hit or an intrusion-detection incident from it still alerts'),
 })
 /** #849: what feeds a device, in the words of the Devices search (source:…). scan = nmap or a vulnerability scan; osquery and Wazuh are
- * told apart (both are source agent in observations): osquery by the device's agent binding (D-598), Wazuh by its sync. */
+ * told apart (both are source agent in observations): osquery by the device's agent binding, Wazuh by its sync. */
 export const DeviceSource = z.enum(['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh'])
-/** G4 (kien): which devices carry risk, at a glance in every list (like Defender's exposure level), read from what Findings › To fix
+/** Which devices carry risk, at a glance in every list (like Defender's exposure level), read from what Findings › To fix
  * shows for the device (findings DeviceUpdates, one rule): exploited = open exploited findings To fix lists (an update is named for
  * them, or the box proved them); update = none, but a Recommended update fixes a CVE likely to be exploited (EPSS ≥ 10%) or of High
  * or Critical severity. null on a clean device. */
@@ -68,7 +68,7 @@ export const DeviceRisk = z.object({
   level: RiskLevel,
   exploited: z.number().int().describe('Open exploited findings of the device that Findings › To fix lists: an update is named for them, or the box proved them (a product-only guess is in Needs your input, not here)'),
   updates: z.number().int().describe('Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity'),
-}).describe('The device\'s risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off')
+}).describe('The device\'s risk marker (findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off')
 export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
   sources: z.array(DeviceSource).describe('Every source that told Vedette something about the device and is still kept (its details, software or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source: filter, #829 sources of the device page)'),
   suspicious: z.boolean(),
@@ -79,22 +79,22 @@ export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
 /** #849: the filters of the Devices search; all optional, ANDed; each list ORs its values. counts stay over the whole inventory. */
 export const DevicesQuery = z.object({
   approved: z.enum(['true', 'false']).optional().describe('true: the Devices list (approved); false: To review'),
-  ignored: z.enum(['true', 'false']).optional().describe('D-630: true lists only the ignored devices; false or absent leaves them out'),
-  type: z.string().max(400).optional().describe('Comma-separated device type ids; a value also matches the types that act as it (D-511: type=server finds a hypervisor). Unknown id: 400 bad_filter'),
+  ignored: z.enum(['true', 'false']).optional().describe('true lists only the ignored devices; false or absent leaves them out'),
+  type: z.string().max(400).optional().describe('Comma-separated device type ids; a value also matches the types that act as it (type=server finds a hypervisor). Unknown id: 400 bad_filter'),
   source: z.string().max(200).optional().describe(`Comma-separated: ${DeviceSource.options.join(', ')}. Unknown value: 400 bad_filter`),
   fragile: z.enum(['true', 'false']).optional(),
   has_findings: z.enum(['true', 'false']).optional().describe('true: findings_count > 0'),
-  risk: z.string().max(60).optional().describe('Comma-separated: exploited, update, none (no risk marker). Unknown value: 400 bad_filter (G4)'),
+  risk: z.string().max(60).optional().describe('Comma-separated: exploited, update, none (no risk marker). Unknown value: 400 bad_filter'),
   q: z.string().max(80).optional().describe('Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model'),
 })
 export const DevicesResponse = z.object({
   items: z.array(DeviceRow),
-  counts: z.object({ all: z.number().int(), pending: z.number().int(), fragile: z.number().int(), manual: z.number().int(), ignored: z.number().int().describe('Ignored devices (D-630); no other count includes them') }),
+  counts: z.object({ all: z.number().int(), pending: z.number().int(), fragile: z.number().int(), manual: z.number().int(), ignored: z.number().int().describe('Ignored devices; no other count includes them') }),
   notify_new: z.boolean(),
   notify_available: z.boolean().describe('false when the notify module is off'),
-  risk_unavailable: z.boolean().describe('G4: the risk markers could not be read (the findings module failed): no row has one and a risk filter was not applied'),
+  risk_unavailable: z.boolean().describe('The risk markers could not be read (the findings module failed): no row has one and a risk filter was not applied'),
 })
-/** INV-41 (BN340): a person's correction of a row a sensor or agent reported. */
+/** INV-41: a person's correction of a row a sensor or agent reported. */
 export const SoftwareCorrection = z.object({
   set_at: dt.describe('When the person set it (or last changed it)'),
   set_by: z.string().describe('Who set it (email); "" for a correction stored without one'),
@@ -107,7 +107,7 @@ export const SoftwareCorrection = z.object({
 })
 export const SoftwareView = Software.omit({ kev: true }).extend({
   kev_cves: z.array(z.string()),
-  pkg_version: z.string().optional().describe('The full package release: an agent\'s packaged row ("1:9.6p1-3ubuntu13.14", D-516) or a person\'s correction ("10.2_p1-r1"); absent when none'),
+  pkg_version: z.string().optional().describe('The full package release: an agent\'s packaged row ("1:9.6p1-3ubuntu13.14") or a person\'s correction ("10.2_p1-r1"); absent when none'),
   corrected_by: z.string().optional().describe('On a row a sensor or agent reported: the id of the person\'s correction that replaces it for matching (INV-41). Show it as replaced; Clear on the correction brings it back'),
   correction: SoftwareCorrection.optional().describe('On a person\'s correction of a reported row (INV-41): when it was set and what the sources read now. Clear = DELETE the row'),
 })
@@ -117,13 +117,13 @@ export const OsCorrection = z.object({
   detected: Observed.nullable().describe('The OS the sources read without the correction (the value that would win); null when none reads one'),
   disagrees: z.boolean().describe('The sources read another OS: show "You set X on <date>; the last scan reads Y"'),
 })
-/** D-599 (#829, J2): when the inventory cannot be sure two rows are one machine (a phone or laptop with a new private Wi-Fi address and a
+/** When the inventory cannot be sure two rows are one machine (a phone or laptop with a new private Wi-Fi address and a
  * generic name, an older MAC two rows share), a person decides: "Possibly the same device as X" with Merge and Keep separate. */
 export const PossibleSame = z.object({
-  id: z.string(), name: z.string().describe('The other device, named as every page names it (D-471)'),
+  id: z.string(), name: z.string().describe('The other device, named as every page names it'),
   why: z.string().describe('What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same time, and a private Wi-Fi address (phones and laptops change it).'),
   approved: z.boolean(), last_seen: dt,
-  ignored: z.boolean().describe('D-630: a person ignored the other device. A merge keeps the kept device watched or ignored, except that an approved device a person watches is never hidden: merged with it, an ignored device is watched again'),
+  ignored: z.boolean().describe('a person ignored the other device. A merge keeps the kept device watched or ignored, except that an approved device a person watches is never hidden: merged with it, an ignored device is watched again'),
 })
 export const SameRef = PossibleSame.omit({ why: true, ignored: true })
 export const DeviceDetail = z.object({
@@ -134,15 +134,15 @@ export const DeviceDetail = z.object({
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
   risk: DeviceRisk.nullable(),
-  risk_unavailable: z.boolean().describe('G4: the risk marker could not be read (the findings module failed)'),
+  risk_unavailable: z.boolean().describe('The risk marker could not be read (the findings module failed)'),
   observations: z.array(Observation),
   kinds: z.array(AssetKind),
-  possible_same: z.array(PossibleSame).describe('Devices that may be this same machine (D-599), the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was'),
+  possible_same: z.array(PossibleSame).describe('Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was'),
 })
 export const SamePairs = z.object({
   items: z.array(z.object({
     a: SameRef.describe('The approved device when one is, else the one seen first: the one a merge most likely keeps'), b: SameRef, why: PossibleSame.shape.why,
-  })).describe('Every pair of devices that may be one machine (D-599), the pair seen last first'),
+  })).describe('Every pair of devices that may be one machine, the pair seen last first'),
 })
 export const MergeInput = z.object({ from: z.string().min(1).max(96).describe('The device that goes into the device of the path') })
 export const KeepSeparateInput = z.object({ other: z.string().min(1).max(96).describe('The other device of the pair') })
@@ -169,35 +169,35 @@ export const ActiveWindow = z.object({
   rate: z.number().int().min(1).max(1000).describe('Packets per second'), exclusions: z.array(z.string()).describe('IPv4 or CIDR'),
 })
 export const InventorySettings = z.object({
-  lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461)'), active: ActiveWindow, fragile_kinds: z.array(BehaviourKind).describe('Device types scanned only once, gently, when first seen; passive-only after that. Every type acting as one of them counts (D-511)'),
+  lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10)'), active: ActiveWindow, fragile_kinds: z.array(BehaviourKind).describe('Device types scanned only once, gently, when first seen; passive-only after that. Every type acting as one of them counts'),
   regular_scan_kinds: z.array(BehaviourKind).describe('Subset of fragile_kinds for which the owner allowed regular scans'),
   scope_confirmed_at: dt.nullable(), scope_confirmed_by: z.string().nullable(),
   version: z.string().describe('Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32): send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since the page loaded'),
 })
 export const SettingsInput = InventorySettings.extend({
   scope_confirmed: z.boolean().describe('Attestation: the ranges belong to the company and scanning them is permitted'),
-  version: z.string().max(64).optional().describe('The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so a range or exclusion added since the page loaded is replaced; this page is being replaced by Settings › Scanning (#850)'),
+  version: z.string().max(64).optional().describe('The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (#860). Left out: no check, so a range or exclusion added since the page loaded is replaced; this page is being replaced by Settings › Scanning (#850)'),
 })
 export const SettingsSaved = InventorySettings.extend({
   adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24'),
 })
 
-export const SensorStatus = z.enum(['online', 'offline', 'never_connected', 'starting']).describe('online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the sensor container (an appliance after setup or after the module is turned on: the start is being retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A container-only install never says starting: the customer starts it')
+export const SensorStatus = z.enum(['online', 'offline', 'never_connected', 'starting']).describe('online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever; starting: not online while the box is still starting the sensor container (an appliance after setup or after the module is turned on: the start is being retried, for up to 10 minutes, or was confirmed less than 3 minutes ago). A container-only install never says starting: the customer starts it')
 /** Chỉ cảm biến của chính hộp này (chưa hỗ trợ nhiều site). */
 export const Sensor = z.object({
-  id: z.string(), name: z.string(), interface: z.string().nullable().describe('The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387, D-393)'), interfaces: z.array(z.string()).describe('The cards the sensor reported in its last heartbeat'), span: z.boolean(),
-  chosen: z.boolean().describe('true: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen with PATCH on a container-only install); false: interface is the default card (D-380) or null (D-393)'),
+  id: z.string(), name: z.string(), interface: z.string().nullable().describe('The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default card, the management port; null: none. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id}'), interfaces: z.array(z.string()).describe('The cards the sensor reported in its last heartbeat'), span: z.boolean(),
+  chosen: z.boolean().describe('true: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen with PATCH on a container-only install); false: interface is the default card or null'),
   span_status: z.object({ verdict: z.enum(['off', 'ok', 'own_only', 'no_traffic', 'no_link']), packets_per_s: z.number().int(), other_macs: z.number().int() }).describe('Live mirrored-traffic health, the same as Settings → Box network'),
   status: SensorStatus, last_seen: dt.nullable(), version: z.string().nullable(), devices_seen: z.number().int(),
-  capture_error: z.enum(['no_permission', 'no_interface', 'filters_invalid', 'capture_failed']).nullable().describe('Why the sensor, online, does not capture on its card (from its heartbeat, D-399): no_permission = no CAP_NET_RAW (rootless container), no_interface = the card is not on that machine, filters_invalid = the capture filters cannot be read, capture_failed = anything else (the sensor log says what); null while it captures, has no card, or is not online'),
+  capture_error: z.enum(['no_permission', 'no_interface', 'filters_invalid', 'capture_failed']).nullable().describe('Why the sensor, online, does not capture on its card (from its heartbeat): no_permission = no CAP_NET_RAW (rootless container), no_interface = the card is not on that machine, filters_invalid = the capture filters cannot be read, capture_failed = anything else (the sensor log says what); null while it captures, has no card, or is not online'),
 })
 export const SensorsResponse = z.object({ sensors: z.array(Sensor) })
 export const SensorPatch = z.object({
-  interface: z.string().max(15).nullable().describe('A card of the sensor\'s last heartbeat (younger than 90 s); null: no card chosen, the sensor listens on the default one (D-380)'),
+  interface: z.string().max(15).nullable().describe('A card of the sensor\'s last heartbeat (younger than 90 s); null: no card chosen, the sensor listens on the default one'),
   span: z.boolean().describe('The card receives mirrored traffic; it must have no IPv4 address. true needs an interface'),
 })
 
-/** Chỉ osquery dùng token (Vedette là máy chủ TLS của osquery). Wazuh là kết nối kéo qua API (WazuhConnection), không có token. Không hỗ trợ Trivy (D-33). */
+/** Chỉ osquery dùng token (Vedette là máy chủ TLS của osquery). Wazuh là kết nối kéo qua API (WazuhConnection), không có token. Không hỗ trợ Trivy. */
 export const AgentKind = z.enum(['osquery'])
 export const AgentToken = z.object({
   id: z.string(), name: z.string(), kind: AgentKind, last4: z.string(), created_at: dt, last_received: dt.nullable(), hosts: z.number().int(),
@@ -205,21 +205,21 @@ export const AgentToken = z.object({
 })
 const Installer = z.object({ url: z.string(), sha256: z.string().describe('SHA-256 (lowercase hex) of the script served by the box; users compare it before running'), script: z.string().describe('Full script text, for the admin to read first') })
 export const OsqueryPackage = z.object({
-  file: z.string().describe('File name; the browser downloads it from /api/v1/install/osquery/{file} (D-404)'),
+  file: z.string().describe('File name; the browser downloads it from /api/v1/install/osquery/{file}'),
   platform: z.enum(['linux', 'windows']), format: z.enum(['deb', 'rpm', 'msi']), arch: z.enum(['x86_64', 'arm64']),
   size: z.number().int().describe('Bytes'),
   sha256: z.string().describe("SHA-256 (lowercase hex) from the box's SHA256SUMS, which the core build writes from deploy/osquery/PINS"),
 })
 export const Installers = z.object({
   osquery_version: z.string(), linux: Installer, windows: Installer,
-  packages: z.array(OsqueryPackage).describe('The osquery packages this box serves (D-404); empty when it has no copy (a development build without the mirror)'),
+  packages: z.array(OsqueryPackage).describe('The osquery packages this box serves; empty when it has no copy (a development build without the mirror)'),
 })
 export const OsqueryStatusBody = z.object({ host_identifier: z.string().max(200).optional().describe('The name this machine enrols under (the install script sets osquery host_identifier = specified and sends the same name here); the install script sends it so the answer is about THIS machine') })
 export const OsqueryStatus = z.object({
   enrolled: z.boolean(), hosts: z.number().int(),
   host_last_seen: z.string().nullable().optional().describe('Only when host_identifier was sent: when the box last heard from the machine of this token with that name (a hostname match ignores case), null when no machine of the token has enrolled under it; absent when no usable host_identifier was sent. It tells nothing about machines of other tokens'),
 })
-// osquery TLS remote API (D-169): machine to machine, called by osqueryd only, never by this GUI. Shapes follow
+// osquery TLS remote API: machine to machine, called by osqueryd only, never by this GUI. Shapes follow
 // https://osquery.readthedocs.io/en/stable/deployment/remote/ . osquery sends more keys than these (host_details, decorations, ...): the loose
 // objects accept them and the box ignores what it does not use. Every credential failure is HTTP 200 with node_invalid: true (osquery does not handle HTTP errors).
 export const OsqueryEnrollBody = z.looseObject({
@@ -247,7 +247,7 @@ export const WazuhTestResult = z.object({ ok: z.literal(true), version: z.string
 export const AgentsResponse = z.object({ install: Installers, tokens: z.array(AgentToken), server_url: z.string().describe('https://<box IP>:8443, or https://<VEDETTE_BOX_IP>:8443 when the IP is unknown'), wazuh: WazuhConnection.nullable() })
 export const CreateTokenResult = z.object({ token: AgentToken, secret: z.string().describe('Full token, returned only at creation') })
 export const SampleResult = z.object({ devices: z.number().int(), software: z.number().int() })
-/** "I updated it" for software an agent reads (S-MIT-1, kien G12 follow-up): which agent of this box reads the device, and the open ask. */
+/** "I updated it" for software an agent reads (S-MIT-1): which agent of this box reads the device, and the open ask. */
 export const AgentReport = z.object({
   agent: z.enum(['osquery', 'wazuh', 'none', 'box']).describe('osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the list; none = no agent of this box reads it now; box = the Vedette box itself, which reads its own packages every hour'),
   asked_at: dt.nullable().describe('The open ask: when a person asked the osquery agent to send its software now, until its list (built with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open'),
@@ -334,17 +334,17 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/inventory/devices/{id}', summary: 'Device details: observations, services, software', stories: ['S-INV-1'], role: 'viewer', params: id, response: DeviceDetail, example: { params: { id: 'a-nas02' } } },
   { method: 'patch', path: '/inventory/devices/{id}', summary: 'Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the notes of a device. 400 bad_name: a name over 64 characters or with < or >', stories: ['S-INV-1'], role: 'operator', params: id,
     body: z.object({
-      name: z.string().max(200).optional().describe('The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the default name). The host name the network reports is not changed'),
+      name: z.string().max(200).optional().describe('The name in Vedette: trimmed, at most 64 characters, no < or >; empty clears it (back to the default name). The host name the network reports is not changed'),
       kind: AssetKind.optional(), fragile: z.boolean().optional(), regular_scan: RegularScan.optional(), notes: z.string().max(2000).optional(),
       os: z.string().max(400).optional().describe('Correct the operating system (INV-41): trimmed, at most 200 characters, no < or >; it wins over every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources read). 400 bad_os'),
     }), response: ok },
-  { method: 'put', path: '/inventory/devices/{id}/sources', summary: 'Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person\'s consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device (D-630)', stories: ['S-INV-1', 'S-INV-4'], role: 'admin', params: id, body: SourcesInput, response: SourcesState },
+  { method: 'put', path: '/inventory/devices/{id}/sources', summary: 'Turn the network scan or the SNMP reads of one device on or off. On is the person\'s consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device', stories: ['S-INV-1', 'S-INV-4'], role: 'admin', params: id, body: SourcesInput, response: SourcesState },
   { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
   { method: 'post', path: '/inventory/devices/{id}/approve', summary: 'Approve a new device', stories: ['S-INV-3'], role: 'operator', params: id, response: ok },
-  { method: 'get', path: '/inventory/possible-same', summary: 'Every pair of devices that may be the same machine, for a person to merge or keep separate (D-599)', stories: ['S-INV-3'], role: 'viewer', response: SamePairs },
-  { method: 'post', path: '/inventory/devices/{id}/merge', summary: 'The same machine: device `from` joins this device and is gone (D-599). This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines', stories: ['S-INV-3'], role: 'admin', params: id, body: MergeInput, response: id },
-  { method: 'post', path: '/inventory/devices/{id}/keep-separate', summary: 'Two machines: the pair is never offered as possibly the same device again, until either is deleted or merged (D-599). Saying it again changes nothing. 400 invalid, 404 not_found, 409 box_device as for merge', stories: ['S-INV-3'], role: 'admin', params: id, body: KeepSeparateInput, response: ok },
-  { method: 'post', path: '/inventory/devices/{id}/ignore', summary: 'Ignore a device that needs no watching, such as a staff phone, or stop ignoring it (D-630). Ignored: it stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its open findings close as not relevant ("Closed by Vedette: the device was ignored by <person>.", no notice; findings a person settled keep their status); a trap hit or an intrusion-detection incident from it still alerts. Stopped: it goes back to To review (not approved), its own scan and SNMP settings apply again (they are kept while it is ignored), the findings Ignore closed reopen, matched again. Saying it again changes nothing. 404 not_found. 409 box_device: the Vedette box itself', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ ignored: z.boolean() }), response: ok },
+  { method: 'get', path: '/inventory/possible-same', summary: 'Every pair of devices that may be the same machine, for a person to merge or keep separate', stories: ['S-INV-3'], role: 'viewer', response: SamePairs },
+  { method: 'post', path: '/inventory/devices/{id}/merge', summary: 'The same machine: device `from` joins this device and is gone. This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines', stories: ['S-INV-3'], role: 'admin', params: id, body: MergeInput, response: id },
+  { method: 'post', path: '/inventory/devices/{id}/keep-separate', summary: 'Two machines: the pair is never offered as possibly the same device again, until either is deleted or merged. Saying it again changes nothing. 400 invalid, 404 not_found, 409 box_device as for merge', stories: ['S-INV-3'], role: 'admin', params: id, body: KeepSeparateInput, response: ok },
+  { method: 'post', path: '/inventory/devices/{id}/ignore', summary: 'Ignore a device that needs no watching, such as a staff phone, or stop ignoring it. Ignored: it stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its open findings close as not relevant ("Closed by Vedette: the device was ignored by <person>.", no notice; findings a person settled keep their status); a trap hit or an intrusion-detection incident from it still alerts. Stopped: it goes back to To review (not approved), its own scan and SNMP settings apply again (they are kept while it is ignored), the findings Ignore closed reopen, matched again. Saying it again changes nothing. 404 not_found. 409 box_device: the Vedette box itself', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ ignored: z.boolean() }), response: ok },
   { method: 'post', path: '/inventory/devices/{id}/suspicious', summary: 'Mark or unmark a device as suspicious', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ suspicious: z.boolean() }), response: ok },
   { method: 'post', path: '/inventory/devices/{id}/software', status: 201, summary: 'Declare additional software running on a device', stories: ['S-INV-2'], role: 'operator', params: id,
     body: AddDeviceInput.omit({ name: true, ip: true }), response: z.object({ kev_cves: z.number().int() }) },
@@ -365,7 +365,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/inventory/settings', summary: 'LAN ranges, active scan window, device types scanned only once (and which allow regular scans), scope attestation', stories: ['S-INV-1'], role: 'admin', response: InventorySettings },
   { method: 'put', path: '/inventory/settings', summary: 'Save the scan scope; enabling active scanning requires scope attestation. 409 safety_changed when the version sent is not the stored one', stories: ['S-INV-1'], role: 'admin', body: SettingsInput, response: SettingsSaved },
   { method: 'get', path: '/inventory/sensors', summary: 'Sensors of this box only (multiple sites not supported yet)', stories: ['S-INV-1'], role: 'admin', response: SensorsResponse },
-  { method: 'patch', path: '/inventory/sensors/{id}', summary: 'Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or without an address; null: back to the default card) and whether it is the SPAN card (D-387, D-393). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it', stories: ['S-CORE-8', 'S-INV-1'], role: 'admin', params: id, body: SensorPatch, response: Sensor },
+  { method: 'patch', path: '/inventory/sensors/{id}', summary: 'Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or without an address; null: back to the default card) and whether it is the SPAN card. 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it', stories: ['S-CORE-8', 'S-INV-1'], role: 'admin', params: id, body: SensorPatch, response: Sensor },
   { method: 'get', path: '/inventory/agents', summary: 'Issued osquery tokens and the Wazuh connection (if any)', stories: ['S-INV-4'], role: 'admin', response: AgentsResponse },
   { method: 'post', path: '/inventory/agents/tokens', status: 201, summary: 'Issue an osquery token, returning the full token once', stories: ['S-INV-4'], role: 'admin', body: z.object({ name: z.string().max(64), kind: AgentKind.optional(), expires_in_days: z.number().int().min(0).max(365).optional().describe('Default 7; 0 = never expires') }), response: CreateTokenResult },
   { method: 'delete', path: '/inventory/agents/tokens/{id}', summary: 'Revoke an osquery token', stories: ['S-INV-4'], role: 'admin', params: id, response: null },

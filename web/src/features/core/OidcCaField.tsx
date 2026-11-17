@@ -6,7 +6,7 @@ import type { OidcConfig } from './types'
 
 const SOON = 30 * 24 * 60 * 60 * 1000
 
-/** D-378 (S-CORE-3): the CA of an identity provider behind a private CA. `value` undefined = unchanged (the saved text shows); the
+/** S-CORE-3: the CA of an identity provider behind a private CA. `value` undefined = unchanged (the saved text shows); the
  *  save sends `ca_pem` only once it is edited, so a save that leaves it alone keeps the saved CA; Remove sets it to "". */
 export function OidcCaField({ cfg, value, error, onChange }: { cfg: OidcConfig; value: string | undefined; error?: string; onChange: (v: string) => void }) {
   const { t } = useTranslation('core')

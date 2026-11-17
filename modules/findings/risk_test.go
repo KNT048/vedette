@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// G4 (kien): the risk marker of a device in every list uses To fix's tests (one rule, G8): red = its open exploited findings To fix
+// The risk marker of a device in every list uses To fix's tests (one rule): red = its open exploited findings To fix
 // counts as something to fix; amber = none of those, but a recommended update fixes a CVE likely to be exploited or of High or Critical
 // severity; nothing when clean. RiskMap reads them in one batch, never per device.
 
@@ -26,7 +26,7 @@ func riskOfToFix(d DeviceUpdates) AssetRisk {
 	return r
 }
 
-func TestRiskMap_G4_AgreesWithToFix(t *testing.T) {
+func TestRiskMap_AgreesWithToFix(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ranged := func(cve, end string) Vuln {
@@ -100,7 +100,7 @@ func TestRiskMap_G4_AgreesWithToFix(t *testing.T) {
 }
 
 // Closed, not relevant and risk-accepted findings are no risk; a product-only guess is in Needs your input, not To fix.
-func TestRiskMap_G4_OnlyOpenFindingsToFix(t *testing.T) {
+func TestRiskMap_OnlyOpenFindingsToFix(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t) // qnapVuln: a product match, no range
 	id := e.seed()
@@ -133,7 +133,7 @@ func TestRiskMap_G4_OnlyOpenFindingsToFix(t *testing.T) {
 
 // Review r1 of #949 (N+1), r2: many devices cost one classification, cached: the first read reads each device once (To fix's own
 // per-device work), every later read until something changes reads none, and the answer is the same map.
-func TestRiskMap_G4_OneBatchForManyDevices(t *testing.T) {
+func TestRiskMap_OneBatchForManyDevices(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	const n = 300
@@ -174,7 +174,7 @@ func TestRiskMap_G4_OneBatchForManyDevices(t *testing.T) {
 
 // Review r2 of #949 (High), scenario A: a CVE whose range names no fixed release (up to and including 6.1.1) on a version a network
 // scan read: no update is named and nothing is proved, so To fix shows it only under Needs your input, and the device is not red.
-func TestRiskMap_G4_NeedsYourInputIsNotRed(t *testing.T) {
+func TestRiskMap_NeedsYourInputIsNotRed(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.feeds.vulns = []Vuln{{CVE: "CVE-2099-0101", Vendor: "QNAP", Product: "Photo Station",
@@ -198,7 +198,7 @@ func TestRiskMap_G4_NeedsYourInputIsNotRed(t *testing.T) {
 
 // Review r2 of #949 (High), scenario B: one row with a scan-confirmed CVE (no named update) and a product-only guess: To fix's proved
 // row group holds both, its card says 2 exploited CVEs to fix, and the marker says 2 too.
-func TestRiskMap_G4_TheMarkerCountsWhatTheCardCounts(t *testing.T) {
+func TestRiskMap_TheMarkerCountsWhatTheCardCounts(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	noFix := Vuln{CVE: "CVE-2099-0102", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true,
@@ -227,7 +227,7 @@ func TestRiskMap_G4_TheMarkerCountsWhatTheCardCounts(t *testing.T) {
 
 // The pages read the marker from their own answer (no device list): GET /findings/to-fix and GET /findings/plan carry each device's
 // risk; the Vedette box itself is never marked, while To fix still lists its updates (review r1 of #949).
-func TestRiskMap_G4_ToFixAndPlanCarryTheMarkerNotForTheBox(t *testing.T) {
+func TestRiskMap_ToFixAndPlanCarryTheMarkerNotForTheBox(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
 	for _, id := range []string{"a-web", "a-box"} {

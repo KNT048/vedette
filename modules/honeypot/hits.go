@@ -152,8 +152,8 @@ func (s *Service) HitDetail(ctx context.Context, id string) (HitDetail, error) {
 }
 
 // SourceConnected reports whether src completed a connection to a trap service (a real service hit over TCP: the listener logs a
-// connection only after the handshake; a UDP service hit has none and never confirms, D-467 review H1) within window of at. A scan hit can be made from attempts that completed nothing, so its source may be forged;
-// response offers to block the source of a scan only when this holds (D-509). Read only.
+// connection only after the handshake; a UDP service hit has none and never confirms) within window of at. A scan hit can be made from attempts that completed nothing, so its source may be forged;
+// response offers to block the source of a scan only when this holds. Read only.
 func (s *Service) SourceConnected(ctx context.Context, src string, at time.Time, window time.Duration) (bool, error) {
 	var n int
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM hp_hits WHERE src_ip = ? AND is_test = 0 AND kind = 'service' AND handshake = 1 AND ts BETWEEN ? AND ?`,
@@ -227,7 +227,7 @@ func (s *Service) TestHit(ctx context.Context, actor string, svc ServiceName) (H
 	if err != nil {
 		return Hit{}, err
 	}
-	// The first Trap IP that is on with this service (D-466); one whose address the box would not hand to the host cannot listen.
+	// The first Trap IP that is on with this service; one whose address the box would not hand to the host cannot listen.
 	var on []trapIPRow
 	for _, d := range w.trapIPs {
 		if d.Enabled && d.has(svc) {

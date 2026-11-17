@@ -2,7 +2,7 @@ package response
 
 import "testing"
 
-// Review of #376 (D-336): what decides is the rule's templates as well as the values: the device's address inside free text (a custom
+// Review of #376: what decides is the rule's templates as well as the values: the device's address inside free text (a custom
 // low-risk {text} action calling a NAC) names the device too.
 func TestHeldForAutoReadsTheRuleTemplates(t *testing.T) {
 	ev := Det{Trigger: "ioc_connection", Fields: map[string]string{"src_ip": "192.168.10.105", "device": "PC-SALES-02", "dest_kind": "ip", "dest_ip": "185.220.101.47", "switch_port": ""}}

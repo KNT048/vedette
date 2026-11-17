@@ -19,7 +19,7 @@ const WHENS: HookWhen[] = ['before_ai', 'after_ai', 'before_tool']
 const ACTIONS: HookAction[] = ['block', 'mask', 'approve']
 const tone = (a: HookAction) => (a === 'block' ? 'danger' : a === 'mask' ? 'warn' : 'accent')
 
-/** Hook: kiểm tra chạy trước và sau mỗi lần gọi AI (D-39). Có sẵn 3 hook; khách thêm hook theo từ khoá hoặc biểu thức. */
+/** Hook: kiểm tra chạy trước và sau mỗi lần gọi AI. Có sẵn 3 hook; khách thêm hook theo từ khoá hoặc biểu thức. */
 export default function HooksTab() {
   const { t } = useTranslation('ai')
   const hooks = useHooks()

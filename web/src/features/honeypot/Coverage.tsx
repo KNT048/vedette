@@ -24,8 +24,8 @@ const ROWS: { id: string; level: Level }[] = [
 /** Row lines whose detail sits behind ⓘ (#824). */
 const ROW_INFO = new Set(['howNoLogin', 'howOneTrap'])
 
-/** What really fires now (D-467: Coverage claims only that). services: the services some Trap IP listens on; listeningIps: how many Trap IPs listen.
- * Without one, nothing the traps would see is covered (2026-11-12 walk); URL tokens are answered by the box itself, so bait stays partly covered (W6-2).
+/** What really fires now (Coverage claims only that). services: the services some Trap IP listens on; listeningIps: how many Trap IPs listen.
+ * Without one, nothing the traps would see is covered (2026-11-12 walk); URL tokens are answered by the box itself, so bait stays partly covered.
  * Moving to shares needs SMB, stolen credentials need a service whose login names an account, and a sweep alert needs two Trap IPs: one alone
  * still alerts on each touch. */
 export default function CoverageSection({ services, listeningIps }: { services: HpService[]; listeningIps: number }) {

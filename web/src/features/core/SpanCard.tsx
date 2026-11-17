@@ -47,7 +47,7 @@ function Status({ iface }: { iface: string | null }) {
   )
 }
 
-/** readOnly (D-403, SPAN hidden for v1): what this box already has, every control locked, no Save; one way out, Turn off, which also
+/** readOnly (SPAN hidden for v1): what this box already has, every control locked, no Save; one way out, Turn off, which also
  *  works when the SPAN card is no longer in the card list (unplugged, renamed). */
 export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: boolean }) {
   const { t } = useTranslation('core')

@@ -12,8 +12,8 @@ const (
 	// EventSeverityRaised: a repeated match raised the severity of an open finding (review H2, M-a of #663): a
 	// product finding whose NVD ranges arrived and put its version inside (basis version), so it may now be critical.
 	EventSeverityRaised = "findings.finding.severity_raised"
-	// EventUncheckedAdded: exploited CVEs entered a device's "could not be checked" list for the first time (D-602, review r1 H2 of
-	// #939): one event per device and match write, listing them; never again for the same device and CVE, never for a CVE the device
+	// EventUncheckedAdded: exploited CVEs entered a device's "could not be checked" list for the first time
+	// (#939): one event per device and match write, listing them; never again for the same device and CVE, never for a CVE the device
 	// has or had a finding for. Published under the Backlog mark from Reconcile's backlog write, like findings.finding.created.
 	EventUncheckedAdded = "findings.unchecked.added"
 )
@@ -50,9 +50,9 @@ type StatusChangedEvent struct {
 	FindingID string `json:"finding_id"`
 	From      Status `json:"from"`
 	To        Status `json:"to"`
-	// Reason is set when Vedette changed the status by itself (D-530): ReasonNotAffectedVersion when it closed the
-	// finding, ReasonMatchesAgain when it reopened one it had closed, ReasonRiskExpired when a risk acceptance ran out
-	// (D-498). Empty for a person's action or a scan.
+	// Reason is set when Vedette changed the status by itself: ReasonNotAffectedVersion when it closed the
+	// finding, ReasonMatchesAgain when it reopened one it had closed, ReasonRiskExpired when a risk acceptance ran out.
+	// Empty for a person's action or a scan.
 	Reason string `json:"reason,omitempty"`
 	// AcceptedBy and AcceptedUntil (YYYY-MM-DD) are set only with ReasonRiskExpired: who accepted the risk and its last day.
 	AcceptedBy    string `json:"accepted_by,omitempty"`
@@ -60,7 +60,7 @@ type StatusChangedEvent struct {
 }
 
 // ReasonMatchesAgain is the StatusChangedEvent reason of a finding Vedette reopened because the device matches the
-// entry again after Vedette had closed it as not affected (D-530).
+// entry again after Vedette had closed it as not affected.
 const ReasonMatchesAgain = "matches_again"
 
 // SeverityRaisedEvent is the payload of findings.finding.severity_raised. The status is unchanged (still open).
@@ -83,12 +83,12 @@ type Publisher interface {
 // AssetView is the device a finding is about, as the finding list and page show it (FindingAsset).
 type AssetView struct {
 	ID       string  `json:"id"`
-	Name     string  `json:"name"`     // the name the Devices page shows (hostname, else vendor and model, else IP); never the id (D-484)
+	Name     string  `json:"name"`     // the name the Devices page shows (hostname, else vendor and model, else IP); never the id
 	Hostname *string `json:"hostname"` // nil when the device has no name
 	IP       string  `json:"ip"`       // "—" when the device has no IP address (hand-added, LLDP only)
 	Kind     string  `json:"kind"`     // one of the inventory kinds; anything else is shown as "unknown"
 	Display  string  `json:"display"`  // the device's OS, else its kind; GET /findings/{id} puts the matched software here (matchedOn, #905)
-	Box      bool    `json:"-"`        // the Vedette box itself: never given a risk marker (G4)
+	Box      bool    `json:"-"`        // the Vedette box itself: never given a risk marker
 }
 
 // NoIP is the IP of a device without an address, as the inventory API writes it.
@@ -97,7 +97,7 @@ const NoIP = "—"
 // HasIP reports whether the device has an address a scan or a person can reach.
 func (a *AssetView) HasIP() bool { return a != nil && a.IP != "" && a.IP != NoIP }
 
-// Inventory is what findings reads from the inventory module (Kien's; not built yet).
+// Inventory is what findings reads from the inventory module (not built yet).
 type Inventory interface {
 	// Assets returns the devices with these ids. Unknown ids are absent from the map. An ignored device (inventory INV-38) is
 	// present: reconcile's orphan pass relies on it, so a pass whose IgnoredIDs read failed never deletes an ignored device's
@@ -108,10 +108,10 @@ type Inventory interface {
 	// AssetIDs returns the id of every device, with no cap. Reconcile matches each of them and treats a finding whose
 	// device is not in the list as orphaned, so a short answer must never be returned: any read error is an error.
 	AssetIDs(ctx context.Context) ([]string, error)
-	// IgnoredIDs returns the devices a person ignored (inventory INV-38, D-630), with no cap; any read error is an error. They are
+	// IgnoredIDs returns the devices a person ignored (inventory INV-38), with no cap; any read error is an error. They are
 	// not in AssetIDs: reconcile closes their open findings and never treats their findings as orphaned.
 	IgnoredIDs(ctx context.Context) ([]string, error)
-	// IsIgnored says whether a person ignored the device; false when it does not exist. Asked inside a write (D-630).
+	// IsIgnored says whether a person ignored the device; false when it does not exist. Asked inside a write.
 	IsIgnored(ctx context.Context, assetID string) (bool, error)
 }
 
@@ -128,8 +128,8 @@ type KevInfo struct {
 	Ransomware     bool     `json:"ransomware"`
 	EPSS           *float64 `json:"epss"`
 	HasTemplate    bool     `json:"has_template"`
-	Source         string   `json:"source"` // "cisa-kev" or "vulncheck-kev": which list the entry is on, so every text names it (D-557)
-	// Published is the day NVD published the CVE ("2017-03-14", D-615), never CISA's date_added; nil when NVD has not answered.
+	Source         string   `json:"source"` // "cisa-kev" or "vulncheck-kev": which list the entry is on, so every text names it
+	// Published is the day NVD published the CVE ("2017-03-14"), never CISA's date_added; nil when NVD has not answered.
 	Published *string `json:"published"`
 }
 
@@ -143,7 +143,7 @@ type CVSS struct {
 	Vector  string  `json:"vector"`  // NVD's vector string ("CVSS:3.1/AV:N/…", v2 "AV:N/AC:L/…")
 }
 
-// TierStatus is what the tier feeds of feeds hold (D-613, D-616): "off", "loading" or "ready" for epss-all and nvd-recent,
+// TierStatus is what the tier feeds of feeds hold: "off", "loading" or "ready" for epss-all and nvd-recent,
 // the day of the EPSS scores and the first published day nvd-recent covers (zero unless ready).
 type TierStatus struct {
 	EPSS, Recent          string
@@ -159,15 +159,15 @@ type Feeds interface {
 	CVSS(ctx context.Context, cves []string) (map[string]CVSS, error)
 	// Vulns returns the exploited-vulnerability list with the NVD affected ranges, for matching.
 	Vulns(ctx context.Context) ([]Vuln, error)
-	// TierStatus says what the tier feeds hold, for GET /findings/plan (D-613, D-616).
+	// TierStatus says what the tier feeds hold, for GET /findings/plan.
 	TierStatus(ctx context.Context) (TierStatus, error)
 	// TierVulns returns the CVEs of the tier data (nvd-recent, with the EPSS of epss-all) published in the last 12 months whose NVD
-	// affected entries name a CPE keep accepts, each with those entries only (D-617). None while nvd-recent is not ready or the feeds
+	// affected entries name a CPE keep accepts, each with those entries only. None while nvd-recent is not ready or the feeds
 	// module is off; no EPSS while epss-all is not ready.
 	TierVulns(ctx context.Context, keep func(cpe string) bool) ([]TierVuln, error)
 	// TierDistro returns the tier CVEs (as TierVulns: published in the last 12 months, EPSS) for which a distribution feed that is on
 	// has a fixed row of one of pkgs, each with those rows in Distro and no Affected, and the releases ("ubuntu/24.04") among pkgs'
-	// that the distribution feeds hold rows for (D-622). Nothing while nvd-recent is not ready or the feeds module is off.
+	// that the distribution feeds hold rows for. Nothing while nvd-recent is not ready or the feeds module is off.
 	TierDistro(ctx context.Context, pkgs []DistroPackage) (vulns []TierVuln, covered map[string]bool, err error)
 	// TierStamp changes whenever what TierVulns or TierDistro returns may have changed: a pull or switch of epss-all, nvd-recent,
 	// nvd-kev, ubuntu-osv or debian-tracker, or the feeds module turned on or off (feeds' Store.TierStamp plus the module switch, cmd/vedette).

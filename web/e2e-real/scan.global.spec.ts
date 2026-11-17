@@ -1,7 +1,7 @@
 // The scan module on the real backend, its page Settings › Scanning (#850) (S-SCAN-1, S-SCAN-2, S-SCAN-4; scan INV-1, INV-2, INV-3, INV-5, INV-6, INV-7, INV-8, INV-9, INV-4 `dangerous_locked`).
 // The first part runs with no scan worker: the settings (validation, partial save, audit), the target list and why a device is not on it, the refusals
 // of a run, the probe log (empty) and its CSV, the rescan log (empty), the page and the roles; `can_scan` is false with the reason the page shows.
-// The second part (`with the scanner`, D-427) starts the REAL worker of sensor-active in the box process with a FAKE nuclei (cmd/vedette/e2escan_test.go):
+// The second part (`with the scanner`) starts the REAL worker of sensor-active in the box process with a FAKE nuclei (cmd/vedette/e2escan_test.go):
 // a run to the end with a match, Stop now, auto-stop, and the new-KEV rescan log. Global project: the settings are box-wide and the specs put them back;
 // the devices the file declares are swept by id after every test.
 import { createServer, type Server } from 'node:http'
@@ -89,7 +89,7 @@ test('no scan container: the settings say so with the reason, the box itself is 
     await page.goto('/settings/scanning?tab=engines#nuclei')
     await expect(page.getByText(/nothing runs while the vulnerability scanner is not available/)).toBeVisible()
     await expect(page.getByText(/until the scan scope commitment is ticked/)).toHaveCount(0)
-    // the box itself is never part of a scan, whoever asks (D-470)
+    // the box itself is never part of a scan, whoever asks
     const boxRun = await api<Err>(c, 'POST', '/scanning/engines/nmap-discovery/run', { targets: [box0!.id] })
     expect([boxRun.status, boxRun.body.error?.code], 'the box is refused').toEqual([400, 'out_of_scope'])
     await expectAccessible(page, 'scanning')
@@ -133,7 +133,7 @@ test('a device declared by hand is pick-only; excluded and deleted devices leave
   } finally { await c.dispose() }
 })
 
-test('the shared safety block: a bad value is refused in place and keeps what was typed; a good one saves, persists and is in the audit (D-627)', async ({ page }) => {
+test('the shared safety block: a bad value is refused in place and keeps what was typed; a good one saves, persists and is in the audit', async ({ page }) => {
   const errors = collectErrors(page)
   const c = await as('admin')
   try {
@@ -159,7 +159,7 @@ test('the shared safety block: a bad value is refused in place and keeps what wa
     await expect(page.getByText(/^Safety settings saved/).first()).toBeVisible()
     const saved = (await scanning(c)).safety
     expect(saved).toMatchObject({ exclusions: ['10.1.200.1', '10.1.201.0/24'], speed: { requests_per_s: 2 }, window: { from: '21:30', to: '04:15' } })
-    expect((await cfg(c)).config.rate, 'the vulnerability checks read the same block (D-627)').toBe(2)
+    expect((await cfg(c)).config.rate, 'the vulnerability checks read the same block').toBe(2)
     await page.reload()
     await expect(page.getByLabel('One IP or network per line', { exact: true })).toHaveValue('10.1.200.1\n10.1.201.0/24')
     await expect(page.getByLabel('From', { exact: true })).toHaveValue('21:30')
@@ -279,11 +279,11 @@ test('roles: a viewer reads, an operator may start and stop (and meets the same 
   } finally { await admin.dispose() }
 })
 
-// ---- with the scanner (D-427): the REAL worker of sensor-active in the box process, on the real sensor link, with the committed pack and a FAKE
+// ---- with the scanner: the REAL worker of sensor-active in the box process, on the real sensor link, with the committed pack and a FAKE
 // nuclei that sends nothing (cmd/vedette/e2escan_test.go). The devices carry a real finding: a KEV entry of a CVE of the pack, for a made-up
 // product, pulled through the CISA feed's mirror address (findings-seed.ts); the nuclei-templates feed is pointed at a loopback list of the
 // same CVEs first, so the entries have `has_template` and announce a new KEV with a template (INV-9). ----
-const PACK_CVES = { match: 'CVE-2008-6668', stop: 'CVE-2009-1558', next: 'CVE-2010-0738', dead: 'CVE-2010-0759', off: 'CVE-2010-2035', pick: 'CVE-2011-3315' } as const // all in pack 2026.11.4 (D-528 step 2)
+const PACK_CVES = { match: 'CVE-2008-6668', stop: 'CVE-2009-1558', next: 'CVE-2010-0738', dead: 'CVE-2010-0759', off: 'CVE-2010-2035', pick: 'CVE-2011-3315' } as const // all in pack 2026.11.4
 /** The pack path of a CVE's one template (a pack template is http/cves/<year>/<id>.yaml for these). */
 const tplPath = (cve: string) => `http/cves/${cve.slice(4, 8)}/${cve}.yaml`
 interface Row { target_id: string; label: string; ip: string; template: string | null; result: string; finding_id: string | null; note: string }
@@ -309,7 +309,7 @@ test.describe('with the scanner', () => {
     const a = await as('admin')
     try {
       // the worker sits in the slot of the active sensor: with discovery on and its window open the box would send it sweeps of the scope,
-      // which change what the sensors spec sees later (D-427); this block needs no discovery, so it is off while the worker runs
+      // which change what the sensors spec sees later; this block needs no discovery, so it is off while the worker runs
       inv = (await api(a, 'GET', '/inventory/settings')).body
       const off = await api(a, 'PUT', '/inventory/settings', { ...inv, active: { ...inv.active, enabled: false }, scope_confirmed: true })
       expect(off.status, `discovery off: ${JSON.stringify(off.body)}`).toBe(200)
@@ -452,7 +452,7 @@ test.describe('with the scanner', () => {
 
   test('a new KEV with a scan template: with auto rescan off the event is skipped_off; on, a matching device that only a hand pick may scan is pick_only with its name; neither sends anything (INV-9)', async ({ page }) => {
     // A rescan that runs is not here: every device a spec can make is declared by hand (origin manual), which INV-1 keeps out of automatic scans,
-    // and a discovered one would change the box the sensors spec counts. TestContract_INV9_RescanAfterANewKEV carries it (D-427).
+    // and a discovered one would change the box the sensors spec counts. TestContract_INV9_RescanAfterANewKEV carries it.
     test.setTimeout(6 * 60_000)
     const c = await as('admin')
     try {

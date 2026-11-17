@@ -10,13 +10,13 @@ import (
 	"time"
 )
 
-// D-615 as amended by D-616 (S-TIER-4): a KEV CVE published more than 12 months ago keeps every match that compared a version
+// S-TIER-4: a KEV CVE published more than 12 months ago keeps every match that compared a version
 // (agent, SNMP or LLDP, a person's entry, a banner) with its usual label; only a product-only match (no version compared) is
 // dropped. A recent CVE and one with no known published day keep today's rules.
-// nameOnly is a want of no finding because only the product name matched (D-602, MatchResult.NameOnly).
+// nameOnly is a want of no finding because only the product name matched (MatchResult.NameOnly).
 const nameOnly Basis = "name-only"
 
-func TestMatchAsset_D615_OldKEVDropsOnlyProductOnly(t *testing.T) {
+func TestMatchAsset_OldKEVDropsOnlyProductOnly(t *testing.T) {
 	t.Parallel()
 	old, recent := t0.AddDate(-2, 0, 0), t0.AddDate(0, -1, 0)
 	ranged := func(pub time.Time) []Vuln {
@@ -56,7 +56,7 @@ func TestMatchAsset_D615_OldKEVDropsOnlyProductOnly(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			res := MatchAsset(tc.a, tc.vulns, nil, t0)
-			if tc.want == nameOnly { // not aged, but no finding on the product name alone either (D-602)
+			if tc.want == nameOnly { // not aged, but no finding on the product name alone either
 				if len(res.New) != 0 || len(res.Aged) != 0 || len(res.NameOnly) != 1 {
 					t.Fatalf("%+v; want only NameOnly", res)
 				}
@@ -84,10 +84,10 @@ func TestMatchAsset_D615_OldKEVDropsOnlyProductOnly(t *testing.T) {
 	}
 }
 
-// D-615, D-616, S-TIER-4: an open product-only finding of an old KEV CVE closes with the reason in its history (never deleted,
+// S-TIER-4: an open product-only finding of an old KEV CVE closes with the reason in its history (never deleted,
 // no alert: notify ignores not_relevant), and reopens when a version can be compared and is affected. A finding a scan
 // confirmed, or one a person reopened, never closes for its age.
-func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
+func TestContract_AgedFindingClosesAndReopens(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	v := qnapVuln() // no NVD ranges: a product-only match
@@ -108,7 +108,7 @@ func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 		}
 		return r
 	}
-	seedNameOnly(t, e, nas("6.1.1"), []Vuln{v}) // the product finding an earlier rule made (no NVD ranges); D-602 makes none
+	seedNameOnly(t, e, nas("6.1.1"), []Vuln{v}) // the product finding an earlier rule made (no NVD ranges); the name-only rule makes none
 	e.pub.take()
 	upsert(nas("6.1.1"), t0.AddDate(-3, 0, 0)) // the day arrives: old, product only
 	r := load()
@@ -185,7 +185,7 @@ func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 	}
 }
 
-// D-616, D-617: GET /findings/plan (S-TIER-1, S-TIER-2) answers before the plan job's first run: no item, compared false, and the
+// GET /findings/plan (S-TIER-1, S-TIER-2) answers before the plan job's first run: no item, compared false, and the
 // state of each tier feed, so the page says what is missing instead of "no update to plan"; "plan" is never a finding id.
 func TestPlan_HonestStateBeforeTheMatcher(t *testing.T) {
 	t.Parallel()
@@ -212,12 +212,12 @@ func TestPlan_HonestStateBeforeTheMatcher(t *testing.T) {
 	}
 }
 
-// D-615 measured on the real fixtures: the KEV entries and NVD ranges of the golden set, the N23 Juniper set and the N22
+// The age rule measured on the real fixtures: the KEV entries and NVD ranges of the golden set, the Juniper set and the
 // Office set, with each CVE's real published day (testdata/kev-published.json), on the devices the golden tests use. Each
 // device starts with the flood the old matcher left (a finding for every KEV CVE of its products) and is matched again:
-// the counts are the open findings the age rule closes, by basis: only product-only ones (D-616), so a FortiGate 6.2.0 read
+// the counts are the open findings the age rule closes, by basis: only product-only ones, so a FortiGate 6.2.0 read
 // from a banner keeps its old exploited CVEs (CVE-2018-13379 class).
-func TestGolden_D615_WhatTheAgeRuleCloses(t *testing.T) {
+func TestGolden_WhatTheAgeRuleCloses(t *testing.T) {
 	t.Parallel()
 	b, err := os.ReadFile("testdata/kev-published.json")
 	if err != nil {
@@ -239,7 +239,7 @@ func TestGolden_D615_WhatTheAgeRuleCloses(t *testing.T) {
 	}
 	golden := dated(goldenVulns(t))
 	junos := dated(loadGolden(t, "testdata/kev-nvd-junos-n23.json"))
-	ex4200SNMP := walk1EX4200()
+	ex4200SNMP := labEX4200()
 	ex4200SNMP.SNMPOS = ex4200SNMP.StatedOS
 	devices := []struct {
 		name  string
@@ -251,7 +251,7 @@ func TestGolden_D615_WhatTheAgeRuleCloses(t *testing.T) {
 		{"FortiGate 6.2.0 (banner)", Asset{ID: "a", Name: "fw", Software: []Software{fortiGate(golden, "6.2.0")}}, golden},
 		{"Office 2016 (typed)", Asset{ID: "a", Name: "pc", Software: []Software{office(golden, "2016")}}, golden},
 		{"NetScaler 13.1-49.13 (banner)", Asset{ID: "a", Name: "adc", Software: []Software{netScaler(golden, "13.1-49.13")}}, golden},
-		{"EX4200 JUNOS 15.1R7.9 (LLDP)", walk1EX4200(), junos},
+		{"EX4200 JUNOS 15.1R7.9 (LLDP)", labEX4200(), junos},
 		{"EX4200 JUNOS 15.1R7.9 (SNMP)", ex4200SNMP, junos},
 		{"Ubuntu 26.04.1 server (agent)", Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}, golden},
 	}
@@ -282,25 +282,25 @@ func TestGolden_D615_WhatTheAgeRuleCloses(t *testing.T) {
 				v++
 			}
 		}
-		for _, x := range after.NameOnly { // D-602: the product-only ones the age rule does not take (recent, or an agent row)
+		for _, x := range after.NameOnly { // The product-only ones the age rule does not take (recent, or an agent row)
 			if flood[x.CVE] {
 				n++
 			}
 		}
-		open := len(before.Existing) + len(before.NameOnly) // the open findings the old matcher left (D-602 makes the name-only ones no finding)
-		t.Logf("%-32s open before %3d (product %3d), closed by the age rule: product %3d, version %3d; by D-602 %3d; kept %3d",
+		open := len(before.Existing) + len(before.NameOnly) // the open findings the old matcher left (the name-only rule makes those no finding)
+		t.Logf("%-32s open before %3d (product %3d), closed by the age rule: product %3d, version %3d; by the name-only rule %3d; kept %3d",
 			d.name, open, countBasis(before.Existing, BasisProduct)+len(before.NameOnly), p, v, n, len(after.Existing))
 		if open != len(after.Existing)+p+v+n {
 			t.Errorf("%s: %d before, %d kept + %d closed", d.name, open, len(after.Existing), p+v+n)
 		}
 		totP, totV, totN, totKept, totOpen = totP+p, totV+v, totN+n, totKept+len(after.Existing), totOpen+open
 	}
-	t.Logf("all devices: %d open findings before; the age rule closes %d product-only and %d version ones, D-602 %d more; %d stay", totOpen, totP, totV, totN, totKept)
-	// pinned: a change of the rule or the data shows here. D-616: only product-only findings close (the first build, which also
-	// closed banner and typed versions, closed 12 + 68 and kept 27; supervisor 2026-11-15: too strict for unpatched gear). D-602: the
+	t.Logf("all devices: %d open findings before; the age rule closes %d product-only and %d version ones, the name-only rule %d more; %d stay", totOpen, totP, totV, totN, totKept)
+	// pinned: a change of the rule or the data shows here. Only product-only findings close (the first build, which also
+	// closed banner and typed versions, closed 12 + 68 and kept 27: too strict for unpatched gear). The
 	// product-only findings the age rule left (recent entries) close too; only version evidence stays.
 	if totOpen != 107 || totP != 12 || totV != 0 || totN != 3 || totKept != 92 {
-		t.Errorf("before %d, closed product %d, version %d, D-602 %d, kept %d; want 107, 12, 0, 3, 92", totOpen, totP, totV, totN, totKept)
+		t.Errorf("before %d, closed product %d, version %d, name-only %d, kept %d; want 107, 12, 0, 3, 92", totOpen, totP, totV, totN, totKept)
 	}
 }
 
@@ -316,10 +316,10 @@ func countBasis(ms []Match, b Basis) int {
 
 // Review r2 #4 of #803 (round-1 #7): the hourly reconcile closes what the age rule drops and counts it, so a pull that only
 // filled the published days (no ranges changed, no rematch event) still closes within the hour.
-func TestReconcile_D615_CountsAgedClosures(t *testing.T) {
+func TestReconcile_CountsAgedClosures(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	id := e.seed() // a product finding: the sample entry has no NVD ranges (and a scan template, so D-602 keeps it)
+	id := e.seed() // a product finding: the sample entry has no NVD ranges (and a scan template, so the name-only rule keeps it)
 	e.feeds.vulns[0].Published, e.feeds.vulns[0].DateAdded = t0.AddDate(-4, 0, 0), t0.AddDate(-4, 0, 0)
 	e.feeds.vulns[0].HasTemplate = false // the template is gone: the age rule closes it
 	res, err := e.svc.Reconcile(t.Context())
@@ -333,7 +333,7 @@ func TestReconcile_D615_CountsAgedClosures(t *testing.T) {
 
 // Review r1 #5 / r2 #4 of #803: "I have this" never re-adds, from a version-less row, a CVE the age rule dropped on another row
 // of the same product (it would be created, with an alert, and closed in the same write).
-func TestHaveScope_D615_DoesNotReaddAgedCVE(t *testing.T) {
+func TestHaveScope_DoesNotReaddAgedCVE(t *testing.T) {
 	t.Parallel()
 	a := Asset{ID: "a-declared", Name: "QNAP", Software: []Software{
 		{ID: "s-1", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", Version: "6.1.1", KevKeys: []string{"qnap|photo station"}},
@@ -351,10 +351,10 @@ func TestHaveScope_D615_DoesNotReaddAgedCVE(t *testing.T) {
 	}
 }
 
-// N100 n54 (D-615, D-616 as told to kien: old KEV drops only product-only matches WITHOUT agent evidence): a product match on a row
-// the device's agent reported (Evidence.AgentRow, D-612: the agent gave the installed version, Vedette could not compare it) is never
+// Old KEV drops only product-only matches WITHOUT agent evidence: a product match on a row
+// the device's agent reported (Evidence.AgentRow: the agent gave the installed version, Vedette could not compare it) is never
 // dropped or closed for its age; a finding the age rule closed before this fix reopens at the next match, with the neutral note.
-func TestContract_D615_AgentRowNeverAges(t *testing.T) {
+func TestContract_AgentRowNeverAges(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := Asset{ID: "a-1", Name: "WINLAB01", OS: "Microsoft Windows Server 2025 Datacenter", AgentOS: "Microsoft Windows Server 2025 Datacenter",
@@ -362,9 +362,9 @@ func TestContract_D615_AgentRowNeverAges(t *testing.T) {
 			CPE: "cpe:2.3:o:microsoft:windows_server_2025:10.0.26100.1742:*:*:*:*:*:x64:*", KevKeys: []string{"microsoft|windows"}, Source: "agent"}}}
 	v := Vuln{CVE: "CVE-2024-43573", Vendor: "Microsoft", Product: "Windows", Published: t0.AddDate(-2, 0, 0), DateAdded: t0.AddDate(-2, 0, 0)} // no version Vedette can compare
 	m := MatchAsset(srv, []Vuln{v}, nil, t0)
-	// D-602 (review r1 M1 of #939): the agent row is no version evidence, so the old entry ages out like any product-only match
+	// The agent row is no version evidence, so the old entry ages out like any product-only match
 	if len(m.Aged) != 1 || len(m.New)+len(m.NameOnly) != 0 || m.Aged[0].Basis != BasisProduct || !m.Aged[0].Evidence.AgentRow {
-		t.Fatalf("an agent row kept, or a name-only finding (D-602): %+v", m)
+		t.Fatalf("an agent row kept, or a name-only finding: %+v", m)
 	}
 	seedNameOnly(t, e, srv, []Vuln{v})
 	r, err := loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE)
@@ -390,10 +390,10 @@ func TestContract_D615_AgentRowNeverAges(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, _ = loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE)
-	if r.Status != StatusNotRelevant || r.History[len(r.History)-1].Action == "matches_again" { // D-602: no evidence, no reopen
+	if r.Status != StatusNotRelevant || r.History[len(r.History)-1].Action == "matches_again" { // No evidence, no reopen
 		t.Fatalf("reopened without version evidence: %+v, history %+v", r.Finding, r.History)
 	}
-	// an open one (the box after D-617's fix reopened it) closes under D-602
+	// an open one (an earlier fix reopened it on the box) closes under the name-only rule
 	o := newEnv(t)
 	seedNameOnly(t, o, srv, []Vuln{v})
 	if _, err := o.svc.UpsertFromMatch(t.Context(), srv, []Vuln{v}); err != nil {
@@ -407,12 +407,12 @@ func TestContract_D615_AgentRowNeverAges(t *testing.T) {
 // Review r2 #1 of #804: the agent's row keeps an old KEV CVE whatever the order of the device's rows: an nmap row of the same product
 // that sorts first and cannot be compared either must not win the tie and send the pair to Aged. And a finding stored with the agent
 // row's evidence is never closed for its age when only the banner row matches later (the closeAged guard).
-func TestContract_D615_AgentRowWinsTheTieInBothOrders(t *testing.T) {
+func TestContract_AgentRowWinsTheTieInBothOrders(t *testing.T) {
 	t.Parallel()
 	agent := Software{ID: "s-agent", Display: "Microsoft Exchange Server 2019", Vendor: "Microsoft", Product: "Exchange Server", Version: "15.2.792.3",
 		KevKeys: []string{"microsoft|exchange server"}, Source: "agent"}
 	banner := Software{ID: "s-nmap", Display: "Exchange", Vendor: "Microsoft", Product: "Exchange Server", Version: "15.2", KevKeys: []string{"microsoft|exchange server"}, Source: "nmap"}
-	// ProxyLogon as the N100 holds it: a safe scan template checks it, and NVD's cumulative-update rows do not compare with the build
+	// ProxyLogon as a test box holds it: a safe scan template checks it, and NVD's cumulative-update rows do not compare with the build
 	v := Vuln{CVE: "CVE-2021-26855", Vendor: "Microsoft", Product: "Exchange Server", Published: t0.AddDate(-5, 0, 0), DateAdded: t0.AddDate(-5, 0, 0), Ransomware: true, HasTemplate: true,
 		Affected: []Affected{{CPE: "cpe:2.3:a:microsoft:exchange_server:2019:cumulative_update_8:*:*:*:*:*:*"}}}
 	for name, rows := range map[string][]Software{"agent first": {agent, banner}, "banner first": {banner, agent}} {
@@ -437,7 +437,7 @@ func TestContract_D615_AgentRowWinsTheTieInBothOrders(t *testing.T) {
 	}
 }
 
-// #904: a finding stored with the agent row's evidence (as N100's WINLAB01 has CVE-2015-1671 and CVE-2021-43890) closes for its age
+// #904: a finding stored with the agent row's evidence (as a test box's WINLAB01 has CVE-2015-1671 and CVE-2021-43890) closes for its age
 // when the agent row's own match now says NVD's list names only other products: the closeAged guard keeps only real agent evidence.
 func TestContract_904_AgentRowOthersOnlyAgesOut(t *testing.T) {
 	t.Parallel()
@@ -446,7 +446,7 @@ func TestContract_904_AgentRowOthersOnlyAgesOut(t *testing.T) {
 	srv.ID = "a-1"
 	v := Vuln{CVE: "CVE-2021-43890", Vendor: "Microsoft", Product: "Windows", Published: t0.AddDate(0, -1, 0), DateAdded: t0.AddDate(0, -1, 0),
 		Affected: []Affected{{CPE: "cpe:2.3:a:microsoft:app_installer:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "1.16"}}}}
-	seedNameOnly(t, e, srv, []Vuln{v}) // what the box holds from before D-602
+	seedNameOnly(t, e, srv, []Vuln{v}) // what the box holds from before the name-only rule
 	r, err := loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE)
 	if err != nil || r.Status != StatusSuspected || r.Evidence == nil || !r.Evidence.AgentRow {
 		t.Fatalf("recent: %+v %v", r.Finding, err)
@@ -475,7 +475,7 @@ func TestMatchAsset_904_OwnOSIsNotAnotherProduct(t *testing.T) {
 		return Asset{ID: "a-1", Name: "host", OS: os, AgentOS: os, Software: []Software{{ID: "s-k", Display: "Linux Kernel", Vendor: "Linux", Product: "Kernel",
 			Version: ver, KevKeys: []string{"linux|kernel"}, Source: "agent"}}}
 	}
-	// D-602 (review r1 M1 of #939): the agent's kernel row is no version evidence either way, so the old entry ages out on every host
+	// The agent's kernel row is no version evidence either way, so the old entry ages out on every host
 	r := MatchAsset(host("Ubuntu 20.04.6 LTS", "5.4.0"), []Vuln{v}, nil, t0)
 	if len(r.Aged) != 1 || len(r.New)+len(r.NameOnly) != 0 || confirmedMatch(r.Aged[0]) {
 		t.Errorf("Ubuntu 20.04: %+v", r)

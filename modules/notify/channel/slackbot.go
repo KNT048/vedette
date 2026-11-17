@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// The Slack side of approvals (spec approval-tokens.md 5, D-38, slice 3): the box posts the approval message with Block Kit
+// The Slack side of approvals (spec approval-tokens.md 5, slice 3): the box posts the approval message with Block Kit
 // buttons using the bot token (chat.postMessage), opens a Socket Mode connection OUT with the app token (apps.connections.open,
 // a wss URL), and reads button presses from it. No inbound port. Everything Slack sends is untrusted input: an envelope is size
 // capped, decoded fail-closed, and a press whose fields are out of their documented form is "invalid" (acked, never decided).
@@ -464,7 +464,7 @@ func SlackEditFinal(err error) bool {
 	return false
 }
 
-// UpdateApproval rewrites a posted approval message without its buttons (chat.update with the bot token, slice 3b, D-241): the same
+// UpdateApproval rewrites a posted approval message without its buttons (chat.update with the bot token, slice 3b): the same
 // text when m is the message that was posted (m with an empty title = it is not known any more: only the end line is left), and the
 // fixed line end saying how the request ended. SlackEditFinal says what an error means.
 func (b *SlackBot) UpdateApproval(ctx context.Context, channelID, ts string, m Message, end string) error {

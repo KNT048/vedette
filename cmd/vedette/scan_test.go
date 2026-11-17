@@ -39,7 +39,7 @@ func (f *fakeScanInv) VulnScanPolicies(_ context.Context, ids []string, _ bool) 
 	return out, nil
 }
 
-// D-472: the adapter reads the policy of a whole list in chunks of inventory.MaxPolicyBatch, never one read per device;
+// The adapter reads the policy of a whole list in chunks of inventory.MaxPolicyBatch, never one read per device;
 // a device deleted since the list was read is absent, and Careful and the IP come with each decision.
 func TestScanAdapterVulnScanPoliciesBatches(t *testing.T) {
 	f := &fakeScanInv{}

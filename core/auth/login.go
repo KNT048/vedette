@@ -32,7 +32,7 @@ type LoginRequest struct {
 	Code      string // the two-step code, empty on the first call
 	IP        netip.Addr
 	UserAgent string
-	// DeviceCookie is the value of the __Secure-vedette_device cookie the browser sent, "" when it sent none (D-77).
+	// DeviceCookie is the value of the __Secure-vedette_device cookie the browser sent, "" when it sent none.
 	DeviceCookie string
 }
 
@@ -40,7 +40,7 @@ type LoginRequest struct {
 type LoginResult struct {
 	Session Issued
 	User    User
-	// Device is the value of the device cookie to set with DeviceCookie (D-77); "" when none could be made.
+	// Device is the value of the device cookie to set with DeviceCookie; "" when none could be made.
 	Device string
 }
 
@@ -104,7 +104,7 @@ func (s *Service) checkPassword(ctx context.Context, email, password string, lim
 const auditKeyPurpose = "core_audit.unknown_email_key"
 
 // unknownEmailRef names an email that has no account in core_audit without storing the address a stranger
-// typed (people paste passwords into the email field, and the audit chain keeps a line for a year, D-416): a keyed hash,
+// typed (people paste passwords into the email field, and the audit chain keeps a line for a year): a keyed hash,
 // HMAC-SHA-256 under a key of the box, cut to 16 hex characters. It is enough to see that one address is
 // being tried again and again, and no table of guesses can undo it without the key.
 func (s *Service) unknownEmailRef(ctx context.Context, email string) (string, error) {
@@ -135,7 +135,7 @@ func disabledError() *apierr.Error {
 // Login runs the sign-in flow of core INV-8:
 //
 //  1. the (IP, email) rate limit (IPv6 by /64): the attempt is counted up front, 429 rate_limited while
-//     blocked, before any password work. A valid device cookie of that account (D-77, device.go) swaps the
+//     blocked, before any password work. A valid device cookie of that account (device.go) swaps the
 //     address keys for its own counter;
 //  2. the password (always one argon2 run, under the concurrency cap: 503 server_busy when the box is
 //     swamped): 400 invalid_credentials, identical for an unknown email and a wrong password; a disabled
@@ -148,7 +148,7 @@ func disabledError() *apierr.Error {
 //     restored without its decryption key) is 403 twofa_reset_required, with or without Code, until an administrator
 //     resets its two-step sign-in: never password-only either;
 //     A password an administrator set that is past TempPasswordLifetime is refused here, once it is proven
-//     right: 400 temp_password_expired (D-180). One inside its window signs in, and its session is limited
+//     right: 400 temp_password_expired. One inside its window signs in, and its session is limited
 //     (server.Principal.PasswordChangeRequired);
 //  4. on success one transaction first re-reads the account and refuses when its password, disabled flag or
 //     two-step method changed since step 2 (a reset or disable that committed meanwhile wins), then creates
@@ -177,7 +177,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 		return LoginResult{}, disabledError()
 	}
 
-	// D-180: the password is right, but an administrator-set one past its window cannot sign in; the administrator resets it again.
+	// The password is right, but an administrator-set one past its window cannot sign in; the administrator resets it again.
 	if tempExpired(row.TempPasswordExpiresAt, s.now()) {
 		if err := s.auditFailure(ctx, row.Email, row.Email, "temporary password expired"); err != nil {
 			return LoginResult{}, err

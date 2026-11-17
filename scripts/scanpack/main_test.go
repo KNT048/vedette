@@ -161,7 +161,7 @@ func TestBuildKeepsOnlySafeKEVTemplates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rep.Kept != 2 || rep.Left["destination"] != 1 { // D-528: the tcp template names its own port (27017), and is not reviewed
+	if rep.Kept != 2 || rep.Left["destination"] != 1 { // The tcp template names its own port (27017), and is not reviewed
 		t.Fatalf("kept %d templates, report %+v", rep.Kept, rep)
 	}
 	if b, err := os.ReadFile(filepath.Join(out, "LICENSE-nuclei-templates.md")); err != nil || string(b) != "MIT License" { //nolint:gosec // a test file under t.TempDir()

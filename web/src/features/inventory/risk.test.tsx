@@ -8,7 +8,7 @@ import { sessionStore } from '@/mocks/stores'
 import { BOX_ID, ensureBox } from './mocks'
 import type { DeviceRow } from './types'
 
-// G4 (kien): every list shows which devices carry risk, read from what Findings › To fix shows for each device (one rule): red = open
+// Every list shows which devices carry risk, read from what Findings › To fix shows for each device (one rule): red = open
 // exploited findings To fix lists (with the count), amber = a recommended update for a likely-exploited or High+ CVE, nothing when clean.
 
 vi.setConfig({ testTimeout: 30_000 })
@@ -22,7 +22,7 @@ const get = async (path: string) => {
 }
 const rows = async () => (await get('/inventory/devices')).json.items as DeviceRow[]
 
-describe('inventory: G4 risk marker', () => {
+describe('inventory: risk marker', () => {
   it('the marker agrees with To fix for every device: red counts the findings To fix lists, amber a likely or High+ update', async () => {
     const list = await rows()
     const toFix = (await get('/findings/to-fix')).json.devices as { asset: { id: string }; exploited: { cves: string[]; finding_ids: string[] }[]; no_update: { cves: string[]; finding_ids: string[]; confirmed: number; detected: number }[]; planned: { likely: number; worst: string }[] }[]

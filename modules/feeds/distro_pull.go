@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// distroFetchTimeout bounds one download and parse of a distribution file (D-516): the VEX archive took 47 s to unpack
+// distroFetchTimeout bounds one download and parse of a distribution file: the VEX archive took 47 s to unpack
 // and read on a desktop CPU on 2026-11-14, the whole pull stays inside pullBudget.
 const distroFetchTimeout = 9 * time.Minute
 
@@ -20,7 +20,7 @@ const distroFetchTimeout = 9 * time.Minute
 // the feed stays due and pulls at the next tick after the list (like ErrBoxAddrsUnknown).
 var errDistroWaits = errors.New("feeds: the distribution feeds wait for the CISA list")
 
-// errDistroNoDevice: no device needs this distribution feed (D-570, LEAN). Nothing is fetched or recorded, the stored rows
+// errDistroNoDevice: no device needs this distribution feed (LEAN). Nothing is fetched or recorded, the stored rows
 // stay, and the feed stays due, so it pulls at the next tick after such a device appears. A feed that never filled is pulled
 // once whatever the inventory says, so the first device of that distribution is judged on its rows, not NVD's upstream
 // ranges (no false alerts while the pull runs; review H1).
@@ -30,7 +30,7 @@ var errDistroNoDevice = errors.New("feeds: no device needs this distribution fee
 var distroOfFeed = map[string]string{ubuntuOSVFeedID: DistroUbuntu, ubuntuVEXFeedID: DistroUbuntu, debianTrackerFeedID: DistroDebian, alpineOSVFeedID: DistroAlpine}
 
 // distroNeeds says whether some device needs the distribution of feed id, with the source packages those devices run as the
-// security data names them (D-570, D-622). No lister, the inventory module off, or a read error: pull as before (a missed fix
+// security data names them. No lister, the inventory module off, or a read error: pull as before (a missed fix
 // costs more than a download), with no package known, so the pull keeps no tier row (DistroWant). Except alpine-osv: it is fetched only when the inventory says a device states Alpine, never on a guess (PRIVACY flow 1 says "never").
 // ponytail: asks the inventory on each tick while a distribution feed is due (every PullEvery while no device needs it);
 // upgrade: an inventory event that says a device's OS changed.
@@ -59,12 +59,12 @@ func (s *Service) setDistroIdle(id string, idle bool) {
 	s.distroIdle[id] = idle
 }
 
-// distroBehindFloor is the shortest time between a feed's last good pull and a pull for a new package (D-622, review r1 #2 of
-// #808): a churny fleet, or an agent that reports a different made-up source name each time, costs at most four whole-file
+// distroBehindFloor is the shortest time between a feed's last good pull and a pull for a new package:
+// a churny fleet, or an agent that reports a different made-up source name each time, costs at most four whole-file
 // downloads a day per feed, and a device's new package waits at most this long instead of the feed's daily interval.
 const distroBehindFloor = 6 * time.Hour
 
-// distroKeep is the sorted list of the packages a pull keeps tier rows for (D-622): only names a Debian source package can have
+// distroKeep is the sorted list of the packages a pull keeps tier rows for: only names a Debian source package can have
 // (the inventory's names come from agents: untrusted); nil for none.
 func distroKeep(pkgs map[string]bool) []string {
 	var out []string
@@ -77,7 +77,7 @@ func distroKeep(pkgs map[string]bool) []string {
 	return out
 }
 
-// distroBehind says whether a device runs a package the stored tier rows of feed id were not kept for (D-622: a new device, a
+// distroBehind says whether a device runs a package the stored tier rows of feed id were not kept for (a new device, a
 // new package, the first check after the upgrade that added tier rows) and the last good pull is distroBehindFloor old: RunPull
 // then pulls the feed now, not a day after its last pull. A package that left (a removal, a deleted device) never counts: the
 // stored rows are a superset. Never for ubuntu-vex (no tier rows), nor while nvd-recent has no tier CVE; a read error says no
@@ -150,9 +150,9 @@ var distroParsers = map[Decoder]func(io.Reader, DistroWant) (DistroResult, error
 	DecoderAlpineOSV:     ParseAlpineOSV,
 }
 
-// buildDistro pulls one distribution file as a stream (D-516), conditional on the validators of the last good pull, and
+// buildDistro pulls one distribution file as a stream, conditional on the validators of the last good pull, and
 // keeps the rows of the CVEs of the CISA list (the only CVEs findings matches) and, for ubuntu-osv and debian-tracker, the
-// fixed rows of the tier CVEs for the source packages the devices run (D-622, DistroWant: "Updates to plan"). A pull that
+// fixed rows of the tier CVEs for the source packages the devices run (DistroWant: "Updates to plan"). A pull that
 // keeps no row fails, so the stored rows are never replaced with nothing. A file that did not change (304) keeps the rows: a
 // CVE CISA added since gets its rows when the file changes, at most a day later. The validators are sent only when the stored
 // rows were kept for every package needed now (distro_packages): a device's new package needs the whole file once.
@@ -178,7 +178,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 		want.KEV[c] = true
 	}
 	// ubuntu-vex keeps only "not affected", which never makes a plan item (the plan lists packages below a fixed version, and a
-	// fixed version beats not affected, D-516): its tier rows would cost 561,161 rows and 485 MB of peak RSS for nothing (2026-11-15).
+	// fixed version beats not affected): its tier rows would cost 561,161 rows and 485 MB of peak RSS for nothing (2026-11-15).
 	// alpine-osv keeps none either: the plan reads no apk package, and Alpine's lister names no package.
 	if dec != DecoderUbuntuVEX && dec != DecoderAlpineOSV && len(pkgs) > 0 {
 		if want.Tier, err = s.st.tierCVEs(ctx, s.now()); err != nil {
@@ -229,7 +229,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	p.out = outcome{OK: true, ETag: resp.ETag, LastModif: resp.LastModified}
 	p.out.fill(res.Stats, len(res.Rows))
 	p.distro, p.hasDistro, p.distroKEV, p.distroKeep = res.Rows, true, want.KEV, keep
-	var ms runtime.MemStats // D-622: the heap with the parsed rows still held, for the director's measure on the N100 (once a day a feed)
+	var ms runtime.MemStats // The heap with the parsed rows still held, logged to measure peak memory (once a day a feed)
 	runtime.ReadMemStats(&ms)
 	s.Log.InfoContext(ctx, "feeds: distribution pull parsed", "feed", src.ID, "rows", len(res.Rows), "tier_cves", len(want.Tier), "packages", len(want.Packages), "heap_mb", ms.HeapInuse>>20)
 	return p, nil
@@ -239,7 +239,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 var distroFeeds = map[string]bool{ubuntuOSVFeedID: true, ubuntuVEXFeedID: true, debianTrackerFeedID: true, alpineOSVFeedID: true}
 
 // distroCVEs lists the CVEs of the CISA list a distribution feed has rows for, sorted: the findings it may change (its tier rows
-// change only "Updates to plan", which the feed's switch reaches through TierStamp, D-622).
+// change only "Updates to plan", which the feed's switch reaches through TierStamp).
 func distroCVEs(ctx context.Context, tx *sql.Tx, sourceID string) ([]string, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_distro_fix WHERE source_id = ? AND cve IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev') ORDER BY cve`, sourceID)
 	if err != nil {
@@ -266,7 +266,7 @@ type distroVal struct {
 
 // applyDistro replaces the rows of one distribution feed. changed lists the CVEs whose rows differ (added, removed or
 // changed), for the rematch of their devices; first is true when the feed had no row before (its first fill is the
-// baseline of D-78: findings it closes or raises send no alert).
+// baseline: findings it closes or raises send no alert).
 func applyDistro(ctx context.Context, tx *sql.Tx, sourceID string, rows []DistroFix) (changed []string, first bool, err error) {
 	old := map[distroKey]distroVal{}
 	q, err := tx.QueryContext(ctx, `SELECT distro, release, package, cve, status, COALESCE(fixed_version, ''), pro FROM feeds_distro_fix WHERE source_id = ?`, sourceID)
@@ -322,7 +322,7 @@ func applyDistro(ctx context.Context, tx *sql.Tx, sourceID string, rows []Distro
 }
 
 // DistroFixes returns what the distributions say about the CVEs of the CISA list, by CVE, from the distribution feeds
-// that are on (D-516): a feed an admin turned off is not used, its rows stay until it is on again. The tier rows (D-622) are
+// that are on: a feed an admin turned off is not used, its rows stay until it is on again. The tier rows are
 // not read here: the KEV matcher sees exactly the rows it saw before them.
 func (s *Store) DistroFixes(ctx context.Context) (map[string][]DistroFix, error) {
 	return s.distroFixes(ctx, "")

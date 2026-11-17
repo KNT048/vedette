@@ -64,7 +64,7 @@ func TestContract_INV17_Blocklist(t *testing.T) {
 		t.Fatal("the list holds a never-touch address")
 	}
 	// A public one too: 10.9.9.9 is not publishable anyway, so only a public address reaches the never-touch filter itself
-	// (a public DNS server on the never-touch list, D-325).
+	// (a public DNS server on the never-touch list).
 	e.exec1(`INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, added_at) VALUES ('198.51.100.200', 'x2', 'y2', 's', 'r', '2026-11-09T10:00:00.000Z')`)
 	b, _ = e.svc.FetchBlocklist(e.ctx(), tok, "192.168.10.1")
 	if !strings.Contains(string(b), "198.51.100.200") {
@@ -320,7 +320,7 @@ func TestHoneypotHitEvent(t *testing.T) {
 	}
 }
 
-// Review of #304 (D-286 (4)): the source of a port-scan hit can be forged, so a pre-approved rule asks a person for it; a service hit is
+// The source of a port-scan hit can be forged, so a pre-approved rule asks a person for it; a service hit is
 // carried out. At most 60 scan hits an hour reach the rules (logins and tokens are not capped), and the first one over writes one line to the log.
 func TestHoneypotScanNeverPreApprovedAndHourlyCap(t *testing.T) {
 	t.Parallel()
@@ -363,7 +363,7 @@ func TestHoneypotScanNeverPreApprovedAndHourlyCap(t *testing.T) {
 	}
 }
 
-// Honeypot D-467 review H1: a UDP trap hit (TFTP, NTP, SIP) completes no handshake, so its source can be forged as a scan's: the event
+// Honeypot: a UDP trap hit (TFTP, NTP, SIP) completes no handshake, so its source can be forged as a scan's: the event
 // says unconfirmed, a pre-approved rule asks a person for it, and it draws from the scan budget; a TCP service hit is carried out.
 func TestHoneypotUnconfirmedHitNeverPreApproved(t *testing.T) {
 	t.Parallel()

@@ -3,8 +3,8 @@
 // Strings measured in a normal (mock) `pnpm build`: the MSW runtime chunks (assets/browser-*.js, assets/state-*.js)
 // and public/mockServiceWorker.js all contain `[MSW]` (log prefix), `mswjs` (github.com/mswjs/msw, mswjs.io) and `msw/` (msw/passthrough).
 // It also fails when z.config({ jitless: true }) (src/lib/zodConfig.ts) is not in the chunk that holds zod's core (`__zod_globalConfig`): in
-// another chunk it ran after the first schemas were built, whose `new Function` probe the shipped CSP reports in the console (issue #201,
-// N53-2; vite.config.ts codeSplitting group "zod").
+// another chunk it ran after the first schemas were built, whose `new Function` probe the shipped CSP reports in the console (issue #201;
+// vite.config.ts codeSplitting group "zod").
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
 import path from 'node:path'
 

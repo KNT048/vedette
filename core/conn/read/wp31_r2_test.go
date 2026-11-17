@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// WP-31 review, slice R2, L4 (D-179 (5)): the server's annotations can only take trust away. A tool that says destructiveHint, or readOnlyHint false,
+// WP-31 review, slice R2, L4: the server's annotations can only take trust away. A tool that says destructiveHint, or readOnlyHint false,
 // can never be marked read; one that starts to say so after it was marked read is not called.
 func TestWP31_L4_ADestructiveMCPToolCanNeverBeMarkedRead(t *testing.T) {
 	t.Parallel()

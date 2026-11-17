@@ -1,5 +1,5 @@
-// Package commonports is the one list of TCP ports Vedette probes on the box's own public IP (D-229): the scan module's surface
-// scan connects to each of them, and sensor-active's external nmap shape (-sV, D-514) names exactly these with -p. It is a leaf
+// Package commonports is the one list of TCP ports Vedette probes on the box's own public IP: the scan module's surface
+// scan connects to each of them, and sensor-active's external nmap shape (-sV) names exactly these with -p. It is a leaf
 // with no import at all: the sensor binary links it through nmapargv (TestBinaryDependencies).
 package commonports
 
@@ -21,7 +21,7 @@ type Port struct {
 	Use     Use
 }
 
-// List is the fixed list of TCP ports (D-229): services that are commonly exposed to the Internet by mistake or on purpose (web
+// List is the fixed list of TCP ports: services that are commonly exposed to the Internet by mistake or on purpose (web
 // and admin pages, remote access, file sharing, databases, mail, VPN, devices and their remote management). It is a fixed list,
 // never a range: about as many ports as the top-100 default of naabu, chosen for what an attacker probes first. No UDP.
 var List = []Port{
@@ -47,7 +47,7 @@ var List = []Port{
 	{27017, "mongodb", Plain}, {34567, "dvr", Plain}, {37777, "dvr", Plain},
 }
 
-// MaxBelievableOpen is how many ports of List may be open before the address is taken to answer on every port (D-522, N5): an
+// MaxBelievableOpen is how many ports of List may be open before the address is taken to answer on every port: an
 // ISP router or a firewall with a SYN proxy completes the handshake on all of them, so nmap -sV would read dozens of "tcpwrapped"
 // rows or run into its host timeout. With more open than this, exposure skips service identification and the template checks
 // and says why; sensor-active's external run discards its -sV rows. No real small office exposes 40 of these 98 ports.

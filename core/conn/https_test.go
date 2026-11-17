@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// The facade of D-305: the same transport as the connections, with the trust decision and the address policy of this package.
+// The facade: the same transport as the connections, with the trust decision and the address policy of this package.
 
 func TestHTTPSFacade_TOFUThenPin(t *testing.T) {
 	r := newRig(t)

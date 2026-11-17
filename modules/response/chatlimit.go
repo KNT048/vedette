@@ -2,7 +2,7 @@ package response
 
 import "time"
 
-// The limits of chat decisions (D-135 (7), (8)): a table of its own, so a flood of links or block list pulls cannot eat it and a flood of
+// The limits of chat decisions ((8)): a table of its own, so a flood of links or block list pulls cannot eat it and a flood of
 // chat cannot eat theirs; an identity that is on an approver list is never turned away because the table is full; and what a stranger can
 // make the box log is bounded (one line per window per identity, and a budget for all identities together).
 

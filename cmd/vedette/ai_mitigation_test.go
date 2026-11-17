@@ -14,7 +14,7 @@ import (
 
 func obs(v string) *inventory.Observed { return &inventory.Observed{Value: v} }
 
-// M2-2 (walk n74): the mitigation-config answer for a Juniper EX4200 said "the data on this box does not list affected versions" and
+// Regression: the mitigation-config answer for a Juniper EX4200 said "the data on this box does not list affected versions" and
 // named no firewall, while the page showed the version, the range "before 20.4" and FortiGate was in Devices. The AI now gets the
 // facts the page has.
 func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
@@ -76,9 +76,9 @@ func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 	}
 }
 
-// W76-1 (walk n76): Ask my AI said "20.4 is the fixed release" while the page said 20.4 is not the fix (end_listed). Every kind the page
+// Ask my AI said "20.4 is the fixed release" while the page said 20.4 is not the fix (end_listed). Every kind the page
 // shows reaches the AI as a fact, never as "not named".
-func TestAIFixedIn_W76_1_EveryKindIsAFact(t *testing.T) {
+func TestAIFixedIn_EveryKindIsAFact(t *testing.T) {
 	for _, kind := range []string{"fixed", "up_to", "end_listed", "distro", "feature_update", "esu"} {
 		got := aiFixedIn(&findings.FixedIn{Kind: kind, Version: "15.1R7.9", Fixed: "20.4", Source: "NVD affected versions"}, true)
 		if !strings.Contains(got, "20.4") || strings.Contains(got, "not named") {

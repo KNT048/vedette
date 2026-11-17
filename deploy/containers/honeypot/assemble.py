@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -I
 """Lays the Debian packages the honeypot needs (downloaded for the TARGET architecture by apt in the Containerfile) over an empty
-folder, so the final stage only COPYs it and no instruction ever runs on a foreign CPU (D-158).
+folder, so the final stage only COPYs it and no instruction ever runs on a foreign CPU.
 
     assemble.py debs <debs dir> <target dpkg status> <out rootfs>
     assemble.py inventory <rootfs> <out file>     (the list of what was added, after the pip packages are in place)
@@ -78,7 +78,7 @@ def main(debs, status, out):
 
 def inventory(rootfs, out):
     """One line per component added to the base image or changed in it: `deb <name> <version>`, `deb <name> <version> (over the
-    base's <version>)` for a security update laid over the base (D-594), and `pip <name> <version> <license>`, for the audit
+    base's <version>)` for a security update laid over the base, and `pip <name> <version> <license>`, for the audit
     (THIRD_PARTY_NOTICES.md) and for whoever inspects the image. The pip licenses are what each package declares."""
     import importlib.metadata as md
 

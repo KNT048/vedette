@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// G4 (kien): every list shows which devices carry risk. Inventory reads it from findings through Config.Risk (RiskSource), never
+// Every list shows which devices carry risk. Inventory reads it from findings through Config.Risk (RiskSource), never
 // from fnd_* tables: exploited = open exploited findings, update = none of those but a likely-exploited or High+ Recommended update,
 // nil when clean. The Devices search filters on it.
 
@@ -50,7 +50,7 @@ func riskDevices(e *env) (exploited, update, clean string) {
 	return e.idByMAC(macA), e.idByMAC(macB), e.idByMAC("aa:bb:cc:00:00:03")
 }
 
-func TestContract_G4_RiskMarkerOnRowsAndDetail(t *testing.T) {
+func TestContract_RiskMarkerOnRowsAndDetail(t *testing.T) {
 	t.Parallel()
 	risk := fakeRisk{}
 	e := newEnv(t, withRisk(risk))
@@ -90,7 +90,7 @@ func TestContract_G4_RiskMarkerOnRowsAndDetail(t *testing.T) {
 	}
 }
 
-func TestContract_G4_TheRiskFilter(t *testing.T) {
+func TestContract_TheRiskFilter(t *testing.T) {
 	t.Parallel()
 	risk := fakeRisk{}
 	e := newEnv(t, withRisk(risk))
@@ -134,7 +134,7 @@ func TestContract_G4_TheRiskFilter(t *testing.T) {
 	}
 }
 
-func TestHandlers_G4_RiskThroughTheAPI(t *testing.T) {
+func TestHandlers_RiskThroughTheAPI(t *testing.T) {
 	t.Parallel()
 	a := newAPI(t)
 	id := a.want("POST", "/inventory/devices", "operator", `{"catalog_id":"fortigate","ip":"192.168.30.1"}`, 201, "")["id"].(string)
@@ -158,7 +158,7 @@ func TestHandlers_G4_RiskThroughTheAPI(t *testing.T) {
 // Review r1 of #949 (High): only the Devices page, the device page and the export with a risk filter read the markers. The other
 // readers (honeypot ingest, scans, reports, MCP: Devices, AllDevices, Device, Detail) never call the risk port, and a failing port
 // never fails a list: the rows have no marker and RiskUnavailable says so.
-func TestContract_G4_RiskIsOptInAndNeverFailsTheList(t *testing.T) {
+func TestContract_RiskIsOptInAndNeverFailsTheList(t *testing.T) {
 	t.Parallel()
 	src := &countingRisk{m: fakeRisk{}}
 	e := newEnv(t, withRisk(src))
@@ -217,7 +217,7 @@ func TestContract_G4_RiskIsOptInAndNeverFailsTheList(t *testing.T) {
 }
 
 // Review r2 of #949 (Medium): the CSV says what the marker says, in its words: "2 exploited", "Update recommended", empty when clean.
-func TestContract_G4_TheCSVHasTheRisk(t *testing.T) {
+func TestContract_TheCSVHasTheRisk(t *testing.T) {
 	t.Parallel()
 	src := fakeRisk{}
 	e := newEnv(t, withRisk(src))
@@ -243,12 +243,12 @@ func TestContract_G4_TheCSVHasTheRisk(t *testing.T) {
 	_ = c
 }
 
-// The Vedette box itself is never marked (the owner's done check: boxkien shows nothing); its updates stay in To fix.
-func TestContract_G4_TheBoxIsNeverMarked(t *testing.T) {
+// The Vedette box itself is never marked (the owner's done check: boxanna shows nothing); its updates stay in To fix.
+func TestContract_TheBoxIsNeverMarked(t *testing.T) {
 	t.Parallel()
 	src := fakeRisk{}
 	e := newEnv(t, withRisk(src))
-	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "boxkien", IP: "192.168.18.2"})
+	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "boxanna", IP: "192.168.18.2"})
 	if err != nil {
 		t.Fatal(err)
 	}

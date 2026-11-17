@@ -1,4 +1,4 @@
-// Package containers checks the text of the Containerfiles and their pins (D-146). It builds nothing: the effect (the image runs, the
+// Package containers checks the text of the Containerfiles and their pins. It builds nothing: the effect (the image runs, the
 // binaries are the pinned ones) is checked by `make images-check`, which builds and runs them.
 package containers
 
@@ -80,7 +80,7 @@ func TestPinsAreExact(t *testing.T) {
 	if !regexp.MustCompile(`^[0-9]+\.[0-9]+$`).MatchString(p["NMAP_MIN_VERSION"]) {
 		t.Errorf("NMAP_MIN_VERSION=%q is the floor, major.minor, of the nmap the box installs", p["NMAP_MIN_VERSION"])
 	}
-	// D-594: a Debian security update laid over the base: an exact Debian version, a debian-security snapshot time, a hash per architecture
+	// A Debian security update laid over the base: an exact Debian version, a debian-security snapshot time, a hash per architecture
 	if !regexp.MustCompile(`^[0-9]+:[A-Za-z0-9.+~-]+$`).MatchString(p["ZLIB1G_VERSION"]) {
 		t.Errorf("ZLIB1G_VERSION=%q must be the exact Debian version, epoch included", p["ZLIB1G_VERSION"])
 	}
@@ -93,7 +93,7 @@ func TestPinsAreExact(t *testing.T) {
 		}
 	}
 	if _, has := p["NMAP_VERSION"]; has {
-		t.Error("nmap is not pinned to an exact version (D-146 (11)): security fixes must flow in")
+		t.Error("nmap is not pinned to an exact version: security fixes must flow in")
 	}
 	// the golang build image is the Go of go.mod
 	goMod := read(t, "../../go.mod")
@@ -123,7 +123,7 @@ func TestContainerfilesUsePinnedBasesAndEndNonRoot(t *testing.T) {
 			}
 			switch strings.ToUpper(fields[0]) {
 			case "FROM":
-				if strings.HasPrefix(fields[1], "--") { // --platform=$BUILDPLATFORM (D-158)
+				if strings.HasPrefix(fields[1], "--") { // --platform=$BUILDPLATFORM
 					fields = append(fields[:1], fields[2:]...)
 				}
 				if !strings.HasPrefix(fields[1], "${") && !stages[fields[1]] {
@@ -175,7 +175,7 @@ func TestSensorImageFitsItsUnit(t *testing.T) {
 	}
 }
 
-// D-113 (7), D-4, docs/LEGAL.md: nmap is never in an image the project builds and publishes. The published scan-base holds the
+// docs/LEGAL.md: nmap is never in an image the project builds and publishes. The published scan-base holds the
 // sensor binary, nuclei and the template pack only; vedette-host adds nmap on the box (scan/Containerfile.onbox, slice SP-6).
 func TestNmapIsOnlyInTheOnBoxContainerfile(t *testing.T) {
 	t.Parallel()
@@ -196,11 +196,11 @@ func TestNmapIsOnlyInTheOnBoxContainerfile(t *testing.T) {
 		t.Error("the on-box Containerfile must be FROM the signed scan-base, install the current nmap and check the version floor by effect")
 	}
 	if strings.Contains(on, "nmap=") {
-		t.Error("the on-box Containerfile must not pin an exact nmap version (D-146 (11))")
+		t.Error("the on-box Containerfile must not pin an exact nmap version")
 	}
 }
 
-// nuclei is built from the source archive of the pinned tag (D-319), checked against the pinned SHA-256 before it is unpacked, with our
+// nuclei is built from the source archive of the pinned tag, checked against the pinned SHA-256 before it is unpacked, with our
 // patched go.mod/go.sum, and lands where the worker looks for it; the pack lands where the worker (index) and nucleiargv (templates) expect it.
 func TestScanBaseVerifiesNucleiAndPlacesThePack(t *testing.T) {
 	t.Parallel()
@@ -214,7 +214,7 @@ func TestScanBaseVerifiesNucleiAndPlacesThePack(t *testing.T) {
 	if !strings.Contains(text, "ARG SCAN_PACK_VERSION") || !strings.Contains(text, `index.json is not pack version ${SCAN_PACK_VERSION}`) {
 		t.Error("scan-base must fail when index.json is not the pinned pack version (a stale pack)")
 	}
-	// D-514 (#723 review M1): the worker's own-IP fence speaks HTTPS, so the image carries the CA bundle and its copyright, checked present
+	// The worker's own-IP fence speaks HTTPS, so the image carries the CA bundle and its copyright, checked present
 	// in the pinned Go image when it is built.
 	for _, want := range []string{"COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt",
 		"COPY --from=build /usr/share/doc/ca-certificates/copyright", "test -s /etc/ssl/certs/ca-certificates.crt"} {
@@ -253,7 +253,7 @@ func (s containerStage) hasRun() bool {
 	return false
 }
 
-// Multi-arch without CPU emulation (WP-08d, D-158): a stage that runs anything (RUN) is on the build machine, so cross-compiling needs
+// Multi-arch without CPU emulation (WP-08d): a stage that runs anything (RUN) is on the build machine, so cross-compiling needs
 // no qemu; the last stage, the one of the target architecture, only COPYs. A Go build stage compiles for TARGETOS/TARGETARCH.
 func TestPublishedImagesBuildWithoutEmulation(t *testing.T) {
 	t.Parallel()
@@ -293,7 +293,7 @@ func TestPublishedImagesBuildWithoutEmulation(t *testing.T) {
 	}
 }
 
-// The index sequence floor goes only where internal/release is linked: vedette-host, and core since D-347 (the signed mitigation
+// The index sequence floor goes only where internal/release is linked: vedette-host, and core (the signed mitigation
 // packs), which takes MIN_SEQUENCE too (Containerfile, Makefile core-image and images, compose). The sensor does not link it.
 func TestOnlyHostLinksTheReleasePackage(t *testing.T) {
 	t.Parallel()
@@ -334,7 +334,7 @@ func TestMinSequenceFlag(t *testing.T) {
 			t.Errorf("MIN_SEQUENCE=%q was refused: %v %s", good, err, out)
 		}
 	}
-	// core links internal/release too (D-347): both image targets hand the floor to its build, the other images get none
+	// core links internal/release too: both image targets hand the floor to its build, the other images get none
 	for _, target := range []string{"core-image", "images"} {
 		out, err := run("-n", target, "MIN_SEQUENCE=7")
 		if err != nil {
@@ -431,7 +431,7 @@ func TestHostDebPreflightWiring(t *testing.T) {
 	}
 }
 
-// make release-gates (D-401): the floor rule of host-deb before anything runs, then the gates in order, the floor and its index
+// make release-gates: the floor rule of host-deb before anything runs, then the gates in order, the floor and its index
 // handed to the Go checks (which compare them, since make lets an environment MIN_SEQUENCE win), sbom and vuln kept (RELEASE=1).
 func TestReleaseGatesWiring(t *testing.T) {
 	t.Parallel()
@@ -478,7 +478,7 @@ func TestReleaseGatesWiring(t *testing.T) {
 	}
 }
 
-// The release tools (D-159) are pinned like the images: trivy by tag and by the digest of the multi-arch index, never "latest".
+// The release tools are pinned like the images: trivy by tag and by the digest of the multi-arch index, never "latest".
 func TestToolPinsAreExact(t *testing.T) {
 	t.Parallel()
 	got := map[string]string{}
@@ -497,7 +497,7 @@ func TestToolPinsAreExact(t *testing.T) {
 	}
 }
 
-// The core image carries the pinned osquery packages (WP-26 slice 3, D-169 (10)): the build stage reads deploy/osquery/PINS (not a copy of the
+// The core image carries the pinned osquery packages (WP-26 slice 3): the build stage reads deploy/osquery/PINS (not a copy of the
 // numbers), downloads from the official release, checks each file against its pinned SHA-256 before anything is copied, and the final stage
 // copies the folder to the default of -osquery-dir. Nothing is downloaded when the box runs.
 func TestCoreImageShipsThePinnedOsqueryPackages(t *testing.T) {
@@ -517,7 +517,7 @@ func TestCoreImageShipsThePinnedOsqueryPackages(t *testing.T) {
 	for _, want := range []string{
 		"COPY deploy/osquery/PINS /pins/osquery.pins", ". /pins/osquery.pins", "https://github.com/osquery/osquery/releases/download/${OSQUERY_VERSION}/",
 		"${OSQUERY_DEB_AMD64_SHA256}  /out/${deb}\" | sha256sum -c -", "${OSQUERY_RPM_X86_64_SHA256}  /out/${rpm}\" | sha256sum -c -", "${OSQUERY_MSI_SHA256}  /out/${msi}\" | sha256sum -c -",
-		"${OSQUERY_DEB_ARM64_SHA256}  /out/${deba}\" | sha256sum -c -", "${OSQUERY_RPM_AARCH64_SHA256}  /out/${rpma}\" | sha256sum -c -", // D-399
+		"${OSQUERY_DEB_ARM64_SHA256}  /out/${deba}\" | sha256sum -c -", "${OSQUERY_RPM_AARCH64_SHA256}  /out/${rpma}\" | sha256sum -c -",
 		"set -eu", "curl -fsSL --proto '=https' --proto-redir '=https' --max-time 600 -o",
 		// the names the box serves (modules/agent-intake install.go mirrorFiles) and the scripts ask for
 		`deb="osquery_${OSQUERY_VERSION}-1.linux_amd64.deb"`, `rpm="osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm"`, `msi="osquery-${OSQUERY_VERSION}.msi"`,
@@ -541,7 +541,7 @@ func TestCoreImageShipsThePinnedOsqueryPackages(t *testing.T) {
 	}
 }
 
-// Every image carries the third-party license file (D-155 (10)): the build stage runs scripts/hostlicenses over the main package of the binary in
+// Every image carries the third-party license file: the build stage runs scripts/hostlicenses over the main package of the binary in
 // the same RUN as the go build, the final stage copies it to /usr/share/doc/vedette/, the build context lets the generator in, and the core image
 // ships the osquery license texts pinned by hash.
 func TestEveryImageShipsItsThirdPartyLicenses(t *testing.T) {
@@ -555,7 +555,7 @@ func TestEveryImageShipsItsThirdPartyLicenses(t *testing.T) {
 			t.Errorf("%s/Containerfile: the final stage does not copy the license file to /usr/share/doc/vedette/", f)
 		}
 	}
-	// scan-base also lists the modules linked into nuclei (D-454): the same generator, inside the nuclei source tree, offline from the
+	// scan-base also lists the modules linked into nuclei: the same generator, inside the nuclei source tree, offline from the
 	// modules of its go.sum, shipped next to nuclei-LICENSE.md in both licence folders.
 	scan := read(t, "scan-base/Containerfile")
 	for _, want := range []string{
@@ -590,8 +590,8 @@ func TestEveryImageShipsItsThirdPartyLicenses(t *testing.T) {
 }
 
 // The core image carries its data and credentials directories, owned by the user it runs as, so the container-only compose can mount
-// new named volumes on them without a root step (D-168 (5)). The directories are made in the build stage (the final stage has no RUN),
-// 0750 each, and copied as the contents of /out/dirs/var/lib/ into /var/lib, so they keep that mode on buildah too (D-409). The parent
+// new named volumes on them without a root step. The directories are made in the build stage (the final stage has no RUN),
+// 0750 each, and copied as the contents of /out/dirs/var/lib/ into /var/lib, so they keep that mode on buildah too. The parent
 // /var/lib/vedette-creds is 0755: on the appliance core runs as core_uid (not 65532) and must traverse it to the creds volumes below.
 func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
 	t.Parallel()
@@ -610,10 +610,10 @@ func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
 		t.Errorf("core/Containerfile: the final stage must contain %q (the directories are entries of the copy and keep 0750)", strings.TrimSpace(l))
 	}
 	if regexp.MustCompile(`(?m)chmod 07[0-4]0 [^\n]*/out/dirs/var/lib/vedette-creds( |;|\\|$)`).MatchString(build) {
-		t.Error("core/Containerfile: /var/lib/vedette-creds must stay traversable (0755) for core_uid on the appliance (D-409)")
+		t.Error("core/Containerfile: /var/lib/vedette-creds must stay traversable (0755) for core_uid on the appliance")
 	}
 	if strings.Contains(final, "--chmod=0750 /out/dirs/") {
-		t.Error("core/Containerfile: a COPY --chmod of a directory to a new destination gives that destination 0755 on buildah (D-409)")
+		t.Error("core/Containerfile: a COPY --chmod of a directory to a new destination gives that destination 0755 on buildah")
 	}
 	if regexp.MustCompile(`(?m)^COPY .* /$`).MatchString(final) {
 		t.Error("core/Containerfile: a COPY to / rewrites the owner of the existing parents (/var, /var/lib)")
@@ -639,7 +639,7 @@ func TestDevComposePassesEveryBuildArg(t *testing.T) {
 	}
 }
 
-// D-594: the two published images on DEBIAN_IMAGE (scan-base, honeypot) lay the pinned zlib1g security update over the base, on the
+// The two published images on DEBIAN_IMAGE (scan-base, honeypot) lay the pinned zlib1g security update over the base, on the
 // build machine (security-deb.sh checks the hash and writes the dpkg status), with every pin of pins.env passed by make, and scan-base's
 // final stage copies the result; the build context lets the script in.
 func TestDebianImagesTakeThePinnedSecurityUpdate(t *testing.T) {
@@ -677,7 +677,7 @@ func TestDebianImagesTakeThePinnedSecurityUpdate(t *testing.T) {
 	}
 }
 
-// D-594: security-deb.sh refuses, before any download and without creating its output, a base that already has the pinned version or a
+// security-deb.sh refuses, before any download and without creating its output, a base that already has the pinned version or a
 // newer one (the overlay must be retired, never downgrade the base), a base of another architecture, a package the base lacks, and an
 // argument with a newline. Offline: every case fails before the network is reached. Needs dpkg (--compare-versions), as on CI's Ubuntu.
 func TestSecurityDebRefusesBeforeDownloading(t *testing.T) {
@@ -718,7 +718,7 @@ func TestSecurityDebRefusesBeforeDownloading(t *testing.T) {
 			t.Errorf("%s: the output folder exists (%v)", c.name, err)
 		}
 	}
-	// the refusal of a fixed base names every place to clean up (D-594 L1): the nine of pins.env's comment
+	// the refusal of a fixed base names every place to clean up: the nine of pins.env's comment
 	for _, place := range []string{"(1) deploy/containers/pins.env", "(2) scan-base/Containerfile", "(3) honeypot/Containerfile", "(4) Makefile PIN_ARGS",
 		"(5) deploy/compose/compose.yaml", "(6) .dockerignore", "(7) deploy/containers/containers_test.go", "(8) scripts/dev/images-check.sh", "(9) THIRD_PARTY_NOTICES.md"} {
 		if !strings.Contains(read(t, "security-deb.sh"), place) || !strings.Contains(read(t, "pins.env"), place) {

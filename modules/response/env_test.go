@@ -135,7 +135,7 @@ type fakeConns struct{ list []response.ConnectionInfo }
 func (f *fakeConns) List(context.Context) ([]response.ConnectionInfo, error) { return f.list, nil }
 
 // fakeExecutor records every step it is asked to carry out; it never talks to a network. A check before answers "all clear" (pre), the
-// read-back after a run holds present and after an undo does not; a read before any run (D-356) does not hold it either (after, when set).
+// read-back after a run holds present and after an undo does not; a read before any run does not hold it either (after, when set).
 // status[phase] and err make a phase fail; status["readback"] makes only a verify after a run fail, not the read before the run.
 type fakeExecutor struct {
 	mu      sync.Mutex
@@ -207,7 +207,7 @@ func (f *fakeExecutor) Execute(ctx context.Context, s response.DeviceStep) (resp
 }
 func (f *fakeExecutor) count() int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.steps) }
 
-// runStep is the first run step sent (the read before it comes first, D-356).
+// runStep is the first run step sent (the read before it comes first).
 func (f *fakeExecutor) runStep() response.DeviceStep {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -501,12 +501,12 @@ func (e *env) trap(id, src string) response.Det {
 func twoBlocks() []response.RuleAction {
 	return []response.RuleAction{
 		{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)},
-		{ActionID: "blocklist_add", Params: map[string]string{"ip": "203.0.113.200"}, TTLMin: intp(60)}, // a fixed public address: the LAN source would be refused (D-469)
+		{ActionID: "blocklist_add", Params: map[string]string{"ip": "203.0.113.200"}, TTLMin: intp(60)}, // a fixed public address: the LAN source would be refused
 	}
 }
 func strp(s string) *string { return &s }
 
-// linkAll records a proof (D-191) for every approver the fake notifier lists now, as if each had linked in My account. A test about
+// linkAll records a proof for every approver the fake notifier lists now, as if each had linked in My account. A test about
 // something else than the proof calls it after it sets the lists.
 func (e *env) linkAll() {
 	e.t.Helper()

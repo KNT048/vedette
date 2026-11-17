@@ -153,7 +153,7 @@ type LastRun struct {
 	Text    string
 }
 
-// HistoryRun is one past (or running) run of a LAN engine or a public scan, for Settings › Scanning › History (kien G7a). The
+// HistoryRun is one past (or running) run of a LAN engine or a public scan, for Settings › Scanning › History. The
 // outcome text comes from what the run stored; it never claims a result nothing checked.
 type HistoryRun struct {
 	ID, Kind, Engine, Trigger, Label string
@@ -224,7 +224,7 @@ type ScanningConfig struct {
 	Safety    SafetyStore
 	Engines   []ScanEngine
 	Discovery DiscoveryRunner                                               // nil: the run answers 501
-	History   func(ctx context.Context, asset string) ([]HistoryRun, error) // the runs of GET /scanning/history (asset "": every run; a device id: the runs that reached it, kien G7b/c), newest first; nil: none
+	History   func(ctx context.Context, asset string) ([]HistoryRun, error) // the runs of GET /scanning/history (asset "": every run; a device id: the runs that reached it), newest first; nil: none
 	TimeZone  func(ctx context.Context) string                              // the organization's zone; nil or "": UTC
 	MemoryMB  func() (int, bool)                                            // MemTotal of the box; nil or false: unknown
 }
@@ -439,7 +439,7 @@ func (h *ScanningHandlers) ScanningGetScanning(ctx context.Context) (*oas.Scanni
 }
 
 // ScanningGetScanningHistory implements GET /scanning/history (viewer): the runs of the LAN engines and the stored public scans,
-// newest first, at most historyMax; with asset, only the runs that reached that device (the device page's Last checks, kien G7b/c).
+// newest first, at most historyMax; with asset, only the runs that reached that device (the device page's Last checks).
 func (h *ScanningHandlers) ScanningGetScanningHistory(ctx context.Context, params oas.ScanningGetScanningHistoryParams) (*oas.ScanningGetScanningHistoryOK, error) {
 	type item struct {
 		ID        string  `json:"id"`
@@ -638,7 +638,7 @@ func (h *ScanningHandlers) ScanningPostScanningEnginesNmapDiscoveryRun(ctx conte
 	if req.Targets != nil && len(targets) == 0 {
 		return nil, apierr.Invalid("Name at least one device to check, or leave the list out to scan the whole network.")
 	}
-	// The audit row is the person's consent (D-627): written before any packet, in its own transaction; if it cannot be written the
+	// The audit row is the person's consent: written before any packet, in its own transaction; if it cannot be written the
 	// run does not start (review #857 M2). It names the run and what it covers.
 	record := func(c RunConsent) error {
 		detail := "check " + strings.Join(c.Devices, ", ")

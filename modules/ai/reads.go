@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// The record of the reads the box made through a connection (slice 7, D-311, D-119). A read tool that merely exists proves nothing:
+// The record of the reads the box made through a connection (slice 7). A read tool that merely exists proves nothing:
 // response accepts a config_read as evidence of an AI proposal only when it names a row of ai_read, which the tool runner writes after a
 // read answered (never from the model's text), at most ReadMaxAge old. The model never sees these ids in "Ask your data"; the plan job
 // lists the box's own rows to it and response looks every cited id up again.
@@ -58,7 +58,7 @@ func (s *Service) recordRead(ctx context.Context, job Job, connID, connName, too
 }
 
 // ConfigRead looks a read up by its id: found only when the box recorded it, at most ReadMaxAge ago, and the module is on. This is the
-// lookup behind response's Evidence.ConfigRead (D-311); a lookup of known-bad connections (logs, Evidence.IocHit) has the same shape.
+// lookup behind response's Evidence.ConfigRead; a lookup of known-bad connections (logs, Evidence.IocHit) has the same shape.
 func (s *Service) ConfigRead(ctx context.Context, id string) (ReadRecord, bool, error) {
 	if !s.moduleOn() || !idRE.MatchString(id) {
 		return ReadRecord{}, false, nil
@@ -107,7 +107,7 @@ func (s *Service) RecentReads(ctx context.Context, connIDs []string) ([]ReadReco
 	return out, rows.Err()
 }
 
-// ProposalRecord is what the box sent to response for one plan, and what came of it (D-312): Input and Output are hashed, never stored.
+// ProposalRecord is what the box sent to response for one plan, and what came of it: Input and Output are hashed, never stored.
 type ProposalRecord struct {
 	Summary       string
 	Input, Output string

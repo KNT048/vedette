@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// D-316 (9): what recordAddedPackages writes is what install.sh --uninstall reads. The sh function by_us_packages of
+// What recordAddedPackages writes is what install.sh --uninstall reads. The sh function by_us_packages of
 // install.sh runs on a host state written by the Go code: both lists, merged, sorted, only valid package names, and
 // the host's list ignored when it is a link.
 func TestInstallShUninstallReadsTheListTheHostWrites(t *testing.T) {

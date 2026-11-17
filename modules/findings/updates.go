@@ -9,23 +9,23 @@ import (
 	"time"
 )
 
-// "What do I upgrade on this device to clear its CVEs" (J4 Ask my AI, kien G9; the Findings page and the device's Software tab, G8):
+// "What do I upgrade on this device to clear its CVEs" (Ask my AI; the Findings page and the device's Software tab):
 // one answer per device, built from the groupings the product already shows. The open exploited findings are grouped by the update
-// that fixes them (RowFixes, the FindingRow.fix of D-545), and the device's "Updates to plan" items (PlanItem, D-617) are listed as the
+// that fixes them (RowFixes, the FindingRow.fix), and the device's "Updates to plan" items (PlanItem) are listed as the
 // plan job last compared them. Nothing is stored; it is read when asked.
 
-// How a finding's CVE is known on the device (G9), mapped from what the finding stores (basis, evidence.agent, evidence.agent_row)
+// How a finding's CVE is known on the device, mapped from what the finding stores (basis, evidence.agent, evidence.agent_row)
 // and the source of the software row it is on. Never "needs confirming" for a version the device itself reported.
 const (
 	// ProofConfirmed: a safe scan proved it (basis scan).
 	ProofConfirmed = "confirmed"
 	// ProofDetected: the device itself reported the installed version (its agent: osquery, Wazuh, the box's package list,
-	// evidence.agent, D-548; or a version the plan also trusts, tierSource: a person's entry, the device's SNMP answer, the OS the
+	// evidence.agent; or a version the plan also trusts, tierSource: a person's entry, the device's SNMP answer, the OS the
 	// device states) and that version is inside the affected range.
 	ProofDetected = "detected"
 	// ProofReported: the device's agent reported the installed version, but the box has not proved it affected: it could not compare
-	// it with the vulnerability's data (evidence.agent_row, D-612), or the range has no end or a platform condition is open (an agent
-	// row without evidence.agent, D-548). Not a guess, and not proved either: the finding's evidence says what to check.
+	// it with the vulnerability's data (evidence.agent_row), or the range has no end or a platform condition is open (an agent
+	// row without evidence.agent). Not a guess, and not proved either: the finding's evidence says what to check.
 	ProofReported = "reported"
 	// ProofSuspected: a network guess: a version read from a banner or a fingerprint, or the product name only.
 	ProofSuspected = "suspected"
@@ -37,15 +37,15 @@ type UpdateAction struct {
 	// "<device id>/<software id>" for findings no update is named for ("<device id>/" when no software row matches any more).
 	Group string
 	// SoftwareID is the device's software row the action is about ("" when none matches), so the Software tab can show it on the
-	// row (G8); Software and Version are that row's display name and installed version.
+	// row; Software and Version are that row's display name and installed version.
 	SoftwareID string
 	Software   string
 	Version    string
 	// Product is the software row's identity across devices, "vendor|product" in lower case ("" when no row matches): what "By fix"
-	// groups one update on several devices by, whatever each device calls the row (G8, review r1 of #943).
+	// groups one update on several devices by, whatever each device calls the row (#943).
 	Product string
 	// Source is who reported the row (Software.Source: "agent", "manual", "scan", a sensor; "" when none): the page's "I updated it"
-	// follows it (kien G12: the agent reports the new version by itself, a scan re-reads it, a person types it).
+	// follows it (the agent reports the new version by itself, a scan re-reads it, a person types it).
 	Source string
 	// Fixed is the release or build to install ("" for a distribution's updates without a version, and for no named update).
 	Fixed string
@@ -142,7 +142,7 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 			continue
 		}
 		mine, have[r.CVE] = append(mine, v), true
-		if r.Basis != BasisProduct { // review r1 #1 of D-545: a product match is not proved fixed by an update
+		if r.Basis != BasisProduct { // A product match is not proved fixed by an update
 			fixable = append(fixable, v)
 		}
 	}
@@ -154,7 +154,7 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 	rowOf := map[string]Software{} // CVE -> the row the matcher matches it on (the finding's row, as matchedRow reads it)
 	if len(mine) > 0 {
 		r := MatchAsset(a, mine, have, now)
-		for _, m := range slices.Concat(r.New, r.Existing, r.NameOnly) { // NameOnly: a finding a person reopened keeps its row (D-602)
+		for _, m := range slices.Concat(r.New, r.Existing, r.NameOnly) { // NameOnly: a finding a person reopened keeps its row
 			if sw, ok := sws[m.SoftwareID]; ok {
 				rowOf[m.CVE] = sw
 			} else if m.SoftwareID != "" {
@@ -247,7 +247,7 @@ func productKey(s Software) string {
 }
 
 // proofRow is the row whose source says how a finding is known: the row it matched on (MatchAsset), the fix group's row only when it
-// matched on none (review r1 L2 of #935: a group may hold a CVE the matcher matched on another row of the same product).
+// matched on none (#935: a group may hold a CVE the matcher matched on another row of the same product).
 func proofRow(matched Software, ok bool, f *RowFix, sws map[string]Software) (Software, bool) {
 	if ok {
 		return matched, true
@@ -261,9 +261,9 @@ func proofRow(matched Software, ok bool, f *RowFix, sws map[string]Software) (So
 }
 
 // proofOf says how a finding's CVE is known (Proof*): from its basis and evidence, then the source of its software row. An agent's
-// row is "detected" only when the matcher said so (evidence.agent, D-548): it leaves it unset while the range has no end or a
+// row is "detected" only when the matcher said so (evidence.agent): it leaves it unset while the range has no end or a
 // platform condition is open (the person still has to check it), and such a finding, like a product-only match on an agent row
-// (evidence.agent_row, D-612), is "reported" (review r2 L1 of #935). A person's entry, the device's SNMP answer or the OS it states
+// (evidence.agent_row), is "reported" (#935). A person's entry, the device's SNMP answer or the OS it states
 // (tierSource, not an agent row) inside the range is "detected".
 func proofOf(r Record, row Software, known bool) string {
 	agentRow := known && row.Source == "agent"
@@ -281,7 +281,7 @@ func proofOf(r Record, row Software, known bool) string {
 }
 
 // plannedUpdates are the device's plan items of the last pass, with the CVEs GET /findings/plan still lists (a CVE that crossed the
-// 12-month line since the pass is left out, review r1 #2 of #804), in the plan's order. compared: the last pass compared the device.
+// 12-month line since the pass is left out, #804), in the plan's order. compared: the last pass compared the device.
 func (s *Service) plannedUpdates(assetID string) (out []UpdateAction, ran, compared bool) {
 	s.plan.mu.RLock()
 	d := s.plan.devices[assetID]
@@ -299,7 +299,7 @@ func (s *Service) plannedUpdates(assetID string) (out []UpdateAction, ran, compa
 }
 
 // listedPlanItems are the items with the CVEs GET /findings/plan still lists at now: a CVE that crossed the 12-month line since the
-// pass is left out (review r1 #2 of #804), and an item left with none is dropped. To fix, the device's updates and the risk marker
+// pass is left out (#804), and an item left with none is dropped. To fix, the device's updates and the risk marker
 // (RiskMap) read the plan through it.
 func listedPlanItems(items []PlanItem, now time.Time) []PlanItem {
 	cut := now.Add(-AgeLimit).UTC().Format(time.DateOnly)

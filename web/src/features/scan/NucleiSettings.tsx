@@ -75,7 +75,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
 
 const AFTER = [2, 3, 5, 10]
 
-/** S-SCAN-4: auto-stop is the vulnerability checks' own (scan config), so it sits on their card (D-627 keeps it out of the shared block). */
+/** S-SCAN-4: auto-stop is the vulnerability checks' own (scan config), so it sits on their card (it is kept out of the shared block). */
 function AutoStop({ data, disabled }: { data: ScanConfigResponse; disabled: boolean }) {
   const { t } = useTranslation('scan')
   const save = useSaveConfig()

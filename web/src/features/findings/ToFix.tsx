@@ -1,4 +1,4 @@
-// kien G8 (S-MIT-1): "when the user opens Findings, they know which devices need patching or an action, and what the action is".
+// S-MIT-1: "when the user opens Findings, they know which devices need patching or an action, and what the action is".
 // To fix lists the devices, the most urgent first (GET /findings/to-fix orders them), each with its few actions as plain sentences;
 // every action opens to its CVEs, and each CVE to its finding (CVSS, basis, status: one click deeper). By fix turns it around for an
 // admin patching one app everywhere. As Defender's security recommendations ("Update Mozilla Firefox": exposed devices) and
@@ -82,7 +82,7 @@ function Action({ a, planned, box, asset }: { a: ToFixAction; planned: boolean; 
         ) : null}
       </details>
       <ActionButton a={a} box={box} />
-      {/* kien G12: the same "I updated it" as the finding page; a typed version is per row, an agent or a check reads the whole device
+      {/* The same "I updated it" as the finding page; a typed version is per row, an agent or a check reads the whole device
           (DeviceUpdated, once per device: n83) */}
       {a.software_id && a.source === 'manual' ? <IUpdated asset={asset} software={updatedOf(a)} size="sm" progress={false} /> : null}
     </li>

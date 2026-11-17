@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// exposureGateway is exposure.Gateway (D-492): the LAN default gateway vedette-host reports (the same read the logs and response
+// exposureGateway is exposure.Gateway: the LAN default gateway vedette-host reports (the same read the logs and response
 // wiring use), the inventory device with that IP, and that device's open findings. Without a host (container-only) the LAN gateway
 // is not visible (the container's own is the Docker bridge), so the answer has no IP and the page says it cannot tell.
 type exposureGateway struct {

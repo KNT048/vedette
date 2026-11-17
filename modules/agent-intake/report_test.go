@@ -49,7 +49,7 @@ var (
 	}
 )
 
-// S-MIT-1 (kien G12 follow-up, INV-23): "I updated it: ask the agent now". An operator's ask gives the device's osquery node the
+// S-MIT-1 (INV-23): "I updated it: ask the agent now". An operator's ask gives the device's osquery node the
 // first-report interval for its software queries only, with the same query texts; the ask is audited once, an open ask is answered as
 // it is, it closes when the software list arrives, a new ask within 10 minutes is 429, and an ask nobody answers ends after 15 minutes.
 func TestContract_INV23_AskTheAgentNow(t *testing.T) {

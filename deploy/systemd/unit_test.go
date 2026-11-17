@@ -1,5 +1,5 @@
-// Package systemd checks the text of vedette-host.service (D-150). It starts nothing: whether systemd restarts the host and kills a stray child
-// is checked in the lab. The unit must carry no filesystem-namespace option (D-121): `ip netns add vedette-hp` bind-mounts on /run/netns/vedette-hp
+// Package systemd checks the text of vedette-host.service. It starts nothing: whether systemd restarts the host and kills a stray child
+// is checked in the lab. The unit must carry no filesystem-namespace option: `ip netns add vedette-hp` bind-mounts on /run/netns/vedette-hp
 // and the honeypot container, started by podman outside the unit, must see that mount. Drop-ins under vedette-host.service.d/ are not covered.
 package systemd
 
@@ -74,7 +74,7 @@ func problems(text string) []string {
 	for _, e := range parse(text) {
 		switch {
 		case slices.Contains(forbidden, e.key):
-			out = append(out, e.key+"= is set: it makes a namespace and hides /run/netns/vedette-hp from podman (D-121)")
+			out = append(out, e.key+"= is set: it makes a namespace and hides /run/netns/vedette-hp from podman")
 		case !slices.Contains(allowed[e.section], e.key):
 			out = append(out, "["+e.section+"] "+e.key+"= is not in the allowed list of deploy/systemd/unit_test.go: add it there on purpose")
 		}
@@ -155,7 +155,7 @@ func TestUnitKeepsWhatTheHostNeeds(t *testing.T) {
 		"KillMode":              "control-group",
 		"ExecStart":             "/usr/lib/vedette/vedette-host", // where the .deb installs the binary (DEPLOYMENT.md section 6.1)
 		"WantedBy":              "multi-user.target",
-		"ConditionPathExists":   "/etc/vedette/host.conf", // enabled by the package, skipped (not crash-looping) until the installer writes host.conf (D-155)
+		"ConditionPathExists":   "/etc/vedette/host.conf", // enabled by the package, skipped (not crash-looping) until the installer writes host.conf
 		"StartLimitIntervalSec": "0",                      // with Restart=always the default limit would stop a crash loop for good
 		"TimeoutStartSec":       "16min",
 	} {
@@ -163,11 +163,11 @@ func TestUnitKeepsWhatTheHostNeeds(t *testing.T) {
 			t.Errorf("%s = %q, want exactly %q", k, got, want)
 		}
 	}
-	// No RuntimeDirectory* (D-157, WP-31 L10): systemd would make /run/vedette root:root at every start and the host
+	// No RuntimeDirectory* (WP-31 L10): systemd would make /run/vedette root:root at every start and the host
 	// (Listen) refuses a directory that is not owned by root and socket_gid; the host creates and checks it itself.
 	for _, k := range []string{"RuntimeDirectory", "RuntimeDirectoryMode", "RuntimeDirectoryPreserve", "User", "Group"} {
 		if len(opts[k]) != 0 {
-			t.Errorf("%s is set: /run/vedette is the host's to create, not systemd's (D-157)", k)
+			t.Errorf("%s is set: /run/vedette is the host's to create, not systemd's", k)
 		}
 	}
 	// Crash-loop back-off (systemd 254 or newer): the keys must be there, with a value.

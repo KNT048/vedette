@@ -14,7 +14,7 @@ import { ConfirmDelete, JobPicker, jobNames, List, Row, Toggle } from './shared'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/input'
 
-/** Quy tắc đưa vào mọi lần gọi AI (D-39). Quy tắc có sẵn chỉ đọc; quy tắc riêng thêm/sửa/xoá/tắt. */
+/** Quy tắc đưa vào mọi lần gọi AI. Quy tắc có sẵn chỉ đọc; quy tắc riêng thêm/sửa/xoá/tắt. */
 export default function RulesTab() {
   const { t } = useTranslation('ai')
   const rules = useRules()

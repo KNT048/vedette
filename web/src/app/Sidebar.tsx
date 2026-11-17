@@ -30,7 +30,7 @@ function useEntries(): { pinned: Entry[]; groups: { id: ShellGroup; entries: Ent
   const { data } = useModules()
   const enabled = new Set(data?.modules.filter((m) => m.enabled).map((m) => m.id))
   const summary: NavSummary | undefined = useNavSummary(!!data && enabled.has('findings'))
-  // D-624: a module left out of v1 has no entry unless this box has it on (#819); while loading, it is not shown either.
+  // A module left out of v1 has no entry unless this box has it on (#819); while loading, it is not shown either.
   const scope = (n: NavItem) => scopeOf(n.module, data ? enabled.has(n.module) : undefined)
   const all = navItems.filter((n) => (!data || enabled.has(n.module)) && scope(n) !== 'hidden').map((item) => ({ item, scope: scope(item), badge: badgeOf(item.to, summary) }))
   const pinned = all.filter((e) => placeOf(e.item) === 'pinned')

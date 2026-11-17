@@ -16,7 +16,7 @@ import (
 	"syscall"
 )
 
-// The MAC of a decoy (D-102 (7)): derived from the IP and a 32-byte key private to this
+// The MAC of a decoy: derived from the IP and a 32-byte key private to this
 // installation (hp/mac.key), so the same IP always gets the same MAC, across restarts, yet two boxes
 // give the same IP different MACs. Without an OUI the MAC is the first six bytes of
 // HMAC-SHA256(key, the four bytes of the IPv4 address) with the locally administered bit set and the

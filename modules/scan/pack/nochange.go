@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-// D-528: no template of the pack changes state on the target or makes anyone contact a third party, whatever its set. The builder
+// No template of the pack changes state on the target or makes anyone contact a third party, whatever its set. The builder
 // (scripts/scanpack) decides it from the parsed template with ChangeInRequest, ThirdPartyURL and its destination rule, and it also
 // requires NoChangeText of the whole file; the worker runs NoChangeText on every template file of every job before nuclei starts, so
 // the image's pack is checked on both sides with the same text rule. Upstream tags are not reliable enough to be the only rule
 // (review FULL-4b r1 H1, H3: write and password-reset templates were in the KEV set).
 
-// NeverTags are tags that mark a template that writes, uploads, takes over an account or reads third-party sources (D-528).
+// NeverTags are tags that mark a template that writes, uploads, takes over an account or reads third-party sources.
 // "instrusive" is nuclei-templates' own misspelling of intrusive, on several templates.
 var NeverTags = []string{"intrusive", "instrusive", "file-upload", "file-write", "upload", "account-takeover", "osint"}
 
@@ -35,7 +35,7 @@ var textMarks = []string{"into outfile", "into dumpfile", "xp_cmdshell", "file_p
 // atHostRE is a raw request's @Host: annotation, which sends it to another host or port than the job's.
 var atHostRE = regexp.MustCompile(`(?im)^\s*@host\s*:`)
 
-// NoChangeText is the text rule of D-528 over a whole template file: no write method in a raw request line or a method: key, no
+// NoChangeText is the no-change text rule over a whole template file: no write method in a raw request line or a method: key, no
 // @Host: annotation, none of textMarks, and no multipart part that carries a file.
 func NoChangeText(body []byte) error {
 	low := strings.ToLower(string(body))

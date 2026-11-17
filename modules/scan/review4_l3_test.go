@@ -24,7 +24,7 @@ func TestReview4_L3_AnEventDoesNotWaitForEverForTheScanner(t *testing.T) {
 	if n := r.count(`SELECT count(*) FROM scan_event WHERE result IS NULL`); n != 0 {
 		t.Fatalf("%d events still waiting for a scanner that never came", n)
 	}
-	if n := r.count(`SELECT count(*) FROM scan_event WHERE result = 'expired_scanner'`); n != 1 { // D-261 (2): visible, with the reason
+	if n := r.count(`SELECT count(*) FROM scan_event WHERE result = 'expired_scanner'`); n != 1 { // Visible, with the reason
 		t.Fatalf("%d events closed as expired_scanner, want 1", n)
 	}
 }

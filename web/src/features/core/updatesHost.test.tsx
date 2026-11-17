@@ -1,5 +1,5 @@
-// The system helper updates with Vedette (S-CORE-2 criterion D-316): the mock run and what the Updates page shows for it.
-// No real-clock wait (D-376): Date.now is moved past the host step instead of sleeping.
+// The system helper updates with Vedette (S-CORE-2): the mock run and what the Updates page shows for it.
+// No real-clock wait: Date.now is moved past the host step instead of sleeping.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -38,7 +38,7 @@ const ENDS: [HostOutcome, 'reverted' | 'failed', string][] = [
   ['host_download_failed', 'failed', 'Updating the system helper to 0.9.4 failed: its package could not be downloaded. Check that the box can reach github.com over HTTPS, then apply again.'],
 ]
 
-describe('core: system helper update (S-CORE-2 criterion D-316)', () => {
+describe('core: system helper update (S-CORE-2)', () => {
   it('the release says it includes the helper; the System helper row has its version and sentence, and no Rollback', async () => {
     renderApp('/settings/updates')
     expect(await screen.findByText('Includes system helper 0.9.4.')).toBeInTheDocument()

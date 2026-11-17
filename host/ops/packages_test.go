@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// D-470, INV-9: the structure of dpkg-query's output fails closed; a single package whose own fields break dpkg's rules is
+// INV-9: the structure of dpkg-query's output fails closed; a single package whose own fields break dpkg's rules is
 // left out and counted, so it cannot hide the rest of the box.
 func TestParsePackages(t *testing.T) {
 	t.Parallel()

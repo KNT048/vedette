@@ -49,7 +49,7 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
   // Which button started the save: Save and send test stays busy through the save and the test that follows it
   const [withTest, setWithTest] = useState(false)
   const testing = test.isPending || (save.isPending && withTest)
-  // D-420 (5): a container-only install has no honeypot (available false, D-381), so it has no touches to forward.
+  // A container-only install has no honeypot (available false), so it has no touches to forward.
   const noHoneypot = useModules().data?.modules.find((m) => m.id === 'honeypot')?.available === false
   const shown = (ev: SiemEvent) => !(noHoneypot && ev === 'honeypot')
 
@@ -122,7 +122,7 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
         <Button disabled={!isAdmin || (save.isPending && !withTest)} busy={testing} busyLabel={t('siem.testing')} title={isAdmin ? undefined : t('siem.adminOnly')}
           aria-describedby="siem-test-wait" onClick={(e) => onSave(e, true)}><Send />{t('siem.saveTest')}</Button>
       </div>
-      {/* kien G1: the test connects to the SIEM and waits for it, up to 30 s (siemTimeout × 3 on the box) */}
+      {/* The test connects to the SIEM and waits for it, up to 30 s (siemTimeout × 3 on the box) */}
       <BusyNote id="siem-test-wait" busy={testing}>{t('siem.testWaiting')}</BusyNote>
       {last ? <p role="status" className={last.ok ? 'text-sm text-ok' : 'text-sm text-danger'}>{t(last.ok ? 'siem.lastOk' : 'siem.lastFail', { time: fmtDateTime(last.at), detail: last.detail })}</p> : null}
     </form>

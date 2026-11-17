@@ -33,7 +33,7 @@ type fakeInv struct {
 	matches  map[string][]MatchedAsset
 	added    []ManualDevice
 	matchErr error
-	// notAffected: CVE -> device ids the platform rules rule out (PlatformChecker, D-549); platformErr makes the check fail.
+	// notAffected: CVE -> device ids the platform rules rule out (PlatformChecker); platformErr makes the check fail.
 	notAffected map[string][]string
 	platformErr error
 	distro      []DistroFix // the distribution rows the last check got
@@ -338,7 +338,7 @@ func TestContract_POST2_HotBoardOrderAndInventory(t *testing.T) {
 	if at(b, "latest", "cve") != "CVE-2026-10001" || at(b, "latest", "display") != "Synology NAS (DSM)" {
 		t.Errorf("latest: %v", at(b, "latest"))
 	}
-	// the weekly report reads the same board (W1-24, D-485): Home's three CVEs, one product in use ("maybe" is not in use)
+	// the weekly report reads the same board: Home's three CVEs, one product in use ("maybe" is not in use)
 	if cves, inUse, err := e.svc.NewlyExploited(t.Context()); err != nil || cves != 3 || inUse != 1 {
 		t.Errorf("NewlyExploited = %d, %d, %v; want 3, 1", cves, inUse, err)
 	}
@@ -420,9 +420,9 @@ func TestContract_INV11_YouHaveYesMaybeNo(t *testing.T) {
 	}
 }
 
-// KF-CVEPAGE (D-549): "Do you have it?" on the CVE page leaves out the devices the findings matcher's platform rules prove are not
+// KF-CVEPAGE: "Do you have it?" on the CVE page leaves out the devices the findings matcher's platform rules prove are not
 // affected (an Ubuntu box for an Alpine-only OpenSSH flaw); a failed check answers by product as before.
-func TestCVEPage_D549_PlatformRulesAgreeWithFindings(t *testing.T) {
+func TestCVEPage_PlatformRulesAgreeWithFindings(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.loadKEV()
@@ -927,10 +927,10 @@ func TestBuiltinFeedsAreSeededOnFirstUse(t *testing.T) {
 	}
 }
 
-// D-420 (1), (2), D-446: an address the pull would refuse is refused when the feed is saved (create, edit, built-in mirror),
+// An address the pull would refuse is refused when the feed is saved (create, edit, built-in mirror),
 // with the pull's sentence; a name is not resolved (a public-looking name passes, the dialer judges it at pull); an
 // address another feed already pulls is refused and the message names that feed.
-func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
+func TestSources_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 	t.Parallel()
 	e := newEnvFetcher(t, Fetcher{Client: &http.Client{Transport: failingTransport{t}}, BoxAddrs: func() ([]netip.Addr, bool) {
 		return []netip.Addr{netip.MustParseAddr("192.168.77.10")}, true
@@ -944,7 +944,7 @@ func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 			t.Errorf("POST %s: %d %v, want 400 blocked_host", u, got, b)
 		}
 	}
-	// D-446: Vedette itself (loopback on any port; Vedette's own ports on the machine's addresses: what vedette-host reports, the
+	// Vedette itself (loopback on any port; Vedette's own ports on the machine's addresses: what vedette-host reports, the
 	// container's gateway) has one sentence
 	for _, u := range []string{
 		"https://localhost:8443/x", "http://LOCALHOST/x", "https://feeds.localhost/x", "https://127.0.0.1/list.txt", "http://127.5.5.5/x",
@@ -994,7 +994,7 @@ func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 	}
 }
 
-// D-485: Home's "newly exploited in the last 7 days" (and the weekly report, which reads the same function): the day counts
+// Home's "newly exploited in the last 7 days" (and the weekly report, which reads the same function): the day counts
 // until its last second, the eighth day back is out, and an entry dated after now is not counted (the store already turns a feed's
 // future date into the day of the pull; this is the box clock set back after a pull).
 func TestNewlyExploitedWindowIsHomes(t *testing.T) {

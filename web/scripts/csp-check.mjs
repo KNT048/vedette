@@ -1,4 +1,4 @@
-// Real-browser CSP check of the interface served by the core binary (D-149).
+// Real-browser CSP check of the interface served by the core binary.
 // Usage: VEDETTE_SETUP_CODE=<code> node scripts/csp-check.mjs <base-url> (the code is optional; it is read from the
 // environment, not argv, so it does not show in ps)
 // Records console messages and securitypolicyviolation events in headless Chromium and fails on any violation, any CSP console error, a failed

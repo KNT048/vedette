@@ -43,10 +43,10 @@ const FIELD_OF: Record<Channel['type'], Record<string, string>> = {
   webhook: { bad_url: 'url', url_unreadable: 'url', secret_required: 'secret', bad_secret: 'secret' },
 }
 
-/** Zalo's page on the OA access and refresh tokens (D-483): where the App ID, Secret key and refresh token come from. */
+/** Zalo's page on the OA access and refresh tokens: where the App ID, Secret key and refresh token come from. */
 const ZALO_OA_DOC = 'https://developers.zalo.me/docs/official-account/bat-dau/xac-thuc-va-uy-quyen-cho-ung-dung-new'
 
-/** The service account of a Google key file, or null when the text is not one (the box checks the key itself, D-449). */
+/** The service account of a Google key file, or null when the text is not one (the box checks the key itself). */
 function keyAccount(text: string): string | null {
   try {
     const j = JSON.parse(text) as { type?: unknown; client_email?: unknown; private_key?: unknown }
@@ -54,7 +54,7 @@ function keyAccount(text: string): string | null {
   } catch { return null }
 }
 
-/** Translation keys of an email field's label or hint, most specific first: the preset, its sign-in, its kind, then the plain one (D-449). */
+/** Translation keys of an email field's label or hint, most specific first: the preset, its sign-in, its kind, then the plain one. */
 function emailKeys(p: EmailProvider, k: string, part: 'label' | 'hint' | 'info') {
   const mailbox = p.group === 'password' && p.id !== 'custom'
   const variants = k === 'username' ? [p.id, isUserSignin(p.auth) ? 'user' : isOAuth(p.auth) ? 'oauth' : mailbox ? 'mailbox' : '']
@@ -79,9 +79,9 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
   }
   const save = useSaveChannel()
   const type = opened.type
-  // The channel as the box has it now: a Zalo personal dialog stays open after Save to show each approver's link state (D-447).
+  // The channel as the box has it now: a Zalo personal dialog stays open after Save to show each approver's link state.
   const channel = useChannels().data?.channels.find((c) => c.type === type) ?? opened
-  // D-624 (#819): approving actions from a channel belongs to the response module, not offered in v1. A channel that already
+  // approving actions from a channel belongs to the response module, not offered in v1. A channel that already
   // has approvals on keeps the section, so they can be turned off.
   const approvalsFrozen = notOffered('response')
   const showApprovals = !approvalsFrozen || channel.approvals
@@ -90,10 +90,10 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
   const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls', provider: 'custom' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
   const [secret, setSecret] = useState('')
   const [keyOf, setKeyOf] = useState<string | null>(null) // the service account of a chosen Google key file
-  const [signin, setSignin] = useState<string | null>(null) // a finished user sign-in (D-480): its id goes with the save
-  // Email presets (D-449): the preset decides which fields show and what the secret is; a saved secret counts only for the same sign-in.
+  const [signin, setSignin] = useState<string | null>(null) // a finished user sign-in: its id goes with the save
+  // Email presets: the preset decides which fields show and what the secret is; a saved secret counts only for the same sign-in.
   const prov = emailProvider(fields.provider) ?? EMAIL_PROVIDERS[0]!
-  // the box sends a saved secret only to the method, server and port it was saved for (D-449 review): say so before saving
+  // the box sends a saved secret only to the method, server and port it was saved for: say so before saving
   const keepsSecret = !!channel.secret_last4 && (type !== 'email' || savedFor(channel.fields) === emailBinding(fields))
   const [min, setMin] = useState<RouteSeverity>(channel.min_severity)
   const [approvals, setApprovals] = useState(channel.approvals)
@@ -104,7 +104,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
   const [target, setTarget] = useState<ZaloTarget>({ user_id: opened.fields.user_id ?? '', group: opened.fields.group === 'true', name: opened.fields.name ?? '' })
   const zaloLook = zaloSigned !== null || (channel.configured && channel.secret_last4 !== null)
   const users = useUsers()
-  const [zaloKey, setZaloKey] = useState('') // Zalo OA (D-483): the app's Secret key and the OA refresh token; empty keeps the saved ones
+  const [zaloKey, setZaloKey] = useState('') // Zalo OA: the app's Secret key and the OA refresh token; empty keeps the saved ones
   const [zaloRefresh, setZaloRefresh] = useState('')
   const zaloGrant = type === 'zalo' && channel.configured && !!channel.fields.app_id && !!channel.secret_last4
   const [appToken, setAppToken] = useState('')
@@ -120,7 +120,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
     setError(null)
     // The webhook form checks what it can before sending (same rules and words as the box), so every wrong field shows at once.
     if (showErrors(type === 'webhook' ? checkWebhook() : {})) return
-    // Turning the email channel off stops two-step email codes too (D-35): say who is affected before doing it.
+    // Turning the email channel off stops two-step email codes too: say who is affected before doing it.
     if (type === 'email' && channel.enabled && !enabled && codeUsers > 0 && !confirmed) { setWarn(thenTest); return }
     const canApprove = APPROVAL_CHANNELS.includes(type)
     // Slack's channel ID and app tokens only belong to approvals: with approvals off they are not sent.
@@ -131,7 +131,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
     save.mutate({ type, enabled, fields: sent, secret: secret || undefined, ...(type === 'email' && signin ? { signin } : {}), min_severity: min, ...zalo, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}), ...(type === 'zalo' ? { secret_key: zaloKey || undefined, refresh_token: zaloRefresh || undefined } : {}) }, {
       onSuccess: () => {
         toast.success(t('channels.saved', { name }))
-        // D-624 (N-L3): frozen approvers get no new codes, so nothing to stay for
+        // N-L3: frozen approvers get no new codes, so nothing to stay for
         if (type === 'zalo-personal' && approvals && !thenTest && !approvalsFrozen) { setZaloSigned(null); toast.info(t('zp.codesSent')); return } // stay: show who is linked
         onSaved(thenTest)
       },
@@ -146,8 +146,8 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
     const errs: Record<string, string> = {}
     const url = (fields.url ?? '').trim()
     const u = url ? checkFeedUrl(url) : channel.fields.url ? 'ok' : 'url' // empty keeps the saved URL
-    // A forbidden target gets the box's precise sentence before the http rule, as the box checks it (webhook.go, walk 3 G13).
-    if (u !== 'url' && url && forbiddenHost(new URL(url).hostname)) errs.url = t(ownHost(new URL(url).hostname) ? 'channels.err.ownUrl' : 'channels.err.blockedUrl') // D-446
+    // A forbidden target gets the box's precise sentence before the http rule, as the box checks it (webhook.go).
+    if (u !== 'url' && url && forbiddenHost(new URL(url).hostname)) errs.url = t(ownHost(new URL(url).hostname) ? 'channels.err.ownUrl' : 'channels.err.blockedUrl')
     else if (u !== 'ok') errs.url = t(u === 'https' ? 'channels.err.insecureUrl' : 'channels.err.badUrl')
     if (secret ? secret.length < 16 : !channel.secret_last4) errs.secret = t(secret ? 'channels.err.shortKey' : 'channels.err.noKey')
     return errs
@@ -247,7 +247,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
                 <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} readOnly={type === 'email' && ((k === 'host' && !!OAUTH_HOST[prov.id]) || (k === 'username' && isUserSignin(prov.auth)))} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
               </Field>
             )
-            // D-491: Telegram's Chat ID can be picked from the chats the bot has seen
+            // Telegram's Chat ID can be picked from the chats the bot has seen
             return type === 'telegram' && k === 'chat_id' ? (
               <div key={k} className="grid gap-2">
                 {input}
@@ -304,7 +304,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
             {APPROVAL_CHANNELS.includes(type) ? (
               <>
                 <div className="flex items-center gap-3">
-                  {/* D-624 (M2): approvals can be turned off here, not on, and the approvers are shown, not changed */}
+                  {/* approvals can be turned off here, not on, and the approvers are shown, not changed */}
                   <Switch id={`ch-${type}-appr`} checked={approvals} disabled={approvalsFrozen && !approvals} onCheckedChange={setApprovals} />
                   <Label htmlFor={`ch-${type}-appr`}>{t('approve.switch')}</Label>
                 </div>
@@ -330,7 +330,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
                                 <Field label={t(`approve.address.${type}`)} htmlFor={`ap-${type}-${a.user_id}`}>
                                   <Input id={`ap-${type}-${a.user_id}`} value={a.address} placeholder={t(`approve.placeholder.${type}`)} autoComplete="off" onChange={(e) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? { ...x, address: e.target.value } : x)))} />
                                 </Field>
-                                {/* D-414: a Telegram approver confirms the link the bot sends them, signed in as themselves */}
+                                {/* A Telegram approver confirms the link the bot sends them, signed in as themselves */}
                                 {type === 'telegram' ? (channel.configured ? <ApproverLinkState kind="telegram" approver={a} saved={channel} /> : a.address ? <p className="text-meta text-muted">{t('tg.unsaved')}</p> : null) : null}
                               </div>
                             )}
@@ -407,7 +407,7 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   const chName = (r: Channel) => <span className="font-medium">{t(`ch.${r.type}`)}{r.configured && r.approvals ? <Chip tone="ok" className="ml-2">{t('approve.chip')}</Chip> : null}</span>
   const min = (r: Channel) => (r.configured ? t('channels.min', { sev: t(`common:severity.${r.min_severity}`) }) : '')
   const status = (r: Channel) => <Chip tone={!r.configured ? 'off' : r.enabled ? 'ok' : 'off'}>{t(`channels.state.${!r.configured ? 'none' : r.enabled ? 'on' : 'off'}`)}</Chip>
-  // A test waits for the far end (up to 45 s, testTimeout): the row says so, and a failure shows its reason as text, not only as a hover title (walk 3 G13).
+  // A test waits for the far end (up to 45 s, testTimeout): the row says so, and a failure shows its reason as text, not only as a hover title.
   const lastTest = (r: Channel) => {
     if (!r.configured) return null
     if (test.isPending && test.variables === r.type) return <BusyNote busy>{t('channels.testWaiting')}</BusyNote>
@@ -437,7 +437,7 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
     )
   }
   // Three columns, so the table fits the ~730 px content column of a 1280 px screen (app sidebar + settings nav): where it sends and
-  // from which severity under the channel's name, the last test under its status, the actions stacked (walk 3 G13, D-423).
+  // from which severity under the channel's name, the last test under its status, the actions stacked.
   const columns: ColumnDef<Channel>[] = [
     { id: 'channel', header: t('channels.col.channel'), accessorFn: (r) => r.type, cell: ({ row: { original: r } }) => (
       <span className="grid gap-0.5">
@@ -451,7 +451,7 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
     ) },
     { id: 'actions', header: t('channels.col.actions'), enableSorting: false, cell: ({ row }) => actions(row.original, true) },
   ]
-  // Under 768 px each channel is a card with its actions in it (the table's pattern, as Feeds does; D-423).
+  // Under 768 px each channel is a card with its actions in it (the table's pattern, as Feeds does).
   const mobileRow = (r: Channel) => (
     <div className="grid gap-1.5 text-sm">
       <p className="flex flex-wrap items-center gap-2">{chName(r)} {status(r)}</p>

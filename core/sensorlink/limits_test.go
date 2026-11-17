@@ -180,7 +180,7 @@ func TestResultForAnUnknownJobIsRefusedBeforeTheBody(t *testing.T) {
 	}
 }
 
-// D-326: the whole listener holds at most MaxConns: the pending pool plus the two role shares.
+// The whole listener holds at most MaxConns: the pending pool plus the two role shares.
 func TestMaxConnsIsThePendingPoolPlusTheRoleShares(t *testing.T) {
 	t.Parallel()
 	if sensorlink.MaxConns != 64 || sensorlink.MaxPending+sensorlink.MaxConnsPassive+sensorlink.MaxConnsActive != sensorlink.MaxConns {

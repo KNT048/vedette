@@ -47,10 +47,10 @@ func (w *world) nodeID() string {
 	return id
 }
 
-// D-598 (issue #829): osquery installed on a machine a scan found reports onto that device, and when DHCP gives the machine a new
+// issue #829: osquery installed on a machine a scan found reports onto that device, and when DHCP gives the machine a new
 // address before any sensor sees the move, its next report still lands on that device (found by the node the box enrolled, INV-12),
 // which moves to the new address: one device, never a second.
-func TestContract_D598_AnEnrolledMachineThatMovesStaysOneDevice(t *testing.T) {
+func TestContract_AnEnrolledMachineThatMovesStaysOneDevice(t *testing.T) {
 	w := newWorld(t)
 	const peerB = "192.0.2.44"
 	const card = "00:16:3e:aa:bb:01" // burned in (macA is QEMU's locally administered 52:54:00, which the name rule would join anyway)
@@ -77,10 +77,10 @@ func TestContract_D598_AnEnrolledMachineThatMovesStaysOneDevice(t *testing.T) {
 	}
 }
 
-// D-598, review #831 M4: a machine that enrols again (same token and host_identifier) gets a new node; the old node's binding is
+// A machine that enrols again (same token and host_identifier) gets a new node; the old node's binding is
 // released, so the new node's first report binds the same device: when the machine then moves to another address before any sensor
 // sees it, its report still lands on that device.
-func TestContract_D598_ReEnrolmentRebindsTheDevice(t *testing.T) {
+func TestContract_ReEnrolmentRebindsTheDevice(t *testing.T) {
 	w := newWorld(t)
 	const card, peerB = "00:16:3e:aa:bb:01", "192.0.2.44"
 	report := func(key, peer string) map[string]any {
@@ -100,8 +100,8 @@ func TestContract_D598_ReEnrolmentRebindsTheDevice(t *testing.T) {
 	}
 }
 
-// D-598, review #831 round 2: revoking a token releases its nodes' bindings in the inventory, and so does pruning a silent node.
-func TestContract_D598_RevokeAndPruneReleaseTheNodes(t *testing.T) {
+// Revoking a token releases its nodes' bindings in the inventory, and so does pruning a silent node.
+func TestContract_RevokeAndPruneReleaseTheNodes(t *testing.T) {
 	r := &releases{}
 	w := newWorld(t, withReleases(r))
 	id, secret := w.token("srv", 7)

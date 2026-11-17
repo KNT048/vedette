@@ -11,7 +11,7 @@ import (
 // [Install], what systemd says (the output of is-active) and what the container says about its
 // health. The version and the previous version come from the versions a start or rollback recorded
 // (slice 3-8a), the latest pulled image from container.pull (slice 3-7); each is null until recorded. Everything read from podman and systemctl is
-// parsed strictly and bounded (D-87): a value that is not one of the known words is "unknown".
+// parsed strictly and bounded: a value that is not one of the known words is "unknown".
 func (o *Ops) readContainers(ctx context.Context) (any, error) {
 	out := api.ContainersState{Services: make([]api.ContainerState, 0, len(api.Services))}
 	for _, svc := range api.Services {

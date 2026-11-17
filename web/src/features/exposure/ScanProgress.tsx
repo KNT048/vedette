@@ -25,7 +25,7 @@ export function ScanProgress() {
   const phase = run?.phase
   useEffect(() => {
     if (!run) return
-    // N49-3 (D-595): the other results are saved when OpenVAS starts: show them, with "OpenVAS is scanning", without waiting 90 minutes
+    // The other results are saved when OpenVAS starts: show them, with "OpenVAS is scanning", without waiting 90 minutes
     if (run.status === 'running' && run.phase === 'greenbone' && savedFor.current !== run.id) {
       savedFor.current = run.id
       void qc.invalidateQueries({ queryKey: ['exposure'] })

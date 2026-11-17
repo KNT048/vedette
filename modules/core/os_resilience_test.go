@@ -174,7 +174,7 @@ func TestOSRestartAfterTheRunEndedAuditsAndRemovesTheSnapshot(t *testing.T) {
 }
 
 // The host records a refusal as a run (host-api 4): a busy os.install that is the newest run is not "the OS run"
-// after a restart, it never ran (G4).
+// after a restart, it never ran.
 func TestOSRestartDoesNotTakeARefusedInstallForTheRun(t *testing.T) {
 	t.Parallel()
 	e, hh := newHookEnv(t)
@@ -206,7 +206,7 @@ func (h refusingHost) ListRuns(ctx context.Context, limit int) ([]api.Run, error
 }
 
 // An install core took (202, record stored) that the host refused while it ran is still the OS run after a restart:
-// it is settled once (os.install_done) and its snapshot goes (G4 review).
+// it is settled once (os.install_done) and its snapshot goes.
 func TestOSRestartSettlesTheRecordedInstallRefusedWhileItRan(t *testing.T) {
 	t.Parallel()
 	e := newOSEnv(t, osOpts{})
@@ -374,7 +374,7 @@ func TestOSSettingsAndRebootOnABoxThatNeverCheckedAnswerOnce(t *testing.T) {
 		t.Errorf("reboot rows: %v", e.actions())
 	}
 	wantOK(t, e.admin.request("DELETE", "/core/updates/os/reboot", nil), 200)
-	g := e.viewer.get("/core/updates/os") // reading still has no host part before the check (D-407: os null, not 409)
+	g := e.viewer.get("/core/updates/os") // reading still has no host part before the check (os null, not 409)
 	wantOK(t, g, 200)
 	if v, ok := g.JSON["os"]; !ok || v != nil {
 		t.Errorf("GET = %s", g.Raw)
@@ -416,7 +416,7 @@ func TestOSSettingsWindowIsNotSavedWhenTheOutOfWindowRebootCannotBeCancelled(t *
 
 // A network change that waits for confirmation holds the host's write lock: the host answers pending_confirm
 // (or its second line of defence, net_pending_confirm) and core says so in one plain 409, with the host's run
-// id kept out of the answer (host-api section 4, D-100).
+// id kept out of the answer (host-api section 4).
 func TestOSRebootWhileANetworkChangeAwaitsConfirmationAnswersPendingConfirm(t *testing.T) {
 	t.Parallel()
 	e, hh := newHookEnv(t)
@@ -764,7 +764,7 @@ func TestOSLostAnswerOfInstallThatTheHostNeverSawFailsAndCleansUp(t *testing.T) 
 }
 
 // The answer was lost but the host refused the call (busy): the refusal it recorded under the key is not a run that
-// was taken, so the install fails with the host's code and its snapshot goes (G4).
+// was taken, so the install fails with the host's code and its snapshot goes.
 func TestOSLostAnswerOfInstallThatTheHostRefusedFailsAndCleansUp(t *testing.T) {
 	t.Parallel()
 	e, hh := newHookEnv(t)

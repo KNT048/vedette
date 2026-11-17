@@ -76,7 +76,7 @@ func TestParse_Fixture(t *testing.T) {
 	if m := res[0]; !strings.Contains(m.Response, "Copy successful") {
 		t.Fatalf("tcp match evidence: %+v", m)
 	}
-	// a line for a target the job did not name is skipped and counted (N45-1); one for a template it did not name still throws
+	// a line for a target the job did not name is skipped and counted; one for a template it did not name still throws
 	// the whole run away
 	if got, skip, err := Read(fixture(t), labTemplates, labTargets[:3]); err != nil || skip.Lines != 3 || len(got) != len(res)-3 ||
 		slices.ContainsFunc(got, func(r Result) bool { return r.Target == labTargets[3] }) {
@@ -165,7 +165,7 @@ func TestParse_RefusesTheWholeOutput(t *testing.T) {
 	}
 }
 
-// N45-1: a line about an address the job did not name (another host, another port, a name) is skipped and counted, never a
+// A line about an address the job did not name (another host, another port, a name) is skipped and counted, never a
 // result; the run is kept. The first one's template, host and port go to the log and the probe row.
 func TestRead_SkipsALineForAnotherTarget(t *testing.T) {
 	t.Parallel()

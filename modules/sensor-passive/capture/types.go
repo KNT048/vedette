@@ -33,7 +33,7 @@ type Source interface {
 	Close() error
 }
 
-// Extract says which SPAN metadata is read (D-56). Discovery (ARP, DHCP, mDNS, SSDP, LLDP) does not depend on it.
+// Extract says which SPAN metadata is read. Discovery (ARP, DHCP, mDNS, SSDP, LLDP) does not depend on it.
 type Extract struct {
 	DNS      bool
 	TLSSNI   bool
@@ -41,7 +41,7 @@ type Extract struct {
 	Flows    bool
 }
 
-// Filter is one exclusion rule (D-56, INV-7): Type is "cidr", "host" or "port".
+// Filter is one exclusion rule (INV-7): Type is "cidr", "host" or "port".
 type Filter struct {
 	Type  string
 	Value string
@@ -67,7 +67,7 @@ type Interface struct {
 // MetaKind names the kind of a SPAN metadata item.
 type MetaKind string
 
-// The four kinds of SPAN metadata (D-43). There is no other.
+// The four kinds of SPAN metadata. There is no other.
 const (
 	MetaDNS  MetaKind = "dns"  // a DNS query name
 	MetaSNI  MetaKind = "sni"  // the server name of a TLS ClientHello
@@ -95,7 +95,7 @@ type MetaItem struct {
 }
 
 // MetadataSink receives SPAN metadata in batches, in order. The `logs` module will implement it (S-LOG-4); on the wire
-// there is no metadata until then (D-112 (7)), so the sensor binary leaves it nil and the default drops everything.
+// there is no metadata until then, so the sensor binary leaves it nil and the default drops everything.
 type MetadataSink interface {
 	Metadata(ctx context.Context, seq uint64, items []MetaItem) error
 }

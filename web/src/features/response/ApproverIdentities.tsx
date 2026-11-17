@@ -1,5 +1,5 @@
-// My account → Approval channels (S-RESP-2, D-191): I prove the address or ID an administrator typed for me on each approval channel
-// (Telegram D-414 and Zalo personal D-447: status and Send again only; a confirm link comes to my chat account when an administrator saves me
+// My account → Approval channels (S-RESP-2): I prove the address or ID an administrator typed for me on each approval channel
+// (Telegram and Zalo personal: status and Send again only; a confirm link comes to my chat account when an administrator saves me
 // as an approver, and I confirm it on /link/<telegram|zalo>).
 // Mounted by the account page only for operators and admins while the response module is on.
 import { useState } from 'react'
@@ -69,7 +69,7 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
   const askCode = sent || r.code_waiting
   // m is shared by every row: only the row acted on shows the busy state
   const sending = m.send.isPending && m.send.variables === r.channel
-  // D-624 (M2): while AI response is on but not offered, a link can be removed and none added: an unlinked row shows its state only
+  // While AI response is on but not offered, a link can be removed and none added: an unlinked row shows its state only
   if (frozen && !r.linked) {
     return (
       <li className="grid gap-2 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>
@@ -88,7 +88,7 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
           <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-meta text-muted">{r.address}</span></p>
           <Chip tone="warn">{r.code_waiting ? t('identity.waiting') : t('identity.notLinked')}</Chip>
         </div>
-        {/* D-414, D-447: status and Send again only; the link goes to this chat account and I confirm it signed in. */}
+        {/* Status and Send again only; the link goes to this chat account and I confirm it signed in. */}
         {r.code_waiting ? <p className="text-meta">{t('identity.waitingNote', { channel: r.label })}</p>
           : <div className="flex items-center gap-1 text-meta"><p>{t('identity.howSend', { channel: r.label })}</p><InfoTip topic={r.label}>{t('identity.howSendInfo', { channel: r.label })}</InfoTip></div>}
         {err ? <p className="text-meta text-danger" role="alert">{err}</p> : null}
@@ -129,13 +129,13 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
             </Field>
           ) : err ? <p className="text-meta text-danger" role="alert">{err}</p> : null}
           <div className="flex flex-wrap gap-2">
-            {/* no red error before anything is typed (D-414): Link waits for the 6 digits */}
+            {/* no red error before anything is typed: Link waits for the 6 digits */}
             {askCode ? <Button type="submit" variant="primary" disabled={m.confirm.isPending || !/^\d{6}$/.test(code.trim())} busy={m.confirm.isPending && m.confirm.variables?.ch === r.channel} busyLabel={t('common:busy.linking')}>{t('identity.confirm')}</Button> : null}
             {r.method === 'email_code'
               ? <Button variant={askCode ? undefined : 'primary'} disabled={cooldown.left > 0 || m.send.isPending} busy={sending} busyLabel={t('common:busy.sending')} aria-describedby={`${id}-wait`} onClick={() => void send()}>{cooldown.left > 0 ? t('identity.resendIn', { s: cooldown.left }) : sent || r.code_waiting ? t('identity.resend') : t('identity.send')}</Button>
               : null}
           </div>
-          {/* kien G1: the code goes out by email, which can take up to 30 s */}
+          {/* The code goes out by email, which can take up to 30 s */}
           <BusyNote id={`${id}-wait`} busy={sending}>{t('identity.sendCodeWaiting')}</BusyNote>
         </form>
       )}

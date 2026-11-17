@@ -61,14 +61,14 @@ type AI interface {
 	Run(ctx context.Context, req AIRequest) (AIOutput, error)
 }
 
-// Vendors is what mitigation reads from the inventory (Kien's) to mark the firewall guides of a confirmed pack (INV-5).
+// Vendors is what mitigation reads from the inventory to mark the firewall guides of a confirmed pack (INV-5).
 type Vendors interface {
 	// HasFirewallVendor reports whether the inventory has a firewall or router whose vendor is the
 	// given lower-case inventory vendor name ("fortinet", "mikrotik").
 	HasFirewallVendor(ctx context.Context, vendor string) (bool, error)
 }
 
-// Verifier checks the signature of an update (core/updates, Kien's; not built yet).
+// Verifier checks the signature of an update (core/updates; not built yet).
 type Verifier interface {
 	// Verify returns nil only when the signature of the whole update is valid. The signature must bind
 	// Update.Version and the bytes of every Docs[].Data (and their set), or the replay protection and

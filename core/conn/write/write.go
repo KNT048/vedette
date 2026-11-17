@@ -1,4 +1,4 @@
-// Package write is the only path by which Vedette changes a device through a connection (D-93, D-94, response FORBID-1): one step
+// Package write is the only path by which Vedette changes a device through a connection (response FORBID-1): one step
 // of an approved response action, sent over the transport of the connection's kind. Only cmd/vedette may import it (a contract
 // test walks the source tree), and cmd/vedette gives it to nobody but response.Config.Executor.
 //
@@ -51,16 +51,16 @@ const (
 	// StatusConnectionChanged: the connection is not the version the request was made against; nothing was sent.
 	StatusConnectionChanged Status = "connection_changed"
 	// StatusFailed: the device refused the step by its status (an HTTP 4xx), or a step that only reads did not work: nothing was applied. The
-	// wording of an error never makes a step "failed" (D-117).
+	// wording of an error never makes a step "failed".
 	StatusFailed Status = "failed"
 	// StatusUnknown: the step was sent and the outcome is not known (a time-out or a closed session after it left, an HTTP 3xx or 5xx, an MCP
 	// tool that reported an error, a refused SSH line). The caller marks the state unknown and the device is read, not asked again.
 	StatusUnknown Status = "unknown"
 )
 
-// Budgets (D-94): HTTP and MCP calls are bounded by transport.CallTimeout (15 s) in the client, an SSH line by
+// Budgets: HTTP and MCP calls are bounded by transport.CallTimeout (15 s) in the client, an SSH line by
 // transport.LineTimeout (20 s) and an SSH session by transport.SessionTimeout (60 s) in the session. StepBudget bounds one step of
-// an item whatever the caller's context says; response adds its own 90 s for the item. LeaveBudget (5 s, D-358) bounds the line that
+// an item whatever the caller's context says; response adds its own 90 s for the item. LeaveBudget (5 s) bounds the line that
 // leaves configuration mode after a refused SSH line, on top of the session and within the step.
 const (
 	CallBudget    = transport.CallTimeout
@@ -453,7 +453,7 @@ func (w *Writer) mcp(ctx context.Context, cl *transport.Client, auth transport.A
 	if err := m.Initialize(ctx); err != nil {
 		return failure(err, false, false, c, redact) // nothing was called yet
 	}
-	// D-179 (5): the tool is the one the administrator vouched for, as the server describes it now (the reader does the same).
+	// The tool is the one the administrator vouched for, as the server describes it now (the reader does the same).
 	tools, err := m.ListTools(ctx)
 	if err != nil {
 		return failure(err, false, false, c, redact) // nothing was called yet
@@ -508,7 +508,7 @@ func (w *Writer) ssh(ctx context.Context, c conn.Connection, secret secrets.Valu
 	defer sess.Close()
 	var out []string
 	for i, l := range s.Lines {
-		if ctx.Err() != nil { // the step was cancelled (the emergency stop, the deadline): no further line goes out (D-179 (4))
+		if ctx.Err() != nil { // the step was cancelled (the emergency stop, the deadline): no further line goes out
 			if i == 0 || reads {
 				return res(StatusNotSent, "the step was cancelled; no further command was sent")
 			}
@@ -522,7 +522,7 @@ func (w *Writer) ssh(ctx context.Context, c conn.Connection, secret secrets.Valu
 					// An earlier line was accepted: a refusal now leaves the device half way, which is not "nothing changed".
 					r.Status = StatusUnknown
 				}
-				// D-358: an earlier line may have entered configuration mode. When the device refused this line (the session is at
+				// An earlier line may have entered configuration mode. When the device refused this line (the session is at
 				// its prompt) the line that leaves that mode without saving goes out once, with its own budget; the outcome stays.
 				// After line 0 nothing was entered, and a time-out or a closed session types nothing (Leave only closes).
 				sess.Leave(ctx, leaveLine(s.Lines[:i]), w.leaveBudget)

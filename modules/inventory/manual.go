@@ -23,7 +23,7 @@ type AddInput struct {
 	Version   string
 	Name      string
 	IP        string
-	UserName  string // the name in Vedette (G2): only CSV import sets it, from its name_in_vedette column
+	UserName  string // the name in Vedette: only CSV import sets it, from its name_in_vedette column
 }
 
 // AddResult is POST /inventory/devices.
@@ -104,7 +104,7 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 	if a.ip != "" {
 		var dup string
 		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = ?`, a.ip).Scan(&dup)
-		if err == nil { // named as every page names it (D-471, G2)
+		if err == nil { // named as every page names it
 			return "", conflict("duplicate_ip", fmt.Sprintf("IP %s is already in the list (%s). Open that device instead of adding a new one.", a.ip, deviceName(ctx, tx, dup)))
 		} else if !errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("inventory: check IP: %w", err)
@@ -152,7 +152,7 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 	return id, nil
 }
 
-// suggestedKind is the type a catalog entry or feeds suggests for a declared product (W9-1, D-515). A product with neither an IP nor
+// suggestedKind is the type a catalog entry or feeds suggests for a declared product. A product with neither an IP nor
 // a name is only a product (NoDevice, "Microsoft Office (no device)"): a computer type (pc, server, web) would name a device nobody
 // declared, so it gets none. An appliance type stays: there the product is the device, and mitigation reads a declared firewall or
 // router.
@@ -230,7 +230,7 @@ func (s *Service) AddSoftware(ctx context.Context, actor, assetID string, in Add
 			return notFoundDevice()
 		}
 		var dup int
-		// A row with no match key is a sensor's guess (nmap's OS, D-501): adding the product by hand is how a person confirms it, so
+		// A row with no match key is a sensor's guess (nmap's OS): adding the product by hand is how a person confirms it, so
 		// the guess is no duplicate. Every other row has at least its vendor|product key.
 		err = tx.QueryRowContext(ctx, `SELECT 1 FROM inv_software s WHERE s.asset_id = ? AND lower(s.vendor) = lower(?) AND lower(s.product) = lower(?)
 			AND EXISTS (SELECT 1 FROM inv_software_kev k WHERE k.software_id = s.id) LIMIT 1`, assetID, a.entry.vendor, a.entry.product).Scan(&dup)
@@ -290,7 +290,7 @@ func (s *Service) RemoveSoftware(ctx context.Context, actor, assetID, softwareID
 	})
 }
 
-// SetSoftwareVersion changes the version of software a person declared (D-471 "edit version": Accept on the device
+// SetSoftwareVersion changes the version of software a person declared ("edit version": Accept on the device
 // page's "the device reports X" hint, and findings' "I updated it"); "" removes the version. What a sensor or agent saw
 // is not editable: it changes with its next report. The device's findings are matched again right after the commit.
 func (s *Service) SetSoftwareVersion(ctx context.Context, actor, assetID, softwareID, version string) error {
@@ -354,13 +354,13 @@ type Patch struct {
 	Fragile     *bool
 	RegularScan *string
 	Notes       *string
-	Name        *string // the name in Vedette (G2): trimmed; "" clears it, back to the naming rule (D-471)
+	Name        *string // the name in Vedette: trimmed; "" clears it, back to the naming rule
 	OS          *string // the person's OS (INV-41): trimmed; "" clears the correction, back to what the sources read
 }
 
 // PatchDevice changes the name in Vedette, type, fragile flag, regular-scan override or notes of a device (PRE-4, POST-4).
 // A new type is added as a manual observation: older and weaker values stay in the list (INV-1). The name is the device's own
-// column (user_name, G2), never an observation: the host name the network reports stays as it is, shown apart.
+// column (user_name), never an observation: the host name the network reports stays as it is, shown apart.
 func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) error {
 	if err := s.requireDevice(ctx, id); err != nil { // 404 before 400, like the mock
 		return err
@@ -421,7 +421,7 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 			if err != nil {
 				return err
 			}
-			match = match || changed // the OS decides OS and platform findings (D-510): match the device again
+			match = match || changed // the OS decides OS and platform findings: match the device again
 		}
 		if p.RegularScan != nil {
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET regular_scan = ? WHERE id = ?`, *p.RegularScan, id); err != nil {
@@ -432,7 +432,7 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 			}
 		}
 		// Picking the kind the device already has still records it as manual when it came from elsewhere: that is how an operator vouches
-		// for a router that only a passive frame announced (D-177, TrustedKind).
+		// for a router that only a passive frame announced (TrustedKind).
 		if p.Kind != nil && (*p.Kind != kind || kindSrc.String != "manual") {
 			before, err := matchView(ctx, tx, id)
 			if err != nil {
@@ -475,14 +475,14 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 	})
 }
 
-// Sources is the state of a device's active sources (PUT /inventory/devices/{id}/sources; D-601): SourceOn or SourceOff each, the
+// Sources is the state of a device's active sources (PUT /inventory/devices/{id}/sources): SourceOn or SourceOff each, the
 // default resolved (on for a device a sensor found, off for one added by hand).
 type Sources struct {
 	Scan string `json:"scan_source"`
 	SNMP string `json:"snmp_source"`
 }
 
-// SetSources turns the network scan and the SNMP reads of one device on or off (D-601); a nil value is left alone, and at least one is
+// SetSources turns the network scan and the SNMP reads of one device on or off; a nil value is left alone, and at least one is
 // needed. Turning one on is a person's consent to that traffic to this device: a device added by hand gets it from then on, inside every
 // other safety rule (scope, exclusions, window, fragile, never, the box). Turning one off stops it for any device: the run in progress on
 // the device stops (inventory.asset.updated), and what that source found stays. One audit row per source changed says who, which device,
@@ -510,7 +510,7 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 		if box {
 			return conflict("box_device", "This is the Vedette box itself: Vedette never scans or reads it on its own.")
 		}
-		if ignored && (deref(scan) == SourceOn || deref(snmp) == SourceOn) { // D-630: an ignored device is not watched
+		if ignored && (deref(scan) == SourceOn || deref(snmp) == SourceOn) { // An ignored device is not watched
 			return conflict("device_ignored", "This device is ignored, so Vedette does not scan or read it. Stop ignoring it first.")
 		}
 		name := deviceName(ctx, tx, id)
@@ -554,7 +554,7 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 }
 
 // Approve accepts a device a sensor found (S-INV-3); it also clears the suspicious flag.
-// A device that was waiting also gets inventory.asset.approved {asset_id, actor} after the commit (D-474, B9b): notify closes its
+// A device that was waiting also gets inventory.asset.approved {asset_id, actor} after the commit (B9b): notify closes its
 // new-device incident naming the person. Approving again (to clear a mark) is no approval; osquery enrolment (ApproveEnrolled) is
 // not a person and publishes only inventory.asset.updated.
 func (s *Service) Approve(ctx context.Context, actor, id string) error {
@@ -566,7 +566,7 @@ func (s *Service) Approve(ctx context.Context, actor, id string) error {
 		} else if err != nil {
 			return fmt.Errorf("inventory: inventory.approve: %w", err)
 		}
-		// approved_at keeps the first approval: approving again (to clear the unknown mark) does not move the device to "approved in the last 24 h" (D-471).
+		// approved_at keeps the first approval: approving again (to clear the unknown mark) does not move the device to "approved in the last 24 h".
 		if err := s.flagTx(ctx, tx, o, actor, id, `UPDATE inv_asset SET approved_at = CASE WHEN approved = 1 THEN approved_at ELSE ? END, approved = 1, suspicious = 0 WHERE id = ?`, []any{s.now(), id}, "inventory.approve"); err != nil {
 			return err
 		}
@@ -586,10 +586,10 @@ func (s *Service) SetSuspicious(ctx context.Context, actor, id string, suspiciou
 	return s.setFlag(ctx, actor, id, `UPDATE inv_asset SET suspicious = ? WHERE id = ?`, []any{suspicious, id}, action)
 }
 
-// SetIgnored ignores a device or stops ignoring it (D-630, S-INV-3): "this device needs no watching", a staff phone. An ignored device
+// SetIgnored ignores a device or stops ignoring it (S-INV-3): "this device needs no watching", a staff phone. An ignored device
 // stays known (its row, so its MAC and agent key keep matching it when it is seen again) but is out of To review, the counts and the
 // Devices list unless asked for; it sends no new-device alert (notify closes its open one on inventory.asset.ignored), the scan policies
-// read its network scan and SNMP reads as off (effectiveSources; the stored D-601 choice and the unknown mark are kept), and it is out
+// read its network scan and SNMP reads as off (effectiveSources; the stored source choice and the unknown mark are kept), and it is out
 // of the vulnerability readers (MatchInput,
 // AssetIDs, DevicesRunning), so findings makes none and closes its open ones (findings OnAssetIgnored; what a person settled keeps its
 // status). A trap hit or an intrusion-detection incident from it still alerts: those modules never ask about it. Stopping sends it
@@ -653,7 +653,7 @@ func (s *Service) flagTx(ctx context.Context, tx *sql.Tx, o *outbox, actor, id, 
 }
 
 // DeleteDevice removes a device with its observations, services and software; the box itself is 409 box_device
-// (INV-3, D-53). findings deletes the findings of the device on inventory.asset.deleted (INV-11).
+// (INV-3). findings deletes the findings of the device on inventory.asset.deleted (INV-11).
 func (s *Service) DeleteDevice(ctx context.Context, actor, id string) error {
 	counts, err := s.findingCounts(ctx)
 	if err != nil {
@@ -678,7 +678,7 @@ func (s *Service) DeleteDevice(ctx context.Context, actor, id string) error {
 		if n := counts[id]; n > 0 {
 			detail = fmt.Sprintf("%s; removed %d findings of the device", id, n)
 		}
-		o.add(EventAssetDeleted, AssetEvent{AssetID: id, Actor: actor}) // notify says who deleted it (D-474)
+		o.add(EventAssetDeleted, AssetEvent{AssetID: id, Actor: actor}) // notify says who deleted it
 		return s.auditTx(ctx, tx, actor, "inventory.delete", name, detail)
 	})
 }

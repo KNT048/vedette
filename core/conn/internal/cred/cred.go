@@ -1,4 +1,4 @@
-// Package cred is the one place that names the secret purpose of a connection credential, seals it and decrypts it (D-93 (1)).
+// Package cred is the one place that names the secret purpose of a connection credential, seals it and decrypts it.
 // New restricts the purpose in core/secrets, so secrets.Store.Open refuses it for every other package: the only way to read a
 // credential back is a Vault, and a Vault exists only inside core/conn (Go's internal rule). Only the transports (slice 13b-5)
 // and tests call Open; nothing returns the value to an API, an audit row or a log: callers get a secrets.Value, which prints as

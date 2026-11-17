@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/host/ops"
 )
 
-// vedette-host -self-update-apply rn_<16 hex> (D-316, docs/specs/host-api.md section 6.14): the applier of
+// vedette-host -self-update-apply rn_<16 hex> (docs/specs/host-api.md section 6.14): the applier of
 // host.self_update. systemd-run starts it as vedette-host-upgrade.service, outside the host's cgroup, from the
 // copy <state>/selfupdate/applier of the binary that was running; the state directory is the one that copy
 // lives in, never a flag. It reads no host.conf, opens no socket, takes no host.lock and never writes the audit

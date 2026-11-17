@@ -8,7 +8,7 @@ import (
 // Source is the read-only view of the box the tools answer from: devices (inventory), findings and the vulnerability feeds.
 // cmd/vedette implements it on top of those modules' own services and handlers (no module reads another's
 // tables). Every value it returns is already reduced to the fields below: an allow-list, so a field a source module adds later
-// never reaches an agent by accident (INV-7, D-233). Text fields are data, never instructions.
+// never reaches an agent by accident (INV-7). Text fields are data, never instructions.
 type Source interface {
 	// Assets returns the devices of the inventory, at most the inventory's own list cap. ErrSourceOff when inventory is off.
 	Assets(ctx context.Context) ([]Asset, error)
@@ -47,7 +47,7 @@ type Asset struct {
 	Model     *string      `json:"model"`
 	OS        *string      `json:"os"`
 	Approved  bool         `json:"approved"`
-	Ignored   bool         `json:"ignored"` // a person said it needs no watching (inventory D-630)
+	Ignored   bool         `json:"ignored"` // a person said it needs no watching (inventory)
 	FirstSeen string       `json:"first_seen"`
 	LastSeen  string       `json:"last_seen"`
 	Services  []NetService `json:"services"`
@@ -72,7 +72,7 @@ type Software struct {
 }
 
 // Finding is an exploited vulnerability matched to a device. Not included: who changed its status and the notes they wrote
-// (users and free text, INV-7), and the raw request and response of a scan check (D-233; open question 3 of the contract).
+// (users and free text, INV-7), and the raw request and response of a scan check (open question 3 of the contract).
 type Finding struct {
 	ID         string  `json:"id"`
 	AssetID    string  `json:"asset_id"`
@@ -84,14 +84,14 @@ type Finding struct {
 	FirstSeen  string  `json:"first_seen"`
 	LastSeen   string  `json:"last_seen"`
 	ResolvedAt *string `json:"resolved_at"`
-	// AcceptedUntil (YYYY-MM-DD) is the last day of a risk acceptance, only with status risk_accepted (D-498).
+	// AcceptedUntil (YYYY-MM-DD) is the last day of a risk acceptance, only with status risk_accepted.
 	AcceptedUntil string        `json:"accepted_until,omitempty"`
 	Evidence      *Evidence     `json:"evidence"`
 	History       []HistoryStep `json:"history"`
 }
 
 // Evidence names the scan check that confirmed a finding. Its summary is not included: it names the device, its address and
-// software (inventory data, INV-2, D-233).
+// software (inventory data, INV-2).
 type Evidence struct {
 	Template  string `json:"template"`
 	CheckedAt string `json:"checked_at"`
@@ -111,7 +111,7 @@ type CVEEntry struct {
 	Name            string   `json:"name"`
 	Description     string   `json:"description"`
 	RequiredAction  string   `json:"required_action"`
-	Source          string   `json:"source"` // the list that has it: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or a custom feed's id
+	Source          string   `json:"source"` // the list that has it: "cisa-kev", "vulncheck-kev" (VulnCheck KEV) or a custom feed's id
 	DateAdded       string   `json:"date_added"`
 	DueDate         *string  `json:"due_date"`
 	Ransomware      bool     `json:"ransomware"`

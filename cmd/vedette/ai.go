@@ -34,8 +34,8 @@ func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data, updates a
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	cfg := ai.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Zone: orgZone(d), Facts: facts, ChainPruner: aiChainPruner{}, Data: data,
-		Updates: updates, BoxAddrs: machineAddrs(d), SelfAddrs: vedetteSelf(d)} // D-446: no profile on Vedette itself
-	if d.ConnReader != nil { // the read tools of the connections (core/conn/read, D-127); a nil *read.Reader in the interface would not compare equal to nil
+		Updates: updates, BoxAddrs: machineAddrs(d), SelfAddrs: vedetteSelf(d)} // No profile on Vedette itself
+	if d.ConnReader != nil { // the read tools of the connections (core/conn/read); a nil *read.Reader in the interface would not compare equal to nil
 		cfg.Conns = d.ConnReader
 		cfg.ConnTargets = func(ctx context.Context) (map[string]string, error) {
 			cs, err := d.Conn.List(ctx)
@@ -49,8 +49,8 @@ func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data, updates a
 			return m, nil
 		}
 	}
-	// the daily verify of the activity log raises a notify incident when the chain is broken (S-AI-8, D-430), and the budget watch
-	// one at 80 % (medium) and 100 % (high) of a monthly AI budget (D-531); newNotify is the one instance per database, so this is the
+	// the daily verify of the activity log raises a notify incident when the chain is broken (S-AI-8), and the budget watch
+	// one at 80 % (medium) and 100 % (high) of a monthly AI budget; newNotify is the one instance per database, so this is the
 	// service the rest of the box uses. A notify module that is off answers ErrModuleOff, passed on as ai.ErrAlertOff too: the chain
 	// check tries again at its next run, the budget watch waits quietly for notify to be turned on (Home still shows the banner).
 	cfg.Alert = func(ctx context.Context, id, title, text string, high bool) error {
@@ -78,7 +78,7 @@ func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data, updates a
 	return svc, err
 }
 
-// testNewsNetwork is the test seam of the end-to-end box (D-171 (2), D-426): it points the CVE news fetcher at a fake internet on
+// testNewsNetwork is the test seam of the end-to-end box: it points the CVE news fetcher at a fake internet on
 // loopback (e2enews_test.go). nil in the release binary, which has no _test file to set it.
 var testNewsNetwork func(*ai.Service)
 
@@ -132,7 +132,7 @@ func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact
 			continue
 		}
 		name := a.IP
-		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first, G2), as the AI gets text
+		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first), as the AI gets text
 			name = n
 		}
 		out = append(out, ai.AssetFact{Name: name, IP: a.IP, Kind: a.Kind, Basis: string(r.Basis), Status: string(r.Status), IsBox: a.ID == box && box != ""})
@@ -140,7 +140,7 @@ func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact
 	return out, nil
 }
 
-// aiBoxID finds the box's own device row for the explanation's citation (D-422). ponytail: reads every device (AllDevices) once per
+// aiBoxID finds the box's own device row for the explanation's citation. ponytail: reads every device (AllDevices) once per
 // explanation that has an open finding, about 100-300 ms at 10k devices; upgrade path: a narrow inventory read of the is_box row.
 func aiBoxID(inv *inventory.Service) func(context.Context) (string, error) {
 	return func(ctx context.Context) (string, error) {
@@ -165,9 +165,9 @@ func aiBoxID(inv *inventory.Service) func(context.Context) (string, error) {
 type aiMitigation struct {
 	svc *ai.Service
 	// inv gives the device's own facts (vendor, model, OS, software, open ports) and the firewalls and routers of the network, so the
-	// AI writes config for what is there (M2-2); nil = the facts of the finding row only.
+	// AI writes config for what is there; nil = the facts of the finding row only.
 	inv *inventory.Service
-	log *slog.Logger // an inventory read that fails is logged and the AI gets the row's own facts (#897 r1 L5); nil = not logged
+	log *slog.Logger // an inventory read that fails is logged and the AI gets the row's own facts (#897); nil = not logged
 }
 
 func jobOf(s mitigation.Skill) ai.Job {
@@ -221,7 +221,7 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 
 // facts reads the device of the finding and, for the config skill, the firewalls and routers of the inventory (the kinds
 // mitigation.Vendors reads, INV-5). A device deleted meanwhile is left out; a read that fails is logged and left out too, so the AI
-// still answers from the row's own facts instead of the page getting a bare 500 (#897 r1 L5).
+// still answers from the row's own facts instead of the page getting a bare 500 (#897).
 func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev *inventory.Device, walls []inventory.Device) {
 	if m.inv == nil {
 		return nil, nil
@@ -261,7 +261,7 @@ func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev 
 const aiMaxPorts = 30
 
 // aiTrusted are the addresses the box knows for the finding from structured fields: the device's IP and the firewalls' IPs, never a
-// banner, a name or the Evidence text. A config naming any other address is flagged on the page (#897 r2).
+// banner, a name or the Evidence text. A config naming any other address is flagged on the page (#897).
 func aiTrusted(row findings.Row, dev *inventory.Device, walls []inventory.Device) []netip.Addr {
 	var out []netip.Addr
 	add := func(ip string) {
@@ -282,14 +282,14 @@ func aiTrusted(row findings.Row, dev *inventory.Device, walls []inventory.Device
 }
 
 // aiVal is an inventory or feed value as the AI gets it: one line (a line break in a banner or a name cannot fake a line of the data
-// block), no control characters, at most n characters (#897 r1 M1). The device and the network choose many of these values (a scan's
+// block), no control characters, at most n characters (#897). The device and the network choose many of these values (a scan's
 // banner, a DHCP name, an SNMP description), so they are data, never more than a short phrase.
 func aiVal(s string, n int) string {
 	s = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
 		switch {
 		case unicode.IsControl(r), unicode.In(r, unicode.Zl, unicode.Zp):
 			return ' '
-		case unicode.Is(unicode.Cf, r): // bidi controls, zero-width characters (#897 r2 L2)
+		case unicode.Is(unicode.Cf, r): // bidi controls, zero-width characters (#897)
 			return -1
 		}
 		return r
@@ -311,7 +311,7 @@ func aiIP(s string) string {
 	return "no IP address"
 }
 
-// aiName is a device's name for the AI: the name a person gave it in Vedette (G2; an operator typed it, no < or >), its host name when
+// aiName is a device's name for the AI: the name a person gave it in Vedette (an operator typed it, no < or >), its host name when
 // it is a plain one, else its model, else its address.
 func aiName(d inventory.Device) string {
 	if d.UserName != nil {
@@ -328,7 +328,7 @@ func aiName(d inventory.Device) string {
 	return aiIP(d.IP)
 }
 
-// aiFindingData is what the AI gets for a finding: the same facts the finding page shows (M2-2: the answer said "the data does not
+// aiFindingData is what the AI gets for a finding: the same facts the finding page shows (an answer once said "the data does not
 // list affected versions" while the Evidence named "before 20.4"). The exploited-list entry; the device with its vendor, model, OS,
 // software and open ports, the Evidence sentence (the installed version and the affected range), the fixed release or the fix of each
 // release line, the basis and confidence; and for the config skill the firewalls and routers of the inventory, whose vendor decides the
@@ -383,7 +383,7 @@ func aiFindingData(req mitigation.AIRequest, dev *inventory.Device, walls []inve
 }
 
 // aiAttack says how the vulnerability is reached, from the CVSS vector: the config skill writes a firewall rule only for a flaw
-// reached over the network (#897 r1 H1: a local Windows flaw got rules for ports 135-445).
+// reached over the network (#897: a local Windows flaw got rules for ports 135-445).
 func aiAttack(c *findings.CVSS) string {
 	if c == nil {
 		return "Attack vector: not known (no CVSS score)."
@@ -410,7 +410,7 @@ func aiAttack(c *findings.CVSS) string {
 
 // aiMatched is the software row the finding is about, with its version: the row whose "<name> <version>" the Evidence states (the
 // matcher writes it so), else the row whose product is the exploited entry's product. Only that row goes, not the device's whole
-// software list (#897 r1 L3); a short name that happens to be inside the Evidence ("Go", "R") does not count (r2 L3). findings keeps no
+// software list (#897); a short name that happens to be inside the Evidence ("Go", "R") does not count. findings keeps no
 // software id on a finding, so the Evidence and the product are what name it.
 func aiMatched(row findings.Row, d inventory.Device) string {
 	var out []string
@@ -472,7 +472,7 @@ func aiPorts(d inventory.Device) string {
 }
 
 // aiFixedIn is the page's "Fixed version" fact in one line, with what the page says about it (Ubuntu Pro, the distribution's own
-// updates, #897 r1 L2). links: the exploited entry has links (a vendor advisory may name the fix).
+// updates, #897). links: the exploited entry has links (a vendor advisory may name the fix).
 func aiFixedIn(f *findings.FixedIn, links bool) string {
 	if f == nil {
 		if links {
@@ -490,7 +490,7 @@ func aiFixedIn(f *findings.FixedIn, links bool) string {
 		b.WriteString("fixed in " + aiVal(f.Fixed, 60))
 	case "up_to":
 		b.WriteString("affected up to and including " + aiVal(f.Fixed, 60) + ", no fixed release named")
-	case "end_listed": // W76-1: the AI called 20.4 "the fixed release" from the Evidence's "before 20.4"; the page says it is not
+	case "end_listed": // The AI called 20.4 "the fixed release" from the Evidence's "before 20.4"; the page says it is not
 		b.WriteString("inside the range NVD lists as before " + aiVal(f.Fixed, 60) + ", but " + aiVal(f.Fixed, 60) +
 			" is not a fix: NVD lists it, or releases of it, as affected too, and names no fixed release for this version; the vendor advisory lists the releases that fix it")
 	case "distro":
@@ -570,7 +570,7 @@ func aiObserved(o *inventory.Observed) string {
 
 func aiDeviceName(d inventory.Device) string {
 	switch n := d.NameOrHost(); {
-	case n != nil && aiVal(*n, 64) != "": // the name in Vedette, else the host name (G2), as the AI gets text
+	case n != nil && aiVal(*n, 64) != "": // the name in Vedette, else the host name, as the AI gets text
 		return aiVal(*n, 64)
 	case d.Model != nil && d.Model.Value != "":
 		return d.Model.Value
@@ -661,7 +661,7 @@ func (a aiAsk) Finding(ctx context.Context, id string) (ai.FindingRow, bool, err
 	return aiFindingRow(r, devs), true, nil
 }
 
-// DeviceUpdates is findings.DeviceUpdates for device_updates (G9): the same updates the Findings page and "Recommended updates" show.
+// DeviceUpdates is findings.DeviceUpdates for device_updates: the same updates the Findings page and "Recommended updates" show.
 func (a aiAsk) DeviceUpdates(ctx context.Context, assetID string) (ai.DeviceUpdates, bool, error) {
 	u, ok, err := a.findings.DeviceUpdates(ctx, assetID, a.gate == nil || a.gate.Enabled(findings.FeedsModule))
 	if err != nil || !ok {

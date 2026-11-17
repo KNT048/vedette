@@ -3,7 +3,7 @@
 export const nav = { reload: () => window.location.reload(), toSetup: () => window.location.assign('/setup') }
 
 /** Dải LAN phải là địa chỉ nội bộ: đúng luật của module kiểm kê (một bản duy nhất), 10/8, 172.16/12, 192.168/16 và 100.64/10
- * (RFC 6598, D-461). Tiền tố rộng hơn (ví dụ 10.0.0.0/0, 100.0.0.0/8) bao trùm cả Internet nên bị từ chối. Đầu vào là CIDR đã
+ * (RFC 6598). Tiền tố rộng hơn (ví dụ 10.0.0.0/0, 100.0.0.0/8) bao trùm cả Internet nên bị từ chối. Đầu vào là CIDR đã
  * qua CIDR_RE. */
 export { isPrivateCidr, LOCAL_RANGE_NAMES } from '@/features/inventory/validate'
 
@@ -26,7 +26,7 @@ export function deviceLabel(ua: string): string {
 /** One shell word in single quotes, for a command the page asks the reader to paste (an email may hold ' ; $ and backticks). */
 export const shellQuote = (s: string) => `'${s.replaceAll("'", "'\\''")}'`
 
-// The mock's copy of core/auth guessable (D-389): keep the stems and runs equal to password.go.
+// The mock's copy of core/auth guessable: keep the stems and runs equal to password.go.
 const COMMON_STEMS = ['password', 'passwrd', 'passwort', 'qwerty', 'qwertyuiop', 'asdfgh', 'asdfghjkl', 'zxcvbnm', 'qazwsx', 'iloveyou', 'welcome', 'letmein', 'admin', 'administrator', 'changeme', 'default', 'secret', 'monkey', 'dragon', 'football', 'baseball', 'sunshine', 'princess', 'superman', 'master', 'login', 'abc', 'abcdef', 'trustno', 'vedette']
 const KEY_RUNS = ['01234567890123456789', 'abcdefghijklmnopqrstuvwxyz', 'qwertyuiopasdfghjklzxcvbnm']
 export const GUESSABLE_PASSWORD = 'This password is too easy to guess: it is built on a common password, a run like 123456 or qwerty, or the name in your email. A sentence of a few unrelated words is stronger.'
@@ -51,7 +51,7 @@ export function guessablePassword(password: string, email: string): boolean {
 
 const IPV4_BARE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/
 export interface NormalisedCidr { value: string; note: 'prefix' | 'network' | null }
-/** Địa chỉ trần, thiếu độ dài tiền tố: KHÔNG tự đoán /24 (dải có thể là /25, /23…) — kien 2026-11-06. */
+/** Địa chỉ trần, thiếu độ dài tiền tố: KHÔNG tự đoán /24 (dải có thể là /25, /23…). */
 export const isBareIp = (raw: string) => IPV4_BARE.test(raw.trim())
 /**
  * Chuẩn hoá một dải mạng người dùng gõ. Bắt buộc có tiền tố ("192.168.18.0/24"); thiếu tiền tố → null

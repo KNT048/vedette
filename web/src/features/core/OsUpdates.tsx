@@ -162,7 +162,7 @@ function RunPanel({ run }: { run: OsRun }) {
   )
 }
 
-/** The state of a box that has looked for updates at least once (os is null before, D-407). */
+/** The state of a box that has looked for updates at least once (os is null before). */
 type CheckedOs = OsState & { os: NonNullable<OsState['os']> }
 
 function Body({ s }: { s: CheckedOs }) {
@@ -242,7 +242,7 @@ function Body({ s }: { s: CheckedOs }) {
           <WindowForm key={JSON.stringify(s.window)} s={s} disabled={admin.disabled} title={admin.title} />
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* kien G5: an install is offered only when there is something to install */}
+            {/* An install is offered only when there is something to install */}
             {sec > 0 ? <Button variant="primary" disabled={admin.disabled || m.install.isPending} busy={m.install.isPending && m.install.variables === 'security'} busyLabel={t('common:busy.starting')} title={admin.title} onClick={() => install('security')}><ShieldCheck />{t('updates.os.installSecurity')} ({sec})</Button> : null}
             {s.pending.length > 0 ? <Button disabled={admin.disabled || m.install.isPending} busy={m.install.isPending && m.install.variables === 'all'} busyLabel={t('common:busy.starting')} title={admin.title} onClick={() => setInstallAll(true)}>{t('updates.os.installAll')}</Button> : null}
             <Button disabled={admin.disabled} title={admin.title} onClick={() => setRebooting(true)}><Power />{t('updates.os.reboot.now')}</Button>
@@ -296,8 +296,8 @@ function Body({ s }: { s: CheckedOs }) {
   )
 }
 
-/** Khối a của Settings → Updates: hệ điều hành của chính hộp (D-53, S-CORE-7). */
-/** The box has not looked for updates yet (os null, D-407; issue #231): say so and offer Check now, which is what the sentence says to do. */
+/** Khối a của Settings → Updates: hệ điều hành của chính hộp (S-CORE-7). */
+/** The box has not looked for updates yet (os null; issue #231): say so and offer Check now, which is what the sentence says to do. */
 function NoCheckYet() {
   const { t } = useTranslation('core')
   const operator = useGate('operator')

@@ -330,7 +330,7 @@ func TestIOCListedNeedsASwitchedOnFeedWithListings(t *testing.T) {
 	}
 }
 
-// IOCSubdomainsOn (logs' parent walk, D-425): true only while a built-in feed that lists subdomains (hagezi TIF) is switched on.
+// IOCSubdomainsOn (logs' parent walk): true only while a built-in feed that lists subdomains (hagezi TIF) is switched on.
 func TestIOCSubdomainsOnFollowsTheSwitchOfHageziTIF(t *testing.T) {
 	t.Parallel()
 	s, db := newStore(t)

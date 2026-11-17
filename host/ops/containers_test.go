@@ -208,11 +208,11 @@ func FuzzParseInspect(f *testing.F) {
 	})
 }
 
-// The time limits agree with each other (D-123 L6): the host never gives up on a restart before systemd
+// The time limits agree with each other: the host never gives up on a restart before systemd
 // does, and a step that is made of several has a limit at least their sum.
 func TestTimeLimitsAreConsistent(t *testing.T) {
 	t.Parallel()
-	checkSelfUpdateLimits(t) // host.self_update (D-316, spec 6.14 "Thời hạn")
+	checkSelfUpdateLimits(t) // host.self_update (spec 6.14 "Thời hạn")
 	for _, svc := range unitServices {
 		text, err := renderUnit(svc, goldFill(true))
 		if err != nil {
@@ -238,7 +238,7 @@ func TestTimeLimitsAreConsistent(t *testing.T) {
 	if recoverLimit < reloadLimit+fileSlack {
 		t.Errorf("recoverLimit %v is under one reload plus the file work", recoverLimit)
 	}
-	// The commands' timeouts cover the worst run (D-138): a core start makes the backup, restarts, waits for
+	// The commands' timeouts cover the worst run: a core start makes the backup, restarts, waits for
 	// the health and then restores the database and starts the old release again; a core rollback unpacks the
 	// backup, moves files, restarts, waits, and puts the database and the old release back.
 	o := &Ops{d: Deps{CoreWait: 2 * time.Minute, HealthWait: 2 * time.Minute}}

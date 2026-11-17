@@ -10,12 +10,12 @@ import (
 	"github.com/knt048/vedette/core/debver"
 )
 
-// Distribution backports (D-516). Ubuntu and Debian fix a package without changing its upstream version, so NVD's
+// Distribution backports. Ubuntu and Debian fix a package without changing its upstream version, so NVD's
 // upstream ranges cannot tell a patched OpenSSH 9.6p1 from a vulnerable one. For a row an agent read from the device's
 // package database, with its full Debian version and source package, on a device whose OS names the release, the
 // distribution's word decides:
 //   - installed version at or above the version the distribution fixed it in, or the distribution says the package is
-//     not affected: proved not affected (no new finding; an open suspected one closes as not_relevant, D-530);
+//     not affected: proved not affected (no new finding; an open suspected one closes as not_relevant);
 //   - installed below the fixed version: affected, basis version, and "Fixed in <distro version> for <release>";
 //   - no word (no row for the release and package, still open, needs triage, deferred, ignored): NVD decides, as before.
 //
@@ -62,14 +62,14 @@ func distroOf(in swInfo) (string, string) {
 
 // DeviceDistro is "ubuntu" or "debian" when the distribution feeds can say something about this device: its OS is that
 // distribution and an agent read at least one deb package from it (what distroVerdict needs); "" otherwise. The feeds module
-// pulls a distribution's files only while some device needs them (LEAN, D-570).
+// pulls a distribution's files only while some device needs them (LEAN).
 func DeviceDistro(a Asset) string {
 	d, _, _ := DevicePackages(a)
 	return d
 }
 
 // DevicePackages is DeviceDistro with the release ("24.04", "12") and the source packages of the device's agent deb rows as the
-// distributions' security data names them (securitySource: "linux" for linux-signed), sorted, each once (D-622: the distribution
+// distributions' security data names them (securitySource: "linux" for linux-signed), sorted, each once (the distribution
 // feeds keep the tier CVEs' fixed rows for these packages only). A kernel's packages count only for the running kernel
 // (distroRows). "" and nil when DeviceDistro is "".
 func DevicePackages(a Asset) (distro, release string, pkgs []string) {
@@ -261,7 +261,7 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 	}
 	m.Evidence = Evidence{CheckedAt: now, Summary: fmt.Sprintf("%s runs %s %s from %s %s's packages. %s fixed %s in %s %s%s (%s); no scan has confirmed it yet, so this is only suspected.",
 		clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src)}
-	if s.Source == "agent" { // D-548: the agent read the installed package; a detection
+	if s.Source == "agent" { // The agent read the installed package; a detection
 		m.Evidence.Agent = true
 		m.Evidence.Summary = fmt.Sprintf("The agent on %s reports %s %s installed from %s %s's packages. %s fixed %s in %s %s%s (%s), so this device has the flaw until it installs %s's security updates.",
 			clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src, d.name)

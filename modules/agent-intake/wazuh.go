@@ -24,7 +24,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// The Wazuh pull (S-INV-4, D-33, D-169 (12), (13), D-305..D-309): the box signs in to the customer's own Wazuh server API with a
+// The Wazuh pull (S-INV-4, (13)): the box signs in to the customer's own Wazuh server API with a
 // read-only account and reads the agents and their syscollector inventory into the inventory, as source agent. The password is in
 // core/secrets and only this file opens it; the certificate is the public roots' or pinned at Save (trust on first use); every address
 // goes through core/conn's policy; nothing is ever written to Wazuh (FORBID-4).
@@ -278,13 +278,13 @@ func pinOptions(pin string) conn.HTTPSOptions {
 }
 
 // SaveWazuh verifies the form (the same calls as Test, PRE-2), then stores it: the password sealed in core/secrets, the trust decision
-// of this handshake (public roots, or the key pinned: Save is the act of trusting, D-308), and the next pull due now.
+// of this handshake (public roots, or the key pinned: Save is the act of trusting), and the next pull due now.
 func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (WazuhConnection, error) {
 	c, err := s.checkWazuh(ctx, in)
 	if err != nil {
 		return WazuhConnection{}, err
 	}
-	// Save is the act of trusting a certificate (D-308), but only with a password typed for it: the saved password only ever goes to
+	// Save is the act of trusting a certificate, but only with a password typed for it: the saved password only ever goes to
 	// the pinned key (or to a certificate a public authority vouches for, when that is the saved rule). A changed certificate with the
 	// password field left blank asks for the password again (round 1, MEDIUM-1).
 	o := conn.HTTPSOptions{TOFU: true}
@@ -396,11 +396,11 @@ func (s *Service) DeleteWazuh(ctx context.Context, actor string) error {
 
 // ---- the pull ----
 
-// wazuhPullEvery is the tick of the job; the interval the administrator chose decides when a tick pulls (D-169 (13)).
+// wazuhPullEvery is the tick of the job; the interval the administrator chose decides when a tick pulls.
 const wazuhPullEvery = time.Minute
 
 // staleAgent is how long a disconnected agent's inventory is still believed: Wazuh keeps disconnected agents for ever, and a machine
-// reinstalled under a new id leaves the old one behind with an address DHCP may since have given to another device (D-307).
+// reinstalled under a new id leaves the old one behind with an address DHCP may since have given to another device.
 const staleAgent = 7 * 24 * time.Hour
 
 // WazuhPull is the wazuh-pull job: nothing unless a connection is saved and its next pull is due. The next pull is set before the pull
@@ -665,10 +665,10 @@ func usableAgents(agents []wzAgent, now time.Time) []wzAgent {
 
 var errUnbound = errors.New("agentintake: the agent's address is not among its own")
 
-// agentIP is the address the inventory gets as the device hint (D-307): the agent's ip (where it talks to the manager from) only when
+// agentIP is the address the inventory gets as the device hint: the agent's ip (where it talks to the manager from) only when
 // it is a unicast IPv4 that the agent itself reports on one of its interfaces. Behind NAT the manager sees the router, and writing the
 // server's packages onto the router would be wrong: such an agent is skipped (fail closed, like INV-12). The MAC of that interface is
-// only an observation (0.9): syscollector data is the agent's own claim, and the inventory resolves a device by MAC first (D-265 (4)).
+// only an observation (0.9): syscollector data is the agent's own claim, and the inventory resolves a device by MAC first.
 func agentIP(a wzAgent, addrs []wzAddr, ifaces []wzIface) (netip.Addr, string, bool) {
 	ip, err := netip.ParseAddr(a.IP)
 	if err != nil || !ip.Is4() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() || ip.IsMulticast() {
@@ -741,7 +741,7 @@ func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent, gene
 	return written, nil
 }
 
-// wazuhSoftware writes an agent's package list. An empty one (syscollector off or empty) never wipes what is known (D-169 (13)); a list
+// wazuhSoftware writes an agent's package list. An empty one (syscollector off or empty) never wipes what is known; a list
 // the inventory refused is logged and dropped; a transient error is returned. written is the number of packages stored.
 func (s *Service) wazuhSoftware(ctx context.Context, hint observe.AssetHint, id string, items []observe.Software) (written int, err error) {
 	if len(items) == 0 {
@@ -812,7 +812,7 @@ func wazuhFacts(a wzAgent) map[string][]row {
 	}
 }
 
-// wazuhWindows is the Windows release of a Wazuh agent with its update revision (D-546), when its os version carries one
+// wazuhWindows is the Windows release of a Wazuh agent with its update revision, when its os version carries one
 // ("10.0.20348.2700"), and the NVD target_hw of its os.arch ("x86_64" → x64; review M1); zero otherwise.
 func wazuhWindows(a wzAgent) winOS {
 	name, ok := cleanValue(a.OS.Name, maxValue)

@@ -11,8 +11,8 @@ import (
 // Limits of the protocol (sensor-protocol.md section 9). They are starting points to measure again, not measurements.
 const (
 	ProtoHeader  = "X-Vedette-Proto"
-	ProtoVersion = "5" // 5: snmp jobs, snmp in the active heartbeat and the result (D-512), and (D-520, before 5 was first released) the scope of a nuclei job and own_ip in the nuclei heartbeat; 4: capture_error in the passive heartbeat (D-399); 3: host_errors on a nuclei result (D-165); 2: nuclei jobs (D-133)
-	// ProtoPrevious is the one older protocol core still takes (D-459): a sensor or scan worker one protocol behind core, while
+	ProtoVersion = "5" // 5: snmp jobs, snmp in the active heartbeat and the result, and (before 5 was first released) the scope of a nuclei job and own_ip in the nuclei heartbeat; 4: capture_error in the passive heartbeat; 3: host_errors on a nuclei result; 2: nuclei jobs
+	// ProtoPrevious is the one older protocol core still takes: a sensor or scan worker one protocol behind core, while
 	// an update runs (core switches first) and after a sensor's switch that went back by itself. Never a newer one, never two
 	// behind. A bump sets it to the old ProtoVersion (TestProtoPreviousIsOneBelow) and must keep core able to serve that peer:
 	// what the new protocol adds to a request is optional (absent = the old meaning). A bump that changes a reply core sends
@@ -20,8 +20,8 @@ const (
 	// ProtoPrevious peer, with a test. 4 over 3 only added capture_error to a request, so nothing differs in core's replies. 5 over 4
 	// adds a job kind to a reply, but core sends an snmp job only to a worker whose heartbeat said snmp (a field of protocol 5), so a
 	// worker of protocol 4 gets the replies of protocol 4 (sensoractive TestSNMPNeverGoesToAWorkerOfProtocol4). The same holds for
-	// what D-520 added to 5 before its first release (no new number: the latest release, v0.1.0-beta.1, speaks 4, and a 6 would
-	// leave it no update path, D-410): own_ip in the nuclei heartbeat is optional (absent = false), core leaves the scope out of a
+	// what own_ip added to 5 before its first release (no new number: the latest release, v0.1.0-beta.1, speaks 4, and a 6 would
+	// leave it no update path): own_ip in the nuclei heartbeat is optional (absent = false), core leaves the scope out of a
 	// LAN job and sends an own_ip job only to a worker whose heartbeat said own_ip (sensoractive
 	// TestOwnIPNucleiNeverGoesToAWorkerWithoutOwnIP).
 	ProtoPrevious = "4"
@@ -38,7 +38,7 @@ const (
 	MaxResultJSONL = 4 << 20 // the cap of a nuclei run's stdout (nucleiargv.MaxOutput; a test in sensoractive checks they agree)
 	MaxHostErrors  = 16      // entries of host_errors on a nuclei result: one per target (nucleiargv.MaxTargets; a test in the worker checks they agree)
 	MaxItems       = 500
-	MaxRunning     = 3 // jobs a worker runs at once: one nmap, one nuclei (D-125 (3)) and one snmp (D-512)
+	MaxRunning     = 3 // jobs a worker runs at once: one nmap, one nuclei and one snmp
 
 	// What a sensor reads back from core.
 	MaxConfigReply = 64 << 10
@@ -56,11 +56,11 @@ const (
 	MaxResultBodies  = 1
 	MaxConns         = MaxPending + MaxConnsPassive + MaxConnsActive
 	// MaxPending, MinPendingAge and HandshakeDeadline are the pool of connections that have not finished their TLS handshake
-	// (PendingListener, D-326).
+	// (PendingListener).
 	MaxPending        = 16
 	MinPendingAge     = 250 * time.Millisecond
 	HandshakeDeadline = 3 * time.Second
-	// MaxConnsPassive and MaxConnsActive are the shares of the roles (D-176 (4)): a connection is charged to its role at the TLS
+	// MaxConnsPassive and MaxConnsActive are the shares of the roles: a connection is charged to its role at the TLS
 	// handshake (the verified certificate tells which), and a handshake over the share fails, so a passive sensor can never hold the
 	// slots the scan worker needs (the worker keeps one long poll, one or two result uploads and a heartbeat: well under 16).
 	MaxConnsPassive = 32
@@ -73,14 +73,14 @@ const (
 	WriteTimeout      = 35 * time.Second
 	// BodyTimeout bounds reading one request body (a slow body is as much a slowloris as slow headers). The largest upload is
 	// MaxResultBody (11 MiB), so the whole request (headers plus body) is at most ReadHeaderTimeout + BodyTimeout, which is
-	// http.Server.ReadTimeout (D-176 (3)); a long poll lifts that deadline for itself (serve). IdleTimeout closes keep-alive
+	// http.Server.ReadTimeout; a long poll lifts that deadline for itself (serve). IdleTimeout closes keep-alive
 	// connections nobody uses.
 	BodyTimeout = 10 * time.Second
 	IdleTimeout = 2 * time.Minute
 	// DrainGrace is how long a connection whose request was refused without reading its body may keep sending that body.
 	DrainGrace = time.Second
 
-	// Backoff of a sensor retrying (D-112 (4)).
+	// Backoff of a sensor retrying.
 	BackoffStart = time.Second
 	BackoffCap   = 60 * time.Second
 )
@@ -115,14 +115,14 @@ type gate struct{ busy atomic.Bool }
 func (g *gate) enter() bool { return g.busy.CompareAndSwap(false, true) }
 func (g *gate) leave()      { g.busy.Store(false) }
 
-// PendingListener returns the listener of the sensor link (D-326). A connection that has not finished its TLS handshake is unauthenticated:
+// PendingListener returns the listener of the sensor link. A connection that has not finished its TLS handshake is unauthenticated:
 // any local process can open one. Those connections get a pool of their own, MaxPending, separate from the shares of the roles that a
 // connection is charged to at the handshake (MaxConnsPassive, MaxConnsActive), so the whole listener holds at most MaxConns. When the
 // pending pool is full, a new connection takes the place of the oldest pending one if that one has waited at least MinPendingAge (a
 // handshake on loopback takes milliseconds, so a sensor's connection is never the one evicted unless it hangs); otherwise the new one is
 // closed at once (the sensor retries with its back-off). Every pending connection is closed after HandshakeDeadline whatever net/http does.
 // What this stops: a process that opens connections and holds them (before, 64 idle connections held every slot until net/http's own
-// handshake timeout, D-176 (5)). What it does not stop: a process that keeps opening connections without pause; it wins most places as
+// handshake timeout). What it does not stop: a process that keeps opening connections without pause; it wins most places as
 // they free up, so a sensor gets in only now and then. That needs a listener per role that other processes cannot reach (deferred).
 func PendingListener(l net.Listener) net.Listener {
 	return newPendingListener(l, MaxPending, MinPendingAge, HandshakeDeadline, time.Now)

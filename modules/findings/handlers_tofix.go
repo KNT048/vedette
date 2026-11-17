@@ -49,7 +49,7 @@ func nonNil(s []string) []string {
 	return s
 }
 
-// riskJS is contract.ts DeviceRisk (G4): a device's risk marker, the same value the device list gives (RiskMap).
+// riskJS is contract.ts DeviceRisk: a device's risk marker, the same value the device list gives (RiskMap).
 type riskJS struct {
 	Level     string `json:"level"`
 	Exploited int    `json:"exploited"`
@@ -67,7 +67,7 @@ func (h *FindingHandlers) risks(ctx context.Context, feedsOn bool) map[string]As
 }
 
 // riskOfView is the marker of device a: nil when clean or when a is the Vedette box itself (its updates are in To fix, the box is not
-// marked, G4).
+// marked).
 func riskOfView(m map[string]AssetRisk, a AssetView) *riskJS { return riskJSOf(m[a.ID], a.Box) }
 
 func riskJSOf(r AssetRisk, box bool) *riskJS {
@@ -81,7 +81,7 @@ func riskJSOf(r AssetRisk, box bool) *riskJS {
 	return out
 }
 
-// FindingsGetFindingsToFix implements GET /findings/to-fix (kien G8): Service.ToFix with each device's name. A device the inventory
+// FindingsGetFindingsToFix implements GET /findings/to-fix: Service.ToFix with each device's name. A device the inventory
 // no longer knows is left out (its findings go with it).
 func (h *FindingHandlers) FindingsGetFindingsToFix(ctx context.Context, params oas.FindingsGetFindingsToFixParams) (*oas.FindingsGetFindingsToFixOK, error) {
 	feedsOn := h.gate == nil || h.gate.Enabled(FeedsModule)
@@ -89,7 +89,7 @@ func (h *FindingHandlers) FindingsGetFindingsToFix(ctx context.Context, params o
 	if err != nil {
 		return nil, err
 	}
-	// G4: every marked device's risk (no display cap), for the markers of the Findings table and its filter (review r2 of #949 L2)
+	// every marked device's risk (no display cap), for the markers of the Findings table and its filter
 	risks := h.risks(ctx, feedsOn)
 	ids := make([]string, 0, len(tf.Devices)+len(risks))
 	for _, d := range tf.Devices {

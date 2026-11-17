@@ -24,7 +24,7 @@ import type { SettingsView, Window } from './types'
 import { ConfirmExecutionOff, Frozen, TurnOffResponse } from './Leaving'
 import { FrozenCtx, useLeaving } from './frozen'
 
-/** The only way to turn execution on (D-41): admin, two-step sign-in, the exact phrase. Also opened by the guided setup of the inbox (D-513). */
+/** The only way to turn execution on: admin, two-step sign-in, the exact phrase. Also opened by the guided setup of the inbox. */
 export function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { t } = useTranslation('response')
   const me = useMe()
@@ -142,14 +142,14 @@ function Form({ s }: { s: SettingsView }) {
   )
 }
 
-/** Settings, AI response; also the Settings tab of /response (`embedded`, D-513), where the action catalog and the never-touch list are in the Actions tab. */
+/** Settings, AI response; also the Settings tab of /response (`embedded`), where the action catalog and the never-touch list are in the Actions tab. */
 export default function ResponseSettings({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation('response')
   const q = useSettings()
   const set = useSetExecution()
   const reset = useResetBreaker()
   const [open, setOpen] = useState(false)
-  const leaving = useLeaving() // D-624 (#819): no new action; execution can be turned off, Emergency stop stays (frozen.ts)
+  const leaving = useLeaving() // No new action; execution can be turned off, Emergency stop stays (frozen.ts)
   const [askOff, setAskOff] = useState(false) // N-H1: on a frozen box turning execution off is one-way for device changes
   const off = () => set.mutate({ enabled: false }, { onSuccess: () => { setAskOff(false); toast.success(t('enable.off')) }, onError: (e) => { setAskOff(false); toast.error(errText(e)) } })
   if (q.isPending) return <Loading />

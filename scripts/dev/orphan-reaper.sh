@@ -1,6 +1,6 @@
 #!/bin/bash
-# orphan-reaper — stops orphaned dev/test processes that overload the developer's machine
-# (kien, 2026-11-09). Runs every 10 minutes from launchd (macOS) or a systemd user timer /
+# orphan-reaper — stops orphaned dev/test processes that overload the developer's machine.
+# Runs every 10 minutes from launchd (macOS) or a systemd user timer /
 # cron (Linux): `make reaper-install`. Assumes macOS or Linux; bash 3.2 compatible.
 #
 # "Orphan" = the TREE is orphaned: from a matching process we walk up through the wrappers
@@ -64,7 +64,7 @@ descendants() {
 	done
 }
 
-# New GitHub issues for this developer (kien, 2026-11-09: a teammate's request must never wait).
+# New GitHub issues for this developer (2026-11-09: a teammate's request must never wait).
 # Notifies once per new open issue with VEDETTE_ISSUE_LABEL (default owner:kien) in VEDETTE_REPO
 # (default KNT048/vedette). Needs `gh` signed in; silently skipped otherwise or with VEDETTE_REAPER_ISSUES=0.
 check_issues() {

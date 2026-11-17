@@ -203,7 +203,7 @@ func TestPruneServicesRemovesOnlyRowsNotSeenFor90Days(t *testing.T) {
 }
 
 // A partial look (a gentle scan) adds the ports it saw and keeps what a full scan of the same source said: nothing is removed,
-// and a port already listed keeps its name, product, version and confidence; only seen_at moves (INV-23, D-350 (5)).
+// and a port already listed keeps its name, product, version and confidence; only seen_at moves (INV-23).
 func TestContract_INV23_AddServicesKeepsTheFullList(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -235,7 +235,7 @@ func TestContract_INV23_AddServicesKeepsTheFullList(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM inv_service WHERE port = 8080 AND seen_at = ?`, "2026-11-09T10:00:00.000Z"); n != 1 {
 		t.Fatal("port 8080, not in the partial look, was touched")
 	}
-	// D-592 review r2 M2: a partial look that read the product of a port (the weekly -sV follow-up) updates it; a version changes
+	// A partial look that read the product of a port (the weekly -sV follow-up) updates it; a version changes
 	if err := e.svc.AddServices(ctx, hint, observe.Nmap, []observe.Service{{Port: 8080, Proto: "tcp", Name: "http-proxy", Product: "Squid http proxy", Version: "6.10", Confidence: 0.8}}); err != nil {
 		t.Fatal(err)
 	}

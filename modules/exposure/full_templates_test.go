@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// FULL-4 (Trưởng), for Mlee (D-527): the template step of a Full scan.
+// The template step of a Full scan.
 
 // deadlineTemplates records the time left before the step's bound when it is called.
 type deadlineTemplates struct {

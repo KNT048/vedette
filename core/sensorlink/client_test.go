@@ -124,7 +124,7 @@ func batch(n int) *sensorlink.ObservationsRequest {
 const okObs = `{"ack_seq":7,"rejected":[{"index":1,"code":"budget_exhausted"}]}`
 
 // PostObservations is one attempt: it makes exactly one request, never waits, and hands what core said to the capture process,
-// which decides (D-122 (2), (7)).
+// which decides ((7)).
 func TestClientPostObservations(t *testing.T) {
 	t.Parallel()
 	ca := newTestCA(t)
@@ -187,7 +187,7 @@ func TestBackoff(t *testing.T) {
 	}
 }
 
-// Every request carries the protocol header, says JSON, and does not ask for compression (D-109 (5)).
+// Every request carries the protocol header, says JSON, and does not ask for compression.
 func TestClientRequestShape(t *testing.T) {
 	t.Parallel()
 	ca := newTestCA(t)
@@ -209,7 +209,7 @@ func TestClientRequestShape(t *testing.T) {
 	}
 }
 
-// D-110 (4): the client reads the bundle again when the file changes, picks the new certificate for the next connection and
+// The client reads the bundle again when the file changes, picks the new certificate for the next connection and
 // closes what is idle. The server end of this is the real one.
 func TestClientPicksUpARotatedBundle(t *testing.T) {
 	t.Parallel()
@@ -248,7 +248,7 @@ func TestClientPicksUpARotatedBundle(t *testing.T) {
 	}
 }
 
-// D-110 (4): a bundle that cannot be used (half written, damaged) never replaces the one in memory; the file is tried again
+// A bundle that cannot be used (half written, damaged) never replaces the one in memory; the file is tried again
 // after five seconds.
 func TestClientKeepsTheBundleWhenTheFileIsHalfWritten(t *testing.T) {
 	t.Parallel()

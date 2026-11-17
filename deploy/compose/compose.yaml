@@ -1,4 +1,4 @@
-# Docker Compose for development and for the sensor smoke (D-146, DEPLOYMENT.md 6.2). Profile `dev`: core + sensor (replaying a pcap
+# Docker Compose for development and for the sensor smoke (DEPLOYMENT.md 6.2). Profile `dev`: core + sensor (replaying a pcap
 # fixture, no card, no real capture) + scan (a FAKE nmap and a FAKE nuclei: scripts, nothing is scanned). No vedette-host: core runs as a
 # container-only install. Everything runs as one unprivileged uid on a private bridge; only core's UI/API port is published, on 127.0.0.1.
 # Run it with `make dev-sensors` (up) and `make dev-sensors-smoke` (up, check a device appears, down). The pins come from
@@ -27,7 +27,7 @@ x-hardening: &hardening
   security_opt: ["no-new-privileges:true"]
 
 services:
-  # Gives the named volumes to the unprivileged uid. One-shot; the real units get their owners from vedette-host (D-114 (4)).
+  # Gives the named volumes to the unprivileged uid. One-shot; the real units get their owners from vedette-host.
   volumes-init:
     profiles: [dev]
     build: {context: ../.., dockerfile: deploy/containers/scan-base/Containerfile, args: *pins}

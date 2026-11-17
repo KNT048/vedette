@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// exposureGolden is the real KEV + NVD golden set of findings (D-500) with the two Apache path-traversal entries added as CISA and NVD
+// exposureGolden is the real KEV + NVD golden set of findings with the two Apache path-traversal entries added as CISA and NVD
 // publish them (KEV dateAdded 2021-11-03; NVD: CVE-2021-41773 affects http_server 2.4.49, CVE-2021-42013 affects 2.4.49 and 2.4.50;
 // the Fedora, NetApp and Oracle entries of those CVEs are left out), Exim CVE-2019-10149 (KEV 2021-11-03, NVD exim 4.87 to 4.91),
 // and one made-up entry for nginx under NVD's current name f5:nginx (no KEV entry names nginx).
@@ -76,7 +76,7 @@ var exposureFixtureServices = []exposure.ServiceRow{
 	{IP: "203.0.113.10", Port: 18443, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"},
 }
 
-// S-EXP-2 (exposure INV-20, D-553): Apache 2.4.49 gets CVE-2021-41773 and CVE-2021-42013 by version, nginx without a version is the
+// S-EXP-2 (exposure INV-20): Apache 2.4.49 gets CVE-2021-41773 and CVE-2021-42013 by version, nginx without a version is the
 // "needs a version" line, tcpwrapped is not compared; a later Apache is outside every range. Exploited CVEs only, from the feeds list.
 func TestExposureMatcher_NmapServicesAgainstKEV(t *testing.T) {
 	t.Parallel()
@@ -86,8 +86,8 @@ func TestExposureMatcher_NmapServicesAgainstKEV(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// nginx is igor_sysoev:nginx to nmap and f5:nginx to NVD: compared through the nmap-cpe.json alias (W11-2; before it was
-	// "not compared", review MED-2). Without a version it can only need one: a gap on port 443, no finding.
+	// nginx is igor_sysoev:nginx to nmap and f5:nginx to NVD: compared through the nmap-cpe.json alias (before it was
+	// "not compared"). Without a version it can only need one: a gap on port 443, no finding.
 	if got.Compared != 2 || got.Listed != len(vulns) || len(got.Unlisted) != 0 {
 		t.Fatalf("compared %d, listed %d, unlisted %v", got.Compared, got.Listed, got.Unlisted)
 	}
@@ -139,15 +139,15 @@ func TestExposureMatcher_NmapServicesAgainstKEV(t *testing.T) {
 		return func(cpe string) []string { asked = append(asked, cpe); return []string{"apache|http server"} }
 	}
 	got, err = m.Match(t.Context(), exposureFixtureServices[2:])
-	// D-602: product name only, so not listed: ruled out with the reason
+	// Product name only, so not listed: ruled out with the reason
 	if err != nil || len(got.Vulns) != 0 || len(got.RuledOut) != 1 || !strings.HasPrefix(got.RuledOut[0].Reason, "Only the product name matches") ||
 		!slices.Equal(asked, []string{"cpe:/a:apache:http_server:2.4.49"}) {
 		t.Fatalf("catalog: %+v %v asked %v", got, err, asked)
 	}
 }
 
-// KF-4 / N45-3 (D-547): the n45 public IP's port 10022 sends "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20": the Alpine-only CVE-2026-123158 is
-// not listed and comes back as ruled out with its reason. D-604: the office firewall's "OpenSSH 10.2" (no platform) is not listed
+// A public IP's port 10022 sends "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20": the Alpine-only CVE-2026-123158 is
+// not listed and comes back as ruled out with its reason. The office firewall's "OpenSSH 10.2" (no platform) is not listed
 // either: no Yes while the platform condition is open; it is ruled out with what is not known.
 func TestExposureMatcher_PlatformLimitedCVE(t *testing.T) {
 	t.Parallel()
@@ -189,7 +189,7 @@ func TestExposureMatcher_PlatformLimitedCVE(t *testing.T) {
 			ports = append(ports, v.Port)
 		}
 	}
-	// D-604: the port with no platform is asked, not listed; one ruled-out row per CVE and address, on that port
+	// The port with no platform is asked, not listed; one ruled-out row per CVE and address, on that port
 	if len(ports) != 0 || len(got.RuledOut) != 1 || got.RuledOut[0].Port != 2222 {
 		t.Fatalf("one IP, two ports: CVE on %v, ruled out %+v", ports, got.RuledOut)
 	}
@@ -229,7 +229,7 @@ func TestExposureMatcher_CuratedCatalogKevKeys(t *testing.T) {
 		exposure.ServiceRow{IP: "203.0.113.10", Port: 443, Name: "http", Product: "nginx", Version: "1.24.0", CPE: "cpe:/a:igor_sysoev:nginx:1.24.0"},
 		exposure.ServiceRow{IP: "203.0.113.10", Port: 22, Name: "ssh", Product: "OpenSSH", Version: "9.6", CPE: "cpe:/a:openbsd:openssh:9.6"})
 	got, err := m.Match(t.Context(), svcs)
-	if err != nil || got.Compared != 1 || len(got.Vulns) != 0 || len(got.RuledOut) != 1 || got.RuledOut[0].CVE != "CVE-2021-41773" { // D-602: product name only
+	if err != nil || got.Compared != 1 || len(got.Vulns) != 0 || len(got.RuledOut) != 1 || got.RuledOut[0].CVE != "CVE-2021-41773" { // Product name only
 		t.Fatalf("apache: %+v %v", got, err)
 	}
 	if !slices.Equal(got.Unlisted, []string{"nginx (igor_sysoev:nginx)", "OpenSSH (openbsd:openssh)"}) {
@@ -240,7 +240,7 @@ func TestExposureMatcher_CuratedCatalogKevKeys(t *testing.T) {
 	}
 }
 
-// W11-2 (walk n32): nmap names nginx igor_sysoev:nginx, the list keeps it under F5 (NVD f5:nginx): the alias of
+// nmap names nginx igor_sysoev:nginx, the list keeps it under F5 (NVD f5:nginx): the alias of
 // content/catalog/nmap-cpe.json compares it, and the version is checked against F5's ranges.
 func TestExposureMatcher_NginxAliasReachesF5(t *testing.T) {
 	t.Parallel()
@@ -286,7 +286,7 @@ func TestNmapAliases_DataIsValid(t *testing.T) {
 	}
 }
 
-// D-565: Exploited answers only the CVE ids the list carries, with CISA's name and date; a version ZAP read in a Server header,
+// Exploited answers only the CVE ids the list carries, with CISA's name and date; a version ZAP read in a Server header,
 // written as the CPE content/zap/header-cpe.json gives nmap's name for it, goes through the same aliases (nginx reaches F5).
 func TestExposureMatcher_ZAPVersions(t *testing.T) {
 	t.Parallel()
@@ -308,10 +308,10 @@ func TestExposureMatcher_ZAPVersions(t *testing.T) {
 	}
 }
 
-// D-615, D-616: on a public IP, an exploited CVE published more than 12 months ago stays listed when the banner's version is
+// On a public IP, an exploited CVE published more than 12 months ago stays listed when the banner's version is
 // compared (Exim 4.89 inside CVE-2019-10149's range, published 2019); with only the product name matching (no NVD data to
 // compare) it comes back as ruled out with the reason, never silently dropped. A recent one keeps today's rule.
-func TestExposureMatcher_D616_OldKEVOnlyProductOnlyIsRuledOut(t *testing.T) {
+func TestExposureMatcher_OldKEVOnlyProductOnlyIsRuledOut(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
 	vulns := exposureGolden(t)
@@ -338,7 +338,7 @@ func TestExposureMatcher_D616_OldKEVOnlyProductOnlyIsRuledOut(t *testing.T) {
 		t.Fatalf("old CVE, product only: %+v %v", got, err)
 	}
 	m.vulns = func(context.Context) ([]findings.Vuln, error) { return productOnly(now.AddDate(0, -2, 0)), nil }
-	// D-602: a recent one is no finding on the product name alone either, with its own reason
+	// A recent one is no finding on the product name alone either, with its own reason
 	if got, err = m.Match(t.Context(), exposureFixtureServices[2:]); err != nil || len(got.Vulns) != 0 || len(got.RuledOut) != 1 ||
 		!strings.Contains(got.RuledOut[0].Reason, "Vedette is waiting for NVD's data for CVE-2021-41773") {
 		t.Fatalf("recent CVE, product only: %+v %v", got, err)

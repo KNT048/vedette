@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/host/ops"
 )
 
-// Tests that came out of the independent review of slice 3-8a (D-138 amended: H1 is in contract_update_test.go
+// Tests that came out of the independent review of slice 3-8a (H1 is in contract_update_test.go
 // next to the rollback tests; H2, M1, M2, M4, L3 are here).
 
 // H2: core controls the names next to its database. A directory or a symlink planted where the host keeps a
@@ -165,7 +165,7 @@ func TestContract_Update_WhileADatabaseWaitsToBePutBackEveryWriteIsRefusedAndThe
 	o2.Start(context.Background(), rec)
 	t.Cleanup(o2.Close)
 
-	// Before the database is back: the commands that touch core are refused (D-138 N1 (d)); the others run.
+	// Before the database is back: the commands that touch core are refused; the others run.
 	e.ok(t, api.CmdContainerStart, api.ContainerStartArgs{Service: "sensor", Restart: true})
 	e.refused(t, api.CmdBackupCreate, api.BackupCreateArgs{Kind: "manual", Snapshot: e.snap()}, 412, api.CodeTransitionPending)
 	e.refused(t, api.CmdContainerRollback, api.ContainerRollbackArgs{Service: "core"}, 412, api.CodeTransitionPending)

@@ -18,7 +18,7 @@ const (
 
 func txtRecord(token string) string { return "vedette-verify=" + token }
 
-// proveDomain looks for the record proving t among the box's targets (D-628, prove). A failed lookup is "not confirmed" with the
+// proveDomain looks for the record proving t among the box's targets (prove). A failed lookup is "not confirmed" with the
 // names asked and what came back (fail closed), never an error: the answer is a normal result.
 func (s *Service) proveDomain(ctx context.Context, t Target) (proof, error) {
 	all, err := listTargets(ctx, s.cfg.DB.Reader())
@@ -71,7 +71,7 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 	var failure string // why nothing could be checked, when that was the case
 	var observed []string
 	var pr proof
-	bound := "" // review r1 L3 of #960: the box-bound value the executors check, when the stored token is an older one
+	bound := "" // the box-bound value the executors check, when the stored token is an older one
 	if t.Kind == KindDomain {
 		if pr, err = s.proveDomain(ctx, t); err != nil {
 			return VerifyResult{}, fmt.Errorf("exposure: verifying: %w", err)
@@ -157,9 +157,9 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 	return VerifyResult{Verified: ok, Message: v.LastCheck.Message, Target: v}, nil
 }
 
-// boundTokenNote says, after a passed check of t's own record, which value the executors check when it is not t's stored token
-// (review r1 L3 of #960). Since D-591 a domain's token is the one vedette-host binds to the box for it (HMAC of the domain), and the
-// scan worker (deep nmap, nuclei), OpenVAS and ZAP through a parent name check that value; a target added before D-591, or while the
+// boundTokenNote says, after a passed check of t's own record, which value the executors check when it is not t's stored token.
+// A domain's token is the one vedette-host binds to the box for it (HMAC of the domain), and the
+// scan worker (deep nmap, nuclei), OpenVAS and ZAP through a parent name check that value; a target added by an older release, or while the
 // host gave no token (a logged fallback), keeps a random one. Check keeps passing on the stored token (nothing that works breaks); the
 // note names the record to add next to it so those steps pass too. "" when the two are the same, there is no fence, or it gave none.
 func (s *Service) boundTokenNote(ctx context.Context, t Target, p proof) string {
@@ -173,13 +173,13 @@ func (s *Service) boundTokenNote(ctx context.Context, t Target, p proof) string 
 	return fmt.Sprintf(" This target's token is older than the value this box binds to %s, which deep scans of addresses that are not this box's (and web pages, when the record is on a parent name) check: add the TXT record %s on %s too, keeping the current one.", t.Value, txtRecord(tok), p.proven)
 }
 
-// coverOthers verifies, in the transaction of t's verification, the box's other domain targets the record just found proves too
-// (D-628): a target added before its parent was verified is covered from now, with no second record. Each one gets its own check
+// coverOthers verifies, in the transaction of t's verification, the box's other domain targets the record just found proves too:
+// a target added before its parent was verified is covered from now, with no second record. Each one gets its own check
 // message and audit row; one already verified and passing is left as it is. The record is checked again for each of them right
 // before each of their scans (INV-1 (c)), so a record removed, or the parent target removed with its token, covers them no more.
 func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Target, p proof, now time.Time, emit func(string, any)) error {
 	if owner := map[bool]string{true: t.Value, false: p.via}[p.own]; p.proven != owner {
-		// D-632: t's own token on a parent name proves t only: the other targets under that parent need their own token there
+		// T's own token on a parent name proves t only: the other targets under that parent need their own token there
 		return nil
 	}
 	all, err := listTargets(ctx, tx)

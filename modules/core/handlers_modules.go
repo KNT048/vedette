@@ -45,7 +45,7 @@ func (h *ModuleHandlers) CoreGetModules(context.Context) (*oas.CoreGetModulesOK,
 	return &oas.CoreGetModulesOK{Modules: items, Install: oas.CoreGetModulesOKInstall(installKind(h.reg))}, nil
 }
 
-// installKind is the install kind of GET /modules and GET /core/setup/modules (D-381), from the registry.
+// installKind is the install kind of GET /modules and GET /core/setup/modules, from the registry.
 func installKind(reg *modreg.Registry) string {
 	if reg.ContainerOnly() {
 		return "container"

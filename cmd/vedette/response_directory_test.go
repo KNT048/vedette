@@ -65,7 +65,7 @@ func TestResponseDirectoryKeepsTheOldestGatewayPastTheListCap(t *testing.T) {
 	}
 }
 
-// D-177 (M5): one passive frame (an SSDP NOTIFY or an LLDP frame that says "router") must not put an intruder's device on the never-touch
+// One passive frame (an SSDP NOTIFY or an LLDP frame that says "router") must not put an intruder's device on the never-touch
 // list; a router whose kind came from nmap does, and so does an approved one.
 func TestResponseDirectoryIgnoresARouterOnlyAPassiveFrameClaimed(t *testing.T) {
 	t.Parallel()

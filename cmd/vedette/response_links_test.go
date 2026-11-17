@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-7 (D-96, response INV-4, POST-5, FORBID-4) in the real wiring: the real response and notify services, a fake SMTP
+// WP-13b slice 13b-7 (response INV-4, POST-5, FORBID-4) in the real wiring: the real response and notify services, a fake SMTP
 // server on loopback, the real generated server. A request is created, the approver gets a mail with a link, the link approves once, a
 // request from another site is refused, and the token is nowhere in the database.
 
@@ -140,7 +140,7 @@ func linkSetup(t *testing.T) (s *stack, clock *manualClock, a response.ActionReq
 	if _, err := svc.SaveSettings(ctx, boss, in); err != nil {
 		t.Fatal(err)
 	}
-	// D-191: Lan proves the address first, with the code notify's code mailer sends (responseMailer).
+	// Lan proves the address first, with the code notify's code mailer sends (responseMailer).
 	me := response.Actor{ID: lan.ID, Email: "lan@acme.example", Via: response.ViaApp}
 	if _, err := svc.SendLinkCode(ctx, me, "email"); err != nil {
 		t.Fatal(err)
@@ -337,7 +337,7 @@ func TestWiringApprovalLinkNeedsNotifyOn(t *testing.T) {
 	}
 }
 
-// D-191, notify INV-13: notify asks response (Config.ApproverLinks) before it mails an approval link. An approver who has not proved the
+// Notify INV-13: notify asks response (Config.ApproverLinks) before it mails an approval link. An approver who has not proved the
 // address gets no mail at all; once they link it in My account, the next request reaches them.
 func TestWiringNotifySkipsAnUnlinkedEmailApprover(t *testing.T) {
 	t.Parallel()
@@ -430,7 +430,7 @@ func TestWiringNotifySkipsAnUnlinkedEmailApprover(t *testing.T) {
 	}
 }
 
-// #847 (J7 #812): after a backup is restored without its decryption key, the approval key that signed a link mailed before is sealed
+// #847 (#812): after a backup is restored without its decryption key, the approval key that signed a link mailed before is sealed
 // under another master key. That link gets the normal "not valid" page (GET unknown, POST 404 unknown), never a 500, and decides
 // nothing (the next approval request makes a new key, #846).
 func TestWiringApprovalLinkSignedWithALostKeyIsNotValid(t *testing.T) {

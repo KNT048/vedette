@@ -10,7 +10,7 @@ import (
 func TestDecide(t *testing.T) {
 	t.Parallel()
 	all := Outputs{Go: true, Tests: true, Web: true, WebAll: true, Vuln: true}
-	allWebChanged := Outputs{Go: true, Tests: true, Web: true, Vuln: true} // every web-side path under web/: vitest --changed (D-413)
+	allWebChanged := Outputs{Go: true, Tests: true, Web: true, Vuln: true} // every web-side path under web/: vitest --changed
 	for name, c := range map[string]struct {
 		event   string
 		changed []string
@@ -44,7 +44,7 @@ func TestDecide(t *testing.T) {
 		"deleted go file":    {"pull_request", []string{"modules/old/old.go"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
 		"empty diff":         {"pull_request", nil, true, all},
 		"diff failed":        {"pull_request", nil, false, all},
-		"push docs only":     {"push", []string{"docs/ROADMAP.md"}, true, Outputs{Go: true, Tests: true, Web: true, WebAll: true}}, // main runs the full suite (D-413)
+		"push docs only":     {"push", []string{"docs/ROADMAP.md"}, true, Outputs{Go: true, Tests: true, Web: true, WebAll: true}}, // main runs the full suite
 		"dispatch":           {"workflow_dispatch", nil, false, all},
 		"unknown event":      {"merge_group", []string{"docs/a.md"}, true, all},
 		"schedule":           {"schedule", []string{"core/a.go"}, true, Outputs{Go: true, Tests: true, Web: true, WebAll: true, Vuln: true, Audit: true}},
@@ -58,7 +58,7 @@ func TestDecide(t *testing.T) {
 	}
 }
 
-// D-413: a pull request tests the packages it changed and their direct importers; a Go-side path outside every package runs all.
+// A pull request tests the packages it changed and their direct importers; a Go-side path outside every package runs all.
 func TestAffected(t *testing.T) {
 	t.Parallel()
 	const m = modulePath + "/"

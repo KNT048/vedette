@@ -27,7 +27,7 @@ import (
 )
 
 // decoy_ip.add and decoy_ip.remove, the honeypot namespace and the re-apply (WP-07b part 3, slice
-// 3-5; spec 6.6, D-102; host CONTRACT DECOY-1..DECOY-8). The machine is the fake of opstest with
+// 3-5; spec 6.6; host CONTRACT DECOY-1..DECOY-8). The machine is the fake of opstest with
 // its stateful ip: it remembers links, addresses, rules and the nft ruleset, so the tests assert both
 // the exact argv of every step and the effect.
 
@@ -170,7 +170,7 @@ func hexByte(s string) byte {
 	return byte(v)
 }
 
-// --- the honeypot namespace at Start (D-102 (1), (3), (4)) -----------------------------------------
+// --- the honeypot namespace at Start ((3), (4)) -----------------------------------------
 
 func TestContract_Decoy_StartMakesTheNamespaceSetsTheSysctlsLoadsTheRulesetAndChecksIt(t *testing.T) {
 	t.Parallel()
@@ -295,7 +295,7 @@ func TestContract_Decoy_AddBuildsTheLinkAndChecksTheEffect(t *testing.T) {
 		"-n vedette-hp rule del from 192.168.1.100 lookup 100",
 		"-n vedette-hp rule add from 192.168.1.100 lookup 100",
 		"-n vedette-hp -j addr show",                       // the effect check
-		"netns exec vedette-hp /usr/sbin/nft -f -",         // the ruleset with the new address (D-466)
+		"netns exec vedette-hp /usr/sbin/nft -f -",         // the ruleset with the new address
 		"netns exec vedette-hp /usr/sbin/nft list ruleset", // and its effect check
 	}
 	if got := d.since(n); !slices.Equal(got, want) {
@@ -647,7 +647,7 @@ func TestContract_Decoy_RemoveDeletesTheRuleTheRoutesAndTheLinkAndIsIdempotent(t
 		"-n vedette-hp route flush table 100",
 		"-n vedette-hp link del vdhc0a80164",
 		"-n vedette-hp -j addr show",
-		"netns exec vedette-hp /usr/sbin/nft -f -",         // its address leaves the sets (D-466)
+		"netns exec vedette-hp /usr/sbin/nft -f -",         // its address leaves the sets
 		"netns exec vedette-hp /usr/sbin/nft list ruleset", // proven
 	}
 	if got := d.since(n); !slices.Equal(got, want) {
@@ -708,7 +708,7 @@ func TestContract_Decoy_ALinkThatStaysAfterARemoveFailsTheRun(t *testing.T) {
 	}
 }
 
-// --- the re-apply after a network change (D-100, D-102 (6)) -----------------------------------------
+// --- the re-apply after a network change -----------------------------------------
 
 func TestContract_Decoy_AfterANetApplyDecoysOutsideTheNewSubnetAreDroppedAndReported(t *testing.T) {
 	t.Parallel()
@@ -913,7 +913,7 @@ func restartHost(t *testing.T, n *netEnv) *decoyEnv {
 	return &decoyEnv{&netEnv{sysEnv: &sysEnv{m: n.m, o: o2, h: h2, clock: n.clock, timers: timers}, box: n.box, probe: n.probe}}
 }
 
-// --- review of slice 3-5 (D-121) --------------------------------------------------------------------
+// --- review of slice 3-5 --------------------------------------------------------------------
 
 // deriveFrom is the spec's MAC for ip under key (and an optional oui).
 func deriveFrom(key []byte, ip string, oui string) string {

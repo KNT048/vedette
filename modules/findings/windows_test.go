@@ -62,7 +62,7 @@ var (
 		nvdRow{"windows_server_2019", "*", "*", "10.0.17763.4737"}, nvdRow{"windows_server_2022", "*", "*", "10.0.20348.1903"})
 )
 
-// winPC is a device with the operating-system row agent-intake gives (D-546).
+// winPC is a device with the operating-system row agent-intake gives.
 func winPC(build int, server bool, ubr, target string) Asset {
 	r, ok := winrel.ByBuild(build, server)
 	if !ok {
@@ -87,7 +87,7 @@ func oneMatch(t *testing.T, a Asset, v Vuln, have bool, list ...Vuln) (where str
 	}{{"new", res.New}, {"existing", res.Existing}, {"notaffected", res.NotAffected}, {"unlisted", res.Unlisted}, {"nameonly", res.NameOnly}, {"nameonly", res.Aged}} {
 		for _, m := range x.ms {
 			if m.CVE == v.CVE {
-				if x.name == "nameonly" { // D-602: no finding (name only, or aged); the rules' own sentence is what the tests read
+				if x.name == "nameonly" { // No finding (name only, or aged); the rules' own sentence is what the tests read
 					m.Evidence.Summary = m.said
 				}
 				return x.name, m
@@ -110,8 +110,8 @@ func wantMatch(t *testing.T, name string, where string, m Match, wantWhere strin
 	}
 }
 
-// D-546: the device's own release decides by its update revision, per target; a patched PC closes by proof.
-func TestMatchAsset_D546_OwnReleaseByUpdateRevision(t *testing.T) {
+// The device's own release decides by its update revision, per target; a patched PC closes by proof.
+func TestMatchAsset_OwnReleaseByUpdateRevision(t *testing.T) {
 	w, m := oneMatch(t, winPC(22631, false, "4460", "x64"), cve29824, false)
 	wantMatch(t, "23H2 x64 unpatched", w, m, "new", BasisVersion, SeverityHigh, "before 10.0.22631.5189")
 	w, m = oneMatch(t, winPC(22631, false, "5189", "x64"), cve29824, true)
@@ -131,7 +131,7 @@ func TestMatchAsset_D546_OwnReleaseByUpdateRevision(t *testing.T) {
 
 // Review H1: a release Microsoft no longer services is missing from new entries. Its sibling's rows decide (22H2 is 23H2's code
 // base); a release with no sibling listed and an older build than one the entry lists stays "not checked", with the reason.
-func TestMatchAsset_D546_OutOfServiceRelease(t *testing.T) {
+func TestMatchAsset_OutOfServiceRelease(t *testing.T) {
 	w, m := oneMatch(t, winPC(22621, false, "6060", "x64"), cve62215, false) // 22H2's last update, October 2025
 	wantMatch(t, "22H2 after its end", w, m, "new", BasisVersion, SeverityHigh, "before 10.0.22621.6199", "Windows 11 23H2")
 	// review r1 M2: no update for 22H2 brings it to .6199: "What to do" says a feature update, naming where the fix is
@@ -151,7 +151,7 @@ func TestMatchAsset_D546_OutOfServiceRelease(t *testing.T) {
 }
 
 // Review H2: siblings on one build line are read with the device's revision; NVD names 25H2 and Server 2022 23H2 as the table does.
-func TestMatchAsset_D546_SiblingRelease(t *testing.T) {
+func TestMatchAsset_SiblingRelease(t *testing.T) {
 	w, m := oneMatch(t, winPC(26200, false, "6899", "x64"), cve33073, true)
 	wantMatch(t, "25H2 on a 24H2-only entry", w, m, "notaffected", "", "", "Windows 11 24H2", "same monthly update")
 	only25 := nvdWindows("CVE-2099-0001", "2026-10-01", nvdRow{"windows_11_25h2", "*", "*", "10.0.26200.7092"})
@@ -197,7 +197,7 @@ func TestWinrel_NamesAreNVDs(t *testing.T) {
 // Every release the entry lists is older than the device's: no finding and a close only with a proof (the release shipped at least
 // 90 days after CISA listed the flaw, or NVD's list is a year old) and when NVD names the release at all (review H2); otherwise
 // "not checked" with the reason. A finding left open by a feature update closes the same way (review M2).
-func TestMatchAsset_D546_NewerThanEveryListedRelease(t *testing.T) {
+func TestMatchAsset_NewerThanEveryListedRelease(t *testing.T) {
 	pc := winPC(26100, false, "7092", "x64") // upgraded from 23H2; NVD names 24H2 in cve62215
 	w, m := oneMatch(t, pc, cve36884, true, cve62215)
 	wantMatch(t, "shipped after the listing", w, m, "notaffected", "", "", "older than this device's Windows 11 24H2", "came out on 1 Oct 2024")
@@ -207,7 +207,7 @@ func TestMatchAsset_D546_NewerThanEveryListedRelease(t *testing.T) {
 	w, m = oneMatch(t, pc, cve36884, true)
 	wantMatch(t, "release NVD never named", w, m, "nameonly", BasisProduct, SeverityMedium, "has not named Windows 11 24H2")
 	recent := cve36884
-	recent.CVE, recent.DateAdded = "CVE-2025-36424", winDay("2026-04-13") // last year's flaw CISA listed this year (a CVE two years old or more is settled by its year, D-610)
+	recent.CVE, recent.DateAdded = "CVE-2025-36424", winDay("2026-04-13") // last year's flaw CISA listed this year (a CVE two years old or more is settled by its year)
 	w, m = oneMatch(t, pc, recent, true, cve62215)
 	wantMatch(t, "listed this year", w, m, "nameonly", BasisProduct, SeverityMedium, "less than a year old")
 	old := recent
@@ -229,7 +229,7 @@ func TestMatchAsset_D546_NewerThanEveryListedRelease(t *testing.T) {
 
 // Review L1: a target the release's rows do not list proves nothing; review L2: "-" rows stay not checked; family rows of every
 // release are not checked.
-func TestMatchAsset_D546_WhatProvesNothing(t *testing.T) {
+func TestMatchAsset_WhatProvesNothing(t *testing.T) {
 	x64only := nvdWindows("CVE-2099-0004", "2025-04-08", nvdRow{"windows_11_23h2", "*", "x64", "10.0.22631.5189"})
 	w, m := oneMatch(t, winPC(22631, false, "5189", "arm64"), x64only, true)
 	wantMatch(t, "arm64 PC, x64 rows only", w, m, "nameonly", BasisProduct, SeverityMedium, "on x64 only")
@@ -249,7 +249,7 @@ func TestMatchAsset_D546_WhatProvesNothing(t *testing.T) {
 }
 
 // Review M4: a person's "Windows 11" row next to the agent's release row does not keep the finding open.
-func TestMatchAsset_D546_ManualWindowsRowIsCovered(t *testing.T) {
+func TestMatchAsset_ManualWindowsRowIsCovered(t *testing.T) {
 	a := winPC(22631, false, "5189", "x64")
 	a.Software = append(a.Software, Software{ID: "s-m", Display: "Windows 11", Vendor: "Microsoft", Product: "Windows 11", Version: "10.0.22631.5189", Source: "manual", KevKeys: []string{"microsoft|windows"}})
 	w, _ := oneMatch(t, a, cve29824, true)
@@ -257,13 +257,13 @@ func TestMatchAsset_D546_ManualWindowsRowIsCovered(t *testing.T) {
 		t.Fatalf("agent row and a manual row: %s", w)
 	}
 	alone := Asset{ID: "a-m", Name: "m", Software: a.Software[1:]}   // without the agent's row the manual one is matched as before
-	if w, _ := oneMatch(t, alone, cve29824, true); w != "nameonly" { // D-602: kept, not a finding
+	if w, _ := oneMatch(t, alone, cve29824, true); w != "nameonly" { // Kept, not a finding
 		t.Fatalf("manual row alone: %s", w)
 	}
 }
 
 // One monthly update closes every flaw the PC is affected by: the latest end.
-func TestFixedInForAll_D546_Windows(t *testing.T) {
+func TestFixedInForAll_Windows(t *testing.T) {
 	g := FixedInForAll(winPC(22631, false, "4460", "x64"), []Vuln{cve29824, cve62215, cve36884})
 	f := g[cve29824.CVE]
 	if f == nil || f.Kind != "fixed" || f.Fixed != "10.0.22631.6199" || !f.Closed[cve62215.CVE] || f.Closed[cve36884.CVE] {
@@ -273,7 +273,7 @@ func TestFixedInForAll_D546_Windows(t *testing.T) {
 
 // Review r1 M2: a fix above the last revision Windows 10 22H2 gets without Extended Security Updates says so; one below it is a
 // plain monthly update.
-func TestFixedIn_D546_ExtendedSecurityUpdates(t *testing.T) {
+func TestFixedIn_ExtendedSecurityUpdates(t *testing.T) {
 	pc := winPC(19045, false, "6456", "x64") // October 2025, the last free update
 	if f := FixedInFor(pc, cve62215); f == nil || f.Kind != "esu" || f.Fixed != "10.0.19045.6575" {
 		t.Errorf("fix after the end of free updates: %+v", f)
@@ -288,7 +288,7 @@ func TestFixedIn_D546_ExtendedSecurityUpdates(t *testing.T) {
 
 // Review r1 M1: a preview or OEM build below the release's first public revision proves nothing by the release's date or by NVD's
 // settled list; the first public build does.
-func TestMatchAsset_D546_PreviewBuildProvesNothing(t *testing.T) {
+func TestMatchAsset_PreviewBuildProvesNothing(t *testing.T) {
 	v := cve36884
 	v.CVE, v.DateAdded = "CVE-2099-0010", winDay("2024-06-20")
 	w, m := oneMatch(t, winPC(26100, false, "712", "arm64"), v, true, cve62215)
@@ -299,7 +299,7 @@ func TestMatchAsset_D546_PreviewBuildProvesNothing(t *testing.T) {
 
 // Review r1 M3: a Windows build the release table does not list gets an OS row without a release CPE: every Windows entry is "not
 // checked", not nothing.
-func TestMatchAsset_D546_BuildTheTableLacks(t *testing.T) {
+func TestMatchAsset_BuildTheTableLacks(t *testing.T) {
 	a := Asset{ID: "a-new", Name: "pc-02", Software: []Software{{ID: "s", Display: "Windows 11 Pro", Vendor: "microsoft", Product: "Windows (build 28000)",
 		Version: "10.0.28000.1", Source: "agent", KevKeys: []string{"microsoft|windows"}}}}
 	w, m := oneMatch(t, a, cve62215, false)
@@ -308,7 +308,7 @@ func TestMatchAsset_D546_BuildTheTableLacks(t *testing.T) {
 
 // Review r1 LOW-1 and LOW-2: a release row of every version with no range, and a bound without the revision, prove nothing either
 // way: "not checked", never high and never closed.
-func TestMatchAsset_D546_RowsWithoutARevision(t *testing.T) {
+func TestMatchAsset_RowsWithoutARevision(t *testing.T) {
 	every := Vuln{CVE: "CVE-2099-0011", Vendor: "Microsoft", Product: "Windows", Affected: []Affected{{CPE: "cpe:2.3:o:microsoft:windows_11_23h2:*:*:*:*:*:*:*:*"}}}
 	w, m := oneMatch(t, winPC(22631, false, "9999", "x64"), every, false)
 	wantMatch(t, "every version of 23H2", w, m, "nameonly", BasisProduct, SeverityMedium)
@@ -323,7 +323,7 @@ func TestMatchAsset_D546_RowsWithoutARevision(t *testing.T) {
 // Review r2 MEDIUM-2 and LOW-3: "feature update" only for a release Microsoft no longer services (core/winrel Ended). A serviced 24H2
 // read through 25H2's rows takes the month's 26100 build; Windows 10 21H2 is serviced only as LTSC 2021, so a Pro PC on NVD's
 // windows_10_21h2 rows needs a feature update while an LTSC PC takes the build.
-func TestFixedIn_D546_FeatureUpdateOnlyForEndedReleases(t *testing.T) {
+func TestFixedIn_FeatureUpdateOnlyForEndedReleases(t *testing.T) {
 	only25 := nvdWindows("CVE-2099-0013", "2026-10-01", nvdRow{"windows_11_25h2", "*", "*", "10.0.26200.7092"})
 	if f := FixedInFor(winPC(26100, false, "6899", "x64"), only25); f == nil || f.Kind != "fixed" || f.Fixed != "10.0.26100.7092" {
 		t.Errorf("serviced 24H2 through 25H2: %+v", f)
@@ -345,7 +345,7 @@ func TestFixedIn_D546_FeatureUpdateOnlyForEndedReleases(t *testing.T) {
 
 // Review r2 LOW-1: a release whose first public revision the table does not know (Server 2022 23H2) is never closed by the
 // "only older releases listed" proofs, whatever its revision and however old the entry.
-func TestMatchAsset_D546_UnknownFirstRevisionProvesNothing(t *testing.T) {
+func TestMatchAsset_UnknownFirstRevisionProvesNothing(t *testing.T) {
 	old := nvdWindows("CVE-2099-0014", "2022-03-01", nvdRow{"windows_server_2019", "*", "*", "10.0.17763.2686"}, nvdRow{"windows_server_2022", "*", "*", "10.0.20348.587"})
 	for _, ubr := range []string{"1", "1965"} {
 		w, m := oneMatch(t, winPC(25398, true, ubr, "x64"), old, true, cve62215)

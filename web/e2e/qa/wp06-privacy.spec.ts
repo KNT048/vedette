@@ -39,11 +39,11 @@ for (const theme of THEMES) {
     // anonymous signal: switch, payload verbatim
     await page.locator('#telemetry').scrollIntoViewIfNeeded()
     await shot('signal')
-    // D-153: the anonymous signal is not sent; the screen says so, with no switch and no payload
+    // The anonymous signal is not sent; the screen says so, with no switch and no payload
     await expect(page.locator('#telemetry')).toContainText('Anonymous signal: not sent.')
     await expect(page.getByRole('switch', { name: /anonymous signal/i })).toHaveCount(0)
     await expect(page.locator('#telemetry pre, #telemetry code')).toHaveCount(0)
-    // D-154: nothing sends the signal, so the API refuses to turn it on (the backend answers the same) and reports it off
+    // Nothing sends the signal, so the API refuses to turn it on (the backend answers the same) and reports it off
     const patched = await page.evaluate(async () => {
       const r = await fetch('/api/v1/core/privacy', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: true }) })
       return { status: r.status, code: ((await r.json()) as { error?: { code?: string } }).error?.code }

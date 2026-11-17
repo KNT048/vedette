@@ -17,11 +17,11 @@ type Teardown func(ctx context.Context) error
 // attempt follows the backoff.
 var OffAttempt = 60 * time.Second
 
-// OffBackoff is the wait before each retry of a failed Teardown (D-189): 10 s, 30 s, 2 min, then every 10 min.
+// OffBackoff is the wait before each retry of a failed Teardown: 10 s, 30 s, 2 min, then every 10 min.
 var OffBackoff = []time.Duration{10 * time.Second, 30 * time.Second, 2 * time.Minute, 10 * time.Minute}
 
 // OffGuard converges the real state to "off" for modules that have a Teardown, like a Kubernetes controller that
-// reconciles until the actual state matches (D-189). It runs the Teardown once when core starts with the module off
+// reconciles until the actual state matches. It runs the Teardown once when core starts with the module off
 // and again whenever the module is switched off, retrying with backoff until it succeeds, the module is turned on
 // again or the guard's context ends. It is not a job: an off module has no jobs.
 type OffGuard struct {

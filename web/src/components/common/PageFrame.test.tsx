@@ -25,7 +25,7 @@ function show(url: string, tabs = TABS) {
   return router
 }
 
-describe('PageTabs (D-464)', () => {
+describe('PageTabs', () => {
   it('opens the tab named in ?tab= and shows only its panel', () => {
     show('/page?tab=two')
     expect(screen.getByRole('tablist', { name: 'Sections of the page' })).toBeInTheDocument()
@@ -89,7 +89,7 @@ describe('PageTabs (D-464)', () => {
   })
 })
 
-describe('OldHashToTab (D-519)', () => {
+describe('OldHashToTab', () => {
   function open(url: string) {
     render(<RouterProvider router={createMemoryRouter([
       { path: '/page', element: <><OldHashToTab map={{ agents: 'agents', ranges: 'scope' }} /><PageTabs label="Parts" tabs={[{ id: 'scope', label: 'Scope', panel: <p>scope panel</p> }, { id: 'agents', label: 'Agents', panel: <p>agents panel</p> }]} /><Where /></> },
@@ -111,7 +111,7 @@ describe('OldHashToTab (D-519)', () => {
   })
 })
 
-describe('KpiStrip (D-464)', () => {
+describe('KpiStrip', () => {
   const kpis = [
     { value: 4, label: 'Waiting for approval', to: '/devices?tab=pending' },
     { value: 120, label: 'Devices', to: '/devices' },
@@ -126,7 +126,7 @@ describe('KpiStrip (D-464)', () => {
     await expectNoA11yViolations()
   })
 
-  it('a 0 is plain text, not a link to an empty list (kien G5)', () => {
+  it('a 0 is plain text, not a link to an empty list', () => {
     render(<RouterProvider router={createMemoryRouter([{ path: '/', element: <KpiStrip label="Zero" items={[{ value: 0, label: 'Critical', to: '/x' }, { value: 2, label: 'Open', to: '/y' }]} /> }])} />)
     expect(screen.queryByRole('link', { name: /Critical/ })).toBeNull()
     expect(screen.getByRole('list', { name: 'Zero' })).toHaveTextContent('0 Critical')
@@ -144,8 +144,8 @@ describe('KpiStrip (D-464)', () => {
   })
 })
 
-// D-543 (một kiểu cho cả ứng dụng): module không tự dựng hàng tab; mọi tab của trang đi qua PageTabs (?tab=, cùng hình, cùng bàn phím).
-describe('one style gate (D-543)', () => {
+// một kiểu cho cả ứng dụng: module không tự dựng hàng tab; mọi tab của trang đi qua PageTabs (?tab=, cùng hình, cùng bàn phím).
+describe('one style gate', () => {
   const sources = import.meta.glob<string>('../../features/**/*.tsx', { query: '?raw', import: 'default', eager: true })
   // Ngoại lệ: một bộ chuyển nhỏ bên trong một khối (không phải các phần của trang), ví dụ xem trước tin theo từng kênh.
   const INNER = ['../../features/notify/IncidentDetailPage.tsx']

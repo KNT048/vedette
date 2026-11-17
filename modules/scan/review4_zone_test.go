@@ -76,7 +76,7 @@ func TestReview4_ZoneUnknownHoldsTheKEVRescan(t *testing.T) {
 	}
 }
 
-// D-261 (2): a zone that stays unreadable for 7 days closes the event as expired_zone, visible in the rescan log.
+// A zone that stays unreadable for 7 days closes the event as expired_zone, visible in the rescan log.
 func TestReview4_ZoneUnknownFor7DaysShowsTheEventAsExpired(t *testing.T) {
 	t.Parallel()
 	r, broken := zoneEnv(t)
@@ -91,7 +91,7 @@ func TestReview4_ZoneUnknownFor7DaysShowsTheEventAsExpired(t *testing.T) {
 	}
 }
 
-// D-261 (3): while the zone cannot be read the schedule is on but has no next run, and the view says why.
+// While the zone cannot be read the schedule is on but has no next run, and the view says why.
 func TestReview4_ZoneUnknownGivesTheScheduleAReason(t *testing.T) {
 	t.Parallel()
 	r, broken := zoneEnv(t)

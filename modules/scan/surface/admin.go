@@ -56,7 +56,7 @@ func loginish(t string) bool {
 	return in(t, "login", "log in", "sign in", "router", "modem", "gateway", "wireless", "web management")
 }
 
-// fingerprints are checked in order; the first that matches names the page (D-229). They read the title, a few headers and
+// fingerprints are checked in order; the first that matches names the page. They read the title, a few headers and
 // markers of the page that only that product uses; never a word that an ordinary site could contain. Admin pages of network,
 // storage and server hardware and of tools that run code are "danger" (close now: they are attacked first, and several are on
 // the KEV list); admin pages of applications that have their own sign-in and are often published on purpose are "warn".

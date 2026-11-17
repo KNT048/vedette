@@ -46,7 +46,7 @@ func TestContract_INV8_ChecksArePerFamilyAndClaimNothingAboutTheCVE(t *testing.T
 			t.Errorf("%s %s: family %q, checks %v", c.vendor, c.product, h.Family, h.Checks != nil)
 			continue
 		}
-		if strings.Count(strings.TrimPrefix(h.Checks.Summary, "General checks"), c.family) > 1 { // W76-2: "General checks for Juniper Junos OS (Juniper Junos OS)"
+		if strings.Count(strings.TrimPrefix(h.Checks.Summary, "General checks"), c.family) > 1 { // "General checks for Juniper Junos OS (Juniper Junos OS)"
 			t.Errorf("%s: the family is named twice: %s", c.product, h.Checks.Summary)
 		}
 		all := h.Checks.Summary
@@ -66,7 +66,7 @@ func TestContract_INV8_ChecksArePerFamilyAndClaimNothingAboutTheCVE(t *testing.T
 	}
 }
 
-// W76-2 r1 L1: a KEV display name without the vendor says the family too.
+// A KEV display name without the vendor says the family too.
 func TestSummaryForNamesTheFamilyOnce(t *testing.T) {
 	t.Parallel()
 	for sw, fam := range map[string]string{"Junos OS": "Juniper Junos OS", "FortiOS": "Fortinet FortiOS", "RouterOS": "MikroTik RouterOS", "Cisco IOS XE Software": "Cisco IOS", "OpenSSH": "OpenSSH"} {
@@ -79,8 +79,8 @@ func TestSummaryForNamesTheFamilyOnce(t *testing.T) {
 	}
 }
 
-// POST-1: a confirmed pack's own compromise signs win; otherwise the general checks fill in. No firewall config is ever generated
-// (D-631, kien 2026-11-17), whatever the pack holds.
+// POST-1: a confirmed pack's own compromise signs win; otherwise the general checks fill in. No firewall config is ever generated,
+// whatever the pack holds.
 func TestContract_INV8_TheConfirmedPackWinsWhereItHasItsOwn(t *testing.T) {
 	t.Parallel()
 	row := hardeningRow("10.0.0.5", "server", "OpenBSD", "OpenSSH")
@@ -93,7 +93,7 @@ func TestContract_INV8_TheConfirmedPackWinsWhereItHasItsOwn(t *testing.T) {
 }
 
 // POST-1 end to end: a finding without a pack carries the general checks on GET /findings/{id}, and nothing of a firewall config or an
-// admin network (D-631).
+// admin network.
 func TestContract_INV8_FindingWithoutPackShowsGeneralChecksOnly(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

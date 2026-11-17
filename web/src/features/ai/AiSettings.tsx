@@ -31,7 +31,7 @@ const SkillsTab = lazy(() => import('./harness/SkillsTab'))
 const KnowledgeTab = lazy(() => import('./harness/KnowledgeTab'))
 const ConnectionsMoved = lazy(() => import('./harness/ConnectionsMoved'))
 const HooksTab = lazy(() => import('./harness/HooksTab'))
-// docs/UI.md §4: at most 6 tabs. Connections moved to core (D-93): an old ?tab=connections link shows where they are now.
+// docs/UI.md §4: at most 6 tabs. Connections moved to core: an old ?tab=connections link shows where they are now.
 const TABS = ['profiles', 'rules', 'memory', 'skills', 'knowledge', 'hooks'] as const
 type Tab = (typeof TABS)[number]
 const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => React.JSX.Element>> = { rules: RulesTab, memory: MemoryTab, skills: SkillsTab, knowledge: KnowledgeTab, hooks: HooksTab }
@@ -39,12 +39,12 @@ const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => 
 // Địa chỉ và model gợi ý, đối chiếu tài liệu chính thức ngày 2026-11-06. Tên model đổi theo thời gian nên người dùng sửa được.
 //  Anthropic: platform.claude.com/docs/en/about-claude/models/overview (claude-haiku-5-5, API https://api.anthropic.com)
 //  OpenAI:    developers.openai.com/api/docs/models (gpt-6-luna là model gọn nhẹ), API https://api.openai.com/v1
-//  Gemini:    aistudio.google.com/docs/models (gemini-3.6-flash), REST https://generativelanguage.googleapis.com (the client adds /v1beta, D-475)
-//  OpenCode:  opencode.ai/docs/zen (D-475): Chat Completions at https://opencode.ai/inference/openai/v1, model glm-5.3-flash (cheap, tools); a preset on kind custom
+//  Gemini:    aistudio.google.com/docs/models (gemini-3.6-flash), REST https://generativelanguage.googleapis.com (the client adds /v1beta)
+//  OpenCode:  opencode.ai/docs/zen: Chat Completions at https://opencode.ai/inference/openai/v1, model glm-5.3-flash (cheap, tools); a preset on kind custom
 //  Ollama:    docs.ollama.com/api/openai-compatibility (cổng 11434, ví dụ model qwen3:8b); vLLM cổng 8000. Core luôn chạy trong container (cả bản cài install.sh,
-//             Podman root): Ollama trên cùng máy là host.containers.internal, không phải localhost (walk 2, D-226). Bản cài chỉ-container
-//             (Docker hoặc Podman của khách) không có tên đó chắc chắn: không điền sẵn, gợi ý nói dùng IP LAN của máy (walk 3, D-422)
-// The provider choice of the dialog: the five kinds and the OpenCode preset, which is a Custom profile (D-475, no new kind).
+//             Podman root): Ollama trên cùng máy là host.containers.internal, không phải localhost. Bản cài chỉ-container
+//             (Docker hoặc Podman của khách) không có tên đó chắc chắn: không điền sẵn, gợi ý nói dùng IP LAN của máy
+// The provider choice of the dialog: the five kinds and the OpenCode preset, which is a Custom profile (no new kind).
 type Preset = ProfileKind | 'opencode'
 const PRESETS: Preset[] = ['anthropic', 'openai', 'gemini', 'opencode', 'openai-compatible', 'custom']
 const OPENCODE_URL = 'https://opencode.ai/inference/openai/v1'
@@ -188,7 +188,7 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
             { id: 'actions', header: t('profiles.col.actions'), enableSorting: false, cell: ({ row }: { row: { original: AiProfile } }) => Actions(row.original) },
           ]} />
       )}
-      {/* kien G1: a test asks the provider (up to 60 s, modules/ai probeTimeout); say so while it runs */}
+      {/* A test asks the provider (up to 60 s, modules/ai probeTimeout); say so while it runs */}
       <BusyNote busy={test.isPending} className="mt-3">{t('profiles.testWaiting', { name: test.variables?.name ?? '' })}</BusyNote>
       {result ? (
         result.ok ? (
@@ -231,7 +231,7 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
   const [ack, setAck] = useState(false)
   const [errs, setErrs] = useState<Errs>({})
   const cloudOnly = preset !== 'openai-compatible' && preset !== 'custom'
-  // The consent names the host only for an address that is one; a half-typed or wrong address reads as a neutral phrase (walk 3 G13).
+  // The consent names the host only for an address that is one; a half-typed or wrong address reads as a neutral phrase.
   const host = (() => { try { const u = new URL(baseUrl.trim()); return /^https?:$/.test(u.protocol) && u.host ? u.host : null } catch { return null } })()
   const needAck = location === 'cloud' && (!profile || key !== '' || baseUrl !== profile.base_url || profile.location !== 'cloud')
   const serverField = (e: unknown) => (e instanceof ApiError ? FIELD_OF[e.code] : undefined)
@@ -241,7 +241,7 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
   // #847: a key that was not restored is not kept: it has to be entered again (the dialog opens on the field).
   const lostKey = !!profile?.key_lost
   const keptKey = !lostKey && profile?.key_last4 && profile.kind === kind && sameOrigin(profile.base_url, baseUrl) ? profile.key_last4 : null
-  // D-422: host.containers.internal is known only on the appliance (rootful Podman); a container-only install may be Docker, which does not
+  // host.containers.internal is known only on the appliance (rootful Podman); a container-only install may be Docker, which does not
   // resolve it, so the address of a local model starts empty there and the hint says to use the machine's LAN IP.
   const container = useInstallKind() === 'container'
   const defaultsOf = (k: Preset) => (container && k === 'openai-compatible' ? { ...DEFAULTS[k], base_url: '' } : DEFAULTS[k])
@@ -252,7 +252,7 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
     // đổi loại thì điền lại mặc định; tên chỉ đổi khi người dùng chưa tự đặt
     if (!profile && (name === '' || Object.values(DEFAULTS).some((x) => x.name === name))) setName(d.name && !existing.some((p) => p.name === d.name) ? d.name : '')
     // A key belongs to one provider: never carry it to another one. An address or model the person typed stays; one that is still
-    // the previous type's default (or empty) takes the new type's default (walk 3 G13).
+    // the previous type's default (or empty) takes the new type's default.
     const prev = defaultsOf(preset)
     const typed = (v: string, dflt: string) => v.trim() !== '' && v !== dflt
     setPreset(k); setAdv(k === 'custom'); setStyle(d.api_style); setLocation(d.location); setKey(''); setAck(false)
@@ -294,7 +294,7 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
     save.mutate(input(), { onSuccess: (saved) => { toast.success(profile ? t('profiles.saved') : t('profiles.added')); onSaved?.(saved); onClose() } })
   }
   function runTest() { save.reset(); if (validate(true)) test.mutate(input()) }
-  // The box asks the provider which models it offers (D-475). Only what the call needs is checked here; the box checks the rest.
+  // The box asks the provider which models it offers. Only what the call needs is checked here; the box checks the rest.
   function listModels() {
     save.reset(); test.reset()
     const n: Errs = {}
@@ -376,7 +376,7 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
             </div>
           ) : null}
           {needAck && !ack ? <p id="pf-ack-why" className="text-meta text-muted">{t('profiles.f.ackNeeded', { button: profile ? t('common:save') : t('profiles.addConfirm') })}</p> : null}
-          {/* kien G1: the test asks the provider (up to 60 s, modules/ai probeTimeout); say so while it runs */}
+          {/* The test asks the provider (up to 60 s, modules/ai probeTimeout); say so while it runs */}
           <BusyNote busy={test.isPending}>{t('profiles.testWaitingDraft')}</BusyNote>
           {tested ? <p role="status" className="flex flex-wrap items-center gap-2 text-sm"><Chip tone="ok">{t('profiles.testOk')}</Chip>{t('profiles.testDetail', { name: name.trim() || t('profiles.thisProfile'), ms: tested.latency_ms, input: tested.tokens_in, output: tested.tokens_out })} {t(tested.capabilities.tools ? 'profiles.capTools' : 'profiles.capNoTools')}</p> : null}
           {testErr && !serverField(testErr) ? <ActionError error={testErr} /> : null}
@@ -549,7 +549,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
   )
 }
 
-// ---------- Mức dùng token, ngân sách tháng chung (D-531), che thông tin cá nhân
+// ---------- Mức dùng token, ngân sách tháng chung, che thông tin cá nhân
 function TierForm({ cfg }: { cfg: AiConfigView }) {
   const { t } = useTranslation('ai')
   const admin = useCan('admin')

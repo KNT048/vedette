@@ -105,8 +105,8 @@ type buildOpts struct {
 	services         []string
 	mutateIndex      func(*release.Index)
 	revoke           []string // key ids the index revokes
-	rescue           bool     // SignRescue with the backup key (D-259), instead of the active and backup slots
-	installModes     []string // default appliance only: "container" needs the container assets (D-451), which beforeSign writes
+	rescue           bool     // SignRescue with the backup key, instead of the active and backup slots
+	installModes     []string // default appliance only: "container" needs the container assets, which beforeSign writes
 	beforeSign       func(dir string, in Inputs)
 }
 
@@ -287,7 +287,7 @@ func TestSecondReleaseChain(t *testing.T) {
 	}
 }
 
-// D-183: the manifest builder refuses rollback.safe=true unless every migration since the previous release is add-only.
+// The manifest builder refuses rollback.safe=true unless every migration since the previous release is add-only.
 func TestRollbackGuard(t *testing.T) {
 	r := newRig(t)
 	prev, err := r.build(buildOpts{version: "0.1.0", channel: "stable", cur: addOnlyTree})
@@ -324,7 +324,7 @@ func TestRollbackGuard(t *testing.T) {
 		var ge *GuardError
 		switch {
 		case c.wantGuard != "":
-			if !errors.As(err, &ge) || !strings.Contains(err.Error(), c.wantGuard) || !strings.Contains(err.Error(), "D-183") {
+			if !errors.As(err, &ge) || !strings.Contains(err.Error(), c.wantGuard) {
 				t.Errorf("%s: want a guard refusal naming %q, got %v", c.name, c.wantGuard, err)
 			}
 		case c.wantErr != "":
@@ -600,7 +600,7 @@ func TestBuildIndexRules(t *testing.T) {
 	}
 }
 
-// D-108: when the index schema moves on, the previous schema's index is published beside it; until a writer exists the builder
+// When the index schema moves on, the previous schema's index is published beside it; until a writer exists the builder
 // refuses to publish rather than strand the boxes that can only read the old schema.
 func TestLegacyIndexSchema(t *testing.T) {
 	old := indexSchema
@@ -609,7 +609,7 @@ func TestLegacyIndexSchema(t *testing.T) {
 	indexSchema = 2
 	legacyWriters = map[int]func(release.Index) ([]byte, error){}
 	p := IndexParams{Now: t1, Rollout: -1, Channel: "stable", ManifestVersion: "1.0.0", ManifestRaw: []byte("{}")}
-	if _, err := BuildIndex(nil, p); err == nil || !strings.Contains(err.Error(), "D-108") {
+	if _, err := BuildIndex(nil, p); err == nil || !strings.Contains(err.Error(), "beside schema") {
 		t.Fatalf("a schema-2 index without a schema-1 writer: %v", err)
 	}
 	legacyWriters[1] = func(x release.Index) ([]byte, error) {
@@ -807,13 +807,13 @@ func TestLoadTrust(t *testing.T) {
 	if _, err := LoadTrust(dir); err == nil {
 		t.Error("trust without a cosign key")
 	}
-	// no keys dir = the keys compiled into this build: the real release keys (D-256), or the throwaway ones in a test build
+	// no keys dir = the keys compiled into this build: the real release keys, or the throwaway ones in a test build
 	if _, err := LoadTrust(""); err != nil {
 		t.Errorf("embedded keys: %v", err)
 	}
 }
 
-// D-316 slice 3: the host part follows the one package-name rule and covers every architecture of the images.
+// The host part follows the one package-name rule and covers every architecture of the images.
 func TestBuildHostPartRefusals(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

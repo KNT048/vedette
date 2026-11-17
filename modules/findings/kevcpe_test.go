@@ -6,7 +6,7 @@ import (
 )
 
 // #910: a KEV entry reaches a software row through NVD's CPE list when CISA's vendor|product names a component ("Chromium V8",
-// "Win32k") or another product ("IGEL OS"). The entries below are the rows the N100's feeds store for them (2026-11-16 copy).
+// "Win32k") or another product ("IGEL OS"). The entries below are the rows a test box's feeds store for them (2026-11-16 copy).
 
 func chromeRow(ver string) Software {
 	return Software{ID: "s-chrome", Display: "Google Chrome", Vendor: "Google", Product: "Chrome", Version: ver, Source: "agent",
@@ -70,7 +70,7 @@ func TestMatchAsset_910_ChromiumV8OnChrome(t *testing.T) {
 }
 
 // CVE-2022-21882 is CISA "Microsoft | Win32k"; NVD lists each Windows release with the build that fixes it. Published in 2022, it stays
-// because a build was compared (D-615).
+// because a build was compared.
 func TestMatchAsset_910_Win32kOnWindowsRelease(t *testing.T) {
 	t.Parallel()
 	v := Vuln{CVE: "CVE-2022-21882", Vendor: "Microsoft", Product: "Win32k", DateAdded: winDay("2022-02-04"), Published: winDay("2022-01-11"),
@@ -118,7 +118,7 @@ func TestMatchAsset_910_IGELEntryOnWindowsServer2025(t *testing.T) {
 }
 
 // CVE-2024-36971 is CISA "Android | Kernel"; NVD lists upstream linux_kernel ranges (6.7 to 6.9.4, 5.16 to 6.1.94). A distribution's
-// kernel keeps its upstream version while it backports fixes, so only the distribution's own word decides (D-516): no word, no
+// kernel keeps its upstream version while it backports fixes, so only the distribution's own word decides: no word, no
 // finding; Ubuntu's "fixed in linux 6.8.0-44.44" on 6.8.0-31.31 is one.
 func TestMatchAsset_910_AndroidKernelEntryOnDistributionKernels(t *testing.T) {
 	t.Parallel()
@@ -189,7 +189,7 @@ func TestMatchAsset_910_ChromiumEntryOnChromeAndEdge(t *testing.T) {
 }
 
 // Review r1 of #913: on NVD's path only a range with an end is evidence (H1), an Edge Legacy row is never reached (M1), and a CVE that
-// affects one platform keeps its condition (M2). Rows as the N100 stores them.
+// affects one platform keeps its condition (M2). Rows as a test box stores them.
 func TestMatchAsset_910_NVDPathNeedsAFixAndTheRightProduct(t *testing.T) {
 	t.Parallel()
 	none := func(name string, a Asset, vs ...Vuln) {

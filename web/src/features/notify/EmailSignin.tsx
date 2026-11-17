@@ -1,4 +1,4 @@
-// The user sign-in of the email channel (S-NOT-1, D-480): Microsoft's device code (the box polls at Microsoft's interval) or Google's
+// The user sign-in of the email channel (S-NOT-1): Microsoft's device code (the box polls at Microsoft's interval) or Google's
 // consent page with the customer's own Desktop client, whose loopback address the admin pastes back. The refresh token stays on the
 // box: the dialog only keeps the sign-in id, which the save sends.
 import { useEffect, useRef, useState } from 'react'
@@ -107,7 +107,7 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
           {s || saved ? t('signin.again', { who }) : t('signin.start', { who })}
         </Button>
       </div>
-      {/* kien G1: each step asks Microsoft or Google (15 s per request at most) */}
+      {/* Each step asks Microsoft or Google (15 s per request at most) */}
       <BusyNote busy={busy}>{t('signin.waiting', { who })}</BusyNote>
     </div>
   )

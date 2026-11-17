@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// Runs that wait for confirmation (D-100, docs/specs/host-api.md sections 4 and 6.5).
+// Runs that wait for confirmation (docs/specs/host-api.md sections 4 and 6.5).
 //
 // A command returns Awaiting from Run: the run is parked in awaiting_confirm and keeps the write
 // lock. Exactly one party ends it with Settle (a confirm command, a revert command, or the
@@ -31,7 +31,7 @@ var (
 const resultAwaiting = "awaiting_confirm"
 
 // maxRevertWindow is the longest an awaiting run may wait: the 600 s of the confirm window plus
-// 60 s of slack (D-100 (7)). A longer RevertAt is invalid, and on resume a stored one is clamped.
+// 60 s of slack. A longer RevertAt is invalid, and on resume a stored one is clamped.
 const maxRevertWindow = 660 * time.Second
 
 // Claimed is the right to end one awaiting run, taken by Claim. Finish ends it exactly once.

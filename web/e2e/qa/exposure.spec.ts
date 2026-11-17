@@ -4,7 +4,7 @@ import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, finishClean, sampleStart, setEgress } from './clean'
 
 // QA module exposure (S-EXP-1): domain = DNS TXT only; public IP = only the IP this box uses to reach the Internet;
-// D-473: an administrator's first Scan now (two-step sign-in on) is the commitment; no tick box, no consent documents.
+// An administrator's first Scan now (two-step sign-in on) is the commitment; no tick box, no consent documents.
 const api = (page: Page, method: string, path: string, body?: unknown) =>
   page.evaluate(async ([m, p, b]) => {
     const r = await fetch(`/api/v1${p as string}`, { method: m as string, headers: { 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined })
@@ -126,8 +126,8 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   expect(errors).toEqual([])
 })
 
-// kien 2026-11-09: "KH co nhieu IP public va load balance, chi can bat che do tu detect". The company uses two public IPs behind a load balancer.
-// Walk: first start finds both IPs without a click; auto-detect off keeps the list and hides the interval; on again; change the interval; remove one IP
+// "KH co nhieu IP public va load balance, chi can bat che do tu detect". The company uses two public IPs behind a load balancer.
+// Steps: first start finds both IPs without a click; auto-detect off keeps the list and hides the interval; on again; change the interval; remove one IP
 // (the confirmation says it comes back); Detect now brings it back. Light first, then dark; desktop and phone (the pane is a list on a phone).
 test('clean install, two public IPs behind a load balancer: auto-detect finds both, remove one, Detect now brings it back', async ({ page, isMobile }) => {
   test.setTimeout(120_000)
@@ -270,7 +270,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await setEgress(page, '198.51.100.7')
   await page.getByRole('button', { name: 'Verify again', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: /Verified until/ })).toBeVisible()
-  // D-473: the administrator's first Scan now (two-step sign-in on) records the confirmation; it runs in the background (D-493).
+  // The administrator's first Scan now (two-step sign-in on) records the confirmation; it runs in the background.
   await turnOnTwoStep(page, 'a-very-long-password-123')
   await page.reload()
   await page.getByRole('button', { name: 'Scan now', exact: true }).click()
@@ -279,7 +279,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await expect(page.getByText(/Confirmed by admin@testco\.example on .*, by pressing Scan now\./)).toBeVisible()
   await page.getByRole('tab', { name: 'Results' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7: \d+ open port\(s\)/)
-  // Scan-time check (D-79): the box no longer goes out through this IP, so the scan is paused, the IP stays, and it works again when the box is back.
+  // Scan-time check: the box no longer goes out through this IP, so the scan is paused, the IP stays, and it works again when the box is back.
   await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeEnabled()
   await setEgress(page, '198.51.100.8')
   await page.clock.fastForward('11:00') // past the 5-minute window of the egress check and the 10 minutes between scans of one target
@@ -403,7 +403,7 @@ test('English only and dark mode: no Vietnamese in any exposure page, no console
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(page.getByRole('status').filter({ hasText: /^Loading$/ })).toHaveCount(0)
-    const text = (await page.locator('main').innerText()).replace(/Sample data|Kiên/g, '')
+    const text = (await page.locator('main').innerText()).replace(/Sample data/g, '')
     expect(text.match(DIACRITICS), `${path} contains Vietnamese: ${text.match(/.{20}[ăâđêôơư].{20}/i)?.[0]}`).toBeNull()
     await shot(page, 'exposure', `dark-${path.replace(/\W/g, '_')}`)
     await expectAccessible(page, `${path} dark`)

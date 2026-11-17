@@ -34,7 +34,7 @@ type tailPos struct {
 	Head    string `json:"head"`
 }
 
-// tailer reads the JSON-lines file of OpenCanary from tailPos on, one poll at a time (D-89). It follows the name, not
+// tailer reads the JSON-lines file of OpenCanary from tailPos on, one poll at a time. It follows the name, not
 // the open file, so a rotated file is noticed. A line longer than max is dropped and counted; only whole lines are
 // handed out, a half-written last line waits for its newline. The folder belongs to the container, so the file is opened
 // through os.Root (nothing can lead out of the folder) without following a symlink and without blocking (a FIFO is

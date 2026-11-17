@@ -1,7 +1,7 @@
 # Approval tokens: duyệt hành động từ email, Slack, Telegram, Zalo
 
-Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09; cập nhật 13b-0 (D-96, D-97, D-98): §7.1 băm mã trả lời và vector kiểm thử, §14 trả lời các câu hỏi mở. Văn xuôi tiếng Việt; tên trường, thông điệp, đường dẫn bằng tiếng Anh.
-Truy vết: D-41 (người duyệt, hết hạn, một hành động mỗi lần duyệt), D-46 (duyệt trong từng kênh), D-38 (Slack Socket Mode, Telegram long polling), D-51 (mọi hành động cần duyệt, 2 người cho rủi ro cao, rủi ro cao AI phải duyệt trong app có mã hai bước), D-35 (hai bước), D-48 (nhật ký hash); story S-RESP-2, S-NOT-2; GUI mock `web/src/features/response` (`ApprovePage.tsx`, `state.ts`, `mocks.ts`) và `web/src/features/notify` (`Approver`, `ChannelInput`).
+Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09; cập nhật 13b-0: §7.1 băm mã trả lời và vector kiểm thử, §14 trả lời các câu hỏi mở. Văn xuôi tiếng Việt; tên trường, thông điệp, đường dẫn bằng tiếng Anh.
+Truy vết: yêu cầu thiết kế (người duyệt, hết hạn, một hành động mỗi lần duyệt; duyệt trong từng kênh; Slack Socket Mode, Telegram long polling; mọi hành động cần duyệt, 2 người cho rủi ro cao, rủi ro cao AI phải duyệt trong app có mã hai bước; hai bước; nhật ký hash); story S-RESP-2, S-NOT-2; GUI mock `web/src/features/response` (`ApprovePage.tsx`, `state.ts`, `mocks.ts`) và `web/src/features/notify` (`Approver`, `ChannelInput`).
 
 ## 1. Mục đích
 
@@ -9,10 +9,10 @@ Một yêu cầu hành động (`ActionRequest`) của module `response` chỉ c
 
 - một cú nhấp của trình quét liên kết trong hộp thư **không** duyệt thay người;
 - token bị chuyển tiếp hoặc phát lại **không** cho người khác duyệt;
-- danh tính của người duyệt trên kênh được ánh xạ về **một người dùng Vedette** vai operator trở lên (D-41);
-- mọi quyết định vào nhật ký hash-chain (D-48).
+- danh tính của người duyệt trên kênh được ánh xạ về **một người dùng Vedette** vai operator trở lên;
+- mọi quyết định vào nhật ký hash-chain.
 
-Ngoài phạm vi: nội dung/cơ chế của hành động (`action-packs.md`), thuật toán quyết định có cần duyệt không (engine phản ứng, D-51).
+Ngoài phạm vi: nội dung/cơ chế của hành động (`action-packs.md`), thuật toán quyết định có cần duyệt không (engine phản ứng).
 
 ## 2. Actors
 
@@ -25,13 +25,13 @@ Ngoài phạm vi: nội dung/cơ chế của hành động (`action-packs.md`), 
 
 ## 3. Quy tắc chung (mọi kênh)
 
-1. **Một yêu cầu = một gói** hành động (D-51, một yêu cầu gộp mỗi lần chạy). Người duyệt duyệt/từ chối **cả gói**; thay đổi trước/sau (`change`) luôn hiện đủ trước khi nhận quyết định.
-2. **Hết hạn**: yêu cầu hết hạn sau 15 phút (D-41) tới 30 phút (D-51 cho quy tắc; mặc định trong `response_settings.expiry_min = 15`). **Token email/Zalo OA sống 30 phút (D-46)** nhưng **không bao giờ sống lâu hơn yêu cầu**: `token.expires_at = min(now + 30 phút, request.expires_at)`.
-3. **Số người duyệt**: 1, hoặc 2 người **khác nhau** cho rủi ro cao (D-51). Hai lần duyệt của cùng một người dùng chỉ tính một. Người **tạo** quy tắc/yêu cầu thủ công không được tính là người duyệt thứ hai của chính nó (câu hỏi mở §14).
-4. **Rủi ro cao do AI gửi** chỉ duyệt **trong app bằng mã hai bước** (D-51); kênh chat/email với yêu cầu này nhận tin "mở Vedette để duyệt", không có nút duyệt (khớp `in_app_required` trong mock).
+1. **Một yêu cầu = một gói** hành động (một yêu cầu gộp mỗi lần chạy). Người duyệt duyệt/từ chối **cả gói**; thay đổi trước/sau (`change`) luôn hiện đủ trước khi nhận quyết định.
+2. **Hết hạn**: yêu cầu hết hạn sau 15 phút tới 30 phút (theo quy tắc; mặc định trong `response_settings.expiry_min = 15`). **Token email/Zalo OA sống 30 phút** nhưng **không bao giờ sống lâu hơn yêu cầu**: `token.expires_at = min(now + 30 phút, request.expires_at)`.
+3. **Số người duyệt**: 1, hoặc 2 người **khác nhau** cho rủi ro cao. Hai lần duyệt của cùng một người dùng chỉ tính một. Người **tạo** quy tắc/yêu cầu thủ công không được tính là người duyệt thứ hai của chính nó (câu hỏi mở §14).
+4. **Rủi ro cao do AI gửi** chỉ duyệt **trong app bằng mã hai bước**; kênh chat/email với yêu cầu này nhận tin "mở Vedette để duyệt", không có nút duyệt (khớp `in_app_required` trong mock).
 5. **Kiểm lại lúc duyệt**: dù token/nút hợp lệ, core kiểm tại thời điểm POST/callback: người duyệt vẫn trong danh sách của kênh, vẫn là người dùng đang hoạt động vai ≥ operator, kênh vẫn bật "Approve actions from this channel", yêu cầu vẫn `pending`, module `response` còn bật và `execution` còn bật. Sai → từ chối `403 approver_not_listed` (khớp mock).
-6. Duyệt xong core đặt trạng thái; thực thi sau khi đủ số người; **dừng khẩn cấp và cầu dao** (D-51) có thể chặn ngay cả yêu cầu đã duyệt đủ, không do token quyết định.
-7. Mọi bước (`request`, `approved`, `rejected`, `expired`, `refused`, `executed`…) ghi vào nhật ký `resp_log` với `hash = SHA-256(prev_hash "\n" canon(entry không có hash))` (một công thức cho mọi chuỗi, D-57 (14)) và `core_audit` (SYS-3). `actor` ghi **kênh và danh tính** (ví dụ `Lan Pham via email lan@…`).
+6. Duyệt xong core đặt trạng thái; thực thi sau khi đủ số người; **dừng khẩn cấp và cầu dao** có thể chặn ngay cả yêu cầu đã duyệt đủ, không do token quyết định.
+7. Mọi bước (`request`, `approved`, `rejected`, `expired`, `refused`, `executed`…) ghi vào nhật ký `resp_log` với `hash = SHA-256(prev_hash "\n" canon(entry không có hash))` (một công thức cho mọi chuỗi) và `core_audit` (SYS-3). `actor` ghi **kênh và danh tính** (ví dụ `Lan Pham via email lan@…`).
 
 ## 4. Email: liên kết xác nhận
 
@@ -62,7 +62,7 @@ Token gắn với đúng bộ bốn: **yêu cầu** (`request_id`), **người d
 - Chỉ **POST quyết định** mới đốt token: `used_at` đặt trong cùng giao dịch DB với việc ghi quyết định (cập nhật có điều kiện `WHERE used_at IS NULL`). Hai POST đồng thời: một thắng, một nhận `409 used`.
 - Xem trang (GET) **không** đốt token và **không** thay đổi gì (khớp mock: "opening the link never approves").
 - Từ chối (`reject`) cũng đốt token.
-- **Quyết định bị cổng từ chối không đốt token** (D-96): `403 approver_not_listed`, `403 in_app_required`, `409 execution_off`… để nguyên `used_at`; chỉ một quyết định đã ghi mới đốt.
+- **Quyết định bị cổng từ chối không đốt token**: `403 approver_not_listed`, `403 in_app_required`, `409 execution_off`… để nguyên `used_at`; chỉ một quyết định đã ghi mới đốt.
 - Khi yêu cầu đã được quyết định bằng đường khác (người khác duyệt trong Slack, huỷ trong app) token còn lại thành `decided`, GET/POST đều không đổi gì.
 
 ### 4.4 Trang xác nhận: chỉ POST mới duyệt
@@ -91,20 +91,20 @@ Thêm cho chống tự động hoá: phản hồi trang có `Cache-Control: no-s
 | Dò token | HMAC 128 bit + token_id 128 bit, rate limit 20 lần sai/phút/IP, trả `404 unknown` đồng nhất | không |
 | Trình quét tự nhấp | GET không đổi gì (§4.4) | không |
 | Lộ trong lịch sử trình duyệt / Referer | `Referrer-Policy: no-referrer`; token sống ngắn và một lần | thấp |
-| Trả lời thư để duyệt | **không hỗ trợ**: hộp không đọc hộp thư đến (D-46: dễ giả mạo) | không |
+| Trả lời thư để duyệt | **không hỗ trợ**: hộp không đọc hộp thư đến (dễ giả mạo) | không |
 
 ### 4.6 Nội dung thư
 
-Thư chứa: tiêu đề yêu cầu, bảng thay đổi (lấy từ `change`, **văn bản thuần**, escape HTML, giới hạn 4 KiB), mức rủi ro, hạn, một nút/link tới `…/approve/<token>`. Không chèn nội dung tác nhân (do kẻ tấn công kiểm soát, D-51) không escape. Gửi qua **SMTP của khách** (PRIVACY luồng 5), không bên thứ ba.
+Thư chứa: tiêu đề yêu cầu, bảng thay đổi (lấy từ `change`, **văn bản thuần**, escape HTML, giới hạn 4 KiB), mức rủi ro, hạn, một nút/link tới `…/approve/<token>`. Không chèn nội dung tác nhân (do kẻ tấn công kiểm soát) không escape. Gửi qua **SMTP của khách** (PRIVACY luồng 5), không bên thứ ba.
 
 ## 5. Slack (Socket Mode)
 
-- Hộp mở kết nối WebSocket **ra** tới Slack bằng `app_token` (`xapp-…`, Socket Mode) và dùng `bot_token` (`xoxb-…`) để gửi tin; **không có cổng vào** (D-38). Cả hai token lưu mã hoá (SYS-4), UI chỉ 4 ký tự cuối.
+- Hộp mở kết nối WebSocket **ra** tới Slack bằng `app_token` (`xapp-…`, Socket Mode) và dùng `bot_token` (`xoxb-…`) để gửi tin; **không có cổng vào**. Cả hai token lưu mã hoá (SYS-4), UI chỉ 4 ký tự cuối.
 - Tin yêu cầu: Block Kit gồm tiêu đề, `change`, rủi ro, hạn; nút **Approve** / **Reject**. Nút mang `action_id` và `value = request_id` (không chứa bí mật; không có token).
 - **Ánh xạ danh tính**: sự kiện `block_actions` đến kèm `user.id` (Slack member ID) và `channel.id`. Core tìm `Approver` trong cấu hình kênh Slack có `address == user.id` → `user_id` Vedette. Không tìm thấy hoặc người dùng không còn operator/admin → từ chối, tin phản hồi riêng (ephemeral) "You are not an approver".
 - Chỉ nhận từ `channel_id` đã khai báo trong cấu hình (mock có `channel_id` "approvals only"); nút bấm trong kênh khác bị bỏ qua.
 - Chống giả mạo: kết nối Socket Mode được Slack xác thực bằng `app_token`, nên không cần kiểm chữ ký request như webhook; vẫn kiểm `request_id` còn `pending` và `payload.team.id` trùng team đã cấu hình.
-- Sau khi quyết định (hoặc hết hạn): cập nhật tin gốc (chat.update) để bỏ nút, giữ văn bản, thêm một dòng cố định nói kết quả (Approved / Rejected / Expired / Cancelled / ended). Không ghi tên hay email người quyết định vào kênh Slack (D-241); log kiểm toán của Vedette có.
+- Sau khi quyết định (hoặc hết hạn): cập nhật tin gốc (chat.update) để bỏ nút, giữ văn bản, thêm một dòng cố định nói kết quả (Approved / Rejected / Expired / Cancelled / ended). Không ghi tên hay email người quyết định vào kênh Slack; log kiểm toán của Vedette có.
 - Kết nối đứt: kết nối lại có lùi dần; trong lúc đứt, yêu cầu vẫn mở trong app và các kênh khác. Quá hạn thì yêu cầu hết hạn bình thường.
 
 ## 6. Telegram (bot, long polling)
@@ -119,7 +119,7 @@ Thư chứa: tiêu đề yêu cầu, bảng thay đổi (lấy từ `change`, **
 | Loại | Cơ chế duyệt | Ghi chú |
 |---|---|---|
 | **Zalo OA** (chính thức) | gửi **liên kết** (như email, mục 4) | chỉ tin có link; không nhận quyết định qua chat |
-| **Zalo cá nhân** (không chính thức, như node cộng đồng n8n Zalo, D-46) | **trả lời mã** | GUI cảnh báo: không chính thức, có thể bị khoá tài khoản, nên dùng tài khoản riêng |
+| **Zalo cá nhân** (không chính thức, như node cộng đồng n8n Zalo) | **trả lời mã** | GUI cảnh báo: không chính thức, có thể bị khoá tài khoản, nên dùng tài khoản riêng |
 
 Duyệt bằng mã trả lời (Zalo cá nhân):
 
@@ -129,7 +129,7 @@ Duyệt bằng mã trả lời (Zalo cá nhân):
 - Vì kênh không chính thức, độ tin cậy danh tính thấp hơn Slack/Telegram: **mặc định không dùng cho rủi ro cao** (câu hỏi mở §14), và rủi ro cao AI vẫn chỉ duyệt trong app.
 - Phiên Zalo cá nhân là bí mật (quét QR một lần); xoá kênh xoá phiên (PRIVACY luồng 5).
 
-### 7.1 Băm mã trả lời (D-96; lát 13b-8, `notify` tạo, `response` lưu và kiểm)
+### 7.1 Băm mã trả lời (lát 13b-8, `notify` tạo, `response` lưu và kiểm)
 
 - **Bảng chữ** `23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (32 ký tự, không `0 1 I O`). Mã = tiền tố `A-` (duyệt) hoặc `R-` (từ chối) + 6 ký tự, mỗi ký tự lấy một byte CSPRNG `& 31` (256 chia hết cho 32 nên không lệch): 30 bit. Mỗi người duyệt nhận hai mã riêng cho mỗi yêu cầu.
 - **Chuẩn hoá** (lúc tạo và lúc nhận): bỏ khoảng trắng ASCII hai đầu, đổi chữ ASCII thường thành hoa; sau đó phải khớp `^[AR]-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$`, không thì tin không phải mã và bị bỏ qua. `decision` = `approve` với tiền tố `A`, `reject` với `R`.
@@ -196,14 +196,14 @@ sequenceDiagram
 | 409 | `execution_off`, `emergency_stop` | module/tính năng tắt hoặc đã dừng khẩn cấp |
 | 429 | `rate_limited` | quá giới hạn thử |
 
-Thông điệp tiếng Anh, ngắn (D-28); lỗi `409` trả kèm `ActionRequest.id` để trang nói rõ. Lỗi không bao giờ chứa nội dung `change` cho token không hợp lệ.
+Thông điệp tiếng Anh, ngắn; lỗi `409` trả kèm `ActionRequest.id` để trang nói rõ. Lỗi không bao giờ chứa nội dung `change` cho token không hợp lệ.
 
 ## 11. Giới hạn
 
 | Mục | Giới hạn |
 |---|---|
-| Hạn token email / Zalo OA | 30 phút, không quá hạn yêu cầu (D-46) |
-| Hạn yêu cầu | 15–30 phút (D-41/D-51) |
+| Hạn token email / Zalo OA | 30 phút, không quá hạn yêu cầu |
+| Hạn yêu cầu | 15–30 phút |
 | Người duyệt mỗi kênh | tối đa 10 (mặc định, chưa đo) |
 | Kích thước nội dung thay đổi trong thư/tin | 4 KiB, cắt và thêm "…open Vedette for the full change" |
 | Mã Zalo | 6 ký tự, một lần, hạn theo yêu cầu |
@@ -216,12 +216,12 @@ Thông điệp tiếng Anh, ngắn (D-28); lỗi `409` trả kèm `ActionRequest
 |---|---|
 | SYS-1 | Duyệt chỉ đổi trạng thái; hành động chạy qua `core/exec`/kết nối được kiểm; tên/giá trị trong thư không bao giờ vào shell |
 | SYS-2 | `decision` theo enum, token theo cấu trúc; callback Slack/Telegram theo schema |
-| SYS-3 | Mọi quyết định ghi `core_audit` + chuỗi hash `resp_log` (D-48) |
+| SYS-3 | Mọi quyết định ghi `core_audit` + chuỗi hash `resp_log` |
 | SYS-4 | `K_approval`, token Slack/Telegram, phiên Zalo qua `core/secrets`; không log token/URL; GUI chỉ 4 ký tự cuối |
 | SYS-5 | Module `response` hoặc kênh tắt → route `/approve/*` trả `404`, bot dừng polling/ngắt Socket Mode |
 | SYS-6 | Nội dung yêu cầu có dữ liệu tác nhân (không tin cậy): chỉ hiển thị văn bản thuần, escape, cắt kích thước |
 | SYS-7 | Slack/Telegram/Zalo là luồng ra đã liệt kê trong PRIVACY luồng 5; trang `/approve` chỉ tới được từ LAN trừ khi người dùng tự mở cổng (nêu rõ ở GUI) |
-| SYS-8 | AI **không** có công cụ duyệt hay tạo token; chỉ gửi yêu cầu (D-51), người duyệt là con người ngoài AI |
+| SYS-8 | AI **không** có công cụ duyệt hay tạo token; chỉ gửi yêu cầu, người duyệt là con người ngoài AI |
 
 ## 13. Versioning
 
@@ -231,11 +231,11 @@ Thông điệp tiếng Anh, ngắn (D-28); lỗi `409` trả kèm `ActionRequest
 
 ## 14. Câu hỏi mở (đã trả lời ở 13b-0, 2026-11-09)
 
-1. ~~Email quá yếu cho rủi ro cao?~~ **Cấm** (D-57 (20), D-96): liên kết chỉ cho rủi ro thấp/trung bình; yêu cầu rủi ro cao → thư không có liên kết duyệt, POST trên liên kết cũ → `403 in_app_required`. Không thêm bước nhập mã hai bước trên trang `/approve`.
-2. ~~Người tạo thủ công tự duyệt~~ **Theo D-57 (20) và INV-2 của `response`**: rủi ro cao cần hai `user_id` khác nhau, nên người khởi động lần chạy tay chỉ là tối đa một trong hai; rủi ro thấp/trung bình người đó được tự duyệt (một người là đủ). Không thêm quy tắc mới.
+1. ~~Email quá yếu cho rủi ro cao?~~ **Cấm**: liên kết chỉ cho rủi ro thấp/trung bình; yêu cầu rủi ro cao → thư không có liên kết duyệt, POST trên liên kết cũ → `403 in_app_required`. Không thêm bước nhập mã hai bước trên trang `/approve`.
+2. ~~Người tạo thủ công tự duyệt~~ **Theo INV-2 của `response`**: rủi ro cao cần hai `user_id` khác nhau, nên người khởi động lần chạy tay chỉ là tối đa một trong hai; rủi ro thấp/trung bình người đó được tự duyệt (một người là đủ). Không thêm quy tắc mới.
 3. ~~Đổi `TOKEN_RE` và route FE~~ **Đã làm ở lát 13b-2**: `TOKEN_RE` theo định dạng `v1.<22 base64url>.<22 base64url>` (`web/src/features/response/logic.ts`), token trong mock đổi thành token ký (phần tag là ngẫu nhiên: mock không giữ khoá HMAC, kho của mock là nguồn chân lý); route `/approve/:token` giữ nguyên.
-4. ~~Zalo cá nhân có được duyệt rủi ro trung bình?~~ **Có** (D-96): thấp và trung bình; cao → `403 channel_not_allowed`; yêu cầu `in_app_only` → `403 in_app_required`.
-5. Link duyệt chỉ tới được trong LAN: **không đổi** (D-15: Vedette không cung cấp tunnel; khách tự dùng VPN/reverse proxy). Chưa có việc gì.
+4. ~~Zalo cá nhân có được duyệt rủi ro trung bình?~~ **Có**: thấp và trung bình; cao → `403 channel_not_allowed`; yêu cầu `in_app_only` → `403 in_app_required`.
+5. Link duyệt chỉ tới được trong LAN: **không đổi** (Vedette không cung cấp tunnel; khách tự dùng VPN/reverse proxy). Chưa có việc gì.
 6. ~~Hạn yêu cầu mặc định~~ **15 phút** (`resp_settings.expiry_min` mặc định 15, khoảng 15–30, INV-6 của `response`); token sống `min(30 phút, hạn yêu cầu)`.
-7. ~~Mức giới hạn~~ **POST `approve`: 10 lần/phút/IP và 20 token sai/phút/IP** (429 `rate_limited`, D-96, như §11). Số người duyệt mỗi kênh: `notify` không áp trần; không thêm khi chưa có story (ponytail), "tối đa 10" ở §11 chỉ là gợi ý cũ.
-8. (thêm ở 13b-0) Chống trang khác ép trình duyệt POST: handler từ chối `Sec-Fetch-Site` khác `same-origin`/`none` (403), cộng `Content-Type: application/json` như §4.4 (D-96).
+7. ~~Mức giới hạn~~ **POST `approve`: 10 lần/phút/IP và 20 token sai/phút/IP** (429 `rate_limited`, như §11). Số người duyệt mỗi kênh: `notify` không áp trần; không thêm khi chưa có story (ponytail), "tối đa 10" ở §11 chỉ là gợi ý cũ.
+8. (thêm ở 13b-0) Chống trang khác ép trình duyệt POST: handler từ chối `Sec-Fetch-Site` khác `same-origin`/`none` (403), cộng `Content-Type: application/json` như §4.4.

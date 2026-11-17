@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/mitigation"
 )
 
-// D-345..D-349: a box loads the confirmed packs shipped in its image only when the release key signed them, and the finding page
+// A box loads the confirmed packs shipped in its image only when the release key signed them, and the finding page
 // then shows the pack. Throwaway keys stand in for the release keys (deps.PackTrust).
 
 type packKeys struct {

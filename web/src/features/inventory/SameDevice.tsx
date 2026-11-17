@@ -17,7 +17,7 @@ import type { PossibleSame } from './types'
 export const SAME_SECTION = 'possible-same'
 type Me = { id: string; name: string; approved: boolean; ignored?: boolean }
 
-/** D-630 (review r2 N2 of #945): what the kept device is after the merge, as the box decides it (inventory joinAs): it keeps its own
+/** What the kept device is after the merge, as the box decides it (inventory joinAs): it keeps its own
  *  state, except that an approved device a person watches is never hidden, so an ignored device merged with one is watched again.
  *  "" when both are watched or both ignored. */
 export function watchAfterMerge(kept: { ignored?: boolean }, gone: { ignored?: boolean; approved: boolean }): '' | 'staysIgnored' | 'staysWatched' | 'watchedAgain' {
@@ -33,9 +33,9 @@ function StateLine({ approved, lastSeen }: { approved: boolean; lastSeen: string
 }
 
 /**
- * D-599 (#829 gap 3, J2): "Possibly the same device as X". The box could not be sure two rows are one machine (a phone with a new private
+ * #829 gap 3: "Possibly the same device as X". The box could not be sure two rows are one machine (a phone with a new private
  * Wi-Fi address and a generic name, a MAC two rows share), so a person decides: Merge or Keep separate (admin). Fing and runZero leave such
- * twins to a delete or a support ticket; asking in place, with the reason, is the D-599 choice. Shown above the approval notice: merging a
+ * twins to a delete or a support ticket; asking in place, with the reason, is the choice here. Shown above the approval notice: merging a
  * new row into the known device answers its approval too.
  */
 export function PossibleSameNotice({ me, list }: { me: Me; list: PossibleSame[] }) {
@@ -44,7 +44,7 @@ export function PossibleSameNotice({ me, list }: { me: Me; list: PossibleSame[] 
   const [asking, setAsking] = useState<{ what: 'merge' | 'keep'; other: PossibleSame } | null>(null)
   const one = list.length === 1 ? list[0]! : null
   const other = (p: PossibleSame) => <Link to={`/devices/${encodeURIComponent(p.id)}`} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{p.name}</Link>
-  // #876 r1: a deep link (#possible-same) focuses Merge when there is one pair, not the link to the other device in the title.
+  // #876: a deep link (#possible-same) focuses Merge when there is one pair, not the link to the other device in the title.
   const buttons = (p: PossibleSame, id?: string) => (admin ? (
     <span id={id} className="flex flex-wrap gap-2">
       <Button size="sm" variant="primary" onClick={() => setAsking({ what: 'merge', other: p })} aria-label={one ? undefined : t('same.mergeWith', { name: p.name })}>{t('same.merge')}</Button>
@@ -141,7 +141,7 @@ function MergeDialog({ me, other, onClose }: { me: Me; other: PossibleSame; onCl
   )
 }
 
-/** #876 r1: Keep separate also stops the automatic joins for the pair and no screen undoes it, so it asks first, naming both devices. */
+/** #876: Keep separate also stops the automatic joins for the pair and no screen undoes it, so it asks first, naming both devices. */
 function KeepDialog({ me, other, onClose }: { me: Me; other: PossibleSame; onClose: () => void }) {
   const { t } = useTranslation('inventory')
   const { keepSeparate } = useSameDevice()
@@ -180,7 +180,7 @@ export function SameHint({ id, others }: { id: string; others: string[] }) {
   )
 }
 
-/** #876 r1: on the Devices (approved) list a row in a pair carries a short chip, one line at 1280 px, linking to the question on its
+/** #876: on the Devices (approved) list a row in a pair carries a short chip, one line at 1280 px, linking to the question on its
  *  page; its accessible name is the whole hint and starts with the visible words (WCAG 2.5.3). */
 export function SameChip({ id, others }: { id: string; others: string[] }) {
   const { t } = useTranslation('inventory')

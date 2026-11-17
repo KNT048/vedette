@@ -20,7 +20,7 @@ func (f *runEngine) blockRuns() chan struct{} {
 	return f.block
 }
 
-// INV-1 (D-126): what the list says about each device, from the inventory's VulnScanPolicy with explicit=true plus
+// INV-1: what the list says about each device, from the inventory's VulnScanPolicy with explicit=true plus
 // scan's own rules; external targets are listed but not scanned yet.
 func TestContract_INV1_TargetsInScope(t *testing.T) {
 	t.Parallel()
@@ -56,9 +56,9 @@ func TestContract_INV1_TargetsInScope(t *testing.T) {
 		return ts[slices.IndexFunc(ts, func(v TargetView) bool { return v.ID == id })]
 	}
 	if !byID("a-nas02").PickOnly || byID("a-web01").PickOnly || byID("a-srv").PickOnly {
-		t.Errorf("pick_only: the fragile NAS needs a pick here (D-126 (2))")
+		t.Errorf("pick_only: the fragile NAS needs a pick here")
 	}
-	if b := byID("a-box"); !b.Selectable || !b.PickOnly || !b.Box || byID("a-srv").Box { // D-470: a person may scan the box, Select all never ticks it
+	if b := byID("a-box"); !b.Selectable || !b.PickOnly || !b.Box || byID("a-srv").Box { // A person may scan the box, Select all never ticks it
 		t.Errorf("the box: %+v", b)
 	}
 	if !byID("a-nas02").Fragile || !byID("a-unk").Fragile || byID("a-web01").Fragile || byID("a-web01").Findings != 2 || byID("a-nas02").Findings != 1 {
@@ -86,9 +86,9 @@ func TestContract_INV1_TargetsInScope(t *testing.T) {
 	}
 }
 
-// INV-1, D-126 (2): a picked fragile device runs at a quarter of the rate, and the pick is passed to the policy as
+// INV-1: a picked fragile device runs at a quarter of the rate, and the pick is passed to the policy as
 // explicit; a device that stopped being allowed after the start is skipped before its job leaves core.
-func TestContract_INV1_PolicyD126AndCheckedRightBeforeTheJob(t *testing.T) {
+func TestContract_INV1_PolicyCheckedRightBeforeTheJob(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	if _, err := r.svc.SaveConfig(r.ctx(), "admin@acme.example", Patch{Rate: ptr(8)}); err != nil {
@@ -326,7 +326,7 @@ func TestContract_INV8_ResultsBecomeFindings(t *testing.T) {
 	if n := rowOf(got, "a-web01", "not_matched"); n == nil || n.Note != "CVE-2024-3400: no match reported by the scan template." {
 		t.Fatalf("not_matched: %+v", got.Results)
 	}
-	if !slices.Equal(r.findings.confirms, []string{"a-nas02|CVE-2022-27593"}) { // a no-match never reaches findings (D-133 (5))
+	if !slices.Equal(r.findings.confirms, []string{"a-nas02|CVE-2022-27593"}) { // a no-match never reaches findings
 		t.Fatalf("findings: %v", r.findings.confirms)
 	}
 	ev := r.findings.confirmed[0]
@@ -360,7 +360,7 @@ func TestContract_INV10_UntrustedOutputFailsClosed(t *testing.T) {
 	}
 }
 
-// N45-1: a line about an address the job did not name is skipped, not a reason to throw the run away: the match on the job's own
+// A line about an address the job did not name is skipped, not a reason to throw the run away: the match on the job's own
 // target is still confirmed, and the probe row of the skipped line's template says what was skipped.
 func TestForeignTargetLineIsSkippedAndTheRunKept(t *testing.T) {
 	t.Parallel()
@@ -408,7 +408,7 @@ func TestSkippedMatchIsInconclusiveNeverNoMatch(t *testing.T) {
 	}
 }
 
-// PRE-1, POST-1: the person who started is the audit trail's, with the picked ids (the consent of D-126 (2)).
+// PRE-1, POST-1: the person who started is the audit trail's, with the picked ids (the consent).
 func TestContract_PRE1_StartAudited(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
@@ -517,7 +517,7 @@ func TestSuspectedNoteSaysWhatWasUsed(t *testing.T) {
 	}
 }
 
-// D-522 (N1): nmap's tunnel="ssl" reaches the inventory as "ssl/http", so an HTTPS admin page on 4443 is sent to nuclei as
+// nmap's tunnel="ssl" reaches the inventory as "ssl/http", so an HTTPS admin page on 4443 is sent to nuclei as
 // https://ip:4443 (with -nh nuclei speaks only the scheme it is given); a port another source calls plain "http" is still spoken
 // to over TLS only, and plain HTTP stays http.
 func TestEndpointsTakeTLSFromTheServiceName(t *testing.T) {
@@ -535,7 +535,7 @@ func TestEndpointsTakeTLSFromTheServiceName(t *testing.T) {
 	}
 }
 
-// kien G7b/c: the device page's Last checks finds the newest run of one device through ?asset=, however many runs of other devices
+// The device page's Last checks finds the newest run of one device through ?asset=, however many runs of other devices
 // came after it (GET /scans/runs alone lists the newest 100 of all).
 func TestRunsOf_TheDevicesRunsPastTheNewest100(t *testing.T) {
 	t.Parallel()

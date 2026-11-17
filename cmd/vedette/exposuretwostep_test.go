@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/core/auth"
 )
 
-// D-473: the first Scan now needs two-step sign-in. A password account with an authenticator app counts as "app", an SSO account as
+// The first Scan now needs two-step sign-in. A password account with an authenticator app counts as "app", an SSO account as
 // "sso" (the identity provider owns MFA and Vedette two-step cannot be turned on for it), a password account without it as none.
 func TestExposureTwoStep_RealAccounts(t *testing.T) {
 	t.Parallel()

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// D-299 review r1: one /48 sending each start from a new /64 cannot get past its 100 by filling the limiter's key table (a refused
+// One /48 sending each start from a new /64 cannot get past its 100 by filling the limiter's key table (a refused
 // start creates no key, and the /48 counts and the box's budget are never dropped), so it cannot use up the box's budget either.
 func TestOneSlash48CannotResetItsCountByFloodingKeys(t *testing.T) {
 	t.Parallel()

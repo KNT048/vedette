@@ -10,12 +10,12 @@ export function IncidentStatusChip({ status }: { status: IncidentStatus }) {
   return <Chip tone={TONE[status]}>{t(`incidents.status.${status}`)}</Chip>
 }
 
-/** The locale key of an incident's kind: a blocked connection to a known-bad address is an attempt (D-227). */
+/** The locale key of an incident's kind: a blocked connection to a known-bad address is an attempt. */
 export const kindKey = (i: Pick<Incident, 'kind' | 'attempt'>) => `incidents.kind.${i.attempt ? 'bad_address_attempt' : i.kind}` as const
 
 export const fmtClock = (iso: string) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
 
-/** Lý do có chỗ sửa (D-551): liên kết tới Settings, Alert channels; chỉ admin mở được trang đó. */
+/** Lý do có chỗ sửa: liên kết tới Settings, Alert channels; chỉ admin mở được trang đó. */
 const FIXABLE: NotSentReason[] = ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'quiet_hours', 'failed']
 
 /** Open incidents no channel has and that will not go out by themselves (queued / quiet hours do): the KPI "not sent" and `?sent=no`. */
@@ -38,14 +38,14 @@ export function NotSentFix({ notSent, admin }: { notSent: NotSent | null; admin:
 
 /**
  * Last result per channel: "Slack 09:12", or "Email failed" with the reason on hover. With no message on any channel, the box's sentence
- * of why (INV-24, D-551) and, for an admin, the link to fix it. `noChannelShown`: the page carries the one "no channel" notice, so those rows say only "Not sent".
+ * of why (INV-24) and, for an admin, the link to fix it. `noChannelShown`: the page carries the one "no channel" notice, so those rows say only "Not sent".
  */
 export function DeliveryBadges({ sends, notSent = null, admin = false, noChannelShown = false }: { sends: SendRecord[]; notSent?: NotSent | null; admin?: boolean; noChannelShown?: boolean }) {
   const { t } = useTranslation('notify')
   const last = new Map<string, SendRecord>()
   for (const s of [...sends].sort((a, b) => a.at.localeCompare(b.at))) last.set(s.channel, s)
   if (last.size === 0) {
-    // the page already said once that no channel is set up: the row does not repeat it (W13-2)
+    // the page already said once that no channel is set up: the row does not repeat it
     if (noChannelShown && notSent?.reason === 'no_channel') return <span className="text-muted">{t('incidents.notSent')}</span>
     return notSent
       ? <span className="grid max-w-[36ch] gap-0.5 text-meta"><span className={notSent.reason === 'queued' || notSent.reason === 'quiet_hours' ? 'text-muted' : undefined}>{notSent.text}</span><NotSentFix notSent={notSent} admin={admin} /></span>

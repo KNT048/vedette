@@ -1,4 +1,4 @@
-// "I updated <software>" (D-499, S-MIT-1, item 14): tell Vedette the new version once; the re-match closes what it fixes.
+// "I updated <software>" (S-MIT-1, item 14): tell Vedette the new version once; the re-match closes what it fixes.
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -24,7 +24,7 @@ const ERRORS = ['bad_version', 'duplicate_software', 'not_manual']
 export type UpdatedSoftware = Pick<SoftwareView, 'id' | 'display' | 'version' | 'source' | 'kev_cves'>
 
 /**
- * "I updated it" for one software of one device, the one control the finding page and each To fix action use (kien G12): it does
+ * "I updated it" for one software of one device, the one control the finding page and each To fix action use: it does
  * what the update needs, never a control with nothing behind it.
  * - Agent-read software (S-MIT-1, agent-intake INV-23): on a device an osquery agent of this box reports, "I updated it: ask the agent
  *   now" (POST /inventory/agents/devices/{id}/report, operator), with its busy state and then the open ask in words; a device only
@@ -34,14 +34,14 @@ export type UpdatedSoftware = Pick<SoftwareView, 'id' | 'display' | 'version' | 
  * - Scan-read software (nmap, scan, SNMP, passive): the button is "Check this device now" itself (POST
  *   /scanning/engines/nmap-discovery/run, admin, the same ScanNowButton as the device page), with its busy state and its result,
  *   where Vedette may scan the device now; elsewhere the reason. Any other source gets nothing.
- * - Typed (manual) software: the version dialog (D-499). `fixed` prefills it (D-488 `fixed`), if known.
- * `active`: an open finding is behind it (kien G5: nothing on what is already closed); the manual button stays while its own dialog is
+ * - Typed (manual) software: the version dialog. `fixed` prefills it, if known.
+ * `active`: an open finding is behind it (nothing on what is already closed); the manual button stays while its own dialog is
  * open, so the dialog can say what the re-match closed. `progress`: show the check's progress under the button (the finding page).
  */
 export function IUpdated({ asset, software, fixed, size, active = true, progress = true, os = false, box = false }: { asset: FindingAsset; software: UpdatedSoftware; fixed?: string; size?: 'sm'; active?: boolean; progress?: boolean; os?: boolean; box?: boolean }) {
   if (software.source === 'agent') return active ? <AgentAsk asset={asset} size={size} os={os} box={box} /> : null
   if (SCAN_READ.has(software.source)) return active ? <CheckNow asset={asset} size={size} progress={progress} /> : null
-  if (software.source !== 'manual') return null // review r1 of #944: an unknown source is not scan-read: no control with nothing behind it
+  if (software.source !== 'manual') return null // #944: an unknown source is not scan-read: no control with nothing behind it
   return <TypedVersion asset={asset} software={software} fixed={fixed} size={size} active={active} />
 }
 
@@ -63,7 +63,7 @@ function AgentAsk({ asset, size, os, box }: { asset: FindingAsset; size?: 'sm'; 
   const ask = useAskReport(asset.id)
   const can = useCan('operator')
   const device = deviceName(asset, t('removedDevice'))
-  // review r1 L3 of #953: read the state again when a new ask becomes possible, so the button comes back by itself
+  // #953: read the state again when a new ask becomes possible, so the button comes back by itself
   const againAt = q.data?.ask_again_at ? Date.parse(q.data.ask_again_at) : NaN
   const { refetch } = q
   useEffect(() => {
@@ -74,7 +74,7 @@ function AgentAsk({ asset, size, os, box }: { asset: FindingAsset; size?: 'sm'; 
   if (on === undefined || (on && q.isPending)) return null
   const r = q.data
   const line = (key: string, opts: Record<string, string> = {}) => <p className="text-meta text-muted">{t(key, { device, ...opts })}</p>
-  // review r1 L2 of #953: nothing reads the device now (module off, node revoked or pruned, Wazuh disconnected): no promise
+  // #953: nothing reads the device now (module off, node revoked or pruned, Wazuh disconnected): no promise
   // the box reads its own packages, whether agent-intake is on or not
   if (box || r?.agent === 'box') return line(os ? 'updated.boxLineOs' : 'updated.boxLine')
   if (!on || !r || r.agent === 'none') return line('updated.noAgentLine')
@@ -85,7 +85,7 @@ function AgentAsk({ asset, size, os, box }: { asset: FindingAsset; size?: 'sm'; 
   const seen = fmtDateTime(r.last_seen)
   const again = r.ask_again_at && Date.parse(r.ask_again_at) > Date.now() ? fmtTime(r.ask_again_at) : ''
   if (r.asked_at) {
-    // review r1 L1 of #953: an agent that has not called for a while gets the ask only when it is back
+    // #953: an agent that has not called for a while gets the ask only when it is back
     const key = r.stale ? 'updated.askedStale' : os ? 'updated.askedOs' : 'updated.asked'
     return <p role="status" className="text-meta">{t(key, { device, time: fmtTime(r.asked_at), seen, again: again || fmtTime(r.ask_again_at) })}</p>
   }
@@ -105,11 +105,11 @@ function AgentAsk({ asset, size, os, box }: { asset: FindingAsset; size?: 'sm'; 
   )
 }
 
-/** The sources a network check re-reads (review r1 of #944: anything else is not scan-read). */
+/** The sources a network check re-reads (#944: anything else is not scan-read). */
 const SCAN_READ = new Set<string>(['nmap', 'scan', 'snmp', 'passive'])
 
 /** Scan-read software: "Check this device now" itself, only where Vedette may scan the device now (scanning/canScan.ts, the rule
- *  of the device page); otherwise the reason, never a button that can only be refused (G5). */
+ *  of the device page); otherwise the reason, never a button that can only be refused. */
 export function CheckNow({ asset, size, progress }: { asset: FindingAsset; size?: 'sm'; progress: boolean }) {
   const { t } = useTranslation('scanning')
   const row = useDevices().data?.items.find((x) => x.id === asset.id)
@@ -120,7 +120,7 @@ export function CheckNow({ asset, size, progress }: { asset: FindingAsset; size?
   return <ScanNowButton targets={[asset.id]} size={size} variant="secondary" showProgress={progress} />
 }
 
-/** Typed (manual) software: "I updated <software>" and its dialog (D-499): the new version, then what the re-match closed. */
+/** Typed (manual) software: "I updated <software>" and its dialog: the new version, then what the re-match closed. */
 function TypedVersion({ asset, software, fixed, size, active }: { asset: FindingAsset; software: UpdatedSoftware; fixed?: string; size?: 'sm'; active: boolean }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')

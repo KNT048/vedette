@@ -1,19 +1,19 @@
-// Package nucleiargv builds and checks the only nuclei command line Vedette ever runs (D-125 (2)). It is a leaf:
+// Package nucleiargv builds and checks the only nuclei command line Vedette ever runs. It is a leaf:
 // standard library only, no database and no core/exec, because the sensor binary links it, and both sides use the
 // same code: core before it hands a job over, the worker in the scan container before nuclei starts (SYS-2). Like
-// nmapargv, a job on the wire carries no argv, flag, path or URL (D-111 (3)): the worker builds the line from the
+// nmapargv, a job on the wire carries no argv, flag, path or URL: the worker builds the line from the
 // job's fields with Build, then checks it with Validate.
 //
-// The worker's grammar is the last fence against a compromised core (D-113 (3)), so it is as narrow as nmapargv's. A job has
-// a scope (D-520):
+// The worker's grammar is the last fence against a compromised core, so it is as narrow as nmapargv's. A job has
+// a scope:
 //   - ScopeLAN (the scan module): private IPv4 literals only (RFC 1918 or the RFC 6598 shared space 100.64/10,
-//     core/localnet, D-461), 1..MaxTargets of them, no domain, no public address;
-//   - ScopeOwnIP (exposure, D-561): exactly one target, a public IPv4 literal (localnet.Public), at OwnIPRate, with the
-//     classes of K-6 (D-559) excluded on top of the forbidden tags. Like nmapargv's external shape, the grammar alone cannot
+//     core/localnet), 1..MaxTargets of them, no domain, no public address;
+//   - ScopeOwnIP (exposure): exactly one target, a public IPv4 literal (localnet.Public), at OwnIPRate, with the
+//     classes of K-6 excluded on top of the forbidden tags. Like nmapargv's external shape, the grammar alone cannot
 //     tell the box's own IP from anyone's: the worker checks right before nuclei that the box leaves the Internet through
 //     that address (core/egressip, the same fence as nmap's external shape), and refuses the job otherwise.
 //
-// An own_ip job has a depth (D-527): "" is the shape above (the KEV templates the pack marks own_ip); DepthFull is the deep scan of
+// An own_ip job has a depth: "" is the shape above (the KEV templates the pack marks own_ip); DepthFull is the deep scan of
 // a target whose testing terms were accepted (exposure FULL-1): the same one public IPv4 and the same worker fence, at FullRate with
 // FullConcurrency templates at a time, up to MaxFullTemplates templates a run, and -etags of FullForbiddenTags: dos only with
 // Disruptive, the extra tick of the terms. A LAN job has no depth.
@@ -21,7 +21,7 @@
 // No domain in any scope: a name could resolve to loopback or the metadata address.
 //
 // The flags are those of the nuclei version pinned in the scan image; a new pinned version is checked against this
-// list in the lab before it ships (docs/specs/sensor-protocol.md, D-116 (5)).
+// list in the lab before it ships (docs/specs/sensor-protocol.md).
 package nucleiargv
 
 import (
@@ -36,14 +36,14 @@ import (
 	"github.com/knt048/vedette/core/localnet"
 )
 
-// TemplatesDir is where the signed scan image keeps the safe template pack (D-125 (4)). Every template nuclei loads is
+// TemplatesDir is where the signed scan image keeps the safe template pack. Every template nuclei loads is
 // one file under it, named on the command line (M2): never the whole directory.
 const TemplatesDir = "/usr/share/vedette/nuclei-templates"
 
 // ErrorLog is where nuclei writes its error log: the worker's stderr pipe, never a file.
 const ErrorLog = "/dev/stderr"
 
-// Limits of a job (D-125 (1)).
+// Limits of a job.
 const (
 	MaxTemplates  = 32
 	MaxTargets    = 16
@@ -56,25 +56,25 @@ const (
 
 // forbiddenTags are the template tags that may never run (INV-4, FORBID-2): the pack refuses them, and nuclei is told
 // to exclude them as a second fence. One list for both; unexported so nobody can change it after fixedFlags read it. The one
-// exception (D-527): dos runs in a full job with the extra tick of the terms, from the pack's disruptive set only.
+// exception: dos runs in a full job with the extra tick of the terms, from the pack's disruptive set only.
 var forbiddenTags = []string{"dos", "intrusive", "fuzz"}
 
 // ForbiddenTags returns a copy of the tags that may never run.
 func ForbiddenTags() []string { return slices.Clone(forbiddenTags) }
 
-// The scopes of a job (D-520). "" is ScopeLAN: a job of a core that does not send the scope.
+// The scopes of a job. "" is ScopeLAN: a job of a core that does not send the scope.
 const (
 	ScopeLAN   = "lan"
 	ScopeOwnIP = "own_ip"
 )
 
-// OwnIPRate is the only rate of the own_ip scope (requests a second, D-561): one public address, the customer's own.
+// OwnIPRate is the only rate of the own_ip scope (requests a second): one public address, the customer's own.
 const OwnIPRate = 5
 
-// ownIPForbiddenTags are the tags D-559 K-6 (as the lead narrowed it for D-520) keeps off the box's own public IP on top of
+// ownIPForbiddenTags are the tags kept off the box's own public IP on top of
 // forbiddenTags: nothing that tries a login or a credential, guesses, injects, runs a command or uploads. The real fence is the
 // pack's per-template own_ip decision (pack.Template.OwnIP, made when the pack is built and checked again by the worker on the
-// template file, D-520): a template of these tags is never marked own_ip. nuclei is told to exclude them as well (-etags of
+// template file): a template of these tags is never marked own_ip. nuclei is told to exclude them as well (-etags of
 // ownIPFlags); how nuclei 3.11.1 applies -etags to a template named with -t is not lab-checked, so nothing relies on it.
 var ownIPForbiddenTags = []string{"default-login", "brute-force", "sqli", "time-based-sqli", "xss", "injection", "code-injection",
 	"argument-injection", "ssti", "file-upload", "rce", "authenticated", "login"}
@@ -82,20 +82,20 @@ var ownIPForbiddenTags = []string{"default-login", "brute-force", "sqli", "time-
 // OwnIPForbiddenTags returns a copy of the tags an own_ip job never runs, forbiddenTags included.
 func OwnIPForbiddenTags() []string { return append(slices.Clone(forbiddenTags), ownIPForbiddenTags...) }
 
-// DepthFull is the depth of an own_ip job of a target whose testing terms were accepted (D-527).
+// DepthFull is the depth of an own_ip job of a target whose testing terms were accepted.
 const DepthFull = "full"
 
-// The full shape (D-527). nuclei's own defaults are -rl 150 -c 25 -bs 25 (docs.projectdiscovery.io/tools/nuclei/running, Rate
-// Limits), sized for many hosts from a big machine; a full job has one host (so -bs 1) behind the customer's own uplink and runs on an
-// N100 (4 cores) next to core: 20 requests a second (the scan module's ceiling, MaxRate) with 10 templates in flight, so a target
-// that answers within half a second keeps the rate busy. To be measured on the N100 (the lead's checklist in D-527).
+// The full shape. nuclei's own defaults are -rl 150 -c 25 -bs 25 (docs.projectdiscovery.io/tools/nuclei/running, Rate
+// Limits), sized for many hosts from a big machine; a full job has one host (so -bs 1) behind the customer's own uplink and runs on a
+// small 4-core box next to core: 20 requests a second (the scan module's ceiling, MaxRate) with 10 templates in flight, so a target
+// that answers within half a second keeps the rate busy. To be measured on such a box.
 const (
 	FullRate         = 20
 	FullConcurrency  = 10
 	MaxFullTemplates = 200 // per run: 200 ids of at most 100 bytes keep the jobs reply under sensorlink's 64 KiB, and its lines under the limit of nucleiout.LinesPerTemplate
 )
 
-// disruptiveTags are the tags of the disruptive checks (D-527): only a full job with the extra tick of the terms runs them.
+// disruptiveTags are the tags of the disruptive checks: only a full job with the extra tick of the terms runs them.
 // brute-force and default-login try passwords, authenticated logs in with a user name and password of the template's own, dos may
 // stop the service.
 var disruptiveTags = []string{"dos", "brute-force", "default-login", "authenticated"}
@@ -131,7 +131,7 @@ func FullForbiddenTags(disruptive bool) []string {
 //	                     resolvers about the target), no javascript, websocket, headless, code or file templates
 //	-elog /dev/stderr    nuclei's own error log (one JSON object per failed request, with input, address, kind) on
 //	                     stderr: the worker counts network timeouts per target from it, so core learns that a device
-//	                     stopped answering after it had answered some templates (INV-6, D-165)
+//	                     stopped answering after it had answered some templates (INV-6)
 //	-c 1 -bs 1           one template and one target at a time, so -rl is the whole load on a device
 //	-timeout 10 -retries 1
 var fixedFlags = []string{
@@ -194,8 +194,8 @@ type Job struct {
 	Rate          int      // requests per second, 1..MaxRate
 	MaxHostErrors int      // nuclei stops sending to a target after this many errors in a row (INV-6), 2..20
 	Scope         string   // ScopeLAN ("" too) or ScopeOwnIP
-	Depth         string   // "" or DepthFull (own_ip only, D-527): 1..MaxFullTemplates templates at FullRate
-	Disruptive    bool     // a full job with the extra tick of the terms: dos is not excluded (D-527)
+	Depth         string   // "" or DepthFull (own_ip only): 1..MaxFullTemplates templates at FullRate
+	Disruptive    bool     // a full job with the extra tick of the terms: dos is not excluded
 }
 
 // Target is one place nuclei sends requests to: a host and a port, with the scheme of the HTTP templates, or no
@@ -222,10 +222,10 @@ func ValidTemplatePath(p string) bool {
 	return len(p) <= 200 && pathRE.MatchString(p) && !strings.Contains(p, "..")
 }
 
-// validHost accepts only a canonical private IPv4 literal (RFC 1918 or RFC 6598, localnet.Addr, D-461) that is not the
+// validHost accepts only a canonical private IPv4 literal (RFC 1918 or RFC 6598, localnet.Addr) that is not the
 // network or broadcast address of a /24: the same fence as nmapargv. No domain (it could resolve to loopback or the
 // metadata address), no public IP, and never the Alibaba Cloud metadata address 100.100.100.200, which lies in 100.64/10
-// (nuclei keeps up to 4 KB of an answer as evidence, which can reach an AI provider; D-461 (5)). nmap may still probe it.
+// (nuclei keeps up to 4 KB of an answer as evidence, which can reach an AI provider). nmap may still probe it.
 func validHost(h string) bool {
 	a, err := netip.ParseAddr(h)
 	if err != nil || a.String() != h || !localnet.Addr(a) || a == metadataV4 {

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// The golden set (D-500): REAL CISA KEV entries for Apple iOS, Fortinet FortiOS, Microsoft Office and Citrix
+// The golden set: REAL CISA KEV entries for Apple iOS, Fortinet FortiOS, Microsoft Office and Citrix
 // NetScaler (and the "Multiple Products" entries of Apple and Fortinet) with their REAL NVD affected
 // configurations, as the box stores them (testdata/kev-nvd-golden.json: KEV catalog 2026.11.10 + NVD CVE API 2.0
 // ?hasKev, fetched 2026-11-13). The expected CVE sets below were checked by hand against those ranges.
@@ -23,7 +23,7 @@ type goldenFile struct {
 		Ransomware bool    `json:"ransomware"`
 		EPSS       float64 `json:"epss"`
 		DateAdded  string  `json:"date_added"`
-		Published  string  `json:"published"` // NVD's published day (D-616); absent in the older fixtures
+		Published  string  `json:"published"` // NVD's published day; absent in the older fixtures
 		Affected   []struct {
 			CPE       string `json:"cpe"`
 			StartIncl string `json:"start_incl"`
@@ -81,8 +81,8 @@ func keysFor(vulns []Vuln, fragments ...string) []string {
 	return keys
 }
 
-// goldenOut: version findings; product, the CVEs matched by the product name only, which D-602 makes no finding (NameOnly; before
-// D-602 they were product findings); productFindings, any product finding left (none in these sets); need, the "add the version" CVEs.
+// goldenOut: version findings; product, the CVEs matched by the product name only, which make no finding (NameOnly; earlier
+// they were product findings); productFindings, any product finding left (none in these sets); need, the "add the version" CVEs.
 type goldenOut struct {
 	version, product, productFindings, need []string
 	severity                                map[string]Severity
@@ -136,7 +136,7 @@ func agentPkg(vendor, product, version string) Software {
 	return Software{ID: "s-" + strings.ToLower(product), Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{KevKey(vendor, product)}, Source: "agent"}
 }
 
-// ubuntuServer is the box "byn" of the N100 walk (W2-11): Ubuntu 26.04.1, every version from osquery.
+// ubuntuServer is the test box "byn": Ubuntu 26.04.1, every version from osquery.
 func ubuntuServer() []Software {
 	return []Software{
 		agentPkg("Linux", "Kernel", "7.0.0"), agentPkg("OpenSSL", "OpenSSL", "3.5.5"), agentPkg("GNU", "GNU Bash", "5.3"),
@@ -157,7 +157,7 @@ func TestAliases_DataIsValid(t *testing.T) {
 	}
 }
 
-// TestGolden_PatchedUbuntuServer: W2-11. A fully patched Ubuntu 26.04.1 server got ~50 KEV CVEs (Dirty COW, Dirty
+// TestGolden_PatchedUbuntuServer: a fully patched Ubuntu 26.04.1 server got ~50 KEV CVEs (Dirty COW, Dirty
 // Pipe, Heartbleed, Shellshock, CVE-2023-4911, Baron Samedit, PwnKit…). Only the ranges that include the exact
 // versions remain, all by version, none by product only.
 func TestGolden_PatchedUbuntuServer(t *testing.T) {
@@ -170,14 +170,14 @@ func TestGolden_PatchedUbuntuServer(t *testing.T) {
 	}
 	slices.Sort(got)
 	// The true few: upstream ranges that include these exact versions (kernel 7.0.0 < 7.0.10, 7.1.3, 7.0.x).
-	// Ubuntu may have backported the fixes; D-500 records that the distro's own fixed versions are the follow-up.
+	// Ubuntu may have backported the fixes; the distro's own fixed versions are the follow-up.
 	// CVE-2021-3493 lists only Ubuntu releases before 20.10: ruled out by the OS. CVE-2026-123158 (OpenSSH < 10.6) affects
-	// only OpenSSH built with musl and without PAM (Alpine): ruled out by the OS too (D-547, KF-4).
+	// only OpenSSH built with musl and without PAM (Alpine): ruled out by the OS too (KF-4).
 	want := []string{"CVE-2026-46300 version", "CVE-2026-53266 version", "CVE-2026-53362 version"}
 	if !slices.Equal(got, want) || len(res.NeedVersion) != 0 {
 		t.Fatalf("findings %v, items %+v; want %v", got, res.NeedVersion, want)
 	}
-	// W3-2, D-530: the box already has the old flood (every KEV CVE of these products, by product). The four stay; every
+	// The box already has the old flood (every KEV CVE of these products, by product). The four stay; every
 	// other one is proved outside its ranges (or, CVE-2021-3493, outside the OS releases it lists) and closes by itself.
 	byn := Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
 	flood := map[string]bool{}
@@ -205,7 +205,7 @@ func TestGolden_PatchedUbuntuServer(t *testing.T) {
 			t.Errorf("%s is not closed", c)
 		}
 	}
-	t.Logf("byn: %d old findings, %d kept, %d closed by D-530", len(flood), len(kept), len(closed))
+	t.Logf("byn: %d old findings, %d kept, %d closed by auto-resolve", len(flood), len(kept), len(closed))
 	// the same server years ago is caught by version, not by product
 	old := []Software{agentPkg("OpenSSL", "OpenSSL", "1.0.1f"), agentPkg("Sudo", "Sudo", "1.8.31"), agentPkg("Red Hat", "Polkit", "0.105"),
 		agentPkg("Linux", "Kernel", "4.4.0"), agentPkg("GNU", "GNU C Library", "2.35")}
@@ -237,7 +237,7 @@ CVE-2017-11826 CVE-2017-11882 CVE-2017-8570 CVE-2018-0798 CVE-2018-0802 CVE-2021
 CVE-2023-21715 CVE-2023-23397 CVE-2024-21413 CVE-2026-124194 CVE-2026-21509 CVE-2026-21514`
 )
 
-// TestGolden_KEVWithNVDRanges is the table of D-500: input software and version → the exact CVE sets.
+// TestGolden_KEVWithNVDRanges is the version-matching table: input software and version → the exact CVE sets.
 func TestGolden_KEVWithNVDRanges(t *testing.T) {
 	t.Parallel()
 	vulns := goldenVulns(t)
@@ -247,16 +247,16 @@ func TestGolden_KEVWithNVDRanges(t *testing.T) {
 		version, product string // expected findings by basis (space separated)
 		need             int    // CVEs in the one "add the version" item
 	}{
-		// kien's iPhone on the N100 (W1-1): a current iOS is in no range at all.
+		// An iPhone on a test box: a current iOS is in no range at all.
 		{name: "iOS 27.2.1", sw: iPhone(vulns, "27.2.1")},
 		{name: "iOS 15.0", sw: iPhone(vulns, "15.0"), version: ios150},
 		{name: "iOS without a version", sw: iPhone(vulns, ""), need: 88},
 		{name: "FortiOS 7.2.5", sw: fortiGate(vulns, "7.2.5"),
 			version: "CVE-2024-21762 CVE-2024-23113 CVE-2025-25249 CVE-2025-59718 CVE-2025-61624 CVE-2025-68686 CVE-2026-24858"},
-		// W1-30: FortiOS 7.4.8 had all 22 FortiOS CVEs since 2018; only these four ranges include it.
+		// FortiOS 7.4.8 had all 22 FortiOS CVEs since 2018; only these four ranges include it.
 		{name: "FortiOS 7.4.8", sw: fortiGate(vulns, "7.4.8"), version: "CVE-2025-25249 CVE-2025-59718 CVE-2025-61624 CVE-2026-24858"},
 		// FortiOS entries plus the "Multiple Products" entries whose NVD data names FortiOS; the others (FortiMail,
-		// FortiVoice…) list other products in NVD, so they give FortiOS no finding (D-505).
+		// FortiVoice…) list other products in NVD, so they give FortiOS no finding.
 		{name: "FortiOS without a version", sw: fortiGate(vulns, ""), need: 21},
 		// review r1 M3 of #939: three entries no version of Office decides (NVD names editions without versions, or only Visio)
 		{name: "Office without a version", sw: office(vulns, ""), need: 29, product: "CVE-2016-3235 CVE-2023-21715 CVE-2026-124194"},
@@ -283,10 +283,10 @@ func TestGolden_KEVWithNVDRanges(t *testing.T) {
 			want = cves(tt.product)
 			slices.Sort(want)
 			if !slices.Equal(o.product, want) {
-				t.Errorf("matched by the product name only (D-602: no finding)\n got %v\nwant %v", o.product, want)
+				t.Errorf("matched by the product name only (no finding)\n got %v\nwant %v", o.product, want)
 			}
 			if len(o.productFindings) != 0 {
-				t.Errorf("product findings (D-602: none): %v", o.productFindings)
+				t.Errorf("product findings (none): %v", o.productFindings)
 			}
 			if len(o.need) != tt.need {
 				t.Errorf("add-the-version item: %d CVEs, want %d", len(o.need), tt.need)
@@ -300,7 +300,7 @@ func TestGolden_KEVWithNVDRanges(t *testing.T) {
 	}
 }
 
-// TestGolden_NoVersionIsOneItemPerSoftware: kien's "Add pressed without version floods CVEs" (item 27).
+// TestGolden_NoVersionIsOneItemPerSoftware: the report "Add pressed without version floods CVEs".
 func TestGolden_NoVersionIsOneItemPerSoftware(t *testing.T) {
 	t.Parallel()
 	vulns := goldenVulns(t)
@@ -342,7 +342,7 @@ func TestGolden_DistroRowNeverClosesKernelCVEs(t *testing.T) {
 		}
 		for name, have := range map[string]map[string]bool{"new": nil, "existing": flood} {
 			res := MatchAsset(a, vulns, have, t0)
-			got := res.NameOnly // D-602: kept (none closed), but by the product name only: no finding
+			got := res.NameOnly // Kept (none closed), but by the product name only: no finding
 			if len(res.New)+len(res.Existing) != 0 || len(res.NotAffected) != 0 || len(res.NeedVersion) != 0 || len(got) != len(flood) {
 				t.Fatalf("%s %s (%s): %d findings, %d closed, %d items; want %d findings, none closed", tc.display, tc.ver, name, len(got), len(res.NotAffected), len(res.NeedVersion), len(flood))
 			}
@@ -355,10 +355,10 @@ func TestGolden_DistroRowNeverClosesKernelCVEs(t *testing.T) {
 	}
 }
 
-// W6-1: the 30 Microsoft|Office entries exactly as the N100 stored them (testdata/kev-nvd-office-n22.json). A hand-added
+// The 30 Microsoft|Office entries exactly as a test box stored them (testdata/kev-nvd-office-n22.json). A hand-added
 // "Microsoft Office" without a version must count every one of them in its "add the version" item: NVD names Office (or
 // an edition or app of it) by version for each, so a version decides each one, and none lists every version.
-func TestGolden_OfficeN22WithoutAVersionCountsAllThirty(t *testing.T) {
+func TestGolden_OfficeWithoutAVersionCountsAllThirty(t *testing.T) {
 	t.Parallel()
 	vulns := loadGolden(t, "testdata/kev-nvd-office-n22.json")
 	sw := Software{ID: "s-office", Display: "Microsoft Office", Vendor: "Microsoft", Product: "Office", KevKeys: []string{"microsoft|office"}}

@@ -54,7 +54,7 @@ func (*replayCore) PassiveHeartbeat(context.Context, *sensorlink.PassiveHeartbea
 }
 
 // `passive --replay FILE` captures from the recording although core names no card, and delivers what the recording holds. This is
-// the sensor of the compose dev stack (D-146): no card, no vedette-host, and a device still appears in the inventory.
+// the sensor of the compose dev stack: no card, no vedette-host, and a device still appears in the inventory.
 func TestPassiveReplayDeliversTheRecordingWithoutACard(t *testing.T) {
 	// not parallel: the running sensor touches the real heartbeat file, which TestUsageAndUnknownCommand expects to be absent
 	t.Cleanup(func() { _ = os.Remove(heartbeatPath) })
@@ -118,7 +118,7 @@ func TestPassiveReplayRefusesAMissingRecording(t *testing.T) {
 	}
 }
 
-// D-114 (2), D-146: the sensor and scan binary is built with CGO_ENABLED=0 into an image that holds no shell and no libpcap, so
+// The sensor and scan binary is built with CGO_ENABLED=0 into an image that holds no shell and no libpcap, so
 // the dependency graph, listed by the go tool itself, must hold none of core's storage, secrets or server, no module but the leaf
 // packages the binary shares with core, no database driver and no cgo of its own. A failure names the import path that crossed the line.
 func TestGoListDepsOfTheSensorBinary(t *testing.T) {

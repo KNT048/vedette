@@ -94,7 +94,7 @@ function TwoFactor({ a }: { a: Account }) {
   const [askOff, setAskOff] = useState(false)
   const [pw, setPw] = useState('')
   const [pwErr, setPwErr] = useState<string | null>(null)
-  // D-76: the current password, asked once on the choice screen and sent with either start call (and with "send a new code").
+  // The current password, asked once on the choice screen and sent with either start call (and with "send a new code").
   const [startPw, setStartPw] = useState('')
   const [startPwErr, setStartPwErr] = useState<string | null>(null)
   const cooldown = useCountdown()
@@ -136,7 +136,7 @@ function TwoFactor({ a }: { a: Account }) {
       {method ? (
         <Card className="grid max-w-xl gap-4">
           <p className="text-sm">{method === 'email' ? t('account.twofa.emailActive', { to: email.sent_to }) : t('account.twofa.appActive')}</p>
-          {/* D-389: the way back in without the phone or mailbox; for the sole administrator, the box console. */}
+          {/* The way back in without the phone or mailbox; for the sole administrator, the box console. */}
           {isAdmin ? (
             <div className="grid gap-2">
               <div className="flex items-center gap-1">
@@ -212,10 +212,10 @@ function TwoFactor({ a }: { a: Account }) {
   )
 }
 
-// D-414: Google Authenticator first (as GitHub's and Google's own 2FA steps do), any TOTP app works. Plain links: nothing is loaded from them.
+// Google Authenticator first (as GitHub's and Google's own 2FA steps do), any TOTP app works. Plain links: nothing is loaded from them.
 const STORE = { ios: 'https://apps.apple.com/app/google-authenticator/id388497605', android: 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2' }
 
-/** Three steps under the QR code (S-CORE-3, D-414): install, + then Scan a QR code, type the 6-digit code. */
+/** Three steps under the QR code (S-CORE-3): install, + then Scan a QR code, type the 6-digit code. */
 function AuthenticatorGuide() {
   const { t } = useTranslation('core')
   const store = (href: string, label: string) => <a className="text-accent underline-offset-4 hover:underline" href={href} target="_blank" rel="noreferrer">{label}</a>
@@ -234,7 +234,7 @@ function AuthenticatorGuide() {
   )
 }
 
-/** D-195, D-196: an SSO account has no Vedette password and no Vedette two-step sign-in; the identity provider handles both. */
+/** An SSO account has no Vedette password and no Vedette two-step sign-in; the identity provider handles both. */
 function SsoNote() {
   const { t } = useTranslation('core')
   return (
@@ -267,7 +267,7 @@ function Sessions({ a }: { a: Account }) {
   )
 }
 
-// Anchors before D-519 (`/account#two-step` from the two-step prompt, `#approver-identities` from the chat link page) open their tab.
+// Anchors from before the tabs (`/account#two-step` from the two-step prompt, `#approver-identities` from the chat link page) open their tab.
 const OLD_HASH: Record<string, string> = { 'two-step': 'sign-in', 'approver-identities': 'approvers' }
 
 export default function AccountPage() {
@@ -275,12 +275,12 @@ export default function AccountPage() {
   const q = useAccount()
   const operator = useCan('operator')
   const responseOn = useModuleEnabled('response') === true
-  const approver = operator && responseOn // S-RESP-2, D-191: approvers prove their approval channel addresses
+  const approver = operator && responseOn // S-RESP-2: approvers prove their approval channel addresses
   return (
     <>
       <PageHeader title={q.data ? t('account.title', { name: q.data.user.name }) : t('account.titleLoading')} meta={t('account.meta')} stories={['S-CORE-3']} />
       <OldHashToTab map={OLD_HASH} />
-      {/* D-519: Profile, how I sign in, where I am signed in, and (approvers) my approval channels are separate areas, as GitHub's
+      {/* Profile, how I sign in, where I am signed in, and (approvers) my approval channels are separate areas, as GitHub's
           Public profile / Password and authentication / Sessions pages are; a tab the person cannot use is left out. */}
       <QueryState query={q}>{(a) => (
         <PageTabs label={t('account.tabs.label')} tabs={[

@@ -34,7 +34,7 @@ func HostAllowlistWith(allowed []string, own func(netip.Addr) bool, next http.Ha
 }
 
 // HostAllowlistFunc is HostAllowlist with the test given as a function: HostMatcher's, or one that also accepts a name the box learns
-// while it runs (cmd/vedette: the Box address an administrator saves, D-465). The refusal is the same for every client (421, nothing
+// while it runs (cmd/vedette: the Box address an administrator saves). The refusal is the same for every client (421, nothing
 // routed); only its body differs: a browser opening a page gets a short HTML page (misdirectedPage), an API client the JSON error.
 func HostAllowlistFunc(allowedHost func(host string) bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +52,7 @@ func HostAllowlistFunc(allowedHost func(host string) bool, next http.Handler) ht
 
 const misdirectedText = "This address is not one Vedette answers to. Open it with the name or address it was set up with."
 
-// misdirectedDoc is where the page sends the administrator: how to set the names the box answers to (D-542).
+// misdirectedDoc is where the page sends the administrator: how to set the names the box answers to.
 const misdirectedDoc = "https://github.com/KNT048/vedette/blob/main/docs/INSTALL-CONTAINER.md#2-say-where-it-lives"
 
 // wantsPage: a browser loading a page (GET or HEAD that accepts text/html) outside the API. /api/ paths and every other client keep

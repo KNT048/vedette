@@ -3,11 +3,11 @@ import { collectErrors, expectAccessible } from '../helpers'
 import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
 import { POST_V1_IN_UI } from '../../src/lib/postV1'
 
-// D-624 (#819): AI response is read-only in the v1 GUI and these walks edit its catalog and rules.
-test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
+// AI response is read-only in the v1 GUI and these walks edit its catalog and rules.
+test.skip(!POST_V1_IN_UI, 'post-v1 hidden')
 
 // WP-06 independent check, area 2: "As the admin I add my own response action for each kind of connection, and I use the template gallery."
-// Connections: Settings -> Connections (a command-started MCP server is not supported, D-94, so it is not in this list). Settings -> AI response -> Action catalog -> Add a custom action; Response -> Rules -> Template gallery; rule editor parameter types.
+// Connections: Settings -> Connections (a command-started MCP server is not supported, so it is not in this list). Settings -> AI response -> Action catalog -> Add a custom action; Response -> Rules -> Template gallery; rule editor parameter types.
 
 const KINDS = [
   { value: 'http', fields: { method: true, path: true, headers: true, body: true, cli: false, tool: false } },
@@ -30,7 +30,7 @@ async function addConnection(page: Page, kind: string) {
   await d.locator('#cn-allow').fill(kind === 'ssh' ? 'uname -a' : t)
   await d.getByRole('button', { name: /^(Add|Save)/ }).last().click()
   await expect(page.getByRole('heading', { name: new RegExp(`QA ${kind}`) })).toBeVisible()
-  // Write tools start OFF (D-41, D-51): the administrator turns the write tool on, then the connection can carry an action.
+  // Write tools start OFF: the administrator turns the write tool on, then the connection can carry an action.
   const w = page.getByRole('switch', { name: new RegExp(`^Tool (run_approved_command|send_request|apply_config|launch_job|run_action) enabled on QA ${kind}$`) })
   await expect(w, `${kind}: a write tool is offered`).toHaveCount(1)
   expect(await w.isChecked(), `${kind}: the write tool starts off`).toBe(false)
@@ -110,7 +110,7 @@ for (const theme of THEMES) {
     await dlg.getByRole('button', { name: 'Save' }).click()
     await shot('text-refused')
     console.log('ERR {text}', JSON.stringify(await dlg.locator('#ca-run-error').allTextContents()))
-    await expect(dlg.locator('#ca-run-error')).toBeVisible() // under the Action group (D-390)
+    await expect(dlg.locator('#ca-run-error')).toBeVisible() // under the Action group
     await dlg.locator('#ca-run-body').fill('{"limit":"{name}"}; rm')
     await dlg.getByRole('button', { name: 'Save' }).click()
     console.log('ERR shell-ish body', JSON.stringify(await dlg.locator('#ca-run-error').allTextContents()))

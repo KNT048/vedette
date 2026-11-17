@@ -28,7 +28,7 @@ const (
 	CodeProtoUnsupported = "proto_unsupported"
 	CodeRateLimited      = "rate_limited"
 	CodeStoreBusy        = "store_busy"
-	CodeNotReady         = "not_ready" // core cannot judge the request yet (passive: the box's own cards are unknown, D-385); never about the items
+	CodeNotReady         = "not_ready" // core cannot judge the request yet (passive: the box's own cards are unknown); never about the items
 	CodeInternal         = "internal"
 )
 

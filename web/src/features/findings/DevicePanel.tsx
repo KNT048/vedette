@@ -33,7 +33,7 @@ export function DevicePanel(props: Record<string, unknown>) {
   return (
     <>
     <Section id="device-findings" title={t('device.title')} description={t('device.description')} stories={['S-MIT-1']}>
-      {/* kien G8 (review r2 of #943): the device's To fix card whenever it has any action, recommended updates only included */}
+      {/* The device's To fix card whenever it has any action, recommended updates only included */}
       {card ? (actionable(card).some((a) => a.kind === 'distro')
         ? <WithBox>{(boxId) => <ul aria-label={t('device.todo')} className="mb-3 grid"><DeviceCard d={card} box={boxId === assetId} showName={false} /></ul>}</WithBox>
         : <ul aria-label={t('device.todo')} className="mb-3 grid"><DeviceCard d={card} box={false} showName={false} /></ul>) : null}
@@ -41,7 +41,7 @@ export function DevicePanel(props: Record<string, unknown>) {
         {(d) => d.items.length === 0 ? (
           card ? null : <p className="text-sm text-muted">{t('device.none')}</p>
         ) : (() => {
-          // kien G5: not relevant is hidden until asked for. kien G8 (review r1 of #943): what to do is the device's To fix card, the
+          // Not relevant is hidden until asked for. What to do is the device's To fix card, the
           // same answer and component as Findings (one grouping on the page); below it every finding of the device, one row each.
           const listed = withoutNotRelevant(d.items, showNotRelevant)
           const rest = listed.rows
@@ -75,7 +75,7 @@ export function DevicePanel(props: Record<string, unknown>) {
   )
 }
 
-/** D-613 (S-TIER-1): the updates to plan of this device, below its findings; never findings, never alerts. */
+/** S-TIER-1: the updates to plan of this device, below its findings; never findings, never alerts. */
 function DevicePlan({ assetId }: { assetId: string }) {
   const { t } = useTranslation('findings')
   const q = usePlan('all', assetId)
@@ -86,9 +86,9 @@ function DevicePlan({ assetId }: { assetId: string }) {
         {(d) => (
           <div className="grid gap-2">
             <PlanDataState plan={d} compact />
-            {/* kien G8: the updates themselves are on the device's To fix card above (one grouping on the page) */}
+            {/* The updates themselves are on the device's To fix card above (one grouping on the page) */}
             {d.compared && d.items.length === 0 && (d.data.epss === 'ready' || d.data.recent === 'ready') ? <p className="text-sm text-muted">{t('plan.device.none')}</p> : null}
-            {/* kien G5: the way to every update to plan only when this device has some (no link to an empty list) */}
+            {/* The way to every update to plan only when this device has some (no link to an empty list) */}
             {d.items.length > 0 ? <Link to="/plan" className="w-fit text-meta text-accent underline underline-offset-4">{t('plan.device.all')}</Link> : null}
           </div>
         )}
@@ -97,10 +97,10 @@ function DevicePlan({ assetId }: { assetId: string }) {
   )
 }
 
-/** D-499: "I updated <software>" for each hand-added software with findings; a scanned one is checked by a scan. */
+/** "I updated <software>" for each hand-added software with findings; a scanned one is checked by a scan. */
 function Updated({ items, software }: { items: FindingRow[]; software: SoftwareView[] | undefined }) {
   const asset = items.find((f) => f.asset)?.asset
-  // Any finding keeps it mounted (its dialog says what the re-match closed); it is shown only while one of them is open (kien G5)
+  // Any finding keeps it mounted (its dialog says what the re-match closed); it is shown only while one of them is open
   const manual = (software ?? []).filter((s) => s.source === 'manual' && items.some((f) => s.kev_cves.includes(f.cve)))
   if (!asset || manual.length === 0) return null
   const active = (s: SoftwareView) => items.some((f) => isOpen(f.status) && s.kev_cves.includes(f.cve))

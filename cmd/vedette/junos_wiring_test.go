@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// W1-32, D-510: the Juniper EX4200-48T of customer walk 1 is known only from LLDP (no IP, no software row). Its stated OS
+// The Juniper EX4200-48T of a test network is known only from LLDP (no IP, no software row). Its stated OS
 // "JUNOS 15.1R7.9" reaches the matcher through the real wiring: the device's discovery runs findings, the EX flaw becomes a
 // version finding, and the SRX-only one (same NVD range) does not, because CISA names SRX Series and the model is EX.
 func TestWiringLLDPJunosSwitchGetsItsFindings(t *testing.T) {
@@ -119,7 +119,7 @@ func TestWiringLLDPJunosSwitchFindingsOff(t *testing.T) {
 	}
 }
 
-// junosSwitch is a stack whose feeds list five Junos EX entries, and the frame the N100 switch's LLDP sends (D-515).
+// junosSwitch is a stack whose feeds list five Junos EX entries, and the frame the test switch's LLDP sends.
 func junosSwitch(t *testing.T) (s *stack, cves []string, lldp func()) {
 	t.Helper()
 	s = newStack(t)
@@ -157,7 +157,7 @@ func junosSwitch(t *testing.T) (s *stack, cves []string, lldp func()) {
 	return s, cves, lldp
 }
 
-// W1-37, D-515, review H2 of #722: the N100 switch. Its LLDP row holds the Junos findings (one marked a false positive by a person);
+// The test switch. Its LLDP row holds the Junos findings (one marked a false positive by a person);
 // when it joins the .47 device, the findings move with their status and nothing is created or announced again.
 func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
 	t.Parallel()
@@ -170,7 +170,7 @@ func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
 		t.Fatalf("findings of the LLDP row: %d (%v)", len(recs), err)
 	}
 	fp := recs[0]
-	if _, err := s.d.Findings.SetStatus(ctx, fp.ID, findings.ActionFalsePositive, "J-Web is off on this switch", "kien"); err != nil {
+	if _, err := s.d.Findings.SetStatus(ctx, fp.ID, findings.ActionFalsePositive, "J-Web is off on this switch", "anna"); err != nil {
 		t.Fatal(err)
 	}
 	h := observe.AssetHint{MAC: mgmt, IP: netip.MustParseAddr(ip)}
@@ -244,7 +244,7 @@ func TestWiringAFailedMoveKeepsTheFindings(t *testing.T) {
 }
 
 // Review r2 #4 of #803: the findings adapter hands the feeds' template flag and NVD's published day to the matcher; the age
-// rule never drops a pair whose CVE a safe template checks (D-616), and dates the CVE from them.
+// rule never drops a pair whose CVE a safe template checks, and dates the CVE from them.
 func TestWiringVulnsCarryTemplateAndPublished(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)

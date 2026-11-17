@@ -14,14 +14,14 @@ import (
 	"github.com/knt048/vedette/modules/scan/nucleiout"
 )
 
-// Nuclei as a second kind of job (D-125, sensor-protocol.md section 6.4 and 6.5, protocol 2). The scan module is the only
+// Nuclei as a second kind of job (sensor-protocol.md section 6.4 and 6.5, protocol 2). The scan module is the only
 // caller: it has decided the scope, the consent, the window and the templates and has written the probe rows (scan INV-1..7)
 // before it calls RunNuclei. The Dispatcher hands the job to the worker in the scan container through the nuclei slot, and
 // parses what comes back here, in core, fail closed (nucleiout): the worker is a process that talked to devices an attacker
 // may control, and may itself be compromised (SYS-6).
 
 // Errors of the nuclei path. ErrScannerUnavailable (and what wraps it) is "keep the targets, try again later, tell the user
-// the scanner is down" (503 scanner_unavailable, D-125 (5)); the others fail the run.
+// the scanner is down" (503 scanner_unavailable); the others fail the run.
 var (
 	ErrScannerUnavailable    = errors.New("sensoractive: the vulnerability scanner is not available")
 	ErrScanWorkerUnavailable = fmt.Errorf("%w: worker_unavailable", ErrScannerUnavailable)
@@ -35,20 +35,20 @@ var (
 	ErrPackInvalid     = errors.New("sensoractive: pack_invalid: the template pack in the scan image failed its integrity check")
 	ErrOutputTruncated = errors.New("sensoractive: nuclei printed more than the limit; its output is discarded")
 	// ErrOwnIPUnsupported: the worker's latest heartbeat does not say own_ip (an older worker, while an update runs): an own_ip
-	// job is never sent to it (D-520). Nothing was sent.
+	// job is never sent to it. Nothing was sent.
 	ErrOwnIPUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no own-IP nuclei job")
 	// ErrNucleiBusy: an own_ip job found the nuclei slot holding another job (a Scan now of the LAN may run up to an hour), and
-	// exposure's 5-minute step does not queue behind it (D-520). Nothing was sent.
+	// exposure's 5-minute step does not queue behind it. Nothing was sent.
 	ErrNucleiBusy = errors.New("sensoractive: the scan container's nuclei is busy with another scan")
-	// ErrNucleiFullUnsupported: the worker's latest heartbeat does not say nuclei.full (FULL-4, D-527): a job of depth full is never sent to it.
+	// ErrNucleiFullUnsupported: the worker's latest heartbeat does not say nuclei.full: a job of depth full is never sent to it.
 	// Nothing was sent.
 	ErrNucleiFullUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no deep nuclei job")
 	errJSONLTooBig           = errors.New("nuclei output is larger than the limit")
 )
 
-// NucleiRequest is one nuclei run (D-125 (1), D-136 (4) and (6)): template ids from the pack index, never paths; targets that
+// NucleiRequest is one nuclei run: template ids from the pack index, never paths; targets that
 // are canonical private IPv4 literals with a port, or for Scope nucleiargv.ScopeOwnIP exactly one public one, the box's own IP
-// (D-520: the caller has checked that, and the worker checks it again). The grammar is nucleiargv's; Dispatcher.RunNuclei checks
+// (the caller has checked that, and the worker checks it again). The grammar is nucleiargv's; Dispatcher.RunNuclei checks
 // it again before the job leaves, and the worker checks it a third time.
 type NucleiRequest struct {
 	PackVersion, PackSHA256 string
@@ -57,11 +57,11 @@ type NucleiRequest struct {
 	Rate                    int    // requests per second, 1..nucleiargv.MaxRate (own_ip: nucleiargv.OwnIPRate)
 	MaxHostErrors           int    // nucleiargv.MinHostErrors..MaxHostErrors
 	Scope                   string // "" (LAN) or nucleiargv.ScopeOwnIP
-	// FULL-4 (D-527): an own_ip run of depth nucleiargv.DepthFull (1..nucleiargv.MaxFullTemplates at nucleiargv.FullRate), and
+	// An own_ip run of depth nucleiargv.DepthFull (1..nucleiargv.MaxFullTemplates at nucleiargv.FullRate), and
 	// with Disruptive the disruptive set too. Sent only to a worker whose heartbeat said nuclei.full.
 	Depth      string
 	Disruptive bool
-	// Domain (D-591): a job of Scope sensorlink.ScopeDomainIP (depth full, one public target that is not the box's own egress) and
+	// Domain: a job of Scope sensorlink.ScopeDomainIP (depth full, one public target that is not the box's own egress) and
 	// its fence fields; sent only to a worker whose heartbeat says domain_ip, which checks the domain fence itself.
 	Domain *sensorlink.DomainScope
 }
@@ -116,7 +116,7 @@ func (r NucleiRequest) check() error {
 		return errors.New(`the LAN scope is "" in a request`)
 	}
 	scope := r.Scope
-	switch { // D-591: domain_ip is the full own_ip shape with the fence fields; nothing else carries them
+	switch { // domain_ip is the full own_ip shape with the fence fields; nothing else carries them
 	case r.Scope == sensorlink.ScopeDomainIP && r.Domain != nil && r.Depth == nucleiargv.DepthFull:
 		scope = nucleiargv.ScopeOwnIP
 	case r.Scope != sensorlink.ScopeDomainIP && r.Domain == nil:
@@ -151,7 +151,7 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 	if err := d.checkPack(r); err != nil {
 		return nucleiout.Outcome{}, err
 	}
-	if r.Scope == nucleiargv.ScopeOwnIP { // D-520: only a worker that said own_ip (and never queued behind a scan of the LAN: await)
+	if r.Scope == nucleiargv.ScopeOwnIP { // Only a worker that said own_ip (and never queued behind a scan of the LAN: await)
 		d.mu.Lock()
 		ok := d.nuclei.OwnIP
 		d.mu.Unlock()
@@ -159,7 +159,7 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 			return nucleiout.Outcome{}, ErrOwnIPUnsupported
 		}
 	}
-	if r.Domain != nil { // D-591: only a worker that holds the fence key
+	if r.Domain != nil { // Only a worker that holds the fence key
 		d.mu.Lock()
 		ok := d.domainIP
 		d.mu.Unlock()
@@ -167,7 +167,7 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 			return nucleiout.Outcome{}, ErrDomainUnsupported
 		}
 	}
-	if r.Depth != "" { // FULL-4 (D-527): only a worker that said full
+	if r.Depth != "" { // Only a worker that said full
 		d.mu.Lock()
 		ok := d.nuclei.Full
 		d.mu.Unlock()
@@ -215,7 +215,7 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 		d.log.WarnContext(ctx, "sensor_active_nuclei_host_errors_rejected", "error", err)
 		return nucleiout.Outcome{}, fmt.Errorf("%w: %w", ErrResultRejected, err)
 	}
-	if skip.Lines > 0 { // N45-1: kept, not a reason to drop the run; the caller notes it on the probe row
+	if skip.Lines > 0 { // Kept, not a reason to drop the run; the caller notes it on the probe row
 		d.log.WarnContext(ctx, "sensor_active_nuclei_lines_skipped", "lines", skip.Lines, "template", skip.Template, "host", skip.Host, "port", skip.Port)
 	}
 	return nucleiout.Outcome{Results: res, HostErrors: he, Skipped: skip}, nil
@@ -249,7 +249,7 @@ func (d *Dispatcher) nucleiOutcome(j *djob) ([]byte, error) {
 	case res.Status == "refused" && res.Reason == "pack_mismatch":
 		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // the image's pack is not the pack core planned with
 		return nil, ErrPackMismatch
-	case res.Status == "refused" && res.Reason == "not_own_ip": // the worker's own-IP fence of an own_ip job (D-520), as for nmap's external shape
+	case res.Status == "refused" && res.Reason == "not_own_ip": // the worker's own-IP fence of an own_ip job, as for nmap's external shape
 		d.log.Warn("sensor_active_worker_refused_own_ip_job", "reason", res.Reason)
 		return nil, fmt.Errorf("%w (%s): %w", ErrWorkerRefused, res.Reason, ErrNotOwnIP)
 	case res.Status == "refused" && res.Reason == "egress_unverified":

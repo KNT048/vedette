@@ -1,4 +1,4 @@
-// Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616): CVEs on no exploited list, grouped by the update that fixes them
+// Updates to plan (S-TIER-1, S-TIER-2): CVEs on no exploited list, grouped by the update that fixes them
 // on one device, as top tools group by fix in a view of their own (Microsoft Defender Vulnerability Management's security
 // recommendations, Tenable's remediations). Not findings: no status, no alert, no mitigation pack; every CVE one click away.
 import { useEffect, useRef, useState } from 'react'
@@ -28,7 +28,7 @@ function Severity({ c }: { c: PlanCve }) {
   return <span className="whitespace-nowrap text-meta">{t(`plan.sev.${c.severity}`)}{c.score !== null ? ` ${c.score.toFixed(1)}` : ''}</span>
 }
 
-/** The evidence chip of D-615: how Vedette knows the device has the flaw. */
+/** The evidence chip: how Vedette knows the device has the flaw. */
 export function EvidenceChip({ basis }: { basis: PlanCve['basis'] }) {
   const { t } = useTranslation('findings')
   // #824: the explanation is behind an ⓘ, not a hover-only title.
@@ -44,8 +44,8 @@ function yearAgo() {
   return new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10)
 }
 
-/** How many CVEs of an item, and how many items, show before "Show all" (D-623): an item can fix thousands (a Windows cumulative
- *  update fixed 2,786 on the N100), and the server already sorts them likely first, then by severity. */
+/** How many CVEs of an item, and how many items, show before "Show all": an item can fix thousands (a Windows cumulative
+ *  update fixed 2,786 on a test box), and the server already sorts them likely first, then by severity. */
 export const PLAN_FIRST = 50
 
 function CveList({ item }: { item: PlanItem }) {
@@ -54,7 +54,7 @@ function CveList({ item }: { item: PlanItem }) {
   const [all, setAll] = useState(false)
   const cves = all ? item.cves : item.cves.slice(0, PLAN_FIRST)
   const body = useRef<HTMLTableSectionElement>(null)
-  // review r1 #6 of #808: the button goes away, so focus moves to the first CVE it revealed, not back to the top of the page
+  // #808: the button goes away, so focus moves to the first CVE it revealed, not back to the top of the page
   useEffect(() => { if (all) body.current?.querySelectorAll('a')[PLAN_FIRST]?.focus() }, [all])
   return (
     <div className="mt-2 overflow-x-auto rounded-md border border-rule bg-surface">
@@ -99,7 +99,7 @@ function CveList({ item }: { item: PlanItem }) {
   )
 }
 
-/** What the chips of this list mean, as text (review r1 #15 of #803: a `title` alone is out of reach of keyboard and touch). */
+/** What the chips of this list mean, as text (#803: a `title` alone is out of reach of keyboard and touch). */
 function Legend({ item }: { item: PlanItem }) {
   const { t } = useTranslation('findings')
   const tiers = [...new Set(item.cves.map((c) => c.tier))]
@@ -154,7 +154,7 @@ export function PlanItems({ items, showDevice, likelyOnly = false }: { items: Pl
   )
 }
 
-/** The two feeds of this page (D-614) by the name the plan API gives them. */
+/** The two feeds of this page by the name the plan API gives them. */
 const FEED_ID = { epss: 'epss-all', recent: 'nvd-recent' } as const
 type TierFeed = keyof typeof FEED_ID
 /** Settings › Feeds, at the switch of the first feed named (docs/UI.md §0: the exact place, not "see Settings"). */
@@ -210,7 +210,7 @@ function TurnOnModule() {
   )
 }
 
-/** Why the list is empty or partial (D-613 states, review r1 #4 of #803): first that this version does not compare yet (then nothing
+/** Why the list is empty or partial (#803): first that this version does not compare yet (then nothing
  *  invites anyone to turn feeds on: they would load ~105,000 NVD records for nothing), else the feeds module off, a feed off or still
  *  loading. null when the data is there and compared. Every missing piece is turned on right here by an administrator (docs/UI.md §0). */
 export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?: boolean }) {

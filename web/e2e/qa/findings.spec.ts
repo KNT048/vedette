@@ -1,4 +1,4 @@
-// QA như người dùng thật cho module findings (D-23, UI chỉ tiếng Anh D-28): IT operator, director (viewer), first-time clean install.
+// QA như người dùng thật cho module findings (UI chỉ tiếng Anh): IT operator, director (viewer), first-time clean install.
 // Spec độc lập, tự dựng dữ liệu; chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/findings.spec.ts
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
@@ -12,7 +12,7 @@ async function sample(page: Page) {
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
   await expect(page).toHaveURL(/\/setup/)
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Use sample data' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
@@ -23,9 +23,9 @@ async function clean(page: Page) {
   await page.goto('/setup')
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // D-75: the code the mock accepts
+  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // The code the mock accepts
   await page.getByLabel('Organization name', { exact: true }).fill('Test Company')
   await page.getByLabel('Administrator name', { exact: true }).fill('Test Admin')
   await page.getByLabel('Sign-in email', { exact: true }).fill('admin@test.example')
@@ -207,7 +207,7 @@ test.describe('findings: clean install', () => {
     const errors = collectErrors(page)
     await clean(page)
     await page.goto('/findings')
-    // D-53: the box is the first device and its own packages match the exploited list, so a clean install is not empty
+    // The box is the first device and its own packages match the exploited list, so a clean install is not empty
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('1 unresolved finding, 0 confirmed')
     await expect(page.locator('body')).not.toContainText('NAS')
     await page.locator('a[href^="/findings/"]:visible').first().click()

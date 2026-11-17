@@ -34,7 +34,7 @@ func get(c *transport.Client, url string) (*transport.Response, error) {
 	return c.Do(context.Background(), transport.Auth{Type: "none"}, transport.Request{URL: url})
 }
 
-// D-94 (1): trust on first use, then the pin; a changed certificate is refused and nothing is sent.
+// Trust on first use, then the pin; a changed certificate is refused and nothing is sent.
 func TestHTTPSPinTOFUThenMismatch(t *testing.T) {
 	t.Parallel()
 	f := conntest.NewHTTPS(t, nil)
@@ -93,7 +93,7 @@ func TestHTTPSTrustedByRootsNeedsNoPin(t *testing.T) {
 	}
 }
 
-// D-94 (1): a redirect is an answer, never an instruction.
+// A redirect is an answer, never an instruction.
 func TestHTTPSDoesNotFollowRedirects(t *testing.T) {
 	t.Parallel()
 	var landed atomic.Int32
@@ -113,7 +113,7 @@ func TestHTTPSDoesNotFollowRedirects(t *testing.T) {
 	}
 }
 
-// D-94 (1): no proxy from the environment: it would carry the request past the address policy.
+// No proxy from the environment: it would carry the request past the address policy.
 func TestHTTPSIgnoresProxyEnvironment(t *testing.T) { //nolint:paralleltest // t.Setenv
 	var proxied atomic.Int32
 	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
@@ -181,7 +181,7 @@ func TestHTTPSDeadlineEndsAHungCall(t *testing.T) {
 		t.Fatalf("err = %v after %v: a hung device must not hold the call", err, time.Since(start))
 	}
 	if transport.CallTimeout != 15*time.Second || transport.ConnectTimeout != 5*time.Second || transport.MaxResponse != 1<<20 || transport.MaxRequest != 64<<10 {
-		t.Fatal("the limits of D-94 changed")
+		t.Fatal("the transport limits changed")
 	}
 }
 
@@ -293,7 +293,7 @@ func TestHTTPSPinIsThePublicKey(t *testing.T) {
 	}
 }
 
-// D-174: the names a token may not be sent in, one list with the mock of the GUI (both read auth_header_refused.json).
+// The names a token may not be sent in, one list with the mock of the GUI (both read auth_header_refused.json).
 func TestValidAuthHeaderRefusesTheSharedList(t *testing.T) {
 	raw, err := os.ReadFile("../../../../web/src/features/core/testdata/auth_header_refused.json")
 	if err != nil {

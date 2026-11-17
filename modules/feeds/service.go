@@ -40,16 +40,16 @@ const (
 	EventRangesUpdated = "feeds.ranges.updated"
 )
 
-// RangesUpdatedEvent is published after a pull of the NVD affected versions (nvd-kev, D-500) changed the entries of
+// RangesUpdatedEvent is published after a pull of the NVD affected versions (nvd-kev) changed the entries of
 // some CVEs: findings must match the devices again. First is true when the table was empty before (the first fill:
-// like the baseline of D-78, nothing it causes is news).
+// like the baseline, nothing it causes is news).
 type RangesUpdatedEvent struct {
 	CVEs  []string `json:"cves"`
 	First bool     `json:"first"`
 }
 
 // SyncBaselineEvent is published once, instead of one NewKEVEvent per CVE, when the first pull of the CISA list
-// fills an empty database (D-78). Subscribers recompute everything once; notify sends nothing for it.
+// fills an empty database. Subscribers recompute everything once; notify sends nothing for it.
 type SyncBaselineEvent struct {
 	Source string `json:"source"` // "cisa-kev"
 	Count  int    `json:"count"`  // CVEs the pull added
@@ -95,12 +95,12 @@ type Deps struct {
 	Events Publisher
 	// Fetcher does every pull; the zero value works (guarded client). Set Version for the User-Agent.
 	Fetcher Fetcher
-	// KEVPrimary and KEVFallback are the two addresses of the CISA list (D-91); empty means the built-in CISA address and
+	// KEVPrimary and KEVFallback are the two addresses of the CISA list; empty means the built-in CISA address and
 	// KEVMirrorURL. Tests point them at fake servers. The fallback applies only while the feed still uses KEVPrimary.
 	KEVPrimary, KEVFallback string
 	// Clock is time.Now when nil; tests inject a fake.
 	Clock func() time.Time
-	// Alert sends a notice to the admins through notify (D-629: the CISA list cannot be updated, critical; it is up to date again, not
+	// Alert sends a notice to the admins through notify (the CISA list cannot be updated, critical; it is up to date again, not
 	// critical). id names the alert; notify does not dedupe such notices once sent, so the watch records an alert before it queues it.
 	// ErrAlertOff (notify off) makes the watch try again later. nil: no alerts (tests, a box without notify).
 	Alert func(ctx context.Context, id, title, text string, critical bool) error
@@ -118,16 +118,16 @@ type Service struct {
 	seedMu sync.Mutex
 	seeded bool
 
-	unknownLogged atomic.Bool // the "waiting for the box's addresses" debug line is written once (D-208)
+	unknownLogged atomic.Bool // the "waiting for the box's addresses" debug line is written once
 
 	afterChunk func(chunk int) // tests: runs after each chunk of an indicator list has committed
 
 	idleMu     sync.Mutex
-	distroIdle map[string]bool // D-570: the distribution feeds the last check found no device for
+	distroIdle map[string]bool // The distribution feeds the last check found no device for
 
 	nvdMu  sync.Mutex
-	nvd    *nvdRun         // the NVD pull running now, or paused to go on later (W3-1); nil when none
-	recent *recentProgress // where an unfinished nvd-recent pull stands, for its progress line (D-614); nil when none
+	nvd    *nvdRun         // the NVD pull running now, or paused to go on later; nil when none
+	recent *recentProgress // where an unfinished nvd-recent pull stands, for its progress line; nil when none
 	// recentAt is when a paused nvd-recent pull goes on: the retry time NVD's busy answer set (review r2 #6 of #802); zero when it goes
 	// on at the next check.
 	recentAt time.Time
@@ -180,7 +180,7 @@ type feedGate struct {
 
 // lockFeed takes the pull lock of a feed. When another pull of the feed holds it, the caller joins that pull: it
 // waits for it to end (or for ctx) and gets joined true without the lock, so a second "Fetch now" or a job tick
-// during a pull never starts a second pull (W3-1: two NVD pulls 0.3 s apart got HTTP 503). The returned func
+// during a pull never starts a second pull (two NVD pulls 0.3 s apart got HTTP 503). The returned func
 // releases the lock.
 func (s *Service) lockFeed(ctx context.Context, id string) (release func(), joined bool, err error) {
 	s.mu.Lock()
@@ -239,7 +239,7 @@ func (s *Service) ready(ctx context.Context) error {
 	if err := s.Seed(ctx); err != nil {
 		return err
 	}
-	if err := s.LearnWindowsReleases(ctx); err != nil { // D-603: the last good list; a helper table never stops the feeds (review r1 L2)
+	if err := s.LearnWindowsReleases(ctx); err != nil { // The last good list; a helper table never stops the feeds (review r1 L2)
 		s.Log.ErrorContext(ctx, "reading the Windows releases failed", "error", err)
 	}
 	s.seeded = true
@@ -274,7 +274,7 @@ func (s *Service) writeDeclaring(ctx context.Context, fn func(tx *sql.Tx) error)
 }
 
 // declareDevice asks the inventory for the manual device of "I have it" (S-FEED-2, INV-14) inside tx and records the
-// device's id on the answer, once (D-484: the "I have this" scope is that device's only).
+// device's id on the answer, once (the "I have this" scope is that device's only).
 func (s *Service) declareDevice(ctx context.Context, tx *sql.Tx, actor, key string, v VulnRow) error {
 	d := ManualDevice{Kind: KindOf(key), Vendor: v.Vendor, Product: v.Product, Display: DisplayOf(v.Vendor, v.Product), Key: key}
 	id, err := s.Inventory.AddManualDevice(ctx, tx, actor, d)
@@ -291,7 +291,7 @@ func (s *Service) declareDevice(ctx context.Context, tx *sql.Tx, actor, key stri
 }
 
 // HaveWindow is how far before the answered entry "I have this" reaches back: the 7 days of "This week" on Home, so the
-// other entries of that product the same week also become findings (D-484).
+// other entries of that product the same week also become findings.
 const HaveWindow = 7 * 24 * time.Hour
 
 // reconcileDevices adds the "I have it" devices that were answered while the inventory was off, once it is on

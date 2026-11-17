@@ -887,7 +887,7 @@
     "toModules": "Open Settings, Modules",
     "profile": {
       "title": "Pick the AI profile for response plans (this starts the AI)",
-      "body": "No profile is chosen for this job by default (D-181): the plans run on their own, so an administrator picks the AI that writes them. Do this last: the AI writes one plan per finding when it first sees it, and sends its actions to this inbox only if steps 1, 2 and 4 are done at that moment. A plan written earlier stays in the plan list below, where you ask for approval yourself.",
+      "body": "No profile is chosen for this job by default: the plans run on their own, so an administrator picks the AI that writes them. Do this last: the AI writes one plan per finding when it first sees it, and sends its actions to this inbox only if steps 1, 2 and 4 are done at that moment. A plan written earlier stays in the plan list below, where you ask for approval yourself.",
       "label": "AI profile for Response plans",
       "noneChosen": "None (no plans)",
       "cloudBlocked": "not allowed: internal data goes to internal profiles only",
@@ -967,7 +967,7 @@
       "later": "Next run"
     },
     "triggers": "Which triggers the AI may use",
-    "triggersBody": "The AI may only use a trigger that something the box recorded can prove happened (D-119): a finding, a known-bad connection or a read of a device. The others are for rules.",
+    "triggersBody": "The AI may only use a trigger that something the box recorded can prove happened: a finding, a known-bad connection or a read of a device. The others are for rules.",
     "trigger": {
       "asked": "the AI may use it, and the box asks the AI about it every 5 minutes.",
       "notAllowed": "the AI could use it, but it is not allowed in Settings, AI requests.",

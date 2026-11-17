@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// The domain fence (FULL-5 slice 2, D-591, host-api §6.17, plan 2026-11-14 §5). vedette-host makes the box's fence key at its start when
+// The domain fence (host-api §6.17). vedette-host makes the box's fence key at its start when
 // it is missing: <state>/fence.key, 32 random bytes, 0600, owned by the host's owner (root). Core never holds it: core asks
 // exposure.token for a verified domain's box-bound token, and every executor checks a domain_ip job against the key itself.
 //
@@ -31,7 +31,7 @@ import (
 // sensor user), mounted at the same path by the scan unit only (scanUnitText); core's unit never mounts them nor the host's state
 // directory. The directory is made even when the key is not usable (review r1 L1): the scan unit's mount needs it, and a worker
 // without a key simply runs no domain_ip job. zap.baseline (kind domain, box-bound token) and exposure.fence_check (OpenVAS, asked by
-// core: advisory, D-591 (3)) check the fence here.
+// core: advisory) check the fence here.
 
 const (
 	fenceKeyName     = "fence.key"
@@ -342,7 +342,7 @@ func (o *Ops) exposureToken(a api.ExposureTokenArgs) (any, error) {
 	if err := tokenArgs(a); err != nil {
 		return nil, err
 	}
-	// D-628 (review r2 L4 of #941): the host does not trust core, so it never issues a token for a public suffix (co.uk, ddns.net,
+	// The host does not trust core, so it never issues a token for a public suffix (co.uk, ddns.net,
 	// github.io: the Public Suffix List, both sections), whose record at _vedette-verify.<suffix> could otherwise prove every customer's
 	// name under it at the fence. Forgetting one stays possible.
 	if proofat.IsPublicSuffix(a.Domain) {
@@ -368,7 +368,7 @@ func fenceJob(a api.ExposureFenceCheckArgs) (domainfence.Job, error) {
 	if err := j.Valid(); err != nil {
 		return domainfence.Job{}, server.Invalid("domain", err.Error())
 	}
-	// D-632: the host trusts no core: the parent name a record is looked for on lies between the domain and its registered domain,
+	// The host trusts no core: the parent name a record is looked for on lies between the domain and its registered domain,
 	// never on or above a public suffix (co.uk, ddns.net, github.io, s3.amazonaws.com; review r1 L1 of #960)
 	if j.ProofAt != "" && !proofat.Within(j.Domain, j.ProofAt) {
 		return domainfence.Job{}, server.Invalid("proof_at", "must be a parent name of the domain, down to its registered domain")
@@ -377,7 +377,7 @@ func fenceJob(a api.ExposureFenceCheckArgs) (domainfence.Job, error) {
 }
 
 // cmdExposureFenceCheck is exposure.fence_check (host-api §6.17): the fence of an OpenVAS scan of a domain's address, right before the
-// task starts and every 3 minutes while it runs (core asks; D-591 says why that is weaker than the scan container's fence). Every
+// task starts and every 3 minutes while it runs (core asks; that is weaker than the scan container's fence). Every
 // answer is a run, so the audit chain holds each refusal.
 func (o *Ops) cmdExposureFenceCheck() server.Command {
 	return server.Define(server.Spec[api.ExposureFenceCheckArgs]{

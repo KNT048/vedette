@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// W3-6 (W2-4): a box whose schedule never ran shows, and runs, its first scheduled run in the next window of any window day, not on
+// A box whose schedule never ran shows, and runs, its first scheduled run in the next window of any window day, not on
 // the weekly weekday. Customer walk: Friday 13 Nov 14:40 with the default weekly Sunday 23:00 and 22:00-05:00 every day showed
 // "15 Nov 2026, 23:00"; tonight's window is allowed, so the first run is tonight. From the second run on the weekday counts again.
 // The clock is the env's fake clock: no real time passes.
@@ -88,7 +88,7 @@ func TestSchedule_FirstRunWaitsForASlotAfterTheSetup(t *testing.T) {
 	}
 }
 
-// W3-9: the N100's own row. The weekly Sunday 8 Nov 23:00 (+07) slot was recorded (missed or nothing to scan) before any scheduled
+// A test box's own row. The weekly Sunday 8 Nov 23:00 (+07) slot was recorded (missed or nothing to scan) before any scheduled
 // run, the box kept the defaults (updated_at NULL) and only manual scans ran. The first-run period ends with the first scheduled run
 // that starts, not with the first recorded slot: on Friday 13 Nov 18:39 in the office, next run is tonight 23:00 and that slot runs.
 func TestSchedule_FirstRunAfterARecordedSlotWithoutARun(t *testing.T) {

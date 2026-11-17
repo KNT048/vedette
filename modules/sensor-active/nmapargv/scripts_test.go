@@ -38,7 +38,7 @@ func nse795(t *testing.T) [2]map[string][]string {
 	return out
 }
 
-// TestScriptListsAreReviewed (FULL-4, review r1 M2/M3/L5/L6): the two lists are sorted, unique and disjoint; every name is one
+// TestScriptListsAreReviewed: the two lists are sorted, unique and disjoint; every name is one
 // nmap 7.95 resolved for its expression; none is excluded; no excluded name ever enters; every brute script keeps no output.
 func TestScriptListsAreReviewed(t *testing.T) {
 	t.Parallel()

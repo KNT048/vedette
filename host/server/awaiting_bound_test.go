@@ -25,7 +25,7 @@ func TestAwaiting_TheBoundCountsTheTimeTheRunAlreadyTook(t *testing.T) {
 		})
 	}
 	// edge_ok fits as long as the run took less than 30 s (hangBound); edge_over is over only because the 150 ms the
-	// command spent count. Neither depends on the speed of the machine (D-373).
+	// command spent count. Neither depends on the speed of the machine.
 	h := prepareAwait(t, []server.Command{slow("test.edge_ok", 660*time.Second-hangBound), slow("test.edge_over", 660*time.Second-100*time.Millisecond)})
 	h.Serve(t)
 	ok := run(t, h.Client, "test.edge_ok", nil, rid1)

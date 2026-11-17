@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
-// D-527: the deep and disruptive sets next to the KEV set, on fixture templates.
+// The deep and disruptive sets next to the KEV set, on fixture templates.
 const techTpl = `id: nginx-version
 
 info:
@@ -108,7 +108,7 @@ func TestBuildSets(t *testing.T) {
 	t.Parallel()
 	src, out := t.TempDir(), t.TempDir()
 	write(t, src, "http/cves/2024/CVE-2024-3400.yaml", httpKEV)                                                                                                         // kev + deep
-	write(t, src, "http/cves/2024/CVE-2024-2862.yaml", strings.ReplaceAll(strings.Replace(httpKEV, "method: GET", "method: PUT", 1), "CVE-2024-3400", "CVE-2024-2862")) // a write: out of every set (D-528)
+	write(t, src, "http/cves/2024/CVE-2024-2862.yaml", strings.ReplaceAll(strings.Replace(httpKEV, "method: GET", "method: PUT", 1), "CVE-2024-3400", "CVE-2024-2862")) // a write: out of every set
 	write(t, src, "http/technologies/nginx-version.yaml", techTpl)
 	write(t, src, "http/exposures/configs/git-config.yaml", gitTpl)
 	write(t, src, "http/exposed-panels/nginx-admin-panel.yaml", nginxPanel)
@@ -146,7 +146,7 @@ func TestBuildSets(t *testing.T) {
 		"nginx-version":        {"deep"},
 		"git-config":           {"deep"},
 		"nginx-admin-panel":    {"deep"},
-		"some-sqli":            {"disruptive"}, // D-528 step 2: a POST nobody reviewed runs only behind the tick
+		"some-sqli":            {"disruptive"}, // A POST nobody reviewed runs only behind the tick
 		"tomcat-default-login": {"disruptive"},
 		"dos-x":                {"disruptive"},
 	}

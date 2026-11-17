@@ -8,9 +8,9 @@ import (
 )
 
 // The public-IP check lives in core/egressip, so the scan container's worker can run the same code for its own-IP fence right
-// before nmap -sV (D-514, plan exposure-real-vulns §1.3). These names keep exposure's API as it was.
+// before nmap -sV (plan exposure-real-vulns §1.3). These names keep exposure's API as it was.
 
-// DefaultServices are the three independent public "what is my IP" services the box asks (D-81, PRIVACY flow 9).
+// DefaultServices are the three independent public "what is my IP" services the box asks (PRIVACY flow 9).
 var DefaultServices = egressip.DefaultServices
 
 // The two ways a round can end without an address.

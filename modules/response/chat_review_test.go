@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// Review of slice 13b-8 (D-135 (7) to (9) and the lows): the chat rate table, the volume of the log, detached runs, the recheck under the
+// Tests of slice 13b-8: the chat rate table, the volume of the log, detached runs, the recheck under the
 // lock, and the gaps of the first round.
 
 // ---- M1: the rate table ----

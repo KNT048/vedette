@@ -39,10 +39,10 @@ func (e *env) idOf(ip string) string {
 	return id
 }
 
-// D-474 (MK-1, B9a): inventory.asset.discovered says learning when the source that found the device first reported to this box less
+// MK-1, B9a: inventory.asset.discovered says learning when the source that found the device first reported to this box less
 // than 36 hours ago, per source: a sensor added on day 3 learns for its own 36 hours, and the box's own data (EnsureBox, its dpkg
 // list) is no source's first contact. notify keeps its meaning.
-func TestContract_D474_DiscoveredWhileTheSourceIsLearning(t *testing.T) {
+func TestContract_DiscoveredWhileTheSourceIsLearning(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, withBox(fakeBox{items: []inventory.SoftwareItem{{Display: "openssl", Vendor: "OpenSSL", Product: "OpenSSL", Version: "3.0.13", Packaged: true}}}))
 	if _, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette", IP: "192.168.20.2", OS: "Ubuntu 26.04"}); err != nil {
@@ -105,9 +105,9 @@ func TestContract_D474_DiscoveredWhileTheSourceIsLearning(t *testing.T) {
 	}
 }
 
-// D-474 (B9b): a person's Approve publishes inventory.asset.approved {asset_id, actor} after the commit, once per approval (approving
-// again to clear a mark is no approval); the osquery enrolment's automatic approval (D-503) does not. A person's delete names them too.
-func TestContract_D474_ApprovedNamesThePerson(t *testing.T) {
+// B9b: a person's Approve publishes inventory.asset.approved {asset_id, actor} after the commit, once per approval (approving
+// again to clear a mark is no approval); the osquery enrolment's automatic approval does not. A person's delete names them too.
+func TestContract_ApprovedNamesThePerson(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	for _, mac := range []string{"52:54:00:00:01:01", "52:54:00:00:01:02"} {
@@ -159,10 +159,10 @@ func TestContract_D474_ApprovedNamesThePerson(t *testing.T) {
 	}
 }
 
-// D-474 (MK-2): every software row the findings matcher reads says where it came from (agent, manual, scan…) and whether an agent row
+// MK-2: every software row the findings matcher reads says where it came from (agent, manual, scan…) and whether an agent row
 // came from the operating system's package database (deb/rpm), so findings says "install your distribution's security updates" only
 // for those. A later report of the same row takes the new origin.
-func TestContract_D474_MatchSoftwareSaysWhereItCameFrom(t *testing.T) {
+func TestContract_MatchSoftwareSaysWhereItCameFrom(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.20.30")}
@@ -201,7 +201,7 @@ func TestContract_D474_MatchSoftwareSaysWhereItCameFrom(t *testing.T) {
 	}
 }
 
-// D-474 (the small extra of #716): DeviceRefs carries the model, the origin and when the device was approved, so notify names a
+// the small extra of #716: DeviceRefs carries the model, the origin and when the device was approved, so notify names a
 // device from one batch read.
 func TestDeviceRefsCarryModelOriginAndApproval(t *testing.T) {
 	t.Parallel()
@@ -229,7 +229,7 @@ func TestDeviceRefsCarryModelOriginAndApproval(t *testing.T) {
 	}
 }
 
-// D-474 (migration inventory 0005): a box that ran before the learning window gives every source that already reported its earliest
+// migration inventory 0005: a box that ran before the learning window gives every source that already reported its earliest
 // device as first contact, so an upgrade does not start a learning period for sensors that have watched the network for weeks; a
 // source that never reported learns from its first report. Software rows from before say packaged=false until the agent reports again.
 func TestMigration0005SeedsTheFirstContactOfEverySource(t *testing.T) {
@@ -295,9 +295,9 @@ func TestMigration0005SeedsTheFirstContactOfEverySource(t *testing.T) {
 	}
 }
 
-// D-474 (review #721 LOW-1): a first contact recorded while the box clock was ahead is moved back to now when the clock is corrected,
+// A first contact recorded while the box clock was ahead is moved back to now when the clock is corrected,
 // so the window is at most 36 hours of the corrected clock, not 36 hours plus however far ahead the clock was.
-func TestContract_D474_AFirstContactInTheFutureIsMovedToNow(t *testing.T) {
+func TestContract_AFirstContactInTheFutureIsMovedToNow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	passive := func(mac string) {

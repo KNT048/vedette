@@ -49,7 +49,7 @@ func flow12(s *stack) string {
 	return ""
 }
 
-// The connection store in the real wiring (D-93): the Privacy page follows the enabled connections (flow 12), the response
+// The connection store in the real wiring: the Privacy page follows the enabled connections (flow 12), the response
 // catalog lists them with the write tools that are on, and response's fingerprint is core/conn's.
 func TestWiringConnections(t *testing.T) {
 	t.Parallel()
@@ -248,7 +248,7 @@ func TestDefaultGatewayFromProcNetRoute(t *testing.T) {
 	}
 }
 
-// D-446 deferred line: the IPv6 default gateway of the container is the machine too.
+// The IPv6 default gateway of the container is the machine too.
 func TestDefaultGatewayFromProcNetIPv6Route(t *testing.T) {
 	t.Parallel()
 	const zero = "00000000000000000000000000000000"
@@ -316,7 +316,7 @@ func TestPrivacyFlow12IsOnWhenTheStoreCannotBeRead(t *testing.T) {
 	}
 }
 
-// The reader the ai module is given (D-93 (3)): built with the store, it lists the read tools of a ready connection and calls one
+// The reader the ai module is given: built with the store, it lists the read tools of a ready connection and calls one
 // through the same dialer, with the box's own addresses refused at dial time.
 func TestWiringConnReader(t *testing.T) {
 	t.Parallel()
@@ -327,7 +327,7 @@ func TestWiringConnReader(t *testing.T) {
 	f := conntest.NewHTTPS(t, nil)
 	in := connInput("Reader", "tok-0123456789-abcdef")
 	in.Target, in.Allow = f.URL, []string{f.URL + "/api/x"}
-	in.Tools = append(in.Tools, conn.ToolInput{Name: "fetch_url", Enabled: true}) // a read tool of an HTTP kind starts off (D-127)
+	in.Tools = append(in.Tools, conn.ToolInput{Name: "fetch_url", Enabled: true}) // a read tool of an HTTP kind starts off
 	c := s.connCreate(in)
 	if tools, err := s.d.ConnReader.ListReadTools(t.Context()); err != nil || len(tools) != 0 {
 		t.Fatalf("an untested connection lists %v, %v", tools, err)

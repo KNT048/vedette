@@ -1,21 +1,21 @@
 // Cấu hình agent (S-INV-4). Chỉ hai đường: osquery (Linux và Windows Server; Vedette là máy chủ TLS của osquery) và Wazuh (Vedette kéo qua API, không cài gì lên máy agent).
-// KHÔNG hỗ trợ Trivy, KHÔNG macOS: Vedette chỉ hỗ trợ hệ điều hành máy chủ (chủ dự án, D-33).
+// KHÔNG hỗ trợ Trivy, KHÔNG macOS: Vedette chỉ hỗ trợ hệ điều hành máy chủ (chủ dự án).
 // Đối chiếu tài liệu hãng (2026-11-06):
 // - osquery TLS: cờ config_plugin/logger_plugin=tls, enroll_secret_path, tls_server_certs, tls_hostname (kèm cổng, không https://), enroll/config/logger_tls_endpoint, host_identifier.
 //   https://osquery.readthedocs.io/en/stable/deployment/remote/
 // - osquery lịch truy vấn: JSON "schedule" (query, interval giây, snapshot, platform). https://osquery.readthedocs.io/en/stable/deployment/configuration/
-// - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses, kernel_info (D-516: cột
+// - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses, kernel_info (cột
 //   `version` là kernel đang chạy, "7.0.0-43-generic", câu một dòng riêng; hộp gắn nó vào danh sách gói để dòng Kernel lấy đúng ảnh kernel đang chạy). https://osquery.io/schema/
-//   (D-524: `os_revision` đọc cột `revision` của os_version, chỉ có trên Windows từ osquery 5.12: UBR, bản vá tháng, "22631.4460"; osquery tự đọc
+//   (`os_revision` đọc cột `revision` của os_version, chỉ có trên Windows từ osquery 5.12: UBR, bản vá tháng, "22631.4460"; osquery tự đọc
 //   HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\UBR. https://github.com/osquery/osquery/blob/5.12.1/specs/os_version.table)
-//   (D-606: câu `programs` đọc thêm đúng một giá trị registry, PatchLevel của khoá Setup mỗi phiên bản SQL Server
+//   (câu `programs` đọc thêm đúng một giá trị registry, PatchLevel của khoá Setup mỗi phiên bản SQL Server
 //   HKLM\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL<n>.<instance>\Setup: bản dựng đã cài gồm cả CU; mục Uninstall chung
 //   "Microsoft SQL Server 2022 (64-bit)" không có DisplayVersion. https://learn.microsoft.com/en-us/troubleshoot/sql/releases/components-client-tools-versions ,
 //   https://github.com/osquery/osquery/blob/5.12.1/specs/windows/registry.table)
-//   (INV-22, kien 2026-11-17: `listening_ports` JOIN `processes` cho Open services của máy chỉ có agent; Linux chỉ namespace mạng của
+//   (INV-22: `listening_ports` JOIN `processes` cho Open services của máy chỉ có agent; Linux chỉ namespace mạng của
 //   pid 1 (process_namespaces), Windows không có cột net_namespace nên câu riêng. https://osquery.io/schema/ listening_ports, process_namespaces)
-//   (D-169 (7): `interfaces` cho hộp biết MAC/IP của máy để khớp thiết bị; bỏ cpu_brand, physical_memory, patches vì kho không có trường nào cho chúng.)
-// - osquery cài: gói chính thức do CHÍNH HỘP phục vụ (D-404: hộp là nguồn duy nhất, không pkg.osquery.io, không Chocolatey), kiểm SHA-256 bằng giá trị trên
+//   (`interfaces` cho hộp biết MAC/IP của máy để khớp thiết bị; bỏ cpu_brand, physical_memory, patches vì kho không có trường nào cho chúng.)
+// - osquery cài: gói chính thức do CHÍNH HỘP phục vụ (hộp là nguồn duy nhất, không pkg.osquery.io, không Chocolatey), kiểm SHA-256 bằng giá trị trên
 //   trang đã đăng nhập rồi mới cài: `dpkg -i` / `rpm -Uvh` (https://osquery.readthedocs.io/en/stable/installation/install-linux/); MSI cài vào
 //   C:\Program Files\osquery, manage-osqueryd.ps1 -install -startupArgs, Start-Service osqueryd (https://osquery.readthedocs.io/en/stable/installation/install-windows/).
 // - Wazuh API: cổng 55000, POST /security/user/authenticate (-u user:pass, ?raw=true), policy/role/user qua POST /security/policies|roles|users, nối bằng
@@ -32,7 +32,7 @@ export interface ConfigStep { key: string; file: string; code: string }
 const hostOf = (serverUrl: string) => serverUrl.replace(/^https:\/\//, '')
 
 /** Lịch truy vấn Vedette cần (gửi qua config endpoint; hiện ở đây để người dùng biết thu thập gì). Chỉ đọc, không có truy vấn ghi hay chạy lệnh.
- *  Giờ đầu sau khi đăng ký, câu nào kho chưa nhận thì hỏi mỗi phút (D-503, `queriesBody`); `--config_refresh=300` cho máy quay về lịch này. */
+ *  Giờ đầu sau khi đăng ký, câu nào kho chưa nhận thì hỏi mỗi phút (`queriesBody`); `--config_refresh=300` cho máy quay về lịch này. */
 export const OSQUERY_SCHEDULE = JSON.stringify({
   schedule: {
     os_version: { query: 'SELECT name, version, major, minor, patch, build, platform, arch FROM os_version;', interval: 3600, snapshot: true },
@@ -48,7 +48,7 @@ export const OSQUERY_SCHEDULE = JSON.stringify({
   },
 }, null, 2)
 
-/** Các bước cài thủ công ("Advanced: manual setup"). `token` là secret thật (chỉ lúc vừa tạo) hoặc "<TOKEN>". Gói tải từ chính hộp (D-404) và kiểm
+/** Các bước cài thủ công ("Advanced: manual setup"). `token` là secret thật (chỉ lúc vừa tạo) hoặc "<TOKEN>". Gói tải từ chính hộp và kiểm
  *  bằng SHA-256 của `packages` (trang đã đăng nhập) trước khi cài, sai thì không cài; hộp không có gói nào → không có bước cài (giao diện nói lý do).
  *  Một lệnh cho cả x86_64 và arm64: tên gói theo `dpkg --print-architecture` (amd64, arm64) hay `uname -m` (x86_64, aarch64), đúng tên tệp của hộp. */
 export function osquerySteps(platform: Platform, serverUrl: string, token: string, packages: OsqueryPackage[]): ConfigStep[] {

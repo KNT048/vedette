@@ -40,7 +40,7 @@ type Options struct {
 	// request like busy does: no run, one audit line. It must not block or take locks the server holds.
 	WriteGate func() *Refusal
 	// Resume is asked, during New (so before Listen), about each run a restart found in
-	// awaiting_confirm (D-100) or parked (running with parked_deadline, D-316). True: the run stays
+	// awaiting_confirm or parked (running with parked_deadline). True: the run stays
 	// as it was and keeps the write lock; the caller then re-arms its timer or settle goroutine
 	// (after New returns) and ends the run with Settle or SettleParked, at once if revert_at has
 	// passed. False, nil, a panic, or a second such run: the run is settled failed host_restarted
@@ -177,7 +177,7 @@ func New(o Options) (*Server, error) {
 func (s *Server) AuditError() error { return s.audit.brokenErr() }
 
 // recover fails every run a crash left in progress as host_restarted, audits it, and gives it a
-// final event. A run found in awaiting_confirm (D-100) or parked (D-316) is kept instead when
+// final event. A run found in awaiting_confirm or parked is kept instead when
 // Options.Resume says so; at most one of them, since it holds the write lock.
 func (s *Server) recover() {
 	for _, sr := range s.runs.nonTerminal() {

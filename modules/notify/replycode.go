@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// Zalo personal reply codes (docs/specs/approval-tokens.md 7, 7.1; D-96, D-242). notify makes the codes and records their hashes through
+// Zalo personal reply codes (docs/specs/approval-tokens.md 7, 7.1). notify makes the codes and records their hashes through
 // TokenRecorder.RecordReplyCode before the message goes out; response keeps the records and checks a reply against them.
 
 // replyAlphabet has 32 characters (no 0 1 I O): a CSPRNG byte & 31 picks one with no bias.
@@ -45,8 +45,8 @@ func replyCodeHash(requestID, userID string, approve bool, code string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// replyCodesAllowed: a request gets reply codes only when a recorder is wired, it is low or medium risk (D-96 (3): the weakest channel;
-// an unknown risk counts as high), not in-app only, and response allows chat decisions for it (NoChatButtons, D-175: an approver must be
+// replyCodesAllowed: a request gets reply codes only when a recorder is wired, it is low or medium risk (the weakest channel;
+// an unknown risk counts as high), not in-app only, and response allows chat decisions for it (NoChatButtons: an approver must be
 // able to read the whole change in the message).
 //
 // The job "zalo-listen" (zalolisten.go) reads the replies under the same conditions (Decisions and the recorder wired, the channel

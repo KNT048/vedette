@@ -28,7 +28,7 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 export default function HoneypotPage() {
   const { t } = useTranslation('honeypot')
-  // D-381: on a container-only install the module cannot run. Checked before RequireModule, whose "turn it on" would lead to a locked switch;
+  // On a container-only install the module cannot run. Checked before RequireModule, whose "turn it on" would lead to a locked switch;
   // one turned on before shows why and how to turn it off, and no control that would do nothing.
   const hp = useModules().data?.modules.find((m) => m.id === 'honeypot')
   if (hp?.available === false) return (
@@ -43,8 +43,8 @@ export default function HoneypotPage() {
   return <RequireModule module="honeypot" page><HoneypotBody /></RequireModule>
 }
 
-// Mounted only once GET /modules says the module is on (RequireModule): its reads never go to a route that is not there (walk 4: 404s on container-only).
-// Frame D-464: header, KPI strip, tabs in ?tab= (D-466).
+// Mounted only once GET /modules says the module is on (RequireModule): its reads never go to a route that is not there (404s on container-only).
+// Page frame: header, KPI strip, tabs in ?tab=.
 function HoneypotBody() {
   const { t } = useTranslation('honeypot')
   const overview = useOverview()
@@ -97,7 +97,7 @@ function HoneypotBody() {
 
 function OverviewTab({ data, lan }: { data: HpOverview; lan: string }) {
   const { t } = useTranslation('honeypot')
-  const admin = useCan('admin') // #trap-ip-add is an administrator's button: anyone else lands on the tab (#875 r1)
+  const admin = useCan('admin') // #trap-ip-add is an administrator's button: anyone else lands on the tab (#875)
   return (
     <>
       {data.trap_ips.total === 0 ? (
@@ -193,7 +193,7 @@ function ExclusionSection({ data }: { data: HpOverview }) {
 export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn?: boolean }) {
   const { t } = useTranslation('honeypot')
   const admin = useCan('admin')
-  const respond = useScope('response') !== 'hidden' // D-624 (#819): no Respond link while the response module is hidden
+  const respond = useScope('response') !== 'hidden' // No Respond link while the response module is hidden
   const columns: ColumnDef<Hit>[] = [
     { id: 'ts', header: t('hits.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => (
       <Link className="whitespace-nowrap text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${row.original.id}`}>{fmtDateTime(row.original.ts)}</Link>
@@ -201,7 +201,7 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
     { id: 'service', header: t('hits.col.service'), accessorFn: (r) => hitName(t, r), cell: ({ row }) => (
       <span className="flex flex-wrap items-center gap-2">{hitName(t, row.original)} {row.original.port ? <span className="text-caption text-muted tabular-nums">{row.original.port}</span> : null}{row.original.kind === 'scan' ? <Chip tone="danger">{t('hits.kind.scan')}</Chip> : row.original.kind === 'token' ? <Chip tone="warn">{t('hits.kind.token')}</Chip> : null}{row.original.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : null}</span>
     ) },
-    // W1-13: which Trap IP was hit (a scan: the ones it touched; a token: the token).
+    // Which Trap IP was hit (a scan: the ones it touched; a token: the token).
     { id: 'trap', header: t('hits.col.trapIp'), accessorFn: (r) => `${r.trap_hostname} ${r.trap_ip}`, cell: ({ row }) => (
       <span className="grid max-w-64"><span className="truncate" title={row.original.trap_hostname}>{row.original.trap_hostname || row.original.trap_ip}</span>{row.original.kind === 'service' && row.original.trap_hostname ? <span className="text-caption text-muted tabular-nums">{row.original.trap_ip}</span> : null}</span>
     ) },

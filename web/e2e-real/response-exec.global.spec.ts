@@ -15,8 +15,8 @@ import { collectErrors, shot } from '../e2e/helpers'
 import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 test.describe.configure({ mode: 'serial' })
-// D-624 (#819): AI response is read-only in the v1 GUI (a box that has it on can only turn it off), and this walk acts on its screens.
-test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
+// AI response is read-only in the v1 GUI (a box that has it on can only turn it off), and this walk acts on its screens.
+test.skip(!POST_V1_IN_UI, 'post-v1 hidden')
 test.use({ actionTimeout: 10_000 })
 
 interface Item { id: string; status: string; result: string | null; verified: { ok: boolean; detail: string } | null; connection: string | null; state_unknown: boolean; change: { rest: { method: string; url: string; body: string | null } | null } }
@@ -230,7 +230,7 @@ test('S-RESP-3: an operator approves in the app; the device got the check, the e
   await card.getByRole('button', { name: 'Approve', exact: true }).click()
   await toast(p, /Approved\. The action was carried out\./)
 
-  // what the device received, in order: the check before, the read before the write (D-356), the write, the read-back; each with the connection's own sign-in
+  // what the device received, in order: the check before, the read before the write, the write, the read-back; each with the connection's own sign-in
   const got = await hits(base)
   expect(got.map((q) => `${q.method} ${q.path}`), 'the requests the device got').toEqual(['GET /api/e2e/status', 'GET /api/e2e/bans', 'POST /api/e2e/ban', 'GET /api/e2e/bans'])
   for (const q of got) expect(q.authorization, 'the connection\'s own token on every request').toBe(`Bearer ${dev.secret}`)
@@ -389,7 +389,7 @@ test('INV-19: the response log keeps what happened, holds no secret, cannot be e
   expect((await api(viewer, 'GET', '/response/log')).status, 'a viewer').toBe(403)
   expect((await api(op, 'GET', '/response/log')).status, 'an operator reads it').toBe(200)
 
-  // the export of the Data page carries the lines as they are stored, so it verifies offline with the one formula of the chains (D-57)
+  // the export of the Data page carries the lines as they are stored, so it verifies offline with the one formula of the chains
   const url = '/core/logs/export?categories=response&format=json'
   let ex = await api<{ categories: { response: Log[] }; chains: { response: { complete: boolean; count: number; head_hash: string | null } } }>(admin, 'GET', url)
   for (let i = 0; i < 3 && (ex.status === 409 || ex.status === 429); i++) { await new Promise((ok) => setTimeout(ok, 61_000)); ex = await api(admin, 'GET', url) }

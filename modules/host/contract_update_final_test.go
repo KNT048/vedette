@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// The last review of slice 3-8a (D-138 (9) amended): M1, L1, L2, L3.
+// The last review of slice 3-8a: M1, L1, L2, L3.
 
 // M1: only an unsafe unit directory or a missing/mismatched .prev is unrecoverable; an I/O error is retried.
 func TestContract_Update_ATransientErrorPuttingTheUnitBackIsNotMarkedUnrecoverable(t *testing.T) {

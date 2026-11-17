@@ -9,7 +9,7 @@ const (
 	KindIOC             Kind = "ioc"
 )
 
-// Format is how a custom feed is encoded (D-37).
+// Format is how a custom feed is encoded.
 type Format string
 
 // Formats of a custom feed.

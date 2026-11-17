@@ -25,7 +25,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// host.self_update, slice 2a (spec 6.14, D-316; host CONTRACT INV-26, INV-27, INV-29): Check decides every
+// host.self_update, slice 2a (spec 6.14; host CONTRACT INV-26, INV-27, INV-29): Check decides every
 // refusal and writes nothing; Run copies core's file into staged/ while it hashes it, and parks with a
 // staged journal before anything is dispatched. The command is not in the registry yet (slice 2b, with the
 // settle goroutine), so these tests add it to the harness themselves.

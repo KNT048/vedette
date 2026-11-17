@@ -28,7 +28,7 @@ func TestEmbeddedDist(t *testing.T) {
 	}
 }
 
-// D-544: the interface shows the terms the box records as accepted. The version the web build computed from TERMS.md
+// The interface shows the terms the box records as accepted. The version the web build computed from TERMS.md
 // (web/vite.config.ts, virtual:terms) is the one core computes (vedette.TermsVersion): a different formula, or a dist built
 // before TERMS.md changed, fails here.
 func TestEmbeddedDistShowsTheTermsCoreRecords(t *testing.T) {

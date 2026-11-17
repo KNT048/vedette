@@ -31,14 +31,14 @@ function Plans() {
 
 type Risk = ActionRequest['risk']
 
-/** The inbox (item 20, D-513): requests from the AI, rules and people, waiting first. With nothing waiting it shows the guided "Let the AI
+/** The inbox (item 20): requests from the AI, rules and people, waiting first. With nothing waiting it shows the guided "Let the AI
  * propose actions" setup and why the AI proposed nothing; with requests waiting the setup folds into one line until its required steps are done. */
 export function RequestsTab() {
   const { t } = useTranslation('response')
   const actions = useActions()
   const setupDone = useSetupDone()
-  const frozen = useFrozen() // D-624: no guided setup for what this build does not offer
-  // ?view=history: where the turn-off dialog sends you to roll back first (D-624); followed when it changes on a mounted tab (N-L2)
+  const frozen = useFrozen() // No guided setup for what this build does not offer
+  // ?view=history: where the turn-off dialog sends you to roll back first; followed when it changes on a mounted tab (N-L2)
   const urlView = useSearchParams()[0].get('view')
   const [view, setView] = useState<'pending' | 'history'>(urlView === 'history' ? 'history' : 'pending')
   const [seenView, setSeenView] = useState(urlView)

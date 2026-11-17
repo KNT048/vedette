@@ -31,7 +31,7 @@ func (g *gate) set(on bool) {
 	}
 }
 
-// D-86 (7): turning notify on again drops the queued notices that are older than 24 hours (measured from when they
+// Turning notify on again drops the queued notices that are older than 24 hours (measured from when they
 // were queued) and audits the count; younger ones are sent.
 func TestEnableDropsQueuedNoticesOlderThan24h(t *testing.T) {
 	t.Parallel()

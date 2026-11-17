@@ -26,7 +26,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// How the email channel signs in (D-449). Each preset of the email dialog has one; see EmailAuth.
+// How the email channel signs in. Each preset of the email dialog has one; see EmailAuth.
 const (
 	AuthPassword    = "password"        // AUTH PLAIN or LOGIN with a password, an app password or an API key
 	AuthTokenAsUser = "token_as_user"   // the same, with the secret as both username and password (Postmark's server token)
@@ -42,7 +42,7 @@ var emailProviders = map[string]string{
 	"sendgrid": AuthPassword, "mailgun": AuthPassword, "ses": AuthPassword, "brevo": AuthPassword,
 	"postmark":     AuthTokenAsUser,
 	"microsoft365": AuthMicrosoft, "google-workspace": AuthGoogle,
-	"microsoft365-user": AuthMicrosoftUser, "outlook": AuthMicrosoftUser, "gmail-oauth": AuthGoogleUser, // D-480
+	"microsoft365-user": AuthMicrosoftUser, "outlook": AuthMicrosoftUser, "gmail-oauth": AuthGoogleUser,
 }
 
 // EmailAuth returns how the email preset p signs in; ok is false for a preset the box does not know.
@@ -265,7 +265,7 @@ func (e *emailSender) token(ctx context.Context) (secrets.Value, [32]byte, error
 	return t, k, err
 }
 
-// fetchToken asks the token service for a new token and says how long it lives. A user sign-in (D-480) refreshes its grant; a
+// fetchToken asks the token service for a new token and says how long it lives. A user sign-in refreshes its grant; a
 // rotated refresh token is kept (rotate).
 func (e *emailSender) fetchToken(ctx context.Context, now time.Time) (secrets.Value, time.Duration, error) {
 	var form url.Values

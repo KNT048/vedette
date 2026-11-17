@@ -69,7 +69,7 @@ func TestContract_INV1_SignInCreatesTheAccountWithTheHighestRole(t *testing.T) {
 			t.Errorf("no audit %s %q", a[0], a[1])
 		}
 	}
-	// D-195 (5): no password works for this account, and the second sign-in reuses it.
+	// No password works for this account, and the second sign-in reuses it.
 	if _, err := w.env.Svc.Login(t.Context(), auth.LoginRequest{Email: "ana@acme.example", Password: authtest.Password, IP: netip.MustParseAddr("192.0.2.1")}); err == nil {
 		t.Fatal("password sign-in of an SSO account worked")
 	}
@@ -364,7 +364,7 @@ func TestContract_INV2_SaveAndView(t *testing.T) {
 	if _, err := w.signIn(); err != nil {
 		t.Fatalf("after keeping the secret: %v", err)
 	}
-	// D-194 (5): another address of the box cannot start.
+	// Another address of the box cannot start.
 	_, err = w.svc.Start(t.Context(), "https://192.0.2.99", w.addr)
 	wantCode(t, err, 409, "sso_wrong_address")
 }
@@ -561,7 +561,7 @@ func storeMigrate(t *testing.T, env *authtest.Env) error {
 	return store.Migrate(t.Context(), env.DB, "auth-oidc", authoidc.Migrations)
 }
 
-// INV-5, D-299: a flood of starts from many addresses cannot push out a sign-in in progress. The box takes at most 300 starts per
+// INV-5: a flood of starts from many addresses cannot push out a sign-in in progress. The box takes at most 300 starts per
 // 10 minutes, below the 1000 pending flows, so the oldest flow is never dropped; the refusal says what still works. IPv6 is also
 // counted per /48, so one network cannot spread over its /64s.
 func TestContract_INV5_FloodCannotPushOutASignInInProgress(t *testing.T) {

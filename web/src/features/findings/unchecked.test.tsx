@@ -10,7 +10,7 @@ const open = async (device: string) => {
   return screen.findByRole('list', { name: `What Vedette could not check on ${device}` }, T)
 }
 
-describe('#910 phase 1: exploited CVEs that could not be checked, in their device block (kien G15)', () => {
+describe('#910 phase 1: exploited CVEs that could not be checked, in their device block', () => {
   it('each device block counts them; open, each reason is in plain words with advisory or NVD links, and no finding is made', async () => {
     renderApp('/findings?tab=input')
     const list = await blocks()
@@ -38,7 +38,7 @@ describe('#910 phase 1: exploited CVEs that could not be checked, in their devic
     renderApp('/')
     const link = await screen.findByRole('link', { name: /You have 9 exploited CVEs Vedette could not check on 5 devices/ })
     expect(link).toHaveAttribute('href', '/findings?tab=input#unchecked')
-    // review r1 of #943: the link lands on the list (Needs your input), not on a tab without it
+    // #943: the link lands on the list (Needs your input), not on a tab without it
     await userEvent.click(link)
     expect(await screen.findByRole('tab', { name: /Needs your input/, selected: true })).toBeInTheDocument()
     await waitFor(() => expect(document.getElementById('unchecked')).not.toBeNull())

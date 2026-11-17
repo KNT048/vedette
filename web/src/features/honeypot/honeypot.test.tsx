@@ -14,7 +14,7 @@ import DevicePanel from './DevicePanel'
 import TrapIpsTab from './TrapIps'
 import { feature } from './index'
 
-// D-466: the page is the D-464 frame with tabs in ?tab= (overview, trap-ips, services, tokens, hits).
+// The page is the shared page frame with tabs in ?tab= (overview, trap-ips, services, tokens, hits).
 const svcRow = (name: RegExp) => within(screen.getByRole('table', { name: 'Services and their status' })).getByRole('row', { name })
 const trapIpList = () => screen.findByRole('list', { name: 'Trap IPs' })
 const details = (name: string) => screen.getByLabelText(`Details of Trap IP ${name}`)
@@ -26,7 +26,7 @@ describe('honeypot: main page (S-HP-1)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /Traps were hit 5 times in 7 days, last .* from PC-HR-01/ })).toBeInTheDocument()
     const hits = await screen.findByRole('table', { name: 'Trap hits' })
     expect(within(hits).getByRole('link', { name: 'PC-HR-01' })).toHaveAttribute('href', '/devices/a-pc07')
-    // W1-13: which Trap IP each hit went to, and the Trap IPs a scan touched.
+    // Which Trap IP each hit went to, and the Trap IPs a scan touched.
     const smb = within(hits).getByRole('link', { name: 'PC-HR-01' }).closest('tr')!
     expect(within(smb).getByText('FILESRV-OLD')).toBeInTheDocument()
     expect(within(smb).getByText('192.168.10.240')).toBeInTheDocument()
@@ -38,7 +38,7 @@ describe('honeypot: main page (S-HP-1)', () => {
   it('shows each service state and the excluded Vedette scanner', async () => {
     renderApp('/honeypot?tab=services')
     const traps = await screen.findByRole('table', { name: 'Services and their status' })
-    expect(within(traps).getAllByRole('row')).toHaveLength(19) // every service on one page (D-467: 18)
+    expect(within(traps).getAllByRole('row')).toHaveLength(19) // every service on one page (18)
     expect(within(svcRow(/SMB/)).getByText('Listening')).toBeInTheDocument()
     expect(within(svcRow(/SMB/)).getByText('FILESRV-OLD, NAS-ARCHIVE')).toBeInTheDocument()
     expect(within(svcRow(/MSSQL/)).getByText('On no Trap IP')).toBeInTheDocument()
@@ -69,7 +69,7 @@ describe('honeypot: main page (S-HP-1)', () => {
   })
 })
 
-describe('honeypot: Trap IPs (S-HP-1, S-HP-2, D-466)', () => {
+describe('honeypot: Trap IPs (S-HP-1, S-HP-2)', () => {
   it('each Trap IP shows where it lives: MAC and the vendor a scanner reads, open services, its link and card, last touch; axe clean', async () => {
     renderApp('/honeypot?tab=trap-ips')
     await trapIpList()
@@ -292,7 +292,7 @@ describe('honeypot: device.panels slot', () => {
 })
 
 describe('honeypot: S-HP-2 suggestions, tokens, respond, coverage', () => {
-  it('a viewer sees the bait password masked (last 4 only), an administrator sees it in full (D-189, L14)', async () => {
+  it('a viewer sees the bait password masked (last 4 only), an administrator sees it in full', async () => {
     const { unmount } = renderApp('/honeypot?tab=tokens', { role: 'viewer' })
     const list = await screen.findByRole('list', { name: 'Honey tokens' })
     await within(list).findByText('svc-backup-old')
@@ -315,7 +315,7 @@ describe('honeypot: S-HP-2 suggestions, tokens, respond, coverage', () => {
     await userEvent.click(screen.getByRole('tab', { name: /Hits/ }))
     const hits = await screen.findByRole('table', { name: 'Trap hits' })
     expect(within(hits).getAllByText('Credential token svc-backup-old').length).toBeGreaterThan(0)
-    expect(within(hits).getAllByRole('link', { name: /^Respond to the hit/ })[0]).toHaveAttribute('href', '/response?tab=rules') // rules for trap hits live there; the inbox opens first (D-513)
+    expect(within(hits).getAllByRole('link', { name: /^Respond to the hit/ })[0]).toHaveAttribute('href', '/response?tab=rules') // rules for trap hits live there; the inbox opens first
     await userEvent.click(screen.getByRole('tab', { name: /Overview/ }))
     expect(await screen.findByRole('heading', { name: 'Is this enough?' })).toBeInTheDocument()
   })
@@ -343,12 +343,12 @@ describe('honeypot: Trap IP and honey token form matrix', () => {
     const form = formOf('Token type')
     await eachOption([
       { option: 'Decoy file', shown: ['File name', FILE, /Looks tempting/], hidden: ['Label'] },
-      // #717 review: the box makes the bait account name (svc_ + 6 letters, D-90 (3)); the field is only the token's label
+      // #717: the box makes the bait account name (svc_ + 6 letters); the field is only the token's label
       { option: 'Fake credentials', shown: ['Label', /The box makes the account name and password/], hidden: ['File name', FILE, 'User name', /intranet wiki page/] },
       { option: 'URL token', shown: ['Label', /intranet wiki page/], hidden: ['File name', FILE, 'User name', /The box makes the account name/] },
       { option: 'Decoy file', shown: ['File name', FILE], hidden: ['Label'] },
     ], pick('Token type'), form)
-    // D-468 (D-507): the box answers no DNS, so a DNS token could never alert and is not offered
+    // The box answers no DNS, so a DNS token could never alert and is not offered
     expect(within(within(form).getByLabelText('Token type')).queryByRole('option', { name: 'DNS token' })).toBeNull()
     expect(within(form).getByRole('button', { name: 'Create token' })).toBeEnabled()
     await userEvent.type(within(form).getByLabelText('File name'), 'Payroll-2026-Q4')
@@ -358,7 +358,7 @@ describe('honeypot: Trap IP and honey token form matrix', () => {
     expect(within(form).getByLabelText('Where will you plant it?')).toHaveValue('')
   })
 
-  it('honey token presets (D-468): picking one fills type, name, file type and place; every field stays editable; Custom is blank', async () => {
+  it('honey token presets: picking one fills type, name, file type and place; every field stays editable; Custom is blank', async () => {
     renderApp('/honeypot?tab=tokens')
     const list = await screen.findByRole('list', { name: 'Honey tokens' })
     // an older DNS token still lists, saying it cannot alert
@@ -398,7 +398,7 @@ describe('honeypot: Trap IP and honey token form matrix', () => {
     expect(field('Start from')).toHaveValue('custom')
   })
 
-  it('a credential preset shows the bait account the box made (svc_ and six letters), not its label (#717 review, D-90 (3))', async () => {
+  it('a credential preset shows the bait account the box made (svc_ and six letters), not its label', async () => {
     renderApp('/honeypot?tab=tokens')
     await screen.findByRole('list', { name: 'Honey tokens' })
     await pick('Start from')('Old admin account (decoy)')
@@ -409,7 +409,7 @@ describe('honeypot: Trap IP and honey token form matrix', () => {
     expect(item.textContent).not.toMatch(/user: old/i)
   })
 
-  it('one-click Create on a return visit: the form starts on the first preset not already made (#717 review)', async () => {
+  it('one-click Create on a return visit: the form starts on the first preset not already made (#717)', async () => {
     const year = new Date().getFullYear()
     const { unmount } = renderApp('/honeypot?tab=tokens')
     await screen.findByRole('list', { name: 'Honey tokens' })
@@ -436,7 +436,7 @@ describe('honeypot: Trap IP and honey token form matrix', () => {
     expect(within(form).getByText(/Its MAC address starts with F8:BC:12/)).toBeInTheDocument()
     await pick('Looks like')('Office printer')
     expect(checked(HTTP)).toBeChecked()
-    expect(checked(/^FTP/)).toBeChecked() // D-467: a printer's FTP (HP JetDirect)
+    expect(checked(/^FTP/)).toBeChecked() // A printer's FTP (HP JetDirect)
     expect(checked(/SMB/)).not.toBeChecked()
     expect(within(form).getByLabelText('Vendor (MAC prefix)')).toHaveValue('hp')
     await pick('Looks like')('Linux server')
@@ -456,7 +456,7 @@ describe('honeypot: Trap IP and honey token form matrix', () => {
   })
 })
 
-describe('honeypot: the LAN range is not known yet (#875 r1)', () => {
+describe('honeypot: the LAN range is not known yet (#875)', () => {
   it('an administrator gets the link to the range field; anyone else is told to ask one, never sent to a forbidden page', async () => {
     for (const [userId, admin] of [['u-op', false], ['u-admin', true]] as const) {
       sessionStore.set({ userId })

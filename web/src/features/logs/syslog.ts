@@ -1,4 +1,4 @@
-// The syslog header of a stored line, read for display (W1-22, D-485), as the box does it (modules/logs/listen/parse.go ParseSyslog):
+// The syslog header of a stored line, read for display, as the box does it (modules/logs/listen/parse.go ParseSyslog):
 // "<PRI>" then RFC 5424 ("1 TIMESTAMP HOST APP PROCID MSGID SD MSG") or RFC 3164 ("Mmm dd hh:mm:ss HOST TAG[PID]: MSG"). What is not a
 // header stays in the message. The mock uses it to answer like the box.
 

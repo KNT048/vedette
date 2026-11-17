@@ -1,24 +1,23 @@
-# The `honeypot` image (WP-08e, D-162): OpenCanary (Python, BSD-3) and Samba (GPL-3, a separate process, never linked) in one container, which the
-# unit runs inside the network namespace vedette-hp (D-102) with every capability dropped, a read-only root and a tmpfs /tmp.
+# The `honeypot` image (WP-08e): OpenCanary (Python, BSD-3) and Samba (GPL-3, a separate process, never linked) in one container, which the
+# unit runs inside the network namespace vedette-hp with every capability dropped, a read-only root and a tmpfs /tmp.
 # Build from the repository root: `make honeypot-image` (passes the pins of deploy/containers/pins.env as build arguments); `make images` builds it
 # for amd64 and arm64 with the others.
 #
 # What is in it, and where each part is pinned:
 #   * Debian 13 slim, by digest (pins.env DEBIAN_IMAGE), the same base as scan-base.
 #   * zlib1g 1+deb13u1, a Debian security update the pinned base does not carry yet, pinned by version and SHA-256 (pins.env ZLIB1G_*,
-#     deploy/containers/security-deb.sh, D-594), laid over the base like in scan-base; the inventory file records it.
+#     deploy/containers/security-deb.sh), laid over the base like in scan-base; the inventory file records it.
 #   * Python 3 and Samba: the Debian packages for the TARGET architecture, downloaded by apt on the build machine against the base image's own
 #     dpkg status (so only what the base lacks is added) and unpacked by assemble.py. Versions come from the Debian 13 repositories at build time
-#     (security fixes flow in, like nmap in D-146); the image holds the resulting package list at /usr/share/vedette/honeypot-inventory.txt and the
+#     (security fixes flow in, as for nmap in the scan image); the image holds the resulting package list at /usr/share/vedette/honeypot-inventory.txt and the
 #     build fails when Samba is below SAMBA_MIN_VERSION (pins.env). No package is installed by running dpkg on a foreign CPU.
 #   * OpenCanary and every Python dependency: `pip install --require-hashes --only-binary=:all:` of requirements.txt (made by lock.py from
 #     requirements.in: exact versions, every file hashed, wheels for amd64 AND arm64). Three pure-Python packages have no wheel on PyPI
 #     (requirements-sdist.txt): they are built from hash-checked sources into py3-none-any wheels, which the build verifies.
-#   * /vedette: the core binary (static, no cgo), only for the unit's `HealthCmd=["/vedette","honeypot","healthcheck"]` (D-137). See D-162 for
-#     why it is not a smaller binary.
+#   * /vedette: the core binary (static, no cgo), only for the unit's `HealthCmd=["/vedette","honeypot","healthcheck"]`.
 # Run: init.py is process 1 (see its header), uid 1000 gid 0 from the start; it reads Samba's audit from smbd's stdout (no syslog, no /dev/log, no root).
 #
-# Multi-arch (D-158): every stage with a RUN runs on the BUILD machine; the last stage only COPYs, so arm64 needs no qemu. The `base` stage has no RUN.
+# Multi-arch: every stage with a RUN runs on the BUILD machine; the last stage only COPYs, so arm64 needs no qemu. The `base` stage has no RUN.
 ARG DEBIAN_IMAGE
 ARG GOLANG_IMAGE
 
@@ -53,7 +52,7 @@ RUN set -eu; \
     case "${TARGETARCH}" in amd64) tag=x86_64 ;; arm64) tag=aarch64 ;; *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; esac; \
     [ -n "${OPENCANARY_VERSION}" ] && [ -n "${SAMBA_MIN_VERSION}" ] || { echo "OPENCANARY_VERSION and SAMBA_MIN_VERSION come from pins.env" >&2; exit 1; }; \
     grep -Eq "^opencanary==${OPENCANARY_VERSION} " /hp/requirements.txt || { echo "requirements.txt does not pin opencanary==${OPENCANARY_VERSION} (run lock.py)" >&2; exit 1; }; \
-    # 0. the Debian security updates the pinned base does not carry yet (D-594, scan-base does the same): into /rootfs, and the status
+    # 0. the Debian security updates the pinned base does not carry yet (scan-base does the same): into /rootfs, and the status
     # they write is the one apt resolves against and assemble.py merges into (/target/status stays the base's, for the inventory)
     case "${TARGETARCH}" in amd64) z="${ZLIB1G_SHA256_AMD64}" ;; arm64) z="${ZLIB1G_SHA256_ARM64}" ;; esac; \
     sh /usr/local/bin/security-deb.sh zlib1g zlib "${ZLIB1G_VERSION}" "${ZLIB1G_SNAPSHOT}" "$z" "${TARGETARCH}" /target/status /rootfs; \
@@ -117,7 +116,7 @@ ARG VERSION
 LABEL org.opencontainers.image.title="vedette-honeypot" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0 AND BSD-3-Clause AND GPL-3.0-or-later"
 COPY --from=rootfs /rootfs/ /
 COPY --from=build /out/vedette /vedette
-# Third-party licenses of the Go modules linked into /vedette (scripts/hostlicenses, D-155 (10)); the Python ones are in python-licenses (rootfs stage).
+# Third-party licenses of the Go modules linked into /vedette (scripts/hostlicenses); the Python ones are in python-licenses (rootfs stage).
 COPY --from=build /out/licenses/ /usr/share/doc/vedette/
 COPY --chmod=0644 deploy/containers/honeypot/smb.conf /etc/samba/smb.conf
 COPY --chmod=0644 deploy/containers/honeypot/init.py /usr/local/lib/vedette-hp/init.py

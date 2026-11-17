@@ -167,8 +167,8 @@ func TestASenderThatIsNotDeclaredStoresNothing(t *testing.T) {
 	}
 }
 
-// D-443: the sockets are open while the listener runs, with or without sources, so a sender that is not declared yet is named by
-// UnknownSenders (walk 4: lines sent before any source left no trace). D-444: a UDP source takes TCP from its address too, a TCP
+// The sockets are open while the listener runs, with or without sources, so a sender that is not declared yet is named by
+// UnknownSenders (lines sent before any source left no trace). A UDP source takes TCP from its address too, a TCP
 // source no UDP, so the datagram of a TCP source is listed again.
 func TestSocketsAreOpenWithoutSourcesAndAnUndeclaredSenderIsNamed(t *testing.T) {
 	t.Parallel()
@@ -239,7 +239,7 @@ func TestSocketsAreOpenWithoutSourcesAndAnUndeclaredSenderIsNamed(t *testing.T) 
 	}
 }
 
-// A row with proto tls can only be left over (the API refuses it, D-203): it gets no TLS socket and does not hurt the others.
+// A row with proto tls can only be left over (the API refuses it): it gets no TLS socket and does not hurt the others.
 func TestALeftOverTLSRowGetsNoSocketFromThisListener(t *testing.T) {
 	t.Parallel()
 	e := syslogEnv(t)
@@ -267,7 +267,7 @@ func (g *toggleGate) Enabled(string) bool {
 }
 func (g *toggleGate) set(v bool) { g.mu.Lock(); defer g.mu.Unlock(); g.on = v }
 
-// SYS-5 with no source at all (D-443 opens the sockets without one): the module off means nothing listens, on means UDP and TCP
+// SYS-5 with no source at all (the sockets open without one): the module off means nothing listens, on means UDP and TCP
 // listen, off again closes them.
 func TestNoSocketWhileTheModuleIsOffWithNoSources(t *testing.T) {
 	t.Parallel()
@@ -615,15 +615,15 @@ func dialTLS(addr string, pool *x509.CertPool) (*tls.Conn, error) {
 	return c.(*tls.Conn), nil
 }
 
-// POST-1 (D-214): on a box with a certificate a TLS source is accepted and a line sent over TLS from the
-// declared sender is stored; the TLS socket is open with no source (D-443), and once the last TLS source is deleted its sender gets no handshake.
+// POST-1: on a box with a certificate a TLS source is accepted and a line sent over TLS from the
+// declared sender is stored; the TLS socket is open with no source, and once the last TLS source is deleted its sender gets no handshake.
 func TestTLSSyslogIsStoredAndTheSocketFollowsTheSources(t *testing.T) {
 	t.Parallel()
 	e, pool := tlsEnv(t)
 	stop := e.runSyslogJob()
 	defer func() { _ = stop() }()
 	var addr net.Addr
-	waitUntil(t, "the TLS socket with no source (D-443)", func() bool { addr = e.tlsAddr(); return addr != nil })
+	waitUntil(t, "the TLS socket with no source", func() bool { addr = e.tlsAddr(); return addr != nil })
 	src := e.sourceOn("FW-TLS", "tls")
 	if st := e.svc.ListenStatus(); !st.TLS || st.TLSErr != "" {
 		t.Fatalf("status %+v", st)
@@ -740,7 +740,7 @@ func TestNoTLSSocketWhileTheModuleIsOff(t *testing.T) {
 	}
 }
 
-// Editing a source to TLS is accepted on a box that has a TLS config; the TLS socket is open (D-443).
+// Editing a source to TLS is accepted on a box that has a TLS config; the TLS socket is open.
 func TestEditingASourceToTLSIsAcceptedOnABoxWithTLS(t *testing.T) {
 	t.Parallel()
 	e, _ := tlsEnv(t)
@@ -770,7 +770,7 @@ func TestALeftOverTLSRowIsServedAndNotWarnedAboutOnABoxWithTLS(t *testing.T) {
 	}
 }
 
-// D-434: the Sources answer carries the certificate of the TLS port (fingerprint, subject, self-signed, PEM), and nothing on a box without TLS.
+// The Sources answer carries the certificate of the TLS port (fingerprint, subject, self-signed, PEM), and nothing on a box without TLS.
 func TestSourcesShowTheBoxCertificateOfTheTLSPort(t *testing.T) {
 	t.Parallel()
 	e, _ := tlsEnv(t)
@@ -794,7 +794,7 @@ func TestSourcesShowTheBoxCertificateOfTheTLSPort(t *testing.T) {
 	}
 }
 
-// D-435: a TLS source may pin a client certificate; the pin is validated, stored, shown, and handed to the listener; other protocols refuse it.
+// A TLS source may pin a client certificate; the pin is validated, stored, shown, and handed to the listener; other protocols refuse it.
 func TestTLSSourceClientCertificatePin(t *testing.T) {
 	t.Parallel()
 	e, _ := tlsEnv(t)
@@ -828,7 +828,7 @@ func TestTLSSourceClientCertificatePin(t *testing.T) {
 	}
 }
 
-// A leaf signed by a CA (the box's own CA on a default box, D-262/D-351): the card hands out the CA, not the leaf, names it as the box CA
+// A leaf signed by a CA (the box's own CA on a default box): the card hands out the CA, not the leaf, names it as the box CA
 // when the CA is the box's, and says "issued" (with the owner's chain) for another authority. A private key in the trust file is never kept.
 func TestBoxCertificateCardNamesTheCAThatSignedTheLeaf(t *testing.T) {
 	t.Parallel()

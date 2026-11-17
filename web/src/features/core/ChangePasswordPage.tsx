@@ -12,7 +12,7 @@ import { Card } from '@/components/common/Card'
 import { StandalonePage } from '@/components/common/StandalonePage'
 import { MIN_PASSWORD } from './util'
 
-/** D-180 (S-CORE-3): the screen of a user who signed in with a password an administrator set. Same rules as My account → Change password. */
+/** S-CORE-3: the screen of a user who signed in with a password an administrator set. Same rules as My account → Change password. */
 export default function ChangePasswordPage() {
   const { t } = useTranslation('core')
   const [params] = useSearchParams()

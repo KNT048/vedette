@@ -1,4 +1,4 @@
-// Hợp đồng API module logs (D-18, D-43, S-LOG-1..4). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// Hợp đồng API module logs (S-LOG-1..4). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { KIND_IDS } from './kinds'
@@ -75,13 +75,13 @@ export const IocHit = z.object({
   feeds: z.array(z.string()).describe('Threat feeds that list the destination'),
   confidence: z.number().min(0).max(1).describe('0 to 1; response rules only act automatically on high confidence'),
   blocked: z.boolean().describe('The device that sent the log blocked the connection (the line records an attempt, for example a FortiGate deny or a blocked web-filter request); false when the line went through or does not say'),
-  listed_as: z.string().nullable().describe('The name a feed lists for itself and all of its subdomains when dest is one of them (hagezi TIF, D-228, D-425): look this name up in Feeds. null when a feed lists dest itself'),
+  listed_as: z.string().nullable().describe('The name a feed lists for itself and all of its subdomains when dest is one of them (hagezi TIF): look this name up in Feeds. null when a feed lists dest itself'),
 })
 export const Digest = z.object({ generated_at: iso, lines_24h: z.number().int(), baseline_days: z.number().int(), history_days: z.number().int().min(0).describe('Whole days of logs so far, at most baseline_days: from the first line of the source heard from the longest. Below baseline_days the digest is still learning what is normal'), new: z.array(NewItem), spikes: z.array(SpikeItem), bad_connections: z.array(IocHit), ioc_matching: z.boolean().describe('false when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet)') })
 
 export const LogEvent = z.object({
   id: z.string(), ts: iso, source_id: z.string(), source_name: z.string(), line: z.string().describe('The line as stored: what search and evidence use'),
-  host: z.string().nullable().describe('The sending host the syslog header names (RFC 5424 or 3164); null when it does not say (W1-22, D-485)'),
+  host: z.string().nullable().describe('The sending host the syslog header names (RFC 5424 or 3164); null when it does not say'),
   app: z.string().nullable().describe('The program the header names (sshd, CRON, …); null when it does not say'),
   message: z.string().describe('The line without its syslog header (no "<38>Nov 13 …"); the whole line when it has none'),
 })

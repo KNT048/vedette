@@ -57,7 +57,7 @@ var (
 	authorityRE = regexp.MustCompile(`^[A-Za-z0-9.:\[\]-]{1,260}$`) // what a configured box address may hold: nothing a shell or a PowerShell string would read
 )
 
-// boxURL is the address the scripts and the one-liners carry. It is one of: the Box address (D-465: the address an administrator set in
+// boxURL is the address the scripts and the one-liners carry. It is one of: the Box address (the address an administrator set in
 // Settings → Box network, else the management address; every link of the box carries it), else the request's Host when the server's
 // allow-list lets it in (the same list that already let the request through; a loopback name or address never counts, a server cannot
 // reach it), else the placeholder. A Host is never copied as sent: it is rebuilt from a validated name or IP and a numeric port, so
@@ -135,7 +135,7 @@ func (s *Service) anchor() ([]byte, error) {
 	return out, nil
 }
 
-// noBoxAddress is the answer for a script whose box address would be the placeholder (D-399 (2)): a script pinned to
+// noBoxAddress is the answer for a script whose box address would be the placeholder: a script pinned to
 // <VEDETTE_BOX_IP> passes its SHA-256 check and then fails on every server, so it is not served at all.
 func noBoxAddress() *apierr.Error {
 	return apierr.New(404, "no_box_address", "This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again.")
@@ -246,7 +246,7 @@ func (h *InstallHandlers) InventoryGetIntakeCaPem(ctx context.Context) (oas.Inve
 
 // ---- the package mirror ----
 
-// The package files of the image (WP-26 slice 3, D-169 (10), D-399): exactly these six names exist, whatever the request says. They are fixed
+// The package files of the image (WP-26 slice 3): exactly these six names exist, whatever the request says. They are fixed
 // text built from OsqueryVersion; a request's name is only a key into this table, and what is opened is the name stored in it.
 const (
 	mirrorSums         = "SHA256SUMS"
@@ -256,7 +256,7 @@ const (
 	mirrorMaxTime      = 10 * time.Minute // and none keeps a slot longer than this
 )
 
-// mirrorFile is one file of the mirror: its fixed name, the type it is served with (D-404: the IANA-registered type of a .deb, else
+// mirrorFile is one file of the mirror: its fixed name, the type it is served with (the IANA-registered type of a .deb, else
 // application/octet-stream; SHA256SUMS is text) and, for a package, what the agent dialog lists it as.
 type mirrorFile struct {
 	name, contentType string
@@ -276,7 +276,7 @@ const (
 // mirrorPackages are the five packages in the order the agent dialog lists them.
 var mirrorPackages = []mirrorFile{
 	{"osquery_" + OsqueryVersion + "-1.linux_amd64.deb", debType, linux, deb, x8664},
-	{"osquery_" + OsqueryVersion + "-1.linux_arm64.deb", debType, linux, deb, arm64}, // D-399
+	{"osquery_" + OsqueryVersion + "-1.linux_arm64.deb", debType, linux, deb, arm64},
 	{"osquery-" + OsqueryVersion + "-1.linux.x86_64.rpm", binType, linux, rpm, x8664},
 	{"osquery-" + OsqueryVersion + "-1.linux.aarch64.rpm", binType, linux, rpm, arm64},
 	{"osquery-" + OsqueryVersion + ".msi", binType, windows, msi, x8664},
@@ -293,7 +293,7 @@ var mirrorFiles = func() map[string]mirrorFile {
 // maxSums bounds the read of SHA256SUMS (five lines of about 100 bytes).
 const maxSums = 4 << 10
 
-// packages lists the packages the box can serve, for the agent dialog (D-404): each file of mirrorPackages that is in the folder and has a
+// packages lists the packages the box can serve, for the agent dialog: each file of mirrorPackages that is in the folder and has a
 // line in the folder's SHA256SUMS, with its size and that SHA-256. The files are not hashed here (137 MB per page load): SHA256SUMS is
 // what the core build wrote from deploy/osquery/PINS after checking each file. A missing folder, SHA256SUMS or file leaves the package out
 // (empty list: the dialog says the box has no copy), with the mirror's once-a-minute WARN line.
@@ -385,7 +385,7 @@ func (h *InstallHandlers) InventoryGetInstallOsqueryFile(ctx context.Context, pa
 	hd := x.W.Header()
 	hd.Set("Content-Length", strconv.FormatInt(size, 10))
 	hd.Set("Cache-Control", "public, max-age=3600")
-	hd.Set("Content-Disposition", `attachment; filename="`+f.name+`"`) // D-404: saved under its own name, never shown; f.name is a fixed table value
+	hd.Set("Content-Disposition", `attachment; filename="`+f.name+`"`) // Saved under its own name, never shown; f.name is a fixed table value
 	x.SetContentType(f.contentType)
 	return oas.InventoryGetInstallOsqueryFileOK{Data: &mirrorBody{f: file, rc: http.NewResponseController(x.W), start: time.Now(), release: release, chunkWait: s.chunkWait, maxTime: s.maxDownload}}, nil
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// Approvers prove their own channel identity (S-RESP-2, D-191, WP-31 R3, finding L7).
+// Approvers prove their own channel identity (S-RESP-2, WP-31 R3, finding L7).
 
 type fakeMailer struct {
 	mu    sync.Mutex
@@ -63,10 +63,10 @@ func unlinkedChat(t *testing.T) *chatEnv {
 	return c
 }
 
-// D-414: a Telegram approver is linked like a Zalo one, by the confirm link the box sends to their Telegram, opened and confirmed by that
+// A Telegram approver is linked like a Zalo one, by the confirm link the box sends to their Telegram, opened and confirmed by that
 // person signed in to Vedette. A press before that decides nothing and its answer holds no code; another signed-in person is refused with
 // an audit row and the link stays good for its person.
-func TestContract_D414_TelegramIsLinkedByTheConfirmLinkNotByAPress(t *testing.T) {
+func TestContract_TelegramIsLinkedByTheConfirmLinkNotByAPress(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
@@ -139,8 +139,8 @@ func (f *fakeLinkSender) SendApproverLink(_ context.Context, actor, channel, use
 	return "", nil
 }
 
-// D-414: Send again in My account asks notify to send the person's own listed chat ID a new confirm link; without notify it is refused.
-func TestContract_D414_SendAgainFromMyAccount(t *testing.T) {
+// Send again in My account asks notify to send the person's own listed chat ID a new confirm link; without notify it is refused.
+func TestContract_SendAgainFromMyAccount(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	_, err := c.svc.SendLinkCode(c.ctx(), op, "telegram")
@@ -157,8 +157,8 @@ func TestContract_D414_SendAgainFromMyAccount(t *testing.T) {
 	wantCode(t, err, 409, "already_linked")
 }
 
-// A wrong, mangled or expired confirm link on Telegram does not link (the same rules as Zalo, D-447 tests below).
-func TestContract_D414_TelegramWrongAndExpiredLinks(t *testing.T) {
+// A wrong, mangled or expired confirm link on Telegram does not link (the same rules as Zalo, tested below).
+func TestContract_TelegramWrongAndExpiredLinks(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	token, _, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
@@ -175,7 +175,7 @@ func TestContract_D414_TelegramWrongAndExpiredLinks(t *testing.T) {
 	}
 }
 
-func TestContract_D191_AChangedAddressOrAnUnlinkDropsTheProof(t *testing.T) {
+func TestContract_AChangedAddressOrAnUnlinkDropsTheProof(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
@@ -201,7 +201,7 @@ func TestContract_D191_AChangedAddressOrAnUnlinkDropsTheProof(t *testing.T) {
 	}
 }
 
-func TestContract_D191_UnlinkedWhileThePressWaitsForTheLock(t *testing.T) {
+func TestContract_UnlinkedWhileThePressWaitsForTheLock(t *testing.T) {
 	t.Parallel()
 	c := newChatEnv(t)
 	a := c.pending()
@@ -228,7 +228,7 @@ func emailEnv(t *testing.T) (*linkEnv, *fakeMailer) {
 	return &linkEnv{env: e, links: fl}, m
 }
 
-func TestContract_D191_EmailIsLinkedByAMailedCodeAndLostWithTheSignInEmail(t *testing.T) {
+func TestContract_EmailIsLinkedByAMailedCodeAndLostWithTheSignInEmail(t *testing.T) {
 	t.Parallel()
 	e, m := emailEnv(t)
 	a := e.pending()
@@ -269,7 +269,7 @@ func TestContract_D191_EmailIsLinkedByAMailedCodeAndLostWithTheSignInEmail(t *te
 	}
 }
 
-func TestContract_D191_SendCodeRefusals(t *testing.T) {
+func TestContract_SendCodeRefusals(t *testing.T) {
 	t.Parallel()
 	e, m := emailEnv(t)
 	if _, err := e.svc.SendLinkCode(e.ctx(), op, "slack"); !isCode(err, "not_listed") {
@@ -296,7 +296,7 @@ func TestContract_D191_SendCodeRefusals(t *testing.T) {
 	}
 }
 
-func TestContract_D191_SettingsShowWhoHasNotLinked(t *testing.T) {
+func TestContract_SettingsShowWhoHasNotLinked(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	c.must(c.svc.LinkForTest(c.ctx(), "u-op", "slack", slackOp))
@@ -311,7 +311,7 @@ func TestContract_D191_SettingsShowWhoHasNotLinked(t *testing.T) {
 
 func isCode(err error, code string) bool { _, c := apiCode(err); return c == code }
 
-func TestContract_D191_NoCodeWhereTheAnswerIsNotPrivate(t *testing.T) {
+func TestContract_NoCodeWhereTheAnswerIsNotPrivate(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
@@ -334,7 +334,7 @@ func TestContract_D191_NoCodeWhereTheAnswerIsNotPrivate(t *testing.T) {
 	}
 }
 
-func TestContract_D191_AListChangedAfterTheCodeDoesNotLink(t *testing.T) {
+func TestContract_AListChangedAfterTheCodeDoesNotLink(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	code, _, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
@@ -350,7 +350,7 @@ func TestContract_D191_AListChangedAfterTheCodeDoesNotLink(t *testing.T) {
 	}
 }
 
-func TestContract_D191_AnEmailLinkIsReadAgainUnderTheLockAfterAnUnlink(t *testing.T) {
+func TestContract_AnEmailLinkIsReadAgainUnderTheLockAfterAnUnlink(t *testing.T) {
 	t.Parallel()
 	e, _ := emailEnv(t)
 	e.must(e.svc.LinkForTest(e.ctx(), "u-op", "email", "it@acme.example"))
@@ -368,7 +368,7 @@ func TestContract_D191_AnEmailLinkIsReadAgainUnderTheLockAfterAnUnlink(t *testin
 	}
 }
 
-func TestContract_D191_AnEmailAddressDiffersOnlyInCase(t *testing.T) {
+func TestContract_AnEmailAddressDiffersOnlyInCase(t *testing.T) {
 	t.Parallel()
 	e, m := emailEnv(t)
 	e.note.approvers["email"] = []response.Approver{{UserID: "u-op", Address: "IT@Acme.example"}}
@@ -382,7 +382,7 @@ func TestContract_D191_AnEmailAddressDiffersOnlyInCase(t *testing.T) {
 	}
 }
 
-func TestContract_D191_ZaloOAIsNotLinkable(t *testing.T) {
+func TestContract_ZaloOAIsNotLinkable(t *testing.T) {
 	t.Parallel()
 	e, _ := emailEnv(t)
 	e.note.chs = append(e.note.chs, response.NotifyChannel{Type: "zalo", Label: "Zalo OA", Configured: true, Enabled: true, Approvals: true, Approvers: 1})
@@ -396,10 +396,10 @@ func TestContract_D191_ZaloOAIsNotLinkable(t *testing.T) {
 	}
 }
 
-// D-447 (option A): a Zalo personal approver is linked only by the confirm link the box sends to their Zalo, opened and confirmed by that
+// option A: a Zalo personal approver is linked only by the confirm link the box sends to their Zalo, opened and confirmed by that
 // person signed in to Vedette. A reply from the account links nothing; another signed-in person is refused and the link stays good for
 // its person; reading My account (a GET) links nothing; a used, replaced or expired link does not link.
-func TestContract_D447_ZaloIsLinkedOnlyByTheConfirmLink(t *testing.T) {
+func TestContract_ZaloIsLinkedOnlyByTheConfirmLink(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
@@ -451,7 +451,7 @@ func TestContract_D447_ZaloIsLinkedOnlyByTheConfirmLink(t *testing.T) {
 }
 
 // Send again (a new token) invalidates the old one; a link older than 10 minutes has expired, then is gone.
-func TestContract_D447_ZaloConfirmLinkReplacedExpiredWrong(t *testing.T) {
+func TestContract_ZaloConfirmLinkReplacedExpiredWrong(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	old, _, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "zalo-personal", zlOp)
@@ -474,9 +474,9 @@ func TestContract_D447_ZaloConfirmLinkReplacedExpiredWrong(t *testing.T) {
 	wantCode(t, err, 400, "chat_channel")
 }
 
-// D-447 (review L1, L4): an administrator's change drops the proof of the old address, so naming it again needs a new proof; with
+// An administrator's change drops the proof of the old address, so naming it again needs a new proof; with
 // Response off no code is made.
-func TestContract_D447_DroppedZaloProofDoesNotComeBack(t *testing.T) {
+func TestContract_DroppedZaloProofDoesNotComeBack(t *testing.T) {
 	t.Parallel()
 	c := newChatEnv(t) // every approver linked
 	ids, err := c.svc.MyIdentities(c.ctx(), op)

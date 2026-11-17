@@ -19,8 +19,8 @@ type AnnouncedKEV struct {
 const MaxNewKEVPage = 500
 
 // NewKEVSince lists the CISA KEV entries feeds announced as new (feeds.vuln.new_kev, POST-1) after the point (at, cve),
-// oldest first, at most limit (1..MaxNewKEVPage). The bus is best-effort (D-144): a subscriber that may have missed
-// events keeps the (At, CVE) of the last entry it handled and asks again. Entries of the baseline pull (D-78) and
+// oldest first, at most limit (1..MaxNewKEVPage). The bus is best-effort: a subscriber that may have missed
+// events keeps the (At, CVE) of the last entry it handled and asks again. Entries of the baseline pull and
 // the CVEs of custom feeds were never announced and are never listed. HasTemplate is today's value.
 func (s *Store) NewKEVSince(ctx context.Context, at time.Time, cve string, limit int) ([]AnnouncedKEV, error) {
 	if limit < 1 || limit > MaxNewKEVPage {

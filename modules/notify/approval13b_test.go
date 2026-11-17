@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// ---- SendStepUpCode (D-98) ----
+// ---- SendStepUpCode ----
 
 var _ auth.StepUpMailer = notify.CodeMailer{}
 

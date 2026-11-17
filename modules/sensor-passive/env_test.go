@@ -32,7 +32,7 @@ type fakeHost struct {
 	filters []sensorlink.Filter
 	optErr  error // SpanOptions fails: the filters cannot be read
 	noHost  bool  // no vedette-host answers (container-only)
-	listErr error // a configured host that gives no list of cards (HostCards fails closed, D-118)
+	listErr error // a configured host that gives no list of cards (HostCards fails closed)
 	mgmt    string
 }
 

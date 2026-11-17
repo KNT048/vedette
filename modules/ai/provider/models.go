@@ -61,7 +61,7 @@ func modelsURL(base *url.URL, style APIStyle) (u url.URL, headers func(Secret, s
 }
 
 // ListModels asks the provider which models it offers. It uses the same transport as every AI call (the dial-time address rules, own
-// address D-446, no redirects, no environment proxy for an internal profile), a 15 s timeout and a 1 MiB cap. The answer is untrusted:
+// address, no redirects, no environment proxy for an internal profile), a 15 s timeout and a 1 MiB cap. The answer is untrusted:
 // only ids that pass the model-name rule are kept, de-duplicated, sorted, at most 300.
 func ListModels(ctx context.Context, c ModelsConfig) ([]string, error) {
 	base, err := ParseBaseURL(c.BaseURL)

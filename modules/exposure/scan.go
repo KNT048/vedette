@@ -47,7 +47,7 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 			return t, BlockedNotCurrent, nil
 		}
 	case t.Kind == KindDomain:
-		pr, err := s.proveDomain(ctx, t) // D-628: the name, _vedette-verify.<name>, or a parent down to its registered domain
+		pr, err := s.proveDomain(ctx, t) // The name, _vedette-verify.<name>, or a parent down to its registered domain
 		if err != nil {
 			return Target{}, "", err
 		}
@@ -76,7 +76,7 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 		if t, err = loadTarget(ctx, s.cfg.DB.Reader(), id); err != nil {
 			return Target{}, "", err
 		}
-		if pr.found { // the target whose record proved it now: the executors' fence checks that domain and token (D-628)
+		if pr.found { // the target whose record proved it now: the executors' fence checks that domain and token
 			t.proofDomain, t.proofToken, t.proofOwn = pr.proven, pr.token, pr.own
 		}
 	}
@@ -190,7 +190,7 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 	case BlockedExpired:
 		return apiErr(409, "expired", "Verification of %s expired on %s, so it cannot be scanned. Verify it again first.", t.Value, s.dayText(t.expiresAt(now)))
 	case BlockedTxtMissing:
-		if _, ok := registered(t.Value); !ok { // review r1 L of #941: a stored public suffix is told so, not "add the record back"
+		if _, ok := registered(t.Value); !ok { // a stored public suffix is told so, not "add the record back"
 			return apiErr(409, "txt_missing", "%s", publicSuffixText(t.Value))
 		}
 		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer found on %s, on %s.%s or on a parent domain of this box that covers it, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value, verifyLabel, t.Value)
@@ -205,7 +205,7 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 	return nil
 }
 
-// ScanEvery is the least time between two scans of one target (D-229): a scan asks crt.sh and probes the target, so a click
+// ScanEvery is the least time between two scans of one target: a scan asks crt.sh and probes the target, so a click
 // that repeats is answered 429 rather than sent again.
 const ScanEvery = 10 * time.Minute
 
@@ -236,7 +236,7 @@ func (s *Service) ScanNow(ctx context.Context, who Actor, id, noticeVersion stri
 // most one per target every ScanEvery (429 rate_limited), then the runner the scan module registered, which runs in the background
 // (execute). It returns the run at once; a refusal is the same error as before and is audited as exposure.scan with its outcome
 // (LEGAL §3). Without a runner the answer is 501 after the gate. When the only thing missing is the commitment and who.Admin is set,
-// this press is the confirmation (D-473): it needs two-step sign-in and the notice version the page showed (confirmByScan), then the
+// this press is the confirmation: it needs two-step sign-in and the notice version the page showed (confirmByScan), then the
 // gate runs again with the commitment in place. For anyone else the answer is 400 commitment_required.
 func (s *Service) StartScan(ctx context.Context, who Actor, id, noticeVersion string) (ScanRun, error) {
 	run, err := s.startScan(ctx, who, id, noticeVersion)
@@ -329,7 +329,7 @@ func clipText(v string, n int) string {
 	return v
 }
 
-// ScannableIP says whether ip is a verified IP target that may be scanned now (D-57 (7), LEGAL §3): the scan of a domain asks it
+// ScannableIP says whether ip is a verified IP target that may be scanned now (LEGAL §3): the scan of a domain asks it
 // before it port-scans an address one of the domain's names points at. It runs the same gate as a scan of that target (INV-1,
 // INV-13: it may run one full check of the box's IPs, as actor), so an address that is not the box's own verified, committed and
 // current IP is never port-scanned.
@@ -434,7 +434,7 @@ func sanitize(c Content) Content {
 	}
 	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
 		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
-		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts)} // FULL-4 (Trưởng), for Mlee: Scripts (D-526)
+		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts)}
 }
 
 // scope says what the scan did with an address whose ports the previous observation listed (INV-22).
@@ -444,8 +444,8 @@ const (
 	scopeChecked scope = iota // the scan port-scanned it: a port it does not report was missed
 	scopeKept                 // still the domain's address but not scannable now (lapsed, paused, deleted, skipped): the scan did not check it
 	scopeGone                 // no longer an address of the domain: its ports leave with the host
-	// scopeByName: a domain's address that is not the box's and got only the check by name (D-229, ports 80 and 443) this run: those
-	// two ports were checked, any other (found by an earlier deep scan, D-571) was not (review r1 M2).
+	// scopeByName: a domain's address that is not the box's and got only the check by name (ports 80 and 443) this run: those
+	// two ports were checked, any other (found by an earlier deep scan) was not.
 	scopeByName
 )
 
@@ -459,7 +459,7 @@ func ipKey(s string) string {
 
 // coveredBy decides, for each address of the previous observation that this scan reported no port on, whether the scan checked it.
 // An IP target is checked by every successful scan; a domain scan port-scans only the addresses its names point at that are
-// scannable IP targets (the gate the runner asked, ScannableIP), and the addresses its deep scan reached this run (D-571). A scan that did not check an address says nothing about its ports.
+// scannable IP targets (the gate the runner asked, ScannableIP), and the addresses its deep scan reached this run. A scan that did not check an address says nothing about its ports.
 func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Content, prev Snapshot) map[string]scope {
 	reported := map[string]bool{}
 	for _, p := range c.Ports {
@@ -469,7 +469,7 @@ func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Conten
 	for _, h := range c.Hosts {
 		pointed[ipKey(h.IP)] = true
 		for _, a := range h.IPs {
-			if a.Deep == DeepScanned { // D-571: this run's deep scan port-scanned it
+			if a.Deep == DeepScanned { // This run's deep scan port-scanned it
 				deep[ipKey(a.IP)] = true
 			}
 		}
@@ -531,7 +531,7 @@ func moved(ip string, pointed map[string]bool, before, now []HostRow) bool {
 	return named
 }
 
-// carryNotSeen keeps, in the newest scan, the ports of the previous observation that this scan did not report (INV-22, D-560): one
+// carryNotSeen keeps, in the newest scan, the ports of the previous observation that this scan did not report (INV-22): one
 // scan that missed a port (packet loss, a slow host) must not read as a fix. A port on an address the scan checked gets one more
 // miss and is dropped (closed) at the second miss in a row, scans counted, not days; a port on an address the scan did not check is
 // kept as it was, with no miss; a port the scan reports is a normal row. A port a scan reports again starts from zero. The service
@@ -546,10 +546,10 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 		have[key{ipKey(p.IP), p.Port}] = true
 	}
 	kept := map[key]bool{}
-	// N44-5 review r1 M2: a scan that says it did not probe every TCP port (not deep, the terms withdrawn or asked again, a deep nmap
+	// A scan that says it did not probe every TCP port (not deep, the terms withdrawn or asked again, a deep nmap
 	// that did not finish) did not check a port outside the runner's fixed list, so such a port an earlier deep scan found is kept as
 	// it was, never "missed" or closed.
-	// Review r2 N1: per address: one whose deep nmap finished this run (DeepScanned) was probed on every port, whatever another
+	// Per address: one whose deep nmap finished this run (DeepScanned) was probed on every port, whatever another
 	// address of the domain did.
 	partial := slices.ContainsFunc(c.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "ports" })
 	deepNow := map[string]bool{}
@@ -637,7 +637,7 @@ func (s *Service) Snapshots(ctx context.Context, id string) ([]SnapshotMeta, err
 
 // SnapshotOf returns the result of one day, or an error wrapping ErrNoSnapshot.
 func (s *Service) SnapshotOf(ctx context.Context, id, date string) (Snapshot, error) {
-	live := s.gbLive() // before the read: a run that ends between the two has already stored its outcome (review L3 of D-595)
+	live := s.gbLive() // before the read: a run that ends between the two has already stored its outcome
 	snap, ok, err := loadSnapshot(ctx, s.cfg.DB.Reader(), id, date)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("exposure: reading snapshot: %w", err)
@@ -664,7 +664,7 @@ func (s *Service) gbLive() string {
 }
 
 // cutOff: a snapshot whose OpenVAS step says "running" while no run of this box scans it was left by a restart of the box in the middle
-// of it (N49-3, D-595): it is stopped, so the heading never says "scanning" for ever.
+// of it: it is stopped, so the heading never says "scanning" for ever.
 func cutOff(snap *Snapshot) {
 	snap.GreenboneRun.State = GBRunStopped
 	for i, a := range snap.GreenboneRun.Addresses {
@@ -675,7 +675,7 @@ func cutOff(snap *Snapshot) {
 	snap.NotChecked = gbCutOff(snap.NotChecked)
 }
 
-// gbCutOff replaces the waiting line of an OpenVAS step nothing runs any more (also the one with a time, before D-595) with the line
+// gbCutOff replaces the waiting line of an OpenVAS step nothing runs any more (also the older one with a time) with the line
 // that says it was stopped, so the page never says "scanning" under a "stopped" heading.
 func gbCutOff(rows []NotCheckedRow) []NotCheckedRow {
 	out := slices.Clone(rows)
@@ -744,7 +744,7 @@ func entries(s Snapshot) (map[string]diffEntry, []string) {
 	}
 	for _, p := range s.Ports {
 		key := fmt.Sprintf("p:%s:%d", p.IP, p.Port)
-		detail := ServiceLabel(p) // review r2 L2: the person's name, "probably SIP" for a guess; the key is unchanged
+		detail := ServiceLabel(p) // the person's name, "probably SIP" for a guess; the key is unchanged
 		if p.Product != "" {
 			detail += ", " + p.Product
 		}

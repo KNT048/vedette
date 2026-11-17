@@ -17,7 +17,7 @@ import type { DeviceDetail, DeviceRow } from './types'
 /** A private (locally administered) MAC: the 0x02 bit of the first byte. Phones and laptops pick one per network and change it. */
 const privateMAC = (mac: string | null | undefined) => !!mac && /^[0-9a-f]{2}/i.test(mac) && (parseInt(mac.slice(0, 2), 16) & 2) === 2
 
-/** D-630 (kien 2026-11-17): confirm Ignore. Says what stops, what still alerts (trap hits, intrusion detection), and, for a private
+/** Confirm Ignore. Says what stops, what still alerts (trap hits, intrusion detection), and, for a private
  *  MAC, that a phone that changes it comes back in To review as a new device. */
 export function IgnoreDialog({ open, onOpenChange, name, mac, findings, pending, onConfirm }: {
   open: boolean; onOpenChange: (o: boolean) => void; name: string; mac: string | null; findings: number; pending: boolean; onConfirm: () => void
@@ -80,7 +80,7 @@ function IgnoredItem({ d }: { d: DeviceRow }) {
   )
 }
 
-/** D-630: the Ignored tab of /devices: devices a person said need no watching, each with Stop ignoring. */
+/** The Ignored tab of /devices: devices a person said need no watching, each with Stop ignoring. */
 export function IgnoredPanel() {
   const { t } = useTranslation('inventory')
   const q = useIgnoredDevices()

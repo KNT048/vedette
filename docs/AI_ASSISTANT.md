@@ -1,6 +1,6 @@
 # Trợ lý AI — BYOK, skill, RAG, 3 mức
 
-Nguyên tắc (kien): sản phẩm không bán AI. Khách cắm key/model của họ; phần mềm cung cấp **việc cụ thể, có ích**. Khách trả tiền token cho provider của họ. Không bàn giá token trong sản phẩm ngoài đồng hồ đo.
+Nguyên tắc: sản phẩm không bán AI. Khách cắm key/model của họ; phần mềm cung cấp **việc cụ thể, có ích**. Khách trả tiền token cho provider của họ. Không bàn giá token trong sản phẩm ngoài đồng hồ đo.
 
 ## 1. Provider
 
@@ -34,17 +34,17 @@ Skill được ship qua **content pack** (ký) → cập nhật prompt/schema m�
 | Skill | Story | Input (hộp chuẩn bị, không để AI tự tìm) | Output (schema) | Tier |
 |---|---|---|---|---|
 | `explain-finding` | S-AI-2 | bản ghi CVE (cvelist JSON rút gọn), tín hiệu feed (KEV/EPSS/PoC/sightings), asset + software + version + vendor firewall đã khai, 24h log liên quan (gộp), mitigation pack nếu có | `{affected: yes/no/unknown, why, patch_steps[], temp_mitigations[], config_snippets{vendor: text}, detection_hints[], citations[]}` | 1 lần/CVE/asset, cache theo hash |
-| `cve-news` | S-AI-3 | văn bản hộp đã fetch (D-280): bản ghi NVD, một advisory của hãng trong danh sách host, tìm kiếm kho GitHub `CVE-…` (PoC?), 6 feed watchTowr/GreyNoise/SANS ISC/Rapid7/Unit 42/Project Zero; làm sạch, có giới hạn, trong khối có rào | `{exploited, public_exploit, workaround, other[]}` → `lines` có nhãn do hộp gắn; `sources`, `citations` do hộp dựng | theo yêu cầu; không web search của nhà cung cấp ở mức nào (FORBID-6) |
+| `cve-news` | S-AI-3 | văn bản hộp đã fetch: bản ghi NVD, một advisory của hãng trong danh sách host, tìm kiếm kho GitHub `CVE-…` (PoC?), 6 feed watchTowr/GreyNoise/SANS ISC/Rapid7/Unit 42/Project Zero; làm sạch, có giới hạn, trong khối có rào | `{exploited, public_exploit, workaround, other[]}` → `lines` có nhãn do hộp gắn; `sources`, `citations` do hộp dựng | theo yêu cầu; không web search của nhà cung cấp ở mức nào (FORBID-6) |
 | `log-digest` | S-AI-4 | bảng gộp (signature, src, dst, count, Δ so baseline), hit IOC, asset liên quan | `{items: [{severity, evidence_lines[], recommendation}], summary}` | min: 1/ngày · med: 1/giờ · max: theo alert mới |
-| `log-investigate` | S-AI-4 (max) | như trên + **tool chỉ-đọc**: `search_assets`, `events_around(ip, at, minutes)` (loại dòng và số đếm của một địa chỉ, kết nối xấu; không dòng log), `lookup_ioc`, `lookup_cve` (D-223) | như trên + `tool_calls[]` ghi lại | max, khi bấm |
+| `log-investigate` | S-AI-4 (max) | như trên + **tool chỉ-đọc**: `search_assets`, `events_around(ip, at, minutes)` (loại dòng và số đếm của một địa chỉ, kết nối xấu; không dòng log), `lookup_ioc`, `lookup_cve` | như trên + `tool_calls[]` ghi lại | max, khi bấm |
 | `mitigation-config` | S-MIT-1 | CVE + vendor firewall + model/phiên bản + topology ngắn (WAN/LAN) | `{snippets{vendor: text}, side_effects[], verify_steps[]}` | theo yêu cầu |
 | `fingerprint-fallback` | S-INV-1 | banner/sysDescr/HTTP title mà nmap/Recog không gán được | `{vendor, product, version?, confidence}` | lô, model rẻ |
 | `translate-advisory` | S-FEED-2 | advisory tiếng Anh | tiếng Việt, giữ số/phiên bản | lô |
 | `weekly-report` | S-REP-1 | số liệu tuần (phát hiện mới/đã xử lý/còn, honeypot, log bất thường) | markdown 1 trang | 1/tuần |
 | `pdpl-assessment` | S-REP-2 | kiểm kê + scan + cấu hình | báo cáo theo mục luật (template cố định, AI chỉ điền) | theo yêu cầu |
-| `ask-my-data` | S-AI-5 | câu hỏi + tool chỉ-đọc | trả lời + bảng; khi bật đề xuất memory, tối đa một dòng `Remember:` hộp gỡ ra làm đề xuất (D-225) | theo yêu cầu |
+| `ask-my-data` | S-AI-5 | câu hỏi + tool chỉ-đọc | trả lời + bảng; khi bật đề xuất memory, tối đa một dòng `Remember:` hộp gỡ ra làm đề xuất | theo yêu cầu |
 
-`mitigation-config` chạy ở hai nơi (D-21): **trung tâm**, bằng key của dự án, soạn nháp gói giảm thiểu cho người duy trì xác nhận qua PR (S-MIT-4, `DATA_PIPELINE.md` §5b); **hộp**, bằng key của khách, chỉ khi CVE chưa có gói đã xác nhận (S-MIT-1). Kết quả trên hộp không bao giờ hiện như khuyến nghị đã xác nhận.
+`mitigation-config` chạy ở hai nơi: **trung tâm**, bằng key của dự án, soạn nháp gói giảm thiểu cho người duy trì xác nhận qua PR (S-MIT-4, `DATA_PIPELINE.md` §5b); **hộp**, bằng key của khách, chỉ khi CVE chưa có gói đã xác nhận (S-MIT-1). Kết quả trên hộp không bao giờ hiện như khuyến nghị đã xác nhận.
 
 ## 3. RAG — tìm đúng ngữ cảnh trước khi hỏi
 
@@ -52,7 +52,7 @@ Skill được ship qua **content pack** (ký) → cập nhật prompt/schema m�
 - **Chỉ mục**: SQLite **FTS5 (BM25)** ngay từ đầu — không phụ thuộc embedding; tuỳ chọn vector (`sqlite-vec`) với embedding từ provider của khách hoặc Ollama (bge-m3 tốt tiếng Việt). Lai (BM25 + vector) khi có vector.
 - **Chunk**: theo thực thể (1 asset = 1 doc; 1 CVE = 1 doc; advisory chia ~800 token có tiêu đề). Cập nhật tăng dần khi DB đổi.
 - **Truy xuất**: theo skill, top-k nhỏ (5–12), lọc theo site/tenant và quyền người hỏi; mỗi chunk mang `source` để AI trích dẫn; câu trả lời không có citation → UI gắn nhãn "không có nguồn".
-- **Tài liệu của khách (S-AI-7, lát 4c, D-209)**: MD/TXT/DOCX ≤ 10 MB (PDF chưa hỗ trợ: cần đọc trong tiến trình con có giới hạn, D-209) do quản trị viên tải lên, hộp đọc và cắt đoạn ~3200 byte, chỉ mục FTS5 (BM25) trên hộp, không embedding; mỗi lần gọi một việc mang dữ liệu nội bộ lấy tối đa 4 đoạn khớp câu hỏi, từng đoạn qua hook, thành khối dữ liệu có rào (không vào system prompt).
+- **Tài liệu của khách (S-AI-7, lát 4c)**: MD/TXT/DOCX ≤ 10 MB (PDF chưa hỗ trợ: cần đọc trong tiến trình con có giới hạn) do quản trị viên tải lên, hộp đọc và cắt đoạn ~3200 byte, chỉ mục FTS5 (BM25) trên hộp, không embedding; mỗi lần gọi một việc mang dữ liệu nội bộ lấy tối đa 4 đoạn khớp câu hỏi, từng đoạn qua hook, thành khối dữ liệu có rào (không vào system prompt).
 - **Không RAG** cho dữ liệu mà hộp có thể đưa chính xác bằng truy vấn (asset theo IP…): dùng tool chỉ-đọc.
 
 ## 4. Ba mức token (S-AI-4)
@@ -61,7 +61,7 @@ Skill được ship qua **content pack** (ký) → cập nhật prompt/schema m�
 |---|---|---|---|
 | Tối thiểu | 1 digest/ngày: top-N bất thường đã gộp + hit IOC; `explain-finding` chỉ khi bấm | model đắt hoặc local nhỏ | ~10k token/ngày |
 | Trung bình | mỗi giờ: lô sự kiện **mới** + cửa sổ bất thường, kèm asset; `explain-finding` tự chạy cho phát hiện mới mức cao | mặc định | ~60k/ngày |
-| Tối đa | theo từng alert mới (chưa làm); `log-investigate` với tool khi bấm (D-223); `cve-news` tự chạy (chưa làm) | khách có SOC/IT | khách đặt |
+| Tối đa | theo từng alert mới (chưa làm); `log-investigate` với tool khi bấm; `cve-news` tự chạy (chưa làm) | khách có SOC/IT | khách đặt |
 
 Vượt trần → hạ mức → ghi thông báo. Mọi lần gọi ghi `ai_run` (skill, token, model, hash input) để tra và cache.
 

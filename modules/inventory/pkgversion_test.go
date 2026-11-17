@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-516: a packaged agent row keeps its full Debian version and source package for findings; another source's claim, a
+// A packaged agent row keeps its full Debian version and source package for findings; another source's claim, a
 // malformed value or a row not from a package database keeps neither. A package update that keeps the upstream number
 // (13.5 -> 13.14) is the same row with a new full version, and findings is told to read the device again.
 func TestPackagedRowKeepsFullVersionAndSource(t *testing.T) {

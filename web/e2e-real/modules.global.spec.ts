@@ -3,7 +3,7 @@
 //   - "External exposure" (exposure) is the module that is turned off: nothing depends on it and it keeps a setting of its own (the
 //     box-IP check interval), which is the data that must still be there after it is turned on again.
 //   - "Findings" is turned off to make "Mitigation" (needs it) ask for its dependency. (AI response, the earlier example, is not offered
-//     in v1, D-624; the credentialed scan is not listed either, D-417.)
+//     in v1; the credentialed scan is not listed either.)
 // What a module that is off answers: SYS-5 says its routes answer 404 "as if they did not exist" (core/server/modules.go), not 409
 // `module_off` (that code belongs to the MCP token call and to the email channel of the account page).
 import { expect, request, test, type Page } from '@playwright/test'
@@ -95,7 +95,7 @@ test('turn a module off: the page says so, its routes answer 404, its data is ke
 })
 
 test('turning on a module whose dependency is off asks to turn both on', async ({ page }) => {
-  // D-624: AI response is not offered in v1, so the pair is Mitigation, which needs Findings (both v1; modules/mitigation/MANIFEST.yaml)
+  // AI response is not offered in v1, so the pair is Mitigation, which needs Findings (both v1; modules/mitigation/MANIFEST.yaml)
   test.setTimeout(120_000)
   const errors = collectErrors(page)
   const admin = await request.newContext({ baseURL: box().base_url, storageState: authFile('admin') })

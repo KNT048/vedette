@@ -140,7 +140,7 @@ func TestNetStateReadsCardsCountersAndTheDefaultRoute(t *testing.T) {
 		}
 	}
 	if strings.Contains(string(b), "other_macs") || strings.Contains(string(b), "last_packet") {
-		t.Errorf("root reports traffic facts (D-101): %s", b)
+		t.Errorf("root reports traffic facts: %s", b)
 	}
 }
 

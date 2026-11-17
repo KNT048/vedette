@@ -9,7 +9,7 @@ import (
 	"unicode"
 )
 
-// What a call takes from the knowledge base (S-AI-7, INV-10, D-209). The question and the data of the call are turned into search
+// What a call takes from the knowledge base (S-AI-7, INV-10). The question and the data of the call are turned into search
 // words, the FTS5 index (BM25) answers with the best pieces of the documents assigned to the job, each piece goes through the
 // before-AI hooks on its own, and what is left goes with the call as a fenced data block, never in the system prompt. Only a job that
 // carries internal data reads the base: a job that may run on a cloud profile whatever the privacy rule says (CVE news, translating
@@ -113,7 +113,7 @@ func (s *Service) knowledgeForCall(ctx context.Context, hooks *HookRunner, job J
 	hctx, cancel := context.WithTimeout(ctx, s.hookTimeout())
 	defer cancel()
 	pieces, chars := ragPieces, ragChars
-	if job == JobAskMyData { // every turn of a question sends the pieces again (D-482)
+	if job == JobAskMyData { // every turn of a question sends the pieces again
 		pieces, chars = ragAskPieces, ragAskChars
 	}
 	var out strings.Builder
@@ -162,7 +162,7 @@ func knowledgeNote(kc knowCall) string {
 }
 
 // documentsCite is the source line of the knowledge documents a call carried (`Documents: "runbook.md", "vpn.pdf"`), none when it
-// carried none (S-AI-7, D-445). The names are the box's own (checkDocName), never the model's. Whoever sees the answer sees the names,
+// carried none (S-AI-7). The names are the box's own (checkDocName), never the model's. Whoever sees the answer sees the names,
 // also after a document is deleted: the answer drawn from them already reached them.
 func documentsCite(docs []string) []Citation {
 	if len(docs) == 0 {

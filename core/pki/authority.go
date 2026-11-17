@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	// LeafLifetime is the life of every leaf (D-110 (3)): short, so that a stolen certificate ends by itself.
+	// LeafLifetime is the life of every leaf: short, so that a stolen certificate ends by itself.
 	LeafLifetime = 7 * 24 * time.Hour
 	// RenewBefore is how little lifetime may be left before a leaf is replaced: a third.
 	RenewBefore = LeafLifetime / 3
@@ -201,7 +201,7 @@ func (a *Authority) issueServer() error {
 const serverKey sensorlink.Role = "server"
 
 // Start makes the server leaf and a fresh leaf for each role and writes the two bundles into dir (<dir>/<role>/sensor.pem),
-// before the listener opens (D-110 (4)). A start always issues: core never reads a bundle back, so it cannot know the key of
+// before the listener opens. A start always issues: core never reads a bundle back, so it cannot know the key of
 // the leaf it issued last time. The serial before stays valid, so a sensor that has not read the new file yet keeps working.
 func (a *Authority) Start(ctx context.Context, dir string) error {
 	a.run.Lock()
@@ -224,7 +224,7 @@ func (a *Authority) Start(ctx context.Context, dir string) error {
 
 // Renew is the daily job (and the start-up check): it replaces the server leaf and the leaf of a role when a third of the
 // lifetime or less is left, and writes again a bundle that could not be written before. Nothing happens when nothing is due.
-// cmd/vedette calls it from the daily job "sensor-cert-renew" of module core (D-141).
+// cmd/vedette calls it from the daily job "sensor-cert-renew" of module core.
 func (a *Authority) Renew(ctx context.Context, dir string) error {
 	a.run.Lock()
 	defer a.run.Unlock()

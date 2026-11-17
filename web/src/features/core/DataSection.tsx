@@ -34,7 +34,7 @@ export default function DataSection() {
   const gate = useGate('admin')
   const me = useMe().data
   const org = me?.org ?? ''
-  const install = useInstallKind() // D-381: a container-only install has no helper, so no box backups; the customer copies the volume (S-CORE-9 G2)
+  const install = useInstallKind() // A container-only install has no helper, so no box backups; the customer copies the volume (S-CORE-9)
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const purge = usePurge()
@@ -47,7 +47,7 @@ export default function DataSection() {
   const [day] = useState(() => new Date().toISOString().slice(0, 10))
 
   const [picked, setCats] = useState<LogCategory[]>(LOG_CATEGORIES.map((c) => c.id))
-  // S-CORE-6 (walk 4): an install that cannot run traps (container-only, D-381) has no honeypot hits: the box greys it and leaves it out.
+  // S-CORE-6: an install that cannot run traps (container-only) has no honeypot hits: the box greys it and leaves it out.
   const noTraps = useModuleAvailable('honeypot') === false
   const cats = noTraps ? picked.filter((c) => c !== 'honeypot') : picked
   const [from, setFrom] = useState('')
@@ -152,7 +152,7 @@ export default function DataSection() {
   )
 }
 
-/** Backups the helper keeps on the box and Restore (S-CORE-1, D-377): the dialog says what is replaced and that a copy of the current data is kept first. */
+/** Backups the helper keeps on the box and Restore (S-CORE-1): the dialog says what is replaced and that a copy of the current data is kept first. */
 function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) {
   const { t } = useTranslation('core')
   const list = useBoxBackups()
@@ -228,12 +228,12 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
   )
 }
 
-/** A13-2 (D-518): the downloaded backup has no decryption key, so on another box it cannot bring back saved secrets or two-step
+/** A13-2: the downloaded backup has no decryption key, so on another box it cannot bring back saved secrets or two-step
  * sign-in. The key is downloaded once, behind the password (and two-step code), to keep apart from the backups. */
 function KeyAside({ disabled, title }: { disabled: boolean; title?: string }) {
   const { t } = useTranslation('core')
   const me = useMe().data
-  const sso = useAccount().data?.user.sso === true // no Vedette password to confirm with (D-518, deferred)
+  const sso = useAccount().data?.user.sso === true // no Vedette password to confirm with (deferred)
   const key = useDownloadKey()
   const [open, setOpen] = useState(false)
   const [password, setPassword] = useState('')

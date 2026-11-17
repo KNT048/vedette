@@ -15,7 +15,7 @@ import { ActionError } from '../parts'
 import type { MemoryEntry } from '../types'
 import { ConfirmDelete, List, Row, Toggle } from './shared'
 
-/** Điều AI nhớ về hạ tầng này. Xem, sửa, tắt, xoá; AI chỉ đề xuất, người duyệt (D-39). */
+/** Điều AI nhớ về hạ tầng này. Xem, sửa, tắt, xoá; AI chỉ đề xuất, người duyệt. */
 export default function MemoryTab() {
   const { t } = useTranslation('ai')
   const mem = useMemory()

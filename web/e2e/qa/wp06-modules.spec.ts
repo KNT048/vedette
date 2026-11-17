@@ -27,10 +27,10 @@ for (const theme of THEMES) {
     await expect(fSwitch).toBeChecked()
     expect(fRow).toMatch(/Inventory/)
     expect(fRow).toMatch(/feed/i)
-    // D-57: mitigation is only the "What to do" package and depends on findings
+    // Mitigation is only the "What to do" package and depends on findings
     const mRow = rows.find((r) => /^Mitigation/.test(r))
     console.log('MITIGATION ROW', JSON.stringify(mRow))
-    expect.soft(mRow, 'D-57: the Mitigation row says it needs Findings').toMatch(/Findings/)
+    expect.soft(mRow, 'the Mitigation row says it needs Findings').toMatch(/Findings/)
     // turn feeds off: the prompt lists what depends on it (findings among them)
     const feedsSwitch = page.getByRole('switch', { name: /Turn (on|off) module .*Feeds/i })
     await feedsSwitch.click()

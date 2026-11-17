@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// D-615: nvd-kev keeps the day NVD published each CVE from the same answer as the ranges; a value that is not a date is dropped.
+// nvd-kev keeps the day NVD published each CVE from the same answer as the ranges; a value that is not a date is dropped.
 func TestParseNVD_Published(t *testing.T) {
 	t.Parallel()
 	d, err := ParseNVD([]byte(testFile(t, "nvd-kev-page.json")))
@@ -32,7 +32,7 @@ func TestParseNVD_Published(t *testing.T) {
 	}
 }
 
-// D-615: a pull stores every day; a box from before the table (rows of ranges, no day) makes its next pull a full one, once.
+// A pull stores every day; a box from before the table (rows of ranges, no day) makes its next pull a full one, once.
 func TestNVDPull_PublishedAndOneFullPullForOldBoxes(t *testing.T) {
 	t.Parallel()
 	e, n := nvdEnv(t)
@@ -62,7 +62,7 @@ func TestNVDPull_PublishedAndOneFullPullForOldBoxes(t *testing.T) {
 	}
 }
 
-// D-613, D-616, D-617: the tier feeds' state, and one CVE from them: on by default and loading until filled, off when an admin turns
+// The tier feeds' state, and one CVE from them: on by default and loading until filled, off when an admin turns
 // them off, then likely (EPSS ≥ 0.1, published in the last 12 months), recent, or no tier when older; 404 not_in_data when neither
 // holds it.
 func TestTierStatusAndTierCVE(t *testing.T) {
@@ -71,7 +71,7 @@ func TestTierStatusAndTierCVE(t *testing.T) {
 	now := e.clock()
 	st, err := e.svc.st.TierStatus(t.Context(), now)
 	if err != nil || st.EPSS != TierLoading || st.Recent != TierLoading {
-		t.Fatalf("seeded on (D-617), empty: %+v %v", st, err)
+		t.Fatalf("seeded on, empty: %+v %v", st, err)
 	}
 	for _, id := range []string{epssAllFeedID, recentFeedID} {
 		if c, b := e.put(id, `{"enabled":false}`); c != 200 {
@@ -106,7 +106,7 @@ func TestTierStatusAndTierCVE(t *testing.T) {
 	if c, b = e.get("/feeds/cve/CVE-2020-0003/tier"); c != 200 || b["tier"] != nil || b["published"] != nil || b["epss"] != 0.5 { // EPSS only: older, no tier
 		t.Fatalf("old: %d %v", c, b)
 	}
-	// N100 n54: a CVE nvd-recent does not hold still shows the day feeds_published has (nvd-kev or CVE.org), with no tier
+	// A CVE nvd-recent does not hold still shows the day feeds_published has (nvd-kev or CVE.org), with no tier
 	write(t, e.db, func(tx *sql.Tx) error {
 		return applyPublished(t.Context(), tx, map[string]string{"CVE-2020-0003": "2020-03-10"})
 	})
@@ -146,7 +146,7 @@ func seedTierData(t *testing.T, e *env, now time.Time) {
 	}
 }
 
-// D-617: the plan reads only the NVD entries of the products the devices run, with the CVE's day, severity and EPSS; nothing while
+// The plan reads only the NVD entries of the products the devices run, with the CVE's day, severity and EPSS; nothing while
 // nvd-recent is not ready, no EPSS (and no tier 2) while epss-all is not. The match stamp moves when either tier feed pulls.
 func TestTierRecords(t *testing.T) {
 	t.Parallel()
@@ -197,7 +197,7 @@ func TestTierRecords(t *testing.T) {
 	}
 }
 
-// Measured for the PR (D-617): the tier read of one plan pass on data sized like the N100 (104,448 CVEs of nvd-recent, two NVD entries
+// Measured for the PR: the tier read of one plan pass on data sized like a test box's (104,448 CVEs of nvd-recent, two NVD entries
 // each over 5,000 or 50,000 products, every CVE with an EPSS score) when the 21 devices run 840 of those products. Run:
 // go test ./modules/feeds -run '^$' -bench TierRecords -benchmem
 func BenchmarkTierRecords(b *testing.B) {

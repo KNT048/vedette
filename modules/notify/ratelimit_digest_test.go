@@ -22,8 +22,8 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// W1-19: the first matching after a product was added made one Telegram message per CVE, then Telegram answered 429. The burst is one
-// digest per channel, and a finding counts as notified only when the message named it (W1-11).
+// The first matching after a product was added made one Telegram message per CVE, then Telegram answered 429. The burst is one
+// digest per channel, and a finding counts as notified only when the message named it.
 func TestBurstOfMatchesIsOneDigestAndNamesOnlyWhatItLists(t *testing.T) {
 	e := newEnv(t)
 	e.telegram(notify.Low)
@@ -62,7 +62,7 @@ func TestBurstOfMatchesIsOneDigestAndNamesOnlyWhatItLists(t *testing.T) {
 	}
 }
 
-// W1-19: a 429 is waited for as the provider asked, recorded once as "Delayed (rate limited)", and the message goes out after the wait;
+// A 429 is waited for as the provider asked, recorded once as "Delayed (rate limited)", and the message goes out after the wait;
 // the finding says notified only after that.
 func TestRateLimitedSendWaitsAndIsSentLater(t *testing.T) {
 	var mu sync.Mutex
@@ -130,7 +130,7 @@ func TestRateLimitGivesUpAfterBoundedTries(t *testing.T) {
 	}
 }
 
-// W1-11: on a new box every device is new; the first discovery is one summary incident with every device, not one incident each. A
+// On a new box every device is new; the first discovery is one summary incident with every device, not one incident each. A
 // device found later in the window is told in one short update; after the window, and on a box that ran before, a device is news alone.
 func TestFirstDiscoveryIsOneSummaryIncident(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) {
@@ -197,7 +197,7 @@ func TestFirstDiscoveryNeverOpensOnABoxThatRanBefore(t *testing.T) {
 	}
 }
 
-// W1-20: a Zalo OA channel saved with App ID, Secret key and refresh token gets its access token from the token endpoint, keeps the
+// A Zalo OA channel saved with App ID, Secret key and refresh token gets its access token from the token endpoint, keeps the
 // rotated refresh token (single use), and refreshes again when Zalo says the token is invalid.
 func TestZaloOARefreshTokenFlow(t *testing.T) {
 	var mu sync.Mutex
@@ -268,7 +268,7 @@ func hasLast4(v notify.ChannelsView, t channel.Type, l4 string) bool {
 
 func eventOf(name string, data any) events.Event { return events.Event{Name: name, Data: data} }
 
-// D-483 review: Zalo cuts its text at 2000 characters. With long lines, only the lines that are sent whole count as told, and the
+// Zalo cuts its text at 2000 characters. With long lines, only the lines that are sent whole count as told, and the
 // "and N more" line counts the rest.
 func TestZaloDigestNamesOnlyTheLinesThatFit(t *testing.T) {
 	var mu sync.Mutex
@@ -318,7 +318,7 @@ func TestZaloDigestNamesOnlyTheLinesThatFit(t *testing.T) {
 	}
 }
 
-// D-483 review: a rotated refresh token is saved before it is used; a failed save keeps it in memory and is tried again before the
+// A rotated refresh token is saved before it is used; a failed save keeps it in memory and is tried again before the
 // next send, and a sender built meanwhile, or a save of only the Secret key, starts from it, never from the used token.
 func TestZaloRotationSurvivesAFailedSave(t *testing.T) {
 	var mu sync.Mutex
@@ -389,7 +389,7 @@ func TestZaloRotationSurvivesAFailedSave(t *testing.T) {
 	}
 }
 
-// A device deleted in Devices leaves the open new-device incidents (W6-3, D-497): the summary drops it from its list and count and is
+// A device deleted in Devices leaves the open new-device incidents: the summary drops it from its list and count and is
 // resolved when none is left; the device's own incident is resolved. A resolved incident keeps its devices.
 func TestDeletedDeviceLeavesTheNewDeviceIncidents(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) {

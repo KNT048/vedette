@@ -1,4 +1,4 @@
-// kien G8: the device's Software tab says, on each software row, what it needs: its exploited findings (count, worst, the update that
+// The device's Software tab says, on each software row, what it needs: its exploited findings (count, worst, the update that
 // fixes them) and/or the recommended update that fixes CVEs not exploited yet, from the same answer as To fix (GET /findings/to-fix
 // for the device); nothing on a clean row.
 import { Link } from 'react-router'

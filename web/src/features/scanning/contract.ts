@@ -1,8 +1,8 @@
-// API contract of Settings › Scanning (#850, J2 J6): one read of every scanning engine, one writer of the shared safety block, the
+// API contract of Settings › Scanning (#850): one read of every scanning engine, one writer of the shared safety block, the
 // engine switches and "Scan the LAN now" / "Check this device now". Served by core (always on), so the page answers while any
 // engine's module is off; core/server/modules.go maps /scanning to core and core reads each engine through a port wired in
 // cmd/vedette (core imports no module). Every value here already lives in a module's store: the shared window, check rate and
-// exclusions live in inventory, which the scan module reads instead of its own copy (modules/core/CONTRACT.md INV-40, D-627).
+// exclusions live in inventory, which the scan module reads instead of its own copy (modules/core/CONTRACT.md INV-40).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { BEHAVIOUR_KINDS } from '@/lib/deviceTypes'
@@ -10,7 +10,7 @@ import { JobProgress } from '@/lib/progress'
 
 const iso = z.iso.datetime()
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).describe('HH:MM')
-const day = z.number().int().min(1).max(7).describe('1 = Monday … 7 = Sunday (D-57 (9))')
+const day = z.number().int().min(1).max(7).describe('1 = Monday … 7 = Sunday')
 const BehaviourKind = z.enum(BEHAVIOUR_KINDS)
 
 export const EngineId = z.enum(['passive', 'nmap-discovery', 'nmap-versions', 'snmp', 'osquery', 'wazuh', 'nuclei', 'zap', 'openvas', 'honeypot'])
@@ -20,7 +20,7 @@ export const EngineState = z.enum(['off', 'needs_setup', 'starting', 'ready', 'r
   .describe('off: switched off (or its module is); needs_setup: on, but it has nothing to work with yet (scope not confirmed, no SNMP credential, no osquery token, no Wazuh server, no verified target, no Trap IP); starting: its container is starting, or OpenVAS loads its feed; ready: on and waiting for its window, schedule or a person; running: a job runs now; error: it failed and needs a person (reason says what); unavailable: this box cannot run it (container-only install, tool missing, not enough memory)')
 
 export const EngineCost = z.object({
-  ram_mb: z.number().int().nullable().describe('Memory it may take, from a fact of the box\'s code: its container\'s memory cap (sensor 512, honeypot 256, scan 1024, ZAP 1024), or the measured peak for OpenVAS (about 4000, D-569); 0 for osquery and Wazuh, which run inside core. null when it is not known; never an estimate'),
+  ram_mb: z.number().int().nullable().describe('Memory it may take, from a fact of the box\'s code: its container\'s memory cap (sensor 512, honeypot 256, scan 1024, ZAP 1024), or the measured peak for OpenVAS (about 4000); 0 for osquery and Wazuh, which run inside core. null when it is not known; never an estimate'),
   while: z.enum(['on', 'running']).describe('on: held as long as the engine is on (a long-running container); running: only while one of its jobs runs (a one-shot container, or OpenVAS scanning)'),
   container: z.string().nullable().describe('The container it shares with other engines (scan: nmap, SNMP and nuclei); count a shared container once. null when the figure is its own'),
 })
@@ -54,7 +54,7 @@ export const RunningJob = z.object({
 
 export const Safety = z.object({
   scope: z.object({
-    lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges'),
+    lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10); inventory lan_ranges'),
     confirmed_at: iso.nullable(), confirmed_by: z.string().nullable(),
   }),
   window: z.object({
@@ -67,11 +67,11 @@ export const Safety = z.object({
   }),
   exclusions: z.array(z.string()).describe('IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the 200 a save accepts)'),
   fragile: z.object({
-    kinds: z.array(BehaviourKind).describe('Types scanned once, gently, when first seen; passive-only after that (D-45, D-511)'),
+    kinds: z.array(BehaviourKind).describe('Types scanned once, gently, when first seen; passive-only after that'),
     regular_scan_kinds: z.array(BehaviourKind).describe('Subset of kinds that may still get regular scans'),
     devices: z.number().int().describe('Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter; read-only'),
   }),
-  version: z.string().describe('Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version'),
+  version: z.string().describe('Names the stored values of this block (#860): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version'),
 })
 export const SafetyInput = z.object({
   scope: z.object({
@@ -88,10 +88,10 @@ export const SafetySaved = Safety.extend({
 })
 
 export const RangeAdd = z.object({
-  range: z.string().max(64).describe('One internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461) to add to the scope, e.g. 192.168.20.0/24; host bits are dropped and reported in adjusted'),
+  range: z.string().max(64).describe('One internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10) to add to the scope, e.g. 192.168.20.0/24; host bits are dropped and reported in adjusted'),
   confirm: z.boolean().describe('The attestation of PUT /scanning/safety (scope.confirmed): the ranges shown, and this one, belong to the company and scanning them is permitted. Must be true (400 scope_not_confirmed); recorded as confirmed_at/confirmed_by'),
-  shown_ranges: z.array(z.string().max(64)).max(16).describe('The ranges the dialog showed next to the tick (safety.scope.lan_ranges as read; order does not matter, compared as networks). The tick confirms exactly these and the new range: when the stored list is another one (an admin changed the ranges since), 409 scope_changed with the current block (error.safety) and nothing stored (review #860 H1)'),
-  shown_confirmed_at: z.string().max(64).nullable().describe('The confirmation the dialog showed (safety.scope.confirmed_at as read, compared to the second; null: shown as not confirmed). When the stored one is another (an admin unconfirmed the scope, or confirmed it again, since), 409 scope_changed with the current block, nothing stored (review #860 r2 M1)'),
+  shown_ranges: z.array(z.string().max(64)).max(16).describe('The ranges the dialog showed next to the tick (safety.scope.lan_ranges as read; order does not matter, compared as networks). The tick confirms exactly these and the new range: when the stored list is another one (an admin changed the ranges since), 409 scope_changed with the current block (error.safety) and nothing stored (#860)'),
+  shown_confirmed_at: z.string().max(64).nullable().describe('The confirmation the dialog showed (safety.scope.confirmed_at as read, compared to the second; null: shown as not confirmed). When the stored one is another (an admin unconfirmed the scope, or confirmed it again, since), 409 scope_changed with the current block, nothing stored (#860)'),
 })
 export const ExclusionAdd = z.object({
   entry: z.string().max(64).describe('One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 192.168.18.9 or 192.168.18.64/28'),
@@ -131,7 +131,7 @@ export const HistoryRun = z.object({
 })
 
 export const endpoints = defineEndpoints([
-  { method: 'get', path: '/scanning/history', summary: 'Every run of the LAN engines (discovery sweeps, device identifications, SNMP reads) and every stored scan of a public target, newest first, at most 200, with its outcome in words (kien G7a). The vulnerability checks keep their own list (GET /scans/runs). Answers whether or not the Vulnerability scans module is on', stories: ['S-SCAN-4', 'S-INV-1'], role: 'viewer', query: z.object({ asset: z.string().max(96).optional().describe('A device id (kien G7b/c, the device page\'s Last checks): only the runs that reached its address now, the identifications of that address (kind device) and the SNMP reads that asked it, at most 200 of each kind: the identifications from the year of runs the box keeps, the SNMP reads among its newest 1000 reads; no sweep, no public scan. The jobs record addresses, so a run of the device under an earlier address is not listed. An unknown device, or one without an address, gives an empty list') }), response: z.object({ items: z.array(HistoryRun) }) },
+  { method: 'get', path: '/scanning/history', summary: 'Every run of the LAN engines (discovery sweeps, device identifications, SNMP reads) and every stored scan of a public target, newest first, at most 200, with its outcome in words. The vulnerability checks keep their own list (GET /scans/runs). Answers whether or not the Vulnerability scans module is on', stories: ['S-SCAN-4', 'S-INV-1'], role: 'viewer', query: z.object({ asset: z.string().max(96).optional().describe('A device id (the device page\'s Last checks): only the runs that reached its address now, the identifications of that address (kind device) and the SNMP reads that asked it, at most 200 of each kind: the identifications from the year of runs the box keeps, the SNMP reads among its newest 1000 reads; no sweep, no public scan. The jobs record addresses, so a run of the device under an earlier address is not listed. An unknown device, or one without an address, gives an empty list') }), response: z.object({ items: z.array(HistoryRun) }) },
   { method: 'get', path: '/scanning', summary: 'Every scanning engine with its switch, state, memory cost, last and next run, the jobs running now, and the shared safety settings (scope, window, speed, exclusions, fragile types)', stories: ['S-SCAN-4', 'S-CORE-1', 'S-INV-1'], role: 'viewer', response: Scanning },
   { method: 'put', path: '/scanning/safety', summary: 'Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409 safety_changed (with error.safety, the current block) when version is not the stored one: re-read, merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow stops', stories: ['S-SCAN-4', 'S-INV-1'], role: 'admin', body: SafetyInput, response: SafetySaved },
   { method: 'post', path: '/scanning/safety/ranges', summary: 'Add one LAN range to the scope where the person is ("+ New range" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick, and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges or the stored confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when the range was normalized', stories: ['S-SCAN-4', 'S-INV-1'], role: 'admin', body: RangeAdd, response: SafetySaved },

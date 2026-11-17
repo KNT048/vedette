@@ -178,7 +178,7 @@ func TestScope(t *testing.T) {
 	if got := (Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"10.0.0.0/24"}, Days: []int{1}, From: "01:00", To: "05:00", Rate: 10}).sweepWarning(nil); got != "" {
 		t.Errorf("a /24 at 10 packets/s fits: %q", got)
 	}
-	// D-523: 65536 addresses at 50 packets/s in the 23:00-05:00 window. On the box's own network (one ARP request each) that is
+	// 65536 addresses at 50 packets/s in the 23:00-05:00 window. On the box's own network (one ARP request each) that is
 	// 22 minutes and fits; behind a router (17 packets or more each) it is over six hours and does not. A mixed scope charges
 	// each part its own cost, and the exclusions come off both.
 	wide := Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"10.0.0.0/16"}, Days: []int{1}, From: "23:00", To: "05:00", Rate: 50}

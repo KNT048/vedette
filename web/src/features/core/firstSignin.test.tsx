@@ -1,4 +1,4 @@
-// D-180 (S-CORE-3): a password an administrator sets must be changed at first sign-in. Also the day format of the log download (D-132).
+// S-CORE-3: a password an administrator sets must be changed at first sign-in. Also the day format of the log download.
 import { describe, expect, it } from 'vitest'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -13,7 +13,7 @@ const TEMP = 'ab12cd-34ef56-789abc-0d'
 const addTempUser = (expires = tempExpiry()) => usersStore.update((l) => [...l, { id: 'u-new', name: 'Hana', email: 'hana@acme.example', role: 'operator', password: TEMP, temp_password_expires_at: expires, twofa: false, created_at: '2026-11-01T00:00:00Z', last_login: null }])
 const post = (path: string, body: object) => fetch(`${location.origin}/api/v1${path}`, { method: 'POST', body: JSON.stringify(body) })
 
-describe('first sign-in with an administrator-set password (D-180)', () => {
+describe('first sign-in with an administrator-set password', () => {
   it('create and reset mark the password temporary, for 72 hours', async () => {
     sessionStore.set({ userId: 'u-admin' })
     const made = (await (await post('/core/users', { name: 'Kim', email: 'kim@acme.example', role: 'viewer' })).json()) as { user: { id: string } }
@@ -78,7 +78,7 @@ describe('first sign-in with an administrator-set password (D-180)', () => {
     await u.type(screen.getByLabelText('Repeat new password'), 'a-brand-new-long-password')
     await u.click(screen.getByRole('button', { name: 'Save and continue' }))
     await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-new')!.temp_password_expires_at).toBeNull())
-    expect(await screen.findByRole('tablist', { name: 'Parts of My account' })).toBeInTheDocument() // /account (its tabs, D-519)
+    expect(await screen.findByRole('tablist', { name: 'Parts of My account' })).toBeInTheDocument() // /account (its tabs)
     expect(usersStore.get().find((x) => x.id === 'u-new')!.password).toBe('a-brand-new-long-password')
   })
 
@@ -90,7 +90,7 @@ describe('first sign-in with an administrator-set password (D-180)', () => {
   })
 })
 
-describe('Download logs sends the days as YYYY-MM-DD (D-132)', () => {
+describe('Download logs sends the days as YYYY-MM-DD', () => {
   it('the request has the picked days as they are, not a time', () => {
     const q = new URLSearchParams(logsExportQuery(['audit', 'alerts'], 'csv', '2026-11-05', '2026-11-09'))
     expect(q.get('from')).toBe('2026-11-05')

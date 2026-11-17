@@ -40,17 +40,17 @@ func (e *env) auditBy(action string) []string {
 	return out
 }
 
-// phonePair is kien's iPhone: approved with a note under a private Wi-Fi address, then an hour later a new private address and a
-// new lease under the same generic name "iPhone", which the join rules never take (D-598). It returns the approved row and the new one.
+// phonePair is a person's iPhone: approved with a note under a private Wi-Fi address, then an hour later a new private address and a
+// new lease under the same generic name "iPhone", which the join rules never take. It returns the approved row and the new one.
 func phonePair(e *env) (old, newer string) {
 	e.t.Helper()
 	e.record(dhcp(privMac1, "192.168.18.10", "iPhone")...)
 	old = e.idOf("192.168.18.10")
-	if err := e.svc.Approve(e.ctx(), "kien", old); err != nil {
+	if err := e.svc.Approve(e.ctx(), "anna", old); err != nil {
 		e.t.Fatal(err)
 	}
-	notes := "Kien's phone"
-	if err := e.svc.PatchDevice(e.ctx(), "kien", old, inventory.Patch{Notes: &notes}); err != nil {
+	notes := "Anna's phone"
+	if err := e.svc.PatchDevice(e.ctx(), "anna", old, inventory.Patch{Notes: &notes}); err != nil {
 		e.t.Fatal(err)
 	}
 	e.tick(time.Hour)
@@ -62,11 +62,11 @@ func phonePair(e *env) (old, newer string) {
 	return old, newer
 }
 
-// D-599: a new pending row with a new private Wi-Fi address and the generic name of an approved row that went quiet is offered on
+// A new pending row with a new private Wi-Fi address and the generic name of an approved row that went quiet is offered on
 // both device pages and in the list, with the words the page shows; Merge keeps the approved row (id, approval, notes), moves the
 // newer address and MAC to it, deletes the newcomer, writes one audit row by the person and announces merged before deleted, so
 // findings moves the newcomer's findings and notify closes its incident.
-func TestContract_D599_PossibleSameIsOfferedAndMerged(t *testing.T) {
+func TestContract_PossibleSameIsOfferedAndMerged(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	old, newer := phonePair(e)
@@ -93,7 +93,7 @@ func TestContract_D599_PossibleSameIsOfferedAndMerged(t *testing.T) {
 		t.Fatal(err)
 	}
 	k := e.only()
-	if k.ID != old || !k.Approved || k.Notes == nil || *k.Notes != "Kien's phone" || k.IP != "192.168.18.11" || k.MAC == nil || *k.MAC != privMac2 {
+	if k.ID != old || !k.Approved || k.Notes == nil || *k.Notes != "Anna's phone" || k.IP != "192.168.18.11" || k.MAC == nil || *k.MAC != privMac2 {
 		t.Errorf("kept device: id %s approved %v notes %v ip %s mac %v", k.ID, k.Approved, k.Notes, k.IP, k.MAC)
 	}
 	var names []string
@@ -117,18 +117,18 @@ func TestContract_D599_PossibleSameIsOfferedAndMerged(t *testing.T) {
 	}
 }
 
-// D-599: a person decides, so unlike the join rules the approval moves when the kept row had none (approved_at kept, the suspicious
+// A person decides, so unlike the join rules the approval moves when the kept row had none (approved_at kept, the suspicious
 // mark cleared as Approve does; review r1 of #871 M2), both notes stay (the kept row's first), and inventory.asset.approved names the
 // person.
-func TestContract_D599_MergeIntoAPendingRowKeepsTheApprovalAndBothNotes(t *testing.T) {
+func TestContract_MergeIntoAPendingRowKeepsTheApprovalAndBothNotes(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	old, newer := phonePair(e)
 	notes := "seen at the front desk"
-	if err := e.svc.PatchDevice(e.ctx(), "kien", newer, inventory.Patch{Notes: &notes}); err != nil {
+	if err := e.svc.PatchDevice(e.ctx(), "anna", newer, inventory.Patch{Notes: &notes}); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.svc.SetSuspicious(e.ctx(), "kien", newer, true); err != nil {
+	if err := e.svc.SetSuspicious(e.ctx(), "anna", newer, true); err != nil {
 		t.Fatal(err)
 	}
 	approvedAt := *e.detail(old).Asset.ApprovedAt
@@ -140,7 +140,7 @@ func TestContract_D599_MergeIntoAPendingRowKeepsTheApprovalAndBothNotes(t *testi
 	if k.Suspicious {
 		t.Errorf("the kept device gained the approval and is still marked suspicious (Approve clears the mark)")
 	}
-	if k.ID != newer || !k.Approved || k.ApprovedAt == nil || *k.ApprovedAt != approvedAt || k.Notes == nil || *k.Notes != "seen at the front desk\n\nKien's phone" {
+	if k.ID != newer || !k.Approved || k.ApprovedAt == nil || *k.ApprovedAt != approvedAt || k.Notes == nil || *k.Notes != "seen at the front desk\n\nAnna's phone" {
 		t.Errorf("kept device: id %s approved %v at %v notes %q", k.ID, k.Approved, k.ApprovedAt, deref(k.Notes))
 	}
 	if a := e.ev.named(inventory.EventAssetApproved); len(a) != 1 || a[0].Data != (inventory.AssetEvent{AssetID: newer, Actor: admin}) {
@@ -155,9 +155,9 @@ func deref(p *string) string {
 	return *p
 }
 
-// D-599: two different burned-in MACs or two different agents are two machines: never offered, and a merge is refused with plain
+// Two different burned-in MACs or two different agents are two machines: never offered, and a merge is refused with plain
 // words (409 not_same_device), nothing changed. The same device twice is 400, an unknown one 404, the box 409 box_device.
-func TestContract_D599_MergeRefusesTwoMachines(t *testing.T) {
+func TestContract_MergeRefusesTwoMachines(t *testing.T) {
 	t.Parallel()
 	t.Run("burned-in MACs", func(t *testing.T) {
 		t.Parallel()
@@ -208,9 +208,9 @@ func TestContract_D599_MergeRefusesTwoMachines(t *testing.T) {
 	})
 }
 
-// D-599: what is not offered: a private address next to a row with burned-in MACs only (an intruder naming itself after a server,
-// D-598 review #831 H1), two machines of one name online at the same time, two rows that state another OS.
-func TestContract_D599_WhatIsNotOffered(t *testing.T) {
+// What is not offered: a private address next to a row with burned-in MACs only (an intruder naming itself after a server,
+// #831), two machines of one name online at the same time, two rows that state another OS.
+func TestContract_WhatIsNotOffered(t *testing.T) {
 	t.Parallel()
 	t.Run("burned-in only", func(t *testing.T) {
 		t.Parallel()
@@ -237,9 +237,9 @@ func TestContract_D599_WhatIsNotOffered(t *testing.T) {
 	})
 }
 
-// D-599: Keep separate is stored: the pair is never offered again, on either page, in the list, or after new sightings of both;
+// Keep separate is stored: the pair is never offered again, on either page, in the list, or after new sightings of both;
 // saying it again writes no second audit row. Deleting either row ends it (a new pair is a new question).
-func TestContract_D599_KeepSeparateIsNeverOfferedAgain(t *testing.T) {
+func TestContract_KeepSeparateIsNeverOfferedAgain(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	old, newer := phonePair(e)
@@ -272,8 +272,8 @@ func TestContract_D599_KeepSeparateIsNeverOfferedAgain(t *testing.T) {
 	}
 }
 
-// D-599: the routes: anyone signed in reads the offers; only an admin merges or keeps apart (the route table); the answers' shapes.
-func TestHandlers_D599_MergeAndKeepSeparateAreForAdmins(t *testing.T) {
+// The routes: anyone signed in reads the offers; only an admin merges or keeps apart (the route table); the answers' shapes.
+func TestHandlers_MergeAndKeepSeparateAreForAdmins(t *testing.T) {
 	t.Parallel()
 	a := newAPI(t)
 	old, newer := phonePair(a.env)
@@ -307,13 +307,13 @@ func TestHandlers_D599_MergeAndKeepSeparateAreForAdmins(t *testing.T) {
 
 // Review r1 of #871 H1: Keep separate binds the join rules too. Two rows of a non-generic name with private addresses, the second seen
 // while the first had answered minutes before (no join yet), are offered; Keep separate; the next sighting of either does not join them.
-func TestContract_D599_KeepSeparateStopsTheJoinRules(t *testing.T) {
+func TestContract_KeepSeparateStopsTheJoinRules(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.record(dhcp(privMac1, "192.168.18.10", "kiens-macbook-air")...)
+	e.record(dhcp(privMac1, "192.168.18.10", "annas-macbook-air")...)
 	a := e.idOf("192.168.18.10")
 	e.tick(10 * time.Minute)
-	e.record(dhcp(privMac2, "192.168.18.11", "kiens-macbook-air")...)
+	e.record(dhcp(privMac2, "192.168.18.11", "annas-macbook-air")...)
 	b := e.idOf("192.168.18.11")
 	e.tick(30 * time.Minute)
 	if got := e.sameAs(b); len(got) != 1 || got[0].ID != a {
@@ -323,9 +323,9 @@ func TestContract_D599_KeepSeparateStopsTheJoinRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.tick(time.Hour)
-	e.record(dhcp(privMac2, "192.168.18.11", "kiens-macbook-air")...)
+	e.record(dhcp(privMac2, "192.168.18.11", "annas-macbook-air")...)
 	e.tick(time.Hour)
-	e.record(dhcp(privMac1, "192.168.18.12", "kiens-macbook-air")...)
+	e.record(dhcp(privMac1, "192.168.18.12", "annas-macbook-air")...)
 	if n := e.devices(); n != 2 {
 		t.Errorf("%d devices after Keep separate and new sightings, want 2", n)
 	}
@@ -333,12 +333,12 @@ func TestContract_D599_KeepSeparateStopsTheJoinRules(t *testing.T) {
 
 // Review r1 of #871 H2: a phone of the same generic name seen once while the approved one was online is not "never online at the same
 // time": not offered, however short its visit.
-func TestContract_D599_AVisitorSeenWhileTheDeviceWasOnlineIsNotOffered(t *testing.T) {
+func TestContract_AVisitorSeenWhileTheDeviceWasOnlineIsNotOffered(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.record(dhcp(privMac1, "192.168.18.10", "iPhone")...)
 	old := e.idOf("192.168.18.10")
-	if err := e.svc.Approve(e.ctx(), "kien", old); err != nil {
+	if err := e.svc.Approve(e.ctx(), "anna", old); err != nil {
 		t.Fatal(err)
 	}
 	for i := range 4 {
@@ -356,7 +356,7 @@ func TestContract_D599_AVisitorSeenWhileTheDeviceWasOnlineIsNotOffered(t *testin
 
 // Review r1 of #871 M1: rows of past months do not count against the group cap: after nine old rotations of "iPhone", a new one is still
 // offered, with the maxOffered (5) seen last.
-func TestContract_D599_OldRowsDoNotSilenceTheOffer(t *testing.T) {
+func TestContract_OldRowsDoNotSilenceTheOffer(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	var olds []string
@@ -376,24 +376,24 @@ func TestContract_D599_OldRowsDoNotSilenceTheOffer(t *testing.T) {
 
 // Review r2 of #871 M1: Keep separate on one of two rows of a name leaves the name ambiguous for a third row: the other row is not
 // joined automatically because the person answered about a different pair.
-func TestContract_D599_KeepSeparateKeepsTheNameAmbiguous(t *testing.T) {
+func TestContract_KeepSeparateKeepsTheNameAmbiguous(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	for range 3 { // two Macs of one name, online together: two devices
-		e.record(dhcp(privMac1, "192.168.18.10", "kiens-macbook-air")...)
-		e.record(dhcp(privMac2, "192.168.18.11", "kiens-macbook-air")...)
+		e.record(dhcp(privMac1, "192.168.18.10", "annas-macbook-air")...)
+		e.record(dhcp(privMac2, "192.168.18.11", "annas-macbook-air")...)
 		e.tick(30 * time.Minute)
 	}
 	first := e.idOf("192.168.18.10")
 	e.tick(time.Hour)
-	e.record(dhcp(privMac3, "192.168.18.12", "kiens-macbook-air")...)
+	e.record(dhcp(privMac3, "192.168.18.12", "annas-macbook-air")...)
 	third := e.idOf("192.168.18.12")
 	e.tick(30 * time.Minute)
 	if err := e.svc.KeepSeparate(e.ctx(), admin, third, first); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(time.Hour)
-	e.record(dhcp(privMac3, "192.168.18.12", "kiens-macbook-air")...)
+	e.record(dhcp(privMac3, "192.168.18.12", "annas-macbook-air")...)
 	if n := e.devices(); n != 3 {
 		t.Errorf("%d devices, want 3: a pair nobody answered was joined", n)
 	}
@@ -401,9 +401,9 @@ func TestContract_D599_KeepSeparateKeepsTheNameAmbiguous(t *testing.T) {
 
 // Review r2 of #871 L1, L2: the device page finds the same pairs as the list for names SQLite cannot fold (Vietnamese, a trailing
 // space); a late software list for the old row (no MAC sighting) does not make the two "online together".
-func TestContract_D599_PageFindsUnicodeNamesAndIgnoresLateLists(t *testing.T) {
+func TestContract_PageFindsUnicodeNamesAndIgnoresLateLists(t *testing.T) {
 	t.Parallel()
-	for _, names := range [][2]string{{"KIÊN-PC", "kiên-pc"}, {"iPhone ", "iPhone"}} {
+	for _, names := range [][2]string{{"BÌNH-PC", "bình-pc"}, {"iPhone ", "iPhone"}} {
 		e := newEnv(t)
 		e.record(dhcp(privMac1, "192.168.18.10", names[0])...)
 		a := e.idOf("192.168.18.10")

@@ -64,9 +64,9 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 	out := make([]reports.Device, 0, len(devs))
 	for _, d := range devs {
 		if d.IgnoredAt != nil {
-			continue // D-630: a device a person ignored is in no count of the Devices page, so in none of a report
+			continue // A device a person ignored is in no count of the Devices page, so in none of a report
 		}
-		// The box is listed: the weekly report counts what the Devices page counts (D-485); the PDPL report leaves it out.
+		// The box is listed: the weekly report counts what the Devices page counts; the PDPL report leaves it out.
 		name := deviceLabel(d)
 		r := reports.Device{ID: d.ID, Name: name, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, Box: d.IsBox,
 			NoDevice: strings.HasSuffix(name, inventory.NoDevice)}
@@ -104,7 +104,7 @@ func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
 	if err != nil {
 		return nil, err
 	}
-	// D-630 (review r1 M4 of #945): a device a person ignored is in no report, its findings neither; and a finding Ignore closed is
+	// A device a person ignored is in no report, its findings neither; and a finding Ignore closed is
 	// never "resolved" (nobody fixed anything). A device list that cannot be read fails the report, never a report with them in.
 	ignored := map[string]bool{}
 	if a.d != nil && a.d.Inventory != nil {
@@ -126,7 +126,7 @@ func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
 	return out, nil
 }
 
-// vulnCheckCVEs is the CVEs of these findings that only VulnCheck KEV lists, so the report can name it among its sources (D-557).
+// vulnCheckCVEs is the CVEs of these findings that only VulnCheck KEV lists, so the report can name it among its sources.
 // A feeds store that cannot be read gives none: the report is then missing a source line, never wrong about a figure.
 func (a reportsFindings) vulnCheckCVEs(ctx context.Context, recs []findings.Record) map[string]string {
 	out := map[string]string{}
@@ -177,7 +177,7 @@ func (a reportsKEV) Entries(ctx context.Context) ([]reports.KEVEntry, time.Time,
 	out := make([]reports.KEVEntry, 0, len(rows))
 	for _, v := range rows {
 		if v.SourceID != "cisa-kev" {
-			continue // VulnCheck KEV (D-557) stays on the box: a report is a document that may be shared
+			continue // VulnCheck KEV stays on the box: a report is a document that may be shared
 		}
 		day, err := time.Parse(time.DateOnly, v.DateAdded)
 		if err != nil {
@@ -189,7 +189,7 @@ func (a reportsKEV) Entries(ctx context.Context) ([]reports.KEVEntry, time.Time,
 	return out, at, err
 }
 
-// NewlyExploited is the Home headline (feeds.Service.NewlyExploited), so the report and Home agree (D-485).
+// NewlyExploited is the Home headline (feeds.Service.NewlyExploited), so the report and Home agree.
 func (a reportsKEV) NewlyExploited(ctx context.Context) (int, int, error) {
 	if a.d.Reg != nil && !a.d.Reg.Enabled("feeds") {
 		return 0, 0, nil
@@ -204,7 +204,7 @@ func (a reportsKEV) NewlyExploited(ctx context.Context) (int, int, error) {
 // ---- findings + inventory -> reports ----
 
 // reportsRemedies says the one release that closes each installed software on each device, with findings.FixedInForAll, the sibling of the
-// function behind the "What to do" part of a finding page (D-488, D-490). It informs the text only: a device it cannot read is skipped.
+// function behind the "What to do" part of a finding page. It informs the text only: a device it cannot read is skipped.
 // The report asks only for the findings of the products its page names.
 type reportsRemedies struct {
 	d    *deps
@@ -261,7 +261,7 @@ func (a reportsRemedies) Fixes(ctx context.Context, fs []reports.Finding) (map[s
 		for fid, cve := range d.ids {
 			if g := groups[cve]; g != nil {
 				// Closed only for a CVE the software itself is inside a ranged entry for (GroupFix.Ranged), as the Findings list groups
-				// it (D-545, review r2 #1 of #800): "fixes N" never counts a CVE the upgrade proves nothing about.
+				// it: "fixes N" never counts a CVE the upgrade proves nothing about.
 				out[fid] = reports.Fix{Kind: g.Kind, Group: g.Software, Version: g.Version, Fixed: g.Fixed, Distro: g.Distro, Closed: g.Ranged[cve]}
 			}
 		}

@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// restoreHost is the helper for the restore tests (S-CORE-1, D-377): the other commands go to the in-process host,
+// restoreHost is the helper for the restore tests (S-CORE-1): the other commands go to the in-process host,
 // backup.restore and the run list are faked so a test decides how the run ends without stopping anything.
 type restoreHost struct {
 	core.Host
@@ -166,7 +166,7 @@ func TestRestoreIntoADatabaseThatForgotTheRun(t *testing.T) {
 }
 
 // The host records a refusal as a run (host-api 4): a busy backup.restore that is the newest run is not a restore
-// to settle: no data.restore_done, no failed restore shown (G4).
+// to settle: no data.restore_done, no failed restore shown.
 func TestRestoreRefusedByTheHostIsNotSettled(t *testing.T) {
 	t.Parallel()
 	e, f := newRestoreEnv(t)
@@ -182,7 +182,7 @@ func TestRestoreRefusedByTheHostIsNotSettled(t *testing.T) {
 }
 
 // A restore core took (202, copy stored) that the host refused while it ran (schema_newer) is the restore: after a
-// restart it is settled as failed with one data.restore_done row, and a new restore is no longer busy (G4 review).
+// restart it is settled as failed with one data.restore_done row, and a new restore is no longer busy.
 func TestRestoreRefusedWhileItRanIsSettled(t *testing.T) {
 	t.Parallel()
 	e, f := newRestoreEnv(t)

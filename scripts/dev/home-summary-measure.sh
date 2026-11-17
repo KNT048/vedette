@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# #825: what Home costs on a real box (the N100). Measures, on the box's own API:
+# #825: what Home costs on a real box (a test box). Measures, on the box's own API:
 #   - GET /findings/summary (the one read of the new Home): N calls, p50 / p95 / max ms and bytes; the first call of the run is shown
 #     apart (cold when nothing read it in the last 60 s); COLD=k adds k calls 61 s apart (past the cache TTL: one computation each);
 #   - the three lists the old Home fetched to count (GET /findings, /inventory/devices, /notify/incidents), same N, for the before/after;

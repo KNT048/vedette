@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Retention of core_audit (D-416, core INV-37): the lines of the last RetentionDays days, at most MaxRows lines; the oldest go first.
+// Retention of core_audit (core INV-37): the lines of the last RetentionDays days, at most MaxRows lines; the oldest go first.
 // The Settings → Audit log page says the same numbers (core.json audit.meta).
 const (
 	RetentionDays       = 365

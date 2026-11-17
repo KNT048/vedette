@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/core/pdftext/pdftexttest"
 )
 
-// PDF in the knowledge base (S-AI-7, INV-10, D-264): the text is read by core/pdftext in a limited child process. These tests start
+// PDF in the knowledge base (S-AI-7, INV-10): the text is read by core/pdftext in a limited child process. These tests start
 // the real child (pdftexttest.BuildChild registers one per process), so none of them may run in parallel with another that does.
 
 // pdfWith is a one-page PDF with the given trailer extras (for example an /Encrypt entry) and text as its only content.

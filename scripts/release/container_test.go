@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The real template of the repository (D-451): what the builder is tested on is what it ships.
+// The real template of the repository: what the builder is tested on is what it ships.
 func readTemplate(t *testing.T) map[string][]byte {
 	t.Helper()
 	src := map[string][]byte{}
@@ -267,7 +267,7 @@ func TestContainerAssetsSignAndVerify(t *testing.T) {
 	}
 }
 
-// A rescue release (D-259) signs the four files with the backup key, like its manifest; a signature left from another run is
+// A rescue release signs the four files with the backup key, like its manifest; a signature left from another run is
 // refused for them as for the documents.
 func TestRescueWithContainerAssets(t *testing.T) {
 	r := newRig(t)
@@ -328,7 +328,7 @@ func TestInstallGuideKeysAreTheEmbeddedOnes(t *testing.T) {
 	}
 	doc, err := os.ReadFile(filepath.Join("..", "..", "docs", "INSTALL-CONTAINER.md"))
 	must(t, err)
-	// the backup key verifies the files of a rescue release (D-258, D-410)
+	// the backup key verifies the files of a rescue release
 	for key, file := range map[string]string{active: "vedette.pub", backup: "vedette-backup.pub"} {
 		k, err := release.ParseMinisignPublicKey(key)
 		must(t, err)

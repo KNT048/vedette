@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/winrel"
 )
 
-// D-603: the trimmed real pages (fetched 2026-11-17) give Windows 11 26H2 (26300) on 24H2's line, its first public build 26300.9457 of
+// The trimmed real pages (fetched 2026-11-17) give Windows 11 26H2 (26300) on 24H2's line, its first public build 26300.9457 of
 // 2026-09-29, 26H1 (28000) on a line of its own, and the server releases; the hotpatch calendar under the same heading is not a history.
 func TestParseWinRelPages(t *testing.T) {
 	client, err := parseWinRelPage([]byte(testFile(t, "winrel/windows11-release-information.html")), false)

@@ -31,7 +31,7 @@ func feedsService(d deps) (*feeds.Service, error) {
 	}
 	fd := feeds.Deps{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Modules: d.Reg, Log: d.Log,
 		Fetcher: feeds.Fetcher{Client: feedsClient, Version: version}, Clock: d.Clock}
-	fd.Fetcher.BoxAddrs = machineAddrs(&d) // D-208, D-446: never Vedette itself; unknown host addresses allow only global unicast pulls
+	fd.Fetcher.BoxAddrs = machineAddrs(&d) // Never Vedette itself; unknown host addresses allow only global unicast pulls
 	fd.Fetcher.Self = vedetteSelf(&d)      // the honeypot's decoys: every port
 	if d.Inventory != nil {
 		fd.Inventory = feedsInventory{d.Inventory}
@@ -39,7 +39,7 @@ func feedsService(d deps) (*feeds.Service, error) {
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		fd.Events = d.Bus
 	}
-	// D-629 (kien G13): the alert of the CISA list (both copies failing at two checks in a row, or six checks old) and its "up to date
+	// The alert of the CISA list (both copies failing at two checks in a row, or six checks old) and its "up to date
 	// again" go to the admins' alert channels through notify's system notice path, as the AI budget and activity-log alerts do
 	// (cmd/vedette/ai.go): an incident-kind notice. The alert is critical (#946 r1: a channel set to critical only carries exactly the
 	// KEV alerts that stop when the list breaks), the recovery high. newNotify is read at send time (notify is built after feeds).
@@ -83,7 +83,7 @@ func feedsHandlers(d deps) *feeds.FeedHandlers {
 	return feeds.NewHandlers(s)
 }
 
-// learnWindowsReleases hands the Windows releases the feed windows-releases stored to core/winrel at start (D-603), so a device on a
+// learnWindowsReleases hands the Windows releases the feed windows-releases stored to core/winrel at start, so a device on a
 // release newer than core/winrel's table is read by its build from the first agent report and match, not only after the first pull
 // job. A failure is logged: the feeds module reads them again when it starts pulling.
 func learnWindowsReleases(ctx context.Context, d deps) {

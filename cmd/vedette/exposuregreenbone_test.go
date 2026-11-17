@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/modules/exposure"
 )
 
-// OpenVAS (D-529, FULL-2): exposure's GreenboneHost over the host's greenbone.* commands, against a fake host client.
+// OpenVAS: exposure's GreenboneHost over the host's greenbone.* commands, against a fake host client.
 
 const gbTestLogin = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
@@ -226,7 +226,7 @@ func TestExposureGreenbone_WiredWithPrivacyFlow16(t *testing.T) {
 	}
 }
 
-// D-595 review M4: the domain fence note comes before the port list, so the scan module's 300-character clip never cuts it, even with
+// The domain fence note comes before the port list, so the scan module's 300-character clip never cuts it, even with
 // the longest list exposure sends (clipped with its count) and a long name and CNAME chain.
 func TestGreenboneProbeRequestKeepsTheFenceNote(t *testing.T) {
 	t.Parallel()

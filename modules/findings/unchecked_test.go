@@ -13,7 +13,7 @@ import (
 
 var (
 	uncNow = time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC)
-	uncOld = time.Date(2020, 3, 1, 0, 0, 0, 0, time.UTC) // published and added long before AgeLimit: a product match is aged (D-615)
+	uncOld = time.Date(2020, 3, 1, 0, 0, 0, 0, time.UTC) // published and added long before AgeLimit: a product match is aged
 	uncNew = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 )
 
@@ -38,7 +38,7 @@ func uncByCVE(us []Unchecked) map[string]Unchecked {
 func TestUnchecked_910_OneReasonEach(t *testing.T) {
 	t.Parallel()
 	a := Asset{ID: "d", Name: "d", Software: []Software{
-		// keyed "acme|widget", a version a scan read: a product match, which the age rule drops for an old CVE (D-615)
+		// keyed "acme|widget", a version a scan read: a product match, which the age rule drops for an old CVE
 		{ID: "w", Display: "Acme Widget", Vendor: "Acme", Product: "Widget", Version: "2.0", Source: "scan", KevKeys: []string{"acme|widget"}},
 		// keyed to CISA's "acme|engine", but the row is Acme Engine Pro, which NVD's list does not name
 		{ID: "p", Display: "Acme Engine Pro", Vendor: "Acme", Product: "Engine Pro", Version: "5.0", Source: "scan", KevKeys: []string{"acme|engine"}},
@@ -55,8 +55,8 @@ func TestUnchecked_910_OneReasonEach(t *testing.T) {
 		uncVuln("CVE-2026-0004", "Acme", "Gadget Core", uncNew, Affected{CPE: "cpe:2.3:a:acme:gadget:9.2:*:*:*:*:*:*:*"}),
 		uncVuln("CVE-2026-0005", "Acme", "Hub Firmware", uncNew, Affected{CPE: "cpe:2.3:a:acme:hub:-:*:*:*:*:*:*:*"}, uncAff("cpe:2.3:a:other:thing:*:*:*:*:*:*:*:*", "2.0")),
 		uncVuln("CVE-2020-0006", "Acme", "Router", uncOld, uncAff("cpe:2.3:a:acme:router:*:*:*:*:*:*:*:*", "15.9")),
-		// NVD has not answered for this one yet (before the pull, the feed off): listed at once as no NVD data (D-602, review r1 H2 of
-		// #939, which replaces #920 r1 M2's "no row")
+		// NVD has not answered for this one yet (before the pull, the feed off): listed at once as no NVD data
+		// (#939, which replaces #920's "no row")
 		func() Vuln { v := uncVuln("CVE-2020-0007", "Acme", "Widget", uncOld); v.NVDAnswered = false; return v }(),
 	}
 	res := MatchAsset(a, vulns, nil, uncNow)
@@ -212,7 +212,7 @@ func TestUnchecked_910_StoredListAndHome(t *testing.T) {
 		"CVE-2024-0007": {Name: "Acme Widget flaw", DateAdded: recent.Format(time.DateOnly)},
 		"CVE-2024-0008": {Name: "Acme Widget flaw 2", DateAdded: recent.Format(time.DateOnly)},
 	})
-	seedNameOnly(t, e.env, a, e.feeds.vulns[1:2]) // 0007 is a product finding an earlier rule made (D-602 makes none)
+	seedNameOnly(t, e.env, a, e.feeds.vulns[1:2]) // 0007 is a product finding an earlier rule made (the name-only rule makes none)
 	*e.clock = uncNow                             // now 0007 and 0008 are aged: 0007's finding is closed, 0008 never was one
 	if _, err := e.svc.UpsertFromMatch(t.Context(), a, e.feeds.vulns); err != nil {
 		t.Fatal(err)
@@ -244,7 +244,7 @@ func TestUnchecked_910_StoredListAndHome(t *testing.T) {
 		t.Fatalf("cve = %v", c)
 	}
 	w2 := items[1].(map[string]any)
-	// 0007's finding Vedette closed by itself does not hide it (D-602): the CVE was not checked, and this is where it is now
+	// 0007's finding Vedette closed by itself does not hide it: the CVE was not checked, and this is where it is now
 	if w2["software"] != "Acme Widget" || w2["reason"] != "no_nvd_data" || w2["action"] != "none" || len(w2["cves"].([]any)) != 2 {
 		t.Fatalf("aged widget item = %v", w2)
 	}
@@ -282,7 +282,7 @@ func TestUnchecked_910_NetworkOSNVDOtherProductIsNotNamed(t *testing.T) {
 
 // Director's question (#920 r1): a package the distribution builds, keyed to a KEV entry its tracker says nothing about for the
 // device's release (an entry for another release only), is not silent: NVD's upstream ranges decide it. Inside a range is a version
-// finding; a partial CVE.org list that does not reach the version is no version evidence: no finding (D-602), the could-not-check list
+// finding; a partial CVE.org list that does not reach the version is no version evidence: no finding, the could-not-check list
 // says NVD gives no versions that decide it.
 func TestUnchecked_910_DistroPackageTheTrackerDoesNotCover(t *testing.T) {
 	t.Parallel()
@@ -302,9 +302,9 @@ func TestUnchecked_910_DistroPackageTheTrackerDoesNotCover(t *testing.T) {
 	}
 }
 
-// D-604: a platform-limited CVE only a person's answer decides is its own item with the question and the answers that settle it:
+// A platform-limited CVE only a person's answer decides is its own item with the question and the answers that settle it:
 // one click sets the device's OS (per Alpine branch), or the person types the OS or the package release.
-func TestUncheckedItems_D604_Question(t *testing.T) {
+func TestUncheckedItems_Question(t *testing.T) {
 	t.Parallel()
 	kev := map[string]KevInfo{"CVE-2026-123158": {Name: "OpenBSD OpenSSH", DateAdded: "2026-11-06"}, "CVE-2099-0001": {Name: "x", DateAdded: "2026-01-01"}}
 	assets := map[string]AssetView{"a-1": {ID: "a-1", Name: "gw-alpine"}}

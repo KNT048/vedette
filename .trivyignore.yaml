@@ -1,4 +1,4 @@
-# Exceptions of the release vulnerability gate (`make vuln-scan`, D-159). The gate fails on every HIGH or CRITICAL vulnerability that has a
+# Exceptions of the release vulnerability gate (`make vuln-scan`). The gate fails on every HIGH or CRITICAL vulnerability that has a
 # fix; an entry here lets one such finding pass, and only while all of this holds (scripts/trivyignore checks it first, and fails the gate if not):
 #   - id:         the vulnerability id (CVE-... or GHSA-...); add `paths:` or `purls:` to narrow it to one binary or package.
 #   - statement:  why it may ship: not reachable, no fixed version we can take yet, the issue that tracks the bump.

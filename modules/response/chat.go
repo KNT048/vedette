@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 )
 
-// Decisions from chat (INV-3, slice 13b-8, D-96 (5), D-135, docs/specs/approval-tokens.md 5 to 7).
+// Decisions from chat (INV-3, slice 13b-8, docs/specs/approval-tokens.md 5 to 7).
 //
 // notify owns the line to Slack, Telegram and Zalo and has checked the platform (Slack team and channel, Telegram chat, the Zalo session)
 // before it calls DecideFromChat. This module maps the sender to a Vedette person and keeps every gate: the same approve and reject as the
@@ -127,7 +127,7 @@ func errChatNotListed() *apierr.Error {
 	return fail(http.StatusForbidden, "approver_not_listed", "You are not an approver on this channel, or your Vedette account can no longer approve requests.")
 }
 
-// runDetached runs the items of a completed approval in the background (M3, D-135 (9)): a decision from chat is recorded and answered at
+// runDetached runs the items of a completed approval in the background: a decision from chat is recorded and answered at
 // once, the way a button must be answered, and the device steps (slow, up to 90 s an item) run on a goroutine the service tracks. Close
 // ends them; an item cut short that way is marked unknown by the same rules as one that timed out. The caller's cancellation does not
 // reach them (an approval that was committed runs to the end).
@@ -221,7 +221,7 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 	if extIDRE.MatchString(d.RequestID) {
 		target = d.RequestID
 	}
-	// What a sender can make the box remember or write is bounded: an id or a channel that cannot be real shares one fixed name (D-135 (7), (8)).
+	// What a sender can make the box remember or write is bounded: an id or a channel that cannot be real shares one fixed name ((8)).
 	chName, idName := "(invalid channel)", "(invalid id)"
 	if _, ok := chatVia(d.Channel); ok {
 		chName = d.Channel
@@ -294,7 +294,7 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 	refuse := func(e *apierr.Error) (ChatOutcome, error) {
 		return ChatOutcome{}, s.refuse(ctx, e, target, who.refuseActor())
 	}
-	// D-191: the ID must be one its person linked (D-414: by the confirm link). Not linked: nothing is decided and the answer says how to link.
+	// The ID must be one its person linked (by the confirm link). Not linked: nothing is decided and the answer says how to link.
 	if linked, err := s.isLinked(ctx, u, d.Channel, d.ExternalID); err != nil {
 		return ChatOutcome{}, err
 	} else if !linked {
@@ -327,14 +327,14 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 	}
 	withID := func(e *apierr.Error) *apierr.Error { return e.With("request_id", r.ID) }
 
-	// The risk policy of the channel (D-96 (3)); it applies to approve and reject alike, as for a link.
+	// The risk policy of the channel; it applies to approve and reject alike, as for a link.
 	switch {
 	case r.AI != nil && r.AI.InAppOnly:
 		return refuse(withID(fail(http.StatusForbidden, "in_app_required", "This request can only be approved in the app. Open Vedette, sign in and decide it there.")))
 	case zalo && r.Risk != RiskLow && r.Risk != RiskMedium:
 		return refuse(withID(fail(http.StatusForbidden, "channel_not_allowed", "A high-risk request cannot be decided by a Zalo reply code. Open Vedette, sign in and decide it there.")))
 	case chatNoButtons(r):
-		// D-175: a chat decision is for a change that is low or medium risk and fits one message, as sent (buttons are not attached to any
+		// A chat decision is for a change that is low or medium risk and fits one message, as sent (buttons are not attached to any
 		// other); an older button or a forged callback gets the same answer.
 		return refuse(withID(fail(http.StatusForbidden, "channel_not_allowed", "This request cannot be decided from chat: it is high risk, or too long to read in one message. Open Vedette, sign in and decide it there.")))
 	}

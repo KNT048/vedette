@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// D-614: what tier 3 keeps of a record: dates, NVD's status, the newest CVSS version's severity (NVD's own before the
+// What tier 3 keeps of a record: dates, NVD's status, the newest CVSS version's severity (NVD's own before the
 // CNA's), the vulnerable entries; a record with an unusable entry is rejected whole.
 func TestParseNVDRecent(t *testing.T) {
 	t.Parallel()
@@ -142,7 +142,7 @@ func recentEnv(t *testing.T) (*env, *recentNVD) {
 	return e, n
 }
 
-// D-614: the first fill asks for 12 months of published CVEs in 120-day windows, page by page (nvdPause apart; 0 in the tests), stores
+// The first fill asks for 12 months of published CVEs in 120-day windows, page by page (nvdPause apart; 0 in the tests), stores
 // them with their entries and records the counts on the feed.
 func TestRecentPull_FillsTwelveMonthsInWindows(t *testing.T) {
 	t.Parallel()
@@ -172,7 +172,7 @@ func TestRecentPull_FillsTwelveMonthsInWindows(t *testing.T) {
 	}
 }
 
-// D-614: a pull that stops (NVD busy after every try) keeps the pages it stored and where it was, is not a failure of the
+// A pull that stops (NVD busy after every try) keeps the pages it stored and where it was, is not a failure of the
 // feed, and the next pull goes on from there instead of asking the first windows again.
 func TestRecentPull_PausesAndGoesOn(t *testing.T) {
 	t.Parallel()
@@ -204,7 +204,7 @@ func TestRecentPull_PausesAndGoesOn(t *testing.T) {
 	}
 }
 
-// D-614: after a good pull, the update asks only for NVD's changes since one day before it; a changed CVE published
+// After a good pull, the update asks only for NVD's changes since one day before it; a changed CVE published
 // before the 12 months is not kept, a rejected one is dropped, and CVEs that aged out go.
 func TestRecentPull_UpdateKeepsTwelveMonths(t *testing.T) {
 	t.Parallel()
@@ -366,7 +366,7 @@ func TestRecentStart(t *testing.T) {
 	}
 }
 
-// D-614: while nvd-kev is pulling, nvd-recent asks NVD nothing and goes on later (not a failure).
+// While nvd-kev is pulling, nvd-recent asks NVD nothing and goes on later (not a failure).
 func TestRecentPull_WaitsForNVDKev(t *testing.T) {
 	t.Parallel()
 	e, n := recentEnv(t)
@@ -612,7 +612,7 @@ func TestNVDSlot_ClockSteppedBack(t *testing.T) {
 	}
 }
 
-// N55-2, N55-1 (n55 on the N100): a cursor reset (migration 0013) after a recent good pull is a fill the feed still owes: the
+// On a test box: a cursor reset (migration 0013) after a recent good pull is a fill the feed still owes: the
 // 5-minute check pulls it at once (only the back-off after a failure holds it back), goes on with a fill longer than one pull,
 // and meanwhile the feed row says where it goes on instead of its old "OK" (after a restart too, with an old error; review 1 #1,
 // #3 of #805). With a done cursor the same check asks nothing; a done cursor for another address is owed.
@@ -700,7 +700,7 @@ func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
 	}
 }
 
-// M2-10 (walk n74, review r1 L3 of #898): NVD's real shapes of 2026. An application CVE "running on" Windows Server 2025 (CVE-2026-23666:
+// #898: NVD's real shapes of 2026. An application CVE "running on" Windows Server 2025 (CVE-2026-23666:
 // .NET Framework vulnerable AND windows_server_2025 vulnerable:false) keeps only its .NET entries as Affected, with the Windows releases
 // as their Platforms: no Affected row names windows_server_2025, so it never counts for a Windows Server row. An OS CVE (CVE-2026-69902)
 // keeps its windows_server_2025 range as Affected, with no platform condition.

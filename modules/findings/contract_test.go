@@ -116,7 +116,7 @@ func TestContract_INV4_KeyAndRanges(t *testing.T) {
 	if KevKey(" QNAP", "Photo Station ") != "qnap|photo station" {
 		t.Error("KevKey")
 	}
-	// multiple products are keyed by vendor, but only an NVD entry naming the software gives a finding (D-505)
+	// multiple products are keyed by vendor, but only an NVD entry naming the software gives a finding
 	multi := Vuln{CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Multiple products"}
 	if r := MatchAsset(nas("1"), []Vuln{multi}, nil, t0); len(r.New) != 0 {
 		t.Errorf("multiple products without NVD data: %+v", r)
@@ -132,11 +132,11 @@ func TestContract_INV4_KeyAndRanges(t *testing.T) {
 	if r := MatchAsset(nas("6.1.2"), []Vuln{qnapVuln(af)}, nil, t0); len(r.New)+len(r.Existing) != 0 {
 		t.Errorf("outside: %+v", r)
 	}
-	// a usable version that cannot be compared: no finding, by the product name only (D-602; before, product, medium, D-500)
+	// a usable version that cannot be compared: no finding, by the product name only (before, product, medium)
 	if r := MatchAsset(nas("6.1.1"), []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "next"}})}, nil, t0); len(r.New) != 0 || len(r.NameOnly) != 1 || r.NameOnly[0].Basis != BasisProduct || r.NameOnly[0].Severity != SeverityMedium {
 		t.Errorf("not comparable: %+v", r)
 	}
-	// no usable version: no finding, one "add the version" item (D-500)
+	// no usable version: no finding, one "add the version" item
 	if r := MatchAsset(nas("nightly"), []Vuln{qnapVuln(af)}, nil, t0); len(r.New) != 0 || len(r.NeedVersion) != 1 {
 		t.Errorf("no usable version: %+v", r)
 	}

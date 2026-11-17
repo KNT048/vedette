@@ -8,9 +8,9 @@ export const next = (page: Page) => page.getByRole('button', { name: 'Continue' 
 /** No console or page error. A GUI whose bundle fails to load a module (`does not provide an export`) must still fail this, so nothing is filtered by default. */
 export const noErrors = (errors: string[], extra?: RegExp) => expect(errors.filter((e) => !(extra && extra.test(e)))).toEqual([])
 
-// Vietnamese letters must not reach the interface (the author's name "Kiên" in the license line is the one exception).
+// Vietnamese letters must not reach the interface.
 const VI = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i
-const ALLOWED_VI = /Kiên|e2e\.test/
+const ALLOWED_VI = /e2e\.test/
 export async function noVietnamese(page: Page, label: string) {
   const text = await page.locator('body').innerText()
   const bad = text.split('\n').filter((l) => VI.test(l) && !ALLOWED_VI.test(l))

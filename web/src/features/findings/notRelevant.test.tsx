@@ -5,7 +5,7 @@ import { renderApp } from '@/test/render'
 import { findingsStore } from '@/mocks/stores'
 import { withoutNotRelevant } from './notRelevant'
 
-// kien G5: findings closed as not relevant are hidden by default wherever findings are listed; "Show not relevant (N)" brings them back.
+// findings closed as not relevant are hidden by default wherever findings are listed; "Show not relevant (N)" brings them back.
 const T = { timeout: 5000 }
 /** Every finding of the first device: one open, one patched, `n` not relevant. Returns the device id and its CVEs by status. */
 function seed(n: number) {
@@ -21,7 +21,7 @@ function seed(n: number) {
   return dev
 }
 
-describe('not relevant is hidden by default (kien G5)', () => {
+describe('not relevant is hidden by default', () => {
   it('withoutNotRelevant: hides them and says how many; shown keeps all', () => {
     const rows = [{ status: 'suspected' }, { status: 'not_relevant' }, { status: 'patched' }, { status: 'not_relevant' }] as const
     expect(withoutNotRelevant(rows, false)).toEqual({ rows: [rows[0], rows[2]], hidden: 2, total: 2 })
@@ -33,7 +33,7 @@ describe('not relevant is hidden by default (kien G5)', () => {
     const dev = seed(3)
     renderApp(`/devices/${encodeURIComponent(dev)}`)
     const section = (await screen.findByRole('heading', { level: 2, name: 'Findings on this device' }, T)).closest('section')!
-    const rows = () => within(section).getByRole('list', { name: 'Every finding of this device' }) // kien G8: below the To fix card
+    const rows = () => within(section).getByRole('list', { name: 'Every finding of this device' }) // Below the To fix card
     expect(await within(section).findByRole('list', { name: 'Every finding of this device' }, T)).toBeInTheDocument()
     expect(within(rows()).getByRole('link', { name: 'CVE-2026-50001' })).toBeInTheDocument()
     expect(within(rows()).getByRole('link', { name: 'CVE-2026-50002' })).toBeInTheDocument()

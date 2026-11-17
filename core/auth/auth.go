@@ -123,7 +123,7 @@ type Service struct {
 	auditKey   []byte // HMAC key of the unknown-email audit target, read from core_secret on first use
 
 	deviceKeyMu sync.Mutex
-	deviceKeyV  []byte // HMAC key of the device cookies (D-77), read from core_secret on first use
+	deviceKeyV  []byte // HMAC key of the device cookies, read from core_secret on first use
 
 	pendingTries pendingTries // wrong codes of the pending authenticator key (twofa.go)
 
@@ -173,13 +173,13 @@ type User struct {
 	Disabled    bool
 	CreatedAt   time.Time
 	LastLogin   *time.Time // nil: never signed in
-	// PasswordChangeRequired: an administrator set the password and the user has not replaced it yet (D-180).
+	// PasswordChangeRequired: an administrator set the password and the user has not replaced it yet.
 	PasswordChangeRequired bool
-	// SSO: the account was made by an SSO sign-in (D-195) and signs in only through the identity provider.
+	// SSO: the account was made by an SSO sign-in and signs in only through the identity provider.
 	SSO bool
 }
 
-// TempPasswordLifetime is how long a password an administrator set can sign in (D-180). core/auth has no other
+// TempPasswordLifetime is how long a password an administrator set can sign in. core/auth has no other
 // one-time credential with a window of hours (email codes and the pending TOTP key last 10 minutes), so the
 // window is the 72 hours of the decision.
 const TempPasswordLifetime = 72 * time.Hour

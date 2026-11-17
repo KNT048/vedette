@@ -1,4 +1,4 @@
-// #825: page load of Home on a real box (the N100), cold (empty browser cache) and warm, desktop. Signs in through the API (the
+// #825: page load of Home on a real box, cold (empty browser cache) and warm, desktop. Signs in through the API (the
 // browser context keeps the session cookie), then opens / and reports: the navigation timing, the time until the dashboard tiles are
 // on screen ("Today at a glance"), the API calls Home made and the bytes the page transferred.
 // Usage: ORIGIN=https://<box>:8443 EMAIL=<viewer> PASSWORD=<password> RUNS=5 node web/e2e/qa/home-load.mjs

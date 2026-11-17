@@ -36,7 +36,7 @@ func catalogKeys(t *testing.T) map[string]bool {
 	return keys
 }
 
-// D-169 (11): no dead key in the table: every pair is one the catalog knows.
+// No dead key in the table: every pair is one the catalog knows.
 func TestPkgmapPairsExistInTheCatalog(t *testing.T) {
 	keys := catalogKeys(t)
 	check := func(where, vendor, product string) {
@@ -142,7 +142,7 @@ func TestMapPackagesGolden(t *testing.T) {
 		if it.Vendor != w.vendor || it.Product != w.product || it.Version != w.version || key != w.key || it.Confidence != softwareConfidence {
 			t.Errorf("item %d = %s | %s | %s | %v, want %+v", i, it.Vendor, it.Product, it.Version, it.KevKeys, w)
 		}
-		if packaged := i < 14; it.Packaged != packaged { // D-474 (MK-2): the 11 deb and 3 rpm rows came from the package database, programs did not
+		if packaged := i < 14; it.Packaged != packaged { // MK-2: the 11 deb and 3 rpm rows came from the package database, programs did not
 			t.Errorf("item %d (%s) packaged = %v, want %v", i, it.Product, it.Packaged, packaged)
 		}
 	}
@@ -175,7 +175,7 @@ func TestMapPackagesBoundsAndKeyLength(t *testing.T) {
 	}
 }
 
-// D-503 (W2-12): the kind comes from the OS and stays within the inventory's kind list; an unknown platform gives none.
+// The kind comes from the OS and stays within the inventory's kind list; an unknown platform gives none.
 func TestKindFromTheOS(t *testing.T) {
 	for _, c := range []struct{ platform, name, want string }{
 		{"ubuntu", "Ubuntu", "server"},
@@ -198,7 +198,7 @@ func TestKindFromTheOS(t *testing.T) {
 	}
 }
 
-// D-516: a deb row carries its full Debian version and source package; binaries of one source that become one row keep the
+// A deb row carries its full Debian version and source package; binaries of one source that become one row keep the
 // lowest full version (a binary that was not updated keeps its finding); rpm and programs rows carry neither.
 func TestMapDebPackagesKeepsFullVersionAndSource(t *testing.T) {
 	t.Parallel()
@@ -226,7 +226,7 @@ func TestMapDebPackagesKeepsFullVersionAndSource(t *testing.T) {
 	}
 }
 
-// D-516, review H1 of #732: the Kernel row takes the version of the kernel that RUNS (the "kernel" column of the deb rows,
+// The Kernel row takes the version of the kernel that RUNS (the "kernel" column of the deb rows,
 // osquery kernel_info.version): running 7.0.0-43 with 7.0.0-30 installed gives 43, running 30 with 43 installed (not
 // rebooted yet) gives 30, and an unknown or unlisted running kernel gives the lowest installed image, as every package. The
 // metapackage linux-image-generic (source linux-meta) never gives the row its version, whatever the order.

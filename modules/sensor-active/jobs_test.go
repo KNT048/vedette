@@ -8,7 +8,7 @@ import (
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// kien G7a: Settings › Scanning › History lists every run of active discovery, newest first, with the address and nmap's result of
+// Settings › Scanning › History lists every run of active discovery, newest first, with the address and nmap's result of
 // its first probe; external runs are exposure's to list. Read only.
 func TestJobs_ListsLANRunsNewestFirstWithTheirFirstProbe(t *testing.T) {
 	e := newEnv(t, fakeOpts{})
@@ -45,7 +45,7 @@ func TestJobs_ListsLANRunsNewestFirstWithTheirFirstProbe(t *testing.T) {
 	}
 }
 
-// kien G7b/c: the device page's Last checks reads the runs that reached one address: its identifications (whatever started them)
+// The device page's Last checks reads the runs that reached one address: its identifications (whatever started them)
 // and the SNMP reads whose compact target list names it, a range included; never a sweep, another address, or an external run.
 func TestJobsAt_TheRunsThatReachedOneAddress(t *testing.T) {
 	e := newEnv(t, fakeOpts{})

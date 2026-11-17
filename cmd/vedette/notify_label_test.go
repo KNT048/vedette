@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/notify"
 )
 
-// Walk 4 and D-552 (W8-2): a new-device incident names the device as the Devices page does (inventory's one naming rule: here the
+// A new-device incident names the device as the Devices page does (inventory's one naming rule: here the
 // vendor, else the IP), with its address (the IP, else the MAC) beside it, never the bare kind "switch".
 func TestDeviceStateOfANewDevice(t *testing.T) {
 	t.Parallel()
@@ -50,7 +50,7 @@ func TestDeviceStateOfANewDevice(t *testing.T) {
 	}
 }
 
-// #716 Opus LOW (d): DeviceRefs puts the kind in Display when a device has no software, so a declared device (named after its first
+// DeviceRefs puts the kind in Display when a device has no software, so a declared device (named after its first
 // product) whose Display equals its kind is not named from the ref: DeviceStates asks inventory.Names, as the Devices page names it.
 func TestRefNameOfADeclaredDeviceWhoseProductIsItsKind(t *testing.T) {
 	t.Parallel()
@@ -62,7 +62,7 @@ func TestRefNameOfADeclaredDeviceWhoseProductIsItsKind(t *testing.T) {
 	}
 }
 
-// Walk 3 W8-2: a vulnerability notice and a log incident name the device as the Devices page does: a PC with no host name is
+// A vulnerability notice and a log incident name the device as the Devices page does: a PC with no host name is
 // "Hon Hai Precision Ind. Co.,Ltd.", not its bare IP; the notice adds the address, like the new-device incident.
 func TestFindingAndLogIncidentsUseTheDevicesName(t *testing.T) {
 	t.Parallel()

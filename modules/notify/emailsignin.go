@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// User sign-ins of the email channel (D-480). A sign-in lives in memory only, belongs to the admin who started it, ends 15 minutes
+// User sign-ins of the email channel. A sign-in lives in memory only, belongs to the admin who started it, ends 15 minutes
 // after it started, and is used once: SaveChannel takes its refresh token as the channel secret. Nothing of it reaches the browser
 // but the user code, the addresses to open and the mailbox.
 
@@ -299,7 +299,7 @@ func (s *Service) rotateEmailSecret(ctx context.Context, old, next secrets.Value
 	return nil
 }
 
-// rotateZaloSecret keeps the grant of a Zalo OA channel after a refresh (D-483). Zalo ends the old refresh token at once, so the new
+// rotateZaloSecret keeps the grant of a Zalo OA channel after a refresh. Zalo ends the old refresh token at once, so the new
 // grant is kept in memory first (zaloGrant: a sender built later and a save of the channel start from it), then written to the
 // channel synchronously, before the sender uses the new access token; an error goes back to the sender, which keeps the grant and
 // calls again before its next send. Only while the saved grant is the same one (same id): an admin who saved another grant wins. Zalo

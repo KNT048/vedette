@@ -1,7 +1,7 @@
-// AI-sent requests (D-51): the AI names a catalog action and typed values; the SERVER decides whether the request exists at all.
+// AI-sent requests: the AI names a catalog action and typed values; the SERVER decides whether the request exists at all.
 // Gates, in order: breaker and maintenance, quality pause, allowed trigger, action flagged for AI, typed values and never-touch, real evidence,
 // confidence, one open request per target and action, 7 days after a rejection, budget (over budget goes to a digest), second check for high risk.
-// Evidence counts only when it is about the target of the action (typed comparison) or, for a device action, a read through that action's own connection (D-119).
+// Evidence counts only when it is about the target of the action (typed comparison) or, for a device action, a read through that action's own connection.
 import { collection, newId, nowIso, peek } from '@/mocks/db'
 import { assetsStore, findingsStore } from '@/mocks/stores'
 import { isOpen } from '@/features/findings/basis'
@@ -14,7 +14,7 @@ import type { ParamType } from './logic'
 import type { ActionRequest, AiNote, AiState, Evidence, Metrics, ProposeResult, Stat, Trigger } from './types'
 
 export interface Hint { id: string; ts: string; kind: 'rule' | 'memory'; text: string; from_request: string }
-/** The newest 50 of each kind (D-119): a flood of suggestions cannot push the digest out, and the other way round. */
+/** The newest 50 of each kind: a flood of suggestions cannot push the digest out, and the other way round. */
 const capNotes = (l: AiNote[]) => [...l.filter((n) => n.kind === 'suggestion').slice(0, NOTES_PER_KIND), ...l.filter((n) => n.kind === 'digest').slice(0, NOTES_PER_KIND)].sort((a, b) => b.ts.localeCompare(a.ts))
 export const notesStore = collection<AiNote[]>('resp_ai_notes', () => [{
   id: 'note-seed-1', ts: new Date(Date.now() - 50 * 60e3).toISOString(), kind: 'suggestion', title: 'Consider blocking 91.92.240.12', confidence: 0.6, action_id: 'blocklist_add', target: '91.92.240.12',
@@ -25,7 +25,7 @@ export const hintsStore = collection<Hint[]>('resp_hints', () => [{ id: 'hint-se
 const FORBIDDEN = ['cli', 'rest', 'change', 'command', 'template', 'run', 'rollback', 'method', 'path', 'url', 'body', 'headers', 'script']
 const aiRequests = () => actionsStore.get().filter((a) => a.source === 'ai' && a.ai)
 const DECIDED = ['approved', 'executed', 'rejected', 'failed', 'rolled_back']
-/** A rejection by a person. A cancellation (action edited, emergency stop) is rejected too but is not a verdict on the AI: it counts for neither the 7-day repeat rule nor the quality breaker (D-119). */
+/** A rejection by a person. A cancellation (action edited, emergency stop) is rejected too but is not a verdict on the AI: it counts for neither the 7-day repeat rule nor the quality breaker. */
 const byPerson = (a: ActionRequest) => a.status !== 'rejected' || /^Rejected by /.test(a.note ?? '')
 const CALLS_PER_HOUR = 60
 const NOTES_PER_KIND = 50
@@ -81,7 +81,7 @@ function lookup(e: { kind: string; id: string }): Found | null {
 }
 
 const canon = (t: ParamType, v: string) => (t === 'domain' ? v.trim().toLowerCase() : t === 'mac' ? v.trim().toLowerCase().replace(/-/g, ':') : v.trim())
-/** Does this evidence relate to the action? Typed: an address only to an address of the same type, a host name only to a name, a read only through the action's own connection (D-119). */
+/** Does this evidence relate to the action? Typed: an address only to an address of the same type, a host name only to a name, a read only through the action's own connection. */
 function relatesTo(f: Found, values: Partial<Record<ParamType, string>>, cat: { kind: string; connection_id: string | null }): boolean {
   if (f.conn) return cat.kind === 'device' && cat.connection_id === f.conn
   return Object.entries(values).some(([t, v]) => {
@@ -92,7 +92,7 @@ function relatesTo(f: Found, values: Partial<Record<ParamType, string>>, cat: { 
   })
 }
 
-/** Calls of the AI in the last hour, whatever the outcome (D-119): a runaway model cannot fill the log or the database. */
+/** Calls of the AI in the last hour, whatever the outcome: a runaway model cannot fill the log or the database. */
 const callsStore = collection<{ at: number[]; logged_at: number; skipped: number }>('resp_ai_calls', () => ({ at: [], logged_at: 0, skipped: 0 }))
 function tooManyCalls(): Response | null {
   const now = Date.now(), c = callsStore.get(), at = c.at.filter((t) => now - t < HOUR)

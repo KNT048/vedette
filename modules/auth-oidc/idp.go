@@ -21,7 +21,7 @@ const (
 	discoveryTTL = time.Hour
 )
 
-// allowedAlgs are the ID-token signature algorithms Vedette accepts (D-194 (3)): asymmetric only. none and HS* never: a symmetric
+// allowedAlgs are the ID-token signature algorithms Vedette accepts: asymmetric only. none and HS* never: a symmetric
 // key would be the client secret, and "none" is no signature.
 var allowedAlgs = []string{oidc.RS256, oidc.RS384, oidc.RS512, oidc.PS256, oidc.PS384, oidc.PS512, oidc.ES256, oidc.ES384, oidc.ES512}
 
@@ -82,7 +82,7 @@ func (l *limited) Close() error { return l.rc.Close() }
 // idp is the discovered identity provider of one issuer.
 type idp struct {
 	issuer    string
-	caPEM     string       // the saved CA this was discovered with (D-378)
+	caPEM     string       // the saved CA this was discovered with
 	client    *http.Client // clientFor(caPEM): discovery, keys (the provider keeps it) and the token exchange
 	provider  *oidc.Provider
 	jwksURL   string

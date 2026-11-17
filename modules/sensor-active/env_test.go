@@ -115,8 +115,8 @@ type fakeInv struct {
 	checked  []netip.Addr
 	// protected is what ProtectedIPs lists (a device by hand, never, fragile after its gentle scan, the box)
 	protected []netip.Addr
-	approved  map[string]bool // Asset.Approved (SNMP, D-512)
-	// snmpDecision is what SNMPPolicy answers for a device (D-601); a device not in it gets its ScanPolicy answer, as before D-601.
+	approved  map[string]bool // Asset.Approved (SNMP)
+	// snmpDecision is what SNMPPolicy answers for a device; a device not in it gets its ScanPolicy answer.
 	snmpDecision map[string]sa.Decision
 	box          []netip.Addr // BoxIPs: the box and its decoys (a part of protected)
 	// onAddresses, when set, runs at every Addresses call, outside the lock (a test acting in the middle of a read's preparation).
@@ -277,7 +277,7 @@ type sink struct {
 }
 
 // AddServices merges like the inventory: a new port is added, a listed one keeps what it had unless the item names a product
-// (inventory INV-23, D-592 review r2 M2: then name, product, version and confidence are updated).
+// (inventory INV-23: then name, product, version and confidence are updated).
 func (s *sink) AddServices(_ context.Context, h observe.AssetHint, src observe.Source, items []observe.Service) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -468,8 +468,8 @@ func (e *env) str(query string) string {
 
 type dbTx = *sql.Tx
 
-// sweptBefore records a sweep that finished a week ago: the box is not new, so no first pass runs outside the window (D-501).
-// The sa_first_pass row alone would do too; a finished sweep is how a box from before D-501 looks.
+// sweptBefore records a sweep that finished a week ago: the box is not new, so no first pass runs outside the window.
+// The sa_first_pass row alone would do too; a finished sweep is how an older box looks.
 func (e *env) sweptBefore() {
 	e.t.Helper()
 	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {

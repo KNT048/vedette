@@ -1,6 +1,6 @@
 // Users and roles on the real backend (S-CORE-3): invite, the temporary password shown once, the first sign-in, role change, disable,
 // password reset, and the audit rows with their CSV export. Steps from e2e/qa/core.spec.ts ("users and roles"). Every account here is a
-// throwaway made with uniq() (D-172), found in the table through its filter box, so the specs do not depend on how many users the other
+// throwaway made with uniq(), found in the table through its filter box, so the specs do not depend on how many users the other
 // specs left on the box. Last-admin protection needs a box with ONE active administrator: that is box-wide state, so it lives in
 // users-lastadmin.global.spec.ts (global project).
 import { readFileSync } from 'node:fs'
@@ -88,7 +88,7 @@ test('invite: field errors, temporary password shown once, duplicate email refus
   await mine.getByLabel('Email', { exact: true }).fill(who.email)
   await mine.getByLabel('Password', { exact: true }).fill(temp)
   await mine.getByLabel('Password', { exact: true }).press('Enter')
-  // D-180: the temporary password must be replaced first (the forced change has its own test below), then the operator's pages open
+  // The temporary password must be replaced first (the forced change has its own test below), then the operator's pages open
   await expect(h1(mine)).toHaveText('Choose a new password', { timeout: 30_000 })
   const next = password()
   await mine.getByLabel('Temporary password', { exact: true }).fill(temp)
@@ -110,7 +110,7 @@ test('invite: field errors, temporary password shown once, duplicate email refus
   noErrors(errors, /status of (40\d|409)/)
 })
 
-// D-180 (S-CORE-3): a password an administrator set is temporary. The first sign-in lands on "Choose a new password"; until it is replaced every
+// S-CORE-3: a password an administrator set is temporary. The first sign-in lands on "Choose a new password"; until it is replaced every
 // other call is 403 password_change_required (only /me, the password change and sign-out answer).
 test('the first sign-in with a temporary password must change it before any other page', async ({ browser }) => {
   test.setTimeout(150_000)

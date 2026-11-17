@@ -29,13 +29,13 @@ type WebhookConfig struct {
 	// URL is a secret: its path or query often carries a token. https; http only for internal hosts.
 	URL        secrets.Value
 	SigningKey secrets.Value // at least 16 bytes; signs every request
-	BoxAddrs   []netip.Addr  // the machine's addresses: never a target on Vedette's own ports (D-446)
+	BoxAddrs   []netip.Addr  // the machine's addresses: never a target on Vedette's own ports
 	// BoxAddrsFunc is the machine's addresses (vedette-host, the container's gateway), asked again at every connection, so an
 	// address the box gets later counts too. known=false means the box does not know them yet: NewWebhook returns
 	// ErrBoxAddrsUnknown and every connection is refused (fail closed, #157). Loopback and the addresses of core's own
 	// container are Vedette itself on every port and are read here (ownAddr).
 	BoxAddrsFunc func() (addrs []netip.Addr, known bool)
-	// SelfAddrsFunc lists more addresses that are Vedette itself (the honeypot's decoys), refused on every port like loopback (D-446).
+	// SelfAddrsFunc lists more addresses that are Vedette itself (the honeypot's decoys), refused on every port like loopback.
 	// nil: none.
 	SelfAddrsFunc func() []netip.Addr
 
@@ -82,12 +82,12 @@ func forbiddenAddr(a netip.Addr, allowLoopback bool) bool {
 	return false
 }
 
-// vedettePorts are the ports Vedette itself answers on at the machine's addresses (D-446): the interface 8443, the sensor link 8444,
+// vedettePorts are the ports Vedette itself answers on at the machine's addresses: the interface 8443, the sensor link 8444,
 // MCP 8765, syslog 514 and syslog over TLS 6514 (install.sh preflight, the core unit's PublishPort lines, the container-only compose).
 // Same list in feeds, logs and ai.
 var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
 
-// ownSet is what ownAddr judges against (D-446).
+// ownSet is what ownAddr judges against.
 type ownSet struct {
 	machine []netip.Addr // the machine's addresses (vedette-host, the container's gateway): refused on vedettePorts
 	known   bool         // false: the machine's addresses are not known yet, so vedettePorts are refused on every address
@@ -106,7 +106,7 @@ func ownOf(box func() ([]netip.Addr, bool), self func() []netip.Addr) ownSet {
 	return o
 }
 
-// ownAddr reports whether a at port is Vedette itself (D-446), in any transition form: loopback (unless allowLoopback), an address
+// ownAddr reports whether a at port is Vedette itself, in any transition form: loopback (unless allowLoopback), an address
 // of core's own container (selfAddrs) or of own.self on every port, or one of own.machine on a port of vedettePorts (every address
 // while own.known is false). Another program on the machine, at its address and its own port, is a normal target.
 func ownAddr(a netip.Addr, port uint16, allowLoopback bool, own ownSet) bool {
@@ -157,7 +157,7 @@ func selfAddrs() []netip.Addr {
 	return out
 }
 
-// OwnText is the sentence for Vedette itself (D-446): the same in feeds, notify, logs and ai.
+// OwnText is the sentence for Vedette itself: the same in feeds, notify, logs and ai.
 const OwnText = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
 
 // portNumber is the port of a host:port or URL port string; def when it is empty or not a number.
@@ -236,7 +236,7 @@ func nat64Embed(b [16]byte, at [4]int) [4]byte {
 }
 
 // nat64Always is what a guard never allows whatever the box's own addresses are (loopback, link-local, multicast, unspecified,
-// broadcast, cloud metadata): a reading of such an address is judged in every layout, learned or not (D-442 (2)).
+// broadcast, cloud metadata): a reading of such an address is judged in every layout, learned or not.
 func nat64Always(a netip.Addr) bool {
 	return a.IsLoopback() || a.IsLinkLocalUnicast() || a.IsMulticast() || a.IsUnspecified() || a == netip.AddrFrom4([4]byte{255, 255, 255, 255}) || slices.Contains(metadataAddrs, a)
 }
@@ -327,7 +327,7 @@ func learnNAT64(answers []netip.Addr) []netip.Prefix {
 // nat64Cache asks the system resolver for ipv4only.arpa only when a 64:ff9b:1::/48 address is judged, for at most 2 s, and keeps the
 // answer 6 hours (10 minutes when nothing was learned or the lookup failed, so a missing DNS64 costs one lookup per 10 minutes).
 // One lookup runs at a time and nobody waits for it: a caller that finds it running (or a fresh cache) gets what is known, which is
-// nothing at first, and nothing means every layout. The query carries no customer data (D-442).
+// nothing at first, and nothing means every layout. The query carries no customer data.
 type nat64Cache struct {
 	mu       sync.Mutex
 	lookup   func(ctx context.Context) ([]netip.Addr, error)
@@ -369,7 +369,7 @@ var nat64Prefixes = (&nat64Cache{
 
 var errForbiddenDial = errors.New("notify: refusing to connect to a link-local, multicast, unspecified or cloud metadata address")
 
-// errOwnDial is a connection to Vedette itself (ownAddr, D-446).
+// errOwnDial is a connection to Vedette itself (ownAddr).
 var errOwnDial = errors.New("notify: refusing to connect to Vedette itself")
 
 // ErrBoxAddrsUnknown means the box does not know its own addresses yet (vedette-host has not answered since the start), so a
@@ -453,7 +453,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		return nil, bad
 	}
 	// A forbidden target is named as such before the http rule, so http://169.254.169.254 (cloud metadata) gets the precise
-	// sentence, as loopback does, not "plain http:// is only for internal hosts" (walk 3 G13).
+	// sentence, as loopback does, not "plain http:// is only for internal hosts".
 	own := ownOf(boxFn, cfg.SelfAddrsFunc)
 	known := own.known
 	if a, err := netip.ParseAddr(host); err == nil {

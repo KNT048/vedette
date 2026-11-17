@@ -75,7 +75,7 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     const run = aiRunsStore.get().filter((r) => r.skill === 'ask-my-data')
     expect(run).toHaveLength(1)
     expect(run[0]).toMatchObject({ profile: 'Claude Sonnet', model: 'claude-sonnet-5-5' })
-    // suggestions are on in the demo data: the answer names the one it suggested, with the way to review it (S-AI-7, D-225)
+    // suggestions are on in the demo data: the answer names the one it suggested, with the way to review it (S-AI-7)
     expect(screen.getByText(/The AI suggested 1 memory about this network/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Review in Settings, AI assistant, Memory' })).toHaveAttribute('href', '/settings/ai?tab=memory')
     await expectNoA11yViolations()
@@ -119,12 +119,12 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     server.use(http.post('*/api/v1/ai/ask', async () => { await held; return HttpResponse.json({ error: { code: 'x', message: 'The provider did not answer.' } }, { status: 502 }) }))
     await userEvent.type(box, 'c device')
     await userEvent.click(screen.getByRole('button', { name: 'Ask' }))
-    // kien G1: while the AI works the button is busy and a note says how long it may take
+    // While the AI works the button is busy and a note says how long it may take
     expect(await screen.findByRole('button', { name: 'Asking…' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByText(/this can take up to two minutes/)).toBeInTheDocument()
     answer()
     expect(await screen.findByRole('alert')).toHaveTextContent('The provider did not answer.')
-    // walk 3 G13: the failure stands where the answer would be, with the question; no "No questions yet" under it
+    // The failure stands where the answer would be, with the question; no "No questions yet" under it
     const region = screen.getByRole('region', { name: 'Answer to: abc device' })
     expect(within(region).getByText('No answer: the question did not get through.')).toBeInTheDocument()
     expect(within(region).getByRole('alert')).toHaveTextContent('The provider did not answer.')
@@ -157,7 +157,7 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     }
   })
 
-  it('walk 3 G13: a question longer than the box takes (500) says so and Ask stays off; near the limit a counter shows', async () => {
+  it('a question longer than the box takes (500) says so and Ask stays off; near the limit a counter shows', async () => {
     renderApp('/assistant')
     const box = await screen.findByLabelText('Question')
     await enabled(box)
@@ -207,7 +207,7 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     server.events.on('request:start', ({ request }) => { if (new URL(request.url).pathname.includes('/ai/')) asked.push(new URL(request.url).pathname) })
     renderApp('/assistant')
     expect(await screen.findByRole('heading', { level: 1, name: /AI assistant is off/ })).toBeInTheDocument()
-    // Walk 5: only the module-off card; no calls to routes that are 404 and no "Not found" cards for the meter and the logs.
+    // Only the module-off card; no calls to routes that are 404 and no "Not found" cards for the meter and the logs.
     expect(screen.queryByText(/Not found/)).toBeNull()
     expect(screen.queryByRole('heading', { name: /Activity log/i })).toBeNull()
     expect(asked).toEqual([])
@@ -215,10 +215,10 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
   })
 })
 
-/** A call of this month that spent `tokens` (D-531: the budgets count the calendar month). */
+/** A call of this month that spent `tokens` (the budgets count the calendar month). */
 const spend = (tokens: number, profile = 'Claude Haiku') => aiRunsStore.update((l) => [{ id: `run-${l.length}`, ts: new Date().toISOString(), skill: 'ask-my-data', model: 'claude-haiku-5-5', tokens_in: tokens - 100, tokens_out: 100, status: 'ok', profile }, ...l])
 
-describe('ai: token meter, monthly budget, fallback (S-AI-4, D-531)', () => {
+describe('ai: token meter, monthly budget, fallback (S-AI-4)', () => {
   it('past the monthly budget every job stops with why and how to go on; the level never drops', async () => {
     sessionStore.set({ userId: 'u-admin' })
     aiConfigStore.update((c) => ({ ...c, tier: 'max', monthly_budget: 1000 }))
@@ -240,7 +240,7 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4, D-531)', () => {
     expect(screen.getByText(/lowered from Medium to Minimum/)).toBeInTheDocument()
   })
 
-  it('scheduled jobs pause from 80 % of the month\'s budget and when it is used up, as on the box (D-531a)', async () => {
+  it('scheduled jobs pause from 80 % of the month\'s budget and when it is used up, as on the box', async () => {
     aiConfigStore.update((c) => ({ ...c, monthly_budget: 10_000_000 }))
     aiRunsStore.set([])
     expect(scheduledPause()).toBeNull()
@@ -257,7 +257,7 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4, D-531)', () => {
     expect(err.message).toMatch(/^This month's AI budget of 10,000,000 tokens is used up/)
   })
 
-  it('a scheduled job stops when every profile it may use has used its own monthly budget, as on the box (W5-4, W5-5)', () => {
+  it('a scheduled job stops when every profile it may use has used its own monthly budget, as on the box', () => {
     aiConfigStore.update((c) => ({ ...c, monthly_budget: 100_000_000 }))
     aiRunsStore.set([])
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-sonnet' ? { ...p, monthly_budget: 1000 } : p.id === 'p-ollama' ? { ...p, monthly_budget: 100_000_000 } : p)))
@@ -268,7 +268,7 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4, D-531)', () => {
     expect(scheduledProfileStop('response-plan')).toMatch(/^The monthly budget of the AI profile Company Ollama server is used up and no other profile could take response plans, so nothing was sent\./)
   })
 
-  it('Home warns at 80 % and says when the budget is used up; a profile near its own budget is named (D-531)', async () => {
+  it('Home warns at 80 % and says when the budget is used up; a profile near its own budget is named', async () => {
     aiConfigStore.update((c) => ({ ...c, monthly_budget: 10_000_000 })) // the sample calls of this month add well under 1 %
     aiRunsStore.set([])
     spend(8_500_000)
@@ -355,7 +355,7 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     await v.ready
     await userEvent.click((await screen.findAllByRole('button', { name: 'Add AI profile' }))[0]!)
     const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
-    expect(within(dlg).getByLabelText('Profile name')).toHaveValue('Claude') // filled from the provider, editable (D-475)
+    expect(within(dlg).getByLabelText('Profile name')).toHaveValue('Claude') // filled from the provider, editable
     await userEvent.clear(within(dlg).getByLabelText('Profile name'))
     await userEvent.type(within(dlg).getByLabelText('Profile name'), 'Claude Haiku')
     expect(within(dlg).getByRole('button', { name: 'Add profile' })).toBeDisabled() // chưa xác nhận luồng dữ liệu
@@ -380,7 +380,7 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     expect(aiConfigStore.get()).toMatchObject({ configured: true, model: 'claude-haiku-5-5', key_last4: '9z9z' })
   })
 
-  it('walk 3 G13: Add says why it is off; the consent names a host only for a valid address; changing the type keeps a typed address and model', async () => {
+  it('Add says why it is off; the consent names a host only for a valid address; changing the type keeps a typed address and model', async () => {
     clearProfiles()
     const v = renderUi(<AiSettings />)
     await v.ready
@@ -444,7 +444,7 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     expect(within(dlg).getByLabelText('Server address')).toHaveValue('https://api.openai.com/v1')
     expect(within(dlg).getByLabelText('Model')).toHaveValue('gpt-6-luna')
     await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'Google Gemini')
-    expect(within(dlg).getByLabelText('Server address')).toHaveValue('https://generativelanguage.googleapis.com') // no /v1beta: the client adds it (D-475)
+    expect(within(dlg).getByLabelText('Server address')).toHaveValue('https://generativelanguage.googleapis.com') // no /v1beta: the client adds it
     expect(within(dlg).getByLabelText('Model')).toHaveValue('gemini-3.6-flash')
     await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'OpenAI-compatible (Ollama, vLLM, LM Studio)')
     expect(within(dlg).getByLabelText('Server address')).toHaveValue('http://host.containers.internal:11434/v1')
@@ -536,7 +536,7 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     expect(screen.queryByText('Not tested yet')).not.toBeInTheDocument()
   })
 
-  it('the test made in the Add dialog becomes the last test of the profile added with exactly those settings (D-445)', async () => {
+  it('the test made in the Add dialog becomes the last test of the profile added with exactly those settings', async () => {
     sessionStore.set({ userId: 'u-admin' })
     const draft = { kind: 'openai', api_style: 'openai', base_url: 'https://api.openai.com/v1', model: 'gpt-6-luna', location: 'cloud', api_key: 'sk-test-key-12345', monthly_budget: 60000 }
     expect((await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
@@ -835,7 +835,7 @@ describe('ai: log digest panel (S-AI-4)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Regenerate now' }))
     await waitFor(() => expect(aiRunsStore.get().filter((r) => r.skill === 'log-digest')).toHaveLength(1))
     expect(aiRunsStore.get()[0]).toMatchObject({ profile: 'Company Ollama server' })
-    // suggestions are on in the demo data: the new one is named, with the way to review it (S-AI-7, D-223)
+    // suggestions are on in the demo data: the new one is named, with the way to review it (S-AI-7)
     expect(await screen.findByText(/The AI suggested 1 memory about this network/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Review in Settings, AI assistant, Memory' })).toHaveAttribute('href', '/settings/ai?tab=memory')
     await expectNoA11yViolations()
@@ -933,7 +933,7 @@ describe('ai: Add AI profile form matrix', () => {
     expect(within(dlg).getByRole('checkbox', { name: /I understand/ })).not.toBeChecked()
   })
 
-  it('on a container-only install the local model address starts empty and the hint says to use the LAN IP (D-422)', async () => {
+  it('on a container-only install the local model address starts empty and the hint says to use the LAN IP', async () => {
     installStore.set({ kind: 'container' })
     try {
       clearProfiles()
@@ -968,7 +968,7 @@ describe('ai: Add AI profile form matrix', () => {
   })
 })
 
-describe('ai: Add AI profile order and the OpenCode preset (D-475)', () => {
+describe('ai: Add AI profile order and the OpenCode preset', () => {
   async function open() {
     clearProfiles()
     const v = renderUi(<AiSettings />)
@@ -1034,7 +1034,7 @@ describe('ai: Add AI profile order and the OpenCode preset (D-475)', () => {
   })
 })
 
-describe('AI profile form matrix (QA walk 2026-11-12)', () => {
+describe('AI profile form matrix', () => {
   it('"Connected" holds only for what was tested; choosing Inside your network clears the https error', async () => {
     const v = renderUi(<AiSettings />)
     await v.ready

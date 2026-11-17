@@ -1,4 +1,4 @@
-// Mã đăng nhập hai bước qua email (D-35), phía mock. Backend thật sinh/kiểm cùng quy tắc: 6 số, hết hạn 10 phút,
+// Mã đăng nhập hai bước qua email, phía mock. Backend thật sinh/kiểm cùng quy tắc: 6 số, hết hạn 10 phút,
 // dùng 1 lần, 5 lần nhập sai huỷ mã, gửi lại sau 60 giây, tối đa 5 lần gửi mỗi giờ cho mỗi người dùng.
 import { HttpResponse } from 'msw'
 import { collection } from '@/mocks/db'

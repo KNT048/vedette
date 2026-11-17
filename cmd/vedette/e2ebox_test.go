@@ -1,6 +1,6 @@
 package main
 
-// The box of the real-backend end-to-end run (WP-30, D-170): the same run() that main() calls, started inside a test binary so that later
+// The box of the real-backend end-to-end run (WP-30): the same run() that main() calls, started inside a test binary so that later
 // slices can put loopback fakes in the same process (the address policy refuses loopback except through the in-process test hooks).
 // `make e2e-real` compiles this package with -tags webui and starts TestE2EBox; the browser specs of web/e2e-real/ read ready.json.
 // TestE2EBox is skipped unless VEDETTE_E2E_DIR is set, so CI compiles it and never runs it.
@@ -54,7 +54,7 @@ type e2eReady struct {
 	Control      string `json:"control"`
 	ControlToken string `json:"control_token"`
 	SMTPPort     string `json:"smtp_port"`
-	// slice 4 (D-163), set with VEDETTE_E2E_HOST=1: the fake vedette-host's control endpoint and the second box that has no host
+	// slice 4, set with VEDETTE_E2E_HOST=1: the fake vedette-host's control endpoint and the second box that has no host
 	HostControl   string `json:"host_control,omitempty"`
 	HostToken     string `json:"host_token,omitempty"`
 	BareURL       string `json:"bare_url,omitempty"`
@@ -62,11 +62,11 @@ type e2eReady struct {
 	// sensorBin (slice 7, VEDETTE_E2E_SENSOR) is the vedette-sensor binary: set, the box opens its sensor link and the control endpoint
 	// starts the sensors (e2esensor_test.go). Not part of ready.json.
 	sensorBin string
-	// slice 5 (D-93/D-94): the loopback devices a connection can be saved against, by kind (http, ssh, mcp): see e2edevices_test.go
+	// slice 5: the loopback devices a connection can be saved against, by kind (http, ssh, mcp): see e2edevices_test.go
 	Devices map[string]e2eDeviceLogin `json:"devices,omitempty"`
 	// the port of the syslog listener of the logs module (UDP and TCP, loopback): a spec declares a source with sender 127.0.0.1 and feeds it lines
 	SyslogPort string `json:"syslog_port,omitempty"`
-	// syslog over TLS (D-214, D-427): the port of the TLS listener (the syslog port + 1, as the listener maps it) and the PEM of the test
+	// syslog over TLS: the port of the TLS listener (the syslog port + 1, as the listener maps it) and the PEM of the test
 	// certificate it presents (syslogTestTLS); the listener opens once a source with proto tls exists
 	SyslogTLSPort string `json:"syslog_tls_port,omitempty"`
 	SyslogTLSCert string `json:"syslog_tls_cert,omitempty"`
@@ -75,7 +75,7 @@ type e2eReady struct {
 	devs      *e2eDevices // not in ready.json: the control routes of this box (nil: the bare box has none)
 }
 
-// e2eLog is the box's log stream: every line goes to box.log, and the two lines the harness needs (the one-time setup code, D-75, and
+// e2eLog is the box's log stream: every line goes to box.log, and the two lines the harness needs (the one-time setup code, and
 // "listening") are picked up. Once both have been seen ready.json is written, once.
 type e2eLog struct {
 	mu    sync.Mutex
@@ -194,7 +194,7 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 	}
 	defer stopControl()
 	log := &e2eLog{file: f, dir: dir, ready: seed}
-	// D-173: the box listens on a port chosen here, so notify can build approval links that reach it (see testBaseURL)
+	// The box listens on a port chosen here, so notify can build approval links that reach it (see testBaseURL)
 	listenPort, err := e2eFreePort(ctx)
 	if err != nil {
 		return err
@@ -231,7 +231,7 @@ func init() {
 	}
 }
 
-// e2eBaseURL tells boxBaseURL (notify.go, D-173) which address people open the box at when it listens on `listen`; the returned func forgets it.
+// e2eBaseURL tells boxBaseURL (notify.go) which address people open the box at when it listens on `listen`; the returned func forgets it.
 // Two boxes run in one process (the bare box), each with a listen address of its own, so the seam is a lookup, not one value.
 func e2eBaseURL(listen, base string) func() {
 	e2eBaseMu.Lock()
@@ -287,7 +287,7 @@ func e2eSyslogPort(ctx context.Context) (int, error) {
 	return 0, errors.New("no syslog port with a free TLS port after it on loopback")
 }
 
-// e2eSyslogCert is the certificate the TLS syslog listener of the end-to-end box presents (D-427): a loopback box has no HTTPS certificate
+// e2eSyslogCert is the certificate the TLS syslog listener of the end-to-end box presents: a loopback box has no HTTPS certificate
 // to share (syslogTLS), so the box of the run makes a self-signed one for 127.0.0.1, valid for a day. It returns the server side and the
 // PEM a spec trusts.
 func e2eSyslogCert() (*tls.Config, string, error) {
@@ -311,7 +311,7 @@ func e2eSyslogCert() (*tls.Config, string, error) {
 }
 
 // e2eKEV is the CISA catalog the box of the run "downloads": one entry, so the Home title is the loaded one ("Today: N ..."), the same
-// on every machine (the real catalog has 1.8k entries and the specs must not depend on it, D-170).
+// on every machine (the real catalog has 1.8k entries and the specs must not depend on it).
 const e2eKEV = `{"title":"E2E catalog","catalogVersion":"2026.11.11","dateReleased":"2026-11-11T00:00:00.000Z","count":1,"vulnerabilities":[
 {"cveID":"CVE-2026-0001","vendorProject":"E2E Vendor","product":"E2E Product","vulnerabilityName":"E2E fixture vulnerability","dateAdded":"2026-11-10","shortDescription":"A fixture entry of the end-to-end run.","requiredAction":"None.","dueDate":"2026-12-01","knownRansomwareCampaignUse":"Unknown","notes":"","cwes":[]}]}`
 
@@ -330,7 +330,7 @@ func e2eOffline() func() {
 	}
 	e2eOfflinePrev = feedsClient
 	c := feeds.NewClient(feeds.DefaultFetchTimeout)
-	loop := &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) { // D-208: feeds refuses loopback, the fake feed servers live there
+	loop := &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) { // feeds refuses loopback, the fake feed servers live there
 		host, _, err := net.SplitHostPort(addr)
 		if ip, perr := netip.ParseAddr(host); err != nil || perr != nil || !ip.IsLoopback() {
 			return nil, errors.New("e2e: loopback only")
@@ -341,7 +341,7 @@ func e2eOffline() func() {
 		if ip, err := netip.ParseAddr(r.URL.Hostname()); err == nil && ip.IsLoopback() {
 			return loop.RoundTrip(r)
 		}
-		if r.URL.Hostname() == e2eLoopbackName { // D-420 (1): feeds refuses a loopback address at save, so the specs name the fakes
+		if r.URL.Hostname() == e2eLoopbackName { // feeds refuses a loopback address at save, so the specs name the fakes
 			lr := r.Clone(r.Context())
 			lr.URL.Host = net.JoinHostPort("127.0.0.1", r.URL.Port())
 			return loop.RoundTrip(lr)
@@ -358,7 +358,7 @@ func e2eOffline() func() {
 }
 
 // e2eLoopbackName is the host name the e2e-real specs give a feed served by a node server on 127.0.0.1 (feeds.spec.ts,
-// findings-seed.ts, logs.global.spec.ts): the save check of feeds refuses loopback addresses (D-420 (1)), a `.lan` name may use
+// findings-seed.ts, logs.global.spec.ts): the save check of feeds refuses loopback addresses, a `.lan` name may use
 // http (INV-2), and e2eOffline sends it to 127.0.0.1 on the same port.
 const e2eLoopbackName = "e2e-loopback.lan"
 
@@ -461,7 +461,7 @@ func TestE2EBox(t *testing.T) {
 		t.Skip("VEDETTE_E2E_DIR is not set: this is the box of `make e2e-real`")
 	}
 	ctx := e2eStop(t)
-	// D-427: the TLS syslog listener with a test certificate, set before any box starts (both read it when their logs service is built)
+	// The TLS syslog listener with a test certificate, set before any box starts (both read it when their logs service is built)
 	tlsCfg, tlsPEM, err := e2eSyslogCert()
 	if err != nil {
 		t.Fatal(err)
@@ -478,7 +478,7 @@ func TestE2EBox(t *testing.T) {
 	seed.sensorBin = os.Getenv("VEDETTE_E2E_SENSOR")
 	seed.Devices, seed.devs = logins, devs
 	seed.SyslogTLSCert = tlsPEM
-	pdftexttest.BuildChild(t)        // D-264: the PDF child of the knowledge base; a test binary registers none by itself (UseSelf is main's), so a PDF upload would end as ErrNoChild
+	pdftexttest.BuildChild(t)        // The PDF child of the knowledge base; a test binary registers none by itself (UseSelf is main's), so a PDF upload would end as ErrNoChild
 	seed.NewsPages = startE2ENews(t) // before any box starts: both read the seam when their ai service is built
 	data, sock := "", ""
 	if host != nil {
@@ -489,7 +489,7 @@ func TestE2EBox(t *testing.T) {
 	}
 }
 
-// TestE2EBaseURLSeam pins D-173: a listen address a test box registered gets the loopback URL, every other address keeps the production
+// TestE2EBaseURLSeam pins the test seam: a listen address a test box registered gets the loopback URL, every other address keeps the production
 // derivation (loopback without a seam answers "", a public name gets https), and the seam is forgotten when the box stops.
 func TestE2EBaseURLSeam(t *testing.T) {
 	forget := e2eBaseURL("127.0.0.1:41999", "http://127.0.0.1:41999")

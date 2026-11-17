@@ -1,17 +1,17 @@
-// API contract of module honeypot (D-18, D-50, D-466, S-HP-1, S-HP-2). UI types are inferred from here (types.ts).
+// API contract of module honeypot (S-HP-1, S-HP-2). UI types are inferred from here (types.ts).
 // Traps only listen and log, they never hit back (LEGAL §3). Each service has its fixed port (presets.ts SERVICE_PORT): the OpenCanary modules that work in
-// the honeypot image (D-467); snmp and llmnr (scapy, GPL-2, raw sockets) and portscan (iptables) are not offered.
-// D-466: a Trap IP is a profile (name, IP, vendor MAC prefix, its own services); the host lets each address answer only its own ports.
+// the honeypot image; snmp and llmnr (scapy, GPL-2, raw sockets) and portscan (iptables) are not offered.
+// A Trap IP is a profile (name, IP, vendor MAC prefix, its own services); the host lets each address answer only its own ports.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 
 export const HpService = z.enum(['smb', 'rdp', 'ssh', 'mssql', 'http', 'https', 'ftp', 'telnet', 'mysql', 'mongodb', 'redis', 'vnc', 'git', 'httpproxy', 'tcpbanner', 'tftp', 'ntp', 'sip'])
-  .describe('A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log')
+  .describe('A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log')
 
 export const TrapState = z.enum(['off', 'listening', 'conflict', 'starting', 'stopping', 'failed'])
   .describe('What the box reports, not the switch. conflict = on, but the IP clashes with a device in the inventory or the host refused it. starting = switched on, the box is bringing it up (container start and health check take minutes). stopping = switched off, the host has not confirmed yet. failed = switched on, but the box could not set it up (see problem / reason)')
 
-/** One service across the box: on when at least one enabled Trap IP has it (D-466). */
+/** One service across the box: on when at least one enabled Trap IP has it. */
 export const Trap = z.object({
   service: HpService,
   port: z.number().int(),
@@ -51,7 +51,7 @@ export const Hit = z.object({
   is_test: z.boolean(),
   excerpt: z.string(),
   trap_ip: z.string().describe('The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its value'),
-  trap_hostname: z.string().describe('Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy sweep" for a probe without names): the Trap IP column of the hit list (W1-13)'),
+  trap_hostname: z.string().describe('Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for a probe without names): the Trap IP column of the hit list'),
 })
 
 export const HitEvent = z.object({ ts: z.iso.datetime(), source: z.enum(['honeypot', 'firewall', 'dhcp', 'ad', 'vedette']), text: z.string(), mark: z.boolean() })
@@ -94,7 +94,7 @@ export const TrapSuggestion = z.object({ preset: TrapPreset, count: z.number().i
 export const TrapIPsResponse = z.object({ items: z.array(TrapIP), suggestions: z.array(TrapSuggestion), spare_ips: z.array(z.string()), spare_checked: z.boolean().describe('false while the inventory has no device in the box network: nothing was compared, so spare_ips are only addresses not seen yet') })
 export const TrapIPInput = z.object({ name: z.string(), ip: z.string(), preset: TrapPreset, vendor: TrapVendor.nullable(), services: z.array(HpService) })
 
-// 'dns' only lists DNS tokens made before D-468: a new one is refused (409 dns_unavailable), it could never alert.
+// 'dns' only lists DNS tokens made earlier: a new one is refused (409 dns_unavailable), it could never alert.
 export const TokenType = z.enum(['file', 'credential', 'url', 'dns'])
 export const Token = z.object({
   id: z.string(), type: TokenType, name: z.string(), value: z.string().describe('File name, user name, URL or hostname to plant'),
@@ -116,7 +116,7 @@ export const endpoints = defineEndpoints([
   { method: 'delete', path: '/honeypot/trap-ips/{id}', summary: 'Delete a Trap IP; the address stops answering, its hits stay', stories: ['S-HP-1', 'S-HP-2'], role: 'admin', params: z.object({ id: z.string() }), response: null },
   { method: 'post', path: '/honeypot/test-scan', summary: '"Test scan": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent', stories: ['S-HP-2'], role: 'operator', response: Hit },
   { method: 'get', path: '/honeypot/tokens', summary: 'Honey tokens with last triggered time', stories: ['S-HP-2'], role: 'viewer', response: z.object({ items: z.array(Token) }) },
-  { method: 'post', path: '/honeypot/tokens', status: 201, summary: 'Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468)', stories: ['S-HP-2'], role: 'admin', body: TokenInput, response: Token },
+  { method: 'post', path: '/honeypot/tokens', status: 201, summary: 'Create a honey token (decoy file, fake credentials or URL); a DNS token is refused', stories: ['S-HP-2'], role: 'admin', body: TokenInput, response: Token },
   { method: 'delete', path: '/honeypot/tokens/{id}', summary: 'Delete a honey token; the planted copy stops alerting', stories: ['S-HP-2'], role: 'admin', params: z.object({ id: z.string() }), response: null },
   { method: 'post', path: '/honeypot/tokens/{id}/test', summary: '"Test token": a labelled test trigger, not counted, no alert sent', stories: ['S-HP-2'], role: 'operator', params: z.object({ id: z.string() }), response: Hit },
 ])

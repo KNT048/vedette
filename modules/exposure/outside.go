@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// What the Internet sees (D-558, INV-21): on an administrator's click, the box asks Shodan InternetDB what it has seen on one of
+// What the Internet sees (INV-21): on an administrator's click, the box asks Shodan InternetDB what it has seen on one of
 // its own verified public IPs, and the page shows that next to Vedette's own scan, which runs from inside the network (NAT
 // loopback). Shodan's terms: "Free for non-commercial use: you can use it at a company, you can't use it to build commercial
 // products that you charge money for" (blog.shodan.io/introducing-the-internetdb-api). Vedette is free; each box asks for its own IP.

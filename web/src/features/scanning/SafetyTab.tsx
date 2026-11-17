@@ -54,13 +54,13 @@ function merge(read: Safety, typed: Vals, stored: Safety): Merge {
   const theirs = PARTS.filter((p) => partKey(now, p) !== partKey(was, p))
   const start = { ...now }
   for (const p of mine) Object.assign(start, pick(typed, p))
-  // D-26: the tick vouches for the ranges the person saw; ranges someone else changed are confirmed again by hand
+  // The tick vouches for the ranges the person saw; ranges someone else changed are confirmed again by hand
   if (theirs.includes('scope') && mine.includes('scope') && lines(typed.ranges).join() === lines(was.ranges).join()) Object.assign(start, { ranges: now.ranges, confirmed: false })
   return { theirs, mine, start }
 }
 
 /**
- * #850, D-627: the one shared safety block (PUT /scanning/safety; inventory stores it). What it covers is said as it is on the box:
+ * The one shared safety block (PUT /scanning/safety; inventory stores it). What it covers is said as it is on the box:
  * network discovery, version scans, SNMP and the vulnerability checks on the LAN obey it; scans of public targets follow their own
  * testing terms and are not covered by it in this version (review r1 H4). The ranges and the commitment are edited here too (§0).
  */

@@ -27,7 +27,7 @@ func withPorts(kind Kind, n int) TargetView {
 	return v
 }
 
-// D-492: what the gateway note says in each case, and that it is asked only when the box's own IP has an open port.
+// What the gateway note says in each case, and that it is asked only when the box's own IP has an open port.
 func TestGatewayNote(t *testing.T) {
 	t.Parallel()
 	gw := netip.MustParseAddr("192.168.18.1")

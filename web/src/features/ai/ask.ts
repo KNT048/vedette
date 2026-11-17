@@ -1,4 +1,4 @@
-// "Hỏi dữ liệu của tôi" (S-AI-5) — bản mock: câu trả lời soạn sẵn (tiếng Anh, D-28) nhưng bảng và con số TÍNH từ
+// "Hỏi dữ liệu của tôi" (S-AI-5) — bản mock: câu trả lời soạn sẵn (tiếng Anh) nhưng bảng và con số TÍNH từ
 // assetsStore/findingsStore, nên luôn khớp dữ liệu đang có. Bản thật: skill `ask-my-data` gọi tool chỉ-đọc (AI_ASSISTANT §2); không có tool ghi.
 // Câu ngoài dữ liệu thì nói thẳng là không có câu trả lời, không đoán.
 import { assetsStore, findingsStore } from '@/mocks/stores'
@@ -20,7 +20,7 @@ const SEV: Record<string, string> = { critical: 'Critical', high: 'High', medium
 // Từ chung không nói gì về dữ liệu: bỏ khỏi tìm kiếm theo từ khoá để "weather today" không khớp bừa.
 const STOP = new Set(['what', 'which', 'who', 'how', 'many', 'the', 'are', 'any', 'have', 'has', 'show', 'list', 'about', 'with', 'for', 'and', 'does', 'did', 'today', 'weather', 'tell', 'me', 'my', 'our', 'there', 'is', 'of', 'in', 'on', 'to', 'do', 'devices', 'device', 'machines', 'machine', 'still', 'now', 'this', 'that', 'whats', 'when', 'where', 'why', 'can', 'you'])
 const DEV = (n: number) => `${plural(n, 'device')}`
-/** Counts devices with the Vedette box named apart, as Devices and Reports do (modules/ai/ask_tools.go boxApart, D-422). */
+/** Counts devices with the Vedette box named apart, as Devices and Reports do (modules/ai/ask_tools.go boxApart). */
 export const boxApart = (rows: Asset[]) => {
   const others = rows.filter((a) => a.id !== BOX_ID).length
   return others === rows.length ? DEV(others) : others === 0 ? 'only the Vedette box' : `${DEV(others)} and the Vedette box`

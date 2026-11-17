@@ -225,8 +225,8 @@ func TestContract_INV23_SanitizeResults(t *testing.T) {
 	}
 }
 
-// INV-23, D-522 (N1): TLS comes from the data ("ssl/http" is nmap's tunnel="ssl"), on any port; any other "http" is https on the
-// well-known TLS ports (a TLS server's plaintext error page can make nmap read "http nginx" there, review M2) and http elsewhere.
+// INV-23: TLS comes from the data ("ssl/http" is nmap's tunnel="ssl"), on any port; any other "http" is https on the
+// well-known TLS ports (a TLS server's plaintext error page can make nmap read "http nginx" there) and http elsewhere.
 func TestContract_INV23_SchemeOfTLSServices(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -242,7 +242,7 @@ func TestContract_INV23_SchemeOfTLSServices(t *testing.T) {
 	}
 }
 
-// D-522 (N1): an HTTPS admin page on 4443 that nmap read as name="http" tunnel="ssl" reaches the template step as "ssl/http" and its
+// An HTTPS admin page on 4443 that nmap read as name="http" tunnel="ssl" reaches the template step as "ssl/http" and its
 // job speaks https, so the KEV template really runs over TLS instead of "No match reported" from a plain-HTTP request.
 func TestContract_INV23_TLSOnANonStandardPortGetsHTTPS(t *testing.T) {
 	t.Parallel()
@@ -256,10 +256,10 @@ func TestContract_INV23_TLSOnANonStandardPortGetsHTTPS(t *testing.T) {
 	}
 }
 
-// D-522 (N5): an address that answers on more than 40 of the 98 ports (a router or SYN proxy) gets one "Not checked" line: the
+// An address that answers on more than 40 of the 98 ports (a router or SYN proxy) gets one "Not checked" line: the
 // surface scan saw it, so nmap is not even asked (exactly 40 is still scanned; ports of another address do not count; an
 // IPv4-mapped address counts as itself); nmap seeing it, or nmap's 3-minute limit, are their own lines. No template and no web
-// page runs, and no line says "no services" (review M1): the template and web lines say why they did not run.
+// page runs, and no line says "no services": the template and web lines say why they did not run.
 func TestContract_INV19_AnswersEverywhereAndTimedOut(t *testing.T) {
 	t.Parallel()
 	open := func(n int, ip string) []PortRow {
@@ -388,7 +388,7 @@ func TestContract_INV23_GateRunsAgainBeforeTheTemplates(t *testing.T) {
 	}
 }
 
-// D-520: the scanner's own "Not checked" sentences (a CVE whose template is not a read-only request, a run that did not finish) are
+// The scanner's own "Not checked" sentences (a CVE whose template is not a read-only request, a run that did not finish) are
 // shown next to the results it kept, at most maxTemplateNotes of them, the last saying how many more there were.
 func TestContract_INV23_ScannerNotCheckedLines(t *testing.T) {
 	t.Parallel()

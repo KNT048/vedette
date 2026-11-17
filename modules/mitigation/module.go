@@ -1,6 +1,6 @@
 // Package mitigation is the "What to do" part of a finding: confirmed packs loaded from a signed
 // update, the "Applied" log, the compromise indicators and the AI explanation. Findings themselves
-// belong to modules/findings (D-57 (6)); this module only reads them through findings.Service.
+// belong to modules/findings; this module only reads them through findings.Service.
 package mitigation
 
 import (

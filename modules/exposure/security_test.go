@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Tests of the security review of the backend (H1, M1, L1 to L4, L6). The names say which item they pin. The prober's (H1, M1, L2, L6) moved to core/egressip with it (D-514).
+// Tests of the security review of the backend (H1, M1, L1 to L4, L6). The names say which item they pin. The prober's (H1, M1, L2, L6) moved to core/egressip with it.
 
 func (e *env) ipTargets() []TargetView {
 	e.t.Helper()
@@ -201,7 +201,7 @@ func (e *env) scannable(id string) (bool, BlockedReason) {
 	return ok, why
 }
 
-// A dynamic IP changes (modem reboot) and is given to somebody else. The IP stays in the list for 30 days (kien's rule),
+// A dynamic IP changes (modem reboot) and is given to somebody else. The IP stays in the list for 30 days,
 // but the scan-time check, the counterpart of the TXT re-check, refuses it while the box does not use it.
 func TestContract_INV13_IPThatIsNoLongerUsedIsNotScanned(t *testing.T) {
 	t.Parallel()

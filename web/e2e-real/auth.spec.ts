@@ -1,6 +1,6 @@
 // Sign-in, sign-out and role locks on the real backend (S-CORE-3). Steps from e2e/qa/core.spec.ts ("sign-in and two-step", "viewer and
 // operator roles"), with the accounts of seed.setup.ts. A test that fails a password or signs out uses a throwaway account in its own
-// context (D-172): the sign-in limit is 10 failures per address and email, and a sign-out ends a session the other specs share.
+// context: the sign-in limit is 10 failures per address and email, and a sign-out ends a session the other specs share.
 import { expect, request, test, type APIRequestContext, type Page } from '@playwright/test'
 import { ACCOUNTS, api, authFile, box, createUser, login, password, uniq, type Role } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'

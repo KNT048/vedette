@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-// Identifier identifies a device before a Scan now run checks it (D-501): sensor-active's nmap device scan records what it finds
+// Identifier identifies a device before a Scan now run checks it: sensor-active's nmap device scan records what it finds
 // (type, operating system, software with its CPE) in the inventory, and the findings module matches that before plan reads the
 // device's findings. Without it a device known only by its address has no software, so nothing to check. cmd/vedette wires
 // sensor-active; nil: no identification, and each device of a Scan now run says so (reason unavailable).
@@ -30,7 +30,7 @@ var ErrIdentifyStopped = errors.New("scan: the identification was stopped")
 var ErrIdentifyInterrupted = errors.New("scan: the identification was interrupted by a change")
 
 // IdentRow is contract.ts RunIdentRow: per device of a Scan now run, what the identification recorded, or exactly why nothing
-// was (D-501). The note is the backend's words; the GUI shows it as is.
+// was. The note is the backend's words; the GUI shows it as is.
 type IdentRow struct {
 	TargetID string   `json:"target_id"`
 	Label    string   `json:"label"`
@@ -115,7 +115,7 @@ func skippedRow(d Device, why string) IdentRow {
 	return r
 }
 
-// identify runs the identification of d for a Scan now run (D-501). end is "" to check the device, "stopped" when the run's Stop now
+// identify runs the identification of d for a Scan now run. end is "" to check the device, "stopped" when the run's Stop now
 // cut it short (the run then stops as during a nuclei job), "skip" when sensor-active stopped it by itself (the device is not checked,
 // the run goes on, review M2). A failure is logged and said as unavailable: the check of what is known goes on. busy is the run's:
 // once discovery was busy, the rest of the run says busy at once instead of waiting for it device by device (review M3).

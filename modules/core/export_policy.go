@@ -2,7 +2,7 @@ package core
 
 import "strings"
 
-// The export policy of GET /core/data/export (INV-28, D-154): every column of every table of every module is listed here with what
+// The export policy of GET /core/data/export (INV-28): every column of every table of every module is listed here with what
 // the export does with it. It is explicit on purpose, and fail-closed: a table or column that is not listed is NOT exported, and
 // cmd/vedette's TestExport_PolicyClassifiesEveryColumn fails until whoever adds a column (any module) classifies it. The classes:
 //
@@ -46,7 +46,7 @@ var exportPolicy = map[string]tablePolicy{
 	"ai_memory":              {export: "id text source created_at last_used_at enabled"},
 	"ai_memory_rejected":     {skipAll: true, skip: "digest rejected_at"}, // the box's own memory of what not to suggest again, not data to take away
 	"ai_memory_suggestion":   {export: "id text created_at evidence"},
-	"ai_read":                {export: "id ts connection_id connection_name tool job"}, // which connection tool the box read and when, never the output (D-311)
+	"ai_read":                {export: "id ts connection_id connection_name tool job"}, // which connection tool the box read and when, never the output
 	"ai_skill_state":         {export: "id enabled"},
 	"ai_rule":                {export: "id text enabled created_at updated_at", json: "jobs"},
 	"ai_result":              {export: "id kind key inputs_hash model profile tokens_in tokens_out asked_by activity_id created_at", json: "payload"},
@@ -76,18 +76,18 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_setting":            {export: "id auto interval_min last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at greenbone greenbone_by greenbone_at greenbone_sync_at greenbone_sync_ok greenbone_sync_note"},
 	"exp_snapshot":           {export: "id target_id date scanned_at", json: "hosts ports admin_panels certs counts services checks not_checked web_findings greenbone scripts greenbone_run"},
 	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at commitment_version commitment_sentence commitment_user_id commitment_method created_at last_scan_at terms_version terms_by terms_at terms_text terms_user_id terms_method terms_disruptive", json: "last_check", skip: "token"},
-	"feeds_affected":         {export: "cve cpe start_incl start_excl end_incl end_excl"}, // D-500: public NVD data
+	"feeds_affected":         {export: "cve cpe start_incl start_excl end_incl end_excl"}, // Public NVD data
 	"feeds_affected_cve":     {export: "cve updated_at source"},
-	"feeds_cveorg_checked":   {export: "cve checked_at"},                                                                                                 // D-556: when each CVE.org record was read
-	"feeds_distro_fix":       {export: "source_id distro release package cve status fixed_version pro"},                                                  // D-516: public Ubuntu/Debian data
-	"feeds_epss":             {skipAll: true, skip: "cve epss percentile gen"},                                                                           // D-614: FIRST's public scores of every CVE (400,000 rows), pulled again daily
-	"feeds_epss_baseline":    {skipAll: true, skip: "id url count"},                                                                                      // D-614: the yardstick of the next EPSS file
-	"feeds_recent_affected":  {skipAll: true, skip: "cve cpe start_incl start_excl end_incl end_excl platforms"},                                         // D-614: public NVD data of 100,000 CVEs, pulled again
-	"feeds_recent_cursor":    {skipAll: true, skip: "id url mode win_from win_to until next_index total"},                                                // D-614: where an unfinished pull goes on
-	"feeds_recent_cve":       {skipAll: true, skip: "cve published last_modified status severity score cvss_score cvss_version cvss_source cvss_vector"}, // D-614: public NVD data, pulled again
+	"feeds_cveorg_checked":   {export: "cve checked_at"},                                                                                                 // When each CVE.org record was read
+	"feeds_distro_fix":       {export: "source_id distro release package cve status fixed_version pro"},                                                  // Public Ubuntu/Debian data
+	"feeds_epss":             {skipAll: true, skip: "cve epss percentile gen"},                                                                           // FIRST's public scores of every CVE (400,000 rows), pulled again daily
+	"feeds_epss_baseline":    {skipAll: true, skip: "id url count"},                                                                                      // The yardstick of the next EPSS file
+	"feeds_recent_affected":  {skipAll: true, skip: "cve cpe start_incl start_excl end_incl end_excl platforms"},                                         // Public NVD data of 100,000 CVEs, pulled again
+	"feeds_recent_cursor":    {skipAll: true, skip: "id url mode win_from win_to until next_index total"},                                                // Where an unfinished pull goes on
+	"feeds_recent_cve":       {skipAll: true, skip: "cve published last_modified status severity score cvss_score cvss_version cvss_source cvss_vector"}, // Public NVD data, pulled again
 	"feeds_cvss":             {export: "cve score version source vector"},                                                                                // #825: the CVSS score of each KEV CVE, public NVD data
-	"feeds_winrel":           {export: "build server product display line ga ga_rev"},                                                                    // D-603: the Windows releases Microsoft lists; kept so a restore reads the same builds
-	"feeds_published":        {export: "cve published source"},                                                                                           // D-615: the day each KEV CVE was published; kept so a restore does not reopen age-closed findings
+	"feeds_winrel":           {export: "build server product display line ga ga_rev"},                                                                    // The Windows releases Microsoft lists; kept so a restore reads the same builds
+	"feeds_published":        {export: "cve published source"},                                                                                           // The day each KEV CVE was published; kept so a restore does not reopen age-closed findings
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":              {export: "id type value first_seen last_seen"},
 	"feeds_ioc_source":       {export: "ioc_id source_id last_seen confidence seen"},
@@ -95,11 +95,11 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_template":         {export: "cve"},
 	"feeds_vuln":             {export: "cve vendor product product_key name description required_action date_added due_date ransomware epss epss_7d_ago has_template source_id updated_at kev_announced_at", json: "links"},
 	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added device_id have_since"},
-	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note resolution_reason accepted_until", json: "evidence"}, // accepted_until: D-498
+	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note resolution_reason accepted_until", json: "evidence"}, // accepted_until: the end of an accepted risk
 	"fnd_finding_history":    {export: "id finding_id ts user action note"},
-	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"},                                 // D-500
+	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"},
 	"fnd_unchecked":          {export: "asset_id software_id software version source reason cve updated_at nvd_pending answer"}, // INV-4d, #910
-	"fnd_unchecked_seen":     {export: "asset_id cve first_seen"},                                                               // D-602: the (device, CVE) pairs the could-not-check list announced
+	"fnd_unchecked_seen":     {export: "asset_id cve first_seen"},                                                               // The (device, CVE) pairs the could-not-check list announced
 	"fnd_not_installed":      {export: "finding_id mark"},                                                                       // INV-6c: the row a "not installed" close covers
 	"fnd_reach_run":          {export: "id ran_at stamp total", json: "counts unreachable added"},                               // INV-4e, #910: the KEV reachability audit, public feed data only
 	"hp_config":              {export: "key updated_at updated_by", json: "value"},
@@ -113,7 +113,7 @@ var exportPolicy = map[string]tablePolicy{
 	"inv_setting":            {export: "key updated_at updated_by", json: "value"},
 	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source corrects set_by not_installed"},
 	"inv_source":             {export: "source first_seen"},
-	"inv_separate":           {export: "a b decided_by decided_at"},         // D-599: pairs a person kept separate
+	"inv_separate":           {export: "a b decided_by decided_at"},         // pairs a person kept separate
 	"inv_hand_seen":          {export: "asset_id mac first_seen last_seen"}, // #829: MACs seen at a hand-added device's address
 	"inv_software_kev":       {export: "software_id kev_key"},
 	"mit_ai_output":          {export: "finding_id skill model profile created_at activity_id", json: "payload"},
@@ -138,7 +138,7 @@ var exportPolicy = map[string]tablePolicy{
 	"intake_wazuh_agent":     {export: "agent_id generation ip mac seen_at"},                                                                                                                                                                                                                     // where each Wazuh agent's data went (agent-intake, #849)
 	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                                                                 // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},
-	"notify_box":             {export: "id first_run_at discovery_told_at discovery_told_count"}, // when notify first ran (D-483 first-discovery window)
+	"notify_box":             {export: "id first_run_at discovery_told_at discovery_told_count"}, // when notify first ran (the first-discovery window)
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},
 	"notify_tg_button":       {skipAll: true, skip: "request_id nonce_hash expires_at message_id chat_id state tries"},
 	"notify_slack_button":    {skipAll: true, skip: "request_id channel_id ts expires_at state outcome tries"},
@@ -167,7 +167,7 @@ var exportPolicy = map[string]tablePolicy{
 	"resp_identity":          {export: "user_id channel address linked_at"},
 	"resp_link_codes":        {skipAll: true, skip: "user_id channel address code_hash expires_at sent_at tries"},
 	"resp_tokens":            {skipAll: true, skip: "token_hash kind decision action_id user_id address channel key_id expires_at used_at"},
-	"sa_all_ports":           {export: "asset_id last_at outcome extra_at", json: "extra extra_sw versioned normal_ports normal_sw"}, // D-592: ports, products and versions, like inv_service and inv_software
+	"sa_all_ports":           {export: "asset_id last_at outcome extra_at", json: "extra extra_sw versioned normal_ports normal_sw"}, // ports, products and versions, like inv_service and inv_software
 	"sa_job":                 {export: "id kind reason started_at finished_at status targets new_devices error"},
 	"sa_probe":               {export: "id time job_id shape rate hosts flags targets result"},
 	"sa_queue":               {export: "asset_id queued_at reason attempts"},

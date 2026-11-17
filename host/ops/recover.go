@@ -15,8 +15,8 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// vedette-host -recover-core-data: the way out of core_data_unrecoverable that needs no running core (D-317,
-// RUNBOOK 5.5). The host gave up putting core's data back (the journal of core says so); this command shows what
+// vedette-host -recover-core-data: the way out of core_data_unrecoverable that needs no running core
+// (RUNBOOK 5.5). The host gave up putting core's data back (the journal of core says so); this command shows what
 // is in core_data, and with an explicit choice and the operator's go-ahead it puts the aside copies back (or keeps
 // what is there), clears the journal and leaves core stopped, ready for systemctl start. It is one shot, as root,
 // never beside the daemon (the state lock), never while core runs, and all of core's tree goes through the same

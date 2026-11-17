@@ -31,10 +31,10 @@ type CVEFacts struct {
 	Links          []string
 	Ransomware     bool
 	HasTemplate    bool
-	Source         string // "cisa-kev" or "vulncheck-kev": who says it is exploited (D-557)
+	Source         string // "cisa-kev" or "vulncheck-kev": who says it is exploited
 }
 
-// ListLabel names the exploited list an entry is on, for prompts and texts: VulnCheck's entries are never CISA's (D-557).
+// ListLabel names the exploited list an entry is on, for prompts and texts: VulnCheck's entries are never CISA's.
 func ListLabel(source string) string {
 	if source == "vulncheck-kev" {
 		return "VulnCheck KEV"
@@ -49,7 +49,7 @@ type AssetFact struct {
 	Kind   string
 	Basis  string // version or product
 	Status string // open, confirmed, ...
-	// IsBox marks the Vedette box itself: the citation names it apart, as Devices and Reports do (D-422). Not sent to the model.
+	// IsBox marks the Vedette box itself: the citation names it apart, as Devices and Reports do. Not sent to the model.
 	IsBox bool
 }
 
@@ -228,7 +228,7 @@ func inventoryBlock(assets []AssetFact) DataBlock {
 		b.WriteString("No device in the inventory matches this product.\n")
 	}
 	for _, a := range assets {
-		fmt.Fprintf(&b, "- %s, IP %s, kind %s, matched by %s, finding status %s\n", a.Name, a.IP, a.Kind, a.Basis, a.Status) // IP apart from the name (D-205)
+		fmt.Fprintf(&b, "- %s, IP %s, kind %s, matched by %s, finding status %s\n", a.Name, a.IP, a.Kind, a.Basis, a.Status) // IP apart from the name
 	}
 	return DataBlock{Kind: "inventory", Source: "devices on this box matching the product", Text: b.String()}
 }

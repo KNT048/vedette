@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// TelegramChats is POST /notify/telegram/chats (admin, D-491): the chats the bot has seen, for the Chat ID picker. The token is the one in
+// TelegramChats is POST /notify/telegram/chats (admin): the chats the bot has seen, for the Chat ID picker. The token is the one in
 // the form, or, when the form has none (an edit), the saved one, which never goes back to the browser. Telegram is asked once, without an
 // offset, so no update is confirmed and the approval buttons lose nothing. No chat yet is an empty list, not an error.
 func (s *Service) TelegramChats(ctx context.Context, token string) (chats []channel.TelegramChat, fresh bool, err error) {

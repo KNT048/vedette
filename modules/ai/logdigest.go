@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// The AI log digest (S-AI-4, INV-6, D-221): the `log-digest` job reads the digest the logs module already computed (kinds of line,
+// The AI log digest (S-AI-4, INV-6): the `log-digest` job reads the digest the logs module already computed (kinds of line,
 // counts, spikes, bad connections) and says what to look at first. It never reads a log line: the port carries signatures and counts
 // (INV-11 of logs), the adapter in cmd/vedette copies only the fields named below, and the text of a line (`sample`) is not among them.
 
@@ -56,7 +56,7 @@ type LogDigestBadConn struct {
 	SeenVia    string   `json:"seen_via"`
 	Feeds      []string `json:"feeds"`
 	Confidence float64  `json:"confidence"`
-	// Blocked is logs' IocHit.Blocked (D-227): the device that logged the line stopped it, so it was an attempt, not a connection.
+	// Blocked is logs' IocHit.Blocked: the device that logged the line stopped it, so it was an attempt, not a connection.
 	Blocked bool `json:"blocked"`
 	// AssetID is the inventory id of the device: the box uses it to link an item to the device, it is never sent to the AI.
 	AssetID *string `json:"asset_id"`
@@ -73,7 +73,7 @@ type LogDigestItem struct {
 	Evidence       []string `json:"evidence"`
 	Recommendation string   `json:"recommendation"`
 	// AssetID links the item to a device: set by the box when the item names exactly one device of the bad connections it sent, never
-	// by the model (D-428).
+	// by the model.
 	AssetID string `json:"asset_id,omitempty"`
 }
 
@@ -84,7 +84,7 @@ type LogDigestResult struct {
 	Cadence     string          `json:"cadence"`
 	Summary     string          `json:"summary"`
 	Items       []LogDigestItem `json:"items"`
-	ToolCalls   []AskToolCall   `json:"tool_calls"` // the read-only tools the AI used at the maximum level (log-investigate, D-223)
+	ToolCalls   []AskToolCall   `json:"tool_calls"` // the read-only tools the AI used at the maximum level (log-investigate)
 	Model       string          `json:"model"`
 	Profile     string          `json:"profile"`
 	Tokens      struct {
@@ -92,7 +92,7 @@ type LogDigestResult struct {
 		Output int `json:"output"`
 	} `json:"tokens"`
 	Empty bool `json:"empty"` // no log events yet: the AI was not asked and no tokens were spent
-	// MemoriesSuggested is how many memories the AI suggested while making this digest (INV-8, D-223); 0 when it is read back.
+	// MemoriesSuggested is how many memories the AI suggested while making this digest (INV-8); 0 when it is read back.
 	MemoriesSuggested int `json:"memories_suggested"`
 }
 
@@ -123,7 +123,7 @@ const (
 
 const digestNone = "There are no log events to summarise yet. Add a log source on the Logs page; once events arrive, the summary appears here."
 
-// digestRemember is the field of the answer that suggests memories (INV-8, D-223): only in the schema while suggestions are allowed.
+// digestRemember is the field of the answer that suggests memories (INV-8): only in the schema while suggestions are allowed.
 const (
 	digestRemember     = `"remember":{"type":"array","items":{"type":"string"}},`
 	digestRememberMax  = 2
@@ -157,7 +157,7 @@ func digestCadence(t Tier, investigated bool) string {
 	return "Same as the medium level: no read-only tools were used, because Log investigation has no AI profile that can take it or its skill is off (Settings, AI assistant)"
 }
 
-// digestVerb says what the box knows of a hit, and no more (D-227): Blocked is true only when the line says the device stopped it,
+// digestVerb says what the box knows of a hit, and no more: Blocked is true only when the line says the device stopped it,
 // so false means it went through or the line does not say; a SPAN DNS answer is a lookup of the name, not a connection.
 func digestVerb(x LogDigestBadConn) string {
 	switch {
@@ -288,7 +288,7 @@ func parseDigest(text string, remember bool) (logDigestBody, []string, error) {
 
 // linkDevices sets the device link of every item that names exactly one device among the bad connections that were sent: its name or its
 // IP address, as a whole word, in the title or the evidence. An item that names none, or two different devices, gets no link: the
-// model's words choose among the box's own ids and never make one up (D-428).
+// model's words choose among the box's own ids and never make one up.
 func linkDevices(items []LogDigestItem, conns []LogDigestBadConn) {
 	for i := range items {
 		it := &items[i]
@@ -430,8 +430,8 @@ func (s *Service) CachedLogDigest(ctx context.Context) (*LogDigestResult, error)
 
 // LogDigest is POST /ai/logs/digest: the AI summarises the digest of the logs now. The same inputs (the digest, the level, the
 // company rules and memory) answer from the stored result without tokens. A digest of a box with no log events is the "empty"
-// answer: the AI is not asked. At the maximum level the job is log-investigate, whose model may check points with read-only tools
-// (D-223), when that job can run; otherwise it is the plain log-digest. While suggestions are allowed, the answer may carry up to two
+// answer: the AI is not asked. At the maximum level the job is log-investigate, whose model may check points with read-only tools,
+// when that job can run; otherwise it is the plain log-digest. While suggestions are allowed, the answer may carry up to two
 // memories the AI suggests (INV-8): they wait for an administrator.
 func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult, error) {
 	if err := s.Ready(JobLogDigest); err != nil {

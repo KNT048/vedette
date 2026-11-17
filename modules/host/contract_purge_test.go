@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/host/ops"
 )
 
-// D-156: backup.purge deletes every archive of every kind and the index, and nothing else.
+// backup.purge deletes every archive of every kind and the index, and nothing else.
 func TestContract_BackupPurge_DeletesEveryArchiveAndTheIndexAndFollowsNoLink(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
@@ -150,7 +150,7 @@ func TestContract_BackupPurge_TakesNoArgsAndIsBusyDuringARun(t *testing.T) {
 }
 
 // After a purge, the rollback of an unsafe core release has no pre_update backup to restore: it
-// refuses with rollback_backup_missing and touches nothing (D-138, D-156).
+// refuses with rollback_backup_missing and touches nothing.
 func TestContract_BackupPurge_ThenAnUnsafeCoreRollbackRefusesWithBackupMissing(t *testing.T) {
 	t.Parallel()
 	c := setupCoreUnsafe(t)

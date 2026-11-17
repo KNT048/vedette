@@ -1,4 +1,4 @@
-// D-194: what the sign-in page keeps between "Sign in with SSO" and /sso/callback. Session storage of this tab only (not a
+// What the sign-in page keeps between "Sign in with SSO" and /sso/callback. Session storage of this tab only (not a
 // cookie, legal.md), removed as soon as the callback page reads it.
 const KEY = 'vedette-sso-flow'
 

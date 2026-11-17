@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/core/conn/conntest"
 )
 
-// The connection routes (D-93, D-94; INV-23): admin only, the same answers as the mock of the GUI, no secret anywhere.
+// The connection routes (INV-23): admin only, the same answers as the mock of the GUI, no secret anywhere.
 // Test reaches an in-process fake (conntest).
 
 var connRoutes = []struct{ method, path string }{
@@ -89,7 +89,7 @@ func connBody(name string, over map[string]any) map[string]any {
 	return b
 }
 
-// Test (D-94): a connection that is off is 409 connection_off and nothing is sent; an unknown id is 404; one that is on is
+// Test: a connection that is off is 409 connection_off and nothing is sent; an unknown id is 404; one that is on is
 // reached for real (an in-process HTTPS fake), its certificate pinned, the result saved and audited, and the secret nowhere.
 func TestConnections_TestReachesTheDevice(t *testing.T) {
 	t.Parallel()
@@ -188,7 +188,7 @@ func TestConnections_TestRechecksAdminInsideTheTransaction(t *testing.T) {
 	}
 }
 
-// D-93 (4): delete is 409 in_use while response still has a change in force, and works after.
+// Delete is 409 in_use while response still has a change in force, and works after.
 func TestConnections_DeleteIsRefusedWhileAChangeIsInForce(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)
@@ -301,7 +301,7 @@ func fillKeys(v any, keys map[string]string) any {
 	return v
 }
 
-// The backend answers the script of the mock: the same status, code, field and message (D-93), except where a step says
+// The backend answers the script of the mock: the same status, code, field and message, except where a step says
 // otherwise in `real` (messages of the generated request checks, which the mock mimics only in part; the Test route).
 func TestConnections_AnswerLikeTheMock(t *testing.T) {
 	t.Parallel()

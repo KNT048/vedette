@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/host/ops"
 )
 
-// The gate between the unit text vedette-host writes for core (host/ops/quadlet.go, D-123 L3) and the real
+// The gate between the unit text vedette-host writes for core (host/ops/quadlet.go) and the real
 // binary: the Exec= line must parse with the flag set of this very package, and the ports, key and
 // honeypot paths it names must agree with the unit's own PublishPort= and Volume= lines.
 func TestCoreUnitExecParsesWithTheRealFlagsAndAgreesWithItsMounts(t *testing.T) {
@@ -62,7 +62,7 @@ func TestCoreUnitExecParsesWithTheRealFlagsAndAgreesWithItsMounts(t *testing.T) 
 		}
 	}
 	has := func(p string) bool { _, ok := targets[p]; return ok }
-	// D-142 (H1): core reads the key it always read by default, in the directory vedette-host backs up and
+	// Core reads the key it always read by default, in the directory vedette-host backs up and
 	// restores: no -key flag in the unit, no separate key mount, and the key sits beside the database.
 	if strings.Contains(execLine, "-key") || strings.Contains(string(text), "master.key") {
 		t.Errorf("the unit names a key file: Exec=%q", execLine)
@@ -73,7 +73,7 @@ func TestCoreUnitExecParsesWithTheRealFlagsAndAgreesWithItsMounts(t *testing.T) 
 	if !has(path.Dir(o.key)) {
 		t.Errorf("-key %q is not under a mount target of the unit: %v", o.key, volumes)
 	}
-	// D-147: the sensor link. The unit gives core both sensor flags (without them core would not listen on 8444), the port is the container
+	// The sensor link. The unit gives core both sensor flags (without them core would not listen on 8444), the port is the container
 	// side of the one published port that is bound to loopback only, and each role's credential folder is mounted at <creds>/<role> (never the
 	// whole directory in one volume, so a sensor container sees only its own role's bundle).
 	if o.sensorListen == "" || o.sensorCreds == "" || !path.IsAbs(o.sensorCreds) {
@@ -102,7 +102,7 @@ func TestCoreUnitExecParsesWithTheRealFlagsAndAgreesWithItsMounts(t *testing.T) 
 			t.Errorf("-syslog-port %d has no PublishPort %q in %v", o.syslogPort, want, publish)
 		}
 	}
-	// D-214: syslog over TLS listens on -syslog-port + 1, TCP only, published as 6514 (RFC 5425).
+	// syslog over TLS listens on -syslog-port + 1, TCP only, published as 6514 (RFC 5425).
 	if want := "6514:" + strconv.Itoa(o.syslogPort+1) + "/tcp"; !slices.Contains(publish, want) || slices.Contains(publish, "6514:"+strconv.Itoa(o.syslogPort+1)+"/udp") {
 		t.Errorf("syslog over TLS must be published as exactly %q (tcp only), got %v", want, publish)
 	}

@@ -15,10 +15,10 @@ import (
 	"strings"
 )
 
-// The confirmed packs ship inside the signed core image (D-36, D-345): a directory of pack files (*.json), a VERSION file and
+// The confirmed packs ship inside the signed core image: a directory of pack files (*.json), a VERSION file and
 // packs.minisig, the release minisign signature of the statement below. This file holds the two pure halves of that: the statement
 // the signature covers, and the bounded reader of the directory. The signature itself is checked by the Verifier that cmd/vedette
-// builds over internal/release (D-346); this module does not link the release keys.
+// builds over internal/release; this module does not link the release keys.
 
 // StatementHeader is the first line of the signed statement. It separates the statement from every other document the release key
 // signs (index.json and release-manifest.json are JSON, so they cannot be read as one, nor one as them).
@@ -44,7 +44,7 @@ var docNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.json$`)
 // version is not one line. The Verifier refuses such an update before any signature check.
 var ErrBadPackSet = errors.New("pack set is not well formed")
 
-// Statement is the text the release key signs for one update (D-346): the header, the version, then one line per document with the
+// Statement is the text the release key signs for one update: the header, the version, then one line per document with the
 // SHA-256 of its bytes and its name, sorted by name. It binds Update.Version, every byte of every Docs[].Data and the set of
 // documents (adding, removing, renaming or swapping one changes it).
 func Statement(version string, docs []Doc) ([]byte, error) {

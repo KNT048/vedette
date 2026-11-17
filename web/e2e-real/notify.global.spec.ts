@@ -1,8 +1,8 @@
-// The notify module on the real backend, on a box with no internet: everything that changes a channel or the rules (S-NOT-1, S-NOT-2, notify INV-1, INV-7, INV-8, INV-11, D-86, S-ALERT-1 delivery record).
+// The notify module on the real backend, on a box with no internet: everything that changes a channel or the rules (S-NOT-1, S-NOT-2, notify INV-1, INV-7, INV-8, INV-11, S-ALERT-1 delivery record).
 // Global project: a channel is one row per type on the box and the rules are one set, so these tests run one at a time and give the box back as they found it
 // (afterEach deletes every channel they saved and puts the rules back, and checks both). Steps from e2e/qa/notify.spec.ts.
 // No test reaches the internet: Telegram, Slack and Zalo channels are only ever saved TURNED OFF and never sent a test (their addresses are fixed on the internet); a webhook
-// cannot point at loopback (D-86), so the webhook is only saved, turned off. The one real send is an email channel to a closed port on loopback (INV-8 allows an internal SMTP host).
+// cannot point at loopback, so the webhook is only saved, turned off. The one real send is an email channel to a closed port on loopback (INV-8 allows an internal SMTP host).
 // What this file cannot prove (a delivered message, a Telegram button press, the delivery of an approval request to a channel) needs a seam.
 // Approval DELIVERY is not covered: only the validation of approver lists is (INV-7).
 import { expect, test, type Page, type Request } from '@playwright/test'
@@ -48,7 +48,7 @@ test.beforeAll(async () => {
     for (const ch of (await getChannels(c)).channels.filter((x) => x.configured)) {
       expect((await call(c, 'DELETE', `/notify/channels/${ch.type}`)).status, `clearing the ${ch.type} channel an earlier spec left`).toBe(204)
     }
-    // the throwaway accounts of twofa.spec keep the email method: an administrator resets them (D-35), as the Users page does
+    // the throwaway accounts of twofa.spec keep the email method: an administrator resets them, as the Users page does
     for (const u of (await call<{ items: { id: string; twofa_method: string | null }[] }>(c, 'GET', '/core/users')).body.items.filter((x) => x.twofa_method === 'email')) {
       expect((await call(c, 'POST', `/core/users/${u.id}/2fa/reset`)).status, 'resetting an email-code account an earlier spec left').toBe(200)
     }
@@ -106,7 +106,7 @@ async function saveRefused(page: Page, d: ReturnType<typeof dialog>, type: Chann
   if (field) await fieldErrorOf(d, field, message)
   else await alertOf(d, message)
 }
-/** A Save the form refuses before sending (walk 2): every wrong field shows its error at once and no PUT leaves the page. */
+/** A Save the form refuses before sending: every wrong field shows its error at once and no PUT leaves the page. */
 async function formRefused(page: Page, d: ReturnType<typeof dialog>, type: ChannelType, errors: Record<string, string>) {
   let puts = 0
   const count = (r: Request) => { if (r.method() === 'PUT' && r.url().endsWith(`/api/v1/notify/channels/${type}`)) puts++ }
@@ -268,7 +268,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       const row = chanRow(page, now)
       await expect(row).toContainText('On')
       await expect(row).toContainText('it@e2e.test, boss@e2e.test')
-      await expect(row.getByText(testedText(result), { exact: true })).toBeVisible() // the reason is text under it, not a title (walk 3 G13)
+      await expect(row.getByText(testedText(result), { exact: true })).toBeVisible() // the reason is text under it, not a title
       await expect(row.getByText(ERR_UNREACHABLE, { exact: true })).toBeVisible()
 
       // edit: saving again is a new configuration, so the last test is cleared (POST-3)
@@ -310,7 +310,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     noErrors(errors, /status of 400/)
   })
 
-  test('Webhook: refusals at the form, an address on this machine is refused in the form too (D-86), the generated key is saved but only its last 4 characters come back', async ({ page }) => {
+  test('Webhook: refusals at the form, an address on this machine is refused in the form too, the generated key is saved but only its last 4 characters come back', async ({ page }) => {
     const errors = collectErrors(page)
     const server = watch5xx(page)
     const c = await as('admin')
@@ -331,7 +331,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       await url.fill('http://hooks.e2e.invalid/vedette')
       await key.fill('abc')
       await formRefused(page, d, 'webhook', { 'Webhook URL': 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.', 'Signing key': SHORT })
-      // an address on this machine or a cloud metadata service is refused by the form already (walk 3 G13), with the box's sentence
+      // an address on this machine or a cloud metadata service is refused by the form already, with the box's sentence
       await key.fill('abcdefghijklmnop')
       for (const bad of ['http://127.0.0.1:8444/hook', 'http://169.254.169.254/latest', 'https://100.100.100.200/x', 'https://metadata.google.internal/x']) {
         await url.fill(bad)
@@ -356,7 +356,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       await expect(chanRow(page, saved)).toContainText('https://hooks.e2e.invalid/…ette') // sealed (SYS-4, #426): scheme://host/… and the last 4 characters
       await noEcho(page, generated)
 
-      // an edit to an address on this machine is refused too (by the form, walk 3 G13), and the saved channel stays as it was
+      // an edit to an address on this machine is refused too (by the form), and the saved channel stays as it was
       await chanRow(page, saved).getByRole('button', { name: 'Edit Webhook', exact: true }).click()
       const e = dialog(page)
       await expect(e.getByLabel('Signing key', { exact: true }), 'the saved key is not put back in the form').toHaveValue('')
@@ -388,7 +388,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     await saveRefused(page, d, 'slack', 'bad_label', 'The channel label can be at most 80 characters.', 'Channel label (optional)')
     // the channel ID and the two Socket Mode tokens belong to approvals only
     await expect(d.getByLabel('Channel ID', { exact: true })).toHaveCount(0)
-    if (POST_V1_IN_UI) { // D-624 (#819): channel approvals belong to AI response, which v1 does not offer; a channel without them cannot turn them on
+    if (POST_V1_IN_UI) { // Channel approvals belong to AI response, which v1 does not offer; a channel without them cannot turn them on
       await d.getByRole('switch', { name: 'Approve actions from this channel' }).click()
       await expect(d.getByLabel('Channel ID', { exact: true })).toBeVisible()
       await expect(d.getByLabel('App-level token (xapp-…)', { exact: true })).toBeVisible()
@@ -423,7 +423,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     await saveRefused(page, d, 'zalo', 'secret_required', 'Enter the refresh token, or an access token. This channel has no saved key yet.', 'Refresh token')
     await d.getByLabel('Access token (optional)', { exact: true }).fill('short')
     await saveRefused(page, d, 'zalo', 'bad_token', 'The Zalo access token is too short. Copy the whole string from Zalo Developers.', 'Access token (optional)')
-    await d.getByLabel('Access token (optional)', { exact: true }).fill(ZALO_TOKEN) // a pasted access token alone still works (before D-483)
+    await d.getByLabel('Access token (optional)', { exact: true }).fill(ZALO_TOKEN) // a pasted access token alone still works (as it did before the sign-in flow)
     const saved = await saveOk(page, d, 'zalo')
     expect(saved).toMatchObject({ type: 'zalo', configured: true, enabled: false, fields: { oa_id: '1234567890', user_id: '2468013579' }, secret_last4: last4(ZALO_TOKEN) })
     await expect(chanRow(page, saved)).toContainText('OA 1234567890, recipient 2468013579')
@@ -435,7 +435,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     noErrors(errors, /status of 400/)
   })
 
-  test('Zalo personal: the unofficial-account note is always shown, and a recipient and a session are both required (D-447)', async ({ page }) => {
+  test('Zalo personal: the unofficial-account note is always shown, and a recipient and a session are both required', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto('/settings/channels')
     await chanRow(page, { type: 'zalo-personal', configured: false }).getByRole('button', { name: 'Set up Zalo personal', exact: true }).click()
@@ -453,9 +453,9 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     noErrors(errors, /status of 400/)
   })
 
-  // The QR sign-in is real since D-447: it needs a phone with the test Zalo account, so it runs only with kien present (not in this suite).
+  // The QR sign-in is real: it needs a phone with the test Zalo account, so it runs only by hand (not in this suite).
   // The body is that flow; the box never reaches Zalo from this suite.
-  test.fixme('Zalo personal: sign in by QR in the form and save the channel (real Zalo account and phone: only with kien, D-447)', async ({ page }) => {
+  test.fixme('Zalo personal: sign in by QR in the form and save the channel (real Zalo account and phone: by hand only)', async ({ page }) => {
     await page.goto('/settings/channels')
     await chanRow(page, { type: 'zalo-personal', configured: false }).getByRole('button', { name: 'Set up Zalo personal', exact: true }).click()
     const d = page.getByRole('dialog', { name: 'Channel Zalo personal' })
@@ -469,7 +469,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
   })
 })
 
-test.describe('the box refuses what D-86 forbids, and keeps the rest (INV-8)', () => {
+test.describe('the box refuses forbidden webhook addresses, and keeps the rest (INV-8)', () => {
   const BAD = 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.'
   const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.'
   const INSECURE = 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.'
@@ -605,7 +605,7 @@ test.describe('approver lists (INV-7 validation)', () => {
   })
 
   test('Telegram in the form: the approver list offers only operators and administrators, an empty list is refused, a valid one is saved and shown as a chip', async ({ page }) => {
-    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819): channel approvals belong to AI response, which v1 does not offer')
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden: channel approvals belong to AI response, which v1 does not offer')
     const errors = collectErrors(page)
     const server = watch5xx(page)
     const c = await as('admin')

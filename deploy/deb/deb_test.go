@@ -1,4 +1,4 @@
-// Package deb checks the vedette-host .deb (WP-08g, D-155) by building it: nfpm runs for real (go tool -modfile=tools/go.mod nfpm, pinned,
+// Package deb checks the vedette-host .deb (WP-08g) by building it: nfpm runs for real (go tool -modfile=tools/go.mod nfpm, pinned,
 // a few seconds) over a placeholder binary, and the control fields, the file list with modes and owners, the unit bytes and the maintainer scripts
 // are read back from the package. Nothing is installed here: what the scripts do to a system (users, directories, /etc/subuid, enabled and not
 // started, data kept on remove) is checked by scripts/dev/host-deb-check.sh in a systemd container (`make host-deb-check`, opt-in).
@@ -208,7 +208,7 @@ func TestPackage_ControlFields(t *testing.T) {
 			t.Errorf("%s: Section/Priority/Homepage = %q %q %q", arch, f["Section"], f["Priority"], f["Homepage"])
 		}
 		if f["Bugs"] != "https://github.com/KNT048/vedette/issues" {
-			t.Errorf("%s: Bugs = %q, want GitHub Issues (D-541)", arch, f["Bugs"])
+			t.Errorf("%s: Bugs = %q, want GitHub Issues", arch, f["Bugs"])
 		}
 	}
 }
@@ -220,7 +220,7 @@ func TestPackage_PrereleaseSortsBeforeRelease(t *testing.T) {
 	}
 }
 
-// Depends: minimums, not exact versions (D-155). Every entry is named here on purpose, with the reason in deploy/deb/nfpm.yaml.
+// Depends: minimums, not exact versions. Every entry is named here on purpose, with the reason in deploy/deb/nfpm.yaml.
 func TestPackage_Depends(t *testing.T) {
 	want := []string{"podman (>= 4.8)", "systemd (>= 254)", "nftables", "iproute2", "procps", "conntrack", "chrony", "netplan.io", "unattended-upgrades", "passwd"}
 	var got []string
@@ -257,7 +257,7 @@ func TestPackage_Files(t *testing.T) {
 				t.Errorf("directory %s: mode %o owner %d:%d, want 755 0:0", path, f.mode, f.uid, f.gid)
 			}
 			// the package owns no directory of the data it must keep; /etc and /etc/apparmor.d are shared system directories
-			// (the AppArmor profile, D-458), which dpkg never removes while another package or a file is in them
+			// (the AppArmor profile), which dpkg never removes while another package or a file is in them
 			for _, kept := range []string{"var", "etc"} {
 				if path == "etc" || path == "etc/apparmor.d" {
 					continue
@@ -281,7 +281,7 @@ func TestPackage_Files(t *testing.T) {
 	for path := range want {
 		t.Errorf("missing file %s", path)
 	}
-	// one conffile, the AppArmor profile (D-458: every profile under /etc/apparmor.d is one, as dh_apparmor ships them; apt runs
+	// one conffile, the AppArmor profile (every profile under /etc/apparmor.d is one, as dh_apparmor ships them; apt runs
 	// with --force-confold, so an administrator's edit is kept without a prompt). host.conf is the installer's, not shipped.
 	if got := strings.TrimSpace(string(p.scripts["conffiles"].data)); got != "/etc/apparmor.d/vedette-container" {
 		t.Errorf("the package lists conffiles %q, want only /etc/apparmor.d/vedette-container", got)
@@ -298,7 +298,7 @@ func TestPackage_UnitIsTheRepoFileByteForByte(t *testing.T) {
 		!bytes.Contains(c, []byte("\n[containers]\ndefault_sysctls = [{append=false}]\n")) {
 		t.Errorf("the package has no %s that clears default_sysctls", ops.HoneypotConfModule)
 	}
-	// every unit names this module (D-458): same path, the profile the package installs, by its name
+	// every unit names this module: same path, the profile the package installs, by its name
 	if c := p.files[strings.TrimPrefix(ops.AppArmorConfModule, "/")].data; !bytes.Equal(c, repoFile(t, "deploy/deb/apparmor-containers.conf")) ||
 		!bytes.Contains(c, []byte("\n[containers]\napparmor_profile = \""+ops.AppArmorProfile+"\"\n")) {
 		t.Errorf("the package has no %s that selects the AppArmor profile %s", ops.AppArmorConfModule, ops.AppArmorProfile)
@@ -306,7 +306,7 @@ func TestPackage_UnitIsTheRepoFileByteForByte(t *testing.T) {
 	if c := p.files["etc/apparmor.d/"+ops.AppArmorProfile].data; !bytes.Equal(c, repoFile(t, "deploy/deb/vedette-container.apparmor")) {
 		t.Errorf("/etc/apparmor.d/%s differs from deploy/deb/vedette-container.apparmor", ops.AppArmorProfile)
 	}
-	// OpenVAS's compose files (D-529): the paths vedette-host names in its argv, the repo's bytes
+	// OpenVAS's compose files: the paths vedette-host names in its argv, the repo's bytes
 	for _, f := range []string{"compose.yaml", "compose.vedette.yaml"} {
 		if c := p.files["usr/lib/vedette/greenbone/"+f].data; !bytes.Equal(c, repoFile(t, "deploy/greenbone/"+f)) {
 			t.Errorf("/usr/lib/vedette/greenbone/%s differs from deploy/greenbone/%s", f, f)
@@ -383,8 +383,8 @@ func TestPackage_Scripts(t *testing.T) {
 
 // The postinst enables the unit and never starts it (the installer starts it once host.conf exists), creates the users with
 // ids the system allocates, and never deletes anything; the postrm never deletes data, users or subuid lines.
-// The honeypot's log/ is the volume vedette-hp-log (D-318): the postinst neither makes nor checks /var/lib/vedette-honeypot/log (D-412).
-// A box installed before D-412 has one that podman's :U gave to the container (D-162): an upgrade must not stop at it, which a
+// The honeypot's log/ is the volume vedette-hp-log: the postinst neither makes nor checks /var/lib/vedette-honeypot/log.
+// A box installed by an older version has one that podman's :U gave to the container: an upgrade must not stop at it, which a
 // `once` check would do, and must not make an unused folder on a new box (lab L1).
 func TestPostinst_NoHoneypotLogFolder(t *testing.T) {
 	t.Parallel()
@@ -423,7 +423,7 @@ func TestScripts_Rules(t *testing.T) {
 			t.Errorf("postinst lacks %q", need)
 		}
 	}
-	// the one removal: the AppArmor cache file of the profile on purge (D-458, as dh_apparmor), exactly this line
+	// the one removal: the AppArmor cache file of the profile on purge (as dh_apparmor), exactly this line
 	cacheRm := "rm -f /var/cache/apparmor/*/vedette-container /var/cache/apparmor/vedette-container"
 	if !strings.Contains(code("postrm"), "\t\t"+cacheRm+"\n") {
 		t.Error("postrm must remove the AppArmor cache file of vedette-container on purge")

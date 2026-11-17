@@ -325,7 +325,7 @@ func TestModuleOffFromAHeartbeatStopsTheCapture(t *testing.T) {
 }
 
 // Filters that cannot be read mean no capture, and the heartbeat says so (filters_invalid): the sensor does not guess at what core
-// meant (D-80 (3)).
+// meant.
 func TestUnreadableFiltersMeanNoCaptureAndAreReported(t *testing.T) {
 	t.Parallel()
 	e := newRunEnv(t, sensorlink.Config{Interface: "eth1", Span: true, Filters: []sensorlink.Filter{{Type: "port", Value: "nope"}}})
@@ -344,7 +344,7 @@ func TestUnreadableFiltersMeanNoCaptureAndAreReported(t *testing.T) {
 	eventually(t, "no capture_error once it captures", func() bool { return e.link.lastCaptureError() == "" })
 }
 
-// D-399 (3), walk 4: a sensor without CAP_NET_RAW (rootless container) beats on as "online" while its capture socket cannot open; the
+// A sensor without CAP_NET_RAW (rootless container) beats on as "online" while its capture socket cannot open; the
 // heartbeat says why (a closed set of reasons, never the error text), and says nothing once the card opens.
 func TestHeartbeatSaysWhyTheCaptureDoesNotRun(t *testing.T) {
 	t.Parallel()

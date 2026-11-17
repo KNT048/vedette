@@ -41,7 +41,7 @@ func tgChatsEnv(t *testing.T, n *tgUpdatesNet) *env {
 	return newEnv(t, func(c *notify.Config) { c.HTTPClient = &http.Client{Transport: n} })
 }
 
-// D-491: Find my chat lists the chats the bot saw, newest first, one row per chat, and asks Telegram so that nothing is confirmed
+// Find my chat lists the chats the bot saw, newest first, one row per chat, and asks Telegram so that nothing is confirmed
 // (no offset) and without waiting; the token in the form is used, never logged into the answer.
 func TestTelegramChatsListsChatsAndConfirmsNothing(t *testing.T) {
 	n := &tgUpdatesNet{code: 200, body: tgChatsAnswer}

@@ -69,7 +69,7 @@ func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
 	return s.runs(ctx, ``)
 }
 
-// RunsOf returns the newest runs that had this device among their targets (kien G7b/c, the device page's Last checks), newest
+// RunsOf returns the newest runs that had this device among their targets (the device page's Last checks), newest
 // first, however many runs of other devices came after.
 func (s *Service) RunsOf(ctx context.Context, asset string) ([]RunView, error) {
 	return s.runs(ctx, `WHERE EXISTS (SELECT 1 FROM json_each(scan_run.target_ids) WHERE value = ?)`, asset)

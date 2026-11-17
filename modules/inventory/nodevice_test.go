@@ -12,10 +12,10 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// W9-1, D-515: a product declared with neither an IP nor a name ("Microsoft Office (no device)") has no device type, from the add form
+// A product declared with neither an IP nor a name ("Microsoft Office (no device)") has no device type, from the add form
 // (catalog kind pc) or from "I have this" (feeds suggests pc). The same product on a device with an IP keeps the type, and an
 // appliance declared alone keeps its type (the product is the device; mitigation reads a declared firewall).
-func TestContract_D515_AProductWithNoDeviceHasNoDeviceType(t *testing.T) {
+func TestContract_AProductWithNoDeviceHasNoDeviceType(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	kind := func(id string) string {
@@ -31,7 +31,7 @@ func TestContract_D515_AProductWithNoDeviceHasNoDeviceType(t *testing.T) {
 	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
 		var err error
 		txp = tx
-		fed, err = e.svc.AddManualDevice(e.ctx(), tx, "kien", inventory.ManualDevice{Kind: "pc", Vendor: "Microsoft", Product: "Office", Display: "Microsoft Office", Key: "microsoft|office"})
+		fed, err = e.svc.AddManualDevice(e.ctx(), tx, "anna", inventory.ManualDevice{Kind: "pc", Vendor: "Microsoft", Product: "Office", Display: "Microsoft Office", Key: "microsoft|office"})
 		return err
 	})
 	e.svc.Settle(e.ctx(), txp, err == nil)
@@ -55,7 +55,7 @@ func TestContract_D515_AProductWithNoDeviceHasNoDeviceType(t *testing.T) {
 
 // Review M2 of #722: a type a person writes in a CSV is kept even on a product with no device; only the catalog's own suggestion
 // is left out.
-func TestContract_D515_ACSVTypeIsKept(t *testing.T) {
+func TestContract_ACSVTypeIsKept(t *testing.T) {
 	t.Parallel()
 	for csv, want := range map[string]string{
 		"product,type\nExchange Server,server\n": "server",
@@ -71,8 +71,8 @@ func TestContract_D515_ACSVTypeIsKept(t *testing.T) {
 	}
 }
 
-// W9-1, D-515 (4) (migration inventory 0006): a product declared with no device before #722 kept the computer type the catalog
-// suggested ("Microsoft Office (no device)" on the N100 showed Computer). The migration untypes exactly what that declare wrote; a
+// migration inventory 0006: a product declared with no device before #722 kept the computer type the catalog
+// suggested ("Microsoft Office (no device)" on a test box showed Computer). The migration untypes exactly what that declare wrote; a
 // type a person set later, a product on a device with an IP and an appliance type stay.
 func TestMigration0006UntypesAProductWithNoDevice(t *testing.T) {
 	t.Parallel()
@@ -107,7 +107,7 @@ func TestMigration0006UntypesAProductWithNoDevice(t *testing.T) {
 		}
 	}
 	var qs []string
-	qs = append(qs, declared("a-n100", "NULL", "pc", at, at)...)           // the N100 row
+	qs = append(qs, declared("a-office", "NULL", "pc", at, at)...)         // the test box's row
 	qs = append(qs, declared("a-version", "NULL", "server", at, later)...) // the version edited later ("I updated it")
 	qs = append(qs, declared("a-repicked", "NULL", "pc", later, at)...)    // a kind observation stamped after the declare stays (defensive: the device page writes one only on a change)
 	qs = append(qs, declared("a-ip", "'192.168.30.5'", "pc", at, at)...)   // a product on a device
@@ -124,7 +124,7 @@ func TestMigration0006UntypesAProductWithNoDevice(t *testing.T) {
 	if err := store.Migrate(ctx, db, "inventory", inventory.Migrations); err != nil {
 		t.Fatal(err)
 	}
-	for id, want := range map[string]string{"a-n100": "unknown", "a-version": "unknown", "a-repicked": "pc", "a-ip": "pc", "a-fw": "firewall", "a-chosen": "server"} {
+	for id, want := range map[string]string{"a-office": "unknown", "a-version": "unknown", "a-repicked": "pc", "a-ip": "pc", "a-fw": "firewall", "a-chosen": "server"} {
 		var kind string
 		var obs sql.NullString
 		var fragile bool

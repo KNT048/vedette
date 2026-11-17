@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// D-175: response decides whether a chat message may carry buttons (NoChatButtons); notify obeys, and an approval message holds the
+// Response decides whether a chat message may carry buttons (NoChatButtons); notify obeys, and an approval message holds the
 // text of the whole change (up to MaxApprovalWhat), not the 1000 characters of an alert.
 func TestWP31_NoChatButtonsAndTheWholeChangeInTheMessage(t *testing.T) {
 	var l []string

@@ -24,7 +24,7 @@ import (
 // of it (the nmap-discovery switch is, SetDiscovery), so a save keeps the stored switch.
 type SafetyInput struct {
 	LANRanges        []string
-	Confirmed        bool // the attestation of D-26
+	Confirmed        bool // the person's scan-scope attestation
 	Days             []int
 	From, To         string
 	PacketsPerS      int // discovery and SNMP, 1..1000
@@ -60,7 +60,7 @@ func (s *Service) SaveSafety(ctx context.Context, actor string, in SafetyInput) 
 // AddRange adds one LAN range to the scope (POST /scanning/safety/ranges: "+ New range" where the person is, #842/#850, INV-32). It
 // reads, appends and stores in one write transaction, so two adds at once both land and no other edit is overwritten. The range
 // passes the rules of a PUT (INV-6: an internal IPv4 range, host bits dropped and reported in Adjusted, at most 16, no overlap).
-// in.Confirmed is the attestation of D-26 (400 scope_not_confirmed without it), and like a PUT's it covers only what the person
+// in.Confirmed is the scope attestation (400 scope_not_confirmed without it), and like a PUT's it covers only what the person
 // saw: in.Shown is the list of ranges the dialog showed next to the tick and in.ShownConfirmedAt the confirmation it showed (nil:
 // not confirmed); when the stored list (compared as networks, any order) or the stored confirmation is not that, the add is
 // refused with 409 scope_changed and the current block (*Changed), nothing stored (review #860 H1, r2 M1: a tick never confirms a

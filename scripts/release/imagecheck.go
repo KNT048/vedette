@@ -23,12 +23,12 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// What the release gates check INSIDE the platform images they record (D-410), by reading files out of the image and never running
+// What the release gates check INSIDE the platform images they record, by reading files out of the image and never running
 // it (the arm64 image on an amd64 machine, and the reverse, would need CPU emulation): core's /vedette links internal/release, so it
-// must hold the production keys and not the throwaway ones (D-108 (2)); scan-base holds a nuclei built with the pinned Go and exactly
-// the module versions of the patched go.mod (D-319; its source version is the SHA-256-checked archive of NUCLEI_VERSION, which the
-// build info cannot show: a build from an archive is "(devel)"), the pack of SCAN_PACK_VERSION, and no nmap anywhere
-// (D-4, D-113 (7)). `make images-check` runs the same scan-base check on its dev build (`release check-image`).
+// must hold the production keys and not the throwaway ones; scan-base holds a nuclei built with the pinned Go and exactly
+// the module versions of the patched go.mod (its source version is the SHA-256-checked archive of NUCLEI_VERSION, which the
+// build info cannot show: a build from an archive is "(devel)"), the pack of SCAN_PACK_VERSION, and no nmap anywhere.
+// `make images-check` runs the same scan-base check on its dev build (`release check-image`).
 
 const (
 	coreBinaryInImage  = "vedette"                                        // core's ENTRYPOINT ["/vedette"]
@@ -195,7 +195,7 @@ func checkImageTar(tarPath, what, kind string, e imageExpect) error {
 		}
 		name := strings.TrimPrefix(path.Clean("/"+h.Name), "/")
 		if kind == "scan-base" && path.Base(name) == "nmap" && h.Typeflag != tar.TypeDir { // a file, link or symlink named nmap, wherever it is
-			return fmt.Errorf("%s holds /%s: nmap is never in a published image (D-4, D-113 (7))", what, name)
+			return fmt.Errorf("%s holds /%s: nmap is never in a published image", what, name)
 		}
 		if !want[name] {
 			continue

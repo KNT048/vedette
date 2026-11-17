@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/auth/authtest"
 )
 
-// D-180: a password an administrator set (create, reset) is temporary: it signs in, the session is limited until the user changes
+// A password an administrator set (create, reset) is temporary: it signs in, the session is limited until the user changes
 // it, and it ends 72 hours after it was set.
 
 func tempUser(t *testing.T, env *authtest.Env, email string) (auth.User, string) {

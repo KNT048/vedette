@@ -20,7 +20,7 @@ type Device struct {
 	Ports     []int    // open TCP/UDP service ports
 	KevKeys   []string // inventory KEV keys of the software on the device ("vendor|product")
 	Box       bool     // this Vedette box: listed on the Devices page, so counted in the weekly report; not in the PDPL inventory
-	NoDevice  bool     // a product added by hand with neither a name nor an IP: Name is the product and inventory.NoDevice (D-471)
+	NoDevice  bool     // a product added by hand with neither a name nor an IP: Name is the product and inventory.NoDevice
 	Sources   []string // the source of each of vendor, model and OS that is known
 }
 
@@ -30,7 +30,7 @@ type Inventory interface {
 }
 
 // Finding is a finding as the reports need it. Status is one of confirmed, suspected, mitigated, patched, false_positive,
-// not_relevant, risk_accepted (D-498); Severity one of critical, high, medium, low, info.
+// not_relevant, risk_accepted; Severity one of critical, high, medium, low, info.
 type Finding struct {
 	ID, AssetID, CVE string
 	Status, Severity string
@@ -38,8 +38,8 @@ type Finding struct {
 	ResolvedAt       time.Time // zero = not closed
 	ResolvedBy       string    // who closed it ("" = open)
 	Source           string    // the exploited list of the CVE ("vulncheck-kev" names VulnCheck KEV among the report's sources); "" = CISA or unknown
-	AcceptedUntil    time.Time // risk_accepted: the last day of the acceptance (D-498); zero otherwise
-	Agent            bool      // the version compared is the one the device's own agent reports (findings evidence.agent, D-548)
+	AcceptedUntil    time.Time // risk_accepted: the last day of the acceptance; zero otherwise
+	Agent            bool      // the version compared is the one the device's own agent reports (findings evidence.agent)
 }
 
 // Findings lists every finding.
@@ -47,13 +47,13 @@ type Findings interface {
 	All(ctx context.Context) ([]Finding, error)
 }
 
-// Fix is what NVD's ranges say about the one release that closes an installed software on a device (findings.FixedInForAll, D-490):
+// Fix is what NVD's ranges say about the one release that closes an installed software on a device (findings.FixedInForAll):
 // the same for every finding of that software, with Closed telling whether it closes this finding. Group is the software it is about
 // (CISA gives one phone's CVEs several product names; the software is one). Kind is "fixed" (Fixed is a release outside the affected
 // range of every finding of the software; Version is the device's), "none" (NVD's ranges name no release that clears them all),
 // "up_to" (NVD names no fixed release, Fixed is the last affected one), "distro" (the distribution's security updates carry it),
-// "feature_update" (a Windows release Microsoft no longer updates: Fixed names the later release NVD gives the fix for, D-546) or
-// "esu" (the fixing Windows build Fixed comes only with Extended Security Updates, D-546).
+// "feature_update" (a Windows release Microsoft no longer updates: Fixed names the later release NVD gives the fix for) or
+// "esu" (the fixing Windows build Fixed comes only with Extended Security Updates).
 // Distro names the distribution the device runs ("" = none we know).
 type Fix struct {
 	Kind, Group, Version, Fixed, Distro string
@@ -93,7 +93,7 @@ type KEVEntry struct {
 }
 
 // KEV lists the exploited-vulnerability list and says when it was last pulled (zero = never). NewlyExploited is the Home
-// headline as numbers (W1-24, D-485): the CVEs newly exploited in the last 7 days and how many of their products are in use.
+// headline as numbers: the CVEs newly exploited in the last 7 days and how many of their products are in use.
 type KEV interface {
 	Entries(ctx context.Context) (entries []KEVEntry, pulledAt time.Time, err error)
 	NewlyExploited(ctx context.Context) (cves, productsInUse int, err error)

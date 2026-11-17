@@ -7,11 +7,11 @@ import (
 	"time"
 )
 
-// D-619 (customer walk 3 N53-1, n57): WINLAB01's agent reports Microsoft Edge 157.0.4341.46, the Chromium-based Edge. CISA's
+// WINLAB01's agent reports Microsoft Edge 157.0.4341.46, the Chromium-based Edge. CISA's
 // "Microsoft | Edge" entries CVE-2016-7200 and CVE-2016-7201 (Chakra, Edge Legacy's script engine; NVD's real rows in testdata: only
 // cpe:2.3:a:microsoft:edge:-, published 10 November 2016) sat on that row as "suspected, cannot compare". They close as not affected
 // with the reason; anything that leaves a doubt keeps the finding.
-func TestMatchAsset_D619_EdgeLegacy(t *testing.T) {
+func TestMatchAsset_EdgeLegacy(t *testing.T) {
 	var e7200, e7201 Vuln
 	for _, v := range loadGolden(t, "testdata/kev-nvd-winlab01-n55.json") {
 		switch v.CVE {
@@ -54,7 +54,7 @@ func TestMatchAsset_D619_EdgeLegacy(t *testing.T) {
 	anyEdge.Vendor, anyEdge.Product, anyEdge.Published = "Microsoft", "Edge", e7200.Published
 	noNVD := e7200
 	noNVD.Affected = nil
-	// D-602: kept means not closed as not affected; where only the product name matches (no version compared) it is under "Could not be
+	// Kept means not closed as not affected; where only the product name matches (no version compared) it is under "Could not be
 	// checked" instead of a finding (nameonly)
 	for _, c := range []struct {
 		name string
@@ -80,7 +80,7 @@ func TestMatchAsset_D619_EdgeLegacy(t *testing.T) {
 // Windows 10 keeps it, unpatched until its own monthly update, next to Chromium Edge. A Windows 10 client whose build carries no update
 // after the CVE's month (or whose month is not known), or a device whose system is not known, keeps the finding; a Windows 10 build that
 // carries a later month, a Mac, closes.
-func TestMatchAsset_D619_EdgeLegacyBesideAnOldWindows10(t *testing.T) {
+func TestMatchAsset_EdgeLegacyBesideAnOldWindows10(t *testing.T) {
 	var e7200 Vuln
 	for _, v := range loadGolden(t, "testdata/kev-nvd-winlab01-n55.json") {
 		if v.CVE == "CVE-2016-7200" {
@@ -102,7 +102,7 @@ func TestMatchAsset_D619_EdgeLegacyBesideAnOldWindows10(t *testing.T) {
 		a    Asset
 		want string
 	}{
-		{"Windows 10 1607 before November 2016's update (14393.321)", pc("321"), "nameonly"}, // D-602: kept, but not a finding
+		{"Windows 10 1607 before November 2016's update (14393.321)", pc("321"), "nameonly"}, // Kept, but not a finding
 		{"Windows 10 1607 at December 2016's update (14393.576)", pc("576"), "notaffected"},
 		{"only the OS name says Windows 10", Asset{ID: "a-pc", Name: "pc-01", OS: "Microsoft Windows 10 Pro", Software: []Software{edge}}, "nameonly"},
 		{"no system known", Asset{ID: "a-pc", Name: "pc-01", Software: []Software{edge}}, "nameonly"},
@@ -153,7 +153,7 @@ func TestEdgeLegacyEntry(t *testing.T) {
 	}
 }
 
-// N53-1 (D-619): the finding page's Device panel names the software the finding's CVE is keyed to, not the device's first software by
+// The finding page's Device panel names the software the finding's CVE is keyed to, not the device's first software by
 // name (WINLAB01's Windows CVE showed "Microsoft Edge"). A device none of whose rows is keyed to the entry keeps inventory's display.
 func TestFindingDetail_DeviceNamesTheMatchedSoftware(t *testing.T) {
 	t.Parallel()

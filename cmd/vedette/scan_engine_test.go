@@ -232,7 +232,7 @@ func TestScanEngineAMatchConfirmsTheFinding(t *testing.T) {
 	}
 }
 
-// D-133 (5): nuclei prints matches only, so a run that prints nothing is "no match reported", never "not vulnerable",
+// Nuclei prints matches only, so a run that prints nothing is "no match reported", never "not vulnerable",
 // and it never touches the finding.
 func TestScanEngineEmptyOutputIsOnlyNoMatchReported(t *testing.T) {
 	t.Parallel()
@@ -246,7 +246,7 @@ func TestScanEngineEmptyOutputIsOnlyNoMatchReported(t *testing.T) {
 	}
 }
 
-// D-133 (4): core planned against another template pack than the image holds (the embedded index drifted): the
+// Core planned against another template pack than the image holds (the embedded index drifted): the
 // Dispatcher refuses before anything is sent, and the run stops saying so instead of failing device by device.
 func TestScanEngineAnotherPackStopsTheRun(t *testing.T) {
 	t.Parallel()

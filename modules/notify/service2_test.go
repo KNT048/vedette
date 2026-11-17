@@ -86,7 +86,7 @@ func TestContract_INV8_BoundaryChecks(t *testing.T) {
 		{"email none public", channel.Email, in(map[string]string{"host": "smtp.acme.example", "port": "25", "security": "none", "username": "a", "from": "a@acme.example", "to": "b@acme.example"}, "pw"), "bad_security"},
 		{"email to", channel.Email, in(map[string]string{"host": "smtp.acme.example", "port": "587", "security": "starttls", "username": "a", "from": "a@acme.example", "to": "b@acme.example, nope"}, "pw"), "bad_to"},
 		{"email host", channel.Email, in(map[string]string{"host": "not a host", "port": "587", "security": "starttls", "username": "a", "from": "a@acme.example", "to": "b@acme.example"}, "pw"), "bad_host"},
-		// walk 3: in a container 127.0.0.1 is core itself; the webhook's rule (loopback, the box, link-local and metadata) applies
+		// In a container 127.0.0.1 is core itself; the webhook's rule (loopback, the box, link-local and metadata) applies
 		{"email loopback", channel.Email, in(map[string]string{"host": "127.0.0.1", "port": "25", "security": "none", "username": "a", "from": "a@acme.example", "to": "b@acme.example"}, "pw"), "bad_host"},
 		{"email metadata", channel.Email, in(map[string]string{"host": "169.254.169.254", "port": "587", "security": "starttls", "username": "a", "from": "a@acme.example", "to": "b@acme.example"}, "pw"), "bad_host"},
 	} {
@@ -454,7 +454,7 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 	for _, it := range h.Items {
 		kinds[it.Kind]++
 	}
-	if kinds["vuln"] != 1 || kinds["incident"] != 3 || h.Suppressed.Count != 1 { // the finding and its confirmation: one digest (D-483)
+	if kinds["vuln"] != 1 || kinds["incident"] != 3 || h.Suppressed.Count != 1 { // the finding and its confirmation: one digest
 		t.Fatalf("history kinds = %v, suppressed %d, items %+v", kinds, h.Suppressed.Count, h.Items)
 	}
 	l, _ := e.svc.Incidents(e.ctx())
@@ -480,8 +480,8 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 	}
 }
 
-// A blocked connection (logs D-227: "blocked" in logs.bad_address.detected) is an attempt: the incident says so (walk 3). An attempt
-// counts on an open connection of the same pair; a connection never counts on an attempt (D-227 (4)), so it is an incident of its own.
+// A blocked connection (logs: "blocked" in logs.bad_address.detected) is an attempt: the incident says so. An attempt
+// counts on an open connection of the same pair; a connection never counts on an attempt, so it is an incident of its own.
 func TestBlockedBadAddressIsAnAttemptIncident(t *testing.T) {
 	e := newEnv(t)
 	e.svc.Subscribe(e.bus)
@@ -662,7 +662,7 @@ func TestSubscribeRaisedAndReopenedAreSilentInTheBaseline(t *testing.T) {
 	}
 }
 
-// D-498, INV-21: an accepted risk whose day passed is told once, by name, and not in the baseline.
+// INV-21: an accepted risk whose day passed is told once, by name, and not in the baseline.
 func TestSubscribeToldWhenARiskAcceptanceEnds(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) {
 		c.Findings = fakeFindings{map[string]notify.FindingInfo{
@@ -698,7 +698,7 @@ func TestSubscribeToldWhenARiskAcceptanceEnds(t *testing.T) {
 	}
 }
 
-// D-498 (Opus r2 LOW-1): an acceptance that ends and a "matches again" reopen of the same finding on
+// An acceptance that ends and a "matches again" reopen of the same finding on
 // the same UTC day are two notices; neither swallows the other.
 func TestSubscribeExpiryAndMatchesAgainSameDayBothGoOut(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) {

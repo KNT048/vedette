@@ -1,5 +1,5 @@
-// A box with no vedette-host (D-55, core INV-20): a container-only install. The API answers its host endpoints with 409 not_appliance, never a
-// 5xx; the pages know the install kind from GET /modules (D-381), show what the customer does instead (compose commands, the volume backup)
+// A box with no vedette-host (core INV-20): a container-only install. The API answers its host endpoints with 409 not_appliance, never a
+// 5xx; the pages know the install kind from GET /modules, show what the customer does instead (compose commands, the volume backup)
 // and never call those endpoints; the honeypot cannot be turned on. This is a second box of the same run (ready.json:
 // bare_url, bare_setup_code), started with `-host-socket ""` by cmd/vedette/e2ehost_test.go. It is set up through the API here, with the
 // setup code it printed, as the only account on it.
@@ -58,7 +58,7 @@ test('the three endpoints answer 409 not_appliance with a sentence, never 5xx', 
   }
 })
 
-/** The host endpoints of D-381: a page of a container-only install never calls them. */
+/** The host endpoints: a page of a container-only install never calls them. */
 const HOST = ['/api/v1/core/updates/os', '/api/v1/core/network', '/api/v1/core/data/backup', '/api/v1/core/data/backups', '/api/v1/core/data/restore/run']
 const hostCalls = (page: Page) => {
   const calls: string[] = []
@@ -79,7 +79,7 @@ test('GET /modules says container and the honeypot is not available; turning it 
 
 for (const [route, block, label] of [
   ['/settings/updates', /docker compose --env-file vedette\.env pull/, 'Updates'],
-  ['/settings/network', /start the sensor with compose\.sensors\.yaml, then choose the card/i, 'Box network'], // both texts, SPAN shown or hidden (D-403)
+  ['/settings/network', /start the sensor with compose\.sensors\.yaml, then choose the card/i, 'Box network'], // both texts, SPAN shown or hidden
   ['/settings/data', /tar czf \/backup\/vedette-data\.tgz/, 'Data'],
 ] as const) {
   test(`${route} shows what to do on a container-only install, calls no host endpoint, and nothing breaks`, async ({ page }) => {

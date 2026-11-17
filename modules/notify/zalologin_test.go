@@ -81,9 +81,9 @@ func zaloErr(err error) string {
 	return ""
 }
 
-// D-447: the QR sign-in walks waiting → scanned → signed in; only then does Save take its session, and only for the administrator who
+// The QR sign-in walks waiting → scanned → signed in; only then does Save take its session, and only for the administrator who
 // signed in. One sign-in at a time per box; starts are rationed.
-func TestContract_D447_ZaloQRSignInThenSave(t *testing.T) {
+func TestContract_ZaloQRSignInThenSave(t *testing.T) {
 	e := newEnv(t)
 	f := newFakeQR()
 	f.finish = channel.ZaloSignedIn{Session: secrets.NewValue(zaloSession), Name: "Vedette Box"}
@@ -221,10 +221,10 @@ func (f *fakeLinkCodes) ChatLinkToken(_ context.Context, userID string, _ channe
 	return "0a1b2c3d-tokenTOKENtoken0123456", "IT Operator", f.err
 }
 
-// D-447: saving a Zalo approver sends a confirm link to that Zalo from the box's account; the dialog shows the approver waiting until
+// Saving a Zalo approver sends a confirm link to that Zalo from the box's account; the dialog shows the approver waiting until
 // they confirm it signed in (response's proof); Send again makes a new link; a refusal of response reaches the administrator; removing a
 // linked approver is audited. The token is never in the audit log.
-func TestContract_D447_ZaloApproverLinkCodes(t *testing.T) {
+func TestContract_ZaloApproverLinkCodes(t *testing.T) {
 	links := &fakeLinks{}
 	codes := &fakeLinkCodes{}
 	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks, c.LinkCodes = links, codes })
@@ -279,7 +279,7 @@ func TestContract_D447_ZaloApproverLinkCodes(t *testing.T) {
 	}
 }
 
-// One box sends at most 10 confirm-link messages in 10 minutes, however many approvers a save adds (review L3, D-46).
+// One box sends at most 10 confirm-link messages in 10 minutes, however many approvers a save adds.
 func TestZaloLinkCodeMessagesAreRationed(t *testing.T) {
 	codes := &fakeLinkCodes{}
 	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks, c.LinkCodes = &fakeLinks{}, codes })
@@ -308,10 +308,10 @@ func TestZaloLinkCodeMessagesAreRationed(t *testing.T) {
 	}
 }
 
-// D-447 (review round 2): an administrator's own row skips the message only when the address is the box's own signed-in Zalo account,
+// review round 2: an administrator's own row skips the message only when the address is the box's own signed-in Zalo account,
 // which the QR sign-in proved. Any other Zalo of theirs (a friend picked by mistake, say) gets the confirm link like everyone, and
 // nothing links it until that link is confirmed.
-func TestContract_D447_AdminOwnZaloIsProvedUnlessItIsTheBoxAccount(t *testing.T) {
+func TestContract_AdminOwnZaloIsProvedUnlessItIsTheBoxAccount(t *testing.T) {
 	const box = "9990009990"
 	codes := &fakeLinkCodes{}
 	links := &fakeLinks{}
@@ -348,7 +348,7 @@ func TestContract_D447_AdminOwnZaloIsProvedUnlessItIsTheBoxAccount(t *testing.T)
 	}
 }
 
-// D-447 (review round 2): deleting the channel ends the approvers' proofs, so a recreated channel does not show them linked.
+// review round 2: deleting the channel ends the approvers' proofs, so a recreated channel does not show them linked.
 func TestZaloDeleteChannelDropsTheApproversProofs(t *testing.T) {
 	codes := &fakeLinkCodes{}
 	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks, c.LinkCodes = &fakeLinks{}, codes })

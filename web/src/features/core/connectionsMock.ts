@@ -1,6 +1,6 @@
-// Mock API of Settings → Connections (D-93, D-94; S-AI-7, S-RESP-4). Admin only. A secret is never stored: only its last 4 characters (SYS-4).
+// Mock API of Settings → Connections (S-AI-7, S-RESP-4). Admin only. A secret is never stored: only its last 4 characters (SYS-4).
 // Moved from the AI harness mock: the same checks, plus `username`, the read-only `pin` (trust on first use) and the errors
-// `kind_unsupported`, `in_use` and `pin_mismatch`. The backend answers 501 for these routes until slice 13b-4.
+// `kind_unsupported`, `in_use` and `pin_mismatch`. The backend answers 501 for these routes until they are built.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard } from '@/mocks/http'
 import { newId, nowIso } from '@/mocks/db'
@@ -22,10 +22,10 @@ const AUTHS = ['none', 'token', 'basic', 'ssh-key']
 export const USER_RE = /^[^\s:\p{Cc}\p{Cf}]{1,64}$/u
 
 const T = (name: string, access: ConnectorTool['access'], description: string): ConnectorTool => ({ name, access, description, enabled: true })
-// Tools a new connection offers by kind. Generic only (D-58): what a particular device can do is described by the action templates.
-// Every write tool starts OFF (D-41, D-51): an administrator turns it on, and it then runs only through a response action that people approve.
+// Tools a new connection offers by kind. Generic only: what a particular device can do is described by the action templates.
+// Every write tool starts OFF: an administrator turns it on, and it then runs only through a response action that people approve.
 const W = (name: string, description: string): ConnectorTool => ({ ...T(name, 'write', description), enabled: false })
-// A read tool of an HTTP kind starts OFF too (D-127): some devices change state on a GET (reboot, configuration), so an administrator turns it on
+// A read tool of an HTTP kind starts OFF too: some devices change state on a GET (reboot, configuration), so an administrator turns it on
 // for endpoints that only read. An SSH read tool is an exact command of the allow-list and stays on.
 const R = (name: string, access: ConnectorTool['access'], description: string): ConnectorTool => ({ ...T(name, access, description), enabled: false })
 function discover(kind: ConnectorKind): ConnectorTool[] {
@@ -34,13 +34,13 @@ function discover(kind: ConnectorKind): ConnectorTool[] {
     case 'http': return [R('fetch_url', 'read', 'Fetch a page from an allowed address and return its text'), W('send_request', 'Send one API request that an approved action defines')]
     case 'netconf-restconf': return [R('get_config', 'read', 'Read configuration or status data'), W('apply_config', 'Apply one configuration change that an approved action defines')]
     case 'automation': return [R('list_jobs', 'read', 'List the jobs or workflows the platform offers'), W('launch_job', 'Start one job or workflow that an approved action defines')]
-    // D-94 (3): a tool found on an MCP server is a write tool and starts off; an administrator may mark it read (the input's `access`) and turn it on.
+    // A tool found on an MCP server is a write tool and starts off; an administrator may mark it read (the input's `access`) and turn it on.
     default: return [W('list_resources', 'List what the MCP server offers'), W('search_docs', 'Search the documentation the server holds'), W('run_action', 'Run an action the server defines')]
   }
 }
 
 const hostOf = (c: Pick<Connector, 'kind' | 'target'>) => { try { return c.kind === 'ssh' ? c.target.split(':')[0]! : new URL(c.target).hostname } catch { return '' } }
-/** What the first Test records (D-94): the SSH host key; for HTTPS the public key of a certificate that no public authority vouches for (an address on the LAN, a .local name), or `tls_roots`: a public authority did vouch for it, and every later Test requires that again. */
+/** What the first Test records: the SSH host key; for HTTPS the public key of a certificate that no public authority vouches for (an address on the LAN, a .local name), or `tls_roots`: a public authority did vouch for it, and every later Test requires that again. */
 function pinFor(c: Connector): Omit<ConnectorPin, 'first_seen'> | null {
   const host = hostOf(c)
   if (c.kind === 'ssh') return { kind: 'ssh_hostkey', value: `ssh-ed25519 SHA256:${fakeHash(host, 43)}` }
@@ -54,12 +54,12 @@ function fakeHash(seed: string, len: number, hex = false) {
   return out
 }
 
-/** The fields that decide what a request may do (D-93 (4)): a change in any of them while a Test runs makes its result void. */
+/** The fields that decide what a request may do: a change in any of them while a Test runs makes its result void. */
 const securityKey = (c: Connector) => JSON.stringify([c.id, c.kind, c.target, c.auth.type, c.auth.header, c.auth.last4, c.auth.key_fingerprint, c.username, c.allow, c.tools.map((t) => [t.name, t.access, t.enabled]), c.pin?.value ?? null])
 
 const bad = (code: string, message: string, field: string) => fail(400, code, message, { field })
 
-// ---- Address policy (D-94): the box never connects to itself, to loopback, link-local (cloud metadata), multicast or unspecified addresses.
+// ---- Address policy: the box never connects to itself, to loopback, link-local (cloud metadata), multicast or unspecified addresses.
 /** The 8 groups of an IPv6 address (`::` expanded, a dotted IPv4 tail read as two groups), or null when it is not one. */
 function v6groups(h: string): number[] | null {
   let s = h.split('%')[0]!
@@ -92,14 +92,14 @@ const canonicalV4 = (h: string): number[] | null => {
   return p.length === 4 && p.every((x) => /^(0|[1-9]\d{0,2})$/.test(x) && Number(x) <= 255) ? p.map(Number) : null
 }
 /** Why the host is refused (in plain words), or null when it may be used. */
-// The cloud metadata endpoints that are not link-local and the service's names (core/netguard, D-411).
+// The cloud metadata endpoints that are not link-local and the service's names (core/netguard).
 const METADATA_NAMES = ['metadata', 'metadata.google.internal', 'metadata.goog']
 const METADATA_V4 = ['100.100.100.200', '192.0.0.192']
 const METADATA_V6 = [[0xfd00, 0xec2, 0, 0, 0, 0, 0, 0x254], [0xfd20, 0xce, 0, 0, 0, 0, 0, 0x254]]
 export function refusedHost(raw: string): string | null {
   const h = raw.trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.+$/, '')
   if (h === 'localhost' || h.endsWith('.localhost')) return 'a loopback address'
-  if (METADATA_NAMES.includes(h)) return 'a cloud metadata service' // D-411
+  if (METADATA_NAMES.includes(h)) return 'a cloud metadata service'
   if (h.includes(':')) {
     if (h === '::1') return 'a loopback address'
     if (h === '::') return 'an unspecified address'
@@ -150,7 +150,7 @@ export async function keyFingerprint(secret: string): Promise<string> {
 }
 export const hasSecret = (c: Pick<Connector, 'auth'>) => c.auth.last4 !== null || c.auth.key_fingerprint !== null
 
-// Names a token may not be sent in (D-174). One list with Go's (core/conn/internal/transport `ValidAuthHeader`): testdata/auth_header_refused.json is tested on both sides.
+// Names a token may not be sent in. One list with Go's (core/conn/internal/transport `ValidAuthHeader`): testdata/auth_header_refused.json is tested on both sides.
 const AUTH_HEADER_REFUSED = new Set(['host', 'connection', 'keep-alive', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'proxy-connection', 'forwarded', 'via', 'cookie', 'set-cookie', 'content-length', 'x-real-ip', 'x-original-url', 'x-rewrite-url', 'x-http-method-override', 'x-http-method', 'x-method-override',
   'content-type', 'user-agent', 'referer', 'mcp-session-id', 'expect', 'accept', 'accept-encoding', 'range', 'origin'])
 export const validAuthHeader = (h: string) => /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/.test(h) && (h.toLowerCase() === 'authorization' || !(AUTH_HEADER_REFUSED.has(h.toLowerCase()) || h.toLowerCase().startsWith('proxy-') || h.toLowerCase().startsWith('x-forwarded-')))
@@ -220,7 +220,7 @@ async function authOf(r: Checked, existing?: Connector): Promise<Connector['auth
 const toolsOf = (base: ConnectorTool[], input: ConnectorInput['tools'], mcp: boolean): ConnectorTool[] =>
   base.map((t) => { const x = input?.find((y) => y.name === t.name); return { ...t, enabled: x?.enabled ?? t.enabled, access: mcp && x?.access ? x.access : t.access } })
 
-/** A response change made through the connection is still in force (an executed item that was not rolled back). The real box asks the response module through a port (D-93). */
+/** A response change made through the connection is still in force (an executed item that was not rolled back). The real box asks the response module through a port. */
 const inForce = (id: string) => actionsStore.get().some((a) => a.items.some((i) => i.connector_id === id && i.status === 'executed'))
 
 export const connectionsHandlers = [
@@ -245,7 +245,7 @@ export const connectionsHandlers = [
     const snapshot = securityKey(cur)
     // A device is slow to answer: the connection can be edited meanwhile, and a result for the old configuration is not saved.
     await new Promise((r) => setTimeout(r, /slow/i.test(cur.target) ? 80 : 0))
-    // The address policy runs at dial time on what the name resolves to now (D-94): a name that now points at loopback, the metadata service or the box is not dialled.
+    // The address policy runs at dial time on what the name resolves to now: a name that now points at loopback, the metadata service or the box is not dialled.
     if (/rebound/i.test(cur.target)) {
       stamp({ status: 'error', last_test: nowIso() })
       return fail(502, 'address_refused', `${cur.target} now points to a loopback address, so Vedette did not connect. Check the name in your DNS.`)
@@ -254,7 +254,7 @@ export const connectionsHandlers = [
       stamp({ status: 'error', last_test: nowIso() })
       return fail(502, 'unreachable', `Could not connect to ${cur.target}. Check the address, the box's network and the firewall.`)
     }
-    // A pinned certificate or host key that no longer matches is refused before any credential is sent (D-94).
+    // A pinned certificate or host key that no longer matches is refused before any credential is sent.
     if (cur.pin && /changed/i.test(cur.target)) {
       stamp({ status: 'error', last_test: nowIso() })
       const what = cur.pin.kind === 'ssh_hostkey' ? 'The SSH host key' : 'The certificate'
@@ -289,7 +289,7 @@ export const connectionsHandlers = [
       return HttpResponse.json(off)
     }
     const r = check(b, cur); if (r instanceof Response) return r
-    // The pin is the identity of the server (D-94): forgotten on clear_pin, on another kind, or on another host or port; never because the sign-in changed.
+    // The pin is the identity of the server: forgotten on clear_pin, on another kind, or on another host or port; never because the sign-in changed.
     const forget = r.input.clear_pin === true || r.moved
     const tools = toolsOf(r.input.kind === cur.kind ? cur.tools : discover(r.input.kind), r.input.tools, r.input.kind === 'mcp-http')
     const c: Connector = { ...cur, name: r.input.name, kind: r.input.kind, target: r.input.target, asset_id: r.input.asset_id ?? null, auth: await authOf(r, cur), username: r.username, pin: forget ? null : cur.pin, allow: r.allow, tools, enabled: r.input.enabled, status: r.retarget ? 'untested' : cur.status }

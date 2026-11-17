@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// D-591 (FULL-5 slice 2): a new domain gets the box-bound token from the DomainFence; a random one without a host, or when the host
+// A new domain gets the box-bound token from the DomainFence; a random one without a host, or when the host
 // cannot give one for a reason that does not pass (review r2 M-B); none, and no domain, when the host is only busy or does not answer.
 // A doomed add asks the host nothing, a failed add and a deleted domain give the slot back (review r2 M-A). An OpenVAS task on a
 // domain's address that is not the box's asks the host's fence again every 3 minutes while it runs and is stopped by a no; its probe
@@ -183,7 +183,7 @@ func TestOpenVASStopsWhenTheHostsFenceSaysNoMidRun(t *testing.T) {
 		}
 		break
 	}
-	// D-595 review M3: the fence ended a scan that ran: its own end (state "ended"), its rows discarded, the task stopped
+	// The fence ended a scan that ran: its own end (state "ended"), its rows discarded, the task stopped
 	if r.err != nil || r.r.end != gbEndFenced || len(r.r.rows) != 0 || fg.calls != 1 || fg.last != (FenceCheck{Disruptive: true, Recheck: true}) || !h.gvm.seen("stop_task") {
 		t.Fatalf("result %+v, err %v, cmds %q", r.r, r.err, h.gvm.cmds)
 	}

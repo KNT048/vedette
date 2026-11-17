@@ -22,6 +22,6 @@
 .DS_Store
 coverage/
 /.dev/
-# images (D-146): the template pack is built by `make scan-pack` and copied into the scan-base image
+# images: the template pack is built by `make scan-pack` and copied into the scan-base image
 /deploy/containers/scan-base/pack/
 __pycache__/

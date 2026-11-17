@@ -44,7 +44,7 @@ func mustCall(t *testing.T, p *peer, base, method, path string, body []byte, hdr
 	return r
 }
 
-// D-111 (1): each role has its own routes and they work.
+// Each role has its own routes and they work.
 func TestRolesReachTheirRoutes(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})
@@ -84,7 +84,7 @@ func TestRolesReachTheirRoutes(t *testing.T) {
 	}
 }
 
-// D-111 (1): a route of the other role, an unknown path and a wrong method are all 403 forbidden_route, and the body is not
+// A route of the other role, an unknown path and a wrong method are all 403 forbidden_route, and the body is not
 // read first: a 12 MiB body for a route that exists for the other role is 403, not 413, and the backend is never called.
 func TestForbiddenRouteBeforeTheBody(t *testing.T) {
 	t.Parallel()
@@ -118,7 +118,7 @@ func TestForbiddenRouteBeforeTheBody(t *testing.T) {
 	}
 }
 
-// D-109 (3), D-459: no X-Vedette-Proto, or one that is neither core's nor the one before it, is 426; it is checked before the
+// No X-Vedette-Proto, or one that is neither core's nor the one before it, is 426; it is checked before the
 // route. 6 is a sensor newer than core (never taken), 3 one two protocols behind.
 func TestProtoHeader(t *testing.T) {
 	t.Parallel()
@@ -140,8 +140,8 @@ func TestProtoHeader(t *testing.T) {
 	}
 }
 
-// D-459: a sensor and a scan worker one protocol behind core are served: during an update core switches first, and a sensor
-// whose own switch went back stays one behind. A protocol-3 passive heartbeat has no capture_error (none, D-399).
+// A sensor and a scan worker one protocol behind core are served: during an update core switches first, and a sensor
+// whose own switch went back stays one behind. A protocol-3 passive heartbeat has no capture_error (none).
 func TestProtoPreviousIsServed(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})
@@ -172,7 +172,7 @@ func TestProtoPreviousIsServed(t *testing.T) {
 	}
 }
 
-// D-459: the protocol core still takes is exactly the one before its own, so a bump that forgets ProtoPrevious fails here.
+// The protocol core still takes is exactly the one before its own, so a bump that forgets ProtoPrevious fails here.
 func TestProtoPreviousIsOneBelow(t *testing.T) {
 	t.Parallel()
 	cur, err1 := strconv.Atoi(sensorlink.ProtoVersion)
@@ -182,7 +182,7 @@ func TestProtoPreviousIsOneBelow(t *testing.T) {
 	}
 }
 
-// D-109 (3), D-112 (1), spec section 9: every body has a cap that is enforced before decoding, whether the length is declared or
+// Spec section 9: every body has a cap that is enforced before decoding, whether the length is declared or
 // streamed in chunks.
 func TestBodyCaps(t *testing.T) {
 	t.Parallel()
@@ -230,7 +230,7 @@ func TestBodyCaps(t *testing.T) {
 	}
 }
 
-// D-109 (3), spec section 3: strict decoding and the other things that make a request a 400.
+// Spec section 3: strict decoding and the other things that make a request a 400.
 func TestStrictDecodingAnd400(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})
@@ -312,7 +312,7 @@ func TestStrictDecodingAnd400(t *testing.T) {
 	}
 }
 
-// D-112 (4): 429 with Retry-After at 10 requests a second, burst 20, per role.
+// 429 with Retry-After at 10 requests a second, burst 20, per role.
 func TestRateLimit(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})
@@ -357,7 +357,7 @@ func TestRateLimit(t *testing.T) {
 	}
 }
 
-// D-111 (1): one long poll per role; the second is 409 poll_in_progress. The roles do not share the gate, and the gate opens
+// One long poll per role; the second is 409 poll_in_progress. The roles do not share the gate, and the gate opens
 // again when the poll ends.
 func TestOneLongPollPerRole(t *testing.T) {
 	t.Parallel()
@@ -445,7 +445,7 @@ func TestLongPollEndsWhenTheClientLeaves(t *testing.T) {
 	<-done
 }
 
-// D-111 (4): a role whose module is off gets 409 module_off on every route, before its body is read; the other role is not
+// A role whose module is off gets 409 module_off on every route, before its body is read; the other role is not
 // affected.
 func TestModuleOff(t *testing.T) {
 	t.Parallel()
@@ -520,7 +520,7 @@ func TestReplyCaps(t *testing.T) {
 	}
 }
 
-// D-109 (2): TLS 1.3 only, and the timeouts of the production http.Server.
+// TLS 1.3 only, and the timeouts of the production http.Server.
 func TestProductionServerSettings(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})

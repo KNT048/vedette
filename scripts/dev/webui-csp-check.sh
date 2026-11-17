@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make webui-csp-check (D-149): build core with -tags webui (after make webui-dist), run it on a free loopback port with a temp data folder,
+# make webui-csp-check: build core with -tags webui (after make webui-dist), run it on a free loopback port with a temp data folder,
 # do the first-run setup through the real API, and drive the interface in headless Chromium (web/scripts/csp-check.mjs); fail on any CSP violation.
 # Heavy job (Chromium): one at a time. Linux or macOS. Needs the Chromium of Playwright (`pnpm --dir web e2e:install`).
 # On every exit path: the core process and the browser's process group are killed, the temp folder and the generated web/dist and

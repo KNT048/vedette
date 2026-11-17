@@ -168,7 +168,7 @@ func TestContract_INV3_NoPayloadStored(t *testing.T) {
 	}
 	allowed := []string{"Kind", "At", "SrcMAC", "SrcIP", "DstIP", "Name", "QType", "Proto", "SrcPort", "DstPort", "Packets", "Bytes", "First"}
 	if !slices.Equal(fields, allowed) {
-		t.Fatalf("MetaItem fields %v, want %v: a new field is a new thing stored about traffic; change CONTRACT INV-3 first (D-43)", fields, allowed)
+		t.Fatalf("MetaItem fields %v, want %v: a new field is a new thing stored about traffic; change CONTRACT INV-3 first", fields, allowed)
 	}
 	for f := range reflect.TypeFor[capture.MetaItem]().Fields() {
 		if k := f.Type.Kind(); k == reflect.Slice || k == reflect.Map || k == reflect.Interface || k == reflect.Pointer {

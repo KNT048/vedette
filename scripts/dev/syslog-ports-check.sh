@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# make syslog-ports-check (#266 item 1, D-167): does core's PUBLISHED syslog port keep the real sender address, for UDP and TCP, on the path a
+# make syslog-ports-check (#266 item 1): does core's PUBLISHED syslog port keep the real sender address, for UDP and TCP, on the path a
 # device's packets really take? logs identifies a source by that address, so a port that rewrites it (a gateway, loopback, a masquerade)
-# would turn every device into an unknown sender (dropped, D-203).
+# would turn every device into an unknown sender (dropped).
 #
 # RUN IT AS ROOT FROM YOUR OWN ACCOUNT:  sudo scripts/dev/syslog-ports-check.sh   (rootful podman, like the appliance's core unit)
 # It starts the listener the way core's unit does (all capabilities dropped, no-new-privileges, uid 1000, a podman bridge network, the
@@ -12,7 +12,7 @@
 # PASS only if the listener prints exactly the peer's address for udp and for tcp (any other source, the gateway, 10.88.x, 127.0.0.1, is a
 # FAIL with the line printed), and (default mode) lines from a sender that keeps ONE source port reach the new container within 10 s of
 # a `podman restart` followed by the delete of the UDP conntrack entries of port 514 (M1: a stale entry pins the flow to the old container; the
-# script runs `conntrack -D -f ipv4 -p udp --orig-port-dst 514` itself, which emulates what vedette-host does after core starts, D-268). Needs
+# script runs `conntrack -D -f ipv4 -p udp --orig-port-dst 514` itself, which emulates what vedette-host does after core starts). Needs
 # the `conntrack` package (/usr/sbin/conntrack) in the default mode; without it the script stops at the preflight with "install conntrack".
 #
 # WHAT IT CHANGES ON THE HOST while it runs (the EXIT trap undoes all of it; a SIGKILL skips the trap, see "leftovers" below):
@@ -24,7 +24,7 @@
 #     syslog over UDP those devices' flows are re-created by their next datagram; nothing else is touched);
 #   * net.ipv4.ip_forward is read first and written back at the end (netavark turns it on);
 #   * a work folder under /tmp (the helper binary), removed at the end;
-#   * only when iptables' FORWARD policy is DROP and a DOCKER-USER chain exists (Docker is installed, D-266; the product side is D-267): two ACCEPT rules at the top of
+#   * only when iptables' FORWARD policy is DROP and a DOCKER-USER chain exists (Docker is installed): two ACCEPT rules at the top of
 #     DOCKER-USER, published (conntrack DNAT) packets to the test network's subnet and their replies (Docker's policy drops forwarded
 #     packets that netavark's own nftables table accepts), deleted by the trap. FORWARD DROP without DOCKER-USER (ufw?): the script stops with a message, changes nothing.
 # It never touches netplan, NetworkManager, the LAN interface, or firewall rules other than the two above and what netavark adds for the test container.
@@ -91,7 +91,7 @@ if ss -H -lunt 'sport = :514' | grep -q .; then
 	fail "port 514 is already in use on this host (rsyslog imudp/imtcp?): podman could not publish it; free it first (docs/DEPLOYMENT.md, syslog port)"
 fi
 if [ -z "$peer" ]; then
-	[ -x /usr/sbin/conntrack ] || fail "install conntrack (sudo apt-get install conntrack): the restart step runs it the way vedette-host does after core restarts (D-268)"
+	[ -x /usr/sbin/conntrack ] || fail "install conntrack (sudo apt-get install conntrack): the restart step runs it the way vedette-host does after core restarts"
 	if [ -n "$(ip -4 route show to match "$hip/30" | grep -v "^default")$(ip -4 route show to root "$hip/30")" ] || [ "$(ip netns list | grep -c "^$ns\b")" -gt 0 ] || ip link show "$hveth" >/dev/null 2>&1; then
 		fail "10.231.77.0/30, the netns $ns or the link $hveth already exists on this host; nothing was changed"
 	fi
@@ -111,7 +111,7 @@ for _ in $(seq 1 30); do
 done
 [ "$(podman logs "$name" 2>&1 | grep -c -x ready)" -gt 0 ] || fail "the listener did not print ready: $(podman logs --tail 5 "$name" 2>&1 | tr '\n' ' ')"
 ok "listener up (uid 1000, no capability), host $lan:514 -> container 5514 udp+tcp, ip_forward was $fwd_old"
-# Docker sets iptables' FORWARD policy to DROP; in nftables a packet netavark's table accepts is still dropped there (D-266)
+# Docker sets iptables' FORWARD policy to DROP; in nftables a packet netavark's table accepts is still dropped there
 if command -v iptables >/dev/null 2>&1 && [ "$(iptables -S FORWARD 2>/dev/null | grep -c -x -- '-P FORWARD DROP')" -gt 0 ]; then
 	iptables -S DOCKER-USER >/dev/null 2>&1 || fail "iptables' FORWARD policy is DROP and there is no DOCKER-USER chain (ufw's forward policy?): forwarded packets to the test container would be dropped; nothing was changed by this step"
 	sub=$(podman network inspect "$net" --format '{{range .Subnets}}{{.Subnet}}{{end}}')
@@ -175,7 +175,7 @@ ip netns exec "$ns" "$peerbin" loop "$lan:514" "$sport" &
 loop_pid=$!
 sleep 3
 podman restart -t 2 "$name" >/dev/null
-# what vedette-host does once it sees core run again (D-268): delete the UDP conntrack entries of port 514, fixed argv, exit 1 = nothing to delete
+# what vedette-host does once it sees core run again: delete the UDP conntrack entries of port 514, fixed argv, exit 1 = nothing to delete
 rc=0
 ctout=$(/usr/sbin/conntrack -D -f ipv4 -p udp --orig-port-dst 514 2>&1 >/dev/null) || rc=$?
 [ "$rc" -le 1 ] || fail "conntrack -D exited $rc (needs root and the nf_conntrack netlink; vedette-host runs it as root): $ctout"
@@ -187,7 +187,7 @@ for _ in $(seq 1 10); do # lines after the LAST "ready" are the new container's
 done
 kill "$loop_pid" >/dev/null 2>&1 || true
 loop_pid=
-[ -n "$got" ] || fail "after 'podman restart' no datagram from the peer (fixed source port $sport, 1/s) reached the new container in 10 s even after conntrack -D: the delete did not clear the entry that pins the flow to the old one (D-268)"
+[ -n "$got" ] || fail "after 'podman restart' no datagram from the peer (fixed source port $sport, 1/s) reached the new container in 10 s even after conntrack -D: the delete did not clear the entry that pins the flow to the old one"
 only_peer "$pip"
 ok "after a restart, a sender that never pauses reaches the new container within 10 s"
 echo "syslog-ports-check: PASS"

@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// Image retention (spec 6.8, D-104 (6), D-130 (4), D-138). After a start or rollback that worked, the
+// Image retention (spec 6.8). After a start or rollback that worked, the
 // images of that service that nothing keeps are removed with "podman rmi <image id>", after "podman untag <id> <tag>"
 // of its local tags: Podman refuses rmi by ID of an image with more than one name (exit 125, "by ID with more than
 // one tag"), and every release the host pulled has two, localhost/vedette-<service>:<version> and the pull reference
@@ -30,9 +30,9 @@ import (
 //	      image that a container uses anyway).
 //
 // The one image with no name that is the service's own is a scan image built on the box whose tag moved to a newer build of the
-// same version (D-147 (2)), or a build that failed its check and could not be removed then: it carries the label of the constant
+// same version, or a build that failed its check and could not be removed then: it carries the label of the constant
 // Containerfile (scanBuildLabel, the same mark install.sh --uninstall removes it by), and it is removed by its ID when no unit,
-// record or container keeps "sha256:<ID>" (D-316 (10)).
+// record or container keeps "sha256:<ID>".
 //
 // There is no "image prune -a". A failed rmi is logged and audited, and never fails the run: the
 // service already switched. The list Podman prints is untrusted: strict, capped, and an image that
@@ -132,7 +132,7 @@ func parseImageList(out []byte, service string) ([]listedImage, error) {
 			}
 		}
 		if services[service].byID {
-			img.Digests = append(img.Digests, "sha256:"+d.ID) // the image built on the box is kept by its ID (D-147)
+			img.Digests = append(img.Digests, "sha256:"+d.ID) // the image built on the box is kept by its ID
 		}
 		for _, rd := range d.RepoDigests {
 			if _, dg, ok := strings.Cut(rd, "@"); ok && digestRE.MatchString(dg) && !slices.Contains(img.Digests, dg) {
@@ -197,7 +197,7 @@ func (o *Ops) keptDigests(ctx context.Context, service string) map[string]bool {
 			if r != nil {
 				keep[r.Digest] = true
 				if r.BaseDigest != "" {
-					keep[r.BaseDigest] = true // the signed base a scan image was built from stays (D-147)
+					keep[r.BaseDigest] = true // the signed base a scan image was built from stays
 				}
 			}
 		}

@@ -164,7 +164,7 @@ func (h *HoneypotHandlers) HoneypotPostHoneypotTestScan(ctx context.Context) (*o
 
 // HoneypotGetHoneypotTokens implements GET /honeypot/tokens (viewer). The bait passwords are in full for an operator and an
 // administrator only; a viewer gets the last 4 characters, so an insider with a read-only account cannot learn the canary
-// set (INV-10, D-189).
+// set (INV-10).
 func (h *HoneypotHandlers) HoneypotGetHoneypotTokens(ctx context.Context) (*oas.HoneypotGetHoneypotTokensOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {

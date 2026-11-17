@@ -10,11 +10,11 @@ import { useModuleEnabled } from '@/lib/modules'
 import { useScanning } from './api'
 import { ScanNowButton } from './ScanNow'
 
-// kien G12: the rule moved to canScan.ts, shared with the finding page, To fix and the device page's fragile line
+// The rule moved to canScan.ts, shared with the finding page, To fix and the device page's fragile line
 type Facts = ScanFacts
 const nmapRefusal = deviceRefusal
 
-/** "Not in Scan selected: the Vedette box, 2 added by hand." (#877 r1 M2): what a button left out of the selection, and why. */
+/** "Not in Scan selected: the Vedette box, 2 added by hand." (#877): what a button left out of the selection, and why. */
 function useLeftOut() {
   const { t } = useTranslation('scanning')
   return (why: string[], kind: 'nmap' | 'vuln') => {
@@ -26,9 +26,9 @@ function useLeftOut() {
 }
 
 /** #850 H3, slot `devices.actions` of the Devices list: "Scan selected (N)" with a selection, "Scan the LAN now" always, and while
- *  the vulnerability checks are on "Run vulnerability checks on selected (N)" (#877 r1 M5). Select all ticks every row, the box and
+ *  the vulnerability checks are on "Run vulnerability checks on selected (N)" (#877). Select all ticks every row, the box and
  *  devices added by hand included, while the server refuses a whole run for one of them: each button sends only the devices it may
- *  check and says how many it left out and why (#877 r1 M2). */
+ *  check and says how many it left out and why (#877). */
 export function DevicesActions({ selectedIds, selected, clearSelection }: { selectedIds: string[]; selected: DeviceRow[]; clearSelection: () => void }) {
   const { t } = useTranslation('scanning')
   const safety = useScanning().data?.safety
@@ -57,7 +57,7 @@ export function DevicesActions({ selectedIds, selected, clearSelection }: { sele
 }
 
 /**
- * #877 r1 M5: the D-126 hand pick for several devices (a KEV rescan's "N devices need a hand pick on Devices"): POST /scans/runs
+ * #877: the hand pick for several devices (a KEV rescan's "N devices need a hand pick on Devices"): POST /scans/runs
  * with the selection. Devices checked only on a person's own pick (fragile, unclassified, added by hand, the box) are never sent
  * because a box was ticked by Select all: each one is ticked here, by name (scan contract: "not with Select all"). Devices the
  * scan refuses (never scan, no IP, outside the scope) are left out with the reason.
@@ -102,10 +102,10 @@ function SelectedVulnChecks({ selectedIds }: { selectedIds: string[] }) {
 }
 
 /** #850 H3, slot `device.actions` of the device page: "Check this device now" (nmap identification), and "Run vulnerability
- *  checks now" while the vulnerability checks (Preview) are on (review r2 N4). A device the nmap check always refuses (the box, added
- *  by hand, never scan, no IP, outside the scope) gets the reason instead of a button that can only fail (#877 r1 L6).
- *  kien G7b/c: he could not tell the two apart. Each button has one line under it: what it does, what it does not, how long. They
- *  stay two buttons: the vulnerability check sends exploit checks to the device and is a person's own pick (D-126), the device
+ *  checks now" while the vulnerability checks (Preview) are on. A device the nmap check always refuses (the box, added
+ *  by hand, never scan, no IP, outside the scope) gets the reason instead of a button that can only fail (#877).
+ *  He could not tell the two apart. Each button has one line under it: what it does, what it does not, how long. They
+ *  stay two buttons: the vulnerability check sends exploit checks to the device and is a person's own pick, the device
  *  check only identifies it; one merged button would hide that difference. */
 export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The device page's own read (no second read of it here). */ asset?: Facts }) {
   const { t } = useTranslation('scanning')
@@ -125,8 +125,8 @@ export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The 
   )
 }
 
-/** "Run vulnerability checks now" on one device: a person's own pick (D-126, the box too, D-470); a device the scan refuses (never
- *  scan, no IP, outside the scope) gets the reason instead (#877 r1 L6). */
+/** "Run vulnerability checks now" on one device: a person's own pick (the box too); a device the scan refuses (never
+ *  scan, no IP, outside the scope) gets the reason instead (#877). */
 function DeviceVulnChecks({ assetId }: { assetId: string }) {
   const { t } = useTranslation('scanning')
   const on = useModuleEnabled('scan') === true

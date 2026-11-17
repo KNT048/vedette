@@ -45,7 +45,7 @@ func (s *Service) hookTimeout() time.Duration {
 	return 5 * time.Second
 }
 
-// DefaultSettings is what a fresh box starts with. The budget is 6,000,000 tokens a month (D-531: the 200,000 a day of D-482 times 30):
+// DefaultSettings is what a fresh box starts with. The budget is 6,000,000 tokens a month (the earlier 200,000 a day times 30):
 // a few dollars with a Haiku-class model, and no single day of an incident is cut short by a daily cap.
 func DefaultSettings() Settings {
 	return Settings{Tier: TierMed, MonthlyBudget: DefaultMonthlyBudget, RedactPII: true}
@@ -75,10 +75,10 @@ type Config struct {
 	// Factory builds the client of a profile; nil = Profile.Provider with BoxAddrs. Tests inject fakes: no test calls a real provider.
 	Factory func(Profile) (provider.Provider, error)
 	// BoxAddrs is the machine's addresses (vedette-host, the container's gateway): no profile reaches Vedette's own ports there, at
-	// save and at every connection (D-446; loopback and core's own interfaces are refused on every port). known=false or nil:
+	// save and at every connection (loopback and core's own interfaces are refused on every port). known=false or nil:
 	// those ports are refused on every address.
 	BoxAddrs func() (addrs []netip.Addr, known bool)
-	// SelfAddrs lists more addresses that are Vedette itself (the honeypot's decoys): no profile there on any port (D-446). nil: none.
+	// SelfAddrs lists more addresses that are Vedette itself (the honeypot's decoys): no profile there on any port. nil: none.
 	SelfAddrs func() []netip.Addr
 	// Facts is what the box knows about a CVE and the devices it matches (feeds, findings, inventory), read through the ports of
 	// those modules. nil = explaining a CVE answers 409 ai_unavailable.
@@ -91,23 +91,23 @@ type Config struct {
 	ChainPruner ChainPruner
 	// Data is what the read tools of "Ask your data" search (inventory, findings, feeds); nil = those tools are not offered.
 	Data Data
-	// Updates is what to install on a device to clear its CVEs (findings, G9): the device_updates tool, offered with Data (which finds
+	// Updates is what to install on a device to clear its CVEs (findings): the device_updates tool, offered with Data (which finds
 	// the device by IP or name); nil = not offered.
 	Updates Updates
 	// Conns lists and calls the read tools of the connections (core/conn/read); nil = no connection tools.
 	Conns ConnReader
 	// ConnTargets returns the address of each connection by id (core/conn List). While the privacy rule is on, only the tools of a
-	// connection whose address is inside the network are offered; nil = none are (fail closed, D-212).
+	// connection whose address is inside the network are offered; nil = none are (fail closed).
 	ConnTargets func(ctx context.Context) (map[string]string, error)
 	// LogDigest reads the digest of the logs (kinds of line, counts, spikes, bad connections, never a line); the bool is false while the
 	// logs module is off. nil = the log digest answers 409 ai_unavailable. The adapter is in cmd/vedette; ai never imports logs.
 	LogDigest func(ctx context.Context) (LogDigestData, bool, error)
 	// LogAround reads what the logs counted about one address from from to to (kinds of line and counts, connections to listed
-	// destinations, never a line; D-223): the events_around tool of log investigation. The bool is false while the logs module is off.
+	// destinations, never a line): the events_around tool of log investigation. The bool is false while the logs module is off.
 	// nil = the tool is not offered.
 	LogAround func(ctx context.Context, ip netip.Addr, from, to time.Time) (LogAroundData, bool, error)
 	// Alert raises an incident notice (notify: every enabled channel whose minimum severity it meets). The daily verify of the
-	// activity log calls it when the chain is broken (S-AI-8, D-430), the budget watch at 80 % and 100 % of a monthly budget (D-531); high
+	// activity log calls it when the chain is broken (S-AI-8), the budget watch at 80 % and 100 % of a monthly budget; high
 	// = severity high, otherwise medium. nil = neither job is offered. The adapter is in cmd/vedette.
 	Alert func(ctx context.Context, id, title, text string, high bool) error
 	// AskTimeout bounds one question in all: every model turn and every tool call. 0 = 2 minutes. Tests set a tiny one.
@@ -192,11 +192,11 @@ type Service struct {
 	queued     atomic.Int64                    // uploads that hold their bytes in memory until they are read
 	indexing   sync.WaitGroup                  // the readers in flight: a test waits for them
 	snap       atomic.Pointer[snapshot]
-	drafts     map[string]draftTest   // per admin, the last test of settings not saved yet, kept for the profile saved with them (D-445); under mu
+	drafts     map[string]draftTest   // per admin, the last test of settings not saved yet, kept for the profile saved with them; under mu
 	alerted    atomic.Pointer[string] // the break the last alert named (its first bad row, or "tail"): the same break is not raised again until a restart
 	news       *newsFetcher           // the box's own fetcher of public pages for CVE news (S-AI-3)
 	fuseMu     sync.Mutex             // guards fuse
-	fuse       map[Job]*fuseWindow    // calls of each job in the current minute (the runaway fuse, D-531)
+	fuse       map[Job]*fuseWindow    // calls of each job in the current minute (the runaway fuse)
 	pauseMonth string                 // the month the reasons in pauseNoted belong to (fuseMu)
 	pauseNoted map[string]bool        // the reasons of scheduled-job stops already logged this month (fuseMu): one line a month per reason
 }
@@ -281,7 +281,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	return s, nil
 }
 
-// own is where the D-446 rule reads the addresses of Vedette itself.
+// own is where the self-connection rule reads the addresses of Vedette itself.
 func (s *Service) own() provider.OwnSources {
 	return provider.OwnSources{Machine: s.cfg.BoxAddrs, Self: s.cfg.SelfAddrs}
 }

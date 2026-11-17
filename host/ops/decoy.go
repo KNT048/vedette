@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// decoy_ip.add and decoy_ip.remove (spec 6.6, D-102) and the re-apply that follows every network
+// decoy_ip.add and decoy_ip.remove (spec 6.6) and the re-apply that follows every network
 // change and every start. A decoy is a macvlan link on the management card, moved into the namespace
 // vedette-hp, with its address, its own routing table (100 to 131, kept with the decoy) and a rule
 // "from <ip> lookup <table>". The honeypot container joins the namespace, so a decoy added later
@@ -371,7 +371,7 @@ func (o *Ops) runDecoyAdd(ctx context.Context, rc *server.RunContext, a api.Deco
 		return nil, fail(api.CodeDecoyFailed, "The decoy was created but the link in the namespace does not have the right MAC and address; it was removed again.")
 	}
 	// The address answers only once the ruleset that lets it (its allow-list, or the open set) is in
-	// force and proven (D-466); until then the input chain refuses every port of it.
+	// force and proven; until then the input chain refuses every port of it.
 	if err := o.applyRuleset(ctx, next); err != nil {
 		o.log.ErrorContext(ctx, "the ruleset with the new decoy could not be proven", fieldIP, d.IP, "error", err.Error())
 		undo()
@@ -446,7 +446,7 @@ func (o *Ops) runDecoyRemove(ctx context.Context, rc *server.RunContext, a api.D
 		if err != nil || slices.ContainsFunc(links, func(l nsLink) bool { return l.Name == linkName(ip) }) {
 			return nil, fail(api.CodeDecoyFailed, "The decoy is out of the list but its link is still in the namespace; the next start removes it.")
 		}
-		// Its ports leave the ruleset too (D-466): the sets hold exactly the decoys of the state.
+		// Its ports leave the ruleset too: the sets hold exactly the decoys of the state.
 		if err := o.applyRuleset(ctx, rest); err != nil {
 			o.closeUnproven(ctx, err)
 			return nil, fail(api.CodeDecoyFailed, "The decoy is removed but the ruleset of the honeypot namespace could not be proven; the decoys are off until the host proves it again.")
@@ -677,7 +677,7 @@ func (o *Ops) dropOrphans(ctx context.Context, links []nsLink, list []decoyEntry
 	}
 }
 
-// reapplyDecoys is the hook of net.apply, net.confirm's revert and every start (D-100, D-102 (6)):
+// reapplyDecoys is the hook of net.apply, net.confirm's revert and every start:
 // it brings the namespace in line with hp/decoys.json for the network the box has now. hint is the
 // configuration being applied (nil: read it). It never fails a network change for a decoy: a decoy
 // that is outside the subnet now, or that cannot be built, is removed from the state and reported
@@ -748,7 +748,7 @@ func (o *Ops) reconcile(ctx context.Context, hint *NetplanConfig, ensured bool) 
 			return false
 		}
 		// A cancelled context is not a verdict on any decoy: stop, keep every entry and report nothing;
-		// the next reconcile starts from the same state (D-121).
+		// the next reconcile starts from the same state.
 		o.log.WarnContext(context.WithoutCancel(ctx), "the re-apply of the decoys was cancelled; the entries were kept")
 		return true
 	}
@@ -793,7 +793,7 @@ func (o *Ops) reconcile(ctx context.Context, hint *NetplanConfig, ensured bool) 
 		if err := o.saveDecoys(keep); err != nil {
 			return err
 		}
-		// A dropped decoy leaves the sets of the ruleset as well (D-466).
+		// A dropped decoy leaves the sets of the ruleset as well.
 		if !sameSets(keep, list) {
 			if err := o.applyRuleset(ctx, keep); err != nil {
 				o.closeUnproven(ctx, err)

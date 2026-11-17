@@ -17,7 +17,7 @@ import type { DateFormat, FeedFormat, FeedKind, FieldMap, ParseRecord, Parser } 
 const DATE_FORMATS: DateFormat[] = ['auto', 'dmy', 'mdy', 'epoch']
 const DELIMS = [',', ';', '\t', '|']
 
-/** Parsing rules and live test (S-FEED-5, D-37): pick the format, map fields, optional regex and normalisation, then try it on a sample before saving. */
+/** Parsing rules and live test (S-FEED-5): pick the format, map fields, optional regex and normalisation, then try it on a sample before saving. */
 export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedKind; parser: Parser; onChange: (p: Parser) => void; onFormat: (f: FeedFormat) => void }) {
   const { t } = useTranslation('feeds')
   const test = useParseTest()

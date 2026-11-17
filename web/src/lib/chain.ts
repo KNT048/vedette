@@ -1,7 +1,7 @@
-// One place for the tamper-evident log hashes of the mock (DATA_MODEL §5.3, D-57 (14)). The Go side verifies against the same vectors:
+// One place for the tamper-evident log hashes of the mock (DATA_MODEL §5.3). The Go side verifies against the same vectors:
 // `modules/core/testdata/chain_vectors.json`, generated from this file by `src/lib/chain.test.ts`.
 //
-//   all three chains (core_audit, ai_activity, resp_log), D-57 (14):
+//   all three chains (core_audit, ai_activity, resp_log):
 //     hash = lowercase hex SHA-256( prev_hash + "\n" + canon(entry) ), entry = every field of the row except `hash` (prev_hash stays in; the DB-only `seq` never)
 //     canon = JSON, object keys sorted by Unicode code point (= UTF-8 byte order), no whitespace, strings escaped like JSON.stringify
 //   first entry: prev_hash = GENESIS (64 zeros)

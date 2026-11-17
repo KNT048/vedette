@@ -19,7 +19,7 @@ import (
 // The mcp-server module on the binary's real wiring (S-MCP-1): the admin turns it on and makes a token through the API, an
 // agent connects to the loopback port over a real socket and reads a device, a finding and a CVE through the real inventory,
 // findings and feeds; what stays on the box (MAC, notes, the scan's summary, request and response, who changed a finding and
-// what they wrote) never reaches the agent (INV-7, D-233). Off, the port closes and /core/mcp is 404 (SYS-5).
+// what they wrote) never reaches the agent (INV-7). Off, the port closes and /core/mcp is 404 (SYS-5).
 func TestMCPServerOnTheRealWiring(t *testing.T) {
 	t.Parallel()
 	s := newStackWith(t, func(d *deps) { d.MCPListen = netip.MustParseAddrPort("127.0.0.1:0") })
@@ -171,7 +171,7 @@ func waitUntil(t *testing.T, ok func() bool) {
 	}
 }
 
-// -mcp-listen takes a loopback address and port only (INV-5); in a container also the unspecified address (D-395).
+// -mcp-listen takes a loopback address and port only (INV-5); in a container also the unspecified address.
 func TestParseMCPListen(t *testing.T) {
 	t.Parallel()
 	for _, ok := range []string{"127.0.0.1:8765", "[::1]:8765", "127.0.0.2:9000"} {

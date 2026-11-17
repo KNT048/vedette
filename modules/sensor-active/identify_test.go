@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// D-501: what a device scan records from nmap's output (kind, OS, software with CPE) and, when it records no software, exactly
+// What a device scan records from nmap's output (kind, OS, software with CPE) and, when it records no software, exactly
 // why. The fixtures are hand-written in the shape of real nmap 7.94 output for each kind of device; no network is scanned.
 func TestIdentifiedFromRealOutputShapes(t *testing.T) {
 	t.Parallel()
@@ -27,10 +27,10 @@ func TestIdentifiedFromRealOutputShapes(t *testing.T) {
 		// The OS of a fingerprint is a guess: one row per OS without the generation (iOS 15 and 16 are one row), never a version.
 		{file: "iphone.xml", kind: "smartphone", cpes: []string{"cpe:/o:apple:iphone_os"},
 			found: []string{"Operating system: Apple iOS 15.0 - 16.1 (Darwin 21.0.0 - 22.1.0)", "Type: smartphone"}, why: WhyOSGuess},
-		// W3-5: "Microsoft Windows RPC" and the other banners with no version are open services, not software.
+		// "Microsoft Windows RPC" and the other banners with no version are open services, not software.
 		{file: "windows.xml", kind: "pc", cpes: []string{"cpe:/o:microsoft:windows_10"},
 			found: []string{"Operating system: Microsoft Windows 10 1607", "Type: pc"}, why: WhyOSGuess},
-		// W3-4, D-504: the versions shape (no -O) on a Windows 11 PC: RDP's NTLM answer names the release and the build; the row
+		// The versions shape (no -O) on a Windows 11 PC: RDP's NTLM answer names the release and the build; the row
 		// carries that version but no match keys (Guess), as the monthly update level is not in it.
 		{file: "windows11.xml", kind: "pc", cpes: []string{"cpe:/o:microsoft:windows"},
 			found: []string{"Operating system: Microsoft Windows 11 23H2 (build 22631)", "Type: pc"}, why: WhyOSNoPatch},
@@ -88,7 +88,7 @@ func TestIdentifiedFromRealOutputShapes(t *testing.T) {
 	}
 }
 
-// Walk 1 W1-7: a FortiGate becomes maker Fortinet (nmap's MAC table), OS FortiOS with the version nmap gives (7.2) and type firewall.
+// A FortiGate becomes maker Fortinet (nmap's MAC table), OS FortiOS with the version nmap gives (7.2) and type firewall.
 // With no sure fingerprint, the OS its admin page names (cpe:/o:fortinet:fortios) is still recorded as its OS row.
 func TestFortiGateIsIdentified(t *testing.T) {
 	t.Parallel()
@@ -148,8 +148,8 @@ func TestUnsureOSGuessIsNotRecorded(t *testing.T) {
 	}
 }
 
-// D-501: Scan now's identification of a device the person picked. A device discovery scans normally keeps the normal scan; a
-// fragile one gets only the gentle scan (D-45); one whose kind is unknown gets the normal scan at a quarter of the rate (the pick
+// Scan now's identification of a device the person picked. A device discovery scans normally keeps the normal scan; a
+// fragile one gets only the gentle scan; one whose kind is unknown gets the normal scan at a quarter of the rate (the pick
 // is the consent); a refusal of origin, address or scope is passed on and nothing runs.
 func TestPickedPlan(t *testing.T) {
 	t.Parallel()
@@ -179,7 +179,7 @@ func TestPickedPlan(t *testing.T) {
 	}
 }
 
-// D-504: the NTLM answer is untrusted text from the device. Only the two NTLM scripts of an open port are read, only a version of the
+// The NTLM answer is untrusted text from the device. Only the two NTLM scripts of an open port are read, only a version of the
 // form major.minor.build and a plain computer name are kept, a value longer than maxElemLen is dropped, and the parse never fails
 // the batch for a script.
 func TestNTLMAnswerIsReadFailClosed(t *testing.T) {
@@ -223,7 +223,7 @@ func TestNTLMAnswerIsReadFailClosed(t *testing.T) {
 	}
 }
 
-// D-504: the Windows release a build names, and what each records. A build only a client or only Windows Server has gives that
+// The Windows release a build names, and what each records. A build only a client or only Windows Server has gives that
 // release and its type; a build both share names both and gives no type (review M2), unless the device is a domain controller
 // (88 and 389 open); a build the table does not know is "Windows" with its build, no type.
 func TestWindowsFromNTLM(t *testing.T) {
@@ -315,8 +315,8 @@ func TestNTLMNeedsCorroboration(t *testing.T) {
 	}
 }
 
-// D-504: with no NTLM answer and no sure fingerprint, RPC (135) and SMB (445) together give the type at a passive hint's rank, and
-// never an OS: the walk's .49 without RDP. One of the two alone gives nothing.
+// With no NTLM answer and no sure fingerprint, RPC (135) and SMB (445) together give the type at a passive hint's rank, and
+// never an OS: the test network's .49 without RDP. One of the two alone gives nothing.
 func TestWindowsPortRuleGivesOnlyTheType(t *testing.T) {
 	t.Parallel()
 	hosts, err := parseNmapXML(fixture(t, "windows11.xml"))

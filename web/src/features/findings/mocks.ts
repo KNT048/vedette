@@ -1,4 +1,4 @@
-// Mock API module findings (S-MIT-1/2/3, S-SCAN-3, S-AI-2). Phát hiện nằm ở findingsStore dùng chung; kết quả AI nằm ở collection mit_ai_outputs. Mọi chuỗi hiển thị bằng tiếng Anh (D-28).
+// Mock API module findings (S-MIT-1/2/3, S-SCAN-3, S-AI-2). Phát hiện nằm ở findingsStore dùng chung; kết quả AI nằm ở collection mit_ai_outputs. Mọi chuỗi hiển thị bằng tiếng Anh.
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
@@ -21,10 +21,10 @@ const vulns = (kev as { vulns: Vuln[] }).vulns
 
 // Gói giảm thiểu và dấu hiệu khai thác là nội dung ký của dự án Vedette (content pack), không phải dữ liệu người dùng: đọc từ packs.ts.
 const aiOutputs = collection<Record<string, AiResult>>('mit_ai_outputs', () => ({}))
-// D-498: accepted risks, finding id → last day. The shared store keeps them as not_relevant (closed for every other mock);
+// Accepted risks, finding id → last day. The shared store keeps them as not_relevant (closed for every other mock);
 // the findings API answers risk_accepted with accepted_until, and the day after it they reopen by themselves.
 export const accepted = collection<Record<string, string>>('fnd_risk_accepted', () => ({}))
-// D-545: the update that fixes a finding with others (FindingRow.fix), finding id → fix. The box computes it from NVD's ranges, which
+// The update that fixes a finding with others (FindingRow.fix), finding id → fix. The box computes it from NVD's ranges, which
 // the mock does not have, so it is empty unless a test or a sample sets it.
 export const fixes = collection<Record<string, RowFix>>('fnd_fixes', () => ({}))
 
@@ -60,11 +60,11 @@ function kevInfo(cve: string): KevInfo | null {
 }
 
 
-/** G4: a device's risk marker as the box computes it (findings RiskOf, through inventory): read from what To fix shows for it (one
+/** A device's risk marker as the box computes it (findings RiskOf, through inventory): read from what To fix shows for it (one
  *  rule): its open exploited findings To fix lists (an update named, or proved), else its recommended updates with a likely CVE or of
  *  High or Critical severity. null when clean, and while the findings module is off. */
 type Risk = { level: 'exploited' | 'update'; exploited: number; updates: number }
-/** The box (inventory's BOX_ID) is never marked (G4); its updates stay in To fix. */
+/** The box (inventory's BOX_ID) is never marked; its updates stay in To fix. */
 const MOCK_BOX = 'a-box'
 export function deviceRisk(assetId: string): Risk | null {
   if (!isOn('findings') || assetId === MOCK_BOX) return null
@@ -79,11 +79,11 @@ function riskOfCard(d: Omit<ToFixDevice, 'risk'> | null): Risk | null {
   return updates > 0 ? { level: 'update', exploited: 0, updates } : null
 }
 
-/** GET /findings/plan (D-613, D-615): the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. */
+/** GET /findings/plan: the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. */
 function plan(tier: string, asset: string | null): Plan {
-  const n = (t: string) => tierPlan(t, asset).items.length // M2-9: every tab's number in one answer, as the box gives it
+  const n = (t: string) => tierPlan(t, asset).items.length // every tab's number in one answer, as the box gives it
   const base = tierPlan(tier, asset)
-  // G4: each item carries its device's risk marker, so the page needs no device list
+  // Each item carries its device's risk marker, so the page needs no device list
   return { ...base, items: base.items.map((i) => ({ ...i, risk: deviceRisk(i.asset.id) })), counts: { likely: n('likely'), recent: n('recent'), all: n('all') } }
 }
 
@@ -102,7 +102,7 @@ function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
       const cves: PlanCve[] = []
       for (const c of p.cves) {
         const f = tierFact(c.cve)
-        if (!f || (!withinYear(f) && c.basis !== 'scan')) continue // D-615: older only when a scan engine found it
+        if (!f || (!withinYear(f) && c.basis !== 'scan')) continue // Older only when a scan engine found it
         const t = tierOf(f)
         if (t === 'likely' ? st.epss !== 'ready' : st.recent !== 'ready') continue
         if (tier !== 'all' && t !== tier) continue
@@ -110,7 +110,7 @@ function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
         cves.push({ cve: f.cve, tier: t, basis: c.basis, severity: f.severity, score: f.score, published: f.published, epss: f.epss, percentile: f.percentile })
       }
       if (cves.length === 0) continue
-      // D-623: likely first by EPSS, then the recent ones by CVSS score, then EPSS, then newest (findings' sortPlanCVEs)
+      // Likely first by EPSS, then the recent ones by CVSS score, then EPSS, then newest (findings' sortPlanCVEs)
       cves.sort((x, y) => (x.tier === y.tier ? 0 : x.tier === 'likely' ? -1 : 1)
         || (x.tier === 'likely' ? (y.epss ?? -1) - (x.epss ?? -1) || (y.score ?? -1) - (x.score ?? -1) : (y.score ?? -1) - (x.score ?? -1) || (y.epss ?? -1) - (x.epss ?? -1))
         || y.published.localeCompare(x.published))
@@ -124,7 +124,7 @@ function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
     data: { epss: st.epss, recent: st.recent, epss_date: st.epss === 'ready' ? epssDate() : null, recent_since: st.recent === 'ready' ? recentSince() : null } }
 }
 
-/** Tên như trang Devices (D-484, D-471 `displayName`): tên máy, sản phẩm khai tay ("… (no device)" khi không có IP), hãng + model, IP, rồi phần mềm; không bao giờ là id. */
+/** Tên như trang Devices (`displayName`): tên máy, sản phẩm khai tay ("… (no device)" khi không có IP), hãng + model, IP, rồi phần mềm; không bao giờ là id. */
 function nameOf(a: Asset): string {
   return displayName(a) || a.software[0]?.display || a.kind
 }
@@ -170,7 +170,7 @@ function renderPack(p: MitigationPack, asset: FindingAsset | null): MitigationPa
 
 const VERSION_SOURCE: Record<string, KnownVersion['source']> = { agent: 'agent', snmp: 'snmp', manual: 'manual', nmap: 'scan', scan: 'scan', passive: 'stated' }
 
-/** M2-3 (findings knownVersion): the device's row keyed to the finding's KEV entry that has a version, and who gave it. */
+/** findings knownVersion: the device's row keyed to the finding's KEV entry that has a version, and who gave it. */
 function knownFor(f: Finding, k: KevInfo | null): KnownVersion | null {
   if (!k) return null
   const key = `${k.vendor}|${k.product}`.toLowerCase()
@@ -215,7 +215,7 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null, kv: K
   }
   const reachable = !!a && a.ip !== '—'
   if (kv && !f.evidence?.agent && !f.evidence?.agent_row && !(f.basis === 'scan' && reachable)) return knownRecheck(f, kv, k, a?.name ?? 'the device', reachable)
-  if (f.evidence?.agent) { // D-548: the agent reports the installed version; nothing to look up (mitigation genericRecheck)
+  if (f.evidence?.agent) { // The agent reports the installed version; nothing to look up (mitigation genericRecheck)
     return { steps: [
       `Nothing to look up: the agent on ${a?.name ?? 'the device'} reports the installed version of ${k?.display ?? 'the software'}, and Vedette compared it with the affected versions (Evidence above).`,
       'Install the update (What to do below). The agent reports the new version by itself, usually within two hours (after the restart the update needs), and Vedette then closes this finding by itself.',
@@ -226,7 +226,7 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null, kv: K
     steps: f.basis === 'scan' && reachable
       ? ['Run the scan template again with the "Rescan this device" button.']
       : [
-          f.evidence?.agent_row // D-612: the agent reported the installed version; Vedette could not compare it (mitigation genericRecheck)
+          f.evidence?.agent_row // The agent reported the installed version; Vedette could not compare it (mitigation genericRecheck)
             ? `Nothing to look up on ${a?.name ?? 'the device'}: its agent reports the installed version of ${k?.display ?? 'the software'} (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE.`
             : `Check which version of ${k?.display ?? 'the software'} runs on ${a?.name ?? 'the device'} (in its settings, its admin page or its About screen).`,
           'Compare it with the fixed version in the vendor advisory (link in the source section). An older version means the flaw is still there.',
@@ -259,7 +259,7 @@ function detail(f: Finding): FindingDetail {
   }
 }
 
-/** Mitigation INV-8: the general checks fill in when the confirmed pack has no compromise signs of its own (D-631: no firewall config). */
+/** Mitigation INV-8: the general checks fill in when the confirmed pack has no compromise signs of its own (no firewall config). */
 function hardeningFor(f: Finding, r: FindingRow, _pack: MitigationPack | undefined, check: unknown) {
   if (check) return null
   return mockHardening(f.cve, r.kev, r.asset)
@@ -306,8 +306,8 @@ function aiResult(f: Finding, skill: AiResult['skill']): AiResult {
     ? ['Patch: follow the vendor advisory in the sources below.', 'If you cannot patch yet: cut the path in from the Internet and turn off the affected component if unused.', 'Signs of exploitation: check access logs and unfamiliar processes around the time the flaw was published.']
     : harden ? harden : ['Update to the fixed version per the vendor advisory.', 'If you cannot patch yet, restrict Internet access to this device (firewall, VPN).', 'Watch the device logs for a few days after applying.']
   const citations = (k?.links ?? []).slice(0, 3).map((u) => ({ title: new URL(u).hostname.replace(/^www\./, ''), url: u }))
-  // M2-2: the config skill answers with config blocks to paste: a rule that keeps other networks off the vulnerable service's port of
-  // this device (nftables when no firewall vendor is known). No admin-network rule: Vedette writes none (D-631).
+  // the config skill answers with config blocks to paste: a rule that keeps other networks off the vulnerable service's port of
+  // this device (nftables when no firewall vendor is known). No admin-network rule: Vedette writes none.
   const ip = r.asset?.ip && r.asset.ip !== '—' ? r.asset.ip : '<DEVICE_IP>'
   const configs = skill === 'explain' ? undefined : [{
     title: `Linux gateway (nftables): block other networks from the vulnerable web service of ${dev}`,
@@ -364,7 +364,7 @@ const UNCHECKED_SEED: { asset: string; software: string; reason: UncheckedItem['
   { asset: 'a-rt02', software: 'MikroTik router', reason: 'not_named', action: 'none', cves: [
     cveOf('CVE-2026-20008', 'MikroTik RouterOS Memory Corruption', '2026-09-01', false, 'https://mikrotik.com/supportsec')] },
 ]
-/** kien G15 mock: SQL Server added by hand without a version on SRV-FILE (the N100's case), and a camera seen only in traffic. Their
+/** Mock: SQL Server added by hand without a version on SRV-FILE, and a camera seen only in traffic. Their
  *  exploited CVEs are not in the KEV fixture, so the items are seeded here; it leaves once the row has a usable version, as the real box re-matches. */
 const VERSION_SEED: { asset: string; software: string; cves: number }[] = [
   { asset: 'a-srvfile', software: 'Microsoft SQL Server', cves: 6 },
@@ -396,7 +396,7 @@ export function unchecked(asset?: string | null): UncheckedItem[] {
   return out
 }
 
-/** D-604 mock, BN340 (the N100's router): CVE-2026-123158 affects only OpenSSH built with musl and without PAM (Alpine's openssh-server).
+/** Mock, BN340 (an Alpine router): CVE-2026-123158 affects only OpenSSH built with musl and without PAM (Alpine's openssh-server).
  *  The scan reads OpenSSH 10.2 and an OS guess, so the platform is the question; once a person sets Alpine Linux, the package release
  *  is; a release Vedette reads settles it (the item leaves; the real box closes the CVE with Alpine's reason), one it cannot read comes
  *  back as question.error. As findings.platformQuestion words it. */
@@ -450,7 +450,7 @@ function sentence(u: Pick<ToFixAction, 'kind' | 'software' | 'version' | 'fixed'
   return u.windows ? `Install the latest cumulative update for ${sw} (build ${fixed} or later)` : `Upgrade ${sw} from ${u.version} to ${fixed} or later`
 }
 
-/** GET /findings/to-fix (kien G8), as findings.ToFix builds it: per device, the open findings grouped by their fix (or by product when
+/** GET /findings/to-fix, as findings.ToFix builds it: per device, the open findings grouped by their fix (or by product when
  *  no update is named), then the device's plan items; the most urgent device first. */
 function toFix(asset: string | null): ToFix {
   const rows = findingsStore.get().filter((f) => !asset || f.asset_id === asset).map(row).filter((r) => r.status === 'confirmed' || r.status === 'suspected')
@@ -576,7 +576,7 @@ export const handlers = [
     return HttpResponse.json(detail(find(f.id)!))
   }),
 
-  // Một hành động, một ghi chú cho các phát hiện đang mở (W1-12, INV-10): tất cả hoặc không gì; mỗi phát hiện một dòng lịch sử và kiểm toán; phát hiện đã đóng được đếm và bỏ qua.
+  // Một hành động, một ghi chú cho các phát hiện đang mở (INV-10): tất cả hoặc không gì; mỗi phát hiện một dòng lịch sử và kiểm toán; phát hiện đã đóng được đếm và bỏ qua.
   http.post(`${API}/findings/status`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
     const b = await body<{ ids: string[]; action: StatusAction; note: string; until?: string }>(request)
@@ -621,7 +621,7 @@ export const handlers = [
     return HttpResponse.json(detail(find(f.id)!))
   }),
 
-  // S-AI-2 / D-21: chạy bằng khoá AI của khách; chỉ khi module ai bật và đã có khoá. Kết quả lưu lại để còn sau khi tải lại trang.
+  // S-AI-2: chạy bằng khoá AI của khách; chỉ khi module ai bật và đã có khoá. Kết quả lưu lại để còn sau khi tải lại trang.
   http.post(`${API}/findings/:id/ai`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const f = find(params.id)

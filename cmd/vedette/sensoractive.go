@@ -28,7 +28,7 @@ var (
 // ctx is the caller's: the service keeps only its values (context.WithoutCancel) for the time-zone reads of orgLocation, since it
 // outlives any one caller. The first caller's ctx is kept for the life of the process, so a request's context must never be the first
 // to build it: keep today's order, where the module's jobs (sensorActiveJobs) or newHandler (the server's start-up ctx) build it before
-// any request runs; scanIdentify and the others only find the cached one (review #715 r2 L2).
+// any request runs; scanIdentify and the others only find the cached one (#715).
 func sensorActiveService(ctx context.Context, d deps) (*sensoractive.Service, error) {
 	saMu.Lock()
 	defer saMu.Unlock()
@@ -38,7 +38,7 @@ func sensorActiveService(ctx context.Context, d deps) (*sensoractive.Service, er
 	if d.SensorDispatcher == nil {
 		return nil, errors.New("sensor-active needs the dispatcher of the sensor link")
 	}
-	// Production never runs nmap in this process (D-113, D-141): the Dispatcher hands the command to the worker in the scan
+	// Production never runs nmap in this process: the Dispatcher hands the command to the worker in the scan
 	// container, and the service reads nmap's health from the worker's heartbeat (the Dispatcher is the Prober itself, so its
 	// NmapHealth is found by the service's type assertion).
 	s, err := newSensorActive(ctx, d, d.SensorDispatcher)
@@ -49,7 +49,7 @@ func sensorActiveService(ctx context.Context, d deps) (*sensoractive.Service, er
 	return s, nil
 }
 
-// snmpService is the sensor-active service for the SNMP credential handlers (D-512): nil, so they answer 501, when it cannot be
+// snmpService is the sensor-active service for the SNMP credential handlers: nil, so they answer 501, when it cannot be
 // built (no dispatcher or no inventory, as in some tests); the error is logged where the module's jobs are registered.
 func snmpService(ctx context.Context, d deps) *sensoractive.Service {
 	if d.SensorDispatcher == nil || d.Inventory == nil {
@@ -76,7 +76,7 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 		return nil, errors.New("sensor-active needs a Prober")
 	}
 	cfg := sensoractive.Config{Prober: prober, DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, Services: d.Inventory, Clock: d.Clock, Log: d.Log,
-		Location: orgLocation(ctx, d), Secrets: d.Secrets, Audit: d.Audit, // SNMP reads go through the same Dispatcher (D-512)
+		Location: orgLocation(ctx, d), Secrets: d.Secrets, Audit: d.Audit, // SNMP reads go through the same Dispatcher
 		LocalPrefixes: func(ctx context.Context) []netip.Prefix { return boxNetworks(ctx, d.HostNet) }}
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {
@@ -93,12 +93,12 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 	if h := svc.Health(ctx); !remote && h.Status != "ok" && d.Log != nil {
 		d.Log.WarnContext(ctx, "sensor-active is unavailable", "reason", h.Message)
 	}
-	if d.Reg != nil { // turning the module off stops the nmap run in progress, also an identification for Scan now (D-501)
+	if d.Reg != nil { // turning the module off stops the nmap run in progress, also an identification for Scan now
 		d.Reg.OnChange(func(id string, enabled bool) {
 			switch {
 			case id != "sensor-active":
 			case enabled:
-				svc.Resume() // SNMP reads may be sent again (review #855 r2 L1)
+				svc.Resume() // SNMP reads may be sent again (#855)
 			default:
 				svc.Stop()
 			}
@@ -118,7 +118,7 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 			return fn(ctx, e.Data)
 		}
 	}
-	// A device another sensor saw first waits in the queue for the next window (D-84 (6)); the queue survives a restart.
+	// A device another sensor saw first waits in the queue for the next window; the queue survives a restart.
 	d.Bus.Subscribe(inventory.EventAssetDiscovered, on(func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.AssetEvent)
 		if !ok {
@@ -133,7 +133,7 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 			if !ok {
 				return fmt.Errorf("unexpected payload %T", data)
 			}
-			// A person turned the device's network scan on (D-601): it waits in the queue for the next window, as a new device does.
+			// A person turned the device's network scan on: it waits in the queue for the next window, as a new device does.
 			if ev.ScanOn {
 				if err := svc.Enqueue(ctx, ev.AssetID, "scan_on"); err != nil {
 					return err
@@ -241,7 +241,7 @@ func (a sensorInventory) ScanPolicy(ctx context.Context, assetID string) (sensor
 		Fragile: dec.Fragile, Unclassified: dec.Unclassified, Never: dec.Never}, nil
 }
 
-// SNMPPolicy implements sensoractive.Inventory (D-601).
+// SNMPPolicy implements sensoractive.Inventory.
 func (a sensorInventory) SNMPPolicy(ctx context.Context, assetID string) (sensoractive.Decision, error) {
 	dec, err := a.inv.SNMPPolicy(ctx, assetID)
 	if errors.Is(err, inventory.ErrNotFound) {
@@ -254,7 +254,7 @@ func (a sensorInventory) SNMPPolicy(ctx context.Context, assetID string) (sensor
 		Fragile: dec.Fragile, Unclassified: dec.Unclassified, Never: dec.Never}, nil
 }
 
-// PendingGentleScans implements sensoractive.PendingGentle (D-511).
+// PendingGentleScans implements sensoractive.PendingGentle.
 func (a sensorInventory) PendingGentleScans(ctx context.Context) ([]string, error) {
 	return a.inv.PendingGentleScans(ctx)
 }
@@ -280,7 +280,7 @@ func (a sensorInventory) Asset(ctx context.Context, assetID string) (sensoractiv
 	// The name in Vedette or the host name, else the model, else the vendor; else none ("a device"): Display may be a software or a kind.
 	name := r.Vendor
 	switch {
-	case r.NameOrHost() != nil: // the name in Vedette, else the host name (G2)
+	case r.NameOrHost() != nil: // the name in Vedette, else the host name
 		name = *r.NameOrHost()
 	case r.Model != "":
 		name = r.Model
@@ -289,7 +289,7 @@ func (a sensorInventory) Asset(ctx context.Context, assetID string) (sensoractiv
 }
 
 func (a sensorInventory) Addresses(ctx context.Context) (map[netip.Addr]string, error) {
-	m, err := a.inv.AddressMap(ctx) // uncapped (D-178)
+	m, err := a.inv.AddressMap(ctx) // uncapped
 	if err != nil {
 		return nil, err
 	}
@@ -302,13 +302,13 @@ func (a sensorInventory) Addresses(ctx context.Context) (map[netip.Addr]string, 
 	return out, nil
 }
 
-// KnownMACs is every MAC the inventory has, uncapped: the sweep charges only MACs not in it (L8).
+// KnownMACs is every MAC the inventory has, uncapped: the sweep charges only MACs not in it.
 func (a sensorInventory) KnownMACs(ctx context.Context) ([]string, error) {
 	return a.inv.KnownMACs(ctx)
 }
 
 // ProtectedIPs is the inventory's list plus the box's own addresses: the sweep must not probe the machine it runs on
-// either (M2). The addresses come from the container's interfaces and from vedette-host (state/net), which is where the
+// either. The addresses come from the container's interfaces and from vedette-host (state/net), which is where the
 // LAN address of the appliance is.
 func (a sensorInventory) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
 	out, err := a.inv.ProtectedIPs(ctx)
@@ -318,7 +318,7 @@ func (a sensorInventory) ProtectedIPs(ctx context.Context) ([]netip.Addr, error)
 	return a.withBoxCards(ctx, out)
 }
 
-// BoxIPs is the inventory's box addresses (its device, the decoys) plus the box's cards, as in ProtectedIPs (D-512).
+// BoxIPs is the inventory's box addresses (its device, the decoys) plus the box's cards, as in ProtectedIPs.
 func (a sensorInventory) BoxIPs(ctx context.Context) ([]netip.Addr, error) {
 	out, err := a.inv.BoxIPs(ctx)
 	if err != nil {
@@ -343,7 +343,7 @@ func (a sensorInventory) TurnSNMPOn(ctx context.Context, actor, assetID string) 
 }
 
 // boxNetworks is the IPv4 networks of the box's cards (the container's interfaces and the appliance's), for the sweep-time
-// estimate (D-523): addresses there are reached with ARP.
+// estimate: addresses there are reached with ARP.
 func boxNetworks(ctx context.Context, hostNet *hostNetCache) []netip.Prefix {
 	var out []netip.Prefix
 	if addrs, err := net.InterfaceAddrs(); err == nil {

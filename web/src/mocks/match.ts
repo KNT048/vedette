@@ -1,8 +1,8 @@
 // S-INV-2: a device added by hand, from CSV or by an agent is matched right away against the exploited-CVE list
 // (mock: the recent KEV fixture). The mock has no affected-version ranges, so a software with a version gets
-// "suspected, product only" (basis 'product', severity medium: the version was not compared, D-500) and never
+// "suspected, product only" (basis 'product', severity medium: the version was not compared) and never
 // "confirmed"; a scan or the vendor advisory decides. A software WITHOUT a usable version gets no finding at all:
-// it is one "add the version" item (versionNeeded, D-500). Adds only, never removes.
+// it is one "add the version" item (versionNeeded). Adds only, never removes.
 import kev from './fixtures/kev.json'
 import { newId, nowIso } from './db'
 import { assetsStore, findingsStore } from './stores'
@@ -31,11 +31,11 @@ export function matchAssetToKev(assetId: string): number {
   if (!a) return 0
   const have = new Set(findingsStore.get().filter((f) => f.asset_id === a.id).map((f) => f.cve))
   const now = nowIso()
-  const name = a.name ?? a.hostname ?? a.ip // the name in Vedette first (G2)
+  const name = a.name ?? a.hostname ?? a.ip // the name in Vedette first
   const fresh: Finding[] = []
   for (const v of vulns) {
     if (have.has(v.cve)) continue
-    if (kevAged(v.cve, v.date_added) && !v.has_template) continue // D-615, D-616: an older KEV CVE is not a finding on a product-only match (the mock has no ranges)
+    if (kevAged(v.cve, v.date_added) && !v.has_template) continue // An older KEV CVE is not a finding on a product-only match (the mock has no ranges)
     const multi = /^multiple products$/i.test(v.product)
     const s = liveSoftware(a).find((x) => usableVersion(x.version) && keyed(x, v))
     if (!s) continue
@@ -58,7 +58,7 @@ export function matchAssetToKev(assetId: string): number {
   return fresh.length
 }
 
-/** D-500: per device, each software on the exploited list with no usable version, and how many CVEs its version would decide. */
+/** Per device, each software on the exploited list with no usable version, and how many CVEs its version would decide. */
 export function versionNeeded(assetId?: string | null) {
   const out: { asset: Asset; software: Sw; cves: number }[] = []
   for (const a of assetsStore.get()) {

@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-// D-516, review round 2 of #732: osquery's kernel_info is its own one-row query, so it may arrive in another request than the
+// osquery's kernel_info is its own one-row query, so it may arrive in another request than the
 // package list. The node keeps the last kernel it reported; the package list then gives the Kernel row the running kernel's
 // image (7.0.0-43 running with 7.0.0-30 installed → 43; after a "reboot" into 30 → 30). A node that never reported a kernel
 // gets the lowest installed image.
-func TestContract_D516_KernelOfAnotherRequest(t *testing.T) {
+func TestContract_KernelOfAnotherRequest(t *testing.T) {
 	w := newWorld(t)
 	_, secret := w.token("srv", 7)
 	key := w.enroll(secret, "byn", peerA)

@@ -1,6 +1,6 @@
 package release
 
-// Revocation rules (update-manifest.md §8, D-104 (2), D-108). The newest index the box has accepted
+// Revocation rules (update-manifest.md §8). The newest index the box has accepted
 // (the "stored" index) is the source of revocations, and revocations are sticky: a newer index
 // cannot quietly drop them. The rules keep a leaked active key from using revocation as a weapon, or
 // from undoing one:

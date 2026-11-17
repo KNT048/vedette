@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, finishClean, sampleStart } from './clean'
 
-// QA như người dùng thật cho module ai (S-AI-1..6): nhiều hồ sơ AI, phân việc, dự phòng, luật riêng tư. UI chỉ có tiếng Anh (D-28).
+// QA như người dùng thật cho module ai (S-AI-1..6): nhiều hồ sơ AI, phân việc, dự phòng, luật riêng tư. UI chỉ có tiếng Anh.
 // Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/ai.spec.ts
 // Máy dùng chung với nhiều agent nên chậm: nới thời gian mỗi test.
 test.describe.configure({ timeout: 150_000 })
@@ -23,7 +23,7 @@ const device = (page: Page) => (page.viewportSize()?.width ?? 1366) < 700 ? 'mob
 const noVietnamese = async (page: Page) => expect(await page.locator('body').innerText()).not.toMatch(DIACRITICS)
 const addProfile = (page: Page) => page.getByRole('button', { name: 'Add AI profile' }).first().click()
 
-// The server address sits under "Advanced" (D-475): open it once per dialog before filling it.
+// The server address sits under "Advanced": open it once per dialog before filling it.
 const openAdvanced = async (dlg: Locator) => {
   if (!(await dlg.locator('#pf-base_url').isVisible())) await dlg.getByText('Advanced', { exact: true }).click()
 }
@@ -262,7 +262,7 @@ test.describe('ai: sample data', () => {
     expect(errors).toEqual([])
   })
 
-  test('monthly budget (D-531): used up, every question is blocked with why and the fix; the level stays', async ({ page }) => {
+  test('monthly budget: used up, every question is blocked with why and the fix; the level stays', async ({ page }) => {
     const errors = collectErrors(page)
     await sampleStart(page)
     await page.goto('/settings/ai')
@@ -279,7 +279,7 @@ test.describe('ai: sample data', () => {
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1000')
     await shot(page, 'ai', `assistant-capped-${device(page)}`)
     await page.goto('/settings/ai')
-    await expect(page.getByRole('radio', { name: /Maximum/ })).toBeChecked() // ngân sách tháng không hạ mức (D-531)
+    await expect(page.getByRole('radio', { name: /Maximum/ })).toBeChecked() // ngân sách tháng không hạ mức
     expect(errors).toEqual([])
   })
 

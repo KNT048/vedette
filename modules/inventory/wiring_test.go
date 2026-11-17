@@ -140,7 +140,7 @@ func TestDevicesRunningYesMaybeNo(t *testing.T) {
 	}
 }
 
-// KF-3 (customer walk 3, kien's firewall test): the CVE page named an Ubuntu box's match "3cpio" because the device's first
+// A firewall test: the CVE page named an Ubuntu box's match "3cpio" because the device's first
 // software row by name was shown; the row that carries the product's key is named, and a package of another name never matches.
 func TestDevicesRunningNamesTheMatchingSoftware(t *testing.T) {
 	t.Parallel()
@@ -169,7 +169,7 @@ func TestMatchInputAndDeviceRefs(t *testing.T) {
 	e := newEnv(t)
 	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", IP: "192.168.30.1"})
 	d, ok, err := e.svc.MatchInput(e.ctx(), id)
-	if err != nil || !ok || d.Name != "FortiGate" /* D-471: a hand-added device is named after its product */ || len(d.Software) != 1 || d.Software[0].Version != "7.2.5" || !slices.Contains(d.Software[0].KevKeys, "fortinet|fortios") {
+	if err != nil || !ok || d.Name != "FortiGate" /* a hand-added device is named after its product */ || len(d.Software) != 1 || d.Software[0].Version != "7.2.5" || !slices.Contains(d.Software[0].KevKeys, "fortinet|fortios") {
 		t.Fatalf("MatchInput: %+v %v %v", d, ok, err)
 	}
 	if _, ok, err = e.svc.MatchInput(e.ctx(), "nope"); ok || err != nil {
@@ -203,7 +203,7 @@ func TestDeviceRefsKeepsAnIgnoredDevice(t *testing.T) {
 	}
 }
 
-// D-512: the OS a device states over SNMP is its StatedOS for findings, as LLDP's is (D-510), even when nmap's guess wins the OS
+// The OS a device states over SNMP is its StatedOS for findings, as LLDP's is, even when nmap's guess wins the OS
 // field; DeviceRefs says whether a device is approved (sensor-active sends SNMP credentials to approved devices only).
 func TestSNMPStatedOSAndApproval(t *testing.T) {
 	t.Parallel()
@@ -226,7 +226,7 @@ func TestSNMPStatedOSAndApproval(t *testing.T) {
 	}
 	id := addrs[ip.String()]
 	d, ok, err := e.svc.MatchInput(e.ctx(), id)
-	if err != nil || !ok || d.StatedOS != "JUNOS 15.1R7.9" || d.SNMPOS != "JUNOS 15.1R7.9" || d.AgentOS != "" || d.Model != "EX4200-48T" { // D-549: SNMPOS is the SNMP read only
+	if err != nil || !ok || d.StatedOS != "JUNOS 15.1R7.9" || d.SNMPOS != "JUNOS 15.1R7.9" || d.AgentOS != "" || d.Model != "EX4200-48T" { // SNMPOS is the SNMP read only
 		t.Fatalf("MatchInput: %+v %v %v", d, ok, err)
 	}
 	refs, err := e.svc.DeviceRefs(e.ctx(), []string{id})
@@ -235,7 +235,7 @@ func TestSNMPStatedOSAndApproval(t *testing.T) {
 	}
 }
 
-// D-549 (review r2 of #790): AgentOS is the OS the agent itself reported, empty on a device only nmap guessed, and still the agent's
+// AgentOS is the OS the agent itself reported, empty on a device only nmap guessed, and still the agent's
 // when another source's value wins the OS field.
 func TestMatchInputAgentOS(t *testing.T) {
 	t.Parallel()
@@ -263,7 +263,7 @@ func TestMatchInputAgentOS(t *testing.T) {
 	}
 }
 
-// Review #715 M4, the union guard (D-512): a device is never-touch while ANY trusted observation says router or firewall. SNMP outranks
+// Review #715 M4, the union guard: a device is never-touch while ANY trusted observation says router or firewall. SNMP outranks
 // nmap and so can change the current kind, but it only ever adds a device to the list: (a) an on-path host answering a router's SNMP
 // read as a printer does not take the router off it; (b) an approved PC whose SNMP answer says firewall is added (more protection).
 func TestNeverTouchIsTheUnionOfTrustedKinds(t *testing.T) {
@@ -451,7 +451,7 @@ INSERT INTO inv_asset (id, kind, origin, first_seen, last_seen) SELECT 'bulk-' |
 	}
 }
 
-// D-177 (M5): the never-touch gateway list takes a device whose kind a person or an agent set, or an approved device whose kind SNMP or
+// The never-touch gateway list takes a device whose kind a person or an agent set, or an approved device whose kind SNMP or
 // nmap set. A kind only a passive frame claimed is never enough (even when the device is approved and a later LLDP frame relabels it
 // router), and an unapproved device's nmap kind is not either (nmap runs in the untrusted scan container and the target shapes its answer).
 func TestDevicesOfKindTellsWhereTheKindCame(t *testing.T) {
@@ -528,7 +528,7 @@ func TestDevicesOfKindTellsWhereTheKindCame(t *testing.T) {
 	}
 }
 
-// D-178 (M6): AddressInUse and KnownMACs read the whole table: with more than MaxListed newer devices the oldest one still counts. The box
+// AddressInUse and KnownMACs read the whole table: with more than MaxListed newer devices the oldest one still counts. The box
 // is not "in use" (it is the page's own address).
 func TestAddressInUseAndKnownMACsAreUncapped(t *testing.T) {
 	t.Parallel()
@@ -643,7 +643,7 @@ func TestSetupScopeBecomesTheScanScope(t *testing.T) {
 	if !slices.Equal(st.FragileKinds, before.FragileKinds) || st.Active.Rate != before.Active.Rate || st.Active.From != before.Active.From {
 		t.Errorf("the other settings changed: %+v, before %+v", st, before)
 	}
-	if before.Active.Enabled || !st.Active.Enabled { // D-501 (walk 2 W2-4): the commitment ticked at setup turns active scanning on
+	if before.Active.Enabled || !st.Active.Enabled { // The commitment ticked at setup turns active scanning on
 		t.Errorf("active scanning %v before setup and %v after a confirmed one, want off then on", before.Active.Enabled, st.Active.Enabled)
 	}
 	if ok, err := e.svc.InScope(e.ctx(), netip.MustParseAddr("192.168.10.7")); err != nil || !ok {
@@ -706,7 +706,7 @@ func TestSettleSendsTheEventsOfEveryCallInTheTransaction(t *testing.T) {
 	}
 }
 
-// D-620: MatchDevice.MAC is the MAC a device answers with at its address (findings reads its OUI before an LLDP statement of Junos counts);
+// MatchDevice.MAC is the MAC a device answers with at its address (findings reads its OUI before an LLDP statement of Junos counts);
 // a device known only by MAC (an LLDP frame, no address) gives none.
 func TestMatchInputMACAtAnAddress(t *testing.T) {
 	t.Parallel()

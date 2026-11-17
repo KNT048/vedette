@@ -1,5 +1,5 @@
 // The script lists, made from testdata/nse-7.95-categories.txt (nmap 7.95 --script-help in the scan image, no packet sent) and
-// reviewed by the lead (FULL-4, D-526, review r1 M2/M3/L5/L6). Edit the lists here, never the categories: a newer nmap's new
+// reviewed by the lead. Edit the lists here, never the categories: a newer nmap's new
 // scripts stay out until someone reviews them, and a listed script the image lacks fails the run (an honest failure).
 
 package nmapargv

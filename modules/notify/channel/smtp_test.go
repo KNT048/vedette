@@ -56,7 +56,7 @@ func TestContract_INV8_SMTPConfig(t *testing.T) {
 		"no recipients":  {func(c *EmailConfig) { c.To = nil }, "bad_to"},
 		"bad recipient":  {func(c *EmailConfig) { c.To = []string{"it@acme.example", "nope"} }, "bad_to"},
 		"rcpt injection": {func(c *EmailConfig) { c.To = []string{"a@acme.example\r\nBcc: x@y.zz"} }, "bad_to"},
-		// the webhook's rule (walk 3): in a container 127.0.0.1 is core itself; link-local holds the metadata service
+		// the webhook's rule: in a container 127.0.0.1 is core itself; link-local holds the metadata service
 		"loopback":         {func(c *EmailConfig) { c.Host = "127.0.0.1" }, "bad_host"},
 		"loopback /8":      {func(c *EmailConfig) { c.Host = "127.0.0.53" }, "bad_host"},
 		"localhost name":   {func(c *EmailConfig) { c.Host = "mail.localhost" }, "bad_host"},
@@ -66,7 +66,7 @@ func TestContract_INV8_SMTPConfig(t *testing.T) {
 		"metadata name":    {func(c *EmailConfig) { c.Host = "metadata.google.internal" }, "bad_host"},
 		"unspecified":      {func(c *EmailConfig) { c.Host = "0.0.0.0" }, "bad_host"},
 		"multicast":        {func(c *EmailConfig) { c.Host = "224.0.0.1" }, "bad_host"},
-		"box address":      {func(c *EmailConfig) { c.Host, c.Port, c.Security = "192.168.1.9", 8443, SecuritySSL }, "bad_host"}, // D-446: Vedette's own port
+		"box address":      {func(c *EmailConfig) { c.Host, c.Port, c.Security = "192.168.1.9", 8443, SecuritySSL }, "bad_host"}, // Vedette's own port
 		"box address late": {func(c *EmailConfig) { c.Host, c.Port, c.Security = "10.0.0.7", 514, SecuritySSL }, "bad_host"},
 	} {
 		cfg := ok
@@ -100,9 +100,9 @@ func TestParseRecipients(t *testing.T) {
 			t.Errorf("ParseRecipients(%q) = %v", bad, err)
 		}
 	}
-	// the bad one is named (walk 3): one line, cut to 60 characters
+	// the bad one is named: one line, cut to 60 characters
 	for in, want := range map[string]string{
-		"boss@walk3.example, not-an-email":                   "not-an-email is not a valid email address. Separate several recipients with commas.",
+		"boss@acme.example, not-an-email":                    "not-an-email is not a valid email address. Separate several recipients with commas.",
 		"a@acme.example, x\u202e@" + strings.Repeat("y", 80): "x@" + strings.Repeat("y", 57) + "… is not a valid email address. Separate several recipients with commas.",
 		"a@acme.example, \u200b":                             "A recipient email is not valid. Separate several recipients with commas.",
 	} {
@@ -365,9 +365,9 @@ func FuzzBuildMIME(f *testing.F) {
 	})
 }
 
-// D-446 (walk 4): a mail server on the machine that runs Vedette, at the machine's LAN address and the mail port, is accepted; loopback
+// A mail server on the machine that runs Vedette, at the machine's LAN address and the mail port, is accepted; loopback
 // and Vedette's own ports there get the one sentence for Vedette itself, which no longer points at the address it refused.
-func TestD446_SMTPOnTheMachine(t *testing.T) {
+func TestOwnAddress_SMTPOnTheMachine(t *testing.T) {
 	t.Parallel()
 	machine := func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("10.123.45.67")}, true }
 	base := EmailConfig{Host: "10.123.45.67", Port: 587, Security: SecurityStartTLS, Username: "alerts@acme.example", Password: secrets.NewValue("pw-1234"),
@@ -389,9 +389,9 @@ func TestD446_SMTPOnTheMachine(t *testing.T) {
 	}
 }
 
-// D-446 review: a honeypot decoy is Vedette itself on every port (a webhook to a trap would loop: incident, webhook, trap hit), and
+// A honeypot decoy is Vedette itself on every port (a webhook to a trap would loop: incident, webhook, trap hit), and
 // while the machine's addresses are unknown email refuses Vedette's own ports on every address and nothing else (#157: sign-in codes).
-func TestD446_DecoysAndTheUnknownWindow(t *testing.T) {
+func TestOwnAddress_DecoysAndTheUnknownWindow(t *testing.T) {
 	t.Parallel()
 	decoys := func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.123.45.200")} }
 	known := func() ([]netip.Addr, bool) { return nil, true }

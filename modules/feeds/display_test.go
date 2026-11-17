@@ -2,7 +2,7 @@ package feeds
 
 import "testing"
 
-// W5-3: a product name that already starts with the vendor is not repeated (KEV pairs seen on a real box).
+// A product name that already starts with the vendor is not repeated (KEV pairs seen on a real box).
 func TestDisplayOf_NoRepeatedVendor(t *testing.T) {
 	for _, c := range []struct{ vendor, product, want string }{
 		{"GNU", "GNU C Library", "GNU C Library"},

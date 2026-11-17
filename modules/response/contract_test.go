@@ -522,7 +522,7 @@ func TestRuleIsCheckedWhenSaved(t *testing.T) {
 			t.Errorf("%s: %v (%d %s), want 400 invalid", name, err, s, c)
 		}
 	}
-	// D-390: a value outside the field's range or choices would match every event (-3) or none (7); the words are the GUI's (logic.ts)
+	// A value outside the field's range or choices would match every event (-3) or none (7); the words are the GUI's (logic.ts)
 	conf := "Confidence (0 to 1): give a number from 0 to 1."
 	for _, c := range []struct{ field, op, value, msg string }{
 		{"confidence", "gte", "7", conf}, {"confidence", "lte", "-3", conf}, {"confidence", "gte", "NaN", "At least / at most: give a number."},
@@ -672,7 +672,7 @@ func TestContract_INV13_DeviceRollbackNeedsExecution(t *testing.T) {
 	e.must(err)
 	_, err = e.svc.Rollback(e.ctx(), oper, a.ID)
 	wantCode(t, err, 409, "execution_off")
-	if got := e.exec.phases(); strings.Join(got, ",") != "verify,run,verify" { // the read before the run (D-356), the run, the read-back
+	if got := e.exec.phases(); strings.Join(got, ",") != "verify,run,verify" { // the read before the run, the run, the read-back
 		t.Fatalf("steps = %v", got)
 	}
 	// Removing the change at the end of its undo time is the safe direction: it does not wait for the switch.

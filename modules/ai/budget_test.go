@@ -42,7 +42,7 @@ func budgetWatch(t *testing.T, a *api, alerts *[]sentAlert) func(context.Context
 	return nil
 }
 
-// D-531: the box's monthly budget warns once at 80 % (medium) and once at 100 % (high), across restarts; raising the budget arms its
+// The box's monthly budget warns once at 80 % (medium) and once at 100 % (high), across restarts; raising the budget arms its
 // alerts again. The text says the use, the renewal day and where to raise it.
 func TestBudgetWatchWarnsAt80AndStopsAt100(t *testing.T) {
 	a := newAPI(t)
@@ -97,7 +97,7 @@ func TestBudgetWatchWarnsAt80AndStopsAt100(t *testing.T) {
 	}
 }
 
-// D-531: a profile's own budget warns with the profile's name; the box's budget, far from 80 %, says nothing.
+// A profile's own budget warns with the profile's name; the box's budget, far from 80 %, says nothing.
 func TestBudgetWatchNamesTheProfile(t *testing.T) {
 	a := newAPI(t)
 	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"monthly_budget":60000`, `"monthly_budget":10000`, 1))
@@ -116,7 +116,7 @@ func TestBudgetWatchNamesTheProfile(t *testing.T) {
 	}
 }
 
-// D-531: the runaway fuse. A job may call the AI 30 times in a minute; the next call is refused before anything is sent (429
+// The runaway fuse. A job may call the AI 30 times in a minute; the next call is refused before anything is sent (429
 // rate_limited), the trip writes one audit line for the minute, and the next minute the job runs again.
 func TestRunawayFuseCutsALoopAndSaysSo(t *testing.T) {
 	a := newAskAPI(t)
@@ -223,7 +223,7 @@ func TestScheduledJobsPauseAt80AndWriteNoRowWhenUsedUp(t *testing.T) {
 	}
 }
 
-// W5-4: a profile's own monthly budget that is used up (no fallback) stops a scheduled job like the shared budget does: 429
+// A profile's own monthly budget that is used up (no fallback) stops a scheduled job like the shared budget does: 429
 // budget_reached, no provider call and no capped ai_activity row every 5 minutes for the rest of the month. A person's call still
 // gets its row.
 func TestScheduledJobsWriteNoRowWhenTheProfileBudgetIsUsedUp(t *testing.T) {
@@ -265,7 +265,7 @@ func TestScheduledJobsWriteNoRowWhenTheProfileBudgetIsUsedUp(t *testing.T) {
 	}
 }
 
-// W5-4: a scheduled plan whose profile is used up goes to its free fallback like any call (a row on the fallback, no 429); when the
+// A scheduled plan whose profile is used up goes to its free fallback like any call (a row on the fallback, no 429); when the
 // fallback is only held by calls in flight it is busy, not used up: 429 rate_limited and no "used up" log line.
 func TestScheduledJobsUseTheFallbackOfAUsedUpProfile(t *testing.T) {
 	a := newAPI(t)

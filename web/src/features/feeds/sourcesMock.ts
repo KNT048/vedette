@@ -1,4 +1,4 @@
-// Mock API for feed sources and custom parsing (S-FEED-4, S-FEED-5; D-36, D-37). The parser is real (parsers.ts), the network is not:
+// Mock API for feed sources and custom parsing (S-FEED-4, S-FEED-5). The parser is real (parsers.ts), the network is not:
 // "fetching" a feed reads the built-in sample of its format, so Fetch now and Test show what the rules would do.
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
@@ -17,13 +17,13 @@ interface Def { id: string; name: string; kind: FeedKind; format: FeedFormat; ur
 const DEFS: Def[] = [
   { id: 'cisa-kev', name: 'CISA KEV', kind: 'vulnerabilities', format: 'json', url: 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json', license: 'CC0', records: (kev as { vulns: unknown[] }).vulns.length },
   { id: 'first-epss', name: 'FIRST EPSS', kind: 'vulnerabilities', format: 'json', url: 'https://api.first.org/data/v1/epss', license: 'Attribution: EPSS by FIRST', records: 262140 },
-  // D-614: the data of CVE tiers 2 and 3 (D-613): every CVE's EPSS score, and NVD's records of the CVEs of the last 12 months
+  // The data of CVE tiers 2 and 3: every CVE's EPSS score, and NVD's records of the CVEs of the last 12 months
   { id: 'epss-all', name: 'EPSS, every CVE', kind: 'vulnerabilities', format: 'csv', url: 'https://epss.empiricalsecurity.com/epss_scores-current.csv.gz', license: 'Attribution: EPSS by FIRST', records: 406543 },
   { id: 'nvd-kev', name: 'NVD affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', license: 'Public domain. This product uses the NVD API but is not endorsed or certified by the NVD.', records: 1779 },
   { id: 'nvd-recent', name: 'NVD, CVEs of the last 12 months', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', license: 'Public domain. This product uses the NVD API but is not endorsed or certified by the NVD.', records: 104135 },
   { id: 'cve-org', name: 'CVE.org affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves', license: 'CVE Program Terms of Use. CVE records © The MITRE Corporation.', records: 41 },
   { id: 'vulncheck-kev', name: 'VulnCheck KEV', kind: 'vulnerabilities', format: 'json', url: 'https://api.vulncheck.com/v3/index/vulncheck-kev', license: 'VulnCheck Known Exploited Vulnerabilities (VulnCheck KEV), used with your own free VulnCheck Community key. Data stays on this box.', records: 37 },
-  // D-516: Ubuntu and Debian say which package version fixes a CVE (backports); each file covers every release
+  // Ubuntu and Debian say which package version fixes a CVE (backports); each file covers every release
   { id: 'ubuntu-osv', name: 'Ubuntu fixed versions', kind: 'vulnerabilities', format: 'json', url: 'https://security-metadata.canonical.com/osv/osv-all.tar.xz', license: 'CC BY-SA 4.0, Canonical Ltd. Ubuntu security data.', records: 2131 },
   { id: 'ubuntu-vex', name: 'Ubuntu not affected', kind: 'vulnerabilities', format: 'json', url: 'https://security-metadata.canonical.com/vex/vex-all.tar.xz', license: 'CC BY-SA 4.0, Canonical Ltd. Ubuntu security data.', records: 3294 },
   { id: 'debian-tracker', name: 'Debian security tracker', kind: 'vulnerabilities', format: 'json', url: 'https://security-tracker.debian.org/tracker/data/json', license: 'Debian Security Tracker data; no licence stated. Attributed, not redistributed.', records: 899 },
@@ -41,11 +41,11 @@ const DEFS: Def[] = [
 interface BuiltinState { key_last4?: string | null; enabled: boolean; interval_hours: number; url: string; last_fetch: string | null; last_success?: string | null; records: number | null; status: 'ok' | 'error' | 'never'; error: string | null }
 interface Config { builtin: Record<string, BuiltinState>; custom: Feed[] }
 
-// The built-in feed that needs the customer's own API key: off until one is saved (D-557).
+// The built-in feed that needs the customer's own API key: off until one is saved.
 const BYOK = 'vulncheck-kev'
-// D-617: every other built-in feed, the tier feeds epss-all and nvd-recent included, is on by default.
+// Every other built-in feed, the tier feeds epss-all and nvd-recent included, is on by default.
 const ago = (h: number) => new Date(Date.now() - h * 36e5).toISOString()
-/** D-570 (LEAN): the mock inventory has Ubuntu devices and no Debian one, so the Debian tracker, filled once 9 days ago, is not
+/** LEAN: the mock inventory has Ubuntu devices and no Debian one, so the Debian tracker, filled once 9 days ago, is not
  * updated and says why. A clean box has never filled it, so it is fetched like any other feed. */
 const IDLE = 'debian-tracker'
 const NO_DEBIAN = 'Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device.'
@@ -70,12 +70,12 @@ const builtinFeed = (d: Def, s: BuiltinState): Feed => ({
   id: d.id, builtin: true, name: d.name, kind: d.kind, format: d.format, url: s.url, default_url: d.url, enabled: s.enabled, interval_hours: s.interval_hours,
   auth: { type: s.key_last4 ? 'bearer' : 'none', header_name: null, username: null, secret_last4: s.key_last4 ?? null }, parser: null, last_fetch: s.last_fetch, records: s.records, status: s.status, error: s.error, license: d.license, answered_by: d.id === 'cisa-kev' && s.last_fetch ? 'CISA' : null,
 })
-/** What Home needs to know about the CISA list (D-92): turned off, loaded at least once, or never loaded (with the last error). */
+/** What Home needs to know about the CISA list: turned off, loaded at least once, or never loaded (with the last error). */
 /** As modules/feeds FeedsGetFeedsStatus: the state, why the last pull failed (also once loaded), how often, when last asked and loaded. */
 export function kevStatus(): FeedStatus['kev'] {
   const s = config.get().builtin['cisa-kev']
   const last_success = s ? (s.last_success !== undefined ? s.last_success : s.status === 'ok' ? s.last_fetch : null) : null
-  // the mock's CISA list always comes from cisa.gov (builtinFeed) and does not model the two copies (kien G13)
+  // the mock's CISA list always comes from cisa.gov (builtinFeed) and does not model the two copies
   const times = { interval_hours: s?.interval_hours ?? 1, checked_at: s?.last_fetch ?? null, last_success, answered_by: last_success ? 'CISA' : null, copies: [] }
   if (s && !s.enabled) return { state: 'off', error: null, ...times }
   const error = s?.status === 'error' ? s.error : null
@@ -88,7 +88,7 @@ export const feedOn = (id: string) => allFeeds(config.get()).some((f) => f.id ==
 export const iocListed = () => allFeeds(config.get()).some((f) => f.kind === 'ioc' && f.enabled && (f.records ?? 0) > 0)
 const allFeeds = (c: Config): Feed[] => [...DEFS.map((d) => builtinFeed(d, c.builtin[d.id] ?? seedBuiltin(false)[d.id]!)), ...c.custom]
 const hostOf = (u: string) => { try { return new URL(u).hostname } catch { return '' } }
-// Like modules/feeds mostOften (D-420 (3)): the most common reason with one of its rows' value shown, not the masked "…".
+// Like modules/feeds mostOften: the most common reason with one of its rows' value shown, not the masked "…".
 const mostOften = (out: ReturnType<typeof parseFeed>) => { const top = out.reasons[0]!.reason; return out.rejects.find((r) => r.reason.replace(/"[^"]*"/g, '"…"') === top)?.reason ?? top }
 const parseErr = (e: unknown) => e instanceof ParserConfigError ? fail(e.code === 'too_large' ? 413 : 400, e.code, e.message) : null
 
@@ -103,7 +103,7 @@ function checkInput(i: ReturnType<typeof FeedInputSchema.parse>, c: Config, self
   if (DEFS.some((d) => d.name.toLowerCase() === name.toLowerCase()) || c.custom.some((x) => x.id !== selfId && x.name.toLowerCase() === name.toLowerCase())) return fail(400, 'duplicate_name', 'A feed with this name already exists.')
   const u = checkFeedUrl(i.url)
   if (u !== 'ok') return fail(400, 'invalid_url', u === 'https' ? 'Use an https:// address (http:// is only allowed for internal addresses).' : 'Enter a full address such as https://example.com/feed.json.')
-  if (blockedFeedHost(i.url)) return fail(400, 'blocked_host', blockedFeedHost(i.url) === 'own' ? OWN_TEXT : BLOCKED_TEXT) // D-420 (1), D-446: refused at save, as the pull would
+  if (blockedFeedHost(i.url)) return fail(400, 'blocked_host', blockedFeedHost(i.url) === 'own' ? OWN_TEXT : BLOCKED_TEXT) // refused at save, as the pull would
   if (!FORMATS[i.kind].includes(i.parser.format)) return fail(400, 'invalid_format', `This format does not fit a ${i.kind === 'ioc' ? 'IOC' : 'vulnerability'} feed.`)
   const a = i.auth
   if (a.type === 'header' && !/^[A-Za-z0-9-]{1,80}$/.test(a.header_name ?? '')) return fail(400, 'invalid_auth', 'Enter a valid header name, for example X-Api-Key.')
@@ -111,7 +111,7 @@ function checkInput(i: ReturnType<typeof FeedInputSchema.parse>, c: Config, self
   if (a.type !== 'none' && !a.secret && !hadLast4) return fail(400, 'invalid_auth', 'Enter the secret.')
   if (a.secret !== undefined && (a.secret.length < 8 || /\s/.test(a.secret))) return fail(400, 'invalid_auth', 'The secret must be at least 8 characters with no spaces.')
   try { checkParser(i.kind, i.parser) } catch (e) { const r = parseErr(e); if (r) return r; throw e }
-  // D-420 (2), last as on the server: another feed, built-in or custom, already pulls this address
+  // Last, as on the server: another feed, built-in or custom, already pulls this address
   const same = allFeeds(c).find((f) => f.id !== selfId && sameFeedAddress(f.url, i.url))
   return same ? fail(400, 'duplicate_url', `The feed "${same.name}" already uses this address.`) : null
 }
@@ -156,7 +156,7 @@ export const sourceHandlers = [
     }
     if (def) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...(p.data.enabled !== undefined && key === undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } } }))
     else config.update((x) => ({ ...x, custom: x.custom.map((f) => f.id === id ? { ...f, ...(p.data.enabled !== undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } : f) }))
-    // The two tier feeds of Updates to plan (D-614): on starts their first load, off empties them, as the box's tier state does.
+    // The two tier feeds of Updates to plan: on starts their first load, off empties them, as the box's tier state does.
     const tier = id === 'epss-all' ? 'epss' : id === 'nvd-recent' ? 'recent' : null
     if (tier && p.data.enabled !== undefined) tierState.update((st) => ({ ...st, [tier]: p.data.enabled ? (st[tier] === 'off' ? 'loading' : st[tier]) : 'off' }))
     audit('feeds.update', name, [key !== undefined && (key ? 'API key saved' : 'API key removed'), p.data.enabled !== undefined && (p.data.enabled ? 'enabled' : 'disabled'), p.data.interval_hours !== undefined && `every ${p.data.interval_hours} h`, url !== undefined && 'address changed'].filter(Boolean).join(', '))
@@ -170,7 +170,7 @@ export const sourceHandlers = [
     const f = allFeeds(c).find((x) => x.id === id)
     if (!f) return fail(404, 'not_found', 'No such feed.')
     if (!f.enabled) return fail(409, 'feed_disabled', 'Turn the feed on before fetching it.')
-    if (id === IDLE && f.records !== null) return HttpResponse.json(f) // D-570: filled, no Debian device, so nothing is fetched; the row keeps its note
+    if (id === IDLE && f.records !== null) return HttpResponse.json(f) // Filled, no Debian device, so nothing is fetched; the row keeps its note
     const host = hostOf(f.url)
     let status: Feed['status'] = 'ok', error: string | null = null, records = f.records
     if (/\.(invalid|example)$/.test(host) && !f.builtin) { status = 'error'; error = `Could not resolve ${host}. Check the address.` }

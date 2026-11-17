@@ -1,4 +1,4 @@
-// Sample data (the trial build): three example connections. Vendor names are allowed here and nowhere in the connection code (D-58).
+// Sample data (the trial build): three example connections. Vendor names are allowed here and nowhere in the connection code.
 import type { Connector, ConnectorTool } from '../connectors'
 
 const T = (name: string, access: ConnectorTool['access'], description: string, enabled = true): ConnectorTool => ({ name, access, description, enabled })

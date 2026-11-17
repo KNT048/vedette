@@ -1,4 +1,4 @@
-// Package snmpdata embeds what an SNMP agent's sysObjectID says about the device (D-512): the vendor of an IANA Private Enterprise
+// Package snmpdata embeds what an SNMP agent's sysObjectID says about the device: the vendor of an IANA Private Enterprise
 // Number, the product family of a documented sub-tree, and the device kind where that is clear. sensor-active reads it once at start
 // (modules/sensor-active/snmpmap.go) and its tests check every row.
 package snmpdata

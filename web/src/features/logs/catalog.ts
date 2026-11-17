@@ -1,5 +1,5 @@
 // Danh mục nguồn log (S-LOG-1): mỗi loại thiết bị có nhóm, giao thức gửi được, mức Vedette đọc được, các bước và đoạn dán.
-// Cấu hình hiển thị cho người dùng bằng tiếng Anh (D-28). Mỗi mục ghi nguồn tài liệu hãng trong comment `Nguồn:`.
+// Cấu hình hiển thị cho người dùng bằng tiếng Anh. Mỗi mục ghi nguồn tài liệu hãng trong comment `Nguồn:`.
 // Quy ước trung thực: `reads: 'parsed'` chỉ cho loại có profile thật (modules/logs/data/profiles, Go kiểm bằng TestCatalogReadsMatchProfiles); còn lại `stored` = lưu, tìm kiếm và digest đọc bằng bộ tìm mẫu chung, chưa đọc trường riêng của thiết bị.
 // Cú pháp đã đối chiếu (2026-11) với tài liệu hãng cho: FortiOS, PAN-OS, Sophos Firewall, Check Point Log Exporter, Meraki, Synology,
 // NetScaler, Wazuh, Suricata, NXLog, MikroTik, pfSense, OPNsense. Mục còn lại theo cú pháp ổn định đã công bố; phần menu có thể đổi theo phiên bản
@@ -31,7 +31,7 @@ export interface CatalogEntry {
   /** Giao thức thiết bị thật sự gửi được; phần tử đầu là mặc định. */
   protos: Proto[]
   reads: 'parsed' | 'stored'
-  /** Failed SSH/PAM logins are read (D-487, W3-10): shown with the parsed kinds. */
+  /** Failed SSH/PAM logins are read: shown with the parsed kinds. */
   logins?: true
   /** Vedette đọc gì từ nguồn này (parsed) hoặc vì sao chỉ lưu (stored). */
   readsNote: string
@@ -42,7 +42,7 @@ export interface CatalogEntry {
 }
 
 const STORED = 'Stored and searchable. The digest finds new and unusual lines with a generic pattern finder; it does not read the fields of this device yet, and the bad-connection check does not use these lines yet.'
-// The failed-login rule (D-487) reads the sshd and PAM lines of any source; these kinds are the machines that send them. Linux hosts also have the netfilter profile (D-489).
+// The failed-login rule reads the sshd and PAM lines of any source; these kinds are the machines that send them. Linux hosts also have the netfilter profile.
 const LOGINS = 'Failed logins: 5 failed SSH or PAM logins from one address within 10 minutes raise an incident, and a later accepted login from that address raises a high one. Every line is stored and searchable, and the digest finds new and unusual lines with a generic pattern finder; the bad-connection check does not use these lines yet.'
 const LINUX = 'Failed logins: 5 failed SSH or PAM logins from one address within 10 minutes raise an incident, and a later accepted login from that address raises a high one. Kernel firewall lines (UFW, or iptables LOG with a UFW or EdgeOS-style prefix) are read for the digest and bad-connection checks. Every line is stored and searchable, and the digest finds new and unusual lines with a generic pattern finder.'
 const at = (c: Ctx) => `${c.ip}:${c.port}`

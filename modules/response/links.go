@@ -20,21 +20,21 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// Approval links and sending approval requests (INV-3, INV-4, POST-5; slice 13b-7, D-96, docs/specs/approval-tokens.md).
+// Approval links and sending approval requests (INV-3, INV-4, POST-5; slice 13b-7, docs/specs/approval-tokens.md).
 //
 // A request is sent to its approvers after the transaction that created it committed, never inside it (sendApproval). notify makes one
 // signed link for each email approver and hands the record to RecordLink before the mail goes out; only the hash of the token id is
 // stored. The page behind the link reads (LinkView, writes nothing); only the POST decides (DecideByLink). The decision goes through the
 // same approve and reject as the app, so every gate of INV-9 still applies, and the token is burned in the transaction that records the
-// decision: a decision a gate refused leaves it alive (D-96 (4)).
+// decision: a decision a gate refused leaves it alive.
 
 const (
 	linkPostPerMin = 10 // POSTs on links per source address per minute
 	linkBadPerMin  = 20 // links that are not valid per source address per minute
 	// approvalWhatMax is the most of the change that goes into one chat message (runes, counted with the characters the Telegram adapter adds to
-	// the ones it defangs): the title, the question and the link keep the message under Telegram's 4096 (notify channel.MaxApprovalWhat, D-175).
+	// the ones it defangs): the title, the question and the link keep the message under Telegram's 4096 (notify channel.MaxApprovalWhat).
 	approvalWhatMax = 3000
-	// sendBudget is how long sending one request may take (D-96 (2)): SMTP is slow and a send must not hold a request for ever.
+	// sendBudget is how long sending one request may take: SMTP is slow and a send must not hold a request for ever.
 	sendBudget = 60 * time.Second
 	// tokenKeep is how long a record stays after it ended (DATA_MODEL 4.11).
 	tokenKeep = 7 * 24 * time.Hour
@@ -49,7 +49,7 @@ var ErrLinkInvalid = errors.New("response: the approval link is not valid")
 // Approver is a person who may approve on a channel, as the channel's saved list names them.
 type Approver struct {
 	UserID, Address string
-	Name            string // the shown name of the address where the channel knows it (Zalo personal, D-447); "" elsewhere
+	Name            string // the shown name of the address where the channel knows it (Zalo personal); "" elsewhere
 }
 
 // ApprovalMessage is one approval request to send. What is plain text of at most 4 KiB. Channels are the channel types the request may
@@ -60,7 +60,7 @@ type ApprovalMessage struct {
 	What      string
 	Risk      Risk
 	InAppOnly bool
-	// NoChatButtons (D-175): no chat channel gets an Approve button, a code or a link-less shortcut, because the risk is high or the whole
+	// NoChatButtons: no chat channel gets an Approve button, a code or a link-less shortcut, because the risk is high or the whole
 	// change does not fit one message. The text then says to open Vedette; notify only obeys.
 	NoChatButtons bool
 	Channels      []string
@@ -134,11 +134,11 @@ func (s *Service) recordCheck(ctx context.Context, tx dbq, requestID string, exp
 	case r.Status != StatusPending:
 		return errors.New("response: the request is no longer pending")
 	case (r.Risk != RiskLow && r.Risk != RiskMedium) || (r.AI != nil && r.AI.InAppOnly):
-		// a link is a bearer credential (D-57 (20)); a Zalo reply code is the weakest channel (D-96 (3)): neither is made for these
+		// a link is a bearer credential; a Zalo reply code is the weakest channel: neither is made for these
 		if link {
-			return errors.New("response: a high-risk or in-app-only request has no approval link (D-57 (20))")
+			return errors.New("response: a high-risk or in-app-only request has no approval link")
 		}
-		return errors.New("response: a high-risk or in-app-only request has no Zalo reply code (D-96 (3))")
+		return errors.New("response: a high-risk or in-app-only request has no Zalo reply code")
 	case !expires.After(now) || expires.After(now.Add(31*time.Minute)):
 		return errors.New("response: a token lives at most 30 minutes")
 	case expires.After(parseTS(r.ExpiresAt).Add(time.Second)):
@@ -338,7 +338,7 @@ func (s *Service) LinkView(ctx context.Context, token, from string) (ApprovalVie
 
 // ---- deciding through a link ----
 
-// DecideByLink is POST /response/approve/{token}. The order is the one of D-96 (4): the rate limit, a token that is not known (404), one
+// DecideByLink is POST /response/approve/{token}. The order of the checks: the rate limit, a token that is not known (404), one
 // that ended or was used or whose request was decided (409), the approver (403 approver_not_listed), the risk policy (403
 // in_app_required), then the decision with via=email. The token is burned in the transaction of the decision: a decision the gates
 // refuse leaves it alive, and of two POSTs at once one wins and the other gets 409 used. Nothing here writes for a token that is not
@@ -394,7 +394,7 @@ func (s *Service) DecideByLink(ctx context.Context, token, decision, from string
 	if !valid {
 		return ActionRequest{}, s.refuse(ctx, notListed(), r.ID, rec.address)
 	}
-	if (r.Risk != RiskLow && r.Risk != RiskMedium) || (r.AI != nil && r.AI.InAppOnly) { // D-57 (20): a link is a bearer credential
+	if (r.Risk != RiskLow && r.Risk != RiskMedium) || (r.AI != nil && r.AI.InAppOnly) { // A link is a bearer credential
 		return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusForbidden, "in_app_required", "This request can only be approved in the app. Open Vedette, sign in and decide it there.")), r.ID, u.Email)
 	}
 	name := u.Name
@@ -440,7 +440,7 @@ type linkOpt struct {
 	kind      string // "" or "link" for an approval link, "code" for a reply code
 	requestID string // reply codes: the request and person whose other code is burned with this one
 	userID    string
-	detach    bool // chat: the items of a completing approval run in the background, the call returns at once (M3, D-135 (9))
+	detach    bool // chat: the items of a completing approval run in the background, the call returns at once
 	recheck   func(ctx context.Context) (*apierr.Error, error)
 }
 
@@ -468,9 +468,9 @@ func (s *Service) linkUsed(ctx context.Context, hash string) bool {
 	return err == nil && used.Valid
 }
 
-// approverValid is the check of D-96 (4) made again when the link is used (spec 3.5): the person is still an active operator or admin,
+// approverValid is the approver check made again when the link is used (spec 3.5): the person is still an active operator or admin,
 // the address the link went to is still their sign-in email, they are still on the list of the channel, the channel is ready and
-// one of the approval channels of this module, and the person linked that address themselves (D-191). A directory or notify that cannot answer is an error: the decision is not made.
+// one of the approval channels of this module, and the person linked that address themselves. A directory or notify that cannot answer is an error: the decision is not made.
 func (s *Service) approverValid(ctx context.Context, rec tokenRow, st Settings) (User, bool, error) {
 	if s.cfg.Users == nil || s.cfg.Notifier == nil {
 		return User{}, false, nil
@@ -494,7 +494,7 @@ func (s *Service) approverValid(ctx context.Context, rec tokenRow, st Settings) 
 	}) {
 		return u, false, nil
 	}
-	linked, err := s.isLinked(ctx, u, rec.channel, rec.address) // D-191: the person proved this address in My account
+	linked, err := s.isLinked(ctx, u, rec.channel, rec.address) // The person proved this address in My account
 	return u, linked, err
 }
 
@@ -692,7 +692,7 @@ func block(s string) string {
 // restText is an API call in full: method, address, headers by name (the values are never shown) and the whole body.
 func restText(rest *RestCall) string {
 	t := rest.Method + " " + rest.URL
-	if shown := maskRest(rest, false).Headers; len(shown) > 0 { // the approver reads every value, except a credential's (D-174)
+	if shown := maskRest(rest, false).Headers; len(shown) > 0 { // the approver reads every value, except a credential's
 		names := make([]string, 0, len(shown))
 		for k := range shown {
 			names = append(names, k)
@@ -716,7 +716,7 @@ func fullCall(rest *RestCall, cli string) string {
 	return cli
 }
 
-// approvalText is the whole change as the approver reads it in the message (D-175): each action with the full call, the full undo and
+// approvalText is the whole change as the approver reads it in the message: each action with the full call, the full undo and
 // the check before it. Plain text; nothing is cut here: approvalMessageText decides whether it fits.
 func approvalText(r request) string {
 	var b strings.Builder
@@ -754,13 +754,13 @@ func chatLen(s string) int {
 	return n + strings.Count(s, "@") + strings.Count(s, "/")
 }
 
-// chatNoButtons is whether a request may not be decided from chat (D-175): high risk, or a text that does not fit one message.
+// chatNoButtons is whether a request may not be decided from chat: high risk, or a text that does not fit one message.
 func chatNoButtons(r request) bool {
 	_, no := approvalMessageText(r)
 	return no
 }
 
-// approvalMessageText is the text of the approval message and whether it may carry chat buttons (D-175): an approver approves only
+// approvalMessageText is the text of the approval message and whether it may carry chat buttons: an approver approves only
 // what they can read in full. Buttons only for low and medium risk and only when the whole text fits one message; otherwise the
 // message says to open Vedette (the full text is there, and on the page of an emailed link) and has no button.
 func approvalMessageText(r request) (text string, noButtons bool) {

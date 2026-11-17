@@ -5,7 +5,7 @@ import { expectNoA11yViolations } from '@/test/render'
 import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from './button'
 
-describe('Button busy state (docs/UI.md §8, kien G1)', () => {
+describe('Button busy state (docs/UI.md §8)', () => {
   it('busy: disabled, aria-busy, a spinner and the busy label; the idle label stays in the cell but hidden', async () => {
     const { rerender } = render(<Button busy={false} busyLabel="Saving…">Save</Button>)
     const idle = screen.getByRole('button', { name: 'Save' })

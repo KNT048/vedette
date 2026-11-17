@@ -83,7 +83,7 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
               <RefreshCw />{t('boxIp.detect')}
             </Button>
           </div>
-          {/* kien G1: a full check asks three public services over 5 rounds (5 s each at most) */}
+          {/* A full check asks three public services over 5 rounds (5 s each at most) */}
           <BusyNote busy={detect.isPending}>{t('boxIp.detectWaiting')}</BusyNote>
           {waitText ? <p className="max-w-3xl text-meta text-warn">{waitText}</p> : null}
           {!can ? <p className="text-meta text-muted">{locked}</p> : null}
@@ -124,7 +124,7 @@ function RemoveButton({ target, onRemove }: { target: Target; onRemove: (t: Targ
   return <Button onClick={() => onRemove(target)} disabled={!can} aria-label={t('boxIp.removeLabel', { value: target.value })} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Trash2 />{t('boxIp.col.remove')}</Button>
 }
 
-/** The Ignored list (D-79). It only blocks: Restore lets detection add the IP again, it never adds or allows anything itself. */
+/** The Ignored list. It only blocks: Restore lets detection add the IP again, it never adds or allows anything itself. */
 function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
   const { t } = useTranslation('exposure')
   const can = useCan('admin')

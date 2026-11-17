@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// WP-31 review, slice R2, L9 (D-179 (6), (8)): response's never-touch list holds the honeypot's decoy addresses and the host's addresses, not only the
+// WP-31 review, slice R2, L9 ((8)): response's never-touch list holds the honeypot's decoy addresses and the host's addresses, not only the
 // interfaces of the container, and an unknown set is an error (response then refuses), never a smaller set.
 func TestResponseBoxAddrsHoldTheDecoysAndTheHost(t *testing.T) {
 	t.Parallel()
@@ -70,7 +70,7 @@ func (f *fakeNetState) StateNet(context.Context) (api.NetState, error) {
 	return f.st, f.err
 }
 
-// D-179 (8): the MACs of the decoys (macvlan links) and of the cards come from state/net; the last good answer is kept, and before the first the
+// The MACs of the decoys (macvlan links) and of the cards come from state/net; the last good answer is kept, and before the first the
 // set is unknown.
 func TestResponseBoxMACsHoldTheDecoysAndTheCards(t *testing.T) {
 	now := time.Date(2026, 11, 11, 9, 0, 0, 0, time.UTC)
@@ -93,7 +93,7 @@ func TestResponseBoxMACsHoldTheDecoysAndTheCards(t *testing.T) {
 	}
 }
 
-// D-325: the gateway of the kernel's default route and the gateway and DNS servers saved for the management card reach response's never-touch
+// The gateway of the kernel's default route and the gateway and DNS servers saved for the management card reach response's never-touch
 // list; unknown before the first answer, kept after a failed refresh, empty without a host. Loopback and unspecified values are not addresses.
 func TestResponseHostInfraHoldsTheGatewayAndDNS(t *testing.T) {
 	now := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
@@ -136,9 +136,9 @@ func TestResponseHostInfraHoldsTheGatewayAndDNS(t *testing.T) {
 	}
 }
 
-// D-450: every IPv6 default gateway, each gateway's MAC (from the neighbour table) and the DNS servers in use (here a DHCP lease's: no
+// Every IPv6 default gateway, each gateway's MAC (from the neighbour table) and the DNS servers in use (here a DHCP lease's: no
 // saved configuration) reach the never-touch list. An answer whose IPv6 route or gateway MAC is missing for a moment keeps the last
-// ones; a family with a route keeps only its own gateway; a host older than D-450 (no such fields) gives what D-325 gave.
+// ones; a family with a route keeps only its own gateway; an older host (no such fields) gives what it gave before.
 func TestResponseHostInfraHoldsTheIPv6GatewayTheGatewayMACsAndTheLeaseDNS(t *testing.T) {
 	now := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
 	full := api.NetState{
@@ -176,7 +176,7 @@ func TestResponseHostInfraHoldsTheIPv6GatewayTheGatewayMACsAndTheLeaseDNS(t *tes
 	if have := infraText(); !slices.Equal(have, []string{"gateway 192.168.10.1 00:11:22:33:44:55", "gateway fe80::1 00:11:22:33:44:66", "gateway 2001:db8::1 "}) {
 		t.Fatalf("a new gateway: %v", have)
 	}
-	// A host older than D-450 sends none of the new fields; a MAC that is not a 6-byte MAC is not one.
+	// An older host sends none of the new fields; a MAC that is not a 6-byte MAC is not one.
 	old, _ := hostInfraOf(api.NetState{DefaultRoute: &api.NetRoute{Iface: "eth0", Gateway: "192.168.10.1", MAC: "00:11:22:33:44:55:66:77"}})
 	if len(old) != 1 || old[0].Addr.String() != "192.168.10.1" || old[0].MAC != "" {
 		t.Fatalf("an older host's answer: %+v", old)
@@ -259,7 +259,7 @@ func gwState(gw, mac string) api.NetState {
 	return api.NetState{DefaultRoute: &api.NetRoute{Iface: "eth0", Gateway: gw, MAC: mac}}
 }
 
-// D-450 review (M1): a host on the LAN that poisons the box's ARP entry for the gateway must not become never-touch. The first MAC seen is
+// A host on the LAN that poisons the box's ARP entry for the gateway must not become never-touch. The first MAC seen is
 // pinned; a different one is reported once (per 10 minutes) and stays off the list until it has been the only MAC for 10 minutes over at
 // least 3 answers in a row; the pinned MAC stays never-touch all along and after.
 func TestGatewayMACIsPinnedAgainstSpoofing(t *testing.T) {

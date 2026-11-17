@@ -17,24 +17,24 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// n100Device is one device of the N100's export (2026-11-13, a2-data/n26-inventory.json): what the sensors had stored about it,
+// labDevice is one device of a test box's export (2026-11-13): what the sensors had stored about it,
 // observations and open services as they were, and what a person reads from that.
-type n100Device struct {
+type labDevice struct {
 	ip, mac  string
 	obs      []observe.Observation // vendor, hostname, model as stored (passive OUI 0.4, nmap 0.6, mDNS model 0.5)
-	services []observe.Service     // gentle-scan ports: names only, no product (D-511 (4))
+	services []observe.Service     // gentle-scan ports: names only, no product
 	want     string                // the guessed type; "" = no guess
 	evidence string                // a piece of the evidence sentence
 }
 
-func n100Devices() []n100Device {
+func labDevices() []labDevice {
 	tcp := func(port int, name string) observe.Service {
 		return observe.Service{Port: port, Proto: "tcp", Name: name, Confidence: 0.475}
 	}
 	v := func(vendor string) []observe.Observation {
 		return []observe.Observation{{Field: observe.Vendor, Value: vendor, Source: observe.Nmap, Confidence: 0.6}}
 	}
-	return []n100Device{
+	return []labDevice{
 		{"192.168.18.251", "70:4c:a5:fc:2f:50", v("Fortinet"), []observe.Service{tcp(22, "ssh")}, "firewall", "Fortinet network card and port 22 (ssh): most likely a FortiGate firewall"},
 		{"192.168.18.252", "70:4c:a5:f6:f8:e4", v("Fortinet"), []observe.Service{tcp(22, "ssh")}, "firewall", "FortiGate"},
 		{"192.168.18.47", "3c:8a:b0:9c:85:ff", v("Juniper Networks"), []observe.Service{tcp(22, "ssh"), tcp(80, "http"), tcp(443, "https")}, "switch", "Juniper Networks network card and ports 22 (ssh), 80 (http) and 443 (https): most likely a Juniper switch"},
@@ -50,17 +50,17 @@ func n100Devices() []n100Device {
 			[]observe.Service{tcp(22, "ssh"), tcp(514, "shell"), tcp(8443, "https-alt")}, "server", "Linux server"},
 		{"192.168.18.141", "8c:ec:4b:45:f8:b7", v("Dell"), []observe.Service{tcp(22, "ssh"), tcp(514, "shell"), tcp(8443, "https-alt")}, "server", "Dell network card and port 22 (ssh)"},
 		{"192.168.18.145", "b2:f0:09:23:2e:5b", []observe.Observation{
-			{Field: observe.Hostname, Value: "kiens-macbook-air", Source: observe.Passive, Confidence: 0.6},
+			{Field: observe.Hostname, Value: "annas-macbook-air", Source: observe.Passive, Confidence: 0.6},
 			{Field: observe.Model, Value: "Mac14,2", Source: observe.Passive, Confidence: 0.5},
-		}, []observe.Service{tcp(5000, "upnp"), tcp(49153, "")}, "laptop", `host name "kiens-macbook-air"`},
+		}, []observe.Service{tcp(5000, "upnp"), tcp(49153, "")}, "laptop", `host name "annas-macbook-air"`},
 	}
 }
 
-// loadN100 records the N100 devices as the sensors did: MAC and the stored fields, then nmap's open ports.
-func loadN100(e *env) map[string]string {
+// loadLab records the test box's devices as the sensors did: MAC and the stored fields, then nmap's open ports.
+func loadLab(e *env) map[string]string {
 	e.t.Helper()
 	ids := map[string]string{}
-	for _, d := range n100Devices() {
+	for _, d := range labDevices() {
 		ip := netip.MustParseAddr(d.ip)
 		batch := []observe.Observation{obs(ip, d.mac, observe.MAC, d.mac, observe.Passive, 0.9)}
 		for _, o := range d.obs {
@@ -82,16 +82,16 @@ func loadN100(e *env) map[string]string {
 	return ids
 }
 
-// D-511 on the N100's own rows: each device that was "Unknown" while its card maker and ports told a person what it is now carries
+// Device types on a test box's own rows: each device that was "Unknown" while its card maker and ports told a person what it is now carries
 // that type as a guess with its evidence; the HP device with only web ports gets none. The kind stays unknown: scans still treat the
-// device as unknown and careful, and a guessed router is no never-touch gateway (D-177).
-func TestContract_D511_N100DevicesGetTheirType(t *testing.T) {
+// device as unknown and careful, and a guessed router is no never-touch gateway.
+func TestContract_LabDevicesGetTheirType(t *testing.T) {
 	t.Parallel()
 	asked := 0
 	e := newEnv(t, func(c *inventory.Config) {
 		c.Gateway = func(context.Context) netip.Addr { asked++; return netip.MustParseAddr("192.168.18.1") }
 	})
-	ids := loadN100(e)
+	ids := loadLab(e)
 	// #714 M3: only the Devices page and the device page ask for guesses (and the host for its gateway); every other reader, such as
 	// response's Directory inside a write, reads Devices or Device, which never do.
 	plain, err := e.svc.Devices(e.ctx())
@@ -109,7 +109,7 @@ func TestContract_D511_N100DevicesGetTheirType(t *testing.T) {
 	for _, d := range l.Items {
 		byIP[d.IP] = d
 	}
-	for _, want := range n100Devices() {
+	for _, want := range labDevices() {
 		d := byIP[want.ip]
 		if d.Kind != "unknown" || d.KindSource != nil {
 			t.Errorf("%s: kind %q from %v; a guess must never become the kind", want.ip, d.Kind, d.KindSource)
@@ -139,7 +139,7 @@ func TestContract_D511_N100DevicesGetTheirType(t *testing.T) {
 	}
 	// Without the host's gateway the .1 still reads as the router, from DNS at the first address.
 	e2 := newEnv(t)
-	loadN100(e2)
+	loadLab(e2)
 	l2, _ := e2.svc.DevicesPage(e2.ctx(), inventory.DeviceFilter{})
 	for _, d := range l2.Items {
 		if d.IP == "192.168.18.1" && (d.Guess == nil || d.Guess.Type != "router" || !strings.Contains(d.Guess.Evidence, "address ending in .1")) {
@@ -163,12 +163,12 @@ func confirmScope(e *env) {
 	}
 }
 
-// D-511: a person confirms the guess (the kind the device page's Confirm sends) and it becomes the device's kind, from them; a new type
+// A person confirms the guess (the kind the device page's Confirm sends) and it becomes the device's kind, from them; a new type
 // behaves as the kind it acts as: an IP phone is fragile like iot, a VPN gateway is a never-touch firewall the person vouched for.
-func TestContract_D511_TypesActAsTheirKind(t *testing.T) {
+func TestContract_TypesActAsTheirKind(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	ids := loadN100(e)
+	ids := loadLab(e)
 	set := func(ip, kind string) inventory.Device {
 		t.Helper()
 		if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", ids[ip], inventory.Patch{Kind: &kind}); err != nil {
@@ -205,8 +205,8 @@ func TestContract_D511_TypesActAsTheirKind(t *testing.T) {
 	}
 }
 
-// D-511: CSV import reads a type by id, label or alias.
-func TestContract_D511_ImportReadsTypeNames(t *testing.T) {
+// CSV import reads a type by id, label or alias.
+func TestContract_ImportReadsTypeNames(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	res, err := e.svc.Import(e.ctx(), "it@acme.example", "d.csv", "name,ip,type\nphone-1,192.168.18.20,IP phone\nnote-1,192.168.18.21,notebook\nrec-1,192.168.18.22,camera_recorder\nx,192.168.18.23,fortigate\n")
@@ -226,7 +226,7 @@ func TestContract_D511_ImportReadsTypeNames(t *testing.T) {
 	}
 }
 
-// D-511 (migration inventory 0004): inv_asset is rebuilt without its literal kind CHECK; a database made by 0001..0003 keeps every
+// migration inventory 0004: inv_asset is rebuilt without its literal kind CHECK; a database made by 0001..0003 keeps every
 // device, observation, service and software row (the cascading children survive the DROP TABLE), and takes a new type and a service
 // detail afterwards.
 func TestMigration0004KeepsRowsAndTakesNewTypes(t *testing.T) {
@@ -308,12 +308,12 @@ func TestMigration0004KeepsRowsAndTakesNewTypes(t *testing.T) {
 	}
 }
 
-// D-511 (#714 round 2, M1): the devices still waiting for their one gentle scan, which sensor-active queues once per start: unknown,
+// #714 round 2, M1: the devices still waiting for their one gentle scan, which sensor-active queues once per start: unknown,
 // not fragile, not "never", discovered, with an IP and no first scan.
-func TestContract_D511_PendingGentleScans(t *testing.T) {
+func TestContract_PendingGentleScans(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	ids := loadN100(e)
+	ids := loadLab(e)
 	fragile, never := true, "never"
 	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", ids["192.168.18.109"], inventory.Patch{Fragile: &fragile}); err != nil {
 		t.Fatal(err)
@@ -329,8 +329,8 @@ func TestContract_D511_PendingGentleScans(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != len(n100Devices())-3 {
-		t.Fatalf("%d devices wait for their gentle scan, want %d (13 less the fragile, the never and the scanned one)", len(got), len(n100Devices())-3)
+	if len(got) != len(labDevices())-3 {
+		t.Fatalf("%d devices wait for their gentle scan, want %d (13 less the fragile, the never and the scanned one)", len(got), len(labDevices())-3)
 	}
 	for _, ip := range []string{"192.168.18.109", "192.168.18.47", "192.168.18.251"} {
 		if slices.Contains(got, ids[ip]) {

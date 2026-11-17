@@ -28,7 +28,7 @@ import (
 
 // NetHost is what the Box network screen needs of vedette-host (docs/specs/host-api.md 5 and 6.5).
 // *client.Client implements it; a test gives a fake. A nil NetHost is an install without the helper
-// ("container only", D-55): every /core/network route then answers 409 not_appliance.
+// ("container only"): every /core/network route then answers 409 not_appliance.
 type NetHost interface {
 	StateNet(ctx context.Context) (api.NetState, error)
 	NetApply(ctx context.Context, args api.NetApplyArgs, requestID, actor string) (api.Run, error)
@@ -41,7 +41,7 @@ type NetHost interface {
 var _ NetHost = (*client.Client)(nil)
 
 // SpanMeasure is what the passive sensor measured on the SPAN port: the one thing the host cannot count (the
-// number of other MAC addresses and the time of the last packet need a look at the traffic, D-101).
+// number of other MAC addresses and the time of the last packet need a look at the traffic).
 type SpanMeasure struct {
 	Verdict    string // off, ok, own_only, no_traffic or no_link
 	PPS        int
@@ -76,7 +76,7 @@ type NetworkConfig struct {
 	// AddressesChanged is called after the box's own addresses may have changed (an apply, a confirm, a revert, a
 	// timeout): the caches of cmd/vedette that hold them (conn, sensor-active, honeypot) must read them again.
 	AddressesChanged func()
-	// BoxLinks says how links start now and who issues the certificate (D-465, cmd/vedette); nil: no link base shown, own certificate false.
+	// BoxLinks says how links start now and who issues the certificate (cmd/vedette); nil: no link base shown, own certificate false.
 	BoxLinks func(ctx context.Context) BoxLinks
 	// AfterFunc runs f after d (nil: time.AfterFunc); the tests hold it back.
 	AfterFunc func(d time.Duration, f func())
@@ -85,7 +85,7 @@ type NetworkConfig struct {
 	Gate *PurgeGate
 }
 
-// NetworkHandlers implements the Box network operations of Settings (S-CORE-8, D-56: /core/network*; the routes
+// NetworkHandlers implements the Box network operations of Settings (S-CORE-8: /core/network*; the routes
 // belong to the host module, whose handlers these are) on top of vedette-host. Every change is one net.apply with the
 // whole desired state: core merges the part the person changed into what the host reports as running, and keeps
 // only what the host does not know (the SPAN switches, filters and limits, and the old address of a change that
@@ -163,7 +163,7 @@ const (
 	netReadTimeout  = 15 * time.Second
 	netApplyLimit   = 150 * time.Second // host-api 10: net.apply takes up to 120 s before it waits for the confirmation
 	netConfirmLimit = 75 * time.Second  // net.confirm and net.revert: 60 s
-	confirmWindow   = 300               // seconds the person has to confirm from the new address, signing in again there (S-CORE-8, D-118)
+	confirmWindow   = 300               // seconds the person has to confirm from the new address, signing in again there (S-CORE-8)
 	netIfaceListMax = 64
 )
 
@@ -481,7 +481,7 @@ type netPendingView struct {
 	RebootAt        *string `json:"reboot_at"`
 }
 
-// netBoxAddrView is the Box address (D-465): what an administrator saved (nil: none, the default is used), the default (the management
+// netBoxAddrView is the Box address: what an administrator saved (nil: none, the default is used), the default (the management
 // IPv4 the host reports; nil while it has none), the earlier addresses the box still answers to, the start of every link now (nil: none)
 // and whether the box issues its own certificate.
 type netBoxAddrView struct {
@@ -535,7 +535,7 @@ func mgmtViewOf(st api.NetState) netMgmtView {
 	}
 	// DHCP, or a box the host has not configured yet: what the card has now. With no configuration of the host the mode is
 	// what the kernel says of the card's address: DHCP when it has a lease (`ip address` "dynamic"), static otherwise (an
-	// installer's fixed address, or a host older than D-405 that does not say).
+	// installer's fixed address, or an older host that does not say).
 	p, ok := ipv4Of(card)
 	if cfg != nil || (ok && slices.Contains(card.Dynamic, p.String())) {
 		v.Mode = api.NetModeDHCP
@@ -556,7 +556,7 @@ func mgmtViewOf(st api.NetState) netMgmtView {
 	return v
 }
 
-// dnsInUse are the DNS servers the box's resolver uses now (a DHCP lease's or the installer's; D-405), as the static form
+// dnsInUse are the DNS servers the box's resolver uses now (a DHCP lease's or the installer's), as the static form
 // takes them: IPv4 only, at most 3.
 func dnsInUse(st api.NetState) []string {
 	out := []string{}
@@ -591,7 +591,7 @@ func (h *NetworkHandlers) composeNet(st api.NetState, rec *pendingRecord, sp Spa
 		case span:
 			iv.Role = api.NetRoleSPAN
 		}
-		if p, ok := ipv4Of(&c); ok && iv.Address == nil { // any other card shows the address it has now (a Wi-Fi card's lease, walk 4)
+		if p, ok := ipv4Of(&c); ok && iv.Address == nil { // any other card shows the address it has now (a Wi-Fi card's lease)
 			iv.Address = refTo(p.String())
 		}
 		v.Interfaces = append(v.Interfaces, iv)
@@ -1404,7 +1404,7 @@ func activeSpan(iface string, sp SpanSettings) string {
 // ---- PUT /core/network/ntp ----
 
 // CorePutCoreNetworkNtp implements PUT /core/network/ntp (admin): the default pool or one to four servers of the
-// person's own. It applies at once (D-100 (5), D-106).
+// person's own. It applies at once.
 func (h *NetworkHandlers) CorePutCoreNetworkNtp(ctx context.Context, req *oas.CorePutCoreNetworkNtpReq) (*oas.CorePutCoreNetworkNtpOK, error) {
 	c, err := callerOf(ctx, h.auth)
 	if err != nil {
@@ -1463,7 +1463,7 @@ func (h *NetworkHandlers) CorePutCoreNetworkNtp(ctx context.Context, req *oas.Co
 	return asOAS[oas.CorePutCoreNetworkNtpOK](v)
 }
 
-// ---- the Box address (D-465) ----
+// ---- the Box address ----
 
 const keyBoxAddress = "core_box_address"
 
@@ -1471,7 +1471,7 @@ const keyBoxAddress = "core_box_address"
 const maxPreviousBoxAddresses = 8
 
 // boxAddressSetting is what core keeps of the Box address: Address "" = the default (the management IPv4). Previous are the addresses
-// saved before it that the box still answers to (Host allowlist, certificate) until an administrator stops it (review M1: osquery agents,
+// saved before it that the box still answers to (Host allowlist, certificate) until an administrator stops it (osquery agents,
 // firewalls pulling the block list and links already sent use the old one), newest last.
 type boxAddressSetting struct {
 	Address  string   `json:"address"`
@@ -1544,9 +1544,9 @@ func (h *NetworkHandlers) changeBoxAddress(ctx context.Context, action, detail s
 	return nil
 }
 
-// CorePutCoreNetworkBoxAddress implements PUT /core/network/box-address (admin, D-465): the host name or IPv4 address the LAN reaches
+// CorePutCoreNetworkBoxAddress implements PUT /core/network/box-address (admin): the host name or IPv4 address the LAN reaches
 // the box at, which every link the box makes carries; "" goes back to the default, the management IPv4 the host reports. The address it
-// replaces (when one was saved) joins Previous, so what was set up with it keeps working (review M1). It touches nothing of the host.
+// replaces (when one was saved) joins Previous, so what was set up with it keeps working. It touches nothing of the host.
 func (h *NetworkHandlers) CorePutCoreNetworkBoxAddress(ctx context.Context, req *oas.CorePutCoreNetworkBoxAddressReq) (*oas.CorePutCoreNetworkBoxAddressOK, error) {
 	addr, perr := checkBoxAddress(req.Address)
 	if perr != nil {
@@ -1577,7 +1577,7 @@ func (h *NetworkHandlers) CorePutCoreNetworkBoxAddress(ctx context.Context, req 
 	return asOAS[oas.CorePutCoreNetworkBoxAddressOK](v)
 }
 
-// CorePostCoreNetworkBoxAddressForget implements POST /core/network/box-address/forget (admin, review M1): the box stops answering to an
+// CorePostCoreNetworkBoxAddressForget implements POST /core/network/box-address/forget (admin): the box stops answering to an
 // earlier Box address (404 not_found when it is not one of them). The certificate drops it at its next re-issue.
 func (h *NetworkHandlers) CorePostCoreNetworkBoxAddressForget(ctx context.Context, req *oas.CorePostCoreNetworkBoxAddressForgetReq) (*oas.CorePostCoreNetworkBoxAddressForgetOK, error) {
 	addr := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(req.Address)), ".")
@@ -1598,7 +1598,7 @@ func (h *NetworkHandlers) CorePostCoreNetworkBoxAddressForget(ctx context.Contex
 	return asOAS[oas.CorePostCoreNetworkBoxAddressForgetOK](v)
 }
 
-// BoxAddress is the address every link of the box carries (D-465): the saved Box address, else the management IPv4 the host reports
+// BoxAddress is the address every link of the box carries: the saved Box address, else the management IPv4 the host reports
 // (state/net, read through the page's cache, netReadTTL); "" when neither is known (no host, or a management card without an IPv4
 // address). previous are the earlier Box addresses the box still answers to. An error is a failed read of the setting or of the host: the
 // caller keeps what it had. Safe on nil ("").
@@ -1632,10 +1632,10 @@ type Card struct {
 }
 
 // HasHost reports whether core was started with a vedette-host socket (an appliance). False is a container-only install
-// (-host-socket=""), the only case in which the passive sensor's heartbeat may decide the card (D-263).
+// (-host-socket=""), the only case in which the passive sensor's heartbeat may decide the card.
 func (h *NetworkHandlers) HasHost() bool { return h != nil && h.host != nil }
 
-// ManagementCard is the card the passive sensor listens on when no SPAN port is chosen (D-380): the management card
+// ManagementCard is the card the passive sensor listens on when no SPAN port is chosen: the management card
 // (mgmtIface: the configured one, else the card of the default route, else the one card with an address), and only
 // when it is a card of the box (cardsOf: never loopback, a bridge such as vedette0, or a container link). ok is false
 // when there is no host to ask (no socket, or a host that says this is no appliance): the sensor's heartbeat then
@@ -1651,7 +1651,7 @@ func (h *NetworkHandlers) ManagementCard(ctx context.Context) (name string, ok b
 			return "", false
 		}
 		// Unlike Cards, ok stays true before the first answer: ok=false would let the sensor's heartbeat pick the card
-		// on an appliance, which D-118 forbids. "" here means "no default yet"; the next look asks the host again.
+		// on an appliance, which is not allowed. "" here means "no default yet"; the next look asks the host again.
 		h.cardsMu.Lock()
 		defer h.cardsMu.Unlock()
 		return h.lastMgmt, true
@@ -1679,7 +1679,7 @@ func (h *NetworkHandlers) ManagementCard(ctx context.Context) (name string, ok b
 }
 
 // ManagementLAN is the network of the management card's IPv4 address (host bits cleared): the range first-run setup offers
-// first (D-405). ok is false without a host, when the host has not answered (yet), or when the card has no IPv4 address. The
+// first. ok is false without a host, when the host has not answered (yet), or when the card has no IPv4 address. The
 // caller is a public page, so a read of the host starts at most once per netReadTTL from here, whatever its outcome (anonymous
 // requests cannot spend core's host budget or fill the log), and the caller waits for it at most managementLANWait; a read that
 // ends later still fills the answer for the next request.
@@ -1723,7 +1723,7 @@ const managementLANWait = 2 * time.Second
 
 // Cards lists the cards the host reports. ok is false when there is no host to ask (no socket configured, or its
 // file is absent, or a host that says this is no appliance). Only "no socket configured" (HasHost false) means a
-// container-only install, where sensor-passive takes the box's cards from the sensor's heartbeat (D-263, D-385);
+// container-only install, where sensor-passive takes the box's cards from the sensor's heartbeat;
 // its HostCards turns ok=false with HasHost into an error. A host that is there but does not answer right now gives
 // the last good list (or, before there is one, ok=false): the passive sensor must not fail, or go into back-off,
 // because the helper hiccups.

@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 )
 
-// D-133 (5), SP-3b: nuclei may write JSONL only for matches, so an empty output or a not-matched line means "no match
+// SP-3b: nuclei may write JSONL only for matches, so an empty output or a not-matched line means "no match
 // reported", never "not vulnerable". It never resolves, downgrades or marks a finding, and an empty output is not
 // "unresponsive".
 func TestContract_INV8_NoMatchNeverTouchesTheFinding(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/exec"
 )
 
-// Output is what a finished nmap run hands back: the XML it printed on stdout (D-113).
+// Output is what a finished nmap run hands back: the XML it printed on stdout.
 type Output struct {
 	XML       []byte
 	Truncated bool // the run printed more than the cap; XML is incomplete and must be discarded (INV-7)

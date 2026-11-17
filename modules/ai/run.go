@@ -35,7 +35,7 @@ type JobSpec struct {
 	// KnowledgeQuery is the text the documents of the knowledge base are searched with (S-AI-7); "" = the question and the data.
 	KnowledgeQuery string
 	knowledge      *knowCall // the passages a caller retrieved already; nil = RunJob retrieves
-	// tools is the read-tool loop of a job that lets the model read the box (ask-my-data, D-211); nil = one call, no tools.
+	// tools is the read-tool loop of a job that lets the model read the box (ask-my-data); nil = one call, no tools.
 	tools *toolSession
 	// AnswerWhenBlocked makes an answer that an after_ai hook stops a result (JobResult.Blocked, text = the hook's message) instead of
 	// a 409; the row of the call still says blocked_by_hook.
@@ -248,7 +248,7 @@ func dedupe(in []string) []string {
 // RunJob runs one job call (S-AI-2, S-AI-6): hooks, prompt, routing, meter, hooks again on the answer, the format check, and one
 // activity row for the call, written with the result in one transaction. Errors that a person should see are *apierr.Error:
 // 409 ai_unavailable (also when a hook stopped the request or the answer was not usable) and 429 budget_reached (this month's budget,
-// D-531, or a scheduled job past scheduledPausePct) or rate_limited (the runaway fuse, or calls in flight holding the rest of the budget).
+// or a scheduled job past scheduledPausePct) or rate_limited (the runaway fuse, or calls in flight holding the rest of the budget).
 func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	if !spec.Job.Valid() || spec.Actor == "" || spec.MaxTokens <= 0 {
 		return JobResult{}, fmt.Errorf("ai: run job: invalid spec")
@@ -262,7 +262,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		}
 	}
 	if err := s.checkFuse(ctx, spec.Job); err != nil {
-		return JobResult{}, err // the runaway fuse (D-531): nothing was attempted, the trip is in the audit log
+		return JobResult{}, err // the runaway fuse: nothing was attempted, the trip is in the audit log
 	}
 	trigger := "user:" + spec.Actor
 	if spec.Actor == "system" {
@@ -335,7 +335,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		return JobResult{}, s.capNote(s.failed(ctx, spec, entry, res, err), res)
 	}
 	if spec.tools != nil && spec.Schema != nil {
-		// the tool loop asks for the JSON without structured output (D-223): out of a code block before the hooks walk its strings, so a
+		// the tool loop asks for the JSON without structured output: out of a code block before the hooks walk its strings, so a
 		// \u escape cannot hide a word from an after_ai pattern
 		res.Response.Text = unfence(res.Response.Text)
 	}
@@ -500,7 +500,7 @@ func profileHeldOnly(res CallResult) bool {
 }
 
 // capNote adds to the error of a call that failed after it spent tokens that this month's budget is now used up, when that call is what used
-// it up: the person reads what went wrong first, then why the AI is paused (W1-27). A refusal by the cap itself says so already.
+// it up: the person reads what went wrong first, then why the AI is paused. A refusal by the cap itself says so already.
 func (s *Service) capNote(err error, res CallResult) error {
 	e, ok := apierr.As(err)
 	if !ok || e.Code == "budget_reached" || spentTokens(res) == 0 || !s.meter.UsedUp() {
@@ -601,7 +601,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		return s.budgetHeld("")
 	case errors.Is(err, ErrCapped) && spentTokens(res) > 0:
 		// earlier turns of this call were sent and pushed the meter over the cap, so the next one could not be: this call used the cap up,
-		// it did not find it used up (W1-27)
+		// it did not find it used up
 		s.nameLastProfile(&entry, res)
 		entry.Summary = fmt.Sprintf("Stopped: this month's AI budget ran out partway through, after %s tokens; no answer.", number(spentTokens(res)))
 		entry.Outcome = OutcomeCapped
@@ -632,7 +632,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if len(res.Attempts) == 0 { // never attempted (settings changed under us): no request, no row
 			return s.unavailable(spec.Job, reasons)
 		}
-		// D-531: nothing was sent because a profile's own monthly budget is used up and no other profile could take the call. That
+		// Nothing was sent because a profile's own monthly budget is used up and no other profile could take the call. That
 		// is the budget's stop, not "not set up": the same 429 budget_reached as the shared budget, naming the profile, so the caller
 		// (the plan job) stops its run instead of counting it against a finding.
 		name := profileCappedLast(res)

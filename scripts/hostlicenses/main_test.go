@@ -46,7 +46,7 @@ func TestGenerateNamesEveryLinkedModule(t *testing.T) {
 	}
 }
 
-// The one exception (D-454) covers censys-sdk-go at v0.19.1 only: the same path at another version, and any other module without
+// The one exception covers censys-sdk-go at v0.19.1 only: the same path at another version, and any other module without
 // a license file, still fail; a module that has a license file keeps its own text even when it is listed.
 func TestNoLicenseFileException(t *testing.T) {
 	empty := t.TempDir()

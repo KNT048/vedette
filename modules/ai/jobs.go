@@ -82,7 +82,7 @@ const (
 // Valid reports whether t is a known level.
 func (t Tier) Valid() bool { return t == TierMin || t == TierMed || t == TierMax }
 
-// EstimatePerDay is the rough token use per day shown in the UI (no money, D-6). ok is false for max,
+// EstimatePerDay is the rough token use per day shown in the UI (no money). ok is false for max,
 // which depends on the number of alerts.
 func (t Tier) EstimatePerDay() (tokens int, ok bool) {
 	switch t {
@@ -94,7 +94,7 @@ func (t Tier) EstimatePerDay() (tokens int, ok bool) {
 	return 0, false
 }
 
-// Monthly budget limits in tokens (INV-4, PRE-3, D-531): the old daily range times 30, so a box that kept its daily cap keeps the
+// Monthly budget limits in tokens (INV-4, PRE-3): the old daily range times 30, so a box that kept its daily cap keeps the
 // same allowance over a month (migration 0009).
 const (
 	MinMonthlyBudget = 1_000

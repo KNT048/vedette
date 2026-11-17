@@ -9,7 +9,7 @@ import type { Asset } from '@/lib/types'
 import { ensureBox } from './mocks'
 import { watchAfterMerge } from './SameDevice'
 
-// D-599, #829 gap 3 (J2): "Possibly the same device as X" with Merge / Keep separate on the device page, a hint in To review.
+// #829 gap 3: "Possibly the same device as X" with Merge / Keep separate on the device page, a hint in To review.
 vi.setConfig({ testTimeout: 30_000 })
 
 const T = { timeout: 5000 }
@@ -34,7 +34,7 @@ const pairs = async () => {
   return ((await (await fetch(`${BASE}/possible-same`)).json()) as { items: unknown[] }).items
 }
 
-describe('Device page: possibly the same device (D-599)', () => {
+describe('Device page: possibly the same device', () => {
   it('an admin merges the new row into the approved device and lands on it', async () => {
     const user = userEvent.setup()
     const { container } = renderApp('/devices/a-ph2', { role: 'admin' })
@@ -49,7 +49,7 @@ describe('Device page: possibly the same device (D-599)', () => {
 
     await user.click(within(box).getByRole('button', { name: 'Merge' }))
     const dialog = await screen.findByRole('dialog', { name: 'Merge iPhone into iPhone.lan?' }, T)
-    // #876 r1 M2: destructive, and the warning is in the visible description, not only behind the info tip
+    // #876: destructive, and the warning is in the visible description, not only behind the info tip
     expect(dialog).toHaveTextContent('iPhone disappears; its addresses, software and findings move to iPhone.lan. This cannot be undone.')
     expect(within(dialog).getByLabelText('Device to keep')).toHaveValue('a-ph1') // the approved one by default
     const go = within(dialog).getByRole('button', { name: 'Merge into iPhone.lan' })
@@ -85,7 +85,7 @@ describe('Device page: possibly the same device (D-599)', () => {
     renderApp('/devices/a-ph1', { role: 'admin' })
     const box = await notice()
     expect(box).toHaveTextContent(/Waiting for review, seen/)
-    // #876 r1 M1: one click by mistake must not split the phone for good
+    // #876: one click by mistake must not split the phone for good
     await user.click(within(box).getByRole('button', { name: 'Keep separate' }))
     let dialog = await screen.findByRole('dialog', { name: 'Keep iPhone.lan and iPhone separate?' }, T)
     expect(dialog).toHaveTextContent('Vedette will not ask again for these two and will not join them on its own. This cannot be undone.')
@@ -133,8 +133,8 @@ describe('Device page: possibly the same device (D-599)', () => {
   })
 })
 
-describe('Devices › To review: the possibly-same hint (D-599)', () => {
-  it('Devices (approved): a row in a pair carries "Possibly the same", linking to the question (#876 r1)', async () => {
+describe('Devices › To review: the possibly-same hint', () => {
+  it('Devices (approved): a row in a pair carries "Possibly the same", linking to the question (#876)', async () => {
     renderApp('/devices?tab=devices', { role: 'viewer' })
     const chip = await screen.findByRole('link', { name: 'Possibly the same device as iPhone' }, T)
     expect(chip).toHaveAttribute('href', '/devices/a-ph1#possible-same')
@@ -154,7 +154,7 @@ describe('Devices › To review: the possibly-same hint (D-599)', () => {
   })
 })
 
-// D-630, review r2 N2 of #945: the Merge dialog says which watch state the kept device ends with, the rule the box applies (joinAs).
+// The Merge dialog says which watch state the kept device ends with, the rule the box applies (joinAs).
 describe('watchAfterMerge', () => {
   it('names the state that survives', () => {
     expect(watchAfterMerge({ ignored: false }, { ignored: false, approved: true })).toBe('')

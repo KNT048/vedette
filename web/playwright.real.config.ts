@@ -1,8 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 
-// The real backend (WP-30, D-170): `make e2e-real` starts one box with the release GUI inside it and passes E2E_BOX, the path of its
-// ready.json. One box per run (D-172): `setup` (the first-run wizard) -> `seed` (accounts, one storageState per role) -> `parallel`
+// The real backend (WP-30): `make e2e-real` starts one box with the release GUI inside it and passes E2E_BOX, the path of its
+// ready.json. One box per run: `setup` (the first-run wizard) -> `seed` (accounts, one storageState per role) -> `parallel`
 // (entity-scoped specs) -> `global` (anything that changes box-wide state, one at a time). Desktop, plus the `mobile` smoke (slice 10).
 const manifest = process.env.E2E_BOX
 if (!manifest) throw new Error('E2E_BOX is not set: run `make e2e-real` (or, against a box kept up with HOLD=1, set E2E_BOX and E2E_PASSWORD)')

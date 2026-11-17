@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// The LLDP system description is free text the device writes about itself (untrusted, INV-4). Walk 4 showed a
+// The LLDP system description is free text the device writes about itself (untrusted, INV-4). Testing showed a
 // Juniper switch's whole description ("Juniper Networks, Inc. ex4200-48t Ethernet Switch, kernel JUNOS 15.1R7.9,
 // Build date … Copyright …") as the device's name and make/model. So only a description that matches a known
 // vendor's layout gives a model and an OS, each a short token; any other description gives nothing, except a
@@ -29,15 +29,15 @@ var (
 	descMikroTik = regexp.MustCompile(`^MikroTik RouterOS ([0-9][0-9.]{0,15}(?:beta[0-9]{1,3}|rc[0-9]{1,3})?) \([a-z -]{1,20}\) ([A-Za-z0-9][A-Za-z0-9+-]{1,39})$`)
 	// lldpd: "Ubuntu 22.04.3 LTS Linux 5.15.0-91-generic #101-Ubuntu SMP …"
 	descLinux = regexp.MustCompile(`^((?:Ubuntu|Debian GNU/Linux|Debian|Fedora Linux|Fedora|Rocky Linux|AlmaLinux|Red Hat Enterprise Linux|CentOS Stream|CentOS Linux|Alpine Linux|openSUSE Leap|Arch Linux|Raspbian GNU/Linux|OpenWrt) [0-9][A-Za-z0-9 .()-]{0,30}?) Linux [0-9][A-Za-z0-9._+-]{0,60} #`)
-	// net-snmp on Linux answers sysDescr with uname -a: "Linux BN340 6.18.63-0-lts #1-Alpine SMP PREEMPT_DYNAMIC 2026-11-11 01:31:28
-	// x86_64" (BN340, n82). Only the kernel's own build marks name a distribution (unameDistros); the host name is skipped.
+	// net-snmp on Linux answers sysDescr with uname -a: "Linux gw-lab01 6.18.63-0-lts #1-Alpine SMP PREEMPT_DYNAMIC 2026-11-11 01:31:28
+	// x86_64". Only the kernel's own build marks name a distribution (unameDistros); the host name is skipped.
 	descUname = regexp.MustCompile(`^Linux [A-Za-z0-9][A-Za-z0-9._-]{0,62} ([0-9][A-Za-z0-9._+~-]{0,80}) (#.*)$`)
 	// what a bare model looks like: one token of letters, digits and a few separators, with at least one digit
 	descBare  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9+._/-]*$`)
 	descDigit = regexp.MustCompile(`[0-9]`)
 )
 
-// ParseSysDesc is parseSysDesc for sensor-active's SNMP reads (D-512): the LLDP system description is the device's MIB-2 sysDescr,
+// ParseSysDesc is parseSysDesc for sensor-active's SNMP reads: the LLDP system description is the device's MIB-2 sysDescr,
 // so one set of layouts reads both. The caller cleans the text first (core, SYS-6), as the capture does.
 func ParseSysDesc(desc string) (model, os string) { return parseSysDesc(desc) }
 

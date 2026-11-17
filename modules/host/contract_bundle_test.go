@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
-// container.pull with source=bundle (spec 6.7, update-manifest.md §11, D-452; host CONTRACT INV-19 and PULL-8). Core wrote the
+// container.pull with source=bundle (spec 6.7, update-manifest.md §11; host CONTRACT INV-19 and PULL-8). Core wrote the
 // uploaded bundle to <core_data>/bundles/<id>.tar and names only the id; the host reads the four signed documents out of it, verifies
 // them exactly as for a registry pull, copies the service's image archive into a layout of its own blob by blob (each must hash to its
 // name, the archive must be the signed digest), and loads that with "podman pull -q oci:<dir>:<image ref>". The rest is the registry

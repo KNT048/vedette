@@ -46,7 +46,7 @@ func (e *env) catalog() (version string, records int) {
 }
 
 // High: a catalogVersion years ahead (a typo) is not plausible; it never freezes the list, and the next good copy replaces it.
-func TestG13r1_AFutureVersionTypoHealsAtTheNextGoodCopy(t *testing.T) {
+func TestKEVCopies_AFutureVersionTypoHealsAtTheNextGoodCopy(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.serve(mirrorPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusServiceUnavailable) })
@@ -79,7 +79,7 @@ func TestG13r1_AFutureVersionTypoHealsAtTheNextGoodCopy(t *testing.T) {
 
 // r2 High: no count rule against the box's stored count (it froze the list). Of two copies in one check, the newer wins even with fewer
 // entries (apply is additive); of the same catalog the fuller one, then cisa.gov's.
-func TestG13r2_InOneCheckTheNewerThenTheFullerThenCISAWins(t *testing.T) {
+func TestKEVCopies_InOneCheckTheNewerThenTheFullerThenCISAWins(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.body(primaryPath, `"p1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 20, 0))
@@ -116,7 +116,7 @@ func TestG13r2_InOneCheckTheNewerThenTheFullerThenCISAWins(t *testing.T) {
 }
 
 // r2 High, the reviewer's scenario: an admin's own 40-entry list, back to the built-in address, off and on: CISA's 30 entries load.
-func TestG13r2_ACountFromAnotherAddressNeverFreezesTheList(t *testing.T) {
+func TestKEVCopies_ACountFromAnotherAddressNeverFreezesTheList(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.body("/own.json", `"o1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 40, 500))
@@ -144,7 +144,7 @@ func TestG13r2_ACountFromAnotherAddressNeverFreezesTheList(t *testing.T) {
 
 // r2 Medium: plausibility follows the servers' clock (their Date header). A box whose clock is days behind still loads a fresh list,
 // and the note says its clock is off.
-func TestG13r2_ABoxClockDaysBehindStillLoadsAndSaysSo(t *testing.T) {
+func TestKEVCopies_ABoxClockDaysBehindStillLoadsAndSaysSo(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.date = func() time.Time { return time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC) } // the servers: 9 Nov; the box: 5 Nov
@@ -164,7 +164,7 @@ func TestG13r2_ABoxClockDaysBehindStillLoadsAndSaysSo(t *testing.T) {
 
 // r2 Medium: a 304 is judged again from what the box knows of that body, never from a stored verdict. A copy not used because its
 // version was ahead of the server's clock is taken at a later check once that clock has caught up, read in full in that check.
-func TestG13r2_A304IsJudgedAgainAndHeals(t *testing.T) {
+func TestKEVCopies_A304IsJudgedAgainAndHeals(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.serve(mirrorPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusServiceUnavailable) })
@@ -195,7 +195,7 @@ func TestG13r2_A304IsJudgedAgainAndHeals(t *testing.T) {
 
 // Medium: a schema change. A catalogVersion that cannot be read falls back to dateReleased; a copy with neither is refused with a
 // note (never a freeze) and is still asked conditionally.
-func TestG13r1_SchemaChangeFallsBackToDateReleasedAndNeitherIsRefused(t *testing.T) {
+func TestKEVCopies_SchemaChangeFallsBackToDateReleasedAndNeitherIsRefused(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.serve(mirrorPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusServiceUnavailable) })
@@ -231,7 +231,7 @@ func TestG13r1_SchemaChangeFallsBackToDateReleasedAndNeitherIsRefused(t *testing
 }
 
 // Low: of two equal catalogs cisa.gov's is kept; the same catalog with more entries than a partial copy held replaces it.
-func TestG13r1_SameCatalogPrefersCISAAndMoreEntries(t *testing.T) {
+func TestKEVCopies_SameCatalogPrefersCISAAndMoreEntries(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
@@ -255,7 +255,7 @@ func TestG13r1_SameCatalogPrefersCISAAndMoreEntries(t *testing.T) {
 
 // High: turning the list off and on forgets the held version and every validator; the next check reads both copies in full.
 // Low: a new address starts a new count of failures.
-func TestG13r1_OffAndOnForgetsTheHeldVersionAndANewAddressItsFailures(t *testing.T) {
+func TestKEVCopies_OffAndOnForgetsTheHeldVersionAndANewAddressItsFailures(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.body(primaryPath, `"p1"`, kevDoc(`"2062.11.17"`, `"2026-11-04T10:00:00Z"`, 20, 0))
@@ -294,7 +294,7 @@ func TestG13r1_OffAndOnForgetsTheHeldVersionAndANewAddressItsFailures(t *testing
 
 // Medium: a last good pull in the future (the clock was ahead, then corrected) is not trusted: while both copies fail there is one
 // alert and no "up to date again" until a check really works.
-func TestContract_D629_AFutureLastSuccessNeverFlaps(t *testing.T) {
+func TestContract_AFutureLastSuccessNeverFlaps(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	a := &alerts{}
@@ -323,7 +323,7 @@ func TestContract_D629_AFutureLastSuccessNeverFlaps(t *testing.T) {
 }
 
 // Low: a person's "Fetch now" does not count toward the two checks in a row.
-func TestContract_D629_FetchNowDoesNotCount(t *testing.T) {
+func TestContract_FetchNowDoesNotCount(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	a := &alerts{}
@@ -350,7 +350,7 @@ func TestContract_D629_FetchNowDoesNotCount(t *testing.T) {
 // Low: a box upgraded from main before this change (answered_by the GitHub copy, both validators, no copies, no release date) asks
 // both copies in full once (each copy's version is not known yet: main would send the GitHub copy its old validator and never ask
 // cisa.gov's copy plainly), with no flood of "new" entries.
-func TestG13r1_AnUpgradedBoxReadsBothCopiesOnceWithoutNews(t *testing.T) {
+func TestKEVCopies_AnUpgradedBoxReadsBothCopiesOnceWithoutNews(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })

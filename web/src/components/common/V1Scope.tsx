@@ -6,7 +6,7 @@ import type { ModuleId } from '@/lib/modules'
 import { useScope, type Scope } from '@/lib/v1'
 import { cn } from '@/lib/utils'
 
-// D-624, #818, #819: the Preview badge and the "not in v1" badge, each with its one line (detail behind ⓘ, #824).
+// The Preview badge and the "not in v1" badge, each with its one line (detail behind ⓘ, #824).
 
 export function ScopeBadge({ scope, className }: { scope: Scope; className?: string }) {
   const { t } = useTranslation()
@@ -15,7 +15,7 @@ export function ScopeBadge({ scope, className }: { scope: Scope; className?: str
   return null
 }
 
-/** The one line under a preview or leaving module's name; `turnOff` adds the link to the only action left (D-403's way out). */
+/** The one line under a preview or leaving module's name; `turnOff` adds the link to the only action left (the way out). */
 export function ScopeLine({ scope, turnOff, module, className }: { scope: Scope; turnOff?: boolean; module?: ModuleId; className?: string }) {
   const { t } = useTranslation()
   if (scope !== 'preview' && scope !== 'leaving') return null

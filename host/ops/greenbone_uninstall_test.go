@@ -7,11 +7,11 @@ import (
 	"testing"
 )
 
-// D-529 (FULL-2): install.sh --uninstall never touches OpenVAS. Vedette's part of it is only the two compose files of the package (dpkg
+// install.sh --uninstall never touches OpenVAS. Vedette's part of it is only the two compose files of the package (dpkg
 // removes them with vedette-host) and podman's API socket when vedette-host enabled it; the project greenbone-community-edition, its
 // containers, volumes and images, the compose provider package and /run/vedette-greenbone are left as they are. Nothing of the
 // uninstall section of install.sh may name them, so no later edit removes them by accident, and it never suggests wiping podman's
-// storage (review r1 L5: podman system reset deletes OpenVAS's volumes). The W4-1 guard keeps podman while they are there
+// storage (podman system reset deletes OpenVAS's volumes). The uninstall guard keeps podman while they are there
 // (TestInstallSh_UninstallKeepsAPodmanThatHoldsOthers, case "OpenVAS of greenbone.up").
 func TestInstallSh_UninstallNeverNamesOpenVAS(t *testing.T) {
 	t.Parallel()
@@ -32,7 +32,7 @@ func TestInstallSh_UninstallNeverNamesOpenVAS(t *testing.T) {
 		"system reset", "volume rm",
 	} {
 		if strings.Contains(section, banned) {
-			t.Errorf("the uninstall section of install.sh names %q: it must leave OpenVAS's project alone (D-529)", banned)
+			t.Errorf("the uninstall section of install.sh names %q: it must leave OpenVAS's project alone", banned)
 		}
 	}
 }

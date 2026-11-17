@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
-// Units between host releases (UNIT-4, D-316 (10)): a unit that an earlier release of the host wrote from an earlier template is still
+// Units between host releases (UNIT-4): a unit that an earlier release of the host wrote from an earlier template is still
 // the host's own, and is rewritten to the current template before READY without restarting anything; a unit a person edited stays
 // refused; nothing moves while a self-update is not committed. Credential volumes made for other ids are refused, never re-owned.
 
@@ -34,7 +34,7 @@ func (e *ctrEnv) writeLegacy(t *testing.T, svc, digest string, n int, install bo
 func TestContract_UnitMigration_StartRewritesAnEarlierTemplateBeforeReadyWithoutARestart(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
-	oldCore := e.writeLegacy(t, api.ServiceCore, digA, 0, true)    // D-318: no 6514, no HostName
+	oldCore := e.writeLegacy(t, api.ServiceCore, digA, 0, true)    // No 6514, no HostName
 	oldHp := e.writeLegacy(t, api.ServiceHoneypot, digB, 0, false) // before ContainersConfModule, stopped with persist
 	e.m.InstallUnit(api.ServiceSensor, digA, true)                 // already current
 	e.m.SetRunning(api.ServiceCore, true)
@@ -46,7 +46,7 @@ func TestContract_UnitMigration_StartRewritesAnEarlierTemplateBeforeReadyWithout
 	}
 	rec := e.startHost(t)
 
-	// Core's current template publishes host ports its D-318 unit did not (6514, 8765): the migration never adds a port (D-455), so
+	// Core's current template publishes host ports its older unit did not (6514, 8765): the migration never adds a port, so
 	// core stays on its earlier unit until a container.start restarts it.
 	if got := e.unit(t, api.ServiceCore); got != oldCore {
 		t.Fatalf("core was moved although the current template adds host ports:\n%s", got)
@@ -104,7 +104,7 @@ func TestContract_UnitMigration_RunsOncePerStartNotInTheRetriesAfterReady(t *tes
 	t.Parallel()
 	e := startCtr(t)
 	// The honeypot's migration fails: the log volume unit it writes first is a link (core's earlier units add a host port, so core is
-	// deferred, never migrated at start: D-455).
+	// deferred, never migrated at start).
 	old := e.writeLegacy(t, api.ServiceHoneypot, digA, 0, true)
 	if err := os.Symlink("/etc/passwd", filepath.Join(e.m.UnitsDir(), "vedette-hp-log.volume")); err != nil {
 		t.Fatal(err)
@@ -144,7 +144,7 @@ func TestContract_UnitMigration_AHandEditedUnitIsNeitherMigratedNorObeyed(t *tes
 	e.refused(t, api.CmdContainerStart, api.ContainerStartArgs{Service: api.ServiceCore, Restart: true}, 412, api.CodeUnitUnsafe)
 }
 
-// D-316 (6b): the new host is not committed while the self-update journal is there, and the previous host, if it is put back,
+// The new host is not committed while the self-update journal is there, and the previous host, if it is put back,
 // must find the units it wrote. The migration waits for a start without the journal (or the next command that writes the unit).
 func TestContract_UnitMigration_NothingMovesWhileASelfUpdateIsNotCommitted(t *testing.T) {
 	t.Parallel()

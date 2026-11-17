@@ -33,7 +33,7 @@ func startFakeScanWorker(t *testing.T, s *stack, answer func(sensorlink.Job) *se
 	return startFakeScanWorkerFull(t, s, false, answer)
 }
 
-// startFakeScanWorkerFull is startFakeScanWorker whose heartbeat says, with full, that it runs the deep shapes (D-526); without it
+// startFakeScanWorkerFull is startFakeScanWorker whose heartbeat says, with full, that it runs the deep shapes; without it
 // the worker is one of a release before them.
 func startFakeScanWorkerFull(t *testing.T, s *stack, full bool, answer func(sensorlink.Job) *sensorlink.JobResult) *fakeScanWorker {
 	t.Helper()
@@ -98,7 +98,7 @@ func (g *gateFor) gate(_ context.Context, actor string, ip netip.Addr) (bool, er
 	return g.ok && ip == ownPublicIP, nil
 }
 
-// D-514, end to end through the production builder (exposureServicesFor: the module switch, sensorActiveService, the Dispatcher)
+// End to end through the production builder (exposureServicesFor: the module switch, sensorActiveService, the Dispatcher)
 // with a fake worker: the job is the external shape on the one address, exposure's gate is asked as the person who scanned, and the
 // rows reach exposure with the address and the number of probed ports. Then the refusals the page shows: the worker's own-IP
 // fence, a worker that does not know the shape (an older release), exposure's gate saying no (no job at all), nmap giving up.
@@ -122,7 +122,7 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Ports != 98 || len(got.Services) != 4 || got.Services[2] != (exposure.ServiceRow{IP: "8.8.8.8", Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)", Method: "probed", Conf: 10}) { // tunnel="ssl" (D-522)
+	if got.Ports != 98 || len(got.Services) != 4 || got.Services[2] != (exposure.ServiceRow{IP: "8.8.8.8", Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)", Method: "probed", Conf: 10}) { // tunnel="ssl"
 		t.Fatalf("got %+v", got)
 	}
 	jobs := w.received()
@@ -150,7 +150,7 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	mu.Lock()
 	answer = xmlResult(nmapFixture(t, "external_timedout.xml"))
 	mu.Unlock()
-	if _, err := sc.ScanServices(ctx, target, ownPublicIP); !errors.Is(err, exposure.ErrServicesTimedOut) { // D-522: its own line
+	if _, err := sc.ScanServices(ctx, target, ownPublicIP); !errors.Is(err, exposure.ErrServicesTimedOut) { // Its own line
 		t.Fatalf("nmap gave up: err = %v", err)
 	}
 
@@ -213,7 +213,7 @@ func TestExposureServiceScanReasons(t *testing.T) {
 			t.Errorf("%s: err = %v", name, err)
 		}
 	}
-	// D-522 (N5): nmap ran but its result says nothing about the services; exposure writes the line of each sentinel
+	// nmap ran but its result says nothing about the services; exposure writes the line of each sentinel
 	for in, want := range map[error]error{sensoractive.ErrHostTimedOut: exposure.ErrServicesTimedOut, sensoractive.ErrAnswersEverywhere: exposure.ErrAnswersEverywhere} {
 		sc := exposureServiceScan{scan: scanErr(in), gate: yes}
 		if _, err := sc.ScanServices(t.Context(), exposure.ScanTarget{User: "a"}, ip); !errors.Is(err, want) {
@@ -229,7 +229,7 @@ func TestExposureServiceScanReasons(t *testing.T) {
 	}
 }
 
-// D-526: the shape and the step's bound follow the target's mode: the K-4 scope keeps the External shape and 5 minutes exactly as
+// The shape and the step's bound follow the target's mode: the K-4 scope keeps the External shape and 5 minutes exactly as
 // before; accepted terms are the deep scan, the disruptive tick its disruptive shape, both bounded by FullServicesTimeout.
 func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 	t.Parallel()
@@ -253,7 +253,7 @@ func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 			t.Errorf("%s: shape %s, bound %s, err %v", name, kind.Name(), given, err)
 		}
 	}
-	// The bounds hold together (D-526): exposure's line says nmap's host timeout, and the step has room for the wait for the nmap
+	// The bounds hold together: exposure's line says nmap's host timeout, and the step has room for the wait for the nmap
 	// slot (2 minutes), core's fence (30 s), the worker's (25 s) and the pickup and the result (15 s) around it.
 	if exposure.FullHostLimit != nmapargv.FullHostTimeout || exposure.FullServicesTimeout < nmapargv.FullHostTimeout+2*time.Minute+70*time.Second {
 		t.Fatalf("exposure %s/%s against nmap's %s", exposure.FullServicesTimeout, exposure.FullHostLimit, nmapargv.FullHostTimeout)
@@ -275,7 +275,7 @@ func (m *modeAt) now(_ context.Context, actor, id string) (exposure.ScanMode, er
 	return m.mode, m.err
 }
 
-// D-526, end to end through the production builder with a fake worker that says it runs the deep shapes: a deep scan asks
+// End to end through the production builder with a fake worker that says it runs the deep shapes: a deep scan asks
 // ModeNow right before its job (as the person who scanned, for the target), sends external_full and hands the script results to
 // exposure; the disruptive tick taken back meanwhile sends the full shape without the disruptive scripts; the terms withdrawn (or of
 // an older version) send nothing and say so; a failing ModeNow sends nothing (fail closed); a worker of an older release that does
@@ -349,7 +349,7 @@ func TestExposureDeepScanEndToEndWithAFakeWorker(t *testing.T) {
 	}
 }
 
-// D-526: a worker of an older release (its heartbeat does not say full) is never sent a deep scan; the page says to update.
+// A worker of an older release (its heartbeat does not say full) is never sent a deep scan; the page says to update.
 func TestExposureDeepScanOldWorker(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)

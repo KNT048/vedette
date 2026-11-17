@@ -9,7 +9,7 @@ import (
 )
 
 // repeatTTL and maxRepeats bound core's repeat filter: the same (MAC, IP, field, value) is written at most once in a quarter of an
-// hour (the capture's own filter says the same, D-80). The filter is what stops a sensor from turning one observation into a
+// hour (the capture's own filter says the same). The filter is what stops a sensor from turning one observation into a
 // write for each time it sends it.
 const (
 	repeatTTL  = 15 * time.Minute

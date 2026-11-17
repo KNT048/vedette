@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-// The Juniper EX4200-48T of customer walk 1 (W1-32) as the N100 box n23 stored it: found over LLDP only, no IP, no
+// The Juniper EX4200-48T as a test box stored it: found over LLDP only, no IP, no
 // software row, OS "JUNOS 15.1R7.9", model "EX4200-48T". testdata/kev-nvd-junos-n23.json holds the box's 8 Juniper CISA
-// entries with their NVD rows. The expected sets were checked by hand against those rows (D-510):
+// entries with their NVD rows. The expected sets were checked by hand against those rows:
 //   - CVE-2023-36844, -36845, -36847: "junos:*" before 20.4, named "EX Series" (and SRX): 15.1 is inside.
 //   - CVE-2025-21590: "junos:*" before 21.2, no series named: inside.
 //   - CVE-2020-1631: exact rows, "junos:15.1:r7" among them: 15.1R7.9 is build 9 of 15.1R7, inside.
 //   - CVE-2023-36846: before 20.4, but CISA names "SRX Series" only: not on an EX.
 //   - CVE-2023-36851: rows from 21.2 on only, SRX: outside. CVE-2015-7755: ScreenOS, another product.
-func walk1EX4200() Asset {
+func labEX4200() Asset {
 	return Asset{ID: "a-bjehktolua77qnpyk2vc6lbune", Name: "Juniper Networks EX4200-48T", OS: "JUNOS 15.1R7.9", StatedOS: "JUNOS 15.1R7.9", Model: "EX4200-48T"}
 }
 
@@ -30,13 +30,13 @@ func matchedCVEs(ms []Match) []string {
 func TestJunos_EX4200FromLLDPGetsItsExploitedCVEsByVersion(t *testing.T) {
 	t.Parallel()
 	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
-	r := MatchAsset(walk1EX4200(), vulns, nil, t0)
+	r := MatchAsset(labEX4200(), vulns, nil, t0)
 	want := []string{"CVE-2020-1631", "CVE-2023-36844", "CVE-2023-36845", "CVE-2023-36847", "CVE-2025-21590"}
 	if got := matchedCVEs(r.New); !slices.Equal(got, want) {
 		t.Fatalf("EX4200 on JUNOS 15.1R7.9: got %v, want %v", got, want)
 	}
 	for _, m := range r.New {
-		if m.Basis != BasisVersion || m.SoftwareDisplay != "Juniper Junos OS" || m.SoftwareID != osSoftwareID(walk1EX4200().ID) {
+		if m.Basis != BasisVersion || m.SoftwareDisplay != "Juniper Junos OS" || m.SoftwareID != osSoftwareID(labEX4200().ID) {
 			t.Errorf("%s: %+v", m.CVE, m)
 		}
 		s := m.Evidence.Summary
@@ -58,7 +58,7 @@ func TestJunos_EX4200FromLLDPGetsItsExploitedCVEsByVersion(t *testing.T) {
 	}
 }
 
-// D-510: the series filter needs a model. The same switch without one keeps today's behaviour (the SRX-only
+// The series filter needs a model. The same switch without one keeps today's behaviour (the SRX-only
 // CVE-2023-36846 is listed, its range contains 15.1); an SRX gets the SRX ones and not the EX-only ones.
 func TestJunos_SeriesNamedByCISAFollowsTheModel(t *testing.T) {
 	t.Parallel()
@@ -73,7 +73,7 @@ func TestJunos_SeriesNamedByCISAFollowsTheModel(t *testing.T) {
 		{"MX204", "JUNOS 20.4R3-S9", []string{"CVE-2025-21590"}},
 		{"ex2300-24t", "JUNOS 18.2R3.4", []string{"CVE-2020-1631", "CVE-2023-36844", "CVE-2023-36845", "CVE-2023-36847", "CVE-2025-21590"}},
 	} {
-		a := walk1EX4200()
+		a := labEX4200()
 		a.Model, a.OS, a.StatedOS = tc.model, tc.os, tc.os
 		if got := matchedCVEs(MatchAsset(a, vulns, nil, t0).New); !slices.Equal(got, tc.want) {
 			t.Errorf("%q on %q: got %v, want %v", tc.model, tc.os, got, tc.want)
@@ -142,7 +142,7 @@ func TestJunos_VersionForms(t *testing.T) {
 	}
 }
 
-// The stated OS strings that give a Junos row, and those that do not (nmap's names are guesses, D-501).
+// The stated OS strings that give a Junos row, and those that do not (nmap's names are guesses).
 func TestJunos_DeviceOSForms(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct{ os, ver string }{
@@ -181,13 +181,13 @@ func TestJunos_DeviceOSForms(t *testing.T) {
 	}
 }
 
-// D-510 on the box: the EX4200 already has an open finding of the SRX-only CVE-2023-36846 (the earlier install made it
+// On a test box: the EX4200 already has an open finding of the SRX-only CVE-2023-36846 (the earlier install made it
 // as a product match). The match creates the five EX findings, leaves that one open for a person with the reason in its
-// history, and never closes it (a model is not a proof about the version, and D-506 is about "Multiple Products" only).
+// history, and never closes it (a model is not a proof about the version, and the old-list rule is about "Multiple Products" only).
 func TestJunos_OpenSRXOnlyFindingOnAnEXStaysOpenWithTheReason(t *testing.T) {
 	t.Parallel()
 	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
-	dev := walk1EX4200()
+	dev := labEX4200()
 	e := newEnv(t)
 	e.inv.match = map[string]Asset{dev.ID: dev}
 	e.inv.assets = map[string]AssetView{dev.ID: {ID: dev.ID, IP: NoIP, Kind: "switch", Display: "switch"}}
@@ -222,7 +222,7 @@ func TestJunos_OpenSRXOnlyFindingOnAnEXStaysOpenWithTheReason(t *testing.T) {
 func TestJunos_RecordedRowWithoutVersionGivesWayToTheStatedOne(t *testing.T) {
 	t.Parallel()
 	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
-	a := walk1EX4200()
+	a := labEX4200()
 	a.Software = []Software{
 		{ID: "s-manual", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS", KevKeys: []string{"juniper|junos os"}},
 		{ID: "s-other", Display: "Juniper ScreenOS", Vendor: "Juniper", Product: "ScreenOS", Version: "6.3.0r17", KevKeys: []string{"juniper|screenos"}},
@@ -336,7 +336,7 @@ func TestJunos_RecordedRowWinsOnlyWithAJunosVersion(t *testing.T) {
 	t.Parallel()
 	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
 	for _, ver := range []string{"15.1", "JUNOS 15.1R7.9", "12.1"} {
-		a := walk1EX4200()
+		a := labEX4200()
 		a.Software = []Software{{ID: "s-manual", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS", Version: ver, KevKeys: []string{"juniper|junos os"}}}
 		if sws := deviceSoftware(a); len(sws) != 1 || sws[0].ID != osSoftwareID(a.ID) || sws[0].Version != "15.1R7.9" {
 			t.Errorf("recorded %q: %+v", ver, sws)

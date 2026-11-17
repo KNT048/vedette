@@ -1,6 +1,6 @@
 package response_test
 
-// Permanent tests of the findings of the independent security review of WP-13a (D-88 amendment 2026-11-09). Each test names
+// Permanent tests of the findings of the independent security review of WP-13a. Each test names
 // the invariant it proves; see modules/response/CONTRACT.md.
 
 import (
@@ -94,7 +94,7 @@ func (h hookExec) Execute(ctx context.Context, s response.DeviceStep) (response.
 func banAndBlock() []response.RuleAction {
 	return []response.RuleAction{
 		{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)},
-		{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}, // the destination: a LAN source would be refused (D-469)
+		{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}, // the destination: a LAN source would be refused
 	}
 }
 
@@ -224,7 +224,7 @@ type cancelExec struct {
 
 func (c *cancelExec) Execute(ctx context.Context, s response.DeviceStep) (response.DeviceResult, error) {
 	c.steps = append(c.steps, s)
-	if s.Phase != "run" { // the approver goes away while the write is in flight, not during the read before it (D-356)
+	if s.Phase != "run" { // the approver goes away while the write is in flight, not during the read before it
 		return response.DeviceResult{Status: response.StepOK, Detail: "read"}, nil
 	}
 	c.cancel()
@@ -291,7 +291,7 @@ func TestContract_INV19_StepIsRecordedBeforeItIsSent(t *testing.T) {
 // applied, so the box does not claim that nothing changed.
 //
 // The item's 50 ms run on the clock of a synctest bubble, which moves only while every goroutine of the test waits: the read before the
-// run, the record of it and the recheck (all inside the item's time since D-356) never use it up, so it runs out only once the run step
+// run, the record of it and the recheck (all inside the item's time) never use it up, so it runs out only once the run step
 // is with the executor, which waits on its context. On the wall clock a loaded runner spent the 50 ms before the send ("Held: the step
 // ended before it could be sent").
 func TestContract_INV19_StepThatRunsOutOfTimeIsStateUnknown(t *testing.T) {
@@ -300,7 +300,7 @@ func TestContract_INV19_StepThatRunsOutOfTimeIsStateUnknown(t *testing.T) {
 		var steps []response.DeviceStep
 		e := newEnv(t, func(c *response.Config) {
 			c.Executor = hookExec{steps: &steps, fn: func(ctx context.Context, s response.DeviceStep) error {
-				if s.Phase != "run" { // the read before the run answers (D-356); the run never does
+				if s.Phase != "run" { // the read before the run answers; the run never does
 					return nil
 				}
 				<-ctx.Done()
@@ -494,7 +494,7 @@ func TestContract_INV8_EmergencyStopStopsItemsStillToRun(t *testing.T) {
 	var steps []response.DeviceStep
 	e = newEnv(t, func(c *response.Config) {
 		c.Executor = hookExec{steps: &steps, fn: func(ctx context.Context, s response.DeviceStep) error {
-			if s.Phase != "run" { // the stop comes while the write is in flight, not during the read before it (D-356)
+			if s.Phase != "run" { // the stop comes while the write is in flight, not during the read before it
 				return nil
 			}
 			_, err := e.svc.EmergencyStop(ctx, oper)
@@ -507,7 +507,7 @@ func TestContract_INV8_EmergencyStopStopsItemsStillToRun(t *testing.T) {
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
 	got, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
 	e.must(err)
-	// D-179 (4): the step in flight is cancelled by the stop; this fake returns at the same moment, so it either got through (executed) or was cut
+	// The step in flight is cancelled by the stop; this fake returns at the same moment, so it either got through (executed) or was cut
 	// off (failed, state unknown). What must hold is that the next item did not run.
 	if first := got.Items[0]; (first.Status != response.ItemExecuted && (first.Status != response.ItemFailed || !first.StateUnknown)) || got.Items[1].Status != response.ItemFailed || !e.logHas("refused", "circuit_open") {
 		t.Fatalf("items: %+v / %+v", got.Items[0], got.Items[1])
@@ -681,7 +681,7 @@ func TestContract_INV10_UnreadableNeverTouchListFailsClosed(t *testing.T) {
 func TestContract_INV17_BlocklistPublishesPublicAddressesOnly(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	// Rows written straight into the table: a block on any of these is refused when it is planned (D-469), this is the last layer.
+	// Rows written straight into the table: a block on any of these is refused when it is planned, this is the last layer.
 	for i, v := range []string{"10.1.1.1", "172.16.0.1", "100.64.0.1", "100.127.255.254", "0.1.2.3", "127.0.0.1", "169.254.1.1", "224.0.0.1", "240.0.0.1", "255.255.255.255", "fc00::1", "fe80::1", "::1", "198.51.100.9", "2606:4700::7", "100.128.0.1"} {
 		e.exec1(`INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, added_at) VALUES (?, 'x', ?, 's', 'r', '2026-11-09T10:00:00.000Z')`, v, "i"+strconv.Itoa(i))
 	}
@@ -813,7 +813,7 @@ func TestContract_INV9_ToolChangedAfterTheRequestIsRefused(t *testing.T) {
 	t.Parallel()
 	e, act := mcpEnv(t)
 	a := e.only()
-	// Behind the API (a restore, another writer): ChangeAction would cancel the request (D-88 29), the gate must hold without it.
+	// Behind the API (a restore, another writer): ChangeAction would cancel the request, the gate must hold without it.
 	e.exec1(`UPDATE resp_catalog SET tool = 'delete_all_rules' WHERE id = ?`, act.ID)
 	e.turnOn()
 	_, err := e.svc.Approve(e.ctx(), oper, a.ID, nil, "")

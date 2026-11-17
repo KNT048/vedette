@@ -39,7 +39,7 @@ function Steps({ items, ns }: { items: { key: string; file: string; code: string
   )
 }
 
-/** D-399 (2): the box knows no address other machines can reach (opened as localhost, no other name configured). A command pinned to
+/** The box knows no address other machines can reach (opened as localhost, no other name configured). A command pinned to
  *  <VEDETTE_BOX_IP> passes its hash check and then fails on every server, so none is shown: say how to give the box an address. */
 function NoBoxAddress() {
   const { t } = useTranslation('inventory')
@@ -53,7 +53,7 @@ function NoBoxAddress() {
   )
 }
 
-/** D-465 (review M2): say which address the commands carry and where it is changed; when the page was opened at another host, say that
+/** Say which address the commands carry and where it is changed; when the page was opened at another host, say that
  *  agents will not use that one. No lookup of the name is made. */
 function BoxAddressNote({ box }: { box: string }) {
   const { t } = useTranslation('inventory')
@@ -81,7 +81,7 @@ const INSTALL_HINT: Record<OsqueryPackage['format'], (file: string) => string> =
   msi: (f) => `msiexec /i ${f} /qn`,
 }
 
-/** D-404: the packages the box serves, each a direct download from this origin (the public mirror route of D-169: the browser saves it
+/** The packages the box serves, each a direct download from this origin (the public mirror route: the browser saves it
  *  under its own name), with what it is for, its size, the SHA-256 of the box's SHA256SUMS and the one line that installs it. */
 function PackageTable({ packages }: { packages: OsqueryPackage[] }) {
   const { t } = useTranslation('inventory')
@@ -118,7 +118,7 @@ function PackageTable({ packages }: { packages: OsqueryPackage[] }) {
   )
 }
 
-/** The token dialog's copy of the table, for the OS chosen there (D-404). */
+/** The token dialog's copy of the table, for the OS chosen there. */
 function Downloads({ packages }: { packages: OsqueryPackage[] }) {
   const { t } = useTranslation('inventory')
   return (
@@ -130,7 +130,7 @@ function Downloads({ packages }: { packages: OsqueryPackage[] }) {
   )
 }
 
-/** Một dòng lệnh cài và gỡ cho Linux hoặc Windows Server, script đọc được, tải gói trực tiếp (D-404), và cài tay ở mục "Advanced". */
+/** Một dòng lệnh cài và gỡ cho Linux hoặc Windows Server, script đọc được, tải gói trực tiếp, và cài tay ở mục "Advanced". */
 export function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) {
   const { t } = useTranslation('inventory')
   const [platform, setPlatform] = useState<Platform>('linux')
@@ -305,7 +305,7 @@ export function WazuhForm({ current, onSaved }: { current: WazuhConnection | nul
               <Button disabled={save.isPending} busy={test.isPending} busyLabel={t('common:busy.testing')} aria-describedby="wazuh-wait" onClick={doTest}>{t('agents.wazuh.test')}</Button>
               <Button type="submit" variant="primary" disabled={test.isPending} busy={save.isPending} busyLabel={t('common:busy.saving')} aria-describedby="wazuh-wait">{t('agents.wazuh.save')}</Button>
             </DialogFooter>
-            {/* kien G1: Test and Save both reach the Wazuh manager, up to 30 s (wazuhTestBudget) */}
+            {/* Test and Save both reach the Wazuh manager, up to 30 s (wazuhTestBudget) */}
             <BusyNote id="wazuh-wait" busy={test.isPending || save.isPending}>{t('agents.wazuh.waiting')}</BusyNote>
           </form>
         </div>

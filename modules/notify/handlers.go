@@ -337,7 +337,7 @@ func (h *NotifyHandlers) NotifyPostNotifyZaloApproversUserIDCode(ctx context.Con
 	return convert[oas.NotifyPostNotifyZaloApproversUserIDCodeOK](v)
 }
 
-// NotifyGetNotifyTelegramApprovers implements GET /notify/telegram/approvers (admin, D-414).
+// NotifyGetNotifyTelegramApprovers implements GET /notify/telegram/approvers (admin).
 func (h *NotifyHandlers) NotifyGetNotifyTelegramApprovers(ctx context.Context) (*oas.NotifyGetNotifyTelegramApproversOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
@@ -352,7 +352,7 @@ func (h *NotifyHandlers) NotifyGetNotifyTelegramApprovers(ctx context.Context) (
 	}{l})
 }
 
-// NotifyPostNotifyTelegramApproversUserIDCode implements POST /notify/telegram/approvers/{user_id}/code (admin, D-414).
+// NotifyPostNotifyTelegramApproversUserIDCode implements POST /notify/telegram/approvers/{user_id}/code (admin).
 func (h *NotifyHandlers) NotifyPostNotifyTelegramApproversUserIDCode(ctx context.Context, params oas.NotifyPostNotifyTelegramApproversUserIDCodeParams) (*oas.NotifyPostNotifyTelegramApproversUserIDCodeOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
@@ -365,7 +365,7 @@ func (h *NotifyHandlers) NotifyPostNotifyTelegramApproversUserIDCode(ctx context
 	return convert[oas.NotifyPostNotifyTelegramApproversUserIDCodeOK](v)
 }
 
-// NotifyPostNotifyTelegramChats implements POST /notify/telegram/chats (admin, D-491).
+// NotifyPostNotifyTelegramChats implements POST /notify/telegram/chats (admin).
 func (h *NotifyHandlers) NotifyPostNotifyTelegramChats(ctx context.Context, req *oas.NotifyPostNotifyTelegramChatsReq) (*oas.NotifyPostNotifyTelegramChatsOK, error) {
 	if _, err := actor(ctx); err != nil {
 		return nil, err

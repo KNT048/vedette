@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// maxPortsPerScan bounds the exposure.port.opened events one scan publishes (D-384): each one is a write to response's event
+// maxPortsPerScan bounds the exposure.port.opened events one scan publishes: each one is a write to response's event
 // backlog (the rules run later, in its evaluate job). A first scan after a long gap or a big change can open many; the rest are on
 // the Exposure page (its diff), and the box log says how many were left out. ponytail: a flat cap; upgrade path: one summary event.
 const maxPortsPerScan = 20
@@ -22,7 +22,7 @@ const maxPortsPerScan = 20
 // snapshot that already has it), so the bridge detaches from that deadline, as the baseline re-match does (rematchTimeout).
 const portsOpenedTimeout = 30 * time.Second
 
-// exposurePortsOpened bridges exposure.snapshot.created to response's new_port trigger (D-384): exposure publishes only the counts
+// exposurePortsOpened bridges exposure.snapshot.created to response's new_port trigger: exposure publishes only the counts
 // of a scan, so on each snapshot this compares it with the previous scan day of the same target through exposure's own Diff and
 // publishes one exposure.port.opened per port that is open now and was not then. The first scan day of a target is the baseline:
 // it has nothing to compare with, so it opens nothing (Shodan Monitor's new_service behaves the same). Nothing is read while

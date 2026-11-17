@@ -404,7 +404,7 @@ func TestCoreAndHoneypotUnitsHealthCmdMatchTheRealCommands(t *testing.T) {
 		}
 		wantTmpfs := "/tmp"
 		if svc == "core" {
-			wantTmpfs = "/tmp:size=64m" // core's tmpfs is bounded (D-150)
+			wantTmpfs = "/tmp:size=64m" // core's tmpfs is bounded
 		}
 		if ro != "true" || tmpfs != wantTmpfs {
 			t.Errorf("%s: ReadOnly=%q Tmpfs=%q, want true and /tmp (core: /tmp:size=64m)", svc, ro, tmpfs)

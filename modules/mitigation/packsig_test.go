@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// D-346: the statement binds the version, every byte of every document and the set of documents.
+// The statement binds the version, every byte of every document and the set of documents.
 func TestStatementBindsVersionBytesAndSet(t *testing.T) {
 	a, b := Doc{Name: "CVE-2024-0001.json", Data: []byte(`{"a":1}`)}, Doc{Name: "CVE-2024-0002.json", Data: []byte(`{"b":2}`)}
 	base, err := Statement("2026.11.1", []Doc{a, b})

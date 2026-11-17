@@ -10,8 +10,8 @@ import (
 )
 
 // Retention of the history: DATA_MODEL 4.4 keeps notify_send, resolved notify_incident and notify_notice for 1 year. The
-// delete job runs while the module is off too (Housekeeping, D-160): it only deletes data past the retention the product states
-// (DATA_MODEL, CONTRACT, and the line on the History and Incidents screens, D-215), opens no route and no connection, and writes one audit line for every run that deleted
+// delete job runs while the module is off too (Housekeeping): it only deletes data past the retention the product states
+// (DATA_MODEL, CONTRACT, and the line on the History and Incidents screens), opens no route and no connection, and writes one audit line for every run that deleted
 // something.
 const (
 	retentionJob   = "retention"
@@ -19,7 +19,7 @@ const (
 	retention      = 365 * 24 * time.Hour
 )
 
-// RunRetention deletes, in one transaction, what is older than the retention (D-215):
+// RunRetention deletes, in one transaction, what is older than the retention:
 //   - notify_send rows whose attempt (at) is older than a year;
 //   - notify_incident rows with status resolved whose handled_at (last_seen when it is missing) is older than a year, unless a send
 //     newer than the cut still points to it (a resend of an old incident); an incident that is new or acknowledged is open work and is
@@ -28,7 +28,7 @@ const (
 //     the cut still covers (a resend of an old notice): the notice rows of a grouped message are only removed with the last send
 //     that covers them.
 //
-// notify_pending (the queue of what is not sent yet) is never touched: it is not history, and the stale rule of D-86 (7) owns it.
+// notify_pending (the queue of what is not sent yet) is never touched: it is not history, and the stale rule owns it.
 // notify_kev has its own, shorter, clean-up.
 func (s *Service) RunRetention(ctx context.Context) error {
 	cut := store.FormatTS(s.now().Add(-retention))

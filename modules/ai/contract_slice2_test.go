@@ -399,7 +399,7 @@ func TestContract_INV3_ExplainNeverGoesToCloudUnderTheRule(t *testing.T) {
 	}
 }
 
-// D-531: the monthly budget is a stop rule. A call that passes it keeps its answer and lowers no level; this month's tokens survive a
+// The monthly budget is a stop rule. A call that passes it keeps its answer and lowers no level; this month's tokens survive a
 // restart; the next call is refused before the provider is asked, at any level.
 func TestContract_INV4_BudgetStopsAtTheLimitAndSurvivesRestart(t *testing.T) {
 	a := newAPI(t)
@@ -585,7 +585,7 @@ func TestAnEditDuringATestDropsItsResult(t *testing.T) {
 	}
 }
 
-// D-445: the test made in the Add or Edit dialog becomes the last test of the profile saved with exactly those settings by the same
+// The test made in the Add or Edit dialog becomes the last test of the profile saved with exactly those settings by the same
 // admin, a failure as much as a success; other settings, another place, another admin, an old test, a test already used by a save,
 // or a body that claims a test the box did not run do not count.
 func TestADialogTestIsKeptForTheProfileSavedWithIt(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// The receiving side of a Telegram bot for approvals (spec approval-tokens.md 6, D-38): the box long-polls getUpdates (a
+// The receiving side of a Telegram bot for approvals (spec approval-tokens.md 6): the box long-polls getUpdates (a
 // connection out, no inbound port, no webhook) for button presses only, and answers each press privately with
 // answerCallbackQuery. Everything Telegram sends is untrusted input: the answer is size-capped, decoded fail-closed, and a
 // press whose fields do not have their documented form is dropped before anyone sees it.

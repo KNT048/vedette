@@ -34,7 +34,7 @@ func (s *Service) EmailReady(ctx context.Context) (ok bool, reason string) {
 	return true, ""
 }
 
-// CodeMailer is what core/auth wants (auth.CodeMailer): two-step sign-in codes over the email channel (D-35, INV-9).
+// CodeMailer is what core/auth wants (auth.CodeMailer): two-step sign-in codes over the email channel (INV-9).
 type CodeMailer struct{ s *Service }
 
 // CodeMailer returns the mailer of this service. Pass it as auth.Config.Mailer.
@@ -74,7 +74,7 @@ func (m CodeMailer) SendCode(ctx context.Context, to, code string) error {
 		Link: s.link("/login")})
 }
 
-// SendStepUpCode mails a step-up code (core/auth.StepUpMailer, D-98): the same SMTP path, the same availability and the same
+// SendStepUpCode mails a step-up code (core/auth.StepUpMailer): the same SMTP path, the same availability and the same
 // fixed errors as SendCode, but the message says what is being approved so it cannot be taken for a sign-in code.
 // summary is one line built by the server; it still goes through the line cleaner of the channel package (control and bidi
 // characters, line breaks). There is no link in the message and nothing in it but the code. The code is not logged or stored.

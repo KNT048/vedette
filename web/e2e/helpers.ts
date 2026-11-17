@@ -16,7 +16,7 @@ export async function startWithSample(page: Page) {
   await resetStorage(page)
   await page.goto('/')
   await expect(page).toHaveURL(/\/setup/)
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Use sample data' }).click()
   await expect(page.getByRole('heading', { level: 1, name: /^Today/ })).toBeVisible()
@@ -60,9 +60,9 @@ export async function expectAccessible(page: Page, label: string) {
 export async function startClean(page: Page, org = 'Acme Test Ltd') {
   await resetStorage(page)
   await page.goto('/setup')
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // D-75: the code the mock accepts
+  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // The code the mock accepts
   await page.getByLabel('Organization name', { exact: true }).fill(org)
   await page.getByLabel('Administrator name', { exact: true }).fill('Alex Admin')
   await page.getByLabel('Sign-in email', { exact: true }).fill('admin@acme.example')
@@ -75,7 +75,7 @@ export async function shot(page: Page, mod: string, name: string) {
   await page.screenshot({ path: `qa-shots/${mod}/${name}.png`, fullPage: true })
 }
 
-/** D-624 (supervisor 2026-11-16): a setup bundle turns on v1 modules only. A spec that needs a preview module turns it on as a
+/** A setup bundle turns on v1 modules only. A spec that needs a preview module turns it on as a
  *  customer does, from its own row in Settings → Modules (names as listed there, e.g. 'Vulnerability scan', 'Internal traps',
  *  'Logs', 'AI assistant', 'Reports'); a dependency dialog is accepted. */
 export async function turnOnModules(page: Page, names: string[]) {
@@ -91,5 +91,5 @@ export async function turnOnModules(page: Page, names: string[]) {
   }
 }
 
-/** Every preview module (scan, honeypot, logs, ai, reports): what the mid-size bundle turned on before D-624. */
+/** Every preview module (scan, honeypot, logs, ai, reports): what the mid-size bundle used to turn on. */
 export const PREVIEW_NAMES = ['Vulnerability scan', 'Internal traps', 'Logs', 'AI assistant', 'Reports']

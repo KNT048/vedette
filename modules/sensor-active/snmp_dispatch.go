@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/sensorlink"
 )
 
-// SNMP reads as the third kind of job (D-512, sensor-protocol.md 6.4, protocol 5). The Service is the only caller: it has checked the
+// SNMP reads as the third kind of job (sensor-protocol.md 6.4, protocol 5). The Service is the only caller: it has checked the
 // scope, the consent, the device's approval and its read address and written the probe row before it calls RunSNMP. The
 // worker in the scan container sends the GETs; what comes back is checked here against the job and parsed by the Service, fail
 // closed (the worker talked to devices an attacker may control, and may itself be compromised: SYS-6).

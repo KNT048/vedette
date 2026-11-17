@@ -1,4 +1,4 @@
-// Package logexport builds the file of GET /core/logs/export (S-CORE-6, D-48, core INV-13): the log
+// Package logexport builds the file of GET /core/logs/export (S-CORE-6, core INV-13): the log
 // categories of the box in one JSON or CSV download.
 //
 // Each module owns its log rows and registers a Source for its category (Registry.Register, called from

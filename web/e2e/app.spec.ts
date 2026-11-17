@@ -3,7 +3,7 @@ import { axeViolations, collectErrors, expectAccessible, startWithSample } from 
 import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 // Mọi trang trong thanh bên + các trang chi tiết chính. Kiểm: có tiêu đề, không lỗi console, axe sạch (gồm tương phản).
-// D-624: a page of a module left out of v1 (MCP server) is not offered while POST_V1_IN_UI is false, so it is not in the list.
+// A page of a module left out of v1 (MCP server) is not offered while POST_V1_IN_UI is false, so it is not in the list.
 const PAGES = [
   '/', '/lookup?q=185.220.101.47', '/cve/CVE-2022-27593', '/findings', '/findings/f-1', '/findings/f-2', '/incidents',
   '/devices', '/devices/a-nas02', '/devices/setup', '/exposure', '/scans', '/honeypot', '/logs', '/assistant', '/reports',
@@ -30,7 +30,7 @@ test('mọi trang mở được, không lỗi, truy cập được', async ({ pa
     await expect(page.getByRole('status').filter({ hasText: /^Loading$/ }), `${path} still loading`).toHaveCount(0, { timeout: 8000 })
     for (const v of await axeViolations(page)) problems.push(`${path}: ${v}`)
     const text = await page.locator('body').innerText()
-    if (/[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(text.replace(/Kiên/g, ''))) problems.push(`${path}: Vietnamese text on page (D-28)`)
+    if (/[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(text)) problems.push(`${path}: Vietnamese text on page`)
   }
   expect(problems, problems.join('\n')).toEqual([])
   expect(errors).toEqual([])

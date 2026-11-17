@@ -39,7 +39,7 @@ func headOf(es []ActivityEntry) *ChainHead {
 	return &h
 }
 
-// The shared vectors of core/chain (D-57 item 14): the ai_activity rows must hash to the same values here as in
+// The shared vectors of core/chain: the ai_activity rows must hash to the same values here as in
 // core and in the TypeScript mock, through the ActivityEntry -> map conversion this package owns.
 func TestChainVectorsSharedWithCore(t *testing.T) {
 	t.Parallel()

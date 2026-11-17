@@ -30,7 +30,7 @@ type StepUp struct {
 
 var purposeRE = regexp.MustCompile(`^[a-z][a-z0-9_.-]{0,127}$`)
 
-// VerifyTwoStep asks a signed-in user for a fresh two-step code before one sensitive act (D-98, core INV-22):
+// VerifyTwoStep asks a signed-in user for a fresh two-step code before one sensitive act (core INV-22):
 // purpose names the act and, for a code that must belong to one request, carries its id (for example
 // "response.approve.req-7"); it is validated and goes into the audit, and an emailed code only passes for the
 // purpose it was mailed for. summary is one line built by the server that says what is being approved

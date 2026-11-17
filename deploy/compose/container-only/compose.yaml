@@ -1,4 +1,4 @@
-# Vedette, container-only install (D-55, D-168): core on the customer's Docker or Podman, no vedette-host. Docker Compose v2
+# Vedette, container-only install: core on the customer's Docker or Podman, no vedette-host. Docker Compose v2
 # (`docker compose`) and Podman (`podman compose` with a compose v2 provider). Read docs/INSTALL-CONTAINER.md first.
 #
 # You set two values in vedette.env, VEDETTE_BIND_IP (the address the web page is served on) and VEDETTE_HOSTS (the name or address your
@@ -24,13 +24,13 @@ services:
     pids_limit: 512
     environment:
       GOMEMLIMIT: 1800MiB
-      VEDETTE_BIND_IP: "${VEDETTE_BIND_IP}" # D-446: the machine's address, so nothing Vedette sends reaches its own published ports
+      VEDETTE_BIND_IP: "${VEDETTE_BIND_IP}" # The machine's address, so nothing Vedette sends reaches its own published ports
     # -hosts: the names and addresses the box answers to (anything else gets 421) and the names of its self-signed certificate.
     # -sensor-listen stays inside the bridge (8444 is published on 127.0.0.1 only); -host-socket "" says: no vedette-host.
     # -syslog-port 5514: the syslog listener of the logs module (only while that module is on); compose.syslog.yaml publishes it as 514.
     # 8765: the read-only MCP server (only while the mcp-server module is on). In a container core listens on its own network by
     # default (no -mcp-listen, so an older image still starts), and the port is published on the machine's 127.0.0.1 only: Docker
-    # and Podman forward a publish to the container's address, never to its loopback (D-395). Another machine: an SSH tunnel.
+    # and Podman forward a publish to the container's address, never to its loopback. Another machine: an SSH tunnel.
     command:
       - "-listen=:8443"
       - "-hosts=${VEDETTE_HOSTS:?VEDETTE_HOSTS is empty: the name or address you open in the browser}"
@@ -52,7 +52,7 @@ services:
       interval: 30s
       start_period: 60s
       retries: 3
-    # A purge ("Delete all data") makes core exit so that its supervisor starts a fresh box (D-154): without this the box stays stopped.
+    # A purge ("Delete all data") makes core exit so that its supervisor starts a fresh box: without this the box stays stopped.
     restart: unless-stopped
     # The appliance logs to journald, which bounds itself; Docker's default json-file never rotates, so bound it here.
     logging: {driver: json-file, options: {max-size: "10m", max-file: "5"}}

@@ -1,4 +1,4 @@
-// Package pki is the small certificate authority core runs for its own sensors (D-110): an ECDSA P-256 CA, the server leaf of
+// Package pki is the small certificate authority core runs for its own sensors: an ECDSA P-256 CA, the server leaf of
 // the sensor listener, the 7-day client leaves of the two sensor roles, the table of live serials, renewal at a third of the
 // lifetime left, and the writer that hands a role its bundle through a volume.
 //
@@ -7,7 +7,7 @@
 // reading is restricted to this package (Open restricts the purpose; TestOnlyPKINamesTheCAPurpose scans the tree).
 //
 // Authority implements sensorlink.Identity. Leaf private keys exist in memory only long enough to be written to the bundle
-// file; core never reads a bundle back (the D-89 pattern).
+// file; core never reads a bundle back.
 package pki
 
 import (
@@ -42,7 +42,7 @@ const (
 func init() { secrets.Reserve(caPurpose) } // closed to Store.Open from the start of the process, before pki.Open has run
 
 // ErrCA means the stored CA could not be used (damaged, expired or not yet valid). pki.Open does not fail on it: it makes a new
-// CA in its place (D-110 (1)); the error is what openCA reports and what a caller sees when the replacement itself fails.
+// CA in its place; the error is what openCA reports and what a caller sees when the replacement itself fails.
 var ErrCA = errors.New("pki: the stored CA is not usable")
 
 // caError says why a stored CA is unusable; it is ErrCA.
@@ -72,7 +72,7 @@ type ca struct {
 // loadOrCreateCA returns the CA of this box. The first time it makes one (audit sensor-ca.create). A stored CA that cannot be
 // used (it does not decrypt under this master.key, it is damaged, it is expired or not yet valid) is replaced in the same
 // write transaction that found it, together with the retirement of every live leaf of the old CA (audit sensor-ca.replace): a
-// restore without master.key, or a master.key made again, gives a new CA and new leaves, as D-110 (1) says, and Start writes the
+// restore without master.key, or a master.key made again, gives a new CA and new leaves, and Start writes the
 // new bundles. Callers racing on first use all get the same CA: the check and the write run in one write transaction.
 func (a *Authority) loadOrCreateCA(ctx context.Context, op *secrets.Opener) (*ca, error) {
 	if id, err := coredb.New(a.db.Reader()).GetSecretIDByPurpose(ctx, caPurpose); err == nil {

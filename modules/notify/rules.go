@@ -136,7 +136,7 @@ const (
 
 func (v Verdict) String() string { return [...]string{"send", "hold", "skip"}[v] }
 
-// Decide combines INV-4 and INV-5 (and D-57 item 8) for one channel: below
+// Decide combines INV-4 and INV-5 (and the quiet-hours hold) for one channel: below
 // min_severity is skipped; during quiet hours it is held until the window ends,
 // except a critical notice when allow_critical is set, which goes at once. The
 // returned time is the release time of a held notice (zero otherwise).

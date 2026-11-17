@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// D-449: the box keeps only the fields a provider uses, and a saved secret only with the sign-in method it was saved for.
+// The box keeps only the fields a provider uses, and a saved secret only with the sign-in method it was saved for.
 func TestEmailProviderFieldsAndSecretFollowTheSignInMethod(t *testing.T) {
 	e := newEnv(t)
 	save := func(f map[string]string, secret string) (notify.Channel, error) {
@@ -54,7 +54,7 @@ func TestEmailProviderFieldsAndSecretFollowTheSignInMethod(t *testing.T) {
 	wantCode(t, err, 400, "bad_tenant_id")
 }
 
-// D-449 review: a saved secret is only ever sent to the sign-in method, server and port it was saved for. A save with "No encryption"
+// A saved secret is only ever sent to the sign-in method, server and port it was saved for. A save with "No encryption"
 // in between does not carry a client secret over to a password login: that save deletes the secret.
 func TestEmailSecretIsBoundToMethodServerAndPort(t *testing.T) {
 	e := newEnv(t)

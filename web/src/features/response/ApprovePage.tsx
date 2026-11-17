@@ -12,7 +12,7 @@ import { fmtDateTime } from '@/lib/format'
 import { errText, useApprovalView, useDecideByLink } from './api'
 import { ChangeView, RiskChip } from './parts'
 
-/** Public page behind an emailed approval link (D-46). Opening it changes nothing: only the buttons below POST a decision. */
+/** Public page behind an emailed approval link. Opening it changes nothing: only the buttons below POST a decision. */
 export default function ApprovePage() {
   const { t } = useTranslation('response')
   const token = useParams().token ?? ''
@@ -39,7 +39,7 @@ export default function ApprovePage() {
               aria-describedby="approve-wait" onClick={() => go('approve')}>{t('action.approve')}</Button>
             <Button disabled={decide.isPending} busy={decide.isPending && decide.variables?.decision === 'reject'} busyLabel={t('common:busy.rejecting')} onClick={() => go('reject')}>{t('action.reject')}</Button>
           </div>
-          {/* kien G1: the last approval makes the change on the device before it answers (up to 90 s for each change) */}
+          {/* The last approval makes the change on the device before it answers (up to 90 s for each change) */}
           <BusyNote id="approve-wait" busy={decide.isPending && decide.variables?.decision === 'approve'}>{t('action.approveWaiting')}</BusyNote>
         </Card>
       ) : (

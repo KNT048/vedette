@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// D-488 on the real golden set (KEV + NVD ranges, testdata/kev-nvd-golden.json).
+// The fixed version on the real golden set (KEV + NVD ranges, testdata/kev-nvd-golden.json).
 func TestFixedIn_Golden(t *testing.T) {
 	vulns := goldenVulns(t)
 	vuln := func(cve string) Vuln {
@@ -69,7 +69,7 @@ func TestFixedIn_NoEndNoData(t *testing.T) {
 	}
 }
 
-// Review of D-488: the fix must be outside every applicable range, whatever the order of NVD's rows.
+// The fix must be outside every applicable range, whatever the order of NVD's rows.
 func TestFixedIn_ReviewCases(t *testing.T) {
 	vulns := goldenVulns(t)
 	vuln := func(cve string) Vuln {
@@ -178,7 +178,7 @@ func TestFixedIn_BranchesAreShort(t *testing.T) {
 	}
 }
 
-// D-556: ranges from the CNA's CVE.org record, written by feeds under CISA's own vendor and product, decide by
+// ranges from the CNA's CVE.org record, written by feeds under CISA's own vendor and product, decide by
 // version like NVD's, and every sentence names their source.
 func TestCVEOrgRangesNameTheirSource(t *testing.T) {
 	v := Vuln{CVE: "CVE-2024-3400", Vendor: "Palo Alto Networks", Product: "PAN-OS", RangesFrom: RangesCVEOrg, Affected: []Affected{
@@ -201,7 +201,7 @@ func TestCVEOrgRangesNameTheirSource(t *testing.T) {
 	}
 }
 
-// D-488 follow-up (inventory INV-28 (3)): an agent row read from the package database is told to take the distribution's
+// Inventory INV-28 (3): an agent row read from the package database is told to take the distribution's
 // security updates, with the upstream release only as a reference; a row a person typed keeps the upstream number, and a
 // row whose origin is not known (stored before inventory kept the flag, or no source) keeps the conditional wording.
 func TestFixedIn_PackagedAgentRow(t *testing.T) {

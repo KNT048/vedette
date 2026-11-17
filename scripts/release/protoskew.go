@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The sensor protocol gate of release-manifest (D-410, D-459, docs/specs/sensor-protocol.md §10). core accepts its own protocol
+// The sensor protocol gate of release-manifest (docs/specs/sensor-protocol.md §10). core accepts its own protocol
 // (sensorlink.ProtoVersion) and the one before (sensorlink.ProtoPrevious); an update moves core first, then the sensors. So a box may
 // update straight to this release only from a release whose sensors speak at least ProtoPrevious: min_upgrade_from must exclude every
 // earlier release below that. The protocols are read from git at each tag, never typed by hand.
@@ -82,7 +82,7 @@ func earlierProtos(ctx context.Context, repo, version string) ([]releaseProto, e
 }
 
 // checkTagsCover refuses a clone that lacks the tag of a release the published index names (the latest of each channel): the gate
-// below would not see that release, and pass for it. A clone made before kien pushed a tag, or with --no-tags, is the case. A latest
+// below would not see that release, and pass for it. A clone made before the release tag was pushed, or with --no-tags, is the case. A latest
 // at or above version (beta ahead of a stable hotfix) is no release a box updates to version from.
 func checkTagsCover(version string, earlier []releaseProto, idx *release.Index) error {
 	if idx == nil {
@@ -101,7 +101,7 @@ func checkTagsCover(version string, earlier []releaseProto, idx *release.Index) 
 
 // checkSensorProto refuses a release whose core accepts sensor protocols accepts..cur when min_upgrade_from lets a box update straight
 // from an earlier release whose sensors speak an older one: core would refuse them (426) until they are updated too, and a failed
-// update would leave the box with sensors core never accepts again. A release whose sensors are at least accepts is fine (D-459).
+// update would leave the box with sensors core never accepts again. A release whose sensors are at least accepts is fine.
 func checkSensorProto(version, minUpgradeFrom string, cur, accepts int, earlier []releaseProto) error {
 	last, lastProto := "", 0 // the newest earlier release whose protocol core no longer accepts
 	for _, e := range earlier {

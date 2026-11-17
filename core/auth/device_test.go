@@ -31,7 +31,7 @@ func signInForCookie(t *testing.T, env *authtest.Env, email string) string {
 	return res.Device
 }
 
-// D-77: the cookie is HttpOnly, Secure, SameSite=Strict, scoped to the sign-in endpoints, and ninety days long.
+// The cookie is HttpOnly, Secure, SameSite=Strict, scoped to the sign-in endpoints, and ninety days long.
 func TestDeviceCookieAttributes(t *testing.T) {
 	t.Parallel()
 	c := auth.DeviceCookie("v")
@@ -43,7 +43,7 @@ func TestDeviceCookieAttributes(t *testing.T) {
 	}
 }
 
-// D-77: an insider in the same /64 who guesses 100 times blocks the /64 key of admin@ for everyone without a
+// An insider in the same /64 who guesses 100 times blocks the /64 key of admin@ for everyone without a
 // cookie, but not the real owner, who presents a device cookie from an earlier sign-in.
 func TestDeviceCookieHolderIsNotLockedOutByTheInsiderOfTheSame64(t *testing.T) {
 	t.Parallel()
@@ -71,7 +71,7 @@ func TestDeviceCookieHolderIsNotLockedOutByTheInsiderOfTheSame64(t *testing.T) {
 
 func mustErr(_ auth.LoginResult, err error) error { return err }
 
-// D-77: a stolen cookie brute-forces from anywhere, but only ten tries per window per cookie; the address
+// A stolen cookie brute-forces from anywhere, but only ten tries per window per cookie; the address
 // does not matter (a new address gives no new budget) and the address counters stay untouched.
 func TestStolenDeviceCookieBruteForceIsStillLimited(t *testing.T) {
 	t.Parallel()
@@ -98,7 +98,7 @@ func TestStolenDeviceCookieBruteForceIsStillLimited(t *testing.T) {
 	}
 }
 
-// D-77: a missing, malformed, tampered, expired or other-user cookie is no exemption: the address limit applies.
+// A missing, malformed, tampered, expired or other-user cookie is no exemption: the address limit applies.
 func TestInvalidDeviceCookiesGetNoExemption(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
@@ -128,7 +128,7 @@ func TestInvalidDeviceCookiesGetNoExemption(t *testing.T) {
 	})
 }
 
-// D-77: a password change or reset kills every device cookie of the account (cred_version is in the signed value).
+// A password change or reset kills every device cookie of the account (cred_version is in the signed value).
 func TestDeviceCookieDiesWithThePassword(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
@@ -145,7 +145,7 @@ func TestDeviceCookieDiesWithThePassword(t *testing.T) {
 	wantAPI(t, mustErr(loginWith(env, u.Email, "wrong password here", cookie, addr)), 429, "rate_limited")
 }
 
-// D-77: a cookie of the account is presented to the resend-code endpoint the same way.
+// A cookie of the account is presented to the resend-code endpoint the same way.
 func TestResendCodeHonoursTheDeviceCookie(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
@@ -168,7 +168,7 @@ func TestResendCodeHonoursTheDeviceCookie(t *testing.T) {
 	}
 }
 
-// D-75 (amended after the security review of WP-04b part 2): wrong setup codes are counted per client
+// amended after the security review of WP-04b part 2: wrong setup codes are counted per client
 // address like a sign-in, so one guesser cannot keep setup closed for the owner at another address; a right
 // code gives its count back.
 func TestSetupAttemptsAreBoundedPerClient(t *testing.T) {
@@ -202,7 +202,7 @@ func TestSetupAttemptsAreBoundedPerClient(t *testing.T) {
 	}
 }
 
-// D-75: an IPv6 client is counted per address and per /64 (the same keys as sign-in), so rotating inside
+// An IPv6 client is counted per address and per /64 (the same keys as sign-in), so rotating inside
 // a /64 does not give a fresh budget forever.
 func TestSetupAttemptsOfOneIPv6PrefixShareABudget(t *testing.T) {
 	t.Parallel()
@@ -219,7 +219,7 @@ func TestSetupAttemptsOfOneIPv6PrefixShareABudget(t *testing.T) {
 	}
 }
 
-// D-75 (amended after review 2): there is no box-wide ceiling on setup guesses, because it is itself the
+// amended after review 2: there is no box-wide ceiling on setup guesses, because it is itself the
 // lever that locks the owner out. One stranger with ten IPv6 /64s (a hundred fresh addresses in each: no
 // address reaches its own limit of 10, each /64 reaches exactly 100) and 1000 IPv4 addresses never stops
 // the owner, from an address never seen before, at any time.

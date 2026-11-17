@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// The sources of D-446 (Vedette never connects to itself) for feeds, notify, logs and ai: machineAddrs is the machine's addresses
+// The sources of the self-connection rule (Vedette never connects to itself) for feeds, notify, logs and ai: machineAddrs is the machine's addresses
 // (refused on Vedette's own ports), vedetteSelf what is Vedette itself beyond core's own interfaces (refused on every port).
 
 // machineSources are the places the machine's addresses come from. Each is a field so a test can fake it; a nil one adds nothing.
@@ -46,7 +46,7 @@ func (m machineSources) addrs() ([]netip.Addr, bool) {
 	return out, known
 }
 
-// machineAddrs is Config.BoxAddrs of feeds, notify, logs and ai (D-446). On the appliance vedette-host reports the machine's
+// machineAddrs is Config.BoxAddrs of feeds, notify, logs and ai. On the appliance vedette-host reports the machine's
 // addresses; on a container-only install core cannot see them, so the gateway, the -hosts literals, VEDETTE_BIND_IP (passed by the
 // compose file as an environment variable, which an older image ignores) and the host-alias names stand in for them: without them
 // https://<LAN IP>:8443 would reach core's own API through the published port.

@@ -169,7 +169,7 @@ func (e *env) rows(t *testing.T, role sensorlink.Role) []certRow {
 	return out
 }
 
-// D-110 (1): one CA, made the first time, sealed in core_secret under a purpose only this package may read.
+// One CA, made the first time, sealed in core_secret under a purpose only this package may read.
 func TestCAIsMadeOnceAndSealed(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -246,7 +246,7 @@ func TestCAFirstUseRace(t *testing.T) {
 	}
 }
 
-// D-110 (1), spec section 4, core INV-24 (M2 of the SP-1 review): a restore without master.key (or a master.key made again)
+// Spec section 4, core INV-24: a restore without master.key (or a master.key made again)
 // leaves a CA row sealed under a key the box does not have. pki.Open replaces it with a new CA and retires the live leaves of the
 // old one; Start writes new bundles; the old CA's certificates no longer get in.
 func TestLostMasterKeyGivesANewCA(t *testing.T) {
@@ -406,7 +406,7 @@ func TestEveryPKIChangeIsAudited(t *testing.T) {
 	}
 }
 
-// D-110 (2): the shape of every certificate.
+// The shape of every certificate.
 func TestLeafCertificates(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -485,7 +485,7 @@ func mustCA(t *testing.T, a *pki.Authority) *x509.Certificate {
 	return c
 }
 
-// D-110 (2)(5): every serial is recorded; the current and the previous one are live, older ones are retired with a time, and
+// Every serial is recorded; the current and the previous one are live, older ones are retired with a time, and
 // that survives a restart.
 func TestSerialTable(t *testing.T) {
 	t.Parallel()
@@ -547,7 +547,7 @@ func ptr(s *string) string {
 	return *s
 }
 
-// D-110 (3): at start and daily, a leaf is replaced when a third of its life or less is left; otherwise nothing is touched.
+// At start and daily, a leaf is replaced when a third of its life or less is left; otherwise nothing is touched.
 func TestRenewal(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -648,7 +648,7 @@ func (stubBackend) PassiveHeartbeat(context.Context, *sensorlink.PassiveHeartbea
 	return inst, nil
 }
 
-// D-110 (4)(5), D-109 (2) with the real CA: certificates rotate without a restart of core or the sensor; the previous serial
+// With the real CA: certificates rotate without a restart of core or the sensor; the previous serial
 // works until a second rotation; the serial before it is refused on a live connection and on a new one.
 func TestRotationEndToEnd(t *testing.T) {
 	t.Parallel()

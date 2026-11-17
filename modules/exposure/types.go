@@ -2,13 +2,13 @@ package exposure
 
 import "time"
 
-// Limits and defaults (CONTRACT INV-4, INV-5, INV-8, INV-11; kien 2026-11-09).
+// Limits and defaults (CONTRACT INV-4, INV-5, INV-8, INV-11).
 const (
 	ValidDays          = 30 // an IP is valid this long after the box last saw it
 	ExpiringDays       = 5  // at most this many days left: validity "expiring"
 	DeepRounds         = 5  // rounds of a full check (finds every IP of a load balancer); a round asks each of the three services once
 	LightRounds        = 1  // rounds of the check at a short interval
-	MinIntervalMin     = 1  // auto-detect interval bounds and default, in minutes (kien: 1 minute to 24 hours)
+	MinIntervalMin     = 1  // auto-detect interval bounds and default, in minutes (1 minute to 24 hours)
 	MaxIntervalMin     = 1440
 	DefaultIntervalMin = 60
 	MaxTargets         = 20
@@ -65,23 +65,23 @@ type Check struct {
 	OK      bool   `json:"ok"`
 	Message string `json:"message"`
 	// Covers (stored with the check by checkDoc, never in the API) says the check found this domain target's own record on its own
-	// name or its _vedette-verify name, which covers the names under it (D-628). A record of its own token on a parent name (D-632)
-	// proves it only, so covered_by never names it (review r1 M1 of #960).
+	// name or its _vedette-verify name, which covers the names under it. A record of its own token on a parent name
+	// proves it only, so covered_by never names it.
 	Covers bool `json:"-"`
 }
 
-// Commitment is who ticked "my company owns it and I am authorized to scan it", and when (D-26).
+// Commitment is who ticked "my company owns it and I am authorized to scan it", and when.
 type Commitment struct {
 	By string `json:"by"`
 	At string `json:"at"`
-	// Version and Sentence: the exact sentence the administrator saw next to Scan now (D-473); nil on a commitment recorded earlier.
+	// Version and Sentence: the exact sentence the administrator saw next to Scan now; nil on a commitment recorded earlier.
 	// UserID and Method are kept in the row and the audit line, not in the API: who by id, and how two-step was met (app, email, sso).
 	UserID, Method string  `json:"-"`
 	Version        *string `json:"version"`
 	Sentence       *string `json:"sentence"`
 }
 
-// current says the commitment is of the sentence in force (D-559): a missing one, one recorded before versions and one of an older
+// current says the commitment is of the sentence in force: a missing one, one recorded before versions and one of an older
 // version all count as not confirmed for it.
 func (c *Commitment) current() bool {
 	return c != nil && c.Version != nil && *c.Version == NoticeVersion
@@ -106,14 +106,14 @@ type Target struct {
 	VerifiedAt time.Time // zero while unverified; for an IP, the last time the box saw it
 	LastCheck  *Check
 	Commitment *Commitment
-	Terms      *Terms // the testing terms (FULL-1); nil when not accepted
+	Terms      *Terms // the testing terms; nil when not accepted
 	CreatedAt  time.Time
 	LastScanAt time.Time // zero when never scanned
 	// proofDomain and proofToken are, after the scan gate, the domain target whose record proved this one now (itself, or a parent
-	// of the box that covers it) and its token: the domain and token the executors' fence checks (D-628). Never stored.
+	// of the box that covers it) and its token: the domain and token the executors' fence checks. Never stored.
 	proofDomain, proofToken string
-	// proofOwn: the record is this target's own token (on its name, or on a parent name down to its registered domain, D-632); false:
-	// a parent target's record that covers it (D-628).
+	// proofOwn: the record is this target's own token (on its name, or on a parent name down to its registered domain); false:
+	// a parent target's record that covers it.
 	proofOwn bool
 }
 
@@ -130,16 +130,16 @@ type TargetView struct {
 	Validity   *string     `json:"validity"`
 	LastCheck  *Check      `json:"last_check"`
 	Commitment *Commitment `json:"commitment"`
-	// CommitmentNotice is the sentence an administrator's first Scan now confirms (D-473), with this target's name in it; nil once
-	// the target has a commitment of the current sentence (an older one is asked again once, D-559).
+	// CommitmentNotice is the sentence an administrator's first Scan now confirms, with this target's name in it; nil once
+	// the target has a commitment of the current sentence (an older one is asked again once).
 	CommitmentNotice *Notice `json:"commitment_notice"`
-	// Terms is the acceptance of the testing terms (FULL-1), nil when none; TermsNotice is the current text with this target in it,
+	// Terms is the acceptance of the testing terms, nil when none; TermsNotice is the current text with this target in it,
 	// always sent (the page shows it to accept, or to read again after a new version). FullScan says scans run at full depth.
 	Terms       *Terms      `json:"terms"`
 	TermsNotice TermsNotice `json:"terms_notice"`
 	FullScan    bool        `json:"full_scan"`
 	// TermsWarning says, on GET /exposure/targets/{id} of an IP, that the box goes out through carrier-grade NAT (the disruptive
-	// tick is then refused); nil otherwise and in lists (D-566 review r1 M2).
+	// tick is then refused); nil otherwise and in lists.
 	TermsWarning  *string        `json:"terms_warning,omitempty"`
 	Scannable     bool           `json:"scannable"`
 	BlockedReason *BlockedReason `json:"blocked_reason"`
@@ -147,9 +147,9 @@ type TargetView struct {
 	LastScanAt    *string        `json:"last_scan_at"`
 	Latest        *Counts        `json:"latest"`
 	// OpenPorts are the first MaxOpenPorts open ports of the newest snapshot, in its order (Latest.Ports is the total), so
-	// the list page can say what is open (S-EXP-1, D-485); nil when never scanned.
+	// the list page can say what is open (S-EXP-1); nil when never scanned.
 	OpenPorts []PortRow `json:"open_ports"`
-	// Proof says where a domain's TXT record goes and which verified domain of the box covers it already (D-628); nil for an IP.
+	// Proof says where a domain's TXT record goes and which verified domain of the box covers it already; nil for an IP.
 	Proof *ProofHint `json:"proof"`
 }
 
@@ -199,8 +199,8 @@ type VerifyResult struct {
 // The content of a scan, as the scan module hands it over (INV-10: it came from other hosts, so it is
 // untrusted and the service limits it before storing).
 type (
-	// HostRow is a name under the domain (INV-27, D-567). IP is the first of its IPv4 addresses ("" when it has none). Source, CNAME
-	// and IPs come from scans since D-567; a row of an older snapshot has no source and the kinds of its addresses are unknown.
+	// HostRow is a name under the domain (INV-27). IP is the first of its IPv4 addresses ("" when it has none). Source, CNAME
+	// and IPs come from newer scans; a row of an older snapshot has no source and the kinds of its addresses are unknown.
 	HostRow struct {
 		Name   string   `json:"name"`
 		IP     string   `json:"ip"`
@@ -217,18 +217,18 @@ type (
 		Family    string `json:"family"`
 		Class     string `json:"class"`
 		Contacted bool   `json:"contacted,omitempty"`
-		// D-571 (FULL-5 slice 3): Deep is what this run's deep scan did with the address (DeepScanned, DeepWaiting, DeepFence,
+		// Deep is what this run's deep scan did with the address (DeepScanned, DeepWaiting, DeepFence,
 		// DeepRefused, DeepIncomplete; "" when the domain's testing terms are not accepted, or for an IPv6 or private address); LastDeep when an
-		// earlier or this run last deep-scanned it (rotation, D-571); NextInLine its place among the addresses left by the cap.
+		// earlier or this run last deep-scanned it (rotation); NextInLine its place among the addresses left by the cap.
 		Deep       string `json:"deep,omitempty"`
 		LastDeep   string `json:"last_deep,omitempty"`
 		NextInLine int    `json:"next_in_line,omitempty"`
-		// LastTried: when a run last took the address in turn (scanned, incomplete or refused at the re-check; review r1 M3): the
+		// LastTried: when a run last took the address in turn (scanned, incomplete or refused at the re-check): the
 		// rotation goes by the later of LastDeep and LastTried, so an address that keeps being refused does not stay first.
 		LastTried string `json:"last_tried,omitempty"`
 	}
 	// PortRow is an open port.
-	// LastSeen and Misses are set only on a port this scan did not report, kept from an earlier scan (INV-22, D-560): LastSeen is the
+	// LastSeen and Misses are set only on a port this scan did not report, kept from an earlier scan (INV-22): LastSeen is the
 	// day a scan last saw it open; Misses is how many scans in a row that checked its address missed it (1 = "missed by the last scan";
 	// Unchecked = the last scan did not check the address, so the row is as it was).
 	PortRow struct {
@@ -240,10 +240,10 @@ type (
 		Misses   int    `json:"misses,omitempty"`
 		// Unchecked: the newest scan did not check the address, so the row (and Misses) is as an earlier scan left it.
 		Unchecked bool `json:"unchecked,omitempty"`
-		// Ident is how service identification named the port's service (M2-7, identifyPorts): IdentProbed, IdentPort (only the
+		// Ident is how service identification named the port's service (identifyPorts): IdentProbed, IdentPort (only the
 		// usual service of the port number), IdentNone (nothing identified); "" when it did not run on the port or the row is older.
 		Ident string `json:"ident,omitempty"`
-		// What the deep scan's scripts read on the port (M2-7): the names of its TLS certificate (subject common name, then the
+		// What the deep scan's scripts read on the port: the names of its TLS certificate (subject common name, then the
 		// DNS names of its subject alternative names), its web page's title and its HTTP Server header. Untrusted, sanitized.
 		CertNames []string `json:"cert_names,omitempty"`
 		Title     string   `json:"title,omitempty"`
@@ -281,7 +281,7 @@ type Content struct {
 	// Unresolved are the names whose address lookup got no clear answer this time (INV-27): not stored as such; saveScan carries
 	// their previous rows forward (carryHosts).
 	Unresolved []string `json:"-"`
-	// FULL-4 (Trưởng), for Mlee: the NSE script results of a deep scan (D-526), stored in exp_snapshot.scripts (migration 0010).
+	// The NSE script results of a deep scan, stored in exp_snapshot.scripts (migration 0010).
 	// Not in the API yet ("-"): the snapshot schema of api/openapi.json has no such field and the response decoder refuses unknown
 	// ones; showing them is the page's step (contract.ts, openapi, then this tag becomes "scripts").
 	Scripts []ScriptRow `json:"-"`
@@ -295,7 +295,7 @@ type Snapshot struct {
 	Date      string `json:"date"`
 	ScannedAt string `json:"scanned_at"`
 	Content
-	// GreenboneRun is the state of the snapshot's OpenVAS step and when it started (N49-3, N49-2, D-595): the page's OpenVAS heading
+	// GreenboneRun is the state of the snapshot's OpenVAS step and when it started: the page's OpenVAS heading
 	// follows it, and shows the start in the viewer's time zone.
 	GreenboneRun GreenboneRun `json:"greenbone_run"`
 	Vulns        []VulnRow    `json:"vulns"`
@@ -335,7 +335,7 @@ type Diff struct {
 	Changed []DiffChange `json:"changed"`
 }
 
-// MaxIgnored is the most IPs the Ignored list holds (D-79 (3)); a full list refuses to take one more (400 too_many).
+// MaxIgnored is the most IPs the Ignored list holds; a full list refuses to take one more (400 too_many).
 const MaxIgnored = 200
 
 // IgnoredIP is one entry of the Ignored list (contract.ts IgnoredIp).

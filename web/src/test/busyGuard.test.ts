@@ -1,10 +1,10 @@
-// docs/UI.md §8 (busy state, kien G1): every button that waits on the server shows the same busy state, the Button's `busy` and
+// docs/UI.md §8 (busy state): every button that waits on the server shows the same busy state, the Button's `busy` and
 // `busyLabel` (spinner, "Saving…", aria-busy, no width jump), so a person knows the box is working. This guard reads every
 // non-test .tsx under features/, components/ and app/ and fails on a <Button> that waits without it. A named exception carries
 // `busy-guard: <reason>` in a comment inside the tag, on its line or on one of the two lines above it, and is listed in ALLOWED below with the
 // same reason and the number of tags it covers; an entry covering more or fewer tags fails too.
 //
-// Known limits (a static, per-file read; #930 review r2, decided by the supervisor: no cross-file analyzer):
+// Known limits (a static, per-file read; #930: no cross-file analyzer):
 // - a helper or hook imported from another file (`onClick={() => saveThing(v)}` with saveThing in api.ts) is not followed;
 // - props passed by a spread (`<Button {...props}>`) are not seen;
 // - a form whose onSubmit comes from a parent (`<form onSubmit={props.onSubmit}>`) is not known to call the server.
@@ -174,7 +174,7 @@ function scan(files: { file: string; text: string }[]): Hit[] {
 const covers = (a: (typeof ALLOWED)[number], h: Hit) => a.file === h.file && h.tag.includes(a.text)
 const allowedHit = (h: Hit) => ALLOWED.some((a) => covers(a, h))
 
-describe('busy guard (docs/UI.md §8, kien G1)', () => {
+describe('busy guard (docs/UI.md §8)', () => {
   const files = sources()
   const hits = scan(files)
 
@@ -202,7 +202,7 @@ describe('busy guard (docs/UI.md §8, kien G1)', () => {
     expect(t(`<Button busy={ask.isPending} busyLabel={t('asking')}>{ask.isPending ? t('running') : t('ask')}</Button>`)).toEqual(['handLabel'])
     expect(t(`<Button disabled={x}>{find.isPending ? <LoaderCircle className="animate-spin" /> : null}{t('find')}</Button>`)).toEqual(['handLabel', 'handSpinner'])
     expect(t(`<Button busy={del.isPending}>{t('delete')}</Button>`)).toEqual(['noLabel'])
-    // #930 review r1: no disabled= at all, a call through a function of the file, a download, other pending names, "Keep" and
+    // #930: no disabled= at all, a call through a function of the file, a download, other pending names, "Keep" and
     // "Cancel reboot" actions that call the server, raw buttons, menu items, a form's submit button, an empty busy label
     expect(t(`<Button onClick={() => save.mutate(v)}>{t('common:save')}</Button>`)).toEqual(['noBusy'])
     expect(t(`function confirm() {\n  void keep.mutateAsync(id).then(close)\n}\n<Button onClick={confirm}>{t('same.keepConfirm')}</Button>`)).toEqual(['noBusy'])
@@ -214,7 +214,7 @@ describe('busy guard (docs/UI.md §8, kien G1)', () => {
     expect(t(`<DropdownMenuItem disabled={del.isPending} onSelect={() => del.mutate(id)}>x</DropdownMenuItem>`)).toEqual(['menuItem'])
     expect(t(`<form onSubmit={submit}><Button type="submit">{t('save')}</Button></form>\nfunction submit() {\n  save.mutate(v)\n}`)).toEqual(['submitNoBusy'])
     expect(t(`<Button busy={x.isPending} busyLabel="">{t('save')}</Button>`)).toEqual(['noLabel'])
-    // #930 review r2: a mutation passed by reference, a destructured mutate, a hook of the file that returns one; a submit button
+    // #930: a mutation passed by reference, a destructured mutate, a hook of the file that returns one; a submit button
     // inside the server form only (the local form beside it is not flagged)
     expect(t(`<Button onClick={save.mutate}>{t('save')}</Button>`)).toEqual(['noBusy'])
     expect(t(`const { mutate: saveIt } = useSave()\n<Button onClick={() => saveIt(v)}>{t('save')}</Button>`)).toEqual(['noBusy'])

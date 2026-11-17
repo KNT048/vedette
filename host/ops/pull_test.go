@@ -100,7 +100,7 @@ func TestPodmanGrammarOfThePullCommand(t *testing.T) {
 	}
 }
 
-// D-452: the load of a bundle's layout is one more pull shape: oci:<plain absolute dir>:<the registry ref of a known service at a
+// The load of a bundle's layout is one more pull shape: oci:<plain absolute dir>:<the registry ref of a known service at a
 // version>. Nothing else of the oci, oci-archive, docker-archive or dir transports passes.
 func TestPodmanGrammarOfTheBundleLoad(t *testing.T) {
 	t.Parallel()

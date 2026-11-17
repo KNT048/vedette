@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// D-389: `vedette reset-admin <email>` resets the administrator in the box's own files and prints the temporary password once;
+// `vedette reset-admin <email>` resets the administrator in the box's own files and prints the temporary password once;
 // a wrong -db is refused, never created.
 func TestResetAdminCommand(t *testing.T) {
 	t.Parallel()

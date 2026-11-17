@@ -10,7 +10,7 @@ import (
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
 )
 
-// After a backup restored without its decryption key the client secret is sealed under another master key (J7, #812): SSO
+// After a backup restored without its decryption key the client secret is sealed under another master key (#812): SSO
 // sign-in is refused with 409 sso_secret_lost, at the start (the browser is not sent to the identity provider for nothing)
 // and at a callback of a sign-in started before, not a 500; no session. Saving the secret again makes SSO work.
 func TestRestoreWithoutKeyClientSecretIsRefusedNotA500(t *testing.T) {

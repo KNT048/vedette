@@ -26,7 +26,7 @@ var (
 )
 
 // mcpService builds the mcp-server module once per registry (the handler and the listener share it). Its data comes through
-// mcpSource: the inventory and findings services and the feeds handlers, each reduced to the fields the tools may show (D-233).
+// mcpSource: the inventory and findings services and the feeds handlers, each reduced to the fields the tools may show.
 func mcpService(d deps) (*mcpserver.Service, error) {
 	mcpMu.Lock()
 	defer mcpMu.Unlock()
@@ -52,8 +52,8 @@ func mcpHandlers(d deps) *mcpserver.McpHandlers {
 
 // parseMCPListen reads -mcp-listen: an IP literal and a port on loopback (INV-5). In a container (inContainer) the unspecified
 // address 0.0.0.0 or [::] is taken too: the runtime forwards the unit's 127.0.0.1 publish to the container's own address, never to
-// its loopback (D-395). Empty is the default: 0.0.0.0:8765 in a container, else 127.0.0.1:8765. The units rely on that default
-// instead of passing the flag, so a unit of this release still starts an older core image, which refuses 0.0.0.0 (review of D-395).
+// its loopback. Empty is the default: 0.0.0.0:8765 in a container, else 127.0.0.1:8765. The units rely on that default
+// instead of passing the flag, so a unit of this release still starts an older core image, which refuses 0.0.0.0.
 func parseMCPListen(s string, inContainer bool) (netip.AddrPort, error) {
 	if s == "" {
 		if inContainer {
@@ -71,7 +71,7 @@ func parseMCPListen(s string, inContainer bool) (netip.AddrPort, error) {
 // containerMarkers are the files container runtimes put into every container: Podman's /run/.containerenv, Docker's /.dockerenv.
 var containerMarkers = []string{"/run/.containerenv", "/.dockerenv"}
 
-// inContainer says whether this process runs in a container (D-395): one of containerMarkers exists.
+// inContainer says whether this process runs in a container: one of containerMarkers exists.
 func inContainer() bool {
 	for _, f := range containerMarkers {
 		if _, err := os.Stat(f); err == nil {
@@ -116,7 +116,7 @@ func mcpAsset(d inventory.Device) mcpserver.Asset {
 		a.Hostname = &h
 	}
 	switch n := d.NameOrHost(); {
-	case n != nil: // the name in Vedette, else the host name (G2)
+	case n != nil: // the name in Vedette, else the host name
 		a.Name = *n
 	case a.IP != nil:
 		a.Name = *a.IP
@@ -176,7 +176,7 @@ func mcpFinding(r findings.Record) mcpserver.Finding {
 	if !r.AcceptedUntil.IsZero() {
 		f.AcceptedUntil = r.AcceptedUntil.UTC().Format(time.DateOnly)
 	}
-	if e := r.Evidence; e != nil { // which check and when: the summary names the device, the request and response stay on the box (D-233)
+	if e := r.Evidence; e != nil { // which check and when: the summary names the device, the request and response stay on the box
 		f.Evidence = &mcpserver.Evidence{Template: e.Template, CheckedAt: e.CheckedAt.UTC().Format(mcpTS)}
 	}
 	for _, h := range r.History { // when and what, never who or their note

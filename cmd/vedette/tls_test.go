@@ -81,7 +81,7 @@ func TestEnsureCert(t *testing.T) {
 	if c.IsCA {
 		t.Error("the certificate may sign others")
 	}
-	// Idempotent: a second call whose names the pair covers leaves it alone (a new -hosts entry re-issues it, D-397:
+	// Idempotent: a second call whose names the pair covers leaves it alone (a new -hosts entry re-issues it:
 	// TestEnsureCertReissuesForANewHostsEntry).
 	before, _ := os.ReadFile(crt) //nolint:gosec // a path the test made
 	if err := ensureCert(t, crt, key, []string{"192.0.2.10"}); err != nil {
@@ -277,7 +277,7 @@ func TestOwnCertificateOnLoopback(t *testing.T) {
 	}
 }
 
-// Loopback over plain HTTP allows only the loopback names unless -hosts adds more (D-77 neighbour: DNS rebinding).
+// Loopback over plain HTTP allows only the loopback names unless -hosts adds more (DNS rebinding).
 func TestLoopbackHTTPHostAllowlist(t *testing.T) {
 	t.Parallel()
 	in := startMigrated(t)
@@ -298,7 +298,7 @@ func TestLoopbackHTTPHostAllowlist(t *testing.T) {
 	}
 }
 
-// D-75: the setup code is printed at every start while setup is open, and the same code is printed again
+// The setup code is printed at every start while setup is open, and the same code is printed again
 // after a restart; it is stored in core_secret, never in a file of its own.
 func TestSetupCodeIsLoggedAtEveryStartWhileSetupIsOpen(t *testing.T) {
 	t.Parallel()
@@ -481,7 +481,7 @@ func TestEnsureCertRenewsItsOwnPairNearExpiry(t *testing.T) {
 	}{
 		{"own pair, 10 days left", own(10*24*time.Hour, selfSignedOrg), true},
 		{"own pair, already expired", own(-time.Hour, selfSignedOrg), true},
-		// An old self-signed leaf is re-issued once under the box CA whatever time it has left (D-262); a
+		// An old self-signed leaf is re-issued once under the box CA whatever time it has left; a
 		// leaf that already chains to the CA and has time left is left alone (TestBoxCAFreshBoxLeafChainsToIt).
 		{"old self-signed pair, 60 days left", own(60*24*time.Hour, selfSignedOrg), true},
 		{"owner's pair, 10 days left", own(10*24*time.Hour, "Acme IT"), false},

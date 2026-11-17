@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-516 end to end: the feeds' distribution rows and the inventory's full package version reach the matcher. A packaged
+// End to end: the feeds' distribution rows and the inventory's full package version reach the matcher. A packaged
 // OpenSSH below Ubuntu's fixed version is a version finding that names the fix; after the package update (the upstream
 // number stays 9.6p1) the finding closes by itself.
 func TestDistroFixReachesFindings(t *testing.T) {
@@ -77,7 +77,7 @@ func TestDistroFixReachesFindings(t *testing.T) {
 	}
 }
 
-// D-516, the dev box's kernel: Ubuntu lists its kernel CVEs under source package linux (the images come from linux-signed,
+// The dev box's kernel: Ubuntu lists its kernel CVEs under source package linux (the images come from linux-signed,
 // same version). With 7.0.0-30 running, the CVE fixed in 7.0.0-31.31 is a finding that names the fix and the one fixed in
 // 7.0.0-22.22 is not; once 7.0.0-43 is installed but before the reboot it stays (review H1 of #732); after the reboot to
 // 7.0.0-43 it closes. The old kernel stays installed throughout.
@@ -151,10 +151,10 @@ func TestDistroKernelFollowsTheRunningKernel(t *testing.T) {
 	}
 }
 
-var _ feeds.DistroLister = feedsInventory{} // D-570: a drifted signature would silently pull every feed again (review M1)
+var _ feeds.DistroLister = feedsInventory{} // A drifted signature would silently pull every feed again (review M1)
 
-// D-570: the adapter tells feeds which distributions need their files: a device of that OS with a deb package an agent read, with
-// its source packages as the security data names them (D-622: the tier rows are kept for those only).
+// The adapter tells feeds which distributions need their files: a device of that OS with a deb package an agent read, with
+// its source packages as the security data names them (the tier rows are kept for those only).
 func TestFeedsInventoryDistros(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)

@@ -40,7 +40,7 @@ func record(affected string) []byte {
 
 const anyCPE = "cpe:2.3:*:acme:gateway:*:*:*:*:*:*:*:*"
 
-// D-556: the conversion of CNA affected versions to NVD-shaped rows, and everything it refuses to guess.
+// The conversion of CNA affected versions to NVD-shaped rows, and everything it refuses to guess.
 func TestParseCVERecord_Conversion(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -92,7 +92,7 @@ func TestParseCVERecord_Conversion(t *testing.T) {
 	if got, _ := ParseCVERecord(record(`{"vendor":"Acme","product":"Gateway","defaultStatus":"affected"}`), "CVE-2026-1000", "Acme", "Multiple Products"); got.Outcome != CVEOrgNoMatch {
 		t.Errorf("a Multiple Products entry got %+v", got)
 	}
-	// H1: Junos versions need findings' own comparator (D-510): a Juniper record is skipped, never read generically
+	// H1: Junos versions need findings' own comparator: a Juniper record is skipped, never read generically
 	junos := `{"dataType":"CVE_RECORD","dataVersion":"5.1","cveMetadata":{"cveId":"CVE-2026-1000","state":"PUBLISHED"},"containers":{"cna":{"affected":[{"vendor":"Juniper Networks","product":"Junos OS","defaultStatus":"unaffected","versions":[{"version":"21.4","lessThan":"21.4R3-S5","status":"affected","versionType":"semver"}]}]}}}`
 	if got, _ := ParseCVERecord([]byte(junos), "CVE-2026-1000", "Juniper", "Junos OS"); got.Outcome != CVEOrgUnusable || got.Rows != nil {
 		t.Errorf("Junos: %+v", got)
@@ -208,7 +208,7 @@ func cveOrgEnv(t *testing.T) (*env, *origin, *[]RangesUpdatedEvent) {
 	return e, o, &got
 }
 
-// D-556, INV-20: only the CISA CVEs NVD gave no ranges are asked for, one record each; the vendor's ranges are stored as
+// INV-20: only the CISA CVEs NVD gave no ranges are asked for, one record each; the vendor's ranges are stored as
 // CVE.org's, findings learns their source, and NVD's ranges win as soon as NVD has some.
 func TestContract_CVEOrgRanges(t *testing.T) {
 	t.Parallel()
@@ -333,7 +333,7 @@ func TestCVEOrgPull_OneBadFileDoesNotStopIt(t *testing.T) {
 	}
 }
 
-// D-615 (2), D-617: the CVE.org record's datePublished is the published day of an exploited CVE NVD gives none for; NVD's day replaces
+// The CVE.org record's datePublished is the published day of an exploited CVE NVD gives none for; NVD's day replaces
 // it, CVE.org never replaces NVD's, and only NVD's days count when nvd-kev decides whether a full pull must fill the table.
 func TestCVEOrgPublishedDay(t *testing.T) {
 	t.Parallel()

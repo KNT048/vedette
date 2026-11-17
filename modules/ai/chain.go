@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/chain"
 )
 
-// The hash chain itself (canonical JSON and the formula of D-57 item 14) lives in core/chain and is shared with
+// The hash chain itself (canonical JSON and its formula) lives in core/chain and is shared with
 // core_audit and resp_log. This file keeps only what is specific to the AI log: hashing the content that is not
 // stored, and summarising tool arguments without secrets.
 

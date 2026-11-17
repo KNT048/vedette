@@ -1,7 +1,7 @@
 package api
 
 // GET /v1/state/ports (docs/specs/host-api.md section 5): the ports the box itself listens on from outside, for its own device's
-// Open services (inventory INV-3, kien 2026-11-17: the box is never scanned, so without this its device said "No open port seen
+// Open services (inventory INV-3: the box is never scanned, so without this its device said "No open port seen
 // yet" while it serves 8443). Read from the kernel's socket tables (/proc/net/{tcp,tcp6,udp,udp6}) and /proc/<pid>, no program
 // runs. Read-only, no lock, no audit line, like the other state reads. A host older than it answers 404 unknown_command; core
 // then keeps what the box's device lists.

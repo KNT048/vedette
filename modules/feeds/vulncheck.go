@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// VulnCheck KEV (D-557): the free VulnCheck Community list of exploited vulnerabilities, read with the customer's own
+// VulnCheck KEV: the free VulnCheck Community list of exploited vulnerabilities, read with the customer's own
 // API key (bearer header, never in the address). It lists CVEs reported as exploited before CISA adds them. Only the
 // entries CISA does not list (no cisa_date_added) and that VulnCheck added in the last vulnCheckWindow become exploited
 // entries of source "vulncheck-kev"; CISA wins every CVE it lists. The data stays on the box.

@@ -20,7 +20,7 @@ import (
 )
 
 // realLines are lines the pinned OpenCanary (0.9.10, the honeypot image's rootfs) wrote when each new service was touched once
-// on loopback (B3, D-467): only the addresses and the times were replaced (source 192.168.10.157, Trap IP 192.168.10.240, times
+// on loopback: only the addresses and the times were replaced (source 192.168.10.157, Trap IP 192.168.10.240, times
 // from t0). The UDP services report the target 0.0.0.0, as OpenCanary does.
 func realLines(t *testing.T) []string {
 	t.Helper()
@@ -203,7 +203,7 @@ func TestTheHostGetsUDPPortsForTheUDPServices(t *testing.T) {
 	}
 }
 
-// The HTTPS trap's certificate (D-467): core makes it self-signed for the first Trap IP with HTTPS (its name, its vendor), writes
+// The HTTPS trap's certificate: core makes it self-signed for the first Trap IP with HTTPS (its name, its vendor), writes
 // it and its key to config/ for the container, keeps the same pair across a restart of core, and makes a new one when another Trap
 // IP decides the name. The key is a core_secret row: hp_config holds only its id, so neither the export nor the logs can carry it.
 func TestTheHTTPSTrapHasItsOwnCertificate(t *testing.T) {
@@ -467,7 +467,7 @@ func TestOnlyTheHitsOwnLineIsMarked(t *testing.T) {
 }
 
 // Review H1: a UDP trap (TFTP, NTP, SIP) completes no handshake, so one datagram with a forged source makes its line. Its hit never
-// confirms the source (SourceConnected, D-509), never takes "may be forged" off a scan of that source, says itself that the source
+// confirms the source (SourceConnected), never takes "may be forged" off a scan of that source, says itself that the source
 // may be forged, and its event is marked unconfirmed (response holds it from pre-approved rules). A real TCP connection still confirms.
 func TestAForgedUDPDatagramNeverConfirmsItsSource(t *testing.T) {
 	t.Parallel()

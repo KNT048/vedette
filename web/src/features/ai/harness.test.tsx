@@ -93,7 +93,7 @@ describe('Settings, AI assistant tabs', () => {
     expect(screen.getByRole('tab', { name: 'Rules' })).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByText(/Name every device by its hostname/)).toBeInTheDocument()
   })
-  it('the Connections tab only points to Settings → Connections (D-93)', async () => {
+  it('the Connections tab only points to Settings → Connections', async () => {
     renderAt('/settings/ai?tab=connections')
     const link = await screen.findByRole('link', { name: 'Settings → Connections' })
     expect(link).toHaveAttribute('href', '/settings/connections')
@@ -126,7 +126,7 @@ describe('Settings, AI assistant tabs', () => {
     await userEvent.upload(input, new File(['x'], 'photo.png', { type: 'image/png' }), { applyAccept: false })
     expect(await screen.findByText(/photo\.png cannot be added/)).toBeInTheDocument()
   })
-  it('knowledge tab (walk 3): the index error goes once a profile is saved; a fake PDF is named in a sentence; "1 chunk"', async () => {
+  it('knowledge tab: the index error goes once a profile is saved; a fake PDF is named in a sentence; "1 chunk"', async () => {
     knowledgeSettings.set({ index_profile: null })
     knowledgeStore.update((l) => [{ id: 'kd-small', name: 'vlan-notes.md', size: 900, jobs: ['ask-my-data'], uploaded_at: new Date(Date.now() - 86_400_000).toISOString() }, ...l])
     renderAt('/settings/ai?tab=knowledge')
@@ -172,7 +172,7 @@ describe('Hooks form: form matrix', () => {
     expect((await post('/ai/hooks', { name: 'x', when: 'before_ai', match: { type: 'keywords', pattern: ' , ' }, action: 'block', message: 'No.', enabled: true })).status).toBe(400)
   })
 
-  it('a test result holds for the hook it ran on: changing the action or the words hides it (QA walk 2026-11-12)', async () => {
+  it('a test result holds for the hook it ran on: changing the action or the words hides it', async () => {
     renderTab('hooks')
     await userEvent.click((await screen.findAllByRole('button', { name: 'Add hook' }))[0]!)
     const dlg = await screen.findByRole('dialog', { name: 'Add hook' })

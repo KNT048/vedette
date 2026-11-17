@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// What container.pull keeps on disk (spec 6.7, D-104, D-108 L2, D-130), all under the state directory,
+// What container.pull keeps on disk (spec 6.7), all under the state directory,
 // written atomically (temp file, fsync, rename) and read strictly (no unknown field, no trailing data,
 // regular files only, 8 MiB at most):
 //
@@ -24,7 +24,7 @@ import (
 //	                                   and the revocations carried with it (they are not in the signed bytes)
 //	containers/pulled-<service>.json   the version pulled last: {version, digest, key_id, manifest}
 //
-// The stored index is the only source of revocation (D-104 (2)). It is re-verified every time it is
+// The stored index is the only source of revocation. It is re-verified every time it is
 // loaded: VerifyIndex runs again on the raw bytes with the carried list as the stored index, so a
 // file that no longer verifies is not believed, and the host refuses to pull (release_state_invalid)
 // instead of guessing a "first ever" state that would reopen the replay and freeze attacks.
@@ -137,7 +137,7 @@ type pulledRecord struct {
 	PulledAt    time.Time `json:"pulled_at"`
 	Manifest    string    `json:"manifest"`
 	ManifestSig string    `json:"manifest_sig"`
-	// BaseDigest and NmapVersion are for scan only (D-147). Digest of a scan record is the ID of the image the host built on the box
+	// BaseDigest and NmapVersion are for scan only. Digest of a scan record is the ID of the image the host built on the box
 	// ("sha256:" + the 64 hex of the ID): the unit pins it, the effect check compares the container's image ID with it, and it is the
 	// "digest" of versions, journals and retention like any other service's. The digest the manifest signed is the base image's, here.
 	// NmapVersion is the version `nmap --version` printed in the built image.

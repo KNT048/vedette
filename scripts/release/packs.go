@@ -27,7 +27,7 @@ const (
 // A date with hyphens is refused: CompareVersions("2026-12-02.1", "2026-12-02.2") is 0, so the second set would never install.
 var packVersionRE = regexp.MustCompile(`^[0-9]{1,9}(\.[0-9]{1,9}){1,5}$`)
 
-// SignPacks signs the confirmed mitigation packs of dir in place (D-345, D-346): the *.json packs are put into
+// SignPacks signs the confirmed mitigation packs of dir in place: the *.json packs are put into
 // mitigation.Statement with version, the statement is signed with s, the signature is checked with release.VerifyContent and the
 // keys of trust, and only then are VERSION, packs.list and packs.minisig written into dir. The result is read back with the box's
 // reader (mitigation.ReadPackDir) and verified again. It returns the number of packs signed.
@@ -150,7 +150,7 @@ func readPackSources(dir string) ([]mitigation.Doc, error) {
 	return docs, nil
 }
 
-// cmdPacks signs the confirmed mitigation packs that ship in the core image (D-345): `release packs -dir content/mitigation/packs
+// cmdPacks signs the confirmed mitigation packs that ship in the core image: `release packs -dir content/mitigation/packs
 // -version <v> -key <minisign secret key> -minisign <pinned minisign>`. It runs before the core image is built.
 func cmdPacks(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) error {
 	fs := newFlags("packs")

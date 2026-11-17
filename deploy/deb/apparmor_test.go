@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/host/ops"
 )
 
-// The AppArmor profile of the Vedette containers (D-458): deploy/deb/vedette-container.apparmor, installed as
+// The AppArmor profile of the Vedette containers: deploy/deb/vedette-container.apparmor, installed as
 // /etc/apparmor.d/vedette-container and selected by every unit through ops.AppArmorConfModule. The rules that matter are pinned
 // line for line: Podman's own signal and ptrace rules, with the peer of this profile also matched stacked with any other profile in
 // any position (the kernel orders a stack by name, so crun's stack is "crun//&vedette-container").
@@ -208,7 +208,7 @@ func TestPostinst_LoadsTheAppArmorProfile(t *testing.T) {
 		t.Error("AppArmor on without apparmor_parser must stop the postinst")
 	}
 	// a deleted conffile (dpkg never restores it on upgrade): refused before the parser, with the command that brings it back. No apt
-	// source has vedette-host, so the command reinstalls the package install.sh keeps (D-412); the RUNBOOK gives the same one.
+	// source has vedette-host, so the command reinstalls the package install.sh keeps; the RUNBOOK gives the same one.
 	restore := "dpkg -i --force-confmiss --force-confdef --force-confold /var/lib/vedette-host/selfupdate/packages/vedette-host_$(/usr/lib/vedette/vedette-host -version)_$(dpkg --print-architecture).deb"
 	if r := run(t, "0", "0", "0", "missing"); r.ok || strings.Contains(r.calls, "apparmor_parser") ||
 		!strings.Contains(r.out, "is missing") || !strings.Contains(r.out, restore) {

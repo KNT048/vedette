@@ -89,7 +89,7 @@ func sum(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToSt
 // The drift test: the scripts the box serves, and the ones GET /inventory/agents puts in its page, are byte for byte what the GUI renders
 // from its own templates, and the SHA-256 the admin reads is the SHA-256 of the served bytes.
 func TestInstall_ScriptsEqualTheGUI(t *testing.T) {
-	w := newWorld(t, func(c *agentintake.Config) { c.BoxURL = nil }) // the Box address would win over the Host (D-465): this test is about the Host
+	w := newWorld(t, func(c *agentintake.Config) { c.BoxURL = nil }) // the Box address would win over the Host: this test is about the Host
 	const box = "https://" + boxAtPort
 	wantSh, wantPs1 := guiScript(t, guiSh, box, testCA), guiScript(t, guiPs1, box, testCA)
 	if strings.Contains(wantSh, "@@") || strings.Contains(wantPs1, "@@") {
@@ -158,7 +158,7 @@ func TestInstall_VersionsAgree(t *testing.T) {
 	}
 	sh := readFile(t, "scripts/osquery.sh")
 	for _, want := range []string{`FILE="osquery_${OSQ_VERSION}-1.linux_${DEB_ARCH}.deb"`, `FILE="osquery-${OSQ_VERSION}-1.linux.${RPM_ARCH}.rpm"`,
-		"x86_64|amd64) DEB_ARCH=amd64; RPM_ARCH=x86_64 ;;", "aarch64|arm64) DEB_ARCH=arm64; RPM_ARCH=aarch64 ;;"} { // D-399: the six names of mirrorFiles
+		"x86_64|amd64) DEB_ARCH=amd64; RPM_ARCH=x86_64 ;;", "aarch64|arm64) DEB_ARCH=arm64; RPM_ARCH=aarch64 ;;"} { // The six names of mirrorFiles
 		if !strings.Contains(sh, want) {
 			t.Errorf("the Linux script does not ask for %s", want)
 		}
@@ -198,7 +198,7 @@ func TestInstall_LinuxScriptDoesNotShareNamesWithOsRelease(t *testing.T) {
 	}
 }
 
-// D-596 (first run on Windows Server 2025, 2026-11-14): curl.exe's Schannel cannot verify the box with a CA file (it asks for the box CA's
+// first run on Windows Server 2025, 2026-11-14: curl.exe's Schannel cannot verify the box with a CA file (it asks for the box CA's
 // revocation status, which has none, and does not match an IP address in the certificate), so the Windows script makes every request to the
 // box with .NET and a per-request check pinned to the CA it embeds: no curl.exe, nothing that skips the check, nothing put into a Windows
 // certificate store, no machine-wide callback, revocation off only inside that check, and a failed download stops the script.
@@ -256,8 +256,8 @@ func TestInstall_WindowsPinsTheBoxCAWithoutCurl(t *testing.T) {
 	}
 }
 
-// A normal first install exits 0 once the machine has enrolled: osquery's first report comes a few minutes later (D-503) and is not waited
-// for (S-INV-4, supervisor decision 2026-11-13). The only non-zero end after the install is "did not enrol" (3); success is THIS machine's host_last_seen (status, by host_identifier) appearing or moving
+// A normal first install exits 0 once the machine has enrolled: osquery's first report comes a few minutes later and is not waited
+// for (S-INV-4). The only non-zero end after the install is "did not enrol" (3); success is THIS machine's host_last_seen (status, by host_identifier) appearing or moving
 // past what it was before the restart, never the token-wide counts. Both scripts set --config_refresh=300, without which osquery keeps
 // the first-hour schedule of every minute until it restarts (schedule.go).
 func TestInstall_ExitsZeroWhenEnrolledNotWhenFirstReportArrives(t *testing.T) {
@@ -294,7 +294,7 @@ func TestInstall_ExitsZeroWhenEnrolledNotWhenFirstReportArrives(t *testing.T) {
 
 // osqueryd keeps the node key of its enrolment in its database and never enrols again while the box accepts the key, so a run with a token
 // this machine does not hold (another token, or none after --uninstall) stops osqueryd and removes the database before the new secret is
-// written and the service restarted; a run with the same token keeps the key (D-411). --uninstall removes the database too.
+// written and the service restarted; a run with the same token keeps the key. --uninstall removes the database too.
 // ponytail: text checks (module tests may not run a shell, SYS-1); the behaviour was run under dash against stubs for the PR.
 func TestInstall_NewTokenEnrolsAgain(t *testing.T) {
 	sh, ps1 := readFile(t, "scripts/osquery.sh"), readFile(t, "scripts/osquery.ps1")
@@ -318,7 +318,7 @@ func TestInstall_NewTokenEnrolsAgain(t *testing.T) {
 		`Set-Content -Path $Secret -Value $Token`, `Restart-Service osqueryd`)
 }
 
-// An arbitrary Host header is never put into a script: the Box address when the box has one (D-465), else only a name the server's
+// An arbitrary Host header is never put into a script: the Box address when the box has one, else only a name the server's
 // allow-list lets in, rebuilt from validated parts, else the placeholder.
 func TestInstall_HostIsNeverReflected(t *testing.T) {
 	hosts := []struct{ host, want string }{ // want: what a box without a Box address puts in the script ("" = no script)
@@ -352,7 +352,7 @@ func TestInstall_HostIsNeverReflected(t *testing.T) {
 			t.Errorf("Host %q reached the script", host)
 		}
 	}
-	// D-465: with a Box address every script carries it, whatever Host the request came to.
+	// With a Box address every script carries it, whatever Host the request came to.
 	w := newWorld(t)
 	for _, c := range hosts {
 		script(w, c.host, boxURL)
@@ -362,7 +362,7 @@ func TestInstall_HostIsNeverReflected(t *testing.T) {
 	for _, c := range hosts {
 		script(wh, c.host, c.want)
 	}
-	// no Box address and no usable Host: never a guess, and no script pinned to the placeholder either (D-399 (2): it would
+	// no Box address and no usable Host: never a guess, and no script pinned to the placeholder either (it would
 	// pass its SHA-256 check and then fail on every server); the admin's page still shows the placeholder
 	w2 := newWorld(t, func(c *agentintake.Config) { c.BoxURL = func() string { return "" } })
 	for _, p := range []string{"/install/osquery.sh", "/install/osquery.ps1"} {
@@ -496,7 +496,7 @@ func TestMirror_ServesTheFourFilesWithTheirLength(t *testing.T) {
 	}
 }
 
-// D-404: the admin downloads a package in the browser, so each file is an attachment under its own fixed name, with its type and nosniff.
+// The admin downloads a package in the browser, so each file is an attachment under its own fixed name, with its type and nosniff.
 func TestMirror_DownloadHeaders(t *testing.T) {
 	w := newWorld(t)
 	w.fillMirror()
@@ -521,7 +521,7 @@ func TestMirror_DownloadHeaders(t *testing.T) {
 	}
 }
 
-// D-404: GET /inventory/agents lists the packages the box can serve, in a fixed order, with the size of the file and the SHA-256 of the
+// GET /inventory/agents lists the packages the box can serve, in a fixed order, with the size of the file and the SHA-256 of the
 // box's SHA256SUMS; a package without its file or without its SHA256SUMS line is left out, and no mirror is an empty list.
 func TestAdmin_PageListsTheServedPackages(t *testing.T) {
 	w := newWorld(t)

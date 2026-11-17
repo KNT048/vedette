@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks that a Keychain item trusts no application (D-256, D-259): reads `security dump-keychain -a <keychain>` on stdin (access
+# Checks that a Keychain item trusts no application: reads `security dump-keychain -a <keychain>` on stdin (access
 # lists only; without -d no secret is in it) and exits 0 only when the generic password of service $1 and account $2 is there once,
 # has at least one access entry that can read the secret, and every entry whose authorizations go beyond encrypt, change_acl,
 # partition_id and integrity (so decrypt, export_clear, any, ...) has exactly one applications line, "applications (0):". Anything

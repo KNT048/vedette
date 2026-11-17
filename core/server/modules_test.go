@@ -13,7 +13,7 @@ import (
 //   - GET /core/auth-options is listed by both core and auth-oidc; it belongs to core because the
 //     login page needs it when SSO is off.
 //   - /core/updates/os* and /core/network* are listed by host as "core depends on host" (host has no
-//     HTTP); /core/updates/os* stay with core, /core/network* with host (D-56).
+//     HTTP); /core/updates/os* stay with core, /core/network* with host.
 //   - POST /findings/{id}/applied and /ai sit under /findings but belong to mitigation.
 var contractRoutes = map[string][]string{
 	"agent-intake": {
@@ -127,7 +127,7 @@ var contractRoutes = map[string][]string{
 		"PATCH /core/users/{id}",
 		"PATCH /modules/{id}",
 		"GET /scanning",         // #850: Settings › Scanning answers with every engine module off (core INV-40)
-		"GET /scanning/history", // kien G7a: History of the runs that are not vulnerability checks (core INV-40 (5))
+		"GET /scanning/history", // History of the runs that are not vulnerability checks (core INV-40 (5))
 		"PUT /scanning/safety",
 		"POST /scanning/safety/ranges", // #842: the inline adds of the safety block
 		"POST /scanning/safety/exclusions",

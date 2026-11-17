@@ -101,7 +101,7 @@ const countOtherActiveAdmins = `-- name: CountOtherActiveAdmins :one
 SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND temp_password_expires_at IS NULL AND sso_issuer IS NULL AND id <> ?
 `
 
-// D-196 (3): only administrators who sign in with a password count; an SSO administrator is locked out with the identity provider.
+// Only administrators who sign in with a password count; an SSO administrator is locked out with the identity provider.
 func (q *Queries) CountOtherActiveAdmins(ctx context.Context, id string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countOtherActiveAdmins, id)
 	var count int64

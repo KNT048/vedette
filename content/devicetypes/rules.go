@@ -34,10 +34,10 @@ type Service struct {
 	Proto   string // tcp or udp; only tcp ports count for ports rules
 	Name    string // nmap's service name ("ssh", "rtsp")
 	Product string
-	Detail  string // nmap extra info, its device type, the page title, the certificate subject (D-511)
+	Detail  string // nmap extra info, its device type, the page title, the certificate subject
 }
 
-// Guess is what a rule concluded: a type a person may confirm. It is never a kind (D-511): it changes no behaviour.
+// Guess is what a rule concluded: a type a person may confirm. It is never a kind: it changes no behaviour.
 type Guess struct {
 	Type       string  `json:"kind"`
 	Confidence float64 `json:"confidence"`
@@ -102,7 +102,7 @@ func init() {
 	rules = list
 }
 
-// Identify applies the rules in order and returns the first that matches (D-511). ok is false when none does: Vedette then says
+// Identify applies the rules in order and returns the first that matches. ok is false when none does: Vedette then says
 // nothing rather than guess from too little.
 func Identify(f Facts) (Guess, bool) {
 	open := map[int]string{}

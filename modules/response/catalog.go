@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Connection kinds (D-58): generic kinds only, no vendor.
+// Connection kinds: generic kinds only, no vendor.
 func isHTTPKind(k string) bool { return k == "http" || k == "netconf-restconf" || k == "automation" }
 func isMCP(k string) bool      { return k == "mcp-http" || k == "mcp-stdio" }
 
@@ -284,7 +284,7 @@ func checkCatalog(in CatalogInput, cs conns) (catRow, error) {
 		return bad("Action: a command or API path that uses {interface}, {port}, {id} or {name} can name a port, so it needs a check before it, with at least one text that makes it refuse (a trunk or uplink port must never be touched). {interface} is the placeholder for a port name; {port} is a TCP or UDP number, {id} a whole number and {name} a free name, and they cannot be told apart from a port in a command.")
 	}
 	if conn.Kind != "ssh" {
-		// The output of an API or MCP call is JSON, compacted before it is compared (D-95 (1c)): a text that is a piece of JSON (it holds a
+		// The output of an API or MCP call is JSON, compacted before it is compared: a text that is a piece of JSON (it holds a
 		// double quote) is saved in the same form, so what an admin reads is what is compared. A plain word or phrase keeps its spaces.
 		c.PrecheckRefuse = slices.Clone(c.PrecheckRefuse)
 		for i := range c.PrecheckRefuse {
@@ -765,7 +765,7 @@ func callText(rest *RestCall, cli string) string {
 
 // escapeLines puts a multi-line command on one line without losing where the lines end: each break becomes the two characters \n, which
 // a template cannot contain (a backslash is refused), so the text is read back unambiguously. The log rows of a request and of its
-// execution carry the whole call this way (D-175).
+// execution carry the whole call this way.
 func escapeLines(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\n", `\n`)
 }

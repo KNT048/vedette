@@ -1,5 +1,5 @@
 // Command testchannel makes the TEST release that `make install-artifacts` hands to `install.sh --test-artifacts`
-// (WP-08h, D-166). The real release keys do not exist yet (08k), so a test install needs a release signed with
+// (WP-08h). The real release keys do not exist yet (08k), so a test install needs a release signed with
 // throwaway keys, and a vedette-host that trusts exactly those keys.
 //
 //	keys   makes the throwaway keys (private halves stay in -out, mode 0600, never committed; a folder that already holds keys
@@ -294,7 +294,7 @@ func (s signSpec) build() (index, indexSig, manifest, manifestSig []byte, err er
 	m := release.Manifest{
 		Schema: 1, Version: s.version, Channel: "beta", ReleasedAt: s.now, DBSchema: 0,
 		Rollback:     release.Rollback{Safe: false},
-		InstallModes: []string{"appliance", "container"}, // a container-only lab is offered only a container release (S-CORE-9 G4)
+		InstallModes: []string{"appliance", "container"}, // a container-only lab is offered only a container release (S-CORE-9)
 		Content:      []release.Content{}, Bundled: []release.Bundled{},
 		Notes: "TEST CHANNEL: signed with throwaway keys, not a release.",
 	}

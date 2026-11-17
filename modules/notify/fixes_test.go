@@ -61,7 +61,7 @@ func (e *env) critical(id, product, cve string) {
 	}
 }
 
-// incident queues an incident notice: incidents stay one message each, vulnerability notices due together become one digest (D-483).
+// incident queues an incident notice: incidents stay one message each, vulnerability notices due together become one digest.
 func (e *env) incident(id string, sev notify.Severity) {
 	e.t.Helper()
 	if err := e.svc.Publish(e.ctx(), notify.Notice{ID: id, Kind: notify.KindIncident, IncidentKind: "trap", Severity: sev, Title: "192.168.10.107 touched the trap " + id,
@@ -372,7 +372,7 @@ func TestWebhookCannotPointAtTheBoxOrLoopback(t *testing.T) {
 		c.HTTPClient = nil
 		c.BoxAddrs = func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("10.9.9.9")}, true }
 	})
-	// D-446: loopback and the process's own interfaces on every port, the machine's addresses on Vedette's own ports
+	// loopback and the process's own interfaces on every port, the machine's addresses on Vedette's own ports
 	targets := []string{"http://127.0.0.1:8443/api/v1/core/updates/apply", "http://localhost:11434/api/generate", "https://127.0.0.1/x", "https://10.9.9.9:8443/x", "http://10.9.9.9:514/x"}
 	addrs, _ := net.InterfaceAddrs()
 	for _, a := range addrs {
@@ -560,7 +560,7 @@ func TestSuppressedCountFollowsKEVAndFindingEvents(t *testing.T) {
 	e.clock.Add(4 * time.Minute)
 	e.flush()
 	if n := e.count(`SELECT COUNT(*) FROM notify_send WHERE kind = 'vuln'`); n != 1 {
-		t.Fatalf("vuln messages = %d (the finding and its confirmation, due in the same run: one message, D-483)", n)
+		t.Fatalf("vuln messages = %d (the finding and its confirmation, due in the same run: one message)", n)
 	}
 }
 
@@ -704,7 +704,7 @@ func TestIncidentsListIsCappedAndEachHasItsOwnChildren(t *testing.T) {
 	}
 }
 
-// The weekly report counts a busy week whole (D-490 review M2: the incident list is capped at 500) and tells the failed-login
+// The weekly report counts a busy week whole (the incident list is capped at 500) and tells the failed-login
 // incidents apart; a "failed logins" incident of severity high had a login accepted in it.
 func TestIncidentsSinceCountsEveryClassBeyondTheListCap(t *testing.T) {
 	e := newEnv(t)

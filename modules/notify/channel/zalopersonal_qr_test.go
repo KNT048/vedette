@@ -189,7 +189,7 @@ func startQR(t *testing.T, f *qrFake) *ZaloQR {
 	return q
 }
 
-func TestContract_D447_ZaloQRSignInEndToEnd(t *testing.T) {
+func TestContract_ZaloQRSignInEndToEnd(t *testing.T) {
 	t.Parallel()
 	f := newQRFake(t)
 	f.scanWaits = 2

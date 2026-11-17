@@ -17,7 +17,7 @@ import { everyLabel } from './defaults'
 import { BuiltinDialog, CustomDialog, DeleteDialog } from './FeedDialogs'
 import type { Feed } from './types'
 
-/** Settings → Feeds (S-FEED-4, D-36, D-37): built-in feeds (switch, schedule, mirror) and your own feeds with parsing rules. Admin edits; others read. */
+/** Settings → Feeds (S-FEED-4): built-in feeds (switch, schedule, mirror) and your own feeds with parsing rules. Admin edits; others read. */
 export default function FeedsSettings() {
   const { t } = useTranslation('feeds')
   const sources = useFeedSources()
@@ -29,7 +29,7 @@ export default function FeedsSettings() {
   )
 }
 
-/** A built-in feed that works only with the customer's own API key (VulnCheck KEV, D-557) and has none saved. */
+/** A built-in feed that works only with the customer's own API key (VulnCheck KEV) and has none saved. */
 const needsKey = (f: Feed) => f.builtin && f.id === 'vulncheck-kev' && !f.auth.secret_last4
 
 function Hosts({ items }: { items: Feed[] }) {
@@ -68,7 +68,7 @@ function Tables({ items }: { items: Feed[] }) {
       onSuccess: (r) => {
         if (r.status === 'error') toast.error(`${r.name}: ${r.error ?? t('row.failed')}`)
         else if (r.status === 'ok' && !r.error) toast.success(t('row.fetched', { name: r.name, count: r.records ?? 0 }))
-        else toast.info(`${r.name}: ${r.error ?? t('row.firstFetch')}`) // a pull still loading (S-FEED-4, W3-1) or a note: not a failure
+        else toast.info(`${r.name}: ${r.error ?? t('row.firstFetch')}`) // a pull still loading (S-FEED-4) or a note: not a failure
       },
       onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
     })
@@ -97,7 +97,7 @@ function Tables({ items }: { items: Feed[] }) {
       {t('row.fetchNow')}
     </Button>
   )
-  // kien G1: a pull runs on the server until it ends (a big feed takes minutes); the row says so while it waits
+  // A pull runs on the server until it ends (a big feed takes minutes); the row says so while it waits
   const fetchNote = (f: Feed) => <BusyNote id={`feed-wait-${f.id}`} className="basis-full" busy={fetching(f)}>{t('row.fetchWaiting', { name: f.name })}</BusyNote>
   type R = { row: { original: Feed } }
   const common = {

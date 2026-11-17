@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/worker/workertest"
 )
 
-// The nuclei job of the worker (D-125, D-136). The nuclei here is a shell script run through the real core/exec; nothing
+// The nuclei job of the worker. The nuclei here is a shell script run through the real core/exec; nothing
 // reaches a network.
 
 const jsonlLine = `{"template-id":"CVE-2024-1","host":"192.168.10.20:8080","matcher-status":false,"error":"timeout"}` + "\n"
@@ -55,8 +55,8 @@ func (r *nrig) job(id string) sensorlink.Job {
 	}}
 }
 
-// A job runs with the argv the worker built from its fields and the pack index: one -t per template, never the directory
-// (D-136 (6)), the targets as -u (M3), and the result carries the JSONL and the exit code.
+// A job runs with the argv the worker built from its fields and the pack index: one -t per template, never the directory,
+// the targets as -u (M3), and the result carries the JSONL and the exit code.
 func TestNucleiRunsAJobWithTheFixedGrammar(t *testing.T) {
 	t.Parallel()
 	r := startNuclei(t, printJSONL)
@@ -81,7 +81,7 @@ func TestNucleiRunsAJobWithTheFixedGrammar(t *testing.T) {
 	}
 }
 
-// D-136 (5), scan INV-4: nuclei runs with the environment of core/exec and a HOME on the tmpfs that is empty at the start. A
+// Scan INV-4: nuclei runs with the environment of core/exec and a HOME on the tmpfs that is empty at the start. A
 // proxy, a cloud upload switch or a key in the parent's environment does not reach it. (Not parallel: it sets variables.)
 func TestNucleiEnvironmentIsClean(t *testing.T) {
 	for k, v := range map[string]string{
@@ -123,7 +123,7 @@ func TestNucleiEnvironmentIsClean(t *testing.T) {
 	}
 }
 
-// The worker refuses what the grammar forbids, with the reason, and nuclei never starts (D-136 (4)).
+// The worker refuses what the grammar forbids, with the reason, and nuclei never starts.
 func TestNucleiRefusesWhatTheGrammarForbids(t *testing.T) {
 	t.Parallel()
 	r := startNuclei(t, printJSONL)
@@ -151,10 +151,10 @@ func TestNucleiRefusesWhatTheGrammarForbids(t *testing.T) {
 		"link-local metadata": func(j *sensorlink.Job) {
 			j.Nuclei.Targets = []sensorlink.NucleiTarget{target("169.254.169.254", 80, "http")}
 		},
-		"100/8 outside RFC 6598 (D-461)": func(j *sensorlink.Job) {
+		"100/8 outside RFC 6598": func(j *sensorlink.Job) {
 			j.Nuclei.Targets = []sensorlink.NucleiTarget{target("100.128.0.1", 80, "http")}
 		},
-		"Alibaba metadata inside 100.64/10 (D-461)": func(j *sensorlink.Job) {
+		"Alibaba metadata inside 100.64/10": func(j *sensorlink.Job) {
 			j.Nuclei.Targets = []sensorlink.NucleiTarget{target("100.100.100.200", 80, "http")}
 		},
 		"benchmark": func(j *sensorlink.Job) {
@@ -411,7 +411,7 @@ func jsonOf(r sensorlink.JobResult) string {
 	return fmt.Sprintf("%+v|%s", r, base64.StdEncoding.EncodeToString(r.JSONL()))
 }
 
-// D-125 (2): a cancel kills the whole process group (the SIGTERM-ignoring script and its child), and the result is
+// A cancel kills the whole process group (the SIGTERM-ignoring script and its child), and the result is
 // stopped/cancelled; so do the job's deadline, the lease, a new core instance and the worker's own shutdown.
 func TestNucleiProcessGroupDiesWhenItMust(t *testing.T) {
 	t.Parallel()
@@ -491,7 +491,7 @@ func TestNucleiHeartbeat(t *testing.T) {
 		t.Parallel()
 		r := startNuclei(t, printJSONL, func(c *worker.Config) { c.Egress = &fakeEgress{answers: []string{"8.8.8.8"}} })
 		hb := next(t, r.rig)
-		if !hb.Nuclei.Present || hb.Nuclei.Version != "v3.3.7" || hb.Nuclei.Pack.Version != r.pack.Version || hb.Nuclei.Pack.SHA256 != r.pack.SHA256 || !hb.Nuclei.OwnIP { // OwnIP: D-520
+		if !hb.Nuclei.Present || hb.Nuclei.Version != "v3.3.7" || hb.Nuclei.Pack.Version != r.pack.Version || hb.Nuclei.Pack.SHA256 != r.pack.SHA256 || !hb.Nuclei.OwnIP {
 			t.Fatalf("heartbeat = %+v", hb.Nuclei)
 		}
 		if !hb.Nmap.Present {
@@ -558,7 +558,7 @@ func TestKindlessJobStillRunsAsNmap(t *testing.T) {
 	}
 }
 
-// D-165, INV-6: nuclei's error log (-elog /dev/stderr) is counted per target into host_errors, and stderr itself is never
+// INV-6: nuclei's error log (-elog /dev/stderr) is counted per target into host_errors, and stderr itself is never
 // posted. The error-log lines are HAND-MADE in the shape of nuclei v3.11.1 (JSONLogRequest), not recorded; the lab check
 // with the real binary is a deferred item.
 func TestNucleiHostErrorsAreCountedFromTheErrorLog(t *testing.T) {

@@ -66,7 +66,7 @@ func TestContract_INV15_SetupStatusAndModuleListBeforeSetup(t *testing.T) {
 	}
 }
 
-// D-75: the code is judged first; a wrong code, a missing code and a code of another box are the same refusal.
+// The code is judged first; a wrong code, a missing code and a code of another box are the same refusal.
 func TestContract_INV15_SetupCodeIsRequired(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)
@@ -147,7 +147,7 @@ func TestContract_INV15_SetupFieldErrors(t *testing.T) {
 		{"lan public", mod(func(b map[string]any) { b["lan"] = []string{"8.8.8.0/24"} }), 400, "public_range"},
 		{"lan covers the internet", mod(func(b map[string]any) { b["lan"] = []string{"10.0.0.0/0"} }), 400, "public_range"},
 		{"lan 172.32", mod(func(b map[string]any) { b["lan"] = []string{"172.32.0.0/16"} }), 400, "public_range"},
-		// D-461: only 100.64.0.0/10 of 100/8 is local (RFC 6598); the rest of 100/8 is public.
+		// Only 100.64.0.0/10 of 100/8 is local (RFC 6598); the rest of 100/8 is public.
 		{"lan 100.128", mod(func(b map[string]any) { b["lan"] = []string{"100.128.0.0/24"} }), 400, "public_range"},
 		{"lan 100.63", mod(func(b map[string]any) { b["lan"] = []string{"100.63.255.0/24"} }), 400, "public_range"},
 		{"lan 100/8", mod(func(b map[string]any) { b["lan"] = []string{"100.64.0.0/8"} }), 400, "public_range"},
@@ -203,7 +203,7 @@ func TestContract_INV15_SetupHappyPath(t *testing.T) {
 			t.Errorf("%s should be on in the small bundle", id)
 		}
 	}
-	// D-624: a bundle turns on v1 modules only; preview and post-v1 modules stay off.
+	// A bundle turns on v1 modules only; preview and post-v1 modules stay off.
 	for _, id := range []string{"sensor-active", "scan", "exposure", "logs", "ai", "honeypot", "reports", "response", "mcp-server"} {
 		if on[id] {
 			t.Errorf("%s should be off in the small bundle", id)
@@ -240,7 +240,7 @@ func TestContract_INV15_SetupHappyPath(t *testing.T) {
 	}
 }
 
-// D-544: setup needs the tick on the terms of use (right after the setup code) and keeps who accepted them, when and which
+// Setup needs the tick on the terms of use (right after the setup code) and keeps who accepted them, when and which
 // version, with one audit row; GET /core/terms says so.
 func TestSetupNeedsTheTermsAndKeepsTheAcceptance(t *testing.T) {
 	t.Parallel()
@@ -352,7 +352,7 @@ func TestBundlesMatchTheWebList(t *testing.T) {
 	}
 }
 
-// D-381: on a container-only install the bundles leave out what cannot run there (the honeypot), the lists say which
+// On a container-only install the bundles leave out what cannot run there (the honeypot), the lists say which
 // modules are not available and the install kind, and a custom setup that names the honeypot is refused.
 func TestSetupOnContainerOnly(t *testing.T) {
 	t.Parallel()
@@ -413,7 +413,7 @@ func tsBundle(t *testing.T, src, name string) []string {
 	return ids
 }
 
-// Review of WP-04b part 2 (M3, D-75 amended): wrong setup codes are counted per client address, so a
+// Review of WP-04b part 2: wrong setup codes are counted per client address, so a
 // stranger who reaches the port before the owner cannot keep setup closed for everyone. (One global counter
 // let 10 wrong guesses, then one per lifted wait, answer 429 to the owner at another address with the right code.)
 func TestSetup_ACodeGuesserCannotLockTheOwnerOut(t *testing.T) {
@@ -687,7 +687,7 @@ func TestContract_INV15_SetupFailsWhenTheInventoryRefusesTheRanges(t *testing.T)
 }
 
 // Overlapping ranges are refused with the field checks, before the bundle and before anything is written or handed to the inventory;
-// the same range with host bits is one range (D-298).
+// the same range with host bits is one range.
 func TestContract_INV15_SetupRefusesOverlappingRangesUpFront(t *testing.T) {
 	t.Parallel()
 	f := &fakeScope{}
@@ -712,7 +712,7 @@ func TestContract_INV15_SetupRefusesOverlappingRangesUpFront(t *testing.T) {
 	}
 }
 
-// D-461 (kien's N100): a network in the RFC 6598 shared address space (carrier-grade NAT inside an ISP or a company, Tailscale) is a
+// A network in the RFC 6598 shared address space (carrier-grade NAT inside an ISP or a company, Tailscale) is a
 // local network: setup takes it and hands it to the inventory as the scan scope; the refusal of a public range names 100.64-127.x.
 func TestContract_INV15_SetupTakesASharedAddressSpaceRange(t *testing.T) {
 	t.Parallel()
@@ -736,7 +736,7 @@ func TestContract_INV15_SetupTakesASharedAddressSpaceRange(t *testing.T) {
 	}
 }
 
-// D-405 (walk 4): while setup is open the network step is offered the box's own network (host bits cleared); a public or absent
+// While setup is open the network step is offered the box's own network (host bits cleared); a public or absent
 // address, a box with no BoxLAN (container-only) and a box already set up give null.
 func TestContract_INV15_SetupOffersTheBoxNetwork(t *testing.T) {
 	t.Parallel()
@@ -746,7 +746,7 @@ func TestContract_INV15_SetupOffersTheBoxNetwork(t *testing.T) {
 		want any
 	}{
 		{"private", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("192.168.18.141/24"), true }, "192.168.18.0/24"},
-		{"shared (D-461)", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.65.254.17/24"), true }, "100.65.254.0/24"},
+		{"shared", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.65.254.17/24"), true }, "100.65.254.0/24"},
 		{"public", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("203.0.113.5/24"), true }, nil},
 		{"public 100/8", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.128.4.5/24"), true }, nil},
 		{"none", func(context.Context) (netip.Prefix, bool) { return netip.Prefix{}, false }, nil},
@@ -767,7 +767,7 @@ func TestContract_INV15_SetupOffersTheBoxNetwork(t *testing.T) {
 	}
 }
 
-// D-405 review: a flat /8 management network is not offered as the whole scan scope.
+// A flat /8 management network is not offered as the whole scan scope.
 func TestContract_INV15_SetupDoesNotOfferAFlatNetwork(t *testing.T) {
 	t.Parallel()
 	w := newWorldWith(t, func(hc *core.HandlersConfig) {
@@ -776,7 +776,7 @@ func TestContract_INV15_SetupDoesNotOfferAFlatNetwork(t *testing.T) {
 	if got := w.client().get("/core/setup/modules").JSON["lan"]; got != nil {
 		t.Fatalf("lan = %v, want null for a /8", got)
 	}
-	w = newWorldWith(t, func(hc *core.HandlersConfig) { // nor the whole shared address space (D-461)
+	w = newWorldWith(t, func(hc *core.HandlersConfig) { // nor the whole shared address space
 		hc.BoxLAN = func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.70.1.2/10"), true }
 	})
 	if got := w.client().get("/core/setup/modules").JSON["lan"]; got != nil {

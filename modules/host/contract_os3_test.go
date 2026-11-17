@@ -1,4 +1,4 @@
-// Round-2 review contract tests of the host (D-87).
+// Round-2 review contract tests of the host.
 package host_test
 
 import (

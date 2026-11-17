@@ -11,22 +11,22 @@ const (
 	DecoderKEV       Decoder = "kev"       // ParseKEV
 	DecoderEPSS      Decoder = "epss"      // EPSSBatchURLs and ParseEPSS (api.first.org JSON)
 	DecoderNuclei    Decoder = "nuclei"    // ParseNucleiCVEs
-	DecoderNVD       Decoder = "nvd"       // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev; D-500)
-	DecoderCVEOrg    Decoder = "cveorg"    // CVEOrgRecordURL and ParseCVERecord (cvelistV5 records; D-556)
-	DecoderVulnCheck Decoder = "vulncheck" // VulnCheckPageURL and ParseVulnCheckPage (the customer's own key; D-557)
-	// The distribution backport data (D-516): ParseUbuntuOSV, ParseUbuntuVEX, ParseDebianTracker, read as a stream.
+	DecoderNVD       Decoder = "nvd"       // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev)
+	DecoderCVEOrg    Decoder = "cveorg"    // CVEOrgRecordURL and ParseCVERecord (cvelistV5 records)
+	DecoderVulnCheck Decoder = "vulncheck" // VulnCheckPageURL and ParseVulnCheckPage (the customer's own key)
+	// The distribution backport data: ParseUbuntuOSV, ParseUbuntuVEX, ParseDebianTracker, read as a stream.
 	DecoderUbuntuOSV     Decoder = "ubuntu-osv"
 	DecoderUbuntuVEX     Decoder = "ubuntu-vex"
 	DecoderDebianTracker Decoder = "debian-tracker"
 	DecoderAlpineOSV     Decoder = "alpine-osv" // ParseAlpineOSV: OSV.dev's Alpine all.zip
-	// The data of CVE tiers 2 and 3 (D-613, D-614).
+	// The data of CVE tiers 2 and 3.
 	DecoderEPSSAll   Decoder = "epss-all"   // ParseEPSSCSV: FIRST's daily file of every EPSS score
 	DecoderNVDRecent Decoder = "nvd-recent" // RecentPageURL and ParseNVDRecent: NVD records of the last 12 months
-	// D-603: Microsoft's Windows release information pages (parseWinRelPage): the releases core/winrel learns.
+	// Microsoft's Windows release information pages (parseWinRelPage): the releases core/winrel learns.
 	DecoderWinRel Decoder = "windows-releases"
 )
 
-// Source is a built-in feed (D-36). Built-ins cannot be deleted (INV-4): the
+// Source is a built-in feed. Built-ins cannot be deleted (INV-4): the
 // module stores only enabled, interval_hours and a mirror URL for them.
 type Source struct {
 	ID            string
@@ -35,11 +35,11 @@ type Source struct {
 	Format        Format
 	URL           string // default address; Reset restores it
 	License       string
-	IntervalHours int // default schedule: 1 for the CISA list (S-FEED-1, D-485) and CVE.org (D-556), 24 for the other vulnerability feeds, 6 for IOC
+	IntervalHours int // default schedule: 1 for the CISA list (S-FEED-1) and CVE.org, 24 for the other vulnerability feeds, 6 for IOC
 	Decoder       Decoder
 	Parser        *Parser // set when Decoder == DecoderParser
 	MaxRows       int     // row limit of this source; 0 means MaxRows (50,000)
-	// BYOK: the customer's own API key is needed (D-557). The feed is off until one is saved, and what it loaded goes
+	// BYOK: the customer's own API key is needed. The feed is off until one is saved, and what it loaded goes
 	// when the key is removed or the feed is turned off.
 	BYOK bool
 
@@ -51,7 +51,7 @@ type Source struct {
 	// (Tor exit nodes). It never counts toward block.
 	Informational bool
 	// Subdomains: every name the list holds stands for itself and all of its subdomains (hagezi TIF, "Domains (without
-	// subdomains)": a listed bad.example also means a.b.bad.example; D-228). A source without it lists each name exactly.
+	// subdomains)": a listed bad.example also means a.b.bad.example). A source without it lists each name exactly.
 	Subdomains bool
 }
 
@@ -83,7 +83,7 @@ const cveOrgNotice = "CVE Program Terms of Use. CVE records © The MITRE Corpora
 // attribution (https://docs.vulncheck.com/community/vulncheck-kev/attribution); the data stays on the box.
 const vulnCheckNotice = "VulnCheck Known Exploited Vulnerabilities (VulnCheck KEV), used with your own free VulnCheck Community key. Data stays on this box."
 
-// canonicalNotice and debianNotice are the licence lines of the distribution feeds (D-516). Canonical publishes its
+// canonicalNotice and debianNotice are the licence lines of the distribution feeds. Canonical publishes its
 // security metadata under CC BY-SA 4.0 (https://security-metadata.canonical.com/osv/LICENSE); the box keeps and shows it
 // for its own operator and Vedette ships none of it. The Debian Security Tracker states no licence for its JSON; it is
 // used as Trivy and Grype use it, attributed and never redistributed.
@@ -95,7 +95,7 @@ const (
 	alpineNotice = "CC BY-SA 4.0, Alpine Linux security database, converted by OSV.dev."
 )
 
-// winRelNotice is the licence line of the Windows releases feed (D-603): the box reads Microsoft's public release information pages
+// winRelNotice is the licence line of the Windows releases feed: the box reads Microsoft's public release information pages
 // for facts (release names, build numbers, dates, KB numbers), as a browser would, under Microsoft's Terms of Use
 // (https://www.microsoft.com/legal/terms-of-use); Vedette ships none of their text.
 const winRelNotice = "Facts from Microsoft's public Windows release information pages, Microsoft Terms of Use. Not endorsed by Microsoft."
@@ -146,7 +146,7 @@ func ProductKey(vendor, product string) string {
 }
 
 // KEVMirrorURL is CISA's own GitHub mirror of the KEV catalog (the cisagov/kev-data repository). Every check of the CISA list at its
-// built-in address asks it as well as cisa.gov and keeps the newer catalog (D-91 as amended 2026-11-17, kien G13). Same file, same
+// built-in address asks it as well as cisa.gov and keeps the newer catalog. Same file, same
 // parser, same limits.
 const KEVMirrorURL = "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json"
 

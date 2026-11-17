@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// FULL-2 (Trưởng), for Mlee (D-529): switching the External exposure module off stops an enabled Greenbone (Down, its data kept) and
+// Switching the External exposure module off stops an enabled Greenbone (Down, its data kept) and
 // switching it on starts it again; a Greenbone that is off is left alone both ways. GreenboneAtStart is the box's start-up call.
 func TestContract_INV25_TheModuleSwitchStopsAndStartsGreenbone(t *testing.T) {
 	t.Parallel()
@@ -86,7 +86,7 @@ func TestGreenboneUpAtStartIsRetriedWhileTheHostIsBusy(t *testing.T) {
 	})
 }
 
-// Review r1 L8: the host's Retry-After lengthens the wait, never past five minutes.
+// The host's Retry-After lengthens the wait, never past five minutes.
 func TestGreenboneUpWaitCapsTheHostsHint(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct{ backoff, hint, want time.Duration }{

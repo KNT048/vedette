@@ -18,14 +18,14 @@ import (
 type passiveFlags struct{ core, creds, replay *string }
 
 // newPassiveFlags builds the flag set of `passive`. The test that checks the Exec= line of the sensor Quadlet unit (host/ops owns
-// the unit text, D-123) parses it with this same constructor, so a flag renamed here without the unit following fails a test.
+// the unit text) parses it with this same constructor, so a flag renamed here without the unit following fails a test.
 func newPassiveFlags(stdout io.Writer) (*flag.FlagSet, passiveFlags) {
 	fs := flag.NewFlagSet("vedette-sensor passive", flag.ContinueOnError)
 	fs.SetOutput(stdout)
 	return fs, passiveFlags{
 		core:  fs.String("core", "https://127.0.0.1:8444", "address of core's sensor listener"),
 		creds: fs.String("creds", "/var/lib/vedette-creds/sensor.pem", "credentials bundle written by core (read only)"),
-		// ponytail: development only (the compose dev stack, D-146), no unit passes it; a recording is read in place of a card.
+		// ponytail: development only (the compose dev stack), no unit passes it; a recording is read in place of a card.
 		replay: fs.String("replay", "", "development only, never in a unit: read this pcap or pcapng recording (a developer's own capture or a public dev fixture, never a customer's) instead of a card, whichever card core names (or none)"),
 	}
 }
@@ -106,7 +106,7 @@ func runPassive(ctx context.Context, args []string, stdout io.Writer, logger *sl
 }
 
 // osInterfaces lists the cards of this machine (the container shares the network of the host): name, MAC, link and IPv4 prefixes.
-// Loopback, virtual links (sensorlink.VirtualIfaceName, the rule of Box network, D-118 (6), D-393) and cards without a 6-byte MAC
+// Loopback, virtual links (sensorlink.VirtualIfaceName, the rule of Box network) and cards without a 6-byte MAC
 // (tunnels) are not part of the LAN.
 func osInterfaces(context.Context) ([]capture.Interface, error) {
 	all, err := net.Interfaces()

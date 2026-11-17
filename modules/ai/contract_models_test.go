@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// D-475: the model list is asked through the same checks as a connection test, and is refused before any request when the address or
+// The model list is asked through the same checks as a connection test, and is refused before any request when the address or
 // the key would not pass one.
 func TestContract_ModelList_RefusedBeforeAnyRequest(t *testing.T) {
 	a := newAPI(t)

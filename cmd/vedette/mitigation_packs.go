@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/mitigation"
 )
 
-// Signed confirmed mitigation packs (D-345..D-349). The packs ship inside the signed core image (D-36) at defaultPackDir with
+// Signed confirmed mitigation packs. The packs ship inside the signed core image at defaultPackDir with
 // packs.minisig, the release minisign signature of mitigation.Statement (version, SHA-256 and name of every file). The job
 // load-packs reads the directory and hands it to mitigation.Loader, whose first step is this Verifier: nothing is read into the
 // database unless the signature holds.
@@ -24,7 +24,7 @@ const defaultPackDir = "/opt/vedette/content/mitigation"
 // once at start and when the module is turned on; the daily run only retries a failure.
 const packEvery = 24 * time.Hour
 
-// packVerifier is mitigation.Verifier over the release minisign keys compiled into the binary (D-346).
+// packVerifier is mitigation.Verifier over the release minisign keys compiled into the binary.
 type packVerifier struct{ trust func() (release.Trust, error) }
 
 func (v packVerifier) Verify(_ context.Context, u mitigation.Update) error {

@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/host/peer"
 )
 
-// Function-level tests of parked runs (D-316 slice 1, review r1): no socket, no real-clock waits.
+// Function-level tests of parked runs: no socket, no real-clock waits.
 
 func parksCmd(timeout time.Duration) Command {
 	return Define(Spec[struct{}]{

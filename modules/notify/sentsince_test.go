@@ -10,7 +10,7 @@ import (
 )
 
 // SentSince (#825, Home's "alerts sent"): alert messages (incident, vuln) that arrived and that failed since a time. Not a failure: a
-// delayed row (rate limited, it resends by itself, D-483), or a failure resent later with success to the same channel for the same item.
+// delayed row (rate limited, it resends by itself), or a failure resent later with success to the same channel for the same item.
 // An approval request is not an alert; rows before the time do not count.
 func TestSentSinceCountsAlertsArrivedAndFailedNotDelayedNotResent(t *testing.T) {
 	e := newEnv(t)
@@ -76,7 +76,7 @@ func TestOpenIncidentsCountsOpenAndUrgent(t *testing.T) {
 	}
 }
 
-// G6 (kien, N100): the Incidents page counts its Open tab from GET /notify/incidents, which keeps at most incidentsLimit rows; an open
+// The Incidents page counts its Open tab from GET /notify/incidents, which keeps at most incidentsLimit rows; an open
 // incident seen before the incidentsLimit most recent resolved ones must still be listed, so the page, Home and the badge agree.
 func TestIncidentsListsEveryOpenOneBeforeTheLimit(t *testing.T) {
 	e := newEnv(t)

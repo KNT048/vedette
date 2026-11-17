@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Tests of exposure's security review of the prober (H1, M1), moved here with the code (D-514).
+// Tests of exposure's security review of the prober (H1, M1), moved here with the code.
 
 // listener counts the connections made to it and closes them at once. It stands in for a proxy.
 func listener(t *testing.T) (addr string, accepted *atomic.Int32) {

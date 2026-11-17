@@ -10,17 +10,17 @@ import (
 // differs from the ogen tag. The longest matching prefix wins. The tag is the first path segment of
 // the contract (API_CONVENTIONS section 1), so only the exceptions are listed.
 var moduleOverrides = []struct{ prefix, module string }{
-	{"/findings", "findings"}, // D-57 (6): its own module (modules/findings)
+	{"/findings", "findings"}, // Its own module (modules/findings)
 	{"/scans", "scan"},
 	{"/scans/credentialed", "scan-credentialed"},
 	{"/core/oidc", "auth-oidc"},
-	{"/auth/oidc", "auth-oidc"}, // D-194: the SSO round trip; longer than /auth below
+	{"/auth/oidc", "auth-oidc"}, // The SSO round trip; longer than /auth below
 	{"/core/mcp", "mcp-server"},
 	{"/install", "agent-intake"},
 	{"/intake", "agent-intake"},
 	{"/inventory/agents", "agent-intake"},
 	{"/inventory/sensors", "sensor-passive"},
-	{"/inventory/snmp", "sensor-active"}, // D-512: the SNMP credentials of active discovery
+	{"/inventory/snmp", "sensor-active"}, // The SNMP credentials of active discovery
 	{"/core/network", "host"},
 	{"/auth", "core"},
 	{"/me", "core"},

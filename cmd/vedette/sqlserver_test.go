@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-606 end to end, N100's DESKTOP-55UKKFV: CISA's two "Microsoft | SQL Server" entries with NVD's ranges as the N100 holds them
+// End to end, a test box's DESKTOP-55UKKFV: CISA's two "Microsoft | SQL Server" entries with NVD's ranges as the test box holds them
 // (SQL Server 2012 to 2017 only). The release's own row without a version is "Needs your input" for both; with the version the
 // agent now gives it (the components' 16.0.1000.6, or the setup registry's PatchLevel after an update) the list drops it and NVD's
 // ranges decide both CVEs: no finding on SQL Server 2022.
@@ -54,7 +54,7 @@ func TestSQLServerVersionLeavesNeedsYourInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// report is the agent's SQL Server rows as agent-intake maps DESKTOP-55UKKFV's programs (TestSQLServer_D606_*): the release's own
+	// report is the agent's SQL Server rows as agent-intake maps DESKTOP-55UKKFV's programs (the tests in `../../modules/agent-intake/sqlserver_test.go`, `../../modules/findings/sqlserver_test.go`): the release's own
 	// row, then the components that are not keyed to the product.
 	report := func(version string) {
 		t.Helper()
@@ -86,7 +86,7 @@ func TestSQLServerVersionLeavesNeedsYourInput(t *testing.T) {
 		return names, len(recs)
 	}
 
-	report("") // before D-606: N100's state
+	report("") // before the fix: the test box's state
 	if need, _ := state(); len(need) != 1 || need[0] != "Microsoft SQL Server 2022 (64-bit)" {
 		t.Fatalf("without a version: needs %v", need)
 	}

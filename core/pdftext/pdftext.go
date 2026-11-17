@@ -1,4 +1,4 @@
-// Package pdftext reads the text of a PDF in a child process with limits (D-264, issue #324).
+// Package pdftext reads the text of a PDF in a child process with limits (issue #324).
 //
 // The Go PDF library hits fatal errors that recover() cannot catch (out of memory on a huge xref, stack overflow on an object stream
 // that contains itself) and loops for ever on a /Prev or /Extends that points back. In the core process any of them would stop the
@@ -26,7 +26,7 @@ import (
 	"github.com/knt048/vedette/core/exec"
 )
 
-// Limits. MaxInput and MaxText are the caps of D-209 (the upload, and the text kept per document).
+// Limits. MaxInput and MaxText are the caps (the upload, and the text kept per document).
 const (
 	MaxInput  = 10 << 20 // bytes of the PDF
 	MaxText   = 4 << 20  // bytes of text returned; the rest is cut

@@ -83,7 +83,7 @@ func TestContract_INV7_HTTPUserRules(t *testing.T) {
 	second := admin.post("/core/users", map[string]any{"name": "Two", "email": "two@acme.example", "role": "admin"})
 	wantOK(t, second, 201)
 	secondID := second.JSON["user"].(map[string]any)["id"].(string)
-	// With a second administrator the first may step down (once the second chose their own password, D-180); and the second is then the last.
+	// With a second administrator the first may step down (once the second chose their own password); and the second is then the last.
 	wantStatus(t, admin.patch("/core/users/"+adminID, map[string]any{"role": "viewer"}), 400, "last_admin") // the second still has a temporary password
 	two := w.client()
 	two.loginTemp("two@acme.example", second.str("temp_password"))
@@ -219,7 +219,7 @@ func TestUsers_TemporaryPasswordSignsInForEveryRole(t *testing.T) {
 	}
 }
 
-// D-180 over HTTP: a password an administrator set must be changed at first sign-in. Until then the session reads /me, changes the
+// Over HTTP: a password an administrator set must be changed at first sign-in. Until then the session reads /me, changes the
 // password and signs out, and every other call is 403 password_change_required; the temporary password also ends after 72 hours.
 func TestUsers_FirstSignInForcesAPasswordChange(t *testing.T) {
 	t.Parallel()

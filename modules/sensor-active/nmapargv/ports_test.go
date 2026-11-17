@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
-// D-592: the Extra run after a normal or versions scan reads the surface list and the reviewed admin ports; the N100's SSH on
+// The Extra run after a normal or versions scan reads the surface list and the reviewed admin ports; a test network's SSH on
 // 22222 and the deep-scan-only 10443, 11080, 11443 are in it; nothing of nmap-services is copied (the normal shape keeps
 // --top-ports 1000).
 func TestExtraPorts(t *testing.T) {
@@ -43,7 +43,7 @@ func TestExtraPorts(t *testing.T) {
 	}
 }
 
-// D-592 (review r1 H2): the weekly scan is port discovery only: -p-, no -sV, no script, no -O, at most AllPortsMaxRate, one retry,
+// The weekly scan is port discovery only: -p-, no -sV, no script, no -O, at most AllPortsMaxRate, one retry,
 // 90 minutes. Its follow-up reads at most MaxPortVersions ascending ports with -sV and the four scripts, on one target.
 func TestAllPortsShape(t *testing.T) {
 	t.Parallel()

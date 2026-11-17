@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make images-check (D-146): build the sensor and scan images one at a time and check each BY EFFECT, not by exit code of the build:
+# make images-check: build the sensor and scan images one at a time and check each BY EFFECT, not by exit code of the build:
 # the binary prints the SemVer it was built with, nuclei is built from the pinned source with the pinned Go and runs offline from an empty tmpfs HOME, the pack is where
 # the worker looks, scan-base holds no nmap, and the on-box image holds the pinned nmap. Removes the images at the end (build-artifacts rule).
 # CONTAINER=podman (default) or docker. Linux or macOS. No scan, no traffic besides the downloads of the builds.
@@ -29,9 +29,9 @@ mk scan-base-image
 got=$($c run --rm "localhost/vedette-scan-base:$tag" -version)
 [ "$got" = "$ver" ] || fail "scan-base -version printed '$got', want '$ver'"
 ok "scan-base: /vedette-sensor -version prints $got"
-# nuclei is built from source (D-319): its build information must name exactly the Go of GOLANG_IMAGE and every module at the version the
+# nuclei is built from source: its build information must name exactly the Go of GOLANG_IMAGE and every module at the version the
 # patched go.mod requires (no substring match), the pack must be SCAN_PACK_VERSION and no file may be named nmap: the same file check
-# make release-gates runs on the platform images it records (D-410), read from the exported image, nothing run.
+# make release-gates runs on the platform images it records, read from the exported image, nothing run.
 GOFLAGS='' go run ./scripts/release check-image -container "$c" -kind scan-base -image "localhost/vedette-scan-base:$tag" || fail "scan-base: the file check of the release gates (above)"
 ok "scan-base: nuclei's Go and modules are exactly the pinned ones, the pack is $SCAN_PACK_VERSION, no nmap (release check-image)"
 out=$($c run --rm --network none --read-only --tmpfs /tmp --env HOME=/tmp/h --entrypoint /usr/local/bin/nuclei "localhost/vedette-scan-base:$tag" -version -duc 2>&1) || fail "nuclei -version -duc exited non-zero offline: $out"
@@ -45,9 +45,9 @@ n=$($c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'find /usr
 bad=$($c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'find /usr/share/vedette/nuclei-templates ! -type f ! -type d | wc -l')
 [ "$bad" = 0 ] && [ "$n" -gt 0 ] || fail "pack tree: $n files, $bad entries that are neither files nor folders"
 ok "scan-base: pack index present, $n template files, only plain files and folders"
-if $c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'command -v nmap' >/dev/null 2>&1; then fail "scan-base holds nmap (D-4, D-113 (7))"; fi
+if $c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'command -v nmap' >/dev/null 2>&1; then fail "scan-base holds nmap"; fi
 ok "scan-base: no nmap (command -v nmap finds nothing)"
-# D-594: the pinned Debian security update over the base: dpkg names exactly the pinned version and its files are the package's
+# The pinned Debian security update over the base: dpkg names exactly the pinned version and its files are the package's
 # (skipped once the update is retired and ZLIB1G_VERSION is gone from pins.env).
 if [ -n "${ZLIB1G_VERSION:-}" ]; then
 	# shellcheck disable=SC2016 # dpkg-query's own format
@@ -56,7 +56,7 @@ if [ -n "${ZLIB1G_VERSION:-}" ]; then
 	$c run --rm --entrypoint dpkg "localhost/vedette-scan-base:$tag" --verify zlib1g || fail "scan-base: dpkg --verify zlib1g reports changed or missing files"
 	ok "scan-base: zlib1g $zl, and dpkg --verify finds its files intact"
 fi
-# D-454: the licences of the modules linked into nuclei, with the one recorded exception (censys-sdk-go, MIT per its README).
+# The licences of the modules linked into nuclei, with the one recorded exception (censys-sdk-go, MIT per its README).
 for f in /usr/local/share/vedette/licenses/nuclei-third-party-licenses /usr/share/doc/vedette/nuclei-third-party-licenses; do
 	$c run --rm --entrypoint grep "localhost/vedette-scan-base:$tag" -q '^== github.com/projectdiscovery/nuclei/v3 (LICENSE.md)$' "$f" || fail "$f does not carry nuclei's own licence"
 	$c run --rm --entrypoint grep "localhost/vedette-scan-base:$tag" -q '^== github.com/censys/censys-sdk-go v0.19.1 (MIT per the README' "$f" || fail "$f lacks censys-sdk-go"
@@ -70,14 +70,14 @@ have=$(echo "$got" | sed -n 's/^Nmap version \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p
 [ -n "$have" ] && [ "$(printf '%s\n%s\n' "$NMAP_MIN_VERSION" "$have" | sort -V | head -1)" = "$NMAP_MIN_VERSION" ] || fail "nmap --version '$got' is below the floor $NMAP_MIN_VERSION"
 ok "on-box image: $got (floor $NMAP_MIN_VERSION)"
 
-# core (D-149): the image embeds the interface. Run it with a tmpfs data folder and check by effect: GET / is HTML with the root element, and
+# core: the image embeds the interface. Run it with a tmpfs data folder and check by effect: GET / is HTML with the root element, and
 # an asset that index.html names is 200 with an immutable cache header and a JavaScript type; an unknown asset is 404, not HTML.
 mk core-image
 cn=vedette-core-check-$$
 trap 'cleanup; $c rm -f "$cn" >/dev/null 2>&1 || true; $c rmi -f "localhost/vedette-core:$tag" >/dev/null 2>&1 || true' EXIT
 $c run -d --name "$cn" -p 127.0.0.1::8443 --tmpfs /var/lib/vedette:rw,mode=1777 "localhost/vedette-core:$tag" -listen 0.0.0.0:8443 -host-socket "" >/dev/null
 port=$($c port "$cn" 8443/tcp | head -1 | sed 's/.*://')
-# D-345: the pack folder is readable by core's user (65532): a 0755 folder of 0644 files, owned by root
+# The pack folder is readable by core's user (65532): a 0755 folder of 0644 files, owned by root
 packs=$($c export "$cn" | tar -tvf - opt/vedette/content/mitigation 2>/dev/null) || fail "core: no /opt/vedette/content/mitigation in the image"
 grep -Eq '^drwxr-xr-x .*opt/vedette/content/mitigation/?$' <<<"$packs" || fail "core: the pack folder is not 0755: $packs"
 bad=$(grep -v '/$' <<<"$packs" | grep -Ev '^-rw-r--r-- ' || true) # here-strings, no early-closing pipe under pipefail

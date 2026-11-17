@@ -135,7 +135,7 @@ func TestGenericRemote(t *testing.T) {
 		{"app: from", ""},
 		{"app: 192.168.1.5 is mentioned with no layout", ""}, // R3: the framing primitive: not an access-log line
 		{"app: gw=203.0.113.99 dst=1.1.1.1", ""},             // dst and gw are not the peer
-		// H1 (D-210): text that an attacker writes (a user name, a URL) must not name another address. Two different candidates in one line:
+		// H1: text that an attacker writes (a user name, a URL) must not name another address. Two different candidates in one line:
 		// no address at all (the line still counts everywhere else); the same address twice is one.
 		{"sshd[1]: Invalid user src=8.8.8.8 from 203.0.113.5 port 22", ""},
 		{"sshd[1]: Invalid user x from 8.8.8.8 from 203.0.113.5 port 22", ""},

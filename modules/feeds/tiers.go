@@ -14,11 +14,11 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// D-615: the day NVD published each KEV CVE (feeds_published), and D-613/D-616: what the tier feeds epss-all and nvd-recent
+// The day NVD published each KEV CVE (feeds_published), and what the tier feeds epss-all and nvd-recent
 // hold, for the "Updates to plan" page and the CVE page of a CVE on no exploited list.
 
-// applyPublished stores the days NVD published the CVEs of one nvd-kev pull (D-615). Rows are only added or corrected: a
-// CVE an update did not return keeps its day. NVD's day replaces a day CVE.org gave (D-617).
+// applyPublished stores the days NVD published the CVEs of one nvd-kev pull. Rows are only added or corrected: a
+// CVE an update did not return keeps its day. NVD's day replaces a day CVE.org gave.
 func applyPublished(ctx context.Context, tx *sql.Tx, got map[string]string) error {
 	if len(got) == 0 {
 		return nil
@@ -36,7 +36,7 @@ func applyPublished(ctx context.Context, tx *sql.Tx, got map[string]string) erro
 	return nil
 }
 
-// applyCVEOrgPublished stores the days CVE.org's records give for exploited CVEs NVD has given none for (D-615 (2), D-617): a row
+// applyCVEOrgPublished stores the days CVE.org's records give for exploited CVEs NVD has given none for: a row
 // NVD wrote is never replaced, and a day CVE.org gave once stays (a CVE's published day does not change).
 func applyCVEOrgPublished(ctx context.Context, tx *sql.Tx, got map[string]string) error {
 	for _, cve := range slices.Sorted(maps.Keys(got)) {
@@ -47,7 +47,7 @@ func applyCVEOrgPublished(ctx context.Context, tx *sql.Tx, got map[string]string
 	return nil
 }
 
-// publishedCount is how many CVEs have NVD's published day (CVE.org's do not count, D-617); 0 makes the next nvd-kev pull a full one.
+// publishedCount is how many CVEs have NVD's published day (CVE.org's do not count); 0 makes the next nvd-kev pull a full one.
 func (s *Store) publishedCount(ctx context.Context) (int, error) {
 	var n int
 	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_published WHERE source = 'nvd'`).Scan(&n); err != nil {
@@ -56,7 +56,7 @@ func (s *Store) publishedCount(ctx context.Context) (int, error) {
 	return n, nil
 }
 
-// KevPublished returns the day NVD published each CVE it answered for, else the day its CVE.org record gives (D-615, D-617). A CVE that is absent has no known day:
+// KevPublished returns the day NVD published each CVE it answered for, else the day its CVE.org record gives. A CVE that is absent has no known day:
 // findings then treats it as recent and never closes a finding on it for its age.
 func (s *Store) KevPublished(ctx context.Context) (map[string]time.Time, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve, published FROM feeds_published`)
@@ -77,7 +77,7 @@ func (s *Store) KevPublished(ctx context.Context) (map[string]time.Time, error) 
 	return out, rows.Err()
 }
 
-// PublishedOf returns the day NVD published each of these CVEs ("2017-03-14", D-615); a CVE NVD has not answered for is absent.
+// PublishedOf returns the day NVD published each of these CVEs ("2017-03-14"); a CVE NVD has not answered for is absent.
 // One query per publishedChunk CVEs (the CVEs as one JSON array parameter, json_each), not one per CVE: GET /findings and Home's
 // GET /findings/summary ask for every open CVE, and 2 000 point reads cost about 40 ms where one read per chunk costs about 1 ms (#825).
 func (s *Store) PublishedOf(ctx context.Context, cves []string) (map[string]string, error) {
@@ -132,7 +132,7 @@ const (
 	TierReady   TierFeed = "ready"
 )
 
-// TierStatus says what the tier data holds (D-613, D-616).
+// TierStatus says what the tier data holds.
 type TierStatus struct {
 	EPSS, Recent TierFeed
 	EPSSDate     time.Time // the day of the last good pull of epss-all (FIRST publishes one file a day); zero unless EPSS is ready
@@ -188,7 +188,7 @@ type TierCVE struct {
 }
 
 // TierCVEOf reads one CVE from the tier data of the feeds that are on; found is false when neither holds it. Tier follows
-// D-613 and D-615: EPSS ≥ EPSSLikely and published in the last 365 days is likely, published in the last 365 days is recent.
+// EPSS ≥ EPSSLikely and published in the last 365 days is likely, published in the last 365 days is recent.
 func (s *Store) TierCVEOf(ctx context.Context, cve string, now time.Time) (TierCVE, bool, error) {
 	st, err := s.TierStatus(ctx, now)
 	if err != nil {
@@ -241,7 +241,7 @@ func (s *Store) TierCVEOf(ctx context.Context, cve string, now time.Time) (TierC
 			}
 		}
 	}
-	if out.Published == nil { // not in nvd-recent (older, or the feed not ready): the day nvd-kev or CVE.org gave (feeds_published, D-617)
+	if out.Published == nil { // not in nvd-recent (older, or the feed not ready): the day nvd-kev or CVE.org gave (feeds_published)
 		d, err := s.publishedOf(ctx, cve)
 		if err != nil {
 			return TierCVE{}, false, err
@@ -286,7 +286,7 @@ func (s *Store) recentProducts(ctx context.Context, cve string) ([]string, bool,
 	return out, listed, nil
 }
 
-// TierRecord is one CVE of the tier data as findings' plan reads it (D-617): NVD's record of the last 12 months with the affected
+// TierRecord is one CVE of the tier data as findings' plan reads it: NVD's record of the last 12 months with the affected
 // entries the caller kept, and its EPSS score.
 type TierRecord struct {
 	CVE              string
@@ -296,10 +296,10 @@ type TierRecord struct {
 	Score            *float64 // its base score
 	EPSS, Percentile *float64 // nil when epss-all is not ready or has no score for the CVE
 	Affected         []AffectedRow
-	// Distro is, for TierDistroRecords, the distributions' fixed rows of the packages asked for (D-622); nil for TierRecords.
+	// Distro is, for TierDistroRecords, the distributions' fixed rows of the packages asked for; nil for TierRecords.
 	Distro []DistroFix
 	// Platforms is, per entry, NVD's "running on" operating systems ("microsoft:windows"); empty for none; ["?"] for an entry stored
-	// before Vedette kept them (migration 0013 refills nvd-recent, so it shows only on a box mid-refill). D-617.
+	// before Vedette kept them (migration 0013 refills nvd-recent, so it shows only on a box mid-refill).
 	Platforms [][]string
 }
 
@@ -307,7 +307,7 @@ type TierRecord struct {
 const tierChunk = 500
 
 // TierRecords reads the CVEs of nvd-recent published since now minus 365 days whose NVD affected entries name a CPE keep accepts,
-// each with those entries only (D-617): the distinct CPEs are read from the index first (tens of thousands of short strings), then
+// each with those entries only: the distinct CPEs are read from the index first (tens of thousands of short strings), then
 // only the rows of the kept ones, so a pass holds the CVEs of the products the devices run, never the whole year. Nothing while
 // nvd-recent is not ready (its first fill unfinished, or off); EPSS only while epss-all is ready.
 func (s *Store) TierRecords(ctx context.Context, now time.Time, keep func(cpe string) bool) ([]TierRecord, error) {
@@ -405,8 +405,8 @@ WHERE a.cpe IN (SELECT value FROM json_each(?)) AND r.published >= ? ORDER BY a.
 	return out, nil
 }
 
-// tierCVEs lists the CVEs of nvd-recent published since now minus 365 days while it is ready (D-622: the distribution feeds keep
-// their fixed rows for the devices' packages); nil otherwise. About 105,000 short strings on the N100 (2026-11-15).
+// tierCVEs lists the CVEs of nvd-recent published since now minus 365 days while it is ready (the distribution feeds keep
+// their fixed rows for the devices' packages); nil otherwise. About 105,000 short strings on a test box (2026-11-15).
 func (s *Store) tierCVEs(ctx context.Context, now time.Time) (map[string]bool, error) {
 	st, err := s.TierStatus(ctx, now)
 	if err != nil || st.Recent != TierReady {
@@ -444,7 +444,7 @@ func (s *Store) hasTierCVEs(ctx context.Context, now time.Time) (bool, error) {
 // DistroPackage is a source package of one release as the distributions' security data names it ("ubuntu", "24.04", "openssl").
 type DistroPackage struct{ Distro, Release, Package string }
 
-// TierDistroRecords reads, for "Updates to plan" (D-622), the CVEs of nvd-recent published since now minus 365 days for which a
+// TierDistroRecords reads, for "Updates to plan", the CVEs of nvd-recent published since now minus 365 days for which a
 // distribution feed that is on has a fixed row of one of pkgs, each with those rows only (Distro; no NVD entries), and with EPSS
 // while epss-all is ready. covered holds the releases ("ubuntu/24.04") among pkgs' for which a feed that is on stored fixed rows
 // in a pull made with the tier want-set (distro_packages set): a device of another release is not compared (loading or failing). Nothing while nvd-recent is not ready. CVEs of the CISA list are in the

@@ -1,4 +1,4 @@
-// Mock API for the response module (S-RESP-1..4, S-AI-8; D-40, D-41, D-44, D-46, D-47, D-48, D-51).
+// Mock API for the response module (S-RESP-1..4, S-AI-8).
 // Tables: resp_settings, resp_plans, resp_actions, resp_catalog, resp_rules, resp_allowlist, resp_blocklist (token),
 // resp_tokens (email approval links), resp_done (rule x event already handled), resp_ai_notes, resp_hints, resp_log.
 // Every security gate is enforced on the server side of the mock (state.ts, engine.ts, ai.ts), never only in the UI.
@@ -44,7 +44,7 @@ function draft(f: Finding): StoredPlan | null {
   steps.push({ kind: 'patch', title: `Patch ${f.cve}`, detail: 'Install the vendor fix, then rescan to confirm. Turn the virtual IP back on only after the fixed version is running.', proposal: null })
   return { id: `plan-${f.id}`, finding_id: f.id, cve: f.cve, asset_id: asset.id, asset_name: name, generated_at: nowIso(), model: profile?.model ?? 'claude-sonnet-5-5', profile: profile?.name ?? 'Claude Sonnet', path, reads, steps }
 }
-/** The catalog action that carries out an AI plan proposal: the same connection and write tool. The sample connection names MCP-style tools although it is an HTTP one, and a built-in HTTP action has no tool (D-94), so the sample plan names the action by hand. */
+/** The catalog action that carries out an AI plan proposal: the same connection and write tool. The sample connection names MCP-style tools although it is an HTTP one, and a built-in HTTP action has no tool, so the sample plan names the action by hand. */
 const SAMPLE_TOOL_ACTION: Record<string, string> = { disable_virtual_ip: 'fgt_vip_disable' }
 const aiCat = (p: StoredProposal) => catalogStore.get().find((c) => c.kind === 'device' && c.connection_id === p.connector_id && (c.tool === p.tool || c.id === SAMPLE_TOOL_ACTION[p.tool]))
 /** Why the proposal cannot be carried out now: the action's own reason, or its sample write tool being off. */
@@ -70,7 +70,7 @@ const PLAN_PREVIEW = 'The plan was stored. The preview build does not send plan 
 let plannerLast: PlannerStatus = { ran_at: null, blocked: '', sending: false, considered: 0, asked: 0, proposed: 0, findings: [] }
 const planView = (p: StoredPlan): Plan => ({ ...p, steps: p.steps.map((s) => ({ ...s, proposal: s.proposal ? proposalView(s.proposal) : null })), sent_to: chanList().map(chanLabel) })
 
-// ---- Block list (pull, D-44): entries are executed block-list items still in force ----
+// ---- Block list (pull): entries are executed block-list items still in force ----
 const blockMeta = collection<{ token: string; last_fetch: { at: string; from: string } | null }>('resp_blocklist', () => ({ token: randomToken(), last_fetch: null }))
 function blockEntries(): BlockEntry[] {
   const now = Date.now()
@@ -82,7 +82,7 @@ function blockEntries(): BlockEntry[] {
 const blockUrl = (token: string) => `https://${boxAddress() ?? '<box ip>'}:8443/api/v1/response/blocklist/${token}.txt`
 const blockView = () => ({ url: blockUrl(blockMeta.get().token), token_last4: blockMeta.get().token.slice(-4), entries: blockEntries(), last_fetch: blockMeta.get().last_fetch })
 
-// ---- Respond from an incident (D-509): the server reads the source from the incident, never from the browser ----
+// ---- Respond from an incident: the server reads the source from the incident, never from the browser ----
 interface PeekIncident { id: string; kind: string; title: string; action: string; link: string; status: string }
 const RESOLVED_MSG = 'This incident is resolved, so nothing is offered. Reopen it in Incidents to act on it.'
 const UNCONFIRMED_MSG = 'The source of a scan or of a UDP request can be forged: it completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it.'
@@ -126,7 +126,7 @@ function incidentOption(r: Read, c: ReturnType<typeof catalogStore.get>[number])
   return { ...base, title: p.p.item.title, ready: why === null, why, requested }
 }
 
-/** The approver of a link is still valid: on the channel's list with that address, the channel ready and one of the approval channels, an active operator or admin, and the person linked that address themselves (D-191). */
+/** The approver of a link is still valid: on the channel's list with that address, the channel ready and one of the approval channels, an active operator or admin, and the person linked that address themselves. */
 function linkApproverValid(t: { user_id: string; channel: string; address: string }) {
   const ch = rawChans().find((c) => c.type === t.channel)
   return !!ch && chanReady(ch) && settings().approval_channels.includes(t.channel) && approversOf(ch).some((x) => x.user_id === t.user_id && x.address === t.address) && !!userCanApprove(t.user_id) && isLinked(t.user_id, t.channel, t.address)
@@ -153,7 +153,7 @@ export const handlers = [
     sweep()
     const open = findingsStore.get().filter(openCritical)
     // Draft a plan for each unresolved critical finding that has none yet (needs a usable AI profile for the job). Each GET stands for one run of
-    // the plan job, and what it did is the planner status (D-513), with the backend's sentences.
+    // the plan job, and what it did is the planner status, with the backend's sentences.
     const s = settings()
     const sending = s.execution && s.ai.triggers.includes('finding')
     const status: PlannerStatus = { ran_at: nowIso(), blocked: '', sending, considered: 0, asked: 0, proposed: 0, findings: [] }
@@ -166,7 +166,7 @@ export const handlers = [
           if (status.findings.length < 20) status.findings.push({ finding_id: f.id, cve: f.cve, asset_name: name ?? assetsStore.get().find((a) => a.id === f.asset_id)?.hostname ?? f.asset_id, outcome, reason })
         }
         if (scheduledPause()) { add('ai_unavailable', PLAN_PAUSED); continue } // from 80 % of the month's AI budget the scheduled plan job is paused (backend: 429 budget_reached, no row)
-        const profileStop = scheduledProfileStop('response-plan') // W5-5: every profile of the job used its own budget (backend: 429 budget_reached, no row)
+        const profileStop = scheduledProfileStop('response-plan') // Every profile of the job used its own budget (backend: 429 budget_reached, no row)
         if (profileStop) { add('ai_unavailable', `The AI cannot be used now, so this run stopped: ${profileStop}`); continue }
         if (plansStore.get().some((p) => p.finding_id === f.id)) { add('has_plan', PLAN_HAS); continue }
         if (status.asked >= 3) { add('later', PLAN_LATER); continue }
@@ -180,7 +180,7 @@ export const handlers = [
       }
     }
     plannerLast = status
-    const viewer = currentUser()?.role === 'viewer' // the sentences quote the operator log: a viewer gets the codes (D-513)
+    const viewer = currentUser()?.role === 'viewer' // the sentences quote the operator log: a viewer gets the codes
     const only = new URL(request.url).searchParams.get('finding')
     const ids = new Set(open.map((f) => f.id))
     const items = plansStore.get().filter((p) => ids.has(p.finding_id) && (!only || p.finding_id === only)).map(planView)
@@ -294,7 +294,7 @@ export const handlers = [
     const u = ap ? userCanApprove(ap.user_id) : undefined
     if (!ch || !ap || !u) return refuse(403, 'approver_not_listed', `Not counted: this ${b.channel} address is not on the approver list of that channel, or its user is not an operator or admin.`, a.id)
     if (!settings().approval_channels.includes(b.channel) || !chanReady(ch)) return refuse(403, 'channel_not_allowed', `Approvals from ${b.channel} are not turned on for response.`, a.id)
-    if (!isLinked(u.id, ch.type, ap.address)) return chatNotLinked(ch.type, ap.address, a.id) // D-191, D-414: the answer says how to link
+    if (!isLinked(u.id, ch.type, ap.address)) return chatNotLinked(ch.type, ap.address, a.id) // The answer says how to link
     if (a.items.some((i) => i.connector_id !== null) && !settings().execution) return refuse(409, 'execution_off', OFF_MSG, a.id)
     const w = who(u, b.channel, b.external_id)
     const r = b.decision === 'approve' ? approve(a, w) : reject(a, w, `Rejected in ${b.channel} by ${u.name}`)
@@ -517,7 +517,7 @@ export const handlers = [
   // ---- Action catalog (S-RESP-4) ----
   http.get(`${API}/response/catalog`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    // D-88 (26): the header lines of a template can carry an authorisation value, so only an admin sees the values; others see the names
+    // The header lines of a template can carry an authorisation value, so only an admin sees the values; others see the names
     const admin = currentUser()?.role === 'admin'
     const hide = (t: Tpl): Tpl => (admin ? t : { ...t, headers: t.headers.split('\n').filter(Boolean).map((l) => `${l.split(':')[0]}: (hidden)`).join('\n') })
     const items = catalogStore.get().map(catView).map((a) => ({ ...a, run: hide(a.run), rollback: hide(a.rollback), verify: hide(a.verify), precheck: hide(a.precheck) }))
@@ -593,7 +593,7 @@ export const handlers = [
     return HttpResponse.json(metrics())
   }),
 
-  // ---- Log (D-48) ----
+  // ---- Log ----
   http.get(`${API}/response/log`, () => {
     const denied = guard('operator'); if (denied) return denied
     sweep()

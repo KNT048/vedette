@@ -20,7 +20,7 @@ import (
 // GET and POST /response/approve/{token} (public: the link is the credential, 13b-7) are implemented here too; they read no session.
 //
 // The three preview-only operations, POST /response/rules/run, POST /response/actions/{id}/chat-decision and POST
-// /response/ai/proposals (D-97), are implemented only to answer 404 like an unknown route: they must not exist in the real
+// /response/ai/proposals, are implemented only to answer 404 like an unknown route: they must not exist in the real
 // build (FORBID-5).
 //
 // ogen generates a separate struct per operation for the same schema, so answers are built from the domain types (their
@@ -81,7 +81,7 @@ func (h *ResponseHandlers) ResponseGetResponsePlans(ctx context.Context, params 
 }
 
 // seesValues reports whether the caller may read the header values of a request: the people who approve (operators and administrators)
-// read everything they approve (D-175), except what carries a credential (D-174); a viewer reads names only.
+// read everything they approve, except what carries a credential; a viewer reads names only.
 func (h *ResponseHandlers) seesValues(ctx context.Context) bool {
 	p, ok := server.PrincipalFrom(ctx)
 	return ok && (p.Role == routes.Admin || p.Role == routes.Operator)
@@ -115,7 +115,7 @@ func (h *ResponseHandlers) ResponsePostResponseProposalsIDRequest(ctx context.Co
 	return convert[oas.ResponsePostResponseProposalsIDRequestCreated](r.masked(h.seesValues(ctx)))
 }
 
-// ResponseGetResponseIncidentsID implements GET /response/incidents/{id} (viewer, D-509).
+// ResponseGetResponseIncidentsID implements GET /response/incidents/{id} (viewer).
 func (h *ResponseHandlers) ResponseGetResponseIncidentsID(ctx context.Context, params oas.ResponseGetResponseIncidentsIDParams) (*oas.ResponseGetResponseIncidentsIDOK, error) {
 	v, err := h.svc.IncidentPanel(ctx, params.ID)
 	if err != nil {
@@ -124,7 +124,7 @@ func (h *ResponseHandlers) ResponseGetResponseIncidentsID(ctx context.Context, p
 	return convert[oas.ResponseGetResponseIncidentsIDOK](v)
 }
 
-// ResponsePostResponseIncidentsIDRequest implements POST /response/incidents/{id}/request (operator, D-509).
+// ResponsePostResponseIncidentsIDRequest implements POST /response/incidents/{id}/request (operator).
 func (h *ResponseHandlers) ResponsePostResponseIncidentsIDRequest(ctx context.Context, req *oas.ResponsePostResponseIncidentsIDRequestReq, params oas.ResponsePostResponseIncidentsIDRequestParams) (*oas.ResponsePostResponseIncidentsIDRequestCreated, error) {
 	who, err := h.actor(ctx)
 	if err != nil {
@@ -163,7 +163,7 @@ func (h *ResponseHandlers) ResponsePostResponseActionsIDReject(ctx context.Conte
 	return convert[oas.ResponsePostResponseActionsIDRejectOK](r.masked(h.seesValues(ctx)))
 }
 
-// linkRequest is what both link routes check first (D-96 (4), spec approval-tokens.md 14.8): a browser that says the request comes from
+// linkRequest is what both link routes check first (spec approval-tokens.md 14.8): a browser that says the request comes from
 // another site (Sec-Fetch-Site other than same-origin or none; no header at all is curl or an old browser, and the server already
 // refused a foreign Origin on the POST) is refused 403, so a page on another site cannot make the approver's browser decide. It returns
 // the address of the peer for the rate limit (never a forwarded header). The server already marks every answer no-store and no-referrer.
@@ -249,7 +249,7 @@ func (h *ResponseHandlers) ResponsePostResponseRulesRun(context.Context) (*oas.R
 	return nil, errPreviewOnly()
 }
 
-// ResponsePostResponseAiProposals answers 404: the operation exists only in the preview build (FORBID-5, D-97). On a real box the AI
+// ResponsePostResponseAiProposals answers 404: the operation exists only in the preview build (FORBID-5). On a real box the AI
 // calls the Go port of the service as a service identity; there is no HTTP route a person or a token could use to send a proposal.
 func (h *ResponseHandlers) ResponsePostResponseAiProposals(context.Context, *oas.ResponsePostResponseAiProposalsReq) (*oas.ResponsePostResponseAiProposalsOK, error) {
 	return nil, errPreviewOnly()
@@ -609,7 +609,7 @@ func (h *ResponseHandlers) ResponseGetResponseLog(ctx context.Context) (*oas.Res
 	}{l})
 }
 
-// ResponseGetResponseMeIdentities implements GET /response/me/identities (operator, D-191).
+// ResponseGetResponseMeIdentities implements GET /response/me/identities (operator).
 func (h *ResponseHandlers) ResponseGetResponseMeIdentities(ctx context.Context) (*oas.ResponseGetResponseMeIdentitiesOK, error) {
 	who, err := h.actor(ctx)
 	if err != nil {
@@ -622,7 +622,7 @@ func (h *ResponseHandlers) ResponseGetResponseMeIdentities(ctx context.Context) 
 	return convert[oas.ResponseGetResponseMeIdentitiesOK](map[string]any{"items": items})
 }
 
-// ResponsePostResponseMeIdentitiesChannelCode implements POST /response/me/identities/{channel}/code (operator, D-191).
+// ResponsePostResponseMeIdentitiesChannelCode implements POST /response/me/identities/{channel}/code (operator).
 func (h *ResponseHandlers) ResponsePostResponseMeIdentitiesChannelCode(ctx context.Context, params oas.ResponsePostResponseMeIdentitiesChannelCodeParams) (*oas.ResponsePostResponseMeIdentitiesChannelCodeOK, error) {
 	who, err := h.actor(ctx)
 	if err != nil {
@@ -635,7 +635,7 @@ func (h *ResponseHandlers) ResponsePostResponseMeIdentitiesChannelCode(ctx conte
 	return convert[oas.ResponsePostResponseMeIdentitiesChannelCodeOK](v)
 }
 
-// ResponsePostResponseMeIdentitiesChannelConfirm implements POST /response/me/identities/{channel}/confirm (operator, D-191).
+// ResponsePostResponseMeIdentitiesChannelConfirm implements POST /response/me/identities/{channel}/confirm (operator).
 func (h *ResponseHandlers) ResponsePostResponseMeIdentitiesChannelConfirm(ctx context.Context, req *oas.ResponsePostResponseMeIdentitiesChannelConfirmReq, params oas.ResponsePostResponseMeIdentitiesChannelConfirmParams) (*oas.ResponsePostResponseMeIdentitiesChannelConfirmOK, error) {
 	who, err := h.actor(ctx)
 	if err != nil {
@@ -648,7 +648,7 @@ func (h *ResponseHandlers) ResponsePostResponseMeIdentitiesChannelConfirm(ctx co
 	return convert[oas.ResponsePostResponseMeIdentitiesChannelConfirmOK](v)
 }
 
-// ResponseDeleteResponseMeIdentitiesChannel implements DELETE /response/me/identities/{channel} (operator, D-191).
+// ResponseDeleteResponseMeIdentitiesChannel implements DELETE /response/me/identities/{channel} (operator).
 func (h *ResponseHandlers) ResponseDeleteResponseMeIdentitiesChannel(ctx context.Context, params oas.ResponseDeleteResponseMeIdentitiesChannelParams) error {
 	who, err := h.actor(ctx)
 	if err != nil {

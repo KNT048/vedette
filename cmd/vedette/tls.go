@@ -139,7 +139,7 @@ func defaultAllowed(h string) bool {
 }
 
 // ensureCertAt creates the self-signed certificate and its key on first start, like ensureKey: P-256, 825 days, both files mode
-// 0600, the names of hosts (plus localNames) as subject alternative names, signed by the box CA (ca, D-262). When the key file
+// 0600, the names of hosts (plus localNames) as subject alternative names, signed by the box CA (ca). When the key file
 // exists the pair is kept as it is (the owner may have put their own there), except that a pair this function made (subject
 // organization selfSignedOrg) that expires within 30 days, or that does not chain to the box CA, gets a new certificate for the
 // same key, so a box that restarts now and then never runs out; delete both files to have new ones made. A key without its
@@ -178,7 +178,7 @@ func ensureCertAt(ctx context.Context, ca *boxCAStore, certPath, keyPath string,
 }
 
 // renewSelfSigned replaces the certificate of a pair this program made when it expires within
-// selfSignedRenewBefore of now(), or when it does not cover every entry of hosts (D-397: the owner changed -hosts,
+// selfSignedRenewBefore of now(), or when it does not cover every entry of hosts (the owner changed -hosts,
 // VEDETTE_HOSTS, and started again), signing with the key already there (one atomic file write: a crash cannot
 // leave a certificate that does not match the key). It reports whether it replaced it. A pair it cannot
 // read, or one that is not its own, is left for loadTLS to judge.
@@ -190,7 +190,7 @@ func renewSelfSigned(ctx context.Context, ca *boxCAStore, certPath, keyPath stri
 // certificate (same key, one atomic write) when need says so about the current one, or when it lacks an entry of
 // hosts (uncoveredHosts). For a missing entry the new certificate keeps every name and address the old one had
 // (a name dropped from -hosts is still refused by the Host allowlist; a bookmark of an address keeps working), is
-// signed by the same box CA (agents pinned to it keep working, D-262) and is logged. Like the upgrade under the
+// signed by the same box CA (agents pinned to it keep working) and is logged. Like the upgrade under the
 // CA, it is optional: a CA that cannot be read or a directory that cannot be written keeps the leaf in use.
 func reissueSelfSigned(ctx context.Context, cas *boxCAStore, certPath, keyPath string, hosts []string, now func() time.Time, need func(*x509.Certificate) bool, log *slog.Logger) (bool, error) {
 	if log == nil {
@@ -220,7 +220,7 @@ func reissueSelfSigned(ctx context.Context, cas *boxCAStore, certPath, keyPath s
 		return false, err
 	}
 	upgrade, missing := notSignedBy(leaf, ca), uncoveredHosts(leaf, hosts)
-	if upgrade || len(missing) > 0 { // an old self-signed leaf (D-262) or a -hosts change (D-397): same key, the names it had and the new ones, under the CA
+	if upgrade || len(missing) > 0 { // an old self-signed leaf or a -hosts change: same key, the names it had and the new ones, under the CA
 		hosts = append(append(append([]string(nil), hosts...), leaf.DNSNames...), addrStrings(certIPs(leaf))...)
 	} else if !need(leaf) {
 		return false, nil
@@ -273,14 +273,14 @@ func uncoveredHosts(leaf *x509.Certificate, hosts []string) []string {
 type selfSignedRenewer struct {
 	certPath, keyPath string
 	hosts             []string
-	ca                *boxCAStore // the box CA (D-262, D-351)
+	ca                *boxCAStore // the box CA
 	now               func() time.Time
-	// mgmt is the management addresses of the box from vedette-host (D-139); nil without a host.
+	// mgmt is the management addresses of the box from vedette-host; nil without a host.
 	mgmt func(ctx context.Context) ([]netip.Addr, error)
 	// box is the box's name for the certificate (certBoxName): "" while vedette-host has not answered since start. nil: no name is
 	// looked at (tests of other things).
 	box func(ctx context.Context) string
-	// addrs are the Box address and the earlier ones the box still answers to (D-465, boxAddr.Names): names of the certificate, added
+	// addrs are the Box address and the earlier ones the box still answers to (boxAddr.Names): names of the certificate, added
 	// when it lacks one; nil: none.
 	addrs func(ctx context.Context) []string
 	local func() []string // localNames; a test gives another
@@ -425,7 +425,7 @@ func (r *selfSignedRenewer) Kick() {
 }
 
 // Check re-issues the pair, for the same key, when it expires soon, when its IP addresses are not those the
-// box has: -hosts and the management addresses vedette-host reports (D-139; localNames ride along in a re-issue
+// box has: -hosts and the management addresses vedette-host reports (localNames ride along in a re-issue
 // made for another reason, they never cause one), or when it lacks the box's name (certBoxName). A host that does
 // not answer, or answers nothing, never removes an address or a name: the certificate keeps the ones it has. The
 // new certificate is loaded for new handshakes; the Host allowlist is fixed at start (transport), so a name first
@@ -436,7 +436,7 @@ func (r *selfSignedRenewer) Kick() {
 // start (no answer yet) it asks only whether the certificate already has every management address, -hosts address
 // and Box address: a new container has a new address of its own and the certificate still lists the old one's, so
 // an exact comparison re-issued it at every restart, update and reboot, and every browser that had accepted it
-// warned again (J7, #812). An address the box lost while core was down stays until the next re-issue; one it
+// warned again (#812). An address the box lost while core was down stays until the next re-issue; one it
 // gained is missing from the certificate and re-issues it. The new certificate is built from the new PEM and the
 // key already in memory, so a disk that cannot be read back does not keep the old certificate being served; when
 // the pair on disk was replaced by something else that loads, that is served instead.
@@ -478,7 +478,7 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	// error that never goes away cannot keep the box from renewing.
 	ca, caErr := r.ca.ensure(ctx, r.now(), log, leaf.NotAfter.Sub(r.now()) <= selfSignedRenewBefore)
 	hosts := append([]string(nil), r.hosts...)
-	// The Box address (D-465): every link carries it, so the certificate names it, and the earlier ones the box still answers to (agents
+	// The Box address: every link carries it, so the certificate names it, and the earlier ones the box still answers to (agents
 	// and firewalls set up with them, review M1); one it lacks (a name or address an administrator just saved) re-issues it. A forgotten
 	// one leaves at the next re-issue. Unknown (none) changes nothing.
 	boxChange := false
@@ -504,9 +504,9 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	} else {
 		hosts = append(hosts, addrStrings(certIPs(leaf))...) // no fresh answer: keep the addresses it has
 	}
-	// The box's name (D-316 follow-up of #471): added when vedette-host reports one the certificate lacks (an upgraded box, a host that
+	// The box's name: added when vedette-host reports one the certificate lacks (an upgraded box, a host that
 	// answered only after start, a renamed machine); a host that has not answered keeps the names the certificate has.
-	// The order of the names no longer matters to links: they carry the Box address (D-465), never a name taken from the certificate.
+	// The order of the names no longer matters to links: they carry the Box address, never a name taken from the certificate.
 	nameChange := boxChange
 	var named []string
 	if r.box != nil {

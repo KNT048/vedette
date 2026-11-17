@@ -1,8 +1,8 @@
-// Devices -> Scope and sensors on the real backend: the scan scope (S-INV-3 notify-new, D-26 confirmation, INV-6 ranges, INV-7 window).
+// Devices -> Scope and sensors on the real backend: the scan scope (S-INV-3 notify-new, the scan confirmation, INV-6 ranges, INV-7 window).
 // Steps from e2e/qa/inventory.spec.ts ("Admin: scan scope"). The scope is one setting of the whole box, so this runs in the global project, alone,
 // and puts a known scope in place before each test through the API (a precondition, not what is tested). What only a real box shows:
 // the real backend refuses the same ranges the form refuses, a save survives a reload, the confirmation (who and when) is stored, and
-// the audit log holds the line. The sensor and agent sections are slice 7 and not wired (agent-intake): not covered here.
+// the audit log holds the line. The sensor and agent sections are not wired (agent-intake): not covered here.
 import { expect, test } from '@playwright/test'
 import { ACCOUNTS, api, authFile } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'

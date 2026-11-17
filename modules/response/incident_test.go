@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// D-509 (W1-16, S-RESP-3): Respond on an incident offers only what can really happen to its source, and asking for it makes a pending
+// S-RESP-3: Respond on an incident offers only what can really happen to its source, and asking for it makes a pending
 // request (approval, expiry, undo, log) that changes nothing by itself.
 
 type fakeIncidents struct {
@@ -53,9 +53,9 @@ func option(p response.IncidentPanel, id string) *response.IncidentOption {
 	return nil
 }
 
-// A LAN source with no firewall or switch: no option at all (the block list never holds a LAN address, D-469), and asking for the
+// A LAN source with no firewall or switch: no option at all (the block list never holds a LAN address), and asking for the
 // block list anyway is refused and logged.
-func TestD509_LANSourceWithoutAConnectionOffersNothing(t *testing.T) {
+func TestLANSourceWithoutAConnectionOffersNothing(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	p := e.panel("in-lan")
@@ -74,7 +74,7 @@ func TestD509_LANSourceWithoutAConnectionOffersNothing(t *testing.T) {
 
 // A LAN source and a firewall block action: one click asks for approval; the request waits, runs nothing, says who asked, is undone
 // after 24 hours, and a second ask is a duplicate.
-func TestD509_LANSourceWithAFirewallMakesAPendingRequest(t *testing.T) {
+func TestLANSourceWithAFirewallMakesAPendingRequest(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	e.firewall("fgt_addrgrp_add")
@@ -100,7 +100,7 @@ func TestD509_LANSourceWithAFirewallMakesAPendingRequest(t *testing.T) {
 	}
 	_, err = e.svc.RequestFromIncident(e.ctx(), oper, "in-lan", "fgt_addrgrp_add")
 	wantCode(t, err, http.StatusConflict, "already_requested")
-	// The approval is a separate, explicit step (D-41): only then does the firewall get the change.
+	// The approval is a separate, explicit step: only then does the firewall get the change.
 	got, err := e.svc.Approve(e.ctx(), oper, a.ID, nil, "")
 	e.must(err)
 	if got.Items[0].Status != response.ItemExecuted || len(e.exec.steps) == 0 {
@@ -109,7 +109,7 @@ func TestD509_LANSourceWithAFirewallMakesAPendingRequest(t *testing.T) {
 }
 
 // A device action while execution is off: shown with the reason, refused when asked.
-func TestD509_DeviceActionNeedsExecution(t *testing.T) {
+func TestDeviceActionNeedsExecution(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	e.firewall("fgt_addrgrp_add")
@@ -124,7 +124,7 @@ func TestD509_DeviceActionNeedsExecution(t *testing.T) {
 }
 
 // A public source: the block list is offered (a box action, so execution off does not stop it) and goes through approval.
-func TestD509_PublicSourceGoesToTheBlockListAfterApproval(t *testing.T) {
+func TestPublicSourceGoesToTheBlockListAfterApproval(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	p := e.panel("in-public")
@@ -150,7 +150,7 @@ func TestD509_PublicSourceGoesToTheBlockListAfterApproval(t *testing.T) {
 }
 
 // The never-touch list still holds: a source on it is refused when asked, and the option says why.
-func TestD509_NeverTouchStillApplies(t *testing.T) {
+func TestNeverTouchStillApplies(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	e.firewall("fgt_addrgrp_add")
@@ -165,7 +165,7 @@ func TestD509_NeverTouchStillApplies(t *testing.T) {
 }
 
 // An incident with no source (another kind) offers nothing and refuses; an unknown one is 404.
-func TestD509_NoSourceAndUnknownIncident(t *testing.T) {
+func TestNoSourceAndUnknownIncident(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	e.firewall("fgt_addrgrp_add")
@@ -183,7 +183,7 @@ func TestD509_NoSourceAndUnknownIncident(t *testing.T) {
 
 // M1 (review of #702): a scan made only of attempts can carry a forged source, so nothing is offered or asked for it; a scan whose
 // source also completed a connection is offered, and its request says why the source is trusted.
-func TestD509_AForgeableScanSourceIsNeverBlocked(t *testing.T) {
+func TestAForgeableScanSourceIsNeverBlocked(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	e.firewall("fgt_addrgrp_add")
@@ -209,7 +209,7 @@ func TestD509_AForgeableScanSourceIsNeverBlocked(t *testing.T) {
 }
 
 // L2: a resolved incident offers nothing and says why; asking is refused.
-func TestD509_AResolvedIncidentOffersNothing(t *testing.T) {
+func TestAResolvedIncidentOffersNothing(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	e.firewall("fgt_addrgrp_add")
@@ -223,7 +223,7 @@ func TestD509_AResolvedIncidentOffersNothing(t *testing.T) {
 }
 
 // L1: a maintenance window and an open circuit breaker are shown as the reason an option is not ready.
-func TestD509_MaintenanceAndBreakerAreReasons(t *testing.T) {
+func TestMaintenanceAndBreakerAreReasons(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	e.firewall("fgt_addrgrp_add")
@@ -242,7 +242,7 @@ func TestD509_MaintenanceAndBreakerAreReasons(t *testing.T) {
 }
 
 // M2: a person's request is neither an AI nor a rule request in the metrics.
-func TestD509_MetricsDoNotCountAPersonAsARule(t *testing.T) {
+func TestMetricsDoNotCountAPersonAsARule(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	a, err := e.svc.RequestFromIncident(e.ctx(), oper, "in-public", "blocklist_add")

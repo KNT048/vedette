@@ -43,7 +43,7 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 		return nil, err
 	}
 	var row sourceRow
-	var rematch []string // D-516, review M1: the CVEs a distribution feed turned on or off decides
+	var rematch []string // The CVEs a distribution feed turned on or off decides
 	err = h.s.DB.Write(ctx, func(tx *sql.Tx) error {
 		rematch = nil
 		cur, err := sourceTx(ctx, tx, params.ID)
@@ -78,7 +78,7 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 				return apiError(err)
 			}
 			// VulnCheck has no mirror: the key must not follow a typo to another host. Microsoft's release pages have none either, and what
-			// they say decides Windows verdicts (D-603, review r1 M2 of #951)
+			// they say decides Windows verdicts
 			if (isBYOK(cur.ID) || cur.ID == winRelFeedID) && v != *cur.DefaultURL {
 				return apierr.New(http.StatusBadRequest, "invalid_url", "This feed has no mirror: its address cannot be changed.")
 			}
@@ -93,7 +93,7 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 				return apierr.New(http.StatusBadRequest, "invalid_auth", "This feed does not use an API key.")
 			}
 			key := strings.TrimSpace(v)
-			if key == "" { // removing the key turns the feed off and deletes what it loaded (D-557)
+			if key == "" { // removing the key turns the feed off and deletes what it loaded
 				enabled = false
 				parts = append(parts, "API key removed")
 			} else {
@@ -156,7 +156,7 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 	return convert[oas.FeedsPutFeedsSourcesIDOK](toFeedDTO(row))
 }
 
-// isBYOK says whether a built-in feed needs the customer's own API key (D-557).
+// isBYOK says whether a built-in feed needs the customer's own API key.
 func isBYOK(id string) bool {
 	b, ok := BuiltinByID(id)
 	return ok && b.BYOK
@@ -243,7 +243,7 @@ func checkCustom(ctx context.Context, tx *sql.Tx, in *feedInput, prev *sourceRow
 	return checkDuplicateURL(ctx, tx, in.URL, skip) // last, like duplicate_name of a valid body: it depends on the other feeds
 }
 
-// checkDuplicateURL refuses a custom feed address that another feed, built-in or custom, already pulls (D-420 (2)):
+// checkDuplicateURL refuses a custom feed address that another feed, built-in or custom, already pulls:
 // the second feed would fetch the same list again and list every indicator twice. The message names that feed.
 func checkDuplicateURL(ctx context.Context, tx *sql.Tx, addr, skip string) error {
 	rows, err := tx.QueryContext(ctx, `SELECT name, url FROM feeds_source WHERE id != ?`, skip)
@@ -263,7 +263,7 @@ func checkDuplicateURL(ctx context.Context, tx *sql.Tx, addr, skip string) error
 	return rows.Err()
 }
 
-// boxAddrs is Vedette itself as the pull sees it now (INV-17, D-446): unknown host addresses leave the container's own
+// boxAddrs is Vedette itself as the pull sees it now (INV-17): unknown host addresses leave the container's own
 // interfaces and gateway, which are always checked.
 func (s *Service) boxAddrs() ownAddrs {
 	own, _ := (&destGuard{box: s.Fetcher.BoxAddrs, gateway: s.Fetcher.Gateway, self: s.Fetcher.Self}).ownAddrs()
@@ -475,7 +475,7 @@ func (h *FeedHandlers) FeedsPostFeedsSourcesIDFetch(ctx context.Context, params 
 		return nil, err
 	}
 	var row sourceRow
-	if h.s.busy(params.ID) { // a pull is running: say how far it got instead of starting or waiting for another (W3-1)
+	if h.s.busy(params.ID) { // a pull is running: say how far it got instead of starting or waiting for another
 		row, err = h.s.st.source(ctx, params.ID)
 		row = h.s.live(ctx, row)
 	} else {

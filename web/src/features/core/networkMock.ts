@@ -1,4 +1,4 @@
-// Mock API: box network and SPAN (D-56, S-CORE-8). The real box applies every change through `vedette-host` (root, fixed command list, local socket); the web app never runs a shell.
+// Mock API: box network and SPAN (S-CORE-8). The real box applies every change through `vedette-host` (root, fixed command list, local socket); the web app never runs a shell.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard } from '@/mocks/http'
 import { assetsStore } from '@/mocks/stores'
@@ -8,7 +8,7 @@ import { boxAddressProblem, filterProblem, normaliseBoxAddress, normaliseFilter,
 
 const ROLES: IfaceRole[] = ['management', 'span', 'unused']
 
-/** Honeypot addresses (the enabled Trap IPs, D-466), read across modules without seeding (same pattern as emailChannelReady). Unseeded sample data has the seeded ones. */
+/** Honeypot addresses (the enabled Trap IPs), read across modules without seeding (same pattern as emailChannelReady). Unseeded sample data has the seeded ones. */
 function decoyIps(): string[] {
   const list = peek<{ ip: string; enabled: boolean }[]>('hp_trap_ips')
   if (list) return list.filter((x) => x.enabled).map((x) => x.ip)
@@ -30,7 +30,7 @@ export function networkView() {
 const ok = () => HttpResponse.json(networkView())
 const guardRead = () => { const d = guard('viewer'); if (d) return d; if (settlePending()) audit('network.management_reverted', 'management interface', 'not confirmed in time'); return null }
 const UNSUPPORTED = 'This box\'s network files were not set up by the Vedette installer, so Vedette cannot change them. Reinstall with the installer or change the network on the box itself.'
-/** Every change goes through the host's network backend; a box the installer did not set up refuses all of them (D-99). */
+/** Every change goes through the host's network backend; a box the installer did not set up refuses all of them. */
 const backendRefusal = () => (networkStore.get().unsupported ? fail(409, 'net_backend_unsupported', UNSUPPORTED) : null)
 const lease = (m: Management) => (m.address ? m.address.replace(/\d+$/, '131') : '192.168.1.131')
 
@@ -85,7 +85,7 @@ export const networkHandlers = [
       return HttpResponse.json({ error: { code: 'confirm_required', message: `This changes the address you use to reach the box. ${where} within ${CONFIRM_SECONDS / 60} minutes and confirm, or the box returns to the old settings. You will need to sign in again at the new address.`, new_ip: next.mode === 'static' ? next.address : null } }, { status: 409 })
     }
     const refused = backendRefusal(); if (refused) return refused
-    // Before it takes the address the box asks the network whether anybody answers for it (ARP probe, D-101).
+    // Before it takes the address the box asks the network whether anybody answers for it (ARP probe).
     if (next.mode === 'static' && next.address && SILENT_DEVICES.includes(next.address)) return fail(409, 'address_conflict', 'Another device already uses this address.')
     networkStore.set({ ...s, mgmt: next, pending: { previous: m, expires_at: new Date(Date.now() + CONFIRM_SECONDS * 1000).toISOString() } })
     audit('network.management', 'management interface', `${m.mode} ${m.address ?? '-'} -> ${next.mode} ${next.address}, waiting for confirmation`)
@@ -153,7 +153,7 @@ export const networkHandlers = [
     return ok()
   }),
 
-  // D-465: the host name or IPv4 address every link of the box carries; '' = the management address. The real box re-issues its certificate with it.
+  // The host name or IPv4 address every link of the box carries; '' = the management address. The real box re-issues its certificate with it.
   // Review M1: the saved address a change replaces stays answering (previous) until "forget"; at most 8, the oldest goes.
   http.put(`${API}/core/network/box-address`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied

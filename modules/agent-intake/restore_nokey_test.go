@@ -11,7 +11,7 @@ import (
 )
 
 // resealWazuhPassword seals the saved Wazuh password again under another master key, as a backup restored without its decryption
-// key leaves it (J7 #812, #847).
+// key leaves it (#812, #847).
 func (r *wzRig) resealWazuhPassword() {
 	r.t.Helper()
 	other, err := secrets.New(bytes.Repeat([]byte{0x42}, secrets.KeySize)) // not the world's key (7s)

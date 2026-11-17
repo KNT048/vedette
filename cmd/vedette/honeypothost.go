@@ -21,7 +21,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// honeypotHost is honeypot.Host over vedette-host (D-161): decoy_ip.add/remove (host-api 6.6) and container.start/stop
+// honeypotHost is honeypot.Host over vedette-host: decoy_ip.add/remove (host-api 6.6) and container.start/stop
 // of the `honeypot` service (6.8, 6.9). Core never touches the OS itself (FORBID-3); this adapter only turns the module's
 // five idempotent calls into host runs and waits for each run to end.
 //
@@ -59,7 +59,7 @@ type honeypotHost struct {
 	gateway   netip.Addr               // the box's IPv4 default gateway of that read (zero: unknown)
 	lastWarns map[string]time.Time
 	// infoAt and setPorts: whether the host lists decoy_ip.set_ports (GET /v1/info, read once per infoTTL): only then does
-	// core send ports (host-api 6.6 compatibility, D-466).
+	// core send ports (host-api 6.6 compatibility).
 	infoAt   time.Time
 	setPorts bool
 	infoRead bool // an answer of GET /v1/info was read once in this process
@@ -91,8 +91,8 @@ type hostAPI interface {
 var _ hostAPI = (*hostclient.Client)(nil)
 
 const (
-	// hostActor is the audit label of every host call of the module: the run loop and the teardown act for the system
-	// (D-189), not for a user.
+	// hostActor is the audit label of every host call of the module: the run loop and the teardown act for the system,
+	// not for a user.
 	hostActor = "system"
 	// stateTTL is how long the container state and the decoy list stay valid: one Apply (an address can take 4 s to
 	// probe) reads each once; the next Apply, a minute later, reads again.
@@ -104,7 +104,7 @@ const (
 )
 
 // newHoneypotHost is the Host of the honeypot: the adapter when core has a host socket, else notAnAppliance (dev and a
-// bare box, D-55: nothing can listen and the module says so).
+// bare box: nothing can listen and the module says so).
 func newHoneypotHost(d *deps) honeypot.Host {
 	if d.HostSocket == "" {
 		return notAnAppliance{}

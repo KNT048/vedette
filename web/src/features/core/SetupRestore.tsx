@@ -27,10 +27,10 @@ async function keyBase64(f: File): Promise<string | null> {
 }
 
 /**
- * First-run restore from a backup file (S-CORE-1, D-518): the setup code, the backup downloaded from Settings → Data and,
+ * First-run restore from a backup file (S-CORE-1): the setup code, the backup downloaded from Settings → Data and,
  * kept apart, the decryption key file. Check the backup uploads it and the box says what it holds; without the key the page
  * says what is lost before Restore is possible; Restore follows the run across Vedette's restart to the sign-in page.
- * It is reached from the Account step of setup, after the terms of use were accepted on the first (D-544); the box refuses a
+ * It is reached from the Account step of setup, after the terms of use were accepted on the first; the box refuses a
  * restore without that acceptance.
  */
 export function SetupRestore({ install, termsAccepted, onBack }: { install?: InstallKind; termsAccepted: boolean; onBack: () => void }) {
@@ -78,7 +78,7 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
     if (!checked) return
     setErrors({})
     let key: string | undefined
-    if (keyFile && checked.secrets > 0) { // nothing to check a key against: the box keeps its own (D-518)
+    if (keyFile && checked.secrets > 0) { // nothing to check a key against: the box keeps its own
       const k = await keyBase64(keyFile)
       if (!k) { setErrors({ key: t('setup.restore.keyBad') }); return }
       key = k
@@ -110,7 +110,7 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
         ) : (
           <>
             <p role="status" className="text-sm">{t('setup.restore.running', { org: checked?.org ?? '' })}</p>
-            {/* The restored box may serve a new certificate (box CA, D-351): a browser that accepted the old one then fails every poll. */}
+            {/* The restored box may serve a new certificate (box CA): a browser that accepted the old one then fails every poll. */}
             {poll.isError ? <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('setup.restore.reconnect')}</p><InfoTip topic={t('setup.restore.reconnect')}>{t('setup.restore.reconnectInfo')}</InfoTip></div> : null}
           </>
         )}

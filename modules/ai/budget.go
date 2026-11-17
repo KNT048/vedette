@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 )
 
-// The monthly AI budget (D-531, beta item 23). There is no daily cap and no per-job quota: the box spends up to the budget the
+// The monthly AI budget. There is no daily cap and no per-job quota: the box spends up to the budget the
 // administrator set for the month, warns loudly at 80 % (Home and the alert channels) and stops every AI job at 100 % with a message
 // that says why and how to go on. What is left per job is a fuse against a loop: more than fuseCalls calls of one job in one minute is
 // not a real workload, so the rest of that minute is refused and the trip is written to the audit log.
@@ -134,7 +134,7 @@ func (s *Service) checkFuse(ctx context.Context, job Job) error {
 	msg := fmt.Sprintf("The AI job %s asked for the AI more than %d times in one minute, which looks like a loop, so Vedette stopped it for the rest of the minute. Nothing was sent. If it keeps happening, the audit log and the box log name the job.", job.Name(), fuseCalls)
 	if note {
 		s.cfg.Log.WarnContext(ctx, "ai: the runaway fuse stopped a job", "job", string(job), "calls_per_minute", fuseCalls)
-		detail := fmt.Sprintf("More than %d calls of %s in one minute: the rest of the minute is refused (runaway fuse, D-531).", fuseCalls, job)
+		detail := fmt.Sprintf("More than %d calls of %s in one minute: the rest of the minute is refused (runaway fuse).", fuseCalls, job)
 		wctx := context.WithoutCancel(ctx) // the caller may be gone; the trip is still recorded
 		if err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
 			return s.auditTx(wctx, tx, "system", "ai.fuse", string(job), detail)

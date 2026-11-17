@@ -9,9 +9,9 @@ import { realSessionOn, realUser } from './realSession'
 import { seedAssets } from './seed/assets'
 import { seedFindings } from './seed/findings'
 
-export interface User { id: string; name: string; email: string; role: Role; password: string; twofa: boolean; /** Kiểu hai bước (D-35); thiếu = 'app' khi twofa bật */ twofa_method?: 'app' | 'email' | null; created_at: string; last_login: string | null; disabled?: boolean; /** D-180: the password was set by an administrator; set until the user changes it. A time in the past = expired. */ temp_password_expires_at?: string | null; /** D-195: made by an SSO sign-in; (issuer, subject) of the IdP identity. No Vedette password. */ sso?: { iss: string; sub: string } | null }
+export interface User { id: string; name: string; email: string; role: Role; password: string; twofa: boolean; /** Kiểu hai bước; thiếu = 'app' khi twofa bật */ twofa_method?: 'app' | 'email' | null; created_at: string; last_login: string | null; disabled?: boolean; /** The password was set by an administrator; set until the user changes it. A time in the past = expired. */ temp_password_expires_at?: string | null; /** Made by an SSO sign-in; (issuer, subject) of the IdP identity. No Vedette password. */ sso?: { iss: string; sub: string } | null }
 
-/** D-180: how long an administrator-set password works. */
+/** How long an administrator-set password works. */
 export const TEMP_PASSWORD_HOURS = 72
 export const tempExpiry = () => new Date(Date.now() + TEMP_PASSWORD_HOURS * 3_600_000).toISOString()
 
@@ -33,7 +33,7 @@ const MODULES: Array<Omit<ModuleState, 'enabled_at' | 'available'>> = [
   { id: 'notify', enabled: true, tier: 'standard', depends: ['core'] },
   { id: 'sensor-passive', enabled: true, tier: 'standard', depends: ['inventory'] },
   { id: 'sensor-active', enabled: true, tier: 'standard', depends: ['inventory'] },
-  // D-57 (6): findings is its own module (fnd_*, on by default); mitigation only adds the "What to do" packs and needs findings.
+  // findings is its own module (fnd_*, on by default); mitigation only adds the "What to do" packs and needs findings.
   { id: 'findings', enabled: true, tier: 'standard', depends: ['feeds', 'inventory'] },
   { id: 'mitigation', enabled: true, tier: 'standard', depends: ['findings'] },
   { id: 'exposure', enabled: true, tier: 'optional', depends: ['inventory'] },
@@ -46,13 +46,13 @@ const MODULES: Array<Omit<ModuleState, 'enabled_at' | 'available'>> = [
   { id: 'reports', enabled: true, tier: 'optional', depends: ['inventory', 'feeds', 'notify'] },
   { id: 'mcp-server', enabled: false, tier: 'optional', depends: ['core'] },
   { id: 'auth-oidc', enabled: false, tier: 'optional', depends: ['core'] },
-  // D-40: AI đề xuất phản ứng (bật). D-41: thực thi đã duyệt là công tắc riêng bên trong module, TẮT mặc định.
+  // AI đề xuất phản ứng (bật). Thực thi đã duyệt là công tắc riêng bên trong module, TẮT mặc định.
   { id: 'response', enabled: true, tier: 'optional', depends: ['ai', 'notify', 'inventory'] },
 ]
 export const modulesStore = collection<Array<Omit<ModuleState, 'available'>>>('core_modules', () => MODULES.map((m) => ({ ...m, enabled_at: m.enabled ? '2026-10-01T02:00:00Z' : null })))
-/** The install kind the mock box answers (D-381): appliance by default; a test sets container. */
+/** The install kind the mock box answers: appliance by default; a test sets container. */
 export const installStore = collection<{ kind: InstallKind }>('core_install', () => ({ kind: 'appliance' }))
-/** needs_host in the manifests (D-381): what a container-only install cannot run. */
+/** needs_host in the manifests: what a container-only install cannot run. */
 export const NEEDS_HOST: readonly ModuleId[] = ['honeypot', 'scan-credentialed']
 export const moduleAvailable = (id: ModuleId) => installStore.get().kind === 'appliance' || !NEEDS_HOST.includes(id)
 /** GET /modules as the box answers it. */
@@ -62,12 +62,12 @@ export const isOn = (id: ModuleId) => modulesStore.get().find((m) => m.id === id
 export const assetsStore = collection<Asset[]>('inv_assets', seedAssets, () => [])
 export const findingsStore = collection<Finding[]>('fnd_finding', seedFindings, () => [])
 
-// core_audit is a hash chain (DATA_MODEL §5.3, D-57 (14)). Newest first here; each entry's prev_hash is the hash of the one before it in time.
+// core_audit is a hash chain (DATA_MODEL §5.3). Newest first here; each entry's prev_hash is the hash of the one before it in time.
 export interface AuditEntry { id: string; ts: string; user: string; action: string; target: string; detail: string | null; prev_hash: string; hash: string }
 export const auditStore = collection<AuditEntry[]>('core_audit', () => [])
 
 /** SYS-3: mọi mutation ghi kiểm toán. The preview keeps the latest 1000 lines only because they live in browser storage; the box keeps
- * 365 days, at most 200,000 lines (D-416, core INV-37). */
+ * 365 days, at most 200,000 lines (core INV-37). */
 export function audit(action: string, target: string, detail?: string) {
   const u = realSessionOn() ? realUser() : usersStore.get().find((x) => x.id === sessionStore.get().userId)
   auditStore.update((l) => {
@@ -164,7 +164,7 @@ export function boxInfo(): BoxInfo {
   return { hostname: 'vedette', ip: [24, 16, 8, 0].map((s) => (ip >>> s) & 255).join('.'), lan, iface: 'eth0' }
 }
 
-// ---- Đăng nhập hai bước bằng mã email (D-35). Module core sở hữu; module notify đọc số người dùng để cảnh báo khi tắt kênh. ----
+// ---- Đăng nhập hai bước bằng mã email. Module core sở hữu; module notify đọc số người dùng để cảnh báo khi tắt kênh. ----
 export type TwofaMethod = 'app' | 'email'
 export const twofaMethodOf = (u: Pick<User, 'twofa' | 'twofa_method'>): TwofaMethod | null => (u.twofa ? (u.twofa_method ?? 'app') : null)
 

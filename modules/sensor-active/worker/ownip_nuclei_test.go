@@ -14,8 +14,8 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/worker"
 )
 
-// D-520: a nuclei job of scope own_ip (exposure's safe checks on the box's own public IP, D-561) runs only after the worker saw by
-// itself that the box leaves the Internet through the address (the own-IP fence of the external nmap shape, D-514). Nothing reaches
+// A nuclei job of scope own_ip (exposure's safe checks on the box's own public IP) runs only after the worker saw by
+// itself that the box leaves the Internet through the address (the own-IP fence of the external nmap shape). Nothing reaches
 // a network: the nuclei is a shell script and the public-IP services are a fake.
 
 func (r *nrig) ownIPJob() sensorlink.Job {
@@ -71,7 +71,7 @@ func TestOwnIPNucleiRefusedWhenTheEgressIsNotOwn(t *testing.T) {
 
 // The grammar of the scope, checked again in the worker before the fence is asked: a private target, two targets, another rate, an
 // unknown scope, a public target without the scope, a template the image's index does not mark own_ip, and a template file that
-// fails the worker's own text check (a POST, a credential) are invalid_job (D-520).
+// fails the worker's own text check (a POST, a credential) are invalid_job.
 func TestOwnIPNucleiGrammar(t *testing.T) {
 	t.Parallel()
 	for name, mut := range map[string]func(*testing.T, *nrig, *sensorlink.NucleiJob){

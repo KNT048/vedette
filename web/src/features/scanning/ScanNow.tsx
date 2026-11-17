@@ -19,7 +19,7 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 /** The most devices one run takes (contract.ts DiscoveryRunInput.targets max). */
 const MAX_RUN_TARGETS = 64
 
-type Look = { label?: string; variant?: 'primary' | 'secondary'; size?: 'sm' | 'md'; className?: string; /** The id of a line that says what the button does (kien G7b/c). */ describedBy?: string }
+type Look = { label?: string; variant?: 'primary' | 'secondary'; size?: 'sm' | 'md'; className?: string; /** The id of a line that says what the button does. */ describedBy?: string }
 
 /** Any other job (the exposure deep scan): the caller starts it and owns its state; this gives it the same button and progress. */
 export type ScanNowJob = Look & {

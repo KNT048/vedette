@@ -67,7 +67,7 @@ func (m Message) norm() Message {
 	multi := func(s string, n int) string { return truncRunes(strings.TrimSpace(clean(s, true)), n) }
 	what := maxLine
 	if m.Kind == "approval" {
-		what = MaxApprovalWhat // an approver reads the whole change before deciding (D-175)
+		what = MaxApprovalWhat // an approver reads the whole change before deciding
 	}
 	out := Message{
 		ID:           one(m.ID, 100),
@@ -110,7 +110,7 @@ func (m Message) moreLine() string {
 }
 
 // fitItems drops whole Items lines from the end of m until render(m) is at most limit runes, counting each in More, so the text an
-// adapter cuts to its limit never ends in half a line and its "and N more" line stays true (D-483). m must be normalised.
+// adapter cuts to its limit never ends in half a line and its "and N more" line stays true. m must be normalised.
 func fitItems(m Message, limit int, render func(Message) string) Message {
 	for len(m.Items) > 0 && utf8.RuneCountInString(render(m)) > limit {
 		m.Items = m.Items[: len(m.Items)-1 : len(m.Items)-1]
@@ -129,7 +129,7 @@ func fitChat(m Message, link string, limit int) Message {
 	return fitItems(m.mapText(defang), limit, func(x Message) string { return strings.Join(x.lines(link), "\n") })
 }
 
-// Listed is how many of m's Items the adapter of t sends whole (D-483): Telegram and Zalo cut their text at a limit and drop the item
+// Listed is how many of m's Items the adapter of t sends whole: Telegram and Zalo cut their text at a limit and drop the item
 // lines that do not fit; the other channels send them all. The notify module counts a finding as told only when its line is sent.
 func Listed(t Type, m Message) int {
 	link, _ := safeLink(m.Link)

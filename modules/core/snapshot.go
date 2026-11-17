@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Snapshot producer of the host contract (docs/specs/host-api.md 6.11, D-87). Before every host command that
+// Snapshot producer of the host contract (docs/specs/host-api.md 6.11). Before every host command that
 // needs a backup, core writes a consistent copy of its own state to <core_data>/snapshots/<id>/ and names the
 // id in the call. The host never opens the database: it copies these bytes. core_data is the directory of
 // core's database (the -db flag, whose file the installer names vedette.db, next to vedette.key).
@@ -222,7 +222,7 @@ func (s *snapshotter) sweep() (removed int, err error) {
 // removeBefore removes the snapshot directories (and half-written metadata) of ours written before t, except
 // the ids in keep. A restore that swapped core's database leaves its snapshot behind with no record of its id
 // (the record was in the old database): the next process removes what an earlier one wrote and no run it
-// resumes still needs (D-377).
+// resumes still needs.
 func (s *snapshotter) removeBefore(t time.Time, keep ...string) {
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {

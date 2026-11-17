@@ -5,10 +5,10 @@ import { InfoTip } from '@/components/common/InfoTip'
 import type { FindingDetail } from './types'
 
 // Mitigation INV-8: general "Have I been hit?" checks for the software family, written by reviewed code. The generated firewall configs
-// and their admin network field (M2-1) are gone: D-631, kien 2026-11-17 ("remove the General hardening feature that tells the user to
-// allow traffic from the box to devices; it is useless").
+// and their admin network field are gone: a general hardening feature that tells the user to
+// allow traffic from the box to devices did not help.
 
-/** "General hardening" label: code-written, never a Vedette recommendation for the CVE (D-21, FORBID-2). */
+/** "General hardening" label: code-written, never a Vedette recommendation for the CVE (FORBID-2). */
 export function GeneralLabel() {
   const { t } = useTranslation('findings')
   return (
@@ -19,7 +19,7 @@ export function GeneralLabel() {
   )
 }
 
-/** M2-1: general "Have I been hit?" checks for the software family when no confirmed pack lists signs for the CVE (INV-8). */
+/** General "Have I been hit?" checks for the software family when no confirmed pack lists signs for the CVE (INV-8). */
 export function GeneralChecks({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const c = finding.hardening?.checks

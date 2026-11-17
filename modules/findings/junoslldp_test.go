@@ -2,11 +2,11 @@ package findings
 
 import "testing"
 
-// N47-1 (D-620): the Juniper EX4200 switch .47 states "JUNOS 15.1R7.9" only over LLDP (no SNMP read of it), and a scan saw its
+// The Juniper EX4200 switch .47 states "JUNOS 15.1R7.9" only over LLDP (no SNMP read of it), and a scan saw its
 // OpenSSH. On a device whose MAC at its address IEEE assigned to Juniper Networks, the LLDP statement counts: the Alpine-only
 // CVE-2026-123158 is ruled out (an open finding closes, the CVE page drops the device). An LLDP claim on any other card (forged with
 // that device's MAC, review r1 #3 of #800), an SNMP answer naming another OS, Junos OS Evolved or an agent's other OS keep it.
-func TestPlatform_D620_LLDPJunosOnAJuniperCard(t *testing.T) {
+func TestPlatform_LLDPJunosOnAJuniperCard(t *testing.T) {
 	t.Parallel()
 	const lldp = "JUNOS 15.1R7.9"
 	for _, tc := range []struct {

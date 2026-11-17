@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 )
 
-// The per-address limit of public requests that carry no valid session (API_CONVENTIONS §8, D-320): sign-in, setup, approval links,
+// The per-address limit of public requests that carry no valid session (API_CONVENTIONS §8): sign-in, setup, approval links,
 // the block-list URL. Counted per client address, IPv6 per /64 (one machine's block). Not counted: a request with a valid session
 // (the signed-in app polls GET /setup), a 401 of a protected route (it costs one indexed read and writes nothing, and the app needs
 // the 401 to go to the sign-in page), the osquery agents' enrollment, intake and installer routes (a fleet behind one NAT address;
@@ -113,7 +113,7 @@ func pubLimited(wait time.Duration) *apierr.Error {
 	return apierr.New(http.StatusTooManyRequests, "rate_limited", fmt.Sprintf("Too many requests from this address. Try again in %d seconds.", secs)).With("retry_after", secs)
 }
 
-// AddrLimiter is the same per-address sliding window for a public handler outside the API: the URL honey token, /t/<id> (D-507),
+// AddrLimiter is the same per-address sliding window for a public handler outside the API: the URL honey token, /t/<id>,
 // which writes a hit per request and so must not be a way to make the box write or alert without end. Loopback is not counted.
 type AddrLimiter struct{ l *pubLimiter }
 

@@ -102,7 +102,7 @@ func TestAccount_PasswordChange(t *testing.T) {
 	}
 }
 
-// D-76: both ways of turning two-step on need the current password, and a wrong one is counted.
+// Both ways of turning two-step on need the current password, and a wrong one is counted.
 func TestAccount_TwofaApp(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)
@@ -385,7 +385,7 @@ func TestAccount_PasswordChangeRenewsTheCurrentSession(t *testing.T) {
 	if set[auth.CookieSession].Value == oldSession || set[auth.CookieCSRF].Value == oldCSRF || set[auth.CookieSession].HttpOnly != true || set[auth.CookieCSRF].HttpOnly {
 		t.Fatal("the cookies were not renewed, or lost an attribute")
 	}
-	if set[auth.CookieDevice] == nil { // the owner signed in here, so the browser sends its device cookie (D-77)
+	if set[auth.CookieDevice] == nil { // the owner signed in here, so the browser sends its device cookie
 		t.Fatal("no new device cookie after the change")
 	}
 	delete(set, auth.CookieDevice)

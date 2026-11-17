@@ -1,5 +1,5 @@
-// One date format in the whole app (D-389): "12 Nov 2026" and "12 Nov 2026, 20:51", as Home and the feeds screens already wrote it;
-// 12/11/2026 reads as 11 December to half the readers. English only (D-28), so the format is fixed.
+// One date format in the whole app: "12 Nov 2026" and "12 Nov 2026, 20:51", as Home and the feeds screens already wrote it;
+// 12/11/2026 reads as 11 December to half the readers. English only, so the format is fixed.
 const loc = () => 'en-GB'
 /** 'YYYY-MM-DD' là ngày lịch, không có giờ: dựng theo giờ địa phương để không lùi một ngày ở múi giờ âm. */
 const toDate = (s: string) => { const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s) }
@@ -39,7 +39,7 @@ export function fmtPercent(n: number | null | undefined, digits = 1) {
   if (n === null || n === undefined) return '–'
   return new Intl.NumberFormat(loc(), { style: 'percent', maximumFractionDigits: digits }).format(n)
 }
-/** The small "vendor product" line under a product's display name, or null when it only repeats that name (walk 4: "OpenBSD OpenSSH / OpenBSD OpenSSH"). */
+/** The small "vendor product" line under a product's display name, or null when it only repeats that name ("OpenBSD OpenSSH / OpenBSD OpenSSH"). */
 export function rawProductLine(display: string, vendor: string, product: string) {
   const raw = `${vendor} ${product}`.trim()
   return raw && raw.toLowerCase() !== display.trim().toLowerCase() ? raw : null

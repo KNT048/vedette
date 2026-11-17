@@ -10,9 +10,9 @@ import { FrozenCtx, useLeaving } from './frozen'
 export default function FindingPanel({ findingId }: Record<string, unknown>) {
   const { t } = useTranslation('response')
   const on = useModuleEnabled('response')
-  const leaving = useLeaving() // D-624 (#819): no new request from a plan on a box that had it on before v1
+  const leaving = useLeaving() // No new request from a plan on a box that had it on before v1
   const id = String(findingId ?? '')
-  const q = usePlans(id, on === true) // a module that is off is not called (W10-1): no request, no 404 in the console
+  const q = usePlans(id, on === true) // a module that is off is not called: no request, no 404 in the console
   const plan = q.data?.items[0]
   if (!on || !plan) return null
   return (

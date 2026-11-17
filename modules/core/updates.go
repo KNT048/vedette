@@ -7,10 +7,10 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// Software updates of Vedette itself (S-CORE-2, D-340, update-manifest.md §5–§10). Two halves on OSHandlers:
+// Software updates of Vedette itself (S-CORE-2, update-manifest.md §5–§10). Two halves on OSHandlers:
 // the check side (updates_check.go: fetch and verify the signed index and manifest, channel, mode, cohort, what is
 // offered, GET/PATCH /core/updates, POST /core/updates/check) and the run side (updates_run.go: apply and rollback
-// as one run over every service, core first on Apply and last on Rollback (D-459), kept across core's own restart, history). This file is the seam between them.
+// as one run over every service, core first on Apply and last on Rollback, kept across core's own restart, history). This file is the seam between them.
 
 // core_setting keys of the software update. Every value is one JSON object (or array) written in a transaction.
 const (
@@ -18,7 +18,7 @@ const (
 	keyUpdateRelease  = "core_update_release" // check side: the stored verified index (sequence floor, revocations) and the offered manifest
 	keyUpdateRun      = "core_update_run"     // run side: the run in progress or the latest one
 	keyUpdateHistory  = "core_update_history" // run side: the latest 100 history entries, newest first
-	softwareComponent = "software"            // the one component of the release (D-340)
+	softwareComponent = "software"            // the one component of the release
 )
 
 // errNoUpdate: nothing is offered right now (no check yet, up to date, not in the rollout cohort, or the offer

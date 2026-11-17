@@ -1,7 +1,7 @@
 package honeypot_test
 
-// D-466 Trap IPs: the upgrade from the secondary IP and decoys, what the host is asked to build, what the list shows about
-// where each Trap IP lives, which Trap IP a hit names, and W1-13: a source touching two Trap IPs within a minute is a scan.
+// Trap IPs: the upgrade from the secondary IP and decoys, what the host is asked to build, what the list shows about
+// where each Trap IP lives, which Trap IP a hit names, and that a source touching two Trap IPs within a minute is a scan.
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// migratedBefore is a database at the honeypot migrations before 0003 (a box before D-466).
+// migratedBefore is a database at the honeypot migrations before 0003 (a box of an older release).
 func migratedBefore(t *testing.T) *store.DB { t.Helper(); return migratedBeforeV(t, "0003") }
 
 // migratedBeforeV is a database with the module's migrations before version v.
@@ -99,7 +99,7 @@ func oldApplied(ips string) string {
 	return `INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('applied', '` + ips + `', '2026-11-01T09:00:00.000Z', 'system')`
 }
 
-// D-466 (8): the secondary IP becomes the first Trap IP with the traps that were on; each decoy a Trap IP of its preset with
+// The secondary IP becomes the first Trap IP with the traps that were on; each decoy a Trap IP of its preset with
 // the preset's services that were on (none on: the preset's, switched off); no address answers a port it did not answer before.
 func TestMigration0003TurnsTheSecondaryIPAndDecoysIntoTrapIPs(t *testing.T) {
 	t.Parallel()
@@ -178,7 +178,7 @@ func TestMigration0003LeavesOffWhatNeverListened(t *testing.T) {
 	}
 }
 
-// W1-14: the host is asked to build a File server with the vendor's MAC prefix and only its own ports.
+// The host is asked to build a File server with the vendor's MAC prefix and only its own ports.
 func TestTheHostGetsTheVendorPrefixAndOnlyTheTrapIPsPorts(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -291,7 +291,7 @@ func hitsOfKind(t *testing.T, e *env, k honeypot.HitKind) []honeypot.Hit {
 	return out
 }
 
-// D-466 (5), W1-13: each hit names the Trap IP that was hit, in the list, the detail and the event.
+// Each hit names the Trap IP that was hit, in the list, the detail and the event.
 func TestHitNamesTheTrapIPThatWasHit(t *testing.T) {
 	t.Parallel()
 	e := sweepEnv(t)
@@ -317,7 +317,7 @@ func TestHitNamesTheTrapIPThatWasHit(t *testing.T) {
 	}
 }
 
-// W1-13: one source touching two Trap IPs within a minute raises one scan hit (one event); a third Trap IP in the same
+// One source touching two Trap IPs within a minute raises one scan hit (one event); a third Trap IP in the same
 // window joins it.
 func TestTouchingTwoTrapIPsWithinAMinuteIsOneScan(t *testing.T) {
 	t.Parallel()
@@ -586,7 +586,7 @@ func TestExpectedMACsAndSince(t *testing.T) {
 	}
 }
 
-// W6-4: a scan hit the host's attempts made first says the source may be forged; once the same source completes a real
+// A scan hit the host's attempts made first says the source may be forged; once the same source completes a real
 // connection to a Trap IP in that window, the note goes (its address answered a handshake, so it is not forged).
 func TestARealConnectionDropsTheForgedNote(t *testing.T) {
 	t.Parallel()
@@ -614,7 +614,7 @@ func TestARealConnectionDropsTheForgedNote(t *testing.T) {
 	}
 }
 
-// W6-4 (n24 walk): the real connection came first, to one Trap IP; the sweep was made later by the host's attempts. The address is
+// The real connection came first, to one Trap IP; the sweep was made later by the host's attempts. The address is
 // proven by that connection, so the scan hit must not call it forged.
 func TestAConnectionBeforeTheSweepKeepsTheForgedNoteOff(t *testing.T) {
 	t.Parallel()
@@ -642,7 +642,7 @@ func TestAConnectionBeforeTheSweepKeepsTheForgedNoteOff(t *testing.T) {
 	}
 }
 
-// W6-4 review M1: the real connection comes minutes after the attempts' sweep (nmap -sS, then ssh): the note goes; a connection more
+// The real connection comes minutes after the attempts' sweep (nmap -sS, then ssh): the note goes; a connection more
 // than an hour before the attempts vouches for nothing.
 func TestAConnectionNearTheSweepDecidesTheForgedNote(t *testing.T) {
 	t.Parallel()

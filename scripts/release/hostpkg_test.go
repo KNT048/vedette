@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// install.sh host_version_ok is the same rule as release.ParseHostPackageName (D-316): the sh function itself runs on each version.
+// install.sh host_version_ok is the same rule as release.ParseHostPackageName: the sh function itself runs on each version.
 func TestInstallShHostVersionRuleIsTheOneRule(t *testing.T) {
 	t.Parallel()
 	raw, err := os.ReadFile("../../install.sh")

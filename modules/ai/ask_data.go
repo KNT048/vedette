@@ -6,8 +6,8 @@ import (
 	"github.com/knt048/vedette/core/conn/read"
 )
 
-// The doors "Ask your data" reads through (S-AI-5, D-211). ai never reads the tables of another module: cmd/vedette adapts the
-// exported reads of inventory, findings and feeds to Data, and the read tools of the connections come from core/conn/read (D-127).
+// The doors "Ask your data" reads through (S-AI-5). ai never reads the tables of another module: cmd/vedette adapts the
+// exported reads of inventory, findings and feeds to Data, and the read tools of the connections come from core/conn/read.
 // Every text field below is untrusted: it came from a device, a scan or a feed. The tools clean it and fence it; nothing here decides.
 
 // AssetRow is a device of the inventory as the tools show it.
@@ -20,7 +20,7 @@ type AssetRow struct {
 	Model    string
 	OS       string
 	Approved bool
-	// Ignored marks a device a person said needs no watching (inventory D-630): not waiting for review, not scanned, no findings.
+	// Ignored marks a device a person said needs no watching (inventory): not waiting for review, not scanned, no findings.
 	Ignored  bool
 	Ports    []string // "3389/tcp rdp"
 	Software []string // "Display name version"
@@ -33,7 +33,7 @@ type AssetRow struct {
 	Origin    string
 	SeenBy    string
 	// IsBox marks the Vedette box itself: it is searched like any device, but the citation names it apart, as Devices and Reports
-	// do not count it as a device of the network (D-422). Not sent to the model.
+	// do not count it as a device of the network. Not sent to the model.
 	IsBox bool
 }
 
@@ -51,7 +51,7 @@ type FindingRow struct {
 	Evidence   string // the summary of the scan that confirmed it; "" = none
 	FirstSeen  string
 	LastSeen   string
-	// AcceptedUntil (YYYY-MM-DD) is the last day of a risk acceptance, only with status risk_accepted (D-498); "" otherwise.
+	// AcceptedUntil (YYYY-MM-DD) is the last day of a risk acceptance, only with status risk_accepted; "" otherwise.
 	AcceptedUntil string
 }
 

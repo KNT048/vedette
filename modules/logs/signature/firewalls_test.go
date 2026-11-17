@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// The firewall profiles of D-489. Layouts are those of the vendors' documentation (pfSense raw filter log format, Cisco ASA syslog message
+// The firewall profiles. Layouts are those of the vendors' documentation (pfSense raw filter log format, Cisco ASA syslog message
 // reference, SonicOS log events, PAN-OS traffic log fields, SFOS syslog fields, netfilter LOG); the lines are built to those layouts.
 const (
 	pfAllow = `<134>Nov  9 10:00:00 fw filterlog[53123]: 5,,,1000000103,igc1,match,pass,in,4,0x0,,64,41237,0,DF,6,tcp,60,192.168.10.113,185.220.101.47,51234,443,0,S,2174350711,,64240,,mss`
@@ -114,7 +114,7 @@ func TestFirewallProfilesInjection(t *testing.T) {
 	}
 }
 
-// D-487: a Linux kind that now has a profile still reads its sshd lines as before: the profile does not read them (apps), so the remote address
+// A Linux kind that now has a profile still reads its sshd lines as before: the profile does not read them (apps), so the remote address
 // is found by the generic reader and the failed-login rule keeps its input.
 func TestLinuxKindsKeepTheirLoginLines(t *testing.T) {
 	set := shipped(t)
@@ -149,7 +149,7 @@ func TestConnPatternsRules(t *testing.T) {
 	}
 }
 
-// Review of D-489 (Opus): the cases below each failed before the fix.
+// The cases below each failed before a fix.
 func TestFirewallProfilesReview(t *testing.T) {
 	set := shipped(t)
 	const pfTail = `,in,4,0x0,,64,41237,0,DF,6,tcp,60,192.168.10.113,185.220.101.47,51234,443,0,S,2174350711,,64240,,mss`

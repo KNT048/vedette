@@ -49,17 +49,17 @@ var prodPaths = map[string]string{
 	binIP:        "/usr/sbin/ip",
 	binPodman:    "/usr/bin/podman",
 	binIptables:  "/usr/sbin/iptables", // Ubuntu 24.04 and 26.04, Debian 13: the alternatives link, nft or legacy flavour
-	// binConntrack is conntrack-tools' conntrack (D-268): one fixed delete, conntrack.go. The Debian and Ubuntu package puts it in /usr/sbin.
+	// binConntrack is conntrack-tools' conntrack: one fixed delete, conntrack.go. The Debian and Ubuntu package puts it in /usr/sbin.
 	binConntrack: "/usr/sbin/conntrack",
-	// host.self_update (D-316, spec 6.14): systemd, dpkg and dpkg-deb put them in /usr/bin on Debian and Ubuntu.
+	// host.self_update (spec 6.14): systemd, dpkg and dpkg-deb put them in /usr/bin on Debian and Ubuntu.
 	binSystemdRun: "/usr/bin/systemd-run",
 	binDpkgDeb:    "/usr/bin/dpkg-deb",
 	binDpkgQuery:  "/usr/bin/dpkg-query",
-	// os.reboot (D-453): logind's list of inhibitors; busctl is in the systemd package, in /usr/bin on Debian and Ubuntu.
+	// os.reboot: logind's list of inhibitors; busctl is in the systemd package, in /usr/bin on Debian and Ubuntu.
 	binBusctl: "/usr/bin/busctl",
-	// the AppArmor profile of the containers (D-458): the apparmor package puts the parser in /usr/sbin on Debian and Ubuntu.
+	// the AppArmor profile of the containers: the apparmor package puts the parser in /usr/sbin on Debian and Ubuntu.
 	binAppArmorParser: "/usr/sbin/apparmor_parser",
-	// zap.baseline's egress fence (D-521): the nftables package (install.sh installs it) puts nft in /usr/sbin on Debian and Ubuntu.
+	// zap.baseline's egress fence: the nftables package (install.sh installs it) puts nft in /usr/sbin on Debian and Ubuntu.
 	binNft: "/usr/sbin/nft",
 }
 
@@ -100,7 +100,7 @@ func validateApt(args []string) error {
 			if !pkgNameRE.MatchString(n) {
 				return fmt.Errorf("package name %q is not valid", clipText(n, 40))
 			}
-			if isHostPkg(n) { // only the applier of host.self_update installs it (FORBID-7, D-316)
+			if isHostPkg(n) { // only the applier of host.self_update installs it (FORBID-7)
 				return errors.New("vedette-host is never upgraded by os.install")
 			}
 		}
@@ -159,15 +159,15 @@ func validateSystemctl(coreUnit string) func([]string) error {
 			return nil
 		case len(args) == 2 && coreUnit != "" && args[1] == coreUnit && args[1] != hostUnit && (args[0] == "stop" || args[0] == "start" || args[0] == "is-active"):
 			return nil
-		case slices.Equal(args, []string{"is-active", upgradeUnit}): // host.self_update: is the applier still running (D-316)
+		case slices.Equal(args, []string{"is-active", upgradeUnit}): // host.self_update: is the applier still running
 			return nil
 		case len(args) == 2 && args[0] == "is-enabled" && slices.Contains(aptTimers, args[1]):
 			return nil
 		case len(args) == 4 && (args[0] == "enable" || args[0] == "disable") && args[1] == "--now" && slices.Equal(args[2:], aptTimers):
 			return nil
-		case isPodmanSocketArgv(args): // OpenVAS's compose provider talks to it (D-529)
+		case isPodmanSocketArgv(args): // OpenVAS's compose provider talks to it
 			return nil
-		// the libpod scopes of containers podman lost, by their 64-hex id (D-600, orphans.go). The shape only: any libpod scope passes, our
+		// the libpod scopes of containers podman lost, by their 64-hex id (orphans.go). The shape only: any libpod scope passes, our
 		// own running containers' too, so this argv is built only by orphansAtStart after its podman checks, never from a request (r1 L2)
 		case isOrphanKillArgv(args):
 			return nil
@@ -192,7 +192,7 @@ var validateNetplan = exactly("apply")
 // in two parts so that the contract test that looks for shell literals does not take it for "sh -c").
 var chronycSources = []string{"-N", "-" + "c", "sources"}
 
-// validateChronyc accepts the two calls of the NTP command (D-106): reload the sources, and list them.
+// validateChronyc accepts the two calls of the NTP command: reload the sources, and list them.
 func validateChronyc(args []string) error {
 	if slices.Equal(args, []string{"reload", "sources"}) || slices.Equal(args, chronycSources) {
 		return nil
@@ -236,16 +236,16 @@ func hostBinaries(stateDir, coreUnit string, paths map[string]string, streamLimi
 		{Name: binPodman, Path: p(binPodman), Validate: validatePodmanIn(stateDir), MaxOutput: maxInspectOutput},
 		{Name: binIptables, Path: p(binIptables), Validate: validateIptables, MaxOutput: 1 << 20},
 		{Name: binConntrack, Path: p(binConntrack), Validate: validateConntrack, MaxOutput: 1 << 16},
-		// host.self_update (D-316): the start of the applier, and the read-only looks at the staged file and dpkg.
+		// host.self_update: the start of the applier, and the read-only looks at the staged file and dpkg.
 		{Name: binSystemdRun, Path: p(binSystemdRun), Validate: validateSystemdRun(stateDir), MaxOutput: 1 << 16},
 		{Name: binDpkgDeb, Path: p(binDpkgDeb), Validate: validateDpkgDeb(stateDir), MaxOutput: 1 << 12},
-		// the package list of the box itself (D-470, GET /v1/state/packages) shares the binary, so the bound is the list's.
+		// the package list of the box itself (GET /v1/state/packages) shares the binary, so the bound is the list's.
 		{Name: binDpkgQuery, Path: p(binDpkgQuery), Validate: validateHostDpkgQuery, MaxOutput: maxPackagesOutput},
-		// os.reboot (D-453): the one read of logind's inhibitors.
+		// os.reboot: the one read of logind's inhibitors.
 		{Name: binBusctl, Path: p(binBusctl), Validate: exactly(argsListInhibitors...), MaxOutput: maxInhibitOutput},
-		// D-458: the one load of the containers' AppArmor profile at Start, when the kernel does not list it.
+		// The one load of the containers' AppArmor profile at Start, when the kernel does not list it.
 		{Name: binAppArmorParser, Path: p(binAppArmorParser), Validate: validateAppArmorParser, MaxOutput: 1 << 16},
-		// zap.baseline (D-521): load, read back and delete the one table inet vedette_zap.
+		// zap.baseline: load, read back and delete the one table inet vedette_zap.
 		{Name: binNft, Path: p(binNft), Validate: validateNft, MaxOutput: 1 << 20},
 	}
 }

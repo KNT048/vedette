@@ -58,10 +58,10 @@ export function checkFeedUrl(raw: string): 'ok' | 'url' | 'https' {
   return u.protocol === 'http:' ? 'https' : 'url'
 }
 
-/** The pull's sentence for an address Vedette never pulls from (modules/feeds blockedText, D-208, D-420). */
+/** The pull's sentence for an address Vedette never pulls from (modules/feeds blockedText). */
 export const BLOCKED_TEXT = 'Vedette does not pull feeds from link-local, multicast, unspecified or cloud metadata addresses.'
 
-/** The sentence for Vedette itself (modules/feeds ownText, D-446): the same in feeds, notify, logs and ai. */
+/** The sentence for Vedette itself (modules/feeds ownText): the same in feeds, notify, logs and ai. */
 export const OWN_TEXT = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
 
 type Refusal = false | 'blocked' | 'own'
@@ -82,7 +82,7 @@ function hextets(h: string): number[] | null {
 }
 
 /**
- * The save-time half of the pull's address rule (modules/feeds CheckDest, D-420 (1), D-446): 'blocked' for a literal IP that is
+ * The save-time half of the pull's address rule (modules/feeds CheckDest): 'blocked' for a literal IP that is
  * link-local, cloud metadata, unspecified or multicast, 'own' (Vedette itself) for loopback and the names localhost and *.localhost,
  * also inside an IPv4-mapped, NAT64, 6to4 or IPv4-compatible IPv6 address. The machine's own addresses are the box's to judge (the
  * page does not know them). Other names are not resolved: the box judges what they resolve to at every pull.

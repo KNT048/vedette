@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// registryHTTP reads manifests from a registry over the distribution API, anonymously: the way a customer box pulls (D-457). It is
+// registryHTTP reads manifests from a registry over the distribution API, anonymously: the way a customer box pulls. It is
 // used to prove a published image is pullable without credentials (publish) and to read a remote list that already exists (push).
 // The host is fixed by the caller (https://ghcr.io, or http://127.0.0.1:<port> for a rehearsal); no URL comes from a response.
 type registryHTTP struct {

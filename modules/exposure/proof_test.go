@@ -95,7 +95,7 @@ func (d *cnameDNS) LookupCNAME(_ context.Context, name string) (string, error) {
 	return name + ".", nil
 }
 
-// newProofEnv is newEnv with the CNAME-aware resolver: git.beyondnetglobal.com is a CNAME to beyondhcm.ddns.net (kien's case).
+// newProofEnv is newEnv with the CNAME-aware resolver: git.beyondnetglobal.com is a CNAME to beyondhcm.ddns.net (a real-world case).
 func newProofEnv(t *testing.T) (*env, *cnameDNS) {
 	t.Helper()
 	e := newEnv(t)
@@ -127,16 +127,16 @@ func (e *env) verify(id string) VerifyResult {
 	return r
 }
 
-// D-628 (kien G10): a verified beyondnetglobal.com covers git.beyondnetglobal.com with no record of its own; a child added before
+// A verified beyondnetglobal.com covers git.beyondnetglobal.com with no record of its own; a child added before
 // its parent was verified is covered when the parent is; another user's target of the same box covers too; the scan of the child
-// tells the executors to check the parent's record (review r1 M of #941); the parent removed from the box, or its record removed,
+// tells the executors to check the parent's record; the parent removed from the box, or its record removed,
 // covers the child no more at its next check (the one right before a scan).
-func TestProof_D628_ParentCoversChild(t *testing.T) {
+func TestProof_ParentCoversChild(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
-	child := e.add("kien@acme.example", "git.beyondnetglobal.com") // added first, by one user
-	deep := e.add("kien@acme.example", "a.b.git.beyondnetglobal.com")
-	parent := e.add("mlee@acme.example", "beyondnetglobal.com") // the parent, by another user of the box
+	child := e.add("alice@acme.example", "git.beyondnetglobal.com") // added first, by one user
+	deep := e.add("alice@acme.example", "a.b.git.beyondnetglobal.com")
+	parent := e.add("bob@acme.example", "beyondnetglobal.com") // the parent, by another user of the box
 	if r := e.verify(child.ID); r.Verified {
 		t.Fatalf("nothing published yet: %+v", r)
 	}
@@ -144,7 +144,7 @@ func TestProof_D628_ParentCoversChild(t *testing.T) {
 	if r := e.verify(parent.ID); !r.Verified || r.Message != "Found the TXT record vedette-verify="+parent.Token+" on beyondnetglobal.com." {
 		t.Fatalf("parent: %+v", r)
 	}
-	// review r1 M1 of #960: only a domain whose own record is on its own name covers the names under it: git is verified by its parent's
+	// Only a domain whose own record is on its own name covers the names under it: git is verified by its parent's
 	// record, so it covers nothing, and a.b.git is covered by beyondnetglobal.com
 	for id, by := range map[string]string{child.ID: "beyondnetglobal.com", deep.ID: "beyondnetglobal.com"} {
 		v := e.target(id)
@@ -158,7 +158,7 @@ func TestProof_D628_ParentCoversChild(t *testing.T) {
 	if r := e.verify(child.ID); !r.Verified || r.Message != "Found the TXT record of beyondnetglobal.com on beyondnetglobal.com: it proves beyondnetglobal.com and every name under it, git.beyondnetglobal.com included." {
 		t.Fatalf("child's own check: %+v", r)
 	}
-	// the scan of the child names the parent's domain and token, the record the executors' fence checks (one rule, D-628)
+	// the scan of the child names the parent's domain and token, the record the executors' fence checks (one rule)
 	run := &fakeRunner{content: Content{}}
 	e.svc.SetRunner(run)
 	if _, err := e.commit(child.ID); err != nil {
@@ -183,15 +183,15 @@ func TestProof_D628_ParentCoversChild(t *testing.T) {
 	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", child.ID); ok || why != BlockedTxtMissing {
 		t.Fatalf("parent target removed: %v %v", ok, why)
 	}
-	// D-632 (reverses D-628's "only the target at that name"): the child's own token on a parent name proves the child
+	// Not only the target at that name: the child's own token on a parent name proves the child
 	e.dns.put("beyondnetglobal.com", txtRecord(child.Token))
 	if r := e.verify(child.ID); !r.Verified || !strings.Contains(r.Message, "this target's own record on a parent name") {
 		t.Fatalf("the child's token on its parent: %+v", r)
 	}
 }
 
-// Review r1 L of #941: a parent removed from the box while the child's check runs covers nothing in that check.
-func TestProof_D628_ParentRemovedDuringTheCheck(t *testing.T) {
+// A parent removed from the box while the child's check runs covers nothing in that check.
+func TestProof_ParentRemovedDuringTheCheck(t *testing.T) {
 	t.Parallel()
 	e, d := newProofEnv(t)
 	parent := e.add("admin@acme.example", "beyondnetglobal.com")
@@ -212,8 +212,8 @@ func TestProof_D628_ParentRemovedDuringTheCheck(t *testing.T) {
 	}
 }
 
-// D-628: a public suffix covers nothing. ICANN's (co.uk) and private ones (ddns.net, github.io): one customer never covers another's.
-func TestProof_D628_PublicSuffixCoversNothing(t *testing.T) {
+// A public suffix covers nothing. ICANN's (co.uk) and private ones (ddns.net, github.io): one customer never covers another's.
+func TestProof_PublicSuffixCoversNothing(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
 		proven, name string
@@ -251,16 +251,16 @@ func TestProof_D628_PublicSuffixCoversNothing(t *testing.T) {
 	if p := v.Proof; p == nil || p.Zone != "beyondhcm.ddns.net" || p.Host != "@" {
 		t.Fatalf("hint %+v", p)
 	}
-	// review r1 L of #941: a public suffix stored before D-628 is refused as one, not with "add the record back"
+	// A public suffix stored by an older release is refused as one, not with "add the record back"
 	err := e.svc.refusal(Target{Kind: KindDomain, Value: "ddns.net", Token: "0123456789abcdef"}, BlockedTxtMissing, t0)
 	if err == nil || !strings.Contains(err.Error(), "ddns.net is a public suffix") || strings.Contains(err.Error(), "Add the record back") {
 		t.Fatalf("stored public suffix: %v", err)
 	}
 }
 
-// D-628: git.beyondnetglobal.com is a CNAME, so its provider refuses a TXT beside it ("Record could not be added"); the record on
+// git.beyondnetglobal.com is a CNAME, so its provider refuses a TXT beside it ("Record could not be added"); the record on
 // _vedette-verify.git.beyondnetglobal.com proves it, and the scan gate accepts it. A record reached through the CNAME is not git's.
-func TestProof_D628_VerifyLabelUnderACNAME(t *testing.T) {
+func TestProof_VerifyLabelUnderACNAME(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
 	v := e.add("admin@acme.example", "git.beyondnetglobal.com")
@@ -288,10 +288,10 @@ func TestProof_D628_VerifyLabelUnderACNAME(t *testing.T) {
 	}
 }
 
-// Review r1 High of #941: a wildcard on the zone never proves it. "*.beyondnetglobal.com CNAME lb.lapsed-vendor.example" makes
+// A wildcard on the zone never proves it. "*.beyondnetglobal.com CNAME lb.lapsed-vendor.example" makes
 // _vedette-verify.beyondnetglobal.com a CNAME to a name whoever registers the lapsed domain controls; "*.beyondnetglobal.com TXT"
 // answers any name beside it too. And a parent that is a CNAME (b.… CNAME tenant.vendor.example) does not prove names under it.
-func TestProof_D628_WildcardsAndCNAMEdParentsProveNothing(t *testing.T) {
+func TestProof_WildcardsAndCNAMEdParentsProveNothing(t *testing.T) {
 	t.Parallel()
 	e, d := newProofEnv(t)
 	zone := e.add("admin@acme.example", "beyondnetglobal.com")
@@ -319,9 +319,9 @@ func TestProof_D628_WildcardsAndCNAMEdParentsProveNothing(t *testing.T) {
 	}
 }
 
-// D-628 (4): a failed check says which names were asked and what came back: a CNAME to another name (and why no TXT can sit there),
+// A failed check says which names were asked and what came back: a CNAME to another name (and why no TXT can sit there),
 // a name that does not exist, a timeout, a TXT record that is not this one (cleaned and bounded: an answer from DNS is untrusted).
-func TestProof_D628_TheErrorSaysWhatWasAskedAndWhatCameBack(t *testing.T) {
+func TestProof_TheErrorSaysWhatWasAskedAndWhatCameBack(t *testing.T) {
 	t.Parallel()
 	e, d := newProofEnv(t)
 	git := e.add("admin@acme.example", "git.beyondnetglobal.com")

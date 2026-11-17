@@ -12,7 +12,7 @@ import (
 )
 
 // Every audit action the backend writes has a label in Settings -> Audit log, and every kind of action (the part before the
-// first dot) has a filter label (D-180: the rows showed the raw code `user.password_reset`). The actions are read from the Go
+// first dot) has a filter label (the rows showed the raw code `user.password_reset`). The actions are read from the Go
 // source; the labels from web/src/locales/en/core.json. It is a Go test so a pull request that only changes Go still runs it
 // (scripts/ci/classify.go runs both jobs for a change to core.json).
 //

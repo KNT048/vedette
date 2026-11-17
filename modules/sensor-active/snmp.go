@@ -1049,7 +1049,7 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, targets []snmpTar
 		s.mu.Unlock()
 	}()
 	// The module turned off before the batch registered had nothing to cancel: off is sticky, and Stop sets it before it reads
-	// snmpCur, so either Stop saw this run and cancels it, or this sees off (SYS-5, review #855 r2 L1).
+	// snmpCur, so either Stop saw this run and cancels it, or this sees off (SYS-5, #855).
 	if s.off.Load() {
 		return nil, ErrStopped
 	}
@@ -1074,7 +1074,7 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, targets []snmpTar
 		rctx, stop = context.WithTimeout(rctx, timeout)
 		defer stop()
 		s.mu.Lock()
-		run.deadline = s.clock().Add(timeout) // a window shortened under the batch stops it (snmpChanged, review #715 r2 L1)
+		run.deadline = s.clock().Add(timeout) // a window shortened under the batch stops it (snmpChanged, #715)
 		s.mu.Unlock()
 	}
 	// The round chose its devices when it started: read their settings and policy again now, so a device set to never, no longer
@@ -1574,7 +1574,7 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 		return
 	}
 	sc := newScope(st)
-	if slices.ContainsFunc(targets, sc.excluded) { // SNMP: the exclusions, not lan_ranges (D-601)
+	if slices.ContainsFunc(targets, sc.excluded) { // SNMP: the exclusions, not lan_ranges
 		run.cancel()
 	}
 }

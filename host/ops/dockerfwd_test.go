@@ -74,7 +74,7 @@ func changes(m *opstest.Machine, from int) []string {
 	return out
 }
 
-// D-396 (a): the br-+ RETURN also matches a bridge of the box itself (an uplink br-lan): such a bridge gets an ACCEPT
+// The br-+ RETURN also matches a bridge of the box itself (an uplink br-lan): such a bridge gets an ACCEPT
 // above the RETURNs, so the containers keep the internet through it. A bridge whose ports are only veths (Docker's, by
 // ID or by a custom name such as br-app; review r2 M1), one without ports, or with a name the host never writes, gets none.
 func TestDockerFwd_OnlyTheBoxsUplinkBridgesGetAnAccept(t *testing.T) {
@@ -111,9 +111,9 @@ func TestDockerFwd_ANewBridgeOfTheBoxGoesAboveTheReturns(t *testing.T) {
 	}
 }
 
-// A box with the four rules of D-267 (and Docker's own trailing RETURN) gets the DROP (D-396 (b)) at the end of our block
+// A box with the four DOCKER-USER rules (and Docker's own trailing RETURN) gets the DROP at the end of our block
 // and the ACCEPT of its uplink bridge at the top; nothing is moved.
-func TestDockerFwd_TheFourRulesOfD267GetTheDropAndTheUplinkAccept(t *testing.T) {
+func TestDockerFwd_TheFourRulesGetTheDropAndTheUplinkAccept(t *testing.T) {
 	m, o, _ := fwdBox(t, "172.30.77.0/24")
 	m.DockerChain(true)
 	for _, r := range []string{ret1, ret2, rule1, rule2, "-j RETURN"} {

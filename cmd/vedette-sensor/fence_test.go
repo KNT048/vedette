@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// Review r2 L-7, D-591: the scan container starts without domain_ip when its fence key is missing or damaged (loadFence gives no
+// The scan container starts without domain_ip when its fence key is missing or damaged (loadFence gives no
 // fence, so the worker's heartbeat says domain_ip false and every domain_ip job is refused); a good key gives one.
 func TestLoadFenceWithoutAUsableKey(t *testing.T) {
 	t.Parallel()

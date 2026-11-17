@@ -262,7 +262,7 @@ func TestRouterUsesTheMeter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for range 40 { // each call is 150 tokens: the 7th takes the total past the budget of 1000 (D-531)
+	for range 40 { // each call is 150 tokens: the 7th takes the total past the budget of 1000
 		_, err := r.Call(context.Background(), JobLogDigest, req)
 		if errors.Is(err, ErrCapped) {
 			break

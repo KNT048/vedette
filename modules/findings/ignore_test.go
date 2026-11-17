@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// D-630: Ignore closes only an open finding, with the person in the note; Stop ignoring reopens only a finding Ignore closed.
+// Ignore closes only an open finding, with the person in the note; Stop ignoring reopens only a finding Ignore closed.
 func TestFinding_IgnoreCloseAndUnignoreReopen(t *testing.T) {
 	t.Parallel()
 	closed, h, ok := suspected().IgnoreClose("it@acme.example", t0)
@@ -30,7 +30,7 @@ func TestFinding_IgnoreCloseAndUnignoreReopen(t *testing.T) {
 	if c, _, _ := scan.IgnoreClose("ann", t0); func() bool { r, _, _ := c.UnignoreReopen("ann", t0); return r.Status != StatusConfirmed }() {
 		t.Fatal("a confirmed finding does not reopen as confirmed")
 	}
-	// what a person settled, and Vedette's own D-530 close, are never touched
+	// what a person settled, and Vedette's own auto-resolve close, are never touched
 	person, _, err := suspected().Apply(ActionFalsePositive, "not this model", "ann", t0)
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +53,7 @@ func TestFinding_IgnoreCloseAndUnignoreReopen(t *testing.T) {
 	}
 }
 
-// D-630 through the service: open findings close with history, audit and a status_changed event that notify ignores; a person's
+// Ignore through the service: open findings close with history, audit and a status_changed event that notify ignores; a person's
 // decision keeps its status; Stop ignoring reopens only what Ignore closed. A risk acceptance of a device nobody watches does not
 // expire (no alert) until the device is watched again.
 func TestService_IgnoreClosesOpenFindingsAndKeepsDecisions(t *testing.T) {
@@ -149,7 +149,7 @@ func (e *env) ignoreA1(on bool) {
 	}
 }
 
-// D-630, review r1 M2 of #945: the hourly reconcile does the work of a lost inventory.asset.ignored (close the open findings of an
+// The hourly reconcile does the work of a lost inventory.asset.ignored (close the open findings of an
 // ignored device, no notice) and of a lost .unignored (reopen what Ignore closed on a watched device); a match that raced the Ignore
 // writes nothing (L3).
 func TestService_ReconcileHealsALostIgnoreEitherWay(t *testing.T) {

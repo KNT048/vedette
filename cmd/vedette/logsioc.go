@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// logsFeeds is logs' Feeds port (L4, D-213): the listing of an address or a domain in the indicators of the feeds module, read in the box
+// logsFeeds is logs' Feeds port: the listing of an address or a domain in the indicators of the feeds module, read in the box
 // (nothing leaves it). The feeds module off answers logs.ErrFeedsOff, so no hit is made while it is off (PRE-3, SYS-5). A value that is
 // not a public address or a name that can be listed (feeds.IOCKey) is not listed. The service is looked up on each call because it is
 // built after logs (feeds needs the inventory).
@@ -39,7 +39,7 @@ func (f logsFeeds) Lookup(ctx context.Context, kind, value string) (logs.Listing
 		}
 		l.Feeds = append(l.Feeds, s.SourceName)
 		l.Confidence = max(l.Confidence, s.Confidence)
-		if s.Subdomains && kind == "domain" { // the feed lists the name with all of its subdomains (hagezi TIF, D-228)
+		if s.Subdomains && kind == "domain" { // the feed lists the name with all of its subdomains (hagezi TIF)
 			l.SubFeeds = append(l.SubFeeds, s.SourceName)
 			l.SubConfidence = max(l.SubConfidence, s.Confidence)
 		}
@@ -57,7 +57,7 @@ func (f logsFeeds) Listed(ctx context.Context) (bool, error) {
 	return svc.Store().IOCListed(ctx)
 }
 
-// Subdomains says whether a switched-on feed lists names with all of their subdomains (D-228); logs skips the parent walk without one (D-425).
+// Subdomains says whether a switched-on feed lists names with all of their subdomains; logs skips the parent walk without one.
 func (f logsFeeds) Subdomains(ctx context.Context) (bool, error) {
 	if !f.On() {
 		return false, nil
@@ -71,7 +71,7 @@ func (f logsFeeds) Subdomains(ctx context.Context) (bool, error) {
 
 // logsIocEvidence is the adapter for response's Evidence.IocHit (EvidencePorts): the hit with this id, as the digest shows it, in the shape
 // response wants. Logs off answers "not found" (the evidence does not exist while the module is off). Wired as cfg.Evidence.IocHit in
-// response.go (#376, D-337); Connection stays empty (a set one would make the hit read as a connection read).
+// response.go; Connection stays empty (a set one would make the hit read as a connection read).
 func logsIocEvidence(svc *logs.Service, on func() bool) func(ctx context.Context, id string) (response.EvidenceRef, bool, error) {
 	return func(ctx context.Context, id string) (response.EvidenceRef, bool, error) {
 		if svc == nil || !on() {

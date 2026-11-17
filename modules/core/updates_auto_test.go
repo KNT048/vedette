@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// The periodic check and the automatic mode (S-CORE-2, update-manifest §6, §12, D-388): UpdateTick is the core job
+// The periodic check and the automatic mode (S-CORE-2, update-manifest §6): UpdateTick is the core job
 // cmd/vedette schedules every core.UpdateTickEvery.
 
 // auditUsers lists the user of every audit row of action, oldest first.
@@ -89,7 +89,7 @@ func TestUpdateCheckJobRunsEverySixHours(t *testing.T) {
 	}
 }
 
-// D-398: a box that never checked (a fresh setup, or one recreated before its first check) is woken two minutes after its
+// A box that never checked (a fresh setup, or one recreated before its first check) is woken two minutes after its
 // process started and checks then, not one tick later; the first tick still makes no request.
 func TestUpdateCheckFirstCheckSoonAfterStart(t *testing.T) {
 	t.Parallel()
@@ -119,7 +119,7 @@ func TestUpdateCheckFirstCheckSoonAfterStart(t *testing.T) {
 }
 
 // Automatic mode installs the offer only inside the maintenance window with 30 minutes of it left, with no reboot
-// scheduled, as system, never over a busy run, and does not try again a release whose last run failed (D-388). Manual
+// scheduled, as system, never over a busy run, and does not try again a release whose last run failed. Manual
 // mode never installs.
 func TestUpdateAutoInstallsInTheWindowAsSystem(t *testing.T) {
 	t.Parallel()
@@ -229,7 +229,7 @@ func TestUpdateAutoStopsAfterAFailedCheckNow(t *testing.T) {
 	}
 }
 
-// D-540 review: once an index was stored, the source answering 404 for it does not count as a fresh good check, so a
+// Once an index was stored, the source answering 404 for it does not count as a fresh good check, so a
 // stored offer (perhaps withdrawn since) is not installed.
 func TestUpdateAutoSkipsWhenAStoredIndexGoes404(t *testing.T) {
 	t.Parallel()
@@ -249,7 +249,7 @@ func TestUpdateAutoSkipsWhenAStoredIndexGoes404(t *testing.T) {
 	}
 }
 
-// A failed check is stored (D-392): after core restarts the automatic mode still installs nothing, the page still shows
+// A failed check is stored: after core restarts the automatic mode still installs nothing, the page still shows
 // the failure, and the next good check clears it and installs.
 func TestUpdateAutoRemembersAFailedCheckAfterARestart(t *testing.T) {
 	t.Parallel()

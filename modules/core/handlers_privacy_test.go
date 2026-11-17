@@ -48,9 +48,9 @@ func TestPrivacy_GetDefaultsAndShape(t *testing.T) {
 		1: {"on", "reason", nil}, 2: {"off", "switch", nil}, 3: {"off", "reason", false}, 4: {"conditional", "reason", nil},
 		5: {"conditional", "reason", nil}, 6: {"on", "switch", nil}, 7: {"conditional", "reason", nil}, 8: {"off", "reason", nil},
 		9: {"off", "reason", nil}, 10: {"on", "reason", nil}, 11: {"off", "reason", nil}, 12: {"off", "reason", nil},
-		13: {"off", "reason", nil}, // mcp-server is off by default (D-234)
-		15: {"off", "reason", nil}, // exposure is off by default; on, Shodan is asked only on a click (D-558)
-		16: {"off", "reason", nil}, // Greenbone is off by default (D-563)
+		13: {"off", "reason", nil}, // mcp-server is off by default
+		15: {"off", "reason", nil}, // exposure is off by default; on, Shodan is asked only on a click
+		16: {"off", "reason", nil}, // Greenbone is off by default
 	}
 	for id, w := range want {
 		if f[id] != w {
@@ -59,7 +59,7 @@ func TestPrivacy_GetDefaultsAndShape(t *testing.T) {
 	}
 	tel, _ := r.JSON["telemetry"].(map[string]any)
 	payload, _ := tel["payload"].(map[string]any)
-	// D-82: the anonymous signal is never sent, so there is no last send and nothing to show, switch on or off.
+	// The anonymous signal is never sent, so there is no last send and nothing to show, switch on or off.
 	if tel["enabled"] != false || tel["last_sent"] != nil || payload == nil || len(payload) != 0 || r.JSON["update_check"] != true {
 		t.Fatalf("privacy = %s", r.Raw)
 	}
@@ -103,7 +103,7 @@ func TestPrivacy_PatchIsPartialAuditedAndFollowsModules(t *testing.T) {
 	}
 }
 
-// D-154: nothing sends the anonymous signal, so PATCH {"telemetry": true} is 400 telemetry_unavailable (nothing written, no audit
+// Nothing sends the anonymous signal, so PATCH {"telemetry": true} is 400 telemetry_unavailable (nothing written, no audit
 // row, the update check untouched), also together with a valid update_check; GET says it is off, also on a box whose stored
 // setting still says on from before.
 func TestContract_INV10_TelemetryCannotBeTurnedOn(t *testing.T) {
@@ -214,7 +214,7 @@ func TestPrivacy_FactsPort(t *testing.T) {
 	if s, _ := state(h, 8); s != "conditional" {
 		t.Errorf("flow 8 with ai on = %s", s)
 	}
-	// Flow 12 (D-93): on when the port says a connection is enabled, off otherwise, with a reason (no switch); no module condition.
+	// Flow 12: on when the port says a connection is enabled, off otherwise, with a reason (no switch); no module condition.
 	if s, _ := state(mk(fakeFacts{conn: true}), 12); s != "on" {
 		t.Errorf("flow 12 with a connection = %s", s)
 	}
@@ -230,7 +230,7 @@ func TestPrivacy_FactsPort(t *testing.T) {
 	if s, c := state(mk(nil), 3); s != "off" || c { // no port: no provider configured
 		t.Errorf("flow 3 without a port = %s %v", s, c)
 	}
-	// Flow 14 (D-309): on only while a Wazuh server is saved and agent-intake is on.
+	// Flow 14: on only while a Wazuh server is saved and agent-intake is on.
 	if s, _ := state(mk(fakeFacts{wazuh: true}), 14); s != "off" {
 		t.Errorf("flow 14 with agent-intake off = %s", s)
 	}

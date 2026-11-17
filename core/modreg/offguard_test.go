@@ -23,7 +23,7 @@ func advance(d time.Duration) {
 	synctest.Wait()
 }
 
-// D-189: a module that is off at start gets its teardown at once, retried on the backoff until it succeeds, then left alone.
+// A module that is off at start gets its teardown at once, retried on the backoff until it succeeds, then left alone.
 func TestOffGuardRetriesUntilTheTeardownSucceeds(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestOffGuardTrustsTheRegistryNotTheArgument(t *testing.T) {
 	})
 }
 
-// M3 (D-260): the OnGuard is the mirror: a module that is on at start gets its func at once, retried until it succeeds; a module
+// M3: the OnGuard is the mirror: a module that is on at start gets its func at once, retried until it succeeds; a module
 // that is off is left alone; a switch-on starts it and a switch-off cancels a func that is still failing.
 func TestOnGuardRunsWhileTheModuleIsOn(t *testing.T) {
 	t.Parallel()

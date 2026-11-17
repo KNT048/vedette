@@ -298,7 +298,7 @@ case "$1" in
     svc="${ref#ghcr.io/knt048/vedette-}"; svc="${svc%%@*}"
     case "$ref" in
       oci:*)
-        # a bundle's layout (D-452): "oci:<dir>:ghcr.io/knt048/vedette-<svc>:<version>"; the image is the one the host's own
+        # a bundle's layout: "oci:<dir>:ghcr.io/knt048/vedette-<svc>:<version>"; the image is the one the host's own
         # index.json names, and its blob must be in the layout (Podman would fail without it)
         rest="${ref#oci:}"; dir="${rest%%:*}"; name="${rest#*:}"
         svc="${name#ghcr.io/knt048/vedette-}"; svc="${svc%%:*}"
@@ -351,7 +351,7 @@ case "$1" in
         [ -n "$svc" ] && [ "$svc" != scan-nmap ] && printf '"ghcr.io/knt048/vedette-%s@%s"' "$svc" "$d"
         c=0; [ -e "$S/used.$d" ] && c=1
         printf '],"Containers":%s' "$c"
-        # an image the host built carries the LABEL of its Containerfile (D-147), also once it lost its tag
+        # an image the host built carries the LABEL of its Containerfile, also once it lost its tag
         [ "$svc" = scan-nmap ] && printf ',"Labels":{"io.buildah.version":"1.42.1","io.vedette.build":"scan"}'
         printf '}'
       done
@@ -399,7 +399,7 @@ case "$1" in
     echo "$3 $d" >> "$S/tags"
     ;;
   build)
-    # the scan image built on the box (D-147): "build ... --build-arg BASE_IMAGE=<ref@digest> ... --tag <tag> <dir>"
+    # the scan image built on the box: "build ... --build-arg BASE_IMAGE=<ref@digest> ... --tag <tag> <dir>"
     echo "$*" >> "$S/builds"
     [ -e "$REC/mark.build-fails" ] && { echo "Error: build failed" >&2; exit 125; }
     while [ $# -gt 0 ]; do
@@ -521,7 +521,7 @@ func (m *Machine) ImageRaw(text string) {
 	m.must(os.WriteFile(filepath.Join(m.img(), "raw"), []byte(text), 0o600))
 }
 
-// BuiltID is the 64-hex ID the fake podman gives the n-th image it builds (n from 1) for the scan image (D-147).
+// BuiltID is the 64-hex ID the fake podman gives the n-th image it builds (n from 1) for the scan image.
 func BuiltID(n int) string { return fmt.Sprintf("b%063x", n) }
 
 // NmapVersion makes "nmap --version" in an image the fake builds print this version.

@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// D-91 as amended 2026-11-17 (kien G13): every check of the CISA list asks both copies, cisa.gov and CISA's GitHub copy, each with
+// Every check of the CISA list asks both copies, cisa.gov and CISA's GitHub copy, each with
 // its own validators, keeps the newer catalog (catalogVersion, then dateReleased), never rolls back, and records which copy the catalog
 // came from. One copy failing is a note; both failing is a failed pull.
 
@@ -57,7 +57,7 @@ func kevWith(t *testing.T, version, released, firstCVE string) string {
 	return strings.Replace(k, `"cveID": "CVE-2026-10001"`, `"cveID": "`+firstCVE+`"`, 1)
 }
 
-func TestContract_D91_EveryCheckAsksBothCopies(t *testing.T) {
+func TestContract_EveryCheckAsksBothCopies(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.body(primaryPath, `"p1"`, testFile(t, "kev.json"))
@@ -89,7 +89,7 @@ func (r timeoutTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // One copy failing, whatever the failure, is a quiet note on a pull that worked: the other copy's list is kept.
-func TestContract_D91_OneCopyFailingIsANote(t *testing.T) {
+func TestContract_OneCopyFailingIsANote(t *testing.T) {
 	t.Parallel()
 	for code, why := range map[int]string{403: "cisa.gov refused this box (HTTP 403)", 404: "cisa.gov answered HTTP 404", 503: "cisa.gov answered HTTP 503"} {
 		e, o := kevEnv(t)
@@ -116,7 +116,7 @@ func TestContract_D91_OneCopyFailingIsANote(t *testing.T) {
 	}
 }
 
-func TestContract_D91_AnAdminsOwnAddressIsTheOnlyOneAsked(t *testing.T) {
+func TestContract_AnAdminsOwnAddressIsTheOnlyOneAsked(t *testing.T) {
 	t.Parallel()
 	// the owner's own mirror address is theirs to look after: no other host is asked
 	e, o := kevEnv(t)
@@ -129,7 +129,7 @@ func TestContract_D91_AnAdminsOwnAddressIsTheOnlyOneAsked(t *testing.T) {
 }
 
 // The newer copy wins in either direction: by catalogVersion, then by dateReleased.
-func TestContract_D91_TheNewerCopyWinsEitherWay(t *testing.T) {
+func TestContract_TheNewerCopyWinsEitherWay(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.body(primaryPath, `"p1"`, kevWith(t, "2026.11.05", "2026-11-05T10:00:00Z", "CVE-2026-20005"))
@@ -163,7 +163,7 @@ func TestContract_D91_TheNewerCopyWinsEitherWay(t *testing.T) {
 }
 
 // An older copy never replaces the catalog the box holds (no roll back), and is not news either: no note.
-func TestContract_D91_AnOlderCopyNeverReplacesTheList(t *testing.T) {
+func TestContract_AnOlderCopyNeverReplacesTheList(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	kev := testFile(t, "kev.json")
@@ -194,7 +194,7 @@ func TestContract_D91_AnOlderCopyNeverReplacesTheList(t *testing.T) {
 	}
 }
 
-func TestContract_D91_BothDownIsAnErrorThatNamesBoth(t *testing.T) {
+func TestContract_BothDownIsAnErrorThatNamesBoth(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
@@ -212,8 +212,8 @@ func TestContract_D91_BothDownIsAnErrorThatNamesBoth(t *testing.T) {
 	}
 }
 
-// Conditional requests per copy (D-485): each copy gets its own validators once the box knows the version it gave, never the other's.
-func TestContract_D91_ConditionalRequestsPerCopy(t *testing.T) {
+// Conditional requests per copy: each copy gets its own validators once the box knows the version it gave, never the other's.
+func TestContract_ConditionalRequestsPerCopy(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.body(primaryPath, `"p1"`, testFile(t, "kev.json"))

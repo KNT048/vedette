@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// D-527 (review r1 M4): a full run of 200 templates may print 40 lines a template (matches of tech-detect, payload requests), so
+// A full run of 200 templates may print 40 lines a template (matches of tech-detect, payload requests), so
 // its limit is 8000 lines; a small run keeps MaxLines.
 func TestParse_LinesOfAFullRun(t *testing.T) {
 	t.Parallel()

@@ -12,11 +12,11 @@ import (
 	"testing"
 )
 
-// Supervisor, N100 2026-11-17: with www.cisa.gov pointed at 127.0.0.1, main's pull ended in the egress guard's error ("it is Vedette
-// itself") and never asked the GitHub copy. With both copies asked at every check (D-91 as amended), cisa.gov failing at any level
+// On a test box (2026-11-17), with www.cisa.gov pointed at 127.0.0.1, the earlier pull ended in the egress guard's error ("it is Vedette
+// itself") and never asked the GitHub copy. With both copies asked at every check, cisa.gov failing at any level
 // leaves the GitHub copy's list applied in that same check, with the right note and no alert. The real guarded client runs here
 // (newClient with a test resolver); only the final connect is pointed at local test servers (Fetcher.dialOverride, after every check).
-func TestG13_CISAFailingAtEveryLevelTheCopyIsAppliedInTheSameCheck(t *testing.T) {
+func TestKEVCopies_CISAFailingAtEveryLevelTheCopyIsAppliedInTheSameCheck(t *testing.T) {
 	t.Parallel()
 	addr := map[string]string{ // what each test name resolves to (none of them is this machine)
 		"mirror.lan": "10.255.77.2", "refused.lan": "10.255.77.3", "badtls.lan": "10.255.77.4", "status.lan": "10.255.77.5",

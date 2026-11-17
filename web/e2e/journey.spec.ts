@@ -11,9 +11,9 @@ async function cleanInstall(page: Page, lan: string) {
   await page.goto('/login')
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
-  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // D-75: the code the mock accepts
+  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // The code the mock accepts
   await page.getByLabel('Organization name', { exact: true }).fill('Northwind Trading')
   await page.getByLabel('Administrator name', { exact: true }).fill('Alex Admin')
   await page.getByLabel('Sign-in email', { exact: true }).fill('admin@northwind.example')
@@ -27,7 +27,7 @@ async function cleanInstall(page: Page, lan: string) {
   // The setup page has its own heading: wait until the app lands on Home, after the scope is saved
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
-  await turnOnModules(page, PREVIEW_NAMES) // D-624: a bundle turns on v1 modules only
+  await turnOnModules(page, PREVIEW_NAMES) // A bundle turns on v1 modules only
 }
 
 test('clean install, then manage subnets', async ({ page }) => {
@@ -37,7 +37,7 @@ test('clean install, then manage subnets', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await shot(page, '01-scope')
   const box = page.getByRole('textbox', { name: 'Add a network range' })
-  // Bare address: refused, never turned into /24 (D-32)
+  // Bare address: refused, never turned into /24
   await box.fill('192.168.40.0')
   await box.press('Enter')
   await expect(page.getByText('"192.168.40.0" has no prefix length.', { exact: false })).toBeVisible()

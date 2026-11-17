@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// vedette-host -recover-core-data [-use rollback|current] [-yes] (D-317, RUNBOOK 5.5): the way out of
+// vedette-host -recover-core-data [-use rollback|current] [-yes] (RUNBOOK 5.5): the way out of
 // core_data_unrecoverable when core is not running. One shot, as root, never beside the daemon. Without -use it
 // shows what is in core_data; with -use it shows what it would do; only -yes does it. The exits are the
 // bootstrap's: 0 done (or nothing to do, or only shown), 1 failed, 2 wrong use, 3 refused by a check, 6 daemon_running.

@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// Review of slice 3-8b (D-142): the key core reads is the key the host backs up, the version records agree
+// Review of slice 3-8b: the key core reads is the key the host backs up, the version records agree
 // with the unit after a recovery, core_data is vetted when it exists and made without following links, one
 // lock for the daemon and the bootstrap, audit lines, and a partial install is not mixed with another release.
 

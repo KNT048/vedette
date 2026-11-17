@@ -17,7 +17,7 @@ var (
 )
 
 // failures reads go test output (CI job logs, with or without the runner's prefixes) and returns, per failed package, its failed
-// top-level tests (D-365: the daily -count=2 -shuffle=on run lists them in the flaky issue). A package that failed with no test
+// top-level tests (the daily -count=2 -shuffle=on run lists them in the flaky issue). A package that failed with no test
 // named (a build error, a panic outside a test) is listed with no tests.
 func failures(r io.Reader) (map[string][]string, error) {
 	out := map[string][]string{}

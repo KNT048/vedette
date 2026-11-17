@@ -1,4 +1,4 @@
-// Package api holds the server side generated from api/openapi.json (D-18, D-60).
+// Package api holds the server side generated from api/openapi.json.
 //
 //   - apigen: generation-time tool that normalises the contract for ogen and writes the role table.
 //   - oas: ogen server code (types, strict handler interface, router, request validation).

@@ -58,7 +58,7 @@ func TestEveryOperationHasAValidRole(t *testing.T) {
 	}
 }
 
-// Every operation maps to a module that has a MANIFEST.yaml (findings has one since D-57 (6)).
+// Every operation maps to a module that has a MANIFEST.yaml.
 func TestEveryOperationMapsToAModuleWithAManifest(t *testing.T) {
 	t.Parallel()
 	ms, err := modreg.Load(os.DirFS("../../modules"))

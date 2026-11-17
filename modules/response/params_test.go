@@ -96,8 +96,8 @@ func TestValidateTpl(t *testing.T) {
 
 // The data files are valid by the same checks as a customer's action (they are validated when the service starts), and the
 // action library does not drift from the copy the GUI mock uses: the only differences are the ones that keep shell
-// characters out of the shipped templates (INV-14b) and the pfSense alias rollback that was a copy of its run step (D-88 amendment
-// 2026-11-09), listed here.
+// characters out of the shipped templates (INV-14b) and the pfSense alias rollback that was a copy of its run step,
+// listed here.
 func TestLibraryMatchesTheMockExceptForShellCharacters(t *testing.T) {
 	t.Parallel()
 	mock, err := os.ReadFile("../../web/src/features/response/templates/action-templates.sample.json")
@@ -134,7 +134,7 @@ func TestLibraryMatchesTheMockExceptForShellCharacters(t *testing.T) {
 func TestForbiddenAddr(t *testing.T) {
 	t.Parallel()
 	for _, a := range []string{"127.0.0.1", "::1", "0.0.0.0", "::", "169.254.169.254", "fe80::1", "224.0.0.1", "ff02::1", "::ffff:127.0.0.1",
-		// D-411: the cloud metadata endpoints that are not link-local, and transition forms of a forbidden address (core/netguard)
+		// The cloud metadata endpoints that are not link-local, and transition forms of a forbidden address (core/netguard)
 		"100.100.100.200", "192.0.0.192", "fd00:ec2::254", "fd20:ce::254", "64:ff9b::a9fe:a9fe", "2002:6464:64c8::1", "255.255.255.255"} {
 		if !forbiddenAddr(netip.MustParseAddr(a), false) {
 			t.Errorf("%s is allowed", a)
@@ -150,7 +150,7 @@ func TestForbiddenAddr(t *testing.T) {
 	}
 }
 
-// D-411: a webhook URL naming a cloud metadata service or endpoint is refused at save, before any lookup.
+// A webhook URL naming a cloud metadata service or endpoint is refused at save, before any lookup.
 func TestCheckWebhookURLRefusesMetadata(t *testing.T) {
 	t.Parallel()
 	s := &Service{interfaceFn: func() ([]netip.Addr, error) { return nil, nil }}
@@ -164,7 +164,7 @@ func TestCheckWebhookURLRefusesMetadata(t *testing.T) {
 	}
 }
 
-// D-446 for webhook_call: the machine's address only on Vedette's own ports, core's container and the decoys on every port, loopback
+// For webhook_call: the machine's address only on Vedette's own ports, core's container and the decoys on every port, loopback
 // always; every target while the machine's addresses are not known; the dial-time check judges the same at the dialled port.
 func TestWebhookVedetteItself(t *testing.T) {
 	t.Parallel()
@@ -193,7 +193,7 @@ func TestWebhookVedetteItself(t *testing.T) {
 	}
 	selfErr = errors.New("the decoy record cannot be read")
 	if _, err := s.checkWebhookURL("https://192.168.18.50:5678/"); err == nil || dial("tcp", "192.168.18.50:5678", nil) == nil {
-		t.Error("an unreadable decoy record must refuse every webhook (D-179 (8))")
+		t.Error("an unreadable decoy record must refuse every webhook")
 	}
 	selfErr, known = nil, false
 	if _, err := s.checkWebhookURL("https://192.168.18.50:5678/"); err == nil || dial("tcp", "192.168.18.50:5678", nil) == nil {

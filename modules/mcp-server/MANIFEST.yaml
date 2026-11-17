@@ -6,8 +6,8 @@ default: off
 depends: [core]
 soft_depends: [inventory, findings, feeds]    # công cụ của phạm vi `assets`/`findings`/`feeds` báo lỗi "module tắt" khi module nguồn tắt
 permissions: []
-ports: ["tcp/8765"]                 # chỉ loopback (-mcp-listen, mặc định 127.0.0.1:8765, endpoint /mcp); D-230, D-234
-container: core        # D-55
+ports: ["tcp/8765"]                 # chỉ loopback (-mcp-listen, mặc định 127.0.0.1:8765, endpoint /mcp)
+container: core
 tables_prefix: mcp_
 tables: [mcp_tokens]
 stories: [S-MCP-1]

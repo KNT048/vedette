@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# make e2e-real (WP-30, D-170): the browser specs of web/e2e-real/ against the REAL backend with the release GUI embedded in it.
+# make e2e-real (WP-30): the browser specs of web/e2e-real/ against the REAL backend with the release GUI embedded in it.
 #   1. make webui-dist (the release SPA, mock layer off), 2. go test -c -tags webui of cmd/vedette (the box is TestE2EBox, a test so that
 #   later slices can put loopback fakes in the same process), 3. start the box on a temp folder, wait for its ready.json,
 #   4. Playwright (desktop) against it, 5. stop everything and remove the temp folder, web/dist and internal/webui/dist on every exit path.
 # Variables: SPECS="e2e-real/auth.spec.ts ..." (default: all), E2E_WORKERS (default 2 with 8+ CPUs, else 1),
 #            HOLD=1 keeps the box up after the run: then rerun one spec with the two variables the script prints, plus `--no-deps`.
-# Heavy job (Chromium + a Go build): two at once at most. Linux or macOS. Kept out of CI and `make check` (D-63, D-64).
+# Heavy job (Chromium + a Go build): two at once at most. Linux or macOS. Kept out of CI and `make check`.
 # Two runs at once are safe: the box listens on a random port, everything the run writes is in its own temp folder or its own
 # web/test-results/real-<pid> folder, and the one shared place, web/dist and internal/webui/dist (the build, plus pnpm install), is taken
 # under a lock only while the GUI is built and compiled into the test binary.

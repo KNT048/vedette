@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/ai"
 )
 
-// #847 (J7 #812): a backup restored without its decryption key leaves every saved API key sealed under another master key.
+// #847 (#812): a backup restored without its decryption key leaves every saved API key sealed under another master key.
 
 const aiLostWords = "was not restored (the backup was restored without its decryption key, or the box key changed)"
 

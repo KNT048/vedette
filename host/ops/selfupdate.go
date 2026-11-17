@@ -22,8 +22,8 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// host.self_update (docs/specs/host-api.md section 6.14, D-316,
-// slice 2). Check decides every refusal; Run copies core's file into the root-only staged/ while it hashes it,
+// host.self_update (docs/specs/host-api.md section 6.14).
+// Check decides every refusal; Run copies core's file into the root-only staged/ while it hashes it,
 // asks dpkg-deb what the copy is, simulates the apt install, copies the running binary to selfupdate/applier,
 // writes the journal (staged, attempt 0) and returns server.Parked: park first, dispatch after. The settle
 // goroutine (its first round starts the applier with systemd-run) and the applier come with slice 2b.
@@ -100,7 +100,7 @@ type suPlan struct {
 }
 
 // checkSelfUpdate is Check (spec 6.14, in its order). It only reads, except that verifyRelease stores a newer
-// verified index as container.pull does (D-130).
+// verified index as container.pull does.
 func (o *Ops) checkSelfUpdate(ctx context.Context, a api.HostSelfUpdateArgs) (*suPlan, error) {
 	// 1. the box, the running build, nothing else open, no applier alive.
 	if _, err := o.platform(); err != nil {
@@ -244,8 +244,8 @@ func (o *Ops) currentPackage(ctx context.Context) (suPkg, error) {
 
 func corePkgName(id string) string { return corePackagesDir + "/" + id + ".deb" }
 
-// checkCorePackage is Check 6: core's file opened through the descriptor-checked handle of core_data
-// (D-87): a regular file of core with one link and exactly the manifest's size.
+// checkCorePackage is Check 6: core's file opened through the descriptor-checked handle of core_data:
+// a regular file of core with one link and exactly the manifest's size.
 func (o *Ops) checkCorePackage(id string, size int64) error {
 	t, err := o.openCore()
 	if err != nil {
@@ -508,7 +508,7 @@ func SelfUpdateSim(out []byte) (added []string, ok bool) {
 // qualifier, the same names install.sh's filter (^[a-z0-9][a-z0-9+.-]*$) keeps.
 func addedPkgName(n string) bool { return pkgNameRE.MatchString(n) && !strings.Contains(n, ":") }
 
-// recordAddedPackages is Run 3c (D-316 (9)): the packages the simulation says apt will newly install for the
+// recordAddedPackages is Run 3c: the packages the simulation says apt will newly install for the
 // new host (a Depends it added), merged into selfupdate/installed-by-us BEFORE anything is installed, like
 // install.sh's record_new_packages. install.sh --uninstall reads this file next to its own
 // /var/lib/vedette-install/installed-by-us and purges a name only when it is not marked manual and either apt's

@@ -15,7 +15,7 @@ const dropMockWorker: Plugin = {
   },
 }
 
-// D-544: TERMS.md at the repository root is the one source of the terms of use. `virtual:terms` gives the interface its text
+// TERMS.md at the repository root is the one source of the terms of use. `virtual:terms` gives the interface its text
 // and its version, computed as the Go root package does (vedette.TermsVersion): the Version date and the first 8 hex digits
 // of the file's SHA-256. A virtual module, so the dev server serves nothing outside web/.
 const TERMS_FILE = path.resolve(import.meta.dirname, '../TERMS.md')
@@ -36,7 +36,7 @@ export default defineConfig({
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
   build: {
     chunkSizeWarningLimit: 900,
-    // zod and src/lib/zodConfig.ts in one chunk (issue #201, N53-2): Zod 4 decides at each schema's creation whether to probe `new Function`, which the
+    // zod and src/lib/zodConfig.ts in one chunk (issue #201): Zod 4 decides at each schema's creation whether to probe `new Function`, which the
     // CSP blocks and the browser reports in the console. With zodConfig in the entry chunk, the shared chunk that holds zod and the first schemas ran
     // before z.config({ jitless: true }); in one chunk the config runs right after zod itself, before any module that builds a schema.
     rolldownOptions: { output: { codeSplitting: { groups: [{ name: 'zod', test: /[\\/]node_modules[\\/]zod[\\/]|[\\/]src[\\/]lib[\\/]zodConfig\.ts$/, priority: 100 }] } } },

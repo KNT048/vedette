@@ -311,7 +311,7 @@ func TestPdplFlow(t *testing.T) {
 	if st.Report == nil || st.Report.AISummary == nil || st.Report.AISummary.GeneratedAt != sum.GeneratedAt || st.Report.ID != rep.ID {
 		t.Fatalf("stored = %+v", st.Report)
 	}
-	// The organisation's name, tax code, address and contact person never go to the AI (D-238).
+	// The organisation's name, tax code, address and contact person never go to the AI.
 	prompt := e.ai.data[len(e.ai.data)-1][0].Text
 	for _, secret := range []string{"Acme", "0312345678", "Main Street", "An Nguyen", "an@acme.example", "0901234567"} {
 		if strings.Contains(prompt, secret) {

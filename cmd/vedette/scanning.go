@@ -23,7 +23,7 @@ import (
 // Settings › Scanning (#850, core INV-40): the ports core reads every engine through. Core imports no module; this file adapts each
 // module's own reads and switches. The memory figures are facts of the box's code, never estimates: the containers' --memory caps of
 // host/ops/quadlet.go (sensor 512m, honeypot 256m, scan 1g) and host/ops/zap.go (1g), osquery and Wazuh inside core (0), and the
-// measured peak of OpenVAS beside Vedette on the 7 GB N100 trial, about 4.0 GB (D-569, modules/exposure/greenbone.go).
+// measured peak of OpenVAS beside Vedette on a 7 GB test box, about 4.0 GB (modules/exposure/greenbone.go).
 
 const scanContainer = "scan" // nmap discovery, version scans, SNMP and nuclei share the scan container
 
@@ -37,7 +37,7 @@ func scanningHandlers(d deps) *core.ScanningHandlers {
 		Safety:    scanningSafety{inv: d.Inventory},
 		Engines:   e.list(),
 		Discovery: discoveryRunner{e},
-		History:   e.history, // kien G7a: scanninghistory.go
+		History:   e.history, // scanninghistory.go
 		TimeZone: func(ctx context.Context) string {
 			if d.Core == nil {
 				return ""
@@ -207,7 +207,7 @@ func (s scanInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) {
 }
 
 // mergeScanningSafety takes the scan module's own window, rate and exclusions into the inventory (#850, inventory INV-32) at every start
-// after the migrations: MergeLegacyChecks does it whenever that copy was saved after it was last taken in (review #857 M1). A failure
+// after the migrations: MergeLegacyChecks does it whenever that copy was saved after it was last taken in (#857). A failure
 // is logged and tried again at the next start; until then the scan module reads the union of both lists and the slower rate (scan
 // INV-16), so nothing is scanned that either list excludes.
 func mergeScanningSafety(ctx context.Context, d *deps) {
@@ -261,7 +261,7 @@ func (e scanningEngines) list() []core.ScanEngine {
 		if err != nil {
 			return err
 		}
-		// Every refusal of SetDiscovery is checked here, before sensor-active is turned on with it (review #857 L9): a refused switch
+		// Every refusal of SetDiscovery is checked here, before sensor-active is turned on with it (#857): a refused switch
 		// changes nothing.
 		switch {
 		case len(st.LANRanges) == 0:

@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/worker"
 )
 
-// D-591 (FULL-5 slice 2): a domain_ip job runs only after the worker's own domain fence said yes (its key, the domain's TXT record,
+// A domain_ip job runs only after the worker's own domain fence said yes (its key, the domain's TXT record,
 // the name's address now); every refusal is posted before the tool starts, and a deep nmap stops when a re-check fails. No test asks
 // real DNS: the resolver is a fake.
 
@@ -26,7 +26,7 @@ var (
 )
 
 // fakeZone is the DNS of acme.example: its TXT records (on acme.example itself), www's addresses and CNAME (acme.example itself is no
-// CNAME: D-628's ownership rule reads a record only at a name that is not one); failing makes every lookup a server failure.
+// CNAME: the ownership rule reads a record only at a name that is not one); failing makes every lookup a server failure.
 type fakeZone struct {
 	mu      sync.Mutex
 	txt     []string
@@ -127,7 +127,7 @@ func TestDomainNmapJobRefusals(t *testing.T) {
 			return j
 		}(), func(*fakeZone) {}, "invalid_job"},
 		"domain_ip without fields": {func() sensorlink.Job { j := domainNmapJob(nmapargv.ExternalFull, fenceKey); j.Domain = nil; return j }(), func(*fakeZone) {}, "invalid_job"},
-		// D-632 (review r1 L1 of #960): the record's parent name stays between the domain and its registered domain
+		// The record's parent name stays between the domain and its registered domain
 		"proof_at on a public suffix": {func() sensorlink.Job {
 			j := domainNmapJob(nmapargv.ExternalFull, fenceKey)
 			j.Domain.Domain, j.Domain.Name, j.Domain.ProofAt = "victim.github.io", "victim.github.io", "github.io"

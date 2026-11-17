@@ -11,11 +11,11 @@ export const useChannels = (opts: { retry?: boolean; enabled?: boolean } = {}) =
 
 function useInvalidating<V, R>(fn: (v: V) => Promise<R>) {
   const qc = useQueryClient()
-  // G6: the nav badge and Home count open incidents from GET /findings/summary: read it again too, or the badge keeps the old count
+  // The nav badge and Home count open incidents from GET /findings/summary: read it again too, or the badge keeps the old count
   return useMutation({ mutationFn: fn, onSuccess: () => { void qc.invalidateQueries({ queryKey: ['notify'] }); void qc.invalidateQueries({ queryKey: ['findings', 'summary'] }) } })
 }
 
-/** Acknowledge or resolve many incidents with one note (INV-25, D-551). */
+/** Acknowledge or resolve many incidents with one note (INV-25). */
 export const useBulkIncidents = () => useInvalidating((v: { ids: string[]; status: 'acknowledged' | 'resolved'; note?: string }) =>
   api.post<{ updated: number; already_resolved: number; already_acknowledged: number }>('/notify/incidents/status', v))
 export const useSetStatus = () => useInvalidating(({ id, status, note }: { id: string; status: IncidentStatus; note?: string }) => api.patch<IncidentDetail>(`/notify/incidents/${encodeURIComponent(id)}`, { status, note }))
@@ -23,13 +23,13 @@ export const useResend = () => useInvalidating((id: string) => api.post<HistoryI
 export const useSaveChannel = () => useInvalidating(({ type, ...v }: ChannelInput & { type: ChannelType }) => api.put<Channel>(`/notify/channels/${type}`, v))
 export const useRemoveChannel = () => useInvalidating((type: ChannelType) => api.del<void>(`/notify/channels/${type}`))
 export const useTestChannel = () => useInvalidating((type: ChannelType) => api.post<TestResult>(`/notify/channels/${type}/test`))
-// D-480: a user sign-in of the email channel; nothing is cached (each answer is the state of that sign-in)
+// A user sign-in of the email channel; nothing is cached (each answer is the state of that sign-in)
 export const useStartEmailSignin = () => useMutation({ mutationFn: (v: EmailSigninStart) => api.post<EmailSignin>('/notify/email-signin', v) })
 export const useCheckEmailSignin = () => useMutation({ mutationFn: ({ id, url }: { id: string; url?: string }) => api.post<EmailSignin>(`/notify/email-signin/${encodeURIComponent(id)}`, url === undefined ? {} : { url }) })
 export const useSaveRules = () => useInvalidating((v: { quiet: Quiet; grouping: Grouping }) => api.put<{ quiet: Quiet; grouping: Grouping }>('/notify/rules', v))
 
 
-// Zalo personal set-up (D-447). The QR sign-in is polled every 2 s while it waits for the phone; the approvers' link state every 3 s
+// Zalo personal set-up. The QR sign-in is polled every 2 s while it waits for the phone; the approvers' link state every 3 s
 // while a code is on its way or waits for a reply.
 const LIVE: ZaloLogin['state'][] = ['waiting', 'scanned']
 export const useZaloLogin = (enabled: boolean) => useQuery({ queryKey: ['notify', 'zalo', 'login'], queryFn: () => api.get<ZaloLogin>('/notify/zalo/login'), enabled,
@@ -42,10 +42,10 @@ export const cancelZaloLogin = () => api.del<void>('/notify/zalo/login')
 export const useZaloContacts = (enabled: boolean) => useQuery({ queryKey: ['zalo-contacts'] /* not under 'notify': a save must not ask Zalo again */, queryFn: () => api.get<ZaloContacts>('/notify/zalo/contacts'), enabled, retry: false, staleTime: Infinity })
 export const useResolveZalo = () => useMutation({ mutationFn: (query: string) => api.post<ZaloFound>('/notify/zalo/resolve', { query }) })
 const WAITING: LinkApprover['state'][] = ['sending', 'waiting']
-/** A channel whose approvers confirm a link sent to their chat account (Zalo personal D-447, Telegram D-414). */
+/** A channel whose approvers confirm a link sent to their chat account (Zalo personal, Telegram). */
 export type LinkKind = 'zalo' | 'telegram'
 export const useLinkApprovers = (kind: LinkKind, enabled: boolean) => useQuery({ queryKey: ['notify', kind, 'approvers'], queryFn: () => api.get<LinkApprovers>(`/notify/${kind}/approvers`), enabled,
   refetchInterval: (q) => (q.state.data?.items.some((a) => WAITING.includes(a.state)) ? 3000 : false) })
 export const useSendLink = (kind: LinkKind) => useInvalidating((userId: string) => api.post<LinkApprover>(`/notify/${kind}/approvers/${encodeURIComponent(userId)}/code`))
-// D-491: Find my chat. The token goes in the body (empty = the saved one, which never leaves the box); nothing is cached.
+// Find my chat. The token goes in the body (empty = the saved one, which never leaves the box); nothing is cached.
 export const useFindTelegramChats = () => useMutation({ mutationFn: (token: string) => api.post<{ items: TelegramChat[]; fresh: boolean }>('/notify/telegram/chats', { token }) })

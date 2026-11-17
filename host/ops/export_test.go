@@ -10,7 +10,7 @@ import (
 
 // Internals that the external tests (package ops_test) need.
 
-// Bundle readers (D-452): fuzzed and fed hand-built sparse entries from package ops_test (opstest builds them).
+// Bundle readers: fuzzed and fed hand-built sparse entries from package ops_test (opstest builds them).
 var (
 	WalkBundle       = walkBundle
 	ExtractLayout    = extractLayout
@@ -20,7 +20,7 @@ var (
 	ErrArchiveDigest = errArchiveDigest
 )
 
-// The names of Vedette's things in podman, for the test that ties install.sh --uninstall to them (D-508 review).
+// The names of Vedette's things in podman, for the test that ties install.sh --uninstall to them.
 const (
 	IntNetwork    = intNetwork
 	LocalPrefix   = localPrefix
@@ -88,9 +88,9 @@ var ErrUnitUnsafe = errUnitUnsafe
 // ErrWriteBusy is what a Locker answers while a command holds the write lock.
 var ErrWriteBusy = server.ErrWriteBusy
 
-// DockerFwdTick runs one look at the Docker forward rules (D-267).
+// DockerFwdTick runs one look at the Docker forward rules.
 func (o *Ops) DockerFwdTick(ctx context.Context) { o.dockerFwdTick(ctx) }
 
-// HangBound is how long a test waits for something that must happen before it calls the code hung (D-373): long enough
+// HangBound is how long a test waits for something that must happen before it calls the code hung: long enough
 // that a loaded machine never trips it, so a red run means a real hang.
 const HangBound = 30 * time.Second

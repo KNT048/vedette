@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// D-87: the root host never opens, parses or runs SQL on core's data. Core makes its own consistent
+// The root host never opens, parses or runs SQL on core's data. Core makes its own consistent
 // snapshot, the host copies bytes by file descriptor. This file is the only place the host touches
 // core's directory, and it does so through one os.Root handle (openat, no path walking), checking
 // every file on its descriptor (regular file, one link, owned by core, size cap) and doing every
@@ -403,7 +403,7 @@ func (t *coreTree) install(in io.Reader, name string) error {
 		return fmt.Errorf("ops: close %s: %w", name, err)
 	}
 	// Something that is not a regular file at the target (a directory core planted) is renamed away, never
-	// walked or removed (D-138 H2): rename over a directory would fail, and RemoveAll could be held forever.
+	// walked or removed: rename over a directory would fail, and RemoveAll could be held forever.
 	if err := t.quarantineIfNotRegular(name); err != nil {
 		return err
 	}
@@ -428,7 +428,7 @@ func (t *coreTree) removeSidecars() error {
 }
 
 // errUnrecoverable marks a failure that trying again cannot cure: an entry of core's tree that the host
-// cannot put right by itself. The caller stops retrying, leaves core as it is, and audits it (D-138 N1).
+// cannot put right by itself. The caller stops retrying, leaves core as it is, and audits it.
 var errUnrecoverable = errors.New("ops: core's data cannot be put back automatically")
 
 // errCoreDataInvalid is a name in core's tree that is not what the host may move or replace (a directory,
@@ -521,7 +521,7 @@ func (t *coreTree) sweepRestoreTemps() {
 	}
 }
 
-// asideSuffix names the files a rollback moves out of the way while it restores a backup (D-138).
+// asideSuffix names the files a rollback moves out of the way while it restores a backup.
 const asideSuffix = ".rollback"
 
 // asideCandidates are the files of core's tree that a rollback moves aside: the database and its

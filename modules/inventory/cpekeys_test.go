@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// D-501: software nmap identified by an OS CPE gets the KEV keys of the catalog entry that names that CPE, so it matches the
+// Software nmap identified by an OS CPE gets the KEV keys of the catalog entry that names that CPE, so it matches the
 // CISA list as the same product added by hand does: nmap's apple:iphone_os is CISA's Apple iOS, microsoft:windows_10 is Microsoft
 // Windows, fortinet:fortios keeps FortiOS and gains Multiple Products. A CPE the catalog does not name keeps its vendor|product key.
 func TestNmapCPEGetsTheCatalogKEVKeys(t *testing.T) {

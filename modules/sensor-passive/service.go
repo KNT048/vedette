@@ -23,7 +23,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-passive/capture"
 )
 
-// SensorID is the id of the one sensor of this box (D-24: no other site). It matches the mock.
+// SensorID is the id of the one sensor of this box (no other site). It matches the mock.
 const SensorID = "sn-local"
 
 const (
@@ -33,10 +33,10 @@ const (
 	seenAhead      = 5 * time.Minute  // and one further in the future
 	keptEpochs     = 2                // epochs remembered per sensor
 	defaultRecheck = 5 * time.Second  // how often an open config long poll looks again at what the admin chose
-	notReadyRetry  = 5 * time.Second  // Retry-After of 503 not_ready: the box's own cards are not known yet (D-385)
+	notReadyRetry  = 5 * time.Second  // Retry-After of 503 not_ready: the box's own cards are not known yet
 )
 
-// Errors of Service. ErrBadInterface carries the API code "bad_interface" (INV-9); ErrUseBoxNetwork "set_in_box_network" (D-387).
+// Errors of Service. ErrBadInterface carries the API code "bad_interface" (INV-9); ErrUseBoxNetwork "set_in_box_network".
 var (
 	ErrNotFound      = errors.New("sensorpassive: sensor not found")
 	ErrBadInterface  = errors.New("sensorpassive: bad interface")
@@ -65,7 +65,7 @@ type Config struct {
 	// do not count as new ones after a restart. nil means none.
 	KnownMACs func(ctx context.Context) ([]string, error)
 	// Starting says the box is still bringing the sensor container up (its start is being retried, or was confirmed moments ago):
-	// a sensor not online is then "starting", not "never_connected"/"offline" (customer walk 2, W2-6). nil: never (no host to
+	// a sensor not online is then "starting", not "never_connected"/"offline". nil: never (no host to
 	// start it: a container-only install, where the customer starts it, and dev).
 	Starting func() bool
 
@@ -73,7 +73,7 @@ type Config struct {
 	// announced to it, a SetInterface is.
 	ConfigRecheck time.Duration
 
-	// The rest is for Service.Run, which production no longer starts (D-141): only the test harness uses it. It is handed to capture.Config.
+	// The rest is for Service.Run, which production no longer starts: only the test harness uses it. It is handed to capture.Config.
 	// Open opens a Source for an interface name; default capture.OpenLive.
 	Open func(iface string) (capture.Source, error)
 	// FlushEvery, HeartbeatEvery and RetryEvery set the loop's pace; zero means 5 s, 30 s and 5 s. SummaryEvery is how often a
@@ -132,7 +132,7 @@ type heartbeat struct {
 	ifaces     []sensorlink.HeartbeatIface
 	drops      map[string]int64
 	version    string
-	captureErr string // one of sensorlink.CaptureErrors, "" while the capture runs or no card is chosen (D-399 (3))
+	captureErr string // one of sensorlink.CaptureErrors, "" while the capture runs or no card is chosen
 }
 
 // New returns the service.
@@ -198,14 +198,14 @@ type Sensor struct {
 	Interface   *string    `json:"interface"`
 	Interfaces  []string   `json:"interfaces"`
 	Span        bool       `json:"span"`
-	Chosen      bool       `json:"chosen"` // Interface is a stored choice, not the default card (D-380, D-393)
+	Chosen      bool       `json:"chosen"` // Interface is a stored choice, not the default card
 	SpanStatus  SpanStatus `json:"span_status"`
 	Status      string     `json:"status"` // online | offline | never_connected | starting
 	LastSeen    *string    `json:"last_seen"`
 	Version     *string    `json:"version"`
 	DevicesSeen int        `json:"devices_seen"`
 	// CaptureError is why the sensor, online, does not capture on its card (sensorlink.CaptureErrors); nil while it captures, has
-	// no card, or is not online (an old heartbeat says nothing about now). D-399 (3).
+	// no card, or is not online (an old heartbeat says nothing about now).
 	CaptureError *string `json:"capture_error"`
 }
 
@@ -254,7 +254,7 @@ func (s *Service) lastBeat() *heartbeat {
 }
 
 // freshBeat is the last heartbeat while it is younger than 90 seconds (the rule of online), else nil. Without a host the
-// cards it lists are the box's own (D-385); an older list may name cards or addresses the box no longer has.
+// cards it lists are the box's own; an older list may name cards or addresses the box no longer has.
 func (s *Service) freshBeat() *heartbeat {
 	hb := s.lastBeat()
 	if hb == nil || s.clock().Sub(hb.at) >= onlineWithin {
@@ -273,9 +273,9 @@ func (s *Service) online(r sensorRow) bool {
 }
 
 // Status lists the sensors of this box (GET /inventory/sensors): at most one. Everything about the sensor comes from its
-// heartbeat (D-112 (5)): online within 90 s of the last one, its version, devices heard, the cards it reported and the SPAN
+// heartbeat: online within 90 s of the last one, its version, devices heard, the cards it reported and the SPAN
 // measurement; what the admin chose (interface, SPAN) is core's own. Chosen says the card is a stored choice: false while it is the
-// default (D-380), so the GUI of a container-only install shows "Automatic" and never saves the default by accident (D-393).
+// default, so the GUI of a container-only install shows "Automatic" and never saves the default by accident.
 func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	if err := s.ensureSensor(ctx); err != nil {
 		return nil, err
@@ -287,7 +287,7 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	names := []string{}
 	if hb := s.lastBeat(); hb != nil {
 		for _, i := range hb.ifaces {
-			if !sensorlink.VirtualIfaceName(i.Name) { // loopback, container bridges, veth, VPN: not cards to listen on (D-393)
+			if !sensorlink.VirtualIfaceName(i.Name) { // loopback, container bridges, veth, VPN: not cards to listen on
 				names = append(names, i.Name)
 			}
 		}
@@ -311,9 +311,9 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 			e := hb.captureErr
 			out.CaptureError = &e
 		}
-	case s.starting != nil && s.starting(): // the host is still starting its container (W2-6): not a failure yet
+	case s.starting != nil && s.starting(): // the host is still starting its container: not a failure yet
 		out.Status = "starting"
-	case !r.lastSeen.Valid: // offline means it reported once; never heard from is not "lost contact" (D-387)
+	case !r.lastSeen.Valid: // offline means it reported once; never heard from is not "lost contact"
 		out.Status = "never_connected"
 	}
 	return []Sensor{out}, nil
@@ -331,7 +331,7 @@ func (s *Service) SpanStats(ctx context.Context) (SpanStats, error) {
 	return s.spanStats(ctx, r)
 }
 
-// spanStats: what the sensor measured and reported in its last heartbeat, never a guess (D-112 (5)). A sensor that has not
+// spanStats: what the sensor measured and reported in its last heartbeat, never a guess. A sensor that has not
 // reported for 90 seconds measured nothing: a SPAN sensor that is not listening has no traffic.
 func (s *Service) spanStats(ctx context.Context, r sensorRow) (SpanStats, error) {
 	if !r.span {
@@ -373,11 +373,11 @@ func (s *Service) spanStats(ctx context.Context, r sensorRow) (SpanStats, error)
 }
 
 // SetInterface chooses the card the sensor listens on and whether it is a SPAN port (PRE-2, POST-2, INV-9). iface must be a card
-// of the box as the host reports it (Host.HostCards: the authority, D-118; never a list a sensor sent, so a sensor cannot steer
-// the capture onto a card it invented); a SPAN card has no IP address. Only when no host answers (container-only install,
-// D-168) the authority is the latest heartbeat of the authenticated sensor, which runs on the host network: nothing else
+// of the box as the host reports it (Host.HostCards: the authority; never a list a sensor sent, so a sensor cannot steer
+// the capture onto a card it invented); a SPAN card has no IP address. Only when no host answers (container-only install)
+// the authority is the latest heartbeat of the authenticated sensor, which runs on the host network: nothing else
 // sees the real cards there, and the list is bounded and validated by sensorlink. That heartbeat must be younger than 90 s
-// (the rule of online, D-385): an offline sensor's old list is not the box's cards now. The choice is stored whether or not the module is on and
+// (the rule of online): an offline sensor's old list is not the box's cards now. The choice is stored whether or not the module is on and
 // whether or not the sensor has sent a heartbeat: the capture uses it once it runs. The change is audited in the same transaction
 // and the config long poll is woken, so the capture moves to the new card at once.
 func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, span bool) error {
@@ -388,7 +388,7 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 	if err != nil {
 		return fmt.Errorf("sensorpassive: list interfaces: %w", err)
 	}
-	if !fromHost && iface != "" { // no host (container-only, D-168): the sensor, on the host network, is the only one that sees the real cards
+	if !fromHost && iface != "" { // no host (container-only): the sensor, on the host network, is the only one that sees the real cards
 		hb := s.freshBeat()
 		if hb == nil {
 			return fmt.Errorf("%w: the sensor has not reported its network cards in the last 90 seconds; check that it runs, wait for its next heartbeat (30 s) and try again", ErrBadInterface)
@@ -396,7 +396,7 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 		if !sensorlink.ValidIfaceName(iface) {
 			return fmt.Errorf("%w: %q is not an interface name", ErrBadInterface, iface)
 		}
-		if sensorlink.VirtualIfaceName(iface) { // the heartbeat lists every link of the machine; Box network offers only cards (D-393)
+		if sensorlink.VirtualIfaceName(iface) { // the heartbeat lists every link of the machine; Box network offers only cards
 			return fmt.Errorf("%w: %q is not a network card (loopback, container, bridge or VPN link)", ErrBadInterface, iface)
 		}
 		cards = cardsOfHeartbeat(hb.ifaces)
@@ -432,10 +432,10 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 	return nil
 }
 
-// ChooseCard is SetInterface from the GUI of a container-only install (PATCH /inventory/sensors/{id}, D-387, D-393: any card of
+// ChooseCard is SetInterface from the GUI of a container-only install (PATCH /inventory/sensors/{id}: any card of
 // the fresh heartbeat, with or without an address, SPAN or not; "" goes back to the default card): only when core
-// runs without vedette-host, where the sensor's fresh heartbeat is the list of cards (D-263, D-385). With a host, or a configured
-// host that gives no list, it changes nothing and returns ErrUseBoxNetwork: there the host applies the SPAN card (D-56, D-118)
+// runs without vedette-host, where the sensor's fresh heartbeat is the list of cards. With a host, or a configured
+// host that gives no list, it changes nothing and returns ErrUseBoxNetwork: there the host applies the SPAN card
 // through Settings, Box network, which calls SetInterface itself.
 func (s *Service) ChooseCard(ctx context.Context, actor, id, iface string, span bool) error {
 	if id != SensorID {
@@ -448,7 +448,7 @@ func (s *Service) ChooseCard(ctx context.Context, actor, id, iface string, span 
 }
 
 // listenOn is the card the sensor listens on: the one chosen (the SPAN port of Settings, Box network, or any card set by
-// SetInterface), else the default (D-380). The default is never stored: it follows the management card when that changes,
+// SetInterface), else the default. The default is never stored: it follows the management card when that changes,
 // and a later choice wins over it.
 func (s *Service) listenOn(ctx context.Context, r sensorRow) string {
 	if r.iface.String != "" {
@@ -464,9 +464,9 @@ func (s *Service) listenOn(ctx context.Context, r sensorRow) string {
 	return name
 }
 
-// defaultOfHeartbeat is the default card without vedette-host (container-only, D-168, D-380): of the cards in the sensor's last
+// defaultOfHeartbeat is the default card without vedette-host (container-only): of the cards in the sensor's last
 // heartbeat that are up and have a global IPv4 address and are cards (never loopback, a container bridge such as docker0 or
-// the br-… of a compose network, veth or a VPN link: sensorlink.VirtualIfaceName, the rule of Box network, D-393), the one
+// the br-… of a compose network, veth or a VPN link: sensorlink.VirtualIfaceName, the rule of Box network), the one
 // wired card, else the one card. Wireless cards (wl*, ww*) are
 // taken only when nothing else is there. Two candidates is not a clear answer: "" and the sensor waits for the admin.
 func defaultOfHeartbeat(hb *heartbeat) string {

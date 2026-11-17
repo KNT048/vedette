@@ -19,7 +19,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     renderApp('/reports')
     expect(await screen.findByRole('heading', { level: 1, name: 'This week 3 findings are unresolved and 2 devices await approval.' })).toBeInTheDocument()
     const doc = await screen.findByRole('article', { name: 'Weekly security report' })
-    // A finding new this week and still open is listed once, under What is new; Remaining counts it (walk 3 G13).
+    // A finding new this week and still open is listed once, under What is new; Remaining counts it.
     const fresh = within(doc).getByRole('table', { name: 'What is new' })
     expect(within(fresh).getByText('NAS-PHOTOS')).toBeInTheDocument()
     expect(within(fresh).getByText('CVE-2022-27593')).toBeInTheDocument()
@@ -33,7 +33,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     await expectNoA11yViolations()
   })
 
-  it('W1-24: page one names the top 3 risks by product and counts as Home and Devices do; the full list is an appendix', async () => {
+  it('page one names the top 3 risks by product and counts as Home and Devices do; the full list is an appendix', async () => {
     sessionStore.set({ userId: 'u-admin' })
     const devices = await (await api('/inventory/devices')).json() as { counts: { all: number } } // first: the mock adds the box on this read
     const rep = (await (await api('/reports/weekly/preview')).json()).report
@@ -49,7 +49,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(within(doc).getByRole('region', { name: 'Appendix: every finding of the week' })).toBeInTheDocument()
   })
 
-  it('D-548: an open finding the agent detected reads "Detected by the agent" in the report, not "Suspected" (#800 deferred)', async () => {
+  it('an open finding the agent detected reads "Detected by the agent" in the report, not "Suspected" (#800 deferred)', async () => {
     const pick = findingsStore.get().find((f) => f.status === 'suspected' && !f.resolved_at)
     if (!pick) throw new Error('the sample data needs a suspected finding')
     findingsStore.update((l) => l.map((f) => (f.id === pick.id ? { ...f, evidence: { summary: 'The agent reports it.', checked_at: f.first_seen, agent: true } } : f)))
@@ -61,7 +61,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(within(doc).getAllByText('Detected by the agent')).toHaveLength(1)
   })
 
-  it('D-490: the box wrote what to do (fixed version) and what happened; the page shows those sentences and no "not included" note', async () => {
+  it('the box wrote what to do (fixed version) and what happened; the page shows those sentences and no "not included" note', async () => {
     const base = buildWeekly()
     const action = 'Upgrade FortiGate (FortiOS) on FortiGate-HQ from 7.4.1 to 7.4.3 or later — fixes 3 exploited vulnerabilities'
     const rep = {
@@ -106,7 +106,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(auditStore.get().some((a) => a.action === 'report.weekly.send')).toBe(true)
   })
 
-  it('kien G1: Send and Write AI commentary show the shared busy state and say what they wait for', async () => {
+  it('Send and Write AI commentary show the shared busy state and say what they wait for', async () => {
     let release!: () => void
     const gate = new Promise<void>((r) => { release = r })
     // both wait, then fall through to the mock's own handlers
@@ -128,7 +128,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect((await screen.findAllByText('Weekly report sent')).length).toBeGreaterThan(0)
   })
 
-  it('no recipients: no Send now (kien G5: nothing to send to), one line says what to add, and the server says how to fix it', async () => {
+  it('no recipients: no Send now (nothing to send to), one line says what to add, and the server says how to fix it', async () => {
     sessionStore.set({ userId: 'u-admin' })
     expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: false, day: 1, hour: 8, recipients: [] }) })).status).toBe(200)
     renderApp('/reports')
@@ -139,7 +139,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(((await res.json()) as { error: { message: string } }).error.message).toMatch(/Add an email/)
   })
 
-  it('operator (review r1 M3 of #879): no link to the administrator-only AI and email channel settings; the text says who sets them', async () => {
+  it('operator (#879): no link to the administrator-only AI and email channel settings; the text says who sets them', async () => {
     server.use(http.get('*/api/v1/reports/weekly/preview', () => HttpResponse.json({ report: buildWeekly(), ai_available: false })))
     const { unmount } = renderApp('/reports', { role: 'operator' })
     expect(await screen.findByText(/AI commentary needs an AI profile for this job\. An administrator sets it up in Settings, AI assistant\./)).toBeInTheDocument()
@@ -212,7 +212,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect((await api('/reports/schedule', { method: 'PUT', body: JSON.stringify({ enabled: true, day: 1, hour: 30, recipients: ['a@b.vn'] }) })).status).toBe(400)
   })
 
-  it('schedule (walk 3 G13): an address longer than the box allows is refused on Add with the reason; a refusal at Save names the address at the field', async () => {
+  it('schedule: an address longer than the box allows is refused on Add with the reason; a refusal at Save names the address at the field', async () => {
     renderApp('/reports')
     const input = await screen.findByLabelText('Recipients')
     await enabled(input)
@@ -371,14 +371,14 @@ describe('reports: data protection assessment under Vietnam\'s Law 91/2025/QH15 
     expect(within(doc).getByText('Person or unit in charge of personal data protection').parentElement).toHaveTextContent('Contact recorded')
     expect(within(doc).getAllByText('Assessment support, not legal advice')).toHaveLength(2)
     expect(await within(doc).findByRole('table', { name: '4. Unresolved exploited vulnerabilities' })).toBeInTheDocument()
-    // nội dung pháp lý đã đối chiếu văn bản gốc (D-23)
+    // nội dung pháp lý đã đối chiếu văn bản gốc
     const text = doc.textContent ?? ''
     for (const must of ['91/2025/QH15', 'Decree 356/2025/ND-CP', '72 hours', '60 days', 'Article 23', 'Articles 21, 22', 'Article 20', 'Form 09']) expect(text).toContain(must)
     expect(text).not.toMatch(DIACRITICS)
     await expectNoA11yViolations()
   })
 
-  it('a device type of D-511 is printed by its label and counted by the kind it acts as (a virtual machine is a key system)', async () => {
+  it('a device type is printed by its label and counted by the kind it acts as (a virtual machine is a key system)', async () => {
     assetsStore.update((l) => l.map((a) => (a.id === 'a-srvad' ? { ...a, kind: 'virtual_machine' } : a)))
     renderApp('/reports?tab=pdpl')
     await fillOrg()

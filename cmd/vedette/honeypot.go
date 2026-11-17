@@ -37,8 +37,8 @@ func newHoneypot(d *deps) (*honeypot.Service, error) {
 		}
 		return d.Honeypot.DecoyIPs(ctx)
 	}, box: d.BoxName}, Host: newHoneypotHost(d),
-		Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d), BoxURL: d.BaseURL} // D-465: URL tokens carry the Box address
-	if d.HoneypotDir != "" { // two folders (D-89, WP-14 review): core writes config/ (the container mounts it read-only), the container writes log/
+		Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d), BoxURL: d.BaseURL} // URL tokens carry the Box address
+	if d.HoneypotDir != "" { // two folders (WP-14 review): core writes config/ (the container mounts it read-only), the container writes log/
 		cfg.ConfigDir, cfg.LogDir = filepath.Join(d.HoneypotDir, HoneypotConfigDir), filepath.Join(d.HoneypotDir, HoneypotLogDir)
 	}
 	if d.Reg != nil {
@@ -75,7 +75,7 @@ func honeypotJobs(d deps) []jobs.Job {
 	}
 }
 
-// honeypotEnsureOff is the EnsureOff func of the honeypot entry in wiredModules (D-189).
+// honeypotEnsureOff is the EnsureOff func of the honeypot entry in wiredModules.
 func honeypotEnsureOff(d deps) modreg.Teardown {
 	if d.Honeypot == nil {
 		return nil
@@ -83,8 +83,8 @@ func honeypotEnsureOff(d deps) modreg.Teardown {
 	return d.Honeypot.EnsureOff
 }
 
-// notAnAppliance is the Host of a core without -host-socket (dev, a bare box, D-55): nothing can listen, and the module
-// says why. With a socket, honeypotHost (honeypothost.go, D-161) talks to vedette-host.
+// notAnAppliance is the Host of a core without -host-socket (dev, a bare box): nothing can listen, and the module
+// says why. With a socket, honeypotHost (honeypothost.go) talks to vedette-host.
 type notAnAppliance struct{}
 
 const notApplianceReason = "this machine is not an appliance: there is no vedette-host to run the honeypot container"
@@ -113,7 +113,7 @@ type honeypotInventory struct {
 }
 
 func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, error) {
-	l, err := a.inv.AllDevices(ctx) // uncapped (D-178): a decoy must never be offered the address of a device the capped list forgot
+	l, err := a.inv.AllDevices(ctx) // uncapped: a decoy must never be offered the address of a device the capped list forgot
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, erro
 		if d.Hostname != nil {
 			x.Hostname, x.Name = *d.Hostname, *d.Hostname
 		}
-		if n := d.NameOrHost(); n != nil { // the name in Vedette wins on the pages (G2); Hostname stays the observed one
+		if n := d.NameOrHost(); n != nil { // the name in Vedette wins on the pages; Hostname stays the observed one
 			x.Name = *n
 		}
 		if d.OS != nil {

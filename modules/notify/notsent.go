@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// withNotSent fills NotSent of the incidents that no channel received (INV-24, D-551). It reads, in this order: a message still
+// withNotSent fills NotSent of the incidents that no channel received (INV-24). It reads, in this order: a message still
 // waiting in the queue (queued, or held for quiet hours with the time it goes out), a channel whose last attempt failed, the decision kept when the
 // incident was opened (enqueue, or the queue dropping a held message), and for an incident opened before that decision was kept,
 // the channels as they are now. Three small queries for the whole page, only for the incidents without a delivered message.
@@ -85,7 +85,7 @@ func (s *Service) withNotSent(ctx context.Context, q dbtx, list []Incident) erro
 		i := &list[k]
 		w, kd := queue[id], decided[id]
 		switch {
-		case i.FirstRunSummary: // held by the first-run window (D-550, INV-23): never queued on its own, so unsent stays NULL
+		case i.FirstRunSummary: // held by the first-run window (INV-23): never queued on its own, so unsent stays NULL
 			detail := ""
 			if kd.summary.Valid {
 				detail = "pending"
@@ -134,7 +134,7 @@ func lastPerChannel(sends []SendView) []SendView {
 	return out
 }
 
-// reached is true when any attempt delivered the incident: the customer got the alert, whatever a later Resend did (Opus r2). The last
+// reached is true when any attempt delivered the incident: the customer got the alert, whatever a later Resend did. The last
 // attempt of a channel only chooses between failed and dropped (failedLast).
 func reached(sends []SendView) bool {
 	for _, sd := range sends {

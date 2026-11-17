@@ -137,7 +137,7 @@ func TestApplyWritesTheFilesOnlyWhenTheyChange(t *testing.T) {
 }
 
 // The container is asked to restart only when a configuration file was written since the last start the host
-// acknowledged (D-161): the first start, and a start after a change; not the repeat of an unchanged Apply, and a start
+// acknowledged: the first start, and a start after a change; not the repeat of an unchanged Apply, and a start
 // that failed keeps the restart due.
 func TestApplyAsksForARestartOnlyAfterTheConfigurationChanged(t *testing.T) {
 	t.Parallel()

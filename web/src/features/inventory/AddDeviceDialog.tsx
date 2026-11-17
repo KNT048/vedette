@@ -29,7 +29,7 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
   const [error, setError] = useState<string | null>(null)
   const [dup, setDup] = useState<{ id: string; name: string; ignored?: boolean } | null>(null)
   const devices = useDevices()
-  const ignoredDevices = useIgnoredDevices(false) // D-630: read only when an address is taken by a device the list leaves out
+  const ignoredDevices = useIgnoredDevices(false) // Read only when an address is taken by a device the list leaves out
   const addDevice = useAddDevice()
   const addSoftware = useDeviceAction(deviceId ?? '').addSoftware
   const pending = addDevice.isPending || addSoftware.isPending

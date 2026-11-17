@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// Slice 3b (D-241, spec approval-tokens.md 5 "chat.update để bỏ nút"): once a request is finally decided or has ended, the Slack
+// Slice 3b (spec approval-tokens.md 5 "chat.update để bỏ nút"): once a request is finally decided or has ended, the Slack
 // message that carried its Approve/Reject buttons is rewritten without them (chat.update with the bot token), keeping its text and
 // adding one line that says how it ended. The deliver job does the network; the event handler only writes the database.
 
@@ -123,7 +123,7 @@ func TestSlackEndLineFollowsTheDecision(t *testing.T) {
 	}
 }
 
-// Events are best effort (D-144): a request whose decision event was lost still loses its buttons once it has ended.
+// Events are best effort: a request whose decision event was lost still loses its buttons once it has ended.
 func TestSlackButtonsRemovedWhenTheRequestEnds(t *testing.T) {
 	se := newSLEnv(t)
 	se.request()

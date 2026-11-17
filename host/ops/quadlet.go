@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// The Quadlet units of the services (docs/DEPLOYMENT.md sections 2 and 6.1, D-105, D-114, D-123).
+// The Quadlet units of the services (docs/DEPLOYMENT.md sections 2 and 6.1).
 // Each service has one constant Go template. A unit is built whole from it and never edited, and
 // there are no drop-ins (Podman 4.9 on noble documents none). The only things that go into a template
 // are the image digest, the host.conf uids and gids, and (appended after it, not part of it) the
@@ -23,18 +23,18 @@ import (
 // template runs, so no value can add a line to the unit: there is no free text anywhere.
 
 const (
-	// unitsRel is the Quadlet directory of system (rootful) units, relative to Deps.Root (D-105 (4)).
+	// unitsRel is the Quadlet directory of system (rootful) units, relative to Deps.Root.
 	unitsRel = "etc/containers/systemd"
 	// maxUnitSize bounds what is read back (the largest template is under 2 KiB).
 	maxUnitSize = 16 << 10
-	// hpHostDir is where the honeypot's config/ lives on the box (core writes it, the container reads it), D-89.
+	// hpHostDir is where the honeypot's config/ lives on the box (core writes it, the container reads it).
 	// Core mounts it read-write and the honeypot container read-only, each at its -honeypot-dir default, at the
-	// same absolute path in both, because opencanary.conf holds the log path (D-123 (1)). The honeypot's log/ is
-	// not a folder of this directory any more: it is the size-capped tmpfs volume below (D-318).
+	// same absolute path in both, because opencanary.conf holds the log path. The honeypot's log/ is
+	// not a folder of this directory any more: it is the size-capped tmpfs volume below.
 	hpHostDir = "/var/lib/vedette-honeypot"
-	// hpLogVolume is the volume of the honeypot's log/ (the container writes it, core reads it), D-89. It is a
+	// hpLogVolume is the volume of the honeypot's log/ (the container writes it, core reads it). It is a
 	// tmpfs of at most hpLogSize bytes and hpLogInodes files, so whoever takes the honeypot over cannot fill the
-	// disk of vedette.db with files in log/ (D-318). hpLogVolume + ".volume" is the Quadlet file.
+	// disk of vedette.db with files in log/. hpLogVolume + ".volume" is the Quadlet file.
 	hpLogVolume = "vedette-hp-log"
 	hpLogSize   = "64m"
 	hpLogInodes = 1024
@@ -48,7 +48,7 @@ const (
 // with the binary. Exported for the package and contract tests.
 const HoneypotConfModule = "/usr/lib/vedette/honeypot-containers.conf"
 
-// AppArmorConfModule is the containers.conf module every unit loads (D-458): apparmor_profile = "vedette-container", the profile
+// AppArmorConfModule is the containers.conf module every unit loads: apparmor_profile = "vedette-container", the profile
 // the vedette-host .deb installs as /etc/apparmor.d/vedette-container and loads (deploy/deb/vedette-container.apparmor). It is
 // Podman's default profile plus signal and ptrace rules that also match the label crun gives a container under NoNewPrivileges
 // ("crun//&vedette-container"): with Podman's own profile no process of a container could signal another (podman-init's SIGTERM
@@ -76,7 +76,7 @@ type unitFill struct {
 	CoreGID   int
 	SensorUID int
 	SensorGID int
-	// DataDir is host.conf's core_data, bound at /var/lib/vedette in core's unit (D-142 H1): the database and
+	// DataDir is host.conf's core_data, bound at /var/lib/vedette in core's unit: the database and
 	// the key core reads (its default -key) are then the files backup.* backs up and backup.restore puts back.
 	DataDir string
 }
@@ -89,7 +89,7 @@ func validCoreData(p string) bool {
 	return len(p) <= 200 && coreDataRE.MatchString(p)
 }
 
-// ID is the 64 hex digits of the digest: the image ID of a scan image, which the unit names instead of repository@digest (D-147).
+// ID is the 64 hex digits of the digest: the image ID of a scan image, which the unit names instead of repository@digest.
 func (f unitFill) ID() string { return strings.TrimPrefix(f.Digest, "sha256:") }
 
 type serviceUnit struct {
@@ -98,7 +98,7 @@ type serviceUnit struct {
 	needsCore   bool // uses core_uid and core_gid
 	needsSensor bool // uses sensor_uid and sensor_gid
 	// byID: the image is built on the box and has no registry digest, so Image= is the bare 64-hex image ID and the "digest" the host
-	// keeps for the service is "sha256:" + that ID (D-147). Podman looks an image up by its full ID like by a name.
+	// keeps for the service is "sha256:" + that ID. Podman looks an image up by its full ID like by a name.
 	byID bool
 }
 
@@ -113,7 +113,7 @@ func mustTemplate(name, text string) *template.Template {
 }
 
 // services holds the templates. greenbone has none: it is a group of upstream containers with no
-// unit text anywhere in the spec (DEPLOYMENT.md 2.4), so the host refuses to make one (D-123 (2)).
+// unit text anywhere in the spec (DEPLOYMENT.md 2.4), so the host refuses to make one.
 var services = map[string]serviceUnit{
 	api.ServiceCore:     {repo: repoCore, tmpl: mustTemplate("core", coreUnitText), needsCore: true, needsSensor: true},
 	api.ServiceSensor:   {repo: repoSensor, tmpl: mustTemplate("sensor", sensorUnitText), needsSensor: true},
@@ -257,7 +257,7 @@ Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.
 Restart=always
 `
 
-// The two credential volumes (D-110 (4), D-114 (4), D-147): one per sensor role, each a Quadlet .volume unit that the host writes from
+// The two credential volumes: one per sensor role, each a Quadlet .volume unit that the host writes from
 // the constant text below, with the same safe writer as the service units. core mounts both read-write; sensor mounts only passive and
 // scan only active, read-only (the unit texts above), so a container sees the bundle of its own role and no other. Quadlet creates the
 // volume on first use with User= as owner and Group= as group (Podman's .volume keys): core_uid, which writes the bundles, and
@@ -304,8 +304,8 @@ func RenderVolume(role string, coreUID, sensorGID int) ([]byte, error) {
 	return renderVolume(role, coreUID, sensorGID)
 }
 
-// hpLogVolumeText is the .volume unit of the honeypot's log/ (D-318): constant text, no host.conf id (:U in the honeypot's unit gives
-// the volume to the container's user at start; core reads it through the "other" bits that init.py sets, D-162). Podman's local
+// hpLogVolumeText is the .volume unit of the honeypot's log/: constant text, no host.conf id (:U in the honeypot's unit gives
+// the volume to the container's user at start; core reads it through the "other" bits that init.py sets). Podman's local
 // driver mounts it as a tmpfs with these options when the first container that uses it starts. Podman's bind of the volume into a
 // container has its own flags and does not carry noexec over (honeypot-check showed it), so both units also say noexec on the
 // Volume= line: nothing in log/ is ever run.
@@ -436,8 +436,8 @@ func containerName(service string) string { return "vedette-" + service }
 func unitFileName(service string) string { return "vedette-" + service + ".container" }
 
 // ourUnit is parseUnit plus identity: the bytes must be exactly what this host would write for that
-// digest and [Install] state with the host.conf ids it has now (D-123 L2), or what an earlier release of
-// the host wrote for them (a template of quadlet_legacy.go, D-316 (10)). A unit that differs in any byte
+// digest and [Install] state with the host.conf ids it has now, or what an earlier release of
+// the host wrote for them (a template of quadlet_legacy.go). A unit that differs in any byte
 // from all of those (other ids, a hand edit, a template older than the legacy lists) is not ours and is
 // never read, restarted or rewritten by a container command; -bootstrap -force-units rewrites it.
 func (o *Ops) ourUnit(service string, text []byte) (digest string, install bool, err error) {

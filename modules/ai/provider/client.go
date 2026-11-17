@@ -40,7 +40,7 @@ type Config struct {
 	// (RFC 1918, unique-local, CGNAT), checked on the resolved address at dial time, and
 	// the environment proxy is not used. This is what makes "internal" more than a label (INV-3).
 	InternalOnly bool
-	// Own is where the addresses of Vedette itself come from, asked at every connection: no profile reaches Vedette itself (D-446,
+	// Own is where the addresses of Vedette itself come from, asked at every connection: no profile reaches Vedette itself (see
 	// OwnSources.Own). The zero value knows no machine address, so Vedette's own ports are refused on every address.
 	Own OwnSources
 	// AnthropicVersion overrides the anthropic-version header. Empty = DefaultAnthropicVersion.
@@ -303,10 +303,10 @@ var (
 	errOwnDestination       = errors.New("destination is Vedette itself")
 )
 
-// OwnText is the sentence for Vedette itself (D-446): the same in feeds, notify, logs and ai.
+// OwnText is the sentence for Vedette itself: the same in feeds, notify, logs and ai.
 const OwnText = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
 
-// vedettePorts are the ports Vedette itself answers on at the machine's addresses (D-446): the interface 8443, the sensor link 8444,
+// vedettePorts are the ports Vedette itself answers on at the machine's addresses: the interface 8443, the sensor link 8444,
 // MCP 8765, syslog 514 and syslog over TLS 6514 (install.sh preflight, the core unit's PublishPort lines, the container-only compose).
 // Same list in feeds, notify and logs.
 var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
@@ -314,7 +314,7 @@ var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
 // ownMayDialLoopback lets the tests of this package dial httptest servers on loopback. It is unexported and set only from test code.
 var ownMayDialLoopback = false
 
-// OwnSources are where the addresses of Vedette itself come from (D-446), asked at every check.
+// OwnSources are where the addresses of Vedette itself come from, asked at every check.
 type OwnSources struct {
 	// Machine is the machine's addresses (vedette-host, the container's gateway): refused on Vedette's own ports. nil, or
 	// known=false, refuses those ports on every address.
@@ -323,8 +323,8 @@ type OwnSources struct {
 	Self func() []netip.Addr
 }
 
-// Own reports whether ip at port is Vedette itself (D-446): loopback (in the shipped container, core: a local Ollama is reached at
-// the machine's address, D-226), an address of core's own container or of o.Self on every port, or one of o.Machine on a port of
+// Own reports whether ip at port is Vedette itself: loopback (in the shipped container, core: a local Ollama is reached at
+// the machine's address), an address of core's own container or of o.Self on every port, or one of o.Machine on a port of
 // vedettePorts; while the machine's addresses are not known, those ports on every address (no AI server listens on them).
 // IPv4-mapped IPv6 is treated as the IPv4 address; the other forms that carry an IPv4 address are Forbidden already.
 func (o OwnSources) Own(ip netip.Addr, port uint16) bool {
@@ -511,7 +511,7 @@ func newTransport(internal bool, base *url.URL, own OwnSources) *http.Transport 
 
 // embeddedV4 are the IPv6 forms that carry an IPv4 address: NAT64 (64:ff9b::/96 and the local-use 64:ff9b:1::/48), 6to4, the
 // deprecated IPv4-compatible form, and Teredo. Writing 127.0.0.1 or 169.254.169.254 inside one of them must not get past the
-// address policy, so no profile may use them (D-94 says the same for connections). IPv4-mapped addresses are unwrapped to the
+// address policy, so no profile may use them (the connections' address policy says the same). IPv4-mapped addresses are unwrapped to the
 // IPv4 address before any check, so they are judged as that address.
 var embeddedV4 = []netip.Prefix{
 	netip.MustParsePrefix("64:ff9b::/96"), netip.MustParsePrefix("64:ff9b:1::/48"), netip.MustParsePrefix("2002::/16"),

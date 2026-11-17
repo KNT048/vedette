@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/notify"
 )
 
-// D-215: notify_send, resolved notify_incident and notify_notice are kept 1 year; open incidents and queued notices are never deleted.
+// notify_send, resolved notify_incident and notify_notice are kept 1 year; open incidents and queued notices are never deleted.
 func TestRetentionDeletesOnlyHistoryOlderThanAYear(t *testing.T) {
 	g := &gate{on: false} // the job is Housekeeping: it must work with the module off
 	e := newEnv(t, func(c *notify.Config) { c.Modules = g })

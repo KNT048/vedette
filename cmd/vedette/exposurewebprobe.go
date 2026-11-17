@@ -8,11 +8,11 @@ import (
 	"github.com/knt048/vedette/modules/scan"
 )
 
-// exposureProbeLog (exposureprobes.go, D-520, cfg.Probes) is exposure's WebProbeLog too (INV-24, LEGAL §3): one row per page before
+// exposureProbeLog (exposureprobes.go, cfg.Probes) is exposure's WebProbeLog too (INV-24, LEGAL §3): one row per page before
 // ZAP starts on it.
 var _ exposure.WebProbeLog = exposureProbeLog{}
 
-// exposureProbeLog is exposure's GreenboneProbeLog too (INV-25, LEGAL §3, D-529): one row per OpenVAS scan before its task starts.
+// exposureProbeLog is exposure's GreenboneProbeLog too (INV-25, LEGAL §3): one row per OpenVAS scan before its task starts.
 var _ exposure.GreenboneProbeLog = exposureProbeLog{}
 
 // RecordGreenboneProbe writes the row of one OpenVAS (Greenbone) scan before gvmd's task starts: the address, the port list, the scan
@@ -26,7 +26,7 @@ func (l exposureProbeLog) RecordGreenboneProbe(ctx context.Context, p exposure.G
 
 // greenboneProbeRequest is the probe row's text: the domain fence note first, then the port list (exposure clips it, with the count),
 // then the note on OpenVAS's many probes. The scan module clips the text at 300 characters, so the fence note (LEGAL §3: why a
-// non-box address was probed) is never the part that is cut (D-595 review M4).
+// non-box address was probed) is never the part that is cut.
 func greenboneProbeRequest(p exposure.GreenboneProbe) string {
 	return fmt.Sprintf("planned: OpenVAS scan of %s. %sPort list %s. %s", p.IP, p.Fence, p.PortList, p.Note)
 }

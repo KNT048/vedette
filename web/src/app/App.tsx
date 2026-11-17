@@ -7,7 +7,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { ApiError } from '@/lib/api'
 import { BoxRestarting, resetBoxRestart, useBoxRestarting } from '@/features/core/BoxRestarting'
 
-/** One retry for a network failure or a 5xx; an answer of the box below 500 (409 not_appliance, 404, 403) is final, asking again gets the same (D-381). */
+/** One retry for a network failure or a 5xx; an answer of the box below 500 (409 not_appliance, 404, 403) is final, asking again gets the same. */
 export const retryOnce = (count: number, err: unknown) => count < 1 && !(err instanceof ApiError && err.status < 500)
 
 export function makeQueryClient() {

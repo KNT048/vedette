@@ -254,7 +254,7 @@ func uuid(i int) string {
 	return fmt.Sprintf("aaaaaaaa-aaaa-4aaa-8aaa-%012d", i)
 }
 
-// hangBound is how long a test waits for something that must happen before it calls the code hung (D-373): long enough
+// hangBound is how long a test waits for something that must happen before it calls the code hung: long enough
 // that a loaded machine never trips it, so a red run means a real hang.
 const hangBound = 30 * time.Second
 

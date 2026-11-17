@@ -11,8 +11,8 @@ import (
 )
 
 // The sensor binary links this package, so its non-test files may import the standard library only: no
-// core/store, no database, no other Vedette package (D-113) but core/localnet, core/egressip and modules/scan/commonports, which
-// are standard library only themselves (their own tests, D-461, D-514). A standard-library path has no dot in its first element.
+// core/store, no database, no other Vedette package but core/localnet, core/egressip and modules/scan/commonports, which
+// are standard library only themselves (their own tests). A standard-library path has no dot in its first element.
 var allowedImports = []string{"github.com/knt048/vedette/core/localnet", "github.com/knt048/vedette/core/egressip", "github.com/knt048/vedette/modules/scan/commonports"}
 
 func TestIsALeaf(t *testing.T) {

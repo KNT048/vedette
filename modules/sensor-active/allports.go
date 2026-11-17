@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// The weekly scan of every TCP port of each LAN device (D-592, kf-scan item 1, review r1). The normal scan reads nmap's top 1000 and
+// The weekly scan of every TCP port of each LAN device (kf-scan item 1). The normal scan reads nmap's top 1000 and
 // nmapargv.ExtraPorts (the surface list and the reviewed admin ports); a service on any other port is found by this run: once a week
 // per device, inside the window, after the queue and the SNMP round, one device at a time, only while the window has room for a
 // whole run (nmapargv.AllPortsHostTimeout), at min(the settings' rate, the policy's rate, nmapargv.AllPortsMaxRate) and never below
@@ -351,7 +351,7 @@ type portSoftware struct {
 // allPortsRow is what sa_all_ports holds for a device besides its schedule.
 type allPortsRow struct {
 	NormalPorts []int
-	NormalSW    []observe.Software // nil: no normal scan recorded since D-592
+	NormalSW    []observe.Software // nil: no normal scan recorded since the upgrade
 	Extra       []observe.Service
 	ExtraSW     []portSoftware
 	ExtraAt     string
@@ -432,7 +432,7 @@ ON CONFLICT (asset_id) DO UPDATE SET normal_ports = excluded.normal_ports, norma
 }
 
 // keepAllPorts stores what a done weekly run found and returns the device's nmap software list to write, or nil when none should be
-// written (no normal scan recorded since D-592: the device is queued for one instead, which writes both). Open ports outside
+// written (no normal scan recorded since the upgrade: the device is queued for one instead, which writes both). Open ports outside
 // nmapargv.ExtraPorts are carried with the run's time (a port the follow-up did not read keeps what an earlier run read on it);
 // the software of the ports the follow-up read replaces what was kept for them (a version that changed, review r2 M2), the rest is
 // kept while the port is open; ports no longer open drop out; the versioned times move for the ports read.

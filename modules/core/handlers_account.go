@@ -71,7 +71,7 @@ func (h *APIHandlers) CorePostCoreAccountPassword(ctx context.Context, req *oas.
 	}
 	// A password change kills every device cookie of the account (cred_version). The owner has just proved the
 	// current password in this browser, which is what a sign-in proves, so this browser gets a device cookie for
-	// the new password as a sign-in would give it (D-77). The old cookie cannot be checked here: its path is
+	// the new password as a sign-in would give it. The old cookie cannot be checked here: its path is
 	// /api/v1/auth/, so the browser does not send it to this endpoint.
 	fresh, err := h.auth.ChangeOwnPassword(ctx, c.ID, c.SessionID, req.Current, req.Next)
 	if err != nil {
@@ -83,7 +83,7 @@ func (h *APIHandlers) CorePostCoreAccountPassword(ctx context.Context, req *oas.
 	return &oas.CorePostCoreAccountPasswordOK{Ok: true}, nil
 }
 
-// CorePostCoreAccount2FAStart implements POST /core/account/2fa/start (viewer): needs the current password (D-76).
+// CorePostCoreAccount2FAStart implements POST /core/account/2fa/start (viewer): needs the current password.
 func (h *APIHandlers) CorePostCoreAccount2FAStart(ctx context.Context, req *oas.CorePostCoreAccount2FAStartReq) (*oas.CorePostCoreAccount2FAStartOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {
@@ -112,7 +112,7 @@ func (h *APIHandlers) CorePostCoreAccount2FAConfirm(ctx context.Context, req *oa
 	return &oas.CorePostCoreAccount2FAConfirmOK{Ok: true}, nil
 }
 
-// CorePostCoreAccount2FAEmailStart implements POST /core/account/2fa/email/start (viewer): needs the current password (D-76).
+// CorePostCoreAccount2FAEmailStart implements POST /core/account/2fa/email/start (viewer): needs the current password.
 func (h *APIHandlers) CorePostCoreAccount2FAEmailStart(ctx context.Context, req *oas.CorePostCoreAccount2FAEmailStartReq) (*oas.CorePostCoreAccount2FAEmailStartOK, error) {
 	c, err := h.caller(ctx)
 	if err != nil {

@@ -1,4 +1,4 @@
-// Gói chẩn đoán báo lỗi (D-42, S-CORE-5). Hộp không gửi gì: người dùng tải tệp và tự mở GitHub issue trong trình duyệt của mình.
+// Gói chẩn đoán báo lỗi (S-CORE-5). Hộp không gửi gì: người dùng tải tệp và tự mở GitHub issue trong trình duyệt của mình.
 import { getClientErrors, redact, type ClientError } from '@/lib/clientErrors'
 import type { ModuleState } from '@/lib/modules'
 

@@ -13,12 +13,12 @@ import { auditExportPath, useAudit } from './api'
 import { errMsg } from './parts'
 import type { AuditQuery, AuditRow } from './types'
 
-/** The Who option "Not the system": sends actor=people (D-416). No user value can be it: user values never hold a NUL. */
+/** The Who option "Not the system": sends actor=people. No user value can be it: user values never hold a NUL. */
 const PEOPLE = '\u0000people'
-/** Device (a-…) and finding (f-…) ids in a target or detail (D-416). */
+/** Device (a-…) and finding (f-…) ids in a target or detail. */
 const ID_RE = /\b[af]-[a-z0-9]{1,64}\b/g // the same as auditIDRE in modules/core/handlers_audit.go
 
-/** A target or detail with the ids the box could name replaced by their names; the text as stored stays below it, smaller (D-416). */
+/** A target or detail with the ids the box could name replaced by their names; the text as stored stays below it, smaller. */
 function Named({ text, names }: { text: string; names: Record<string, string> }) {
   const shown = text.replace(ID_RE, (id) => names[id] ?? id)
   if (shown === text) return <>{text}</>

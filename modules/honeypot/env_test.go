@@ -256,7 +256,7 @@ func (e *env) confPath() string { return filepath.Join(e.dir, "config", honeypot
 
 func (e *env) logPath() string { return filepath.Join(e.dir, "log", "opencanary.jsonl") }
 
-// setup puts the usual state in: one Trap IP FILESRV-OLD on 192.168.10.240 with SSH and SMB (before D-466: the secondary IP
+// setup puts the usual state in: one Trap IP FILESRV-OLD on 192.168.10.240 with SSH and SMB (in older releases: the secondary IP
 // with hostname FILESRV-OLD and the SSH and SMB traps on).
 func (e *env) setup() {
 	e.t.Helper()
@@ -281,7 +281,7 @@ func (e *env) tryAddTrapIP(name, ip string, preset honeypot.Preset, svcs ...hone
 	return d, err
 }
 
-// setServices changes the services of a Trap IP (what switching a trap on or off was before D-466).
+// setServices changes the services of a Trap IP (what switching a trap on or off was in older releases).
 func (e *env) setServices(id string, svcs ...honeypot.ServiceName) error {
 	e.t.Helper()
 	r, err := e.svc.TrapIPs(e.ctx())

@@ -5,9 +5,9 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { assetsStore } from '@/mocks/stores'
 
-// D-604 (BN340, kien G16): a CVE only the platform or the package release settles asks its question on Needs your input, with every
-// answer the box offers; each answer is an inventory correction (INV-41) and the item leaves once the box can decide. kien G15
-// follow-up: a row a sensor reported takes a typed version too (a correction of that row).
+// A CVE only the platform or the package release settles asks its question on Needs your input, with every
+// answer the box offers; each answer is an inventory correction (INV-41) and the item leaves once the box can decide.
+// A row a sensor reported takes a typed version too (a correction of that row).
 const T = { timeout: 5000 }
 const patches: { url: string; body: unknown }[] = []
 server.events.on('request:start', ({ request }) => {
@@ -24,7 +24,7 @@ const bn340 = () => assetsStore.get().find((a) => a.id === 'a-bn340')!
 /** BN340 with Alpine set by a person: the package release is the question. */
 const alpine = () => assetsStore.update((l) => l.map((a) => (a.id === 'a-bn340' ? { ...a, os: { value: 'Alpine Linux 3.23', source: 'manual', confidence: 1, seen_at: new Date().toISOString() } } : a)))
 
-describe('Needs your input › the platform question (D-604, kien G16)', () => {
+describe('Needs your input › the platform question', () => {
   it('shows the question, the command that prints the answer, and every answer; an OS is one click (PATCH os)', async () => {
     renderApp('/findings?tab=input')
     const block = await expand('BN340')
@@ -100,7 +100,7 @@ describe('Needs your input › the platform question (D-604, kien G16)', () => {
     await waitFor(() => expect(screen.queryByRole('listitem', { name: 'BN340' })).toBeNull(), T)
   })
 
-  it('kien G15 follow-up: a row a sensor reported takes a typed version in place, as a correction of that row', async () => {
+  it('a row a sensor reported takes a typed version in place, as a correction of that row', async () => {
     renderApp('/findings?tab=input')
     const cam = await expand('CAM-GATE')
     expect(await within(cam).findByText(/Type the version it runs: Vedette checks with yours until you clear it on the device page\./, undefined, T)).toBeInTheDocument()

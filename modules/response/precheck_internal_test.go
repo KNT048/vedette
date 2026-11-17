@@ -31,7 +31,7 @@ func TestActionFPCoversPrecheckRefuseAndExpect(t *testing.T) {
 	}
 }
 
-// INV-14b (D-94): the shipped library goes through the same check as a customer's template, so a forbidden header, a check that
+// INV-14b: the shipped library goes through the same check as a customer's template, so a forbidden header, a check that
 // writes, or a port action without a refusal in the data files stops the service from starting.
 func TestBuiltinLibraryIsCheckedLikeACustomerAction(t *testing.T) {
 	t.Parallel()

@@ -1,7 +1,7 @@
-// Two-step sign-in on the real backend (S-CORE-3, D-76, D-77, D-35): the authenticator app, the email code (read from the SMTP sink the box
+// Two-step sign-in on the real backend (S-CORE-3): the authenticator app, the email code (read from the SMTP sink the box
 // runs, see cmd/vedette/e2ebox_test.go), an expired and a used code, the administrator's reset, and the device cookie. Steps from
 // e2e/qa/twofa.spec.ts; the codes come from the key on the page and from the sink instead of the preview note of the mock. Every account is a
-// throwaway made with uniq() (D-172). The email channel is saved through notify's API as a precondition (the sink is its SMTP server).
+// throwaway made with uniq(). The email channel is saved through notify's API as a precondition (the sink is its SMTP server).
 // What turns the email channel OFF is box-wide and lives in twofa-channel.global.spec.ts.
 import { expect, test, type Page } from '@playwright/test'
 import { api, authFile, box, codesFor, ensureEmailChannel, expirePendingCode, nextCode } from './box'
@@ -14,7 +14,7 @@ test.use({ actionTimeout: 10_000 })
 const code = (page: Page) => page.getByLabel('6-digit code', { exact: true })
 const logout = (page: Page) => api(page.request, 'POST', '/auth/logout')
 
-/** My account → Two-step sign-in, started with the current password (D-76), for the authenticator app. Returns the manual key. */
+/** My account → Two-step sign-in, started with the current password, for the authenticator app. Returns the manual key. */
 async function startApp(page: Page, pw: string): Promise<string> {
   await page.goto('/account')
   await expect(page.getByRole('heading', { name: 'Two-step sign-in' })).toBeVisible()
@@ -44,7 +44,7 @@ test('authenticator app: the password comes first, a wrong code is refused, sign
   await expect(page.getByRole('heading', { name: 'Two-step sign-in' })).toBeVisible()
   await shot(page, 'real', 'twofa-account-choose')
 
-  // D-76: the current password comes first: the button waits for it and a wrong one is refused (and no key is made)
+  // The current password comes first: the button waits for it and a wrong one is refused (and no key is made)
   await expect(page.getByRole('button', { name: 'Set up authenticator app' })).toBeDisabled()
   await page.getByLabel('Your current password', { exact: true }).fill('not-my-password')
   await page.getByRole('button', { name: 'Set up authenticator app' }).click()
@@ -109,7 +109,7 @@ test('authenticator app: the password comes first, a wrong code is refused, sign
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).not.toHaveURL(/\/login/)
 
-  // turn off: the password again (D-76)
+  // turn off: the password again
   await page.goto('/account')
   await page.getByRole('button', { name: 'Turn off two-step sign-in' }).click()
   await page.getByRole('dialog').getByLabel('Current password', { exact: true }).fill('not-my-password')
@@ -221,7 +221,7 @@ test('email code: an expired code is refused and a new one can be asked for', as
   noErrors(errors, /status of (40\d|429)/)
 })
 
-test('an administrator resets another user\'s two-step sign-in: it shows in Users, the reset is audited, the user must set it up again (D-35)', async ({ page, browser }) => {
+test('an administrator resets another user\'s two-step sign-in: it shows in Users, the reset is audited, the user must set it up again', async ({ page, browser }) => {
   test.setTimeout(180_000)
   const errors = collectErrors(page)
   const who = await newUser('rst')
@@ -281,7 +281,7 @@ test('an administrator resets another user\'s two-step sign-in: it shows in User
   noErrors(errors, /status of (40\d|429)/)
 })
 
-test('an administrator cannot reset their own two-step sign-in through the users API (D-35)', async ({ browser }) => {
+test('an administrator cannot reset their own two-step sign-in through the users API', async ({ browser }) => {
   const adminCtx = await browser.newContext({ baseURL: box().base_url, storageState: authFile('admin') })
   const ap = await adminCtx.newPage()
   const me = await api<{ id: string }>(ap.request, 'GET', '/me')
@@ -291,7 +291,7 @@ test('an administrator cannot reset their own two-step sign-in through the users
   await adminCtx.close()
 })
 
-test('the device cookie (D-77) is set at sign-in for that browser only, and it does not replace the code', async ({ page, browser }) => {
+test('the device cookie is set at sign-in for that browser only, and it does not replace the code', async ({ page, browser }) => {
   test.setTimeout(180_000)
   const who = await newUser('dev')
   await ensureEmailChannel(await adminApi())

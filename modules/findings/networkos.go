@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/content/oui"
 )
 
-// The operating system a network device states about itself is software the matcher compares (W1-32, D-510, #910 phase 1):
+// The operating system a network device states about itself is software the matcher compares (#910 phase 1):
 // content/catalog/network-os.json maps each statement ("JUNOS 15.1R7.9", "FortiOS 7.0.1", "Cisco IOS XE 17.3.1",
 // "RouterOS 6.48", "Cisco IOS 15.2(4)M3") to the NVD product (juniper:junos, fortinet:fortios, cisco:ios_xe,
 // MikroTik's RouterOS, cisco:ios), the CISA KEV keys that name it, and the version scheme that orders it. One table, one rule:
@@ -25,10 +25,10 @@ const (
 	schemeNone   = "none"   // not orderable (classic Cisco IOS "15.2(4)M3"): never compared (#910 phase 2)
 )
 
-// Which statement counts (review r1 H1, L1 of #919): the device's answer to Vedette's own SNMP read of its address (Asset.SNMPOS,
-// D-549) always, and it always wins: an LLDP frame can carry another device's MAC as its chassis id. Only a row with lldp_oui also
+// Which statement counts (review r1 H1, L1 of #919): the device's answer to Vedette's own SNMP read of its address (Asset.SNMPOS)
+// always, and it always wins: an LLDP frame can carry another device's MAC as its chassis id. Only a row with lldp_oui also
 // reads an LLDP statement (Asset.StatedOS), and only when the device gave no SNMP answer and its network card is that vendor's
-// (lldpCard, D-620).
+// (lldpCard).
 
 // osRow is one row of network-os.json.
 type osRow struct {
@@ -114,11 +114,11 @@ func multiKey(k string) bool {
 func osSoftwareID(assetID string) string { return "os:" + assetID }
 
 // deviceOS is the row the OS the device states gives (network-os.json): its first row whose statement is the whole value the
-// device states, through the source the row allows (from). Never nmap's OS guess (D-501): "Juniper Junos OS 12.1 - 15.1" or
+// device states, through the source the row allows (from). Never nmap's OS guess: "Juniper Junos OS 12.1 - 15.1" or
 // "Juniper JUNOS 10.4R1.9 (EX4200 switch)" are not statements, even when they won the device's OS field (review M2 of #703).
 // orderable is false when the row's scheme cannot order the version (scheme none, or a version it does not read, "7.14rc1"):
 // that row is never compared, only listed (MatchResult.NotComparable). ok is false when the device states no such OS, when its
-// own agent reports another OS (the agent's reading wins, D-549), or when a row a person, an agent or a scan recorded for the OS
+// own agent reports another OS (the agent's reading wins), or when a row a person, an agent or a scan recorded for the OS
 // decides instead: one keyed to it with a version the scheme reads, or, for a version that is not orderable, any one keyed to
 // it (it gives what it gives today).
 func deviceOS(a Asset) (os Software, orderable, ok bool) {
@@ -155,7 +155,7 @@ func deviceOS(a Asset) (os Software, orderable, ok bool) {
 // whose KEV keys are the OS row's, gives way to it: the device's own version decides instead of "add the version" (review M3 of
 // #703).
 func deviceSoftware(a Asset) []Software {
-	return withoutCoveredWindows(deviceOSSoftware(a)) // D-546, review M4: the agent's Windows release row covers a person's "Windows 11"
+	return withoutCoveredWindows(deviceOSSoftware(a)) // The agent's Windows release row covers a person's "Windows 11"
 }
 
 func deviceOSSoftware(a Asset) []Software {
@@ -181,7 +181,7 @@ func deviceOSSoftware(a Asset) []Software {
 	return append(out, os)
 }
 
-// lldpCard says whether an LLDP statement counts for the device (D-620): its MAC at its address (Asset.MAC) has an IEEE OUI of vendor,
+// lldpCard says whether an LLDP statement counts for the device: its MAC at its address (Asset.MAC) has an IEEE OUI of vendor,
 // or it has none: a device known only through LLDP frames (no address, so no MAC at one) is the frame's own record, where a forged
 // frame makes a device that is not there but silences nothing; a frame forged with another device's MAC as its chassis id lands on
 // that device, whose card the vendor did not make.
@@ -217,7 +217,7 @@ const (
 )
 
 // notComparable lists the entries of vulns the device's not-orderable OS row would be compared with: those whose key names it
-// (keyedTo) and, for the vendor's "Multiple Products", only those whose NVD list names its product (D-505).
+// (keyedTo) and, for the vendor's "Multiple Products", only those whose NVD list names its product.
 func notComparable(os Software, vulns []Vuln) []NotComparable {
 	in := newSWInfo(os, "")
 	var out []NotComparable

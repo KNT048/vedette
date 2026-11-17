@@ -78,7 +78,7 @@ func TestLogin_ErrorsAreTheMocks(t *testing.T) {
 	wantStatus(t, c.request("POST", "/auth/login", nil), 400, "invalid")
 }
 
-// The walk of 2026-11-12 (findings G6): nine wrong passwords for one account, then the right one, signs in (the limit is ten
+// Nine wrong passwords for one account, then the right one, signs in (the limit is ten
 // failures, API_CONVENTIONS section 8). The tenth wrong one starts the wait: the right password is then refused with 429, the
 // sentence the sign-in page shows, and Retry-After. Every client here shares one address, as behind the port proxy of a
 // container-only install (the tester's sessions came from the bridge, 172.18.0.1).
@@ -306,7 +306,7 @@ func TestContract_INV9_HTTPOnlyTheNamedCookies(t *testing.T) {
 	}
 }
 
-// D-77 through HTTP: the owner signs in from an IPv6 /64 whose key an insider has blocked, thanks to the cookie.
+// INV-9 through HTTP: the owner signs in from an IPv6 /64 whose key an insider has blocked, thanks to the cookie.
 func TestContract_INV9_HTTPDeviceCookieBeatsTheInsider(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)

@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// Connections (D-93, D-94; S-AI-7, S-RESP-4): the endpoints of Settings → Connections, admin only. The rules, the credential
+// Connections (S-AI-7, S-RESP-4): the endpoints of Settings → Connections, admin only. The rules, the credential
 // store and the audit rows live in core/conn; the handlers only move values between the generated types and conn. A secret
 // never appears in an answer: conn.Connection has no field for it.
 
@@ -192,7 +192,7 @@ func (h *APIHandlers) CoreDeleteCoreConnectionsID(ctx context.Context, params oa
 }
 
 // CorePostCoreConnectionsIDTest implements POST /core/connections/{id}/test (admin): one harmless read over the transport of the
-// connection's kind, with the certificate or host key pinned at the first success (D-94). A connection that is off is 409
+// connection's kind, with the certificate or host key pinned at the first success. A connection that is off is 409
 // connection_off and nothing is sent. The admin check runs before the first byte leaves the box and again inside the write
 // transaction that saves the result; the network call itself is in no transaction.
 func (h *APIHandlers) CorePostCoreConnectionsIDTest(ctx context.Context, params oas.CorePostCoreConnectionsIDTestParams) (*oas.CorePostCoreConnectionsIDTestOK, error) {

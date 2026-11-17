@@ -11,7 +11,7 @@ SELECT id, name, email, role, password_hash, cred_version, twofa_method, disable
 FROM core_user WHERE id = ?;
 
 -- name: CountOtherActiveAdmins :one
--- D-196 (3): only administrators who sign in with a password count; an SSO administrator is locked out with the identity provider.
+-- Only administrators who sign in with a password count; an SSO administrator is locked out with the identity provider.
 SELECT count(*) FROM core_user WHERE role = 'admin' AND disabled = 0 AND temp_password_expires_at IS NULL AND sso_issuer IS NULL AND id <> ?;
 
 -- name: GetUserBySSO :one

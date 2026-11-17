@@ -147,7 +147,7 @@ function ReportSection({ s }: { s: PdplState }) {
         </>
       }>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-        {/* kien G1: say what a long wait is doing */}
+        {/* Say what a long wait is doing */}
         <BusyNote id="pdpl-gen-wait" busy={gen.isPending}>{t('pdpl.report.waiting')}</BusyNote>
         <BusyNote id="pdpl-ai-wait" busy={ai.isPending}>{t('weekly.ai.waiting')}</BusyNote>
         <ActionError error={gen.error} />

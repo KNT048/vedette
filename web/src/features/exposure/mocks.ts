@@ -3,11 +3,11 @@
 // the domain's DNS TXT record is still present (re-checked right before each scan) and the commitment is recorded.
 // Domain ownership = a DNS TXT record, as other providers do (Google Workspace: host @, up to 72 hours, keep the record).
 // IP ownership = only the public IPs the box itself uses to reach the Internet. No endpoint takes an IP as input.
-// Auto-detect (kien 2026-11-09, D-81): on by default; the box asks three public "what is my IP" services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip),
+// Auto-detect: on by default; the box asks three public "what is my IP" services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip),
 // accepts an IP only when at least two agree in a round, over several rounds of new connections, at first start and then
 // every interval_min minutes (default 60, 1 to 1440), and adds or renews (30 days from the sighting) every distinct public IP that passed, except those on the Ignored list. The mock runs
-// the check when GET /exposure/targets finds it due. Removing an IP is DELETE; the person decides whether it goes on the Ignored list (D-79, ?ignore=true: never added again, never scanned;
-// Restore lets detection add it again); otherwise, while auto-detect is on, an IP the box still uses comes back. Scan-time check (D-79, INV-13): an IP is scanned only while the box still goes out through it (the mock reads the same
+// the check when GET /exposure/targets finds it due. Removing an IP is DELETE; the person decides whether it goes on the Ignored list (?ignore=true: never added again, never scanned;
+// Restore lets detection add it again); otherwise, while auto-detect is on, an IP the box still uses comes back. Scan-time check (INV-13): an IP is scanned only while the box still goes out through it (the mock reads the same
 // localStorage egress as a fresh full check would see; a check or full check of the last 5 minutes is reused, a "not seen" included); else 409 ip_not_current, and the IP stays in the list.
 // DNS simulation: the first TXT check of a new domain says "not found" (DNS not updated yet), from the second check it is found.
 // Box egress simulation: localStorage key "vedette-mock-egress" holds the public IPs the box currently egresses through, comma separated
@@ -26,7 +26,7 @@ import type { BoxIpSettings, Commitment, Terms, Diff, DiffChange, DiffItem, Gree
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
 const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSnapshots, () => ({}))
-/** FULL-1 (D-566): the testing terms each target was given; the box's own IP has them (without the disruptive tick), the rest none. */
+/** The testing terms each target was given; the box's own IP has them (without the disruptive tick), the rest none. */
 const termsStore = collection<Record<string, Terms>>('exp_terms', () => ({
   'xt-2': { version: TERMS_VERSION, by: 'admin@acme.example', at: new Date(Date.now() - 20 * 864e5).toISOString(), text: TERMS_TEMPLATE.replaceAll('{value}', BOX_EGRESS_IP), disruptive: false },
 }), () => ({}))
@@ -35,7 +35,7 @@ const commitments = collection<Record<string, Commitment>>('exp_commitments', ()
   return {
     'xt-1': { by: 'admin@acme.example', at: at(20), version: NOTICE_VERSION, sentence: NOTICE_TEMPLATE.replace('{value}', 'acme.example') },
     'xt-2': { by: 'admin@acme.example', at: at(20), version: NOTICE_VERSION, sentence: NOTICE_TEMPLATE.replace('{value}', BOX_EGRESS_IP) },
-    // Confirmed under an older sentence: the first Scan now after the upgrade asks again (D-559).
+    // Confirmed under an older sentence: the first Scan now after the upgrade asks again.
     'xt-6': { by: 'admin@acme.example', at: at(20), version: '2026-11-13', sentence: 'By choosing Scan now I confirm that my company owns ' + BOX_EGRESS_IP_2 + ' and that I am authorized to scan it. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.' },
     'xt-4': { by: 'admin@acme.example', at: at(60), version: null, sentence: null },
     'xt-5': { by: 'admin@acme.example', at: at(39), version: null, sentence: null },
@@ -46,19 +46,19 @@ const attempts = collection<string[]>('exp_attempts', () => [], () => [])
 /** Auto-detect settings. Same defaults on a clean install; only the sample has a last check. */
 const boxIp = collection<Omit<BoxIpSettings, 'retry_in_min'>>('exp_settings', seedBoxIp, () => ({ auto: true, interval_min: DEFAULT_INTERVAL, last_run: null }))
 
-/** The Ignored list (D-79): IPs removed with "Don't add it again if detected". It only blocks: detection never adds them, and restoring one only lets detection add it again. */
+/** The Ignored list: IPs removed with "Don't add it again if detected". It only blocks: detection never adds them, and restoring one only lets detection add it again. */
 const ignored = collection<IgnoredIp[]>('exp_ignored', seedIgnored, () => [])
 
 /** deep_at: when the last full check ran (INV-13 reuses its answer for 5 minutes, a "not seen" included). full_ok_at: the last one that got an answer (the services agreed): an IP it did not see, and nothing since, shows as paused until a later check sees it. */
 const probe = collection<{ deep_at: string | null; full_ok_at?: string | null }>('exp_probe', () => ({ deep_at: null, full_ok_at: null }), () => ({ deep_at: null, full_ok_at: null }))
 
-/** D-558: Shodan's last answer per target (without our scan's ports, which are read from the newest snapshot on each GET). */
+/** Shodan's last answer per target (without our scan's ports, which are read from the newest snapshot on each GET). */
 const outside = collection<Record<string, Omit<OutsideView, 'scan_ports' | 'scan_at'>>>('exp_outside', seedOutside, () => ({}))
 /** When the box last asked Shodan: at most once a minute on the box (in memory, as on the box). */
 let outsideAskedMs = 0
-/** D-563: the optional deep scan with Greenbone, off by default. The mock box has 16 GB of memory and 180 GB free; localStorage keys
+/** The optional deep scan with Greenbone, off by default. The mock box has 16 GB of memory and 180 GB free; localStorage keys
  * "vedette-mock-box-memory", "vedette-mock-box-swap" (default 4 GB) and "vedette-mock-box-disk" (bytes) play a smaller box. After Enable it is "starting" for 3 seconds, then "loading"
- * its feed until 15 seconds (about 2 hours on a real box), then ready. D-566: it scans only a target whose testing terms are accepted. */
+ * its feed until 15 seconds (about 2 hours on a real box), then ready. It scans only a target whose testing terms are accepted. */
 const greenbone = collection<{ enabled: boolean; changed_by: string | null; changed_at: string | null }>('exp_greenbone', () => ({ enabled: false, changed_by: null, changed_at: null }), () => ({ enabled: false, changed_by: null, changed_at: null }))
 const measured = (key: string, fallback: number) => { const v = Number(localStorage.getItem(key)); return Number.isFinite(v) && v > 0 ? v : fallback }
 const gbText = (n: number) => `${(Math.floor(n / 1e8) / 10).toFixed(1)} GB`
@@ -72,7 +72,7 @@ function greenboneView(): Greenbone {
     : mem < 8e9 && swap < 2e9 ? `This box has ${gbText(mem)} of memory and ${gbText(swap)} of swap; with less than 8.0 GB of memory OpenVAS needs at least 2.0 GB of swap for its first feed load.` : disk < 60e9 ? `This box has ${gbText(disk)} of free disk space; OpenVAS needs at least 60.0 GB free.` : null
   const since = g.changed_at ? Date.now() - Date.parse(g.changed_at) : 0
   const state = !g.enabled ? 'off' : since < 3000 ? 'starting' : since < 15000 ? 'loading' : 'ready'
-  // D-564 G6: the first weekly feed update is due a week after Enable (the mock never runs it)
+  // The first weekly feed update is due a week after Enable (the mock never runs it)
   const next = g.enabled && g.changed_at ? new Date(Date.parse(g.changed_at) + WEEK_MS).toISOString() : null
   return { state, reason: state === 'loading' ? 'OpenVAS is loading its feed (first time takes about 2 hours)' : null, changed_by: g.changed_by, changed_at: g.changed_at,
     preflight: { memory_bytes: mem, disk_free_bytes: disk, ok: reason === null, reason }, feed_sync: { last_at: null, ok: null, note: null, next_at: next },
@@ -196,7 +196,7 @@ export const greenboneMock = {
   },
 }
 
-/** D-628: where a domain's record goes. The mock takes the last two labels as the registered domain (the box reads the Public Suffix
+/** Where a domain's record goes. The mock takes the last two labels as the registered domain (the box reads the Public Suffix
  *  List, so it also knows co.uk or ddns.net). covered_by: the nearest verified domain of the list that the name is under. */
 function proofOf(t: StoredTarget): Target['proof'] {
   if (t.kind !== 'domain') return null
@@ -212,7 +212,7 @@ function proofOf(t: StoredTarget): Target['proof'] {
 function view(t: StoredTarget): Target {
   const commitment = commitments.get()[t.id] ?? null
   const terms = termsStore.get()[t.id] ?? null
-  const current = commitment?.version === NOTICE_VERSION // an older sentence counts as not confirmed (D-559)
+  const current = commitment?.version === NOTICE_VERSION // an older sentence counts as not confirmed
   const verified = t.verified_at !== null
   const ip = t.kind === 'ip'
   const expired = ip && verified && !!t.expires_at && Date.parse(t.expires_at) < Date.now()
@@ -376,7 +376,7 @@ function detect(who: 'user' | 'system'): Detected {
 
 const CURRENT_MS = 5 * 60_000
 /**
- * Scan-time check of an IP (INV-13, D-79 (2)): may it be scanned now, i.e. does the box go out through it now? Yes when the latest check, or the latest full check, ran in the
+ * Scan-time check of an IP (INV-13): may it be scanned now, i.e. does the box go out through it now? Yes when the latest check, or the latest full check, ran in the
  * last 5 minutes and saw it. Otherwise one full check runs now, by the caller, and at most once in 5 minutes: inside that window the answer of the last full check is reused,
  * a "not seen" included. A check that cannot tell (services down, no agreement) means "no": fail closed. The scan module calls this too (the mock's CheckScannable).
  */
@@ -421,7 +421,7 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     autoDetectIfDue()
     const items = targets.get().map(view)
-    // D-492: the sample gateway is an unnamed FortiGate with two exploited findings; the box answers "who answers" only for its own IPs.
+    // The sample gateway is an unnamed FortiGate with two exploited findings; the box answers "who answers" only for its own IPs.
     const gateway = items.some((x) => x.kind === 'ip' && (x.open_ports?.length ?? 0) > 0) ? { ip: '192.168.1.1', device_id: 'dev-gateway', name: 'fortigate-hq', open_exploited: 2 } : null
     return HttpResponse.json({ items, box_ip: boxView(), ignored: ignored.get().slice().sort((a, b) => b.ignored_at.localeCompare(a.ignored_at)), gateway })
   }),
@@ -471,7 +471,7 @@ export const handlers = [
     return HttpResponse.json({ items: r.seen.map(view), message: r.message })
   }),
 
-  // Restore: only lets detection add the IP again. The list blocks and never allows (D-25): nothing is added here and the IP is not scannable by itself.
+  // Restore: only lets detection add the IP again. The list blocks and never allows: nothing is added here and the IP is not scannable by itself.
   http.delete(`${API}/exposure/box-ip/ignored/:ip`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
     const ip = String(params.ip)
@@ -488,7 +488,7 @@ export const handlers = [
     return t ? HttpResponse.json(view(t)) : notFound()
   }),
 
-  // Removing a target. For an IP, ?ignore=true also puts it on the Ignored list (D-79): detection never adds it again and it is never scanned.
+  // Removing a target. For an IP, ?ignore=true also puts it on the Ignored list: detection never adds it again and it is never scanned.
   http.delete(`${API}/exposure/targets/:id`, ({ params, request }) => {
     const denied = guard('admin'); if (denied) return denied
     const t = find(params.id)
@@ -542,7 +542,7 @@ export const handlers = [
     return HttpResponse.json({ verified: ok, message, target: view(next) })
   }),
 
-  // FULL-1 (D-566): accept the testing terms of a verified target (admin with two-step), with or without the disruptive tick. They
+  // Accept the testing terms of a verified target (admin with two-step), with or without the disruptive tick. They
   // include the ownership sentence, so the Scan now commitment is recorded too when missing.
   http.put(`${API}/exposure/targets/:id/terms`, async ({ params, request }) => {
     const denied = guard('admin'); if (denied) return denied
@@ -568,7 +568,7 @@ export const handlers = [
     return HttpResponse.json(view(t))
   }),
 
-  // FULL-1: withdraw the terms; always possible, the next scan is in the K-4 scope again.
+  // Withdraw the terms; always possible, the next scan is in the K-4 scope again.
   http.delete(`${API}/exposure/targets/:id/terms`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
     const t = find(params.id)
@@ -594,7 +594,7 @@ export const handlers = [
       return fail(409, 'txt_missing', `The DNS TXT record vedette-verify=${t.token} is no longer found on ${t.value}, on _vedette-verify.${t.value} or on a parent domain that covers it, so it cannot be scanned. Add the record back, then check again.`)
     }
     if (v.commitment?.version !== NOTICE_VERSION) {
-      // D-473: an administrator's first Scan now is the confirmation (D-26); an operator cannot scan an unconfirmed target.
+      // An administrator's first Scan now is the confirmation; an operator cannot scan an unconfirmed target.
       const me = currentUser()
       if (me?.role !== 'admin' && v.commitment) return fail(400, 'commitment_required', `The confirmation text changed, so ${t.value} must be confirmed again. An administrator confirms once with the next Scan now.`)
       if (me?.role !== 'admin') return fail(400, 'commitment_required', `${t.value} has not been confirmed yet. An administrator must run the first scan: it records that your company owns ${t.value} and that the scan is authorized.`)
@@ -612,11 +612,11 @@ export const handlers = [
       const paused = ipPaused(t)
       if (paused) return paused
     }
-    // The scan module's runner does the scan (D-229) behind this module's own switch (J6): the Vulnerability scans module may be off.
+    // The scan module's runner does the scan behind this module's own switch: the Vulnerability scans module may be off.
     // Like the box: 202 with the run at once, and the phases move on while the page polls GET /exposure/scan. The mock has no one-at-a-time or 10-minute limit
     // (its tests scan an IP several times in a row). The result is stored when the run is done.
     const at = nowIso()
-    // D-571: a domain with accepted terms gets the deep scan of its names' addresses, in turn by when each was last deep-scanned.
+    // A domain with accepted terms gets the deep scan of its names' addresses, in turn by when each was last deep-scanned.
     const lastDeep: Record<string, string> = {}
     for (const sn of snapshots.get()[t.id] ?? []) for (const h of sn.hosts) for (const a of h.ips ?? []) if (a.last_deep && a.last_deep > (lastDeep[a.ip] ?? '')) lastDeep[a.ip] = a.last_deep
     const content = t.kind === 'ip' ? { ...scanContent(t), ...greenboneFor(t.value, v.full_scan) } : v.full_scan ? withDeep(scanContent(t), at, lastDeep) : scanContent(t)
@@ -643,7 +643,7 @@ export const handlers = [
     return HttpResponse.json(stopped)
   }),
 
-  // What the Internet sees (D-558): reading sends nothing.
+  // What the Internet sees: reading sends nothing.
   http.get(`${API}/exposure/targets/:id/outside`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
     if (!find(params.id)) return notFound()
@@ -710,7 +710,7 @@ export const handlers = [
   }),
 ]
 
-// Shared inside the mock layer (supervisor): the scan module only scans external targets that are verified (IPs: seen by the box within 30 days).
+// Shared inside the mock layer: the scan module only scans external targets that are verified (IPs: seen by the box within 30 days).
 // Reading the targets also runs the automatic check when it is due, as the box's job would have by now, so the scan page of a clean install lists the IPs the box found.
 export const exposureTargetsStore: Collection<StoredTarget[]> = { get: () => { autoDetectIfDue(); return targets.get() }, set: (v) => targets.set(v), update: (fn) => targets.update(fn) }
 export { snapshots as exposureSnapshotsStore, commitments as exposureCommitmentsStore }

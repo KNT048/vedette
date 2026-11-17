@@ -23,10 +23,10 @@ export function ActionError({ error }: { error: unknown }) {
 export function useAiGate(minRole: 'operator' | 'viewer' = 'operator', job?: AiJob) {
   const { t } = useTranslation('ai')
   const on = useModuleEnabled('ai')
-  const cfg = useAiConfig(on === true) // with the module off the route is 404: not asked (S-CORE-9, 2026-11-12 walk)
+  const cfg = useAiConfig(on === true) // with the module off the route is 404: not asked (S-CORE-9)
   const can = useCan(minRole)
   const unassigned = !!job && !!cfg.data?.configured && cfg.data.jobs_ready[job] === false
-  // J7 (#847): after a restore without the key every profile is key_lost, so none is usable and the box reads "not configured". The
+  // #847: after a restore without the key every profile is key_lost, so none is usable and the box reads "not configured". The
   // profiles are still there (and assigned): the way out is their key, never a second profile. Asked only in that case.
   const unconf = on === true && cfg.data?.configured === false
   const profiles = useProfiles(unconf)
@@ -50,7 +50,7 @@ export function ToSettings({ className, state, job, to }: { className?: string; 
   const link = className ?? 'text-accent underline underline-offset-4'
   if (!admin) return <span className="text-muted">{t(state === 'keyLost' ? 'gate.askAdminKey' : 'gate.askAdmin')}</span>
   if (state === 'unassigned' && job) return <Link to={`/settings/ai#ai-job-${job}`} className={link}>{t('gate.toAssign')}</Link>
-  // J7: the lost profiles' notices (Enter the key) are at the top of the profiles; a new profile would only duplicate one.
+  // The lost profiles' notices (Enter the key) are at the top of the profiles; a new profile would only duplicate one.
   if (state === 'keyLost') return <Link to="/settings/ai#ai-profiles" className={link}>{t('gate.toKey')}</Link>
   if (state === 'unconfigured') {
     return (

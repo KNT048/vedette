@@ -11,7 +11,7 @@ import (
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// D-592 (migration 0007): sa_probe is rebuilt for the all_ports shape with its rows and its AUTOINCREMENT counter kept, and
+// migration 0007: sa_probe is rebuilt for the all_ports shape with its rows and its AUTOINCREMENT counter kept, and
 // sa_all_ports exists.
 func TestMigration0007KeepsTheProbeLog(t *testing.T) {
 	t.Parallel()

@@ -52,7 +52,7 @@ const BLOCKED_PLACE: Partial<Record<Proposal['state'], { to: string; label: stri
 function Blocked({ state }: { state: Proposal['state'] }) {
   const { t } = useTranslation('response')
   const admin = useCan('admin')
-  const frozen = useFrozen() // D-624 (L2): no reason that invites turning something on; the request button already says why
+  const frozen = useFrozen() // No reason that invites turning something on; the request button already says why
   if (state === 'ready' || frozen) return null
   return (
     <div className="flex items-start gap-1 rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-meta text-muted">
@@ -65,7 +65,7 @@ function Blocked({ state }: { state: Proposal['state'] }) {
 
 function ProposalView({ p }: { p: Proposal }) {
   const { t } = useTranslation('response')
-  const frozen = useFrozen() // D-624: no new request from a plan
+  const frozen = useFrozen() // No new request from a plan
   const can = useCan('operator') && !frozen
   const req = useRequestApproval()
   return (
@@ -110,12 +110,12 @@ export function PlanView({ plan, heading }: { plan: Plan; heading?: boolean }) {
   )
 }
 
-/** Always visible while execution is on (D-41). Anyone operator or above can press it. */
+/** Always visible while execution is on. Anyone operator or above can press it. */
 export function EmergencyStop() {
   const { t } = useTranslation('response')
   const can = useCan('operator')
   const stop = useEmergencyStop()
-  const frozen = useFrozen() // D-624 (N-H1): on a box where it is not offered, stopping is one-way for device changes: confirm first
+  const frozen = useFrozen() // N-H1: on a box where it is not offered, stopping is one-way for device changes: confirm first
   const [ask, setAsk] = useState(false)
   const go = () => stop.mutate(undefined, { onSuccess: (r) => { setAsk(false); toast.success(t('stop.done', { count: r.cancelled })) }, onError: (e) => { setAsk(false); toast.error(errText(e)) } })
   return (

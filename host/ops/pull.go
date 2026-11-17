@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// container.pull (spec 6.7, D-103, D-104, D-130). The host verifies everything itself, before any
+// container.pull (spec 6.7). The host verifies everything itself, before any
 // byte is pulled, with internal/release: the index against the stored one (sequence never goes
 // back; a newer index is stored and is the only source of revocation), the manifest, the platform
 // and the install mode, and the cosign signature of the image. Only then does it run
@@ -40,7 +40,7 @@ import (
 //
 // The refusals are all decided in Check, so core gets them as 412 at once and no run starts. Check
 // also stores a newer verified index even when the manifest is then refused: a revocation must not be
-// lost because the same index is the reason for the refusal (D-130).
+// lost because the same index is the reason for the refusal.
 
 const (
 	// maxPullDoc caps each of the two documents once decoded (spec 6.7); a minisign signature file is at
@@ -52,7 +52,7 @@ const (
 	pullBody = 1 << 20
 	// pullTimeout is the command's timeout (spec 6.7); the pull itself gets a little less so the checks
 	// after it still have time.
-	// 45 minutes: the pull (up to pullCallLimit) and, for scan, the build on the box (buildLimit) and its check (D-147).
+	// 45 minutes: the pull (up to pullCallLimit) and, for scan, the build on the box (buildLimit) and its check.
 	pullTimeout   = 45 * time.Minute
 	pullCallLimit = 25 * time.Minute
 	// storageProbe is where Podman keeps images (its default graph root): the free space of the filesystem
@@ -102,7 +102,7 @@ func validatePullArgs(a *api.ContainerPullArgs) error {
 		if a.Index != "" || a.IndexSig != "" || a.Manifest != "" || a.ManifestSig != "" {
 			return server.Invalid("index", "a bundle source takes its signed documents from the bundle; send none")
 		}
-		return nil // the documents are read from <core_data>/bundles/<bundle_id>.tar by Check and Run (D-452)
+		return nil // the documents are read from <core_data>/bundles/<bundle_id>.tar by Check and Run
 	case api.PullSourceRegistry:
 	default:
 		return server.Invalid("source", "must be registry or bundle")
@@ -131,13 +131,13 @@ type pullPlan struct {
 	ref     string
 	size    int64
 	// pin is, for scan only, the "digest" of the image built on the box ("sha256:" + its ID), set by pullAndRecord once the build passed:
-	// digest is the base image's, which the manifest signed, and pin is what the unit pins and the records hold (D-147).
+	// digest is the base image's, which the manifest signed, and pin is what the unit pins and the records hold.
 	pin         string
 	keyID       string
 	idx         *release.Index
 	manifest    []byte
 	manifestSig []byte
-	// bundle is set for source=bundle: the image is loaded from the bundle core wrote, never pulled from the registry (D-452).
+	// bundle is set for source=bundle: the image is loaded from the bundle core wrote, never pulled from the registry.
 	bundle *bundleSource
 }
 
@@ -201,8 +201,8 @@ type releaseDocs struct {
 	manRaw, manSig []byte
 }
 
-// verifyRelease is the part of spec 6.7 that container.pull, -bootstrap and host.self_update share (D-316
-// (1)): the index against the stored one (stored atomically as soon as it is accepted, and audited under
+// verifyRelease is the part of spec 6.7 that container.pull, -bootstrap and host.self_update share:
+// the index against the stored one (stored atomically as soon as it is accepted, and audited under
 // command), the manifest, its version, its hash in every channel that names it as latest, and the appliance
 // install mode. It returns a *server.Refusal for each refusal and a plain error for what the host itself
 // could not do (a state file it could not write).
@@ -288,7 +288,7 @@ func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
 // noteIndexStored leaves the trail of a change of what the host knows about releases: a warning in
 // the log and an audit line with the old and new sequence, the signer, whether the backup key signed
 // it, and the revocations added and dropped (at most 16 of each are named). Check calls this, so it
-// happens even when the pull is then refused (D-130).
+// happens even when the pull is then refused.
 func (o *Ops) noteIndexStored(command string, trust release.Trust, old, idx *release.Index) {
 	var oldSeq uint64
 	var before []release.Revocation
@@ -487,7 +487,7 @@ func (o *Ops) runContainerPull(ctx context.Context, rc *server.RunContext, a api
 	}
 	expired := plan.idx.Expired(o.d.Now())
 	if expired {
-		rcLog(rc, "the index is past its expiry; going on, an old index only warns (D-104)")
+		rcLog(rc, "the index is past its expiry; going on, an old index only warns")
 		o.note(api.CmdContainerPull, "index_expired", map[string]any{"sequence": plan.idx.Sequence, "expires_at": plan.idx.ExpiresAt.UTC().Format(time.RFC3339)})
 	}
 	rcLog(rc, fmt.Sprintf("verified: index sequence %d, manifest %s signed by %s, cosign signature of %s", plan.idx.Sequence, plan.version, plan.keyID, plan.service))
@@ -500,7 +500,7 @@ func (o *Ops) runContainerPull(ctx context.Context, rc *server.RunContext, a api
 }
 
 // pullAndRecord is what a verified plan does: pull by digest unless the image is here, tag it, look at
-// both, and only then record the version. container.pull and the bootstrap (D-142) both end here, so
+// both, and only then record the version. container.pull and the bootstrap both end here, so
 // there is one implementation of the podman side. The error is a *server.Failure.
 func (o *Ops) pullAndRecord(ctx context.Context, logf func(string), plan *pullPlan) error {
 	if o.imageIs(ctx, plan.ref, plan.service, plan.digest) {
@@ -509,7 +509,7 @@ func (o *Ops) pullAndRecord(ctx context.Context, logf func(string), plan *pullPl
 		argv, err := pullArgv(plan.service, plan.digest)
 		cleanup := func() {}
 		if plan.bundle != nil {
-			// D-452: the image comes out of the bundle into a layout of the host's own, checked blob by blob, and Podman loads that.
+			// The image comes out of the bundle into a layout of the host's own, checked blob by blob, and Podman loads that.
 			var dir string
 			var serr error
 			dir, cleanup, serr = o.stageBundleImage(ctx, logf, plan)
@@ -558,7 +558,7 @@ func (o *Ops) pullAndRecord(ctx context.Context, logf func(string), plan *pullPl
 		PulledAt: o.d.Now().UTC(), Manifest: base64.StdEncoding.EncodeToString(plan.manifest), ManifestSig: base64.StdEncoding.EncodeToString(plan.manifestSig),
 	}
 	if plan.service == api.ServiceScan {
-		// D-147: the base is pulled, verified and tagged; the image the unit runs is the one built from it on this machine.
+		// The base is pulled, verified and tagged; the image the unit runs is the one built from it on this machine.
 		built, err := o.buildScan(ctx, logf, plan)
 		if err != nil {
 			return err

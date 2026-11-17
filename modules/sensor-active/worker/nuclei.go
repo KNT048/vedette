@@ -24,7 +24,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
-// The nuclei job (D-125, D-136, sensor-protocol.md 6.4). The worker is the last fence: a job names template ids and the hash of
+// The nuclei job (sensor-protocol.md 6.4). The worker is the last fence: a job names template ids and the hash of
 // a pack; everything that reaches the command line comes from the pack index baked into the image, which is checked against the
 // files, and from nucleiargv, whose Validate runs once more inside core/exec.
 
@@ -60,7 +60,7 @@ func newNuclei(c Config) ([]exec.Binary, nucleiConfig, error) {
 		}
 	}
 	return []exec.Binary{
-		{Name: nucleiBin, Path: c.NucleiPath, Validate: nucleiargv.Validate, MaxOutput: nucleiargv.MaxOutput, MaxStderr: nucleiout.MaxErrorLog, Env: []string{"HOME=" + nc.runHome}}, // stderr is never posted: it holds nuclei's error log (-elog), counted per target into host_errors (D-165); at most 1 MiB is kept in memory, and it cannot make a run "truncated"
+		{Name: nucleiBin, Path: c.NucleiPath, Validate: nucleiargv.Validate, MaxOutput: nucleiargv.MaxOutput, MaxStderr: nucleiout.MaxErrorLog, Env: []string{"HOME=" + nc.runHome}}, // stderr is never posted: it holds nuclei's error log (-elog), counted per target into host_errors; at most 1 MiB is kept in memory, and it cannot make a run "truncated"
 		{Name: nucleiVer, Path: c.NucleiPath, Validate: validNucleiVersionArgs, MaxOutput: 64 << 10, Env: []string{"HOME=" + probeHome}},
 	}, nc, nil
 }
@@ -95,7 +95,7 @@ func targetsOf(nj *sensorlink.NucleiJob) []nucleiargv.Target {
 }
 
 // nucleiArgv is the job grammar of sensor-protocol.md 6.4, checked here again and not trusted from core: the scope, the counts,
-// the targets (canonical private IPv4 only, D-136 (4); scope own_ip: exactly one public IPv4 at nucleiargv.OwnIPRate, D-520), the
+// the targets (canonical private IPv4 only; scope own_ip: exactly one public IPv4 at nucleiargv.OwnIPRate), the
 // rate and the host-error limit by nucleiargv, the timeout, the pack by version and hash, every template id by the index (an
 // own_ip job: none of a class of nucleiargv.OwnIPForbiddenTags). The file of every template is hashed against the index before anything
 // starts. It returns the argv, or the result to post when the job is refused.
@@ -106,7 +106,7 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 	}
 	targets := targetsOf(nj)
 	scope := nj.Scope
-	switch { // D-591: a domain_ip job is the full own_ip shape (one public target) with its fence fields; no other job carries any
+	switch { // A domain_ip job is the full own_ip shape (one public target) with its fence fields; no other job carries any
 	case nj.Scope == sensorlink.ScopeDomainIP && nj.Domain != nil && nj.Depth == nucleiargv.DepthFull:
 		scope = nucleiargv.ScopeOwnIP
 	case nj.Scope != sensorlink.ScopeDomainIP && nj.Domain == nil:
@@ -135,10 +135,10 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is not in the pack", id)
 		}
 		chosen[i], paths[i] = tp, tp.Path
-		if !tp.RunsAt(full, nj.Disruptive) { // the image's own index decides the set, never core (D-527): KEV unless full
+		if !tp.RunsAt(full, nj.Disruptive) { // the image's own index decides the set, never core: KEV unless full
 			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is not in a set of the pack a job of depth %q (disruptive %t) may run", id, nj.Depth, nj.Disruptive)
 		}
-		if !full && nj.Scope == nucleiargv.ScopeOwnIP && !tp.OwnIP { // the image's own index decides, never core (D-520)
+		if !full && nj.Scope == nucleiargv.ScopeOwnIP && !tp.OwnIP { // the image's own index decides, never core
 			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is not marked for the own_ip scope in the pack", id)
 		}
 	}
@@ -150,15 +150,15 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 		if err != nil {
 			return nil, refusal("pack_invalid"), err
 		}
-		if err := pack.NoChangeText(body); err != nil { // D-528: no write, upload or other host, in every job (the builder kept only files that pass)
+		if err := pack.NoChangeText(body); err != nil { // No write, upload or other host, in every job (the builder kept only files that pass)
 			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may change the target or reach another host: %w", t.ID, err)
 		}
 		switch {
-		case full: // the last fence of D-527: no out-of-band interaction, read from the file itself
+		case full: // the last fence: no out-of-band interaction, read from the file itself
 			if err := pack.FullText(body, t.Tech()); err != nil {
 				return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may not run at full depth: %w", t.ID, err)
 			}
-		case nj.Scope == nucleiargv.ScopeOwnIP: // the last fence: the worker reads the file itself (D-520)
+		case nj.Scope == nucleiargv.ScopeOwnIP: // the last fence: the worker reads the file itself
 			if err := pack.OwnIPText(body); err != nil {
 				return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may not run on a public IP: %w", t.ID, err)
 			}
@@ -252,7 +252,7 @@ func (w *Worker) freshHome() error {
 }
 
 // executeNuclei re-checks a nuclei job, runs the pinned nuclei and returns the result to post. The environment of the program
-// is core/exec's (PATH, LANG and the HOME above, never the parent's: no proxy, no cloud upload key, D-136 (5)); its stderr is
+// is core/exec's (PATH, LANG and the HOME above, never the parent's: no proxy, no cloud upload key); its stderr is
 // never posted.
 func (w *Worker) executeNuclei(ctx, jctx context.Context, cur *activeJob) *sensorlink.JobResult {
 	if !w.nucleiCfg.on {
@@ -268,12 +268,12 @@ func (w *Worker) executeNuclei(ctx, jctx context.Context, cur *activeJob) *senso
 	}
 	rctx, cancel := context.WithTimeout(jctx, time.Duration(cur.job.TimeoutS)*time.Second)
 	defer cancel()
-	if cur.job.Nuclei.Scope == sensorlink.ScopeDomainIP { // nucleiArgv proved it is a full job with one public target: the domain fence (D-591)
+	if cur.job.Nuclei.Scope == sensorlink.ScopeDomainIP { // nucleiArgv proved it is a full job with one public target: the domain fence
 		if res := w.domainFence(ctx, rctx, jctx, cur, w.domainJob(cur.job), "nuclei"); res != nil {
 			return res
 		}
 	}
-	if cur.job.Nuclei.Scope == nucleiargv.ScopeOwnIP { // nucleiArgv proved it has one public target: the own-IP fence of D-514, D-520
+	if cur.job.Nuclei.Scope == nucleiargv.ScopeOwnIP { // nucleiArgv proved it has one public target: the own-IP fence
 		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Nuclei.Targets[0].Host)); !ok {
 			if context.Cause(jctx) != nil {
 				return stopped()
@@ -328,7 +328,7 @@ func (w *Worker) runWatched(ctx, jctx, rctx context.Context, cur *activeJob, arg
 	return "", res
 }
 
-// hostErrors is what the result says about targets that stopped answering (INV-6, D-165): the timeouts per target that
+// hostErrors is what the result says about targets that stopped answering (INV-6): the timeouts per target that
 // nuclei's error log (-elog on stderr) holds, counted by nucleiout.ParseHostErrors. Stderr itself is never posted.
 // runNuclei runs nuclei with its progress reported (#830).
 func (w *Worker) runNuclei(ctx context.Context, cur *activeJob, argv []string) (exec.Result, error) {
@@ -358,7 +358,7 @@ func (w *Worker) nucleiStatus(ctx context.Context) sensorlink.HeartbeatNuclei {
 	if !w.nucleiCfg.on {
 		return sensorlink.HeartbeatNuclei{}
 	}
-	hb := sensorlink.HeartbeatNuclei{OwnIP: w.egress != nil, Full: w.egress != nil} // D-520, D-527: own_ip jobs (full ones too) only behind the own-IP fence; without its checker every one would be refused
+	hb := sensorlink.HeartbeatNuclei{OwnIP: w.egress != nil, Full: w.egress != nil} // own_ip jobs (full ones too) only behind the own-IP fence; without its checker every one would be refused
 	rctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	if res, err := w.runner.Run(rctx, nucleiVer, []string{"-version", "-duc"}, nil); err == nil {

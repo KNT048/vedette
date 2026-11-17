@@ -1,4 +1,4 @@
-// Shared by the specs that run on the real backend (WP-30, D-170): the box manifest, API calls with the CSRF header, sign-in that waits
+// Shared by the specs that run on the real backend (WP-30): the box manifest, API calls with the CSRF header, sign-in that waits
 // out the box's one-password-at-a-time gate, the storageState files of the seeded roles, unique names.
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -8,15 +8,15 @@ export interface Box {
   base_url: string; setup_code: string; data_dir: string; honeypot_dir: string
   /** The control server of the box (slice 3): the SMTP sink's port and the bearer token for /smtp and /expire-codes. */
   control: string; control_token: string; smtp_port: string
-  /** The fake vedette-host's knobs and the second box with no host (slice 4, D-163). */
+  /** The fake vedette-host's knobs and the second box with no host (slice 4). */
   host_control?: string; host_token?: string; bare_url?: string; bare_setup_code?: string
   /** The loopback devices a connection can be saved against (slice 5): the target, the user name and the secret to type, by kind. */
   devices?: Record<'http' | 'ssh' | 'mcp', { target: string; username?: string; secret?: string }>
   /** The port of the syslog listener of the logs module (UDP and TCP on loopback): a source declared with sender 127.0.0.1 receives what a spec sends there. */
   syslog_port?: string
-  /** Syslog over TLS (D-214, D-427): the port of the TLS listener (the syslog port + 1) and the PEM of the test certificate it presents. */
+  /** Syslog over TLS: the port of the TLS listener (the syslog port + 1) and the PEM of the test certificate it presents. */
   syslog_tls_port?: string; syslog_tls_cert?: string
-  /** The pages the fake internet of the CVE news fetch serves, as host/path (D-426); the CVE they are about is CVE-2026-0001, the one catalog entry of the run. */
+  /** The pages the fake internet of the CVE news fetch serves, as host/path; the CVE they are about is CVE-2026-0001, the one catalog entry of the run. */
   news_pages?: string[]
 }
 
@@ -38,7 +38,7 @@ export async function nmapRuns(): Promise<string[]> {
   return ((await r.json()) as { lines: string[] }).lines
 }
 
-/** The scan worker (D-427): the REAL worker of sensor-active, in the box process, in the slot of the active sensor (stop it with
+/** The scan worker: the REAL worker of sensor-active, in the box process, in the slot of the active sensor (stop it with
  *  `sensorCtl({ stop: 'active' })`), running a FAKE nuclei that sends nothing. `match`: the first target of each template matches; `nomatch`: no
  *  line matches; `hang`: never answers; `dead`: every line is an error (the device stopped responding). The mode applies from the next run. */
 export async function scanWorker(nuclei: 'match' | 'nomatch' | 'hang' | 'dead'): Promise<void> {
@@ -98,7 +98,7 @@ export const ACCOUNTS: Record<Role, { name: string; email: string }> = {
 export const authFile = (role: Role) => join(dirname(process.env.E2E_BOX ?? ''), 'auth', `${role}.json`)
 
 let counter = 0
-/** A name no other test uses on this box: entities in the parallel project never share one (D-172). */
+/** A name no other test uses on this box: entities in the parallel project never share one. */
 export function uniq(prefix: string): string {
   return `${prefix}-${process.pid.toString(36)}${Date.now().toString(36)}${(counter++).toString(36)}`
 }

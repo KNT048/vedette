@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Incidents close themselves (D-550, INV-22) and the first-run window is told in a summary (INV-23).
+// Incidents close themselves (INV-22) and the first-run window is told in a summary (INV-23).
 const (
 	autoCloseJob   = "autoclose"
 	autoCloseEvery = time.Hour
@@ -22,7 +22,7 @@ const (
 )
 
 // quietWindows is how long an open (new or acknowledged) incident of each kind may see no new activity (quietSince)
-// before Vedette closes it (D-550): a trap or a bad connection that has not come back for a week, a log anomaly after three days
+// before Vedette closes it: a trap or a bad connection that has not come back for a week, a log anomaly after three days
 // (the logs digest keeps its lines; a new kind of message an hour is its own incident). A new hit afterwards opens a new incident:
 // the dedupe of INV-10 only joins incidents that are not resolved. New-device incidents close on approve or delete, never by time.
 var quietWindows = []struct {
@@ -36,13 +36,13 @@ var quietWindows = []struct {
 func heldKind(k IncidentKind) bool { return k == IncidentBadAddress || k == IncidentLogAnomaly }
 
 // runAutoClose is the body of the "autoclose" job: the first-run summary first (an incident held in it may also be quiet), then the
-// quiet incidents, then the new-device incidents of devices approved or renamed in Devices (D-552), then the discovery summary's
-// update for devices still untold (D-554).
+// quiet incidents, then the new-device incidents of devices approved or renamed in Devices, then the discovery summary's
+// update for devices still untold.
 func (s *Service) runAutoClose(ctx context.Context) error {
 	return errors.Join(s.firstRunSummary(ctx), s.closeQuiet(ctx), s.followDevices(ctx), s.discoveryUpdate(ctx))
 }
 
-// followDevices is assetUpdated for every device on an open new-device incident (D-552): a device approved before this version, or
+// followDevices is assetUpdated for every device on an open new-device incident: a device approved before this version, or
 // while notify was off (events are not replayed), leaves its incidents on the next run, which is also the run at start, and a name
 // Devices learnt since shows. One read of notify, one batch read of the inventory, and one write for the devices with something to
 // change (at most maxAutoClose a run; the next run takes the rest), so devices that stay unapproved never hold the others back.

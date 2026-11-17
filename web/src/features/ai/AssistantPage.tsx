@@ -59,7 +59,7 @@ function Ask() {
   const [q, setQ] = useState('')
   const [shown, setShown] = useState<AskResult | null>(null)
   const result = shown ?? ask.data ?? asks.data?.items[0] ?? null
-  // A failed Ask is said where its answer would be, with the question, not above it with an older answer below (walk 3 G13).
+  // A failed Ask is said where its answer would be, with the question, not above it with an older answer below.
   const failed = !shown && !ask.isPending && ask.error ? ask.error : null
   const long = q.length > ASK_MAX
 
@@ -91,7 +91,7 @@ function Ask() {
               ))}
             </div>
           </form>
-          {/* kien G1: a question can take up to two minutes (modules/ai askDefaultTimeout); say so while it runs */}
+          {/* A question can take up to two minutes (modules/ai askDefaultTimeout); say so while it runs */}
           <BusyNote busy={ask.isPending}>{t('ask.working')}</BusyNote>
           {failed ? (
             <div className="grid gap-2" role="region" aria-label={t('ask.answerFor', { q: ask.variables ?? '' })}>
@@ -174,7 +174,7 @@ function Meter({ query, renews }: { query: { data: Usage | undefined; error: unk
     <Section title={t('meter.title')} description={t('meter.description')} info={<><p>{t('meter.callsNote')}</p><p>{t('meter.noDowngradesInfo')}</p></>} stories={['S-AI-4']}>
       <QueryState query={query}>
         {(u) => {
-          // D-531: the bar is this month against the monthly budget (the box's count, rounded down like its 80 % and 100 % alerts)
+          // The bar is this month against the monthly budget (the box's count, rounded down like its 80 % and 100 % alerts)
           const pct = Math.min(100, budgetPct(u.month.total, u.monthly_budget))
           const date = fmtDate(renews)
           const tone = u.month.total >= u.monthly_budget ? 'bg-danger' : pct >= 80 ? 'bg-warn' : 'bg-accent'

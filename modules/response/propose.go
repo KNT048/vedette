@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// WP-13b slice 13b-10 (D-97, INV-15, INV-16, FORBID-5): AI proposals. The ai module calls Service.Propose as the service identity
+// WP-13b slice 13b-10 (INV-15, INV-16, FORBID-5): AI proposals. The ai module calls Service.Propose as the service identity
 // ai:response; there is no HTTP route for it in the real build. The AI names a catalog action and typed values and points at the
 // evidence. The server, not the prompt, decides whether that becomes an approval request, a suggestion note, a digest note or a
 // refusal. The body has no field that could hold a command, a path, a template or a header (INV-14, TestProposeBodyHasNoCommandField).
@@ -69,7 +69,7 @@ const (
 )
 
 // ProposedRequest is all the AI gets back about the request it caused: where to find it and how risky it is, never the rendered change,
-// the address, the body or the headers (D-119). The people who approve see the rest in the app.
+// the address, the body or the headers. The people who approve see the rest in the app.
 type ProposedRequest struct {
 	ID                string `json:"id"`
 	Status            Status `json:"status"`
@@ -95,17 +95,17 @@ type EvidenceRef struct {
 	Summary string
 	Relates []string
 	// Connection is, for a connection read, the id of the connection it went through. A read relates to an action only when this is the
-	// connection of that action (D-119); "" = it relates to nothing.
+	// connection of that action; "" = it relates to nothing.
 	Connection string
 }
 
 // EvidencePorts look up evidence the module does not own. A nil port, or a lookup that says not found, means the evidence does not
-// exist: the proposal is refused (422 evidence_invalid, D-97). A finding is looked up through Directory.
+// exist: the proposal is refused (422 evidence_invalid). A finding is looked up through Directory.
 type EvidencePorts struct {
-	// IocHit finds a known-bad connection by id (logs, WP-24). Nil until that module offers a read-only lookup (D-119).
+	// IocHit finds a known-bad connection by id (logs, WP-24). Nil until that module offers a read-only lookup.
 	IocHit func(ctx context.Context, id string) (EvidenceRef, bool, error)
-	// ConfigRead finds a read the box made through a connection, by its read record: the ai module's ai_read, at most 24 hours old
-	// (D-119, D-311); an existing read tool proves nothing. Nil (a binary without the ai module) = no read is evidence.
+	// ConfigRead finds a read the box made through a connection, by its read record: the ai module's ai_read, at most 24 hours old;
+	// an existing read tool proves nothing. Nil (a binary without the ai module) = no read is evidence.
 	ConfigRead func(ctx context.Context, id string) (EvidenceRef, bool, error)
 }
 
@@ -247,7 +247,7 @@ func (s *Service) lookupPort(ctx context.Context, f *foundEvidence, port func(co
 
 // relatesTo says whether the evidence is about the action. Typed: an address, MAC or domain relates only to a target of the same type
 // (compared in its canonical spelling), a host name only to a name or text target, an id or port by exact text. A connection read relates
-// only to a device action through that same connection; a box action never has a connection, so no read can justify it (D-119).
+// only to a device action through that same connection; a box action never has a connection, so no read can justify it.
 func (f foundEvidence) relatesTo(vals Values, cat catRow) bool {
 	if f.conn != "" {
 		return cat.device() && cat.ConnectionID == f.conn
@@ -282,7 +282,7 @@ func subjectsOfEvidence(ev []foundEvidence) []string {
 }
 
 const (
-	maxProposalsPerHour = 60 // calls of any outcome (D-119)
+	maxProposalsPerHour = 60 // calls of any outcome
 	proposalLogEvery    = time.Minute
 )
 
@@ -639,7 +639,7 @@ type AIAction struct {
 	Available   bool      `json:"available"`
 	Params      []AIParam `json:"params"`
 	// ConnectionID is the connection of a device action ("" for an action of the box): a read through it is the only read that can be
-	// evidence for the action (D-119). Not part of what is sent to the model as JSON.
+	// evidence for the action. Not part of what is sent to the model as JSON.
 	ConnectionID string `json:"-"`
 }
 

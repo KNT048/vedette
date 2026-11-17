@@ -127,7 +127,7 @@ func TestNetworkOS_910_ClassicIOSIsNotComparedButListed(t *testing.T) {
 	}
 }
 
-// Only the device's own SNMP answer counts for these OSes (D-549): an LLDP frame can carry another device's MAC. Its own agent
+// Only the device's own SNMP answer counts for these OSes: an LLDP frame can carry another device's MAC. Its own agent
 // reporting another OS wins. A recorded row of the OS decides when its version is readable; one without gives way.
 func TestNetworkOS_910_WhoseStatementCounts(t *testing.T) {
 	t.Parallel()
@@ -160,7 +160,7 @@ func TestNetworkOS_910_WhoseStatementCounts(t *testing.T) {
 	}
 }
 
-// Review r1 H1 + L1 of #919: the device's own SNMP answer always wins over an LLDP frame (D-549, D-620), and an LLDP Junos statement
+// Review r1 H1 + L1 of #919: the device's own SNMP answer always wins over an LLDP frame, and an LLDP Junos statement
 // counts only with no SNMP answer, on a Juniper card (or a device known only through LLDP).
 func TestNetworkOS_919_SNMPWinsOverLLDP(t *testing.T) {
 	t.Parallel()
@@ -182,7 +182,7 @@ func TestNetworkOS_919_SNMPWinsOverLLDP(t *testing.T) {
 		name, mac, snmp string
 		junos           bool
 	}{
-		{"LLDP only, Juniper card (the N100 EX4200)", "3c:8a:b0:9c:85:ff", "", true},
+		{"LLDP only, Juniper card (the lab EX4200)", "3c:8a:b0:9c:85:ff", "", true},
 		{"LLDP only, known only through LLDP (no address)", "", "", true},
 		{"LLDP only, another maker's card", "00:09:0f:aa:bb:cc", "", false},
 		{"LLDP Junos, SNMP names another OS", "3c:8a:b0:9c:85:ff", "Linux sw 5.10.0", false},

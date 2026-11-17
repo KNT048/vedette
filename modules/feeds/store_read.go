@@ -101,7 +101,7 @@ func (s *Store) pendingDevices(ctx context.Context) ([]string, error) {
 	return out, rows.Err()
 }
 
-// Have is the "I have this" scope of one declared device (D-484): its version-less software of KEV key Key is matched
+// Have is the "I have this" scope of one declared device: its version-less software of KEV key Key is matched
 // from the CISA date Since on.
 type Have struct {
 	Key   string

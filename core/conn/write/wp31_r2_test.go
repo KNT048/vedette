@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// WP-31 review, slice R2 (D-179).
+// WP-31 review, slice R2.
 
 // L5: a step that is cancelled while it is being sent (the emergency stop) sends no further line. Lines 3 and 4 never reach the device and the
 // outcome is "unknown": line 1 and 2 were accepted.

@@ -1,5 +1,5 @@
 // Mock API module logs (S-LOG-1/2/3). Nguồn log, digest "mới / tăng đột biến / kết nối xấu", tìm sự kiện, lưu giữ, chuyển tiếp SIEM.
-// Dòng log và digest là dữ liệu mẫu cố định; thiết bị nguồn tra theo IP trong assetsStore (kiểm kê). Mọi văn bản người dùng thấy bằng tiếng Anh (D-28).
+// Dòng log và digest là dữ liệu mẫu cố định; thiết bị nguồn tra theo IP trong assetsStore (kiểm kê). Mọi văn bản người dùng thấy bằng tiếng Anh.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard, IPV4_RE, NAME_RE } from '@/mocks/http'
 import { assetsStore, boxInfo, modulesStore } from '@/mocks/stores'
@@ -19,7 +19,7 @@ const sources = collection<Stored[]>('logs_sources', () => [
   { id: 'ls-3', kind: 'windows', name: 'SRV-AD', sender_ip: '192.168.10.10', proto: 'udp', port: 514, last_received: new Date(Date.now() - 240e3).toISOString(), lines_per_hour: 95, created_at: daysAgo(20), client_cert_sha256: null },
   { id: 'ls-4', kind: 'windows', name: 'SRV-FILE', sender_ip: '192.168.10.11', proto: 'udp', port: 514, last_received: daysAgo(3), lines_per_hour: 0, created_at: daysAgo(20), client_cert_sha256: null },
 ], () => [])
-// IOC detections (S-LOG-2, S-LOG-4, D-43): metadata from a SPAN port (DNS query, TLS SNI, HTTP host, flow) or syslog matched against the feeds.
+// IOC detections (S-LOG-2, S-LOG-4): metadata from a SPAN port (DNS query, TLS SNI, HTTP host, flow) or syslog matched against the feeds.
 // Stored shape is read by the response module with peek('logs_ioc_hits'); like the box (INV-7) it does not hold the device: asset_id and
 // asset_name are resolved from the inventory when the digest is read. Clean install: empty.
 type StoredIoc = Omit<IocHit, 'asset_id' | 'asset_name'>
@@ -39,7 +39,7 @@ const siem = collection<Omit<SiemConfig, 'secret_last4' | 'secret_lost'> & { sec
   enabled: false, format: 'syslog', host: '', port: 514, proto: 'udp', url: '', secret: '', events: ['findings', 'alerts'], last_test: null,
 }))
 
-// What a device must trust for the box's syslog TLS port (D-434): on a default box the box's own CA (the 8443 leaf is signed by it and re-issued
+// What a device must trust for the box's syslog TLS port: on a default box the box's own CA (the 8443 leaf is signed by it and re-issued
 // on renewal), so the sample is that.
 const BOX_TLS = {
   kind: 'box_ca' as const, issuer: 'CN=Vedette box CA', port: 6514,
@@ -88,7 +88,7 @@ function seedEvents(): StoredEvent[] {
   return out.sort((a, b) => b.ts.localeCompare(a.ts))
 }
 const events = collection<StoredEvent[]>('logs_events', seedEvents, () => [])
-// The box reads the syslog header of each line it lists (W1-22, D-485).
+// The box reads the syslog header of each line it lists.
 const shown = (l: StoredEvent[]): LogEvent[] => l.map((e) => ({ ...e, ...syslogHeader(e.line) }))
 
 function digest(): Digest {
@@ -142,7 +142,7 @@ const NUMERIC_LABEL_RE = /^(0x[0-9a-f]+|[0-9]+)$/
 const SIEM_METADATA = ['100.100.100.200', '192.0.0.192', 'fd00:ec2::254'] // cloud metadata endpoints that are not link-local
 const BAD_HOST = 'The SIEM server must be an IP address or a domain name, for example 192.168.10.50 or siem.company.com.'
 const BAD_URL = 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://siem.company.com/hooks/vedette.'
-// SYS-7: link-local, multicast, unspecified, broadcast and a metadata endpoint are never a destination; nor is Vedette itself (D-446): loopback
+// SYS-7: link-local, multicast, unspecified, broadcast and a metadata endpoint are never a destination; nor is Vedette itself: loopback
 // and localhost on every port, the box's own address on Vedette's own ports. A name that is an address in disguise (2130706433, 0x7f.1) is
 // not a host name. Names are resolved only on the box's socket.
 const VEDETTE_PORTS = [514, 6514, 8443, 8444, 8765]
@@ -228,7 +228,7 @@ export const handlers = [
 
   http.get(`${API}/logs/unknown-senders`, () => {
     const denied = guard('operator'); if (denied) return denied
-    // Like the box: a sender a source now takes over the protocol it used is left out (a UDP source takes TCP too, D-444); the 10 seen most recently.
+    // Like the box: a sender a source now takes over the protocol it used is left out (a UDP source takes TCP too); the 10 seen most recently.
     const declared = sources.get()
     const items = unknownSenders.get().filter((u) => !declared.some((s) => s.sender_ip === u.ip && (s.proto === u.proto || (s.proto === 'udp' && u.proto === 'tcp')))).sort((a, b) => b.last_seen.localeCompare(a.last_seen)).slice(0, 10)
     return HttpResponse.json({ items })
@@ -249,7 +249,7 @@ export const handlers = [
     const since = Date.now() - Math.min(WINDOW_MS[w], retention.get().days * 86400e3)
     const all = events.get().filter((e) => new Date(e.ts).getTime() >= since && (!src || e.source_id === src) && (!q || e.line.toLowerCase().includes(q) || e.source_name.toLowerCase().includes(q)))
     // A keyword search answers 200 matches at most and, when older lines may remain, `next_cursor` (the id of the last line shown) that
-    // `cursor` continues from (D-441); the real box also stops at a time budget, which a mock has no reason to imitate.
+    // `cursor` continues from; the real box also stops at a time budget, which a mock has no reason to imitate.
     const cursor = p.get('cursor')
     if (cursor && !q) return fail(400, 'bad_cursor', 'That search position is not valid. Search again from the start.')
     if (q) {

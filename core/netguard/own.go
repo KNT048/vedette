@@ -5,7 +5,7 @@ import (
 	"slices"
 )
 
-// D-446: Vedette never connects to itself, and may connect to another program on the machine it runs on. Loopback, the addresses of
+// Vedette never connects to itself, and may connect to another program on the machine it runs on. Loopback, the addresses of
 // core's own container and the honeypot's decoys are Vedette itself on every port; the machine's addresses only on Vedette's own ports.
 
 // vedettePorts are the ports Vedette itself answers on at the machine's addresses: the interface 8443, the sensor link 8444, MCP 8765,
@@ -15,7 +15,7 @@ var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
 // VedettePort reports whether port is one of Vedette's own ports.
 func VedettePort(port uint16) bool { return slices.Contains(vedettePorts, port) }
 
-// OwnText is the sentence for Vedette itself (D-446), the same in every module that refuses it.
+// OwnText is the sentence for Vedette itself, the same in every module that refuses it.
 const OwnText = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
 
 // Own is what Vedette itself is, as a guard reads it at a check.

@@ -14,13 +14,13 @@ export const SOURCES = ['snmp', 'osquery', 'wazuh', 'scan', 'passive', 'manual']
 export type SourceToken = (typeof SOURCES)[number]
 export const feedsOfRow = (d: DeviceRow): ReadonlySet<SourceToken> => new Set(d.sources)
 
-/** The software rows of a device that `software:` values match (the "Matched software" column, #849 review M2). */
+/** The software rows of a device that `software:` values match (the "Matched software" column, #849). */
 export const matchSoftware = (d: DeviceRow, values: string[]) =>
   d.software.filter((s) => values.some((v) => `${s.display} ${s.vendor} ${s.product}`.toLowerCase().includes(v)))
 /** The `software:` values of a query. */
 export const softwareValues = (q: string) => parseQuery(q, DEVICE_KEYS).tokens.filter((t) => t.key === 'software' && t.value).map((t) => t.value!)
 
-/** G4: the risk words of the search, worst first (contract DevicesQuery.risk). */
+/** The risk words of the search, worst first (contract DevicesQuery.risk). */
 export const RISKS = ['exploited', 'update', 'none'] as const
 
 const DAY = 24 * 60 * 60 * 1000
@@ -40,7 +40,7 @@ function haystack(d: DeviceRow): string {
   return [nameOf(d, kindLabel(d.kind)), d.hostname, d.ip, d.mac, d.vendor?.value, d.model?.value, d.os?.value].filter(Boolean).join(' ').toLowerCase()
 }
 
-/** Ids of the devices that may be the same machine as another (D-599, GET /inventory/possible-same), for `possible:same`. */
+/** Ids of the devices that may be the same machine as another (GET /inventory/possible-same), for `possible:same`. */
 export type SameIds = ReadonlySet<string>
 const NONE: SameIds = new Set()
 
@@ -53,7 +53,7 @@ function tokenMatch(d: DeviceRow, key: string, value: string | null, now: number
     case 'has': return value === 'findings' ? d.findings_count > 0 : value === 'software' ? d.software.length > 0 : value === 'ports' ? d.services.length > 0 : false
     case 'software': return !!value && matchSoftware(d, [value]).length > 0
     case 'possible': return value === 'same' && same.has(d.id)
-    case 'risk': return (d.risk?.level ?? 'none') === value // G4: exploited, update, none (GET /inventory/devices?risk= reads the same words)
+    case 'risk': return (d.risk?.level ?? 'none') === value // exploited, update, none (GET /inventory/devices?risk= reads the same words)
     case 'approved': {
       const span = APPROVED_WITHIN[value as keyof typeof APPROVED_WITHIN]
       return !!span && !!d.approved_at && now - new Date(d.approved_at).getTime() < span
@@ -79,7 +79,7 @@ export function filterDevices(rows: DeviceRow[], q: string, now: number, same: S
 
 const t = (k: string, o?: Record<string, string>) => i18n.t(`inventory:search.${k}`, o)
 
-/** The 12 software names most devices have, for `software:` suggestions (#849 review r2 M2). */
+/** The 12 software names most devices have, for `software:` suggestions (#849). */
 function topSoftware(rows: DeviceRow[]): TokenValue[] {
   const n = new Map<string, { label: string; count: number }>()
   for (const d of rows) for (const name of new Set(d.software.map((s) => s.display))) {
@@ -125,7 +125,7 @@ export const DEVICE_KEYS: TokenKey[] = [
   { key: 'risk', label: 'risk', values: [] },
 ]
 
-/** The old Devices URLs (D-471 `?show=`, `?cat=`, the Software and Add devices tabs) as the new query (#849). */
+/** The old Devices URLs (`?show=`, `?cat=`, the Software and Add devices tabs) as the new query (#849). */
 export function fromOldUrl(params: URLSearchParams): URLSearchParams | null {
   const tab = params.get('tab')
   const show = params.get('show')

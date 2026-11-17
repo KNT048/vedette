@@ -16,8 +16,8 @@ const JobTick = time.Minute
 // JobTick and checks the box's public IPs when one is due (INV-11): the first time right after the module starts,
 // then every interval_min minutes while the customer has auto-detect on.
 //
-// greenbone-feed wakes up every GreenboneSyncTick and updates Greenbone's feed once a week while Greenbone is enabled (D-564 G6,
-// RunGreenboneSync); most wake-ups do nothing.
+// greenbone-feed wakes up every GreenboneSyncTick and updates Greenbone's feed once a week while Greenbone is enabled
+// (RunGreenboneSync); most wake-ups do nothing.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "auto-detect", Every: JobTick, Run: svc.RunAutoDetect},

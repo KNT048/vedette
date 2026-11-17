@@ -77,9 +77,9 @@ type sourceRow struct {
 	ETag           *string
 	LastModified   *string
 	CatalogVersion *string
-	AnsweredBy     *string // D-91: "CISA" or "CISA GitHub mirror", only for the CISA list
-	// MirrorETag and MirrorLastModified are the validators of the CISA GitHub mirror (D-485): ETag and LastModified stay the
-	// validators of the feed's own address, so neither address is ever sent the other's (D-91).
+	AnsweredBy     *string // "CISA" or "CISA GitHub mirror", only for the CISA list
+	// MirrorETag and MirrorLastModified are the validators of the CISA GitHub mirror: ETag and LastModified stay the
+	// validators of the feed's own address, so neither address is ever sent the other's.
 	MirrorETag         *string
 	MirrorLastModified *string
 }
@@ -209,7 +209,7 @@ ON CONFLICT(id) DO UPDATE SET name = excluded.name, kind = excluded.kind, format
 	})
 }
 
-// retireBuiltins deletes the built-in rows the code no longer lists (D-92, INV-16), with their listings, vulnerabilities
+// retireBuiltins deletes the built-in rows the code no longer lists (INV-16), with their listings, vulnerabilities
 // and pull history. Custom feeds are never touched.
 func retireBuiltins(ctx context.Context, tx *sql.Tx) error {
 	keep := map[string]bool{}
@@ -325,7 +325,7 @@ records = NULL, stale_failed_since = NULL, stale_failed_checks = 0 WHERE id = ?`
 	if was == enabled {
 		return nil
 	}
-	// Turned on or off: the watch of the CISA list restarts (D-629: the checks count from when it is on again, and an alert open when it
+	// Turned on or off: the watch of the CISA list restarts (the checks count from when it is on again, and an alert open when it
 	// was turned off is not followed by "up to date again"), and the CISA list forgets its held version, count and every validator (#946 r1:
 	// the way out of a catalog the box should not have kept; the next check reads both copies in full).
 	if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET stale_watch_from = NULL, stale_alerted_at = NULL, stale_failed_since = NULL,
@@ -585,7 +585,7 @@ date_added, due_date, ransomware, has_template, source_id, updated_at) VALUES (?
 			fresh = append(fresh, row)
 			continue
 		}
-		// another feed owns this CVE; the CISA list takes over any, VulnCheck KEV any but CISA's (D-557)
+		// another feed owns this CVE; the CISA list takes over any, VulnCheck KEV any but CISA's
 		if old.SourceID != source && source != "cisa-kev" && (source != vulnCheckFeedID || old.SourceID == "cisa-kev") {
 			continue
 		}
@@ -877,7 +877,7 @@ type IOCSighting struct {
 	Confidence float64
 	// Enabled is whether the feed is switched on now: a switched-off feed is never pulled and its listings are not pruned, so they go stale (logs ignores them).
 	Enabled bool
-	// Subdomains is whether the feed lists a name for itself and all of its subdomains (a built-in source with Source.Subdomains, D-228);
+	// Subdomains is whether the feed lists a name for itself and all of its subdomains (a built-in source with Source.Subdomains);
 	// false for a custom feed, which lists names exactly.
 	Subdomains bool
 }
@@ -901,8 +901,8 @@ func (s *Store) IOCListed(ctx context.Context) (bool, error) {
 	return ok, nil
 }
 
-// IOCSubdomainsOn says whether a switched-on built-in feed lists names with all of their subdomains (Source.Subdomains, D-228): logs
-// looks up the parents of an unlisted name only then (D-425). A custom feed is always exact.
+// IOCSubdomainsOn says whether a switched-on built-in feed lists names with all of their subdomains (Source.Subdomains): logs
+// looks up the parents of an unlisted name only then. A custom feed is always exact.
 func (s *Store) IOCSubdomainsOn(ctx context.Context) (bool, error) {
 	ids := []any{}
 	for _, b := range BuiltinSources() {
@@ -979,8 +979,8 @@ type outcome struct {
 	ETag, LastModif   string
 	CatalogVersion    string
 	CatalogReleased   time.Time // dateReleased of the catalog stored (zero leaves it as it is)
-	AnsweredBy        string    // D-91: the copy of the CISA list the stored catalog came from ("" leaves it as it is)
-	// Copies is what each copy of the CISA list said at this check (D-91 as amended, kien G13), with each copy's validators; nil for
+	AnsweredBy        string    // The copy of the CISA list the stored catalog came from ("" leaves it as it is)
+	// Copies is what each copy of the CISA list said at this check, with each copy's validators; nil for
 	// every other pull. Written for a failed pull too.
 	Copies *kevCopies
 }

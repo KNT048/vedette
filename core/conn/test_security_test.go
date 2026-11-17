@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// The security properties of Test (independent review of slice 13b-5, D-94, core INV-23): trust on first use is for the first Test
+// The security properties of Test (independent review of slice 13b-5, core INV-23): trust on first use is for the first Test
 // only, one Test trusts one certificate, no secret reaches a message, and nothing a server says can grow the connection.
 
 // H1. The first Test records whether a public authority vouched for the server (pin kind tls_roots); from then on a certificate that

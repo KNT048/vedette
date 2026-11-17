@@ -9,10 +9,10 @@ import (
 	"github.com/knt048/vedette/core/localnet"
 )
 
-// The connection a line is about (L4, D-213): the LAN device that made it and what it connected to (a public address, and for a DNS
+// The connection a line is about: the LAN device that made it and what it connected to (a public address, and for a DNS
 // or web-filter line the name it asked for), read only from the fields a device's format names (local_field, dest_ip_field,
 // dest_host_fields of a key=value profile, conn_pattern of a template profile). The same anti-framing rule as the remote address
-// (D-210) and stricter: a field counts only when it is written exactly ONCE as a key=value site outside quoted text, whatever the
+// and stricter: a field counts only when it is written exactly ONCE as a key=value site outside quoted text, whatever the
 // values; two sites (the same value or not), a double quote that is not a value's own, or more pairs than the scan looks at make the
 // whole line a line without a connection. There is no free-text reader: a line of a device without a profile, and a line the profile
 // does not settle, has none. Missing data beats a false hit, because a hit tells a person that a device on their network talked to a
@@ -32,7 +32,7 @@ const MaxDests = 2
 type Dest struct{ Kind, Value string }
 
 // Conn is a connection a line is about: a LAN device (private IPv4) and where it went. The zero Conn (Local not valid) is no connection.
-// Blocked says that the device that logged it stopped it (the profile's conn_blocked, D-227): the line records an attempt. False when the
+// Blocked says that the device that logged it stopped it (the profile's conn_blocked): the line records an attempt. False when the
 // format does not say so, which is read as a connection that went through.
 type Conn struct {
 	Local   netip.Addr
@@ -41,7 +41,7 @@ type Conn struct {
 }
 
 // LocalOK says whether an address can be the LAN device of a connection: an IPv4 address of a local network (RFC 1918, or the RFC 6598
-// shared space 100.64/10 that a network watched by Vedette may use, localnet.Addr, D-461). The destination rule (PublicDest) is not
+// shared space 100.64/10 that a network watched by Vedette may use, localnet.Addr). The destination rule (PublicDest) is not
 // changed: a 100.64/10 destination is never looked up.
 func LocalOK(a netip.Addr) bool { return a.IsValid() && localnet.Addr(a) }
 

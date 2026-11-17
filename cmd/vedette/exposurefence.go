@@ -14,7 +14,7 @@ import (
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// The domain fence of core (FULL-5 slice 2, D-591, plan 2026-11-14 §5): exposure's Config.DomainFence is vedette-host's exposure.token
+// The domain fence of core: exposure's Config.DomainFence is vedette-host's exposure.token
 // (the host holds the key, core never does); a deep step of exposure that carries ScanTarget.Domain goes out as a domain_ip job of the
 // scan container's worker (nmap, nuclei) or through the host's own check (ZAP, OpenVAS), and each executor checks the fence itself.
 // A container-only install (no vedette-host) has no DomainFence: nothing new goes to an address that is not the box's own.
@@ -121,7 +121,7 @@ func domainErr(err error, d *exposure.DomainScope, ip string) (*exposure.Unavail
 		return &exposure.Unavailable{Reason: domainForeign}, true
 	case domainfence.NotOwned:
 		at := d.Domain
-		if d.ProofAt != "" { // D-632: the record the worker looked for is the target's own on the parent name
+		if d.ProofAt != "" { // The record the worker looked for is the target's own on the parent name
 			at = d.ProofAt
 		}
 		return &exposure.Unavailable{Reason: fmt.Sprintf(domainNotOwn, at, d.Token)}, true

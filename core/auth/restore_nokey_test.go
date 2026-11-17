@@ -15,7 +15,7 @@ import (
 )
 
 // resealUnderOtherKey re-encrypts every core_secret row of purpose under another master key, as a backup restored
-// without its decryption key leaves them (J7, #812): the rows are there, this box's key opens none of them.
+// without its decryption key leaves them (#812): the rows are there, this box's key opens none of them.
 func resealUnderOtherKey(t *testing.T, env *authtest.Env, purpose string) {
 	t.Helper()
 	other, err := secrets.New(bytes.Repeat([]byte{7}, 32))

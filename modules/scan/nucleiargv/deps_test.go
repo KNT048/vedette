@@ -10,12 +10,12 @@ import (
 	"testing"
 )
 
-// L6: the sensor binary links this package (D-125 (2), D-114 (2)). Checked on the whole dependency graph (the same
+// L6: the sensor binary links this package. Checked on the whole dependency graph (the same
 // walk go list -deps does, with go/build, because os/exec is SYS-1's): standard library only, and never a process,
 // the network, a database or unsafe of its own.
 func TestLeafImportsOnlyTheStandardLibrary(t *testing.T) {
 	t.Parallel()
-	assertLeaf(t, []string{"github.com/knt048/vedette/core/localnet"}) // standard library only itself (D-461)
+	assertLeaf(t, []string{"github.com/knt048/vedette/core/localnet"}) // standard library only itself
 }
 
 // forbiddenDeps may not be anywhere in the graph. Not syscall: fmt imports os, which imports it. unsafe is checked on

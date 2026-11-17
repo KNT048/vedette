@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// FixedIn is what NVD's affected versions say about the fix of one finding, for the device it is on (D-488): the
+// FixedIn is what NVD's affected versions say about the fix of one finding, for the device it is on: the
 // "What to do" part of a finding page. It is only ever built from a range with an end bound; no range, no FixedIn,
 // and the page keeps CISA's required action and the vendor's advisory.
 type FixedIn struct {
@@ -17,7 +17,7 @@ type FixedIn struct {
 	// "branches" (the version is not known, or not readable), "end_listed" (inside a range that ends before Fixed, but NVD lists
 	// releases of Fixed itself as affected: Fixed is not a fix, the advisory names it, M2-4) or "distro" (a package of the distribution, whose security
 	// updates carry the fix under their own numbers: an agent read it from the device's package database, or the version
-	// carries a distribution marker, "2.4.52-1ubuntu4", on Ubuntu/Debian). A Windows release row (D-546) may also give "feature_update"
+	// carries a distribution marker, "2.4.52-1ubuntu4", on Ubuntu/Debian). A Windows release row may also give "feature_update"
 	// (the device's release no longer gets monthly updates: Fixed is the build of Branches[0].Branch, a later release of its line,
 	// that has the fix) or "esu" (Fixed is above the last revision the release gets without Extended Security Updates).
 	Kind     string        `json:"kind"`
@@ -31,13 +31,13 @@ type FixedIn struct {
 	// package database (a person typed it, a scan read it, or an agent row stored before inventory kept the flag), so the
 	// page names the upstream number and adds "if you installed it from <distro>'s packages, install its security updates instead".
 	Distro string `json:"distro"`
-	// DistroFixed, DistroRelease and DistroPro (D-516, kind distro only): the version of the distribution's package that fixes
+	// DistroFixed, DistroRelease and DistroPro (kind distro only): the version of the distribution's package that fixes
 	// the CVE on the device's release ("1:9.6p1-3ubuntu13.5" for Ubuntu "24.04"), and whether only Ubuntu Pro has it; Version
 	// is then the device's full package version. "" when the distribution's data does not say.
 	DistroFixed   string `json:"distro_fixed"`
 	DistroRelease string `json:"distro_release"`
 	DistroPro     bool   `json:"distro_pro"`
-	Source        string `json:"source"` // FixedInSource, FixedInSourceCVEOrg (D-556), or DistroSource when DistroFixed is set
+	Source        string `json:"source"` // FixedInSource, FixedInSourceCVEOrg, or DistroSource when DistroFixed is set
 }
 
 // FixedBranch is the fix of one release line, the line named by the start of its range ("7.4" -> "7.4.3"); Branch is
@@ -48,7 +48,7 @@ type FixedBranch struct {
 }
 
 // FixedInSource labels where the fixed versions come from; FixedInSourceCVEOrg when NVD has none and they come from the
-// CNA's CVE.org record (D-556).
+// CNA's CVE.org record.
 const (
 	FixedInSource       = "NVD affected versions"
 	FixedInSourceCVEOrg = "CVE.org affected versions (from the CVE record's CNA)"
@@ -82,7 +82,7 @@ func FixedInFor(a Asset, v Vuln) *FixedIn {
 		switch {
 		case f == nil:
 			return 0
-		case f.DistroFixed != "": // the distribution's own fixed package: the most definite answer (D-516)
+		case f.DistroFixed != "": // the distribution's own fixed package: the most definite answer
 			return 7
 		case f.Kind == "fixed":
 			return 6
@@ -102,7 +102,7 @@ func FixedInFor(a Asset, v Vuln) *FixedIn {
 			continue
 		}
 		in := newSWInfo(s, a.OS)
-		if f, ok := windowsFixedIn(in, v); ok { // D-546
+		if f, ok := windowsFixedIn(in, v); ok {
 			if rank(f) > rank(best) {
 				best = f
 			}
@@ -155,7 +155,7 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 	// usable are the entries that carry a range with readable bounds: the only ones a fix can be read from.
 	var usable []fixedEntry
 	for _, e := range ents {
-		// update NA is the release without an update (D-500, #901): its range reads as one whose update is ANY
+		// update NA is the release without an update: its range reads as one whose update is ANY
 		if !e.r.IsZero() && e.c.Version.Kind == Any && (e.c.Update.Kind == Any || e.c.Update.Kind == NA) && boundsReadable(e.r) {
 			usable = append(usable, e)
 		}
@@ -180,7 +180,7 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 }
 
 func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
-	if d, ok := distroVerdict(in, v); ok { // D-516: the distribution's word on its own package
+	if d, ok := distroVerdict(in, v); ok { // The distribution's word on its own package
 		if d.kind != distroNeeded {
 			return nil // fixed here or not affected: nothing to install
 		}
@@ -189,7 +189,7 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 	}
 	p := fixedPartsOf(in, v, key)
 	usable, outside := p.usable, p.outside
-	// A package of the distribution: an agent read it from the package database, or its version says so (D-488). A row
+	// A package of the distribution: an agent read it from the package database, or its version says so. A row
 	// whose origin is not known keeps the upstream answer with the condition (Distro below).
 	distro := in.given && (in.packaged || distroMarked(in.ver) && distroName(in) != "")
 	var f *FixedIn
@@ -369,11 +369,11 @@ func lineOf(r VersionRange) string {
 	return parts[0] + "." + parts[1]
 }
 
-// GroupFix is the one release that closes every vulnerability of one installed software on a device (D-490, "one upgrade, one line").
+// GroupFix is the one release that closes every vulnerability of one installed software on a device ("one upgrade, one line").
 // Kind is "fixed" (Fixed is outside the affected range of ALL the vulnerabilities of the software), "none" (NVD's ranges name no
 // release that clears them all: the advisory decides), "up_to" (NVD names no fixed release, Fixed is the last affected one) or
 // "distro" (the distribution's security updates carry the fix: an agent read it from the package database, or its version carries a
-// distribution marker on Ubuntu/Debian). A Windows release row (D-546) may give "feature_update" (no monthly update clears it: Fixed
+// distribution marker on Ubuntu/Debian). A Windows release row may give "feature_update" (no monthly update clears it: Fixed
 // names the later release of its line that has the fixes; the device needs a feature update) or "esu" (Fixed needs Extended Security
 // Updates). Software is the id of the software row it is about.
 type GroupFix struct {
@@ -382,7 +382,7 @@ type GroupFix struct {
 	Closed map[string]bool
 	// Ranged holds the CVEs this software itself is inside a range with an end for (Closed before the widening of kind fixed): the
 	// only ones the update is proved to fix. A CVE with no range for this software (no NVD data, another product of a "Multiple
-	// Products" entry, a range on another row) is not in it (D-545, review r2 #1).
+	// Products" entry, a range on another row) is not in it.
 	Ranged map[string]bool
 }
 
@@ -443,7 +443,7 @@ func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
 		}
 		g := groupFixOf(in, mine, nvd)
 		if _, ok := winDevice(in); ok {
-			g = windowsGroupFix(in, mine) // D-546
+			g = windowsGroupFix(in, mine)
 		}
 		if g == nil {
 			continue
@@ -524,14 +524,14 @@ func groupFixOf(in swInfo, vulns []Vuln, nvd map[string]bool) *GroupFix {
 	return g
 }
 
-// RowFix is FindingRow.fix (D-545): the one update that fixes a finding together with the other open findings of the same software on
+// RowFix is FindingRow.fix: the one update that fixes a finding together with the other open findings of the same software on
 // the same device, so the list can show one item ("Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or
 // later): fixes 44 exploited vulnerabilities") instead of one row per CVE. Only an update a person can install: GroupFix kinds fixed,
 // esu, feature_update and distro (none and up_to name no release).
 type RowFix struct {
 	Group    string `json:"group"`    // "<device id>/<software id>": the findings with the same group take the same update
 	Kind     string `json:"kind"`     // fixed, esu, feature_update or distro (GroupFix.Kind)
-	Windows  bool   `json:"windows"`  // a Windows release row (D-546): the update is the monthly cumulative update of Windows Update
+	Windows  bool   `json:"windows"`  // a Windows release row: the update is the monthly cumulative update of Windows Update
 	Software string `json:"software"` // the software row's display name
 	Version  string `json:"version"`  // the installed version
 	Fixed    string `json:"fixed"`    // the release or build that fixes them all (feature_update: the release to move to); "" for distro
@@ -565,7 +565,7 @@ func RowFixes(a Asset, vulns []Vuln) map[string]*RowFix {
 			continue
 		}
 		// Review r1 #1, r2 #1: only a CVE the group's own software is inside a range with an end for (GroupFix.Ranged). groupFixOf
-		// widens a "fixed" release to every entry of the software, also one NVD has no data for, that lists other products (D-505) or
+		// widens a "fixed" release to every entry of the software, also one NVD has no data for, that lists other products or
 		// whose range is on another row of the device: those keep their own row, the update proves nothing about them.
 		if !g.Ranged[cve] {
 			continue

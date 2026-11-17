@@ -77,7 +77,7 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 		raw[p] = strings.TrimSpace(resolveParam(a.Params[string(p)], ev.Fields))
 	}
 	if ev.Trigger == "log_threshold" && raw[PIP] == "" && slices.Contains(refsIn(a.Params[string(PIP)]), "source_ip") {
-		// no single address reached the threshold (D-288): the count is the log source's, spread over many addresses or naming none.
+		// no single address reached the threshold: the count is the log source's, spread over many addresses or naming none.
 		// Not a bad value: nothing to act on. Other triggers keep INV-10: an empty address is invalid_target.
 		n := "N"
 		if v, err := strconv.Atoi(ev.Fields["threshold"]); err == nil && v > 0 {
@@ -100,7 +100,7 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	if e, hit := firstTouched(never, acted); hit {
 		return planned{}, &planFail{"never_touch", cleanLine(strings.Join(acted, " / ")+" matches the never-touch list ("+e.Label+", "+e.Value+").") + " Nothing was changed.", title}
 	}
-	// D-469: the block list publishes public addresses only (INV-17), so a block on any other address is refused here, when the
+	// The block list publishes public addresses only (INV-17), so a block on any other address is refused here, when the
 	// plan is made, on every path (rule, manual run, AI proposal, AI plan): it would be accepted, reported added and never published.
 	// After the never-touch check, which names the device (the gateway, the box) and stays the answer for those.
 	if cat.ID == "blocklist_add" {
@@ -115,7 +115,7 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	if c, ok := cs.get(cat.ConnectionID); ok && cat.device() {
 		conn = &c
 	}
-	if cat.device() && cat.usesRuntime("expiry_s") && a.TTLMin == nil { // D-94 (4): {expiry_s} is the undo time in seconds
+	if cat.device() && cat.usesRuntime("expiry_s") && a.TTLMin == nil { // {expiry_s} is the undo time in seconds
 		return planned{}, &planFail{"tool_unavailable", "Not available: this action needs an undo time, and none is set.", title}
 	}
 	ch, err := s.buildChange(cat, vals, conn, why, a.TTLMin)
@@ -362,7 +362,7 @@ func (s *Service) fire(ctx context.Context, tx *sql.Tx, rule Rule, ev Det, sum *
 	for _, a := range rule.Actions {
 		p, f := s.planAction(a, ev, ev.Summary, cats, cs, never)
 		if f != nil && f.code == codeNotPublishable {
-			// D-469: a block the list could never publish would do nothing; it is not a safety refusal, so only that action is
+			// A block the list could never publish would do nothing; it is not a safety refusal, so only that action is
 			// dropped (with its line) and the rule's other actions still go ahead (a trap's "block the source + tell me" still tells).
 			if _, err := no(f.code, f.msg); err != nil {
 				return "", err
@@ -466,17 +466,17 @@ func firstLine(s string) string {
 func store2(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
 
 // heldForAuto says why a pre-approved rule must leave this request to a person ("" = it may run it). A port scan of a decoy is seen
-// from a SYN alone, so any LAN host can make it name 1.1.1.1 (D-286 (4), review of #304). A known-bad connection is read from a syslog
-// line, which a LAN host can forge too (D-213): a hit on a domain only (a DNS forwarder or a proxy is "the device" of every client
+// from a SYN alone, so any LAN host can make it name 1.1.1.1. A known-bad connection is read from a syslog
+// line, which a LAN host can forge too: a hit on a domain only (a DNS forwarder or a proxy is "the device" of every client
 // behind it) waits for a person, and so does an action that names the device of the hit, whether the rule puts {{trigger.src_ip}},
-// {{trigger.device}} or {{trigger.switch_port}} into any value (text included) or a fixed value equals one of them (D-336). A new
+// {{trigger.device}} or {{trigger.switch_port}} into any value (text included) or a fixed value equals one of them. A new
 // port's address is the customer's own public address or whatever a name of theirs resolves to, so an action on that address
-// (block it, ACL it) waits for a person; a message about it does not (D-384).
+// (block it, ACL it) waits for a person; a message about it does not.
 func heldForAuto(ev Det, specs []RuleAction, recs []itemRec) string {
 	switch {
 	case ev.Trigger == "honeypot" && ev.Fields["kind"] == "scan":
 		return "the source address of a port scan can be forged, so a person approves it"
-	case ev.Trigger == "honeypot" && ev.Fields["unconfirmed"] == "1": // a UDP trap: no handshake (honeypot D-467 review H1)
+	case ev.Trigger == "honeypot" && ev.Fields["unconfirmed"] == "1": // a UDP trap: no handshake
 		return "the source address of a UDP request can be forged (UDP has no handshake), so a person approves it"
 	case ev.Trigger == "ioc_connection" && ev.Fields["dest_kind"] != "ip":
 		return "the hit names a domain only, so the device it names may be a DNS forwarder or a proxy: a person approves it"
@@ -488,7 +488,7 @@ func heldForAuto(ev Det, specs []RuleAction, recs []itemRec) string {
 	return ""
 }
 
-// actsOnAddr reports whether an action's address or range values cover addr (D-384): a message that only names it in text does not.
+// actsOnAddr reports whether an action's address or range values cover addr: a message that only names it in text does not.
 func actsOnAddr(vals map[ParamType]string, addr string) bool {
 	a, err := netip.ParseAddr(addr)
 	if err != nil {

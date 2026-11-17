@@ -289,11 +289,11 @@ func TestAuthFail_IPv6NeighbourLoginIsNotAcceptedAttacker(t *testing.T) {
 	for range 5 {
 		e.ingest(src, failedPassword("root", "2001:db8:aa:1::50"))
 	}
-	e.ingest(src, "Nov  9 10:01:00 web1 sshd[9]: Accepted publickey for kien from 2001:db8:aa:1::77 port 5 ssh2")
+	e.ingest(src, "Nov  9 10:01:00 web1 sshd[9]: Accepted publickey for anna from 2001:db8:aa:1::77 port 5 ssh2")
 	if len(p.summaries) != 1 || p.summaries[0].Severity != "medium" {
 		t.Fatalf("a neighbour's login: %+v", p.summaries)
 	}
-	e.ingest(src, "Nov  9 10:01:00 web1 sshd[9]: Accepted publickey for kien from 2001:db8:aa:1::50 port 5 ssh2")
+	e.ingest(src, "Nov  9 10:01:00 web1 sshd[9]: Accepted publickey for anna from 2001:db8:aa:1::50 port 5 ssh2")
 	if n := len(p.summaries); n != 2 || p.summaries[1].Severity != "high" {
 		t.Fatalf("the failing address logging in: %+v", p.summaries)
 	}
@@ -312,7 +312,7 @@ func TestAuthFail_ProgramFirstWordIsNotSshd(t *testing.T) {
 	}
 }
 
-// A login accepted before the threshold (D-490 review H2) says ACCEPTED in the title, so a report or a person reading the list does not
+// A login accepted before the threshold says ACCEPTED in the title, so a report or a person reading the list does not
 // take it for a plain failed-login attack; the failures-only incident keeps its title.
 func TestAuthFail_AcceptedBeforeTheThresholdIsTitledAccepted(t *testing.T) {
 	t.Parallel()

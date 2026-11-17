@@ -376,7 +376,7 @@ func TestPRE3_AnthropicKeyWithoutWorkspaceSaysWhatToDo(t *testing.T) {
 	}
 }
 
-// response-plan runs by itself and sends device data, so a new profile is not assigned to it on its own (D-181).
+// response-plan runs by itself and sends device data, so a new profile is not assigned to it on its own.
 func TestFirstProfileIsNotAssignedToTheAutomaticResponsePlanJob(t *testing.T) {
 	a := newAPI(t)
 	p := a.addProfile(cloudBody("One", keyA))["id"].(string)

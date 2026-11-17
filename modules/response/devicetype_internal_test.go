@@ -2,7 +2,7 @@ package response
 
 import "testing"
 
-// D-511: the device_type condition keys on the 13 kinds; a newer device type matches as itself and as the kind it acts as, so the
+// The device_type condition keys on the 13 kinds; a newer device type matches as itself and as the kind it acts as, so the
 // template "camera,nvr,iot" still covers an IP phone a person typed, and never a laptop, nor a type marked no_auto_isolate.
 func TestDeviceTypeConditionMatchesActsAs(t *testing.T) {
 	t.Parallel()

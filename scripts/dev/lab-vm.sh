@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lab VMs for the LAB checks (D-315): Ubuntu 24.04 and Debian 13 cloud images under plain QEMU/KVM, no libvirt.
+# Lab VMs for the LAB checks: Ubuntu 24.04 and Debian 13 cloud images under plain QEMU/KVM, no libvirt.
 # One VM up at a time, 2 vCPU / 2.5 GiB, a qcow2 overlay on a verified base image, a cloud-init NoCloud seed (user `lab`, a dedicated
 # SSH key, passwordless sudo). Network: passt (user mode, no host network change), SSH on 127.0.0.1:<port>; optional `lan` mode adds a
 # second NIC on a macvtap over a WIRED host NIC, made by the root subcommand `lan-up` and never over Wi-Fi: passthru (the NIC is the
@@ -21,7 +21,7 @@ MEM_HEADROOM_MB=1536   # start refuses below MEM_MB + this of MemAvailable
 MEM_MAX_PCT=90         # and when the box would pass this share of its memory with the VM up
 LAN_LINK=${LAB_LAN_LINK:-vlab0} # the only link lan-up/lan-down ever create or delete; vlabw0 for the Windows VM (scripts/dev/lab-win.sh)
 case $LAN_LINK in vlab0 | vlabw0) ;; *) echo "$prog: LAB_LAN_LINK must be vlab0 or vlabw0" >&2; exit 2 ;; esac
-# Minimum versions (D-155 style floors): Ubuntu 24.04's packages, the oldest supported host; Debian 13 is above all of them.
+# Minimum versions (floors): Ubuntu 24.04's packages, the oldest supported host; Debian 13 is above all of them.
 # qemu >= 10.1 is needed for `-netdev passt` (QEMU starts passt itself over a socketpair).
 FLOORS="qemu-system-x86=1:10.1.0 qemu-utils=1:8.2.2 cloud-image-utils=0.33 passt=0.0~git20240220"
 # Packages setup installs when missing: the floors above, plus what this script calls (nc for QMP, ssh, curl, gpg).
@@ -182,7 +182,7 @@ image_source() {
 		IMG_SUMS=SHA256SUMS IMG_SIG=SHA256SUMS.gpg IMG_HASH=sha256sum IMG_HEXLEN=64 ;;
 	debian13)
 		# Debian publishes no signature for cloud images (latest/ and the dated build directories hold only SHA512SUMS, read
-		# 2026-11-12): the checksum file comes over HTTPS from cloud.debian.org, which is the trust anchor (D-315).
+		# 2026-11-12): the checksum file comes over HTTPS from cloud.debian.org, which is the trust anchor.
 		IMG_URL=https://cloud.debian.org/images/cloud/trixie/latest IMG_FILE=debian-13-generic-amd64.qcow2
 		IMG_SUMS=SHA512SUMS IMG_SIG="" IMG_HASH=sha512sum IMG_HEXLEN=128 ;;
 	esac
@@ -547,7 +547,7 @@ cmd_lan_up() {
 	done
 	[ -n "$nic" ] || usage 2
 	# A bridge-mode macvtap delivers only frames sent to its own MAC (passthru delivers all): the VM's lan NIC must use that MAC,
-	# and the VM's network-config matches the lan NIC by vm_lan_mac, so the link takes that MAC (measured on Mlee's box 2026-11-14:
+	# and the VM's network-config matches the lan NIC by vm_lan_mac, so the link takes that MAC (measured 2026-11-14:
 	# the router's DHCP offers to the VM's MAC never reached the guest).
 	if [ "$mode" = bridge ]; then
 		[ -n "$vm" ] || die "--bridge needs the VM that will use the link: lan-up $nic --bridge <vm>"
@@ -564,7 +564,7 @@ cmd_lan_up() {
 	[ "$(id -u)" -eq 0 ] || sys=${LAB_SYSFS:-$sys}
 	[ -d "$sys/$nic" ] || die "no interface $nic"
 	if [ -e "$sys/$nic/wireless" ] || [ -e "$sys/$nic/phy80211" ] || [ -L "$sys/$nic/phy80211" ]; then
-		die "$nic is wireless: refused. An 802.11 station may only send frames with its own associated MAC; the AP drops frames from the VM's MAC (and the decoys' MACs), so macvtap over Wi-Fi cannot work (D-315). Use a wired NIC."
+		die "$nic is wireless: refused. An 802.11 station may only send frames with its own associated MAC; the AP drops frames from the VM's MAC (and the decoys' MACs), so macvtap over Wi-Fi cannot work. Use a wired NIC."
 	fi
 	[ -e "$sys/$nic/device" ] || die "$nic is not a physical NIC (no device link): refused"
 	[ "$(cat "$sys/$nic/carrier" 2>/dev/null || echo 0)" = 1 ] || die "$nic has no carrier (cable unplugged or link down): refused"

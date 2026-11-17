@@ -1,4 +1,4 @@
-# Seconds of `go test -race` per package on a GitHub runner (go test's elapsed), the weights of `ci shard` (D-365): the
+# Seconds of `go test -race` per package on a GitHub runner (go test's elapsed), the weights of `ci shard`: the
 # newest uncached time of each package in the go-test jobs of merge-queue runs 43149381131..43152970088 (2026-11-12); a package
 # the cache served in all of them keeps its time from run 43114520682 (2026-11-11); modules/response from PR #436 (118 s).
 # Packages not listed weigh their _test.go bytes at the table's average rate.

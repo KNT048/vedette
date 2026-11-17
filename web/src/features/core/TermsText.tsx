@@ -5,7 +5,7 @@ import { TERMS, TERMS_VERSION } from 'virtual:terms'
 type Block = { kind: 'h' | 'p'; text: string } | { kind: 'ul'; items: string[] }
 
 /**
- * TERMS.md (D-544) as blocks. The file keeps to headings, paragraphs and "- " lists, and its only inline markup is a
+ * TERMS.md as blocks. The file keeps to headings, paragraphs and "- " lists, and its only inline markup is a
  * link, shown as its text. ponytail: no Markdown library for one file the project writes; upgrade path: a renderer once
  * a second Markdown text is shown.
  */

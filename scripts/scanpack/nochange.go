@@ -11,10 +11,10 @@ import (
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
-// D-528: the state-change, destination and third-party rule of every template the pack takes (review FULL-4b r1 H1, H2, H3, M1, M3).
+// The state-change, destination and third-party rule of every template the pack takes.
 // changeReason is "" for a template that may go in, else the reason it is left out and the text that decided it.
 
-// denylist are templates read and refused by a person (review FULL-4b r1, 2026-11-14), each with why, kept out whatever the rules
+// denylist are templates read and refused by a person (2026-11-14), each with why, kept out whatever the rules
 // below say: the upstream tags do not always say what a template does. Re-read it on every NUCLEI_TEMPLATES_VERSION bump.
 var denylist = map[string]string{ //nolint:gosec // G101: template ids and reasons that name passwords, not credentials
 	"CVE-2021-29203":                  "PATCH ResetPassword: sets the HPE Edgeline Administrator password to a random one",
@@ -56,7 +56,7 @@ var denylist = map[string]string{ //nolint:gosec // G101: template ids and reaso
 	"unifi-nfc-credentials":           "sends to port 9780, not the job's",
 	"CVE-2016-10033":                  "PHPMailer: runs touch through the Host header, which writes a file",
 	"CVE-2023-6549":                   "a NetScaler denial-of-service CVE, checked with an oversized Host header",
-	// read during the D-528 pass over the KEV set (requests naming reset, save, update, install, write, import)
+	// read during the no-change pass over the KEV set (requests naming reset, save, update, install, write, import)
 	"CVE-2020-36333": "ThemeGrill: do_reset_wordpress wipes the WordPress database",
 	"CVE-2018-19207": "WP GDPR Compliance: save_setting opens registration with the administrator role",
 	"CVE-2018-17207": "Duplicator: installer-backup.php rewrites wp-config.php",
@@ -68,7 +68,7 @@ var denylist = map[string]string{ //nolint:gosec // G101: template ids and reaso
 	"CVE-2018-14933": "NUUO: cmd=writeuploaddir changes the upload directory setting",
 	"CVE-2023-1389":  "TP-Link: operation=write sets the router's country",
 	"CVE-2021-44077": "ServiceDesk Plus: ImportTechnicians uploads a file",
-	// D-528 step 2: named by review kev r1 (H-1, M-1, M-2, L-1) and FULL-4b r2 (H1, M-new, L-a, L-b, L-d); never at any depth
+	// named in review; never at any depth
 	"CVE-2024-5910":               "Palo Alto Expedition: GET restoreAdmin.php restores the admin password to its default",
 	"cacti-weathermap-file-write": "Cacti Weathermap: GET editor.php set_map_properties writes configs/poc.conf",
 	"tamronos-user-creation":      "TamronOS: GET /api/manager/submit creates an admin",
@@ -135,7 +135,7 @@ var denylist = map[string]string{ //nolint:gosec // G101: template ids and reaso
 	"CVE-2021-24554":              "action=delete once credentials exist",
 	"CVE-2022-0535":               "changes settings once credentials exist",
 	"CVE-2022-0949":               "inserts a fingerprint row",
-	// D-528 step 2 review r1 (H-1, M-2, M-3): a GET that acts, logins with known or backdoor credentials, a third-party ping
+	// A GET that acts, logins with known or backdoor credentials, a third-party ping
 	"CVE-2020-27866": "NETGEAR: GET setup.cgi?todo=debug turns debug mode and telnetd on",
 	"CVE-2018-10823": "D-Link: the ping diagnostic makes the device ping 1.1.1.1",
 	"CVE-2023-2732":  "MStore API: logs in as WordPress user 1 (and may add a listing)",
@@ -159,7 +159,7 @@ type part struct {
 	post bool
 }
 
-// changeReason applies D-528 to one parsed template: the denylist, pack.NeverTags, pack.NoChangeText of the whole file (no write
+// changeReason applies the no-change rule to one parsed template: the denylist, pack.NeverTags, pack.NoChangeText of the whole file (no write
 // method, no @Host: annotation, no upload), the destination rule (an http path starts with {{BaseURL}} or {{RootURL}} and names no
 // other port; a raw request line names a path; a network host or ssl address is the job's address with no other port), the request
 // parts (paths, raw requests but their Origin and Referer headers, bodies, header, payload and variable values) through
@@ -236,7 +236,7 @@ func changeReason(id string, doc map[string]any, body []byte, tags []string) (wh
 				return "destination", h
 			}
 		}
-		if p, has := b["port"]; has && fmt.Sprint(p) != "{{Port}}" { // review kev r1 M-3: a fixed port is not the job's port
+		if p, has := b["port"]; has && fmt.Sprint(p) != "{{Port}}" { // A fixed port is not the job's port
 			return "destination", fmt.Sprintf("port: %v", p)
 		}
 		if in, ok := b["inputs"].([]any); ok {
@@ -317,7 +317,7 @@ func rawReason(r string) (post bool, why, detail string) {
 }
 
 // hostHeaders name the host a target builds links or routes with: a third party there can be poisoned into a reset link or a
-// proxied request (review kev r1 L-4). Their values are read as hosts.
+// proxied request. Their values are read as hosts.
 var hostHeaders = []string{"host", "x-forwarded-host", "x-host", "x-original-host", "x-forwarded-server", "forwarded"}
 
 // hostHeaderParty is the value of a host header that names a party on the Internet other than the job's address, or "".
@@ -344,7 +344,7 @@ func hostHeaderParty(name, value string) string {
 }
 
 // credVarRE are the user name, password and e-mail expressions of a template: Vedette never supplies them (no -var), so a template
-// that uses one it does not define waits for a value a later version might pass (review FULL-4b r2 L-b).
+// that uses one it does not define waits for a value a later version might pass.
 var credVarRE = regexp.MustCompile(`\{\{\s*(username|password|user|pass|email)\s*\}\}`)
 
 // undefinedCredential is the first credential expression a template uses without defining it in variables or payloads, or "".

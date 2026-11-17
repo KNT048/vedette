@@ -73,7 +73,7 @@ func TestSNMPSourcesAndScope(t *testing.T) {
 	}
 }
 
-// D-601 review r1 M2: turning a device's network scan off while the sweep's batch probes its address stops the batch (nmap cannot drop
+// Turning a device's network scan off while the sweep's batch probes its address stops the batch (nmap cannot drop
 // one host mid-run); the next pass reads the protected list again.
 func TestSweepStopsWhenADeviceItProbesIsTurnedOff(t *testing.T) {
 	t.Parallel()

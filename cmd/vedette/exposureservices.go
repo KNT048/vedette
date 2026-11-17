@@ -12,10 +12,10 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// exposureServiceScan is exposure's ServiceScanner over sensor-active's ScanExternal (S-EXP-2, exposure INV-19, D-514): nmap -sV
+// exposureServiceScan is exposure's ServiceScanner over sensor-active's ScanExternal (S-EXP-2, exposure INV-19): nmap -sV
 // in the scan container on the box's own verified public IP. exposureService sets it as cfg.Services; the commitment sentence of
-// NoticeVersion 2026-11-14 (D-559, K-4) names service identification, and PRIVACY flow 9 and THIRD_PARTY_NOTICES say what is sent.
-// A target whose testing terms are accepted (ScanTarget.Mode.Full, FULL-1) gets the deep scan instead (FULL-4, D-526): every TCP
+// NoticeVersion 2026-11-14 (K-4) names service identification, and PRIVACY flow 9 and THIRD_PARTY_NOTICES say what is sent.
+// A target whose testing terms are accepted (ScanTarget.Mode.Full) gets the deep scan instead: every TCP
 // port with nmap's default, safe and vuln scripts (nmapargv.ExternalFull), and the dos and brute scripts too with the disruptive
 // tick (nmapargv.ExternalDisruptive); its step is bounded by exposure.FullServicesTimeout.
 //
@@ -29,7 +29,7 @@ import (
 type exposureServiceScan struct {
 	on   func() bool // sensor-active is switched on
 	scan func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own sensoractive.OwnEgress) (sensoractive.External, error)
-	// scanDomain is sensor-active's ScanDomainIP (D-591): the deep scan of an address a verified domain's name resolves to, as a
+	// scanDomain is sensor-active's ScanDomainIP: the deep scan of an address a verified domain's name resolves to, as a
 	// domain_ip job the worker's own fence checks. nil: such a step is refused (nothing sent).
 	scanDomain func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, d sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error)
 	gate       func(ctx context.Context, actor string, ip netip.Addr) (bool, error)
@@ -46,7 +46,7 @@ const (
 	servicesNotOwn  = "this box no longer reaches the Internet through %s, so its ports were not probed."
 	servicesOld     = "the scan container refused the job; it may be older than the rest of Vedette. Update the box, then scan again."
 	servicesStopped = "the scan was stopped: the Active discovery module was turned off."
-	// D-526: a deep scan whose terms changed before its job left, and a worker too old for the deep shapes.
+	// A deep scan whose terms changed before its job left, and a worker too old for the deep shapes.
 	servicesNotDeep = "the testing terms of %s are no longer accepted (withdrawn, or new terms to accept), so the deep scan was not sent. An administrator can accept the terms on the target, then scan again."
 	servicesOldFull = "the scan container does not run the deep scan of every TCP port: it is older than the rest of Vedette, or its nmap is not the version whose scripts were reviewed. Update the box, then scan again."
 	// Review r2 LOW-5: the worker's re-check during a deep scan stopped it; its ports had been probed, the results are discarded.
@@ -66,7 +66,7 @@ func (g ownGate) OwnEgress(ctx context.Context, ip netip.Addr) (bool, error) {
 	return g.gate(ctx, g.actor, ip)
 }
 
-// ShapeNow is the shape the target's terms allow now (D-526). Without modeNow it says External: no deep scan is sent (fail closed).
+// ShapeNow is the shape the target's terms allow now. Without modeNow it says External: no deep scan is sent (fail closed).
 func (g ownGate) ShapeNow(ctx context.Context, _ nmapargv.Kind) (nmapargv.Kind, error) {
 	if g.modeNow == nil {
 		return nmapargv.External, nil
@@ -78,7 +78,7 @@ func (g ownGate) ShapeNow(ctx context.Context, _ nmapargv.Kind) (nmapargv.Kind, 
 	return shapeOf(m), nil
 }
 
-// shapeOf is the nmap shape of a scan mode (D-526): the K-4 scope keeps External exactly as before FULL-4; accepted terms make it
+// shapeOf is the nmap shape of a scan mode: the K-4 scope keeps External exactly as before FULL-4; accepted terms make it
 // the deep scan, and the disruptive tick adds the dos and brute scripts.
 func shapeOf(m exposure.ScanMode) nmapargv.Kind {
 	switch {
@@ -103,7 +103,7 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 	var got sensoractive.External
 	var err error
 	g := ownGate{actor: t.User, id: t.ID, gate: a.gate, modeNow: a.modeNow}
-	if t.Domain != nil { // D-591: an address that is not the box's, reached through a name of the verified domain
+	if t.Domain != nil { // An address that is not the box's, reached through a name of the verified domain
 		if !kind.IsFull() || a.scanDomain == nil {
 			return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNotDeep, ip)}
 		}
@@ -116,7 +116,7 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 	case err == nil:
 	case ctx.Err() != nil: // exposure's bound or the run's stop: exposure tells them apart
 		return exposure.ServiceScan{}, ctx.Err()
-	case isDomain: // D-591: the worker's domain fence refused or stopped it, or the worker has no fence key
+	case isDomain: // The worker's domain fence refused or stopped it, or the worker has no fence key
 		return exposure.ServiceScan{}, un
 	case errors.Is(err, sensoractive.ErrStopped):
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesStopped}
@@ -132,7 +132,7 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesBusy}
 	case errors.Is(err, sensoractive.ErrNotOwnIP):
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNotOwn, ip)}
-	case errors.Is(err, sensoractive.ErrNotDeep): // D-526: never the baseline shape instead, the run was asked as deep
+	case errors.Is(err, sensoractive.ErrNotDeep): // Never the baseline shape instead, the run was asked as deep
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNotDeep, ip)}
 	case errors.Is(err, sensoractive.ErrFullUnsupported):
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesOldFull}
@@ -140,9 +140,9 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesNoWork}
 	case errors.Is(err, sensoractive.ErrWorkerRefused):
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesOld}
-	case errors.Is(err, sensoractive.ErrHostTimedOut): // D-522 (N5): its own line, never "did not run" nor "0 services"
+	case errors.Is(err, sensoractive.ErrHostTimedOut): // Its own line, never "did not run" nor "0 services"
 		return exposure.ServiceScan{}, exposure.ErrServicesTimedOut
-	case errors.Is(err, sensoractive.ErrAnswersEverywhere): // D-522 (N5): a router or SYN proxy answering for every port
+	case errors.Is(err, sensoractive.ErrAnswersEverywhere): // A router or SYN proxy answering for every port
 		return exposure.ServiceScan{}, exposure.ErrAnswersEverywhere
 	default:
 		return exposure.ServiceScan{}, err // logged by exposure, shown as a failure without its text (a failed ModeNow too: fail closed)
@@ -151,7 +151,7 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 	for _, s := range got.Services {
 		out.Services = append(out.Services, exposure.ServiceRow{IP: ip.String(), Port: s.Port, Name: s.Name, Product: s.Product, Version: s.Version, CPE: s.CPE, Extra: s.Extra, Method: s.Method, Conf: s.Conf})
 	}
-	for _, s := range got.Scripts { // D-526: only a deep scan has any; exposure sanitizes them before they are stored
+	for _, s := range got.Scripts { // Only a deep scan has any; exposure sanitizes them before they are stored
 		row := exposure.ScriptRow{IP: ip.String(), Port: s.Port, ID: s.ID, Output: s.Output}
 		for _, f := range s.Findings {
 			row.Findings = append(row.Findings, exposure.ScriptFinding{State: f.State, Title: f.Title, CVEs: f.CVEs})

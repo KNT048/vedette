@@ -1,4 +1,4 @@
-// Zalo personal set-up in the channel dialog (S-NOT-1, S-RESP-2, D-447): a real QR sign-in, the recipient picked from the account's groups
+// Zalo personal set-up in the channel dialog (S-NOT-1, S-RESP-2): a real QR sign-in, the recipient picked from the account's groups
 // and friends (or found from an invite link or a phone number), and approvers who confirm, signed in as themselves, the link the box sends
 // to their Zalo (your own Zalo: you confirm it now, in this session).
 import { useEffect, useRef, useState } from 'react'
@@ -69,7 +69,7 @@ export function ZaloSignIn({ channel, onSigned }: { channel: Channel; onSigned: 
       {!v || v.state === 'none' || NEW_QR.includes(v.state) || v.state === 'signed_in' ? (
         <div><Button busy={start.isPending} busyLabel={t('zp.gettingQr')} onClick={() => void begin()}><QrCode />{v && v.state !== 'none' && v.state !== 'signed_in' ? t('zp.newQr') : saved || channel.secret_last4 || signedName ? t('zp.relogin') : t('zp.show')}</Button></div>
       ) : null}
-      {/* kien G1: the QR code takes four requests to id.zalo.me, 45 s at most (zaloLoginStart) */}
+      {/* The QR code takes four requests to id.zalo.me, 45 s at most (zaloLoginStart) */}
       <BusyNote busy={start.isPending}>{t('zp.qrWaiting')}</BusyNote>
     </div>
   )
@@ -96,7 +96,7 @@ function Finder({ id, label, hint, onFound, groups }: { id: string; label: strin
           onChange={(e) => { setQ(e.target.value); setErr(null) }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void find() } }} />
       </Field>
       <Button disabled={!q.trim()} busy={resolve.isPending} busyLabel={t('zp.finding')} onClick={() => void find()}>{t('zp.find')}</Button>
-      {/* kien G1: the box asks Zalo (15 s per request at most) */}
+      {/* The box asks Zalo (15 s per request at most) */}
       <BusyNote busy={resolve.isPending} className="basis-full">{t('zp.findWaiting')}</BusyNote>
     </div>
   )
@@ -157,7 +157,7 @@ export function LinkApproverField({ approver, saved, onChange, canLook }: { appr
 }
 
 /** Linked, or waiting for the person to confirm the link; Send again makes a new link (the old one stops working). Your own row with the
- * box's own Zalo: link it now. Only for a saved approver. Zalo personal (D-447) and Telegram (D-414). */
+ * box's own Zalo: link it now. Only for a saved approver. Zalo personal and Telegram. */
 export function ApproverLinkState({ kind, approver, saved }: { kind: LinkKind; approver: Approver; saved: Channel }) {
   const { t } = useTranslation('notify')
   const navigate = useNavigate()

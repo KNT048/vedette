@@ -8,7 +8,7 @@ import (
 
 const maxGatewayName = 80
 
-// GatewayNote answers "which device probably answers these ports" for GET /exposure/targets (INV-16, D-492). It is nil when no
+// GatewayNote answers "which device probably answers these ports" for GET /exposure/targets (INV-16). It is nil when no
 // IP target (the box's own public IP) has an open port in its newest scan, or when no Gateway is wired: a domain's subdomains often
 // sit at a hosting provider, so only the box's own IPs say anything about the gateway. A lookup that fails is logged and answered
 // as "cannot tell" (all nil): the page never claims what it did not read.

@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/content/wordlist"
 )
 
-// Discovery of a verified domain's names beyond certificate transparency (D-567 (1), exposure INV-27). Every lookup goes through the
+// Discovery of a verified domain's names beyond certificate transparency (exposure INV-27). Every lookup goes through the
 // box's own resolver (Config.Resolver: the system resolver), so nothing new leaves the box but ordinary DNS queries: A, AAAA and the
 // final CNAME of each name, the apex's MX and NS, a wildcard check and the common names of content/wordlist. Names are asked fully
 // qualified (a final dot), so the resolver's search list never applies. No zone transfer, no NSEC walking, no passive-DNS service.
@@ -27,13 +27,13 @@ import (
 const (
 	maxAddrs      = 16               // addresses kept per name (IPv4 first); a bigger answer is clipped
 	maxMailNS     = 10               // MX and NS hosts kept each
-	labelEvery    = time.Second / 20 // the wordlist: at most 20 lookups a second (D-567 (1))
+	labelEvery    = time.Second / 20 // the wordlist: at most 20 lookups a second
 	labelParallel = 8                // the wordlist: lookups at once
 	wildcardLabel = 20               // characters of each random label of the wildcard check
 	dnsBudget     = 60 * time.Second // the whole DNS phase of a domain scan
 )
 
-// The kinds of a name's address (exposure INV-27, kien 2026-11-14: whatever serves a name, a CDN or not, does not matter): box is
+// The kinds of a name's address (exposure INV-27: whatever serves a name, a CDN or not, does not matter): box is
 // this box's own verified, current IP (exposure's ScannableIP); public any other public address; private an address that is not
 // public, never dialed.
 const (
@@ -58,7 +58,7 @@ const (
 	WordlistCut      = "cut"       // the DNS phase reached dnsBudget before every common name was tried
 )
 
-// Addr is one address of a name with its kind (ClassBox, ClassPublic or ClassPrivate). Contacted: the D-229 check by name (GET / on 80
+// Addr is one address of a name with its kind (ClassBox, ClassPublic or ClassPrivate). Contacted: the check by name (GET / on 80
 // and 443) went to this address, the name's first public IPv4.
 type Addr struct {
 	IP        netip.Addr
@@ -93,7 +93,7 @@ func isNotFound(err error) bool {
 
 // discover adds the apex's MX and NS hosts under the domain (one outside it is another company's server: not listed) and the common
 // names to the names from CT, and resolves them all, within dnsBudget. More than maxNames names in all is ErrTooManyNames: the
-// listing is whole or nothing (D-229 (6)).
+// listing is whole or nothing.
 func (s *Scanner) discover(ctx context.Context, domain string, ct []string) (discovery, error) {
 	ctx, cancel := context.WithTimeout(ctx, dnsBudget)
 	defer cancel()

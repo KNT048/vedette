@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// D-483: every HTTP adapter turns a 429 into a RateLimitError with the wait the provider named (Telegram in the body, others in
+// Every HTTP adapter turns a 429 into a RateLimitError with the wait the provider named (Telegram in the body, others in
 // Retry-After), bounded, and the StatusError stays underneath.
 func TestTooManyRequestsIsARateLimitWithItsWait(t *testing.T) {
 	t.Parallel()
@@ -52,7 +52,7 @@ func TestTooManyRequestsIsARateLimitWithItsWait(t *testing.T) {
 	}
 }
 
-// D-483: a refused refresh token says what to do (get a new one), never what Zalo wrote, and nothing is sent with no token.
+// A refused refresh token says what to do (get a new one), never what Zalo wrote, and nothing is sent with no token.
 func TestZaloRefusedRefreshTokenSaysGetANewOne(t *testing.T) {
 	t.Parallel()
 	var sends int

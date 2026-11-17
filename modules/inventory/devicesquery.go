@@ -19,19 +19,19 @@ import (
 
 // DeviceSources are the words of the search's source: filter and of DeviceRow.sources, in this order (contract.ts DeviceSource).
 // scan is nmap or a vulnerability scan. osquery and Wazuh both write source agent: osquery is the device its node key is bound to
-// (D-598, inv_asset.agent_key), Wazuh a device at an address or MAC the saved Wazuh connection delivered to (Config.WazuhAgents).
+// (inv_asset.agent_key), Wazuh a device at an address or MAC the saved Wazuh connection delivered to (Config.WazuhAgents).
 var DeviceSources = []string{"manual", "passive", "scan", "snmp", "osquery", "wazuh"}
 
 // DeviceFilter is the query of the Devices search. Every set field narrows the list (AND); a list matches any of its values (OR).
 // The zero filter keeps every device (Devices, for the other modules: the honeypot names an ignored device too).
 type DeviceFilter struct {
 	Approved, Fragile, HasFindings *bool
-	// Ignored keeps only the ignored devices (true) or leaves them out (false); nil keeps both (D-630). ParseDeviceFilter, the query of
+	// Ignored keeps only the ignored devices (true) or leaves them out (false); nil keeps both. ParseDeviceFilter, the query of
 	// the page and the export, never leaves it nil: an ignored device is out of the Devices list unless asked for.
 	Ignored *bool
-	Types   []string // device type ids; a type also matches the types that act as it (D-511)
+	Types   []string // device type ids; a type also matches the types that act as it
 	Sources []string // DeviceSources
-	Risks   []string // RiskLevels (G4)
+	Risks   []string // RiskLevels
 	Q       string   // free text: name, IP, MAC (any notation), vendor, model
 }
 
@@ -39,13 +39,13 @@ func badFilter(msg string) *apierr.Error { return apierr.New(400, "bad_filter", 
 
 // ParseDeviceFilter checks the query of GET /inventory/devices: approved, fragile and has_findings are "true", "false" or empty; type
 // and source are comma-separated lists of known words (a type id of content/devicetypes, DeviceSources). Anything else is 400
-// bad_filter. The schema already bounds the lengths and the boolean words (400 invalid, D-73); this is the same check for a caller
-// that does not go through it. ignored is "true" (only the ignored devices) or "false"/empty (leave them out, D-630).
+// bad_filter. The schema already bounds the lengths and the boolean words (400 invalid); this is the same check for a caller
+// that does not go through it. ignored is "true" (only the ignored devices) or "false"/empty (leave them out).
 func ParseDeviceFilter(approved, fragile, hasFindings, ignored, types, sources, q string) (DeviceFilter, error) {
 	return ParseDeviceSearch(approved, fragile, hasFindings, ignored, types, sources, "", q)
 }
 
-// ParseDeviceSearch is ParseDeviceFilter with the risk filter (G4): a comma-separated list of RiskLevels.
+// ParseDeviceSearch is ParseDeviceFilter with the risk filter: a comma-separated list of RiskLevels.
 func ParseDeviceSearch(approved, fragile, hasFindings, ignored, types, sources, risks, q string) (DeviceFilter, error) {
 	var f DeviceFilter
 	var err error
@@ -165,7 +165,7 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 	if f.Fragile != nil {
 		add("a.fragile = ?", *f.Fragile)
 	}
-	if len(f.Types) > 0 { // every type that acts as one asked too: type=server finds a hypervisor (D-511)
+	if len(f.Types) > 0 { // every type that acts as one asked too: type=server finds a hypervisor
 		add("a.kind IN (SELECT value FROM json_each(?))", jsonList(devicetypes.ActingAs(f.Types)))
 	}
 	if len(f.Sources) > 0 {
@@ -190,7 +190,7 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 		}
 		add("a.id "+op+" (SELECT value FROM json_each(?))", jsonList(ids))
 	}
-	if len(f.Risks) > 0 { // G4: none is every device without a marker, so it is the complement of the marked ones not asked
+	if len(f.Risks) > 0 { // none is every device without a marker, so it is the complement of the marked ones not asked
 		var in, out []string
 		for id, r := range risks {
 			if slices.Contains(f.Risks, riskLevel(r)) {
@@ -199,7 +199,7 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 				out = append(out, id)
 			}
 		}
-		// the box is never marked (G4): it is "none" whatever findings say of it
+		// the box is never marked: it is "none" whatever findings say of it
 		if slices.Contains(f.Risks, RiskNone) {
 			add("(a.is_box = 1 OR a.id NOT IN (SELECT value FROM json_each(?)))", jsonList(out))
 		} else {
@@ -229,7 +229,7 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 
 // deviceSources says, for every device, what feeds it in the words of DeviceSources: a device added manually is manual; passive,
 // snmp and nmap or scan (as scan) when that source left an observation, software or an open port on it; osquery when an osquery node
-// is bound to it (D-598); Wazuh when it has data of source agent and its address or MAC is one the saved Wazuh connection delivered
+// is bound to it; Wazuh when it has data of source agent and its address or MAC is one the saved Wazuh connection delivered
 // to. The box's own software (vedette-host's dpkg list) is source agent too and is neither.
 func (s *Service) deviceSources(ctx context.Context, q querier) (map[string][]string, error) {
 	have := map[string]map[string]bool{}

@@ -23,14 +23,14 @@ const runs = collection<Array<Run & { ends_ms: number }>>('scanning_runs', () =>
 const RUN_MS = 20_000
 type HistoryRow = z.infer<typeof HistoryRun>
 const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
-/** GET /scanning/history (kien G7a), as cmd/vedette scanninghistory.go builds it: the LAN jobs and the public scans, newest first. */
+/** GET /scanning/history, as cmd/vedette scanninghistory.go builds it: the LAN jobs and the public scans, newest first. */
 export const historyStore = collection<HistoryRow[]>('scanning_history', () => [
   { id: 'saj-h1', kind: 'device', engine: 'nmap-versions', trigger: 'person', label: '192.168.10.21', target_id: null, started_at: ago(3), ended_at: ago(2.98), outcome: 'ok', text: 'Scanned 192.168.10.21: it answered; what it runs is on its device page' },
   { id: 'saj-h2', kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: 'LAN 192.168.10.0/24', target_id: null, started_at: ago(20), ended_at: ago(19.9), outcome: 'ok', text: 'Swept 254 addresses: 12 hosts answered, 2 new devices' },
   { id: 'saj-h3', kind: 'snmp', engine: 'snmp', trigger: 'automatic', label: 'SNMP read', target_id: null, started_at: ago(21), ended_at: ago(20.95), outcome: 'partial', text: '2 of 3 devices answered over SNMP' },
 ], () => [])
 /** The addresses each mock LAN job reached, as the box keeps them in its probes (History shows only the label or a count): a device
- *  check its address, an SNMP read every address it asked. ?asset= matches on them, for every kind (kien G7b/c). */
+ *  check its address, an SNMP read every address it asked. ?asset= matches on them, for every kind. */
 const reached = collection<Record<string, string[]>>('scanning_history_reached', () => ({ 'saj-h1': ['192.168.10.21'], 'saj-h3': ['192.168.10.1', '192.168.10.21', '192.168.10.30'] }), () => ({}))
 /** A mock that adds a LAN job to History (a device check, an SNMP read) records the addresses it reached. */
 export const markReached = (id: string, ips: string[]) => reached.set({ ...reached.get(), [id]: ips })
@@ -152,7 +152,7 @@ export const handlers = [
   http.get(`${API}/scanning/history`, ({ request }) => {
     const denied = guard('viewer')
     if (denied) return denied
-    // kien G7b/c: ?asset= keeps the runs that reached the device's address now: its checks and the SNMP reads that asked it
+    // ?asset= keeps the runs that reached the device's address now: its checks and the SNMP reads that asked it
     const asset = new URL(request.url).searchParams.get('asset')
     const ip = asset === null ? null : assetsStore.get().find((a) => a.id === asset)?.ip ?? '—'
     const rows = ip === null ? historyStore.get() : historyStore.get().filter((r) => ip !== '—' && (r.kind === 'device' || r.kind === 'snmp') && (reached.get()[r.id] ?? []).includes(ip))

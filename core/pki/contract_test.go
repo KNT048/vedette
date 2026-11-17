@@ -11,10 +11,10 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// D-110 (1), core INV-24: the CA key is readable only through core/pki (and the box CA's, D-351, only through cmd/vedette/boxca.go). Go's rules cannot stop another package from calling
+// Core INV-24: the CA key is readable only through core/pki (and the box CA's, only through cmd/vedette/boxca.go). Go's rules cannot stop another package from calling
 // secrets.Store.Open with the purpose, so the purpose is reserved in core/secrets by an init function of this package (closed from
 // the start of the process, TestACAPurposeIsClosedWithoutPKIOpen) and restricted by pki.Open; this scan fails when any other
-// non-test source names the purpose, reserves or restricts it. Like the scan of core/conn (D-93) it walks every directory with
+// non-test source names the purpose, reserves or restricts it. Like the scan of core/conn it walks every directory with
 // Go files, not a list of top-level directories.
 func TestOnlyPKINamesTheCAPurpose(t *testing.T) {
 	t.Parallel()
@@ -49,7 +49,7 @@ func TestOnlyPKINamesTheCAPurpose(t *testing.T) {
 		if rel != "core/pki/ca.go" && strings.Contains(src, "core_sensor_ca") {
 			t.Errorf("%s contains core_sensor_ca: only core/pki/ca.go may name the CA purpose", rel)
 		}
-		// The box CA of the 8443 leaf (D-351) is the other CA with a restricted purpose: only cmd/vedette/boxca.go names it.
+		// The box CA of the 8443 leaf is the other CA with a restricted purpose: only cmd/vedette/boxca.go names it.
 		if rel != "cmd/vedette/boxca.go" && strings.Contains(src, "core_box_ca") {
 			t.Errorf("%s contains core_box_ca: only cmd/vedette/boxca.go may name the box CA purpose", rel)
 		}

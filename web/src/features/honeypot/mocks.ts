@@ -1,7 +1,7 @@
-// Mock API of module honeypot (S-HP-1, S-HP-2, D-466). Tables: hp_config, hp_trap_ips, hp_hits, hp_tokens. The response module reads hp_hits with peek; core's
+// Mock API of module honeypot (S-HP-1, S-HP-2). Tables: hp_config, hp_trap_ips, hp_hits, hp_tokens. The response module reads hp_hits with peek; core's
 // network mock reads hp_trap_ips with peek. Traps only listen, they never hit back (LEGAL §3).
-// Services/ports follow OpenCanary (presets.ts SERVICE_PORT; SMB is Samba-based; D-467 added the other modules that work in the image). Each Trap IP answers
-// only its own services (D-466).
+// Services/ports follow OpenCanary (presets.ts SERVICE_PORT; SMB is Samba-based; plus the other modules that work in the image). Each Trap IP answers
+// only its own services.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, boxInfo } from '@/mocks/stores'
@@ -67,7 +67,7 @@ const hitsStore = collection<Stored[]>('hp_hits', () => {
   return [
     { id: 'hit-seed-1', ts: t1, kind: 'service', source_ip: '192.168.10.107', service: 'smb', port: 445, src_ip: '192.168.10.107', src_asset_id: 'a-pc07', is_test: false, excerpt: '', trap_ip: '192.168.10.240', trap_hostname: 'FILESRV-OLD', events: [], seed: { srcName: 'PC-HR-01', lan: ['192.168.10.11', '192.168.10.10'] } },
     { id: 'hit-seed-2', ts: t2, kind: 'service', source_ip: '192.168.10.157', service: 'rdp', port: 3389, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false, excerpt: '', trap_ip: '192.168.10.240', trap_hostname: 'FILESRV-OLD', events: [], seed: { srcName: null, lan: ['192.168.10.13', '192.168.10.10'] } },
-    // A hit on another Trap IP carries that Trap IP's name (D-466).
+    // A hit on another Trap IP carries that Trap IP's name.
     { id: 'hit-seed-5', ts: daysAgo(5), kind: 'service', source_ip: '192.168.10.157', service: 'http', port: 80, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false, excerpt: '', trap_ip: '192.168.10.241', trap_hostname: 'NAS-ARCHIVE', events: [], seed: { srcName: null, lan: ['192.168.10.13', '192.168.10.10'] } },
     // The same unknown device, later: used a planted credential, then swept the Trap IPs.
     { id: 'hit-seed-3', ts: daysAgo(3), kind: 'token', source_ip: '192.168.10.157', service: null, label: 'Credential token svc-backup-old', token_id: 'tok-2', port: null, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false,
@@ -77,7 +77,7 @@ const hitsStore = collection<Stored[]>('hp_hits', () => {
         { ts: daysAgo(3), source: 'honeypot', text: 'Credential token svc-backup-old was used from 192.168.10.157', mark: true },
         { ts: daysAgo(3, -0.1), source: 'firewall', text: 'Firewall: 192.168.10.157 to 192.168.10.10 port 445 allowed', mark: false },
       ] },
-    // W1-13: one source touching two or more Trap IPs within a minute is one scan hit (ingest.go sweep).
+    // One source touching two or more Trap IPs within a minute is one scan hit (ingest.go sweep).
     { id: 'hit-seed-4', ts: daysAgo(2), kind: 'scan', source_ip: '192.168.10.157', service: null, label: 'Scan across the Trap IPs', port: null, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false,
       excerpt: 'Touched FILESRV-OLD (192.168.10.240), NAS-ARCHIVE (192.168.10.241), PRN-FLOOR2 (192.168.10.242) within a minute', trap_ip: '192.168.10.240, 192.168.10.241, 192.168.10.242', trap_hostname: 'FILESRV-OLD, NAS-ARCHIVE, PRN-FLOOR2',
       events: [
@@ -139,7 +139,7 @@ function stateOf(t: StoredTrapIP): { state: TrapState; reason: string | null } {
   if (s === 'starting') return { state: 'starting', reason: null }
   return { state: 'listening', reason: null }
 }
-// What the D-83 OUI table says for each vendor's prefix (modules/honeypot reads content/oui).
+// What the OUI table says for each vendor's prefix (modules/honeypot reads content/oui).
 const MAC_VENDOR: Record<TrapVendor, string> = {
   dell: 'Dell Inc.', hp: 'Hewlett Packard', vmware: 'VMware, Inc.', hyperv: 'Microsoft Corporation', supermicro: 'Super Micro Computer, Inc.', synology: 'Synology Incorporated',
   qnap: 'QNAP Systems, Inc.', brother: 'Brother industries, LTD.', canon: 'CANON INC.', hikvision: 'Hangzhou Hikvision Digital Technology Co.,Ltd.', dahua: 'Zhejiang Dahua Technology Co., Ltd.', axis: 'Axis Communications AB',
@@ -260,7 +260,7 @@ function checkInput(b: Partial<TrapIPInput>, self?: string): Response | { name: 
   return { name, ip, preset, vendor, services: HP_SERVICES.filter((s) => raw.includes(s)) }
 }
 
-/** The source of a real hit, for Respond on a trap incident (response D-509); null for a test hit or an unknown id. A scan's source
+/** The source of a real hit, for Respond on a trap incident (response module); null for a test hit or an unknown id. A scan's source
  * may be forged: it is confirmed only by a service hit (a completed connection) of the same source within the hour around it. */
 export function hitSource(id: string): { ip: string; asset_id: string | null; kind: HitKind; confirmed: boolean } | null {
   const h = hitsStore.get().find((x) => x.id === id)
@@ -316,7 +316,7 @@ export const handlers = [
     return HttpResponse.json(hitView(h))
   }),
 
-  // --- D-466: Trap IPs ---
+  // --- Trap IPs ---
   http.get(`${API}/honeypot/trap-ips`, () => {
     const denied = guard('viewer'); if (denied) return denied
     const items = byAge(trapIps.get()).map(trapIpView)
@@ -391,7 +391,7 @@ export const handlers = [
   // --- S-HP-2: honey tokens ---
   http.get(`${API}/honeypot/tokens`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    // D-189 (WP-31 L14): the bait password is in full for an operator and an administrator; a viewer sees the last 4 characters, as the backend does.
+    // WP-31 L14: the bait password is in full for an operator and an administrator; a viewer sees the last 4 characters, as the backend does.
     const role = currentUser()?.role
     const reveal = role === 'operator' || role === 'admin' // fail closed, as the backend does for an unknown role
     return HttpResponse.json({ items: tokens.get().map(tokenView).map((k) => (reveal || k.password === null ? k : { ...k, password: maskPassword(k.password) })) })
@@ -400,7 +400,7 @@ export const handlers = [
   http.post(`${API}/honeypot/tokens`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<{ type: TokenType; name: string; plant_at: string; ext?: 'docx' | 'xlsx' }>(request)
-    // D-468: the box runs no DNS server, so a DNS token could never alert; the seeded one (tok-4) still lists, a new one is refused.
+    // The box runs no DNS server, so a DNS token could never alert; the seeded one (tok-4) still lists, a new one is refused.
     if (b.type === 'dns') return fail(409, 'dns_unavailable', 'A DNS token cannot alert: the box runs no DNS server, so nothing would record a lookup of its name. Use a URL token or fake credentials instead.')
     if (!['file', 'credential', 'url'].includes(String(b.type))) return fail(400, 'bad_type', 'Choose a token type: decoy file, fake credentials or URL.')
     const name = String(b.name ?? '').trim()
@@ -410,7 +410,7 @@ export const handlers = [
     if (b.type === 'file' && b.ext !== 'docx' && b.ext !== 'xlsx') return fail(400, 'bad_ext', 'Choose the file type: .docx or .xlsx.')
     if (tokens.get().some((x) => x.type === b.type && x.name.toLowerCase() === name.toLowerCase())) return fail(409, 'duplicate', 'A token of this type with this name already exists.')
     const rnd = Math.random().toString(36).slice(2, 12).padEnd(10, 'x')
-    const box = boxAddress() ?? boxInfo().ip // D-465: the Box address, else the box's IP (as the box does), never its host name
+    const box = boxAddress() ?? boxInfo().ip // The Box address, else the box's IP (as the box does), never its host name
     if (b.type === 'url' && !box) return fail(409, 'no_box_address', 'The box does not know an address other machines can reach yet. Set the Box address in Settings → Box network, then try again.')
     const value = b.type === 'file' ? `${name.replace(/\s+/g, '-')}.${b.ext}` : b.type === 'credential' ? `svc_${Array.from({ length: 6 }, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('')}` : `https://${box}:8443/t/${rnd}`
     const password = b.type === 'credential' ? `Bk!${rnd.slice(0, 4)}-${rnd.slice(4).toUpperCase()}x9` : null

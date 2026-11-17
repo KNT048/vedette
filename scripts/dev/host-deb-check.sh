@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make host-deb-check (WP-08g, D-155): install the vedette-host .deb in a systemd container per target OS (Debian 13 and Ubuntu 24.04,
+# make host-deb-check (WP-08g): install the vedette-host .deb in a systemd container per target OS (Debian 13 and Ubuntu 24.04,
 # pinned by digest) and check the EFFECTS: refusals (a normal user named vedette, a symbolic link, a foreign core_data, a foreign range in
 # /etc/subuid) that leave nothing half-made; the same users, groups, /etc/subuid lines, directories, modes, owners and file hashes after a
 # second install; the unit enabled and NOT started, and still disabled after an upgrade when the administrator disabled it; an existing
@@ -158,10 +158,10 @@ EOT
 	want "/usr/lib/vedette/vedette-host 755 root:root" '^/usr/lib/vedette/vedette-host f 755 root:root '
 	want "unit in /usr/lib/systemd/system 644 root:root" '^/usr/lib/systemd/system/vedette-host.service f 644 root:root '
 	want "honeypot containers.conf module 644 root:root (#486)" '^/usr/lib/vedette/honeypot-containers.conf f 644 root:root '
-	want "AppArmor containers.conf module 644 root:root (D-458)" '^/usr/lib/vedette/apparmor-containers.conf f 644 root:root '
-	want "AppArmor profile 644 root:root (D-458)" '^/etc/apparmor.d/vedette-container f 644 root:root '
-	want "OpenVAS compose file 644 root:root (D-529)" '^/usr/lib/vedette/greenbone/compose.yaml f 644 root:root '
-	want "OpenVAS compose override 644 root:root (D-529)" '^/usr/lib/vedette/greenbone/compose.vedette.yaml f 644 root:root '
+	want "AppArmor containers.conf module 644 root:root" '^/usr/lib/vedette/apparmor-containers.conf f 644 root:root '
+	want "AppArmor profile 644 root:root" '^/etc/apparmor.d/vedette-container f 644 root:root '
+	want "OpenVAS compose file 644 root:root" '^/usr/lib/vedette/greenbone/compose.yaml f 644 root:root '
+	want "OpenVAS compose override 644 root:root" '^/usr/lib/vedette/greenbone/compose.vedette.yaml f 644 root:root '
 	# /usr/share/doc/vedette-host/{NOTICE,third-party-licenses} are not checked here: the container images exclude /usr/share/doc (dpkg path-exclude); deploy/deb/deb_test.go checks them in the package
 	want "/etc/vedette 755 root:root" '^/etc/vedette d 755 root:root '
 	want "/etc/containers/systemd 755 root:root" '^/etc/containers/systemd d 755 root:root '
@@ -169,8 +169,8 @@ EOT
 	want "core_data /var/lib/vedette 700 vedette:vedette" '^/var/lib/vedette d 700 vedette:vedette '
 	want "/var/lib/vedette-honeypot 755 root:root" '^/var/lib/vedette-honeypot d 755 root:root '
 	want "honeypot config/ 755 vedette:vedette" '^/var/lib/vedette-honeypot/config d 755 vedette:vedette '
-	# the honeypot's log/ is the volume vedette-hp-log (D-318): no folder for it (D-412)
-	x '[ ! -e /var/lib/vedette-honeypot/log ]' || fail "the package made /var/lib/vedette-honeypot/log (the honeypot log is a volume, D-318/D-412)"
+	# the honeypot's log/ is the volume vedette-hp-log: no folder for it
+	x '[ ! -e /var/lib/vedette-honeypot/log ]' || fail "the package made /var/lib/vedette-honeypot/log (the honeypot log is a volume)"
 	ok "no /var/lib/vedette-honeypot/log (the honeypot log is the vedette-hp-log volume)"
 	want "the unit is enabled" '^is-enabled=enabled$'
 	want "the unit is NOT started" '^active=inactive$'
@@ -189,7 +189,7 @@ EOT
 	[ "$s1" = "$s2" ] || { diff <(echo "$s1") <(echo "$s2") >&2 || true; fail "the second install changed the state"; }
 	ok "second install: users, groups, subid lines, tree, modes, owners, hashes and unit state are identical"
 
-	# A box installed before D-412 has the old log/ folder, which podman's :U gave to the container's user (a subuid) with mode 755 (D-162):
+	# A box installed by an older version has the old log/ folder, which podman's :U gave to the container's user (a subuid) with mode 755:
 	# an upgrade must go through and leave it alone (install.sh --uninstall removes it with /var/lib/vedette-honeypot).
 	# 61000 stands for the image user's subuid: any uid inside every default rootless map (a map such as byn:100000:65536 only reaches 0..65535) that is not vedette's.
 	x 'install -d -m 0755 -o 61000 -g 0 /var/lib/vedette-honeypot/log'
@@ -238,7 +238,7 @@ EOT
 	# ---- remove and purge --------------------------------------------------------------------------------------------------
 	x 'apt-get remove -y -q vedette-host >/tmp/apt.log 2>&1' || fail "apt-get remove"
 	x 'test ! -e /usr/lib/vedette/vedette-host && test ! -e /usr/lib/systemd/system/vedette-host.service' || fail "remove left the binary or the unit"
-	# the AppArmor profile is a conffile (D-458): remove keeps it, purge deletes it (checked after the purge below)
+	# the AppArmor profile is a conffile: remove keeps it, purge deletes it (checked after the purge below)
 	x 'test -e /etc/apparmor.d/vedette-container' || fail "remove deleted the AppArmor profile (a conffile stays until purge)"
 	x 'test ! -e /etc/systemd/system/multi-user.target.wants/vedette-host.service' || fail "remove left the enable link"
 	x 'test "$(cat /var/lib/vedette/marker /etc/vedette/host.conf /var/lib/vedette-honeypot/config/marker | tr -d "\n")" = keepkeepkeep && test -d /var/lib/vedette-host && test -d /var/lib/vedette-honeypot/log' || fail "remove deleted data"

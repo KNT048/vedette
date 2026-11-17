@@ -8,7 +8,7 @@ export type UnderlineNavItem = { to: string; label: string; end?: boolean; badge
 
 /** Links between pages in the look of PageTabs (docs/UI.md §4; Primer splits UnderlineNav and UnderlinePanels the same way): the open
  *  link has aria-current="page", the row scrolls sideways inside itself and the open link scrolls into view; it never wraps.
- *  `verticalFrom="lg"`: a vertical menu from lg (Settings, D-519/D-543), the underlined row below it. */
+ *  `verticalFrom="lg"`: a vertical menu from lg (Settings), the underlined row below it. */
 export function UnderlineNav({ items, label, verticalFrom }: { items: UnderlineNavItem[]; label: string; verticalFrom?: 'lg' }) {
   const { pathname } = useLocation()
   const row = useRef<HTMLElement>(null)

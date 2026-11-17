@@ -17,7 +17,7 @@ const ReconcileEvery = time.Hour
 
 // RecentKEV is how recent a KEV entry must be for a finding that Reconcile creates to be announced. Reconcile can
 // create thousands of findings at once when the baseline events of the first CISA pull were lost; an entry CISA added
-// within this window is real news a lost new_kev event should still announce, anything older is backlog and, as in D-78,
+// within this window is real news a lost new_kev event should still announce, anything older is backlog and, like the baseline,
 // silent. An entry with no known date is backlog.
 const RecentKEV = 7 * 24 * time.Hour
 
@@ -25,19 +25,19 @@ const RecentKEV = 7 * 24 * time.Hour
 type ReconcileResult struct {
 	Devices int // devices matched
 	Created int // findings created that an event had not created
-	Closed  int // findings Vedette closed by itself: version proved outside every range (D-530)
-	Retired int // old product findings of settled "Multiple Products" entries NVD's list leaves out, closed (D-506)
-	Aged    int // product findings of KEV CVEs published over 12 months ago, closed (D-615, D-616)
-	// NameOnly: product findings with no version evidence, closed and listed under "Could not be checked" (D-602)
+	Closed  int // findings Vedette closed by itself: version proved outside every range
+	Retired int // old product findings of settled "Multiple Products" entries NVD's list leaves out, closed
+	Aged    int // product findings of KEV CVEs published over 12 months ago, closed
+	// NameOnly: product findings with no version evidence, closed and listed under "Could not be checked"
 	NameOnly int
 	Orphans  int // findings removed because their device no longer exists
-	Expired  int // risk acceptances whose day passed, reopened (D-498, INV-13)
-	// IgnoreHealed counts the findings a lost inventory.asset.ignored or .unignored left behind (D-630, review r1 M2 of #945): open
+	Expired  int // risk acceptances whose day passed, reopened (INV-13)
+	// IgnoreHealed counts the findings a lost inventory.asset.ignored or .unignored left behind: open
 	// findings of an ignored device closed, findings Ignore closed on a watched device reopened.
 	IgnoreHealed int
 }
 
-// Reconcile heals what a lost event left behind (D-144: the bus is best-effort, findings owns the catch-up). It does the
+// Reconcile heals what a lost event left behind (the bus is best-effort, findings owns the catch-up). It does the
 // work of OnMatchChanged for every device and the work of OnAssetDeleted for every device that findings still has
 // findings for but inventory no longer has. It reads only through Inventory and Feeds, writes one device per transaction
 // (the writer is never held for the run), honours ctx between devices, and is idempotent: a pair that exists is only
@@ -91,7 +91,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		return nil
 	}
 	live := make(map[string]bool, len(ids)+len(ignored))
-	// D-630: an ignored device is not gone (its findings are never orphans, review r1 L10 of #945), and the work of a lost
+	// An ignored device is not gone (its findings are never orphans, review r1 L10 of #945), and the work of a lost
 	// inventory.asset.ignored is done here: its open findings close (review r1 M2).
 	for _, id := range ignored {
 		live[id] = true
@@ -177,17 +177,17 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		}
 		res.Orphans += n
 	}
-	// One line per run, so a box's log shows the pass ran and what it changed (walk 3: the job's own line is debug).
+	// One line per run, so a box's log shows the pass ran and what it changed (the job's own line is debug).
 	s.cfg.Log.InfoContext(ctx, "findings: reconcile pass done", "devices", res.Devices, "created", res.Created,
 		"closed_not_affected", res.Closed, "closed_multiple_products", res.Retired, "closed_older_than_12_months", res.Aged, "closed_no_version_evidence", res.NameOnly, "removed_with_device", res.Orphans, "risk_acceptances_expired", res.Expired, "ignore_healed", res.IgnoreHealed)
 	return res, errors.Join(failed...)
 }
 
-// expireAcceptances reopens, in one write, every risk_accepted finding whose acceptance has ended (AcceptanceEnds, D-498,
+// expireAcceptances reopens, in one write, every risk_accepted finding whose acceptance has ended (AcceptanceEnds,
 // INV-13): Finding.ExpireAcceptance, its history row by the system user, an audit row findings.status and the
 // status_changed event with reason ReasonRiskExpired. A row that cannot be read or reopened whole is reopened on its
 // status alone (expireRaw); one that cannot be even so is logged with its id and skipped; the others still reopen. It
-// returns how many it reopened. A finding of a device a person ignored (D-630) keeps its acceptance until the device is watched
+// returns how many it reopened. A finding of a device a person ignored keeps its acceptance until the device is watched
 // again: no alert about a device nobody watches.
 func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, eventWriteTimeout)
@@ -239,7 +239,7 @@ func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 				return ctx.Err()
 			}
 			// The row cannot be read or written back whole: end the acceptance on the columns it needs, or it stays
-			// accepted past its day and is skipped every hour (Opus r2 LOW-2 of D-498).
+			// accepted past its day and is skipped every hour.
 			ev, ok, rawErr := s.expireRaw(ctx, tx, id, now)
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -263,7 +263,7 @@ func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 	return n, nil
 }
 
-// unwatchedAccepted is the set of devices a person ignored (D-630): their risk acceptances wait until the device is watched again.
+// unwatchedAccepted is the set of devices a person ignored: their risk acceptances wait until the device is watched again.
 // One read; when it fails the acceptances expire as usual (an alert too many, never one lost; review r1 L10 of #945).
 func (s *Service) unwatchedAccepted(ctx context.Context) map[string]bool {
 	ids, err := s.cfg.Inventory.IgnoredIDs(ctx)
@@ -279,7 +279,7 @@ func (s *Service) unwatchedAccepted(ctx context.Context) map[string]bool {
 }
 
 // healIgnored does the work of a lost inventory.asset.ignored (ignored: close the open findings of an ignored device) or
-// .unignored (reopen on a watched device the findings Ignore closed), D-630, review r1 M2 of #945. A read first, so the hourly pass
+// .unignored (reopen on a watched device the findings Ignore closed). A read first, so the hourly pass
 // writes only for a device that needs it; the write checks the device's state again (forAssetFindings).
 func (s *Service) healIgnored(ctx context.Context, id string, ignored bool) (int, error) {
 	q := `SELECT 1 FROM fnd_finding WHERE asset_id = ? AND status IN ('suspected', 'confirmed') LIMIT 1`
@@ -329,7 +329,7 @@ func (s *Service) expireOne(ctx context.Context, tx *sql.Tx, r Record, h History
 }
 
 // expireRaw ends the acceptance of a finding that cannot be read whole (loadByID) or written back through Record
-// (expireOne) (Opus r2 LOW-2 of D-498). It reads only id, cve, basis, resolved_by and accepted_until, decides with
+// (expireOne). It reads only id, cve, basis, resolved_by and accepted_until, decides with
 // AcceptanceEnds like ExpireAcceptance, and writes only status (confirmed for basis scan, else suspected), the closing
 // fields and accepted_until, plus the same history, audit and event; the broken column stays as it was, no worse. The
 // table's CHECKs refuse a write that would make the row invalid (confirmed without evidence): that, or a day that is not
@@ -395,10 +395,10 @@ func (s *Service) splitByNews(vulns []Vuln) (backlog, recent []Vuln) {
 
 // upsertSplit matches one device against both lists, one write each, the backlog under the Backlog mark. It returns what
 // both writes did together. Both writes store the "add the version" items of the two lists together: the items are one
-// per software for the whole exploited list (D-500), and each write replaces them (W6-1).
+// per software for the whole exploited list, and each write replaces them.
 func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vuln) (UpsertResult, error) {
 	var sum UpsertResult
-	a.winList = slices.Concat(backlog, recent)      // D-618: a Windows build's month is read from the whole list in both writes
+	a.winList = slices.Concat(backlog, recent)      // A Windows build's month is read from the whole list in both writes
 	whole := MatchAsset(a, a.winList, nil, s.now()) // its NeedVersion and Unchecked: which findings exist does not change them
 	add := func(wctx context.Context, vulns []Vuln) error {
 		if len(vulns) == 0 {
@@ -456,7 +456,7 @@ func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]str
 }
 
 // Jobs returns the jobs of the module (core runs one only while the module is on): reconcile runs when the module
-// starts, then every ReconcileEvery; plan (D-617) when the module starts, then every PlanEvery.
+// starts, then every ReconcileEvery; plan when the module starts, then every PlanEvery.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{{Module: "findings", Name: "reconcile", Every: ReconcileEvery, Run: func(ctx context.Context) error {
 		_, err := svc.Reconcile(ctx)

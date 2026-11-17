@@ -6,8 +6,8 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// What container.start with a version and container.rollback keep on disk (spec 6.8, 6.10, D-104,
-// D-138): containers/versions-<service>.json holds the release a service runs (current) and the one it
+// What container.start with a version and container.rollback keep on disk (spec 6.8, 6.10):
+// containers/versions-<service>.json holds the release a service runs (current) and the one it
 // ran before (previous), each with the signed manifest it was verified with, so that rollback can
 // verify it again against the stored index. One file, one atomic write: a crash can never leave the
 // two records out of step. The record of the running version also remembers the pre_update backup
@@ -106,7 +106,7 @@ func (o *Ops) completeTransition(t transition) {
 		}
 		// Swap: the version just left becomes previous, so a second rollback goes back where it started.
 		// The backup id of the record that becomes current was made when the service moved into that release, at
-		// another point in time than the data it runs on now: it is not carried over (D-138 H1). The one that
+		// another point in time than the data it runs on now: it is not carried over. The one that
 		// becomes previous keeps its own.
 		now := *s.Previous
 		now.BackupID = ""

@@ -83,7 +83,7 @@ type Spec[A any] struct {
 	Write   bool
 	Timeout time.Duration // required, at most 2 h
 	// WhileAwaiting marks net.confirm and net.revert: the only commands that run while a run awaits
-	// confirmation (D-100), and only when args.run_id is that run's id. They must be Write commands
+	// confirmation, and only when args.run_id is that run's id. They must be Write commands
 	// and take a run_id field in A. A write command without this flag gets 409 pending_confirm
 	// while a run waits; a WhileAwaiting command with no matching waiting run gets 412
 	// not_awaiting_confirm and never runs. One such command runs at a time (a second gets busy).
@@ -92,7 +92,7 @@ type Spec[A any] struct {
 	// Write command and cannot also be WhileAwaiting; an Awaiting from any other command fails the
 	// run as invalid (command_failed).
 	Awaits bool
-	// Parks marks host.self_update (D-316): the only kind of command whose Run may return Parked. It
+	// Parks marks host.self_update: the only kind of command whose Run may return Parked. It
 	// must be a Write command and cannot also be Awaits or WhileAwaiting; a Parked from any other
 	// command fails the run as invalid (command_failed).
 	Parks bool
@@ -102,8 +102,8 @@ type Spec[A any] struct {
 	Validate func(*A) error
 	// Check runs the cheap preconditions synchronously (five seconds at most) before the run starts.
 	// It must only read: it must not change the system, because if it ignores its deadline the run
-	// is failed but the write lock stays held until it returns. The one exception is container.pull
-	// (D-130): it stores a newer verified release index even when it then refuses, so that a revocation
+	// is failed but the write lock stays held until it returns. The one exception is container.pull:
+	// it stores a newer verified release index even when it then refuses, so that a revocation
 	// is not lost; that write is small and atomic, and is logged and audited (release_index_stored).
 	// Return a *Refusal to refuse; the run is recorded as refused with the matching HTTP status.
 	Check func(ctx context.Context, args A) error
@@ -271,7 +271,7 @@ type Reverted struct {
 func (e *Reverted) Error() string { return "reverted: " + e.Code }
 
 // Awaiting is what Run returns (as its result, with a nil error) to park the run in awaiting_confirm
-// instead of finishing it (D-100): the run is stored with revert_at, an audit line awaiting_confirm is
+// instead of finishing it: the run is stored with revert_at, an audit line awaiting_confirm is
 // written, and the run KEEPS the global write lock until (*Server).Settle ends it. Result is stored
 // as the run's result like Failure.Result. RevertAt must be set. The command arms its own timer
 // (arm it in rc.OnParked) and ends the run with Claim and Finish, or Settle. RevertAt must be in

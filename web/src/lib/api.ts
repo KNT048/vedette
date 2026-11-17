@@ -1,4 +1,4 @@
-// Client API duy nhất của SPA. M1: MSW trả lời (src/mocks); M2: backend Go cùng hợp đồng (D-18).
+// Client API duy nhất của SPA. M1: MSW trả lời (src/mocks); M2: backend Go cùng hợp đồng.
 export class ApiError extends Error {
   readonly status: number
   readonly code: string
@@ -12,7 +12,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Sản phẩm chỉ có tiếng Anh (D-28); vẫn gửi header để máy chủ sinh văn bản đúng ngôn ngữ. */
+/** Sản phẩm chỉ có tiếng Anh; vẫn gửi header để máy chủ sinh văn bản đúng ngôn ngữ. */
 const lang = () => 'en'
 
 /** Double-submit CSRF (API_CONVENTIONS 7.2): the server sets cookie `__Host-vedette_csrf`, state-changing calls echo it in a header. The mock ignores it. */
@@ -22,7 +22,7 @@ function csrfToken(): string | null {
   return m ? decodeURIComponent(m[1]!) : null
 }
 
-/** N44-2: the box sets and clears this readable cookie together with the HttpOnly session cookie (core/auth Cookies, ClearCookies),
+/** The box sets and clears this readable cookie together with the HttpOnly session cookie (core/auth Cookies, ClearCookies),
  *  so without it nobody is signed in on this browser. */
 export const hasSessionCookie = (): boolean => CSRF_COOKIE.test(document.cookie)
 
@@ -53,7 +53,7 @@ export const api = {
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
   del: <T>(path: string) => request<T>('DELETE', path),
-  /** POST a file as the body itself (`application/octet-stream`, D-518), with headers the operation reads. */
+  /** POST a file as the body itself (`application/octet-stream`), with headers the operation reads. */
   upload: <T>(path: string, blob: Blob, headers: Record<string, string> = {}) => request<T>('POST', path, undefined, { blob, headers }),
 }
 

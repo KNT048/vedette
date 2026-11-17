@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// The Wazuh server API client (D-169 (12), D-306). Read-only by construction (FORBID-4): the one POST is the login, every other call is a
+// The Wazuh server API client. Read-only by construction (FORBID-4): the one POST is the login, every other call is a
 // GET on an allow-listed path, checked here before anything is sent, whatever the role of the account allows. Shapes are those of the
 // official OpenAPI spec of Wazuh v4.9.2 (api/api/spec/spec.yaml): the login answers the plain JWT with ?raw=true, GET / needs no RBAC
 // action, GET /agents and /syscollector/{agent_id}/* page with limit/offset (limit up to 100,000; 500 recommended; we ask 250).
@@ -253,8 +253,8 @@ type wzAgent struct {
 		Name     string `json:"name"`
 		Version  string `json:"version"`
 		Platform string `json:"platform"`
-		Arch     string `json:"arch"`  // "x86_64", "i686", "aarch64": the target_hw of a Windows agent's row (D-546)
-		Uname    string `json:"uname"` // "Linux |host |7.0.0-43-generic |#43-Ubuntu SMP … |x86_64": the third field is the running kernel (D-516)
+		Arch     string `json:"arch"`  // "x86_64", "i686", "aarch64": the target_hw of a Windows agent's row
+		Uname    string `json:"uname"` // "Linux |host |7.0.0-43-generic |#43-Ubuntu SMP … |x86_64": the third field is the running kernel
 	} `json:"os"`
 }
 

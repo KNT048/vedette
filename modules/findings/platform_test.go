@@ -48,7 +48,7 @@ func TestPlatformLimits_DataIsValid(t *testing.T) {
 	}
 }
 
-// D-604: Alpine's apk order for the releases the fixed lists hold.
+// Alpine's apk order for the releases the fixed lists hold.
 func TestAPKVersionCompare(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -95,7 +95,7 @@ func sshRow(version, banner, source string) Software {
 		CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", KevKeys: []string{"openbsd|openssh"}}
 }
 
-// KF-4 / N45-3: the GitLab server's "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20" on the public IP is Ubuntu's glibc+PAM build: not listed,
+// The GitLab server's "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20" on the public IP is Ubuntu's glibc+PAM build: not listed,
 // and the reason is there for the exposure page. Nothing about "run a scan".
 func TestPlatform_UbuntuBannerRulesOutAlpineOnlyCVE(t *testing.T) {
 	t.Parallel()
@@ -110,12 +110,12 @@ func TestPlatform_UbuntuBannerRulesOutAlpineOnlyCVE(t *testing.T) {
 	}
 }
 
-// A device whose OS (osquery) is Ubuntu: its open finding of the Alpine-only CVE closes by itself (D-530 path) with the reason.
+// A device whose OS (osquery) is Ubuntu: its open finding of the Alpine-only CVE closes by itself (auto-resolve) with the reason.
 func TestPlatform_DeviceOSClosesTheFinding(t *testing.T) {
 	t.Parallel()
 	sw := sshRow("9.6p1", "", "agent")
 	sw.Packaged, sw.PkgVersion, sw.PkgSource = true, "1:9.6p1-3ubuntu13.20", "openssh"
-	a := Asset{ID: "a", Name: "boxkien", OS: "Ubuntu 24.04.3 LTS", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{sw}}
+	a := Asset{ID: "a", Name: "boxanna", OS: "Ubuntu 24.04.3 LTS", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{sw}}
 	res := MatchAsset(a, []Vuln{sshhole()}, map[string]bool{"CVE-2026-123158": true}, t0)
 	if len(res.Existing) != 0 || len(res.NotAffected) != 1 {
 		t.Fatalf("existing %+v, not affected %+v", res.Existing, res.NotAffected)
@@ -128,7 +128,7 @@ func TestPlatform_DeviceOSClosesTheFinding(t *testing.T) {
 // gw-alpine: a device whose platform is not known gives no finding: the CVE is "Could not be checked" with the question (which
 // system), and an open finding closes (Asked). A Ubuntu host whose port a scan saw is no proof either way (it may forward the port to
 // an Alpine container). A device that states Alpine itself (its agent, its SNMP answer) is asked for the package release instead.
-func TestPlatform_D604_UnknownPlatformAsks(t *testing.T) {
+func TestPlatform_UnknownPlatformAsks(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		a    Asset
@@ -149,12 +149,12 @@ func TestPlatform_D604_UnknownPlatformAsks(t *testing.T) {
 	}
 }
 
-// D-604: once the platform is Alpine, the package release decides against Alpine's fixed list for the device's branch: the OS a
+// Once the platform is Alpine, the package release decides against Alpine's fixed list for the device's branch: the OS a
 // person set (one click on the question) or the one the device states (SNMP's "Alpine Linux", no branch: the branch whose fix has the
 // same upstream version), with the release a person gave on the row (inventory's correction) or an agent's apk release. Review r1 of
 // #961: every branch secdb fixes (H1: patched and unpatched 3.20/3.19, a branch with no fix, no loop after "Another system"), a
 // person's OS never rules a scanned row out (M1: the Docker host), and what `apk info -e -v` prints is read (M2).
-func TestPlatform_D604_PackageReleaseDecides(t *testing.T) {
+func TestPlatform_PackageReleaseDecides(t *testing.T) {
 	t.Parallel()
 	mine := func(pkg string) Software { // inventory's correction of the scanned row (INV-41): manual, the scan's version, the release
 		s := sshRow("10.2", "", "manual")
@@ -236,7 +236,7 @@ func TestPlatform_D604_PackageReleaseDecides(t *testing.T) {
 // Review r1 H1 and r2 M-2 of #961: an answer always moves the question on. Every one-click answer of the platform question (an Alpine
 // branch), applied as the device's OS, gives the package question, and the release for that branch then decides. "Another system"
 // (the device's OS and the row's package release, both typed) decides at once, also for an OS Vedette does not know.
-func TestPlatform_D604_EveryAnswerSettles(t *testing.T) {
+func TestPlatform_EveryAnswerSettles(t *testing.T) {
 	t.Parallel()
 	f := distroFixes("CVE-2026-123158", alpineSSH())
 	q := platformQuestion("CVE-2026-123158", "gw-alpine", UncheckedPlatformUnknown, "", alpineSSH())
@@ -292,7 +292,7 @@ func TestPlatform_OtherCVEsUnchanged(t *testing.T) {
 	v := sshhole()
 	v.CVE = "CVE-2024-6387"
 	res := MatchAsset(Asset{ID: "x", Name: "x", Software: []Software{sshRow("9.6p1 Ubuntu 3ubuntu13.20", "Ubuntu Linux; protocol 2.0", "")}}, []Vuln{v}, nil, t0)
-	if len(res.NameOnly) != 1 || len(res.OtherPlatform) != 0 || strings.Contains(res.NameOnly[0].said, "affects only") { // D-602: no finding
+	if len(res.NameOnly) != 1 || len(res.OtherPlatform) != 0 || strings.Contains(res.NameOnly[0].said, "affects only") { // No finding
 		t.Fatalf("result %+v", res)
 	}
 }
@@ -308,7 +308,7 @@ func TestPlatform_OSIsEvidenceOnlyForTheDevicesOwnRows(t *testing.T) {
 		{"agent row on a Ubuntu device", "agent", "Ubuntu 24.04.3 LTS", "", "Ubuntu 24.04.3 LTS", "", true},
 		{"agent row, the folded OS is a guess the agent never reported (review r2 of #790)", "agent", "Ubuntu 24.04.3 LTS", "", "", "", false},
 		{"agent row, a person's OS won but the agent reports Ubuntu", "agent", "Alpine Linux v3.23", "", "Ubuntu 24.04.3 LTS", "", true},
-		{"scan row on a Junos switch that states its OS over SNMP (D-549, N47-1)", "nmap", "Juniper Junos", "JUNOS 15.1R7.9", "", "JUNOS 15.1R7.9", true},
+		{"scan row on a Junos switch that states its OS over SNMP", "nmap", "Juniper Junos", "JUNOS 15.1R7.9", "", "JUNOS 15.1R7.9", true},
 		{"scan row, Junos only in an LLDP frame (forgeable with the device's MAC, review r1 #3)", "nmap", "", "JUNOS 15.1R7.9", "", "", false},
 		{"scan row, Junos OS Evolved runs containers (review r1 #4)", "nmap", "", "JUNOS 21.4R1.12-EVO", "", "JUNOS 21.4R1.12-EVO", false},
 		{"scan row, SNMP says Junos but an agent reports another OS", "nmap", "", "JUNOS 15.1R7.9", "Alpine Linux v3.23", "JUNOS 15.1R7.9", false},
@@ -328,7 +328,7 @@ func TestPlatform_OSIsEvidenceOnlyForTheDevicesOwnRows(t *testing.T) {
 	}
 }
 
-// Review r1 #11 (a), D-604: an agent-read Ubuntu OpenSSH (ruled out) beside a scan-seen OpenSSH with no platform (an Alpine container's
+// An agent-read Ubuntu OpenSSH (ruled out) beside a scan-seen OpenSSH with no platform (an Alpine container's
 // port): not proved, not a finding either: the scanned row's platform is asked.
 func TestPlatform_ContainerPortIsAsked(t *testing.T) {
 	t.Parallel()
@@ -373,15 +373,15 @@ func TestPlatform_DistributionWordBeatsTheHandList(t *testing.T) {
 	sw.Packaged, sw.PkgVersion, sw.PkgSource = true, "1:9.6p1-3ubuntu13.14", "openssh"
 	v := sshhole()
 	v.Distro = []DistroFix{{Distro: "ubuntu", Release: "24.04", Package: "openssh", Status: "fixed", Fixed: "1:9.6p1-3ubuntu13.20"}}
-	res := MatchAsset(Asset{ID: "a", Name: "boxkien", OS: "Ubuntu 24.04.3 LTS", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{sw}}, []Vuln{v}, nil, t0)
+	res := MatchAsset(Asset{ID: "a", Name: "boxanna", OS: "Ubuntu 24.04.3 LTS", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{sw}}, []Vuln{v}, nil, t0)
 	if len(res.New) != 1 || len(res.OtherPlatform) != 0 {
 		t.Fatalf("new %+v, other %+v; want the distribution's version finding", res.New, res.OtherPlatform)
 	}
 }
 
-// Review r1 #11 (d), #6: through the service: a platform proof closes the open finding (audit says D-547, no version compared)
+// Through the service: a platform proof closes the open finding (the audit names the platform rule, no version compared)
 // and a later match on a platform it affects, below the fix, reopens it.
-func TestContract_D547_PlatformClosesAndReopens(t *testing.T) {
+func TestContract_PlatformClosesAndReopens(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	run := func(os, ver string) {

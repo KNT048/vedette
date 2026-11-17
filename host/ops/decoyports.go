@@ -17,8 +17,8 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// Per-address ports of the decoys (D-466). OpenCanary is one process that listens on every address of
-// the namespace (D-90 (1)); the host keeps each address to its own services with the input chain of
+// Per-address ports of the decoys. OpenCanary is one process that listens on every address of
+// the namespace; the host keeps each address to its own services with the input chain of
 // the namespace's ruleset: an address with an allow-list answers only the (protocol, port) pairs of
 // its list, an address without one (nil, a decoy an older core added) answers everything, and an
 // address in neither set answers no TCP or UDP port (fail closed). The ruleset is rendered from
@@ -65,7 +65,7 @@ func portsArg(p *[]api.DecoyPort) (*[]api.DecoyPort, error) {
 	return &c, nil
 }
 
-// The fixed lines of the ruleset (D-102 (4), D-121, D-466). Output: replies and loopback go out,
+// The fixed lines of the ruleset. Output: replies and loopback go out,
 // every new connection is dropped. Forward: nothing. Input: see the comment at the top.
 var (
 	hpOutputRules = []string{"ct state established,related accept", "oif lo accept", "ct state new drop"}
@@ -338,7 +338,7 @@ func normAll(rules []string) []string {
 // inet family is an ICMPx port unreachable, which some versions spell out.
 var rejectUDPForms = []string{"metal4protoudpreject", "metal4protoudprejectwithicmpxport-unreachable", "metal4protoudprejectwithicmpxtypeport-unreachable"}
 
-// egressOK is the check of D-102 (4) on a parsed table: not dormant; the output chain (hook output,
+// egressOK is the egress check on a parsed table: not dormant; the output chain (hook output,
 // policy accept) holds exactly the three rules in order, so no broader accept comes before the drop;
 // the forward chain has policy drop and no rule.
 func (t nftTable) egressOK() bool {

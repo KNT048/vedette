@@ -38,7 +38,7 @@ type releaseUpgradeView struct {
 }
 
 type osStateView struct {
-	OS                *osInfoView         `json:"os"` // nil until the host has checked once (D-407)
+	OS                *osInfoView         `json:"os"` // nil until the host has checked once
 	Pending           []osPackageView     `json:"pending"`
 	RebootRequired    bool                `json:"reboot_required"`
 	RebootReasons     []string            `json:"reboot_reasons"`
@@ -96,7 +96,7 @@ func nonNil[T any](s []T) []T {
 
 // stateView puts what the host knows (hs) together with what core owns: the maintenance window, the guidance
 // for a release upgrade and whether an install run is going. A host part with no last check (the empty one of a box
-// that never checked) has os null and no release upgrade (D-407).
+// that never checked) has os null and no release upgrade.
 func stateView(hs api.OSState, win maintWindow, busy bool) osStateView {
 	pending := make([]osPackageView, len(hs.Pending))
 	for i, p := range hs.Pending {
@@ -117,7 +117,7 @@ func stateView(hs api.OSState, win maintWindow, busy bool) osStateView {
 	return v
 }
 
-// releaseUpgrade is guidance only: Vedette never runs a release upgrade (D-53). The host supports Ubuntu 24.04
+// releaseUpgrade is guidance only: Vedette never runs a release upgrade. The host supports Ubuntu 24.04
 // and 26.04 and Debian 13; only 24.04 has a newer supported release to point at.
 func releaseUpgrade(distro, release string) *releaseUpgradeView {
 	if distro == "ubuntu" && release == "24.04" {

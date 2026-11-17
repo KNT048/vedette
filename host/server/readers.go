@@ -50,13 +50,13 @@ type Readers struct {
 	Backups       func(ctx context.Context) (any, error) // GET /v1/state/backups
 	Net           func(ctx context.Context) (any, error) // GET /v1/state/net (WP-07b part 3, slice 3-3)
 	Containers    func(ctx context.Context) (any, error) // GET /v1/state/containers (slice 3-6)
-	Host          func(ctx context.Context) (any, error) // GET /v1/state/host (host.self_update, D-316)
-	Packages      func(ctx context.Context) (any, error) // GET /v1/state/packages (the box's dpkg list, D-470)
+	Host          func(ctx context.Context) (any, error) // GET /v1/state/host (host.self_update)
+	Packages      func(ctx context.Context) (any, error) // GET /v1/state/packages (the box's dpkg list)
 	Ports         func(ctx context.Context) (any, error) // GET /v1/state/ports (the ports the box listens on, inventory INV-3)
-	HPTouches     func(ctx context.Context) (any, error) // GET /v1/state/hp-touches (new connection attempts to the decoys, D-466 M2)
+	HPTouches     func(ctx context.Context) (any, error) // GET /v1/state/hp-touches (new connection attempts to the decoys)
 	BackupContent func(id string) (File, error)          // GET /v1/backups/{id}/content
 	ExportContent func(id string) (File, error)          // GET /v1/exports/{id}/content
-	ZapReport     func(id string) (File, error)          // GET /v1/zap/{id}/content (the report of the last zap.baseline, D-521)
+	ZapReport     func(id string) (File, error)          // GET /v1/zap/{id}/content (the report of the last zap.baseline)
 }
 
 var hexIDRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
@@ -157,7 +157,7 @@ func (s *Server) Note(command, code string, detail map[string]any) error {
 }
 
 // NoteWriter appends host-originated lines to the audit chain without a running server: the bootstrap
-// (D-142) writes release_index_stored and installed lines to the same file and chain the daemon uses.
+// writes release_index_stored and installed lines to the same file and chain the daemon uses.
 type NoteWriter struct{ a *auditLog }
 
 // OpenNoteWriter opens (creating it 0600) and verifies the audit log at path, owned by ownerUID.
@@ -202,7 +202,7 @@ func (s *Server) WriteActive() bool {
 	return s.active != "" || s.inflight != ""
 }
 
-// AwaitingConfirm reports whether a run is parked in awaiting_confirm (D-100). ops uses it as the
+// AwaitingConfirm reports whether a run is parked in awaiting_confirm. ops uses it as the
 // network-change-pending check of os.reboot.
 func (s *Server) AwaitingConfirm() bool {
 	s.mu.Lock()
@@ -217,7 +217,7 @@ var ErrWriteBusy = errors.New("host: another write command is running")
 // WithWriteLock runs fn holding the global write lock, the way a command does (INV-3: never two
 // writes at once): a command that arrives meanwhile gets 409 busy. It does not wait: when the lock
 // is taken it returns ErrWriteBusy and the caller tries again later. It exists for the work the host
-// does on its own after it is ready (the post-READY step of ops, D-123), which has no request.
+// does on its own after it is ready (the post-READY step of ops), which has no request.
 func (s *Server) WithWriteLock(ctx context.Context, fn func(ctx context.Context)) error {
 	id, err := newID("sys_")
 	if err != nil {

@@ -65,11 +65,11 @@ func (a feedsInventory) MatchProducts(ctx context.Context, products []feeds.Prod
 	return out, nil
 }
 
-// NotAffected implements feeds.PlatformChecker (D-549, KF-CVEPAGE): the devices the findings matcher's platform rules (D-547) prove are
+// NotAffected implements feeds.PlatformChecker: the devices the findings matcher's platform rules prove are
 // not affected by the CVE, read as findings reads them (findingsInventory.MatchInput), so the CVE page agrees with their findings.
 func (a feedsInventory) NotAffected(ctx context.Context, cve, vendor, product string, distro []feeds.DistroFix, ids []string) (map[string]bool, error) {
 	out := map[string]bool{}
-	if !findings.HasPlatformLimit(cve) { // review r1 #9: only a platform-limited CVE reads the devices
+	if !findings.HasPlatformLimit(cve) { // only a platform-limited CVE reads the devices
 		return out, nil
 	}
 	now := time.Now()
@@ -90,7 +90,7 @@ func (a feedsInventory) NotAffected(ctx context.Context, cve, vendor, product st
 }
 
 // AddManualDevice declares the "I have this" device and returns its id, so feeds records it on the answer and the
-// "I have this" scope of findings (D-484 (4), INV-11) covers that one device (W1-3, M5-177).
+// "I have this" scope of findings (INV-11) covers that one device.
 func (a feedsInventory) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d feeds.ManualDevice) (string, error) {
 	return a.inv.AddManualDevice(ctx, tx, actor, inventory.ManualDevice{Kind: d.Kind, Vendor: d.Vendor, Product: d.Product, Display: d.Display, Key: d.Key})
 }
@@ -99,7 +99,7 @@ func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) 
 	a.inv.Settle(ctx, tx, committed)
 }
 
-// Distros implements feeds.DistroLister (D-570, D-622): the distributions of the devices whose deb packages an agent read, as
+// Distros implements feeds.DistroLister: the distributions of the devices whose deb packages an agent read, as
 // findings decides it (findings.DeviceDistro), each with those devices' source packages as the security data names them
 // (findings.DevicePackages), so a distribution feed is pulled only while a device needs it and keeps tier rows for those packages;
 // and "alpine", with no package, while a device states Alpine Linux (findings.StatesAlpine).
@@ -219,7 +219,7 @@ func (a findingsInventory) AssetIDs(ctx context.Context) ([]string, error) {
 	return a.inv.AssetIDs(ctx)
 }
 
-// IgnoredIDs and IsIgnored are the devices a person ignored (D-630), for findings' reconcile and its write-time check.
+// IgnoredIDs and IsIgnored are the devices a person ignored, for findings' reconcile and its write-time check.
 func (a findingsInventory) IgnoredIDs(ctx context.Context) ([]string, error) {
 	return a.inv.IgnoredIDs(ctx)
 }
@@ -228,7 +228,7 @@ func (a findingsInventory) IsIgnored(ctx context.Context, id string) (bool, erro
 	return a.inv.IsIgnored(ctx, id)
 }
 
-// findingsJobs is findings' reconcile job (D-144): it heals what a lost event left behind; and its KEV reachability audit (reachJob).
+// findingsJobs is findings' reconcile job: it heals what a lost event left behind; and its KEV reachability audit (reachJob).
 func findingsJobs(d deps) []jobs.Job { return append(findings.Jobs(d.Findings), reachJob(d)) }
 
 func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (findings.Asset, bool, error) {
@@ -238,7 +238,7 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 	}
 	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Model: d.Model, StatedOS: d.StatedOS, AgentOS: d.AgentOS, SNMPOS: d.SNMPOS, MAC: d.MAC, ManualOS: d.ManualOS,
 		Software: make([]findings.Software, len(d.Software)), OSCorrection: d.OSCorrection, StaleCorrections: d.StaleCorrections}
-	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id (D-484)
+	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id
 		names, err := a.inv.Names(ctx)
 		if err != nil {
 			return findings.Asset{}, false, err
@@ -273,7 +273,7 @@ type findingsFeeds struct {
 	clock func() time.Time // nil: time.Now
 }
 
-// vulnCache keeps the last list for matching with the feeds stamp it was read under (review H3: a rematch of every
+// vulnCache keeps the last list for matching with the feeds stamp it was read under (a rematch of every
 // device read the 33k NVD rows once per device and ran out of time).
 type vulnCache struct {
 	mu    sync.Mutex
@@ -286,7 +286,7 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 	if err != nil {
 		return nil, err
 	}
-	pub, err := a.st.PublishedOf(ctx, cves) // D-615: only the CVEs asked for (review r1 #12 of #803)
+	pub, err := a.st.PublishedOf(ctx, cves) // Only the CVEs asked for (#803)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +320,7 @@ func (a findingsFeeds) CVSS(ctx context.Context, cves []string) (map[string]find
 	return out, nil
 }
 
-// TierStatus is feeds' state of the tier feeds (D-613, D-616) for GET /findings/plan.
+// TierStatus is feeds' state of the tier feeds for GET /findings/plan.
 func (a findingsFeeds) TierStatus(ctx context.Context) (findings.TierStatus, error) {
 	st, err := a.st.TierStatus(ctx, time.Now())
 	if err != nil {
@@ -330,7 +330,7 @@ func (a findingsFeeds) TierStatus(ctx context.Context) (findings.TierStatus, err
 }
 
 // TierStamp is feeds' stamp of the tier data (Store.TierStamp) with the feeds module's switch: the plan job compares every device again
-// when it changes (D-617, review r1 #3 and #7 of #804).
+// when it changes.
 func (a findingsFeeds) TierStamp(ctx context.Context) (string, error) {
 	if a.on != nil && !a.on() {
 		return "feeds-off", nil
@@ -338,7 +338,7 @@ func (a findingsFeeds) TierStamp(ctx context.Context) (string, error) {
 	return a.st.TierStamp(ctx)
 }
 
-// TierVulns is feeds' tier data for "Updates to plan" (D-617): nothing while the feeds module is off (modules.md: its data is not read).
+// TierVulns is feeds' tier data for "Updates to plan": nothing while the feeds module is off (modules.md: its data is not read).
 func (a findingsFeeds) TierVulns(ctx context.Context, keep func(cpe string) bool) ([]findings.TierVuln, error) {
 	if a.on != nil && !a.on() {
 		return nil, nil
@@ -362,7 +362,7 @@ func (a findingsFeeds) TierVulns(ctx context.Context, keep func(cpe string) bool
 	return out, nil
 }
 
-// TierDistro is the distributions' tier data for "Updates to plan" (D-622): nothing while the feeds module is off.
+// TierDistro is the distributions' tier data for "Updates to plan": nothing while the feeds module is off.
 func (a findingsFeeds) TierDistro(ctx context.Context, pkgs []findings.DistroPackage) ([]findings.TierVuln, map[string]bool, error) {
 	if a.on != nil && !a.on() {
 		return nil, nil, nil
@@ -390,8 +390,8 @@ func (a findingsFeeds) TierDistro(ctx context.Context, pkgs []findings.DistroPac
 	return out, covered, nil
 }
 
-// Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev, D-500), or
-// those of the CNA's CVE.org record when NVD has none (cve-org, D-556). A CVE with neither has none, and findings then
+// Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev), or
+// those of the CNA's CVE.org record when NVD has none (cve-org). A CVE with neither has none, and findings then
 // cannot decide by version.
 func (a findingsFeeds) Vulns(ctx context.Context) ([]findings.Vuln, error) {
 	stamp := ""
@@ -425,11 +425,11 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
-	fromCVEOrg, err := a.st.RangesFromCVEOrg(ctx) // D-556: ranges of the CNA's CVE.org record where NVD has none
+	fromCVEOrg, err := a.st.RangesFromCVEOrg(ctx) // ranges of the CNA's CVE.org record where NVD has none
 	if err != nil {
 		return nil, err
 	}
-	distro, err := a.st.DistroFixes(ctx) // D-516: Ubuntu's and Debian's word on their own packages
+	distro, err := a.st.DistroFixes(ctx) // Ubuntu's and Debian's word on their own packages
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +437,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
-	published, err := a.st.KevPublished(ctx) // D-615: an old KEV CVE is a finding only on confirmed evidence
+	published, err := a.st.KevPublished(ctx) // An old KEV CVE is a finding only on confirmed evidence
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +465,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	return out, nil
 }
 
-// rangesFrom maps the source feeds stored for a CVE's ranges (D-556) to what findings may do with them: "" (NVD), a
+// rangesFrom maps the source feeds stored for a CVE's ranges to what findings may do with them: "" (NVD), a
 // complete CVE.org list (may close), or a partial one (may only raise).
 func rangesFrom(src string) string {
 	switch src {
@@ -477,7 +477,7 @@ func rangesFrom(src string) string {
 	return ""
 }
 
-// findingsHave is feeds' "I have this" scopes, by declared device, as findings reads them (INV-11, D-484).
+// findingsHave is feeds' "I have this" scopes, by declared device, as findings reads them (INV-11).
 func findingsHave(st *feeds.Store) func(ctx context.Context) (map[string]findings.Have, error) {
 	return func(ctx context.Context) (map[string]findings.Have, error) {
 		got, err := st.HaveSince(ctx)
@@ -551,7 +551,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		Host: purgeHost(d), OSBusy: func(ctx context.Context) bool { return d.OS != nil && d.OS.Busy(ctx) }, BeforeWipe: purgeBeforeWipe(d), Gate: d.PurgeGate, AlsoKept: purgeAlsoKept(d), KeepRows: purgeKeptRows(d), AlsoFreeze: purgeFreezes(d)}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
-	//nolint:contextcheck // the start-up settle of a first-run restore (D-544) runs on the OS handlers' own context, bounded to 10 s, like resume
+	//nolint:contextcheck // the start-up settle of a first-run restore runs on the OS handlers' own context, bounded to 10 s, like resume
 	if d.OS, err = newOSHandlers(*d); err != nil {
 		return fmt.Errorf("os updates: %w", err)
 	}
@@ -583,10 +583,10 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.Reg != nil {
 		feed.on = func() bool { return d.Reg.Enabled("feeds") }
 	}
-	// Backlog: findings the reconcile job creates for old KEV entries are D-78 backlog, silent for notify (findings does not import notify).
+	// Backlog: findings the reconcile job creates for old KEV entries are backlog, silent for notify (findings does not import notify).
 	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline,
-		HaveSince: findingsHave(fs.Store()), // "I have this" on Home scopes the one device it declared (D-484)
-		Applied:   mitigationApplied(d.DB)}  // a merge keeps the finding a person marked a mitigation item applied on (D-515)
+		HaveSince: findingsHave(fs.Store()), // "I have this" on Home scopes the one device it declared
+		Applied:   mitigationApplied(d.DB)}  // a merge keeps the finding a person marked a mitigation item applied on
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}
@@ -609,7 +609,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	// unavailable while no profile is assigned, so the page offers no AI button then.
 	d.AIFacts = aiFacts{fs.Store(), d.Findings, inv, aiBoxID(d.Inventory)}
 	ask := aiAsk{feeds: fs.Store(), findings: d.Findings, inv: d.Inventory, gate: gate}
-	if d.AI, err = newAI(ctx, d, d.AIFacts, ask, ask); err != nil { // ask is also device_updates' door, typed: review r1 L3 of #935
+	if d.AI, err = newAI(ctx, d, d.AIFacts, ask, ask); err != nil { // ask is also device_updates' door, typed (#935)
 		return fmt.Errorf("ai: %w", err)
 	}
 	aiDoor := aiMitigation{d.AI, d.Inventory, d.Log}
@@ -661,9 +661,9 @@ func subscribe(d deps) {
 		}
 		return err
 	}))
-	// D-510: a device's OS or model can decide its findings by itself (an LLDP switch stating "JUNOS 15.1R7.9" has no
+	// A device's OS or model can decide its findings by itself (an LLDP switch stating "JUNOS 15.1R7.9" has no
 	// software row), so a device whose OS or model is new or changed is matched again, as a software change does. Other
-	// field changes (hostname, kind, last seen) do not match it again (review L3 of #703).
+	// field changes (hostname, kind, last seen) do not match it again (#703).
 	for _, name := range []string{inventory.EventAssetDiscovered, inventory.EventAssetUpdated} {
 		d.Bus.Subscribe(name, on("findings", func(ctx context.Context, data any) error {
 			ev, ok := data.(inventory.AssetEvent)
@@ -680,7 +680,7 @@ func subscribe(d deps) {
 			return err
 		}))
 	}
-	// #910 (review r1 L1 of #920): a software change that keeps the exploited-list keys (an agent's version upgrade, a removed row)
+	// #910, #920: a software change that keeps the exploited-list keys (an agent's version upgrade, a removed row)
 	// sends no match.changed, so the device's "add the version" items and "could not be checked" rows would name the old row until
 	// the hourly reconcile: match it again now.
 	d.Bus.Subscribe(inventory.EventSoftwareChanged, on("findings", func(ctx context.Context, data any) error {
@@ -694,7 +694,7 @@ func subscribe(d deps) {
 		}
 		return err
 	}))
-	// D-617 (review r1 #1 of #804): "Updates to plan" compares a device again on any change of its software (a version upgrade, a new
+	// "Updates to plan" compares a device again on any change of its software (a version upgrade, a new
 	// product without an exploited-list key, a removed row: inventory.match.changed covers only exploited-list keys) and on any
 	// discovered or updated device (its agent's OS decides platform-limited CVEs). Only a mark: the plan job does the work.
 	for _, name := range []string{inventory.EventSoftwareChanged, inventory.EventAssetDiscovered, inventory.EventAssetUpdated} {
@@ -707,7 +707,7 @@ func subscribe(d deps) {
 			return nil
 		}))
 	}
-	// D-515 (review L5 of #722): a merged device's findings that could not move are not deleted by its asset.deleted, which follows
+	// A merged device's findings that could not move are not deleted by its asset.deleted, which follows
 	// on the same bus; findings' reconcile deals with them later. The set holds an id only between those two events.
 	var unmoved sync.Map
 	d.Bus.Subscribe(inventory.EventAssetMerged, on("findings", func(ctx context.Context, data any) error {
@@ -732,7 +732,7 @@ func subscribe(d deps) {
 		_, err := d.Findings.OnAssetDeleted(ctx, ev.AssetID)
 		return err
 	}))
-	// D-630: an ignored device's open findings close ("Closed by Vedette: the device was ignored by <person>."; what a person settled
+	// An ignored device's open findings close ("Closed by Vedette: the device was ignored by <person>."; what a person settled
 	// keeps its status, nothing is deleted), and while it is ignored nothing new is made (MatchInput says it is not there, AssetIDs
 	// leaves it out). Stopping reopens only what Ignore closed; the inventory.asset.updated with match that follows matches it again.
 	d.Bus.Subscribe(inventory.EventAssetIgnored, on("findings", func(ctx context.Context, data any) error {
@@ -760,7 +760,7 @@ func subscribe(d deps) {
 		return err
 	}))
 	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d))) // after inventory's: the findings of the new entry exist when the job looks
-	// D-601 (review r1 M2): a device whose network scan was turned off (or that may no longer be scanned) stops being scanned now.
+	// A device whose network scan was turned off (or that may no longer be scanned) stops being scanned now.
 	d.Bus.Subscribe(inventory.EventAssetUpdated, on("scan", func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.AssetEvent)
 		if !ok {
@@ -768,14 +768,14 @@ func subscribe(d deps) {
 		}
 		return scanService(d).DeviceChanged(ctx, ev.AssetID)
 	}))
-	d.Bus.Subscribe(feeds.EventVulnUpdated, on("inventory", rematchUpdated(d))) // D-328: a CVE whose vendor or product changed
+	d.Bus.Subscribe(feeds.EventVulnUpdated, on("inventory", rematchUpdated(d))) // A CVE whose vendor or product changed
 	// The first device that states Alpine Linux (its SNMP answer, its agent, a person's OS) pulls alpine-osv
 	// now, not at the next feeds check: until it is loaded that device's Alpine-only CVEs stay questions.
 	for _, name := range []string{inventory.EventAssetDiscovered, inventory.EventAssetUpdated} {
 		d.Bus.Subscribe(name, on("feeds", alpineWake(d)))
 	}
-	// D-500: new NVD affected versions decide findings again for every device; the first fill is backlog, like D-78.
-	// Review H3: one event per device; after a later update only the devices of the changed CVEs.
+	// New NVD affected versions decide findings again for every device; the first fill is backlog.
+	// One event per device; after a later update only the devices of the changed CVEs.
 	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", func(ctx context.Context, data any) error {
 		ev, _ := data.(feeds.RangesUpdatedEvent)
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
@@ -806,7 +806,7 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchAll(ctx)
 		return err
 	}))
-	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // D-384: new_port, the one reader of a new port
+	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // new_port, the one reader of a new port
 }
 
 // alpineWake wakes the feeds pull job when a device whose OS changed states Alpine Linux and alpine-osv is on but not loaded yet
@@ -835,7 +835,7 @@ func alpineWake(d deps) func(ctx context.Context, data any) error {
 	}
 }
 
-// rematchUpdated handles feeds.vuln.updated (D-328): the payload names the CISA entries that changed, any field, and the has_template flips
+// rematchUpdated handles feeds.vuln.updated: the payload names the CISA entries that changed, any field, and the has_template flips
 // of a template pull (hundreds at once). Each is announced (inventory.match.changed) to the devices that run its current product and do
 // not already have a finding for it, at most once per device per event, so a CVE whose vendor or product changed reaches its new devices.
 // A change that moved no key announces nothing to a device that has the finding; a device whose software matches the CVE and has no
@@ -908,7 +908,7 @@ func findingKnown(d deps) func(ctx context.Context, assetID, cve string) (bool, 
 
 // privacyFacts answers what the Privacy page asks of other modules: the AI flow is on when a profile is usable, flow 11 when
 // auth-oidc has an issuer, flow 12 while a connection is enabled. NTP (flow 10) is always on: the servers of Box network are added
-// to the distribution's own chrony sources, which the box never removes (D-166, PRIVACY.md), and core cannot see whether the
+// to the distribution's own chrony sources, which the box never removes (PRIVACY.md), and core cannot see whether the
 // owner removed them by hand. ponytail: "off" needs the host to report chrony's whole source list (`chronyc sources`), a host API change.
 type privacyFacts struct {
 	conns *conn.Service
@@ -932,7 +932,7 @@ func (p privacyFacts) OIDCConfigured(ctx context.Context) bool {
 	return err != nil || on
 }
 
-// ConnectionsConfigured: flow 12 is on while an enabled connection exists (D-93). A store that cannot be read counts as "on": the
+// ConnectionsConfigured: flow 12 is on while an enabled connection exists. A store that cannot be read counts as "on": the
 // Privacy page must never say that nothing leaves the box when it does not know.
 func (p privacyFacts) ConnectionsConfigured(ctx context.Context) bool {
 	if p.conns == nil {
@@ -942,9 +942,9 @@ func (p privacyFacts) ConnectionsConfigured(ctx context.Context) bool {
 	return err != nil || on
 }
 
-// GreenboneEnabled: flow 16 (OpenVAS's images and feed, D-563, D-529) is on while an administrator has OpenVAS enabled on this box,
-// whether the module is on or not (turning the module off stops the containers, D-529; the badge then errs on the side of "on"). It reads the exposure service that
-// carries cfg.Greenbone, so the badge and the containers cannot disagree (review r2); without vedette-host nothing can be enabled.
+// GreenboneEnabled: flow 16 (OpenVAS's images and feed) is on while an administrator has OpenVAS enabled on this box,
+// whether the module is on or not (turning the module off stops the containers; the badge then errs on the side of "on"). It reads the exposure service that
+// carries cfg.Greenbone, so the badge and the containers cannot disagree; without vedette-host nothing can be enabled.
 func (p privacyFacts) GreenboneEnabled(ctx context.Context) bool {
 	if p.d == nil || p.d.DB == nil {
 		return false
@@ -952,7 +952,7 @@ func (p privacyFacts) GreenboneEnabled(ctx context.Context) bool {
 	return exposureService(*p.d).GreenboneEnabled(ctx)
 }
 
-// WazuhConnected: flow 14 is on while agent-intake has a Wazuh server saved (D-309); the caller checks that the module is on. A store
+// WazuhConnected: flow 14 is on while agent-intake has a Wazuh server saved; the caller checks that the module is on. A store
 // that cannot be read counts as "on", like the others.
 func (p privacyFacts) WazuhConnected(ctx context.Context) bool {
 	if p.d == nil || p.d.AgentIntake == nil {
@@ -973,13 +973,13 @@ func newOSHandlers(d deps) (*core.OSHandlers, error) {
 	return core.NewOSHandlers(core.OSConfig{
 		DB: d.DB, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Host: h, DataDir: d.DataDir, KeyPath: d.KeyPath,
 		Zone: d.Core.OrgTimeZone, Setup: d.Core, Clock: d.Clock, Gate: d.PurgeGate,
-		Version: version, // the software update check: release documents from core.DefaultReleaseBase with core's own client and the embedded keys (D-341)
+		Version: version, // the software update check: release documents from core.DefaultReleaseBase with core's own client and the embedded keys
 		Wake: func() { // the job of coreJobs (sensorwire.go)
 			if d.Wake != nil {
 				d.Wake("core", "software-update")
 			}
 		},
-		Installed: func() { // the box's packages changed: read them again now (D-470), not at the next hourly box run
+		Installed: func() { // the box's packages changed: read them again now, not at the next hourly box run
 			if d.Wake != nil {
 				d.Wake("inventory", "box")
 			}
@@ -1003,8 +1003,8 @@ func newNetworkHandlers(d *deps, sensor core.SpanSensor) (*core.NetworkHandlers,
 		AddressInUse: func(ctx context.Context, ip netip.Addr) (bool, error) {
 			return addressInUse(ctx, d.Inventory, d.Honeypot, ip)
 		},
-		// AddressesChanged: the cached addresses are dropped and the box's certificate follows its management address (D-139) and its
-		// Box address (D-465: a save, or a new management address that is its default).
+		// AddressesChanged: the cached addresses are dropped and the box's certificate follows its management address and its
+		// Box address (a save, or a new management address that is its default).
 		BoxLinks: func(context.Context) core.BoxLinks {
 			var base string
 			if d.BaseURL != nil {
@@ -1036,10 +1036,10 @@ func inventoryHasAddress(ctx context.Context, inv *inventory.Service, ip netip.A
 	if inv == nil {
 		return false, nil
 	}
-	return inv.AddressInUse(ctx, ip.String()) // uncapped (D-178): the 2000 row list forgets the oldest device
+	return inv.AddressInUse(ctx, ip.String()) // uncapped: the 2000 row list forgets the oldest device
 }
 
-// mitigationApplied tells findings which findings have a mitigation item a person marked applied (mit_applied, D-515): the binary
+// mitigationApplied tells findings which findings have a mitigation item a person marked applied (mit_applied): the binary
 // reads mitigation's table so that findings does not.
 func mitigationApplied(db *store.DB) func(ctx context.Context, ids []string) (map[string]bool, error) {
 	return func(ctx context.Context, ids []string) (map[string]bool, error) {

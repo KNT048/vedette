@@ -1,19 +1,19 @@
-# The `scan` base image (D-113 (7), D-125 (4), D-146): Debian slim + vedette-sensor + nuclei + the safe template pack. This is the image the
-# project signs and publishes. It holds NO nmap (D-4, docs/LEGAL.md): vedette-host adds it on the box (scan/Containerfile.onbox).
+# The `scan` base image: Debian slim + vedette-sensor + nuclei + the safe template pack. This is the image the
+# project signs and publishes. It holds NO nmap (docs/LEGAL.md): vedette-host adds it on the box (scan/Containerfile.onbox).
 # Build from the repository root: `make scan-base-image` (builds the pack first, `make scan-pack`, and passes pins.env as build arguments).
 #
 # nuclei is NOT the upstream release binary: it is built here from the source archive of the pinned tag (SHA-256 checked before it is
-# unpacked) with the pinned Go (GOLANG_IMAGE) and our patched go.mod/go.sum (scan-base/nuclei/, D-319), so the standard library and the
+# unpacked) with the pinned Go (GOLANG_IMAGE) and our patched go.mod/go.sum (scan-base/nuclei/), so the standard library and the
 # modules in it carry the security fixes upstream has not shipped yet; go.sum verifies every module. Nothing is updated at run time (nuclei
 # runs with -duc, -ni).
 # The pack is the output of scripts/scanpack: templates/ -> /usr/share/vedette/nuclei-templates (nucleiargv.TemplatesDir), index.json ->
 # /usr/local/share/vedette/nuclei-pack/index.json (the default of `vedette-sensor active --nuclei-index`). Plain files and folders only.
-# Debian security updates the pinned base does not carry yet (zlib1g, D-594) are pinned by version and SHA-256 in pins.env and laid over it.
+# Debian security updates the pinned base does not carry yet (zlib1g) are pinned by version and SHA-256 in pins.env and laid over it.
 # Init: the unit runs this image under podman's init (RunInit=true), so vedette-sensor is not a subreaper.
 ARG DEBIAN_IMAGE
 ARG GOLANG_IMAGE
 
-# Multi-arch (D-158): every stage that has a RUN (build, nuclei, pack) runs on the BUILD machine ($BUILDPLATFORM) and produces files for
+# Multi-arch: every stage that has a RUN (build, nuclei, pack) runs on the BUILD machine ($BUILDPLATFORM) and produces files for
 # $TARGETARCH; the final stage, the only one of the target architecture, has COPY and metadata only, so no CPU emulation is needed.
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS build
 ARG VERSION
@@ -38,7 +38,7 @@ WORKDIR /nuclei
 # Our patched go.mod/go.sum (README.md there): nothing else of the repository is needed here.
 COPY deploy/containers/scan-base/nuclei/go.mod deploy/containers/scan-base/nuclei/go.sum /patched/
 # The licence-file generator of the other images (scripts/hostlicenses, built for this machine in the build stage), run here over
-# ./cmd/nuclei: the licence of every module linked into nuclei, offline (GOPROXY=off) from the modules the build has just fetched (D-454).
+# ./cmd/nuclei: the licence of every module linked into nuclei, offline (GOPROXY=off) from the modules the build has just fetched.
 COPY --from=build /tools/hostlicenses /usr/local/bin/hostlicenses
 RUN set -eu; \
     [ -n "${NUCLEI_VERSION}" ] || exit 1; \
@@ -62,7 +62,7 @@ FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS pack
 ARG SCAN_PACK_VERSION
 COPY --from=nuclei /out/LICENSE.md /usr/local/share/vedette/licenses/nuclei-LICENSE.md
 COPY --from=nuclei /out/third-party-licenses /usr/local/share/vedette/licenses/nuclei-third-party-licenses
-# The same texts at the standard place of the other images (/usr/share/doc/vedette/, D-155 (10)).
+# The same texts at the standard place of the other images (/usr/share/doc/vedette/).
 COPY --from=nuclei /out/LICENSE.md /usr/share/doc/vedette/nuclei-LICENSE.md
 COPY --from=nuclei /out/third-party-licenses /usr/share/doc/vedette/nuclei-third-party-licenses
 COPY deploy/containers/scan-base/pack/templates/ /usr/share/vedette/nuclei-templates/
@@ -77,7 +77,7 @@ RUN set -eu; \
 # The base of the target architecture, read only for its dpkg status (no RUN, so no emulation).
 FROM ${DEBIAN_IMAGE} AS base
 
-# The Debian security updates the pinned base does not carry yet (D-594), pinned by version and SHA-256 in pins.env, unpacked on the
+# The Debian security updates the pinned base does not carry yet, pinned by version and SHA-256 in pins.env, unpacked on the
 # build machine for the target architecture with the base's dpkg status updated (security-deb.sh says how; the honeypot does the same).
 FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS security
 ARG TARGETARCH
@@ -101,12 +101,12 @@ COPY --from=pack /usr/local/share/vedette/ /usr/local/share/vedette/
 # Third-party licenses: the Go modules linked into vedette-sensor and into nuclei (scripts/hostlicenses) and the nuclei and template-pack texts.
 COPY --from=build /out/licenses/ /usr/share/doc/vedette/
 COPY --from=pack /usr/share/doc/vedette/ /usr/share/doc/vedette/
-# The trust roots of the worker's own-IP fence (D-514: HTTPS to the three public IP services; Go reads this file). The Debian
+# The trust roots of the worker's own-IP fence (HTTPS to the three public IP services; Go reads this file). The Debian
 # ca-certificates package of the Go image, which is pinned by digest (pins.env GOLANG_IMAGE), with its copyright file: copied, not
-# installed, so this stage stays COPY-only (no apt, no emulation, D-158).
+# installed, so this stage stays COPY-only (no apt, no emulation).
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /usr/share/doc/ca-certificates/copyright /usr/share/doc/ca-certificates/copyright
-# zlib1g 1+deb13u1 over the base's +b1 (D-594): its files and the dpkg status that names it.
+# zlib1g 1+deb13u1 over the base's +b1: its files and the dpkg status that names it.
 COPY --from=security /overlay/ /
 USER 65532:65532
 ENTRYPOINT ["/vedette-sensor"]

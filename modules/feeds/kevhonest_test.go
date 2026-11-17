@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// kien G13 (D-91 as amended, D-629): cisa.gov answers 403 to Vietnamese addresses. Both copies of the CISA list are asked every check;
+// cisa.gov answers 403 to Vietnamese addresses. Both copies of the CISA list are asked every check;
 // /feeds/status says which copy the newest list came from and what each copy said, a failure of both is said with both reasons, and
 // the admins get one alert when both copies fail or the list is six checks old, and one when it is up to date again.
 
@@ -30,7 +30,7 @@ func (e *env) kevStatus() (kev map[string]any, srcURL string) {
 }
 
 // /feeds/status: the copy the newest list came from (and its address as the source), and each copy's last result.
-func TestG13_StatusSaysTheNewestCopyAndEachCopysResult(t *testing.T) {
+func TestKEVCopies_StatusSaysTheNewestCopyAndEachCopysResult(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
@@ -75,8 +75,8 @@ func (f fakeNet) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 // A cisa.gov the box cannot get to at all (blocked at the host or the network) is said in plain words, and the GitHub copy's list is
-// used (supervisor: the N100 done check blocks cisa.gov for one cycle).
-func TestG13_CISAUnreachedIsSaidAndTheCopyAnswers(t *testing.T) {
+// used (as on a test box that blocked cisa.gov for one cycle).
+func TestKEVCopies_CISAUnreachedIsSaidAndTheCopyAnswers(t *testing.T) {
 	t.Parallel()
 	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
@@ -114,7 +114,7 @@ func TestG13_CISAUnreachedIsSaidAndTheCopyAnswers(t *testing.T) {
 	}
 }
 
-func TestG13_CopyWhyNamesTheCopyNeverTheAddress(t *testing.T) {
+func TestKEVCopies_CopyWhyNamesTheCopyNeverTheAddress(t *testing.T) {
 	t.Parallel()
 	for err, want := range map[error]string{
 		&StatusError{Code: 403}:                             "cisa.gov refused this box (HTTP 403)",
@@ -132,7 +132,7 @@ func TestG13_CopyWhyNamesTheCopyNeverTheAddress(t *testing.T) {
 
 // Both down after the list had loaded: /feeds/status says why, with both reasons (the GitHub copy's own too), when it last tried and
 // since when the list is stale; that is what Home's card prints.
-func TestG13_BothDownIsSaidWithBothReasonsAndSinceWhen(t *testing.T) {
+func TestKEVCopies_BothDownIsSaidWithBothReasonsAndSinceWhen(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
@@ -189,8 +189,8 @@ func (e *env) tick(s *Service, d time.Duration) {
 	}
 }
 
-// Both copies failing: quiet after one such check, one alert after two in a row, no repeat, one "up to date again", and a restart repeats neither (D-629).
-func TestContract_D629_BothFailingAlertsOnceResolvesOnceAcrossRestarts(t *testing.T) {
+// Both copies failing: quiet after one such check, one alert after two in a row, no repeat, one "up to date again", and a restart repeats neither.
+func TestContract_BothFailingAlertsOnceResolvesOnceAcrossRestarts(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	a := &alerts{}
@@ -257,7 +257,7 @@ func TestContract_D629_BothFailingAlertsOnceResolvesOnceAcrossRestarts(t *testin
 }
 
 // One copy failing for a day is a note, never an alert.
-func TestContract_D629_OneCopyFailingNeverAlerts(t *testing.T) {
+func TestContract_OneCopyFailingNeverAlerts(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	a := &alerts{}
@@ -278,7 +278,7 @@ func TestContract_D629_OneCopyFailingNeverAlerts(t *testing.T) {
 // A list at an admin's own address has the six-check rule only: quiet for under six hours of failures, one alert at six. Notify off:
 // nothing recorded as sent, the alert goes out at the first tick notify takes it. A list turned off: no alert, and turning it on counts
 // the six checks from then.
-func TestContract_D629_SixChecksNotifyOffAndAListTurnedOff(t *testing.T) {
+func TestContract_SixChecksNotifyOffAndAListTurnedOff(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	a := &alerts{off: true}

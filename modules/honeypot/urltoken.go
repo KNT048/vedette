@@ -20,7 +20,7 @@ const URLTokenIDLen = 10
 const maxUserAgent = 200
 
 // ValidURLTokenID says whether id has the shape AddToken gives the end of a URL token. It says nothing about whether such a
-// token exists: the HTTP answer of /t/<id> must be the same either way (D-507).
+// token exists: the HTTP answer of /t/<id> must be the same either way.
 func ValidURLTokenID(id string) bool {
 	if len(id) != URLTokenIDLen {
 		return false
@@ -35,7 +35,7 @@ func ValidURLTokenID(id string) bool {
 
 // Budgets of OpenURLToken. Each step has its own, on a context detached from the caller's (a visitor who hangs up does not
 // cancel the record), and the publish never shares the write's: under a busy writer the hit may take most of its budget, and
-// the incident must still be opened (D-507, review M2).
+// the incident must still be opened.
 const (
 	urlTokenWriteWait   = 5 * time.Second
 	urlTokenPublishWait = 30 * time.Second
@@ -43,7 +43,7 @@ const (
 
 // UnknownSource is what a URL token hit names as its source when the address the box saw is not the visitor's: on a
 // container-only install the published port reaches core through a port proxy, so every visitor arrives from the proxy's
-// address, which must never be named as the machine to unplug (D-507). It is also the stored src_ip of a hit from an IPv6
+// address, which must never be named as the machine to unplug. It is also the stored src_ip of a hit from an IPv6
 // address (hp_hits keeps IPv4 only); the event and the line of the hit then carry the address.
 const UnknownSource = "unknown"
 
@@ -63,7 +63,7 @@ type URLTokenOpen struct {
 	RepeatOK func() bool
 }
 
-// OpenURLToken records an open of a URL token's link (POST-2, POST-4, D-507). The planted link is the Box address at the time
+// OpenURLToken records an open of a URL token's link (POST-2, POST-4). The planted link is the Box address at the time
 // it was made + /t/<id>, so a token is found by its path alone: changing the Box address later does not stop an old link from
 // firing. A real hit goes through the same path as a bait account or file touched in the trap log (upsert: one hit per token,
 // source and 10-minute window, the per-hour cap; honeypot.hit.created after the commit, so notify opens the Critical incident

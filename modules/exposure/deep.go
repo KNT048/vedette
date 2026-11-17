@@ -13,28 +13,28 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// The deep scan of each address a verified domain's names resolve to, at the domain's testing terms depth (FULL-5 slice 3, D-571,
-// INV-27 depth; kien 2026-11-14: one rule for every name, whatever serves it; LEGAL-2: the terms say a provider's permission is the
-// customer's to have). Without accepted terms nothing here runs: the K-4 scope stays as it was. With them, each public IPv4 address
+// The deep scan of each address a verified domain's names resolve to, at the domain's testing terms depth
+// (INV-27 depth; one rule for every name, whatever serves it; the terms say a provider's permission is the
+// customer's to have). Without accepted terms nothing here runs: the basic scope stays as it was. With them, each public IPv4 address
 // gets what the box's own IP gets (all TCP ports and nmap -sV with its scripts, the comparison with exploited CVEs, nuclei, then
 // OpenVAS when it is on), through the seams that already exist, with the run's Mode. The web scan by name stays the by-name passive
-// pass (INV-24) until the active ZAP scan exists (FULL-3): a second passive run of the same pages would only repeat it (review r1 M1).
+// pass (INV-24) until the active ZAP scan exists: a second passive run of the same pages would only repeat it.
 // Many names on one address are one deep address. At most MaxDeepIPs addresses a run get the steps, the least recently tried first;
 // an address the re-check refuses does not take a place (at most maxDeepRefusals a run); the rest wait their turn and say so. An
-// address reached only through a name that points (CNAME) outside the domain never gets the disruptive checks (review r1 M4): the
+// address reached only through a name that points (CNAME) outside the domain never gets the disruptive checks: the
 // owner of that other name chooses the address.
 //
-// The fence (plan 2026-11-14 §5): an address that is the box's own verified IP (ScannableIP) takes the box's pipeline and its fences.
+// The fence: an address that is the box's own verified IP (ScannableIP) takes the box's pipeline and its fences.
 // Any other address needs Config.DomainFence: without it nothing beyond the by-name checks goes there. With it, right before each step
 // core checks again (deepGate) that the address is a public IPv4, that the domain is verified and its terms accepted now, and that a
 // name under the domain still resolves to it, and hands the step the domain's scope with the box-bound token (ScanTarget.Domain),
 // which the executors check on their own.
 
-// Caps of a domain's deep scan per run (plan 2026-11-14 §4).
+// Caps of a domain's deep scan per run.
 const (
 	// MaxDeepIPs is the most addresses that get the deep scan in one run (port scan, nmap -sV, nuclei, OpenVAS).
 	MaxDeepIPs = 3
-	// maxDeepRefusals is the most addresses the re-check may refuse in one run before the rest wait for the next run (review r1 M3):
+	// maxDeepRefusals is the most addresses the re-check may refuse in one run before the rest wait for the next run:
 	// a refusal sends nothing, so it does not take one of the MaxDeepIPs places.
 	maxDeepRefusals = 2 * MaxDeepIPs
 
@@ -50,7 +50,7 @@ const (
 	DeepFence   = "fence"   // not the box's own IP, and this box has no domain fence: by-name checks only
 	DeepRefused = "refused" // the core-side re-check refused it right before the first step: nothing was sent
 	// DeepIncomplete: the re-check passed but service identification did not finish (not set up, not run, timed out, failed): nothing
-	// is known of its ports, so it is not "scanned", its earlier ports are kept unchecked (INV-22) and it goes back in line (review r1 M2).
+	// is known of its ports, so it is not "scanned", its earlier ports are kept unchecked (INV-22) and it goes back in line.
 	DeepIncomplete = "incomplete"
 )
 
@@ -83,7 +83,7 @@ var fenceTokenRE = regexp.MustCompile(`^[0-9a-f]{16}$`)
 
 // deepAddr is one public IPv4 address of a domain's names: the names that led to it (sorted), whether the runner saw it as the box's
 // own (a hint for the order and the fence line only: deepGate decides), when it was last deep-scanned and last tried ("" never), and
-// whether a name that led to it stays inside the domain (no CNAME, or a CNAME to a name under the domain; review r1 M4).
+// whether a name that led to it stays inside the domain (no CNAME, or a CNAME to a name under the domain).
 type deepAddr struct {
 	ip     netip.Addr
 	names  []string
@@ -94,7 +94,7 @@ type deepAddr struct {
 }
 
 // turn is when the address last had its turn: the later of its last deep scan and its last try (one time format: strings sort as
-// times), so a refused or incomplete address goes to the back of the line too (review r1 M3).
+// times), so a refused or incomplete address goes to the back of the line too.
 func (a deepAddr) turn() string { return max(a.last, a.tried) }
 
 // label is how the lines name an address: "203.0.113.5 (www.acme.example, api.acme.example and 2 more names)".
@@ -121,7 +121,7 @@ func scopeNames(st ScanTarget) []string {
 	return []string{st.Domain.Name}
 }
 
-// deepGate is the core half of the domain fence (D-571, plan 2026-11-14 §5), right before each deep step to ip: ip is a public IPv4;
+// deepGate is the core half of the domain fence, right before each deep step to ip: ip is a public IPv4;
 // the domain is verified, committed and its terms accepted now (ModeNow re-reads them, with the TXT record); then either ip is the
 // box's own verified IP (ScannableIP), or this box has a DomainFence, a name of names under the domain resolves to ip now, and the
 // fence gives the domain's token. It returns the ScanTarget of the step (the mode as it is now, never above the run's; the scope for
@@ -132,7 +132,7 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 	if !IsPublicIPv4(ip) {
 		return st, deepNotPublic, nil
 	}
-	t, reason, err := s.gate(ctx, st.User, st.ID) // ModeNow's own reading, with the reason kept apart (review r1 L4)
+	t, reason, err := s.gate(ctx, st.User, st.ID) // ModeNow's own reading, with the reason kept apart
 	switch {
 	case ctx.Err() != nil:
 		return st, "", ctx.Err()
@@ -195,8 +195,8 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 	case name == "":
 		return st, deepMoved, nil
 	}
-	// The domain whose record proves the target now: the target itself, with its own record there or (D-632) on a parent name of it
-	// (proofAt, checked there by the executors with the target's own token), or a parent target of the box covering it (D-628).
+	// The domain whose record proves the target now: the target itself, with its own record there or on a parent name of it
+	// (proofAt, checked there by the executors with the target's own token), or a parent target of the box covering it.
 	fd, proofAt := st.Value, ""
 	switch {
 	case t.proofDomain == "" || t.proofDomain == st.Value || !underDomain(st.Value, t.proofDomain):
@@ -213,7 +213,7 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 		s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence gave no token", "target", st.Value, "error", err)
 		return st, deepFenceDown, nil
 	}
-	if fd != st.Value { // review r2 L6 of #941: the parent deleted since the gate: the host just listed it again, so give its slot back
+	if fd != st.Value { // the parent deleted since the gate: the host just listed it again, so give its slot back
 		if _, ok, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), fd); err != nil || !ok {
 			if err == nil {
 				s.forgetDomain(ctx, fd)
@@ -233,11 +233,11 @@ type CNAMEResolver interface {
 	LookupCNAME(ctx context.Context, host string) (string, error)
 }
 
-// maxCNAMEChecks bounds the names cnameInZone looks up for one step (review r1 L3: a bound, not one lookup per name of a CDN address).
+// maxCNAMEChecks bounds the names cnameInZone looks up for one step (a bound, not one lookup per name of a CDN address).
 const maxCNAMEChecks = 3
 
 // cnameInZone says, right before a step, that a name under domain among names is seen now to resolve inside the domain: its canonical
-// name (the end of its CNAME chain) is itself or a name under the domain (review r2 M1). A lookup error, a time-out, an answer that is
+// name (the end of its CNAME chain) is itself or a name under the domain. A lookup error, a time-out, an answer that is
 // not a host name, an outside name or a Resolver without LookupCNAME all say no: then the disruptive checks are dropped (fail closed),
 // because the owner of an outside name chooses the address.
 func (s *Service) cnameInZone(ctx context.Context, names []string, domain string) bool {
@@ -262,7 +262,7 @@ func (s *Service) cnameInZone(ctx context.Context, names []string, domain string
 	return false
 }
 
-// cnameChain is name's CNAME chain for the probe log (D-591): "name -> canonical name", the name alone when it has no CNAME, "" when
+// cnameChain is name's CNAME chain for the probe log: "name -> canonical name", the name alone when it has no CNAME, "" when
 // the lookup failed or the Resolver has no LookupCNAME. The standard resolver answers the end of the chain, not each hop.
 func (s *Service) cnameChain(ctx context.Context, name string) string {
 	cr, ok := s.cfg.Resolver.(CNAMEResolver)
@@ -297,7 +297,7 @@ func clearDeep(hosts []HostRow) []HostRow {
 
 // deepCandidates lists the public IPv4 addresses of the names under domain, one per address with every name that led to it, the least
 // recently tried first (never first), then by address; and counts the private IPv4 addresses (never dialed). An address the runner
-// gave without kinds (a row older than D-567) is a candidate too: deepGate decides what it is.
+// gave without kinds (a row of an older snapshot) is a candidate too: deepGate decides what it is.
 func deepCandidates(hosts []HostRow, domain string, last, tried map[string]string) (out []deepAddr, private int) {
 	at := map[netip.Addr]int{}
 	priv := map[netip.Addr]bool{}
@@ -345,7 +345,7 @@ func deepCandidates(hosts []HostRow, domain string, last, tried map[string]strin
 	return out, len(priv)
 }
 
-// deepDomain is the deep scan of a domain whose testing terms are accepted (D-571), after its by-name checks and before the snapshot is
+// deepDomain is the deep scan of a domain whose testing terms are accepted, after its by-name checks and before the snapshot is
 // stored: the addresses in turn (deepCandidates), each through deepIP, until MaxDeepIPs got the steps or maxDeepRefusals were refused;
 // the others are marked and get their lines. It returns the addresses whose service identification finished, for OpenVAS after the
 // snapshot is stored. Only a stop of the run ends it with an error.
@@ -419,10 +419,10 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 			return c, scanned, err
 		}
 		switch got {
-		case DeepRefused: // nothing was sent: it does not take a place (review r1 M3)
+		case DeepRefused: // nothing was sent: it does not take a place
 			refused++
 			state[a.ip.String()] = HostIP{Deep: DeepRefused, LastTried: now}
-		case DeepIncomplete: // review r1 M2: nmap did not finish: not "scanned", its earlier ports stay kept, back in line
+		case DeepIncomplete: // nmap did not finish: not "scanned", its earlier ports stay kept, back in line
 			took++
 			state[a.ip.String()] = HostIP{Deep: DeepIncomplete, LastTried: now}
 		default:
@@ -458,7 +458,7 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 }
 
 // deepMode is the run's ScanTarget for one address: an address reached only through a name that points (CNAME) outside the domain
-// never gets the disruptive checks, whatever the tick (review r1 M4): the owner of that other name chooses the address.
+// never gets the disruptive checks, whatever the tick: the owner of that other name chooses the address.
 func deepMode(st ScanTarget, a deepAddr) ScanTarget {
 	if !a.inZone {
 		st.Mode.Disruptive = false
@@ -466,7 +466,7 @@ func deepMode(st ScanTarget, a deepAddr) ScanTarget {
 	return st
 }
 
-// deepIP is the deep scan of one address (D-571): the re-check, then service identification and the templates (identifyIP, with the
+// deepIP is the deep scan of one address: the re-check, then service identification and the templates (identifyIP, with the
 // scope; the templates re-check on their own). What the steps found is added to c, each line with the address and its names in front.
 // It says what happened: DeepRefused (the re-check refused it before anything was sent), DeepIncomplete (service identification did
 // not finish, so nothing is known of its ports) or DeepScanned. Only a stop of the run returns an error.
@@ -509,7 +509,7 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 		r.Text = clipText(label+": "+r.Text, maxLineText)
 		c.NotChecked = append(c.NotChecked, r)
 	}
-	// review r1 M2: "scanned" only when nmap -sV really ran on the address (its Checked line); otherwise nothing is known of its ports
+	// "scanned" only when nmap -sV really ran on the address (its Checked line); otherwise nothing is known of its ports
 	if !slices.ContainsFunc(sub.Checks, func(r CheckRow) bool { return r.Kind == "services" }) {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "deep", Text: clipText(label+": "+deepNoNmap, maxLineText)})
 		return DeepIncomplete, nil
@@ -517,13 +517,13 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 	return DeepScanned, nil
 }
 
-// greenboneDomain is OpenVAS on the addresses a domain's deep scan reached this run (D-571), one after the other, after the snapshot of
+// greenboneDomain is OpenVAS on the addresses a domain's deep scan reached this run, one after the other, after the snapshot of
 // the other steps is stored: each re-checked right before (deepGate), then greenboneAt. Their outcomes are one, each line with the
-// address in front; each checks the ports this run found open on its address (N49-4, D-595). Their state is the strongest of theirs
+// address in front; each checks the ports this run found open on its address. Their state is the strongest of theirs
 // (gbRunOf). Only a stop of the run returns an error, with what was done before it.
 func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []deepAddr, ports []PortRow) (out gbOutcome, err error) {
 	var audits, states []string
-	defer func() { // review M1 of D-595: each address's state; one the stop never reached did not run
+	defer func() { // Each address's state; one the stop never reached did not run
 		for _, a := range addrs[len(out.addrs):] {
 			out.addrs = append(out.addrs, GreenboneAddr{IP: a.ip.String(), State: GBRunNotRun})
 		}

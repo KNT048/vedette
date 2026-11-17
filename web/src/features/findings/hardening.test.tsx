@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import { renderApp } from '@/test/render'
 
-// D-631 (kien 2026-11-17): "remove the General hardening feature that tells the user to allow traffic from the box to devices; it is
+// "remove the General hardening feature that tells the user to allow traffic from the box to devices; it is
 // useless". The generated firewall configs and their admin network field are gone; what still helps stays: the general compromise
 // checks of the software family, and the vendor and CISA steps.
-describe('a finding without a confirmed pack: no firewall config, the compromise checks and the vendor steps stay (D-631)', () => {
+describe('a finding without a confirmed pack: no firewall config, the compromise checks and the vendor steps stay', () => {
   it('shows no firewall-config section and no admin network field, but the general checks and the steps you can take now', async () => {
     renderApp('/findings/f-2')
     const checks = await screen.findByTestId('general-checks')

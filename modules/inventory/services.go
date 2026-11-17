@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Bounds of a list of open ports (INV-23, D-350).
+// Bounds of a list of open ports (INV-23).
 const (
 	// maxServices is the most services one source may report for one device: nmap's normal scan reads its top 1000 ports
 	// (sensor-active nmapargv), so a full list fits. Five sensor sources at most, so a device holds at most 5000 rows.
@@ -19,8 +19,8 @@ const (
 	maxSvcName    = 100 // the CHECK of inv_service.name
 	maxSvcProduct = 200 // the CHECK of inv_service.product (= maxObsValue, the cap of cleanText)
 	maxSvcVersion = 100
-	maxSvcDetail  = 200 // the CHECK of inv_service.detail (D-511)
-	// ServiceRetention is how long a service no source reports again is kept (DATA_MODEL, D-350); PruneServices removes older rows.
+	maxSvcDetail  = 200 // the CHECK of inv_service.detail
+	// ServiceRetention is how long a service no source reports again is kept (DATA_MODEL); PruneServices removes older rows.
 	ServiceRetention = 90 * 24 * time.Hour
 )
 
@@ -82,14 +82,14 @@ func checkService(i int, it observe.Service) (observe.Service, error) {
 // ReplaceServices implements observe.ServiceSink (INV-23, PRE-2b): the open ports a source reported for a device become items;
 // rows of that source not in items are removed, rows of other sources stay. The device is found by MAC or IP, or created
 // unapproved, as for ReplaceSoftware; a box-owned address is no device (INV-17). No event and no audit row: nothing listens
-// for a port change yet (D-350).
+// for a port change yet.
 func (s *Service) ReplaceServices(ctx context.Context, hint observe.AssetHint, source observe.Source, items []observe.Service) error {
 	return s.services(ctx, hint, source, items, true)
 }
 
-// AddServices implements observe.ServiceSink for a partial look (INV-23, PRE-2b; D-350 (5)): a port not listed yet is added, a
+// AddServices implements observe.ServiceSink for a partial look (INV-23, PRE-2b): a port not listed yet is added, a
 // port already listed by that source gets its seen_at moved, and its name, product, version and confidence only when the item
-// names a product (a -sV read of that port, D-592 review r2 M2; a gentle look names none, so what a fuller scan said stays); no row
+// names a product (a -sV read of that port; a gentle look names none, so what a fuller scan said stays); no row
 // is removed. Everything else is as ReplaceServices.
 func (s *Service) AddServices(ctx context.Context, hint observe.AssetHint, source observe.Source, items []observe.Service) error {
 	return s.services(ctx, hint, source, items, false)
@@ -134,8 +134,8 @@ const (
 	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
 	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, detail = excluded.detail, confidence = excluded.confidence, seen_at = excluded.seen_at`
-	// a gentle look with titles adds what a port said (D-511); a partial look that read a product (the -sV follow-up of the weekly scan
-	// of every port, D-592 review r2 M2) updates the name, product, version and confidence of that port; one that did not (a gentle
+	// a gentle look with titles adds what a port said; a partial look that read a product (the -sV follow-up of the weekly scan
+	// of every port) updates the name, product, version and confidence of that port; one that did not (a gentle
 	// scan) keeps them
 	addSet = `seen_at = excluded.seen_at, detail = coalesce(excluded.detail, detail), product = coalesce(excluded.product, product),
 		version = CASE WHEN excluded.product IS NULL THEN version ELSE excluded.version END,
@@ -199,7 +199,7 @@ func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []
 
 // PruneServices removes the services no source has reported for ServiceRetention (INV-23) and writes one audit row when it removed
 // any (inventory.services_pruned, SYS-5). It is the inventory's housekeeping
-// job (D-160, D-202: the 90 days are stated in this CONTRACT and on the device page), so it runs while the module is off too.
+// job (the 90 days are stated in this CONTRACT and on the device page), so it runs while the module is off too.
 func (s *Service) PruneServices(ctx context.Context) (int, error) {
 	cut := store.FormatTS(s.clock().Add(-ServiceRetention))
 	var n int64

@@ -31,7 +31,7 @@ const SLUG: Record<string, string> = {
   'sudo|sudo': 'sudo',
 }
 
-/** Tên người dùng nhận ra (tiếng Anh, D-28); product đã bắt đầu bằng vendor thì không lặp vendor (W5-3, như feeds.DisplayOf). */
+/** Tên người dùng nhận ra (tiếng Anh); product đã bắt đầu bằng vendor thì không lặp vendor (như feeds.DisplayOf). */
 export const displayOf = (vendor: string, product: string) => {
   const slug = SLUG[keyOf(vendor, product)]
   if (slug) return slug

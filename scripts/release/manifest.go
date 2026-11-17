@@ -74,10 +74,10 @@ func ParseInputs(raw []byte) (Inputs, error) {
 type Env struct {
 	Now       time.Time
 	CosignDir string // <service>.payload.json and <service>.sig, as `cosign sign --output-payload --output-signature` wrote them
-	// PrevIndex is the published index, verified (D-150); nil before the first release. It says what each channel's latest is, so a
+	// PrevIndex is the published index, verified; nil before the first release. It says what each channel's latest is, so a
 	// hotfix on stable after a beta is judged against stable. It is not the rollback baseline.
 	PrevIndex *release.Index
-	// Baseline is the migrations of release rollback.min_version, the oldest release a box may roll back to (D-164); nil when unknown.
+	// Baseline is the migrations of release rollback.min_version, the oldest release a box may roll back to; nil when unknown.
 	Baseline Tree
 	CurTree  Tree // migrations of the revision being released
 }
@@ -97,11 +97,11 @@ var serviceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 // BuildManifest builds release-manifest.json (unsigned). It refuses, with the reason:
 //   - a version that is not above the channel's latest in the published index, or a min_upgrade_from above that latest;
 //   - rollback.safe=true without rollback.min_version (below this version), without the migrations at that release, or unless every
-//     migration since that release is add-only (D-183, D-164: the whole span a box may roll back across, not one step);
+//     migration since that release is add-only (the whole span a box may roll back across, not one step);
 //   - an image of an unknown service, a repeated service, a malformed digest, or a missing or unreadable cosign file;
 //   - no host part, or a host part whose version is not the release's, has -test., or a file not named
 //     vedette-host_<host.version>_<amd64|arm64>.deb (no "-" inside the prerelease), or no file for an architecture of the images
-//     (buildHostPart; D-316 and its 2026-11-12 amendment).
+//     (buildHostPart).
 //
 // The result is then signed and checked by the verifier of internal/release (`release sign`, `release verify`).
 func BuildManifest(in Inputs, env Env) (Result, error) {
@@ -115,7 +115,7 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 	if in.Channel != "stable" && in.Channel != "beta" {
 		return res, fmt.Errorf("channel must be stable or beta, got %q", in.Channel)
 	}
-	if err := checkInstallModes(in.InstallModes); err != nil { // D-451
+	if err := checkInstallModes(in.InstallModes); err != nil {
 		return res, err
 	}
 	if env.PrevIndex != nil {
@@ -143,7 +143,7 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 		released = t.UTC()
 	}
 
-	// D-183: the rollback guard.
+	// The rollback guard.
 	res.DBSchema = env.CurTree.Count()
 	if env.Baseline != nil {
 		res.Findings = CheckMigrations(env.Baseline, env.CurTree)
@@ -192,7 +192,7 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 		})
 	}
 	if in.Host == nil {
-		return res, errors.New("a release needs its host part: install.sh installs vedette-host_<version>_<arch>.deb of every release (D-316)")
+		return res, errors.New("a release needs its host part: install.sh installs vedette-host_<version>_<arch>.deb of every release")
 	}
 	h, err := buildHostPart(*in.Host, in.Version, in.Images)
 	if err != nil {
@@ -218,7 +218,7 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 	return res, nil
 }
 
-// buildHostPart hashes the vedette-host packages (D-316, host-api 6.14). It refuses a version other than the release's (install.sh
+// buildHostPart hashes the vedette-host packages (host-api 6.14). It refuses a version other than the release's (install.sh
 // installs vedette-host_<release version>, so a fresh install and a self-update stay in step), a -test. version, a file whose name is not
 // release.HostPackageName(host.version, amd64|arm64) (the one name rule: SemVer form, no "-" inside the prerelease, no build
 // metadata), a file listed twice, and a missing file for an architecture an image is built for: install.sh downloads and the
@@ -262,12 +262,12 @@ func buildHostPart(in HostIn, version string, images []ImageIn) (*release.HostPa
 	return h, nil
 }
 
-// GuardError is the D-183 refusal: the reasons the migrations are not add-only.
+// GuardError is the rollback guard's refusal: the reasons the migrations are not add-only.
 type GuardError struct{ Findings []Finding }
 
 func (e *GuardError) Error() string {
 	var b strings.Builder
-	b.WriteString("rollback.safe=true refused (D-183): the migrations since the previous release are not add-only; say safe=false (the host then restores the database on rollback)\n")
+	b.WriteString("rollback.safe=true refused: the migrations since the previous release are not add-only; say safe=false (the host then restores the database on rollback)\n")
 	for _, f := range e.Findings {
 		b.WriteString("  - " + f.String() + "\n")
 	}
@@ -275,7 +275,7 @@ func (e *GuardError) Error() string {
 }
 
 // refuseTestVersion refuses a version with a -test. prerelease: that is the version of the test release install.sh --test-artifacts
-// installs (D-166 (11)); a published release must never look like one, and install.sh refuses it on its side too.
+// installs; a published release must never look like one, and install.sh refuses it on its side too.
 func refuseTestVersion(v string) error {
 	// install.sh's rule (`*-test.*`) so that no version the builder accepts is one install.sh would then refuse; a -test suffix too.
 	if l := strings.ToLower(v); strings.Contains(l, "-test.") || strings.HasSuffix(l, "-test") {
@@ -375,9 +375,9 @@ func readSmall(p string, limit int64) ([]byte, error) {
 	return b, nil
 }
 
-// CosignArgv is the exact argv that signs one image (D-103: legacy format, signature kept next to the payload, nothing
+// CosignArgv is the exact argv that signs one image (legacy format, signature kept next to the payload, nothing
 // uploaded here, identity = the repository without tag or digest), the flags of internal/release/testdata/README.md plus
-// --tlog-upload=false (D-57 (3): verification is offline, so nothing goes to Rekor). Read in the cosign docs on 2026-11-11:
+// --tlog-upload=false (verification is offline, so nothing goes to Rekor). Read in the cosign docs on 2026-11-11:
 // these flags exist in cosign v2.6.1 and are gone from `cosign sign` in v3.1.4 (which has --bundle and --signing-config), so the
 // cosign WP-08k pins must be a v2 release; whether v2 still contacts the registry with --upload=false is for 08k to measure.
 // The key file's password comes from COSIGN_PASSWORD in the environment of the maintainer's shell, never from argv.

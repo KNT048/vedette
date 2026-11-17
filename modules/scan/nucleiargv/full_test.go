@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// D-527: the full shape of an own_ip job (testing terms accepted), written out on purpose: a change in argv.go must change this too.
+// The full shape of an own_ip job (testing terms accepted), written out on purpose: a change in argv.go must change this too.
 var approvedFullFixed = []string{"-jsonl", "-silent", "-nc", "-duc", "-ni", "-ms", "-dr", "-nh", "-etags", "dos,intrusive,fuzz,brute-force,default-login,authenticated",
 	"-pt", "http,tcp,ssl", "-elog", "/dev/stderr", "-c", "10", "-bs", "1", "-timeout", "10", "-retries", "1", "-or", "-ot"}
 

@@ -40,7 +40,7 @@ func selfSigned8443(t *testing.T) tls.Certificate {
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
 }
 
-// D-109 (2), D-110 (1)(2): what the handshake refuses. Every case is refused with no HTTP answer and without touching the
+// What the handshake refuses. Every case is refused with no HTTP answer and without touching the
 // backend; the first row shows that a good certificate gets through the same rig.
 func TestCertificatesRefused(t *testing.T) {
 	t.Parallel()
@@ -123,7 +123,7 @@ func reused(t *testing.T, p *peer, base string) (int, bool, string) {
 	return res.StatusCode, re, string(b[:n])
 }
 
-// D-110 (5): the serial is checked on every request. A keep-alive connection outlives the retirement of its serial, so the
+// The serial is checked on every request. A keep-alive connection outlives the retirement of its serial, so the
 // handshake check is not enough.
 func TestRetiredSerialOnALiveConnection(t *testing.T) {
 	t.Parallel()
@@ -153,7 +153,7 @@ func TestRetiredSerialOnALiveConnection(t *testing.T) {
 	}
 }
 
-// D-109 (2): VerifyConnection runs on a resumed TLS 1.3 session; VerifyPeerCertificate would not. A session ticket from before
+// VerifyConnection runs on a resumed TLS 1.3 session; VerifyPeerCertificate would not. A session ticket from before
 // the retirement must not get a retired serial back in.
 func TestRetiredSerialOnAResumedSession(t *testing.T) {
 	t.Parallel()
@@ -182,7 +182,7 @@ func TestRetiredSerialOnAResumedSession(t *testing.T) {
 	}
 }
 
-// D-110 (3): a certificate that expires on a connection that stays open is refused at the next request.
+// A certificate that expires on a connection that stays open is refused at the next request.
 func TestExpiryOnALiveConnection(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})

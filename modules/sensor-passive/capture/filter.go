@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// matcher is the compiled form of the exclusion filters (D-56, INV-7).
+// matcher is the compiled form of the exclusion filters (INV-7).
 type matcher struct {
 	prefixes []netip.Prefix
 	ports    [][2]uint16

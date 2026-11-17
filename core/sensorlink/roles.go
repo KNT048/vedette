@@ -7,7 +7,7 @@ import (
 	"slices"
 )
 
-// Role is what a sensor certificate says its holder may do (D-111). The role is the URI SAN of the certificate, never the CN.
+// Role is what a sensor certificate says its holder may do. The role is the URI SAN of the certificate, never the CN.
 type Role string
 
 // The two sensor roles. passive is the capture process (container sensor), active the nmap worker (container scan).
@@ -31,7 +31,7 @@ func (r Role) Valid() bool { return r == Passive || r == Active }
 var ErrIdentity = errors.New("sensorlink: not a sensor certificate")
 
 // ClientRole checks that leaf is a sensor client certificate and returns its role: not a CA, ExtKeyUsage exactly clientAuth
-// (a server certificate used as a client fails here), and exactly one URI SAN naming a known role (D-110 (2)).
+// (a server certificate used as a client fails here), and exactly one URI SAN naming a known role.
 func ClientRole(leaf *x509.Certificate) (Role, error) {
 	if leaf == nil || leaf.IsCA {
 		return "", ErrIdentity

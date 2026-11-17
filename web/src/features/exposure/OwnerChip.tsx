@@ -11,7 +11,7 @@ export function OwnerChip({ target }: { target: Target }) {
   return <Chip tone="ok">{t('status.verified')}</Chip>
 }
 
-/** Commitment in one chip: confirmed under the current sentence, asked again (an older sentence, D-559), or not yet. */
+/** Commitment in one chip: confirmed under the current sentence, asked again (an older sentence), or not yet. */
 export function CommitChip({ target }: { target: Target }) {
   const { t } = useTranslation('exposure')
   if (target.commitment && target.commitment_notice) return <Chip tone="warn">{t('status.commitAgain')}</Chip>

@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-passive/capture"
 )
 
-// What an SNMP answer says about a device (D-512). Every value is the device's own text and untrusted (SYS-6): it is cleaned first
+// What an SNMP answer says about a device. Every value is the device's own text and untrusted (SYS-6): it is cleaned first
 // (valid UTF-8, no control or format character, spaces collapsed, at most maxSNMPText runes) and then only read through fixed
 // layouts: the vendor from the enterprise number of sysObjectID (content/snmp), the model and OS from the sysDescr layouts LLDP
 // uses too (capture.ParseSysDesc), the chassis model of ENTITY-MIB only for a chassis or a stack, FortiOS from the FortiGate's

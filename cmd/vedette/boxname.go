@@ -131,7 +131,7 @@ func (b *boxHostName) Cached(ctx context.Context) string {
 	return name
 }
 
-// OS is the box's operating system from the host's last answer to GET /v1/info ("Ubuntu 26.04", W3-8), read from memory: Get
+// OS is the box's operating system from the host's last answer to GET /v1/info ("Ubuntu 26.04"), read from memory: Get
 // keeps it fresh. "" without a host (container-only: the container's own OS is not the box's) or before the host has named one,
 // and the box job then leaves the device row's OS as it is. Safe on nil.
 func (b *boxHostName) OS() string {

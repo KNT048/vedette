@@ -1,6 +1,6 @@
-// Package main is the CI helper (D-140): `ci changes` decides which of the go and web jobs a pull request needs,
+// Package main is the CI helper: `ci changes` decides which of the go and web jobs a pull request needs,
 // `ci shard I N` prints the I-th of N stable, disjoint, complete package shards for `go test` (on a pull request only the
-// shard's packages the change reaches, D-413).
+// shard's packages the change reaches).
 // Classification is fail-safe: a path no rule names runs everything.
 package main
 
@@ -20,32 +20,32 @@ type rule struct {
 }
 
 // rules are checked in order; the first match wins. Every "none" entry is a path that no test, embed or build
-// step reads: guard_test.go fails when Go or web code starts reading one (D-140).
+// step reads: guard_test.go fails when Go or web code starts reading one.
 var rules = []rule{
 	// Read by a test, so they come before the broad "none" prefixes below.
 	{"docs/API_CONVENTIONS.md", Result{Go: true}},                          // core/apierr, modules/core codes and connections tests
 	{"docs/specs/host-api.md", Result{Go: true}},                           // modules/host contract tests
-	{"docs/DEPLOYMENT.md", Result{Go: true}},                               // deploy/systemd/unit_test.go compares section 6.1 with the unit file (D-150)
-	{"docs/RUNBOOK.md", Result{Go: true}},                                  // deploy/deb/apparmor_test.go keeps the AppArmor repair command equal to the postinst one (D-412)
+	{"docs/DEPLOYMENT.md", Result{Go: true}},                               // deploy/systemd/unit_test.go compares section 6.1 with the unit file
+	{"docs/RUNBOOK.md", Result{Go: true}},                                  // deploy/deb/apparmor_test.go keeps the AppArmor repair command equal to the postinst one
 	{"docs/brand/", Result{Web: true}},                                     // web/src/components/brand/Logo.test.tsx holds Logo.tsx to the brand SVGs
-	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},                        // deploy/compose/compose_test.go keeps its backup image equal to pins.env (D-168)
-	{"modules/response/data/triggers.json", Result{true, true}},            // web/src/features/response/triggers.test.ts holds data.ts to it (D-390)
+	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},                        // deploy/compose/compose_test.go keeps its backup image equal to pins.env
+	{"modules/response/data/triggers.json", Result{true, true}},            // web/src/features/response/triggers.test.ts holds data.ts to it
 	{"modules/core/testdata/", Result{true, true}},                         // chain_vectors.json is a vector for Go and web
 	{"web/src/features/response/templates/", Result{true, true}},           // Go reads the *.sample.json files
 	{"web/src/features/core/testdata/", Result{true, true}},                // Go reads connections_matrix.json and keys/
-	{"web/src/features/exposure/contract.ts", Result{true, true}},          // modules/exposure/notice_test.go: the mock's commitment sentence equals the box's (D-473)
+	{"web/src/features/exposure/contract.ts", Result{true, true}},          // modules/exposure/notice_test.go: the mock's commitment sentence equals the box's
 	{"web/src/features/exposure/services.ts", Result{true, true}},          // modules/exposure/identify_test.go: the Go service names equal the GUI's (M2-7)
 	{"web/src/features/logs/snippets.ts", Result{true, true}},              // modules/logs/siem_test.go: the SIEM samples equal what the formatters write
 	{"web/src/features/core/bundles.ts", Result{true, true}},               // modules/core/handlers_setup_test.go
-	{"web/src/features/core/ContainerOnly.tsx", Result{true, true}},        // deploy/compose/compose_test.go: its backup image equals pins.env (D-381)
+	{"web/src/features/core/ContainerOnly.tsx", Result{true, true}},        // deploy/compose/compose_test.go: its backup image equals pins.env
 	{"web/src/features/inventory/agentConfig.ts", Result{true, true}},      // modules/agent-intake/schedule_test.go: the Go schedule equals the GUI list
 	{"web/src/features/inventory/installScripts.ts", Result{true, true}},   // modules/agent-intake/install_test.go: the served scripts and OSQUERY_VERSION equal the GUI's
 	{"web/src/features/inventory/scripts/osquery.sh", Result{true, true}},  // the same test renders the GUI template
 	{"web/src/features/inventory/scripts/osquery.ps1", Result{true, true}}, // the same
 	{"web/src/locales/en/core.json", Result{true, true}},                   // modules/core/auditlabels_test.go: every audit action has a label
-	{"web/src/locales/en/common.json", Result{true, true}},                 // modules/manifests_test.go: every module has a display name (W1-25)
-	{"web/src/features/honeypot/presets.ts", Result{true, true}},           // modules/honeypot/presets_test.go: presets.go equals the GUI's presets and vendors (D-466)
-	{"THIRD_PARTY_NOTICES.md", Result{Go: true}},                           // make notices-check (verify-go-static) holds it to go list and web/package.json (D-159)
+	{"web/src/locales/en/common.json", Result{true, true}},                 // modules/manifests_test.go: every module has a display name
+	{"web/src/features/honeypot/presets.ts", Result{true, true}},           // modules/honeypot/presets_test.go: presets.go equals the GUI's presets and vendors
+	{"THIRD_PARTY_NOTICES.md", Result{Go: true}},                           // make notices-check (verify-go-static) holds it to go list and web/package.json
 	{"web/package.json", Result{true, true}},                               // the same check reads the web production dependencies
 
 	// No test reads these.
@@ -114,10 +114,10 @@ type Outputs struct{ Go, Tests, Web, WebAll, Vuln, Audit bool }
 
 // Decide maps the event and the changed paths to job switches. diffOK is false when the diff could not be
 // computed; then everything runs. A pull request is narrowed by its paths, and go-test and web-verify run only the packages
-// and tests the change reaches (D-413; Affected, WebAll). A push to main runs the full suite, Go and web (D-413: there is
+// and tests the change reaches (Affected, WebAll). A push to main runs the full suite, Go and web (there is
 // no merge queue, so the push run is the first full run of the merged tree), without the vulnerability scans the pull
 // request ran; it also saves main's Go caches (go-test's, go-static's, golangci-lint's), the only caches pull requests can
-// restore (D-365, D-372). The daily schedule runs everything, uncached and shuffled (ci.yml passes -count=2 -shuffle=on and
+// restore. The daily schedule runs everything, uncached and shuffled (ci.yml passes -count=2 -shuffle=on and
 // -race), plus both vulnerability scans. workflow_dispatch and any unknown event run everything.
 func Decide(event string, changed []string, diffOK bool) Outputs {
 	switch {
@@ -137,7 +137,7 @@ func Decide(event string, changed []string, diffOK bool) Outputs {
 	}
 }
 
-// Affected says which Go packages a pull request's go-test runs (D-413): every package holding a changed file the Go side
+// Affected says which Go packages a pull request's go-test runs: every package holding a changed file the Go side
 // reads, and every package that imports one of those directly (tests included). dirs maps a package directory (repo
 // relative, slash separated) to its import path; imports maps an import path to what it and its tests import. A non-Go file
 // belongs to the nearest package directory above it (testdata, migrations, embedded files). all is true when a changed path

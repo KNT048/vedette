@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make dev-sensors-smoke (D-146): bring up the compose dev stack (core + sensor replaying a pcap + scan with fake nmap and nuclei), finish the
+# make dev-sensors-smoke: bring up the compose dev stack (core + sensor replaying a pcap + scan with fake nmap and nuclei), finish the
 # first-run setup through the API, and wait (bounded) until a device that only the sensor can have seen is in the inventory and the scan
 # container reports healthy. Tears the stack down and removes its volumes whatever happens. Exit 0 only when the device appeared.
 # Nothing is scanned and nothing leaves the machine: the replay reads a fixture, the fakes are scripts. Assumes Linux or macOS and

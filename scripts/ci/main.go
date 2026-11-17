@@ -226,14 +226,14 @@ func printTimes(r io.Reader, w io.Writer) error {
 }
 
 // uncached are the packages whose tests read files through a child process (go build, go list, a built helper): go test's cache
-// only sees what the test process itself opens, so a change to those files could pass from the cache (D-365). CI always runs them.
+// only sees what the test process itself opens, so a change to those files could pass from the cache. CI always runs them.
 var uncached = []string{
 	modulePath + "/core/pdftext",         // pdftexttest.BuildChild builds the child with go build
 	modulePath + "/scripts/hostlicenses", // go list -deps and the license files of the module cache
 }
 
 // shardCmd prints the packages of shard i of n, one per line: all of them, or only those go test may take from its cache
-// ("cached"), or only the ones it may not ("uncached"). With CI_CHANGED_BASE set (a pull request, D-413) it prints only the
+// ("cached"), or only the ones it may not ("uncached"). With CI_CHANGED_BASE set (a pull request) it prints only the
 // shard's packages that Affected names for the change since that ref.
 func shardCmd(i, n int, mode string) error {
 	out, err := exec.CommandContext(context.Background(), "go", "list", "-f",
@@ -278,7 +278,7 @@ func shardCmd(i, n int, mode string) error {
 		}
 		if affected, all := Affected(changed, dirs, imports); !all {
 			mine = slices.DeleteFunc(mine, func(p string) bool { return !affected[p] })
-			fmt.Fprintf(os.Stderr, "ci shard %d/%d: %d packages the change since %s reaches (D-413)\n", i, n, len(mine), base)
+			fmt.Fprintf(os.Stderr, "ci shard %d/%d: %d packages the change since %s reaches\n", i, n, len(mine), base)
 		} else {
 			fmt.Fprintf(os.Stderr, "ci shard %d/%d: a changed path lies in no package; every package runs\n", i, n)
 		}

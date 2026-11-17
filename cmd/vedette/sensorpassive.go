@@ -26,25 +26,25 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 	if d.Reg != nil { // SYS-5: asked again under the lock of a batch, after the listener let it in
 		cfg.Enabled = func() bool { return d.Reg.Enabled("sensor-passive") }
 	}
-	if d.SensorStart != nil { // an appliance: the box starts the container, so it can say it is still doing so (W2-6)
+	if d.SensorStart != nil { // an appliance: the box starts the container, so it can say it is still doing so
 		cfg.Starting = d.SensorStart.Starting
 	}
 	if d.Inventory != nil { // the devices that exist do not count as new ones for the budget
-		cfg.KnownMACs = d.Inventory.KnownMACs // uncapped (D-178)
+		cfg.KnownMACs = d.Inventory.KnownMACs // uncapped
 	}
 	return sensorpassive.New(cfg)
 }
 
-// There is no capture job in core (D-111, D-141): packets are read only by the `sensor` container, which reaches
+// There is no capture job in core: packets are read only by the `sensor` container, which reaches
 // the Service through the sensor link (sensorBackend). The module has no jobs of its own here.
 
-// netHost is the host module's answer to sensor-passive (Box network, D-56). The cards come from vedette-host
+// netHost is the host module's answer to sensor-passive (Box network). The cards come from vedette-host
 // (core runs in a container and cannot see them); the extraction switches and exclusion filters are the admin's
 // settings of Settings, Box network. Without a host core never reads its own interfaces for the box's cards: the core
-// container sees only its bridge link, and the box's real cards come from the sensor's heartbeat (D-263, D-385).
+// container sees only its bridge link, and the box's real cards come from the sensor's heartbeat.
 type netHost struct{ box *core.NetworkHandlers }
 
-// Interfaces is only for Service.Run, the in-process capture of the module's tests; cmd/vedette never starts it (D-141).
+// Interfaces is only for Service.Run, the in-process capture of the module's tests; cmd/vedette never starts it.
 // It is HostCards without the "no host" flag: no cards without a host.
 func (n netHost) Interfaces(ctx context.Context) ([]capture.Interface, error) {
 	cards, _, err := n.HostCards(ctx)
@@ -52,9 +52,9 @@ func (n netHost) Interfaces(ctx context.Context) ([]capture.Interface, error) {
 }
 
 // HostCards is the list vedette-host reports. ok is false only when core runs without a host socket (container-only
-// install, D-168, D-263, D-385): SetInterface and the refusal of items about the box then use the cards of the sensor's
+// install): SetInterface and the refusal of items about the box then use the cards of the sensor's
 // heartbeat of the last 90 s. A host that is configured but gives
-// no list (down, socket absent, nothing cached yet) is an error: fail closed, the heartbeat never decides on an appliance (D-118).
+// no list (down, socket absent, nothing cached yet) is an error: fail closed, the heartbeat never decides on an appliance.
 func (n netHost) HostCards(ctx context.Context) ([]capture.Interface, bool, error) {
 	cards, ok, err := n.box.Cards(ctx)
 	if err != nil {
@@ -69,7 +69,7 @@ func (n netHost) HostCards(ctx context.Context) ([]capture.Interface, bool, erro
 	return capInterfaces(cards), true, nil
 }
 
-// ManagementCard is where the sensor listens while no SPAN port is chosen (D-380); ok is false only without a host.
+// ManagementCard is where the sensor listens while no SPAN port is chosen; ok is false only without a host.
 func (n netHost) ManagementCard(ctx context.Context) (string, bool) { return n.box.ManagementCard(ctx) }
 
 func capInterfaces(cards []core.Card) []capture.Interface {

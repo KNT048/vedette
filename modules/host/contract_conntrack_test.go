@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/host/ops"
 )
 
-// Stale UDP syslog flows after core restarts (D-268, review M1 of D-167): when the host sees core run again it deletes the
+// Stale UDP syslog flows after core restarts: when the host sees core run again it deletes the
 // conntrack entries of the published syslog port, once, with one fixed argv. Nothing runs when core did not run again.
 
 var wantConntrack = []string{"-D", "-f", "ipv4", "-p", "udp", "--orig-port-dst", "514"}

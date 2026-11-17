@@ -8,10 +8,10 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// ai 7 (S-RESP-2, D-310, D-313, D-314): the plan job sends the proposals of a plan it just stored through Propose, as the AI, when the
+// ai 7 (S-RESP-2): the plan job sends the proposals of a plan it just stored through Propose, as the AI, when the
 // admin allowed the finding trigger for AI requests and the execution switch is on. Every gate is Propose's; nothing is retried.
 
-const devIP = "198.51.100.21" // a server on a public address: a block list action on a LAN address is refused when planned (D-469)
+const devIP = "198.51.100.21" // a server on a public address: a block list action on a LAN address is refused when planned
 
 func sendStep(action string, conf float64, reads ...string) []response.DraftStep {
 	return []response.DraftStep{

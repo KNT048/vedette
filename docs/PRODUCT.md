@@ -1,6 +1,6 @@
 # Vedette — Mô tả sản phẩm
 
-Phiên bản tài liệu: 2026-11-06 · Chủ: kien
+Phiên bản tài liệu: 2026-11-06
 
 ## 1. Một câu
 
@@ -27,7 +27,7 @@ Tóm lại: thiết bị biên không cài được EDR, bị khai thác nhanh h
 |---|---|---|---|
 | **P1 — Chủ/quản lý SMB không có IT** (10–100 người) | Có 1 firewall gia đình/SMB, 1 NAS Synology/QNAP, vài máy chủ cũ, website WordPress. IT là người bên ngoài hoặc nhân viên kiêm nhiệm | Biết "có nguy hiểm không, gọi ai, bảo họ làm gì", bằng tiếng Việt, qua Zalo | Không đọc dashboard, không cấu hình scan, không hiểu CVE |
 | **P2 — IT một người** (100–500 người) | Quản mọi thứ: mạng, server, user. Có FortiGate/MikroTik/pfSense, AD, vài web app, có thể có Wazuh/Zabbix | Danh sách ngắn "sáng nay phải làm gì", copy-dán cấu hình, bằng chứng để xin ngân sách | Không có thời gian đọc advisory tiếng Anh, không viết rule IPS |
-| **P3 — Đội triển khai / MSP** (hoãn: chưa hỗ trợ nhiều site, D-24) | Quản 10–200 khách | Một chỗ nhìn nhiều khách, biết khách nào dính KEV mới, gói giảm thiểu để gửi khách, báo cáo tháng | Không muốn đăng nhập từng hộp |
+| **P3 — Đội triển khai / MSP** (hoãn: chưa hỗ trợ nhiều site) | Quản 10–200 khách | Một chỗ nhìn nhiều khách, biết khách nào dính KEV mới, gói giảm thiểu để gửi khách, báo cáo tháng | Không muốn đăng nhập từng hộp |
 | **P4 — SOC/IT enterprise** (500+ người, có SOC hoặc thuê SOC) | Đã có SIEM/EDR/VM thương mại | Tín hiệu bổ sung "KEV × inventory" rẻ, honeypot nội bộ, API/MCP để kéo vào SIEM, SSO/RBAC | Không thay thế SIEM; không chấp nhận hộp inline |
 
 Ưu tiên xây: P2 → P1 → P3 → P4. P2 là người sẽ **cài và giữ** sản phẩm; P1 là người sẽ **trả tiền triển khai**; P3/P4 mở rộng.
@@ -70,7 +70,7 @@ Tóm lại: thiết bị biên không cài được EDR, bị khai thác nhanh h
 
 ## 5. Không làm (nói rõ với khách)
 
-- Không thay firewall, **không tự chặn traffic** (bỏ ý tưởng inline IPS/WAF 2026-11-06, decision D-3).
+- Không thay firewall, **không tự chặn traffic** (bỏ ý tưởng inline IPS/WAF 2026-11-06).
 - Không phải antivirus/EDR; không sao lưu dữ liệu.
 - Không tự hành động từ AI: AI là cố vấn, người bấm.
 - Không bán feed, không bán AI, không thu phí phần mềm.

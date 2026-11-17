@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// NeedVersionRow is one stored "add the version" item of a device (D-500): GET /findings `version_needed`.
+// NeedVersionRow is one stored "add the version" item of a device: GET /findings `version_needed`.
 type NeedVersionRow struct {
 	AssetID, SoftwareID, Software, Version string
 	CVEs                                   int

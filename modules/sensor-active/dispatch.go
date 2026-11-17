@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// The remote Prober (D-113, sensor-protocol.md section 6.4 and 6.5). The Dispatcher keeps one job in memory: the
+// The remote Prober (sensor-protocol.md section 6.4 and 6.5). The Dispatcher keeps one job in memory: the
 // service has already checked the scope, the window and the settings and written the probe row (INV-1..3, INV-9);
 // the worker in the scan container fetches the job by long poll, re-checks it, runs nmap and posts the result. Core
 // never trusts what the worker says about itself beyond "it ran": the exit code, the size and the XML are checked
@@ -34,7 +34,7 @@ const (
 	cancelGrace = 30 * time.Second
 	// maxJobSeconds is the longest job the protocol carries (2 hours).
 	maxJobSeconds = 7200
-	// maxNucleiSeconds is the longest nuclei job (D-125 (1)).
+	// maxNucleiSeconds is the longest nuclei job.
 	maxNucleiSeconds = 3600
 	dispatchTick     = time.Second
 )
@@ -56,14 +56,14 @@ type DispatcherOptions struct {
 	// Tick is how often a waiting probe looks at those timeouts. 0 means one second.
 	Tick time.Duration
 	Log  *slog.Logger
-	// ContainerOnly is the install kind (modreg.Registry.ContainerOnly, D-381): the health texts then give the advice that fits a
-	// customer who runs the compose files, not the appliance's "rebuilt" (D-168 (4)).
+	// ContainerOnly is the install kind (modreg.Registry.ContainerOnly): the health texts then give the advice that fits a
+	// customer who runs the compose files, not the appliance's "rebuilt".
 	ContainerOnly bool
 }
 
 // Dispatcher is the Prober that hands a job to the worker, and the sensorlink.Backend of the active role: the
 // listener of core serves Jobs, JobRunning, JobResult and ActiveHeartbeat to it. Create it with NewDispatcher. It has three
-// slots, nmap, nuclei (D-125 (3)) and snmp (D-512): one job of each kind may run at once, so a "Scan now" or an SNMP Test does
+// slots, nmap, nuclei and snmp: one job of each kind may run at once, so a "Scan now" or an SNMP Test does
 // not wait for a two-hour sweep. The rules of a slot (lease, pickup, grace, cancel) are those of SP-3 for all.
 type Dispatcher struct {
 	now       func() time.Time
@@ -76,14 +76,14 @@ type Dispatcher struct {
 	wake     chan struct{} // closed and replaced whenever something a long poll looks at changes
 	nmapSlot *slot
 	nucSlot  *slot
-	snmpSlot *slot           // D-512: the SNMP reads, beside nmap and nuclei
+	snmpSlot *slot           // The SNMP reads, beside nmap and nuclei
 	orphans  map[string]bool // ids the worker reported that core does not know, already answered with a cancel
 	beatAt   time.Time
 	haveBeat bool
 	nmap     sensorlink.HeartbeatNmap
 	nuclei   sensorlink.HeartbeatNuclei
 	snmp     bool // the worker's heartbeat says it runs snmp jobs (protocol 5)
-	domainIP bool // the worker's heartbeat says it runs domain_ip jobs: it holds the fence key (D-591)
+	domainIP bool // the worker's heartbeat says it runs domain_ip jobs: it holds the fence key
 
 	packInvalid    bool   // the worker found the image's pack damaged (pack_invalid): not trusted until the image holds another pack
 	packInvalidSHA string // the pack hash the heartbeat reported when it happened
@@ -115,7 +115,7 @@ type djob struct {
 	finished  bool
 	res       *sensorlink.JobResult
 	err       error
-	exclusive bool // an own_ip nuclei job (D-520): refused with ErrNucleiBusy instead of waiting for a busy slot
+	exclusive bool // an own_ip nuclei job: refused with ErrNucleiBusy instead of waiting for a busy slot
 	cancelled bool // the probe stopped after the worker had the job: cancel it
 	cancelOut bool // a poll reply has carried the cancel
 
@@ -206,7 +206,7 @@ func (d *Dispatcher) NmapHealth() string {
 }
 
 // nmapMissing is the health text for a scan worker without nmap. The appliance builds its scan image from the OS packages;
-// the project's image for a container-only install has no nmap by design (it is not shipped, D-168 (4)), so "rebuild" would
+// the project's image for a container-only install has no nmap by design (it is not shipped), so "rebuild" would
 // be wrong advice there.
 func (d *Dispatcher) nmapMissing() string {
 	if d.container {
@@ -229,7 +229,7 @@ func orphanMessage(what string) string {
 	return "the scan worker is still running a job that core does not know; core has told it to stop, and " + what + " waits until it has"
 }
 
-// NucleiHealth is "" when the worker can run nuclei with a template pack, otherwise what the status page says (D-125 (5)):
+// NucleiHealth is "" when the worker can run nuclei with a template pack, otherwise what the status page says:
 // no heartbeat for 90 s, nuclei missing, or no pack in the image.
 func (d *Dispatcher) NucleiHealth() string {
 	msg, _ := d.nucleiProblem(true)
@@ -274,13 +274,13 @@ func (d *Dispatcher) usable() error {
 }
 
 // Probe implements Prober. argv is what nmapargv.Build made; the job on the wire carries its shape, rate and targets
-// and no argv (D-111 (3)). It returns when the result is in, when the worker is gone, or when ctx ended and the worker
+// and no argv. It returns when the result is in, when the worker is gone, or when ctx ended and the worker
 // had 30 seconds to confirm the stop.
 func (d *Dispatcher) Probe(ctx context.Context, argv []string) (Output, error) {
 	return d.probe(ctx, argv, nil)
 }
 
-// ProbeDomain implements DomainProber: Probe of a full shape with one target as a domain_ip job (D-591), sent only to a worker whose
+// ProbeDomain implements DomainProber: Probe of a full shape with one target as a domain_ip job, sent only to a worker whose
 // heartbeat says domain_ip (else ErrDomainUnsupported, nothing sent); the worker checks the domain fence itself before nmap.
 func (d *Dispatcher) ProbeDomain(ctx context.Context, argv []string, scope sensorlink.DomainScope) (Output, error) {
 	return d.probe(ctx, argv, &scope)
@@ -294,7 +294,7 @@ func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink
 	if err := d.usable(); err != nil {
 		return Output{}, err
 	}
-	if kind.IsFull() { // D-526: only a worker whose heartbeat says it runs the full shapes gets one (pollLocked again at hand-over)
+	if kind.IsFull() { // Only a worker whose heartbeat says it runs the full shapes gets one (pollLocked again at hand-over)
 		d.mu.Lock()
 		ok := d.nmap.Full
 		d.mu.Unlock()
@@ -302,7 +302,7 @@ func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink
 			return Output{}, ErrFullUnsupported
 		}
 	}
-	if kind == nmapargv.PortVersions { // D-592: only a worker whose heartbeat says it takes a job's ports gets one
+	if kind == nmapargv.PortVersions { // Only a worker whose heartbeat says it takes a job's ports gets one
 		d.mu.Lock()
 		ok := d.nmap.Ports
 		d.mu.Unlock()
@@ -383,7 +383,7 @@ func (d *Dispatcher) await(ctx context.Context, s *slot, j *djob) error {
 				return ctx.Err()
 			}
 			j.cancelled = true // the worker has it (or is just fetching it): the next poll reply carries the cancel
-			d.signal()         // and the long poll that is open now is woken to carry it: Stop lands within seconds (D-125 (3))
+			d.signal()         // and the long poll that is open now is woken to carry it: Stop lands within seconds
 			d.mu.Unlock()
 			abandonAt = d.now().Add(cancelGrace)
 		case <-tk.C:
@@ -428,7 +428,7 @@ func (d *Dispatcher) finishLocked(s *slot, j *djob, res *sensorlink.JobResult, e
 }
 
 // outcome turns a finished nmap job into what Prober returns. Only the exit code, the truncation and the XML count; the
-// status and the reason of the worker are used to explain a failure, never to excuse one (D-113 (5)).
+// status and the reason of the worker are used to explain a failure, never to excuse one.
 func (d *Dispatcher) outcome(j *djob) (Output, error) {
 	if j.err != nil {
 		return Output{}, j.err
@@ -436,7 +436,7 @@ func (d *Dispatcher) outcome(j *djob) (Output, error) {
 	res := j.res
 	switch {
 	case res.Status == "refused" && res.Reason == "not_own_ip":
-		// The worker's own-IP fence (D-514): it sees the box leave the Internet through another address than the external job's.
+		// The worker's own-IP fence: it sees the box leave the Internet through another address than the external job's.
 		d.log.Warn("sensor_active_worker_refused_external_job", "reason", res.Reason)
 		return Output{}, fmt.Errorf("%w (%s): %w", ErrWorkerRefused, res.Reason, ErrNotOwnIP)
 	case res.Status == "refused" && res.Reason == "egress_unverified":
@@ -444,7 +444,7 @@ func (d *Dispatcher) outcome(j *djob) (Output, error) {
 		d.log.Warn("sensor_active_worker_refused_external_job", "reason", res.Reason)
 		return Output{}, fmt.Errorf("%w (%s): %w", ErrWorkerRefused, res.Reason, ErrEgressUnverified)
 	case res.Status == "stopped" && res.Reason == "not_own_ip":
-		// The re-check of a running full job (D-526, review r1 H1): nmap ran and was killed, its output discarded.
+		// The re-check of a running full job: nmap ran and was killed, its output discarded.
 		d.log.Warn("sensor_active_worker_stopped_external_job", "reason", res.Reason)
 		return Output{}, fmt.Errorf("%w (%s): %w", ErrStoppedMidRun, res.Reason, ErrNotOwnIP)
 	case res.Status == "stopped" && res.Reason == "egress_unverified":
@@ -503,7 +503,7 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 	for _, s := range slots {
 		if j := s.running; j != nil && !j.finished && !slices.Contains(running, j.spec.ID) {
 			// The worker runs nothing of this kind, or something else, and has not answered: it restarted, or its reply was
-			// lost (D-113 (4)).
+			// lost.
 			s.running = nil
 			d.finishLocked(s, j, nil, ErrWorkerLost)
 		}
@@ -578,19 +578,19 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 			continue // the latest heartbeat says this worker runs no snmp job (protocol 4, or a downgrade since RunSNMP checked): wait
 		}
 		if n := s.pending.spec.Nuclei; n != nil && n.Scope != "" && !d.nuclei.OwnIP {
-			continue // the latest heartbeat says this worker runs no own_ip job (older than D-520, or a downgrade since RunNuclei checked): wait
+			continue // the latest heartbeat says this worker runs no own_ip job (an older worker, or a downgrade since RunNuclei checked): wait
 		}
 		if n := s.pending.spec.Nuclei; n != nil && n.Depth != "" && !d.nuclei.Full {
-			continue // FULL-4 (D-527): the same for a job of depth full and nuclei.full
+			continue // The same for a job of depth full and nuclei.full
 		}
 		if (s.pending.spec.Domain != nil || s.pending.spec.Nuclei != nil && s.pending.spec.Nuclei.Domain != nil) && !d.domainIP {
-			continue // D-591: the latest heartbeat says this worker holds no fence key (or a downgrade since the job was asked): wait
+			continue // The latest heartbeat says this worker holds no fence key (or a downgrade since the job was asked): wait
 		}
 		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && k == nmapargv.PortVersions && !d.nmap.Ports {
-			continue // the latest heartbeat says this worker takes no port list (older than D-592, or a downgrade since Probe checked): wait
+			continue // the latest heartbeat says this worker takes no port list (an older worker, or a downgrade since Probe checked): wait
 		}
 		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && k.IsFull() && !d.nmap.Full {
-			continue // the latest heartbeat says this worker runs no full shape (older than D-526, or a downgrade since Probe checked): wait
+			continue // the latest heartbeat says this worker runs no full shape (an older worker, or a downgrade since Probe checked): wait
 		}
 		j := s.pending
 		secs := s.maxSeconds
@@ -675,7 +675,7 @@ func (d *Dispatcher) JobProgress(_ context.Context, id string, p *sensorlink.Job
 // for the network.
 const progressMin = sensorlink.ProgressEvery - time.Second
 
-// passNote says which nmap run of a device a report is about, when a device gets more than one (D-592) or a slower one (D-126).
+// passNote says which nmap run of a device a report is about, when a device gets more than one or a slower one.
 var passNote = map[string]string{
 	nmapargv.Extra.Name():        "Second pass: administration and alternative ports",
 	nmapargv.PortVersions.Name(): "Reading the services on the extra open ports",
@@ -714,7 +714,7 @@ func (d *Dispatcher) ActiveHeartbeat(_ context.Context, hb *sensorlink.ActiveHea
 	return d.instance, nil
 }
 
-// ---- the domain fence (D-591) ----
+// ---- the domain fence ----
 
 var (
 	// ErrDomainUnsupported is returned when the worker's latest heartbeat does not say domain_ip (it holds no fence key: a remote sensor, a container-only

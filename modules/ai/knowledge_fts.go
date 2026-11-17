@@ -10,7 +10,7 @@ import (
 // The FTS5 index is derived data: the chunk table holds the text, so the index can always be rebuilt from it. Something outside this
 // module can damage it (core's "Delete all data" empties the shadow tables of a virtual table as if they were data tables, which
 // leaves a table whose every insert fails with an FTS5 corruption error), so the module heals itself: a failed use of the index is
-// repaired once and tried once more, and the index is checked when the service starts (D-209).
+// repaired once and tried once more, and the index is checked when the service starts.
 
 const ftsTable = "ai_knowledge_chunk_fts"
 

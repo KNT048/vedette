@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 )
 
-// The action templates, the rule templates and the trigger catalog are DATA (D-58, D-88): no vendor or device
+// The action templates, the rule templates and the trigger catalog are DATA: no vendor or device
 // knowledge lives in Go. The files under data/ are the shipped library; customers add their own actions through the
 // catalog. A template loaded from the library goes through the same validation as one a customer saves.
 
@@ -48,7 +48,7 @@ type builtinDef struct {
 	Run          Tpl    `json:"run"`
 	Rollback     Tpl    `json:"rollback"`
 	Verify       Tpl    `json:"verify"`
-	// Precheck and PrecheckRefuse are the check before the action (D-95): a read-only template and the texts that make it refuse.
+	// Precheck and PrecheckRefuse are the check before the action: a read-only template and the texts that make it refuse.
 	Precheck       Tpl      `json:"precheck"`
 	PrecheckRefuse []string `json:"precheck_refuse"`
 	PrecheckExpect string   `json:"precheck_expect"`
@@ -64,7 +64,7 @@ type triggerDef struct {
 	Description string         `json:"description"`
 	Fields      []TriggerField `json:"fields"`
 	// AIEvidence are the kinds of evidence that prove the trigger to the AI (finding, ioc_hit, config_read). None = no evidence can show it
-	// happened, so the AI may not use the trigger (D-119).
+	// happened, so the AI may not use the trigger.
 	AIEvidence []string `json:"ai_evidence"`
 }
 
@@ -125,7 +125,7 @@ func (s *Service) loadData() error {
 	}
 	s.triggers, s.kinds = tr.Triggers, tr.Kinds
 	for _, t := range tr.Triggers {
-		for _, f := range t.Fields { // D-390: a number or port field without a range would let any value through
+		for _, f := range t.Fields { // A number or port field without a range would let any value through
 			numeric := f.Type == "number" || f.Type == "port"
 			if numeric != (f.Min != nil && f.Max != nil) || numeric && *f.Min > *f.Max {
 				return fmt.Errorf("response: triggers.json: %s.%s: a number or port field needs min <= max, other fields none", t.ID, f.Key)
@@ -166,7 +166,7 @@ func (s *Service) loadData() error {
 
 // checkBuiltinTpls validates the templates of a library action the way a customer's would be. A box action may use {text}
 // (a message), and its commands are display text for the log: they are never sent to a shell. The read-back text belongs to the
-// read-back only, the check before and its refusal texts go together, and a device action that names a port has them (D-95).
+// read-back only, the check before and its refusal texts go together, and a device action that names a port has them.
 func checkBuiltinTpls(a builtinDef) error {
 	for what, t := range map[string]Tpl{"run": a.Run, "rollback": a.Rollback, "verify": a.Verify} {
 		if what != "run" && t.Empty() {

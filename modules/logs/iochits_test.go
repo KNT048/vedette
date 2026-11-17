@@ -209,8 +209,8 @@ func TestIOCDomainHits(t *testing.T) {
 	}
 }
 
-// D-228: a feed that lists a name with all of its subdomains (hagezi TIF) makes a subdomain the device asked for a hit; the hit keeps the
-// name asked for and the listed name (listed_as, D-425), the incident says which name is listed and is keyed on it, and the parents that
+// A feed that lists a name with all of its subdomains (hagezi TIF) makes a subdomain the device asked for a hit; the hit keeps the
+// name asked for and the listed name (listed_as), the incident says which name is listed and is keyed on it, and the parents that
 // names of a batch share are looked up once. Another device asking for a subdomain of the same name is its own hit.
 func TestIOCSubdomainOfANameListedWithItsSubdomains(t *testing.T) {
 	t.Parallel()
@@ -240,7 +240,7 @@ func TestIOCSubdomainOfANameListedWithItsSubdomains(t *testing.T) {
 	}
 }
 
-// D-425: the random subdomains of one listed name that a device asks for are one hit in 24 hours (dedupe on (device, listed name)), in
+// The random subdomains of one listed name that a device asks for are one hit in 24 hours (dedupe on (device, listed name)), in
 // one batch and across batches, and so is the listed name itself; a hit on a name listed for itself keeps listed_as null.
 func TestIOCSubdomainsOfOneListedNameAreOneHit(t *testing.T) {
 	t.Parallel()
@@ -257,8 +257,8 @@ func TestIOCSubdomainsOfOneListedNameAreOneHit(t *testing.T) {
 	}
 }
 
-// D-425 (review r1): a blocked attempt on one subdomain does not hide a connection that goes through to another one of the same listed
-// name (D-227 still apart); a direct hit surer than a recent subdomain hit (an exact feed at 0.9, hagezi TIF at 0.6) is news; a row
+// A blocked attempt on one subdomain does not hide a connection that goes through to another one of the same listed
+// name (blocked attempts still apart); a direct hit surer than a recent subdomain hit (an exact feed at 0.9, hagezi TIF at 0.6) is news; a row
 // stored before 0007 (listed_as empty) is not found by the listed name, so one extra row is accepted (no backfill), then the new row dedupes.
 func TestIOCListedNameDedupeKeepsAttemptsConfidenceAndOldRowsApart(t *testing.T) {
 	t.Parallel()
@@ -295,7 +295,7 @@ func TestIOCListedNameDedupeKeepsAttemptsConfidenceAndOldRowsApart(t *testing.T)
 	}
 }
 
-// D-425: a failed question about subdomain feeds walks the parents as before (a hit is never lost to it).
+// A failed question about subdomain feeds walks the parents as before (a hit is never lost to it).
 func TestIOCSubdomainsErrorStillWalks(t *testing.T) {
 	t.Parallel()
 	e, src, ff, p := iocEnv(t)
@@ -307,7 +307,7 @@ func TestIOCSubdomainsErrorStillWalks(t *testing.T) {
 	}
 }
 
-// D-425: without a switched-on feed that lists subdomains the parents of an unlisted name are not looked up; the question is asked once a batch.
+// Without a switched-on feed that lists subdomains the parents of an unlisted name are not looked up; the question is asked once a batch.
 func TestIOCNoParentWalkWithoutASubdomainFeed(t *testing.T) {
 	t.Parallel()
 	e, src, ff, p := iocEnv(t)
@@ -322,7 +322,7 @@ func TestIOCNoParentWalkWithoutASubdomainFeed(t *testing.T) {
 	}
 }
 
-// D-228: a feed that lists names exactly (no SubFeeds: a custom feed, URLhaus) never makes a subdomain a hit, and a top-level domain
+// A feed that lists names exactly (no SubFeeds: a custom feed, URLhaus) never makes a subdomain a hit, and a top-level domain
 // is never looked up, even if a feed listed it.
 func TestIOCSubdomainOfAnExactListingOrATopLevelDomainIsNoHit(t *testing.T) {
 	t.Parallel()
@@ -365,7 +365,7 @@ func TestIOCOnlyPublicDestinationsFromLANDevices(t *testing.T) {
 	for _, d := range []string{"10.1.1.1", "192.168.1.1", "127.0.0.1", "169.254.9.9", "224.0.0.251", "100.64.1.1", "203.0.113.9", "198.51.100.5", "255.255.255.255", "0.0.0.0", "fc00::1", "::1"} {
 		texts = append(texts, traffic(lanDevice, d))
 	}
-	for _, s := range []string{"8.8.8.8", "100.128.1.1", "127.0.0.1", "fd00::1", "-"} { // not a LAN device (100.64/10 is one, D-461)
+	for _, s := range []string{"8.8.8.8", "100.128.1.1", "127.0.0.1", "fd00::1", "-"} { // not a LAN device (100.64/10 is one)
 		texts = append(texts, traffic(s, badIP))
 	}
 	e.feedAll(src, texts)
@@ -389,7 +389,7 @@ func TestIOCOnlyPublicDestinationsFromLANDevices(t *testing.T) {
 	}
 }
 
-// The box itself, its gateway and a decoy are not a device that made a connection (the NeverCount set of D-210).
+// The box itself, its gateway and a decoy are not a device that made a connection (the NeverCount set).
 func TestIOCNeverFromTheBox(t *testing.T) {
 	t.Parallel()
 	e, src, ff, _ := iocEnv(t)
@@ -402,7 +402,7 @@ func TestIOCNeverFromTheBox(t *testing.T) {
 	}
 }
 
-// D-213, the anti-framing rule: a field written twice, a user-controlled field that injects a field, or an odd quote is no connection.
+// The anti-framing rule: a field written twice, a user-controlled field that injects a field, or an odd quote is no connection.
 func TestIOCAmbiguousLinesMakeNoHit(t *testing.T) {
 	t.Parallel()
 	e, src, ff, p := iocEnv(t)
@@ -456,7 +456,7 @@ func TestIOCDedupe(t *testing.T) {
 }
 
 // PRE-3: with the feeds off the lines are stored, nothing is announced, the digest has no bad connections, and nothing is warned about.
-// QA walk a: the digest says when no connection can be matched (no switched-on feed lists an indicator, the feeds module off, no port),
+// The digest says when no connection can be matched (no switched-on feed lists an indicator, the feeds module off, no port),
 // so an empty list is not read as "none of your devices connected to a listed address".
 func TestDigestSaysWhetherConnectionsCanBeMatched(t *testing.T) {
 	t.Parallel()
@@ -1019,7 +1019,7 @@ func TestIOCEventLinesMakeNoHit(t *testing.T) {
 	}
 }
 
-// D-227: a line the device blocked (FortiGate action deny/blocked/…) is said as an attempt, "tried to reach … (blocked by <source>)", and
+// A line the device blocked (FortiGate action deny/blocked/…) is said as an attempt, "tried to reach … (blocked by <source>)", and
 // kept as blocked for the page; a line that went through says "connected to"; a blocked attempt does not hide, for 24 hours, the
 // connection of the same pair that follows it.
 func TestIOCBlockedLineIsAnAttempt(t *testing.T) {

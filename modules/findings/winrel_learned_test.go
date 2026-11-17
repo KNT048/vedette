@@ -9,7 +9,7 @@ import (
 )
 
 // learn26 gives core/winrel the releases the feed windows-releases derives from Microsoft's pages of 2026-11-17 (feeds' winrel_test
-// reads them from the trimmed real pages): 26H2 on 24H2's line, 26H1 on its own. Not parallel: Learn is global, and the D-602 tests
+// reads them from the trimmed real pages): 26H2 on 24H2's line, 26H1 on its own. Not parallel: Learn is global, and the name-only tests
 // read build 26300 as one the box has not learned.
 func learn26(t *testing.T) {
 	t.Helper()
@@ -22,15 +22,15 @@ func learn26(t *testing.T) {
 	}
 }
 
-// D-603 (N100 DESKTOP-55UKKFV, Windows 11 Pro 10.0.26300.9974): once the box learned 26H2 from Microsoft's list, its Windows entries
+// A test box's DESKTOP-55UKKFV, Windows 11 Pro 10.0.26300.9974: once the box learned 26H2 from Microsoft's list, its Windows entries
 // are decided by build. NVD's rows of 24H2 and 25H2 decide with the device's revision (one line, one monthly update), and its own
 // rows once NVD names windows_11_26h2.
-func TestMatchAsset_D603_LearnedRelease(t *testing.T) {
+func TestMatchAsset_LearnedRelease(t *testing.T) {
 	learn26(t)
 	// CVE-2025-62215 (November 2025): 24H2 and 25H2 fixed in 7092; 26H2 shipped after, at 9457
 	w, m := oneMatch(t, winPC(26300, false, "9974", "x64"), cve62215, true)
 	wantMatch(t, "26H2 on the 24H2 line", w, m, "notaffected", "", "")
-	// a November 2026 entry NVD lists for 26H2 itself (the N100's feeds_affected has windows_11_26h2 < 10.0.26300.9711)
+	// a November 2026 entry NVD lists for 26H2 itself (a test box's feeds_affected has windows_11_26h2 < 10.0.26300.9711)
 	nov := nvdWindows("CVE-2026-96951", "2026-10-20",
 		nvdRow{"windows_11_24h2", "*", "x64", "10.0.26100.9711"}, nvdRow{"windows_11_25h2", "*", "x64", "10.0.26200.9711"},
 		nvdRow{"windows_11_26h2", "*", "x64", "10.0.26300.9711"}, nvdRow{"windows_11_26h1", "*", "x64", "10.0.28000.3231"})
@@ -52,7 +52,7 @@ func TestMatchAsset_D603_LearnedRelease(t *testing.T) {
 
 // Review r1 M1 of #951: a learned release never closes on "only older releases are listed": Vedette does not know when Microsoft stops
 // servicing it, and a list that leaves it out may mean it is no longer fixed. 26H1 (28000) is above the whole 26100 line by build.
-func TestMatchAsset_D603_LearnedReleaseNeverClosesOnOlderReleases(t *testing.T) {
+func TestMatchAsset_LearnedReleaseNeverClosesOnOlderReleases(t *testing.T) {
 	learn26(t)
 	named := nvdWindows("CVE-2026-96951", "2026-10-20", nvdRow{"windows_11_26h1", "*", "x64", "10.0.28000.3231"}) // NVD names 26H1 somewhere
 	// CVE-2025-62215 lists only the 26100 line and older; CISA listed it a year before winNow (settled) and 90 days before 26H1's GA (shipped)
@@ -60,9 +60,9 @@ func TestMatchAsset_D603_LearnedReleaseNeverClosesOnOlderReleases(t *testing.T) 
 	wantMatch(t, "26H1, only older releases listed", w, m, "nameonly", "", "", "Vedette learned Windows 11 26H1 from Microsoft's release list")
 }
 
-// Review r1 L4 of #951, D-602: a build below a learned release's first public build (a Dev Channel 26300 before 9457, a Canary 28000.1)
+// #951: a build below a learned release's first public build (a Dev Channel 26300 before 9457, a Canary 28000.1)
 // is an Insider build: not checked, neither by its own rows nor by its siblings'.
-func TestMatchAsset_D603_BelowFirstPublicBuildIsNotChecked(t *testing.T) {
+func TestMatchAsset_BelowFirstPublicBuildIsNotChecked(t *testing.T) {
 	learn26(t)
 	nov := nvdWindows("CVE-2026-96951", "2026-10-20",
 		nvdRow{"windows_11_24h2", "*", "x64", "10.0.26100.9711"}, nvdRow{"windows_11_26h2", "*", "x64", "10.0.26300.9711"},
@@ -79,7 +79,7 @@ func TestMatchAsset_D603_BelowFirstPublicBuildIsNotChecked(t *testing.T) {
 
 // Review r1 L3 of #951: 26H1 is newer by build than 25H2 but on another line, not its successor: no "check that 25H2 is still
 // supported" note; still not checked.
-func TestMatchAsset_D603_OtherLineIsNoSuccessor(t *testing.T) {
+func TestMatchAsset_OtherLineIsNoSuccessor(t *testing.T) {
 	learn26(t)
 	v := nvdWindows("CVE-2026-90001", "2026-10-20", nvdRow{"windows_11_23h2", "*", "x64", "10.0.22631.7652"}, nvdRow{"windows_11_26h1", "*", "x64", "10.0.28000.3231"})
 	w, m := oneMatch(t, winPC(26200, false, "9711", "x64"), v, false)
@@ -88,9 +88,9 @@ func TestMatchAsset_D603_OtherLineIsNoSuccessor(t *testing.T) {
 	}
 }
 
-// D-603: a build neither the table nor Microsoft's list has (a Canary Insider build below the newest release) stays "could not be
+// A build neither the table nor Microsoft's list has (a Canary Insider build below the newest release) stays "could not be
 // checked", and says it is not a release Vedette knows: Microsoft publishes no fixed builds for Insider builds.
-func TestMatchAsset_D603_InsiderBuildStaysUnchecked(t *testing.T) {
+func TestMatchAsset_InsiderBuildStaysUnchecked(t *testing.T) {
 	learn26(t)
 	a := desktop55()
 	a.OS = "Microsoft Windows 11 Pro 10.0.27950.1000"

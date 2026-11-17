@@ -99,7 +99,7 @@ func count(t *testing.T, db *store.DB, v string) int {
 }
 
 // A request whose writer stays taken past its limit is refused with ErrBusy within the limit, nothing is written, and the
-// refusal is logged with the caller (D-246).
+// refusal is logged with the caller.
 func TestWriteRequestIsRefusedWhenTheWriterStaysBusy(t *testing.T) {
 	db, logs := openLogged(t)
 	holdWriter(t, db)
@@ -138,7 +138,7 @@ func TestWriteRequestWaitsWithinTheLimit(t *testing.T) {
 	}
 }
 
-// Jobs and other background work carry no limit: they wait for the writer on their own context, however long the hold (D-246).
+// Jobs and other background work carry no limit: they wait for the writer on their own context, however long the hold.
 func TestWriteJobsWaitOnTheirOwnContext(t *testing.T) {
 	db, _ := openLogged(t)
 	release := holdWriter(t, db)

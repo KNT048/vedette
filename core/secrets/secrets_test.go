@@ -616,7 +616,7 @@ func TestRestrictLeavesOneReader(t *testing.T) {
 }
 
 // A reserved purpose is closed to Store.Open on every Store from the moment Reserve ran, before any holder has called
-// Restrict; the holder still gets its Opener (core/pki reserves the CA purpose in an init function, D-110).
+// Restrict; the holder still gets its Opener (core/pki reserves the CA purpose in an init function).
 func TestReserveClosesAPurposeBeforeAnyHolderRestrictsIt(t *testing.T) {
 	t.Parallel()
 	s, db := newStore(t)

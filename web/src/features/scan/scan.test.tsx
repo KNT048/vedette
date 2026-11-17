@@ -11,7 +11,7 @@ import { engineStore, nextRun, runs, scannerStore, timing, zoneStore } from './m
 import { runsPoll, runsPollMs } from './api'
 import type { ScanConfig, ScanRun } from './types'
 
-// D-417: v1 does not offer the credentialed scan (no backend yet); its GUI is kept, so this file runs it as offered, and one test runs v1.
+// V1 does not offer the credentialed scan (no backend yet); its GUI is kept, so this file runs it as offered, and one test runs v1.
 const credFlag = vi.hoisted(() => ({ CREDENTIALED_IN_UI: true }))
 vi.mock('@/lib/credentialed', () => credFlag)
 
@@ -21,7 +21,7 @@ const json = (method: string, b: unknown) => ({ method, headers: { 'Content-Type
 const getRuns = async () => ((await (await fetch(`${base()}/scans/runs`)).json()) as { items: ScanRun[] }).items
 const postRun = (targets: string[]) => fetch(`${base()}/scans/runs`, json('POST', { targets }))
 
-timing.engineMs = 0 // the mock's engine is busy after Stop now only where a test says so (D-261 (4))
+timing.engineMs = 0 // the mock's engine is busy after Stop now only where a test says so
 const RUNNING_POLL_MS = runsPoll.runningMs
 runsPoll.runningMs = 1000 // the page reads every 5 s while a scan runs (#830); the tests' mock scans last 2 s
 afterEach(() => { timing.stepMs = 2000; timing.stopMs = 1000; timing.engineMs = 0; vi.useRealTimers(); localStorage.removeItem('vedette-mock-egress') })
@@ -65,7 +65,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
   })
 
-  it('D-126, D-470, D-601: chọn tay là đồng ý cho thiết bị khai tay đã bật quét mạng, mong manh, chưa phân loại và chính hộp; thiết bị "never" thì không bao giờ', async () => {
+  it('chọn tay là đồng ý cho thiết bị khai tay đã bật quét mạng, mong manh, chưa phân loại và chính hộp; thiết bị "never" thì không bao giờ', async () => {
     const { ensureBox } = await import('@/features/inventory/mocks')
     ensureBox()
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, origin: 'manual' as const } : a.id === 'a-unk01' ? { ...a, approved: true } : a)))
@@ -73,14 +73,14 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await fetch(`${base()}/inventory/devices/a-srvad`, json('PATCH', { regular_scan: 'never' }))).status).toBe(200)
     const items = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; label: string; fragile: boolean; selectable: boolean; reason: string | null }[]
     const byId = (id: string) => items.find((x) => x.id === id)!
-    // D-601 (review r1 M1): added by hand, its network scan off until a person turns it on: not even a pick; turned on, picked by hand
+    // Added by hand, its network scan off until a person turns it on: not even a pick; turned on, picked by hand
     expect(byId('a-web01')).toMatchObject({ selectable: false, reason: 'regular_scan_never' })
     expect((await fetch(`${base()}/inventory/devices/a-web01/sources`, json('PUT', { scan: 'on' }))).status).toBe(200)
     const again = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; selectable: boolean; reason: string | null }[]
     expect(again.find((x) => x.id === 'a-web01')).toMatchObject({ selectable: true, reason: null })
     expect(byId('a-nas02')).toMatchObject({ selectable: true, fragile: true })
     expect(byId('a-unk01')).toMatchObject({ selectable: true, fragile: true }) // unknown kind counts as fragile: a quarter of the speed
-    expect(byId('a-box')).toMatchObject({ selectable: true, pick_only: true, box: true, reason: null }) // D-470: a person may scan the box
+    expect(byId('a-box')).toMatchObject({ selectable: true, pick_only: true, box: true, reason: null }) // A person may scan the box
     expect(byId('a-srvad')).toMatchObject({ selectable: false, reason: 'regular_scan_never' }) // "never" set by a person is absolute
     as('u-op')
     expect((await (await postRun(['a-srvad'])).json()).error.message).toMatch(/is set to never be scanned in the inventory; change that setting first/)
@@ -174,14 +174,14 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(within(dlg).getByText('Matches, still vulnerable')).toBeInTheDocument()
     expect(within(dlg).getByText('http/cves/2022/CVE-2022-27593.yaml')).toBeInTheDocument()
     expect(within(dlg).getByRole('link', { name: 'Open finding' })).toHaveAttribute('href', '/findings/f-1')
-    // D-501: Scan now identifies first and says per device what it found or exactly why not (the NAS is fragile: gentle scan only)
+    // Scan now identifies first and says per device what it found or exactly why not (the NAS is fragile: gentle scan only)
     expect(run.identification).toEqual([expect.objectContaining({ target_id: 'a-nas02', reason: 'gentle_only', found: [] })])
     expect(within(dlg).getByRole('heading', { name: 'What each device was identified as' })).toBeInTheDocument()
     expect(within(dlg).getByText('Gentle scan only')).toBeInTheDocument()
     expect(within(dlg).getByText(/only a gentle port scan ran, without version or operating system detection/)).toBeInTheDocument()
   })
 
-  it('đã giảm thiểu rồi quét lại: không có khớp chỉ là "không báo khớp", không đổi gì ở phát hiện (D-133 (5))', async () => {
+  it('đã giảm thiểu rồi quét lại: không có khớp chỉ là "không báo khớp", không đổi gì ở phát hiện', async () => {
     timing.stepMs = 30
     findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'mitigated' as const } : f)))
     const before = findingsStore.get().find((x) => x.id === 'f-1')!.history.length
@@ -213,7 +213,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(screen.getByRole('progressbar', { name: 'Finding the device' })).not.toHaveAttribute('aria-valuenow')
     expect(screen.getByText(/Scanning WEB01|Scanning SRV-AD/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Stop now' }))
-    const stopping = await screen.findByRole('button', { name: 'Stopping…' }) // kien G1: the shared busy state
+    const stopping = await screen.findByRole('button', { name: 'Stopping…' }) // The shared busy state
     expect(stopping).toBeDisabled()
     expect(stopping).toHaveAttribute('aria-busy', 'true')
     const t0 = Date.now()
@@ -276,7 +276,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(res.status).toBe(403)
   })
 
-  it('D-126 (2): the seeded scheduled and KEV runs, and the seeded rescan matches, never touch a device that needs a hand pick', async () => {
+  it('the seeded scheduled and KEV runs, and the seeded rescan matches, never touch a device that needs a hand pick', async () => {
     renderApp('/settings/scanning?tab=history')
     await screen.findByRole('table', { name: 'History of scans' })
     const targets = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; label: string; pick_only: boolean }[]
@@ -308,14 +308,14 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     renderApp('/settings/scanning?tab=safety')
     expect(await screen.findByLabelText('From')).toHaveValue('22:00')
     expect(screen.getByLabelText('Until')).toHaveValue('05:00')
-    expect(screen.getByLabelText('Vulnerability checks on the LAN')).toHaveValue('5') // D-627: the shared block (inventory stores it)
+    expect(screen.getByLabelText('Vulnerability checks on the LAN')).toHaveValue('5') // The shared block (inventory stores it)
     expect(screen.getByLabelText('Discovery and SNMP')).toHaveValue('50')
     expect(screen.getByText('No changes, no denial of service')).toBeInTheDocument()
     expect(screen.getByText(/Never guesses passwords/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
-  it('review #860 r2 M2: the shared block sends the version it read; a save over settings changed elsewhere is refused, says so, and shows the stored values', async () => {
+  it('#860: the shared block sends the version it read; a save over settings changed elsewhere is refused, says so, and shows the stored values', async () => {
     const { inventorySettingsStore } = await import('@/features/inventory/mocks')
     const puts: Array<Record<string, unknown>> = []
     server.events.on('request:start', async ({ request }) => {
@@ -328,7 +328,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(await screen.findByText(/Someone else saved these settings/)).toBeInTheDocument()
     expect(puts[0]?.version).toEqual(expect.any(String))
     await waitFor(() => expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.40')) // the form was built again on the stored values
-    expect(screen.getByLabelText('Vulnerability checks on the LAN')).toHaveValue('2') // and keeps what was typed (#877 r1 M4)
+    expect(screen.getByLabelText('Vulnerability checks on the LAN')).toHaveValue('2') // and keeps what was typed (#877)
     await userEvent.selectOptions(screen.getByLabelText('Vulnerability checks on the LAN'), '2')
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     expect(await screen.findByText('Safety settings saved')).toBeInTheDocument()
@@ -366,7 +366,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(alert).toHaveTextContent('Enter an IP (192.168.10.10)')
   })
 
-  it('ngày trong tuần là 1 đến 7 (Thứ Hai = 1, Chủ Nhật = 7), ô chọn ngày chỉ mở khi lịch hằng tuần (D-57)', async () => {
+  it('ngày trong tuần là 1 đến 7 (Thứ Hai = 1, Chủ Nhật = 7), ô chọn ngày chỉ mở khi lịch hằng tuần', async () => {
     renderApp('/settings/scanning?tab=engines#nuclei')
     const freq = await screen.findByLabelText('Frequency')
     const day = screen.getByLabelText('Day of the week') as HTMLSelectElement
@@ -432,21 +432,21 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(new Date(nextRun(c, now)!).getDate()).toBe(6)
     expect(new Date(nextRun(c, now)!).getHours()).toBe(23)
     expect(new Date(nextRun(c, new Date(2026, 10, 6, 23, 30))!).getDate()).toBe(7)
-    expect(new Date(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 7 } }, now)!).getDay()).toBe(0) // 7 = Sunday (D-57)
+    expect(new Date(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 7 } }, now)!).getDay()).toBe(0) // 7 = Sunday
     expect(new Date(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 1 } }, now)!).getDay()).toBe(1) // 1 = Monday
     expect(nextRun({ ...c, schedule: { ...c.schedule, enabled: false } }, now)).toBeNull()
     expect(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 3 }, window: { ...c.window, days: [1] } }, now)).toBeNull()
   })
 
-  it('the first scheduled run is the next window of any window day, not the weekly weekday (W3-6)', () => {
+  it('the first scheduled run is the next window of any window day, not the weekly weekday', () => {
     const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' } }
-    const fri = new Date(2026, 10, 13, 14, 40) // the walk: Friday 13 Nov 14:40
+    const fri = new Date(2026, 10, 13, 14, 40) // Friday 13 Nov 14:40
     const first = new Date(nextRun(c, fri, true)!)
     expect([first.getDate(), first.getHours()]).toEqual([13, 23])
     expect(new Date(nextRun(c, fri, false)!).getDate()).toBe(15) // once a scheduled run happened: the weekly Sunday
   })
 
-  it('a window that crosses midnight counts by its start day: a 02:00 slot belongs to the day before (#164 review M1)', () => {
+  it('a window that crosses midnight counts by its start day: a 02:00 slot belongs to the day before (#164)', () => {
     const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'daily', weekday: 1, at: '02:00' } }
     const fri = new Date(nextRun(c, new Date(2026, 10, 20, 12, 0))!) // Friday noon: Saturday 02:00 is Friday's window
     expect([fri.getDate(), fri.getHours()]).toEqual([21, 2])
@@ -465,7 +465,7 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     await expectNoA11yViolations()
   })
 
-  it('a rescan with no match says "No match reported" in a neutral tone, never "Not affected" (D-133 (5))', async () => {
+  it('a rescan with no match says "No match reported" in a neutral tone, never "Not affected"', async () => {
     const ev = { id: 'ev-clear', ts: new Date().toISOString(), cve: 'CVE-2026-0002', product: 'Acme NAS', devices: ['nas02'], latency_min: 12, run_id: 'run-1', result: 'clear' }
     server.use(http.get('*/api/v1/scans/events', () => HttpResponse.json({ items: [ev], auto_rescan: true })))
     renderApp('/settings/scanning?tab=history')
@@ -475,7 +475,7 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     expect(within(table).queryByText('Not affected')).toBeNull()
   })
 
-  it('D-145 (7): devices that need a hand pick are named with a link to Scan now; a stopped rescan links to its run', async () => {
+  it('devices that need a hand pick are named with a link to Scan now; a stopped rescan links to its run', async () => {
     const base = { ts: new Date().toISOString(), product: 'Acme NAS', latency_min: null }
     server.use(http.get('*/api/v1/scans/events', () => HttpResponse.json({ auto_rescan: true, items: [
       { ...base, id: 'ev-pick', cve: 'CVE-2026-0003', devices: ['NAS-PHOTOS', 'CAM-03'], run_id: null, result: 'pick_only' },
@@ -494,7 +494,7 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     expect(within(dlg).getByText('You pressed Stop now.')).toBeInTheDocument()
   })
 
-  it('D-261 (2): a rescan dropped after 7 days stays in the log with the reason', async () => {
+  it('a rescan dropped after 7 days stays in the log with the reason', async () => {
     const base0 = { ts: new Date().toISOString(), product: 'Acme NAS', devices: [], latency_min: null, run_id: null }
     server.use(http.get('*/api/v1/scans/events', () => HttpResponse.json({ auto_rescan: true, items: [
       { ...base0, id: 'ev-a', cve: 'CVE-2026-0006', result: 'expired_no_template' },
@@ -510,13 +510,13 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     await expectNoA11yViolations()
   })
 
-  it('D-261 (2): the seed has a dropped event with its reason', async () => {
+  it('the seed has a dropped event with its reason', async () => {
     renderApp('/settings/scanning?tab=history')
     const table = await screen.findByRole('table', { name: 'Auto rescan event log' })
     expect(await within(table).findByText('Not scanned for 7 days: the scan template never arrived')).toBeInTheDocument()
   })
 
-  it('D-261 (3): the schedule says why nothing starts while the time zone cannot be read, not "off"', async () => {
+  it('the schedule says why nothing starts while the time zone cannot be read, not "off"', async () => {
     zoneStore.set({ readable: false })
     renderApp('/settings/scanning?tab=engines#nuclei')
     const cfg = await (await fetch(`${base()}/scans/config`)).json()
@@ -529,7 +529,7 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     expect((await (await fetch(`${base()}/scans/config`)).json()).schedule_blocked_reason).toBeNull()
   })
 
-  it('D-261 (4): after Stop now, while the scanner is still busy, Scan now is locked with the reason and a start is refused', async () => {
+  it('after Stop now, while the scanner is still busy, Scan now is locked with the reason and a start is refused', async () => {
     engineStore.set({ busyUntil: Date.now() + 60_000 })
     as('u-admin')
     expect((await (await fetch(`${base()}/scans/runs`)).json()).engine_busy).toBe(true)
@@ -595,7 +595,7 @@ const KEY = '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbm
 describe('scan: quét có tài khoản (S-SCAN-5)', () => {
   const enable = () => modulesStore.update((l) => l.map((m) => (m.id === 'scan-credentialed' ? { ...m, enabled: true } : m)))
 
-  it('v1 offers no Credentialed scan tab: the feature has no backend in this build (D-417, walk-1 W1-36)', async () => {
+  it('v1 offers no Credentialed scan tab: the feature has no backend in this build', async () => {
     credFlag.CREDENTIALED_IN_UI = false
     try {
       enable()
@@ -622,7 +622,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     await expectNoA11yViolations()
   })
 
-  it('a device whose type acts as server (a virtual machine) stays an SSH candidate (D-511)', async () => {
+  it('a device whose type acts as server (a virtual machine) stays an SSH candidate', async () => {
     enable()
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, kind: 'virtual_machine' } : a)))
     renderApp('/settings/scanning?tab=credentialed')

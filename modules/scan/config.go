@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Window is when scheduled scans may run (INV-5). Days are ISO weekdays, 1 = Monday ... 7 = Sunday (D-57 (9)).
+// Window is when scheduled scans may run (INV-5). Days are ISO weekdays, 1 = Monday ... 7 = Sunday.
 type Window struct {
 	Days []int  `json:"days"`
 	From string `json:"from"`
@@ -187,8 +187,8 @@ func isoDay(t time.Time) int {
 }
 
 // NextRun is the next scheduled run after now in loc, or nil when the schedule is off (POST-3; the mock's nextRun):
-// the first slot within two weeks that slotOK accepts. first is true while no scheduled run has ever started (firstPending,
-// W3-9): the first run is then the next window day at the schedule time, whatever the weekday of a weekly schedule (W3-6).
+// the first slot within two weeks that slotOK accepts. first is true while no scheduled run has ever started (firstPending):
+// the first run is then the next window day at the schedule time, whatever the weekday of a weekly schedule.
 func (c Settings) NextRun(now time.Time, loc *time.Location, first bool) *time.Time {
 	if !c.Schedule.Enabled || !hhmmRE.MatchString(c.Schedule.At) {
 		return nil
@@ -208,7 +208,7 @@ func (c Settings) NextRun(now time.Time, loc *time.Location, first bool) *time.T
 // a window day, and a weekly schedule runs on its weekday (the slot's own calendar day). A window that crosses
 // midnight counts by its start day (the GUI's words), so a slot after midnight belongs to the window of the day
 // before: Monday 02:00 is in Sunday's 22:00 to 05:00 window (#164 review M1). The first scheduled run of a box (first) runs in
-// the next window of any window day, so a new box with the weekly default does not wait up to a week for it (W3-6, D-504); the
+// the next window of any window day, so a new box with the weekly default does not wait up to a week for it; the
 // weekday counts from the second run on.
 func (c Settings) slotOK(slot time.Time, first bool) bool {
 	// The window is shared with discovery since #850 and saved on its own (PUT /scanning/safety): a schedule time it no longer holds

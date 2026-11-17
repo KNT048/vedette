@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// D-116 (4): every decoder of a request is fuzzed. The property is the same for all: no panic, and whatever is accepted is
+// Every decoder of a request is fuzzed. The property is the same for all: no panic, and whatever is accepted is
 // within the bounds the spec gives.
 
 func FuzzDecodeObservations(f *testing.F) {

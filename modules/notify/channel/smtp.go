@@ -32,12 +32,12 @@ const (
 )
 
 // EmailConfig configures the email channel (also used for two-step sign-in
-// codes, D-35). The server is the customer's own SMTP relay (PRIVACY flow 5).
+// codes). The server is the customer's own SMTP relay (PRIVACY flow 5).
 type EmailConfig struct {
 	Host     string // domain name or IPv4 address
 	Port     int    // 587 goes with starttls, 465 with ssl
 	Security string // starttls | ssl | none
-	Provider string // the preset of the email dialog (D-449, EmailAuth); "" = custom
+	Provider string // the preset of the email dialog (EmailAuth); "" = custom
 	Username string // required unless Security is none; with OAuth2 the mailbox to send as; unused for Postmark
 	// Password is the secret: the password, app password or API key; the Microsoft 365 client secret; the Google service account
 	// key file (JSON). Required unless Security is none.
@@ -49,18 +49,18 @@ type EmailConfig struct {
 	HTTPClient *http.Client
 	// Tokens is the OAuth2 token cache shared by the senders of one service; nil = this sender's own.
 	Tokens *TokenCache
-	// SaveSecret keeps a rotated refresh token of a user sign-in (D-480): old and next are the whole channel secret. nil = memory only.
+	// SaveSecret keeps a rotated refresh token of a user sign-in: old and next are the whole channel secret. nil = memory only.
 	SaveSecret func(ctx context.Context, old, next secrets.Value) error
 	From       string         // sender address
 	To         []string       // recipients, at least one; see ParseRecipients
 	RootCAs    *x509.CertPool // nil = system roots; tests add their own CA
 	Now        func() time.Time
 	// BoxAddrsFunc lists the machine's addresses, asked at save and at every connection: the server is never on Vedette's own ports
-	// there (D-446), as for a webhook. known=false refuses Vedette's own ports on every address and nothing more (loopback, link-local,
+	// there, as for a webhook. known=false refuses Vedette's own ports on every address and nothing more (loopback, link-local,
 	// multicast and unspecified are refused all the same): the email channel also carries the two-step sign-in codes, which must not
 	// stop while the host has not answered (#157).
 	BoxAddrsFunc func() (addrs []netip.Addr, known bool)
-	// SelfAddrsFunc lists more addresses that are Vedette itself (the honeypot's decoys): refused on every port (D-446). nil: none.
+	// SelfAddrsFunc lists more addresses that are Vedette itself (the honeypot's decoys): refused on every port. nil: none.
 	SelfAddrsFunc func() []netip.Addr
 	// AllowLoopback is for tests only (the fake SMTP servers of the notify and cmd/vedette tests listen on 127.0.0.1); production
 	// code never sets it: core never runs on the host network, so loopback is core itself.
@@ -84,7 +84,7 @@ type emailSender struct {
 	box    func() ([]netip.Addr, bool) // EmailConfig.BoxAddrsFunc; unknown refuses only Vedette's ports (ownAddr), never the whole channel
 	auth   string                      // EmailAuth of the provider
 	mu     sync.Mutex                  // guards grant
-	grant  userGrant                   // a user sign-in's refresh token, rotated in place (D-480)
+	grant  userGrant                   // a user sign-in's refresh token, rotated in place
 	gkey   googleKey                   // the parsed Google key (AuthGoogle)
 	client *http.Client                // token requests
 	tokens *TokenCache
@@ -123,8 +123,8 @@ func badRecipient(a string) error {
 // Credentials are only ever sent after the connection is encrypted: with
 // starttls the adapter requires the STARTTLS extension and a completed
 // handshake before AUTH, with ssl the whole session is TLS. Security "none" is
-// accepted only for an internal host and then never authenticates. Sign-in
-// (D-449): AUTH PLAIN, else LOGIN, with a password; XOAUTH2, else OAUTHBEARER,
+// accepted only for an internal host and then never authenticates. Sign-in:
+// AUTH PLAIN, else LOGIN, with a password; XOAUTH2, else OAUTHBEARER,
 // with an OAuth2 token for Microsoft 365 and Google Workspace (smtpauth.go).
 func NewEmail(cfg EmailConfig) (Sender, error) {
 	cfg.Host = strings.TrimSpace(cfg.Host)
@@ -139,7 +139,7 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return nil, cfgErr("bad_port", "The SMTP port is a number from 1 to 65535 (usually 587 or 465).")
 	}
-	// The webhook's rule: Vedette itself (ownAddr, D-446: loopback, core's own container, Vedette's ports on the machine) and
+	// The webhook's rule: Vedette itself (ownAddr: loopback, core's own container, Vedette's ports on the machine) and
 	// link-local, which holds the cloud metadata service (forbiddenAddr). A name that resolves to such an address is refused when
 	// connecting (dialControl).
 	host := strings.TrimSuffix(strings.ToLower(cfg.Host), ".")
@@ -200,7 +200,7 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		grant = g
 	case auth == AuthMicrosoft || auth == AuthGoogle:
 		// The token goes only to the provider's own server: .default carries every permission of the app, so a token sent to a server
-		// the admin typed by mistake (or on purpose) is a live credential there (D-449 review).
+		// the admin typed by mistake (or on purpose) is a live credential there.
 		if want := oauthHost[cfg.Provider]; host != want {
 			return nil, cfgErr("bad_host", "This sign-in sends its token only to "+want+". Enter "+want+" as the SMTP server.")
 		}
@@ -281,7 +281,7 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	}, nil
 }
 
-// oauthHost is the only SMTP server each OAuth2 preset sends its token to (D-449 review, D-480).
+// oauthHost is the only SMTP server each OAuth2 preset sends its token to.
 var oauthHost = map[string]string{"microsoft365": "smtp.office365.com", "google-workspace": "smtp.gmail.com",
 	"microsoft365-user": "smtp.office365.com", "outlook": "smtp-mail.outlook.com", "gmail-oauth": "smtp.gmail.com"}
 

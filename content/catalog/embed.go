@@ -1,5 +1,5 @@
 // Package catalogdata embeds the data files of the product catalog, which the web interface imports too:
-// ONE data source for both sides (INV-12, D-30, D-58: knowledge about products is data, not code).
+// ONE data source for both sides (INV-12, D-58: knowledge about products is data, not code).
 //
 //   - curated.json: products small businesses use, by commercial name, in popularity order.
 //   - kev-products.json: every vendor/product pair ever in CISA KEV (CC0), made by `pnpm fixtures`. It is a
@@ -18,17 +18,17 @@ var Curated []byte
 //go:embed kev-products.json
 var KEVProducts []byte
 
-// NVDCPE is nvd-cpe.json: the NVD CPE products of an inventory vendor|product (D-500), read by findings.
+// NVDCPE is nvd-cpe.json: the NVD CPE products of an inventory vendor|product, read by findings.
 //
 //go:embed nvd-cpe.json
 var NVDCPE []byte
 
-// NmapCPE maps a CPE nmap -sV prints to the NVD CPE products of the same software (W11-2; cmd/vedette exposurematch.go).
+// NmapCPE maps a CPE nmap -sV prints to the NVD CPE products of the same software (cmd/vedette exposurematch.go).
 //
 //go:embed nmap-cpe.json
 var NmapCPE []byte
 
-// PlatformLimits is platform-limits.json: exploited CVEs that affect a product only on some platforms (D-547), read by findings.
+// PlatformLimits is platform-limits.json: exploited CVEs that affect a product only on some platforms, read by findings.
 //
 //go:embed platform-limits.json
 var PlatformLimits []byte

@@ -8,10 +8,10 @@ import (
 	"testing"
 )
 
-// D-93 (1), core INV-23: only core/conn/internal/cred names the secret purpose of a connection credential and holds its opener.
+// Core INV-23: only core/conn/internal/cred names the secret purpose of a connection credential and holds its opener.
 // Go's internal rule alone stops nobody from calling secrets.Store.Open with the purpose, so the purpose is restricted in
 // core/secrets (conn.New) and this scan fails when another non-test source names it or touches the restriction. Like the scan of
-// the host contract (D-87), it walks the source tree: every directory with Go files (core, modules, cmd, host, internal,
+// the host contract, it walks the source tree: every directory with Go files (core, modules, cmd, host, internal,
 // content, scripts, tools, whatever is added), not a list that a new top-level directory could be missing from.
 //
 // core/pki holds a restricted purpose of its own (core_sensor_ca, core INV-24), so its two files are exempt from the two needles
@@ -22,7 +22,7 @@ func TestOnlyCredNamesTheCredentialPurpose(t *testing.T) {
 	credOrSecrets := func(rel string) bool {
 		return strings.HasPrefix(rel, "core/conn/internal/cred/") || strings.HasPrefix(rel, "core/secrets/")
 	}
-	// The two CAs hold an opener of their own purpose (D-110, D-351), never the credential purpose.
+	// The two CAs hold an opener of their own purpose, never the credential purpose.
 	pkiOwn := func(rel string) bool {
 		return rel == "core/pki/ca.go" || rel == "core/pki/authority.go" || rel == "cmd/vedette/boxca.go"
 	}

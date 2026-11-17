@@ -22,7 +22,7 @@ const (
 func readDoc(p string) ([]byte, error) { return readSmall(p, int64(maxDoc)) }
 
 // LoadTrust reads the public keys from dir (minisign.pub, minisign-backup.pub, cosign.pub: the files `minisign -G` and
-// `cosign generate-key-pair` write). An empty dir means the keys compiled into this build: the real release keys (D-256)
+// `cosign generate-key-pair` write). An empty dir means the keys compiled into this build: the real release keys
 // in a normal build, the throwaway ones with the releasetestkeys tag; a build whose keys do not validate refuses.
 func LoadTrust(dir string) (release.Trust, error) {
 	if dir == "" {
@@ -79,14 +79,14 @@ func verifyIndexFile(dir string, trust release.Trust, stored *release.Index) (*r
 // Signing slots: which key signs, and where the signatures go.
 const (
 	slotActive = "active" // the active key: indexes and the manifest, into <file>.minisig
-	slotBackup = "backup" // the offline backup key (D-103): indexes only, into <file>.backup.minisig, which only verify reads
-	// slotRescue is the backup key signing a rescue release after the active key leaked (D-258, D-259): indexes and the manifest,
+	slotBackup = "backup" // the offline backup key: indexes only, into <file>.backup.minisig, which only verify reads
+	// slotRescue is the backup key signing a rescue release after the active key leaked: indexes and the manifest,
 	// into <file>.minisig, the one signature a box downloads. Only SignRescue uses it, with the checks a rescue needs.
 	slotRescue = "rescue"
 )
 
 // SignRelease signs the documents of dir with s for slot: index.json and any index.v<N>.json always, and release-manifest.json
-// when there is one (a weekly refresh of the index, D-150, has none) except in the backup slot. It returns the signature files
+// when there is one (a weekly refresh of the index, has none) except in the backup slot. It returns the signature files
 // written. When anything fails, every signature written in this run is removed: a directory holds either all the signatures of
 // the run or none of them.
 func SignRelease(ctx context.Context, s Signer, dir, slot string) (written []string, err error) {
@@ -122,10 +122,10 @@ func SignRelease(ctx context.Context, s Signer, dir, slot string) (written []str
 		case !errors.Is(err, os.ErrNotExist):
 			return nil, err
 		case slot == slotRescue:
-			return nil, errors.New("a rescue release brings boxes the binary with the new active key: run release manifest first (D-259)")
+			return nil, errors.New("a rescue release brings boxes the binary with the new active key: run release manifest first")
 		}
 	}
-	var assetTC map[string]string // the container-only assets (D-451), signed like the manifest and never by the backup slot
+	var assetTC map[string]string // the container-only assets, signed like the manifest and never by the backup slot
 	if slot != slotBackup {
 		var assets []string
 		if assets, assetTC, err = containerAssetsToSign(dir); err != nil {
@@ -165,7 +165,7 @@ func SignRelease(ctx context.Context, s Signer, dir, slot string) (written []str
 	return written, nil
 }
 
-// SignRescue signs a rescue release (D-258, D-259) with s, which must hold the backup key, for the boxes that embed trust (the keys
+// SignRescue signs a rescue release with s, which must hold the backup key, for the boxes that embed trust (the keys
 // before the leak), on top of prevDir, the last index published before the rescue. Before signing: the index of dir revokes
 // trust.Active, and prevDir does not revoke it yet (one rescue per leaked key: a box that comes late downloads the same published
 // files). After signing, VerifyDir must report a rescue, which also proves s held the backup key; otherwise every signature of the
@@ -180,7 +180,7 @@ func SignRescue(ctx context.Context, s Signer, dir, prevDir string, trust releas
 	}
 	active := trust.Active.KeyID()
 	if prev.KeyRevoked(active) {
-		return nil, fmt.Errorf("the published index already revokes %s: that rescue happened; a second one for the same key is refused (D-259)", active)
+		return nil, fmt.Errorf("the published index already revokes %s: that rescue happened; a second one for the same key is refused", active)
 	}
 	raw, err := readDoc(filepath.Join(dir, indexFile))
 	if err != nil {
@@ -193,7 +193,7 @@ func SignRescue(ctx context.Context, s Signer, dir, prevDir string, trust releas
 		return nil, fmt.Errorf("%s: %w", indexFile, err)
 	}
 	if !slices.ContainsFunc(x.Revoked, func(r release.Revocation) bool { return r.Kind == release.KindKey && r.ID == active }) {
-		return nil, fmt.Errorf("the rescue index must revoke the active key %s of these keys: build it with release index -revoke-key (D-259)", active)
+		return nil, fmt.Errorf("the rescue index must revoke the active key %s of these keys: build it with release index -revoke-key", active)
 	}
 	if written, err = SignRelease(ctx, s, dir, slotRescue); err != nil {
 		return nil, err
@@ -240,9 +240,9 @@ type Summary struct {
 	Images     []string // service@digest, each cosign signature verified
 	BackupSig  bool     // the backup key's index signature was present and verified
 	IndexOnly  bool     // no manifest in the directory: a refresh of the index
-	Rescue     bool     // the backup key signed the index and the manifest, and the index revokes the active key (D-259)
+	Rescue     bool     // the backup key signed the index and the manifest, and the index revokes the active key
 	// ContainerAssets: the manifest lists install mode container and the four files of the container-only install are here,
-	// signed by the manifest's key, vedette.env naming the manifest's digests (D-451).
+	// signed by the manifest's key, vedette.env naming the manifest's digests.
 	ContainerAssets bool
 }
 
@@ -255,7 +255,7 @@ var legacyVerifiers = map[int]func(raw, sig []byte, trust release.Trust) error{}
 // with the keys of trust. stored is the published index the box holds now (prevDir, verified first): the new index must not go
 // back in sequence, and a channel that stays at the same version must keep the same manifest. Then the manifest (signature,
 // revocation, refs), its hash in the index, the index's latest for its channel, and every image's cosign signature against its
-// digest. A directory without a manifest is a refresh of the index (D-150): the index is checked against stored, the channels
+// digest. A directory without a manifest is a refresh of the index: the index is checked against stored, the channels
 // must be unchanged apart from the sequence and dates, and nothing else exists to check.
 func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 	var stored *release.Index
@@ -328,13 +328,13 @@ func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 	switch m.KeyID {
 	case trust.Active.KeyID():
 	case trust.Backup.KeyID():
-		// A rescue (D-258, D-259): only for boxes whose active key the backup key has revoked. trust must be the keys those boxes
+		// A rescue: only for boxes whose active key the backup key has revoked. trust must be the keys those boxes
 		// embed (-keys-dir), not the new build's: for a box with the new key the backup key has no business signing a release.
 		if idx.KeyID != trust.Backup.KeyID() || !idx.KeyRevoked(trust.Active.KeyID()) {
 			return nil, fmt.Errorf("the manifest is signed by the backup key, which signs only a rescue: the index must also be signed by the backup key and revoke the active key %s of these keys (verify a rescue with -keys-dir holding the keys the installed boxes trust)", trust.Active.KeyID())
 		}
 		if stored != nil && stored.KeyRevoked(trust.Active.KeyID()) {
-			return nil, fmt.Errorf("the published index already revokes %s: the rescue for that key happened, and the backup key does not sign another release (D-259)", trust.Active.KeyID())
+			return nil, fmt.Errorf("the published index already revokes %s: the rescue for that key happened, and the backup key does not sign another release", trust.Active.KeyID())
 		}
 		s.Rescue = true
 	default:
@@ -371,7 +371,7 @@ func verifyLegacyIndexes(dir string, trust release.Trust) error {
 		}
 		verify, ok := legacyVerifiers[schema]
 		if !ok {
-			return fmt.Errorf("%s is a legacy index (D-108) and this build has no verifier for schema %d: do not publish a file nobody verified", filepath.Base(n), schema)
+			return fmt.Errorf("%s is a legacy index and this build has no verifier for schema %d: do not publish a file nobody verified", filepath.Base(n), schema)
 		}
 		raw, sig, err := readSigned(n)
 		if err != nil {

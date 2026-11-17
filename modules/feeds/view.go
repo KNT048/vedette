@@ -50,7 +50,7 @@ type vulnDTO struct {
 	EPSS7dAgo      *float64 `json:"epss_7d_ago"`
 	HasTemplate    bool     `json:"has_template"`
 	Display        string   `json:"display"`
-	Source         string   `json:"source"` // "cisa-kev", "vulncheck-kev" or the id of a custom feed (D-557)
+	Source         string   `json:"source"` // "cisa-kev", "vulncheck-kev" or the id of a custom feed
 }
 
 func toVulnDTO(v VulnRow) vulnDTO {
@@ -99,7 +99,7 @@ func toFeedDTO(r sourceRow) feedDTO {
 		Auth: feedAuthDTO{Type: string(r.Auth), HeaderName: r.HeaderName, Username: r.Username, SecretLast4: r.SecretLast4}}
 	if r.Builtin {
 		d.Parser = nil
-		if !isBYOK(r.ID) { // a BYOK feed shows its key's last four characters, like a custom feed (D-557)
+		if !isBYOK(r.ID) { // a BYOK feed shows its key's last four characters, like a custom feed
 			d.Auth = feedAuthDTO{Type: string(AuthNone)}
 		}
 	}

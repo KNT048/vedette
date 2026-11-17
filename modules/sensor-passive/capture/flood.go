@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// What core applies to everything a sensor sends (D-111 (2), SYS-6): the same book and the same numbers as the capture
+// What core applies to everything a sensor sends (SYS-6): the same book and the same numbers as the capture
 // process uses for itself, without the two-frame confirmation (the capture already asked for it). A sensor that has been taken
 // over passes its own book, not this one.
 
@@ -27,7 +27,7 @@ const (
 func Printable(s string) bool { return printable(s) }
 
 // kindCap is the kinds a parser of this package emits and the highest confidence any of them gives to each (INV-5): LLDP says
-// ap, switch and router at 0.6, and iot for its Telephone bit at 0.6 (D-501), mDNS says printer at 0.5 and iot at 0.3, SSDP says
+// ap, switch and router at 0.6, and iot for its Telephone bit at 0.6, mDNS says printer at 0.5 and iot at 0.3, SSDP says
 // router at 0.5. Nothing else is a passive kind.
 var kindCap = map[string]float64{"ap": ConfLLDPKind, "switch": ConfLLDPKind, "router": ConfLLDPKind, "printer": ConfMDNSKind, "iot": ConfLLDPKind}
 
@@ -54,7 +54,7 @@ func MaxConfidence(f observe.Field, value string) (limit float64, ok bool) {
 }
 
 // idName is a host name that is only an identifier: a UUID or 32 hex digits. macOS answers mDNS for its services under such names
-// ("6a3d1565-2a3d-4d87-afe3-9e59546c8acc.local", N100 n69, about 15 on one MacBook); they name no machine, and each new one pushes the
+// ("6a3d1565-2a3d-4d87-afe3-9e59546c8acc.local", about 15 on one MacBook); they name no machine, and each new one pushes the
 // machine's real name further down the inventory's 32-row history of the field.
 var idName = regexp.MustCompile(`^(?i:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32})$`)
 

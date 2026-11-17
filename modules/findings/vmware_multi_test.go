@@ -12,17 +12,17 @@ import (
 	"github.com/knt048/vedette/core/audit"
 )
 
-// walk3VMware is the Windows device of customer walk 3 (W3-7): VMware Tools 13.0.10 as the agent maps it (pkgmap
+// vmwareToolsPC is a Windows test device: VMware Tools 13.0.10 as the agent maps it (pkgmap
 // "vmware tools" → VMware|Tools).
-func walk3VMware() Asset {
+func vmwareToolsPC() Asset {
 	return Asset{ID: "a-win", Name: "win11", OS: "Microsoft Windows 11 Pro", Software: []Software{
 		{ID: "s-tools", Display: "VMware Tools", Vendor: "VMware", Product: "Tools", Version: "13.0.10", KevKeys: []string{"vmware|tools"}},
 	}}
 }
 
-var walk3Multi = []string{"CVE-2020-3950", "CVE-2020-4006", "CVE-2022-22960"} // CISA "VMware | Multiple Products"
+var vmwareMultiCVEs = []string{"CVE-2020-3950", "CVE-2020-4006", "CVE-2022-22960"} // CISA "VMware | Multiple Products"
 
-// openProductFindings gives the device the old open findings of cves the way the matcher made them before D-500: suspected,
+// openProductFindings gives the device the old open findings of cves the way an older matcher made them: suspected,
 // basis product, high.
 func openProductFindings(t *testing.T, e *env, a Asset, vulns []Vuln, cves []string) {
 	t.Helper()
@@ -33,7 +33,7 @@ func openProductFindings(t *testing.T, e *env, a Asset, vulns []Vuln, cves []str
 			guess = append(guess, v)
 		}
 	}
-	if got := seedNameOnly(t, e, a, guess); len(got) != len(cves) { // D-602: the matcher no longer makes them
+	if got := seedNameOnly(t, e, a, guess); len(got) != len(cves) { // The matcher no longer makes them
 		t.Fatalf("setup: %v", got)
 	}
 	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
@@ -44,22 +44,22 @@ func openProductFindings(t *testing.T, e *env, a Asset, vulns []Vuln, cves []str
 	}
 }
 
-// W3-7, D-505, D-506: VMware Tools 13.0.10 gets nothing from the three "VMware Multiple Products" entries, whose real NVD
+// VMware Tools 13.0.10 gets nothing from the three "VMware Multiple Products" entries, whose real NVD
 // lists name Fusion, Horizon Client, Remote Console, Identity Manager, Workspace ONE Access, Cloud Foundation… but not
-// Tools. The entries are years old in KEV, so NVD's list is settled (D-506): the old open product findings the retired
+// Tools. The entries are years old in KEV, so NVD's list is settled: the old open product findings the retired
 // vendor-wide rule made close by themselves at the first reconcile pass. A "Multiple Products" entry added 100 days ago
-// keeps D-505 (open, medium, the note); a version finding and one a person reopened are never closed.
+// keeps its finding (open, medium, the note); a version finding and one a person reopened are never closed.
 func TestGolden_VMwareToolsMultipleProducts(t *testing.T) {
 	t.Parallel()
 	vulns := goldenVulns(t)
-	dev := walk3VMware()
+	dev := vmwareToolsPC()
 	if r := MatchAsset(dev, vulns, nil, t0); len(r.New) != 0 || len(r.NeedVersion)+len(r.Unlisted)+len(r.Retired) != 0 {
 		t.Fatalf("VMware Tools 13.0.10: %+v", r)
 	}
 	// Three more entries with the real NVD list of CVE-2020-3950 (ids made up): one CISA added 100 days ago, one whose
 	// finding is basis version, one a person closed and reopened.
 	const recent, version, reopened = "CVE-2026-0001", "CVE-2021-0002", "CVE-2021-0003"
-	idx := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == walk3Multi[0] })
+	idx := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == vmwareMultiCVEs[0] })
 	for _, x := range []struct {
 		cve   string
 		added time.Time
@@ -68,7 +68,7 @@ func TestGolden_VMwareToolsMultipleProducts(t *testing.T) {
 		v.CVE, v.DateAdded = x.cve, x.added
 		vulns = append(vulns, v)
 	}
-	all := append(slices.Clone(walk3Multi), recent, version, reopened)
+	all := append(slices.Clone(vmwareMultiCVEs), recent, version, reopened)
 	have := map[string]bool{}
 	for _, c := range all {
 		have[c] = true
@@ -103,11 +103,11 @@ func TestGolden_VMwareToolsMultipleProducts(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, a := range []Action{ActionNotRelevant, ActionReopen} {
-		if _, err := e.svc.SetStatus(t.Context(), f.ID, a, "checked by hand", "kien@example.test"); err != nil {
+		if _, err := e.svc.SetStatus(t.Context(), f.ID, a, "checked by hand", "anna@example.test"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// The N100 already said "no longer matches" in the generic words (no NVD data at the time) and closed nothing.
+	// A test box already said "no longer matches" in the generic words (no NVD data at the time) and closed nothing.
 	var noNVD []Vuln
 	for _, v := range vulns {
 		if slices.Contains(all, v.CVE) {
@@ -133,7 +133,7 @@ func TestGolden_VMwareToolsMultipleProducts(t *testing.T) {
 			t.Fatalf("pass %d: %+v %v", pass, res, err)
 		}
 	}
-	if l := logged.String(); !strings.Contains(l, "findings: closed (D-506)") || !strings.Contains(l, "count=3") ||
+	if l := logged.String(); !strings.Contains(l, "findings: closed") || !strings.Contains(l, "count=3") ||
 		strings.Count(l, "findings: reconcile pass done") != 2 || !strings.Contains(l, "closed_multiple_products=3") {
 		t.Errorf("log:\n%s", logged.String())
 	}
@@ -183,11 +183,11 @@ func TestGolden_VMwareToolsMultipleProducts(t *testing.T) {
 	}
 }
 
-// D-506: only when NVD names none of the device's software of the vendor. A device that also has Fusion, which NVD names
-// for CVE-2020-3950 and whose version is outside its range, keeps the D-505 behaviour: Tools is unlisted, nothing retires.
+// Only when NVD names none of the device's software of the vendor. A device that also has Fusion, which NVD names
+// for CVE-2020-3950 and whose version is outside its range, keeps the earlier behaviour: Tools is unlisted, nothing retires.
 func TestMultipleProducts_RetiresOnlyWhenNoSoftwareIsNamed(t *testing.T) {
 	t.Parallel()
-	dev := walk3VMware()
+	dev := vmwareToolsPC()
 	dev.Software = append(dev.Software, Software{ID: "s-fusion", Display: "VMware Fusion", Vendor: "VMware", Product: "Fusion", Version: "12.0.0", KevKeys: []string{"vmware|fusion"}})
 	multi := Vuln{CVE: "CVE-2020-3950", Vendor: "VMware", Product: "Multiple Products", DateAdded: t0.AddDate(-5, 0, 0), Affected: []Affected{
 		{CPE: "cpe:2.3:a:vmware:fusion:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "11.0.0", EndExcl: "11.5.2"}}}}
@@ -196,12 +196,12 @@ func TestMultipleProducts_RetiresOnlyWhenNoSoftwareIsNamed(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 	multi.DateAdded = time.Time{} // a date Vedette could not read is never settled
-	if r := MatchAsset(walk3VMware(), []Vuln{multi}, map[string]bool{multi.CVE: true}, t0); len(r.Unlisted) != 1 || len(r.Retired) != 0 {
+	if r := MatchAsset(vmwareToolsPC(), []Vuln{multi}, map[string]bool{multi.CVE: true}, t0); len(r.Unlisted) != 1 || len(r.Retired) != 0 {
 		t.Fatalf("no date: %+v", r)
 	}
 }
 
-// D-505, review L4 of #671: a "Multiple Products" entry with an NVD entry Vedette cannot tie to a product (vendor or
+// A "Multiple Products" entry with an NVD entry Vedette cannot tie to a product (vendor or
 // product ANY, or not a CPE) may be about the software: a product finding (medium), never a proof, never "unlisted".
 func TestMultipleProducts_UnreadableEntryIsNoProof(t *testing.T) {
 	t.Parallel()
@@ -209,21 +209,21 @@ func TestMultipleProducts_UnreadableEntryIsNoProof(t *testing.T) {
 	for _, odd := range []string{"cpe:2.3:a:vmware:*:*:*:*:*:*:*:*:*", "not a cpe"} {
 		multi := Vuln{CVE: "CVE-2020-3950", Vendor: "VMware", Product: "Multiple Products", Affected: []Affected{
 			{CPE: "cpe:2.3:a:vmware:fusion:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "11.0.0", EndExcl: "11.5.2"}}, {CPE: odd}}}
-		r := MatchAsset(walk3VMware(), []Vuln{tools, multi}, map[string]bool{multi.CVE: true}, t0)
-		if len(r.NotAffected)+len(r.Unlisted)+len(r.Existing) != 0 || len(r.NameOnly) != 1 || r.NameOnly[0].Basis != BasisProduct || r.NameOnly[0].Severity != SeverityMedium { // D-602: no finding, no proof
+		r := MatchAsset(vmwareToolsPC(), []Vuln{tools, multi}, map[string]bool{multi.CVE: true}, t0)
+		if len(r.NotAffected)+len(r.Unlisted)+len(r.Existing) != 0 || len(r.NameOnly) != 1 || r.NameOnly[0].Basis != BasisProduct || r.NameOnly[0].Severity != SeverityMedium { // No finding, no proof
 			t.Errorf("%q: %+v", odd, r)
 		}
 	}
 }
 
-// W3-8: the box (Ubuntu 26.04, software from the host's dpkg, D-470) is judged by its OS like an agent host: CVE-2021-3493
+// The box (Ubuntu 26.04, software from the host's dpkg) is judged by its OS like an agent host: CVE-2021-3493
 // lists only Ubuntu releases before 20.10, so it gives no finding and the old product finding closes. Without an OS (the
-// cause on the N100) the same kernel stays a product finding.
+// cause on a test box) the same kernel stays a product finding.
 func TestGolden_BoxOSRulesOutOverlayFS(t *testing.T) {
 	t.Parallel()
 	vulns := goldenVulns(t)
 	const cve = "CVE-2021-3493"
-	box := Asset{ID: "a-box", Name: "boxkien", OS: "Ubuntu 26.04", Software: []Software{agentPkg("Linux", "Kernel", "7.0.0")}}
+	box := Asset{ID: "a-box", Name: "boxanna", OS: "Ubuntu 26.04", Software: []Software{agentPkg("Linux", "Kernel", "7.0.0")}}
 	r := MatchAsset(box, vulns, map[string]bool{cve: true}, t0)
 	if slices.ContainsFunc(append(r.New, r.Existing...), func(m Match) bool { return m.CVE == cve }) {
 		t.Fatalf("%s on Ubuntu 26.04: %+v", cve, r)
@@ -232,7 +232,7 @@ func TestGolden_BoxOSRulesOutOverlayFS(t *testing.T) {
 		t.Fatalf("%s not proved: %+v", cve, r.NotAffected)
 	}
 	box.OS = ""
-	if r := MatchAsset(box, vulns, nil, t0); !slices.ContainsFunc(r.NameOnly, func(m Match) bool { return m.CVE == cve && m.Basis == BasisProduct }) { // D-602: no finding
+	if r := MatchAsset(box, vulns, nil, t0); !slices.ContainsFunc(r.NameOnly, func(m Match) bool { return m.CVE == cve && m.Basis == BasisProduct }) { // No finding
 		t.Fatalf("without an OS: %+v", r.NameOnly)
 	}
 }

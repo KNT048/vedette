@@ -1,4 +1,4 @@
-// AI harness (D-39, S-AI-7): bảng mock và bộ máy hook. Hook là kiểm tra chạy trước/sau mỗi lần gọi AI.
+// AI harness (S-AI-7): bảng mock và bộ máy hook. Hook là kiểm tra chạy trước/sau mỗi lần gọi AI.
 // Bộ máy ở đây thuần (không đụng store) để test trực tiếp; mocks gọi nó cho "Ask your data".
 import { collection, newId } from '@/mocks/db'
 import type { AiJob, BuiltinHook, BuiltinRule, CustomHook, HookAction, HookHit, HookInput, HookWhen, KnowledgeDoc, MemoryEntry, MemorySuggestion, Rule, Skill } from './types'

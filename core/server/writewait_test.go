@@ -29,7 +29,7 @@ func (h writingHandler) FeedsDeleteFeedsCustomID(ctx context.Context, _ oas.Feed
 }
 
 // While a long transaction holds the writer, a request that needs it is answered 503 server_busy with Retry-After within
-// store.RequestWriteWait, never a 500 and never a hang (D-246, issue #251).
+// store.RequestWriteWait, never a 500 and never a hang (issue #251).
 func TestRequestGets503WhenTheWriterStaysBusy(t *testing.T) {
 	t.Parallel()
 	db := storetest.New(t)

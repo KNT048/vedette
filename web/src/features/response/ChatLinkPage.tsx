@@ -1,4 +1,4 @@
-// /link/telegram?c=… and /link/zalo?c=… (S-RESP-2, D-414, D-447): the confirm link the box sends to an approver's chat account. Whoever
+// /link/telegram?c=… and /link/zalo?c=… (S-RESP-2): the confirm link the box sends to an approver's chat account. Whoever
 // opens it must be signed in as the Vedette user it names; only the Confirm button (a POST with the CSRF token) links, opening the page
 // never does. The token and the proof belong to this module (POST /response/me/identities/{channel}/confirm), which refuses another
 // signed-in person without spending the link. One page for every confirm-link channel: the channel is the last part of the path.
@@ -32,7 +32,7 @@ export default function ChatLinkPage() {
   const confirm = useMutation({ mutationFn: () => api.post<Identity>(`/response/me/identities/${channel}/confirm`, { code: token }),
     onSettled: () => { void qc.invalidateQueries({ queryKey: ['response'] }) } })
   const [done, setDone] = useState<Identity | null>(null)
-  const frozen = useLeaving() // D-624 (N-L3): AI response on but not offered: no new approver link
+  const frozen = useLeaving() // N-L3: AI response on but not offered: no new approver link
   const row = ids.data?.items.find((r) => r.channel === channel)
   const name = t(`chatLink.name.${kind}`)
   // The ID first and plain: a name is free text an administrator typed, the ID is what Vedette will trust.

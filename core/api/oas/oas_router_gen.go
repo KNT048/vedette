@@ -11276,7 +11276,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "POST":
 									r.name = CorePostAuthLoginOperation
-									r.summary = "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired (D-180)"
+									r.summary = "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired"
 									r.operationID = "core_post_auth_login"
 									r.operationGroup = ""
 									r.pathPattern = "/auth/login"
@@ -11367,7 +11367,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "POST":
 									r.name = CorePostAuthOidcCallbackOperation
-									r.summary = "Finish an SSO sign-in (D-194, D-195): the page posts the code and state from /sso/callback with its binding; the box exchanges the code, checks the ID token and signs the person in like a password sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403 email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable"
+									r.summary = "Finish an SSO sign-in: the page posts the code and state from /sso/callback with its binding; the box exchanges the code, checks the ID token and signs the person in like a password sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403 email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable"
 									r.operationID = "core_post_auth_oidc_callback"
 									r.operationGroup = ""
 									r.pathPattern = "/auth/oidc/callback"
@@ -11392,7 +11392,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "POST":
 									r.name = CorePostAuthOidcStartOperation
-									r.summary = "Start an SSO sign-in (D-194): returns the identity provider address to open, with state, nonce and a PKCE challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not set up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited"
+									r.summary = "Start an SSO sign-in: returns the identity provider address to open, with state, nonce and a PKCE challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not set up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited"
 									r.operationID = "core_post_auth_oidc_start"
 									r.operationGroup = ""
 									r.pathPattern = "/auth/oidc/start"
@@ -11591,7 +11591,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											switch method {
 											case "POST":
 												r.name = CorePostCoreAccount2FAEmailStartOperation
-												r.summary = "Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes; needs the current password, D-76)"
+												r.summary = "Email code: send a 6-digit code to my own sign-in email (409 when the email channel is not ready or two-step is already on; same limits as sign-in codes; needs the current password)"
 												r.operationID = "core_post_core_account_2fa_email_start"
 												r.operationGroup = ""
 												r.pathPattern = "/core/account/2fa/email/start"
@@ -11618,7 +11618,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = CorePostCoreAccount2FAStartOperation
-											r.summary = "Authenticator app: create a TOTP key waiting for confirmation (needs the current password, D-76; wrong password 400 wrong_password, counted like a failed sign-in)"
+											r.summary = "Authenticator app: create a TOTP key waiting for confirmation (needs the current password; wrong password 400 wrong_password, counted like a failed sign-in)"
 											r.operationID = "core_post_core_account_2fa_start"
 											r.operationGroup = ""
 											r.pathPattern = "/core/account/2fa/start"
@@ -11645,7 +11645,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = CorePostCoreAccountPasswordOperation
-										r.summary = "Change password (needs the current password). The same call ends the temporary-password limit of D-180: the new password must differ from the temporary one"
+										r.summary = "Change password (needs the current password). The same call ends the temporary-password limit: the new password must differ from the temporary one"
 										r.operationID = "core_post_core_account_password"
 										r.operationGroup = ""
 										r.pathPattern = "/core/account/password"
@@ -11971,7 +11971,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = CoreGetCoreDataBackupsOperation
-									r.summary = "Backups the operating system helper keeps on this box (D-377); 409 not_appliance on a container-only install"
+									r.summary = "Backups the operating system helper keeps on this box; 409 not_appliance on a container-only install"
 									r.operationID = "core_get_core_data_backups"
 									r.operationGroup = ""
 									r.pathPattern = "/core/data/backups"
@@ -12023,7 +12023,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "POST":
 								r.name = CorePostCoreDataKeyOperation
-								r.summary = "Download the decryption key once, to keep apart from the backups (D-518): without it a backup restores on another box with its saved secrets and two-step sign-in lost. The current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code), as for the purge; audited (data.key_download). The 32 bytes of vedette.key, never logged"
+								r.summary = "Download the decryption key once, to keep apart from the backups: without it a backup restores on another box with its saved secrets and two-step sign-in lost. The current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code), as for the purge; audited (data.key_download). The 32 bytes of vedette.key, never logged"
 								r.operationID = "core_post_core_data_key"
 								r.operationGroup = ""
 								r.pathPattern = "/core/data/key"
@@ -12048,7 +12048,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "POST":
 								r.name = CorePostCoreDataPurgeOperation
-								r.summary = "Delete all data back to a fresh install and replace the decryption key (D-154). Needs the exact organization name (400 confirm_mismatch), the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code). 409 busy while a host run, an update or another purge runs; 502 host_unreachable when the configured helper does not answer, its socket missing included (nothing is deleted); 412 transition_pending; 500 backups_already_deleted when the purge fails after the helper deleted its backups (the data on the box is still there). kept lists what was not done or not touched (host_backups: this box is configured without a helper, so there were no helper backups to delete; honeypot_log: the raw log of the honeypot belongs to its container and stays; key_not_replaced: the new key could not be written, replace vedette.key by hand)"
+								r.summary = "Delete all data back to a fresh install and replace the decryption key. Needs the exact organization name (400 confirm_mismatch), the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code). 409 busy while a host run, an update or another purge runs; 502 host_unreachable when the configured helper does not answer, its socket missing included (nothing is deleted); 412 transition_pending; 500 backups_already_deleted when the purge fails after the helper deleted its backups (the data on the box is still there). kept lists what was not done or not touched (host_backups: this box is configured without a helper, so there were no helper backups to delete; honeypot_log: the raw log of the honeypot belongs to its container and stays; key_not_replaced: the new key could not be written, replace vedette.key by hand)"
 								r.operationID = "core_post_core_data_purge"
 								r.operationGroup = ""
 								r.pathPattern = "/core/data/purge"
@@ -12072,7 +12072,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "POST":
 								r.name = CorePostCoreDataRestoreOperation
-								r.summary = "Restore a backup kept on this box (D-377): core first takes a copy of the current data, kept as a pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409 confirm_required without confirm_data_loss: true; 404 backup_unknown; then the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code), as for the purge; 409 busy, low_disk, schema_newer, not_appliance; 412 secrets_missing; 502 checksum_mismatch"
+								r.summary = "Restore a backup kept on this box: core first takes a copy of the current data, kept as a pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409 confirm_required without confirm_data_loss: true; 404 backup_unknown; then the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code), as for the purge; 409 busy, low_disk, schema_newer, not_appliance; 412 secrets_missing; 502 checksum_mismatch"
 								r.operationID = "core_post_core_data_restore"
 								r.operationGroup = ""
 								r.pathPattern = "/core/data/restore"
@@ -12184,7 +12184,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = CoreGetCoreMcpOperation
-							r.summary = "MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the mcp-server module: turn it on and off with PATCH /modules/mcp-server (D-230); while it is off every /core/mcp path answers 404"
+							r.summary = "MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the mcp-server module: turn it on and off with PATCH /modules/mcp-server; while it is off every /core/mcp path answers 404"
 							r.operationID = "core_get_core_mcp"
 							r.operationGroup = ""
 							r.pathPattern = "/core/mcp"
@@ -12306,7 +12306,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "PUT":
 									r.name = CorePutCoreNetworkBoxAddressOperation
-									r.summary = "Box address (D-465): the host name or IPv4 address the LAN reaches the box at, used by every link the box makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a path or anything that is not a host name or IPv4 address. The box re-issues its own certificate with it"
+									r.summary = "Box address: the host name or IPv4 address the LAN reaches the box at, used by every link the box makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a path or anything that is not a host name or IPv4 address. The box re-issues its own certificate with it"
 									r.operationID = "core_put_core_network_box_address"
 									r.operationGroup = ""
 									r.pathPattern = "/core/network/box-address"
@@ -12331,7 +12331,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = CorePostCoreNetworkBoxAddressForgetOperation
-										r.summary = "Stop answering to an earlier Box address (D-465): it leaves the Host allowlist at once and the certificate at its next re-issue. 404 not_found when the box does not answer to it"
+										r.summary = "Stop answering to an earlier Box address: it leaves the Host allowlist at once and the certificate at its next re-issue. 404 not_found when the box does not answer to it"
 										r.operationID = "core_post_core_network_box_address_forget"
 										r.operationGroup = ""
 										r.pathPattern = "/core/network/box-address/forget"
@@ -12646,7 +12646,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "POST":
 							r.name = CorePostCoreSetupOperation
-							r.summary = "First-run setup: create the organization and administrator, choose a module bundle, or use sample data. A bundle leaves out the modules this install cannot run (available false, D-381); naming one under custom gives 409 not_appliance"
+							r.summary = "First-run setup: create the organization and administrator, choose a module bundle, or use sample data. A bundle leaves out the modules this install cannot run (available false); naming one under custom gives 409 not_appliance"
 							r.operationID = "core_post_core_setup"
 							r.operationGroup = ""
 							r.pathPattern = "/core/setup"
@@ -12683,7 +12683,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = CoreGetCoreSetupModulesOperation
-									r.summary = "Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run (D-381)"
+									r.summary = "Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run"
 									r.operationID = "core_get_core_setup_modules"
 									r.operationGroup = ""
 									r.pathPattern = "/core/setup/modules"
@@ -12716,7 +12716,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									return r, true
 								case "POST":
 									r.name = CorePostCoreSetupRestoreOperation
-									r.summary = "First-run restore, step 2 (D-518): restore the uploaded backup as the box's data, with the setup code. With key (the key file downloaded from Settings -> Data, base64) the saved secrets and two-step sign-in come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of the backup's secrets 400 wrong_key, before anything changes. Without key, a backup that holds secrets needs confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload is gone (older than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for a restore"
+									r.summary = "First-run restore, step 2: restore the uploaded backup as the box's data, with the setup code. With key (the key file downloaded from Settings -> Data, base64) the saved secrets and two-step sign-in come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of the backup's secrets 400 wrong_key, before anything changes. Without key, a backup that holds secrets needs confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload is gone (older than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for a restore"
 									r.operationID = "core_post_core_setup_restore"
 									r.operationGroup = ""
 									r.pathPattern = "/core/setup/restore"
@@ -12741,7 +12741,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = CorePostCoreSetupRestoreUploadOperation
-										r.summary = "First-run restore, step 1 (D-518): upload a backup downloaded from Settings -> Data (the .tar.gz as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB"
+										r.summary = "First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB"
 										r.operationID = "core_post_core_setup_restore_upload"
 										r.operationGroup = ""
 										r.pathPattern = "/core/setup/restore/upload"
@@ -12772,7 +12772,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = CoreGetCoreTermsOperation
-							r.summary = "The terms of use this box ships and who accepted them, when and which version (D-544); the text is TERMS.md, which the interface carries"
+							r.summary = "The terms of use this box ships and who accepted them, when and which version; the text is TERMS.md, which the interface carries"
 							r.operationID = "core_get_core_terms"
 							r.operationGroup = ""
 							r.pathPattern = "/core/terms"
@@ -13163,7 +13163,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								return r, true
 							case "POST":
 								r.name = CorePostCoreUsersOperation
-								r.summary = "Create a user with a role; returns a temporary password once. The user must change it at first sign-in and it expires after 72 hours (D-180)"
+								r.summary = "Create a user with a role; returns a temporary password once. The user must change it at first sign-in and it expires after 72 hours"
 								r.operationID = "core_post_core_users"
 								r.operationGroup = ""
 								r.pathPattern = "/core/users"
@@ -13258,7 +13258,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = CorePostCoreUsersIDResetPasswordOperation
-											r.summary = "Reset password: temporary password once (changed at first sign-in, expires after 72 hours, D-180), ends all of that user's sessions"
+											r.summary = "Reset password: temporary password once (changed at first sign-in, expires after 72 hours), ends all of that user's sessions"
 											r.operationID = "core_post_core_users_id_reset_password"
 											r.operationGroup = ""
 											r.pathPattern = "/core/users/{id}/reset-password"
@@ -13403,7 +13403,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = ExposureGetExposureGreenboneOperation
-							r.summary = "The optional deep scan with OpenVAS (Greenbone Community Edition, D-563, D-568): its state and this box's memory and free disk against the thresholds. Reading may ask OpenVAS whether it is ready; it never starts a scan"
+							r.summary = "The optional deep scan with OpenVAS (Greenbone Community Edition): its state and this box's memory and free disk against the thresholds. Reading may ask OpenVAS whether it is ready; it never starts a scan"
 							r.operationID = "exposure_get_exposure_greenbone"
 							r.operationGroup = ""
 							r.pathPattern = "/exposure/greenbone"
@@ -13412,7 +13412,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return r, true
 						case "PUT":
 							r.name = ExposurePutExposureGreenboneOperation
-							r.summary = "Turn the optional deep scan with OpenVAS on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 6 GB of memory (D-569) or 60 GB free; else OpenVAS starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when OpenVAS is not available on this box. A scan uses it only on a target whose testing terms are accepted (D-566). Audited"
+							r.summary = "Turn the optional deep scan with OpenVAS on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 6 GB of memory or 60 GB free; else OpenVAS starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when OpenVAS is not available on this box. A scan uses it only on a target whose testing terms are accepted. Audited"
 							r.operationID = "exposure_put_exposure_greenbone"
 							r.operationGroup = ""
 							r.pathPattern = "/exposure/greenbone"
@@ -13600,7 +13600,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "GET":
 										r.name = ExposureGetExposureTargetsIDOutsideOperation
-										r.summary = "What the Internet sees (D-558): the last answer of Shodan InternetDB about this public IP of the box, with the open ports of Vedette's own newest scan of it; null when nobody has asked yet. Reading sends nothing"
+										r.summary = "What the Internet sees: the last answer of Shodan InternetDB about this public IP of the box, with the open ports of Vedette's own newest scan of it; null when nobody has asked yet. Reading sends nothing"
 										r.operationID = "exposure_get_exposure_targets_id_outside"
 										r.operationGroup = ""
 										r.pathPattern = "/exposure/targets/{id}/outside"
@@ -13609,7 +13609,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return r, true
 									case "POST":
 										r.name = ExposurePostExposureTargetsIDOutsideOperation
-										r.summary = "Ask Shodan InternetDB what it has seen on this public IP (D-558). Only an administrator's click sends it: no job, no polling. Only a public IP of this box that is verified and still the one the box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain, 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of https://internetdb.shodan.io/<ip>, nothing else sent; 404 there is a normal answer (found false). At most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited"
+										r.summary = "Ask Shodan InternetDB what it has seen on this public IP. Only an administrator's click sends it: no job, no polling. Only a public IP of this box that is verified and still the one the box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain, 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of https://internetdb.shodan.io/<ip>, nothing else sent; 404 there is a normal answer (found false). At most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited"
 										r.operationID = "exposure_post_exposure_targets_id_outside"
 										r.operationGroup = ""
 										r.pathPattern = "/exposure/targets/{id}/outside"
@@ -13646,7 +13646,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = ExposurePostExposureTargetsIDScanOperation
-											r.summary = "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence (D-559) is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (D-229, D-57 (7); it follows this module's switch, so the Vulnerability scans module may be off): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only the box's own address is scanned beyond that. 409 module_off while the External exposure module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited"
+											r.summary = "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (it follows this module's switch, so the Vulnerability scans module may be off): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only the box's own address is scanned beyond that. 409 module_off while the External exposure module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited"
 											r.operationID = "exposure_post_exposure_targets_id_scan"
 											r.operationGroup = ""
 											r.pathPattern = "/exposure/targets/{id}/scan"
@@ -13733,7 +13733,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "DELETE":
 										r.name = ExposureDeleteExposureTargetsIDTermsOperation
-										r.summary = "Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the K-4 scope again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason). Audited (exposure.terms_revoke) when there was an acceptance"
+										r.summary = "Withdraw the testing terms of a target: always possible; the next scan runs in the scope of the Scan now sentence again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason). Audited (exposure.terms_revoke) when there was an acceptance"
 										r.operationID = "exposure_delete_exposure_targets_id_terms"
 										r.operationGroup = ""
 										r.pathPattern = "/exposure/targets/{id}/terms"
@@ -13742,7 +13742,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return r, true
 									case "PUT":
 										r.name = ExposurePutExposureTargetsIDTermsOperation
-										r.summary = "Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)"
+										r.summary = "Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)"
 										r.operationID = "exposure_put_exposure_targets_id_terms"
 										r.operationGroup = ""
 										r.pathPattern = "/exposure/targets/{id}/terms"
@@ -14356,7 +14356,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = FindingsGetFindingsToFixOperation
-									r.summary = "To fix (kien G8): every device that needs an update or an action, the most urgent first, each with its actions in plain sentences (findings.DeviceUpdates), at most 500 devices"
+									r.summary = "To fix: every device that needs an update or an action, the most urgent first, each with its actions in plain sentences (findings.DeviceUpdates), at most 500 devices"
 									r.operationID = "findings_get_findings_to_fix"
 									r.operationGroup = ""
 									r.pathPattern = "/findings/to-fix"
@@ -14697,7 +14697,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									return r, true
 								case "POST":
 									r.name = HoneypotPostHoneypotTokensOperation
-									r.summary = "Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468)"
+									r.summary = "Create a honey token (decoy file, fake credentials or URL); a DNS token is refused"
 									r.operationID = "honeypot_post_honeypot_tokens"
 									r.operationGroup = ""
 									r.pathPattern = "/honeypot/tokens"
@@ -15594,7 +15594,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = InventoryPostInventoryDevicesIDIgnoreOperation
-											r.summary = "Ignore a device that needs no watching, such as a staff phone, or stop ignoring it (D-630). Ignored: it stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its open findings close as not relevant (\"Closed by Vedette: the device was ignored by <person>.\", no notice; findings a person settled keep their status); a trap hit or an intrusion-detection incident from it still alerts. Stopped: it goes back to To review (not approved), its own scan and SNMP settings apply again (they are kept while it is ignored), the findings Ignore closed reopen, matched again. Saying it again changes nothing. 404 not_found. 409 box_device: the Vedette box itself"
+											r.summary = "Ignore a device that needs no watching, such as a staff phone, or stop ignoring it. Ignored: it stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its open findings close as not relevant (\"Closed by Vedette: the device was ignored by <person>.\", no notice; findings a person settled keep their status); a trap hit or an intrusion-detection incident from it still alerts. Stopped: it goes back to To review (not approved), its own scan and SNMP settings apply again (they are kept while it is ignored), the findings Ignore closed reopen, matched again. Saying it again changes nothing. 404 not_found. 409 box_device: the Vedette box itself"
 											r.operationID = "inventory_post_inventory_devices_id_ignore"
 											r.operationGroup = ""
 											r.pathPattern = "/inventory/devices/{id}/ignore"
@@ -15619,7 +15619,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = InventoryPostInventoryDevicesIDKeepSeparateOperation
-											r.summary = "Two machines: the pair is never offered as possibly the same device again, until either is deleted or merged (D-599). Saying it again changes nothing. 400 invalid, 404 not_found, 409 box_device as for merge"
+											r.summary = "Two machines: the pair is never offered as possibly the same device again, until either is deleted or merged. Saying it again changes nothing. 400 invalid, 404 not_found, 409 box_device as for merge"
 											r.operationID = "inventory_post_inventory_devices_id_keep_separate"
 											r.operationGroup = ""
 											r.pathPattern = "/inventory/devices/{id}/keep-separate"
@@ -15644,7 +15644,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = InventoryPostInventoryDevicesIDMergeOperation
-											r.summary = "The same machine: device `from` joins this device and is gone (D-599). This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines"
+											r.summary = "The same machine: device `from` joins this device and is gone. This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines"
 											r.operationID = "inventory_post_inventory_devices_id_merge"
 											r.operationGroup = ""
 											r.pathPattern = "/inventory/devices/{id}/merge"
@@ -15762,7 +15762,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												switch method {
 												case "PUT":
 													r.name = InventoryPutInventoryDevicesIDSourcesOperation
-													r.summary = "Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person's consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device (D-630)"
+													r.summary = "Turn the network scan or the SNMP reads of one device on or off. On is the person's consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device"
 													r.operationID = "inventory_put_inventory_devices_id_sources"
 													r.operationGroup = ""
 													r.pathPattern = "/inventory/devices/{id}/sources"
@@ -15923,7 +15923,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = InventoryGetInventoryPossibleSameOperation
-								r.summary = "Every pair of devices that may be the same machine, for a person to merge or keep separate (D-599)"
+								r.summary = "Every pair of devices that may be the same machine, for a person to merge or keep separate"
 								r.operationID = "inventory_get_inventory_possible_same"
 								r.operationGroup = ""
 								r.pathPattern = "/inventory/possible-same"
@@ -16005,7 +16005,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "PATCH":
 											r.name = InventoryPatchInventorySensorsIDOperation
-											r.summary = "Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or without an address; null: back to the default card) and whether it is the SPAN card (D-387, D-393). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it"
+											r.summary = "Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or without an address; null: back to the default card) and whether it is the SPAN card. 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it"
 											r.operationID = "inventory_patch_inventory_sensors_id"
 											r.operationGroup = ""
 											r.pathPattern = "/inventory/sensors/{id}"
@@ -16553,7 +16553,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "PATCH":
 								r.name = CorePatchModulesIDOperation
-								r.summary = "Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies; turning on a module this install cannot run (available false) gives 409 not_appliance (D-381)"
+								r.summary = "Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies; turning on a module this install cannot run (available false) gives 409 not_appliance"
 								r.operationID = "core_patch_modules_id"
 								r.operationGroup = ""
 								r.pathPattern = "/modules/{id}"
@@ -16615,7 +16615,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = NotifyGetNotifyAlertsIDTargetOperation
-								r.summary = "Old alert link: the incident or the finding it became (D-52)"
+								r.summary = "Old alert link: the incident or the finding it became"
 								r.operationID = "notify_get_notify_alerts_id_target"
 								r.operationGroup = ""
 								r.pathPattern = "/notify/alerts/{id}/target"
@@ -16736,7 +16736,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "POST":
 							r.name = NotifyPostNotifyEmailSigninOperation
-							r.summary = "Start a user sign-in for the email channel (D-480): a Microsoft device code, or a Google consent address to open and paste back"
+							r.summary = "Start a user sign-in for the email channel: a Microsoft device code, or a Google consent address to open and paste back"
 							r.operationID = "notify_post_notify_email_signin"
 							r.operationGroup = ""
 							r.pathPattern = "/notify/email-signin"
@@ -17055,7 +17055,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = NotifyGetNotifyTelegramApproversOperation
-								r.summary = "Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed in as themself (linked); box_account is always false (D-414)"
+								r.summary = "Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed in as themself (linked); box_account is always false"
 								r.operationID = "notify_get_notify_telegram_approvers"
 								r.operationGroup = ""
 								r.pathPattern = "/notify/telegram/approvers"
@@ -17101,7 +17101,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = NotifyPostNotifyTelegramApproversUserIDCodeOperation
-										r.summary = "Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the link in the approval chat asks them to press Start (D-414)"
+										r.summary = "Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the link in the approval chat asks them to press Start"
 										r.operationID = "notify_post_notify_telegram_approvers_user_id_code"
 										r.operationGroup = ""
 										r.pathPattern = "/notify/telegram/approvers/{user_id}/code"
@@ -17130,7 +17130,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "POST":
 								r.name = NotifyPostNotifyTelegramChatsOperation
-								r.summary = "Find the chats a Telegram bot has seen, for the Chat ID picker (D-491): the token in the body, or the saved one when empty; asks Telegram once without confirming any update. 400 bad_token (not valid), 409 telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed"
+								r.summary = "Find the chats a Telegram bot has seen, for the Chat ID picker: the token in the body, or the saved one when empty; asks Telegram once without confirming any update. 400 bad_token (not valid), 409 telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed"
 								r.operationID = "notify_post_notify_telegram_chats"
 								r.operationGroup = ""
 								r.pathPattern = "/notify/telegram/chats"
@@ -17901,7 +17901,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = ResponsePostResponseAiProposalsOperation
-											r.summary = "Preview build only (D-97): on a real box the AI sends its requests inside the process and this route answers 404. The gates it applies: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)"
+											r.summary = "Preview build only: on a real box the AI sends its requests inside the process and this route answers 404. The gates it applies: allowed trigger, action flagged for AI, real evidence, confidence of 0.8 or more, one open request per target and action, 7 days after a rejection, hourly and daily budget, quality breaker, second checker for high risk. 201 when an approval request was created, 200 for a suggestion note or a digest (the generated file documents 200)"
 											r.operationID = "response_post_response_ai_proposals"
 											r.operationGroup = ""
 											r.pathPattern = "/response/ai/proposals"
@@ -18177,7 +18177,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = ResponseGetResponseCatalogOperation
-								r.summary = "Action catalog in plain words: template packs from the library (data, D-58), generic actions and custom ones; connections with their kind and whether they can write"
+								r.summary = "Action catalog in plain words: template packs from the library (data), generic actions and custom ones; connections with their kind and whether they can write"
 								r.operationID = "response_get_response_catalog"
 								r.operationGroup = ""
 								r.pathPattern = "/response/catalog"
@@ -18353,7 +18353,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = ResponseGetResponseIncidentsIDOperation
-								r.summary = "Respond to an incident (D-509): its source address and device, LAN or public, and the actions that can really be asked for it, each with why it is not ready"
+								r.summary = "Respond to an incident: its source address and device, LAN or public, and the actions that can really be asked for it, each with why it is not ready"
 								r.operationID = "response_get_response_incidents_id"
 								r.operationGroup = ""
 								r.pathPattern = "/response/incidents/{id}"
@@ -18378,7 +18378,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "POST":
 									r.name = ResponsePostResponseIncidentsIDRequestOperation
-									r.summary = "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, a request is already open, the incident is resolved (incident_resolved) or the source of a scan may be forged (source_unconfirmed)"
+									r.summary = "Ask for approval of one offered action on the incident's source. The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, a request is already open, the incident is resolved (incident_resolved) or the source of a scan may be forged (source_unconfirmed)"
 									r.operationID = "response_post_response_incidents_id_request"
 									r.operationGroup = ""
 									r.pathPattern = "/response/incidents/{id}/request"
@@ -18441,7 +18441,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = ResponseGetResponseMeIdentitiesOperation
-									r.summary = "My approver identities: each approval channel whose approver list names me, with the address, whether I linked it myself and how to link it (D-191)"
+									r.summary = "My approver identities: each approval channel whose approver list names me, with the address, whether I linked it myself and how to link it"
 									r.operationID = "response_get_response_me_identities"
 									r.operationGroup = ""
 									r.pathPattern = "/response/me/identities"
@@ -18511,7 +18511,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											switch method {
 											case "POST":
 												r.name = ResponsePostResponseMeIdentitiesChannelCodeOperation
-												r.summary = "Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email). Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (D-414; sent_to names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour"
+												r.summary = "Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email). Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (sent_to names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour"
 												r.operationID = "response_post_response_me_identities_channel_code"
 												r.operationGroup = ""
 												r.pathPattern = "/response/me/identities/{channel}/code"
@@ -19118,7 +19118,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "GET":
 										r.name = ScanningGetScanningHistoryOperation
-										r.summary = "Every run of the LAN engines (discovery sweeps, device identifications, SNMP reads) and every stored scan of a public target, newest first, at most 200, with its outcome in words (kien G7a). The vulnerability checks keep their own list (GET /scans/runs). Answers whether or not the Vulnerability scans module is on"
+										r.summary = "Every run of the LAN engines (discovery sweeps, device identifications, SNMP reads) and every stored scan of a public target, newest first, at most 200, with its outcome in words. The vulnerability checks keep their own list (GET /scans/runs). Answers whether or not the Vulnerability scans module is on"
 										r.operationID = "scanning_get_scanning_history"
 										r.operationGroup = ""
 										r.pathPattern = "/scanning/history"

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-// D-28: sản phẩm chỉ có tiếng Anh. Không còn thư mục vi; không chuỗi nào trong en có dấu tiếng Việt.
+// Sản phẩm chỉ có tiếng Anh. Không còn thư mục vi; không chuỗi nào trong en có dấu tiếng Việt.
 const en = import.meta.glob<{ default: Record<string, unknown> }>('../locales/en/*.json', { eager: true })
 const vi = import.meta.glob('../locales/vi/*.json')
 const VI = /[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i
@@ -10,7 +10,7 @@ function strings(o: unknown, p = ''): [string, string][] {
   return []
 }
 
-describe('i18n (D-28: English only)', () => {
+describe('i18n (English only)', () => {
   it('no Vietnamese locale files remain', () => {
     expect(Object.keys(vi)).toEqual([])
   })

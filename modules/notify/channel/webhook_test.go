@@ -74,13 +74,13 @@ func TestContract_INV8_WebhookSchemeRules(t *testing.T) {
 		"https://[::]/x":              "blocked_host",
 		"https://224.0.0.251/x":       "blocked_host",
 		"https://[ff02::1]/x":         "blocked_host",
-		"https://192.168.10.2:8443/x": "blocked_host", // Vedette's own port on the machine (D-446)
+		"https://192.168.10.2:8443/x": "blocked_host", // Vedette's own port on the machine
 		"https://192.168.10.2:9000/x": "",             // another program on the machine
 		"https://2130706433/x":        "bad_url",      // 127.0.0.1 spelled as one number
 		"https://0x7f.1/x":            "bad_url",
 		"https://127.1/x":             "bad_url",
 		// The same classes over plain http (loopback stays allowed there).
-		// A forbidden target is named as such before the http rule (walk 3 G13): metadata gets the precise sentence.
+		// A forbidden target is named as such before the http rule: metadata gets the precise sentence.
 		"http://169.254.169.254/latest": "blocked_host",
 		"http://169.254.1.1/x":          "blocked_host",
 		"http://0.0.0.0/x":              "blocked_host",

@@ -22,11 +22,11 @@ import (
 
 // ErrPlanUnavailable is what a Planner answers when the AI cannot be used now (no usable profile, or this month's AI budget is used up).
 // The run stops: nothing is wrong here, nothing was spent, and a used-up budget is not quiet: the ai module puts it on Home and sends it
-// to the alert channels (D-531).
+// to the alert channels.
 var ErrPlanUnavailable = errors.New("response: the AI cannot make plans now")
 
 const (
-	maxPlansPerRun  = 3               // plans asked for in one run of the job: a backlog is worked off over several runs, never in one burst of tokens; with planEvery this is the job's burst fuse, not a quota (D-531: no daily cap of its own, the monthly AI budget is the limit)
+	maxPlansPerRun  = 3               // plans asked for in one run of the job: a backlog is worked off over several runs, never in one burst of tokens; with planEvery this is the job's burst fuse, not a quota (no daily cap of its own, the monthly AI budget is the limit)
 	planEvery       = 5 * time.Minute // how often the job looks
 	maxPlanSteps    = 6               // steps in a plan
 	maxPlanActions  = 3               // steps of a plan that carry a proposal
@@ -45,7 +45,7 @@ type DraftParam struct{ Name, Value string }
 
 // DraftStep is one step the AI drafted. ActionID and Params are empty for a step that only advises. Nothing else about a proposal comes
 // from the AI: no command, no path, no body, no undo time. Confidence (0 to 1) and Evidence (ids of reads the box made, listed to the
-// AI) are used only when the proposal is sent through Propose (D-310); they are not stored with the plan (INV-14e).
+// AI) are used only when the proposal is sent through Propose; they are not stored with the plan (INV-14e).
 type DraftStep struct {
 	Kind, Title, Detail string // Kind is contain, check or patch
 	ActionID            string
@@ -60,7 +60,7 @@ type PlanAsk struct {
 	Actions []AIAction
 }
 
-// PlanDraft is the AI's answer: the steps, and the model and profile that wrote them (shown on the plan, D-175 L6).
+// PlanDraft is the AI's answer: the steps, and the model and profile that wrote them (shown on the plan).
 type PlanDraft struct {
 	Model, Profile string
 	Steps          []DraftStep
@@ -69,7 +69,7 @@ type PlanDraft struct {
 // Planner is the ai module as this module needs it (cmd/vedette adapts ai.Service.RunJob for the job response-plan). Available is false
 // while the ai module is off or no profile is assigned and allowed for the job; then the job asks nothing. Plan answers ErrPlanUnavailable
 // when the AI cannot be used after all. Proposed is told what the job sent through Propose for a stored plan and what came of it, for
-// the activity log of the ai module (D-312); it is not called when nothing was sent. A nil Planner means no plan is ever written;
+// the activity log of the ai module; it is not called when nothing was sent. A nil Planner means no plan is ever written;
 // everything else in this module works.
 type Planner interface {
 	Available(ctx context.Context) bool
@@ -97,7 +97,7 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 	}
 	ran := s.ts()
 	status := PlannerStatus{RanAt: &ran, Findings: []PlannerFinding{}}
-	defer func() { s.keepStatus(status) }() // what this run did, for GET /response/plans (D-513); read-only
+	defer func() { s.keepStatus(status) }() // what this run did, for GET /response/plans; read-only
 	if !s.aiAvailable(ctx) {
 		status.Blocked = PlannerNoAI
 		return 0, nil
@@ -111,8 +111,7 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 	// The proposals of a new plan are also sent as AI requests when the admin lets the AI send requests for the finding trigger and the
-	// execution switch is on (off by default, INV-7): with it off, no request could run, and a person's RequestProposal is refused too
-	// (D-314).
+	// execution switch is on (off by default, INV-7): with it off, no request could run, and a person's RequestProposal is refused too.
 	send := st.Execution && slices.Contains(st.AI.Triggers, "finding")
 	status.Sending = send
 	targets, err := s.cfg.Critical(ctx)
@@ -225,8 +224,8 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 	return saved, nil
 }
 
-// offeredFor is the actions offered for one target: the block list action only when the device's address is one the list can publish
-// (D-469). A plan for a LAN device that proposed it would be refused whole (not_publishable), cost the plan and back the finding off.
+// offeredFor is the actions offered for one target: the block list action only when the device's address is one the list can publish.
+// A plan for a LAN device that proposed it would be refused whole (not_publishable), cost the plan and back the finding off.
 func offeredFor(actions []AIAction, t PlanTarget) []AIAction {
 	a, err := netip.ParseAddr(t.AssetIP)
 	if err == nil && publishable(a) {
@@ -235,7 +234,7 @@ func offeredFor(actions []AIAction, t PlanTarget) []AIAction {
 	return slices.DeleteFunc(slices.Clone(actions), func(x AIAction) bool { return x.ID == "blocklist_add" })
 }
 
-// sendPlan sends each proposal of a plan just stored through Propose, as the AI (ai:response, D-310): the trigger is the finding, the
+// sendPlan sends each proposal of a plan just stored through Propose, as the AI (ai:response): the trigger is the finding, the
 // evidence is the finding and the reads the AI cited (citedReads), the confidence is the AI's. Every gate of INV-15 runs there, so a
 // refusal is logged by Propose and is the end of it: nothing is retried. Only an error that is not a refusal (the database) stops the
 // run. The settings are read again first: the switch may have been turned off while the AI was writing the plan.
@@ -244,7 +243,7 @@ func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps
 	if err != nil {
 		return nil, "", err
 	}
-	// The second string is why nothing was sent, for the planner status (D-513).
+	// The second string is why nothing was sent, for the planner status.
 	if checkAIPaused(st) != nil {
 		return nil, "The plan was stored, but AI proposals were paused (quality breaker) while the AI wrote it, so nothing was sent. An administrator resumes them in the Log tab; ask for approval from the plan meanwhile.", nil
 	}
@@ -252,7 +251,7 @@ func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps
 		return nil, "The plan was stored, but sending was turned off while the AI wrote it.", nil
 	}
 	var sent []SentProposal
-	var notes []sentNote // for the planner status (D-513): the outcome and the box's sentence about it
+	var notes []sentNote // for the planner status: the outcome and the box's sentence about it
 	for i, step := range steps {
 		if step.Proposal == nil {
 			continue
@@ -283,7 +282,7 @@ func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps
 	return notes, "", nil
 }
 
-// citedReads keeps, of the reads the AI cited for a proposal, those the box recorded through the connection of that action (D-313):
+// citedReads keeps, of the reads the AI cited for a proposal, those the box recorded through the connection of that action:
 // a read of another connection could not count and would only look like support to the people who approve, and an id the box has no
 // record of would refuse a proposal the finding alone may carry. For a high-risk action no read is kept: a read is not about the
 // target, so it must not make the second check (two pieces of evidence about the target, INV-15 (9)) out of one finding and any
@@ -305,7 +304,7 @@ func (s *Service) citedReads(ctx context.Context, ids []string, offered []AIActi
 
 // planBackoff is how long a finding waits after its 1st, 2nd and 3rd failed or refused plan; after the 4th it is not asked again.
 // ponytail: the counters live in memory, so a restart starts them again (the monthly AI budget and the runaway fuse of the ai module
-// bound what that can cost, D-531); a table is the upgrade if restarts turn out to be frequent.
+// bound what that can cost); a table is the upgrade if restarts turn out to be frequent.
 // planEvidenceRE is the form of the id of a read the AI cites (the ai module's ids); Propose looks every one up again.
 var planEvidenceRE = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,96}$`)
 
@@ -471,7 +470,7 @@ func (s *Service) checkDraft(t PlanTarget, d PlanDraft, cats map[string]catRow, 
 	return out, ""
 }
 
-// aboutTheDevice is the evidence gate of Propose (INV-15 (3), D-119) for a plan, made stricter because nothing but the inventory ties a value
+// aboutTheDevice is the evidence gate of Propose (INV-15 (3)) for a plan, made stricter because nothing but the inventory ties a value
 // to the device: EVERY value of the action must be the address of the device the finding is on, nothing else. A name is not accepted
 // (names are self-announced by the device and fold Unicode), nor a CIDR, interface, MAC, VLAN, port or id, until evidence can tie them
 // to the device; an action with only free-text values is refused too (plans send no messages). "" = passes. The same words refuse a

@@ -1,4 +1,4 @@
-// D-613, D-615 (S-TIER-1): the CVE page of a CVE on no exploited list, from the tier data (EPSS of FIRST, NVD's record of the
+// S-TIER-1: the CVE page of a CVE on no exploited list, from the tier data (EPSS of FIRST, NVD's record of the
 // last 12 months). Its devices are the items of Updates to plan that list it: never findings, never alerts.
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'

@@ -12,9 +12,9 @@ import (
 	"github.com/knt048/vedette/modules/logs/listen"
 )
 
-// Repeated failed logins (S-LOG-1, D-487). N failed logins from one remote address in M minutes are one incident from the first
+// Repeated failed logins (S-LOG-1). N failed logins from one remote address in M minutes are one incident from the first
 // day: no baseline, no 7-day learning (the signature path cannot see it: one signature per account name, so a guesser never repeats
-// one). The lines are the ones the counters already read: the remote address is the one the signature reader found (D-210, never the log
+// one). The lines are the ones the counters already read: the remote address is the one the signature reader found (never the log
 // sender or the box), the kind of login line comes from the text (sshd, PAM) or from the Windows event id. The state is in memory and
 // bounded; a restart forgets at most the last ten minutes of counting.
 // ponytail: a per-process sliding window, MaxAuthTracked keys, new keys ignored while it is full; upgrade path: a table in logs.db.
@@ -342,7 +342,7 @@ func authEvent(a authAlert, name string, devices []DeviceInfo) AnomalyEvent {
 		ev.What = fmt.Sprintf("%d failed login attempts from %s within %d minutes (%s).%s%s", a.attempts, addr, int(AuthFailWindow/time.Minute), where, tried, inside)
 		ev.Action = "Open Logs and search for the address: check whether any login from it succeeded. Block the address at the firewall and turn off password login for SSH (use keys)."
 		ev.Severity = "medium"
-		if a.accepted { // a login got in before the threshold: the incident says so, as the escalated one does (D-490)
+		if a.accepted { // a login got in before the threshold: the incident says so, as the escalated one does
 			ev.Title = fmt.Sprintf("A login from %s was ACCEPTED after %d failed attempts on %s", addr, a.attempts, name)
 			ev.What += " A login from the same address was ACCEPTED in that time."
 			ev.Action = "A login from this address succeeded: treat that account as taken over (change its password, end its sessions). " + ev.Action

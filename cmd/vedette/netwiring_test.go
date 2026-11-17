@@ -102,7 +102,7 @@ func TestWiringSensorCardsComeFromTheHost(t *testing.T) {
 	}
 }
 
-// D-380 (#471): with no role set (a fresh install) the sensor's default card is the card of the default route, never the
+// With no role set (a fresh install) the sensor's default card is the card of the default route, never the
 // box's own bridge vedette0; a host that hiccups gives the last answer; without a host there is no answer (ok=false).
 func TestWiringSensorDefaultCardIsTheDefaultRouteCard(t *testing.T) {
 	t.Parallel()
@@ -149,7 +149,7 @@ func TestWiringSensorDefaultCardIsTheDefaultRouteCard(t *testing.T) {
 	}
 }
 
-// M1 (D-385): a container-only install (no socket configured) never takes the core container's own interfaces for the
+// M1: a container-only install (no socket configured) never takes the core container's own interfaces for the
 // box's cards: Interfaces gives none and no error (the cards come from the sensor's heartbeat), and SpanOptions has its
 // defaults before the first save.
 func TestWiringWithoutAHostCoreDoesNotReadItsOwnInterfaces(t *testing.T) {
@@ -164,7 +164,7 @@ func TestWiringWithoutAHostCoreDoesNotReadItsOwnInterfaces(t *testing.T) {
 	}
 }
 
-// M1 (D-263, D-385): HostCards says "no host" (ok=false, no error) only when core runs without a host socket. A configured
+// M1: HostCards says "no host" (ok=false, no error) only when core runs without a host socket. A configured
 // host that gives no list (socket absent, or failing with nothing cached) is an error, so the sensor's heartbeat never
 // decides on an appliance; Interfaces fails the same way (no fallback to the core container's own cards).
 func TestWiringHostCardsFailClosedWhenAConfiguredHostGivesNoList(t *testing.T) {
@@ -278,7 +278,7 @@ func TestWiringSpanPortCanBeChosenWithTheModuleOff(t *testing.T) {
 	}
 }
 
-// D-393 (M3): a container-only box (no host) with two cards that have an address gives no default card (D-380); through the
+// A container-only box (no host) with two cards that have an address gives no default card; through the
 // real route the admin chooses one of them without SPAN, the sensor is told that card, GET says it is a choice (chosen), and
 // null brings the default rule back.
 func TestWiringContainerOnlyAdminChoosesAnAddressedCard(t *testing.T) {

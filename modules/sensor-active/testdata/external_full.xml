@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE nmaprun>
 <?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
-<!-- hand-written fixture shaped after the nmap DTD (the external_full shape, D-526): <script> under a port and under <hostscript>,
+<!-- hand-written fixture shaped after the nmap DTD (the external_full shape): <script> under a port and under <hostscript>,
      the text output in the output attribute and the structured output as <table>/<elem> (https://nmap.org/book/nse-api.html), the
      vulns library's text as nsedoc prints smb-vuln-ms17-010. No live network was scanned. 8.8.8.8 stands for the box's own public IP. -->
 <nmaprun scanner="nmap" args="nmap --privileged -sS -sV -Pn -n -p- --script &quot;(default or safe or vuln) and not (dos or brute or external or broadcast)&quot; --script-timeout 5m --max-rate 300 --max-retries 2 --host-timeout 60m -oX - 8.8.8.8" start="1762650000" version="7.95" xmloutputversion="1.05">

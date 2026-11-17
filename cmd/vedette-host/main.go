@@ -1,4 +1,4 @@
-// Command vedette-host is the small root helper on the appliance host (D-55): OS updates, box
+// Command vedette-host is the small root helper on the appliance host: OS updates, box
 // network, signed image pulls, container start and rollback, backups. It serves a fixed command
 // list on a local unix socket (docs/specs/host-api.md) to one client, core.
 //
@@ -80,7 +80,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	doRecover := fs.Bool("recover-core-data", false, "after core_data_unrecoverable: show what is in core_data, and with -use and -yes put it right; refuses while the daemon or core runs (RUNBOOK 5.5)")
 	recoverUse := fs.String("use", "", "-recover-core-data: rollback (put the .rollback copies back) or current (keep the files now there)")
 	recoverYes := fs.Bool("yes", false, "-recover-core-data: do what -use says; without it only shows")
-	applyRun := fs.String("self-update-apply", "", "internal: the applier of host.self_update, run by systemd-run from <state>/selfupdate/applier with the run id; never by hand (D-316)")
+	applyRun := fs.String("self-update-apply", "", "internal: the applier of host.self_update, run by systemd-run from <state>/selfupdate/applier with the run id; never by hand")
 	var bf bootFlags
 	fs.StringVar(&bf.index, "index", "", "-bootstrap: index.json")
 	fs.StringVar(&bf.indexSig, "index-sig", "", "-bootstrap: index.json.minisig")
@@ -157,7 +157,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 		return err
 	}
 	defer sys.Close()
-	// One daemon per state directory, and no bootstrap beside it (D-142): the lock lives as long as the process.
+	// One daemon per state directory, and no bootstrap beside it: the lock lives as long as the process.
 	unlock, err := sys.LockState(ctx)
 	if err != nil {
 		return fmt.Errorf("another vedette-host holds %s: %w", *stateDir, err)
@@ -194,7 +194,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 	// Only now, with the host active, can a unit that is After=vedette-host.service be restarted
-	// synchronously: put the services of an interrupted unit change back in the state they had (D-123).
+	// synchronously: put the services of an interrupted unit change back in the state they had.
 	go sys.AfterReady(ctx, srv)
 	select {
 	case err := <-serveErr:

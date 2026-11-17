@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// D-565: the shipped list is a file zap-baseline.py -c accepts (the format -g writes), every rule line is explained by the comment
+// The shipped list is a file zap-baseline.py -c accepts (the format -g writes), every rule line is explained by the comment
 // above it, and it holds exactly the plan's statuses.
 func TestBaseline_IsZAPConfig(t *testing.T) {
 	t.Parallel()
@@ -50,7 +50,7 @@ func TestBaseline_IsZAPConfig(t *testing.T) {
 	}
 }
 
-// D-565: a list that ZAP would refuse, or that says one rule twice, is refused.
+// A list that ZAP would refuse, or that says one rule twice, is refused.
 func TestParse_RefusesWhatZAPWouldNot(t *testing.T) {
 	t.Parallel()
 	for _, in := range []string{
@@ -75,7 +75,7 @@ func TestParse_RefusesWhatZAPWouldNot(t *testing.T) {
 	}
 }
 
-// D-565: every header product maps to a CPE part:vendor:product as nmap prints it.
+// Every header product maps to a CPE part:vendor:product as nmap prints it.
 func TestHeaderCPE_IsValid(t *testing.T) {
 	t.Parallel()
 	var m map[string]string

@@ -6,7 +6,7 @@ import { isOpen } from './basis'
 import type { FindingRow } from './types'
 
 /**
- * kien G5: a finding closed as not relevant (by a person, or by Vedette when the device cannot have it) is noise wherever findings
+ * A finding closed as not relevant (by a person, or by Vedette when the device cannot have it) is noise wherever findings
  * are listed: the device page, the Findings list and Home hide it by default, and one toggle "Show not relevant (N)" brings it back.
  * Counts on those pages leave it out too, so the numbers agree.
  */

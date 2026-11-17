@@ -15,11 +15,11 @@ import (
 	"time"
 )
 
-// The certificate of the HTTPS trap (D-467). Core makes it: a self-signed RSA 2048 certificate, as a NAS or a printer makes for
+// The certificate of the HTTPS trap. Core makes it: a self-signed RSA 2048 certificate, as a NAS or a printer makes for
 // itself on first boot, naming the Trap IP that decides the service (its host name; the vendor as organization). It is NOT signed
 // by the box CA nor by the sensor CA: a certificate browsers or agents trust must never sit in a container an attacker talks to,
 // and an issuer naming Vedette would give the decoy away. The private key and the certificate are one core_secret row (purpose
-// certPurpose, AES-256-GCM, never exported: core INV-13, D-154); hp_config key "https" holds only its id. Core writes both to
+// certPurpose, AES-256-GCM, never exported: core INV-13); hp_config key "https" holds only its id. Core writes both to
 // config/ for the container, which needs the key to serve TLS; it is the decoy's own key and nothing trusts it. The key is
 // never logged. The same key and certificate are kept across restarts, as a real device keeps its own; a new certificate is
 // made only when the name it should carry changes or it is about to expire.

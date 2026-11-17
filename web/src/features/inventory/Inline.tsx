@@ -7,7 +7,7 @@ import { useCan } from '@/lib/session'
 import { useModules, type ModuleId } from '@/lib/modules'
 import { errMsg } from './kinds'
 
-// kien 2026-11-16 (docs/UI.md §0 "do it where you are"): a module a step needs is turned on where the step is.
+// docs/UI.md §0 "do it where you are": a module a step needs is turned on where the step is.
 
 /** A module the step needs is off: an admin turns it on right here (with what it depends on); anyone else is told who can. */
 export function TurnOnModule({ id, reason }: { id: ModuleId; reason: string }) {

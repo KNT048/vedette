@@ -241,9 +241,9 @@ func TestPublicDomainBoxNameIsNotAnswered(t *testing.T) {
 	}
 }
 
-// D-465 (replaces the r1 L3 test that pinned https://vedette:8443): the certificate still holds "vedette" (old bookmarks keep working),
+// replaces the r1 L3 test that pinned https://vedette:8443: the certificate still holds "vedette" (old bookmarks keep working),
 // but links never take a name from the certificate: they carry the Box address, the management IPv4 by default, and none at all while
-// the box knows no address. Before D-465 every link of an appliance read https://vedette:8443, which nothing on a LAN resolves.
+// the box knows no address. In older releases every link of an appliance read https://vedette:8443, which nothing on a LAN resolves.
 func TestLinksCarryTheBoxAddressNeverTheCertificateName(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -270,7 +270,7 @@ func TestLinksCarryTheBoxAddressNeverTheCertificateName(t *testing.T) {
 	}
 }
 
-// D-465: the Box address is a name of the box's own certificate. A saved name or address the certificate lacks re-issues it at the next
+// The Box address is a name of the box's own certificate. A saved name or address the certificate lacks re-issues it at the next
 // Check (a save kicks one); a later change re-issues it again with the new one and keeps the earlier one the box still answers to (review
 // M1); an unknown address (none) changes nothing.
 func TestCertCoversTheBoxAddress(t *testing.T) {
@@ -305,7 +305,7 @@ func TestCertCoversTheBoxAddress(t *testing.T) {
 	}
 }
 
-// D-465: a Box address an administrator saves is a name the box answers to (Allows), at once after Invalidate (which waits for its read),
+// A Box address an administrator saves is a name the box answers to (Allows), at once after Invalidate (which waits for its read),
 // and so are the earlier ones (review M1) until they are forgotten; the answer in memory survives a failed read; the flag address (-hosts
 // without a host) is used only while core gives none. Review L2: no lock is held across a read, so the Host test and the links go on with
 // the last answer while a slow read runs, and a read that started before an Invalidate never replaces the newer answer.

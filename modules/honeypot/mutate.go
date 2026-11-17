@@ -95,7 +95,7 @@ func (s *Service) Tokens(ctx context.Context) ([]Token, error) {
 	return out, nil
 }
 
-// MaskTokens returns l with every bait password hidden except its last 4 characters (D-189, L14): what a viewer sees.
+// MaskTokens returns l with every bait password hidden except its last 4 characters: what a viewer sees.
 // A password shorter than 8 characters shows no tail at all (the rule of secrets.Value.Last4). The input is not changed.
 func MaskTokens(l []Token) []Token {
 	out := make([]Token, len(l))
@@ -129,14 +129,14 @@ func (s *Service) token(ctx context.Context, id string) (Token, error) {
 	return Token{}, notFound("No such token.")
 }
 
-// msgNoBoxAddress is the refusal of a URL token while the box knows no address other machines reach (D-465).
+// msgNoBoxAddress is the refusal of a URL token while the box knows no address other machines reach.
 const msgNoBoxAddress = "The box does not know an address other machines can reach yet. Set the Box address in Settings → Box network, then try again."
 
-// msgDNSUnavailable is the refusal of a new DNS token (D-468); the mock says the same.
+// msgDNSUnavailable is the refusal of a new DNS token; the mock says the same.
 const msgDNSUnavailable = "A DNS token cannot alert: the box runs no DNS server, so nothing would record a lookup of its name. Use a URL token or fake credentials instead."
 
-// boxURL is the start of a URL token (D-465): the Box address (Config.BoxURL), else the box's IP from the inventory on 8443; never the
-// box's host name (before D-465 it was, and a box named "vedette" handed out https://vedette:8443 links nothing resolves).
+// boxURL is the start of a URL token: the Box address (Config.BoxURL), else the box's IP from the inventory on 8443; never the
+// box's host name (in older releases it was, and a box named "vedette" handed out https://vedette:8443 links nothing resolves).
 func (s *Service) boxURL(ctx context.Context) (string, error) {
 	if s.cfg.BoxURL != nil {
 		if u := strings.TrimRight(s.cfg.BoxURL(), "/"); u != "" {
@@ -158,7 +158,7 @@ func (s *Service) AddToken(ctx context.Context, actor string, in TokenInput) (To
 	switch in.Type {
 	case TokenFile, TokenCredential, TokenURL:
 	case TokenDNS:
-		// D-468: the box runs no DNS server and the project runs none (D-81/D-82), so a DNS token could never alert. Rows made
+		// The box runs no DNS server and the project runs none, so a DNS token could never alert. Rows made
 		// before stay readable; no new one is made.
 		return Token{}, conflictErr("dns_unavailable", msgDNSUnavailable)
 	default:
@@ -188,7 +188,7 @@ func (s *Service) AddToken(ctx context.Context, actor string, in TokenInput) (To
 		value = strings.Join(strings.Fields(name), "-") + "." + in.Ext
 	case TokenCredential:
 		// The bait account is a generated, plausible service account (svc_ plus six letters), never the display name of the
-		// token and never a common one like admin: ordinary brute force does not fire it, only a stolen list does (D-90 (3)).
+		// token and never a common one like admin: ordinary brute force does not fire it, only a stolen list does.
 		acct, err := randText(6, letters)
 		if err != nil {
 			return Token{}, err

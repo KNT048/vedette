@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/core/winrel"
 )
 
-// Package names → KEV keys (D-169 (11)). osquery gives package names, not vendors, and the inventory matches KEV by
+// Package names → KEV keys. osquery gives package names, not vendors, and the inventory matches KEV by
 // lower(vendor)|lower(product): pkgmap.json is the explicit table from deb/rpm package or source names and Windows display names to the
 // vendor and product the catalog knows. It is never guessed; a test checks every pair against the catalog. A package not in the table
 // keeps its own name for vendor and product (the Windows publisher when there is one) and so matches nothing.
@@ -92,10 +92,10 @@ func debUpstream(v string) string {
 
 // mapPackages turns the package snapshots of one request into the software list of the device. Rows whose name or version does not fit
 // the inventory's limits are dropped, and the count is returned. One list per device: the deb, rpm and programs rows are joined (a
-// host has one of them), the same product and version once. deb and rpm rows are Packaged (the distribution's package database,
-// D-474), programs rows are not, nor a vendor's own package pkgmap marks upstream (google-chrome-stable: its version is Chrome's). At most limit rows are kept; the rows past it are dropped and counted.
+// host has one of them), the same product and version once. deb and rpm rows are Packaged (the distribution's package database),
+// programs rows are not, nor a vendor's own package pkgmap marks upstream (google-chrome-stable: its version is Chrome's). At most limit rows are kept; the rows past it are dropped and counted.
 //
-// A deb row also carries its full Debian version and source package (D-516). Binaries of one source that map to the same
+// A deb row also carries its full Debian version and source package. Binaries of one source that map to the same
 // product and upstream version are one row; when they differ in the full version (openssh-client upgraded,
 // openssh-server not) the row keeps the lowest, so a binary that was not updated keeps its finding. Kernel images: a machine
 // keeps older kernels installed and runs one of them, so when the rows say which kernel runs (the "kernel" column the caller puts on
@@ -107,7 +107,7 @@ func debUpstream(v string) string {
 // sources (linux-signed*) are the exception, their binaries carry the kernel's own version.
 //
 // A "windows_os" row (withWindows: the node's Windows release with its update revision) gives the operating system's own row
-// (windowsRow, D-546), first in the list so a list cut at limit keeps it.
+// (windowsRow), first in the list so a list cut at limit keeps it.
 func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
 	seen := map[string]int{} // key -> index in items
 	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string, conf float64) {
@@ -183,7 +183,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 	sql := sqlServerVersions(snaps["programs"])
 	for _, r := range sqlUmbrellaFirst(snaps["programs"]) {
 		if r["sql_setup"] != "" {
-			continue // a SQL Server instance's setup value the programs query reads with the list (D-606), not a program
+			continue // a SQL Server instance's setup value the programs query reads with the list, not a program
 		}
 		name, version, conf := r["name"], r["version"], softwareConfidence
 		rel, umbrella := sqlUmbrella(name)
@@ -192,7 +192,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 		p, ok := pkgmap.Windows.lookup(strings.ToLower(name))
 		if ok && !umbrella && sql.authoritative(name, p) {
-			ok = false // a component of a release whose own version the setup registry gave: its version is not the release's (D-606)
+			ok = false // a component of a release whose own version the setup registry gave: its version is not the release's
 		}
 		switch {
 		case ok:
@@ -249,11 +249,11 @@ func sameSourceRelease(source, binary string) bool {
 
 // DebPackage is one installed Debian package: name, full Debian version and source package ("" when it has none). Kernel is the
 // running kernel release ("7.0.0-43-generic", the same on every package; "" when not known), so the Kernel row takes the
-// running kernel's image (D-516).
+// running kernel's image.
 type DebPackage struct{ Name, Version, Source, Kernel string }
 
 // MapDebPackages turns a dpkg list into software the way an osquery deb_packages snapshot is turned (same table, same upstream
-// version, same limits), so the box's own list (vedette-host, D-470) and an osquery agent on the same machine give the same rows.
+// version, same limits), so the box's own list (vedette-host) and an osquery agent on the same machine give the same rows.
 // It is a pure function: it reads no table and works with the module off. dropped counts rows whose fields are outside the
 // inventory's limits. Unlike an agent's snapshot the list is never cut at maxRows: the caller stores it whole or not at all
 // (the inventory refuses a list over its 5 000 items, so the box keeps its last list instead of a part of the box).
@@ -277,7 +277,7 @@ func sourceName(s string) string {
 	return name
 }
 
-// kindOf is the device kind of an os_version row (D-503, core/observe AgentKind), within the inventory's kind list; "" gives no kind
+// kindOf is the device kind of an os_version row (core/observe AgentKind), within the inventory's kind list; "" gives no kind
 // observation (the device keeps what it has). It goes in with the agent's rank, so a person's choice still wins and a passive guess never
 // overrides it.
 func kindOf(r row) string { return observe.AgentKind(r["platform"], r["name"]) }
@@ -313,7 +313,7 @@ func observations(hint observe.AssetHint, snaps map[string][]row, mac string) []
 	return out
 }
 
-// ---- Windows release and update revision (D-524, D-546) ----
+// ---- Windows release and update revision ----
 
 // winOS is a Windows machine's release with its monthly update revision, as the os_revision query gives it, stored on the node
 // because osquery's splay may send it in another request than os_version (Wazuh: its os version and arch). version is
@@ -358,7 +358,7 @@ func winTarget(arch string) string {
 	return ""
 }
 
-// windowsRow is the operating system's own software row (D-546): vendor microsoft, the release as product ("Windows 11 23H2"),
+// windowsRow is the operating system's own software row: vendor microsoft, the release as product ("Windows 11 23H2"),
 // the full version with its update revision, the KEV key of CISA's "Microsoft | Windows" entries and a CPE that names the release
 // as NVD does with the machine's target_hw ("cpe:2.3:o:microsoft:windows_11_23h2:10.0.22631.4460:*:*:*:*:*:x64:*"), so findings
 // reads NVD's ranges of the release ("< 10.0.22631.5189") against the patched build. Client or server by the name ("Microsoft
@@ -426,12 +426,12 @@ func sameWinBuild(snaps map[string][]row, w winOS) bool {
 }
 
 // withWindows puts the node's Windows release on a copy of the snapshots. With a Windows package list (programs) it adds a
-// "windows_os" row, which the package mapper turns into the operating system's software row (D-546), unless the request's
+// "windows_os" row, which the package mapper turns into the operating system's software row, unless the request's
 // os_version row is of another build (a feature update whose revision is not reported yet: the stored release is stale, review
 // M2). It puts the full version on the os_version row, so the device's OS reads "Microsoft Windows 11 Pro 10.0.22631.4460": on
 // this request's os_version row when its build is the stored one (a machine whose feature update is not reported yet keeps
 // "… build 26100"), or, when the request carries a usable os_revision row and no os_version row, on an os_version row made from
-// it (the revision's own report shows the OS at once, D-503's first report). A zero w leaves the snapshots as they are.
+// it (the revision's own report shows the OS at once, in the first report). A zero w leaves the snapshots as they are.
 func withWindows(snaps map[string][]row, w winOS) map[string][]row {
 	if w.version == "" {
 		return snaps

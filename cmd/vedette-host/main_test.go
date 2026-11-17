@@ -135,7 +135,7 @@ func TestServesAndStopsOnSignal(t *testing.T) {
 	c := client.New(sock)
 	defer c.Close()
 	// The server is up once its socket has mode 0660: secureSocket sets it after listen(2), so a connection from then on
-	// is queued until Serve accepts it. Wait on that state (at most 30 s, D-373), then ask once.
+	// is queued until Serve accepts it. Wait on that state (at most 30 s), then ask once.
 	end := time.Now().Add(30 * time.Second)
 	tick := time.NewTicker(time.Millisecond)
 	defer tick.Stop()
@@ -173,7 +173,7 @@ func TestServesAndStopsOnSignal(t *testing.T) {
 			t.Fatalf("state/%s: %v %v", d, st, err)
 		}
 	}
-	// The daemon holds the state lock: a bootstrap (or a second daemon) on the same directory cannot take it (D-142).
+	// The daemon holds the state lock: a bootstrap (or a second daemon) on the same directory cannot take it.
 	other, err := ops.New(ops.Config{StateDir: filepath.Join(dir, "state"), CoreUnit: "vedette-core.service", OwnerUID: os.Getuid(), Logger: slog.New(slog.DiscardHandler)})
 	if err != nil {
 		t.Fatal(err)
@@ -203,7 +203,7 @@ func bootArgs(conf, sock string, more ...string) []string {
 	return append([]string{"-config", conf, "-socket", sock, "-bootstrap", "-index", "/x/i", "-index-sig", "/x/is", "-manifest", "/x/m", "-manifest-sig", "/x/ms"}, more...)
 }
 
-// vedette-host -bootstrap (D-142): one shot, never beside a running daemon, flags that belong to it only with it.
+// vedette-host -bootstrap: one shot, never beside a running daemon, flags that belong to it only with it.
 func TestBootstrapRefusesWhileTheDaemonRuns(t *testing.T) {
 	t.Parallel()
 	dir, err := os.MkdirTemp("", "vm")

@@ -6,7 +6,7 @@ import (
 	"net/netip"
 )
 
-// ARP frames (D-101, INV-18). The host sends and reads exactly one kind of frame: Ethernet II
+// ARP frames (INV-18). The host sends and reads exactly one kind of frame: Ethernet II
 // carrying an IPv4-over-Ethernet ARP packet, 14 + 28 = 42 bytes. Everything here is pure, takes
 // bytes and returns bytes, and is fuzzed: the code that reads what hostile hosts put on the wire
 // runs as root, so it is small and has no other input.

@@ -1,4 +1,4 @@
-// The action template library as DATA (D-58, action-templates.md): per-device knowledge (commands, API paths, undo, read-back, risk) lives in the
+// The action template library as DATA (action-templates.md): per-device knowledge (commands, API paths, undo, read-back, risk) lives in the
 // JSON files next to this one, validated here when they are loaded. No code path in the core names a brand; vendor names appear only in these
 // files. The real box loads the same shape from a signed library shipped with updates (customers add and edit their own).
 import { z } from 'zod'
@@ -52,5 +52,5 @@ export const TEMPLATES: TemplateDef[] = rules.templates.map((t) => ({
 /** Seed rules of the trial build that use a template action (the ones that use only generic box actions stay in the engine). */
 export const SEED_RULES = rules.seed_rules
 
-/** The command lines a template may not contain (data, D-58; action-templates 9.3). */
+/** The command lines a template may not contain (data; action-templates 9.3). */
 export const CLI_BAN = z.object({ notice: z.string(), everywhere: z.array(z.string().min(1)).min(1), read_only_steps: z.array(z.string().min(1)).min(1) }).parse(banLibrary)

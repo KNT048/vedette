@@ -165,7 +165,7 @@ func TestRunWritesTheHeartbeatFile(t *testing.T) {
 }
 
 // The gate for the health lines of the sensor and scan units: HealthCmd= is a JSON array (the exec form: the string form runs through
-// /bin/sh -c, D-137), argv[0] is this binary's path in the image, the arguments are a subcommand this binary has and need nothing
+// /bin/sh -c), argv[0] is this binary's path in the image, the arguments are a subcommand this binary has and need nothing
 // the unit does not pass; the interval, retries and start period give the check room (the start period covers the first
 // heartbeat, one beat every 30 s against a window of 60 s); /tmp, where the file goes, is a tmpfs because the root is read-only.
 func TestSensorAndScanUnitsHealthCmdRunsWithTheRealSubcommand(t *testing.T) {

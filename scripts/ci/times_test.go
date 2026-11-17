@@ -6,7 +6,7 @@ import (
 )
 
 // The weights of the shards are the measured seconds of testtime.tsv; a package missing from the table weighs its test bytes at
-// the table's own rate, so a new package is never free (D-365).
+// the table's own rate, so a new package is never free.
 func TestWeighUsesTheTableAndPricesNewPackages(t *testing.T) {
 	t.Parallel()
 	times, err := testTimes("# c\n100\tmodules/a\n10\t.\n")

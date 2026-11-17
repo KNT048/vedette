@@ -6,8 +6,10 @@
 import { useMemo, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { X } from 'lucide-react'
 import { Chip } from '@/components/common/StatusChip'
 import { EmptyState, QueryState } from '@/components/common/States'
+import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
 import { useDevices } from '@/features/inventory/api'
 import { deviceName } from './basis'
@@ -53,6 +55,8 @@ function Action({ a, planned, box }: { a: ToFixAction; planned: boolean; box: bo
           <span className="font-medium">{a.action}</span>
           <span className="text-muted">{': '}{what}</span>
           {a.ransomware ? <span className="text-danger">{', '}{t('toFix.ransomware', { count: a.ransomware })}</span> : null}
+          {/* review r1 of #943: an update named for versions only read from the network, or not compared, says so */}
+          {!planned && a.reported + a.suspected > 0 ? <span className="text-warn">{', '}{t(proved(a) ? 'toFix.someUnverified' : 'toFix.unverified', { count: a.reported + a.suspected })}</span> : null}
           {planned && a.likely ? <span className="text-warn">{', '}{t('toFix.likely', { count: a.likely })}</span> : null}
           {' '}<Worst worst={a.worst} />
           <span className="ml-2 text-meta text-accent underline-offset-4 group-open:hidden">{t('toFix.showCves', { count: a.cves.length })}</span>
@@ -76,7 +80,7 @@ function Action({ a, planned, box }: { a: ToFixAction; planned: boolean; box: bo
 }
 
 /** One device: its name, how bad it is, and its actions (to fix first, then recommended). */
-function DeviceCard({ d, box }: { d: ToFixDevice; box: boolean }) {
+export function DeviceCard({ d, box, showName = true }: { d: ToFixDevice; box: boolean; showName?: boolean }) {
   const { t } = useTranslation('findings')
   const acts = actionable(d)
   const worst = acts.reduce((w, a) => (rank(a.worst) > rank(w) ? a.worst : w), '')
@@ -85,15 +89,15 @@ function DeviceCard({ d, box }: { d: ToFixDevice; box: boolean }) {
   return (
     <li className="rounded-md border border-rule bg-surface px-4 py-3" aria-label={name}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="text-base font-semibold text-accent underline-offset-4 hover:underline">{name}</Link>
+        {showName ? <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="text-base font-semibold text-accent underline-offset-4 hover:underline">{name}</Link> : null}
         {d.asset.ip && d.asset.ip !== '—' ? <span className="text-meta text-muted">{d.asset.ip}</span> : null}
         {acts.length ? <><Worst worst={worst} /><span className="text-meta text-muted">{t('toFix.deviceCount', { count: acts.reduce((n, a) => n + a.cves.length, 0) })}</span></> : null}
       </div>
-      {acts.length ? <ul aria-label={t('toFix.actionsOf', { device: name })} className="divide-y divide-rule">{acts.map((a) => <Action key={a.group} a={a} planned={false} box={box} />)}</ul> : null}
+      {acts.length ? <ul aria-label={t('toFix.actionsOf', { device: name })} className="divide-y divide-rule">{acts.map((a) => <Action key={`${a.kind}:${a.group}`} a={a} planned={false} box={box} />)}</ul> : null}
       {d.planned.length ? (
         <>
           <p className="mt-2 text-meta font-medium text-muted">{t('toFix.recommended')}</p>
-          <ul aria-label={t('toFix.recommendedOf', { device: name })} className="divide-y divide-rule">{d.planned.map((a) => <Action key={a.group} a={a} planned box={box} />)}</ul>
+          <ul aria-label={t('toFix.recommendedOf', { device: name })} className="divide-y divide-rule">{d.planned.map((a) => <Action key={`plan:${a.group}`} a={a} planned box={box} />)}</ul>
         </>
       ) : null}
       {check ? <Link to={`/findings?tab=input&device=${encodeURIComponent(d.asset.id)}`} className="mt-1 inline-block text-meta text-accent underline underline-offset-4">{t('toFix.toCheck', { count: check })}</Link> : null}
@@ -103,14 +107,15 @@ function DeviceCard({ d, box }: { d: ToFixDevice; box: boolean }) {
 
 type FixRow = { key: string; sample: ToFixAction; planned: boolean; devices: { d: ToFixDevice; a: ToFixAction }[] }
 
-/** By fix: one row per update (product + release), with the devices that need it; the worst row first. */
+/** By fix: one row per update (the product's identity, the kind and the release), with the devices that need it; the worst first. */
 function ByFix({ devices }: { devices: ToFixDevice[] }) {
   const { t } = useTranslation('findings')
   const rows = useMemo(() => {
     const m = new Map<string, FixRow>()
     for (const d of devices) {
       for (const [a, planned] of [...actionable(d).map((x) => [x, false] as const), ...d.planned.map((x) => [x, true] as const)]) {
-        const key = `${a.kind}|${a.software}|${a.fixed}|${planned}`
+        // review r1 of #943: the product's identity (vendor|product), not the name each device gives it; a distro's own updates apart
+        const key = [a.kind, a.product || a.software.toLowerCase(), a.distro, a.fixed, planned].join('|')
         const r = m.get(key) ?? { key, sample: a, planned, devices: [] }
         r.devices.push({ d, a })
         m.set(key, r)
@@ -121,23 +126,28 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
   }, [devices])
   const label = (a: ToFixAction) => {
     const v = { software: a.software || t('toFix.theSoftware'), fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed }
-    if (a.kind === 'none') return t('toFix.byFix.none', v)
-    if (a.kind === 'distro') return a.fixed ? t('toFix.byFix.distroFixed', v) : t('toFix.byFix.distro', v)
-    if (a.kind === 'windows' || a.kind === 'esu' || a.windows) return t('toFix.byFix.windows', v)
-    if (a.kind === 'feature_update') return t('toFix.byFix.featureUpdate', v)
-    return t('toFix.byFix.fixed', v)
+    // review r1 of #943: a Windows row's feature update and ESU before the monthly cumulative update
+    switch (a.kind) {
+      case 'none': return t('toFix.byFix.none', v)
+      case 'feature_update': return t('toFix.byFix.featureUpdate', v)
+      case 'esu': return t('toFix.byFix.esu', v)
+      case 'distro': return a.fixed ? t('toFix.byFix.distroFixed', v) : t('toFix.byFix.distro', v)
+      case 'windows': return t('toFix.byFix.windows', v)
+    }
+    return a.windows ? t('toFix.byFix.windows', v) : t('toFix.byFix.fixed', v)
   }
   return (
     <ul aria-label={t('toFix.byFix.label')} className="grid gap-2">
       {rows.map((r) => {
         const cves = r.devices.reduce((n, x) => n + x.a.cves.length, 0)
         const worst = r.devices.reduce((w, x) => (rank(x.a.worst) > rank(w) ? x.a.worst : w), '')
+        const on = `${t('toFix.byFix.devices', { count: r.devices.length })}, ${t(r.planned ? 'toFix.byFix.cvesPlanned' : 'toFix.byFix.cves', { count: cves })}`
         return (
           <li key={r.key} className="rounded-md border border-rule bg-surface px-4 py-3">
             <details>
               <summary className="cursor-pointer text-sm">
                 <span className="font-medium">{label(r.sample)}</span>
-                <span className="text-muted">{': '}{t(r.planned ? 'toFix.byFix.plannedOn' : 'toFix.byFix.on', { count: r.devices.length, cves })}</span>
+                <span className="text-muted">{': '}{r.planned ? t('toFix.byFix.recommendedOn', { on }) : on}</span>
                 {' '}<Worst worst={worst} />
               </summary>
               <ul className="mt-1 grid gap-1 pl-4 text-meta">
@@ -157,31 +167,39 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
 }
 
 /** The box's device id, read only when an action may need it (a distribution's update): its OS updates have their own page. */
-function WithBox({ children }: { children: (boxId: string | undefined) => ReactNode }) {
+export function WithBox({ children }: { children: (boxId: string | undefined) => ReactNode }) {
   const boxId = useDevices().data?.items.find((x) => x.is_box)?.id
   return <>{children(boxId)}</>
 }
 
-/** The To fix tab: by device (default) or by fix (`?by=fix`, shareable); `?device=` keeps one device. */
+/** The To fix tab: by device (default) or by fix (`?by=fix`, shareable); `?device=` keeps one device, shown as a chip to clear. */
 export function ToFixTab({ q }: { q: { data: ToFix | undefined; error: unknown; isPending: boolean; refetch: () => unknown } }) {
   const { t } = useTranslation('findings')
   const [params, setParams] = useSearchParams()
   const by = params.get('by') === 'fix' ? 'fix' : 'device'
   const device = params.get('device') ?? ''
   const hasDistro = !!q.data?.devices.some((d) => actionable(d).some((a) => a.kind === 'distro'))
-  const setBy = (v: 'device' | 'fix') => { const p = new URLSearchParams(params); if (v === 'fix') p.set('by', 'fix'); else p.delete('by'); setParams(p, { replace: true }) }
+  const set = (k: string, v: string) => { const p = new URLSearchParams(params); if (v) p.set(k, v); else p.delete(k); setParams(p, { replace: true }) }
   return (
     <QueryState query={q}>
       {(d) => {
         const devices = d.devices.filter(listed).filter((x) => !device || x.asset.id === device)
+        const named = device ? d.devices.find((x) => x.asset.id === device) : undefined
+        const deviceLabel = named ? deviceName(named.asset, t('removedDevice')) : t('toFix.thisDevice')
+        const planNote = d.plan_off ? t('toFix.planOff') : !d.plan_ran ? t('toFix.planNotRun') : ''
         return (
           <div className="grid gap-3">
             <div className="flex flex-wrap items-center gap-3">
-              <Segmented<'device' | 'fix'> label={t('toFix.view')} value={by} onChange={setBy} options={[{ value: 'device', label: t('toFix.byDevice') }, { value: 'fix', label: t('toFix.byFixLabel') }]} />
+              <Segmented<'device' | 'fix'> label={t('toFix.view')} value={by} onChange={(v) => set('by', v === 'fix' ? 'fix' : '')} options={[{ value: 'device', label: t('toFix.byDevice') }, { value: 'fix', label: t('toFix.byFixLabel') }]} />
+              {/* review r1 of #943: a device filter is visible and clears in one click */}
+              {device ? <Button size="sm" onClick={() => set('device', '')}><X />{t('toFix.clearDevice', { device: deviceLabel })}</Button> : null}
               {d.truncated ? <span className="text-meta text-muted">{t('toFix.truncated')}</span> : null}
             </div>
+            {planNote ? <p className="text-meta text-muted">{planNote}</p> : null}
             {devices.length === 0 ? (
-              <EmptyState art="no-findings" title={t('toFix.empty')}>{t('toFix.emptyBody')}</EmptyState>
+              <EmptyState art="no-findings" title={device ? t('toFix.emptyDevice', { device: deviceLabel }) : t('toFix.empty')}>
+                {device && named && unproved(named).length ? t('toFix.emptyDeviceCheck') : d.plan_off || !d.plan_ran ? t('toFix.emptyBodyNoPlan') : t('toFix.emptyBody')}
+              </EmptyState>
             ) : by === 'fix' ? <ByFix devices={devices} /> : (() => {
               const list = (boxId: string | undefined) => <ul aria-label={t('toFix.label')} className="grid gap-3">{devices.map((x) => <DeviceCard key={x.asset.id} d={x} box={x.asset.id === boxId} />)}</ul>
               return hasDistro ? <WithBox>{list}</WithBox> : list(undefined)
@@ -204,7 +222,7 @@ export function UnprovedList({ devices }: { devices: ToFixDevice[] }) {
       <p className="text-meta text-muted">{t('toFix.unproved.help')}</p>
       <ul className="grid gap-2">
         {items.map(({ d, a }) => (
-          <li key={a.group} className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">
+          <li key={`${d.asset.id}:${a.group}`} className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">
             <p>
               <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{deviceName(d.asset, t('removedDevice'))}</Link>
               {': '}<span className="font-medium">{[a.software || t('toFix.theSoftware'), a.version].filter(Boolean).join(' ')}</span>

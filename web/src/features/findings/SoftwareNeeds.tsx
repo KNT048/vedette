@@ -6,27 +6,33 @@ import { useTranslation } from 'react-i18next'
 import { Chip } from '@/components/common/StatusChip'
 import { useModuleEnabled } from '@/lib/modules'
 import { useToFix } from './api'
+import { actionable, unproved } from './ToFix'
 import type { ToFixAction } from './types'
 
 const SEV = ['info', 'low', 'medium', 'high', 'critical']
 const rank = (s: string) => SEV.indexOf(s.toLowerCase())
 
 /** The device's actions by software row id, or the state while there is none. */
-export function useSoftwareNeeds(assetId: string): Map<string, { exploited: ToFixAction[]; planned: ToFixAction[] }> | 'off' | 'pending' | 'error' {
+type Needs = { exploited: ToFixAction[]; check: ToFixAction[]; planned: ToFixAction[] }
+
+/** The device's actions by software row id, as To fix counts them (review r1 of #943): its actions to fix, what needs a person's check
+ *  (Needs your input), its recommended updates; or the state while there is none. */
+export function useSoftwareNeeds(assetId: string): Map<string, Needs> | 'off' | 'pending' | 'error' {
   const on = useModuleEnabled('findings')
   const q = useToFix(assetId, on === true)
   if (on === false) return 'off'
   if (q.isError) return 'error'
   if (on === undefined || q.isPending) return 'pending'
-  const m = new Map<string, { exploited: ToFixAction[]; planned: ToFixAction[] }>()
+  const m = new Map<string, Needs>()
   for (const d of q.data.devices) {
-    const add = (a: ToFixAction, k: 'exploited' | 'planned') => {
+    const add = (a: ToFixAction, k: keyof Needs) => {
       if (!a.software_id) return
-      const e = m.get(a.software_id) ?? { exploited: [], planned: [] }
+      const e = m.get(a.software_id) ?? { exploited: [], check: [], planned: [] }
       e[k].push(a)
       m.set(a.software_id, e)
     }
-    for (const a of [...d.exploited, ...d.no_update]) add(a, 'exploited')
+    for (const a of actionable(d)) add(a, 'exploited')
+    for (const a of unproved(d)) add(a, 'check')
     for (const a of d.planned) add(a, 'planned')
   }
   return m
@@ -41,6 +47,7 @@ export function SoftwareNeeds({ assetId, softwareId, needs }: { assetId: string;
   const n = needs.get(softwareId)
   if (!n) return null
   const cves = n.exploited.reduce((s, a) => s + a.cves.length, 0)
+  const check = n.check.reduce((s, a) => s + a.cves.length, 0)
   const worst = n.exploited.reduce((w, a) => (rank(a.worst) > rank(w) ? a.worst : w), '')
   const to = `/findings?device=${encodeURIComponent(assetId)}`
   return (
@@ -52,6 +59,7 @@ export function SoftwareNeeds({ assetId, softwareId, needs }: { assetId: string;
           {n.exploited.filter((a) => a.kind !== 'none').map((a) => <span key={a.group}>{a.action}</span>)}
         </span>
       ) : null}
+      {check > 0 ? <Link to={`/findings?tab=input&device=${encodeURIComponent(assetId)}`} className="w-fit text-accent underline-offset-4 hover:underline">{t('needs.toCheck', { count: check })}</Link> : null}
       {n.planned.filter((a) => a.cves.length > 0).map((a) => (
         <Link key={a.group} to="/plan?tier=all" className="w-fit text-accent underline-offset-4 hover:underline">
           {a.fixed ? t('needs.planned', { fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed, count: a.cves.length }) : t('needs.plannedNoVersion', { count: a.cves.length })}

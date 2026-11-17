@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
 
@@ -34,6 +34,10 @@ describe('#910 phase 1: exploited CVEs that could not be checked', () => {
   it('Home links the count to the Findings block', async () => {
     renderApp('/')
     const link = await screen.findByRole('link', { name: /You have 8 exploited CVEs Vedette could not check on 4 devices/ })
-    expect(link).toHaveAttribute('href', '/findings?tab=open#unchecked')
+    expect(link).toHaveAttribute('href', '/findings?tab=input#unchecked')
+    // review r1 of #943: the link lands on the list (Needs your input), not on a tab without it
+    await userEvent.click(link)
+    expect(await screen.findByRole('tab', { name: /Needs your input/, selected: true })).toBeInTheDocument()
+    await waitFor(() => expect(document.getElementById('unchecked')).not.toBeNull())
   })
 })

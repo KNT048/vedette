@@ -103,9 +103,8 @@
 ## Modifying: `inventory.Service.Device/Devices/Detail/Names` (GetAsset/ListAssets của bản nháp)
 - **findings** (`FindingAsset`; D-57 (6)), **notify** (`devices[]` của incident), **honeypot/logs/response** (thiết bị nguồn), **reports**, **ai**, **mcp-server** (`search_assets`).
 
-## Modifying: `SoftwareView.kev_cves` và cột Open findings của trang thiết bị (W11-1)
-- **Web** (`DevicePage.tsx` `useOpenFindings`/`OpenCves`): cột là `kev_cves` của dòng ∩ CVE của finding **mở** (`isOpen` của findings: suspected, confirmed) trong `GET /findings?asset=<id>` (cùng khoá truy vấn với khung Findings của trang). Đổi luật `isOpen`, dạng `FindingList` hay ý nghĩa `kev_cves` (ví dụ chỉ còn CVE trong khoảng phiên bản) = đổi cột; giữ ba test W11-1 trong `inventory.test.tsx`. Finding khớp không qua khoá KEV của dòng (chỉ qua OS tự nêu, hay CPE không có trong `kev_cves`) không hiện ở dòng nào; vẫn ở khung Findings.
-- **findings** (Mlee; `rematch.ts` `softwareFor`, `DevicePanel.tsx`, `Updated.tsx`) đọc `kev_cves` như "các CVE của sản phẩm" để chọn phần mềm của một finding; vì vậy API giữ danh sách không so phiên bản, chỉ trang thiết bị lọc.
+## Modifying: `SoftwareView` và cột "What it needs" của tab Software (kien G8, thay cột Open findings của W11-1)
+- **Web** (`DevicePage.tsx`, cột từ `findings/SoftwareNeeds.tsx` `useSoftwareNeeds`/`SoftwareNeeds`, của findings): cột đọc `GET /findings/to-fix?asset=<id>` (findings INV-25) và nối hành động vào dòng theo `software_id` = `SoftwareView.id`; đếm đúng như To fix (hành động có bản sửa, finding không bản sửa đã chứng minh), finding chưa chứng minh trỏ "Needs your input", bản cập nhật khuyến nghị "Recommended update to X fixes N CVEs"; dòng sạch không hiện gì. Đổi `SoftwareView.id` (hay id dòng phần mềm mà findings `MatchInput` thấy) = đổi phép nối; giữ test `inventory.test.tsx` W11-1/G8 và `findings/tofix.test.tsx`. `kev_cves` không còn dùng cho cột này (vẫn dùng ở D-499 `softwareFor`).
 
 ## Modifying: sự kiện `inventory.asset.deleted`, `inventory.match.changed`, `inventory.asset.discovered`, `inventory.asset.approved`
 - **findings** (xoá/tạo finding qua `inventory.asset.deleted`, `inventory.match.changed`), **notify** (incident `unknown_device`, `learning`, `actor` của duyệt/xoá; D-474), **sensor-active** (quét lần đầu thiết bị mong manh).

@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -286,19 +286,26 @@ function List() {
   )
 
   const toFix = useToFix()
+  // kien G8, review r1 of #943: a link that carries a finding filter (?cve=, ?fix=, the old shapes of the CVE page, Home and the device
+  // page) opens the findings table with it, never To fix, which would drop it
+  const filterTab = !params.get('tab') && (params.get('cve') || params.get('fix')) ? 'open' : null
+  useEffect(() => { if (filterTab) { params.set('tab', filterTab); setParams(params, { replace: true }) } }, [filterTab, params, setParams])
   const toFixDevices = (toFix.data?.devices ?? []).filter((x) => !device || x.asset.id === device)
   const need = (q.data?.version_needed ?? []).filter((x) => !device || x.asset_id === device)
   const unc = (q.data?.unchecked ?? []).filter((x) => !device || x.asset_id === device)
   const inputCount = need.length + unc.length + toFixDevices.reduce((n, x) => n + unproved(x).length, 0)
+  // review r1 of #943: never "nothing needs your input" while the unproved matches are unread or failed
   const inputPanel = (
     <QueryState query={q}>
-      {() => inputCount === 0 ? (
+      {() => inputCount === 0 && toFix.data ? (
         <EmptyState title={t('input.empty')}>{t('input.emptyBody')}</EmptyState>
       ) : (
         <div className="grid gap-6">
           {need.length ? <VersionNeededList items={need} /> : null}
           {unc.length ? <UncheckedList items={unc} /> : null}
-          <UnprovedList devices={toFixDevices} />
+          {toFix.isError ? <p role="alert" className="text-sm text-danger">{t('input.toFixError', { reason: errMsg(toFix.error) })}</p>
+            : toFix.isPending ? <p className="text-sm text-muted">{t('input.toFixPending')}</p> : <UnprovedList devices={toFixDevices} />}
+          {toFix.data?.truncated ? <p className="text-meta text-muted">{t('input.truncated')}</p> : null}
         </div>
       )}
     </QueryState>

@@ -33,7 +33,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
   })
 
   it('lọc theo trạng thái và theo ?cve= từ trang CVE', async () => {
-    renderApp('/findings?tab=open&cve=CVE-2022-27593')
+    renderApp('/findings?cve=CVE-2022-27593') // review r1 of #943: the CVE page's link has no tab: it must open the findings table
     const table = await screen.findByRole('table', { name: 'Findings list' })
     expect(within(table).getAllByRole('row')).toHaveLength(2)
     expect(within(table).getByText('NAS-PHOTOS')).toBeInTheDocument()
@@ -816,8 +816,10 @@ describe('findings: one update, one item; the agent\'s build is a detection (D-5
     expect(screen.queryByText(/About screen/)).toBeNull()
     cleanup()
     renderApp('/devices/a-srvad')
-    const group = await screen.findByRole('list', { name: 'Updates that fix several findings' })
-    expect(within(group).getByText(/fixes 2 exploited vulnerabilities/)).toBeInTheDocument()
-    expect(within(group).queryByRole('link', { name: 'SRV-AD' })).toBeNull()
+    // kien G8 (review r1 of #943): the device page shows the same To fix card as Findings (one grouping), no warning box
+    const todo = await screen.findByRole('list', { name: 'What to do on this device' })
+    expect(within(todo).getByText(/fixes 2 exploited CVEs/)).toBeInTheDocument()
+    expect(within(todo).queryByRole('link', { name: 'SRV-AD' })).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Updates that fix several findings' })).toBeNull()
   })
 })

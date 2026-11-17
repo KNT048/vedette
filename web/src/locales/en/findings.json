@@ -95,7 +95,9 @@
     "onlyNotRelevant_one": "No findings to handle: the one finding of this device is closed as not relevant.",
     "onlyNotRelevant_other": "No findings to handle: the {{count}} findings of this device are closed as not relevant.",
     "lastSeen": "Seen {{time}}",
-    "handleAll": "Select and handle these findings in the Findings list"
+    "handleAll": "Select and handle these findings in the Findings list",
+    "todo": "What to do on this device",
+    "all": "Every finding of this device"
   },
   "status": {
     "mark": "Mark as handled",
@@ -453,6 +455,17 @@
     "cveCount_one": "1 CVE",
     "cveCount_other": "{{count}} CVEs",
     "truncated": "Only the 500 most urgent devices are listed.",
+    "unverified_one": "not proved: the version was read from the network or could not be compared",
+    "unverified_other": "not proved: the versions were read from the network or could not be compared",
+    "someUnverified_one": "1 of them not proved",
+    "someUnverified_other": "{{count}} of them not proved",
+    "clearDevice": "Only {{device}}: show every device",
+    "thisDevice": "this device",
+    "emptyDevice": "Nothing to fix on {{device}}",
+    "emptyDeviceCheck": "Its exploited CVEs need your check: see Needs your input.",
+    "emptyBodyNoPlan": "No device has an exploited vulnerability with an update to install. Recommended updates are not listed yet.",
+    "planOff": "Recommended updates are not listed: the Feeds module is off.",
+    "planNotRun": "Recommended updates are not compared yet; they appear here after the next comparison.",
     "empty": "Nothing to fix",
     "emptyBody": "No device has an exploited vulnerability with an update to install, or a recommended update.",
     "byFix": {
@@ -463,10 +476,14 @@
       "distroFixed": "Upgrade the {{software}} package to {{fixed}} or later",
       "distro": "Install the security updates for {{software}}",
       "none": "{{software}}: no update is named, follow the vendor's advice",
-      "on_one": "1 device, {{cves}} exploited CVEs",
-      "on_other": "{{count}} devices, {{cves}} exploited CVEs",
-      "plannedOn_one": "recommended on 1 device, {{cves}} CVEs",
-      "plannedOn_other": "recommended on {{count}} devices, {{cves}} CVEs"
+      "esu": "Install the Extended Security Update for {{software}} (build {{fixed}} or later; it needs an ESU subscription)",
+      "devices_one": "1 device",
+      "devices_other": "{{count}} devices",
+      "cves_one": "1 exploited CVE",
+      "cves_other": "{{count}} exploited CVEs",
+      "cvesPlanned_one": "1 CVE",
+      "cvesPlanned_other": "{{count}} CVEs",
+      "recommendedOn": "recommended on {{on}}"
     },
     "unproved": {
       "title_one": "1 software has exploited CVEs Vedette could not prove",
@@ -483,12 +500,17 @@
     "error": "Could not read the findings",
     "exploited_one": "1 exploited CVE",
     "exploited_other": "{{count}} exploited CVEs",
+    "toCheck_one": "1 exploited CVE to check",
+    "toCheck_other": "{{count}} exploited CVEs to check",
     "planned_one": "Recommended update to {{fixed}} fixes 1 CVE",
     "planned_other": "Recommended update to {{fixed}} fixes {{count}} CVEs",
     "plannedNoVersion_one": "A recommended update fixes 1 CVE",
     "plannedNoVersion_other": "A recommended update fixes {{count}} CVEs"
   },
   "input": {
+    "toFixError": "The unproved matches could not be read: {{reason}}",
+    "toFixPending": "Reading the unproved matches…",
+    "truncated": "Only the devices of the 500 most urgent are listed here.",
     "empty": "Nothing needs your input",
     "emptyBody": "Every exploited CVE that matches a device could be checked."
   },

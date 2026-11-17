@@ -40569,7 +40569,11 @@
                               "properties": {
                                 "group": {
                                   "type": "string",
-                                  "description": "FindingRow.fix.group of an exploited update, PlanItem.group of a planned one, \"<device>/<software>\" for findings no update is named for: the same key the page uses everywhere, so \"By fix\" groups the same update on several devices"
+                                  "description": "The key of the action on its device: FindingRow.fix.group of an exploited update (\"<device>/<software>\", the ?fix= filter of the list), PlanItem.group of a planned one, \"<device>/<software>\" for findings no update is named for. Per device: \"By fix\" groups by product and release instead"
+                                },
+                                "product": {
+                                  "type": "string",
+                                  "description": "The software row's identity across devices, \"vendor|product\" in lower case (\"\" when no row matches): \"By fix\" groups the same update on several devices by it, whatever each device calls the row"
                                 },
                                 "software_id": {
                                   "type": "string",
@@ -40665,6 +40669,7 @@
                               },
                               "required": [
                                 "group",
+                                "product",
                                 "software_id",
                                 "software",
                                 "version",
@@ -40695,7 +40700,11 @@
                               "properties": {
                                 "group": {
                                   "type": "string",
-                                  "description": "FindingRow.fix.group of an exploited update, PlanItem.group of a planned one, \"<device>/<software>\" for findings no update is named for: the same key the page uses everywhere, so \"By fix\" groups the same update on several devices"
+                                  "description": "The key of the action on its device: FindingRow.fix.group of an exploited update (\"<device>/<software>\", the ?fix= filter of the list), PlanItem.group of a planned one, \"<device>/<software>\" for findings no update is named for. Per device: \"By fix\" groups by product and release instead"
+                                },
+                                "product": {
+                                  "type": "string",
+                                  "description": "The software row's identity across devices, \"vendor|product\" in lower case (\"\" when no row matches): \"By fix\" groups the same update on several devices by it, whatever each device calls the row"
                                 },
                                 "software_id": {
                                   "type": "string",
@@ -40791,6 +40800,7 @@
                               },
                               "required": [
                                 "group",
+                                "product",
                                 "software_id",
                                 "software",
                                 "version",
@@ -40821,7 +40831,11 @@
                               "properties": {
                                 "group": {
                                   "type": "string",
-                                  "description": "FindingRow.fix.group of an exploited update, PlanItem.group of a planned one, \"<device>/<software>\" for findings no update is named for: the same key the page uses everywhere, so \"By fix\" groups the same update on several devices"
+                                  "description": "The key of the action on its device: FindingRow.fix.group of an exploited update (\"<device>/<software>\", the ?fix= filter of the list), PlanItem.group of a planned one, \"<device>/<software>\" for findings no update is named for. Per device: \"By fix\" groups by product and release instead"
+                                },
+                                "product": {
+                                  "type": "string",
+                                  "description": "The software row's identity across devices, \"vendor|product\" in lower case (\"\" when no row matches): \"By fix\" groups the same update on several devices by it, whatever each device calls the row"
                                 },
                                 "software_id": {
                                   "type": "string",
@@ -40917,6 +40931,7 @@
                               },
                               "required": [
                                 "group",
+                                "product",
                                 "software_id",
                                 "software",
                                 "version",

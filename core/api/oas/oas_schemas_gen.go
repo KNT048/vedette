@@ -74256,15 +74256,18 @@ type FindingsGetFindingsToFixOKDevicesItemExploitedItem struct {
 	FindingIds []string `json:"finding_ids"`
 	// The release or build to install; "" for a distribution's updates and when no update is named.
 	Fixed string `json:"fixed"`
-	// FindingRow.fix.group of an exploited update, PlanItem.group of a planned one, "/" for findings no
-	// update is named for: the same key the page uses everywhere, so "By fix" groups the same update on
-	// several devices.
+	// The key of the action on its device: FindingRow.fix.group of an exploited update ("/", the ?fix=
+	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
+	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemExploitedItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
-	Likely     int    `json:"likely"`
-	Pro        bool   `json:"pro"`
+	Likely int  `json:"likely"`
+	Pro    bool `json:"pro"`
+	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
+	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
+	Product    string `json:"product"`
 	Ransomware int    `json:"ransomware"`
 	Reported   int    `json:"reported"`
 	Software   string `json:"software"`
@@ -74335,6 +74338,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetLikely() int {
 // GetPro returns the value of Pro.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetPro() bool {
 	return s.Pro
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) GetProduct() string {
+	return s.Product
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -74430,6 +74438,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetLikely(val int) 
 // SetPro sets the value of Pro.
 func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetPro(val bool) {
 	s.Pro = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) SetProduct(val string) {
+	s.Product = val
 }
 
 // SetRansomware sets the value of Ransomware.
@@ -74554,15 +74567,18 @@ type FindingsGetFindingsToFixOKDevicesItemNoUpdateItem struct {
 	FindingIds []string `json:"finding_ids"`
 	// The release or build to install; "" for a distribution's updates and when no update is named.
 	Fixed string `json:"fixed"`
-	// FindingRow.fix.group of an exploited update, PlanItem.group of a planned one, "/" for findings no
-	// update is named for: the same key the page uses everywhere, so "By fix" groups the same update on
-	// several devices.
+	// The key of the action on its device: FindingRow.fix.group of an exploited update ("/", the ?fix=
+	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
+	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
-	Likely     int    `json:"likely"`
-	Pro        bool   `json:"pro"`
+	Likely int  `json:"likely"`
+	Pro    bool `json:"pro"`
+	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
+	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
+	Product    string `json:"product"`
 	Ransomware int    `json:"ransomware"`
 	Reported   int    `json:"reported"`
 	Software   string `json:"software"`
@@ -74633,6 +74649,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetLikely() int {
 // GetPro returns the value of Pro.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetPro() bool {
 	return s.Pro
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) GetProduct() string {
+	return s.Product
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -74728,6 +74749,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetLikely(val int) {
 // SetPro sets the value of Pro.
 func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetPro(val bool) {
 	s.Pro = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) SetProduct(val string) {
+	s.Product = val
 }
 
 // SetRansomware sets the value of Ransomware.
@@ -74852,15 +74878,18 @@ type FindingsGetFindingsToFixOKDevicesItemPlannedItem struct {
 	FindingIds []string `json:"finding_ids"`
 	// The release or build to install; "" for a distribution's updates and when no update is named.
 	Fixed string `json:"fixed"`
-	// FindingRow.fix.group of an exploited update, PlanItem.group of a planned one, "/" for findings no
-	// update is named for: the same key the page uses everywhere, so "By fix" groups the same update on
-	// several devices.
+	// The key of the action on its device: FindingRow.fix.group of an exploited update ("/", the ?fix=
+	// filter of the list), PlanItem.group of a planned one, "/" for findings no update is named for. Per
+	// device: "By fix" groups by product and release instead.
 	Group string `json:"group"`
 	// None: no update is named that fixes these findings (follow the vendor's advice).
 	Kind FindingsGetFindingsToFixOKDevicesItemPlannedItemKind `json:"kind"`
 	// Planned: CVEs EPSS says are likely to be exploited soon.
-	Likely     int    `json:"likely"`
-	Pro        bool   `json:"pro"`
+	Likely int  `json:"likely"`
+	Pro    bool `json:"pro"`
+	// The software row's identity across devices, "vendor|product" in lower case ("" when no row matches):
+	// "By fix" groups the same update on several devices by it, whatever each device calls the row.
+	Product    string `json:"product"`
 	Ransomware int    `json:"ransomware"`
 	Reported   int    `json:"reported"`
 	Software   string `json:"software"`
@@ -74931,6 +74960,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetLikely() int {
 // GetPro returns the value of Pro.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetPro() bool {
 	return s.Pro
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) GetProduct() string {
+	return s.Product
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -75026,6 +75060,11 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetLikely(val int) {
 // SetPro sets the value of Pro.
 func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetPro(val bool) {
 	s.Pro = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) SetProduct(val string) {
+	s.Product = val
 }
 
 // SetRansomware sets the value of Ransomware.

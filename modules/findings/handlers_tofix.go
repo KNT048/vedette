@@ -13,6 +13,7 @@ type toFixActionJS struct {
 	SoftwareID string   `json:"software_id"`
 	Software   string   `json:"software"`
 	Version    string   `json:"version"`
+	Product    string   `json:"product"`
 	Fixed      string   `json:"fixed"`
 	Kind       string   `json:"kind"`
 	Windows    bool     `json:"windows"`
@@ -33,7 +34,7 @@ type toFixActionJS struct {
 func toFixActions(us []UpdateAction) []toFixActionJS {
 	out := make([]toFixActionJS, 0, len(us))
 	for _, u := range us {
-		out = append(out, toFixActionJS{Group: u.Group, SoftwareID: u.SoftwareID, Software: u.Software, Version: u.Version, Fixed: u.Fixed, Kind: u.Kind,
+		out = append(out, toFixActionJS{Group: u.Group, SoftwareID: u.SoftwareID, Software: u.Software, Version: u.Version, Product: u.Product, Fixed: u.Fixed, Kind: u.Kind,
 			Windows: u.Windows, Distro: u.Distro, Pro: u.Pro, Action: u.Action, CVEs: nonNil(u.CVEs), FindingIDs: nonNil(u.FindingIDs), Worst: u.Worst,
 			Ransomware: u.Ransomware, Likely: u.Likely, Confirmed: u.Confirmed, Detected: u.Detected, Reported: u.Reported, Suspected: u.Suspected})
 	}

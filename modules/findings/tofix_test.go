@@ -1,10 +1,12 @@
 package findings
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // kien G8: "To fix" lists every device with something to fix or plan, the most urgent first: a device with an exploited update to
-// install (critical, ransomware) before one whose only findings are unproved product matches, before one with only a recommended
-// update; a device with nothing is not listed.
+// install before one with only a recommended update; a device with nothing is not listed.
 func TestToFix_G8_MostUrgentDeviceFirst(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -71,5 +73,41 @@ func TestToFix_G8_UnprovedIsNotUrgent(t *testing.T) {
 	tf, err := e.svc.ToFix(t.Context(), true, "")
 	if err != nil || len(tf.Devices) != 1 || len(tf.Devices[0].NoUpdate) != 1 || tf.Devices[0].NoUpdate[0].Proved() || len(tf.Devices[0].actionable()) != 0 {
 		t.Fatalf("%+v %v", tf, err)
+	}
+}
+
+// Review r1 of #943: the order field by field, each step deciding where the ones before it tie: something to fix, the worst
+// severity, ransomware, proved findings, CVEs, then the plan; a full tie by id.
+func TestToFix_G8_UrgencyFieldByField(t *testing.T) {
+	t.Parallel()
+	ex := func(worst string, ransom, proved, cves int) UpdateAction {
+		u := UpdateAction{Kind: "fixed", Worst: worst, Ransomware: ransom, Detected: proved, Suspected: cves - proved}
+		for range cves {
+			u.CVEs = append(u.CVEs, "CVE")
+		}
+		return u
+	}
+	dev := func(id string, acts []UpdateAction, planned ...UpdateAction) DeviceUpdates {
+		return DeviceUpdates{AssetID: id, Exploited: acts, Planned: planned}
+	}
+	unproved := DeviceUpdates{AssetID: "a-unproved", NoUpdate: []UpdateAction{{Kind: "none", Worst: "critical", Ransomware: 5, Reported: 9, CVEs: []string{"x"}}}}
+	ds := []DeviceUpdates{
+		unproved, // nothing to fix, nothing to plan: last
+		dev("a-plan", nil, UpdateAction{Kind: "fixed", Worst: "critical", Likely: 3, CVEs: []string{"x"}}), // only a plan
+		dev("a-z-tie", []UpdateAction{ex("high", 0, 1, 1)}),
+		dev("a-a-tie", []UpdateAction{ex("high", 0, 1, 1)}),
+		dev("a-more-cves", []UpdateAction{ex("high", 0, 1, 5)}),
+		dev("a-proved", []UpdateAction{ex("high", 0, 3, 3)}),
+		dev("a-ransom-high", []UpdateAction{ex("high", 2, 1, 1)}),
+		dev("a-critical", []UpdateAction{ex("critical", 0, 0, 1)}), // critical beats ransomware on a high
+	}
+	sortByUrgency(ds)
+	var got []string
+	for _, d := range ds {
+		got = append(got, d.AssetID)
+	}
+	want := []string{"a-critical", "a-ransom-high", "a-proved", "a-more-cves", "a-a-tie", "a-z-tie", "a-plan", "a-unproved"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("order\n got %v\nwant %v", got, want)
 	}
 }

@@ -39,39 +39,47 @@ func (d DeviceUpdates) actionable() []UpdateAction {
 }
 
 // ToFix lists every device with open findings or recommended updates, the most urgent first (urgency); assetID "" for every device,
-// else that one only (the device's Software tab). feedsOn as for DeviceUpdates.
+// else that one only (the device's Software tab and findings panel). feedsOn as for DeviceUpdates.
+//
+// Cost (review r1 of #943): one pass over the findings and one over the plan rank every device cheaply (preRank: its worst open
+// severity, ransomware, open findings; then its plan); only the ToFixLimit first get the per-device work (MatchInput, MatchAsset,
+// RowFixes), so the page never pays it for more than ToFixLimit devices, and Truncated says more had something.
 func (s *Service) ToFix(ctx context.Context, feedsOn bool, assetID string) (ToFix, error) {
 	recs, err := s.List(ctx, assetID)
 	if err != nil {
 		return ToFix{}, err
 	}
 	open := map[string][]Record{}
-	var ids []string
 	for _, r := range recs {
 		if r.Status.Open() {
-			if _, seen := open[r.AssetID]; !seen {
-				ids = append(ids, r.AssetID)
-			}
 			open[r.AssetID] = append(open[r.AssetID], r)
 		}
 	}
 	out := ToFix{PlanOff: !feedsOn}
+	plan := map[string]int{} // device -> its plan items
 	if feedsOn {
 		s.plan.mu.RLock()
 		out.PlanRan = s.plan.ran
 		for id, d := range s.plan.devices {
-			if _, seen := open[id]; !seen && len(d.items) > 0 && (assetID == "" || id == assetID) {
-				ids = append(ids, id)
-				open[id] = nil
+			if len(d.items) > 0 && (assetID == "" || id == assetID) {
+				plan[id] = len(d.items)
 			}
 		}
 		s.plan.mu.RUnlock()
 	}
 	var vulns []Vuln
-	if len(recs) > 0 {
+	ransom := map[string]bool{}
+	if len(open) > 0 {
 		if vulns, err = s.cfg.Feeds.Vulns(ctx); err != nil {
 			return ToFix{}, fmt.Errorf("findings: to fix: reading the exploited list: %w", err)
 		}
+		for _, v := range vulns {
+			ransom[v.CVE] = v.Ransomware
+		}
+	}
+	ids := preRank(open, plan, ransom)
+	if len(ids) > ToFixLimit {
+		ids, out.Truncated = ids[:ToFixLimit], true
 	}
 	for _, id := range ids {
 		a, ok, err := s.cfg.Inventory.MatchInput(ctx, id)
@@ -87,6 +95,13 @@ func (s *Service) ToFix(ctx context.Context, feedsOn bool, assetID string) (ToFi
 		}
 		if feedsOn {
 			d.Planned, d.PlanRan, d.PlanCompared = s.plannedUpdates(id)
+			sws := map[string]Software{}
+			for _, sw := range deviceSoftware(a) {
+				sws[sw.ID] = sw
+			}
+			for i := range d.Planned {
+				d.Planned[i].Product = productKey(sws[d.Planned[i].SoftwareID])
+			}
 		} else {
 			d.PlanOff = true
 		}
@@ -94,13 +109,53 @@ func (s *Service) ToFix(ctx context.Context, feedsOn bool, assetID string) (ToFi
 			out.Devices = append(out.Devices, d)
 		}
 	}
-	slices.SortStableFunc(out.Devices, func(p, q DeviceUpdates) int {
+	sortByUrgency(out.Devices)
+	return out, nil
+}
+
+// sortByUrgency orders devices the most urgent first (urgent.compare), ties by id.
+func sortByUrgency(ds []DeviceUpdates) {
+	slices.SortStableFunc(ds, func(p, q DeviceUpdates) int {
 		return cmp.Or(urgency(q).compare(urgency(p)), strings.Compare(p.AssetID, q.AssetID))
 	})
-	if len(out.Devices) > ToFixLimit {
-		out.Devices, out.Truncated = out.Devices[:ToFixLimit], true
+}
+
+// preRank orders the devices from what is read without the per-device work: open exploited findings first (their worst severity,
+// ransomware, how many), then devices with only plan items (how many); ties by id.
+func preRank(open map[string][]Record, plan map[string]int, ransom map[string]bool) []string {
+	type pre struct {
+		id                     string
+		worst, ransomware, all int
+		plan                   int
 	}
-	return out, nil
+	seen := map[string]*pre{}
+	for id, rs := range open {
+		p := &pre{id: id, all: len(rs), plan: plan[id]}
+		for _, r := range rs {
+			p.worst = max(p.worst, sevRank(r.Severity))
+			if ransom[r.CVE] {
+				p.ransomware++
+			}
+		}
+		seen[id] = p
+	}
+	for id, n := range plan {
+		if seen[id] == nil {
+			seen[id] = &pre{id: id, plan: n}
+		}
+	}
+	list := make([]*pre, 0, len(seen))
+	for _, p := range seen {
+		list = append(list, p)
+	}
+	slices.SortFunc(list, func(p, q *pre) int {
+		return cmp.Or(cmp.Compare(q.worst, p.worst), cmp.Compare(q.ransomware, p.ransomware), cmp.Compare(q.all, p.all), cmp.Compare(q.plan, p.plan), strings.Compare(p.id, q.id))
+	})
+	ids := make([]string, len(list))
+	for i, p := range list {
+		ids[i] = p.id
+	}
+	return ids
 }
 
 // urgent is how urgent a device is: what it has to fix (exploited, proved or with a named update) before what it may plan.

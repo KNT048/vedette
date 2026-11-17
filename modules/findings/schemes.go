@@ -2,6 +2,7 @@ package findings
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -218,4 +219,106 @@ func osRulesOut(v Vuln, in swInfo) bool {
 func sameVersionText(cfg, ver string) bool {
 	ver = strings.TrimSpace(ver)
 	return ver != "" && len(ver) <= maxVersionLen && !isPlaceholder(ver) && strings.EqualFold(strings.TrimSpace(cfg), ver)
+}
+
+// laterThan says the software version ver is certainly later than lit, the one version an exact NVD configuration c names (no
+// range), in the scheme the vendor writes it: a SQL Server build against NVD's release name (16.0.1000.6 is SQL Server 2022, later
+// than "sql_server:2008"), Java SE before 9 by line and update (javaRelease), any other by its numbers when both sides read and
+// are written alike (schemeClash). Office editions, Junos and everything that does not read are never later: "later" only takes
+// a row off the "could not be checked" list (newerThanListed), so it must be certain, and it is never a verdict about the flaw.
+func laterThan(c CPE, lit, ver string) bool {
+	if isJunos(c) {
+		return false
+	}
+	if _, ok := officeEdition(c, VersionRange{StartIncl: lit, EndIncl: lit}, true, ver); ok {
+		return false
+	}
+	if later, ok := sqlServerLater(c, lit, ver); ok {
+		return later
+	}
+	if el, eu, java, ok := javaEntry(c, lit); java { // Java's "1.8.0" is never compared as a number with "8.0.4910.10"
+		rl, ru, rok := javaRelease(ver)
+		return ok && rok && (rl > el || rl == el && ru > eu)
+	}
+	lv, okL := parseVersion(lit)
+	rv, okR := parseVersion(ver)
+	if !okL || !okR || schemeClash(VersionRange{StartIncl: lit}, ver) {
+		return false
+	}
+	return VersionRange{EndIncl: relString(lv)}.Contains(relString(rv)) == No // the release numbers only: "8.9p1" is not after "8.9"
+}
+
+// sqlServerLater is laterThan for an exact release configuration of microsoft:sql_server ("sql_server:2008:sp3", D-606): a build a
+// computer reports or a release a person typed is later when its major is higher. ok is false when the rule does not apply.
+func sqlServerLater(c CPE, lit, ver string) (later, ok bool) {
+	v, okV := c.Vendor.Literal()
+	p, okP := c.Product.Literal()
+	major, okM := sqlServerMajors[strings.ToLower(lit)]
+	if !okV || !okP || !okM || norm(v) != "microsoft" || norm(p) != "sqlserver" {
+		return false, false
+	}
+	if m := sqlServerMajors[strings.ToLower(strings.TrimSpace(ver))]; m != 0 {
+		return m > major, true
+	}
+	pv, okR := parseVersion(ver)
+	return okR && len(pv.rel) >= 3 && pv.rel[0] >= 8 && pv.rel[0] <= 17 && pv.rel[0] > major, true
+}
+
+// javaEntryRE is how NVD names a Java SE release before 9: "1.8.0" (the update in the CPE's update, "update401") or "1.4.2_25".
+var javaEntryRE = regexp.MustCompile(`^1\.([1-8])\.\d+(?:_(\d+))?$`)
+
+// javaUpdateRE is NVD's update of a Java SE release: "update401", "update_401", "update32_b31" (a build of update 32).
+var javaUpdateRE = regexp.MustCompile(`^update_?(\d+)(?:_b\d+)?$`)
+
+// javaEntry reads an exact NVD configuration of Oracle's JRE or JDK written in the "1.x" scheme: java is true for those, and ok when
+// the line and update read (an update of ANY is every update of the line: none to be later than).
+func javaEntry(c CPE, lit string) (line, update uint64, java, ok bool) {
+	v, okV := c.Vendor.Literal()
+	p, okP := c.Product.Literal()
+	if !okV || !okP || norm(v) != "oracle" || norm(p) != "jre" && norm(p) != "jdk" || !strings.HasPrefix(lit, "1.") {
+		return 0, 0, false, false
+	}
+	m := javaEntryRE.FindStringSubmatch(lit)
+	if m == nil {
+		return 0, 0, true, false
+	}
+	line, _ = strconv.ParseUint(m[1], 10, 64)
+	switch u, okU := c.Update.Literal(); {
+	case m[2] != "":
+		update, _ = strconv.ParseUint(m[2], 10, 64)
+	case c.Update.Kind == NA:
+		update = 0 // "1.7.0:-": the release itself
+	case okU && javaUpdateRE.MatchString(strings.ToLower(u)):
+		update, _ = strconv.ParseUint(javaUpdateRE.FindStringSubmatch(strings.ToLower(u))[1], 10, 64)
+	default:
+		return 0, 0, true, false
+	}
+	return line, update, true, true
+}
+
+// javaWinRE is the version Windows' list of programs gives Java SE 5 to 8: "8.0.4910.10" is Java 8 Update 491 (the update times
+// ten, then the build), "6.0.450" Java 6 Update 45.
+var javaWinRE = regexp.MustCompile(`^([5-8])\.0\.(\d+)(?:\.\d+)?$`)
+
+// javaUnderscoreRE is the version Java SE 5 to 8 reports itself ("java -version"): "1.8.0_491".
+var javaUnderscoreRE = regexp.MustCompile(`^1\.([5-8])\.0_(\d+)(?:-b\d+)?$`)
+
+// javaRelease reads a Java SE version as its line and update: "8.0.4910.10" and "1.8.0_491" are line 8 update 491; "17.0.10" is
+// line 17 (from Java 9 on the version is the release, later than every update of an earlier line).
+func javaRelease(ver string) (line, update uint64, ok bool) {
+	ver = strings.TrimSpace(ver)
+	if m := javaWinRE.FindStringSubmatch(ver); m != nil {
+		line, _ = strconv.ParseUint(m[1], 10, 64)
+		u, _ := strconv.ParseUint(m[2], 10, 64)
+		return line, u / 10, true
+	}
+	if m := javaUnderscoreRE.FindStringSubmatch(ver); m != nil {
+		line, _ = strconv.ParseUint(m[1], 10, 64)
+		u, _ := strconv.ParseUint(m[2], 10, 64)
+		return line, u, true
+	}
+	if pv, ok := parseVersion(ver); ok && pv.rel[0] >= 9 && pv.rel[0] < 1000 {
+		return pv.rel[0], 0, true
+	}
+	return 0, 0, false
 }

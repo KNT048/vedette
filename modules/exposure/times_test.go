@@ -266,6 +266,12 @@ func TestMigration0013GivesEarlierScansTheirTimes(t *testing.T) {
 	snap("sn-15", "2026-11-15", "2026-11-15T06:00:00.000Z", `[{"kind":"greenbone","at":"2026-11-15T07:30:00.000Z","text":"OpenVAS scanned"}]`, `[]`, `{"state":"done"}`)
 	snap("sn-16", "2026-11-16", "2026-11-16T06:00:00.000Z", `[]`, `[{"kind":"greenbone","text":"OpenVAS is off."}]`, `{"state":"not_run"}`)
 	snap("sn-17", "2026-11-17", "2026-11-17T14:29:00.000Z", `[]`, `[{"kind":"greenbone","text":"`+notGBStopped+`"}]`, `{"state":"stopped"}`)
+	// A second target whose OpenVAS step a power loss cut: the old start-up stored it as stopped and never wrote an end, so its
+	// last_scan_at is still the store time. Its end is not known: NULL, never "finished when it started".
+	exec(`INSERT INTO exp_target (id, kind, value, token, created_at, last_scan_at) VALUES ('xt-2', 'ip', '203.0.113.20', '', '2026-11-01T00:00:00.000Z', '2026-11-17T14:29:00.000Z')`)
+	exec(`INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, checks, not_checked, greenbone_run)
+		VALUES ('sn-cut', 'xt-2', '2026-11-17', '2026-11-17T14:29:00.000Z', '[]', '[]', '[]', '[]', '{}', '[]', ?, '{"state":"stopped"}')`,
+		`[{"kind":"greenbone","text":"`+notGBCutOff+`"}]`)
 	if err := store.Migrate(ctx, db, "exposure", Migrations); err != nil {
 		t.Fatal(err)
 	}
@@ -286,5 +292,18 @@ func TestMigration0013GivesEarlierScansTheirTimes(t *testing.T) {
 	var last string
 	if err := db.Reader().QueryRowContext(ctx, `SELECT last_scan_at FROM exp_target WHERE id = 'xt-1'`).Scan(&last); err != nil || last != "2026-11-17T14:29:00.000Z" {
 		t.Fatalf("last_scan_at %q, %v", last, err)
+	}
+	// the newest stopped step gets that end as its own stop time
+	newest, ok, err := loadSnapshot(ctx, db.Reader(), "xt-1", "2026-11-17")
+	if err != nil || !ok || newest.GreenboneRun.EndedAt == nil || *newest.GreenboneRun.EndedAt != "2026-11-17T15:43:00.000Z" {
+		t.Fatalf("stopped step %+v, %v", newest.GreenboneRun, err)
+	}
+	cut, err := listSnapshotMetas(ctx, db.Reader(), "xt-2")
+	if err != nil || len(cut) != 1 || cut[0].FinishedAt != nil || cut[0].StartedAt != "2026-11-17T14:29:00.000Z" {
+		t.Fatalf("cut by a power loss: %+v, %v", cut, err)
+	}
+	cutSnap, _, err := loadSnapshot(ctx, db.Reader(), "xt-2", "2026-11-17")
+	if err != nil || cutSnap.GreenboneRun.EndedAt != nil {
+		t.Fatalf("cut step %+v, %v", cutSnap.GreenboneRun, err)
 	}
 }

@@ -639,7 +639,7 @@ func (s *Service) SnapshotOf(ctx context.Context, id, date string) (Snapshot, er
 	nameAppliances(snap.Ports, snap.AdminPanels, snap.Services)
 	s.tieAppliances(ctx, snap.Ports, snap.AdminPanels)
 	if snap.GreenboneRun.State == GBRunRunning && snap.ID != live {
-		cutOff(&snap, nil) // when is not known: CutOffAtStart stores it at the next start
+		cutOff(&snap, nil, &GreenboneStop{Reason: StopRestart}) // when is not known: CutOffAtStart stores it at the next start
 	}
 	return snap, nil
 }
@@ -657,10 +657,11 @@ func (s *Service) gbLive() string {
 
 // cutOff: a snapshot whose OpenVAS step says "running" while no run of this box scans it was left by a restart of the box in the middle
 // of it: it is stopped, so the heading never says "scanning" for ever.
-// at is when the restart was seen (nil when not known); it is the step's end and, when the scan has none, the scan's.
-func cutOff(snap *Snapshot, at *string) {
+// at is when the restart was seen (nil when not known); it is the step's end and, when the scan has none, the scan's. stop is why:
+// a restart, or a shutdown whose OpenVAS stop outlasted Close's wait.
+func cutOff(snap *Snapshot, at *string, stop *GreenboneStop) {
 	snap.GreenboneRun.State = GBRunStopped
-	snap.GreenboneRun.Stop = &GreenboneStop{Reason: StopRestart}
+	snap.GreenboneRun.Stop = stop
 	snap.GreenboneRun.EndedAt = at
 	if snap.FinishedAt == nil {
 		snap.FinishedAt = at
@@ -670,11 +671,8 @@ func cutOff(snap *Snapshot, at *string) {
 			snap.GreenboneRun.Addresses[i].State = GBRunStopped
 		}
 	}
-	snap.NotChecked = gbCutOffWith(snap.NotChecked, notGBRestart)
+	snap.NotChecked = gbCutOffWith(snap.NotChecked, gbStoppedLine(stop, false))
 }
-
-// notGBRestart is the OpenVAS line of a step a restart of the box cut.
-var notGBRestart = gbStoppedLine(&GreenboneStop{Reason: StopRestart}, false)
 
 // gbCutOff replaces the waiting line of an OpenVAS step nothing runs any more (also the older one with a time) with the line
 // that says it was stopped, so the page never says "scanning" under a "stopped" heading.

@@ -1853,7 +1853,7 @@ func TestContract_INV25_OneStateForTheHeading(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := e.svc.SnapshotOf(e.ctx(), id, s.Date)
-	if err != nil || got.GreenboneRun.State != GBRunStopped || !slices.Equal(notChecked(got)[:2], []string{notGBRestart, notGBRestart}) ||
+	if err != nil || got.GreenboneRun.State != GBRunStopped || !slices.Equal(notChecked(got)[:2], []string{gbStoppedLine(&GreenboneStop{Reason: StopRestart}, false), gbStoppedLine(&GreenboneStop{Reason: StopRestart}, false)}) ||
 		got.GreenboneRun.Stop == nil || got.GreenboneRun.Stop.Reason != StopRestart {
 		t.Fatalf("run %+v, not checked %q, %v", got.GreenboneRun, notChecked(got), err)
 	}

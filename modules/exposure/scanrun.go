@@ -181,8 +181,8 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 	}
 	rctx = withSteps(progress.WithSink(rctx, run.prog), run.steps)
 	s.run = run
-	if a != nil {
-		run.view.OpenVASOnly = true
+	if a != nil { // no runner step: the run is the OpenVAS step from the start
+		run.view.OpenVASOnly, run.view.Phase = true, PhaseGreenbone
 		go s.executeAgain(rctx, run, user, t, *a)
 		return run, nil
 	}
@@ -541,6 +541,7 @@ func (s *Service) Close() {
 		case <-run.done:
 		case <-time.After(closeWait):
 			s.cfg.Log.Error("exposure: the running scan did not stop at shutdown; its audit row may be missing")
+			s.cutAtShutdown(run) // its OpenVAS step reads "stopped by a shutdown", not "a restart", at the next start
 		}
 	}
 }
@@ -558,4 +559,32 @@ func runEndOf(err error) int {
 		return runPanicked
 	}
 	return runEnded
+}
+
+// cutAtShutdown stores the OpenVAS step of run, when it still reads "running", as stopped by the shutdown: Close's wait ran out (OpenVAS
+// took longer than closeWait to stop its task), and the process ends before the run writes its outcome. Failures are logged.
+func (s *Service) cutAtShutdown(run *scanRun) {
+	s.runMu.Lock()
+	id, target := run.gbSnap, run.view.TargetID
+	s.runMu.Unlock()
+	if id == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(s.bg, saveTimeout)
+	defer cancel()
+	now := store.FormatTS(s.clock())
+	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+		var date string
+		if err := tx.QueryRowContext(ctx, `SELECT date FROM exp_snapshot WHERE id = ?`, id).Scan(&date); err != nil {
+			return nil //nolint:nilerr // not stored yet, or replaced: nothing to mark
+		}
+		snap, ok, err := loadSnapshot(ctx, tx, target, date)
+		if err != nil || !ok || snap.ID != id || snap.GreenboneRun.State != GBRunRunning {
+			return err
+		}
+		return storeCut(ctx, tx, target, snap, now, &GreenboneStop{Reason: StopShutdown})
+	})
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "exposure: marking the OpenVAS step a shutdown cut as stopped failed", "error", err)
+	}
 }

@@ -273,7 +273,7 @@ func (s *Service) outsideView(ctx context.Context, q querier, id string) (*Outsi
 	v.Ports, v.Hostnames, v.CPEs, v.Tags, v.Vulns = nz(v.Ports), nz(v.Hostnames), nz(v.CPEs), nz(v.Tags), nz(v.Vulns)
 	// Our own side, read now: the open ports of the newest scan of this IP.
 	var at, ports string
-	err = q.QueryRowContext(ctx, `SELECT scanned_at, ports FROM exp_snapshot WHERE target_id = ? ORDER BY date DESC LIMIT 1`, id).Scan(&at, &ports)
+	err = q.QueryRowContext(ctx, `SELECT coalesce(started_at, scanned_at), ports FROM exp_snapshot WHERE target_id = ? ORDER BY date DESC LIMIT 1`, id).Scan(&at, &ports)
 	if errors.Is(err, sql.ErrNoRows) {
 		return &v, nil
 	}

@@ -10,13 +10,32 @@ import (
 	"runtime/debug"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/core/store"
 )
 
 // againStates are the OpenVAS states of a scan whose OpenVAS step may run again on its own: it started and did not finish (a stop,
-// a restart of the box, a failure, OpenVAS ending the task). A step cut by a restart still reads "running" until the next start.
+// a restart of the box, a failure, OpenVAS ending the task). A step cut by a restart still reads "running" until the next start. A
+// step with rows (OpenVAS ended it after it had found some) is not one: its findings stay until a new deep scan replaces them, so a
+// run again that is stopped or refused never loses them (againable).
 var againStates = []string{GBRunStopped, GBRunFailed, GBRunEnded, GBRunRunning}
+
+// AgainWithin is how old a scan may be for its OpenVAS step to run again on its own: OpenVAS checks the ports that scan found open,
+// and its findings are named by that scan's start, so an older scan needs a new deep scan instead.
+const AgainWithin = 24 * time.Hour
+
+// againable says whether the OpenVAS step of snap may run again on its own now (the state, its rows, its age), and why not.
+func (s *Service) againable(snap Snapshot) error {
+	if !slices.Contains(againStates, snap.GreenboneRun.State) || len(snap.Greenbone) > 0 {
+		return ErrNothingAgain
+	}
+	start, err := parseTS(snap.StartedAt)
+	if err != nil || s.clock().Sub(start) > AgainWithin {
+		return apiErr(409, "nothing_to_rerun", "This scan started on %s, more than 24 hours ago, so OpenVAS does not run again on the ports it found then. Run a deep scan to check the ports open now.", s.momentText(start))
+	}
+	return nil
+}
 
 // The answers of POST …/openvas that a scan does not have.
 var (
@@ -69,6 +88,9 @@ func (s *Service) againPlan(ctx context.Context, t Target, reason BlockedReason)
 	if err != nil { // an IP target's value is a canonical public IPv4 (INV-2, INV-3): never reached
 		return Snapshot{}, nil, fmt.Errorf("exposure: reading the address %q: %w", t.Value, err)
 	}
+	if s.busy() { // OpenVAS (or a scan) runs now: busy, not "nothing to run again"
+		return Snapshot{}, nil, ErrScanBusy
+	}
 	db := s.cfg.DB.Reader()
 	metas, err := listSnapshotMetas(ctx, db, t.ID)
 	if err != nil {
@@ -81,8 +103,14 @@ func (s *Service) againPlan(ctx context.Context, t Target, reason BlockedReason)
 	if err != nil {
 		return Snapshot{}, nil, err
 	}
-	if !ok || !slices.Contains(againStates, snap.GreenboneRun.State) || snap.ID == s.gbLive() {
+	if !ok {
 		return Snapshot{}, nil, ErrNothingAgain
+	}
+	if snap.ID == s.gbLive() {
+		return Snapshot{}, nil, ErrScanBusy
+	}
+	if err := s.againable(snap); err != nil {
+		return Snapshot{}, nil, err
 	}
 	ports := gbPorts(snap.Ports, ip)
 	if line := gbPortsLine(ports); line != "" { // never reached for a step that started: it had ports to check
@@ -92,6 +120,13 @@ func (s *Service) againPlan(ctx context.Context, t Target, reason BlockedReason)
 		return Snapshot{}, nil, err
 	}
 	return snap, ports, nil
+}
+
+// busy says whether a run (a scan, or OpenVAS again) holds the box's one scan slot now.
+func (s *Service) busy() bool {
+	s.runMu.Lock()
+	defer s.runMu.Unlock()
+	return s.run != nil && s.run.view.Status == RunRunning
 }
 
 // againReady is greenbonePlan as an answer: nil when OpenVAS may scan t now, else 503 scanner_unavailable with its reason.

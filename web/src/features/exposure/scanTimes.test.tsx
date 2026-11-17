@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -9,6 +9,9 @@ import { server } from '@/test/server'
 let tz: string | undefined
 beforeAll(() => { tz = process.env.TZ; process.env.TZ = 'Asia/Ho_Chi_Minh' })
 afterAll(() => { if (tz === undefined) delete process.env.TZ; else process.env.TZ = tz })
+// The page's clock: 17 Nov 2026, 16:00 UTC (23:00 local), so the scans below are hours old, within the 24 hours of OpenVAS again
+beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true }); vi.setSystemTime(new Date('2026-11-17T16:00:00.000Z')) })
+afterEach(() => vi.useRealTimers())
 
 const ip = '203.0.113.10'
 const started = '2026-11-17T14:20:00.000Z' // the scan's start: 21:20 local
@@ -26,9 +29,22 @@ const older = { id: 'sn-o', date: '2026-11-16', scanned_at: '2026-11-16T23:25:00
 
 const again = { id: 'sr-a', target_id: 'xt-2', target_value: ip, by: 'op@acme.example', started_at: stoppedAt, finished_at: null, status: 'running', phase: 'greenbone', snapshot_id: null, error: null, progress: null, openvas_only: true }
 
-function serve(snap: ReturnType<typeof snapshotOf>) {
+const openvasReady = { state: 'ready', reason: null, changed_by: null, changed_at: null, enabled: true, feed: null,
+  preflight: { memory_bytes: 16e9, disk_free_bytes: 180e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null } }
+
+/** The target as the mock lists it, scanned at `started`, with the testing terms accepted unless `terms` is false. */
+function targetIs(patch: Record<string, unknown> = {}) {
+  server.use(http.get('*/api/v1/exposure/targets/xt-2', async () => {
+    const r = await fetch(`${location.origin}/api/v1/exposure/targets`).then((x) => x.json()) as { items: { id: string }[] }
+    return HttpResponse.json({ ...r.items.find((x) => x.id === 'xt-2'), last_scan_at: started, last_scan_finished_at: stoppedAt, full_scan: true, blocked_reason: null, scannable: true, ...patch })
+  }))
+}
+
+function serve(snap: ReturnType<typeof snapshotOf>, openvas: Record<string, unknown> = openvasReady) {
   const posted: string[] = []
+  targetIs()
   server.use(
+    http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json(openvas)),
     http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date: snap.date, scanned_at: snap.scanned_at, started_at: snap.started_at, finished_at: snap.finished_at, counts: snap.counts }, older] })),
     http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', ({ params }) => HttpResponse.json(params.date === snap.date ? snap : { ...snapshotOf({ state: 'done', ended_at: older.finished_at }), ...older })),
     http.post('*/api/v1/exposure/targets/:id/openvas', ({ params }) => {
@@ -47,7 +63,7 @@ describe('exposure: an OpenVAS step that was stopped says why and when, and runs
   it.each([
     [{ reason: 'shutdown', by: null }, 'Stopped at 17 Nov 2026, 22:43: Vedette shut down while OpenVAS ran (an update, a restart or a stop of the service).'],
     [{ reason: 'person', by: 'op@acme.example' }, 'Stopped at 17 Nov 2026, 22:43: op@acme.example pressed Stop.'],
-    [{ reason: 'restart', by: null }, 'Stopped: Vedette restarted while OpenVAS ran, without shutting down cleanly. It noticed when it started again at 17 Nov 2026, 22:43.'],
+    [{ reason: 'restart', by: null }, 'Stopped: Vedette restarted while OpenVAS ran. It noticed when it started again at 17 Nov 2026, 22:43.'],
     [{ reason: 'module_off', by: null }, 'Stopped at 17 Nov 2026, 22:43: the External exposure module was switched off.'],
     [{ reason: 'terms', by: 'owner@acme.example' }, 'Stopped at 17 Nov 2026, 22:43: owner@acme.example withdrew or lowered the testing terms of this target.'],
   ])('%o', async (stop, line) => {
@@ -78,6 +94,42 @@ describe('exposure: an OpenVAS step that was stopped says why and when, and runs
     // the older scan (its OpenVAS done) has nothing to run again
     await userEvent.selectOptions(screen.getByLabelText('Snapshot of'), '2026-11-16')
     await waitFor(() => expect(within(screen.getByRole('region', { name: 'OpenVAS results (unauthenticated, QoD ≥ 70)' })).queryByRole('button', { name: 'Run OpenVAS again' })).toBeNull())
+  })
+
+  it('the button says why the box would refuse now, with the place to fix it', async () => {
+    serve(snapshotOf({ state: 'stopped', ended_at: stoppedAt, stop: { reason: 'shutdown', by: null } }), { ...openvasReady, state: 'off', enabled: false })
+    renderApp('/exposure/xt-2', { role: 'operator' })
+    const s = await section()
+    expect(await within(s).findByRole('button', { name: 'Run OpenVAS again' })).toBeDisabled()
+    expect(within(s).getByRole('link', { name: 'Turn it on: External exposure, Optional deep scan' })).toBeInTheDocument()
+  })
+
+  it('the testing terms come first: OpenVAS runs only under them', async () => {
+    serve(snapshotOf({ state: 'stopped', ended_at: stoppedAt, stop: { reason: 'shutdown', by: null } }))
+    targetIs({ full_scan: false })
+    renderApp('/exposure/xt-2', { role: 'operator' })
+    const s = await section()
+    expect(await within(s).findByText(/^OpenVAS runs only under the testing terms, and they are not accepted for this target\./)).toBeInTheDocument()
+    expect(within(s).getByRole('link', { name: 'Accept them: Ownership, Testing terms' })).toHaveAttribute('href', expect.stringContaining('tab=ownership#step-terms'))
+    expect(within(s).getByRole('button', { name: 'Run OpenVAS again' })).toBeDisabled()
+  })
+
+  it('no button for a scan older than 24 hours', async () => {
+    vi.setSystemTime(new Date('2026-11-18T15:00:00.000Z')) // 24 h 40 min after the scan started
+    serve(snapshotOf({ state: 'stopped', ended_at: stoppedAt, stop: { reason: 'shutdown', by: null } }))
+    renderApp('/exposure/xt-2', { role: 'operator' })
+    const s = await section()
+    expect(await within(s).findByText('OpenVAS was stopped before it finished')).toBeInTheDocument()
+    expect(within(s).queryByRole('button', { name: 'Run OpenVAS again' })).toBeNull()
+  })
+
+  it('no button for a step whose findings it would replace (OpenVAS ended it after it found some)', async () => {
+    const high = { ip, port: '443/tcp', severity: 7.5, name: 'Weak TLS', qod: 98, cves: [], solution: 'Fix TLS.', oid: '1.3.6.1.4.1.25623.1.0.1' }
+    serve(snapshotOf({ state: 'ended', ended_at: stoppedAt }, { greenbone: [high] }))
+    renderApp('/exposure/xt-2', { role: 'operator' })
+    const s = await section()
+    expect(await within(s).findByRole('table')).toBeInTheDocument()
+    expect(within(s).queryByRole('button', { name: 'Run OpenVAS again' })).toBeNull()
   })
 
   it('a step that ran again says so, with its start and end', async () => {

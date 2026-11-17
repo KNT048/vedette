@@ -673,6 +673,7 @@ func nullIf(s string) any {
 // Scanning › History.
 type ScanRecord struct {
 	TargetID, Target, ScannedAt string
+	Date                        string  // the snapshot's day (one per target and day): with TargetID, the scan's identity
 	StartedAt                   string  // when the scan started (ScannedAt on a snapshot older than the column)
 	FinishedAt                  *string // when its last step ended; nil while OpenVAS runs or when not known
 	Counts                      Counts
@@ -683,7 +684,8 @@ type ScanRecord struct {
 // RecentScans lists the newest stored scans of every target, newest first, at most limit (1..500). Read only. Only a scan that
 // reached its snapshot is stored: one that failed before has no row (the run lives in memory, INV-8).
 func (s *Service) RecentScans(ctx context.Context, limit int) ([]ScanRecord, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.target_id, t.value, s.scanned_at, coalesce(s.started_at, s.scanned_at), s.finished_at, s.counts,
+	live := s.gbLive() // before the read, as SnapshotOf: a step "running" that no run scans was cut by a restart and reads as stopped
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.id, s.date, s.target_id, t.value, s.scanned_at, coalesce(s.started_at, s.scanned_at), s.finished_at, s.counts,
   coalesce(json_array_length(s.not_checked), 0), coalesce(json_extract(s.greenbone_run, '$.state'), ''), s.admin_panels, s.ports, s.services
 FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id ORDER BY coalesce(s.started_at, s.scanned_at) DESC LIMIT ?`, max(1, min(500, limit)))
 	if err != nil {
@@ -693,9 +695,9 @@ FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id ORDER BY coalesce(s.
 	out := []ScanRecord{}
 	for rows.Next() {
 		var r ScanRecord
-		var doc, admin, ports, services string
+		var id, doc, admin, ports, services string
 		var fin sql.NullString
-		if err := rows.Scan(&r.TargetID, &r.Target, &r.ScannedAt, &r.StartedAt, &fin, &doc, &r.NotChecked, &r.Greenbone, &admin, &ports, &services); err != nil {
+		if err := rows.Scan(&id, &r.Date, &r.TargetID, &r.Target, &r.ScannedAt, &r.StartedAt, &fin, &doc, &r.NotChecked, &r.Greenbone, &admin, &ports, &services); err != nil {
 			return nil, fmt.Errorf("exposure: recent scans: %w", err)
 		}
 		if err := json.Unmarshal([]byte(doc), &r.Counts); err != nil {
@@ -705,6 +707,9 @@ FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id ORDER BY coalesce(s.
 			return nil, fmt.Errorf("exposure: recent scan of %s: %w", r.TargetID, err)
 		}
 		r.FinishedAt = optText(fin)
+		if r.Greenbone == GBRunRunning && id != live {
+			r.Greenbone = GBRunStopped
+		}
 		out = append(out, r)
 	}
 	return out, rows.Err()

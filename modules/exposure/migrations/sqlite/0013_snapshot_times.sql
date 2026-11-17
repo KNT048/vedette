@@ -20,12 +20,17 @@ WHERE finished_at IS NULL AND coalesce(json_extract(greenbone_run, '$.state'), '
       WHERE json_extract(CASE n.type WHEN 'object' THEN n.value END, '$.kind') = 'greenbone'
         AND json_extract(CASE n.type WHEN 'object' THEN n.value END, '$.text') LIKE 'OpenVAS%stopped%');
 
--- The newest snapshot of a target ended when the target's last_scan_at says: until this version it was set when the scan's last
--- step ended (also an OpenVAS step that was stopped).
+-- The newest snapshot of a target ended when the target's last_scan_at says, when that is later than its store time: until this
+-- version it was set when the scan's last step ended (also an OpenVAS step that was stopped). An equal time is not an end: a step a
+-- restart cut never wrote one, so its end stays unknown (NULL). A stopped step gets that time as its own end too.
 UPDATE exp_snapshot SET finished_at = (SELECT t.last_scan_at FROM exp_target AS t WHERE t.id = exp_snapshot.target_id)
 WHERE date = (SELECT max(s2.date) FROM exp_snapshot AS s2 WHERE s2.target_id = exp_snapshot.target_id)
   AND coalesce(json_extract(greenbone_run, '$.state'), '') <> 'running'
-  AND (SELECT t.last_scan_at FROM exp_target AS t WHERE t.id = exp_snapshot.target_id) >= scanned_at;
+  AND (SELECT t.last_scan_at FROM exp_target AS t WHERE t.id = exp_snapshot.target_id) > scanned_at;
+UPDATE exp_snapshot SET greenbone_run = json_set(greenbone_run, '$.ended_at', finished_at)
+WHERE json_extract(greenbone_run, '$.state') = 'stopped' AND json_extract(greenbone_run, '$.ended_at') IS NULL AND finished_at IS NOT NULL
+  AND finished_at > scanned_at
+  AND date = (SELECT max(s2.date) FROM exp_snapshot AS s2 WHERE s2.target_id = exp_snapshot.target_id);
 
 -- "Last scanned" is the start of the newest scan, like every other label of a scan.
 UPDATE exp_target SET last_scan_at = (SELECT s.started_at FROM exp_snapshot AS s WHERE s.target_id = exp_target.id ORDER BY s.date DESC LIMIT 1)

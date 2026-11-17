@@ -565,28 +565,7 @@ func (s *Service) CutOffAtStart(ctx context.Context) {
 				}
 				continue
 			}
-			cutOff(&snap, &now)
-			docs, err := snapshotDocs(snap.Content, snap.Counts)
-			if err != nil {
-				return err
-			}
-			run, err := json.Marshal(snap.GreenboneRun)
-			if err != nil {
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, `UPDATE exp_snapshot SET not_checked = ?, greenbone_run = ?, finished_at = coalesce(finished_at, ?) WHERE id = ?`, docs[7], string(run), now, snap.ID); err != nil {
-				return err
-			}
-			// Settings › Scanning's OpenVAS card says the step was cut, as a Stop or a shutdown does (INV-30)
-			var value string
-			if err := tx.QueryRowContext(ctx, `SELECT value FROM exp_target WHERE id = ?`, d.target).Scan(&value); err != nil {
-				return err
-			}
-			_, text := openVASStep(GBRunStopped, 0, snap.GreenboneRun.Stop)
-			if _, err := tx.ExecContext(ctx, `INSERT INTO exp_engine_run (engine, run_id, target, at, outcome, text) VALUES (?, ?, ?, ?, ?, ?)
-				ON CONFLICT (engine) DO UPDATE SET run_id = excluded.run_id, target = excluded.target, at = excluded.at, outcome = excluded.outcome, text = excluded.text
-				WHERE excluded.at >= exp_engine_run.at`,
-				StepOpenVAS, snap.ID, value, now, StepStopped, clipText("External scan of "+value+": "+text, maxLineText)); err != nil {
+			if err := storeCut(ctx, tx, d.target, snap, now, &GreenboneStop{Reason: StopRestart}); err != nil {
 				return err
 			}
 		}
@@ -595,6 +574,33 @@ func (s *Service) CutOffAtStart(ctx context.Context) {
 	if err != nil {
 		s.cfg.Log.ErrorContext(ctx, "exposure: marking OpenVAS steps a restart cut off as stopped failed", "error", err)
 	}
+}
+
+// storeCut stores snap's OpenVAS step, which nothing runs any more, as stopped at now for stop (cutOff), and Settings › Scanning's
+// OpenVAS card with it, as a Stop or a shutdown does (INV-30).
+func storeCut(ctx context.Context, tx *sql.Tx, target string, snap Snapshot, now string, stop *GreenboneStop) error {
+	cutOff(&snap, &now, stop)
+	docs, err := snapshotDocs(snap.Content, snap.Counts)
+	if err != nil {
+		return err
+	}
+	run, err := json.Marshal(snap.GreenboneRun)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE exp_snapshot SET not_checked = ?, greenbone_run = ?, finished_at = coalesce(finished_at, ?) WHERE id = ?`, docs[7], string(run), now, snap.ID); err != nil {
+		return err
+	}
+	var value string
+	if err := tx.QueryRowContext(ctx, `SELECT value FROM exp_target WHERE id = ?`, target).Scan(&value); err != nil {
+		return err
+	}
+	_, text := openVASStep(GBRunStopped, 0, snap.GreenboneRun.Stop)
+	_, err = tx.ExecContext(ctx, `INSERT INTO exp_engine_run (engine, run_id, target, at, outcome, text) VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT (engine) DO UPDATE SET run_id = excluded.run_id, target = excluded.target, at = excluded.at, outcome = excluded.outcome, text = excluded.text
+		WHERE excluded.at >= exp_engine_run.at`,
+		StepOpenVAS, snap.ID, value, now, StepStopped, clipText("External scan of "+value+": "+text, maxLineText))
+	return err
 }
 
 // gbModuleOff stops Greenbone's containers when the External exposure module is switched off while Greenbone is enabled: no
@@ -871,7 +877,7 @@ type GreenboneRun struct {
 const (
 	StopPerson   = "person"     // someone pressed Stop (By names them)
 	StopShutdown = "shutdown"   // Vedette shut down while it ran (an update, a restart or a stop of the service)
-	StopRestart  = "restart"    // Vedette started again and found it still "running": the box stopped without shutting down cleanly
+	StopRestart  = "restart"    // Vedette started again and found it still "running": it stopped before the step could store how it ended
 	StopModule   = "module_off" // the External exposure module was switched off
 	StopTerms    = "terms"      // the testing terms of the target were withdrawn or lowered (By names who)
 )

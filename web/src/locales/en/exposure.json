@@ -755,8 +755,8 @@
       "stop": {
         "person": "Stopped at {{time}}: {{by}} pressed Stop.",
         "shutdown": "Stopped at {{time}}: Vedette shut down while OpenVAS ran (an update, a restart or a stop of the service).",
-        "restart": "Stopped: Vedette restarted while OpenVAS ran, without shutting down cleanly. It noticed when it started again at {{time}}.",
-        "restartNoTime": "Stopped: Vedette restarted while OpenVAS ran, without shutting down cleanly.",
+        "restart": "Stopped: Vedette restarted while OpenVAS ran. It noticed when it started again at {{time}}.",
+        "restartNoTime": "Stopped: Vedette restarted while OpenVAS ran.",
         "module_off": "Stopped at {{time}}: the External exposure module was switched off.",
         "terms": "Stopped at {{time}}: {{by}} withdrew or lowered the testing terms of this target.",
         "someone": "someone"
@@ -770,6 +770,12 @@
       "button": "Run OpenVAS again",
       "note": "Checks the open TCP ports this scan found ({{ports}}) for up to 90 minutes. Its result replaces this OpenVAS part; the other results above stay as they are.",
       "busy": "Another scan is running on this box. Wait for it to finish.",
+      "terms": "OpenVAS runs only under the testing terms, and they are not accepted for this target.",
+      "termsLink": "Accept them: Ownership, Testing terms",
+      "ownershipLink": "Fix it: Ownership",
+      "notReady": "OpenVAS cannot scan now: it is starting, loading its feed or not available.",
+      "notReadyLink": "See its state: External exposure, Optional deep scan",
+      "wait": "Wait until {{time}}: at most one scan of a target every 10 minutes, and OpenVAS again counts as one.",
       "started": "OpenVAS is running again on {{value}}."
     },
     "offReason": "OpenVAS is off on this box.",

@@ -2375,8 +2375,39 @@ describe('inventory: G2 rename a device (S-INV-1)', () => {
     renderApp('/devices/a-nas02', { role: 'operator' })
     await user.click(await screen.findByRole('button', { name: 'Rename' }, T))
     await user.type(screen.getByRole('textbox', { name: 'Name in Vedette' }), 'a<b')
-    expect(screen.getByRole('alert')).toHaveTextContent('A name cannot contain < or >.')
+    expect(screen.getByRole('alert')).toHaveTextContent('A name cannot contain < or >, control characters or invisible characters.')
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
+  it('review r1 of #929: invisible and bidi characters are refused like < >; a refused save keeps the focus and says why next to the field', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02', { role: 'operator' })
+    await user.click(await screen.findByRole('button', { name: 'Rename' }, T))
+    const field = screen.getByRole('textbox', { name: 'Name in Vedette' })
+    fireEvent.change(field, { target: { value: '\u202eresu-lawerif' } })
+    expect(screen.getByRole('alert')).toHaveTextContent('invisible characters')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    fireEvent.change(field, { target: { value: 'fw\u200bcore' } })
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    server.use(http.patch(`${location.origin}/api/v1/inventory/devices/:id`, () => HttpResponse.json({ error: { code: 'forbidden', message: 'You need the operator role.' } }, { status: 403 })))
+    await user.clear(field)
+    await user.type(field, 'Photo NAS{Enter}')
+    expect(await screen.findByRole('alert', undefined, T)).toHaveTextContent('You need the operator role.')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveFocus(), T)
+    expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveAttribute('aria-invalid', 'true')
+    expect(nas().name ?? null).toBeNull()
+  })
+
+  it('review r1 of #929: the CSV export keeps the host name and the name in Vedette apart, and import reads both back', async () => {
+    asAdmin()
+    expect((await call('PATCH', '/devices/a-nas02', { name: 'Photo NAS' })).status).toBe(200)
+    const csv = (await call('GET', '/export.csv')).text
+    expect(csv).toContain('last_seen,name_in_vedette')
+    expect(csv).toMatch(/\r\nNAS-PHOTOS,[^\r]*,Photo NAS\r\n/)
+    const r = await call('POST', '/import', { filename: 'x.csv', size: 1, sha256: 'x', text: 'name,ip,name_in_vedette\nfw-core,192.168.77.1,Office firewall\n' })
+    expect(r.json!.created).toBe(1)
+    const a = assetsStore.get().find((x) => x.ip === '192.168.77.1')!
+    expect([a.hostname, a.name]).toEqual(['fw-core', 'Office firewall'])
   })
 
   it('a viewer cannot rename', async () => {

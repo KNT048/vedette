@@ -228,7 +228,7 @@
     "renameCancel": "Cancel",
     "renameHint": "Shown on every page. Leave it empty for the default name, {{name}}. The host name seen on the network does not change.",
     "renamed": "Renamed to {{name}}.",
-    "renameBad": "A name cannot contain < or >.",
+    "renameBad": "A name cannot contain < or >, control characters or invisible characters.",
     "renameReset": "The device is named {{name}} again.",
     "hostname": "Host name (seen on the network)",
     "hostnameNone": "None reported",

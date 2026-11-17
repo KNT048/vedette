@@ -91,7 +91,7 @@ func TestContract_INV13_CSVImportAndExport(t *testing.T) {
 		}
 		b, _ := io.ReadAll(rd)
 		s := string(b)
-		if !strings.HasPrefix(s, "\xef\xbb\xbfname,ip,mac,kind,vendor,model,os,software,approved,fragile,origin,source,confidence,last_seen\r\n") {
+		if !strings.HasPrefix(s, "\xef\xbb\xbfname,ip,mac,kind,vendor,model,os,software,approved,fragile,origin,source,confidence,last_seen,name_in_vedette\r\n") {
 			t.Fatalf("header = %q", s[:80])
 		}
 		if !strings.Contains(s, `'=HYPERLINK("http://evil")`) && !strings.Contains(s, `"'=HYPERLINK(""http://evil"")"`) {

@@ -23,6 +23,7 @@ type AddInput struct {
 	Version   string
 	Name      string
 	IP        string
+	UserName  string // the name in Vedette (G2): only CSV import sets it, from its name_in_vedette column
 }
 
 // AddResult is POST /inventory/devices.
@@ -33,10 +34,11 @@ type AddResult struct {
 }
 
 type addChecked struct {
-	entry   *catEntry
-	version string
-	name    string
-	ip      string
+	entry    *catEntry
+	version  string
+	name     string
+	ip       string
+	userName string
 }
 
 func notFoundDevice() *apierr.Error {
@@ -81,6 +83,10 @@ func checkAdd(c *Catalog, in AddInput, requireProduct bool) (addChecked, *apierr
 	if name != "" && !label(name) {
 		return addChecked{}, badRequest("bad_name", "The name is at most 64 characters and cannot contain < or >.")
 	}
+	user := strings.TrimSpace(in.UserName)
+	if !userName(user) {
+		return addChecked{}, badRequest("bad_name", badUserName)
+	}
 	ip := strings.TrimSpace(in.IP)
 	if ip != "" {
 		a, ok := ipv4(ip)
@@ -89,17 +95,17 @@ func checkAdd(c *Catalog, in AddInput, requireProduct bool) (addChecked, *apierr
 		}
 		ip = a.String()
 	}
-	return addChecked{entry: entry, version: version, name: name, ip: ip}, nil
+	return addChecked{entry: entry, version: version, name: name, ip: ip, userName: user}, nil
 }
 
 // createManual inserts a declared device with its observations and software (INV-4, INV-5): approved, never
 // scanned, source "manual" at confidence 1.
 func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a addChecked, kind string) (string, error) {
 	if a.ip != "" {
-		var dup sql.NullString
-		err := tx.QueryRowContext(ctx, `SELECT coalesce(hostname, id) FROM inv_asset WHERE ip = ?`, a.ip).Scan(&dup)
-		if err == nil {
-			return "", conflict("duplicate_ip", fmt.Sprintf("IP %s is already in the list (%s). Open that device instead of adding a new one.", a.ip, dup.String))
+		var dup string
+		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = ?`, a.ip).Scan(&dup)
+		if err == nil { // named as every page names it (D-471, G2)
+			return "", conflict("duplicate_ip", fmt.Sprintf("IP %s is already in the list (%s). Open that device instead of adding a new one.", a.ip, deviceName(ctx, tx, dup)))
 		} else if !errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("inventory: check IP: %w", err)
 		}
@@ -112,8 +118,8 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 	}
 	now := s.now()
 	id := store.NewID("a")
-	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, ip, ip_confirmed_at, kind, origin, approved, fragile, first_seen, last_seen)
-		VALUES (?1, ?2, CASE WHEN ?2 IS NULL THEN NULL ELSE ?3 END, 'unknown', 'manual', 1, 0, ?3, ?3)`, id, nullStr(a.ip), now); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, ip, ip_confirmed_at, kind, origin, approved, fragile, first_seen, last_seen, user_name)
+		VALUES (?1, ?2, CASE WHEN ?2 IS NULL THEN NULL ELSE ?3 END, 'unknown', 'manual', 1, 0, ?3, ?3, ?4)`, id, nullStr(a.ip), now, nullStr(a.userName)); err != nil {
 		return "", fmt.Errorf("inventory: create device: %w", err)
 	}
 	if a.entry != nil {
@@ -357,8 +363,8 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 	}
 	if p.Name != nil {
 		n := strings.TrimSpace(*p.Name)
-		if n != "" && !label(n) {
-			return badRequest("bad_name", "The name is at most 64 characters and cannot contain < or >.")
+		if !userName(n) {
+			return badRequest("bad_name", badUserName)
 		}
 		p.Name = &n
 	}

@@ -2,6 +2,7 @@ package inventory_test
 
 import (
 	"errors"
+	"io"
 	"net/netip"
 	"strings"
 	"testing"
@@ -147,7 +148,8 @@ func TestContract_G2_BadNamesAreRefused(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.firewall()
-	for _, bad := range []string{strings.Repeat("x", 65), "a<b", "a>b", "tab\there"} {
+	// review r1 of #929 (Medium): the characters the observation path refuses (invisible): bidi overrides, zero-width, C1, U+FEFF.
+	for _, bad := range []string{strings.Repeat("x", 65), "a<b", "a>b", "tab\there", "\u202eresu-lawerif", "\u200b", "fw\u200dcore", "f\u0085w", "f\u0090w", "\ufefffw", "fw\u2066x"} {
 		err := e.rename(id, bad)
 		var ae *apierr.Error
 		if !errors.As(err, &ae) || ae.Status != 400 || ae.Code != "bad_name" {
@@ -156,6 +158,9 @@ func TestContract_G2_BadNamesAreRefused(t *testing.T) {
 	}
 	if err := e.rename(id, strings.Repeat("é", 64)); err != nil { // 64 characters, not bytes
 		t.Errorf("64 characters: %v", err)
+	}
+	if got := e.nameOf(id); got != strings.Repeat("é", 64) {
+		t.Errorf("a refused name changed the name: %q", got)
 	}
 	missing := "x"
 	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", "a-missing", inventory.Patch{Name: &missing}); err == nil {
@@ -197,5 +202,77 @@ func TestHandlers_G2_PatchName(t *testing.T) {
 	a.want("PATCH", "/inventory/devices/"+id, "operator", `{"name":""}`, 200, "")
 	if asset := a.want("GET", "/inventory/devices/"+id, "viewer", "", 200, "")["asset"].(map[string]any); asset["name"] != nil {
 		t.Fatalf("after clearing, name = %v", asset["name"])
+	}
+}
+
+// review r1 of #929 (Low): the export keeps the host name and the name in Vedette in their own columns, and an import reads them back
+// the same way: the person's name never becomes a host name observation.
+func TestContract_G2_CSVKeepsBothNames(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.firewall()
+	if err := e.rename(id, "Office firewall"); err != nil {
+		t.Fatal(err)
+	}
+	rd, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := io.ReadAll(rd)
+	lines := strings.Split(strings.TrimPrefix(string(raw), "\ufeff"), "\r\n")
+	if !strings.HasPrefix(lines[0], "name,ip,") || !strings.HasSuffix(lines[0], ",name_in_vedette") {
+		t.Fatalf("header = %q", lines[0])
+	}
+	var row string
+	for _, l := range lines {
+		if strings.Contains(l, "192.168.18.1") {
+			row = l
+		}
+	}
+	if !strings.HasPrefix(row, "fw-core,192.168.18.1,") || !strings.HasSuffix(row, ",Office firewall") {
+		t.Fatalf("row = %q", row)
+	}
+	// Imported on a fresh box: the host name is fw-core (typed), the name in Vedette "Office firewall".
+	other := newEnv(t)
+	if r := other.importCSV(string(raw)); r.Created != 1 || len(r.Errors) != 0 {
+		t.Fatalf("import = %+v", r)
+	}
+	f, err := inventory.ParseDeviceFilter("", "", "", "", "", "192.168.18.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := other.svc.DevicesPage(other.ctx(), f)
+	if err != nil || len(l.Items) != 1 {
+		t.Fatalf("imported = %+v, %v", l.Items, err)
+	}
+	d := l.Items[0]
+	if d.Hostname == nil || *d.Hostname != "fw-core" || d.UserName == nil || *d.UserName != "Office firewall" {
+		t.Errorf("imported host name %v, name %v", d.Hostname, d.UserName)
+	}
+	if n := other.count(`SELECT count(*) FROM inv_observation WHERE field = 'hostname' AND value = 'Office firewall'`); n != 0 {
+		t.Error("the name in Vedette became a host name observation")
+	}
+	// A refused name in the column is the row's error, as a bad name is.
+	if r := other.importCSV("name_in_vedette,ip\n\u202eevil,192.168.18.77\n"); r.Created != 0 || len(r.Errors) != 1 {
+		t.Errorf("bad name_in_vedette = %+v", r)
+	}
+}
+
+// review r1 of #929 (Low): a duplicate address names the device that has it as every page does.
+func TestContract_G2_DuplicateIPNamesTheDevice(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ip := netip.MustParseAddr("192.168.18.1")
+	e.record(obs(ip, macA, observe.Kind, "firewall", observe.Nmap, 0.9))
+	id := e.idByMAC(macA)
+	if err := e.rename(id, "Office firewall"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := e.svc.AddDevice(e.ctx(), "it@acme.example", inventory.AddInput{CatalogID: "fortigate", IP: "192.168.18.1"})
+	if err == nil || !strings.Contains(err.Error(), "(Office firewall)") {
+		t.Errorf("add = %v", err)
+	}
+	if r := e.importCSV("name,ip\nfw2,192.168.18.1\n"); len(r.Errors) != 1 || !strings.Contains(r.Errors[0].Message, "Office firewall") {
+		t.Errorf("import = %+v", r)
 	}
 }

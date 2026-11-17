@@ -29,7 +29,7 @@ import { isOpen } from '@/features/findings/basis'
 import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
 import { errMsg } from './kinds'
-import { declaredSoftwareOnly, nameOf } from './nameOf'
+import { badUserName, declaredSoftwareOnly, nameOf } from './nameOf'
 import { DeviceSources } from './DeviceSources'
 import { PossibleSameNotice } from './SameDevice'
 import type { DeviceDetail, Observation, RegularScan, SoftwareView } from './types'
@@ -132,15 +132,18 @@ function RenameDevice({ d, editing, setEditing, button }: { d: DeviceDetail; edi
   const saved = d.asset.name ?? ''
   const [text, setText] = useState(saved) // the field mounts on Rename, so it starts from the saved name
   const fallback = nameOf({ ...d.asset, name: null }, kindLabel(d.asset.kind)) // the default name: what an empty name shows
-  const bad = /[<>]/.test(text)
   const next = text.trim()
+  const bad = badUserName(next) // the characters the backend refuses (review r1 of #929)
+  const [refused, setRefused] = useState('') // why the server refused the last save, next to the field (review r1 of #929)
+  const field = useRef<HTMLInputElement>(null)
   const close = () => { setEditing(false); requestAnimationFrame(() => button.current?.focus()) } // focus back on Rename, which comes back
   const save = () => {
     if (bad || act.patch.isPending) return
     if (next === saved) { close(); return }
     act.patch.mutate({ name: next }, {
       onSuccess: () => { toast.success(next ? t('detail.renamed', { name: next }) : t('detail.renameReset', { name: fallback })); close() },
-      onError: (e) => toast.error(errMsg(e)),
+      // the field stays focused and says why next to it, for keyboard and screen-reader users
+      onError: (e) => { setRefused(errMsg(e)); requestAnimationFrame(() => field.current?.focus()) },
     })
   }
   if (!editing) {
@@ -151,16 +154,18 @@ function RenameDevice({ d, editing, setEditing, button }: { d: DeviceDetail; edi
   }
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <Input id="device-name" autoFocus className="w-80 max-w-full" value={text} maxLength={64} aria-label={t('detail.renameLabel')}
-        aria-invalid={bad || undefined} aria-describedby="device-name-hint" placeholder={fallback} disabled={act.patch.isPending}
-        onChange={(e) => setText(e.target.value)}
+      {/* readOnly, not disabled, while saving: a disabled field would drop the keyboard focus to the page */}
+      <Input ref={field} id="device-name" autoFocus className="w-80 max-w-full" value={text} maxLength={64} aria-label={t('detail.renameLabel')}
+        aria-invalid={bad || !!refused || undefined} aria-describedby={refused || bad ? 'device-name-error device-name-hint' : 'device-name-hint'} placeholder={fallback}
+        readOnly={act.patch.isPending} aria-busy={act.patch.isPending || undefined}
+        onChange={(e) => { setText(e.target.value); setRefused('') }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { e.preventDefault(); save() }
           if (e.key === 'Escape') { e.preventDefault(); close() }
         }} />
       <Button size="sm" variant="primary" disabled={bad || act.patch.isPending} onClick={save}>{t('detail.renameSave')}</Button>
       <Button size="sm" variant="ghost" disabled={act.patch.isPending} onClick={close}>{t('detail.renameCancel')}</Button>
-      {bad ? <span role="alert" className="w-full text-caption text-danger">{t('detail.renameBad')}</span> : null}
+      {bad || refused ? <span id="device-name-error" role="alert" className="w-full text-caption text-danger">{bad ? t('detail.renameBad') : refused}</span> : null}
     </span>
   )
 }

@@ -224,8 +224,8 @@ func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, erro
 			continue
 		}
 		name := a.IP
-		if a.Name != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first, G2)
-			name = a.Name
+		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first, G2), as the AI gets text
+			name = n
 		}
 		t := response.PlanTarget{FindingID: f.ID, CVE: f.CVE, AssetID: f.AssetID, AssetName: name, AssetIP: a.IP, AssetKind: a.Kind}
 		if a.IP == "—" { // unknown address

@@ -31,3 +31,9 @@ export function nameOf(a: Named, fallback: string) {
 /** A product someone said they run, with no address and no name (the add form's software path, CSV, the weekly "I have this"; D-515
  *  W9-1, D-598): declared software, not a device; nothing scans it, it is matched against exploited CVEs by its product. */
 export const declaredSoftwareOnly = (a: Named) => a.origin === 'manual' && !a.hostname && !hasIp(a)
+
+/** Characters a name in Vedette cannot hold (G2, as the backend's userName: review r1 of #929): < >, C0 and C1 controls, bidi marks,
+ *  overrides and isolates, zero-width characters, the soft hyphen, word joiners and U+FEFF. They would show the name reversed or blank. */
+const BAD_NAME = /[<>\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/
+/** Whether a trimmed name in Vedette is refused: more than 64 characters or a character of BAD_NAME. '' (none) is fine. */
+export const badUserName = (s: string) => [...s].length > 64 || BAD_NAME.test(s)

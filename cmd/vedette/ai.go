@@ -130,8 +130,8 @@ func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact
 			continue
 		}
 		name := a.IP
-		if a.Name != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first, G2)
-			name = a.Name
+		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first, G2), as the AI gets text
+			name = n
 		}
 		out = append(out, ai.AssetFact{Name: name, IP: a.IP, Kind: a.Kind, Basis: string(r.Basis), Status: string(r.Status), IsBox: a.ID == box && box != ""})
 	}
@@ -550,8 +550,8 @@ func aiObserved(o *inventory.Observed) string {
 
 func aiDeviceName(d inventory.Device) string {
 	switch n := d.NameOrHost(); {
-	case n != nil: // the name in Vedette, else the host name (G2)
-		return *n
+	case n != nil && aiVal(*n, 64) != "": // the name in Vedette, else the host name (G2), as the AI gets text
+		return aiVal(*n, 64)
 	case d.Model != nil && d.Model.Value != "":
 		return d.Model.Value
 	}

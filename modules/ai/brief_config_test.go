@@ -161,3 +161,48 @@ func TestBriefConfig_EveryPortOfTheServiceAndSafeApply(t *testing.T) {
 		}
 	}
 }
+
+// An answer put a drop rule for a switch's web ports on its gateway and said to verify "from a host outside the admin network that the
+// ports are refused": hosts on the switch's own subnet reach it directly, not through the gateway, so they still connect, and a drop
+// times out rather than being refused. The config job says which traffic a firewall rule stops and that only the change on the device
+// protects it from its own network, refuses where the product can, and makes every verify step name where to test from and the result
+// that matches the rule's action.
+func TestBriefConfig_VerifyMatchesTheRuleActionAndWhereTrafficPasses(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"paragraphs":["The device runs an affected release."],"steps":["Patch."],"configs":[],"no_config_reason":"No open port serves the vulnerable part."}`)
+	if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Write the config."}); err != nil {
+		t.Fatal(err)
+	}
+	req := a.fake.lastRequest(t)
+	all := req.System + req.Messages[0].Text
+	for _, w := range []string{
+		// what a gateway rule protects from
+		"When you write a firewall or router rule, say which traffic it stops, as the network block gives it",
+		"it protects the device only from other networks, hosts on the device's own network still reach the device directly",
+		"only the change on the device itself protects it from them",
+		// the rule's action, per platform
+		`Such a rule refuses the connection where the product has an action for that (nftables "reject with tcp reset"`,
+		"where the product's deny is a silent drop (a FortiGate policy with action deny, a pfSense block rule), use that deny as it is",
+		// the verify step: the observable result matches the action, and where to test from
+		"Every verify step says where to test from and the result the person sees, matching the action of the rule it checks",
+		`a silent drop or deny (nftables "drop", a FortiGate deny, a Junos "discard") makes the connection time out with no answer`,
+		`a TCP reset ("reject with tcp reset") makes it refused at once`,
+		"Never call a timeout refused, or a refusal a timeout.",
+		"Test a firewall or router rule from a host on another network whose traffic passes that firewall, never from the device's own network",
+		"never tell the person to check that rule with a scan from Vedette",
+		"Test the device's own change from any host, one on the device's own network included.",
+	} {
+		if !strings.Contains(all, w) {
+			t.Errorf("the instructions lack %q", w)
+		}
+	}
+	// explain-finding writes no rule and gets none of this
+	a.fake.setAnswer(`{"paragraphs":["The device runs an affected release."],"steps":["Read the vendor advisory."]}`)
+	if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobExplainFinding, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Explain."}); err != nil {
+		t.Fatal(err)
+	}
+	if req := a.fake.lastRequest(t); strings.Contains(req.System+req.Messages[0].Text, "Every verify step") {
+		t.Error("explain-finding carries the config job's verify rule")
+	}
+}

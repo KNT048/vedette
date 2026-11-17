@@ -449,7 +449,7 @@ func TestAISafeApply_OnlyPlatformsThatHaveOne(t *testing.T) {
 		{AssetCore: inventory.AssetCore{IP: "192.168.18.2", Kind: "router", Vendor: obs("Cisco"), Model: obs("Nexus 9300"), OS: obs("Cisco NX-OS 10.2")}},
 	}})
 	lines := strings.Split(strings.TrimSpace(b), "\n")
-	if len(lines) != 3 || !strings.Contains(lines[1], "; safe apply: Junos: the block ends with `commit confirmed 5`") || strings.Contains(lines[2], "safe apply") {
+	if len(lines) < 3 || !strings.Contains(lines[1], "; safe apply: Junos: the block ends with `commit confirmed 5`") || strings.Contains(lines[2], "safe apply") {
 		t.Errorf("network block:\n%s", b)
 	}
 }

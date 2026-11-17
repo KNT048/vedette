@@ -147,6 +147,38 @@ func (p aiPath) label() string {
 	return "path to this device: not known"
 }
 
+// filters is the traffic to the device a rule on a firewall at this place filters, as the AI reads it. A firewall sees only what is
+// routed through it: hosts on the device's own network (net) reach the device directly, so a rule on its gateway leaves them out.
+func (p aiPath) filters(net string) string {
+	switch p {
+	case pathGateway:
+		return "a rule here filters only traffic to this device from other networks (other subnets, VPN, the Internet); hosts on " + net + " reach the device directly, not through it"
+	case pathBoxGateway:
+		return "a rule here filters only traffic from the box's network that leaves by it; hosts on " + net + " reach the device without it"
+	}
+	return "if it is this device's gateway, a rule here filters only traffic to this device from other networks; hosts on " + net + " reach the device directly, not through it"
+}
+
+// aiOwnNetwork is what the network block says of the device's own network and of the traffic a gateway sees, so that the answer says
+// what a firewall rule protects from and where it is tested from: a rule on the gateway filters only routed traffic, a host on the
+// device's subnet (the box too, when it is on that subnet) still reaches the port, and only the change on the device protects it there.
+func aiOwnNetwork(f aiFirewalls) string {
+	var b strings.Builder
+	switch {
+	case f.NetKnown:
+		fmt.Fprintf(&b, "This device's network: %s, a subnet the box is on.\n", f.Net)
+	case f.Net.IsValid():
+		fmt.Fprintf(&b, "This device's network: likely %s (the usual size of one network; an assumption).\n", f.Net)
+	default:
+		b.WriteString("This device's network: not known.\n")
+	}
+	b.WriteString("A firewall or router filters only the traffic routed through it. Hosts on the device's own network reach the device directly, never through its gateway, so a rule on a gateway or firewall protects the device only from other networks (other subnets, VPN, the Internet); only the change on the device itself also protects it from hosts on its own network. To verify a gateway or firewall rule, test from a host on another network whose traffic passes that firewall; from the device's own network the port still answers, as expected.\n")
+	if f.NetKnown {
+		b.WriteString("The box is on the device's own network, so a scan from the box does not show a gateway rule: it shows only the change on the device itself.\n")
+	}
+	return b.String()
+}
+
 // aiSameNet: a and b are on the same /24 (IPv4) or /64 (IPv6), the usual size of one network.
 func aiSameNet(a, b netip.Addr) bool {
 	bits := 24
@@ -165,15 +197,19 @@ func aiSameNet(a, b netip.Addr) bool {
 // assumption, and Why says why the path is not known. Edge: the device is itself the gateway of its network, so no firewall of the
 // inventory is in front of it. Others counts the firewalls and routers left out because they are not on the device's path; More the
 // ones that qualify but are over aiMaxFirewalls. Gateway is the device's gateway when it is not a firewall or router of the inventory.
+// Net is the device's own network: the box's subnet that holds it (NetKnown, and the box is on it), else the usual /24 (/64) around its
+// address as an assumption; not valid when the device has no address.
 type aiFirewalls struct {
-	Walls   []inventory.Device
-	Paths   []aiPath
-	OnPath  bool
-	Edge    bool
-	Why     string
-	Others  int
-	More    int
-	Gateway netip.Addr
+	Walls    []inventory.Device
+	Paths    []aiPath
+	OnPath   bool
+	Edge     bool
+	Why      string
+	Others   int
+	More     int
+	Gateway  netip.Addr
+	Net      netip.Prefix
+	NetKnown bool
 }
 
 // assumed: the firewalls offered are not known to be on the device's path.
@@ -200,7 +236,17 @@ func aiPickWalls(n aiNet, dev aiTarget, all []inventory.KindDevice) (ids []strin
 		}
 	}
 	paths := make([]aiPath, len(cands))
-	_, onBox := n.subnetOf(ip)
+	devSub, onBox := n.subnetOf(ip)
+	switch {
+	case onBox:
+		sel.Net, sel.NetKnown = devSub.prefix, true
+	case ip.IsValid():
+		bits := 24
+		if ip.Is6() {
+			bits = 64
+		}
+		sel.Net, _ = ip.Prefix(bits)
+	}
 	gw, hasGW := n.deviceGateway(ip)
 	box, hasBox := n.boxGateway(ip)
 	for i, k := range cands {
@@ -293,9 +339,13 @@ func aiNetReader(r netStateReader) func(context.Context) aiNet {
 // what was left out.
 func aiNetworkBlock(f aiFirewalls) string {
 	var b strings.Builder
+	net := "this device's own network"
+	if f.Net.IsValid() {
+		net = f.Net.String()
+	}
 	list := func() {
 		for i, w := range f.Walls {
-			fmt.Fprintf(&b, "- %s, IP %s, kind %s; %s; %s", aiName(w), aiIP(w.IP), aiVal(w.Kind, 30), aiWallFacts(w), f.Paths[i].label())
+			fmt.Fprintf(&b, "- %s, IP %s, kind %s; %s; %s; %s", aiName(w), aiIP(w.IP), aiVal(w.Kind, 30), aiWallFacts(w), f.Paths[i].label(), f.Paths[i].filters(net))
 			if s := aiSafeApply(w); s != "" {
 				b.WriteString("; safe apply: " + s)
 			}
@@ -327,6 +377,9 @@ func aiNetworkBlock(f aiFirewalls) string {
 		b.WriteString("1 other firewall or router in the inventory is not on a path Vedette knows to this device: write no rule for it.\n")
 	case f.Others > 1:
 		fmt.Fprintf(&b, "%d other firewalls or routers in the inventory are not on a path Vedette knows to this device: write no rule for them.\n", f.Others)
+	}
+	if !f.Edge { // a firewall rule, or the gateway example, may follow
+		b.WriteString(aiOwnNetwork(f))
 	}
 	return b.String()
 }

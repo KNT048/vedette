@@ -21611,6 +21611,20 @@
                               {
                                 "type": "null"
                               }
+                            ],
+                            "description": "When the newest scan started: every page names a scan by its start"
+                          },
+                          "last_scan_finished_at": {
+                            "description": "When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never scanned, or when not known",
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
                             ]
                           },
                           "latest": {
@@ -22510,11 +22524,15 @@
                           "description": "Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise"
                         },
                         "stop_reason": {
-                          "description": "Why the box stopped this run when it was not a person's Stop, e.g. \"the testing terms of this target were withdrawn\"",
+                          "description": "Why the box stopped this run when it was not a person's Stop, e.g. \"the testing terms of this target were withdrawn\", \"Vedette shut down\"",
                           "type": [
                             "string",
                             "null"
                           ]
+                        },
+                        "openvas_only": {
+                          "description": "The run is OpenVAS again for the newest scan of the target (POST /exposure/targets/{id}/openvas), not a scan: its phase is greenbone from the start",
+                          "type": "boolean"
                         },
                         "progress": {
                           "anyOf": [
@@ -22804,11 +22822,15 @@
                       "description": "Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise"
                     },
                     "stop_reason": {
-                      "description": "Why the box stopped this run when it was not a person's Stop, e.g. \"the testing terms of this target were withdrawn\"",
+                      "description": "Why the box stopped this run when it was not a person's Stop, e.g. \"the testing terms of this target were withdrawn\", \"Vedette shut down\"",
                       "type": [
                         "string",
                         "null"
                       ]
+                    },
+                    "openvas_only": {
+                      "description": "The run is OpenVAS again for the newest scan of the target (POST /exposure/targets/{id}/openvas), not a scan: its phase is greenbone from the start",
+                      "type": "boolean"
                     },
                     "progress": {
                       "anyOf": [
@@ -23294,6 +23316,20 @@
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "last_scan_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "When the newest scan started: every page names a scan by its start"
+                          },
+                          "last_scan_finished_at": {
+                            "description": "When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never scanned, or when not known",
                             "anyOf": [
                               {
                                 "type": "string",
@@ -24069,6 +24105,20 @@
                         {
                           "type": "null"
                         }
+                      ],
+                      "description": "When the newest scan started: every page names a scan by its start"
+                    },
+                    "last_scan_finished_at": {
+                      "description": "When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never scanned, or when not known",
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
                       ]
                     },
                     "latest": {
@@ -24726,6 +24776,20 @@
                         {
                           "type": "null"
                         }
+                      ],
+                      "description": "When the newest scan started: every page names a scan by its start"
+                    },
+                    "last_scan_finished_at": {
+                      "description": "When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never scanned, or when not known",
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
                       ]
                     },
                     "latest": {
@@ -25214,6 +25278,309 @@
         }
       }
     },
+    "/exposure/targets/{id}/openvas": {
+      "post": {
+        "operationId": "exposure_post_exposure_targets_id_openvas",
+        "summary": "Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24 hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409 not_verified, expired, ip_not_current; 400 commitment_required when the target has no current commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400 bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as exposure.scan",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-2"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "target_id": {
+                      "type": "string"
+                    },
+                    "target_value": {
+                      "type": "string"
+                    },
+                    "by": {
+                      "type": "string",
+                      "description": "Who pressed Scan now (an e-mail)"
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "finished_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "running",
+                        "done",
+                        "failed",
+                        "stopped"
+                      ]
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "probing",
+                        "saving",
+                        "greenbone",
+                        "done"
+                      ],
+                      "description": "queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
+                    },
+                    "snapshot_id": {
+                      "description": "The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "error": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise"
+                    },
+                    "stop_reason": {
+                      "description": "Why the box stopped this run when it was not a person's Stop, e.g. \"the testing terms of this target were withdrawn\", \"Vedette shut down\"",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "openvas_only": {
+                      "description": "The run is OpenVAS again for the newest scan of the target (POST /exposure/targets/{id}/openvas), not a scan: its phase is greenbone from the start",
+                      "type": "boolean"
+                    },
+                    "progress": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "phase": {
+                              "type": "string",
+                              "enum": [
+                                "discovery",
+                                "ports",
+                                "services",
+                                "scripts",
+                                "vulns",
+                                "web",
+                                "openvas",
+                                "saving"
+                              ],
+                              "description": "discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection; scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the result is being stored"
+                            },
+                            "percent": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the phase without a bar)"
+                            },
+                            "done": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "With total: the count behind percent (unit says what is counted); null when the phase has no count"
+                            },
+                            "total": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "unit": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "checks",
+                                    "hosts"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the job (the device, or the public IP scan) started: elapsed time is now minus this"
+                            },
+                            "phase_started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started"
+                            },
+                            "updated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs"
+                            },
+                            "eta": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated"
+                            },
+                            "ends_by": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its 90-minute cap plus the time to stop the task and read what it found); null when none"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 120
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "A short English note on the pass, e.g. \"Second pass: administration and alternative ports\"; null when none"
+                            }
+                          },
+                          "required": [
+                            "phase",
+                            "percent",
+                            "done",
+                            "total",
+                            "unit",
+                            "started_at",
+                            "phase_started_at",
+                            "updated_at",
+                            "eta",
+                            "ends_by",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "How far the step that runs now is (#830): the port scan, service detection and vulnerability checks as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the greenbone phase. Set while status is running; null otherwise"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "target_id",
+                    "target_value",
+                    "by",
+                    "started_at",
+                    "finished_at",
+                    "status",
+                    "phase",
+                    "snapshot_id",
+                    "error",
+                    "progress"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/exposure/targets/{id}/outside": {
       "get": {
         "operationId": "exposure_get_exposure_targets_id_outside",
@@ -25635,11 +26002,15 @@
                       "description": "Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise"
                     },
                     "stop_reason": {
-                      "description": "Why the box stopped this run when it was not a person's Stop, e.g. \"the testing terms of this target were withdrawn\"",
+                      "description": "Why the box stopped this run when it was not a person's Stop, e.g. \"the testing terms of this target were withdrawn\", \"Vedette shut down\"",
                       "type": [
                         "string",
                         "null"
                       ]
+                    },
+                    "openvas_only": {
+                      "description": "The run is OpenVAS again for the newest scan of the target (POST /exposure/targets/{id}/openvas), not a scan: its phase is greenbone from the start",
+                      "type": "boolean"
                     },
                     "progress": {
                       "anyOf": [
@@ -25867,7 +26238,27 @@
                           "scanned_at": {
                             "type": "string",
                             "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "When the results of the steps before OpenVAS were stored"
+                          },
+                          "started_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "When the scan started: the time every page names it by (header, pickers, compare, history)"
+                          },
+                          "finished_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "When its last step ended; null while OpenVAS still runs, or on a scan stored before it was kept whose end is not known"
                           },
                           "counts": {
                             "type": "object",
@@ -25912,6 +26303,8 @@
                           "id",
                           "date",
                           "scanned_at",
+                          "started_at",
+                          "finished_at",
                           "counts"
                         ],
                         "additionalProperties": false
@@ -25988,7 +26381,27 @@
                     "scanned_at": {
                       "type": "string",
                       "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When the results of the steps before OpenVAS were stored"
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When the scan started: the time every page names it by (header, pickers, compare, history)"
+                    },
+                    "finished_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When its last step ended; null while OpenVAS still runs, or on a scan stored before it was kept whose end is not known"
                     },
                     "hosts": {
                       "type": "array",
@@ -26827,6 +27240,58 @@
                             "additionalProperties": false
                           },
                           "description": "A domain's run: the OpenVAS state of each deep-scanned address; [] for an IP"
+                        },
+                        "ended_at": {
+                          "description": "When the step ended, in any final state; for a step a restart cut, when the box started again. Missing while it runs, when it did not run, and on a scan stored before it was kept",
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stop": {
+                          "description": "Why a stopped step was stopped; missing in any other state and on a scan stored before it was kept",
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "reason": {
+                                  "type": "string",
+                                  "enum": [
+                                    "person",
+                                    "shutdown",
+                                    "restart",
+                                    "module_off",
+                                    "terms"
+                                  ]
+                                },
+                                "by": {
+                                  "description": "The e-mail of who stopped it (person, terms); null when the box did",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "reason",
+                                "by"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "again": {
+                          "description": "The step ran again on its own after the scan (POST /exposure/targets/{id}/openvas), on the open ports that scan found",
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -26964,6 +27429,8 @@
                     "id",
                     "date",
                     "scanned_at",
+                    "started_at",
+                    "finished_at",
                     "hosts",
                     "ports",
                     "admin_panels",
@@ -27304,6 +27771,20 @@
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "last_scan_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When the newest scan started: every page names a scan by its start"
+                    },
+                    "last_scan_finished_at": {
+                      "description": "When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never scanned, or when not known",
                       "anyOf": [
                         {
                           "type": "string",
@@ -27944,6 +28425,20 @@
                         {
                           "type": "null"
                         }
+                      ],
+                      "description": "When the newest scan started: every page names a scan by its start"
+                    },
+                    "last_scan_finished_at": {
+                      "description": "When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never scanned, or when not known",
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
                       ]
                     },
                     "latest": {
@@ -28553,6 +29048,20 @@
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                         },
                         "last_scan_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the newest scan started: every page names a scan by its start"
+                        },
+                        "last_scan_finished_at": {
+                          "description": "When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never scanned, or when not known",
                           "anyOf": [
                             {
                               "type": "string",

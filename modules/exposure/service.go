@@ -36,14 +36,17 @@ type Config struct {
 	// DomainFence nil: a domain's deep scan reaches only the box's own verified IP; every other public address of its names
 	// gets a "needs the domain fence" line and nothing more than the by-name checks.
 	DomainFence DomainFence
-	DataDir     string           // the box data directory: Greenbone's preflight measures the free space of its filesystem (INV-25)
-	Probes      ProbeLog         // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
-	Matcher     Matcher          // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
-	Outside     *InternetDB      // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
-	Safety      ScanSafety       // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
-	Location    *time.Location   // the day of a snapshot (nil: time.Local)
-	Log         *slog.Logger     //
-	Clock       func() time.Time // nil: time.Now
+	DataDir     string         // the box data directory: Greenbone's preflight measures the free space of its filesystem (INV-25)
+	Probes      ProbeLog       // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
+	Matcher     Matcher        // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
+	Outside     *InternetDB    // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
+	Safety      ScanSafety     // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
+	Location    *time.Location // the day of a snapshot and the times of messages when Zone gives none (nil: time.Local)
+	// Zone is the organization's time zone, read at every use (a change applies at once); nil, or a nil answer, is Location. The day of
+	// a snapshot is a day of the customer's calendar: two scans of one local day are one snapshot, never two that read as the same day.
+	Zone  func(ctx context.Context) *time.Location
+	Log   *slog.Logger     //
+	Clock func() time.Time // nil: time.Now
 }
 
 // Service owns the exp_ tables. Every mutation runs in one transaction with its core_audit row (SYS-3);
@@ -143,10 +146,21 @@ func (s *Service) audit(ctx context.Context, tx *sql.Tx, user, action, target, d
 // ---- how a target looks (INV-1, INV-4) ----
 
 // dayText and momentText are the one human date format of every message the API sends: "9 Nov 2026" and "9 Nov 2026, 17:00",
-// in the box time zone (never ISO, never "UTC").
-func (s *Service) dayText(t time.Time) string { return t.In(s.cfg.Location).Format("2 Jan 2006") }
+// in the organization's time zone (loc; never ISO, never "UTC").
+func (s *Service) dayText(t time.Time) string { return t.In(s.loc()).Format("2 Jan 2006") }
 func (s *Service) momentText(t time.Time) string {
-	return t.In(s.cfg.Location).Format("2 Jan 2006, 15:04")
+	return t.In(s.loc()).Format("2 Jan 2006, 15:04")
+}
+
+// loc is the time zone of a snapshot's day and of the API's messages: the organization's (Zone, read on the Service's own context,
+// so a caller that hangs up never changes a snapshot's day), else Location.
+func (s *Service) loc() *time.Location {
+	if s.cfg.Zone != nil {
+		if l := s.cfg.Zone(s.bg); l != nil {
+			return l
+		}
+	}
+	return s.cfg.Location
 }
 
 // clockSlack is how far into the future a stored time may lie before it is taken as written by a clock that was ahead.
@@ -257,7 +271,7 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c
 		v.LastScanAt = &x
 	}
 	if r, ok := latest[t.ID]; ok {
-		v.Latest, v.OpenPorts = &r.Counts, r.Ports
+		v.Latest, v.OpenPorts, v.LastScanFinishedAt = &r.Counts, r.Ports, r.FinishedAt
 		if v.OpenPorts == nil {
 			v.OpenPorts = []PortRow{}
 		}

@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button'
 import { BusyNote } from '@/components/common/BusyNote'
 import { useCan } from '@/lib/session'
 import { DependencyLink } from '@/components/common/DependencyLink'
-import { dateText, dateTimeText } from './dates'
+import { dateText, dateTimeText, endText } from './dates'
 import { InfoLine } from './InfoLine'
-import { useGreenbone, useSetGreenbone } from './api'
-import type { Greenbone, GreenboneResult, GreenboneRun, Snapshot } from './types'
+import { useGreenbone, useOpenVasAgain, useScanRun, useSetGreenbone } from './api'
+import type { Greenbone, GreenboneResult, GreenboneRun, Snapshot, Target } from './types'
+import { blockedKey } from './types'
 
 /** Under 8 GB (decimal) the first feed load uses swap, so the box then needs 2 GB of swap; it passes from 6 GB. */
 const SWAP_BELOW = 8e9
@@ -149,7 +150,7 @@ const rowsLine = (run: GreenboneRun) => (run.addresses ?? []).length > 0
  * a line when they are not those of a finished scan. Its start is shown in the viewer's time zone, like every other
  * time of the page. Every OpenVAS line is also in the "Not checked" list below.
  */
-export function GreenboneSection({ s }: { s: Snapshot }) {
+export function GreenboneSection({ s, again }: { s: Snapshot; again?: Target }) {
   const { t } = useTranslation('exposure')
   const rows = s.greenbone ?? [] // a snapshot read from an older box has no list
   const run = runOf(s)
@@ -165,6 +166,7 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
   const read = rows.length > 0 || run.state === 'done' || run.state === 'partial'
   const line = shown ? rowsLine(run) : undefined
   const started = run.started_at ? dateTimeText(run.started_at) : null
+  const stopped = stopText(t, run)
   const cols: ColumnDef<GreenboneResult>[] = [
     { id: 'severity', header: t('greenbone.col.severity'), accessorFn: (r) => r.severity, cell: ({ row }) => {
       const v = row.original.severity
@@ -181,18 +183,23 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
   const emptyBody = run.state === 'running' ? (started ? t('greenbone.results.runningBody', { time: started }) : t('greenbone.results.runningBodyNoTime'))
     : run.state === 'done' ? t('greenbone.results.noneBody')
     : run.state === 'partial' ? t('greenbone.results.partialNoneBody')
+    : stopped ? `${stopped} ${t('greenbone.results.stoppedNotShown')}`
     : why?.text ?? t(run.state === 'not_run' ? 'greenbone.results.notRunBody' : run.state === 'failed' ? 'greenbone.results.failedBody' : run.state === 'ended' ? 'greenbone.results.endedBody' : 'greenbone.results.stoppedBody')
   const emptyInfo = run.state === 'done' ? t('greenbone.results.noneBodyInfo') : run.state === 'partial' ? t('greenbone.results.partialNoneBodyInfo') : undefined
   return (
     <>
       <Section id="greenbone-results" title={t('greenbone.results.title')} description={t('greenbone.results.header')} info={t('greenbone.results.headerInfo')}>
         {line ? <p role="status" className="mb-3 text-sm text-warn">{t(line)}</p> : null}
+        {shown && stopped ? <p className="mb-3 text-sm text-warn">{stopped}</p> : null}
         {shown ? (
           <DataTable caption={t('greenbone.results.caption')} data={findings} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
         ) : (
           <EmptyState title={t(EMPTY_TITLE[run.state])} info={emptyInfo}>{emptyBody}{run.state === 'not_run' ? <OpenVasOffLink /> : null}</EmptyState>
         )}
-        {started && run.state !== 'running' ? <p className="mt-2 text-caption text-muted">{t('greenbone.results.startedAt', { time: started })}</p> : null}
+        {again && againShown(s, run) ? <OpenVasAgain target={again} s={s} /> : null}
+        {run.again && run.state !== 'running' ? <p className="mt-2 text-caption text-muted">{t('greenbone.results.again')}</p> : null}
+        {started && run.state !== 'running' ? <p className="mt-2 text-caption text-muted">{run.ended_at && run.state !== 'stopped'
+          ? t('greenbone.results.startedEnded', { time: started, end: endText(run.started_at, run.ended_at) }) : t('greenbone.results.startedAt', { time: started })}</p> : null}
       </Section>
       {read && notes.length > 0 ? (
         <Section id="greenbone-notes" title={t('greenbone.results.notesTitle')} description={t('greenbone.results.notesHeader')} info={t('greenbone.results.notesHeaderInfo')}>
@@ -200,5 +207,59 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
         </Section>
       ) : null}
     </>
+  )
+}
+
+/** Why and when a stopped OpenVAS step was stopped, in the viewer's time zone; null when the box did not say (an older scan). */
+function stopText(t: (k: string, o?: Record<string, unknown>) => string, run: GreenboneRun): string | null {
+  if (run.state !== 'stopped' || !run.stop) return null
+  const time = run.ended_at ? dateTimeText(run.ended_at) : null
+  const key = run.stop.reason === 'restart' && !time ? 'restartNoTime' : run.stop.reason
+  return t(`greenbone.results.stop.${key}`, { time, by: run.stop.by ?? t('greenbone.results.stop.someone') })
+}
+
+/** The OpenVAS states after which it may run again on its own: it started and did not finish. */
+const AGAIN_STATES: GreenboneRun['state'][] = ['stopped', 'failed', 'ended']
+/** How old a scan may be for OpenVAS to run again on the ports it found (the server's AgainWithin). */
+const AGAIN_WITHIN_MS = 24 * 3_600_000
+/** At most one scan of a target every 10 minutes (the server's ScanEvery); OpenVAS again counts as one. */
+const SCAN_EVERY_MS = 10 * 60_000
+
+/** The server's rule: the step started and did not finish, found nothing it would lose, and the scan is less than 24 hours old. */
+function againShown(s: Snapshot, run: GreenboneRun) {
+  const start = Date.parse((s as Partial<Snapshot>).started_at ?? s.scanned_at)
+  return AGAIN_STATES.includes(run.state) && (s.greenbone ?? []).length === 0 && Date.now() - start <= AGAIN_WITHIN_MS
+}
+
+/** Run only OpenVAS again for the newest scan of this IP, on the open TCP ports that scan found, instead of the whole deep scan.
+ *  The server checks the same things as Scan now (ownership, the IP still the box's, the box's one scan slot) and says why when it refuses. */
+function OpenVasAgain({ target, s }: { target: Target; s: Snapshot }) {
+  const { t } = useTranslation('exposure')
+  const operator = useCan('operator')
+  const last = useScanRun().data
+  const openvas = useGreenbone().data?.state
+  const go = useOpenVasAgain()
+  // the ports the server sends: this IP's, seen open by this scan
+  const ports = [...new Set(s.ports.filter((p) => p.ip === target.value && !p.last_seen && !p.unchecked).map((p) => p.port))].sort((a, b) => a - b)
+  // the 10 minutes count from the target's newest start: its scan, or a run of OpenVAS again since
+  const since = Math.max(target.last_scan_at ? Date.parse(target.last_scan_at) : 0, last?.target_id === target.id ? Date.parse(last.started_at) : 0)
+  // Why the server would refuse now, first the one the person can act on here; each with the place to fix it (docs/UI.md §0)
+  const why: { text: string; link?: { to: string; label: string } } | null = !operator ? { text: t('common:needRole', { role: t('common:role.operator') }) }
+    : last?.status === 'running' ? { text: t('greenbone.again.busy') }
+    : target.blocked_reason ? { text: t(`blocked.reasonLong.${blockedKey(target)}`, { value: target.value }), link: { to: '?tab=ownership#step-verify', label: t('greenbone.again.ownershipLink') } }
+    : !target.full_scan ? { text: t('greenbone.again.terms'), link: { to: '?tab=ownership#step-terms', label: t('greenbone.again.termsLink') } }
+    : openvas === 'off' ? { text: t('greenbone.offReason'), link: { to: '/exposure?tab=targets#greenbone', label: t('greenbone.offLink') } }
+    : openvas !== undefined && openvas !== 'ready' ? { text: t('greenbone.again.notReady'), link: { to: '/exposure?tab=targets#greenbone', label: t('greenbone.again.notReadyLink') } }
+    : Date.now() - since < SCAN_EVERY_MS ? { text: t('greenbone.again.wait', { time: dateTimeText(new Date(since + SCAN_EVERY_MS).toISOString()) }) }
+    : null
+  return (
+    <div className="mt-3 grid max-w-3xl gap-2">
+      <p className="text-meta text-muted">{t('greenbone.again.note', { ports: ports.join(', ') })}</p>
+      <div>
+        <Button onClick={() => go.mutate(target.id, { onSuccess: () => toast.success(t('greenbone.again.started', { value: target.value })), onError: (e) => toast.error(e instanceof Error ? e.message : String(e)) })}
+          disabled={!!why} title={why?.text} busy={go.isPending} busyLabel={t('common:busy.starting')}>{t('greenbone.again.button')}</Button>
+      </div>
+      {why?.link ? <DependencyLink reason={why.text} to={why.link.to} label={why.link.label} /> : why ? <p className="text-caption text-muted">{why.text}</p> : null}
+    </div>
   )
 }

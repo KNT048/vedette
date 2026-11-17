@@ -428,9 +428,11 @@ func portList(ps []int) string {
 // presses Scan now (exposure INV-30), so the trigger is a person; who is in the audit log, not in the snapshot. A scan that failed
 // before it stored its snapshot is not kept anywhere and cannot be listed (the History tab says so).
 func exposureHistory(s exposure.ScanRecord) (core.HistoryRun, bool) {
-	at, ok := parseTS(s.ScannedAt)
+	at, ok := parseTS(s.StartedAt) // a scan is named by its start, as on the target's page
 	if !ok {
-		return core.HistoryRun{}, false
+		if at, ok = parseTS(s.ScannedAt); !ok {
+			return core.HistoryRun{}, false
+		}
 	}
 	c := s.Counts
 	parts := []string{count(c.Ports, "open port", "open ports")}
@@ -450,9 +452,20 @@ func exposureHistory(s exposure.ScanRecord) (core.HistoryRun, bool) {
 	if s.NotChecked > 0 {
 		outcome, text = "partial", text+"; "+count(s.NotChecked, "step", "steps")+" not checked (see the target)"
 	}
-	end := at
-	return core.HistoryRun{ID: "exp-" + s.TargetID + "-" + at.Format(time.DateOnly), Kind: "external", Engine: "nuclei", Trigger: "person", Label: s.Target, TargetID: s.TargetID,
-		StartedAt: at, EndedAt: &end, Outcome: outcome, Text: text}, true
+	var end *time.Time // nil while OpenVAS still runs: the scan has not ended
+	if s.FinishedAt != nil {
+		if e, ok := parseTS(*s.FinishedAt); ok {
+			end = &e
+		}
+	}
+	if s.Greenbone == "running" {
+		outcome, text = "running", text+"; OpenVAS is still scanning"
+	} else if end == nil { // a scan stored before its end was kept
+		end = &at
+	}
+	id := "exp-" + s.TargetID + "-" + orDefault(s.Date, at.Format(time.DateOnly)) // one snapshot per target and day
+	return core.HistoryRun{ID: id, Kind: "external", Engine: "nuclei", Trigger: "person", Label: s.Target, TargetID: s.TargetID,
+		StartedAt: at, EndedAt: end, Outcome: outcome, Text: text}, true
 }
 
 func upper(s string) string {

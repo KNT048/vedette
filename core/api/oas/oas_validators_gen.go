@@ -25923,6 +25923,24 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) Validate() err
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Stop.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "stop",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -25988,6 +26006,46 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState) Validate()
 	case "stopped":
 		return nil
 	case "ended":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "shutdown":
+		return nil
+	case "restart":
+		return nil
+	case "module_off":
+		return nil
+	case "terms":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -29533,6 +29591,279 @@ func (s ExposurePostExposureTargetsCreatedValidity) Validate() error {
 	case "expiring":
 		return nil
 	case "expired":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Phase.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "phase",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Progress.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "progress",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Status.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "status",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePostExposureTargetsIDOpenvasAcceptedPhase) Validate() error {
+	switch s {
+	case "queued":
+		return nil
+	case "probing":
+		return nil
+	case "saving":
+		return nil
+	case "greenbone":
+		return nil
+	case "done":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Done.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "done",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Message.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     120,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "message",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Percent.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           100,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    nil,
+					Pattern:       nil,
+				}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "percent",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Phase.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "phase",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Total.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "total",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Unit.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "unit",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase) Validate() error {
+	switch s {
+	case "discovery":
+		return nil
+	case "ports":
+		return nil
+	case "services":
+		return nil
+	case "scripts":
+		return nil
+	case "vulns":
+		return nil
+	case "web":
+		return nil
+	case "openvas":
+		return nil
+	case "saving":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) Validate() error {
+	switch s {
+	case "checks":
+		return nil
+	case "hosts":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePostExposureTargetsIDOpenvasAcceptedStatus) Validate() error {
+	switch s {
+	case "running":
+		return nil
+	case "done":
+		return nil
+	case "failed":
+		return nil
+	case "stopped":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

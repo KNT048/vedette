@@ -198,6 +198,7 @@
       "ready": "{{value}} is ready for its first scan"
     },
     "lastScan": "Last scanned {{time}}",
+    "lastScanEnd": "Last scanned {{time}}, finished {{end}}",
     "viewOnly": "You have view-only access.",
     "viewOnlyInfo": "Scanning and re-checking ownership need the operator role; the first scan of a target (it confirms authorization) and deleting need admin.",
     "accessTopic": "Your access"
@@ -290,6 +291,9 @@
     "emptyTitle": "No scan results yet",
     "emptyBody": "Finish the two steps above, then select Scan now. The first result shows up here.",
     "pick": "Snapshot of",
+    "span": "Scan started {{start}}, finished {{end}}",
+    "spanRunning": "Scan started {{start}}; OpenVAS is still scanning",
+    "spanStart": "Scan started {{start}}",
     "scopeTopic": "What this scan covered",
     "scopeBasic": "Ports are scanned only on this box's own verified public IPs; a domain's names get one check of their web page on ports 80 and 443.",
     "scopeDeepIp": "Deep scan (testing terms accepted): every TCP port of this IP, the service behind each one, the checks the terms describe and OpenVAS when it is on.",
@@ -575,6 +579,8 @@
   },
   "progress": {
     "running": "Scanning {{value}}",
+    "runningAgain": "Running OpenVAS again on {{value}}",
+    "doneAgain": "OpenVAS finished on {{value}}. Its result is below.",
     "phase": {
       "queued": "Starting",
       "probing": "Probing the target",
@@ -743,10 +749,34 @@
       "endedBody": "OpenVAS ended the scan before it finished. The \"Not checked\" list below says why.",
       "endedLine": "OpenVAS ended the scan before it finished; these are the results it had found by then. The \"Not checked\" list below says why.",
       "startedAt": "OpenVAS started at {{time}}.",
+      "startedEnded": "OpenVAS started at {{time}} and ended at {{end}}.",
+      "again": "OpenVAS ran again on its own for this scan, on the open ports it found.",
+      "stoppedNotShown": "Its results are not shown. The results of the other checks above are kept.",
+      "stop": {
+        "person": "Stopped at {{time}}: {{by}} pressed Stop.",
+        "shutdown": "Stopped at {{time}}: Vedette shut down while OpenVAS ran (an update, a restart or a stop of the service).",
+        "restart": "Stopped: Vedette restarted while OpenVAS ran. It noticed when it started again at {{time}}.",
+        "restartNoTime": "Stopped: Vedette restarted while OpenVAS ran.",
+        "module_off": "Stopped at {{time}}: the External exposure module was switched off.",
+        "terms": "Stopped at {{time}}: {{by}} withdrew or lowered the testing terms of this target.",
+        "someone": "someone"
+      },
       "notesTitle": "Hardening notes (Low)",
       "notesHeader": "Hardening suggestions, such as weak SSH settings or TCP timestamps.",
       "notesHeaderInfo": "The Low results of OpenVAS are not alerts and are not counted anywhere.",
       "notesCaption": "OpenVAS hardening notes on this IP"
+    },
+    "again": {
+      "button": "Run OpenVAS again",
+      "note": "Checks the open TCP ports this scan found ({{ports}}) for up to 90 minutes. Its result replaces this OpenVAS part; the other results above stay as they are.",
+      "busy": "Another scan is running on this box. Wait for it to finish.",
+      "terms": "OpenVAS runs only under the testing terms, and they are not accepted for this target.",
+      "termsLink": "Accept them: Ownership, Testing terms",
+      "ownershipLink": "Fix it: Ownership",
+      "notReady": "OpenVAS cannot scan now: it is starting, loading its feed or not available.",
+      "notReadyLink": "See its state: External exposure, Optional deep scan",
+      "wait": "Wait until {{time}}: at most one scan of a target every 10 minutes, and OpenVAS again counts as one.",
+      "started": "OpenVAS is running again on {{value}}."
     },
     "offReason": "OpenVAS is off on this box.",
     "offLink": "Turn it on: External exposure, Optional deep scan"

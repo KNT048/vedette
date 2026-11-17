@@ -145,7 +145,10 @@ type TargetView struct {
 	BlockedReason *BlockedReason `json:"blocked_reason"`
 	CreatedAt     string         `json:"created_at"`
 	LastScanAt    *string        `json:"last_scan_at"`
-	Latest        *Counts        `json:"latest"`
+	// LastScanFinishedAt is when the newest scan (LastScanAt is its start) ended; nil while its OpenVAS step runs, when never
+	// scanned, or when its end is not known.
+	LastScanFinishedAt *string `json:"last_scan_finished_at"`
+	Latest             *Counts `json:"latest"`
 	// OpenPorts are the first MaxOpenPorts open ports of the newest snapshot, in its order (Latest.Ports is the total), so
 	// the list page can say what is open (S-EXP-1); nil when never scanned.
 	OpenPorts []PortRow `json:"open_ports"`
@@ -301,6 +304,10 @@ type Snapshot struct {
 	ID        string `json:"id"`
 	Date      string `json:"date"`
 	ScannedAt string `json:"scanned_at"`
+	// StartedAt is when the scan started (the name of the scan on every page) and FinishedAt when its last step ended; FinishedAt
+	// is nil while OpenVAS still runs, and on a snapshot stored before these times were kept whose end is not known.
+	StartedAt  string  `json:"started_at"`
+	FinishedAt *string `json:"finished_at"`
 	Content
 	// GreenboneRun is the state of the snapshot's OpenVAS step and when it started: the page's OpenVAS heading
 	// follows it, and shows the start in the viewer's time zone.
@@ -312,10 +319,12 @@ type Snapshot struct {
 
 // SnapshotMeta is a snapshot without its lists.
 type SnapshotMeta struct {
-	ID        string `json:"id"`
-	Date      string `json:"date"`
-	ScannedAt string `json:"scanned_at"`
-	Counts    Counts `json:"counts"`
+	ID         string  `json:"id"`
+	Date       string  `json:"date"`
+	ScannedAt  string  `json:"scanned_at"`
+	StartedAt  string  `json:"started_at"`
+	FinishedAt *string `json:"finished_at"`
+	Counts     Counts  `json:"counts"`
 }
 
 // DiffItem is one thing that appeared or disappeared between two days.

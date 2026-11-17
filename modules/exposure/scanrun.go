@@ -1,12 +1,14 @@
 package exposure
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"net/netip"
 	"runtime/debug"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/core/progress"
@@ -46,6 +48,8 @@ type ScanRun struct {
 	Error       *RunError `json:"error"`
 	// StopReason says why a stopped run was stopped when it was not a person's Stop; nil otherwise.
 	StopReason *string `json:"stop_reason,omitempty"`
+	// OpenVASOnly: the run is OpenVAS again for the newest scan of the target (POST …/openvas), not a scan.
+	OpenVASOnly bool `json:"openvas_only,omitempty"`
 	// Progress is how far the step that runs now is (#830): the nmap and nuclei jobs of the scan module as the scan worker reports
 	// them, OpenVAS's own percent in the greenbone phase. Only while the run is running; null otherwise. In memory, like the run.
 	Progress *progress.View `json:"progress"`
@@ -73,25 +77,75 @@ type scanRun struct {
 	steps       *stepLog          // #861 (INV-30): what nuclei, ZAP and OpenVAS did in this run; its context carries it to the steps
 }
 
-// stoppedBy is the cause of a run's context when someone stopped it or the module was switched off.
+// stoppedBy is the cause of a run's context when someone stopped it, the module was switched off, the box shut down or the
+// testing terms were withdrawn.
 type stoppedBy struct {
-	by  string
-	why string // why the box stopped it, for the page (the testing terms were withdrawn); "" for a Stop
+	by     string // who or what stopped it, for the audit row
+	why    string // why the box stopped it, for the page (the testing terms were withdrawn, Vedette shut down); "" for a Stop
+	reason string // GreenboneStop.Reason: StopPerson, StopShutdown, StopModule or StopTerms
+	person string // the e-mail of the person behind it (a Stop, a change of the terms); "" for the box
 }
 
 func (e *stoppedBy) Error() string { return "stopped by " + e.by }
+
+// stop is the GreenboneStop of this cause.
+func (e *stoppedBy) stop() *GreenboneStop {
+	st := &GreenboneStop{Reason: e.reason}
+	if !slices.Contains(stopReasons, st.Reason) {
+		st.Reason = StopPerson
+	}
+	if e.person != "" {
+		p := e.person
+		st.By = &p
+	}
+	return st
+}
+
+// stopOf is why a run that ended with err was stopped; nil when it was not stopped.
+func stopOf(err error) *GreenboneStop {
+	var sb *stoppedBy
+	if errors.As(err, &sb) {
+		return sb.stop()
+	}
+	return nil
+}
+
+// stopWhy is the reason of a stop in words, for the lines a scan stores and the engines' last runs ("" for nil): never a time (the
+// page shows GreenboneRun.EndedAt in the viewer's time zone).
+func stopWhy(st *GreenboneStop) string {
+	if st == nil {
+		return ""
+	}
+	by := "someone"
+	if st.By != nil && *st.By != "" {
+		by = *st.By
+	}
+	switch st.Reason {
+	case StopShutdown:
+		return "Vedette shut down: an update, a restart or a stop of the service"
+	case StopRestart:
+		return "Vedette restarted"
+	case StopModule:
+		return "the External exposure module was switched off"
+	case StopTerms:
+		return "the testing terms of this target were withdrawn or lowered by " + by
+	}
+	return by + " pressed Stop"
+}
 
 // begin registers a run and starts it in the background, or refuses (INV-1, INV-18): the gate's reason, no runner (501), another
 // run (409 busy), the same target within ScanEvery (429). The run's context comes from the Service, not from the request, so the
 // scan goes on after the 202 has been sent; it ends when its last step returns (each step has its own cap: 5 minutes for the runner,
 // service identification and the templates, 8 minutes a page for ZAP, 90 minutes for the optional Greenbone step;
 // 70 minutes for the service step of a deep scan, FullServicesTimeout), or on StopScan. No cap covers the whole run.
-func (s *Service) begin(ctx context.Context, user string, t Target, reason BlockedReason) (*scanRun, error) {
+//
+// With a (POST …/openvas) the run is OpenVAS again on a's snapshot (executeAgain): it needs no runner.
+func (s *Service) begin(ctx context.Context, user string, t Target, reason BlockedReason, a *again) (*scanRun, error) {
 	if reason != "" {
 		return nil, s.refusal(t, reason, s.clock())
 	}
 	r := s.scanRunner()
-	if r == nil {
+	if r == nil && a == nil {
 		return nil, ErrNotImplemented
 	}
 	s.runMu.Lock()
@@ -127,6 +181,11 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 	}
 	rctx = withSteps(progress.WithSink(rctx, run.prog), run.steps)
 	s.run = run
+	if a != nil { // no runner step: the run is the OpenVAS step from the start
+		run.view.OpenVASOnly, run.view.Phase = true, PhaseGreenbone
+		go s.executeAgain(rctx, run, user, t, *a)
+		return run, nil
+	}
 	go s.execute(rctx, run, r, user, t)
 	return run, nil
 }
@@ -217,40 +276,60 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 			run.gbSnap = id
 		}
 		s.runMu.Unlock()
-		run.snap, err = s.saveScan(ctx, user, t, content, id, gbRun)
+		run.snap, err = s.saveScan(ctx, user, t, content, id, gbRun, run.view.StartedAt)
 	}
 	if err == nil { // INV-30: nuclei's and ZAP's last runs are on the cards while OpenVAS still runs
-		s.saveSteps(ctx, run, runOn)
+		s.saveSteps(ctx, run, runOn, "")
 	}
 	if err == nil && gb { // a stop now keeps the snapshot above; Greenbone's outcome (or that it was stopped) is added to it
-		s.setPhase(run, PhaseGreenbone)
-		var o gbOutcome
-		var gerr error
-		if st.Kind == KindDomain {
-			o, gerr = s.greenboneDomain(ctx, st, deep, content.Ports)
-		} else {
-			o, gerr = s.greenboneStep(ctx, st, gbIP)
-		}
-		if gerr != nil {
-			line := notGBStopped
-			if len(o.rows) > 0 { // A domain keeps and shows the rows of the addresses that finished
-				line = notGBStoppedSome
+		err = s.openVASPart(ctx, run, user, t, func() (gbOutcome, error) {
+			if st.Kind == KindDomain {
+				return s.greenboneDomain(ctx, st, deep, content.Ports)
 			}
-			o.not = append([]NotCheckedRow{{Kind: "greenbone", Text: line}}, o.not...)
-			if o.audit == "" {
-				o.audit = "stopped"
-			}
-			o.state = GBRunStopped
-			err = gerr
-		}
-		outcome, text := openVASStep(o.state, len(o.rows))
-		run.steps.set(StepOpenVAS, outcome, text, s.clock())
-		s.addGreenbone(ctx, user, t, &run.snap, o)
+			return s.greenboneStep(ctx, st, gbIP)
+		})
 	}
 	if err != nil && ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) { // the run was cut short; any other error is the real one
 		err = context.Cause(ctx)
 	}
 	s.finish(ctx, run, user, t, err)
+}
+
+// openVASPart runs the OpenVAS step of a run whose snapshot is stored (run.snap) and adds its outcome to that snapshot: a stop keeps
+// the snapshot, with the line that says why, and is the run's error. The scan's own last step, and the whole of a run of OpenVAS again.
+func (s *Service) openVASPart(ctx context.Context, run *scanRun, user string, t Target, step func() (gbOutcome, error)) error {
+	s.setPhase(run, PhaseGreenbone)
+	o, err := step()
+	if err != nil {
+		o.stop = stopOf(context.Cause(ctx))
+		o.not = append([]NotCheckedRow{{Kind: "greenbone", Text: gbStoppedLine(o.stop, len(o.rows) > 0)}}, o.not...) // a domain keeps the rows of the addresses that finished
+		if o.audit == "" {
+			o.audit = "stopped"
+		}
+		if w := stopWhy(o.stop); w != "" {
+			o.audit += " (" + w + ")"
+		}
+		o.state = GBRunStopped
+	}
+	outcome, text := openVASStep(o.state, len(o.rows), o.stop)
+	run.steps.set(StepOpenVAS, outcome, text, s.clock())
+	s.addGreenbone(ctx, user, t, &run.snap, o)
+	return err
+}
+
+// gbStoppedLine is the OpenVAS line of a step that was stopped: why, when it is known, and that the rows of a domain's addresses that
+// finished (some) are kept.
+func gbStoppedLine(st *GreenboneStop, some bool) string {
+	why := stopWhy(st)
+	switch {
+	case why == "" && some:
+		return notGBStoppedSome
+	case why == "":
+		return notGBStopped
+	case some:
+		return "OpenVAS was stopped (" + why + ") before it had scanned every address; the results of the addresses it finished are shown. The results of the other checks above are kept."
+	}
+	return "OpenVAS was stopped before it finished (" + why + "), so its results are not shown. The results of the other checks above are kept."
 }
 
 // byName is the ScanTarget of a domain's by-name passive web pass (INV-24): always the basic scope, whatever the terms. The deep
@@ -262,7 +341,7 @@ func byName(st ScanTarget) ScanTarget {
 	return st
 }
 
-func (s *Service) saveScan(ctx context.Context, user string, t Target, content Content, id string, gbRun GreenboneRun) (Snapshot, error) {
+func (s *Service) saveScan(ctx context.Context, user string, t Target, content Content, id string, gbRun GreenboneRun, started string) (Snapshot, error) {
 	at := s.clock()
 	// INV-22: the marks of a carried port come only from carryNotSeen below, never from what the runner sent (sanitize keeps them, for
 	// the Greenbone re-save of a stored snapshot)
@@ -274,9 +353,12 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 	if t.Kind == KindIP {
 		extra = t.Value
 	}
-	date := at.In(s.cfg.Location).Format(dayFormat)
-	snap := Snapshot{ID: id, Date: date, ScannedAt: store.FormatTS(at), GreenboneRun: gbRun,
+	date := at.In(s.loc()).Format(dayFormat)
+	snap := Snapshot{ID: id, Date: date, ScannedAt: store.FormatTS(at), StartedAt: cmp.Or(started, store.FormatTS(at)), GreenboneRun: gbRun,
 		Vulns: []VulnRow{}, VersionGaps: []GapRow{}} // computed when read (INV-20); never null in an answer
+	if gbRun.State != GBRunRunning { // the scan ends here; one whose OpenVAS step starts now ends when that step does (addGreenbone)
+		snap.FinishedAt = &snap.ScannedAt
+	}
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
 	// INV-22: carry what the last observation (a scan today counts) had open and this scan did not report. One scan runs at a time, so
@@ -316,8 +398,8 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 
 // finish records the end of a run: the audit row of one that ended without a snapshot, and the final state the page reads.
 func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Target, err error) {
-	kept := run.snap.ID != ""            // stopped during the Greenbone step: the snapshot of the other steps is stored and already audited
-	s.saveSteps(ctx, run, runEndOf(err)) // INV-30: before the run reads as ended, so its steps are on the cards when it does
+	kept := run.snap.ID != ""                                  // stopped during the Greenbone step: the snapshot of the other steps is stored and already audited
+	s.saveSteps(ctx, run, runEndOf(err), stopWhy(stopOf(err))) // INV-30: before the run reads as ended, so its steps are on the cards when it does
 	if err != nil && !kept {
 		s.auditFailedScan(ctx, user, t, err)
 	}
@@ -383,8 +465,13 @@ func (s *Service) CurrentScan() *ScanRun {
 	return &v
 }
 
-// cancelRun cancels the run that runs now, if any, and does not wait for it. by is who stopped it, for the audit row.
+// cancelRun cancels the run that runs now, if any, and does not wait for it: the Stop of a person, by (for the audit row and the page).
 func (s *Service) cancelRun(by string) *scanRun {
+	return s.cancelRunWith(&stoppedBy{by: by, reason: StopPerson, person: by})
+}
+
+// cancelRunWith cancels the run that runs now, if any, with the cause sb, and does not wait for it.
+func (s *Service) cancelRunWith(sb *stoppedBy) *scanRun {
 	s.runMu.Lock()
 	run := s.run
 	if run == nil || run.view.Status != RunRunning {
@@ -392,7 +479,7 @@ func (s *Service) cancelRun(by string) *scanRun {
 		return nil
 	}
 	s.runMu.Unlock()
-	run.cancel(&stoppedBy{by: by})
+	run.cancel(sb)
 	return run
 }
 
@@ -422,7 +509,7 @@ func (s *Service) ModuleSwitched(enabled bool) {
 	s.off = !enabled
 	s.runMu.Unlock()
 	if !enabled {
-		s.cancelRun("the box (the Exposure module was switched off)")
+		s.cancelRunWith(&stoppedBy{by: "the box (the Exposure module was switched off)", why: stopWhy(&GreenboneStop{Reason: StopModule}), reason: StopModule})
 		s.gbModuleOff(s.bg) // Greenbone's containers stop with the module
 		return
 	}
@@ -449,11 +536,12 @@ func (s *Service) Close() {
 	syncDone := g.syncDone
 	g.mu.Unlock()
 	s.waitSync(syncDone) // the host must not keep pulling the feed after the box stops
-	if run := s.cancelRun("the box (shutting down)"); run != nil {
+	if run := s.cancelRunWith(&stoppedBy{by: "the box (shutting down)", why: "Vedette shut down", reason: StopShutdown}); run != nil {
 		select {
 		case <-run.done:
 		case <-time.After(closeWait):
 			s.cfg.Log.Error("exposure: the running scan did not stop at shutdown; its audit row may be missing")
+			s.cutAtShutdown(run) // its OpenVAS step reads "stopped by a shutdown", not "a restart", at the next start
 		}
 	}
 }
@@ -471,4 +559,32 @@ func runEndOf(err error) int {
 		return runPanicked
 	}
 	return runEnded
+}
+
+// cutAtShutdown stores the OpenVAS step of run, when it still reads "running", as stopped by the shutdown: Close's wait ran out (OpenVAS
+// took longer than closeWait to stop its task), and the process ends before the run writes its outcome. Failures are logged.
+func (s *Service) cutAtShutdown(run *scanRun) {
+	s.runMu.Lock()
+	id, target := run.gbSnap, run.view.TargetID
+	s.runMu.Unlock()
+	if id == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(s.bg, saveTimeout)
+	defer cancel()
+	now := store.FormatTS(s.clock())
+	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+		var date string
+		if err := tx.QueryRowContext(ctx, `SELECT date FROM exp_snapshot WHERE id = ?`, id).Scan(&date); err != nil {
+			return nil //nolint:nilerr // not stored yet, or replaced: nothing to mark
+		}
+		snap, ok, err := loadSnapshot(ctx, tx, target, date)
+		if err != nil || !ok || snap.ID != id || snap.GreenboneRun.State != GBRunRunning {
+			return err
+		}
+		return storeCut(ctx, tx, target, snap, now, &GreenboneStop{Reason: StopShutdown})
+	})
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "exposure: marking the OpenVAS step a shutdown cut as stopped failed", "error", err)
+	}
 }

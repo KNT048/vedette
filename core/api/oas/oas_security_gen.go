@@ -164,6 +164,7 @@ var operationRolesSession = map[string][]string{
 	ExposurePostExposureBoxIPVerifyOperation:                []string{},
 	ExposurePostExposureScanStopOperation:                   []string{},
 	ExposurePostExposureTargetsOperation:                    []string{},
+	ExposurePostExposureTargetsIDOpenvasOperation:           []string{},
 	ExposurePostExposureTargetsIDOutsideOperation:           []string{},
 	ExposurePostExposureTargetsIDScanOperation:              []string{},
 	ExposurePostExposureTargetsIDVerifyOperation:            []string{},

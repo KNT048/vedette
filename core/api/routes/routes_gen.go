@@ -166,6 +166,7 @@ var Operations = map[string]Operation{
 	"exposure_post_exposure_box_ip_verify":                  {Method: "POST", Path: "/exposure/box-ip/verify", MinRole: Admin, Tag: "exposure"},
 	"exposure_post_exposure_scan_stop":                      {Method: "POST", Path: "/exposure/scan/stop", MinRole: Operator, Tag: "exposure"},
 	"exposure_post_exposure_targets":                        {Method: "POST", Path: "/exposure/targets", MinRole: Admin, Tag: "exposure"},
+	"exposure_post_exposure_targets_id_openvas":             {Method: "POST", Path: "/exposure/targets/{id}/openvas", MinRole: Operator, Tag: "exposure"},
 	"exposure_post_exposure_targets_id_outside":             {Method: "POST", Path: "/exposure/targets/{id}/outside", MinRole: Admin, Tag: "exposure"},
 	"exposure_post_exposure_targets_id_scan":                {Method: "POST", Path: "/exposure/targets/{id}/scan", MinRole: Operator, Tag: "exposure"},
 	"exposure_post_exposure_targets_id_verify":              {Method: "POST", Path: "/exposure/targets/{id}/verify", MinRole: Operator, Tag: "exposure"},

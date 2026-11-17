@@ -23,3 +23,13 @@ export function dateTimeText(iso: string | null | undefined) {
   const d = parse(iso)
   return `${dateText(iso)}, ${two(d.getHours())}:${two(d.getMinutes())}`
 }
+
+/** The end of something that started at start: "22:43" on the same day of the viewer, else "18 Nov 2026, 00:12". */
+export function endText(start: string | null | undefined, end: string | null | undefined) {
+  if (!end) return '–'
+  if (start && dateText(start) === dateText(end)) {
+    const d = parse(end)
+    return `${two(d.getHours())}:${two(d.getMinutes())}`
+  }
+  return dateTimeText(end)
+}

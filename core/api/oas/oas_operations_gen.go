@@ -148,6 +148,7 @@ const (
 	ExposurePostExposureBoxIPVerifyOperation                OperationName = "ExposurePostExposureBoxIPVerify"
 	ExposurePostExposureScanStopOperation                   OperationName = "ExposurePostExposureScanStop"
 	ExposurePostExposureTargetsOperation                    OperationName = "ExposurePostExposureTargets"
+	ExposurePostExposureTargetsIDOpenvasOperation           OperationName = "ExposurePostExposureTargetsIDOpenvas"
 	ExposurePostExposureTargetsIDOutsideOperation           OperationName = "ExposurePostExposureTargetsIDOutside"
 	ExposurePostExposureTargetsIDScanOperation              OperationName = "ExposurePostExposureTargetsIDScan"
 	ExposurePostExposureTargetsIDVerifyOperation            OperationName = "ExposurePostExposureTargetsIDVerify"

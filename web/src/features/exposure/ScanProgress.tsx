@@ -34,7 +34,7 @@ export function ScanProgress() {
     if (wasRunning.current !== run.id) return
     wasRunning.current = null
     void qc.invalidateQueries({ queryKey: ['exposure'] })
-    if (run.status === 'done') toast.success(t('progress.done', { value: run.target_value }))
+    if (run.status === 'done') toast.success(t(run.openvas_only ? 'progress.doneAgain' : 'progress.done', { value: run.target_value }))
   }, [run, status, phase, qc, t])
   if (!run) return null
   if (run.status === 'running') {
@@ -43,7 +43,7 @@ export function ScanProgress() {
       <div className="mb-6 grid gap-3 rounded-md border border-rule bg-surface px-4 py-3 text-sm">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="font-medium">{t('progress.running', { value: run.target_value })}</span>
+            <span className="font-medium">{t(run.openvas_only ? 'progress.runningAgain' : 'progress.running', { value: run.target_value })}</span>
             {run.progress && run.phase !== 'greenbone' ? null : <span className="text-muted">{t(`progress.phase.${run.phase}`)}</span>}
           </p>
           {run.phase === 'greenbone' ? <InfoTip topic={t('progress.greenboneTopic')}>{t('progress.greenboneInfo')}</InfoTip> : null}

@@ -205,7 +205,8 @@ function proofOf(t: StoredTarget): Target['proof'] {
   const covering = targets.get()
     .filter((o) => o.kind === 'domain' && o.id !== t.id && o.verified_at !== null && o.txt_ok && t.value.endsWith(`.${o.value}`) && o.value.endsWith(zone))
     .sort((a, b) => b.value.length - a.value.length)[0]
-  return { zone, host, alt_host: host === '@' ? '_vedette-verify' : `_vedette-verify.${host}`, covered_by: covering ? covering.value : null }
+  const alt = host === '@' ? '_vedette-verify' : `_vedette-verify.${host}`
+  return { zone, host, alt_host: t.value.length + '_vedette-verify.'.length <= 253 ? alt : null, covered_by: covering ? covering.value : null }
 }
 
 function view(t: StoredTarget): Target {

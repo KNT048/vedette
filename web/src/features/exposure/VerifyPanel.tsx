@@ -68,7 +68,7 @@ export function VerifyPanel({ target }: { target: Target }) {
               ]} />
               <CodeBlock code={`vedette-verify=${target.token}`} label={t('verify.dns.valueLabel')} />
               <InfoLine className="max-w-3xl text-meta text-muted" topic={t('verify.dns.valueLabel')} info={t('verify.dnsHintInfo')}>{t('verify.dnsHint')}</InfoLine>
-              {proof && proof.host !== '@' ? <p className="max-w-3xl text-meta text-muted" data-testid="proof-cname">{t('verify.cnameHint', { value: target.value, alt: proof.alt_host })}</p> : null}
+              {proof && proof.host !== '@' && proof.alt_host ? <p className="max-w-3xl text-meta text-muted" data-testid="proof-cname">{t('verify.cnameHint', { value: target.value, alt: proof.alt_host })}</p> : null}
               {proof && proof.host !== '@' ? <p className="max-w-3xl text-meta text-muted">{t('verify.parentHint', { zone: proof.zone, value: target.value })}</p> : null}
             </>
           ) : <p className="max-w-3xl text-meta text-muted">{t('verify.keepRecord')}</p>}

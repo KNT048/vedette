@@ -47,12 +47,12 @@ export const Commitment = z.object({
 })
 
 // D-628 (J6, kien G10): where a domain's ownership record goes. A record on a name proves it and every name under it, down to its
-// registered domain (Public Suffix List, both sections: never across co.uk or ddns.net); a name that is a CNAME takes its record on
-// _vedette-verify.<name> instead.
+// registered domain (Public Suffix List, both sections: never across co.uk or ddns.net), when it is one of the box's domains; a name
+// that is a CNAME takes its record on _vedette-verify.<name> instead. Never through a CNAME or a wildcard.
 export const ProofHint = z.object({
   zone: z.string().describe('The registered domain: the DNS zone the record is added in ("beyondnetglobal.com")'),
   host: z.string().describe('The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com'),
-  alt_host: z.string().describe('The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or "_vedette-verify.git"'),
+  alt_host: z.string().nullable().describe('The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or "_vedette-verify.git"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)'),
   covered_by: z.string().nullable().describe('A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none'),
 })
 

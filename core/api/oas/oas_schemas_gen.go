@@ -43731,8 +43731,8 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText
 
 type ExposureDeleteExposureTargetsIDTermsOKProof struct {
 	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git".
-	AltHost string `json:"alt_host"`
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
@@ -43743,7 +43743,7 @@ type ExposureDeleteExposureTargetsIDTermsOKProof struct {
 }
 
 // GetAltHost returns the value of AltHost.
-func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetAltHost() string {
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetAltHost() NilString {
 	return s.AltHost
 }
 
@@ -43763,7 +43763,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetZone() string {
 }
 
 // SetAltHost sets the value of AltHost.
-func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetAltHost(val string) {
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetAltHost(val NilString) {
 	s.AltHost = val
 }
 
@@ -46081,8 +46081,8 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemIdent) UnmarshalText(data []
 
 type ExposureGetExposureTargetsIDOKProof struct {
 	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git".
-	AltHost string `json:"alt_host"`
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
@@ -46093,7 +46093,7 @@ type ExposureGetExposureTargetsIDOKProof struct {
 }
 
 // GetAltHost returns the value of AltHost.
-func (s *ExposureGetExposureTargetsIDOKProof) GetAltHost() string {
+func (s *ExposureGetExposureTargetsIDOKProof) GetAltHost() NilString {
 	return s.AltHost
 }
 
@@ -46113,7 +46113,7 @@ func (s *ExposureGetExposureTargetsIDOKProof) GetZone() string {
 }
 
 // SetAltHost sets the value of AltHost.
-func (s *ExposureGetExposureTargetsIDOKProof) SetAltHost(val string) {
+func (s *ExposureGetExposureTargetsIDOKProof) SetAltHost(val NilString) {
 	s.AltHost = val
 }
 
@@ -50001,8 +50001,8 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) UnmarshalText(
 
 type ExposureGetExposureTargetsOKItemsItemProof struct {
 	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git".
-	AltHost string `json:"alt_host"`
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
@@ -50013,7 +50013,7 @@ type ExposureGetExposureTargetsOKItemsItemProof struct {
 }
 
 // GetAltHost returns the value of AltHost.
-func (s *ExposureGetExposureTargetsOKItemsItemProof) GetAltHost() string {
+func (s *ExposureGetExposureTargetsOKItemsItemProof) GetAltHost() NilString {
 	return s.AltHost
 }
 
@@ -50033,7 +50033,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemProof) GetZone() string {
 }
 
 // SetAltHost sets the value of AltHost.
-func (s *ExposureGetExposureTargetsOKItemsItemProof) SetAltHost(val string) {
+func (s *ExposureGetExposureTargetsOKItemsItemProof) SetAltHost(val NilString) {
 	s.AltHost = val
 }
 
@@ -51063,8 +51063,8 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Unmarshal
 
 type ExposurePostExposureBoxIPVerifyOKItemsItemProof struct {
 	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git".
-	AltHost string `json:"alt_host"`
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
@@ -51075,7 +51075,7 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemProof struct {
 }
 
 // GetAltHost returns the value of AltHost.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetAltHost() string {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetAltHost() NilString {
 	return s.AltHost
 }
 
@@ -51095,7 +51095,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetZone() string {
 }
 
 // SetAltHost sets the value of AltHost.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetAltHost(val string) {
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetAltHost(val NilString) {
 	s.AltHost = val
 }
 
@@ -52665,8 +52665,8 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemIdent) UnmarshalText(dat
 
 type ExposurePostExposureTargetsCreatedProof struct {
 	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git".
-	AltHost string `json:"alt_host"`
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
@@ -52677,7 +52677,7 @@ type ExposurePostExposureTargetsCreatedProof struct {
 }
 
 // GetAltHost returns the value of AltHost.
-func (s *ExposurePostExposureTargetsCreatedProof) GetAltHost() string {
+func (s *ExposurePostExposureTargetsCreatedProof) GetAltHost() NilString {
 	return s.AltHost
 }
 
@@ -52697,7 +52697,7 @@ func (s *ExposurePostExposureTargetsCreatedProof) GetZone() string {
 }
 
 // SetAltHost sets the value of AltHost.
-func (s *ExposurePostExposureTargetsCreatedProof) SetAltHost(val string) {
+func (s *ExposurePostExposureTargetsCreatedProof) SetAltHost(val NilString) {
 	s.AltHost = val
 }
 
@@ -54453,8 +54453,8 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Unmarsha
 
 type ExposurePostExposureTargetsIDVerifyOKTargetProof struct {
 	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git".
-	AltHost string `json:"alt_host"`
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
@@ -54465,7 +54465,7 @@ type ExposurePostExposureTargetsIDVerifyOKTargetProof struct {
 }
 
 // GetAltHost returns the value of AltHost.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetAltHost() string {
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetAltHost() NilString {
 	return s.AltHost
 }
 
@@ -54485,7 +54485,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetZone() string {
 }
 
 // SetAltHost sets the value of AltHost.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetAltHost(val string) {
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetAltHost(val NilString) {
 	s.AltHost = val
 }
 
@@ -55952,8 +55952,8 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText(da
 
 type ExposurePutExposureTargetsIDTermsOKProof struct {
 	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git".
-	AltHost string `json:"alt_host"`
+	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
@@ -55964,7 +55964,7 @@ type ExposurePutExposureTargetsIDTermsOKProof struct {
 }
 
 // GetAltHost returns the value of AltHost.
-func (s *ExposurePutExposureTargetsIDTermsOKProof) GetAltHost() string {
+func (s *ExposurePutExposureTargetsIDTermsOKProof) GetAltHost() NilString {
 	return s.AltHost
 }
 
@@ -55984,7 +55984,7 @@ func (s *ExposurePutExposureTargetsIDTermsOKProof) GetZone() string {
 }
 
 // SetAltHost sets the value of AltHost.
-func (s *ExposurePutExposureTargetsIDTermsOKProof) SetAltHost(val string) {
+func (s *ExposurePutExposureTargetsIDTermsOKProof) SetAltHost(val NilString) {
 	s.AltHost = val
 }
 

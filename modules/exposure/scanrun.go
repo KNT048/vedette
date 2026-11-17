@@ -153,6 +153,9 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	s.setPhase(run, PhaseProbing)
 	run.prog.Report(progress.Phase(progress.PhasePorts, "")) // #830: the jobs below report their own phases as they run
 	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode}
+	if t.proofDomain != "" {
+		st.Proof = &ProofOwner{Domain: t.proofDomain, Token: t.proofToken}
+	}
 	content, err := r.Scan(ctx, st)
 	content.Hosts = clearDeep(content.Hosts) // D-571: the deep state of a run is exposure's own, never the runner's
 	deepDomain := st.Kind == KindDomain && st.Mode.Full

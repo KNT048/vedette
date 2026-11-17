@@ -105,6 +105,9 @@ type Target struct {
 	Terms      *Terms // the testing terms (FULL-1); nil when not accepted
 	CreatedAt  time.Time
 	LastScanAt time.Time // zero when never scanned
+	// proofDomain and proofToken are, after the scan gate, the domain target whose record proved this one now (itself, or a parent
+	// of the box that covers it) and its token: the domain and token the executors' fence checks (D-628). Never stored.
+	proofDomain, proofToken string
 }
 
 // TargetView is the API shape of a target (contract.ts Target), with the derived fields filled in.

@@ -91,6 +91,12 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 		if err != nil {
 			return err
 		}
+		if cur.Kind == KindDomain {
+			if pr, err = stillOwner(ctx, tx, id, pr); err != nil {
+				return err
+			}
+			ok, failure = pr.found, pr.failure
+		}
 		now := s.clock()
 		wasOK := !cur.VerifiedAt.IsZero() && cur.LastCheck != nil && cur.LastCheck.OK && cur.validity(now) != validityExpired
 		method, message := methodDNS, ""

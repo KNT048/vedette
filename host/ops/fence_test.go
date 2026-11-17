@@ -170,7 +170,12 @@ func TestExposureFenceCheck(t *testing.T) {
 	args := func(tok string, disruptive bool) api.ExposureFenceCheckArgs {
 		return api.ExposureFenceCheckArgs{Domain: "example.com", Name: "www.example.com", IP: zapTestIP, Token: tok, Disruptive: disruptive}
 	}
-	outside := func(context.Context, string) (string, error) { return "example.cdn.example.net.", nil }
+	outside := func(_ context.Context, name string) (string, error) { // the page's name only: the domain itself is no CNAME (D-628)
+		if name == "www.example.com" {
+			return "example.cdn.example.net.", nil
+		}
+		return name + ".", nil
+	}
 	gone := func(context.Context, string) ([]string, error) { return nil, nil }
 	moved := func(context.Context, string) ([]netip.Addr, error) {
 		return []netip.Addr{netip.MustParseAddr("1.1.1.1")}, nil

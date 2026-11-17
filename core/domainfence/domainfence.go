@@ -212,22 +212,11 @@ func (f *Fence) check(ctx context.Context, j Job) (Outcome, cacheEntry) {
 		defer cancel()
 		return fn(lctx)
 	}
-	// The record is on the domain or, for a domain that is a CNAME (no other record may sit beside one), on _vedette-verify.<domain>
-	// (D-628): either proves it.
-	owned := false
-	for _, at := range []string{j.Domain, VerifyLabel + "." + j.Domain} {
-		var txt []string
-		err := lookup(func(c context.Context) (err error) { txt, err = f.r.LookupTXT(c, at); return })
-		if err != nil && !notFound(err) {
-			return Outcome{Reason: Unchecked, Detail: "the TXT lookup of " + at + " failed"}, cacheEntry{}
-		}
-		if slices.ContainsFunc(txt, func(v string) bool { return strings.TrimSpace(v) == "vedette-verify="+j.Token }) {
-			owned = true
-			break
-		}
-	}
-	if !owned {
-		return Outcome{Reason: NotOwned, Detail: j.Domain + " and " + VerifyLabel + "." + j.Domain + " have no TXT record vedette-verify=<this box's token>"}, cacheEntry{}
+	switch pr := Owned(ctx, f.r, j.Domain, j.Token, LookupTimeout); {
+	case pr.Unchecked:
+		return Outcome{Reason: Unchecked, Detail: pr.Detail}, cacheEntry{}
+	case pr.At == "":
+		return Outcome{Reason: NotOwned, Detail: pr.Detail}, cacheEntry{}
 	}
 	var addrs []netip.Addr
 	err := lookup(func(c context.Context) (err error) { addrs, err = f.r.LookupNetIP(c, "ip4", j.Name); return })
@@ -255,6 +244,102 @@ func (f *Fence) check(ctx context.Context, j Job) (Outcome, cacheEntry) {
 		return Outcome{Reason: CNAMEOutside, Chain: chain, Detail: j.Name + " points (CNAME) outside " + j.Domain}, e
 	}
 	return Outcome{Chain: chain}, e
+}
+
+// ProofResolver is what Owned asks; *net.Resolver satisfies it.
+type ProofResolver interface {
+	LookupTXT(ctx context.Context, name string) ([]string, error)
+	LookupCNAME(ctx context.Context, host string) (string, error)
+}
+
+// Proof is the answer of Owned: At is the name the record was found on ("" when none); Unchecked says a lookup failed, so nothing is
+// known (fail closed); Detail says why in words for a log line.
+type Proof struct {
+	At        string
+	Unchecked bool
+	Detail    string
+}
+
+// Owned is THE ownership rule of a domain's record (D-628), the one every party applies: exposure (Check and the scan gate, for the
+// target itself and for a parent target that covers it), the scan container's worker (deep steps) and vedette-host (ZAP pages,
+// OpenVAS). domain is owned when the TXT record vedette-verify=<token> is answered at the name asked itself:
+//
+//   - on domain, or on _vedette-verify.<domain> (a domain that is a CNAME can hold no other record; skipped when that name would
+//     pass 253 characters);
+//   - never through a CNAME: the name asked must not be one (its LookupCNAME answers itself, or "no such host" for a name with no
+//     address), else the TXT belongs to whoever runs the CNAME's target (a dangling CNAME, a vendor's name; review r1 High of #941);
+//   - on _vedette-verify.<domain>, never a wildcard: a random sibling under domain must not answer the same value. A wildcard
+//     "*.domain" answers every name under it, the dedicated one included; a wildcard CNAME there is already refused by the rule
+//     above, a wildcard TXT by this one. On domain itself a wildcard of its parent answers only when domain has no record of its
+//     own, so a wildcard CNAME is refused by the CNAME rule and a wildcard TXT is the zone owner's own record.
+//
+// Every lookup has timeout. A lookup that fails (not "no such host") makes the answer Unchecked unless the other name proves it.
+func Owned(ctx context.Context, r ProofResolver, domain, token string, timeout time.Duration) Proof {
+	want := "vedette-verify=" + token
+	has := func(vals []string) bool {
+		return slices.ContainsFunc(vals, func(v string) bool { return strings.TrimSpace(v) == want })
+	}
+	txt := func(name string) ([]string, error) {
+		c, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		return r.LookupTXT(c, name)
+	}
+	names := []string{domain}
+	if alt := VerifyLabel + "." + domain; len(alt) <= 253 {
+		names = append(names, alt)
+	}
+	failed, why := "", ""
+	for i, at := range names {
+		vals, err := txt(at)
+		switch {
+		case err != nil && !notFound(err):
+			failed = at
+			continue
+		case !has(vals):
+			continue
+		}
+		c, cancel := context.WithTimeout(ctx, timeout)
+		cn, err := r.LookupCNAME(c, at)
+		cancel()
+		cn = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(cn), "."))
+		switch {
+		case err != nil && !notFound(err):
+			failed = at
+			continue
+		case err == nil && cn != "" && cn != at:
+			why = at + " is a CNAME to another name, so its TXT record is not its own"
+			continue
+		}
+		if i == 1 {
+			sib := VerifyLabel + "-" + randomLabel() + "." + domain
+			if len(sib) <= 253 {
+				svals, err := txt(sib)
+				switch {
+				case err != nil && !notFound(err):
+					failed = at
+					continue
+				case has(svals):
+					why = at + " answers through a wildcard (a random name beside it gives the same record)"
+					continue
+				}
+			}
+		}
+		return Proof{At: at}
+	}
+	if failed != "" {
+		return Proof{Unchecked: true, Detail: "the DNS lookup at " + failed + " failed"}
+	}
+	if why != "" {
+		return Proof{Detail: why}
+	}
+	return Proof{Detail: strings.Join(names, " and ") + " have no TXT record vedette-verify=<the token>"}
+}
+
+// randomLabel is 16 random hex digits: the sibling name of the wildcard check.
+func randomLabel() string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b) // crypto/rand.Read never fails (Go 1.24+)
+	return hex.EncodeToString(b)
 }
 
 // notFound is the resolver's "no such name / no such record" (*net.DNSError IsNotFound): an answer, not a failure.

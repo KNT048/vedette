@@ -21747,8 +21747,11 @@
                                     "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
                                   },
                                   "alt_host": {
-                                    "type": "string",
-                                    "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\""
+                                    "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
                                   },
                                   "covered_by": {
                                     "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
@@ -23350,8 +23353,11 @@
                                     "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
                                   },
                                   "alt_host": {
-                                    "type": "string",
-                                    "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\""
+                                    "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
                                   },
                                   "covered_by": {
                                     "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
@@ -24027,8 +24033,11 @@
                               "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
                             },
                             "alt_host": {
-                              "type": "string",
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\""
+                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "covered_by": {
                               "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
@@ -24595,8 +24604,11 @@
                               "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
                             },
                             "alt_host": {
-                              "type": "string",
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\""
+                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "covered_by": {
                               "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
@@ -26925,8 +26937,11 @@
                               "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
                             },
                             "alt_host": {
-                              "type": "string",
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\""
+                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "covered_by": {
                               "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
@@ -27467,8 +27482,11 @@
                               "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
                             },
                             "alt_host": {
-                              "type": "string",
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\""
+                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "covered_by": {
                               "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
@@ -27996,8 +28014,11 @@
                                   "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
                                 },
                                 "alt_host": {
-                                  "type": "string",
-                                  "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\""
+                                  "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
                                 },
                                 "covered_by": {
                                   "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",

@@ -25,6 +25,7 @@ type fakeDNS struct {
 	a     map[string][]netip.Addr
 	cname map[string]string
 	fail  map[string]bool
+	wild  map[string][]string // zone -> the TXT a wildcard "*.zone" answers for every name under it with no record of its own
 	n     int
 }
 
@@ -46,6 +47,11 @@ func (f *fakeDNS) LookupTXT(_ context.Context, name string) ([]string, error) {
 	defer f.mu.Unlock()
 	if v, ok := f.txt[name]; ok {
 		return v, nil
+	}
+	for zone, v := range f.wild {
+		if strings.HasSuffix(name, "."+zone) {
+			return v, nil
+		}
 	}
 	return nil, &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
 }
@@ -145,6 +151,18 @@ func TestCheckRefusals(t *testing.T) {
 		{"D-628: another box's token on _vedette-verify.<domain>", func(_ *Job, d *fakeDNS) {
 			d.txt["_vedette-verify.acme.example"], d.txt["acme.example"] = []string{"vedette-verify=" + Token(key2, "acme.example")}, nil
 		}, NotOwned},
+		{"r1 High of #941: a wildcard TXT answers _vedette-verify.<domain> and any random name beside it", func(_ *Job, d *fakeDNS) {
+			d.wild = map[string][]string{"acme.example": d.txt["acme.example"]}
+			d.txt["acme.example"] = nil
+		}, NotOwned},
+		{"r1 High of #941: a wildcard CNAME makes _vedette-verify.<domain> a CNAME to the attacker's name", func(_ *Job, d *fakeDNS) {
+			d.txt["_vedette-verify.acme.example"], d.txt["acme.example"] = d.txt["acme.example"], nil // what the CNAME's target answers
+			d.cname["_vedette-verify.acme.example"] = "lb.lapsed-vendor.example"
+		}, NotOwned},
+		{"r1 Low of #941: the domain itself is a CNAME: the TXT reached through it is the target's", func(_ *Job, d *fakeDNS) {
+			d.cname["acme.example"] = "tenant.vendor.example"
+		}, NotOwned},
+		{"the CNAME check of the record's name fails", func(_ *Job, d *fakeDNS) { d.fail["cname:acme.example"] = true }, Unchecked},
 		{"D-628: the _vedette-verify lookup fails", func(_ *Job, d *fakeDNS) { delete(d.txt, "acme.example"); d.fail["_vedette-verify.acme.example"] = true }, Unchecked},
 		{"A lookup fails", func(_ *Job, d *fakeDNS) { d.fail["www.acme.example"] = true }, Unchecked},
 		{"CNAME lookup fails", func(_ *Job, d *fakeDNS) { d.fail["cname:www.acme.example"] = true }, Unchecked},

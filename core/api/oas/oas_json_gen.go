@@ -87832,7 +87832,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKProof) Encode(e *jx.Encoder) {
 func (s *ExposureDeleteExposureTargetsIDTermsOKProof) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("alt_host")
-		e.Str(s.AltHost)
+		s.AltHost.Encode(e)
 	}
 	{
 		e.FieldStart("covered_by")
@@ -87867,9 +87867,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKProof) Decode(d *jx.Decoder) erro
 		case "alt_host":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.AltHost = string(v)
-				if err != nil {
+				if err := s.AltHost.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -92096,7 +92094,7 @@ func (s *ExposureGetExposureTargetsIDOKProof) Encode(e *jx.Encoder) {
 func (s *ExposureGetExposureTargetsIDOKProof) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("alt_host")
-		e.Str(s.AltHost)
+		s.AltHost.Encode(e)
 	}
 	{
 		e.FieldStart("covered_by")
@@ -92131,9 +92129,7 @@ func (s *ExposureGetExposureTargetsIDOKProof) Decode(d *jx.Decoder) error {
 		case "alt_host":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.AltHost = string(v)
-				if err != nil {
+				if err := s.AltHost.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -99921,7 +99917,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemProof) Encode(e *jx.Encoder) {
 func (s *ExposureGetExposureTargetsOKItemsItemProof) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("alt_host")
-		e.Str(s.AltHost)
+		s.AltHost.Encode(e)
 	}
 	{
 		e.FieldStart("covered_by")
@@ -99956,9 +99952,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemProof) Decode(d *jx.Decoder) error
 		case "alt_host":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.AltHost = string(v)
-				if err != nil {
+				if err := s.AltHost.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -102028,7 +102022,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) Encode(e *jx.Encoder) 
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("alt_host")
-		e.Str(s.AltHost)
+		s.AltHost.Encode(e)
 	}
 	{
 		e.FieldStart("covered_by")
@@ -102063,9 +102057,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) Decode(d *jx.Decoder) 
 		case "alt_host":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.AltHost = string(v)
-				if err != nil {
+				if err := s.AltHost.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -104830,7 +104822,7 @@ func (s *ExposurePostExposureTargetsCreatedProof) Encode(e *jx.Encoder) {
 func (s *ExposurePostExposureTargetsCreatedProof) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("alt_host")
-		e.Str(s.AltHost)
+		s.AltHost.Encode(e)
 	}
 	{
 		e.FieldStart("covered_by")
@@ -104865,9 +104857,7 @@ func (s *ExposurePostExposureTargetsCreatedProof) Decode(d *jx.Decoder) error {
 		case "alt_host":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.AltHost = string(v)
-				if err != nil {
+				if err := s.AltHost.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -108171,7 +108161,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) Encode(e *jx.Encoder)
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("alt_host")
-		e.Str(s.AltHost)
+		s.AltHost.Encode(e)
 	}
 	{
 		e.FieldStart("covered_by")
@@ -108206,9 +108196,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) Decode(d *jx.Decoder)
 		case "alt_host":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.AltHost = string(v)
-				if err != nil {
+				if err := s.AltHost.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -111388,7 +111376,7 @@ func (s *ExposurePutExposureTargetsIDTermsOKProof) Encode(e *jx.Encoder) {
 func (s *ExposurePutExposureTargetsIDTermsOKProof) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("alt_host")
-		e.Str(s.AltHost)
+		s.AltHost.Encode(e)
 	}
 	{
 		e.FieldStart("covered_by")
@@ -111423,9 +111411,7 @@ func (s *ExposurePutExposureTargetsIDTermsOKProof) Decode(d *jx.Decoder) error {
 		case "alt_host":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.AltHost = string(v)
-				if err != nil {
+				if err := s.AltHost.Decode(d); err != nil {
 					return err
 				}
 				return nil

@@ -633,15 +633,16 @@ func (o *Ops) zapOwned(ctx context.Context, logf func(string), p zapPage) error 
 	return refuse412(api.CodeTargetNotOwned, "The domain fence refused "+p.host+" ("+res.Reason+"), so this page was not scanned.")
 }
 
-// zapOwnedLegacy is the check of a domain page before D-591, unchanged: the domain still has its TXT record vedette-verify=<token>
+// zapOwnedLegacy is the check of a domain page before D-591: the domain still has its TXT record vedette-verify=<token> (domainfence.Owned)
 // AND the page's name resolves (A records, system resolver) to the IP ZAP is pinned to. Core's word for the address is not enough
 // (review M1): a name that now answers with other addresses stops this page only (zap_name_moved).
 func (o *Ops) zapOwnedLegacy(ctx context.Context, p zapPage) error {
-	vals, err := o.zapTXT(ctx, p.domain)
-	if err != nil && !dnsNotFound(err) {
+	// D-628: the one ownership rule of core/domainfence (on the domain or on _vedette-verify.<domain>, never through a CNAME or a
+	// wildcard), with the token core sends for a domain verified before the fence.
+	switch pr := domainfence.Owned(ctx, fenceResolver{o}, p.domain, p.token, domainfence.LookupTimeout); {
+	case pr.Unchecked:
 		return fail(api.CodeOwnershipUnchecked, "The DNS lookup of "+p.domain+" failed, so its TXT record could not be checked and nothing was sent.")
-	}
-	if !slices.ContainsFunc(vals, func(v string) bool { return strings.TrimSpace(v) == "vedette-verify="+p.token }) { // exposure's txtRecord
+	case pr.At == "":
 		return refuse412(api.CodeTargetNotOwned, p.domain+" no longer has its vedette-verify TXT record, so its pages were not scanned.")
 	}
 	addrs, err := o.zapLookupIP(ctx, p.host)

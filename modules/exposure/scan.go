@@ -51,8 +51,12 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 		if err != nil {
 			return Target{}, "", err
 		}
-		found := pr.found
 		err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+			var err error
+			if pr, err = stillOwner(ctx, tx, id, pr); err != nil {
+				return err
+			}
+			found := pr.found
 			now := s.clock()
 			msg, action := proofMessage(t, pr), "exposure.verify_ok"
 			if !found {
@@ -71,6 +75,9 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 		}
 		if t, err = loadTarget(ctx, s.cfg.DB.Reader(), id); err != nil {
 			return Target{}, "", err
+		}
+		if pr.found { // the target whose record proved it now: the executors' fence checks that domain and token (D-628)
+			t.proofDomain, t.proofToken = pr.proven, pr.token
 		}
 	}
 	return t, t.blocked(s.clock()), nil
@@ -183,7 +190,10 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 	case BlockedExpired:
 		return apiErr(409, "expired", "Verification of %s expired on %s, so it cannot be scanned. Verify it again first.", t.Value, s.dayText(t.expiresAt(now)))
 	case BlockedTxtMissing:
-		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer found on %s, on %s.%s or on a parent domain that covers it, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value, verifyLabel, t.Value)
+		if _, ok := registered(t.Value); !ok { // review r1 L of #941: a stored public suffix is told so, not "add the record back"
+			return apiErr(409, "txt_missing", "%s", publicSuffixText(t.Value))
+		}
+		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer found on %s, on %s.%s or on a parent domain of this box that covers it, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value, verifyLabel, t.Value)
 	case BlockedNoCommitment:
 		if t.Commitment != nil {
 			return errNeedAdminReconfirm(t.Value)

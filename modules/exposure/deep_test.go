@@ -28,15 +28,29 @@ type deepDNS struct {
 	a        map[string][]string
 	err      error
 	cnameErr error // LookupCNAME answers it when set; otherwise the name itself (no CNAME)
+	proofAsk map[string]bool
 }
 
 func (d *deepDNS) LookupCNAME(_ context.Context, host string) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if d.cnameErr != nil {
+	if d.cnameErr != nil && !d.proofAsk[host] {
 		return "", d.cnameErr
 	}
+	delete(d.proofAsk, host)
 	return host + ".", nil
+}
+
+// LookupTXT marks the name: the ownership rule (D-628) asks the CNAME of the name whose record it just found, and cnameErr is about
+// the names a step resolves, not that check.
+func (d *deepDNS) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	d.mu.Lock()
+	if d.proofAsk == nil {
+		d.proofAsk = map[string]bool{}
+	}
+	d.proofAsk[name] = true
+	d.mu.Unlock()
+	return d.fakeResolver.LookupTXT(ctx, name)
 }
 
 func (d *deepDNS) LookupNetIP(_ context.Context, _ string, host string) ([]netip.Addr, error) {

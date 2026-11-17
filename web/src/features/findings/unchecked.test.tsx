@@ -44,3 +44,14 @@ describe('#910 phase 1: exploited CVEs that could not be checked, in their devic
     await waitFor(() => expect(document.getElementById('unchecked')).not.toBeNull())
   })
 })
+
+describe('a software name shows its version once', () => {
+  it('does not repeat a version the scanner already put in the name', async () => {
+    const { nameWithVersion } = await import('./UncheckedList')
+    expect(nameWithVersion('OpenSSH 10.2', '10.2')).toBe('OpenSSH 10.2')
+    expect(nameWithVersion('OpenSSH', '10.2')).toBe('OpenSSH 10.2')
+    expect(nameWithVersion('OpenSSH 10.2', '10.2p1')).toBe('OpenSSH 10.2 10.2p1')
+    expect(nameWithVersion('OpenSSH', null)).toBe('OpenSSH')
+    expect(nameWithVersion('OpenSSH', ' ')).toBe('OpenSSH')
+  })
+})

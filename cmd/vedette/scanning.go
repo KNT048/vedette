@@ -417,12 +417,12 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 			}
 		}
 	case "snmp":
-		creds, err := svc.SNMPCredentials(ctx)
+		devs, err := svc.SNMPDevices(ctx)
 		if err != nil {
 			return s, err
 		}
-		if len(creds) == 0 {
-			s.State, s.Reason = core.EngineNeedsSetup, "Add an SNMP credential (Devices › Scope and sensors) to read approved network devices."
+		if len(devs) == 0 {
+			s.State, s.Reason = core.EngineNeedsSetup, "Set SNMP up on a device's page (Devices › the device › SNMP) to read it."
 			return s, nil
 		}
 		if h := v.SNMP; h != nil {
@@ -430,31 +430,25 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 			at, _ := parseTS(h.StartedAt)
 			s.Running = append(s.Running, core.RunningJob{Engine: id, ID: h.ID, Label: "SNMP reads", StartedAt: at})
 		}
-		// A credential whose saved secret this box cannot open is skipped by every read until it is typed again (#868).
-		var lost []string
-		for _, c := range creds {
-			if c.SecretLost {
-				lost = append(lost, strconv.Quote(c.Name))
+		// A device whose saved secret this box cannot open is skipped by every read until it is typed again; one that moved
+		// away from the read address it had is not read until a person sets it again.
+		var lost, moved []string
+		for _, d := range devs {
+			switch {
+			case d.SecretLost:
+				lost = append(lost, cmpOrName(d.Name))
+			case d.Blocked != nil && d.Blocked.Reason == sensoractive.SNMPMoved:
+				moved = append(moved, fmt.Sprintf("%s moved to %s, away from its SNMP read address %s", cmpOrName(d.Name), d.IP, d.ReadFrom))
 			}
 		}
 		if len(lost) > 0 {
-			s.Reason = "The saved community or password of SNMP credential " + strings.Join(lost, ", ") + " was not restored (the backup was restored without its decryption key, or the box key changed), so it is skipped. Open Devices › Scope and sensors › SNMP, Edit it, enter it again and save."
-			if len(lost) > 1 {
-				s.Reason = "The saved communities or passwords of SNMP credentials " + strings.Join(lost, ", ") + " were not restored (the backup was restored without its decryption key, or the box key changed), so they are skipped. Open Devices › Scope and sensors › SNMP, Edit each, enter it again and save."
-			}
-			if len(lost) == len(creds) && s.State == core.EngineReady {
+			s.Reason = "The saved SNMP community or password of " + strings.Join(lost, ", ") + " was not restored (the backup was restored without its decryption key, or the box key changed), so it is skipped. Open the device's page, SNMP, Edit, enter it again and save."
+			if len(lost) == len(devs) && s.State == core.EngineReady {
 				s.State = core.EngineError
 			}
 		}
-		// A device that answered a credential and moved out of its scope is not read until a person adds its address (#829 C4).
-		var moved []string
-		for _, c := range creds {
-			for _, m := range c.MovedOut {
-				moved = append(moved, fmt.Sprintf("%s moved to %s, outside the scope of SNMP credential %q", cmpOrName(m.Name), m.IP, c.Name))
-			}
-		}
 		if len(moved) > 0 {
-			text := strings.Join(moved, "; ") + ": add the address to the credential's scope (Devices › Scope and sensors › SNMP, Edit) to keep reading it."
+			text := strings.Join(moved, "; ") + ": check the device, then set Read from on its page (SNMP, Edit) to keep reading it."
 			if s.Reason != "" {
 				text = s.Reason + " " + text
 			}

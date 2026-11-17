@@ -243,13 +243,17 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const methods = within(dlg).getByRole('radiogroup', { name: 'How to add it' })
     expect(within(methods).getAllByRole('radio').map((r) => r.closest('label')?.querySelector('.font-medium')?.textContent)).toEqual(['Manual', 'SNMP', 'osquery', 'Wazuh', 'CSV import'])
     expect(within(dlg).queryByText(/by hand|SSH|API key/)).not.toBeInTheDocument()
+    // SNMP is set up on each device's page, so its method only says where (no form of its own)
     const own: Record<string, RegExp> = { Manual: /^IP address$/, SNMP: /^IP address or range$/, osquery: /^Token name|^Name/, Wazuh: /Wazuh API address|Server API|^Address/, 'CSV import': /^Choose a CSV file$/ }
+    const noForm = ['osquery', 'Wazuh', 'SNMP']
     for (const [m, field] of Object.entries(own)) {
       await user.click(within(methods).getByRole('radio', { name: new RegExp(`^${m}`) }))
       expect(await within(dlg).findByRole('region', { name: m }, T)).toBeInTheDocument()
-      if (m !== 'osquery' && m !== 'Wazuh') expect(within(dlg).getByLabelText(field)).toBeInTheDocument()
-      for (const [other, f] of Object.entries(own)) if (other !== m && other !== 'osquery' && other !== 'Wazuh') expect(within(dlg).queryByLabelText(f)).toBeNull()
+      if (!noForm.includes(m)) expect(within(dlg).getByLabelText(field)).toBeInTheDocument()
+      for (const [other, f] of Object.entries(own)) if (other !== m && !noForm.includes(other)) expect(within(dlg).queryByLabelText(f)).toBeNull()
     }
+    await user.click(within(methods).getByRole('radio', { name: /^SNMP/ }))
+    expect(await within(dlg).findByText(/SNMP is set up on each device's own page/, undefined, T)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
@@ -281,64 +285,6 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(modulesStore.get().find((m) => m.id === 'agent-intake')?.enabled).toBe(true)
   })
 
-  // #849 review H3: the credential dialog is portalled but React events bubble; saving it must not submit the Add dialog's form behind it.
-  const snmpTests = () => {
-    const ids: string[] = []
-    server.events.on('request:start', ({ request }) => { const m = /\/inventory\/snmp\/([^/]+)\/test$/.exec(new URL(request.url).pathname); if (m && request.method === 'POST') ids.push(m[1]!) })
-    return ids
-  }
-  it('#849, kien 2026-11-16: "+ New credential" makes one in a small dialog, selects it and reads the typed address once, with the new credential', async () => {
-    const user = userEvent.setup()
-    const tests = snmpTests()
-    renderApp('/devices?add=snmp')
-    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
-    await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '192.168.10.3')
-    await user.selectOptions(within(dlg).getByLabelText('Credential'), '+ New credential')
-    const form = await screen.findByRole('dialog', { name: 'Add SNMP credential' }, T)
-    expect(within(form).getByLabelText('Send only to')).toHaveValue('192.168.10.3') // the address typed is the scope
-    await user.type(within(form).getByLabelText('Name'), 'Switch room')
-    await user.type(within(form).getByLabelText('Community'), 'public')
-    await user.click(within(form).getByRole('button', { name: 'Add credential' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add SNMP credential' })).toBeNull(), T)
-    await waitFor(() => expect((within(dlg).getByLabelText('Credential') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('Switch room (v2c)'), T)
-    expect(await within(dlg).findByText('192.168.10.3 answered.', undefined, T)).toBeInTheDocument() // read at once
-    const made = (await (await fetch(`${BASE}/snmp`)).json() as { credentials: { id: string; name: string }[] }).credentials.find((c) => c.name === 'Switch room')!
-    expect(tests).toEqual([made.id]) // once, never with the credential selected before
-    expect(screen.getAllByRole('dialog')).toHaveLength(1) // no scope or widen dialog opened behind
-  })
-
-  it('#849 review H3: a new credential saved with nothing typed reads nothing and raises no error behind the dialog', async () => {
-    const user = userEvent.setup()
-    const tests = snmpTests()
-    renderApp('/devices?add=snmp')
-    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
-    await user.selectOptions(await within(dlg).findByLabelText('Credential', undefined, T), '+ New credential')
-    const form = await screen.findByRole('dialog', { name: 'Add SNMP credential' }, T)
-    await user.type(within(form).getByLabelText('Name'), 'Lab')
-    await user.type(within(form).getByLabelText('Community'), 'public')
-    await user.type(within(form).getByLabelText('Send only to'), '192.168.10.0/24')
-    await user.click(within(form).getByRole('button', { name: 'Add credential' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add SNMP credential' })).toBeNull(), T)
-    expect(tests).toEqual([])
-    expect(within(dlg).queryByText(/Enter one IP address/)).toBeNull()
-  })
-
-  it('D-601 (review r1 M3): a range outside the LAN ranges goes into the credential only; the scan scope is never widened for SNMP', async () => {
-    const user = userEvent.setup()
-    const widened: string[] = []
-    server.events.on('request:start', ({ request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/scanning/safety/ranges')) widened.push(request.url) })
-    renderApp('/devices?add=snmp')
-    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
-    await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '10.50.0.0/24')
-    expect(await within(dlg).findByText('10.50.0.0/24 is outside the LAN ranges', undefined, T)).toBeInTheDocument()
-    expect(within(dlg).getByText(/the LAN ranges are not widened/)).toBeInTheDocument()
-    expect(within(dlg).queryByRole('button', { name: /to the scan scope/ })).toBeNull()
-    await user.click(within(dlg).getByRole('button', { name: /^Add range to / }))
-    expect(((await screen.findByLabelText('Send only to', undefined, T)) as HTMLTextAreaElement).value).toContain('10.50.0.0/24')
-    expect(widened).toEqual([])
-    expect(inventorySettingsStore.get().lan_ranges).not.toContain('10.50.0.0/24')
-  })
-
   it('#849 review M1: a viewer\'s old ?tab=add link lands on the list, not on a form that ends in 403', async () => {
     renderApp('/devices?tab=add', { role: 'viewer' })
     await deviceTable()
@@ -359,15 +305,6 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(row).toHaveTextContent('QNAP Photo Station')
   })
 
-
-  it('#849: SNMP from the dialog lists each saved credential with its version once (a name that says "(v3)" gets no second one)', async () => {
-    renderApp('/devices?add=snmp')
-    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
-    const select = await within(dlg).findByLabelText('Credential', undefined, T)
-    const names = within(select).getAllByRole('option').map((o) => o.textContent)
-    expect(names).toContain('Core switches (v3)')
-    expect(names.some((n) => /\((v2c|v3)\) \((v2c|v3)\)$/.test(n ?? ''))).toBe(false)
-  })
 
   it('#849: osquery from the dialog: a token, then the one-line install for the server', async () => {
     const user = userEvent.setup()
@@ -394,9 +331,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const { unmount } = renderApp('/devices/setup#agents')
     expect(await screen.findByRole('tab', { name: 'Agents', selected: true }, T)).toBeInTheDocument()
     unmount()
-    renderApp('/devices/setup#snmp') // #850: the SNMP credentials live on the SNMP card of Settings › Scanning
+    renderApp('/devices/setup#snmp') // #850: the SNMP engine card of Settings › Scanning (SNMP itself is set up per device)
     expect(await screen.findByRole('tab', { name: 'Engines', selected: true }, T)).toBeInTheDocument()
-    expect(await screen.findByRole('heading', { level: 2, name: 'SNMP credentials' }, T)).toBeInTheDocument()
   })
 
   it('the admin gets a link to the setup page (agents included) next to "Add a device" (item 26b)', async () => {
@@ -2188,7 +2124,7 @@ describe('inventory: English only', () => {
       ['/devices/a-nas02?tab=observations', () => screen.findByRole('table', { name: 'Observations for this device' }, T)],
       ['/devices/setup', () => screen.findByRole('heading', { level: 2, name: 'LAN ranges' }, T)],
       ['/devices/setup?tab=sensor', () => screen.findByRole('heading', { level: 2, name: 'Sensor on this box' }, T)],
-      ['/devices/setup?tab=snmp', () => screen.findByRole('heading', { level: 2, name: 'SNMP credentials' }, T)],
+      ['/devices/setup?tab=snmp', () => screen.findByRole('tab', { name: 'Engines', selected: true }, T)],
       ['/devices?add=snmp', () => screen.findByRole('dialog', { name: 'Add a device' }, T)],
       ['/settings/declared-software', () => screen.findByRole('heading', { level: 2, name: 'Declared software' }, T)],
       ['/devices/setup?tab=agents', () => screen.findByRole('table', { name: 'Enrollment tokens' }, T)],

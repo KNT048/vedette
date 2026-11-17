@@ -27,7 +27,7 @@ import { errMsg } from './errors'
 import { notInstalledText, useNotInstalled } from './notInstalled'
 import { useDeviceSoftware } from './rematch'
 import { Worst, unproved } from './ToFix'
-import { UNCHECKED_ANCHOR, UncheckedLine } from './UncheckedList'
+import { nameWithVersion, UNCHECKED_ANCHOR, UncheckedLine } from './UncheckedList'
 import { CheckNow } from './Updated'
 import type { FindingAsset, ToFixAction, ToFixDevice, UncheckedItem, VersionNeeded } from './types'
 import type { z } from 'zod'
@@ -162,7 +162,7 @@ function UnprovedItem({ a, asset }: { a: ToFixAction; asset: FindingAsset | null
     <li className="grid gap-2 py-3">
       <div className="text-sm">
         <p>
-          <span className="font-medium">{[a.software || t('toFix.theSoftware'), a.version].filter(Boolean).join(' ')}</span>
+          <span className="font-medium">{nameWithVersion(a.software || t('toFix.theSoftware'), a.version)}</span>
           <span className="text-muted">{', '}{t('toFix.unproved.count', { count: a.cves.length })}</span>{' '}<Worst worst={a.worst} />
         </p>
         <details>

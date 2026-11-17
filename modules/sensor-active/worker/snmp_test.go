@@ -47,32 +47,51 @@ func startSNMP(t *testing.T, agents map[string]*snmptest.Agent) *rig {
 	})
 }
 
-func snmpJob(id string, creds []sensorlink.SNMPCredential, targets ...sensorlink.SNMPTarget) sensorlink.Job {
-	return sensorlink.Job{ID: id, Kind: sensorlink.KindSNMP, TimeoutS: 60, SNMP: &sensorlink.SNMPJob{Rate: 1000, Credentials: creds, Targets: targets}}
+func snmpJob(id string, targets ...sensorlink.SNMPTarget) sensorlink.Job {
+	return sensorlink.Job{ID: id, Kind: sensorlink.KindSNMP, TimeoutS: 60, SNMP: &sensorlink.SNMPJob{Rate: 1000, Targets: targets}}
+}
+
+func tgt(ip string, c sensorlink.SNMPCredential) sensorlink.SNMPTarget {
+	return sensorlink.SNMPTarget{IP: ip, Credential: c}
 }
 
 func v2c(c string) sensorlink.SNMPCredential {
 	return sensorlink.SNMPCredential{Version: sensorlink.SNMPv2c, Community: c}
 }
 
-// D-512: the worker tries the credentials of a target in order until one is answered, reads the fixed objects with one GET and
-// reports what the agent said; a target whose only community is wrong is "no answer", since an agent drops it without a word.
-func TestSNMPReadsTheAgentWithTheCredentialThatAnswers(t *testing.T) {
+// the worker sends each target its own credential, to the target's address and to no other, reads the fixed objects
+// with one GET and reports what the agent said; a target whose community is wrong is "no answer", since an agent drops it without a
+// word. Every request goes to a target's own address: the switch's community never reaches the firewall, nor the reverse.
+func TestSNMPSendsEachTargetItsOwnCredentialOnly(t *testing.T) {
 	t.Parallel()
-	sw := &snmptest.Agent{Community: "s3cret-community", Values: juniper()}
-	fw := &snmptest.Agent{Community: "s3cret-community", Values: fortigate()}
-	r := startSNMP(t, map[string]*snmptest.Agent{"192.168.10.20": sw, "192.168.10.21": fw, "192.168.10.22": {Community: "other"}})
+	sw := &snmptest.Agent{Community: "switch-community", Values: juniper()}
+	fw := &snmptest.Agent{Community: "firewall-community", Values: fortigate()}
+	other := &snmptest.Agent{Community: "other"}
+	agents := map[string]*snmptest.Agent{"192.168.10.20": sw, "192.168.10.21": fw, "192.168.10.22": other}
+	ports := map[netip.Addr]uint16{}
+	for ip, a := range agents {
+		ports[netip.MustParseAddr(ip)] = a.Start(t)
+	}
+	var mu sync.Mutex
+	var dialled []string
+	r := start(t, writeNmap(t, printXML), func(c *worker.Config) {
+		c.SNMPTimeout = 50 * time.Millisecond
+		c.SNMPDial = func(ip netip.Addr, _ uint16) (string, uint16) {
+			mu.Lock()
+			dialled = append(dialled, ip.String())
+			mu.Unlock()
+			return "127.0.0.1", ports[ip]
+		}
+	})
 	id := strings.Repeat("5", 32)
-	r.core.push(snmpJob(id, []sensorlink.SNMPCredential{v2c("public"), v2c("s3cret-community")},
-		sensorlink.SNMPTarget{IP: "192.168.10.20", Credentials: []int{0, 1}},
-		sensorlink.SNMPTarget{IP: "192.168.10.21", Credentials: []int{1}},
-		sensorlink.SNMPTarget{IP: "192.168.10.22", Credentials: []int{0, 1}}))
+	r.core.push(snmpJob(id, tgt("192.168.10.20", v2c("switch-community")), tgt("192.168.10.21", v2c("firewall-community")),
+		tgt("192.168.10.22", v2c("switch-community"))))
 	got := r.core.next(t)
 	if got.id != id || got.res.Status != "done" || len(got.res.SNMP) != 3 {
 		t.Fatalf("result %+v", got.res)
 	}
 	a := got.res.SNMP[0]
-	if a.Target != "192.168.10.20" || a.Status != sensorlink.SNMPStatusOK || a.Credential != 1 || a.Values.SysDescr != junosDescr ||
+	if a.Target != "192.168.10.20" || a.Status != sensorlink.SNMPStatusOK || a.Values.SysDescr != junosDescr ||
 		a.Values.SysObjectID != ".1.3.6.1.4.1.2636.1.1.1.2.31" || a.Values.SysName != "SW-CORE-01" || a.Values.EntModel != "" {
 		t.Errorf("the switch: %+v", a)
 	}
@@ -80,11 +99,16 @@ func TestSNMPReadsTheAgentWithTheCredentialThatAnswers(t *testing.T) {
 		!strings.HasPrefix(f.Values.EntSoftware, "FortiGate-1500D v6.4.8") || f.Values.EntSerial == "" {
 		t.Errorf("the firewall: %+v", f)
 	}
-	if n := got.res.SNMP[2]; n.Status != sensorlink.SNMPStatusNoAnswer || n.Credential != 1 || n.Values != (sensorlink.SNMPValues{}) {
+	if n := got.res.SNMP[2]; n.Status != sensorlink.SNMPStatusNoAnswer || n.Values != (sensorlink.SNMPValues{}) {
 		t.Errorf("the wrong community: %+v", n)
 	}
-	if sw.Requests() != 3 { // public twice (the retry), then the right one once
-		t.Errorf("the switch got %d requests, want 3", sw.Requests())
+	if sw.Requests() != 1 || fw.Requests() != 1 || other.Requests() != 2 { // one each, the unanswered one sent twice (the retry)
+		t.Errorf("requests: switch %d, firewall %d, other %d; want 1, 1, 2", sw.Requests(), fw.Requests(), other.Requests())
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if strings.Join(dialled, " ") != "192.168.10.20 192.168.10.21 192.168.10.22" {
+		t.Errorf("dialled %v: a credential went to an address other than its target's", dialled)
 	}
 }
 
@@ -111,14 +135,16 @@ func TestSNMPReadsTheCredentialsPort(t *testing.T) {
 	custom, plain := v2c("s3cret-community"), v2c("s3cret-community")
 	custom.Port = 1161
 	id := strings.Repeat("7", 32)
-	r.core.push(snmpJob(id, []sensorlink.SNMPCredential{plain, custom},
-		sensorlink.SNMPTarget{IP: "192.168.10.30", Credentials: []int{0, 1}}))
+	r.core.push(snmpJob(id, tgt("192.168.10.30", plain), tgt("192.168.10.31", custom)))
 	got := r.core.next(t)
-	if len(got.res.SNMP) != 1 {
+	if len(got.res.SNMP) != 2 {
 		t.Fatalf("result %+v", got.res)
 	}
-	if a := got.res.SNMP[0]; a.Status != sensorlink.SNMPStatusOK || a.Credential != 1 || a.Values.SysName != "SW-CORE-01" {
-		t.Errorf("answer %+v", a)
+	if a := got.res.SNMP[0]; a.Status != sensorlink.SNMPStatusNoAnswer {
+		t.Errorf("port 161: %+v", a)
+	}
+	if a := got.res.SNMP[1]; a.Status != sensorlink.SNMPStatusOK || a.Values.SysName != "SW-CORE-01" {
+		t.Errorf("port 1161: %+v", a)
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -145,11 +171,7 @@ func TestSNMPv3(t *testing.T) {
 	wrong := good
 	wrong.AuthPass = "auth-pass-X"
 	id := strings.Repeat("6", 32)
-	r.core.push(snmpJob(id, []sensorlink.SNMPCredential{good, sha256, stranger, wrong},
-		sensorlink.SNMPTarget{IP: "10.0.0.1", Credentials: []int{0}},
-		sensorlink.SNMPTarget{IP: "10.0.0.2", Credentials: []int{1}},
-		sensorlink.SNMPTarget{IP: "10.0.0.3", Credentials: []int{2}},
-		sensorlink.SNMPTarget{IP: "10.0.0.4", Credentials: []int{3}}))
+	r.core.push(snmpJob(id, tgt("10.0.0.1", good), tgt("10.0.0.2", sha256), tgt("10.0.0.3", stranger), tgt("10.0.0.4", wrong)))
 	got := r.core.next(t)
 	if len(got.res.SNMP) != 4 {
 		t.Fatalf("result %+v", got.res)
@@ -170,7 +192,7 @@ func TestSNMPAgentThatRefusesTheEntityObjects(t *testing.T) {
 	t.Parallel()
 	old := &snmptest.Agent{Community: "c0mmunity", Values: juniper(), ErrorStatus: gosnmp.NoSuchName}
 	r := startSNMP(t, map[string]*snmptest.Agent{"192.168.1.9": old})
-	r.core.push(snmpJob(strings.Repeat("7", 32), []sensorlink.SNMPCredential{v2c("c0mmunity")}, sensorlink.SNMPTarget{IP: "192.168.1.9", Credentials: []int{0}}))
+	r.core.push(snmpJob(strings.Repeat("7", 32), tgt("192.168.1.9", v2c("c0mmunity"))))
 	got := r.core.next(t)
 	if len(got.res.SNMP) != 1 || got.res.SNMP[0].Status != sensorlink.SNMPStatusOK || got.res.SNMP[0].Values.SysName != "SW-CORE-01" || old.Requests() != 2 {
 		t.Fatalf("result %+v, %d requests", got.res, old.Requests())
@@ -184,11 +206,11 @@ func TestSNMPRefusesWhatTheGrammarForbids(t *testing.T) {
 	a := &snmptest.Agent{Community: "c", Values: juniper()}
 	r := startSNMP(t, map[string]*snmptest.Agent{"8.8.8.8": a, "192.168.1.9": a})
 	bad := []sensorlink.Job{
-		snmpJob(strings.Repeat("1", 32), []sensorlink.SNMPCredential{v2c("c")}, sensorlink.SNMPTarget{IP: "8.8.8.8", Credentials: []int{0}}),
-		snmpJob(strings.Repeat("2", 32), []sensorlink.SNMPCredential{{Version: "v1", Community: "c"}}, sensorlink.SNMPTarget{IP: "192.168.1.9", Credentials: []int{0}}),
-		snmpJob(strings.Repeat("3", 32), []sensorlink.SNMPCredential{v2c("c")}, sensorlink.SNMPTarget{IP: "127.0.0.1", Credentials: []int{0}}),
+		snmpJob(strings.Repeat("1", 32), tgt("8.8.8.8", v2c("c"))),
+		snmpJob(strings.Repeat("2", 32), tgt("192.168.1.9", sensorlink.SNMPCredential{Version: "v1", Community: "c"})),
+		snmpJob(strings.Repeat("3", 32), tgt("127.0.0.1", v2c("c"))),
 	}
-	long := snmpJob(strings.Repeat("4", 32), []sensorlink.SNMPCredential{v2c("c")}, sensorlink.SNMPTarget{IP: "192.168.1.9", Credentials: []int{0}})
+	long := snmpJob(strings.Repeat("4", 32), tgt("192.168.1.9", v2c("c")))
 	long.TimeoutS = sensorlink.MaxSNMPSeconds + 1
 	for _, j := range append(bad, long) {
 		r.core.push(j)
@@ -224,8 +246,7 @@ func TestSNMPReadsTheMikroTikVersionInTheSameGet(t *testing.T) {
 	sw := &snmptest.Agent{Community: "c0mmunity-mt", Values: juniper()}
 	r := startSNMP(t, map[string]*snmptest.Agent{"192.168.10.30": mt, "192.168.10.31": sw})
 	id := strings.Repeat("6", 32)
-	r.core.push(snmpJob(id, []sensorlink.SNMPCredential{v2c("c0mmunity-mt")},
-		sensorlink.SNMPTarget{IP: "192.168.10.30", Credentials: []int{0}}, sensorlink.SNMPTarget{IP: "192.168.10.31", Credentials: []int{0}}))
+	r.core.push(snmpJob(id, tgt("192.168.10.30", v2c("c0mmunity-mt")), tgt("192.168.10.31", v2c("c0mmunity-mt"))))
 	got := r.core.next(t)
 	if got.id != id || got.res.Status != "done" || len(got.res.SNMP) != 2 {
 		t.Fatalf("result %+v", got.res)

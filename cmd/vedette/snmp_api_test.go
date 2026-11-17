@@ -1,48 +1,78 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
-// D-512 (lab finding on #715): an SNMP credential with no scope is refused by the handler's own check, through the real router and
-// the OpenAPI validator, so the person reads scope_required and why, not the schema's generic "invalid". A credential with a scope
-// is saved.
-func TestSNMPCredentialWithoutAScopeSaysWhy(t *testing.T) {
+// SNMP is set up per device, by administrators only, through the real router and the OpenAPI validator. An operator or a viewer
+// gets 403 before anything runs. The answer never holds the community, only its last 4 characters; Read from is the device's IP by
+// default. A wrong read address is refused with its own code and words, not the schema's generic "invalid". Copy from copies the
+// settings and the secret on the box, to the device's own address only: the secret is in no answer.
+func TestSNMPPerDeviceIsForAdministratorsAndNeverShowsTheSecret(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
-	code, v := s.do("POST", "/inventory/snmp", "admin", `{"name":"Core switches","version":"v2c","community":"s3cret-community","scope":[]}`)
-	if code != 400 || at(v, "error", "code") != "scope_required" {
-		t.Fatalf("empty scope: %d %v, want 400 scope_required", code, v)
-	}
-	if msg, _ := at(v, "error", "message").(string); msg == "" {
-		t.Fatalf("no message: %v", v)
-	}
-	code, v = s.do("POST", "/inventory/snmp", "admin", `{"name":"Core switches","version":"v2c","community":"s3cret-community","scope":["192.168.10.0/24"]}`)
-	if code != 201 || v["secret_last4"] != "nity" {
-		t.Fatalf("with a scope: %d %v", code, v)
-	}
-}
-
-// #849: Read now is for administrators (D-512: a credential goes only where an admin points it). An operator or a viewer gets 403
-// before anything runs; an administrator reaches the service, which answers what blocks the read on this stack (no scan worker, or
-// scanning not set up) instead of a role error. The read of a credential nobody read is null.
-func TestSNMPReadNowIsForAdministrators(t *testing.T) {
-	t.Parallel()
-	s := newStack(t)
-	code, v := s.do("POST", "/inventory/snmp", "admin", `{"name":"Core switches","version":"v2c","community":"s3cret-community","scope":["192.168.10.0/24"]}`)
-	if code != 201 {
-		t.Fatalf("add: %d %v", code, v)
-	}
-	id, _ := v["id"].(string)
+	sw := s.seen(t, "192.168.10.20", "3c:22:fb:00:00:20", "switch")
+	other := s.seen(t, "192.168.10.21", "3c:22:fb:00:00:21", "switch")
+	body := `{"version":"v2c","community":"s3cret-community"}`
 	for _, role := range []string{"operator", "viewer"} {
-		for _, m := range []string{"POST", "GET"} {
-			if code, v := s.do(m, "/inventory/snmp/"+id+"/read", role, ""); code != 403 || at(v, "error", "code") != "forbidden" {
-				t.Errorf("%s as %s: %d %v", m, role, code, v)
+		for _, call := range [][2]string{{"PUT", ""}, {"GET", ""}, {"POST", "/check"}, {"DELETE", ""}} {
+			b := ""
+			if call[0] == "PUT" {
+				b = body
+			}
+			if code, v := s.do(call[0], "/inventory/snmp/devices/"+sw+call[1], role, b); code != 403 || at(v, "error", "code") != "forbidden" {
+				t.Errorf("%s%s as %s: %d %v", call[0], call[1], role, code, v)
 			}
 		}
 	}
-	if code, v := s.do("POST", "/inventory/snmp/"+id+"/read", "admin", ""); code != 409 {
-		t.Errorf("admin: %d %v, want 409 (nothing can be sent on this stack)", code, v)
+	noSecret := func(what string, v map[string]any) {
+		t.Helper()
+		b, _ := json.Marshal(v)
+		if strings.Contains(string(b), "s3cret") {
+			t.Errorf("%s shows the community: %s", what, b)
+		}
 	}
-	if code, v := s.do("GET", "/inventory/snmp/"+id+"/read", "admin", ""); code != 200 || v != nil {
-		t.Errorf("admin read of a credential never read: %d %v, want 200 null", code, v)
+	code, v := s.do("PUT", "/inventory/snmp/devices/"+sw, "admin", body)
+	if code != 200 || v["secret_last4"] != "nity" || v["read_from"] != "192.168.10.20" || v["read_from_default"] != true || v["state"] != "waiting" {
+		t.Fatalf("set up: %d %v", code, v)
+	}
+	noSecret("PUT", v)
+	code, v = s.do("GET", "/inventory/snmp/devices/"+sw, "admin", "")
+	if code != 200 || v["version"] != "v2c" || v["port"] != float64(161) {
+		t.Fatalf("get: %d %v", code, v)
+	}
+	noSecret("GET", v)
+	code, v = s.do("PUT", "/inventory/snmp/devices/"+sw, "admin", `{"version":"v2c","read_from":"224.0.0.1","community":"s3cret-community"}`)
+	if code != 400 || at(v, "error", "code") != "bad_read_from" {
+		t.Fatalf("a multicast read address: %d %v, want 400 bad_read_from", code, v)
+	}
+	if msg, _ := at(v, "error", "message").(string); !strings.Contains(msg, "224.0.0.1") {
+		t.Errorf("no plain message: %v", v)
+	}
+	if code, v := s.do("PUT", "/inventory/snmp/devices/"+other, "admin", `{"copy_from":"`+sw+`","read_from":"192.168.10.31"}`); code != 400 || at(v, "error", "code") != "secret_required" {
+		t.Fatalf("copy from to another address: %d %v, want 400 secret_required", code, v)
+	}
+	code, v = s.do("PUT", "/inventory/snmp/devices/"+other, "admin", `{"copy_from":"`+sw+`"}`)
+	if code != 200 || v["secret_last4"] != "nity" || v["read_from"] != "192.168.10.21" || v["read_from_default"] != true {
+		t.Fatalf("copy from: %d %v", code, v)
+	}
+	noSecret("copy", v)
+	code, v = s.do("GET", "/inventory/snmp", "admin", "")
+	if devs, _ := v["devices"].([]any); code != 200 || len(devs) != 2 {
+		t.Fatalf("list: %d %v", code, v)
+	}
+	noSecret("list", v)
+	// Check now reaches the service, which says what blocks the read on this stack (scanning not set up), in words.
+	code, v = s.do("POST", "/inventory/snmp/devices/"+sw+"/check", "admin", "")
+	if code != 200 || v["ok"] != false || v["message"] == "" {
+		t.Fatalf("check: %d %v", code, v)
+	}
+	if code, v := s.do("DELETE", "/inventory/snmp/devices/"+other, "admin", ""); code != 204 {
+		t.Fatalf("remove: %d %v", code, v)
+	}
+	if code, v := s.do("GET", "/inventory/snmp/devices/"+other, "admin", ""); code != 200 || v["state"] != "not_set_up" {
+		t.Fatalf("after remove: %d %v", code, v)
 	}
 }

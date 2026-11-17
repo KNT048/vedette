@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { GreenboneSetting } from '@/features/exposure/GreenbonePanel'
-import { CredentialDialog, SnmpSection } from '@/features/inventory/SnmpSection'
 import { OsqueryEnrol, WazuhForm } from '@/features/inventory/AgentsSection'
 import { useAgents } from '@/features/inventory/api'
 import { NucleiSettings } from '@/features/scan/NucleiSettings'
@@ -76,17 +75,13 @@ function WazuhDialog({ onClose }: { onClose: () => void }) {
 function SetupFix({ e, d }: { e: Engine; d: Scanning }) {
   const { t } = useTranslation('scanning')
   const admin = useCan('admin')
-  const [open, setOpen] = useState<'snmp' | 'osquery' | 'wazuh' | null>(null)
+  const [open, setOpen] = useState<'osquery' | 'wazuh' | null>(null)
   if (e.state !== 'needs_setup' || !admin) return null
   const scopeMissing = !d.safety.scope.confirmed_at || d.safety.scope.lan_ranges.length === 0
   if (e.id === 'nmap-discovery' || (e.id === 'nuclei' && scopeMissing)) return <ScopeButton /> // the others of sensor-active follow it
   if (e.id === 'nuclei') return <DependencyLink reason={t('fix.nucleiWindow')} to="/settings/scanning?tab=safety#win-from" label={t('fix.nucleiWindowLink')} />
-  if (e.id === 'snmp') return (
-    <>
-      <Button size="sm" onClick={() => setOpen('snmp')}>{t('fix.newSnmp')}</Button>
-      {open === 'snmp' ? <CredentialDialog current={null} onClose={() => setOpen(null)} /> : null}
-    </>
-  )
+  // SNMP is set up on a device's page; the card's reason says so
+  if (e.id === 'snmp') return <DependencyLink reason="" to="/devices" label={t('fix.newSnmp')} />
   if (e.id === 'osquery') return (
     <>
       <Button size="sm" onClick={() => setOpen('osquery')}>{t('fix.newOsquery')}</Button>
@@ -184,11 +179,9 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
   })
   // turning off names what stops with it (affects) and a run that ends; turning on asks only when modules must come too
   const onSwitch = (v: boolean) => (v ? change(true) : e.affects.length || running ? setAsk({ off: true }) : change(false))
-  // a module that is off has no settings to show (SnmpSection is empty without sensor-active, GreenboneSetting fails without
-  // exposure): the card's own reason and switch say what to do instead (#877 r1 L9)
-  const snmpOn = useModuleEnabled('sensor-active') === true
-  const own: ReactNode = e.id === 'snmp' ? (!snmpOn ? null : admin ? <SnmpSection /> : <p className="text-meta text-muted">{t('own.snmpAdmin')}</p>)
-    : e.id === 'nuclei' && e.enabled ? <NucleiSettings />
+  // a module that is off has no settings to show (GreenboneSetting fails without exposure): the card's own reason and switch say
+  // what to do instead (#877). SNMP has none here since it is set up on each device's page.
+  const own: ReactNode = e.id === 'nuclei' && e.enabled ? <NucleiSettings />
     : e.id === 'openvas' && exposureOn === true ? <GreenboneSetting embedded /> : null
   const place = PLACE[e.id] && (admin || !ADMIN_PLACE(PLACE[e.id]!)) ? PLACE[e.id] : undefined
   return (

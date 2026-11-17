@@ -54610,289 +54610,12 @@ func (s InventoryGetInventorySettingsOKRegularScanKindsItem) Validate() error {
 	}
 }
 
-func (s *InventoryGetInventorySnmpIDReadOK) Validate() error {
+func (s *InventoryGetInventorySnmpDevicesIDOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Answered)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "answered",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Done)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "done",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Results == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Results {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "results",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Skipped)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "skipped",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Total)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "total",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *InventoryGetInventorySnmpIDReadOKResultsItem) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Reason.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "reason",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s InventoryGetInventorySnmpIDReadOKResultsItemReason) Validate() error {
-	switch s {
-	case "ok":
-		return nil
-	case "no_answer":
-		return nil
-	case "auth_failed":
-		return nil
-	case "unknown_user":
-		return nil
-	case "error":
-		return nil
-	case "not_in_inventory":
-		return nil
-	case "not_approved":
-		return nil
-	case "out_of_scope":
-		return nil
-	case "not_for_this_credential":
-		return nil
-	case "scanning_off":
-		return nil
-	case "scope_not_confirmed":
-		return nil
-	case "declared_by_hand":
-		return nil
-	case "box":
-		return nil
-	case "regular_scan_never":
-		return nil
-	case "unavailable":
-		return nil
-	case "busy":
-		return nil
-	case "snmp_off":
-		return nil
-	case "excluded":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s InventoryGetInventorySnmpIDReadOKStatus) Validate() error {
-	switch s {
-	case "running":
-		return nil
-	case "done":
-		return nil
-	case "stopped":
-		return nil
-	case "failed":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *InventoryGetInventorySnmpOK) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if s.Credentials == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Credentials {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "credentials",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *InventoryGetInventorySnmpOKCredentialsItem) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Answered)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "answered",
-			Error: err,
-		})
-	}
 	if err := func() error {
 		if value, ok := s.Auth.Get(); ok {
 			if err := func() error {
@@ -54912,29 +54635,61 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Validate() error {
 		})
 	}
 	if err := func() error {
-		if s.MovedOut == nil {
-			return errors.New("nil is invalid value")
+		if value, ok := s.Blocked.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "moved_out",
+			Name:  "blocked",
 			Error: err,
 		})
 	}
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Port)); err != nil {
-			return errors.Wrap(err, "int")
+		if value, ok := s.LastReason.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_reason",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Port.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -54962,13 +54717,326 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Validate() error {
 		})
 	}
 	if err := func() error {
-		if s.Scope == nil {
-			return errors.New("nil is invalid value")
+		if err := s.State.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "scope",
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Version.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "version",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryGetInventorySnmpDevicesIDOKAuth) Validate() error {
+	switch s {
+	case "sha":
+		return nil
+	case "sha256":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryGetInventorySnmpDevicesIDOKBlocked) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryGetInventorySnmpDevicesIDOKBlockedReason) Validate() error {
+	switch s {
+	case "ok":
+		return nil
+	case "no_answer":
+		return nil
+	case "auth_failed":
+		return nil
+	case "unknown_user":
+		return nil
+	case "error":
+		return nil
+	case "not_set_up":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "scanning_off":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
+	case "snmp_off":
+		return nil
+	case "excluded":
+		return nil
+	case "no_ip":
+		return nil
+	case "moved":
+		return nil
+	case "secret_lost":
+		return nil
+	case "unavailable":
+		return nil
+	case "busy":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventorySnmpDevicesIDOKLastReason) Validate() error {
+	switch s {
+	case "ok":
+		return nil
+	case "no_answer":
+		return nil
+	case "auth_failed":
+		return nil
+	case "unknown_user":
+		return nil
+	case "error":
+		return nil
+	case "not_set_up":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "scanning_off":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
+	case "snmp_off":
+		return nil
+	case "excluded":
+		return nil
+	case "no_ip":
+		return nil
+	case "moved":
+		return nil
+	case "secret_lost":
+		return nil
+	case "unavailable":
+		return nil
+	case "busy":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventorySnmpDevicesIDOKPriv) Validate() error {
+	switch s {
+	case "aes128":
+		return nil
+	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventorySnmpDevicesIDOKState) Validate() error {
+	switch s {
+	case "working":
+		return nil
+	case "not_answering":
+		return nil
+	case "waiting":
+		return nil
+	case "not_set_up":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventorySnmpDevicesIDOKVersion) Validate() error {
+	switch s {
+	case "v2c":
+		return nil
+	case "v3":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryGetInventorySnmpOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Devices == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Devices {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "devices",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Notices == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Notices {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "notices",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *InventoryGetInventorySnmpOKDevicesItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Blocked.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "blocked",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Port)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "port",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
 			Error: err,
 		})
 	}
@@ -54989,29 +55057,90 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Validate() error {
 	return nil
 }
 
-func (s InventoryGetInventorySnmpOKCredentialsItemAuth) Validate() error {
-	switch s {
-	case "sha":
+func (s *InventoryGetInventorySnmpOKDevicesItemBlocked) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
 		return nil
-	case "sha256":
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryGetInventorySnmpOKDevicesItemBlockedReason) Validate() error {
+	switch s {
+	case "ok":
+		return nil
+	case "no_answer":
+		return nil
+	case "auth_failed":
+		return nil
+	case "unknown_user":
+		return nil
+	case "error":
+		return nil
+	case "not_set_up":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "scanning_off":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
+	case "snmp_off":
+		return nil
+	case "excluded":
+		return nil
+	case "no_ip":
+		return nil
+	case "moved":
+		return nil
+	case "secret_lost":
+		return nil
+	case "unavailable":
+		return nil
+	case "busy":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
 }
 
-func (s InventoryGetInventorySnmpOKCredentialsItemPriv) Validate() error {
+func (s InventoryGetInventorySnmpOKDevicesItemState) Validate() error {
 	switch s {
-	case "aes128":
+	case "working":
 		return nil
-	case "none":
+	case "not_answering":
+		return nil
+	case "waiting":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
 }
 
-func (s InventoryGetInventorySnmpOKCredentialsItemVersion) Validate() error {
+func (s InventoryGetInventorySnmpOKDevicesItemVersion) Validate() error {
 	switch s {
 	case "v2c":
 		return nil
@@ -55020,6 +55149,39 @@ func (s InventoryGetInventorySnmpOKCredentialsItemVersion) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *InventoryGetInventorySnmpOKNoticesItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *InventoryPatchInventoryDevicesIDReq) Validate() error {
@@ -57147,298 +57309,7 @@ func (s *InventoryPostInventoryImportReq) Validate() error {
 	return nil
 }
 
-func (s *InventoryPostInventorySnmpCreated) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Answered)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "answered",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Auth.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "auth",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.MovedOut == nil {
-			return errors.New("nil is invalid value")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "moved_out",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Port)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "port",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Priv.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "priv",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Scope == nil {
-			return errors.New("nil is invalid value")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "scope",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Version.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "version",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s InventoryPostInventorySnmpCreatedAuth) Validate() error {
-	switch s {
-	case "sha":
-		return nil
-	case "sha256":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s InventoryPostInventorySnmpCreatedPriv) Validate() error {
-	switch s {
-	case "aes128":
-		return nil
-	case "none":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s InventoryPostInventorySnmpCreatedVersion) Validate() error {
-	switch s {
-	case "v2c":
-		return nil
-	case "v3":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *InventoryPostInventorySnmpIDReadAccepted) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Answered)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "answered",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Done)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "done",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Results == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Results {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "results",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Skipped)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "skipped",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Total)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "total",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) Validate() error {
+func (s *InventoryPostInventorySnmpDevicesIDCheckOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -57455,84 +57326,14 @@ func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) Validate() error {
 			Error: err,
 		})
 	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) Validate() error {
-	switch s {
-	case "ok":
-		return nil
-	case "no_answer":
-		return nil
-	case "auth_failed":
-		return nil
-	case "unknown_user":
-		return nil
-	case "error":
-		return nil
-	case "not_in_inventory":
-		return nil
-	case "not_approved":
-		return nil
-	case "out_of_scope":
-		return nil
-	case "not_for_this_credential":
-		return nil
-	case "scanning_off":
-		return nil
-	case "scope_not_confirmed":
-		return nil
-	case "declared_by_hand":
-		return nil
-	case "box":
-		return nil
-	case "regular_scan_never":
-		return nil
-	case "unavailable":
-		return nil
-	case "busy":
-		return nil
-	case "snmp_off":
-		return nil
-	case "excluded":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s InventoryPostInventorySnmpIDReadAcceptedStatus) Validate() error {
-	switch s {
-	case "running":
-		return nil
-	case "done":
-		return nil
-	case "stopped":
-		return nil
-	case "failed":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *InventoryPostInventorySnmpIDTestOK) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Reason.Validate(); err != nil {
+		if err := s.Snmp.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "reason",
+			Name:  "snmp",
 			Error: err,
 		})
 	}
@@ -57542,7 +57343,7 @@ func (s *InventoryPostInventorySnmpIDTestOK) Validate() error {
 	return nil
 }
 
-func (s InventoryPostInventorySnmpIDTestOKReason) Validate() error {
+func (s InventoryPostInventorySnmpDevicesIDCheckOKReason) Validate() error {
 	switch s {
 	case "ok":
 		return nil
@@ -57554,13 +57355,11 @@ func (s InventoryPostInventorySnmpIDTestOKReason) Validate() error {
 		return nil
 	case "error":
 		return nil
-	case "not_in_inventory":
+	case "not_set_up":
 		return nil
 	case "not_approved":
 		return nil
 	case "out_of_scope":
-		return nil
-	case "not_for_this_credential":
 		return nil
 	case "scanning_off":
 		return nil
@@ -57572,55 +57371,26 @@ func (s InventoryPostInventorySnmpIDTestOKReason) Validate() error {
 		return nil
 	case "regular_scan_never":
 		return nil
-	case "unavailable":
-		return nil
-	case "busy":
-		return nil
 	case "snmp_off":
 		return nil
 	case "excluded":
+		return nil
+	case "no_ip":
+		return nil
+	case "moved":
+		return nil
+	case "secret_lost":
+		return nil
+	case "unavailable":
+		return nil
+	case "busy":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
 }
 
-func (s *InventoryPostInventorySnmpIDTestReq) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     15,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.IP)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ip",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *InventoryPostInventorySnmpReq) Validate() error {
+func (s *InventoryPostInventorySnmpDevicesIDCheckOKSnmp) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -57645,22 +57415,10 @@ func (s *InventoryPostInventorySnmpReq) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.AuthPassword.Get(); ok {
+		if value, ok := s.Blocked.Get(); ok {
 			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     64,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
+				if err := value.Validate(); err != nil {
+					return err
 				}
 				return nil
 			}(); err != nil {
@@ -57670,27 +57428,15 @@ func (s *InventoryPostInventorySnmpReq) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "auth_password",
+			Name:  "blocked",
 			Error: err,
 		})
 	}
 	if err := func() error {
-		if value, ok := s.Community.Get(); ok {
+		if value, ok := s.LastReason.Get(); ok {
 			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     64,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
+				if err := value.Validate(); err != nil {
+					return err
 				}
 				return nil
 			}(); err != nil {
@@ -57700,30 +57446,7 @@ func (s *InventoryPostInventorySnmpReq) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "community",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     64,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Name)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "name",
+			Name:  "last_reason",
 			Error: err,
 		})
 	}
@@ -57732,9 +57455,9 @@ func (s *InventoryPostInventorySnmpReq) Validate() error {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
-					Min:           1,
+					Min:           -9007199254740991,
 					MaxSet:        true,
-					Max:           65535,
+					Max:           9007199254740991,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
@@ -57774,87 +57497,26 @@ func (s *InventoryPostInventorySnmpReq) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.PrivPassword.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     64,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "priv_password",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Scope == nil {
-			return errors.New("nil is invalid value")
-		}
-		if err := (validate.Array{
-			MinLength:    0,
-			MinLengthSet: false,
-			MaxLength:    16,
-			MaxLengthSet: true,
-		}).ValidateLength(len(s.Scope)); err != nil {
-			return errors.Wrap(err, "array")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "scope",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Username.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     64,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "username",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Version.Validate(); err != nil {
+		if err := s.State.Validate(); err != nil {
 			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Version.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -57869,7 +57531,7 @@ func (s *InventoryPostInventorySnmpReq) Validate() error {
 	return nil
 }
 
-func (s InventoryPostInventorySnmpReqAuth) Validate() error {
+func (s InventoryPostInventorySnmpDevicesIDCheckOKSnmpAuth) Validate() error {
 	switch s {
 	case "sha":
 		return nil
@@ -57880,7 +57542,124 @@ func (s InventoryPostInventorySnmpReqAuth) Validate() error {
 	}
 }
 
-func (s InventoryPostInventorySnmpReqPriv) Validate() error {
+func (s *InventoryPostInventorySnmpDevicesIDCheckOKSnmpBlocked) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryPostInventorySnmpDevicesIDCheckOKSnmpBlockedReason) Validate() error {
+	switch s {
+	case "ok":
+		return nil
+	case "no_answer":
+		return nil
+	case "auth_failed":
+		return nil
+	case "unknown_user":
+		return nil
+	case "error":
+		return nil
+	case "not_set_up":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "scanning_off":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
+	case "snmp_off":
+		return nil
+	case "excluded":
+		return nil
+	case "no_ip":
+		return nil
+	case "moved":
+		return nil
+	case "secret_lost":
+		return nil
+	case "unavailable":
+		return nil
+	case "busy":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPostInventorySnmpDevicesIDCheckOKSnmpLastReason) Validate() error {
+	switch s {
+	case "ok":
+		return nil
+	case "no_answer":
+		return nil
+	case "auth_failed":
+		return nil
+	case "unknown_user":
+		return nil
+	case "error":
+		return nil
+	case "not_set_up":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "scanning_off":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
+	case "snmp_off":
+		return nil
+	case "excluded":
+		return nil
+	case "no_ip":
+		return nil
+	case "moved":
+		return nil
+	case "secret_lost":
+		return nil
+	case "unavailable":
+		return nil
+	case "busy":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPostInventorySnmpDevicesIDCheckOKSnmpPriv) Validate() error {
 	switch s {
 	case "aes128":
 		return nil
@@ -57891,7 +57670,22 @@ func (s InventoryPostInventorySnmpReqPriv) Validate() error {
 	}
 }
 
-func (s InventoryPostInventorySnmpReqVersion) Validate() error {
+func (s InventoryPostInventorySnmpDevicesIDCheckOKSnmpState) Validate() error {
+	switch s {
+	case "working":
+		return nil
+	case "not_answering":
+		return nil
+	case "waiting":
+		return nil
+	case "not_set_up":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPostInventorySnmpDevicesIDCheckOKSnmpVersion) Validate() error {
 	switch s {
 	case "v2c":
 		return nil
@@ -58861,33 +58655,12 @@ func (s InventoryPutInventorySettingsReqRegularScanKindsItem) Validate() error {
 	}
 }
 
-func (s *InventoryPutInventorySnmpIDOK) Validate() error {
+func (s *InventoryPutInventorySnmpDevicesIDOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Answered)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "answered",
-			Error: err,
-		})
-	}
 	if err := func() error {
 		if value, ok := s.Auth.Get(); ok {
 			if err := func() error {
@@ -58907,29 +58680,61 @@ func (s *InventoryPutInventorySnmpIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
-		if s.MovedOut == nil {
-			return errors.New("nil is invalid value")
+		if value, ok := s.Blocked.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "moved_out",
+			Name:  "blocked",
 			Error: err,
 		})
 	}
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Port)); err != nil {
-			return errors.Wrap(err, "int")
+		if value, ok := s.LastReason.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_reason",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Port.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -58957,19 +58762,26 @@ func (s *InventoryPutInventorySnmpIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
-		if s.Scope == nil {
-			return errors.New("nil is invalid value")
+		if err := s.State.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "scope",
+			Name:  "state",
 			Error: err,
 		})
 	}
 	if err := func() error {
-		if err := s.Version.Validate(); err != nil {
-			return err
+		if value, ok := s.Version.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -58984,7 +58796,7 @@ func (s *InventoryPutInventorySnmpIDOK) Validate() error {
 	return nil
 }
 
-func (s InventoryPutInventorySnmpIDOKAuth) Validate() error {
+func (s InventoryPutInventorySnmpDevicesIDOKAuth) Validate() error {
 	switch s {
 	case "sha":
 		return nil
@@ -58995,7 +58807,124 @@ func (s InventoryPutInventorySnmpIDOKAuth) Validate() error {
 	}
 }
 
-func (s InventoryPutInventorySnmpIDOKPriv) Validate() error {
+func (s *InventoryPutInventorySnmpDevicesIDOKBlocked) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryPutInventorySnmpDevicesIDOKBlockedReason) Validate() error {
+	switch s {
+	case "ok":
+		return nil
+	case "no_answer":
+		return nil
+	case "auth_failed":
+		return nil
+	case "unknown_user":
+		return nil
+	case "error":
+		return nil
+	case "not_set_up":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "scanning_off":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
+	case "snmp_off":
+		return nil
+	case "excluded":
+		return nil
+	case "no_ip":
+		return nil
+	case "moved":
+		return nil
+	case "secret_lost":
+		return nil
+	case "unavailable":
+		return nil
+	case "busy":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPutInventorySnmpDevicesIDOKLastReason) Validate() error {
+	switch s {
+	case "ok":
+		return nil
+	case "no_answer":
+		return nil
+	case "auth_failed":
+		return nil
+	case "unknown_user":
+		return nil
+	case "error":
+		return nil
+	case "not_set_up":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "scanning_off":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
+	case "snmp_off":
+		return nil
+	case "excluded":
+		return nil
+	case "no_ip":
+		return nil
+	case "moved":
+		return nil
+	case "secret_lost":
+		return nil
+	case "unavailable":
+		return nil
+	case "busy":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPutInventorySnmpDevicesIDOKPriv) Validate() error {
 	switch s {
 	case "aes128":
 		return nil
@@ -59006,7 +58935,22 @@ func (s InventoryPutInventorySnmpIDOKPriv) Validate() error {
 	}
 }
 
-func (s InventoryPutInventorySnmpIDOKVersion) Validate() error {
+func (s InventoryPutInventorySnmpDevicesIDOKState) Validate() error {
+	switch s {
+	case "working":
+		return nil
+	case "not_answering":
+		return nil
+	case "waiting":
+		return nil
+	case "not_set_up":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPutInventorySnmpDevicesIDOKVersion) Validate() error {
 	switch s {
 	case "v2c":
 		return nil
@@ -59017,7 +58961,7 @@ func (s InventoryPutInventorySnmpIDOKVersion) Validate() error {
 	}
 }
 
-func (s *InventoryPutInventorySnmpIDReq) Validate() error {
+func (s *InventoryPutInventorySnmpDevicesIDReq) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -59102,29 +59046,6 @@ func (s *InventoryPutInventorySnmpIDReq) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     64,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Name)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "name",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if value, ok := s.Port.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
@@ -59201,21 +59122,32 @@ func (s *InventoryPutInventorySnmpIDReq) Validate() error {
 		})
 	}
 	if err := func() error {
-		if s.Scope == nil {
-			return errors.New("nil is invalid value")
-		}
-		if err := (validate.Array{
-			MinLength:    0,
-			MinLengthSet: false,
-			MaxLength:    16,
-			MaxLengthSet: true,
-		}).ValidateLength(len(s.Scope)); err != nil {
-			return errors.Wrap(err, "array")
+		if value, ok := s.ReadFrom.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     15,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "scope",
+			Name:  "read_from",
 			Error: err,
 		})
 	}
@@ -59250,8 +59182,15 @@ func (s *InventoryPutInventorySnmpIDReq) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Version.Validate(); err != nil {
-			return err
+		if value, ok := s.Version.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -59266,7 +59205,7 @@ func (s *InventoryPutInventorySnmpIDReq) Validate() error {
 	return nil
 }
 
-func (s InventoryPutInventorySnmpIDReqAuth) Validate() error {
+func (s InventoryPutInventorySnmpDevicesIDReqAuth) Validate() error {
 	switch s {
 	case "sha":
 		return nil
@@ -59277,7 +59216,7 @@ func (s InventoryPutInventorySnmpIDReqAuth) Validate() error {
 	}
 }
 
-func (s InventoryPutInventorySnmpIDReqPriv) Validate() error {
+func (s InventoryPutInventorySnmpDevicesIDReqPriv) Validate() error {
 	switch s {
 	case "aes128":
 		return nil
@@ -59288,7 +59227,7 @@ func (s InventoryPutInventorySnmpIDReqPriv) Validate() error {
 	}
 }
 
-func (s InventoryPutInventorySnmpIDReqVersion) Validate() error {
+func (s InventoryPutInventorySnmpDevicesIDReqVersion) Validate() error {
 	switch s {
 	case "v2c":
 		return nil

@@ -12,7 +12,7 @@ import (
 )
 
 // SNMP reads as the third kind of job (D-512, sensor-protocol.md 6.4, protocol 5). The Service is the only caller: it has checked the
-// scope, the consent, the device's approval and the credential's own scope and written the probe row before it calls RunSNMP. The
+// scope, the consent, the device's approval and its read address and written the probe row before it calls RunSNMP. The
 // worker in the scan container sends the GETs; what comes back is checked here against the job and parsed by the Service, fail
 // closed (the worker talked to devices an attacker may control, and may itself be compromised: SYS-6).
 
@@ -60,7 +60,7 @@ func (d *Dispatcher) RunSNMP(ctx context.Context, job sensorlink.SNMPJob) ([]sen
 		return nil, err
 	}
 	spec := job
-	spec.Credentials, spec.Targets = slices.Clone(job.Credentials), slices.Clone(job.Targets)
+	spec.Targets = slices.Clone(job.Targets)
 	j := &djob{spec: sensorlink.Job{ID: randomHex(), Kind: sensorlink.KindSNMP, SNMP: &spec}}
 	if err := d.await(ctx, d.snmpSlot, j); err != nil {
 		if errors.Is(err, ErrWorkerUnavailable) {
@@ -83,8 +83,8 @@ func (d *Dispatcher) RunSNMP(ctx context.Context, job sensorlink.SNMPJob) ([]sen
 	}
 	for _, a := range res.SNMP {
 		i := slices.IndexFunc(job.Targets, func(t sensorlink.SNMPTarget) bool { return t.IP == a.Target })
-		if i < 0 || !slices.Contains(job.Targets[i].Credentials, a.Credential) {
-			return nil, fmt.Errorf("%w: an snmp answer for a target or a credential the job did not name", ErrResultRejected)
+		if i < 0 {
+			return nil, fmt.Errorf("%w: an snmp answer for a target the job did not name", ErrResultRejected)
 		}
 	}
 	return res.SNMP, nil

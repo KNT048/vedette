@@ -1,4 +1,27 @@
 package sensoractive
 
+import (
+	"context"
+	"fmt"
+	"net/netip"
+
+	"github.com/knt048/vedette/core/sensorlink"
+)
+
 // SetBeforeSNMPBatch makes fn run as every SNMP batch starts, before it registers (a test acting in that window; review #855 r2 L1).
 func SetBeforeSNMPBatch(s *Service, fn func()) { s.beforeSNMPBatch = fn }
+
+// SNMPJobAt builds the wire job for device asset's saved SNMP settings with its target at ip (snmpJob refuses any address
+// but the device's stored read address; a test points it elsewhere).
+func SNMPJobAt(ctx context.Context, s *Service, asset string, ip netip.Addr) (sensorlink.SNMPJob, error) {
+	r, err := s.snmpRow(ctx, s.db.Reader(), asset)
+	if err != nil || r == nil {
+		return sensorlink.SNMPJob{}, fmt.Errorf("no settings for %s: %w", asset, err)
+	}
+	row := *r
+	row.ReadFrom = ip // as a target built wrongly would carry it
+	return s.snmpJob(ctx, 1, []snmpTarget{{asset: asset, ip: ip, row: row}})
+}
+
+// ErrSNMPNotReadAddress is the refusal of a job whose target is not its device's read address.
+var ErrSNMPNotReadAddress = errSNMPNotReadAddress

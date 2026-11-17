@@ -20,8 +20,8 @@ export interface Software {
   pkg_version?: string | null
   /** Mock only (INV-41): on a person's correction, the id of the reported row it replaces for matching. */
   corrects?: string
-  /** Mock only: when the correction was set. */
-  corrected_at?: string
+  /** Mock only: when a person last entered or changed the row (a row they added, or a correction); seen_at of a manual row. */
+  set_at?: string
   /** Mock only (INV-41 (6)): on a correction, the person said the reported row is not installed; it matches nothing. */
   not_installed?: boolean
 }

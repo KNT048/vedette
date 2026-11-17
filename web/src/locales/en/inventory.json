@@ -26,6 +26,8 @@
     "lastSeen": "last report {{when}}",
     "lastCheck": "last device check {{when}}",
     "lastSeenScan": "seen by a network scan {{when}}",
+    "added": "added {{when}}",
+    "lastChanged": "last changed {{when}}",
     "name": {
       "scan": "Network scan",
       "passive": "Passive listening",

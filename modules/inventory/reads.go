@@ -439,7 +439,12 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 	if err != nil {
 		return Detail{}, err
 	}
+	manualAt, err := manualAt(ctx, db, id)
+	if err != nil {
+		return Detail{}, err
+	}
 	return Detail{
+		ManualAt:      manualAt,
 		PossibleSame:  same,
 		Asset:         DetailAsset{AssetCore: d.AssetCore, Software: views, OSCorrection: osc},
 		Suspicious:    d.Suspicious,
@@ -447,6 +452,26 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		Observations:  list,
 		Kinds:         devicetypes.IDs(),
 	}, nil
+}
+
+// manualAt is when a person last entered or changed something on the device (INV-46): the newest of its manual observations (the
+// type, maker and name typed when it was added, a type or OS set later) and its manual software rows (a row added or edited, a
+// correction, "not installed"; each write sets seen_at to now). A device added by hand with none of these has the time it was
+// added. nil when no person entered anything on it.
+func manualAt(ctx context.Context, db querier, id string) (*string, error) {
+	var at sql.NullString
+	err := db.QueryRowContext(ctx, `SELECT coalesce((SELECT max(t) FROM (
+			SELECT seen_at AS t FROM inv_observation WHERE asset_id = ?1 AND source = 'manual'
+			UNION ALL SELECT seen_at FROM inv_software WHERE asset_id = ?1 AND source = 'manual')),
+		CASE WHEN origin = 'manual' THEN first_seen END)
+		FROM inv_asset WHERE id = ?1`, id).Scan(&at)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read when a person last changed the device: %w", err)
+	}
+	if !at.Valid {
+		return nil, nil
+	}
+	return &at.String, nil
 }
 
 // cves returns the CVE ids feeds knows for the keys; none when feeds gives none.

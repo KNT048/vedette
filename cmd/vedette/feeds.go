@@ -39,7 +39,7 @@ func feedsService(d deps) (*feeds.Service, error) {
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		fd.Events = d.Bus
 	}
-	// D-629 (kien G13): the alert of the CISA list (both copies failing, or six checks old) and its "up to date again" go to the admins' alert channels through notify's
+	// D-629 (kien G13): the alert of the CISA list (both copies failing two checks in a row, or six checks old) and its "up to date again" go to the admins' alert channels through notify's
 	// system notice path, as the AI budget and activity-log alerts do (cmd/vedette/ai.go): an incident-kind notice, high, so every
 	// channel that takes high alerts gets it. newNotify is read at send time (notify is built after feeds). Notify off: ErrAlertOff,
 	// the watch tries again at its next tick.

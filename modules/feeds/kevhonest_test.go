@@ -188,7 +188,7 @@ func (e *env) tick(s *Service, d time.Duration) {
 	}
 }
 
-// Both copies failing: one alert, no repeat, one "up to date again", and a restart repeats neither (D-629).
+// Both copies failing: quiet after one such check, one alert after two in a row, no repeat, one "up to date again", and a restart repeats neither (D-629).
 func TestContract_D629_BothFailingAlertsOnceResolvesOnceAcrossRestarts(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
@@ -201,16 +201,23 @@ func TestContract_D629_BothFailingAlertsOnceResolvesOnceAcrossRestarts(t *testin
 		t.Fatalf("one copy failing alerted: %v", a.list())
 	}
 	o.serve(mirrorPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusBadGateway) })
-	e.tick(e.svc, time.Hour) // both fail
+	e.tick(e.svc, time.Hour) // both fail once: a blip of the box's own network stays quiet
+	if f := e.feed("cisa-kev"); f.Status != "error" || f.Failures != 1 || len(a.list()) != 0 {
+		t.Fatalf("one both-failed check: status %v, failures %d, alerts %v", f.Status, f.Failures, a.list())
+	}
+	e.tick(e.svc, time.Hour) // both fail again: the second check in a row
+	if f := e.feed("cisa-kev"); f.Failures != 2 {
+		t.Fatalf("the second check did not run: failures %d", f.Failures)
+	}
 	got := a.list()
 	if len(got) != 1 || !strings.HasPrefix(got[0], "feeds-kev-stale-") || !strings.Contains(got[0], "cannot update the list") {
 		t.Fatalf("both failing: %v", got)
 	}
-	if txt := a.text[0]; !strings.Contains(txt, "The check at 5 Nov 2026, 13:00 UTC failed: cisa.gov refused this box (HTTP 403), and CISA's GitHub copy answered HTTP 502") ||
+	if txt := a.text[0]; !strings.Contains(txt, "The check at 5 Nov 2026, 14:00 UTC failed: cisa.gov refused this box (HTTP 403), and CISA's GitHub copy answered HTTP 502") ||
 		!strings.Contains(txt, "last good pull, at 5 Nov 2026, 12:00 UTC") {
 		t.Errorf("alert text: %q", txt)
 	}
-	for range 8 { // still failing, past six hours too: nothing more
+	for range 7 { // still failing, past six hours too: nothing more
 		e.tick(e.svc, time.Hour)
 	}
 	restarted, err := NewService(e.svc.Deps) // a restart: a new service on the same database remembers the alert

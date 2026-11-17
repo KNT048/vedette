@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// D-629 (kien G13): a failing CISA list is never silent. The admins get one alert when both copies of the list failed at a check (D-91
+// D-629 (kien G13): a failing CISA list is never silent. The admins get one alert when both copies of the list failed at two checks in a row (D-91
 // as amended: cisa.gov and CISA's GitHub copy are both asked every check), or when the list has not been refreshed for six of its
 // checks (six hours at the hourly default; a list at an admin's own address has only this rule), and one "up to date again" when a
 // pull works after that. One copy failing alone is a note on the feed, never an alert. Nothing in between. The state lives on the
@@ -21,6 +21,9 @@ const kevFeedID = "cisa-kev"
 
 // KEVStaleChecks is how many checks of the CISA list may pass without a good pull before the admins are told (D-629).
 const KEVStaleChecks = 6
+
+// kevBothFailedChecks is how many checks in a row both copies of the CISA list must fail before the admins are told (D-629).
+const kevBothFailedChecks = 2
 
 // ErrAlertOff is what Deps.Alert answers while nothing can be sent (the notify module is off): the watch tries again at its next run,
 // quietly, and records nothing as sent.
@@ -65,7 +68,9 @@ func (s *Service) watchKEV(ctx context.Context) error {
 	if r.LastSuccess != nil && r.LastSuccess.After(since) {
 		since = *r.LastSuccess
 	}
-	bothFailed := r.Status == "error" && r.URL == s.kevPrimary() // a failed check of the two copies: both failed (buildKEVBoth)
+	// two checks in a row where both copies failed (a failed pull at the built-in address is one, buildKEVBoth; failures counts them since
+	// the last good pull): one failed check, a blip of the box's own network, stays quiet (D-629)
+	bothFailed := r.Status == "error" && r.URL == s.kevPrimary() && r.Failures >= kevBothFailedChecks
 	switch {
 	case alerted == nil && (bothFailed || now.Sub(since) >= kevStaleAfter(r.IntervalHours)):
 		title, text := kevStaleNotice(r, since)

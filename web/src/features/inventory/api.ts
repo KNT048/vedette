@@ -44,6 +44,11 @@ export function useAskReport(id: string) {
 
 /** D-512: `enabled` false while sensor-active is off (its SNMP routes answer 404 then), so the GUI does not ask. */
 export const useSnmp = (enabled = true) => useQuery({ queryKey: ['inventory', 'snmp'], queryFn: () => api.get<SnmpResponse>('/inventory/snmp'), retry: false, enabled })
+/** Dismiss every SNMP notice (what the box changed by itself); the list is read again. */
+export function useDismissSnmpNotices() {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: () => api.post('/inventory/snmp/notices/dismiss'), onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'snmp'] }) })
+}
 
 /** Sau mọi thay đổi thiết bị: làm mới cả danh sách, chi tiết và các trang module khác đọc tài sản (feeds, findings). */
 function useInvalidate() {

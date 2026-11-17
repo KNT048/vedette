@@ -848,7 +848,7 @@
     },
     "info": {
       "manual": "Name the device by its IP address or host name and pick the product it runs, in three clicks. Vedette alerts you when an actively exploited vulnerability matches it. A device you add yourself is never scanned.",
-      "snmp": "Vedette asks the device read-only questions with a credential you give: maker, model, firmware version. Test reads one address now. A range goes into the credential's scope and every device in it is read at each scan window.",
+      "snmp": "Vedette reads a device's maker, model and firmware with read-only SNMP questions in every scan window. Set it up on the device's own page: its community or v3 user, and the address it answers on.",
       "osquery": "Create a token, then run one command on the server. osquery reports installed software with exact versions, so alerts say confirmed instead of suspected.",
       "wazuh": "Vedette reads the agents and packages of your Wazuh server through its read-only API. Nothing is installed on the machines.",
       "csv": "Columns name, ip, product, version and kind; up to 500 rows. Wrong rows are reported by line, correct rows are still added."
@@ -1085,5 +1085,152 @@
     "listTitle": "Ignored devices",
     "description": "Devices you said need no watching, such as staff phones. They are not scanned and raise no new-device or vulnerability alerts; a trap hit or an intrusion alert from one still reaches you.",
     "none": "No ignored devices."
+  },
+  "deviceSnmp": {
+    "title": "SNMP",
+    "description": "Read-only SNMP questions to this device: maker, model, serial number and firmware, as it states them.",
+    "descriptionInfo": "Vedette sends only read-only GET requests, in the scan window and when you press Check now, to one address: the device's IP, or the management address you set as Read from. The community or passwords are stored encrypted and shown only by their last 4 characters.",
+    "state": {
+      "working": "Working",
+      "not_answering": "Not answering",
+      "waiting": "Waiting for the first read",
+      "not_set_up": "Not set up"
+    },
+    "notSetUpBody": "Set up SNMP to read this device's maker, model, serial number and firmware. Switches, routers, firewalls, printers and UPS usually answer.",
+    "noIp": "This device has no address yet: SNMP can be set up once a sensor has seen its address.",
+    "why": {
+      "working": "The last read at {{ip}} got an answer.",
+      "waiting": "Set up, not read yet: the next scan window reads it, or press Check now.",
+      "notAnswering": "The last read at {{ip}} got no answer."
+    },
+    "notReady": "SNMP reads are not available right now",
+    "setUp": "Set up SNMP",
+    "edit": "Edit",
+    "remove": "Remove",
+    "check": {
+      "button": "Check now",
+      "pending": "Reading {{ip}} with SNMP… this takes up to 15 seconds.",
+      "answered": "{{name}} answered SNMP.",
+      "failed": "Nothing was sent",
+      "noAnswer": "{{name}} did not answer SNMP. The card says why."
+    },
+    "readFrom": "Read from",
+    "readFromOwn": "(the device's IP)",
+    "readFromOther": "(management address)",
+    "version": "Version",
+    "v2c": "v2c",
+    "v3": "v3",
+    "v3User": "v3, user {{user}}",
+    "port": "Port",
+    "portValue": "UDP {{port}}",
+    "lastRead": "Last read",
+    "lastAnswer": "Last answer",
+    "notYet": "Not yet",
+    "never": "Never",
+    "secretShort": "Saved (too short to show its end)",
+    "authName": {
+      "sha": "SHA",
+      "sha256": "SHA-256"
+    },
+    "privName": {
+      "aes128": "AES-128",
+      "none": "None"
+    },
+    "answer": {
+      "title": "What answered at {{ip}}",
+      "sysName": "sysName",
+      "vendor": "Maker",
+      "model": "Model",
+      "serial": "Serial number",
+      "firmware": "Firmware",
+      "os": "OS",
+      "kind": "Type",
+      "objectId": "Object ID",
+      "descr": "It describes itself as: {{text}}",
+      "check": "If this is not the device you expect, Read from points at another device: edit it."
+    },
+    "blocked": {
+      "title": {
+        "moved": "Moved: the device's IP changed; set the read address again",
+        "secret_lost": "The saved community or password was not restored",
+        "other": "Nothing is sent to this device now"
+      },
+      "fix": {
+        "moved": "Set the read address",
+        "secret_lost": "Enter it again",
+        "turnOn": "Turn SNMP on",
+        "approve": "Approve",
+        "scanning": "Open Settings, Scanning"
+      }
+    },
+    "removeTitle": "Remove SNMP from {{name}}?",
+    "removeBody": "Vedette deletes this device's SNMP settings and its community or passwords. What the device already said stays in the inventory, and its SNMP switch under Sources stays as it is.",
+    "removeConfirm": "Remove SNMP",
+    "removed": "SNMP removed from {{name}}.",
+    "saved": "SNMP saved for {{name}}.",
+    "savedOn": "SNMP is now on for this device.",
+    "form": {
+      "addTitle": "Set up SNMP on {{name}}",
+      "editTitle": "Edit SNMP of {{name}}",
+      "body": "Read-only: Vedette only sends GET requests, never SET.",
+      "bodyInfo": "The community or passwords are stored encrypted on the box and sent only to the Read from address; afterwards only their last 4 characters are shown. SNMPv1, MD5 and DES are not offered: they are not secure.",
+      "readFrom": "Read from",
+      "readFromHint": "Leave empty to read the device's IP, {{ip}}.",
+      "readFromInfo": "Use a management address when the device answers SNMP only on another interface, for example a firewall whose SNMP listens on its management port. What answers there is recorded on this device. Any address on your local networks, not the Vedette box.",
+      "copy": "Copy from another device",
+      "copyType": "Don't copy: type the settings",
+      "copyOption": "{{name}} ({{ip}}, {{version}})",
+      "copyNone": "Copies the version, user, community or passwords and port of a device that already has SNMP set up.",
+      "copyHint": "The box copies the saved community or passwords itself; they never reach this browser. They are sent only to this device's own IP, {{ip}}.",
+      "copyOwnIpOnly": "A copied community or password goes only to this device's own IP, {{ip}}. To read it at {{target}}, choose \"Don't copy\" and type them.",
+      "copyWhat": "Copies {{name}}'s SNMP settings: {{version}}, UDP port {{port}}, with its saved community or passwords.",
+      "version": "SNMP version",
+      "v2cClear": "v2c sends the community in clear text on your network. Use v3 when the device supports it.",
+      "community": "Community",
+      "communityHint": "The read-only community the device accepts.",
+      "user": "User name",
+      "userHint": "Letters, digits and . _ @ -",
+      "auth": "Authentication",
+      "authPassword": "Authentication password",
+      "priv": "Privacy",
+      "privPassword": "Privacy password",
+      "passwordHint": "8 to 64 characters.",
+      "keep": "Saved: ends in {{last4}}. Leave empty to keep it.",
+      "keepShort": "Saved. Leave empty to keep it.",
+      "again": "Read from changed: type it again, so it is sent to the new address only because you said so.",
+      "port": "Port",
+      "portHint": "Only if the device answers SNMP on another port. Leave empty for 161.",
+      "consentOff": "Saving turns SNMP on for this device (Sources): Vedette then sends read-only SNMP questions to {{ip}} in the scan window and when you press Check now.",
+      "consentOn": "Vedette sends read-only SNMP questions to {{ip}} in the scan window and when you press Check now.",
+      "create": "Set up SNMP",
+      "save": "Save"
+    },
+    "error": {
+      "readFromBad": "Enter an IPv4 address, like 192.168.1.1, or leave it empty for the device's IP.",
+      "readFromNotLocal": "{{ip}} is not a local network address ({{ranges}}): SNMP reads stay on your own networks.",
+      "openOther": "Open {{name}}",
+      "secretAgain": "Read from changed: type it again to send it to the new address.",
+      "communityRequired": "Enter the community.",
+      "community": "The community is 1 to 64 printable ASCII characters (no accents or emoji).",
+      "userRequired": "Enter the v3 user name.",
+      "user": "Use letters, digits and . _ @ - only, up to 64 characters.",
+      "passwordRequired": "Enter the password, 8 characters or more.",
+      "passwordShort": "At least 8 characters.",
+      "password": "Use printable ASCII characters only (no accents or emoji), up to 64.",
+      "port": "Enter a port from 1 to 65535, or leave it empty for 161.",
+      "readFromReserved": "{{ip}} is a multicast, broadcast or reserved address, not the address of one device."
+    },
+    "notices": {
+      "title_one": "Vedette changed an SNMP setting by itself",
+      "title_other": "Vedette changed {{count}} SNMP settings by itself",
+      "dismiss": "Dismiss"
+    },
+    "list": {
+      "title_one": "SNMP is set up on {{count}} device. Open one to edit it or check it now.",
+      "title_other": "SNMP is set up on {{count}} devices. Open one to edit it or check it now.",
+      "label": "Devices with SNMP set up",
+      "at": "{{ip}}, {{version}}",
+      "blocked": "Nothing is sent now: open the device to see why"
+    }
   }
 }

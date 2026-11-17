@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { GreenboneSetting } from '@/features/exposure/GreenbonePanel'
 import { OsqueryEnrol, WazuhForm } from '@/features/inventory/AgentsSection'
 import { useAgents } from '@/features/inventory/api'
+import { SnmpDevices } from '@/features/inventory/SnmpCard'
 import { NucleiSettings } from '@/features/scan/NucleiSettings'
 import { VulnChecksButton } from '@/features/scan/VulnChecksButton'
 import { useStopRun } from '@/features/scan/api'
@@ -210,6 +211,7 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
       {noDays ? <DependencyLink reason={t('fix.noDays')} to="/settings/scanning?tab=safety#win-from" label={t('fix.noDaysLink')} /> : null}
       <div className="flex flex-wrap items-center gap-3"><SetupFix e={e} d={d} />{exposureOff ? <TurnOnModule module="exposure" name={t('common:modules.exposure.name')} /> : null}</div>
       <Runs e={e} d={d} />
+      {e.id === 'snmp' && admin ? <SnmpDevices /> : null}
       {/* the card's Runs already show the run's progress: the button does not repeat it (#877 r1 L12) */}
       {e.id === 'nmap-discovery' && e.state !== 'needs_setup' ? <ScanNowButton targets="lan" variant="secondary" size="sm" showProgress={false} /> : null}
       {e.id === 'nuclei' && e.enabled ? <VulnChecksButton targets="lan" showProgress={false} /> : null}

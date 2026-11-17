@@ -1,6 +1,6 @@
 # Vedette — Mô tả sản phẩm
 
-Phiên bản tài liệu: 2026-11-06 · Chủ: kien · Nguồn số liệu: `docs/research/2026-11-06-proposal.md`
+Phiên bản tài liệu: 2026-11-06 · Chủ: kien
 
 ## 1. Một câu
 
@@ -19,7 +19,7 @@ Phần mềm mã nguồn mở, miễn phí, cho doanh nghiệp biết **trong v�
 | VN: 52,3% tổ chức bị thiệt hại; 47,7% không có nhân sự bảo mật; >50% không có anti-malware tập trung | NCA 2025 (5.300 tổ chức) |
 | VN: Luật BVDLCN 91/2025 (1/1/2026) phạt tới 5% doanh thu; NĐ 330/2026, 363/2026 có biểu phạt cụ thể | thuvienphapluat, PwC |
 
-Tóm lại: thiết bị biên không cài được EDR, bị khai thác nhanh hơn tốc độ vá, và SMB không có ai đọc cảnh báo. Khoảng trống: **"cái gì đang bị khai thác" × "tôi có cái đó không" × "làm gì ngay"** — chưa có sản phẩm miễn phí nào nối ba vế (khảo sát đối thủ: `docs/research/` §12).
+Tóm lại: thiết bị biên không cài được EDR, bị khai thác nhanh hơn tốc độ vá, và SMB không có ai đọc cảnh báo. Khoảng trống: **"cái gì đang bị khai thác" × "tôi có cái đó không" × "làm gì ngay"** — chưa có sản phẩm miễn phí nào nối ba vế (khảo sát đối thủ: §12).
 
 ## 3. Đối tượng
 
@@ -32,7 +32,7 @@ Tóm lại: thiết bị biên không cài được EDR, bị khai thác nhanh h
 
 Ưu tiên xây: P2 → P1 → P3 → P4. P2 là người sẽ **cài và giữ** sản phẩm; P1 là người sẽ **trả tiền triển khai**; P3/P4 mở rộng.
 
-## 4. Lời hứa (được phép quảng cáo — mỗi dòng truy về story trong `USER_STORIES.md`)
+## 4. Lời hứa (được phép quảng cáo — mỗi dòng truy về một story)
 
 **Biết sớm**
 - Theo dõi 24/7 các nguồn lỗ hổng đang bị khai thác thật (CISA KEV, VulnCheck KEV, CVE.org, EPSS, PSIRT Microsoft/Fortinet/Synology/Cisco…), cập nhật mỗi giờ. (S-FEED-1)

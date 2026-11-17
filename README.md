@@ -67,8 +67,4 @@ Exactly what `PRIVACY.md` lists, and Settings → Privacy shows the same list. T
 
 ## Documentation
 
-Product and design documents are in `docs/` (written in Vietnamese for now): `PRODUCT.md`, `USER_STORIES.md`, `MODULES.md`, `ARCHITECTURE.md`, `DATA_PIPELINE.md`, `AI_ASSISTANT.md`, `UPDATES.md`, `ROADMAP.md`, `FRONTEND.md`, `LEGAL.md`, `DECISIONS.md`. The API contract is `api/openapi.json`, generated from the web app's mock (`pnpm --dir web openapi`).
-
-## For AI agents working in this repo
-
-Read `CLAUDE.md` first; rules live in `.claude/rules/`.
+Product and design documents are in `docs/` (written in Vietnamese for now): `PRODUCT.md`, `MODULES.md`, `ARCHITECTURE.md`, `DATA_PIPELINE.md`, `AI_ASSISTANT.md`, `UPDATES.md`, `ROADMAP.md`, `FRONTEND.md`, `LEGAL.md`. The API contract is `api/openapi.json`, generated from the web app's mock (`pnpm --dir web openapi`).

@@ -1,7 +1,7 @@
 # Reviewed allowlist of the nuclei pack (D-528 step 2, lead decision after step-2 review r1, 2026-11-14): every template that runs
 # in the KEV set (the LAN scan and the own-IP checks, no tick; the deep set of D-527 also takes rule (a) read-only GETs) is listed here, read by a person
 # and found to change nothing on the target and reach no other host. One a line: id<TAB>sha256 of the file read<TAB>why. A file that
-# changed (another sha256) stops `make scan-pack` until it is read again. Candidates: docs/research/kev-review-queue.md ("read first"
+# changed (another sha256) stops `make scan-pack` until it is read again. Candidates: scripts/scanpack/kev-review-queue.md ("read first"
 # group first). Reviewers: say who and when in the reason.
 CVE-2018-7600	e1b6bd9bb4fdcb6d450067e80b4535cdda3be55f630107571c3695b837fcd54f	Drupal: the register form's AJAX callback renders passthru of cat /etc/passwd; name is missing so the form fails and no account is made (D-528 author and review kev r1 L-2, 2026-11-14)
 CVE-2019-15107	af7bc39c42403d8e9a0d2c764f3239300bb5c415334fc3b1a5f3a30f1be56e81	Webmin backdoor: password_change.cgi for user rootxx, which does not exist, runs cat /etc/passwd through old; no password changes (D-528 author and review kev r1 L-2, 2026-11-14)

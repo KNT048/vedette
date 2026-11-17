@@ -14,8 +14,8 @@
 #   * a stop (SIGTERM) ends init.py with exit 0 in under 8 s and no traceback;
 #   * no GPL Python package is in the image (hpfeeds is a stub).
 # Runs rootless podman (CONTAINER=podman) with the unit's flags (host/ops/quadlet.go honeypotUnitText): read-only root, tmpfs /tmp, all capabilities
-# dropped, no-new-privileges, the log volume with :U. What a rootless run cannot show (UserNS=auto, the macvlan namespace, packet capture) is in
-# .ai/deferred/feat-honeypot.md. Removes the containers, the network and the image at the end (rules/build-artifacts.md); the work folder is
+# dropped, no-new-privileges, the log volume with :U. A rootless run cannot show UserNS=auto, the macvlan namespace or packet capture;
+# those need a lab box. Removes the containers, the network and the image at the end; the work folder is
 # under ~/.cache/vedette-honeypot, never /tmp. VEDETTE_HP_REUSE=1 skips the build and uses an image already tagged localhost/vedette-honeypot:hpcheck.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"

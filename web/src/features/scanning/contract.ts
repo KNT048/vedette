@@ -39,7 +39,7 @@ export const Engine = z.object({
   affects: z.array(EngineId).describe('Engines that stop too when this one is turned off (osquery and wazuh share the agent-intake switch; nmap-discovery off stops nmap-versions and the SNMP rounds). External scans (zap, openvas) follow the External exposure module, not nuclei. The page names them before turning off'),
   state: EngineState,
   reason: z.string().nullable().describe('Plain sentence for needs_setup, starting, error and unavailable, or a warning while ready (e.g. "A sweep of these ranges needs 3 windows"); null otherwise'),
-  preview: z.boolean().describe('Its module ships as Preview in v1 (SHIP.md: scan, honeypot)'),
+  preview: z.boolean().describe('Its module ships as Preview in v1 (scan, honeypot)'),
   cost: EngineCost,
   last_run: LastRun.nullable().describe('null: never ran'),
   next_run_at: iso.nullable().describe('Next window opening (nmap-discovery, nmap-versions, snmp), next scheduled scan (nuclei), next Wazuh sync; null for engines that listen all the time (passive, osquery, honeypot) or run only when a person asks (zap, openvas)'),

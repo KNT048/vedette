@@ -3,7 +3,7 @@
 # do the first-run setup through the real API, and drive the interface in headless Chromium (web/scripts/csp-check.mjs); fail on any CSP violation.
 # Heavy job (Chromium): one at a time. Linux or macOS. Needs the Chromium of Playwright (`pnpm --dir web e2e:install`).
 # On every exit path: the core process and the browser's process group are killed, the temp folder and the generated web/dist and
-# internal/webui/dist are removed (rules/build-artifacts.md).
+# internal/webui/dist are removed.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 test -s internal/webui/dist/index.html || { echo "webui-csp-check: internal/webui/dist is missing: run make webui-dist" >&2; exit 1; }

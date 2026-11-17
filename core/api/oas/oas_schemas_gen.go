@@ -100778,6 +100778,11 @@ type InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection struct {
 	// The source reads another product, version or package release than the person (always true while
 	// active is false): show "You set X on ; the last scan reads Y".
 	Disagrees bool `json:"disagrees"`
+	// INV-41 (6): the person said the reported row is not installed on the device. While active it matches
+	// nothing and disagrees is false; show "Not installed (you said, )" with Clear. Not active: the source
+	// now reads another version (detected), a new install that matches: "You said not installed on ; the
+	// scan now reads Y".
+	NotInstalled OptBool `json:"not_installed"`
 	// When the person set it (or last changed it).
 	SetAt time.Time `json:"set_at"`
 	// Who set it (email); "" for a correction stored without one.
@@ -100797,6 +100802,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetDetecte
 // GetDisagrees returns the value of Disagrees.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetDisagrees() bool {
 	return s.Disagrees
+}
+
+// GetNotInstalled returns the value of NotInstalled.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetNotInstalled() OptBool {
+	return s.NotInstalled
 }
 
 // GetSetAt returns the value of SetAt.
@@ -100822,6 +100832,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetDetecte
 // SetDisagrees sets the value of Disagrees.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetDisagrees(val bool) {
 	s.Disagrees = val
+}
+
+// SetNotInstalled sets the value of NotInstalled.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetNotInstalled(val OptBool) {
+	s.NotInstalled = val
 }
 
 // SetSetAt sets the value of SetAt.
@@ -109312,6 +109327,9 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) SetOk(val bool) {
 type InventoryPatchInventoryDevicesIDSoftwareSidReq struct {
 	// Another product, from GET /inventory/catalog.
 	CatalogID OptString `json:"catalog_id"`
+	// True: the software is not installed on the device (INV-41 (6)); send it alone. false or absent: no
+	// change.
+	NotInstalled OptBool `json:"not_installed"`
 	// The package release the device's package manager shows ("10.2_p1-r1", "1:9.6p1-3ubuntu13.14"); empty
 	// removes it.
 	PkgVersion OptString `json:"pkg_version"`
@@ -109325,6 +109343,11 @@ type InventoryPatchInventoryDevicesIDSoftwareSidReq struct {
 // GetCatalogID returns the value of CatalogID.
 func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetCatalogID() OptString {
 	return s.CatalogID
+}
+
+// GetNotInstalled returns the value of NotInstalled.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetNotInstalled() OptBool {
+	return s.NotInstalled
 }
 
 // GetPkgVersion returns the value of PkgVersion.
@@ -109350,6 +109373,11 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetVersion() OptString 
 // SetCatalogID sets the value of CatalogID.
 func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetCatalogID(val OptString) {
 	s.CatalogID = val
+}
+
+// SetNotInstalled sets the value of NotInstalled.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetNotInstalled(val OptBool) {
+	s.NotInstalled = val
 }
 
 // SetPkgVersion sets the value of PkgVersion.
@@ -160080,8 +160108,8 @@ func (s *ResponseGetResponseAllowlistOKItemsItem) SetValue(val string) {
 }
 
 type ResponseGetResponseApproveTokenOK struct {
-	// True when an AI proposed the request: the page shows the AI-generated label (rules/legal.md). false
-	// unless state is ready.
+	// True when an AI proposed the request: the page shows the AI-generated label. false unless state is
+	// ready.
 	AiGenerated       bool                                         `json:"ai_generated"`
 	ApprovedSoFar     NilInt                                       `json:"approved_so_far"`
 	Approver          NilString                                    `json:"approver"`
@@ -197155,7 +197183,7 @@ type ScanningGetScanningOKEnginesItem struct {
 	// sync; null for engines that listen all the time (passive, osquery, honeypot) or run only when a
 	// person asks (zap, openvas).
 	NextRunAt NilDateTime `json:"next_run_at"`
-	// Its module ships as Preview in v1 (SHIP.md: scan, honeypot).
+	// Its module ships as Preview in v1 (scan, honeypot).
 	Preview bool `json:"preview"`
 	// Plain sentence for needs_setup, starting, error and unavailable, or a warning while ready (e.g. "A
 	// sweep of these ranges needs 3 windows"); null otherwise.
@@ -199085,7 +199113,7 @@ type ScanningPatchScanningEnginesIDOKEnginesItem struct {
 	// sync; null for engines that listen all the time (passive, osquery, honeypot) or run only when a
 	// person asks (zap, openvas).
 	NextRunAt NilDateTime `json:"next_run_at"`
-	// Its module ships as Preview in v1 (SHIP.md: scan, honeypot).
+	// Its module ships as Preview in v1 (scan, honeypot).
 	Preview bool `json:"preview"`
 	// Plain sentence for needs_setup, starting, error and unavailable, or a warning while ready (e.g. "A
 	// sweep of these ranges needs 3 windows"); null otherwise.

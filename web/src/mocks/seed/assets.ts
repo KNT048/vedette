@@ -1,4 +1,4 @@
-// 30 thiết bị giống một SMB Việt Nam (tên hiển thị tiếng Anh, D-28) (CONCEPT_VERIFICATION §3). DỮ LIỆU MẪU — hiển thị nhãn "Dữ liệu mẫu".
+// 30 thiết bị giống một SMB Việt Nam (tên hiển thị tiếng Anh, D-28). DỮ LIỆU MẪU — hiển thị nhãn "Dữ liệu mẫu".
 // ID cố định để module khác tham chiếu: a-fw01, a-nas02 (phát hiện f-1), a-web01 (f-2), a-srvad (f-3)…
 import type { Asset, AssetKind, ObsSource, Service, Software } from '@/lib/types'
 

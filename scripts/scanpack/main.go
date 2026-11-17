@@ -241,7 +241,7 @@ func buildWith(src, out, version string, rv allowlist) (Report, error) {
 			reason = "id"
 		}
 		// D-528 step 2: a KEV template out of the KEV set (left out, or only behind the tick) waits for a person
-		// (docs/research/kev-review-queue.md)
+		// (scripts/scanpack/kev-review-queue.md)
 		if (reason == "likely read-only" || reason == "not reviewed" || reason == "state name" || reason == "" && !tpl.InKEV()) && kevCandidate(body) {
 			queue = append(queue, queueRow(rel, body, reason))
 		}

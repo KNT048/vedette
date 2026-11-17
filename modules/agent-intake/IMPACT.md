@@ -1,6 +1,6 @@
 # Agent-intake — Change Impact Map
 
-> Mã Go có từ WP-26 lát 2 (package `modules/agent-intake`, tên Go `agentintake`): osquery `enroll`/`config`/`log`/`status`, token ở mức dịch vụ, ánh xạ gói. Lát 4: Wazuh. Lát 3: đường admin, script cài, `ca.pem`, kho gói. Kế hoạch: `docs/plans/2026-11-11-wp26-agent-intake.md`.
+> Mã Go có từ WP-26 lát 2 (package `modules/agent-intake`, tên Go `agentintake`): osquery `enroll`/`config`/`log`/`status`, token ở mức dịch vụ, ánh xạ gói. Lát 4: Wazuh. Lát 3: đường admin, script cài, `ca.pem`, kho gói.
 
 ## Modifying: where the Wazuh pull delivered (`intake_wazuh_agent`, `wazuhAgentSeen`, `WazuhAgentAddresses`; #849)
 - **inventory** (`Config.WazuhAgents`, wired in `cmd/vedette/inventory.go` `wazuhAgents`): the only way the Devices list says `wazuh` for a device (`source:wazuh` filter, `DeviceRow.sources`). Writing it before the agent's data, or not cleaning it at the end of a pass, makes a device that took over an old agent's address say Wazuh. `modules/core/export_policy.go` lists the table.
@@ -47,7 +47,7 @@
 ## Modifying: kéo Wazuh (`wazuh.go`, `wazuh_client.go`, `wazuh_handlers.go`, job `wazuh-pull`, lát 4, D-305..D-309)
 - **core/jobs**: nhịp 1 phút; chu kỳ thật là `interval_minutes` ∈ {5, 15, 60, 360, 1440} (`WazuhIntervals` = GUI `WazuhInput.interval_minutes`; đổi một bên làm bên kia vỡ). Lượt kéo đầu có agent chưa có `netaddr` đặt `next_pull` = +1 phút một lần (đổi `wazuhPullEvery` hay `last_sync` làm test `FirstPullRetriesOnce` vỡ).
 - **core/conn** (facade `Service.NewHTTPS`, `HTTPSTargetProblem`, D-305): đổi chính sách địa chỉ hay TLS của `core/conn` là đổi luôn của Wazuh; `TestWazuh_FormChecks` (loopback, metadata, hộp) và `TestWazuh_PinMismatchStopsThePull` phải chạy lại. Mật khẩu Wazuh nằm trong `core_secret` purpose `intake_wazuh.password`, mở bằng `Secrets.Open` như các module khác (không `Reserve`/`Restrict`, hai test quét mã không đổi).
-- **Settings → Privacy** (`modules/core/handlers_privacy.go` luồng 14, `PrivacyFacts.WazuhConnected`, `cmd/vedette` `privacyFacts`, mock `web/src/features/core/mocks.ts`, `PRIVACY.md` hàng 14): đổi cái được gửi (đường dẫn, trường, nhịp) phải sửa cả bốn cùng commit (rules/legal.md).
+- **Settings → Privacy** (`modules/core/handlers_privacy.go` luồng 14, `PrivacyFacts.WazuhConnected`, `cmd/vedette` `privacyFacts`, mock `web/src/features/core/mocks.ts`, `PRIVACY.md` hàng 14): đổi cái được gửi (đường dẫn, trường, nhịp) phải sửa cả bốn cùng commit.
 - **inventory**: số `agents`/`packages` hiện trong thẻ Wazuh; gói vào kho qua `ReplaceSoftware` với gợi ý chỉ IP (D-307); đổi cách kho tìm thiết bị (MAC trước) → xem lại `agentIP`.
 - **Wazuh server API** (bên ngoài, v4.9.x theo `api/api/spec/spec.yaml`): đổi tên trường `affected_items`/`total_affected_items`, `lastKeepAlive`, cột syscollector → `wazuh_bad_reply` hoặc agent bị bỏ; phiên bản Wazuh mới cần một lần chạy thật (dòng deferred).
 - **Lát 3** (`GET /inventory/agents`): đọc thẻ qua `Service.Wazuh(ctx)`; không đọc bảng trực tiếp ngoài module.
@@ -64,7 +64,7 @@
 - **core/updates**: gói osquery nằm trong `managed`; đổi phiên bản = đổi `osquery_version` trong `AgentsResponse.install`.
 
 ## Modifying: `POST /intake/osquery/status` (thân tuỳ chọn `host_identifier`, trả `host_last_seen`)
-- Hợp đồng sinh ra: `web/src/features/inventory/contract.ts` (`OsqueryStatusBody`, `bodyOptional`), `api/openapi.json`, `core/api/oas`, mock `mocks.ts` (mock không giữ máy: máy có tên được coi là đã đăng ký khi token có máy). Hai bản script (`modules/agent-intake/scripts/`, `web/src/features/inventory/scripts/`, byte-bằng nhau, `TestInstall_ScriptsEqualTheGUI`) đọc `host_last_seen`; đổi tên trường là vỡ cả hai. Script đặt `--host_identifier=specified` + `--specified_identifier=<tên máy đã lọc>` (không để osquery tự tìm tên, có thể là tên ngắn hay đầy đủ) rồi hỏi đúng tên đó; hai máy cùng tên trong một token vẫn thay nhau (đã có từ trước, `.ai/deferred`).
+- Hợp đồng sinh ra: `web/src/features/inventory/contract.ts` (`OsqueryStatusBody`, `bodyOptional`), `api/openapi.json`, `core/api/oas`, mock `mocks.ts` (mock không giữ máy: máy có tên được coi là đã đăng ký khi token có máy). Hai bản script (`modules/agent-intake/scripts/`, `web/src/features/inventory/scripts/`, byte-bằng nhau, `TestInstall_ScriptsEqualTheGUI`) đọc `host_last_seen`; đổi tên trường là vỡ cả hai. Script đặt `--host_identifier=specified` + `--specified_identifier=<tên máy đã lọc>` (không để osquery tự tìm tên, có thể là tên ngắn hay đầy đủ) rồi hỏi đúng tên đó; hai máy cùng tên trong một token vẫn thay nhau (đã có từ trước).
 
 ## Modifying: kho gói osquery (`GET /install/osquery/{file}`, `deploy/osquery/PINS`, `deploy/containers/core/Containerfile`, lát 3)
 - Đổi phiên bản osquery = một commit đổi **bốn chỗ**: `deploy/osquery/PINS` (phiên bản + 5 SHA-256), `OSQUERY_VERSION` ở `web/src/features/inventory/installScripts.ts`, `OsqueryVersion` ở `install.go`, dòng osquery ở `THIRD_PARTY_NOTICES.md`; `TestInstall_VersionsAgree` bắt ba số đầu lệch nhau, bước dựng image bắt hash sai. Tên tệp trong script, trong `mirrorFiles` và trong Containerfile phải khớp (test đọc cả ba).

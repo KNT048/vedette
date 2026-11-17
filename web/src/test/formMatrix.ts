@@ -1,4 +1,4 @@
-// Form matrix (docs/QA.md §2): a form whose selector changes the meaning of other fields is tested once per option.
+// Form matrix: a form whose selector changes the meaning of other fields is tested once per option.
 // For every option: only that option's fields are visible, the other options' fields are absent, and a control that cannot be used in this context is locked.
 import { expect } from 'vitest'
 import { screen, within } from '@testing-library/react'

@@ -2,7 +2,7 @@
 
 For the person who already runs Docker or Podman and wants Vedette on it, without giving a machine to the Vedette installer. You get the same program as the appliance, run as containers from Docker Compose. You do not get the helper that manages the machine itself (`vedette-host`), so a few things stay with you. They are listed below; each of those screens in Vedette also says so (D-381).
 
-Decision and plan: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`. The appliance install is `install.sh` (`docs/DEPLOYMENT.md` section 8).
+The appliance install is `install.sh` (`docs/DEPLOYMENT.md` section 8).
 
 ## What you get, and what stays with you
 

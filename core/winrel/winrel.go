@@ -5,7 +5,7 @@
 //
 // Sources: Microsoft's release information pages (https://learn.microsoft.com/en-us/windows/release-health/release-information,
 // .../windows11-release-information, https://learn.microsoft.com/en-us/windows-server/get-started/windows-server-release-info)
-// for builds and dates; NVD's CPE dictionary for the names (checked 2026-11-14, docs/decisions/D-546.md lists which).
+// for builds and dates; NVD's CPE dictionary for the names (checked 2026-11-14, lists which).
 //
 // D-603: a release newer than this table (Windows 11 26H2, build 26300, out 2026-09-29) needs no code change. The feeds module reads
 // Microsoft's release information pages on the box and hands the releases it finds to Learn; ByBuild, ByProduct and Releases answer
@@ -39,8 +39,8 @@ type Release struct {
 	// LastFreeRev is the last update revision Windows Update gives without Extended Security Updates (19045.6456, October 2025, for
 	// Windows 10 22H2); 0 when the release is still serviced or the table does not know it. A fix above it needs ESU.
 	LastFreeRev int
-	// Ended: Microsoft no longer services the release (as of the table's last update, 2026-11-14; winrel upkeep in
-	// .ai/deferred/tune-5b.md). LTSC: an LTSC/LTSB edition on the same build is still serviced (Windows 10 1809 LTSC 2019, 21H2
+	// Ended: Microsoft no longer services the release (as of the table's last update, 2026-11-14).
+	// LTSC: an LTSC/LTSB edition on the same build is still serviced (Windows 10 1809 LTSC 2019, 21H2
 	// LTSC 2021), so an Ended release is ended only for a machine whose OS name does not say LTSC/LTSB.
 	Ended, LTSC bool
 }

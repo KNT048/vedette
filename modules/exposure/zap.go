@@ -179,7 +179,7 @@ type zapReport struct {
 	} `json:"site"`
 }
 
-// ParseZAPReport reads a ZAP baseline JSON report (zap-baseline.py -J) of a scan of page. The report is untrusted (rules/security.md):
+// ParseZAPReport reads a ZAP baseline JSON report (zap-baseline.py -J) of a scan of page. The report is untrusted:
 // a bigger one than MaxWebReport, one that is not JSON of the expected shape, a risk or confidence that is not ZAP's, or more than
 // maxZapAlerts alerts is refused as ErrBadReport, never read as "no alerts". Unknown fields are ignored. Only the site entry of the
 // scanned address counts (ZAP lists every host it saw); a report without one is ErrNoPage. Text is stripped of markup, printable

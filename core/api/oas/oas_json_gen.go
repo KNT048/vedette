@@ -181655,6 +181655,12 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) encodeFiel
 		e.Bool(s.Disagrees)
 	}
 	{
+		if s.NotInstalled.Set {
+			e.FieldStart("not_installed")
+			s.NotInstalled.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("set_at")
 		json.EncodeDateTime(e, s.SetAt)
 	}
@@ -181664,12 +181670,13 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) encodeFiel
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection = [5]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection = [6]string{
 	0: "active",
 	1: "detected",
 	2: "disagrees",
-	3: "set_at",
-	4: "set_by",
+	3: "not_installed",
+	4: "set_at",
+	5: "set_by",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection from json.
@@ -181715,8 +181722,18 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Decode(d *
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"disagrees\"")
 			}
+		case "not_installed":
+			if err := func() error {
+				s.NotInstalled.Reset()
+				if err := s.NotInstalled.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"not_installed\"")
+			}
 		case "set_at":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.SetAt = v
@@ -181728,7 +181745,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Decode(d *
 				return errors.Wrap(err, "decode field \"set_at\"")
 			}
 		case "set_by":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.SetBy = string(v)
@@ -181749,7 +181766,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Decode(d *
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -190847,6 +190864,12 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) encodeFields(e *jx.Enco
 		}
 	}
 	{
+		if s.NotInstalled.Set {
+			e.FieldStart("not_installed")
+			s.NotInstalled.Encode(e)
+		}
+	}
+	{
 		if s.PkgVersion.Set {
 			e.FieldStart("pkg_version")
 			s.PkgVersion.Encode(e)
@@ -190872,12 +190895,13 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfInventoryPatchInventoryDevicesIDSoftwareSidReq = [5]string{
+var jsonFieldsNameOfInventoryPatchInventoryDevicesIDSoftwareSidReq = [6]string{
 	0: "catalog_id",
-	1: "pkg_version",
-	2: "product",
-	3: "vendor",
-	4: "version",
+	1: "not_installed",
+	2: "pkg_version",
+	3: "product",
+	4: "vendor",
+	5: "version",
 }
 
 // Decode decodes InventoryPatchInventoryDevicesIDSoftwareSidReq from json.
@@ -190897,6 +190921,16 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) Decode(d *jx.Decoder) e
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"catalog_id\"")
+			}
+		case "not_installed":
+			if err := func() error {
+				s.NotInstalled.Reset()
+				if err := s.NotInstalled.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"not_installed\"")
 			}
 		case "pkg_version":
 			if err := func() error {

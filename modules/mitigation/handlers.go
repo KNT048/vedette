@@ -47,7 +47,7 @@ func NewActionHandlers(db *store.DB, a *audit.Log, f *findings.Service, d Detail
 	return &ActionHandlers{db: db, audit: a, finding: f, details: d, ai: ai, now: clock}, nil
 }
 
-// Limits on what the AI may hand back: its output is untrusted text (rules/security.md).
+// Limits on what the AI may hand back: its output is untrusted text.
 const (
 	maxAIParagraphs = 20
 	maxAISteps      = 30

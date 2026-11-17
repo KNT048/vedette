@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
-// Story ID hiện khi URL có ?story=1 (ghi nhớ trong phiên); ?story=0 để tắt. Ẩn mặc định khi phỏng vấn (CONCEPT_VERIFICATION §3).
+// Story ID hiện khi URL có ?story=1 (ghi nhớ trong phiên); ?story=0 để tắt. Ẩn mặc định khi phỏng vấn.
 const KEY = 'vedette-story'
 function read() {
   if (typeof window === 'undefined') return false

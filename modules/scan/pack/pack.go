@@ -20,7 +20,7 @@ import (
 )
 
 // Limits of an index. The pack of D-527 (KEV plus the deep and disruptive sets of nuclei-templates 10.5.1) is measured in
-// docs/decisions/D-527.md; these keep about twice its size.
+// D-527; these keep about twice its size.
 const (
 	MaxSize      = 12 << 20 // bytes
 	MaxTemplates = 20000

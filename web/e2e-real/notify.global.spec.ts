@@ -3,7 +3,7 @@
 // (afterEach deletes every channel they saved and puts the rules back, and checks both). Steps from e2e/qa/notify.spec.ts.
 // No test reaches the internet: Telegram, Slack and Zalo channels are only ever saved TURNED OFF and never sent a test (their addresses are fixed on the internet); a webhook
 // cannot point at loopback (D-86), so the webhook is only saved, turned off. The one real send is an email channel to a closed port on loopback (INV-8 allows an internal SMTP host).
-// What this file cannot prove (a delivered message, a Telegram button press, the delivery of an approval request to a channel) needs a seam: see .ai/deferred/feat-e2e-real-notify.md.
+// What this file cannot prove (a delivered message, a Telegram button press, the delivery of an approval request to a channel) needs a seam.
 // Approval DELIVERY is not covered: only the validation of approver lists is (INV-7).
 import { expect, test, type Page, type Request } from '@playwright/test'
 import { ACCOUNTS, api, authFile } from './box'
@@ -338,7 +338,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
         await formRefused(page, d, 'webhook', { 'Webhook URL': BLOCKED })
       }
       // the box refuses them too, whatever the form does (INV-8). This first webhook check of the run also starts the box's read of
-      // its own addresses, which a webhook save waits for (#157; .ai/deferred/fix-notify-metadata-mlee.md)
+      // its own addresses, which a webhook save waits for (#157)
       for (const bad of ['http://127.0.0.1:8444/hook', 'http://169.254.169.254/latest', 'https://100.100.100.200/x', 'https://[fd00:ec2::254]/x', 'https://metadata.google.internal/x']) {
         const r = await api(c, 'PUT', '/notify/channels/webhook', { enabled: false, fields: { url: bad }, secret: 'abcdefghijklmnop', min_severity: 'medium' })
         expect(r.status, `PUT webhook ${bad}`).toBe(400)

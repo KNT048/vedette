@@ -206,6 +206,8 @@ type UpsertResult struct {
 	NameOnly int
 	// Asked counts the findings closed because only a person's answer decides them (D-604).
 	Asked int
+	// NotInstalled counts the findings closed because a person said their software is not installed (INV-6c).
+	NotInstalled int
 }
 
 // OnMatchChanged handles inventory.match.changed: it reads the device and the exploited list and
@@ -261,6 +263,16 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		} else if ig {
 			return nil
 		}
+		if len(a.NotInstalled) > 0 { // INV-6c: a match read before a person cleared a mark must not close its findings again; read the device now
+			fresh, ok, err := s.cfg.Inventory.MatchInput(ctx, a.ID)
+			if err != nil {
+				return fmt.Errorf("findings: reading the device again: %w", err)
+			}
+			if ok {
+				fresh.winList = a.winList
+				a = fresh
+			}
+		}
 		have, err := cvesOfAsset(ctx, tx, a.ID)
 		if err != nil {
 			return err
@@ -301,6 +313,10 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			before := r.Finding
 			reopened := false
 			if f, h, ok := r.ReopenOnMatch(now); ok { // D-530: Vedette closed it by itself; it applies again
+				why, err := reopenReason(ctx, tx, a, r, em.SoftwareID)
+				if err != nil {
+					return err
+				}
 				r.Finding, reopened = f, true
 				h.Note = withCorrection(h.Note, correctionWhy(a, em.SoftwareID))
 				if err := insertHistory(ctx, tx, r.ID, h); err != nil {
@@ -309,7 +325,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.matches_again", Target: r.ID, Detail: r.CVE + ": reopened"}); err != nil {
 					return err
 				}
-				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: ReasonMatchesAgain})
+				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: why})
 			}
 			r.Finding = r.ApplyMatch(em)
 			r.LastSeen = now
@@ -365,7 +381,11 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		if res.Asked, err = s.closeAsked(ctx, tx, a.ID, m.Asked, now, emit); err != nil {
 			return err
 		}
-		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, correctionWhy(a, ""), now)
+		var kept map[string]string // INV-6c: findings a person kept open on a row they said is not installed
+		if res.NotInstalled, kept, err = s.closeNotInstalled(ctx, tx, a.ID, a.Name, notInstalledCVEs(a, vulns, hs, m, now), now, emit); err != nil {
+			return err
+		}
+		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, kept, correctionWhy(a, ""), now)
 		if err != nil {
 			return err
 		}
@@ -705,7 +725,7 @@ func personKept(hist []HistoryEntry) bool {
 // in vulns says nothing (a partial list never judges a pair), and a finding the scan confirmed (basis scan) is not judged by
 // the version matcher. Such a finding matched by product only and graded above medium before D-500 takes the product
 // severity, once (W3-3 reaches it too: a pair the matcher no longer produces is never in Existing); it returns how many.
-func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, corrected string, now time.Time) (regraded int, err error) {
+func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, kept map[string]string, corrected string, now time.Time) (regraded int, err error) {
 	rows, err := tx.QueryContext(ctx, `SELECT cve FROM fnd_finding WHERE asset_id = ? AND status = 'suspected'`, assetID)
 	if err != nil {
 		return 0, fmt.Errorf("findings: reading suspected findings: %w", err)
@@ -754,6 +774,9 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 	}
 	for _, x := range m.Asked { // D-604: one closeAsked left open (a person reopened or accepted it) says what is still asked
 		unlisted[x.CVE] = x.AskedWhy() + ". Vedette lists it under \"Could not be checked\" until you answer there; this finding stays open because you kept it."
+	}
+	for cve, note := range kept { // INV-6c: one closeNotInstalled left open (a person reopened or accepted it) says why it stays
+		unlisted[cve] = note
 	}
 	for _, cve := range open {
 		if !listed[cve] || matched[cve] {

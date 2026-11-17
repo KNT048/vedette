@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import core from '../../locales/en/core.json'
 
-// rules/legal.md: Settings → Privacy must match PRIVACY.md. Flow 6 is word for word (bold markers are not shown in the UI);
+// Settings → Privacy must match PRIVACY.md. Flow 6 is word for word (bold markers are not shown in the UI);
 // every flow must name each host that PRIVACY.md lists in its "Where to" cell.
 const rows = new Map<number, string[]>()
 const containerRows = new Map<number, string[]>() // "| 6 (container-only) | …": what a container-only install shows (D-381)

@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-// The answers of a QR sign-in and of the look-ups come from Zalo and are untrusted (rules/security.md): whatever they hold, the parsers
+// The answers of a QR sign-in and of the look-ups come from Zalo and are untrusted: whatever they hold, the parsers
 // do not panic, keep only digit ids, and cap names and lists. `go test` runs the seeds; `go test -fuzz` explores further.
 
 var qrPathRE = regexp.MustCompile(`^(M\d+ \d+h\d+v1h-\d+z)*$`)

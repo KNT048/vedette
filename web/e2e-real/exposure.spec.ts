@@ -2,7 +2,7 @@
 // Steps from e2e/qa/exposure.spec.ts. Entity-scoped: every domain here is made and removed by the test that uses it; box-wide settings are in exposure.global.spec.ts.
 // NOTHING HERE REACHES THE INTERNET. A public IP can only come from the three public "what is my IP" services (Detect now, auto-detect, Verify again of an IP), a domain
 // is only proved by a real DNS TXT lookup (Check), and the box has no setting that sends either to a loopback fake. So no test presses them, and what needs them is NOT covered:
-// a verified domain or IP, the commitment, a scan, the INV-13 pause, the Ignored list with an IP in it, the 10-attempts limit, Detect now offline. See .ai/deferred/feat-e2e-real-exposure.md.
+// a verified domain or IP, the commitment, a scan, the INV-13 pause, the Ignored list with an IP in it, the 10-attempts limit, Detect now offline.
 // What is covered is everything on the way to those steps: the page, adding and refusing domains, the proof the box asks for, the refusals of scan and commitment on an unproven domain
 // (and that they change nothing), deleting, the roles, the audit rows.
 import { expect, test, type Page } from '@playwright/test'

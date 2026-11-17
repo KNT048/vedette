@@ -663,7 +663,7 @@ func (s *Service) sendApproval(ctx context.Context, id string) {
 	s.noteSend(ctx, id, sent, detail)
 }
 
-// aiLabel is the label every AI output carries (rules/legal.md; the text of the GUI's AiBlock).
+// aiLabel is the label every AI output carries (the text of the GUI's AiBlock).
 const aiLabel = "AI-generated, needs human review."
 
 // block writes a multi-line text indented and with its line breaks kept: an approver must see where one command ends and the next

@@ -4,8 +4,8 @@
 #
 # OSQUERY_VERSION is one number with OSQUERY_VERSION in web/src/features/inventory/installScripts.ts and agentintake.OsqueryVersion
 # (modules/agent-intake/install.go); TestInstall_VersionsAgree fails when they differ. To bump it: change the three together with the five
-# package hashes in one commit, then `make core-image` (the build checks the hashes) and the local real-osqueryd run of
-# .ai/deferred/feat-agent-intake-osquery.md.
+# package hashes in one commit, then `make core-image` (the build checks the hashes) and a local run against a real
+# osqueryd.
 #
 # Source of the hashes (2026-11-11): the three files of the official release https://github.com/osquery/osquery/releases/tag/5.12.1
 # (osquery_5.12.1-1.linux_amd64.deb 30579058 bytes, osquery-5.12.1-1.linux.x86_64.rpm 30439995 bytes, osquery-5.12.1.msi 18853888 bytes)

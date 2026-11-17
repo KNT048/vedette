@@ -378,7 +378,7 @@ func (h *APIHandlers) CorePutCoreGeneral(ctx context.Context, req *oas.CorePutCo
 
 // AuditNamer names the devices and findings that audit rows refer to by id (D-416): a device by its host name, else its IP, else what
 // the box knows of it; a finding as "<CVE> on <device>". Ids it does not know are left out. cmd/vedette implements it over inventory and
-// findings, so core imports neither module (rules/modules.md).
+// findings, so core imports neither module.
 type AuditNamer interface {
 	AuditNames(ctx context.Context, ids []string) (map[string]string, error)
 }

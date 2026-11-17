@@ -68,6 +68,10 @@ type Software struct {
 	// Superseded names, on a reported row, a person's correction of an earlier reading of it that rests since the source moved on
 	// (inventory INV-41, review r2 M-B of #950); "" otherwise.
 	Superseded string
+	// Key is the row's identity in inventory (source, vendor, product, version): a row that comes back with the Key of a "not installed"
+	// mark is that very row (INV-6c). MarkedAt is, on a row of Asset.NotInstalled, when the person said it is not installed.
+	Key      string
+	MarkedAt time.Time
 }
 
 // builtBy is the source whose build rules the row follows: the reported row's for a person's correction of it, else its own.
@@ -108,6 +112,9 @@ type Asset struct {
 	// StaleCorrections names the device's resting corrections (inventory INV-41, review r2 M-B), for the history of a finding that stops
 	// matching because of one; nil when none.
 	StaleCorrections []string
+	// NotInstalled are the reported rows a person said are not installed on the device (inventory INV-41 (6)), as the source reports
+	// them, with Correction naming the person; they are not in Software. The open findings only they produce close (INV-6c).
+	NotInstalled []Software
 	// winList is the whole stored exploited list a Windows release row's build month is read from (D-618, review r1 #1 of #806) when
 	// the match gets only a part of it (Reconcile's backlog and recent writes); nil: the match's own list.
 	winList []Vuln

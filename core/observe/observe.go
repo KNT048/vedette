@@ -1,6 +1,6 @@
 // Package observe is the narrow interface through which sensors and agents (sensor-passive,
 // sensor-active, agent-intake, scan) report what they saw about devices to the inventory without
-// importing it (rules/modules.md: modules talk through interfaces in core/). The inventory
+// importing it (modules talk through interfaces in core/). The inventory
 // implements Sink, SoftwareSink and ServiceSink; everything arriving here is untrusted (SYS-6) and is validated
 // by the implementation, not by the caller.
 package observe

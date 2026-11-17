@@ -300,7 +300,7 @@ func aiVal(s string, n int) string {
 	return s
 }
 
-// aiHostRE is the host name rule of the box's own texts (rules/security.md, mitigation INV-4).
+// aiHostRE is the host name rule of the box's own texts (mitigation INV-4).
 var aiHostRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 
 // aiIP is an address as the AI gets it: one that parses, else "no IP address".
@@ -415,6 +415,9 @@ func aiAttack(c *findings.CVSS) string {
 func aiMatched(row findings.Row, d inventory.Device) string {
 	var out []string
 	for _, s := range d.Software {
+		if s.NotInstalled { // a person said it is not on the device (inventory INV-41 (6))
+			continue
+		}
 		v := aiStr(s.Version)
 		hit := v != "" && s.Display != "" && row.Evidence != nil && strings.Contains(strings.ToLower(row.Evidence.Summary), strings.ToLower(s.Display+" "+v))
 		if k := row.Kev; !hit && k != nil && k.Product != "" && s.Product != "" {
@@ -591,7 +594,9 @@ func (a aiAsk) Assets(ctx context.Context) ([]ai.AssetRow, error) {
 			r.Ports = append(r.Ports, fmt.Sprintf("%d/%s %s", sv.Port, sv.Proto, sv.Name))
 		}
 		for _, sw := range d.Software {
-			r.Software = append(r.Software, strings.TrimSpace(sw.Display+" "+aiStr(sw.Version)))
+			if !sw.NotInstalled { // a person said it is not on the device (inventory INV-41 (6))
+				r.Software = append(r.Software, strings.TrimSpace(sw.Display+" "+aiStr(sw.Version)))
+			}
 		}
 		out = append(out, r)
 	}

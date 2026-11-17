@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/net/publicsuffix"
+
 	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/server"
@@ -340,6 +342,12 @@ func tokenArgs(a api.ExposureTokenArgs) error {
 func (o *Ops) exposureToken(a api.ExposureTokenArgs) (any, error) {
 	if err := tokenArgs(a); err != nil {
 		return nil, err
+	}
+	// D-628 (review r2 L4 of #941): the host does not trust core, so it never issues a token for a public suffix (co.uk, ddns.net,
+	// github.io: the Public Suffix List, both sections), whose record at _vedette-verify.<suffix> could otherwise prove every customer's
+	// name under it at the fence. Forgetting one stays possible.
+	if s, _ := publicsuffix.PublicSuffix(a.Domain); s == a.Domain {
+		return nil, server.Invalid("domain", "is a public suffix (like co.uk or ddns.net), under which many owners register their names; no token is issued for it")
 	}
 	if o.fence == nil {
 		return nil, fail(api.CodeFenceUnavailable, "The host has no usable domain fence key; its log says why.")

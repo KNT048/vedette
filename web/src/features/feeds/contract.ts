@@ -41,7 +41,7 @@ export const HotRow = z.object({
 export const FeedStatus = z.object({
   generated_at: z.iso.datetime(),
   kev_catalog_version: z.string(),
-  sources: z.array(z.object({ name: z.string(), url: z.url(), license: z.string(), fetched_at: z.iso.datetime() })),
+  sources: z.array(z.object({ name: z.string(), url: z.url().describe('The address the data came from: for the CISA list, CISA\'s GitHub copy when it answered the last good pull (kien G13)'), license: z.string(), fetched_at: z.iso.datetime() })),
   inventory_on: z.boolean(),
   kev: z.object({
     state: z.enum(['loaded', 'never_loaded', 'off']).describe('The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded" once a pull has ever succeeded (even if a later pull failed), else "never_loaded"'),
@@ -49,6 +49,8 @@ export const FeedStatus = z.object({
     interval_hours: z.number().int().describe('How often the box pulls the CISA list (kien G11: Home says "checked every hour")'),
     checked_at: z.iso.datetime().nullable().describe('When the box last asked for the CISA list, whether the pull worked or not; null before the first pull'),
     last_success: z.iso.datetime().nullable().describe('When a pull of the CISA list last worked; null when none ever did'),
+    answered_by: z.string().nullable().describe('Which copy answered the last good pull: "CISA" or "CISA GitHub mirror" (D-91, kien G13: Home says so); null before the first good pull'),
+    answered_why: z.string().nullable().describe('When CISA\'s GitHub copy answered: why cisa.gov did not, one clause ("cisa.gov refused this box (HTTP 403)"); null when cisa.gov answered or the reason is not known yet'),
   }),
 })
 

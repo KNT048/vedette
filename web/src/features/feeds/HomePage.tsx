@@ -65,8 +65,14 @@ function KevFreshness({ latest }: { latest: { date_added: string; display: strin
     )
   }
   if (!kev.checked_at) return <p className="mb-3 text-meta text-muted">{t('fresh.never', { every })} {link}</p>
-  return <p className="mb-3 text-meta text-muted">{t('fresh.ok', { every, time: fmtWhen(kev.checked_at, now) })}{added}</p>
+  // kien G13: the copy that answered, and why cisa.gov did not (cisa.gov answers 403 to some countries; the box reads CISA's GitHub copy, D-91)
+  const time = fmtWhen(kev.checked_at, now)
+  const ok = kev.answered_by === MIRROR ? t('fresh.okMirror', { every, time, why: kev.answered_why ?? t('fresh.whyUnknown') }) : t('fresh.ok', { every, time })
+  return <p className="mb-3 text-meta text-muted">{ok}{added}</p>
 }
+
+/** What modules/feeds records when CISA's GitHub copy answered the last good pull (feeds.AnsweredMirror). */
+const MIRROR = 'CISA GitHub mirror'
 
 /** The time, a minute at a time: "10:54" becomes "17 Nov 2026, 10:54" after midnight without waiting for a refetch. */
 function useMinute() {

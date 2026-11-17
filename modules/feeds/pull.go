@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -101,6 +103,9 @@ func (s *Service) RunPull(ctx context.Context) error {
 			s.Log.ErrorContext(ctx, "pulling a feed failed", "feed", r.ID, "error", err)
 			continue
 		}
+	}
+	if err := s.watchKEV(ctx); err != nil && ctx.Err() == nil { // D-629: after the pulls, so a box that was off pulls before it judges
+		s.Log.ErrorContext(ctx, "the stale watch of the CISA list failed", "error", err)
 	}
 	if err := s.reconcileDevices(ctx); err != nil && ctx.Err() == nil {
 		s.Log.ErrorContext(ctx, "adding the devices of \"I have it\" failed", "error", err)
@@ -312,7 +317,7 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	resp, err := s.get(ctx, req)
-	answered, viaMirror := "", false
+	answered, why, viaMirror := "", "", false
 	if viaCISA {
 		answered = AnsweredCISA
 		if err != nil && fallbackWorthy(err) {
@@ -321,20 +326,20 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 				mreq.ETag, mreq.LastModified = orEmpty(src.MirrorETag), orEmpty(src.MirrorLastModified)
 			}
 			mresp, merr := s.get(ctx, mreq)
-			if merr != nil {
-				return p, &Error{Err: merr, Detail: userError(err, src.URL) + " The CISA GitHub mirror failed too: " + userError(merr, s.kevFallback())}
+			if merr != nil { // kien G13: one sentence with both reasons, the mirror's own included, as Home and Settings show it
+				return p, &Error{Err: merr, Detail: cisaWhy(err) + ", and " + mirrorWhy(merr, s.kevFallback())}
 			}
-			resp, err, answered, viaMirror, req = mresp, nil, AnsweredMirror, true, mreq
+			resp, err, answered, why, viaMirror, req = mresp, nil, AnsweredMirror, cisaWhy(err), true, mreq
 		}
 	}
 	if err != nil {
 		return p, err
 	}
 	if resp.NotModified {
-		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified, AnsweredBy: answered, Mirror: viaMirror}
+		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified, AnsweredBy: answered, AnsweredWhy: why, Mirror: viaMirror}
 		return p, nil
 	}
-	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified, AnsweredBy: answered, Mirror: viaMirror}
+	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified, AnsweredBy: answered, AnsweredWhy: why, Mirror: viaMirror}
 	switch dec {
 	case DecoderKEV:
 		cat, err := ParseKEV(resp.Body)
@@ -771,17 +776,71 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 }
 
 // fallbackWorthy says whether a failed pull of the CISA address is one the GitHub mirror can answer (D-91): the address
-// is blocked for this box (403), the server is sick (5xx) or nothing came back in time.
+// is blocked for this box (403), the server is sick (5xx), nothing came back in time, or the box could not get to cisa.gov at all
+// (kien G13: its name did not resolve, the connection was refused, reset or unreachable, or the name resolved to an address the
+// dialer refuses, as a DNS filter that sinkholes a name to 0.0.0.0 or 127.0.0.1 does; the guard refused it before any byte left).
+// A 404, a redirect or another answer means the address is wrong, not blocked: no switch.
 func fallbackWorthy(err error) bool {
+	var se *StatusError
+	if errors.As(err, &se) {
+		return se.Code == http.StatusForbidden || se.Code >= 500
+	}
+	return isTimeout(err) || unreached(err) != ""
+}
+
+// isTimeout is a pull that got no answer in time.
+func isTimeout(err error) bool {
+	var ne net.Error
+	return errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout())
+}
+
+// unreached says how the box failed to get to the server at all, as words that follow its name ("cisa.gov refused the connection");
+// "" for any other failure.
+func unreached(err error) string {
+	var dns *net.DNSError
+	switch {
+	case errors.As(err, &dns):
+		return "did not resolve on this box"
+	case errors.Is(err, ErrBlockedAddress), errors.Is(err, ErrBoxAddrsUnknown):
+		return "resolved to an address Vedette does not connect to"
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return "refused the connection"
+	case errors.Is(err, syscall.ECONNRESET), errors.Is(err, io.ErrUnexpectedEOF):
+		return "cut the connection"
+	case errors.Is(err, syscall.EHOSTUNREACH), errors.Is(err, syscall.ENETUNREACH):
+		return "could not be reached from this box"
+	}
+	return ""
+}
+
+// cisaWhy is why the CISA address did not give the box its list, for a failure fallbackWorthy accepts (kien G13): Home says the GitHub
+// copy answered "because cisa.gov refused this box (HTTP 403)". The words name cisa.gov: the fallback applies only to its built-in address.
+func cisaWhy(err error) string {
+	var se *StatusError
+	switch {
+	case errors.As(err, &se) && se.Code == http.StatusForbidden:
+		return "cisa.gov refused this box (HTTP 403)"
+	case errors.As(err, &se):
+		return fmt.Sprintf("cisa.gov answered HTTP %d", se.Code)
+	case isTimeout(err):
+		return "cisa.gov did not answer in time"
+	}
+	if u := unreached(err); u != "" {
+		return "cisa.gov " + u
+	}
+	return "cisa.gov could not be reached"
+}
+
+// mirrorWhy is the end of the sentence of a CISA list both addresses failed (D-91, kien G13): the mirror's own reason, never its URL.
+func mirrorWhy(err error, rawURL string) string {
 	var se *StatusError
 	switch {
 	case errors.As(err, &se):
-		return se.Code == http.StatusForbidden || se.Code >= 500
-	case errors.Is(err, context.DeadlineExceeded):
-		return true
+		return fmt.Sprintf("CISA's GitHub copy failed too (HTTP %d).", se.Code)
+	case isTimeout(err):
+		return "CISA's GitHub copy did not answer in time either."
 	}
-	var ne net.Error
-	return errors.As(err, &ne) && ne.Timeout()
+	return "CISA's GitHub copy failed too: " + userError(err, rawURL)
 }
 
 // kevOlder reports whether catalog version a (such as "2026.11.04") is older than b. A version that is not dotted numbers is

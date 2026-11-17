@@ -49,6 +49,28 @@ describe('Home: how fresh the exploited list is (kien G11)', () => {
     expect(line.querySelector('a')).toHaveAttribute('href', '/settings/feeds#feed-cisa-kev')
   })
 
+  // kien G13: cisa.gov answers 403 to Vietnamese addresses and the box reads CISA's GitHub copy (D-91): Home says which copy answered and why
+  it('names CISA\'s GitHub copy and why cisa.gov did not answer, when the copy answered', async () => {
+    status({ state: 'loaded', error: null, interval_hours: 1, checked_at: '2026-11-17T03:54:00Z', last_success: '2026-11-17T03:54:00Z', answered_by: 'CISA GitHub mirror', answered_why: 'cisa.gov refused this box (HTTP 403)' })
+    latest()
+    renderApp('/')
+    expect(await screen.findByText('Checked every hour, last at 10:54, from CISA\'s GitHub copy, because cisa.gov refused this box (HTTP 403). CISA\'s last addition: 13 Nov 2026, Check Point Multiple Products.', undefined, T)).toBeInTheDocument()
+  })
+
+  it('names the copy with a plain reason while the box has not stored one yet, and says nothing extra when cisa.gov answered', async () => {
+    status({ state: 'loaded', error: null, interval_hours: 1, checked_at: '2026-11-17T03:54:00Z', last_success: '2026-11-17T03:54:00Z', answered_by: 'CISA GitHub mirror', answered_why: null })
+    renderApp('/')
+    expect(await screen.findByText(/^Checked every hour, last at 10:54, from CISA's GitHub copy, because cisa\.gov did not give this box the list\./, undefined, T)).toBeInTheDocument()
+  })
+
+  it('both copies failing: the failure with both reasons, and since when the list is stale', async () => {
+    status({ state: 'loaded', error: 'cisa.gov refused this box (HTTP 403), and CISA\'s GitHub copy failed too (HTTP 502)', interval_hours: 1, checked_at: '2026-11-17T04:54:00Z', last_success: '2026-11-16T21:05:00Z', answered_by: 'CISA GitHub mirror', answered_why: 'cisa.gov refused this box (HTTP 403)' }, '2026-11-16T21:05:00Z')
+    renderApp('/')
+    const line = await screen.findByText(/^Checked every hour; the last check, at 11:54, failed: cisa\.gov refused this box \(HTTP 403\), and CISA's GitHub copy failed too \(HTTP 502\)\. Vedette keeps trying\./, undefined, T)
+    expect(line).toHaveTextContent('The list shown is from the last good pull, at 04:05.')
+    expect(line).not.toHaveTextContent('from CISA\'s GitHub copy, because') // the copy of the last good pull is not today's news
+  })
+
   it('never pulled: it says the first check has not run yet', async () => {
     status({ state: 'never_loaded', error: null, interval_hours: 1, checked_at: null, last_success: null }, '1970-01-01T00:00:00Z')
     renderApp('/')

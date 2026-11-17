@@ -54,6 +54,8 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 		IntervalHours int        `json:"interval_hours"`
 		CheckedAt     *time.Time `json:"checked_at"`
 		LastSuccess   *time.Time `json:"last_success"`
+		AnsweredBy    *string    `json:"answered_by"`
+		AnsweredWhy   *string    `json:"answered_why"`
 	}
 	out := struct {
 		GeneratedAt       time.Time `json:"generated_at"`
@@ -81,6 +83,13 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 			if r.CatalogVersion != nil {
 				out.KevCatalogVersion = *r.CatalogVersion
 			}
+			// kien G13: which copy answered the last good pull, and why cisa.gov did not when CISA's GitHub copy did
+			out.Kev.AnsweredBy = r.AnsweredBy
+			if r.AnsweredBy != nil && *r.AnsweredBy == AnsweredMirror {
+				if out.Kev.AnsweredWhy, err = h.s.st.answeredWhy(ctx); err != nil {
+					return nil, err
+				}
+			}
 		}
 		if r.Kind != KindVulnerabilities || r.LastSuccess == nil {
 			continue
@@ -89,7 +98,11 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 		if r.License != nil {
 			license = *r.License
 		}
-		out.Sources = append(out.Sources, src{r.Name, r.URL, license, *r.LastSuccess})
+		from := r.URL
+		if r.ID == "cisa-kev" && r.URL == h.s.kevPrimary() && r.AnsweredBy != nil && *r.AnsweredBy == AnsweredMirror {
+			from = h.s.kevFallback() // kien G13: the copy that answered, not the address that refused the box
+		}
+		out.Sources = append(out.Sources, src{r.Name, from, license, *r.LastSuccess})
 		if oldest == nil || r.LastSuccess.Before(*oldest) {
 			oldest = r.LastSuccess
 		}

@@ -71,7 +71,9 @@ const builtinFeed = (d: Def, s: BuiltinState): Feed => ({
 /** As modules/feeds FeedsGetFeedsStatus: the state, why the last pull failed (also once loaded), how often, when last asked and loaded. */
 export function kevStatus(): FeedStatus['kev'] {
   const s = config.get().builtin['cisa-kev']
-  const times = { interval_hours: s?.interval_hours ?? 1, checked_at: s?.last_fetch ?? null, last_success: s ? (s.last_success !== undefined ? s.last_success : s.status === 'ok' ? s.last_fetch : null) : null }
+  const last_success = s ? (s.last_success !== undefined ? s.last_success : s.status === 'ok' ? s.last_fetch : null) : null
+  // the mock's CISA list always answers from cisa.gov (builtinFeed), so no why (kien G13)
+  const times = { interval_hours: s?.interval_hours ?? 1, checked_at: s?.last_fetch ?? null, last_success, answered_by: last_success ? 'CISA' : null, answered_why: null }
   if (s && !s.enabled) return { state: 'off', error: null, ...times }
   const error = s?.status === 'error' ? s.error : null
   if (!s || s.records === null) return { state: 'never_loaded', error: error ?? s?.error ?? null, ...times }

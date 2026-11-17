@@ -58092,6 +58092,12 @@ func (s *FeedsGetFeedsStatusOK) SetSources(val []FeedsGetFeedsStatusOKSourcesIte
 }
 
 type FeedsGetFeedsStatusOKKev struct {
+	// Which copy answered the last good pull: "CISA" or "CISA GitHub mirror" (D-91, kien G13: Home says
+	// so); null before the first good pull.
+	AnsweredBy NilString `json:"answered_by"`
+	// When CISA's GitHub copy answered: why cisa.gov did not, one clause ("cisa.gov refused this box (HTTP
+	// 403)"); null when cisa.gov answered or the reason is not known yet.
+	AnsweredWhy NilString `json:"answered_why"`
 	// When the box last asked for the CISA list, whether the pull worked or not; null before the first
 	// pull.
 	CheckedAt NilDateTime `json:"checked_at"`
@@ -58105,6 +58111,16 @@ type FeedsGetFeedsStatusOKKev struct {
 	// The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded"
 	// once a pull has ever succeeded (even if a later pull failed), else "never_loaded".
 	State FeedsGetFeedsStatusOKKevState `json:"state"`
+}
+
+// GetAnsweredBy returns the value of AnsweredBy.
+func (s *FeedsGetFeedsStatusOKKev) GetAnsweredBy() NilString {
+	return s.AnsweredBy
+}
+
+// GetAnsweredWhy returns the value of AnsweredWhy.
+func (s *FeedsGetFeedsStatusOKKev) GetAnsweredWhy() NilString {
+	return s.AnsweredWhy
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -58130,6 +58146,16 @@ func (s *FeedsGetFeedsStatusOKKev) GetLastSuccess() NilDateTime {
 // GetState returns the value of State.
 func (s *FeedsGetFeedsStatusOKKev) GetState() FeedsGetFeedsStatusOKKevState {
 	return s.State
+}
+
+// SetAnsweredBy sets the value of AnsweredBy.
+func (s *FeedsGetFeedsStatusOKKev) SetAnsweredBy(val NilString) {
+	s.AnsweredBy = val
+}
+
+// SetAnsweredWhy sets the value of AnsweredWhy.
+func (s *FeedsGetFeedsStatusOKKev) SetAnsweredWhy(val NilString) {
+	s.AnsweredWhy = val
 }
 
 // SetCheckedAt sets the value of CheckedAt.
@@ -58211,7 +58237,9 @@ type FeedsGetFeedsStatusOKSourcesItem struct {
 	FetchedAt time.Time `json:"fetched_at"`
 	License   string    `json:"license"`
 	Name      string    `json:"name"`
-	URL       url.URL   `json:"url"`
+	// The address the data came from: for the CISA list, CISA's GitHub copy when it answered the last good
+	// pull (kien G13).
+	URL url.URL `json:"url"`
 }
 
 // GetFetchedAt returns the value of FetchedAt.

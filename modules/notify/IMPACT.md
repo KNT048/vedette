@@ -1,7 +1,7 @@
 # Notify — Change Impact Map
 
 ## Modifying: `notify.Service.Publish(ctx, Notice)`
-- **findings** (tin lỗ hổng), **reports** (báo cáo tuần), **honeypot/logs** (qua `OpenIncident`), **inventory** (thiết bị mới). Đổi `Notice` hay quy tắc `min_severity`/gộp thay đổi thứ người dùng nhận; test `INV2`, `INV4` phải xanh.
+- **findings** (tin lỗ hổng), **reports** (báo cáo tuần), **honeypot/logs** (qua `OpenIncident`), **inventory** (thiết bị mới). Tin hệ thống loại incident không có hàng incident, gửi qua `cmd/vedette`: **ai** (ngân sách, nhật ký hoạt động; `ai.go`), **response** (`response.go`), **feeds** (danh sách CISA không cập nhật được 6 lần kiểm và "up to date again", D-629, `feeds.go`): đổi `ErrModuleOff` hay việc `Publish` từ chối tin không có `Link` làm các cảnh báo đó im lặng. Đổi `Notice` hay quy tắc `min_severity`/gộp thay đổi thứ người dùng nhận; test `INV2`, `INV4` phải xanh.
 
 ## Modifying: `notify.Service.OpenIncident(ctx, IncidentInput)`
 - **honeypot**, **logs**, **inventory**, **response** (nút Respond ở `/response?incident=<id>`). Đổi khoá gộp = đổi số incident người dùng thấy.

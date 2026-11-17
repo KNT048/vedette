@@ -30838,7 +30838,8 @@
                           },
                           "url": {
                             "type": "string",
-                            "format": "uri"
+                            "format": "uri",
+                            "description": "The address the data came from: for the CISA list, CISA's GitHub copy when it answered the last good pull (kien G13)"
                           },
                           "license": {
                             "type": "string"
@@ -30911,6 +30912,20 @@
                             }
                           ],
                           "description": "When a pull of the CISA list last worked; null when none ever did"
+                        },
+                        "answered_by": {
+                          "description": "Which copy answered the last good pull: \"CISA\" or \"CISA GitHub mirror\" (D-91, kien G13: Home says so); null before the first good pull",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "answered_why": {
+                          "description": "When CISA's GitHub copy answered: why cisa.gov did not, one clause (\"cisa.gov refused this box (HTTP 403)\"); null when cisa.gov answered or the reason is not known yet",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
@@ -30918,7 +30933,9 @@
                         "error",
                         "interval_hours",
                         "checked_at",
-                        "last_success"
+                        "last_success",
+                        "answered_by",
+                        "answered_why"
                       ],
                       "additionalProperties": false
                     }

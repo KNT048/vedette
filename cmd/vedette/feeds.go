@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/feeds"
+	"github.com/knt048/vedette/modules/notify"
 )
 
 var (
@@ -34,6 +38,17 @@ func feedsService(d deps) (*feeds.Service, error) {
 	}
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		fd.Events = d.Bus
+	}
+	// D-629 (kien G13): the stale alert of the CISA list and its "up to date again" go to the admins' alert channels through notify's
+	// system notice path, as the AI budget and activity-log alerts do (cmd/vedette/ai.go): an incident-kind notice, high, so every
+	// channel that takes high alerts gets it. newNotify is read at send time (notify is built after feeds). Notify off: ErrAlertOff,
+	// the watch tries again at its next tick.
+	fd.Alert = func(ctx context.Context, id, title, text string) error {
+		err := newNotify(&d).Publish(ctx, notify.Notice{ID: id, Kind: notify.KindIncident, Severity: notify.High, Title: title, What: text, At: d.Clock()})
+		if errors.Is(err, notify.ErrModuleOff) {
+			return fmt.Errorf("%w: %w", feeds.ErrAlertOff, err)
+		}
+		return err
 	}
 	s, err := feeds.NewService(fd)
 	if err != nil {

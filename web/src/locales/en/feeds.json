@@ -31,6 +31,8 @@
     "every_one": "Checked every hour",
     "every_other": "Checked every {{count}} hours",
     "ok": "{{every}}, last at {{time}}.",
+    "okMirror": "{{every}}, last at {{time}}, from CISA's GitHub copy, because {{why}}.",
+    "whyUnknown": "cisa.gov did not give this box the list",
     "latest": "CISA's last addition: {{date}}, {{product}}.",
     "failed": "{{every}}; the last check, at {{time}}, failed: {{reason}}. Vedette keeps trying.",
     "lastTried_one": "Last tried at {{time}}; it is checked every hour.",

@@ -187,7 +187,7 @@ func TestContract_D91_BothDownIsAnErrorThatNamesBoth(t *testing.T) {
 	o.serve(mirrorPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusBadGateway) })
 	c, b := e.fetch("cisa-kev")
 	msg, _ := at(b, "error").(string)
-	if c != 200 || at(b, "status") != "error" || !strings.Contains(msg, "403") || !strings.Contains(msg, "mirror") || !strings.Contains(msg, "502") {
+	if c != 200 || at(b, "status") != "error" || !strings.Contains(msg, "403") || !strings.Contains(msg, "GitHub copy") || !strings.Contains(msg, "502") {
 		t.Fatalf("both down: %d %v %q", c, at(b, "status"), msg)
 	}
 	if strings.Contains(msg, originHost) || strings.Contains(msg, "127.0.0.1") || strings.Contains(msg, "http") {

@@ -28,7 +28,10 @@ export const KindGuess = z.object({
   alternatives: z.array(AssetKind).optional().describe('Other types the same signals fit, offered next to the guess'),
 }).describe('What the identification rules say the device most likely is (D-511), only while kind is unknown; it changes no behaviour until a person sets the kind')
 export const Asset = z.object({
-  id: z.string(), site: z.string(), ip: z.string().describe('"—" when declared manually and the IP is unknown'), mac: z.string().nullable(), hostname: z.string().nullable(), kind: AssetKind,
+  id: z.string(), site: z.string(), ip: z.string().describe('"—" when declared manually and the IP is unknown'), mac: z.string().nullable(),
+  hostname: z.string().nullable().describe('The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device was added manually; read-only'),
+  name: z.string().nullable().describe('The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on every page; null = the default name (the naming rule, D-471)'),
+  kind: AssetKind,
   kind_source: ObsSource.nullable().describe('Source of the kind; null for the default unknown (D-511)'), guess: KindGuess.nullable(),
   vendor: Observed.nullable(), model: Observed.nullable(), os: Observed.nullable(), software: z.array(Software), services: z.array(Service),
   first_seen: dt, last_seen: dt, approved: z.boolean(), fragile: z.boolean(), origin: z.enum(['discovered', 'manual']), notes: z.string().optional(),
@@ -67,7 +70,7 @@ export const DevicesQuery = z.object({
   source: z.string().max(200).optional().describe(`Comma-separated: ${DeviceSource.options.join(', ')}. Unknown value: 400 bad_filter`),
   fragile: z.enum(['true', 'false']).optional(),
   has_findings: z.enum(['true', 'false']).optional().describe('true: findings_count > 0'),
-  q: z.string().max(80).optional().describe('Free text, case-insensitive, matched in the name (host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model'),
+  q: z.string().max(80).optional().describe('Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model'),
 })
 export const DevicesResponse = z.object({
   items: z.array(DeviceRow),
@@ -271,8 +274,11 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/inventory/devices', summary: 'List devices matching the filters (all when none), with counts per tab over the whole inventory', stories: ['S-INV-1', 'S-INV-3'], role: 'viewer', query: DevicesQuery, response: DevicesResponse },
   { method: 'post', path: '/inventory/devices', status: 201, summary: 'Declare a device manually using a product from the suggestion list', stories: ['S-INV-2'], role: 'operator', body: AddDeviceInput, response: AddDeviceResult },
   { method: 'get', path: '/inventory/devices/{id}', summary: 'Device details: observations, services, software', stories: ['S-INV-1'], role: 'viewer', params: id, response: DeviceDetail, example: { params: { id: 'a-nas02' } } },
-  { method: 'patch', path: '/inventory/devices/{id}', summary: 'Change the type, mark as fragile, override regular scans or edit the notes of a device', stories: ['S-INV-1'], role: 'operator', params: id,
-    body: z.object({ kind: AssetKind.optional(), fragile: z.boolean().optional(), regular_scan: RegularScan.optional(), notes: z.string().max(2000).optional() }), response: ok },
+  { method: 'patch', path: '/inventory/devices/{id}', summary: 'Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the notes of a device. 400 bad_name: a name over 64 characters or with < or >', stories: ['S-INV-1'], role: 'operator', params: id,
+    body: z.object({
+      name: z.string().max(200).optional().describe('The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the default name). The host name the network reports is not changed'),
+      kind: AssetKind.optional(), fragile: z.boolean().optional(), regular_scan: RegularScan.optional(), notes: z.string().max(2000).optional(),
+    }), response: ok },
   { method: 'put', path: '/inventory/devices/{id}/sources', summary: 'Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person\'s consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself', stories: ['S-INV-1', 'S-INV-4'], role: 'admin', params: id, body: SourcesInput, response: SourcesState },
   { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
   { method: 'post', path: '/inventory/devices/{id}/approve', summary: 'Approve a new device', stories: ['S-INV-3'], role: 'operator', params: id, response: ok },

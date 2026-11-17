@@ -49,13 +49,13 @@ function LiveDialog({ rule, onClose }: { rule: Rule; onClose: () => void }) {
 function ManualRun({ rule }: { rule: Rule }) {
   const { t } = useTranslation('response')
   const operator = useCan('operator')
-  const assets = useQuery({ queryKey: ['inventory', 'devices', 'pick'], queryFn: () => api.get<{ items: { id: string; ip: string; hostname: string | null }[] }>('/inventory/devices') })
+  const assets = useQuery({ queryKey: ['inventory', 'devices', 'pick'], queryFn: () => api.get<{ items: { id: string; ip: string; hostname: string | null; name: string | null }[] }>('/inventory/devices') })
   const run = useRunManual()
   const [asset, setAsset] = useState('')
   return (
     <div className="flex flex-wrap items-end gap-2">
       <Field htmlFor={`man-${rule.id}`} label={t('rules.manualPick')} className="min-w-56">
-        <Select id={`man-${rule.id}`} value={asset} onChange={(e) => setAsset(e.target.value)}><option value="">{t('rules.manualChoose')}</option>{(assets.data?.items ?? []).map((a) => <option key={a.id} value={a.id}>{a.hostname ?? a.ip} ({a.ip})</option>)}</Select>
+        <Select id={`man-${rule.id}`} value={asset} onChange={(e) => setAsset(e.target.value)}><option value="">{t('rules.manualChoose')}</option>{(assets.data?.items ?? []).map((a) => <option key={a.id} value={a.id}>{a.name ?? a.hostname ?? a.ip} ({a.ip})</option>)}</Select>
       </Field>
       <Button disabled={!operator || !asset || !rule.enabled || run.isPending} title={!rule.enabled ? t('rules.manualOff') : undefined}
         onClick={() => run.mutate({ id: rule.id, asset_id: asset }, { onSuccess: (r) => toast.success(t('det.ran', r)), onError: (e) => toast.error(errText(e)) })}><Play className="size-4" aria-hidden />{t('rules.manualRun')}</Button>

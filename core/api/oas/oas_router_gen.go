@@ -15324,7 +15324,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									return r, true
 								case "PATCH":
 									r.name = InventoryPatchInventoryDevicesIDOperation
-									r.summary = "Change the type, mark as fragile, override regular scans or edit the notes of a device"
+									r.summary = "Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the notes of a device. 400 bad_name: a name over 64 characters or with < or >"
 									r.operationID = "inventory_patch_inventory_devices_id"
 									r.operationGroup = ""
 									r.pathPattern = "/inventory/devices/{id}"

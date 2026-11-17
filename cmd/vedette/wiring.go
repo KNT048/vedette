@@ -59,7 +59,7 @@ func (a feedsInventory) MatchProducts(ctx context.Context, products []feeds.Prod
 			if m.Exact {
 				how = feeds.HaveYes
 			}
-			out[key] = append(out[key], feeds.MatchedAsset{ID: m.ID, Hostname: m.Hostname, IP: m.IP, Display: m.Display, How: how})
+			out[key] = append(out[key], feeds.MatchedAsset{ID: m.ID, Hostname: m.NameOrHost(), IP: m.IP, Display: m.Display, How: how})
 		}
 	}
 	return out, nil

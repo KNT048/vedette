@@ -28875,6 +28875,7 @@
                                 "type": "string"
                               },
                               "hostname": {
+                                "description": "The device's name: the name a person gave it in Vedette (G2), else its host name; null when neither",
                                 "type": [
                                   "string",
                                   "null"
@@ -44815,7 +44816,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Free text, case-insensitive, matched in the name (host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
+              "description": "Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
               "type": "string",
               "maxLength": 80
             }
@@ -44851,6 +44852,14 @@
                             ]
                           },
                           "hostname": {
+                            "description": "The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device was added manually; read-only",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "name": {
+                            "description": "The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on every page; null = the default name (the naming rule, D-471)",
                             "type": [
                               "string",
                               "null"
@@ -45589,6 +45598,7 @@
                           "ip",
                           "mac",
                           "hostname",
+                          "name",
                           "kind",
                           "kind_source",
                           "guess",
@@ -45857,6 +45867,14 @@
                           ]
                         },
                         "hostname": {
+                          "description": "The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device was added manually; read-only",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "name": {
+                          "description": "The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on every page; null = the default name (the naming rule, D-471)",
                           "type": [
                             "string",
                             "null"
@@ -46536,6 +46554,7 @@
                         "ip",
                         "mac",
                         "hostname",
+                        "name",
                         "kind",
                         "kind_source",
                         "guess",
@@ -46788,7 +46807,7 @@
       },
       "patch": {
         "operationId": "inventory_patch_inventory_devices_id",
-        "summary": "Change the type, mark as fragile, override regular scans or edit the notes of a device",
+        "summary": "Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the notes of a device. 400 bad_name: a name over 64 characters or with < or >",
         "tags": [
           "inventory"
         ],
@@ -46813,6 +46832,11 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "name": {
+                    "description": "The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the default name). The host name the network reports is not changed",
+                    "type": "string",
+                    "maxLength": 200
+                  },
                   "kind": {
                     "type": "string",
                     "enum": [
@@ -47631,7 +47655,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Free text, case-insensitive, matched in the name (host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
+              "description": "Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
               "type": "string",
               "maxLength": 80
             }

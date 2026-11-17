@@ -1,7 +1,7 @@
 # Sensor-active — Change Impact Map
 
 ## Modifying: `snmpPolicy`, `scope.excluded`, the SNMP target checks of `snmpBatch`/`snmpChanged` (D-601, INV-22)
-- **inventory** `SNMPPolicy` (INV-36) decides per device; `Inventory` gained `SNMPPolicy` (adapter `cmd/vedette/sensoractive.go`, fakes in `env_test.go`, `toctou_test.go`). Binding SNMP to lan_ranges again, or dropping the exclusion check, changes which addresses get SNMP packets: change D-601, `TestSNMPSourcesAndScope` and the SNMP lines of the web (`SnmpNext.tsx` `excluded`).
+- **inventory** `SNMPPolicy` (INV-37) decides per device; `Inventory` gained `SNMPPolicy` (adapter `cmd/vedette/sensoractive.go`, fakes in `env_test.go`, `toctou_test.go`). Binding SNMP to lan_ranges again, or dropping the exclusion check, changes which addresses get SNMP packets: change D-601, `TestSNMPSourcesAndScope` and the SNMP lines of the web (`SnmpNext.tsx` `excluded`).
 - New Test reasons `snmp_off`, `excluded` are in `SnmpTestReason` (`web/src/features/inventory/contract.ts`) and `snmpRefusals`: a reason not in both becomes `unavailable`.
 
 ## Modifying: manual runs and the engine view (`StartManual`, `Manual`, `WaitManual`, `Engine`, `manualUntil`; #850, INV-21)

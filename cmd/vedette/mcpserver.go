@@ -115,9 +115,9 @@ func mcpAsset(d inventory.Device) mcpserver.Asset {
 		h := *d.Hostname
 		a.Hostname = &h
 	}
-	switch {
-	case a.Hostname != nil:
-		a.Name = *a.Hostname
+	switch n := d.NameOrHost(); {
+	case n != nil: // the name in Vedette, else the host name (G2)
+		a.Name = *n
 	case a.IP != nil:
 		a.Name = *a.IP
 	default:

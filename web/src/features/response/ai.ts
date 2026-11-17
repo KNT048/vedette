@@ -62,7 +62,7 @@ function lookup(e: { kind: string; id: string }): Found | null {
   if (e.kind === 'finding') {
     const f = findingsStore.get().find((x) => x.id === e.id); if (!f || !isOpen(f.status)) return null
     const a = assetsStore.get().find((x) => x.id === f.asset_id)
-    return { id: f.id, summary: `Finding ${f.cve} on ${a?.hostname ?? a?.ip ?? f.asset_id} (${f.severity})`, relates: a?.ip ? [a.ip] : [], names: a?.hostname ? [a.hostname] : [], asset: a ? { id: a.id, ip: a.ip, name: a.hostname ?? a.ip } : undefined }
+    return { id: f.id, summary: `Finding ${f.cve} on ${a?.name ?? a?.hostname ?? a?.ip ?? f.asset_id} (${f.severity})`, relates: a?.ip ? [a.ip] : [], names: a?.hostname ? [a.hostname] : [], asset: a ? { id: a.id, ip: a.ip, name: a.name ?? a.hostname ?? a.ip } : undefined }
   }
   if (e.kind === 'ioc_hit') {
     const hits = peek<unknown>('logs_ioc_hits')
@@ -188,7 +188,7 @@ export function propose(b: Record<string, unknown>): Response | ProposeResult {
   const dev = assetsStore.get().find((a) => targets.includes(a.ip))
   const a: ActionRequest = newRequest({
     source: 'ai', proposal_id: `ai:${newId('p')}`, rule_id: null, rule_name: null, trigger, trigger_summary: why, finding_id: ev.find((e) => e.kind === 'finding')?.id ?? null, cve: null,
-    asset_id: dev?.id ?? null, asset_name: dev?.hostname ?? target, title: planned.p.item.title, items: [{ ...planned.p.item, id: newId('it') }],
+    asset_id: dev?.id ?? null, asset_name: dev?.name ?? dev?.hostname ?? target, title: planned.p.item.title, items: [{ ...planned.p.item, id: newId('it') }],
     ai: { confidence: conf, evidence: ev, why, second_check: second, in_app_only: high },
   }, true)
   appendLog('proposal', 'ai:response', `${a.title}: confidence ${conf}, evidence ${ev.map((e) => `${e.kind} ${e.id}`).join(', ')}${second ? `; ${second.notes}` : ''}`)

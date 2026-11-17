@@ -2,7 +2,7 @@
 
 ## Modifying: `DeviceChanged`, `Service.dev`, the per-device context of `scanTarget` (D-601, review r1 M2 of #932)
 - **cmd/vedette** `wiring.go` subscribes `inventory.asset.updated` (module on). A device's part stops alone (`noteTurnedOff`); the run's `status` stays `done`. Dropping the per-device context makes a scan turned off on the device page keep running until the run ends, which D-601 and the Sources card say does not happen.
-- **inventory** `VulnScanPolicy` (INV-36): a hand-added device whose network scan is off is refused even when picked; `targetReason` lists it as `regular_scan_never`.
+- **inventory** `VulnScanPolicy` (INV-37): a hand-added device whose network scan is off is refused even when picked; `targetReason` lists it as `regular_scan_never`.
 
 ## Modifying: the shared window, rate and exclusions (`SharedChecks`, `settings`, `LegacyChecks`, `Engine`; #850, INV-16)
 - **inventory** owns the values (INV-32): `PUT /scans/config` writes there through `SaveChecks`; Settings › Scanning (`PUT /scanning/safety`) and Devices › Scope write the same keys, so a change there moves nuclei's window, speed and exclusions too.

@@ -9,14 +9,14 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// D-606 on the wire, N100's DESKTOP-55UKKFV: one programs snapshot with SQL Server 2022's own Uninstall entry (no DisplayVersion),
+// The SQL Server version on the wire: one programs snapshot with SQL Server 2022's own Uninstall entry (no DisplayVersion),
 // its 13 components at 16.0.1000.6 and other programs. Before, the inventory got "Microsoft SQL Server 2022 (64-bit)" with no version
 // and findings asked a person for it. Now the release's row has a version: the components' build from an agent without the setup
-// value, and the instance's PatchLevel (a cumulative update's build) from the programs query of D-606, which the next snapshot brings.
-func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
+// value, and the instance's PatchLevel (a cumulative update's build) from the programs query, which the next snapshot brings.
+func TestContract_SQLServerVersionFromTheMachine(t *testing.T) {
 	w := newWorld(t)
 	_, secret := w.token("pc", 7)
-	key := w.enroll(secret, "DESKTOP-55UKKFV", peerA)
+	key := w.enroll(secret, "desktop-01", peerA)
 	prog := func(name, version string) map[string]string {
 		return map[string]string{"name": name, "version": version, "publisher": "Microsoft Corporation", "install_date": "20261012", "sql_setup": ""}
 	}
@@ -80,7 +80,7 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 		return n
 	}
 
-	// an agent whose config predates D-606: the components give the build (the RsFx Driver stated the same one)
+	// an agent whose config predates the setup-registry query: the components give the build (the RsFx Driver stated the same one)
 	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), snap("programs", list...)))
 	if got := rows(); len(got) != 1 || got[0].version != rtm {
 		t.Fatalf("components: %+v", got)
@@ -89,7 +89,7 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 		t.Fatalf("%d agent rows without a version", n)
 	}
 
-	// the programs query of D-606, after a cumulative update: the setup value comes first in the same snapshot
+	// the programs query with the setup value, after a cumulative update: the setup value comes first in the same snapshot
 	setup := map[string]string{"name": "", "version": "16.0.4135.4", "publisher": "", "install_date": "",
 		"sql_setup": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.MSSQLSERVER\Setup`}
 	w.clock.Advance(6 * time.Minute) // past the source's list window

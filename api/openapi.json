@@ -31140,7 +31140,7 @@
                           "url": {
                             "type": "string",
                             "format": "uri",
-                            "description": "The address the data came from: for the CISA list, CISA's GitHub copy when it answered the last good pull (kien G13)"
+                            "description": "The address the data came from: for the CISA list, the copy the newest catalog came from (kien G13)"
                           },
                           "license": {
                             "type": "string"
@@ -31215,18 +31215,59 @@
                           "description": "When a pull of the CISA list last worked; null when none ever did"
                         },
                         "answered_by": {
-                          "description": "Which copy answered the last good pull: \"CISA\" or \"CISA GitHub mirror\" (D-91, kien G13: Home says so); null before the first good pull",
+                          "description": "Newest from: the copy the catalog on the box came from, \"CISA\" (cisa.gov) or \"CISA GitHub mirror\" (D-91 as amended, kien G13: both are asked every check and the newer catalog is kept); null before the first good pull",
                           "type": [
                             "string",
                             "null"
                           ]
                         },
-                        "answered_why": {
-                          "description": "When CISA's GitHub copy answered: why cisa.gov did not, one clause (\"cisa.gov refused this box (HTTP 403)\"); null when cisa.gov answered or the reason is not known yet",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
+                        "copies": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "enum": [
+                                  "CISA",
+                                  "CISA GitHub mirror"
+                                ]
+                              },
+                              "url": {
+                                "type": "string",
+                                "format": "uri"
+                              },
+                              "checked_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "description": "When the box last asked this copy"
+                              },
+                              "error": {
+                                "description": "Why the last ask failed, one clause naming the copy (\"cisa.gov refused this box (HTTP 403)\"); null when it answered",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "catalog_version": {
+                                "description": "The catalogVersion this copy last gave; null when not known yet",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "url",
+                              "checked_at",
+                              "error",
+                              "catalog_version"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "What each copy of the CISA list said at its last check (D-91 as amended); empty for a list at an admin's own address or before the first check"
                         }
                       },
                       "required": [
@@ -31236,7 +31277,7 @@
                         "checked_at",
                         "last_success",
                         "answered_by",
-                        "answered_why"
+                        "copies"
                       ],
                       "additionalProperties": false
                     }

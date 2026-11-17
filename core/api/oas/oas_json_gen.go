@@ -116423,12 +116423,16 @@ func (s *FeedsGetFeedsStatusOKKev) encodeFields(e *jx.Encoder) {
 		s.AnsweredBy.Encode(e)
 	}
 	{
-		e.FieldStart("answered_why")
-		s.AnsweredWhy.Encode(e)
-	}
-	{
 		e.FieldStart("checked_at")
 		s.CheckedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("copies")
+		e.ArrStart()
+		for _, elem := range s.Copies {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
 	}
 	{
 		e.FieldStart("error")
@@ -116450,8 +116454,8 @@ func (s *FeedsGetFeedsStatusOKKev) encodeFields(e *jx.Encoder) {
 
 var jsonFieldsNameOfFeedsGetFeedsStatusOKKev = [7]string{
 	0: "answered_by",
-	1: "answered_why",
-	2: "checked_at",
+	1: "checked_at",
+	2: "copies",
 	3: "error",
 	4: "interval_hours",
 	5: "last_success",
@@ -116477,18 +116481,8 @@ func (s *FeedsGetFeedsStatusOKKev) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"answered_by\"")
 			}
-		case "answered_why":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				if err := s.AnsweredWhy.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"answered_why\"")
-			}
 		case "checked_at":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.CheckedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -116496,6 +116490,24 @@ func (s *FeedsGetFeedsStatusOKKev) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"checked_at\"")
+			}
+		case "copies":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.Copies = make([]FeedsGetFeedsStatusOKKevCopiesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem FeedsGetFeedsStatusOKKevCopiesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Copies = append(s.Copies, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"copies\"")
 			}
 		case "error":
 			requiredBitSet[0] |= 1 << 3
@@ -116591,6 +116603,204 @@ func (s *FeedsGetFeedsStatusOKKev) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FeedsGetFeedsStatusOKKev) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("catalog_version")
+		s.CatalogVersion.Encode(e)
+	}
+	{
+		e.FieldStart("checked_at")
+		json.EncodeDateTime(e, s.CheckedAt)
+	}
+	{
+		e.FieldStart("error")
+		s.Error.Encode(e)
+	}
+	{
+		e.FieldStart("name")
+		s.Name.Encode(e)
+	}
+	{
+		e.FieldStart("url")
+		json.EncodeURI(e, s.URL)
+	}
+}
+
+var jsonFieldsNameOfFeedsGetFeedsStatusOKKevCopiesItem = [5]string{
+	0: "catalog_version",
+	1: "checked_at",
+	2: "error",
+	3: "name",
+	4: "url",
+}
+
+// Decode decodes FeedsGetFeedsStatusOKKevCopiesItem from json.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FeedsGetFeedsStatusOKKevCopiesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "catalog_version":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.CatalogVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"catalog_version\"")
+			}
+		case "checked_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.CheckedAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"checked_at\"")
+			}
+		case "error":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Error.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"error\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Name.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "url":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := json.DecodeURI(d)
+				s.URL = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FeedsGetFeedsStatusOKKevCopiesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFeedsGetFeedsStatusOKKevCopiesItem) {
+					name = jsonFieldsNameOfFeedsGetFeedsStatusOKKevCopiesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FeedsGetFeedsStatusOKKevCopiesItemName as json.
+func (s FeedsGetFeedsStatusOKKevCopiesItemName) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FeedsGetFeedsStatusOKKevCopiesItemName from json.
+func (s *FeedsGetFeedsStatusOKKevCopiesItemName) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FeedsGetFeedsStatusOKKevCopiesItemName to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FeedsGetFeedsStatusOKKevCopiesItemName(v) {
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISA:
+		*s = FeedsGetFeedsStatusOKKevCopiesItemNameCISA
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror:
+		*s = FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror
+	default:
+		*s = FeedsGetFeedsStatusOKKevCopiesItemName(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FeedsGetFeedsStatusOKKevCopiesItemName) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FeedsGetFeedsStatusOKKevCopiesItemName) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

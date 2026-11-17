@@ -578,13 +578,13 @@ describe('feeds: plain words for what is not a CVE, and dates that mean one thin
 describe('feeds: which address answered the CISA list (D-91)', () => {
   it('Settings -> Feeds says who answered; the CISA GitHub mirror is named as such', async () => {
     renderApp('/settings/feeds')
-    expect(await screen.findAllByText('Answered by CISA')).toHaveLength(1) // the mock's own list: only the CISA list has an answer
+    expect(await screen.findAllByText('Newest list from CISA')).toHaveLength(1) // the mock's own list: only the CISA list has an answer
     const feed = { id: 'cisa-kev', builtin: true, name: 'CISA KEV', kind: 'vulnerabilities', format: 'json', url: 'https://www.cisa.gov/x.json', default_url: 'https://www.cisa.gov/x.json', enabled: true, interval_hours: 24,
       auth: { type: 'none', header_name: null, username: null, secret_last4: null }, parser: null, last_fetch: '2026-11-09T10:00:00Z', records: 1769, status: 'ok', error: null, license: 'CC0', answered_by: 'CISA GitHub mirror' }
     server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: [feed] })))
     cleanup()
     renderApp('/settings/feeds')
-    expect(await screen.findByText('Answered by CISA GitHub mirror')).toBeInTheDocument()
+    expect(await screen.findByText('Newest list from CISA GitHub mirror')).toBeInTheDocument()
   })
 
   it('W3-1: the NVD versions still loading say how far they got, not "fetched at the next check"; Fetch now shows it as progress', async () => {
@@ -648,7 +648,7 @@ describe('feeds: Settings -> Feeds lists every host the box pulls from (INV-13, 
     renderApp('/settings/feeds')
     const sec = (await screen.findByRole('heading', { name: 'Where this box connects' })).closest('section')!
     expect(within(sec).getByText('www.cisa.gov')).toBeInTheDocument()
-    expect(within(sec).getByText(/raw\.githubusercontent\.com if www\.cisa\.gov/)).toBeInTheDocument()
+    expect(within(sec).getByText(/raw\.githubusercontent\.com, CISA.s GitHub copy: both are asked every time/)).toBeInTheDocument()
     expect(within(sec).getByText('intel.partner.example')).toBeInTheDocument()
     expect(within(sec).getByText(/Partner list, your feed/)).toBeInTheDocument()
     expect(within(sec).getByText(/Tor exit list, off, not pulled/)).toBeInTheDocument()

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
@@ -306,40 +305,23 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 	if err != nil {
 		return p, err
 	}
-	viaCISA := src.ID == "cisa-kev" && src.URL == s.kevPrimary() // the built-in address of the CISA list: D-91 applies
-	// Conditional only after a good pull, each address with its own validators (D-91, D-485): the CISA list is pulled
-	// every hour, and a 304 keeps that cheap on the mirror too while CISA refuses the box.
-	// After the mirror answered, CISA is asked without validators once, so the list and answered_by come from CISA again.
-	ok := src.Status == "ok"
-	mirrorHeldIt := src.AnsweredBy != nil && *src.AnsweredBy == AnsweredMirror
+	if src.ID == kevFeedID && src.URL == s.kevPrimary() { // D-91 as amended (kien G13): both copies of the CISA list, every check
+		return s.buildKEVBoth(ctx, src, p)
+	}
+	// Conditional only after a good pull (D-485): a list pulled every hour stays cheap with a 304.
 	req := Request{URL: src.URL, Auth: auth}
-	if ok && !mirrorHeldIt {
+	if src.Status == "ok" {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	resp, err := s.get(ctx, req)
-	answered, why, viaMirror := "", "", false
-	if viaCISA {
-		answered = AnsweredCISA
-		if err != nil && fallbackWorthy(err) {
-			mreq := Request{URL: s.kevFallback()} // no credentials
-			if ok {
-				mreq.ETag, mreq.LastModified = orEmpty(src.MirrorETag), orEmpty(src.MirrorLastModified)
-			}
-			mresp, merr := s.get(ctx, mreq)
-			if merr != nil { // kien G13: one sentence with both reasons, the mirror's own included, as Home and Settings show it
-				return p, &Error{Err: merr, Detail: cisaWhy(err) + ", and " + mirrorWhy(merr, s.kevFallback())}
-			}
-			resp, err, answered, why, viaMirror, req = mresp, nil, AnsweredMirror, cisaWhy(err), true, mreq
-		}
-	}
 	if err != nil {
 		return p, err
 	}
 	if resp.NotModified {
-		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified, AnsweredBy: answered, AnsweredWhy: why, Mirror: viaMirror}
+		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified}
 		return p, nil
 	}
-	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified, AnsweredBy: answered, AnsweredWhy: why, Mirror: viaMirror}
+	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified}
 	switch dec {
 	case DecoderKEV:
 		cat, err := ParseKEV(resp.Body)
@@ -349,14 +331,9 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		if err := accepted(cat.Stats); err != nil {
 			return p, err
 		}
-		if answered == AnsweredMirror && src.CatalogVersion != nil && kevOlder(cat.Version, *src.CatalogVersion) { // never roll back (D-91)
-			// the mirror's validators are kept, so the same older file is a 304 next hour
-			p.out = outcome{OK: true, NotModified: true, ETag: resp.ETag, LastModif: resp.LastModified, Mirror: true, Note: fmt.Sprintf("The CISA GitHub mirror has an older list (%s) than this box (%s), so the list on the box was kept.", cat.Version, *src.CatalogVersion)}
-			return p, nil
-		}
 		p.vulns, p.hasVulns = cat.Vulns, true
 		p.out.fill(cat.Stats, cat.Accepted)
-		p.out.CatalogVersion = cat.Version
+		p.out.CatalogVersion, p.out.CatalogReleased = cat.Version, cat.ReleasedAt
 	case DecoderNuclei:
 		n, err := ParseNucleiCVEs(resp.Body)
 		if err != nil {
@@ -544,7 +521,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	}
 	if perr != nil {
 		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it (D-420 (2))
-		p = pullPlan{out: outcome{Err: userError(perr, src.URL)}}
+		p = pullPlan{out: outcome{Err: userError(perr, src.URL), Copies: p.out.Copies}}             // what each copy of the CISA list said is kept (kien G13)
 	}
 	p.out.Started, p.out.Finished = started, s.now()
 
@@ -775,19 +752,6 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 	return row, err
 }
 
-// fallbackWorthy says whether a failed pull of the CISA address is one the GitHub mirror can answer (D-91): the address
-// is blocked for this box (403), the server is sick (5xx), nothing came back in time, or the box could not get to cisa.gov at all
-// (kien G13: its name did not resolve, the connection was refused, reset or unreachable, or the name resolved to an address the
-// dialer refuses, as a DNS filter that sinkholes a name to 0.0.0.0 or 127.0.0.1 does; the guard refused it before any byte left).
-// A 404, a redirect or another answer means the address is wrong, not blocked: no switch.
-func fallbackWorthy(err error) bool {
-	var se *StatusError
-	if errors.As(err, &se) {
-		return se.Code == http.StatusForbidden || se.Code >= 500
-	}
-	return isTimeout(err) || unreached(err) != ""
-}
-
 // isTimeout is a pull that got no answer in time.
 func isTimeout(err error) bool {
 	var ne net.Error
@@ -811,36 +775,6 @@ func unreached(err error) string {
 		return "could not be reached from this box"
 	}
 	return ""
-}
-
-// cisaWhy is why the CISA address did not give the box its list, for a failure fallbackWorthy accepts (kien G13): Home says the GitHub
-// copy answered "because cisa.gov refused this box (HTTP 403)". The words name cisa.gov: the fallback applies only to its built-in address.
-func cisaWhy(err error) string {
-	var se *StatusError
-	switch {
-	case errors.As(err, &se) && se.Code == http.StatusForbidden:
-		return "cisa.gov refused this box (HTTP 403)"
-	case errors.As(err, &se):
-		return fmt.Sprintf("cisa.gov answered HTTP %d", se.Code)
-	case isTimeout(err):
-		return "cisa.gov did not answer in time"
-	}
-	if u := unreached(err); u != "" {
-		return "cisa.gov " + u
-	}
-	return "cisa.gov could not be reached"
-}
-
-// mirrorWhy is the end of the sentence of a CISA list both addresses failed (D-91, kien G13): the mirror's own reason, never its URL.
-func mirrorWhy(err error, rawURL string) string {
-	var se *StatusError
-	switch {
-	case errors.As(err, &se):
-		return fmt.Sprintf("CISA's GitHub copy failed too (HTTP %d).", se.Code)
-	case isTimeout(err):
-		return "CISA's GitHub copy did not answer in time either."
-	}
-	return "CISA's GitHub copy failed too: " + userError(err, rawURL)
 }
 
 // kevOlder reports whether catalog version a (such as "2026.11.04") is older than b. A version that is not dotted numbers is

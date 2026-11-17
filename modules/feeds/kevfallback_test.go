@@ -2,15 +2,15 @@ package feeds
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 )
 
-// D-91: when the CISA address answers 403, a server error or nothing in time, the box reads CISA's own GitHub mirror
-// with the same parser and limits, records which address answered, and never rolls back to an older list.
+// D-91 as amended 2026-11-17 (kien G13): every check of the CISA list asks both copies, cisa.gov and CISA's GitHub copy, each with
+// its own validators, keeps the newer catalog (catalogVersion, then dateReleased), never rolls back, and records which copy the catalog
+// came from. One copy failing is a note; both failing is a failed pull.
 
 const (
 	primaryPath = "/cisa/kev.json"
@@ -48,42 +48,37 @@ func (e *env) answeredBy(t *testing.T) string {
 	return ""
 }
 
-func TestContract_D91_ForbiddenFallsBackToTheMirror(t *testing.T) {
+// kevWith is the fixture with another catalogVersion, dateReleased and first CVE.
+func kevWith(t *testing.T, version, released, firstCVE string) string {
+	t.Helper()
+	k := testFile(t, "kev.json")
+	k = strings.Replace(k, `"catalogVersion": "2026.11.04"`, `"catalogVersion": "`+version+`"`, 1)
+	k = strings.Replace(k, `"dateReleased": "2026-11-04T14:20:11.1234Z"`, `"dateReleased": "`+released+`"`, 1)
+	return strings.Replace(k, `"cveID": "CVE-2026-10001"`, `"cveID": "`+firstCVE+`"`, 1)
+}
+
+func TestContract_D91_EveryCheckAsksBothCopies(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
-	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
+	o.body(primaryPath, `"p1"`, testFile(t, "kev.json"))
 	o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
 	c, b := e.fetch("cisa-kev")
-	if c != 200 || at(b, "status") != "ok" || at(b, "answered_by") != AnsweredMirror {
-		t.Fatalf("fetch = %d status %v answered_by %v error %v", c, at(b, "status"), at(b, "answered_by"), at(b, "error"))
+	// the same catalog from both: cisa.gov's is kept; nothing failed, so no note
+	if msg, _ := at(b, "error").(string); c != 200 || at(b, "status") != "ok" || at(b, "answered_by") != AnsweredCISA || strings.Contains(msg, "copy") || strings.Contains(msg, "cisa.gov") {
+		t.Fatalf("fetch = %d %v %v %v", c, at(b, "status"), at(b, "answered_by"), at(b, "error"))
 	}
 	if o.count(primaryPath) != 1 || o.count(mirrorPath) != 1 {
-		t.Errorf("requests: primary %d mirror %d, want 1 and 1", o.count(primaryPath), o.count(mirrorPath))
+		t.Errorf("requests: cisa.gov %d, GitHub copy %d, want 1 and 1", o.count(primaryPath), o.count(mirrorPath))
 	}
 	if v, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10001"); !found || v.Vendor != "Synology" {
-		t.Errorf("the list from the mirror was not stored: %v %v", found, v)
-	}
-	if got := e.answeredBy(t); got != AnsweredMirror {
-		t.Errorf("answered_by in the list = %q", got)
+		t.Errorf("the list was not stored: %v %v", found, v)
 	}
 	if v := e.feed("cisa-kev").CatalogVersion; v == nil || *v != "2026.11.04" {
 		t.Errorf("catalog version = %v", v)
 	}
 }
 
-func TestContract_D91_ServerErrorFallsBackToTheMirror(t *testing.T) {
-	t.Parallel()
-	for _, code := range []int{500, 502, 503, 504} {
-		e, o := kevEnv(t)
-		o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, code) })
-		o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
-		if c, b := e.fetch("cisa-kev"); c != 200 || at(b, "status") != "ok" || at(b, "answered_by") != AnsweredMirror {
-			t.Errorf("HTTP %d: %d %v %v", code, c, at(b, "status"), at(b, "answered_by"))
-		}
-	}
-}
-
-// timeoutTransport makes the CISA address time out and lets the mirror through.
+// timeoutTransport makes the cisa.gov copy time out and lets the GitHub copy through.
 type timeoutTransport struct{ t *testing.T }
 
 func (r timeoutTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -93,64 +88,97 @@ func (r timeoutTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return onlyLoopback(r).RoundTrip(req)
 }
 
-func TestContract_D91_TimeoutFallsBackToTheMirror(t *testing.T) {
+// One copy failing, whatever the failure, is a quiet note on a pull that worked: the other copy's list is kept.
+func TestContract_D91_OneCopyFailingIsANote(t *testing.T) {
 	t.Parallel()
+	for code, why := range map[int]string{403: "cisa.gov refused this box (HTTP 403)", 404: "cisa.gov answered HTTP 404", 503: "cisa.gov answered HTTP 503"} {
+		e, o := kevEnv(t)
+		o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, code) })
+		o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
+		c, b := e.fetch("cisa-kev")
+		if c != 200 || at(b, "status") != "ok" || at(b, "answered_by") != AnsweredMirror || !strings.HasPrefix(at(b, "error").(string), why+"; the other copy answered.") {
+			t.Errorf("cisa.gov HTTP %d: %d %v %v %q", code, c, at(b, "status"), at(b, "answered_by"), at(b, "error"))
+		}
+	}
 	e := newEnvFetcher(t, Fetcher{Client: &http.Client{Transport: timeoutTransport{t}}, Version: "test"})
 	e, o := kevWire(t, e, newOrigin(t))
 	o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
-	c, b := e.fetch("cisa-kev")
-	if c != 200 || at(b, "status") != "ok" || at(b, "answered_by") != AnsweredMirror {
-		t.Fatalf("fetch = %d %v %v %v", c, at(b, "status"), at(b, "answered_by"), at(b, "error"))
+	if c, b := e.fetch("cisa-kev"); c != 200 || at(b, "status") != "ok" || !strings.HasPrefix(at(b, "error").(string), "cisa.gov did not answer in time; the other copy answered.") {
+		t.Errorf("timeout: %d %v %v", c, at(b, "status"), at(b, "error"))
 	}
-}
-
-func TestContract_D91_CISAAnswersAndTheMirrorIsLeftAlone(t *testing.T) {
-	t.Parallel()
-	e, o := kevEnv(t)
-	o.body(primaryPath, `"p1"`, testFile(t, "kev.json"))
-	o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
-	c, b := e.fetch("cisa-kev")
-	if c != 200 || at(b, "answered_by") != AnsweredCISA || o.count(mirrorPath) != 0 {
-		t.Fatalf("fetch = %d answered_by %v, mirror requests %d", c, at(b, "answered_by"), o.count(mirrorPath))
-	}
-}
-
-func TestContract_D91_OtherFailuresAndOwnAddressesDoNotFallBack(t *testing.T) {
-	t.Parallel()
-	// a 404 is a broken address, not a blocked or sick server
-	e, o := kevEnv(t)
-	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusNotFound) })
-	o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
-	if _, b := e.fetch("cisa-kev"); at(b, "status") != "error" || o.count(mirrorPath) != 0 {
-		t.Errorf("404: status %v, mirror requests %d", at(b, "status"), o.count(mirrorPath))
-	}
-	// the owner's own mirror address is theirs to look after: no silent switch to another host
+	// the other way round: the GitHub copy fails, cisa.gov answers
 	e2, o2 := kevEnv(t)
-	o2.serve("/own.json", func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
-	o2.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
-	e2.mirror("cisa-kev", o2.url("/own.json"))
-	if _, b := e2.fetch("cisa-kev"); at(b, "status") != "error" || o2.count(mirrorPath) != 0 {
-		t.Errorf("own address: status %v, mirror requests %d", at(b, "status"), o2.count(mirrorPath))
+	o2.body(primaryPath, `"p1"`, testFile(t, "kev.json"))
+	o2.serve(mirrorPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusBadGateway) })
+	if c, b := e2.fetch("cisa-kev"); c != 200 || at(b, "status") != "ok" || at(b, "answered_by") != AnsweredCISA ||
+		!strings.HasPrefix(at(b, "error").(string), "CISA's GitHub copy answered HTTP 502; the other copy answered.") {
+		t.Errorf("GitHub copy down: %d %v %v %v", c, at(b, "status"), at(b, "answered_by"), at(b, "error"))
 	}
 }
 
-func TestContract_D91_AnOlderMirrorNeverReplacesTheList(t *testing.T) {
+func TestContract_D91_AnAdminsOwnAddressIsTheOnlyOneAsked(t *testing.T) {
+	t.Parallel()
+	// the owner's own mirror address is theirs to look after: no other host is asked
+	e, o := kevEnv(t)
+	o.serve("/own.json", func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
+	o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
+	e.mirror("cisa-kev", o.url("/own.json"))
+	if _, b := e.fetch("cisa-kev"); at(b, "status") != "error" || o.count(mirrorPath) != 0 || o.count(primaryPath) != 0 {
+		t.Errorf("own address: status %v, requests cisa.gov %d GitHub copy %d", at(b, "status"), o.count(primaryPath), o.count(mirrorPath))
+	}
+}
+
+// The newer copy wins in either direction: by catalogVersion, then by dateReleased.
+func TestContract_D91_TheNewerCopyWinsEitherWay(t *testing.T) {
+	t.Parallel()
+	e, o := kevEnv(t)
+	o.body(primaryPath, `"p1"`, kevWith(t, "2026.11.05", "2026-11-05T10:00:00Z", "CVE-2026-20005"))
+	o.body(mirrorPath, `"m1"`, kevWith(t, "2026.11.04", "2026-11-04T10:00:00Z", "CVE-2026-20004"))
+	if _, b := e.fetch("cisa-kev"); at(b, "answered_by") != AnsweredCISA {
+		t.Fatalf("cisa.gov newer: %v %v", at(b, "answered_by"), at(b, "error"))
+	}
+	if _, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-20005"); !found {
+		t.Error("cisa.gov's newer list was not stored")
+	}
+	// the GitHub copy moves ahead (cisa.gov unchanged: a 304)
+	o.body(mirrorPath, `"m2"`, kevWith(t, "2026.11.06", "2026-11-06T10:00:00Z", "CVE-2026-20006"))
+	if _, b := e.fetch("cisa-kev"); at(b, "answered_by") != AnsweredMirror || at(b, "status") != "ok" {
+		t.Fatalf("GitHub copy newer: %v %v", at(b, "answered_by"), at(b, "error"))
+	}
+	if v := e.feed("cisa-kev").CatalogVersion; v == nil || *v != "2026.11.06" {
+		t.Errorf("catalog version = %v", v)
+	}
+	// both unchanged: 304s, the list and where it came from stay
+	if _, b := e.fetch("cisa-kev"); at(b, "answered_by") != AnsweredMirror || at(b, "status") != "ok" {
+		t.Errorf("both 304: %v %v", at(b, "answered_by"), at(b, "status"))
+	}
+	// the same catalogVersion, released later on cisa.gov: dateReleased decides
+	o.body(primaryPath, `"p2"`, kevWith(t, "2026.11.06", "2026-11-06T18:00:00Z", "CVE-2026-20007"))
+	if _, b := e.fetch("cisa-kev"); at(b, "answered_by") != AnsweredCISA {
+		t.Errorf("same version, later release on cisa.gov: %v", at(b, "answered_by"))
+	}
+	if _, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-20007"); !found {
+		t.Error("the later release was not stored")
+	}
+}
+
+// An older copy never replaces the catalog the box holds (no roll back), and is not news either: no note.
+func TestContract_D91_AnOlderCopyNeverReplacesTheList(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	kev := testFile(t, "kev.json")
 	o.body(primaryPath, `"p1"`, kev)
+	o.serve(mirrorPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusServiceUnavailable) })
 	if c, b := e.fetch("cisa-kev"); c != 200 || at(b, "answered_by") != AnsweredCISA {
 		t.Fatalf("first pull: %d %v", c, b)
 	}
 	before := rowsOf(t, e.db, "feeds_vuln")
-	// CISA goes dark; the mirror lags by a release and has fewer entries
+	// cisa.gov goes dark; the GitHub copy is a release behind and has another entry
 	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
-	older := strings.Replace(kev, `"catalogVersion": "2026.11.04"`, `"catalogVersion": "2026.10.01"`, 1)
-	older = strings.Replace(older, `"cveID": "CVE-2026-10001"`, `"cveID": "CVE-2026-19999"`, 1)
-	o.body(mirrorPath, `"m-old"`, older)
+	o.body(mirrorPath, `"m-old"`, kevWith(t, "2026.10.01", "2026-10-01T10:00:00Z", "CVE-2026-19999"))
 	c, b := e.fetch("cisa-kev")
 	if c != 200 || at(b, "status") != "ok" {
-		t.Fatalf("older mirror: %d %v %v", c, at(b, "status"), at(b, "error"))
+		t.Fatalf("older copy: %d %v %v", c, at(b, "status"), at(b, "error"))
 	}
 	if v := e.feed("cisa-kev").CatalogVersion; v == nil || *v != "2026.11.04" {
 		t.Errorf("catalog version went back to %v", v)
@@ -161,22 +189,8 @@ func TestContract_D91_AnOlderMirrorNeverReplacesTheList(t *testing.T) {
 	if _, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-19999"); found {
 		t.Error("an entry of the older list was stored")
 	}
-	if v, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10001"); !found || v.Vendor != "Synology" {
-		t.Error("the newer list lost an entry")
-	}
-	if msg, _ := at(b, "error").(string); !strings.Contains(msg, "older") {
-		t.Errorf("the feed does not say the mirror was older: %q", msg)
-	}
 	if got := e.answeredBy(t); got != AnsweredCISA {
-		t.Errorf("answered_by = %q: the data on the box still came from CISA", got)
-	}
-	// an equal or newer mirror is taken
-	o.body(mirrorPath, `"m-new"`, strings.Replace(kev, `"catalogVersion": "2026.11.04"`, `"catalogVersion": "2026.11.05"`, 1))
-	if _, b := e.fetch("cisa-kev"); at(b, "answered_by") != AnsweredMirror || at(b, "status") != "ok" {
-		t.Errorf("newer mirror: %v %v", at(b, "status"), at(b, "answered_by"))
-	}
-	if v := e.feed("cisa-kev").CatalogVersion; v == nil || *v != "2026.11.05" {
-		t.Errorf("catalog version = %v", v)
+		t.Errorf("answered_by = %q: the data on the box still came from cisa.gov", got)
 	}
 }
 
@@ -187,7 +201,7 @@ func TestContract_D91_BothDownIsAnErrorThatNamesBoth(t *testing.T) {
 	o.serve(mirrorPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusBadGateway) })
 	c, b := e.fetch("cisa-kev")
 	msg, _ := at(b, "error").(string)
-	if c != 200 || at(b, "status") != "error" || !strings.Contains(msg, "403") || !strings.Contains(msg, "GitHub copy") || !strings.Contains(msg, "502") {
+	if c != 200 || at(b, "status") != "error" || msg != "cisa.gov refused this box (HTTP 403), and CISA's GitHub copy answered HTTP 502." {
 		t.Fatalf("both down: %d %v %q", c, at(b, "status"), msg)
 	}
 	if strings.Contains(msg, originHost) || strings.Contains(msg, "127.0.0.1") || strings.Contains(msg, "http") {
@@ -198,75 +212,28 @@ func TestContract_D91_BothDownIsAnErrorThatNamesBoth(t *testing.T) {
 	}
 }
 
-func TestContract_D91_ValidatorsOfTheMirrorAreNeverSentToCISA(t *testing.T) {
+// Conditional requests per copy (D-485): each copy gets its own validators once the box knows the version it gave, never the other's.
+func TestContract_D91_ConditionalRequestsPerCopy(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
-	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
-	o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
-	e.fetch("cisa-kev") // answered by the mirror, which handed out the ETag "m1"
 	o.body(primaryPath, `"p1"`, testFile(t, "kev.json"))
-	e.fetch("cisa-kev")
-	for _, h := range o.all() {
-		if h.path == primaryPath && h.header.Get("If-None-Match") != "" {
-			t.Errorf("CISA was asked with the mirror's validator %q", h.header.Get("If-None-Match"))
-		}
-	}
-	if got := e.answeredBy(t); got != AnsweredCISA {
-		t.Errorf("answered_by after CISA came back = %q", got)
-	}
-}
-
-func TestD91_TimeoutErrorsAreRecognised(t *testing.T) {
-	t.Parallel()
-	for name, err := range map[string]error{
-		"deadline":  context.DeadlineExceeded,
-		"wrapped":   &url.Error{Op: "Get", Err: context.DeadlineExceeded},
-		"forbidden": &StatusError{Code: 403},
-		"gateway":   &StatusError{Code: 502},
-	} {
-		if !fallbackWorthy(err) {
-			t.Errorf("%s is not fallback-worthy", name)
-		}
-	}
-	for name, err := range map[string]error{
-		"not found": &StatusError{Code: 404},
-		"gone":      &StatusError{Code: 410},
-		"redirect":  ErrRedirect,
-		"plain":     errors.New("boom"),
-	} {
-		if fallbackWorthy(err) {
-			t.Errorf("%s is fallback-worthy", name)
-		}
-	}
-}
-
-// D-485: the CISA list is pulled every hour, so while CISA refuses the box the mirror is asked with its own validators and
-// answers 304 instead of the whole file each hour; CISA still never sees them.
-func TestContract_D485_TheMirrorIsAskedWithItsOwnValidators(t *testing.T) {
-	t.Parallel()
-	e, o := kevEnv(t)
-	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
 	o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
 	e.fetch("cisa-kev")
 	c, b := e.fetch("cisa-kev")
-	if c != 200 || at(b, "status") != "ok" || at(b, "answered_by") != AnsweredMirror {
+	if c != 200 || at(b, "status") != "ok" || at(b, "answered_by") != AnsweredCISA {
 		t.Fatalf("second pull: %d %v %v", c, at(b, "status"), at(b, "answered_by"))
 	}
-	var mirrorAsks []string
+	asks := map[string][]string{}
 	for _, h := range o.all() {
-		switch h.path {
-		case mirrorPath:
-			mirrorAsks = append(mirrorAsks, h.header.Get("If-None-Match"))
-		case primaryPath:
-			if h.header.Get("If-None-Match") != "" {
-				t.Errorf("CISA was asked with %q", h.header.Get("If-None-Match"))
-			}
-		}
+		asks[h.path] = append(asks[h.path], h.header.Get("If-None-Match"))
 	}
-	if strings.Join(mirrorAsks, ",") != `,"m1"` { // the first ask is plain, the second conditional (and answered 304)
-		t.Errorf("mirror asked with %q", mirrorAsks)
+	if got := strings.Join(asks[primaryPath], ","); got != `,"p1"` {
+		t.Errorf("cisa.gov asked with %q", got)
+	}
+	if got := strings.Join(asks[mirrorPath], ","); got != `,"m1"` {
+		t.Errorf("the GitHub copy asked with %q", got)
 	}
 	if v, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10001"); !found || v.Vendor != "Synology" {
-		t.Error("a 304 from the mirror lost the list")
+		t.Error("two 304s lost the list")
 	}
 }

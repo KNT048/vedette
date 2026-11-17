@@ -48,6 +48,13 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 		License   string    `json:"license"`
 		FetchedAt time.Time `json:"fetched_at"`
 	}
+	type kevCopy struct {
+		Name           string     `json:"name"`
+		URL            string     `json:"url"`
+		CheckedAt      *time.Time `json:"checked_at"`
+		Error          *string    `json:"error"`
+		CatalogVersion *string    `json:"catalog_version"`
+	}
 	type kev struct {
 		State         string     `json:"state"`
 		Error         *string    `json:"error"`
@@ -55,7 +62,7 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 		CheckedAt     *time.Time `json:"checked_at"`
 		LastSuccess   *time.Time `json:"last_success"`
 		AnsweredBy    *string    `json:"answered_by"`
-		AnsweredWhy   *string    `json:"answered_why"`
+		Copies        []kevCopy  `json:"copies"`
 	}
 	out := struct {
 		GeneratedAt       time.Time `json:"generated_at"`
@@ -84,10 +91,23 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 				out.KevCatalogVersion = *r.CatalogVersion
 			}
 			// kien G13: which copy answered the last good pull, and why cisa.gov did not when CISA's GitHub copy did
-			out.Kev.AnsweredBy = r.AnsweredBy
-			if r.AnsweredBy != nil && *r.AnsweredBy == AnsweredMirror {
-				if out.Kev.AnsweredWhy, err = h.s.st.answeredWhy(ctx); err != nil {
+			// kien G13 (D-91 as amended): the copy the catalog on the box came from, and what each copy said at its last check
+			out.Kev.AnsweredBy, out.Kev.Copies = r.AnsweredBy, []kevCopy{}
+			if r.URL == h.s.kevPrimary() {
+				cs, _, err := h.s.st.kevCopies(ctx)
+				if err != nil {
 					return nil, err
+				}
+				for _, c := range []struct {
+					by  string
+					url string
+					st  kevCopyState
+				}{{AnsweredCISA, h.s.kevPrimary(), cs.CISA}, {AnsweredMirror, h.s.kevFallback(), cs.Mirror}} {
+					if c.st.CheckedAt.IsZero() {
+						continue // not asked since this version: nothing to say
+					}
+					at := c.st.CheckedAt
+					out.Kev.Copies = append(out.Kev.Copies, kevCopy{Name: c.by, URL: c.url, CheckedAt: &at, Error: oneLine(c.st.Error, 200), CatalogVersion: nonEmpty(c.st.Version)})
 				}
 			}
 		}
@@ -100,7 +120,7 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 		}
 		from := r.URL
 		if r.ID == "cisa-kev" && r.URL == h.s.kevPrimary() && r.AnsweredBy != nil && *r.AnsweredBy == AnsweredMirror {
-			from = h.s.kevFallback() // kien G13: the copy that answered, not the address that refused the box
+			from = h.s.kevFallback() // kien G13: the copy the catalog on the box came from
 		}
 		out.Sources = append(out.Sources, src{r.Name, from, license, *r.LastSuccess})
 		if oldest == nil || r.LastSuccess.Before(*oldest) {
@@ -597,4 +617,12 @@ func (h *FeedHandlers) FeedsGetFeedsSearch(ctx context.Context, params oas.Feeds
 		return zero, err
 	}
 	return *res, nil
+}
+
+// nonEmpty is nil for "", else a pointer to s.
+func nonEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

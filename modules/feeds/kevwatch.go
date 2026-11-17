@@ -10,9 +10,11 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// D-629 (kien G13): a failing CISA list is never silent. The admins get one alert when the list has not been refreshed for six of its
-// checks (six hours at the hourly default), so a short outage stays quiet, and one "up to date again" when a pull works after that.
-// Nothing in between. The state lives on the cisa-kev row (migration 0016), so a restart neither repeats nor forgets an alert.
+// D-629 (kien G13): a failing CISA list is never silent. The admins get one alert when both copies of the list failed at a check (D-91
+// as amended: cisa.gov and CISA's GitHub copy are both asked every check), or when the list has not been refreshed for six of its
+// checks (six hours at the hourly default; a list at an admin's own address has only this rule), and one "up to date again" when a
+// pull works after that. One copy failing alone is a note on the feed, never an alert. Nothing in between. The state lives on the
+// cisa-kev row (migration 0016), so a restart neither repeats nor forgets an alert.
 
 // kevFeedID is the CISA list.
 const kevFeedID = "cisa-kev"
@@ -63,19 +65,16 @@ func (s *Service) watchKEV(ctx context.Context) error {
 	if r.LastSuccess != nil && r.LastSuccess.After(since) {
 		since = *r.LastSuccess
 	}
+	bothFailed := r.Status == "error" && r.URL == s.kevPrimary() // a failed check of the two copies: both failed (buildKEVBoth)
 	switch {
-	case alerted == nil && now.Sub(since) >= kevStaleAfter(r.IntervalHours):
+	case alerted == nil && (bothFailed || now.Sub(since) >= kevStaleAfter(r.IntervalHours)):
 		title, text := kevStaleNotice(r, since)
 		if err := s.Alert(ctx, "feeds-kev-stale-"+since.UTC().Format("20060102T150405Z"), title, text); err != nil {
 			return quietOff(err)
 		}
 		return s.st.setKEVWatch(ctx, from, &now)
 	case alerted != nil && r.LastSuccess != nil && r.LastSuccess.After(*alerted):
-		why, err := s.st.answeredWhy(ctx)
-		if err != nil {
-			return err
-		}
-		title, text := kevFreshNotice(r, why)
+		title, text := kevFreshNotice(r)
 		if err := s.Alert(ctx, "feeds-kev-fresh-"+alerted.UTC().Format("20060102T150405Z"), title, text); err != nil {
 			return quietOff(err)
 		}
@@ -95,18 +94,18 @@ func quietOff(err error) error {
 // stamp is a time in an alert: UTC, said so (an alert is read away from the box's own screen).
 func stamp(t time.Time) string { return t.UTC().Format("2 Jan 2006, 15:04") + " UTC" }
 
-// kevStaleNotice is the title and text of the stale alert: since when, the last error, what it means for the alerts, what to check.
+// kevStaleNotice is the title and text of the alert: what failed, since when the list is not fresh, what it means, what to check.
 func kevStaleNotice(r sourceRow, since time.Time) (title, text string) {
 	title = "Vedette cannot update the list of exploited vulnerabilities"
-	last := "it has not been pulled yet"
-	if r.LastSuccess != nil {
-		last = "the last good pull was at " + stamp(*r.LastSuccess)
-	}
-	text = fmt.Sprintf("CISA's list of exploited vulnerabilities has not been refreshed since %s: %s.", stamp(since), last)
-	if r.Status == "error" && r.Error != nil {
+	if r.Status == "error" && r.Error != nil && r.LastFetch != nil {
 		if e := oneLine(*r.Error, 300); e != nil {
-			text += " The last check failed: " + *e + "."
+			text = fmt.Sprintf("The check at %s failed: %s. ", stamp(*r.LastFetch), *e)
 		}
+	}
+	if r.LastSuccess != nil {
+		text += "The list on the box is from the last good pull, at " + stamp(*r.LastSuccess) + "."
+	} else {
+		text += fmt.Sprintf("No pull has worked since %s, so the box has no list yet.", stamp(since))
 	}
 	return title, text + " Until it works again, vulnerabilities CISA newly lists do not reach your alerts. Vedette keeps trying " +
 		every(r.IntervalHours) + ". Check that this box can reach www.cisa.gov or raw.githubusercontent.com (Settings, Feeds). " +
@@ -114,13 +113,10 @@ func kevStaleNotice(r sourceRow, since time.Time) (title, text string) {
 }
 
 // kevFreshNotice is the title and text of the "up to date again" message.
-func kevFreshNotice(r sourceRow, why *string) (title, text string) {
-	text = "CISA's list of exploited vulnerabilities was refreshed at " + stamp(*r.LastSuccess)
-	switch {
-	case r.AnsweredBy != nil && *r.AnsweredBy == AnsweredMirror && why != nil:
-		text += ", from CISA's GitHub copy, because " + *why
-	case r.AnsweredBy != nil && *r.AnsweredBy == AnsweredMirror:
-		text += ", from CISA's GitHub copy"
+func kevFreshNotice(r sourceRow) (title, text string) {
+	text = "CISA's list of exploited vulnerabilities was checked again at " + stamp(*r.LastSuccess)
+	if r.AnsweredBy != nil {
+		text += "; the newest list on the box came from " + copyLabel(*r.AnsweredBy)
 	}
 	return "The list of exploited vulnerabilities is up to date again", text + ". Vulnerabilities it added in the meantime are matched against your devices now."
 }
@@ -130,21 +126,6 @@ func every(hours int) string {
 		return "every hour"
 	}
 	return fmt.Sprintf("every %d hours", hours)
-}
-
-// answeredWhy is why cisa.gov did not answer when CISA's GitHub copy answered the last good pull of the CISA list (kien G13), nil when
-// cisa.gov answered or the reason is not known. Read on its own, not with sourceCols, so code that reads the feed rows still works on
-// the schema of the migrations before 0016 (the migration tests run it there).
-func (s *Store) answeredWhy(ctx context.Context) (*string, error) {
-	var why *string
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT answered_why FROM feeds_source WHERE id = ?`, kevFeedID).Scan(&why)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("feeds: read why the CISA GitHub copy answered: %w", err)
-	}
-	return why, nil
 }
 
 // kevWatch reads the stale watch of the CISA list: since when it was seen on, and when the stale alert went out (nil: none open).

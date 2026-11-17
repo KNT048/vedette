@@ -72,8 +72,8 @@ const builtinFeed = (d: Def, s: BuiltinState): Feed => ({
 export function kevStatus(): FeedStatus['kev'] {
   const s = config.get().builtin['cisa-kev']
   const last_success = s ? (s.last_success !== undefined ? s.last_success : s.status === 'ok' ? s.last_fetch : null) : null
-  // the mock's CISA list always answers from cisa.gov (builtinFeed), so no why (kien G13)
-  const times = { interval_hours: s?.interval_hours ?? 1, checked_at: s?.last_fetch ?? null, last_success, answered_by: last_success ? 'CISA' : null, answered_why: null }
+  // the mock's CISA list always comes from cisa.gov (builtinFeed) and does not model the two copies (kien G13)
+  const times = { interval_hours: s?.interval_hours ?? 1, checked_at: s?.last_fetch ?? null, last_success, answered_by: last_success ? 'CISA' : null, copies: [] }
   if (s && !s.enabled) return { state: 'off', error: null, ...times }
   const error = s?.status === 'error' ? s.error : null
   if (!s || s.records === null) return { state: 'never_loaded', error: error ?? s?.error ?? null, ...times }

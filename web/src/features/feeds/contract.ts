@@ -41,7 +41,7 @@ export const HotRow = z.object({
 export const FeedStatus = z.object({
   generated_at: z.iso.datetime(),
   kev_catalog_version: z.string(),
-  sources: z.array(z.object({ name: z.string(), url: z.url().describe('The address the data came from: for the CISA list, CISA\'s GitHub copy when it answered the last good pull (kien G13)'), license: z.string(), fetched_at: z.iso.datetime() })),
+  sources: z.array(z.object({ name: z.string(), url: z.url().describe('The address the data came from: for the CISA list, the copy the newest catalog came from (kien G13)'), license: z.string(), fetched_at: z.iso.datetime() })),
   inventory_on: z.boolean(),
   kev: z.object({
     state: z.enum(['loaded', 'never_loaded', 'off']).describe('The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded" once a pull has ever succeeded (even if a later pull failed), else "never_loaded"'),
@@ -49,8 +49,14 @@ export const FeedStatus = z.object({
     interval_hours: z.number().int().describe('How often the box pulls the CISA list (kien G11: Home says "checked every hour")'),
     checked_at: z.iso.datetime().nullable().describe('When the box last asked for the CISA list, whether the pull worked or not; null before the first pull'),
     last_success: z.iso.datetime().nullable().describe('When a pull of the CISA list last worked; null when none ever did'),
-    answered_by: z.string().nullable().describe('Which copy answered the last good pull: "CISA" or "CISA GitHub mirror" (D-91, kien G13: Home says so); null before the first good pull'),
-    answered_why: z.string().nullable().describe('When CISA\'s GitHub copy answered: why cisa.gov did not, one clause ("cisa.gov refused this box (HTTP 403)"); null when cisa.gov answered or the reason is not known yet'),
+    answered_by: z.string().nullable().describe('Newest from: the copy the catalog on the box came from, "CISA" (cisa.gov) or "CISA GitHub mirror" (D-91 as amended, kien G13: both are asked every check and the newer catalog is kept); null before the first good pull'),
+    copies: z.array(z.object({
+      name: z.enum(['CISA', 'CISA GitHub mirror']),
+      url: z.url(),
+      checked_at: z.iso.datetime().describe('When the box last asked this copy'),
+      error: z.string().nullable().describe('Why the last ask failed, one clause naming the copy ("cisa.gov refused this box (HTTP 403)"); null when it answered'),
+      catalog_version: z.string().nullable().describe('The catalogVersion this copy last gave; null when not known yet'),
+    })).describe('What each copy of the CISA list said at its last check (D-91 as amended); empty for a list at an admin\'s own address or before the first check'),
   }),
 })
 
@@ -130,7 +136,7 @@ export const Feed = z.object({
   status: z.enum(['ok', 'error', 'never']),
   error: z.string().nullable(),
   license: z.string().nullable(),
-  answered_by: z.string().nullable().describe('The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror" (D-91); null for every other feed and before the first good pull'),
+  answered_by: z.string().nullable().describe('The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed and before the first good pull'),
 })
 export const FeedList = z.object({ items: z.array(Feed) })
 export const FeedPatch = z.object({

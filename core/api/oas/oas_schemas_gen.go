@@ -58554,15 +58554,16 @@ func (s *FeedsGetFeedsStatusOK) SetSources(val []FeedsGetFeedsStatusOKSourcesIte
 }
 
 type FeedsGetFeedsStatusOKKev struct {
-	// Which copy answered the last good pull: "CISA" or "CISA GitHub mirror" (D-91, kien G13: Home says
-	// so); null before the first good pull.
+	// Newest from: the copy the catalog on the box came from, "CISA" (cisa.gov) or "CISA GitHub mirror"
+	// (D-91 as amended, kien G13: both are asked every check and the newer catalog is kept); null before
+	// the first good pull.
 	AnsweredBy NilString `json:"answered_by"`
-	// When CISA's GitHub copy answered: why cisa.gov did not, one clause ("cisa.gov refused this box (HTTP
-	// 403)"); null when cisa.gov answered or the reason is not known yet.
-	AnsweredWhy NilString `json:"answered_why"`
 	// When the box last asked for the CISA list, whether the pull worked or not; null before the first
 	// pull.
 	CheckedAt NilDateTime `json:"checked_at"`
+	// What each copy of the CISA list said at its last check (D-91 as amended); empty for a list at an
+	// admin's own address or before the first check.
+	Copies []FeedsGetFeedsStatusOKKevCopiesItem `json:"copies"`
 	// One line, cleaned: why the last pull failed (also when an earlier pull had loaded the list); null
 	// when the last pull worked, has not been tried, or the list is off.
 	Error NilString `json:"error"`
@@ -58580,14 +58581,14 @@ func (s *FeedsGetFeedsStatusOKKev) GetAnsweredBy() NilString {
 	return s.AnsweredBy
 }
 
-// GetAnsweredWhy returns the value of AnsweredWhy.
-func (s *FeedsGetFeedsStatusOKKev) GetAnsweredWhy() NilString {
-	return s.AnsweredWhy
-}
-
 // GetCheckedAt returns the value of CheckedAt.
 func (s *FeedsGetFeedsStatusOKKev) GetCheckedAt() NilDateTime {
 	return s.CheckedAt
+}
+
+// GetCopies returns the value of Copies.
+func (s *FeedsGetFeedsStatusOKKev) GetCopies() []FeedsGetFeedsStatusOKKevCopiesItem {
+	return s.Copies
 }
 
 // GetError returns the value of Error.
@@ -58615,14 +58616,14 @@ func (s *FeedsGetFeedsStatusOKKev) SetAnsweredBy(val NilString) {
 	s.AnsweredBy = val
 }
 
-// SetAnsweredWhy sets the value of AnsweredWhy.
-func (s *FeedsGetFeedsStatusOKKev) SetAnsweredWhy(val NilString) {
-	s.AnsweredWhy = val
-}
-
 // SetCheckedAt sets the value of CheckedAt.
 func (s *FeedsGetFeedsStatusOKKev) SetCheckedAt(val NilDateTime) {
 	s.CheckedAt = val
+}
+
+// SetCopies sets the value of Copies.
+func (s *FeedsGetFeedsStatusOKKev) SetCopies(val []FeedsGetFeedsStatusOKKevCopiesItem) {
+	s.Copies = val
 }
 
 // SetError sets the value of Error.
@@ -58643,6 +58644,109 @@ func (s *FeedsGetFeedsStatusOKKev) SetLastSuccess(val NilDateTime) {
 // SetState sets the value of State.
 func (s *FeedsGetFeedsStatusOKKev) SetState(val FeedsGetFeedsStatusOKKevState) {
 	s.State = val
+}
+
+type FeedsGetFeedsStatusOKKevCopiesItem struct {
+	// The catalogVersion this copy last gave; null when not known yet.
+	CatalogVersion NilString `json:"catalog_version"`
+	// When the box last asked this copy.
+	CheckedAt time.Time `json:"checked_at"`
+	// Why the last ask failed, one clause naming the copy ("cisa.gov refused this box (HTTP 403)"); null
+	// when it answered.
+	Error NilString                              `json:"error"`
+	Name  FeedsGetFeedsStatusOKKevCopiesItemName `json:"name"`
+	URL   url.URL                                `json:"url"`
+}
+
+// GetCatalogVersion returns the value of CatalogVersion.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetCatalogVersion() NilString {
+	return s.CatalogVersion
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetError returns the value of Error.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetError() NilString {
+	return s.Error
+}
+
+// GetName returns the value of Name.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetName() FeedsGetFeedsStatusOKKevCopiesItemName {
+	return s.Name
+}
+
+// GetURL returns the value of URL.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetURL() url.URL {
+	return s.URL
+}
+
+// SetCatalogVersion sets the value of CatalogVersion.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetCatalogVersion(val NilString) {
+	s.CatalogVersion = val
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetName sets the value of Name.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetName(val FeedsGetFeedsStatusOKKevCopiesItemName) {
+	s.Name = val
+}
+
+// SetURL sets the value of URL.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetURL(val url.URL) {
+	s.URL = val
+}
+
+type FeedsGetFeedsStatusOKKevCopiesItemName string
+
+const (
+	FeedsGetFeedsStatusOKKevCopiesItemNameCISA             FeedsGetFeedsStatusOKKevCopiesItemName = "CISA"
+	FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror FeedsGetFeedsStatusOKKevCopiesItemName = "CISA GitHub mirror"
+)
+
+// AllValues returns all FeedsGetFeedsStatusOKKevCopiesItemName values.
+func (FeedsGetFeedsStatusOKKevCopiesItemName) AllValues() []FeedsGetFeedsStatusOKKevCopiesItemName {
+	return []FeedsGetFeedsStatusOKKevCopiesItemName{
+		FeedsGetFeedsStatusOKKevCopiesItemNameCISA,
+		FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsStatusOKKevCopiesItemName) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISA:
+		return []byte(s), nil
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsStatusOKKevCopiesItemName) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsStatusOKKevCopiesItemName(data) {
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISA:
+		*s = FeedsGetFeedsStatusOKKevCopiesItemNameCISA
+		return nil
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror:
+		*s = FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded"
@@ -58699,8 +58803,7 @@ type FeedsGetFeedsStatusOKSourcesItem struct {
 	FetchedAt time.Time `json:"fetched_at"`
 	License   string    `json:"license"`
 	Name      string    `json:"name"`
-	// The address the data came from: for the CISA list, CISA's GitHub copy when it answered the last good
-	// pull (kien G13).
+	// The address the data came from: for the CISA list, the copy the newest catalog came from (kien G13).
 	URL url.URL `json:"url"`
 }
 

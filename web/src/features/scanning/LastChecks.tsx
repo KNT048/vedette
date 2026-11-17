@@ -13,7 +13,8 @@ import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useScanning, useScanningHistory } from './api'
 import { scanRefusal } from './canScan'
-import { HistoryOutcome, historyRowHref } from './RunHistory'
+import { historyRowHref } from './places'
+import { HistoryOutcome } from './RunHistory'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 

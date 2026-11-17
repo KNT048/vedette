@@ -21,7 +21,7 @@ const MAX = 200
  * device the box may check without a person's own pick (never the box, never a fragile, unclassified or hand-added one); more than
  * 200 is said, never cut. Its progress shows under the button and the run opens in Settings › Scanning › History.
  */
-export function VulnChecksButton({ targets, size = 'sm', label, showProgress = true }: { targets: string[] | 'lan'; size?: 'sm' | 'md'; label?: string; /** Show the progress card under the button (default true); off where the page already shows the run (#877 r1 L12). */ showProgress?: boolean }) {
+export function VulnChecksButton({ targets, size = 'sm', label, showProgress = true, describedBy }: { targets: string[] | 'lan'; size?: 'sm' | 'md'; label?: string; /** Show the progress card under the button (default true); off where the page already shows the run (#877 r1 L12). */ showProgress?: boolean; /** The id of a line that says what the button does (kien G7b/c). */ describedBy?: string }) {
   const { t } = useTranslation('scan')
   const on = useModuleEnabled('scan') === true
   const can = useCan('operator')
@@ -44,7 +44,7 @@ export function VulnChecksButton({ targets, size = 'sm', label, showProgress = t
   return (
     <div className="grid min-w-0 gap-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button size={size} disabled={!!blocked || (targets === 'lan' && !all.data)} busy={start.isPending || !!ours} busyLabel={t('checks.running')}
+        <Button size={size} disabled={!!blocked || (targets === 'lan' && !all.data)} busy={start.isPending || !!ours} busyLabel={t('checks.running')} aria-describedby={describedBy}
           onClick={() => start.mutate(ids, { onSuccess: (r) => { setMine(r.id); toast.success(t('start.started')) }, onError: (e) => toast.error(errMsg(e)) })}>
           <ShieldCheck />{label ?? t('checks.button')}
         </Button>

@@ -18,9 +18,6 @@ export function HistoryOutcome({ r }: { r: HistoryRun }) {
   return <div className="grid justify-items-start gap-1 text-meta"><Chip tone={tone[r.outcome]}>{t(`history.outcome.${r.outcome}`)}</Chip><span>{r.text}</span></div>
 }
 
-/** Where a LAN run of a device opens: History of that device's runs, with that run on top (kien G7b/c). */
-export const historyRowHref = (asset: string, job: string) => `/settings/scanning?tab=history&asset=${encodeURIComponent(asset)}&job=${encodeURIComponent(job)}`
-
 /** One run, as the phone list shows it (and the run a link opened). */
 function RunCard({ r }: { r: HistoryRun }) {
   const { t } = useTranslation('scanning')

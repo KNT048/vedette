@@ -47334,6 +47334,10 @@
                           },
                           "current": {
                             "type": "boolean"
+                          },
+                          "contradicts_type": {
+                            "description": "An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS; absent otherwise",
+                            "type": "boolean"
                           }
                         },
                         "required": [

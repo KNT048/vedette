@@ -434,12 +434,22 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 		// Picking the kind the device already has still records it as manual when it came from elsewhere: that is how an operator vouches
 		// for a router that only a passive frame announced (D-177, TrustedKind).
 		if p.Kind != nil && (*p.Kind != kind || kindSrc.String != "manual") {
+			before, err := matchView(ctx, tx, id)
+			if err != nil {
+				return err
+			}
 			if err := insertObs(ctx, tx, id, "kind", *p.Kind, "manual", 1, s.now()); err != nil {
 				return err
 			}
 			if _, err := s.RecomputeAsset(ctx, tx, id); err != nil {
 				return err
 			}
+			// The type decides whether nmap's OS guess stands (osguess.go): an OS that changed with it is matched again.
+			after, err := matchView(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			match = match || after != before
 			if err := s.auditTx(ctx, tx, actor, "inventory.set_kind", name, kind+" → "+*p.Kind); err != nil {
 				return err
 			}

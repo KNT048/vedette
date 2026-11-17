@@ -39,9 +39,10 @@ func productKey(s string) string {
 var correctionLive = `EXISTS (SELECT 1 FROM inv_software r WHERE r.asset_id = s.asset_id AND r.source <> 'manual' AND ` + rowKey("r") + ` = s.corrects)`
 
 // liveSW is the SQL condition on a software row (alias s) that counts for matching and the "Do you have it?" lists (INV-41): a row a
-// person declared; a correction in use (correctionLive); a reported row no correction in use replaces.
-var liveSW = `(CASE WHEN s.corrects IS NOT NULL THEN ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
-	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END)`
+// person declared; a correction in use (correctionLive); a reported row no correction in use replaces; never an nmap OS guess the
+// device does not use (hiddenGuess).
+var liveSW = `(NOT ` + hiddenGuess + ` AND (CASE WHEN s.corrects IS NOT NULL THEN ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
+	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END))`
 
 // pkgVersionRE is a distribution's full package version as a person copies it from the device: Debian's "1:9.6p1-3ubuntu13.14",
 // Alpine's "10.2_p1-r1", RPM's "8.7p1-38.el9_4.4".

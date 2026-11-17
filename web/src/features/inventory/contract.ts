@@ -38,7 +38,8 @@ export const Asset = z.object({
 })
 
 /** Một lần quan sát một trường. Không bao giờ bị ghi đè: giá trị mới thêm vào, "đang dùng" chọn theo khai tay > tin cậy cao > mới hơn (ARCHITECTURE §4). */
-export const Observation = z.object({ id: z.string(), field: ObsField, value: z.string(), source: ObsSource, confidence, seen_at: dt, current: z.boolean() })
+export const Observation = z.object({ id: z.string(), field: ObsField, value: z.string(), source: ObsSource, confidence, seen_at: dt, current: z.boolean(),
+  contradicts_type: z.boolean().optional().describe('An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS; absent otherwise') })
 
 /** D-601: a person turns each active source of the box on or off per device, on its Sources card. */
 export const SourceState = z.enum(['on', 'off'])

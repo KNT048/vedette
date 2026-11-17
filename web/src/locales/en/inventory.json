@@ -311,6 +311,7 @@
     "state": "State",
     "current": "In use",
     "kept": "Kept for comparison",
+    "notUsedType": "Not used: nmap's guess does not fit the device type",
     "fields": {
       "kind": "Type",
       "hostname": "Hostname",

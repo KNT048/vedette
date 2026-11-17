@@ -111,7 +111,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
 	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id
-		WHERE s.asset_id IN `+sub+` AND NOT `+shadowedOSGuess+` ORDER BY s.asset_id, s.display, s.id, k.kev_key`, args...)
+		WHERE s.asset_id IN `+sub+` ORDER BY s.asset_id, s.display, s.id, k.kev_key`, args...)
 	if err != nil {
 		return fmt.Errorf("inventory: read software: %w", err)
 	}

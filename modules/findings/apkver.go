@@ -2,7 +2,7 @@ package findings
 
 import "github.com/knt048/vedette/core/apkver"
 
-// Alpine package releases (D-604): core/apkver, shared with the feeds module's Alpine parser (D-605).
+// Alpine package releases: core/apkver, shared with the feeds module's Alpine parser.
 type apkVer = apkver.Version
 
 func parseAPK(s string) (apkVer, bool) { return apkver.Parse(s) }

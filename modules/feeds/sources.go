@@ -18,7 +18,7 @@ const (
 	DecoderUbuntuOSV     Decoder = "ubuntu-osv"
 	DecoderUbuntuVEX     Decoder = "ubuntu-vex"
 	DecoderDebianTracker Decoder = "debian-tracker"
-	DecoderAlpineOSV     Decoder = "alpine-osv" // ParseAlpineOSV: OSV.dev's Alpine all.zip (D-605)
+	DecoderAlpineOSV     Decoder = "alpine-osv" // ParseAlpineOSV: OSV.dev's Alpine all.zip
 	// The data of CVE tiers 2 and 3 (D-613, D-614).
 	DecoderEPSSAll   Decoder = "epss-all"   // ParseEPSSCSV: FIRST's daily file of every EPSS score
 	DecoderNVDRecent Decoder = "nvd-recent" // RecentPageURL and ParseNVDRecent: NVD records of the last 12 months
@@ -90,7 +90,7 @@ const vulnCheckNotice = "VulnCheck Known Exploited Vulnerabilities (VulnCheck KE
 const (
 	canonicalNotice = "CC BY-SA 4.0, Canonical Ltd. Ubuntu security data."
 	debianNotice    = "Debian Security Tracker data; no licence stated. Attributed, not redistributed."
-	// alpineNotice (D-605): OSV.dev converts Alpine's secdb, CC BY-SA 4.0 (secdb.alpinelinux.org/license.txt; OSV.dev's data
+	// alpineNotice: OSV.dev converts Alpine's secdb, CC BY-SA 4.0 (secdb.alpinelinux.org/license.txt; OSV.dev's data
 	// sources page lists the same licence for it).
 	alpineNotice = "CC BY-SA 4.0, Alpine Linux security database, converted by OSV.dev."
 )

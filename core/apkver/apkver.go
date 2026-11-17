@@ -1,4 +1,4 @@
-// Package apkver reads and orders Alpine package releases (D-604, D-605): apk's version format, "10.2_p1-r1" = upstream 10.2p1 (the
+// Package apkver reads and orders Alpine package releases: apk's version format, "10.2_p1-r1" = upstream 10.2p1 (the
 // _p1 suffix), Alpine's package revision 1. Only what Alpine's openssh and similar packages use: dotted digits, an optional letter,
 // suffixes (_alpha _beta _pre _rc before the release, _cvs _svn _git _hg _p after it, each with an optional number) and the -rN
 // revision. Compared as apk-tools does for these shapes: numbers numerically, then the letter, the suffixes, the revision. A pure
@@ -38,7 +38,7 @@ func Parse(s string) (Version, bool) {
 	for i, p := range strings.Split(m[1], ".") {
 		n, err := strconv.Atoi(p)
 		// apk-tools compares a later component with a leading zero as a string ("1.05" < "1.4"); Vedette refuses it rather than
-		// order it otherwise (review r1 L4 of #968: no fixed KEV release has one, 2026-11-17)
+		// order it otherwise (no fixed release of an exploited CVE has one, 2026-11-17)
 		if err != nil || i > 0 && len(p) > 1 && p[0] == '0' {
 			return Version{}, false
 		}

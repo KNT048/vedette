@@ -31,8 +31,7 @@ var distroOfFeed = map[string]string{ubuntuOSVFeedID: DistroUbuntu, ubuntuVEXFee
 
 // distroNeeds says whether some device needs the distribution of feed id, with the source packages those devices run as the
 // security data names them (D-570, D-622). No lister, the inventory module off, or a read error: pull as before (a missed fix
-// costs more than a download), with no package known, so the pull keeps no tier row (DistroWant). Except alpine-osv (D-605, review r1
-// L6 of #968): it is fetched only when the inventory says a device states Alpine, never on a guess (PRIVACY flow 1 says "never").
+// costs more than a download), with no package known, so the pull keeps no tier row (DistroWant). Except alpine-osv: it is fetched only when the inventory says a device states Alpine, never on a guess (PRIVACY flow 1 says "never").
 // ponytail: asks the inventory on each tick while a distribution feed is due (every PullEvery while no device needs it);
 // upgrade: an inventory event that says a device's OS changed.
 func (s *Service) distroNeeds(ctx context.Context, id string) (need bool, pkgs map[string]bool) {
@@ -138,7 +137,7 @@ func (s *Service) distroNote(id string) string {
 	switch distroOfFeed[id] {
 	case DistroDebian:
 		return "Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device."
-	case DistroAlpine: // D-605: never fetched until then
+	case DistroAlpine: // never fetched until then
 		return "Not updated: no Alpine Linux device now. Vedette fetches it on the next check after a device's agent or SNMP answer, or a person, says it runs Alpine Linux."
 	}
 	return "Not updated: no Ubuntu device now. Vedette updates it on the next check after an agent reports the packages of an Ubuntu device."
@@ -166,7 +165,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 		return p, errDistroWaits
 	}
 	need, pkgs := s.distroNeeds(ctx, src.ID)
-	// a feed that never filled is pulled whatever the inventory says (review H1), except alpine-osv (D-605): without its rows findings
+	// a feed that never filled is pulled whatever the inventory says (review H1), except alpine-osv: without its rows findings
 	// asks or keeps the finding (no Alpine word is no proof either way), so a box with no Alpine device never contacts OSV.dev
 	if src.LastSuccess != nil || src.ID == alpineOSVFeedID {
 		s.setDistroIdle(src.ID, !need)
@@ -180,7 +179,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	}
 	// ubuntu-vex keeps only "not affected", which never makes a plan item (the plan lists packages below a fixed version, and a
 	// fixed version beats not affected, D-516): its tier rows would cost 561,161 rows and 485 MB of peak RSS for nothing (2026-11-15).
-	// alpine-osv keeps none either (D-605): the plan reads no apk package, and Alpine's lister names no package.
+	// alpine-osv keeps none either: the plan reads no apk package, and Alpine's lister names no package.
 	if dec != DecoderUbuntuVEX && dec != DecoderAlpineOSV && len(pkgs) > 0 {
 		if want.Tier, err = s.st.tierCVEs(ctx, s.now()); err != nil {
 			return p, err
@@ -329,7 +328,7 @@ func (s *Store) DistroFixes(ctx context.Context) (map[string][]DistroFix, error)
 	return s.distroFixes(ctx, "")
 }
 
-// DistroLoading lists the distributions one of whose feeds is on but holds no row (D-605, review r1 M1 of #968): never filled, or every
+// DistroLoading lists the distributions one of whose feeds is on but holds no row: never filled, or every
 // pull failed. findings then keeps an Alpine CVE of the platform list a question ("not loaded yet") instead of letting NVD decide; a
 // feed that is off is not loading (its distribution falls back to NVD), and one with rows from an earlier good pull decides with them.
 func (s *Store) DistroLoading(ctx context.Context) (map[string]bool, error) {
@@ -350,7 +349,7 @@ AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id)`)
 	return out, rows.Err()
 }
 
-// DistroFixesOf is DistroFixes of one CVE (the CVE page's platform check, D-605); nil when none.
+// DistroFixesOf is DistroFixes of one CVE (the CVE page's platform check); nil when none.
 func (s *Store) DistroFixesOf(ctx context.Context, cve string) ([]DistroFix, error) {
 	out, err := s.distroFixes(ctx, cve)
 	return out[cve], err

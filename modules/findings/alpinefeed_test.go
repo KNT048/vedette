@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// D-605: only the device's own statement (agent, SNMP answer) or a person's OS says Alpine; a person's other OS wins; the folded OS (an
+// Only the device's own statement (agent, SNMP answer) or a person's OS says Alpine; a person's other OS wins; the folded OS (an
 // nmap or DHCP guess) never does.
 func TestStatesAlpine(t *testing.T) {
 	t.Parallel()
@@ -13,7 +13,7 @@ func TestStatesAlpine(t *testing.T) {
 		a    Asset
 		want bool
 	}{
-		{Asset{SNMPOS: "Alpine Linux"}, true}, // BN340 after #950: uname over SNMP
+		{Asset{SNMPOS: "Alpine Linux"}, true}, // uname read over SNMP
 		{Asset{AgentOS: "Alpine Linux v3.23"}, true},
 		{Asset{ManualOS: "Alpine Linux 3.23"}, true},
 		{Asset{OS: "Alpine Linux"}, false}, // nmap's guess
@@ -26,7 +26,7 @@ func TestStatesAlpine(t *testing.T) {
 	}
 }
 
-// D-605: BN340's package release is read against the feed's rows, and only them. With Alpine's rows (alpine-osv) 10.2_p1-r1 on 3.23 is
+// gw-alpine's package release is read against the feed's rows, and only them. With Alpine's rows (alpine-osv) 10.2_p1-r1 on 3.23 is
 // not affected; with the feed on but not loaded the question stays; with the feed off NVD's range decides (a finding), never a made-up
 // list; a branch the feed has no row for (edge: OSV.dev lists none) is never closed either.
 func TestPlatform_D605_FeedRowsDecide(t *testing.T) {
@@ -34,14 +34,14 @@ func TestPlatform_D605_FeedRowsDecide(t *testing.T) {
 	bn340 := func(os, rel string) Asset {
 		row := sshRow("10.2", "", "manual")
 		row.PkgVersion, row.ReportedSource = rel, "nmap"
-		return Asset{ID: "a-bn340", Name: "BN340", SNMPOS: "Alpine Linux", ManualOS: os, Software: []Software{row}}
+		return Asset{ID: "a-gw-alpine", Name: "gw-alpine", SNMPOS: "Alpine Linux", ManualOS: os, Software: []Software{row}}
 	}
 	have := map[string]bool{"CVE-2026-123158": true}
 	if res := MatchAsset(bn340("Alpine Linux 3.23", "10.2_p1-r1"), []Vuln{sshhole()}, have, t0); len(res.NotAffected) != 1 ||
 		!strings.Contains(res.NotAffected[0].Evidence.Summary, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1") {
 		t.Fatalf("with the feed's rows: %+v", res)
 	}
-	// review r1 M1 of #968: alpine-osv on but not loaded (never filled, or every pull failed: feeds' DistroLoading) keeps the question,
+	// alpine-osv on but not loaded (never filled, or every pull failed: feeds' DistroLoading) keeps the question,
 	// even with the release a person gave; only with the feed off does NVD decide (a finding)
 	loading := sshhole()
 	loading.Distro, loading.DistroLoading = nil, map[string]bool{DistroAlpine: true}

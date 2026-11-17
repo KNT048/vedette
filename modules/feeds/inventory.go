@@ -58,7 +58,7 @@ type DistroLister interface {
 // PlatformChecker is an optional extension of Inventory (D-549, KF-CVEPAGE): among ids, the devices that the findings matcher's platform
 // rules (D-547) prove are not affected by the CVE (an Ubuntu box for an Alpine-only OpenSSH flaw), so "Do you have it?" on the CVE
 // page agrees with the device's findings. distro is what the distribution feeds that are on say about the CVE (DistroFixesOf): a package
-// release a person gave is read against it (D-605). Without it the page answers by product only, as before.
+// release a person gave is read against it. Without it the page answers by product only, as before.
 type PlatformChecker interface {
 	NotAffected(ctx context.Context, cve, vendor, product string, distro []DistroFix, ids []string) (map[string]bool, error)
 }

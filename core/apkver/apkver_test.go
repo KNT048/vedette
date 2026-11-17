@@ -2,7 +2,7 @@ package apkver
 
 import "testing"
 
-// D-605: the order the feeds module keeps the higher of two fixed releases by, and the shapes it refuses.
+// The order the feeds module keeps the higher of two fixed releases by, and the shapes it refuses.
 func TestCompareAndValid(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -10,7 +10,7 @@ func TestCompareAndValid(t *testing.T) {
 		want int
 	}{
 		{"29.4.3-r0", "29.4.2-r0", 1}, {"6.11.0-r1", "6.10.2-r13", 1}, {"10.2_p1-r1", "10.2_p1-r1", 0}, {"9.9_p2-r1", "10.0_p1-r11", -1},
-		// review r1 L4 of #968, apk-tools src/version.c: a suffix without a number before the same with 0, and the orders it checked
+		// apk-tools src/version.c: a suffix without a number before the same with 0, and the orders it checked
 		{"1.0_p-r5", "1.0_p0-r0", -1}, {"1.0_rc1-r0", "1.0-r0", -1}, {"1.0-r0", "1.0_p1-r0", -1}, {"1.0_p1-r0", "1.0a-r0", -1}, {"1.0a-r0", "1.0.1-r0", -1},
 		{"1.0_alpha-r0", "1.0_alpha1-r0", -1}, {"1.0_rc1_alpha-r0", "1.0_rc1-r0", -1}, {"1.0-r1", "1.0-r10", -1}, {"10.0_p1-r0", "10.0_p1-r0", 0},
 	} {

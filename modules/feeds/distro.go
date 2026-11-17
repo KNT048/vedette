@@ -27,9 +27,9 @@ import (
 //     archive's current version, not the first fixed one, so they would keep a patched device suspected).
 //   - debian-tracker: the Debian Security Tracker JSON, every Debian release in one file: resolved with a fixed version,
 //     or resolved with fixed version "0" (not affected).
-//   - alpine-osv (D-605): OSV.dev's Alpine ecosystem (all.zip, one OSV record per CVE converted from Alpine's secdb), every Alpine
+//   - alpine-osv: OSV.dev's Alpine ecosystem (all.zip, one OSV record per CVE converted from Alpine's secdb), every Alpine
 //     branch OSV lists in one file: a "fixed" event is the first fixed apk release of the source package on that branch, "0" not
-//     affected. KEV CVEs only (no tier rows), and pulled only while a device states Alpine (D-570 without the first pull).
+//     affected. KEV CVEs only (no tier rows), and pulled only while a device states Alpine (the inventory gate without a first pull).
 //
 // Each file covers every release, so a pull names none of the releases the customer runs. Open, needs-triage, deferred
 // and ignored entries are not kept: they change nothing about a finding.
@@ -59,7 +59,7 @@ const (
 	// distroMaxRowsPerCVE fails a hostile CVE entry closed (the Linux kernel CVEs have a few hundred source packages).
 	distroMaxRowsPerCVE = 20_000
 
-	// The bounds of OSV.dev's Alpine all.zip (D-605), a few times what it held on 2026-11-17 (review r1 L2, L3 of #968). The archive is
+	// The bounds of OSV.dev's Alpine all.zip, a few times what it held on 2026-11-17. The archive is
 	// read whole into memory (a zip's directory is at its end): 9,244,018 bytes, 10,859 files, a central directory of 0.9 MB. Only the
 	// records of KEV CVEs are unpacked: the largest 26,945 bytes, all of them 582,845 bytes (any record: 44,917 bytes).
 	alpineMaxBytes    = 32 << 20
@@ -67,7 +67,7 @@ const (
 	alpineMaxDir      = 8 << 20 // the central directory, read from the end record before the zip reader parses it
 	alpineMaxEntry    = 1 << 20
 	alpineMaxUnpacked = 64 << 20
-	// alpineMaxRelease is the longest fixed release kept (feeds_distro_fix.fixed_version CHECK; review r1 L11 of #968).
+	// alpineMaxRelease is the longest fixed release kept (feeds_distro_fix.fixed_version CHECK).
 	alpineMaxRelease = 100
 )
 
@@ -300,7 +300,7 @@ func eachTarEntry(r io.Reader, re *regexp.Regexp, want func(string) bool, tl *ta
 
 // eachZipEntry reads a zip archive whole (at most alpineMaxBytes; its directory is at its end) and calls fn once for each CVE that has
 // exactly one file whose name matches re and that want accepts (submatch 1), with the CVE and the file (at most alpineMaxEntry bytes;
-// a bigger one is rejected with its CVE). Two files of one CVE reject that CVE (review r1 L1 of #968). The end record is read first, so
+// a bigger one is rejected with its CVE). Two files of one CVE reject that CVE. The end record is read first, so
 // a directory of more than alpineMaxFiles files or alpineMaxDir bytes is refused before the zip reader parses it (L2). An archive
 // where no file name matches re fails (L10: a format change never stores nothing), as do a cut or damaged archive, a file whose
 // checksum fails, or files that unpack past alpineMaxUnpacked together: the whole pull fails, never a smaller list.
@@ -392,7 +392,7 @@ func zipEnd(data []byte) (files, dir int, ok bool) {
 
 type osvRecord struct {
 	ID        string `json:"id"`
-	Withdrawn string `json:"withdrawn"` // a withdrawn record decides nothing (review r1 L5 of #968)
+	Withdrawn string `json:"withdrawn"` // a withdrawn record decides nothing
 	Affected  []struct {
 		Package struct {
 			Ecosystem string `json:"ecosystem"`
@@ -470,7 +470,7 @@ func ParseUbuntuOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 	return DistroResult{Rows: out, Stats: tl.stats()}, nil
 }
 
-// ParseAlpineOSV reads OSV.dev's Alpine all.zip (D-605) and keeps, for the CVEs of want's KEV list, the first fixed release of each
+// ParseAlpineOSV reads OSV.dev's Alpine all.zip and keeps, for the CVEs of want's KEV list, the first fixed release of each
 // source package of each Alpine branch ("Alpine:v3.23" → release "3.23"): a "fixed" event, the highest of several; "0" is Alpine's
 // "not affected" (secdb's convention). Every branch the record lists is kept. Tier CVEs are not kept: findings reads Alpine's rows only
 // for the KEV CVEs of the platform list. The record must be about its file's CVE; a record with a bad package name, no affected package
@@ -527,7 +527,7 @@ func ParseAlpineOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 			}
 		}
 		switch {
-		case branches == 0 && len(rec.Affected) > 0: // review r1 L10 of #968: a renamed ecosystem fails loudly (all rejected), never stores nothing
+		case branches == 0 && len(rec.Affected) > 0: // a renamed ecosystem fails loudly (all rejected), never stores nothing
 			tl.reject(row, "%s: no affected package of an Alpine branch (ecosystem %s)", cve, quoteVal(rec.Affected[0].Package.Ecosystem))
 			return nil
 		case len(got) > distroMaxRowsPerCVE:
@@ -547,7 +547,7 @@ func ParseAlpineOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 }
 
 // preferAlpine says whether f replaces old for the same branch and package: a fixed release over "not affected" (as findings reads
-// Ubuntu's two files, D-516), then the higher release in apk order. secdb lists some CVEs under two releases of one branch (13 KEV
+// Ubuntu's two files), then the higher release in apk order. secdb lists some CVEs under two releases of one branch (13 KEV
 // rows on 2026-11-17, docker 29.4.2-r0 and 29.4.3-r0 for CVE-2026-31431): the higher one is the release that has the whole fix.
 func preferAlpine(f, old DistroFix) bool {
 	if f.Status != old.Status {

@@ -158,7 +158,7 @@ type pullPlan struct {
 	iocs    []iocInput
 	hasIOCs bool
 
-	distro     []DistroFix     // ubuntu-osv, ubuntu-vex, debian-tracker (D-516), alpine-osv (D-605): the feed's rows, replaced whole
+	distro     []DistroFix     // ubuntu-osv, ubuntu-vex, debian-tracker, alpine-osv: the feed's rows, replaced whole
 	distroKEV  map[string]bool // the CISA list's CVEs: only their changed rows are news for findings (D-622)
 	distroKeep []string        // the packages the tier rows were kept for (distroKeep); nil: no tier row
 	hasDistro  bool

@@ -36,7 +36,7 @@ type fakeInv struct {
 	// notAffected: CVE -> device ids the platform rules rule out (PlatformChecker, D-549); platformErr makes the check fail.
 	notAffected map[string][]string
 	platformErr error
-	distro      []DistroFix // the distribution rows the last check got (D-605)
+	distro      []DistroFix // the distribution rows the last check got
 }
 
 func (f *fakeInv) NotAffected(_ context.Context, cve, _, _ string, distro []DistroFix, ids []string) (map[string]bool, error) {
@@ -428,7 +428,7 @@ func TestCVEPage_D549_PlatformRulesAgreeWithFindings(t *testing.T) {
 	e.loadKEV()
 	e.inv.matches["synology|diskstation manager"] = []MatchedAsset{{ID: "a1", IP: "10.0.0.5", Display: "NAS", How: HaveYes}, {ID: "a2", IP: "10.0.0.6", Display: "NAS 2", How: HaveYes}}
 	e.inv.notAffected = map[string][]string{"CVE-2026-10001": {"a1"}}
-	// D-605: the check gets the distribution feeds' rows of that CVE (an Alpine branch's fixed release), and only those
+	// the check gets the distribution feeds' rows of that CVE (an Alpine branch's fixed release), and only those
 	write(t, e.db, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES
 ('alpine-osv', 'alpine', '3.23', 'openssh', 'CVE-2026-10001', 'fixed', '10.2_p1-r1'), ('alpine-osv', 'alpine', '3.23', 'openssh', 'CVE-2026-10002', 'fixed', '10.2_p1-r1')`)

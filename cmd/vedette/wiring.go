@@ -73,7 +73,7 @@ func (a feedsInventory) NotAffected(ctx context.Context, cve, vendor, product st
 		return out, nil
 	}
 	now := time.Now()
-	fixes := make([]findings.DistroFix, len(distro)) // D-605: the release a person gave is read against the distribution's feed
+	fixes := make([]findings.DistroFix, len(distro)) // the release a person gave is read against the distribution's feed
 	for i, d := range distro {
 		fixes[i] = findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro}
 	}
@@ -102,7 +102,7 @@ func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) 
 // Distros implements feeds.DistroLister (D-570, D-622): the distributions of the devices whose deb packages an agent read, as
 // findings decides it (findings.DeviceDistro), each with those devices' source packages as the security data names them
 // (findings.DevicePackages), so a distribution feed is pulled only while a device needs it and keeps tier rows for those packages;
-// and "alpine", with no package, while a device states Alpine Linux (findings.StatesAlpine, D-605).
+// and "alpine", with no package, while a device states Alpine Linux (findings.StatesAlpine).
 func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool, error) {
 	ids, err := a.inv.AssetIDs(ctx)
 	if err != nil {
@@ -121,7 +121,7 @@ func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool
 		for i, sw := range d.Software {
 			fa.Software[i] = findings.Software{Source: sw.Source, Packaged: sw.Packaged, PkgVersion: sw.PkgVersion, PkgSource: sw.PkgSource, ReportedSource: sw.ReportedSource}
 		}
-		if findings.StatesAlpine(fa) && out[findings.DistroAlpine] == nil { // D-605: Alpine's feed keeps no package rows
+		if findings.StatesAlpine(fa) && out[findings.DistroAlpine] == nil { // Alpine's feed keeps no package rows
 			out[findings.DistroAlpine] = map[string]bool{}
 		}
 		dist, _, pkgs := findings.DevicePackages(fa)
@@ -421,7 +421,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
-	loading, err := a.st.DistroLoading(ctx) // D-605 (review r1 M1 of #968): a feed on but not loaded keeps Alpine's questions
+	loading, err := a.st.DistroLoading(ctx) // a feed on but not loaded keeps Alpine's questions (NVD would raise a false finding)
 	if err != nil {
 		return nil, err
 	}
@@ -757,7 +757,7 @@ func subscribe(d deps) {
 		return scanService(d).DeviceChanged(ctx, ev.AssetID)
 	}))
 	d.Bus.Subscribe(feeds.EventVulnUpdated, on("inventory", rematchUpdated(d))) // D-328: a CVE whose vendor or product changed
-	// D-605 (review r1 M1 of #968): the first device that states Alpine Linux (its SNMP answer, its agent, a person's OS) pulls alpine-osv
+	// The first device that states Alpine Linux (its SNMP answer, its agent, a person's OS) pulls alpine-osv
 	// now, not at the next feeds check: until it is loaded that device's Alpine-only CVEs stay questions.
 	for _, name := range []string{inventory.EventAssetDiscovered, inventory.EventAssetUpdated} {
 		d.Bus.Subscribe(name, on("feeds", alpineWake(d)))

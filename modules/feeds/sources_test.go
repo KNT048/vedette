@@ -11,13 +11,13 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 	allowed := map[string]bool{
 		"www.cisa.gov": true, "api.first.org": true, "raw.githubusercontent.com": true,
 		"rules.emergingthreats.net": true, "feodotracker.abuse.ch": true, "check.torproject.org": true,
-		"services.nvd.nist.gov":                      true, // D-500
-		"security-metadata.canonical.com":            true, // D-516
-		"security-tracker.debian.org":                true, // D-516
-		"api.vulncheck.com":                          true, // D-557 (BYOK, off until the customer saves a key)
-		"epss.empiricalsecurity.com":                 true, // D-614: FIRST's daily file of every EPSS score
-		"learn.microsoft.com":                        true, // D-603: Microsoft's Windows release information pages
-		"osv-vulnerabilities.storage.googleapis.com": true, // D-605: OSV.dev's Alpine all.zip, only while a device states Alpine
+		"services.nvd.nist.gov":                      true, // NVD affected versions
+		"security-metadata.canonical.com":            true, // Ubuntu security data
+		"security-tracker.debian.org":                true, // Debian Security Tracker
+		"api.vulncheck.com":                          true, // VulnCheck KEV (BYOK, off until the customer saves a key)
+		"epss.empiricalsecurity.com":                 true, // FIRST's daily file of every EPSS score
+		"learn.microsoft.com":                        true, // Microsoft's Windows release information pages
+		"osv-vulnerabilities.storage.googleapis.com": true, // OSV.dev's Alpine all.zip, only while a device states Alpine
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
 	for _, s := range BuiltinSources() {

@@ -15,7 +15,7 @@ import (
 )
 
 // testdata/alpine holds four records of OSV.dev's Alpine all.zip as served on 2026-11-17, unmodified (Alpine Linux security
-// database, CC BY-SA 4.0, converted by OSV.dev; THIRD_PARTY_NOTICES.md): CVE-2026-123158 (OpenSSH, BN340's CVE, every branch OSV
+// database, CC BY-SA 4.0, converted by OSV.dev; THIRD_PARTY_NOTICES.md): CVE-2026-123158 (OpenSSH, the CVE of the platform list, every branch OSV
 // lists), CVE-2026-31431 (docker, two fixed releases per branch), CVE-2021-3156 (sudo, old branches with a release apk cannot read)
 // and CVE-2006-20001 (apache2, not on the CISA list).
 
@@ -51,7 +51,7 @@ func alpineRecords(t testing.TB) []byte {
 
 var alpineKEV = DistroWant{KEV: map[string]bool{"CVE-2026-123158": true, "CVE-2026-31431": true, "CVE-2021-3156": true}, Tier: map[string]bool{"CVE-2006-20001": true}}
 
-// D-605: every Alpine branch the record lists is kept with its first fixed release (secdb, read 2026-11-17: v3.16 9.0_p1-r6 … v3.24
+// Every Alpine branch the record lists is kept with its first fixed release (secdb, read 2026-11-17: v3.16 9.0_p1-r6 … v3.24
 // 10.3_p1-r2; OSV.dev lists no edge), the higher of two fixed releases, and a release apk cannot read drops only its branch.
 func TestParseAlpineOSV(t *testing.T) {
 	t.Parallel()
@@ -98,7 +98,7 @@ func mapsEqual(a, b map[string]string) bool {
 	return true
 }
 
-// D-605 and review r1 of #968: the zip is read fail-closed. A cut or foreign archive, one where no name is an Alpine record (L10: a format
+// The zip is read fail-closed. A cut or foreign archive, one where no name is an Alpine record (L10: a format
 // change) or one whose end record lists too many files (L2) fails the pull; a record of another CVE, two files of one CVE (L1: the CVE
 // is rejected, neither file kept), a bad package name, a record that names no Alpine branch (L10) or a file over 1 MiB is rejected
 // alone; a withdrawn record keeps nothing (L5); secdb's "0" is "not affected"; a release longer than 100 characters drops its row.
@@ -156,7 +156,7 @@ func TestParseAlpineOSVFailsClosed(t *testing.T) {
 	}
 }
 
-// D-605 (D-570 without the first pull): alpine-osv is fetched only while a device states Alpine Linux, even before its first fill, so
+// alpine-osv is fetched only while a device states Alpine Linux, even before its first fill, so
 // a box without one never contacts OSV.dev; then it keeps the CISA list's CVEs, sends its validators back (304 keeps the rows) and
 // findings reads its rows with the others.
 func TestAlpinePullOnlyWhileADeviceStatesAlpine(t *testing.T) {
@@ -180,7 +180,7 @@ func TestAlpinePullOnlyWhileADeviceStatesAlpine(t *testing.T) {
 	if o.count("/Alpine/all.zip") != 0 || inv.asked != 2 || f.Status != "never" || f.Error == nil || *f.Error != note {
 		t.Fatalf("no Alpine device: %d requests, asked %d, feed %+v", o.count("/Alpine/all.zip"), inv.asked, f)
 	}
-	// review r1 L6 of #968: an inventory that cannot be read, or none, never opens the gate (PRIVACY flow 1: "never")
+	// an inventory that cannot be read, or none, never opens the gate (PRIVACY flow 1: "never")
 	inv.err = errors.New("database is locked")
 	if err := e.svc.Fetch(t.Context(), alpineOSVFeedID); err != nil || o.count("/Alpine/all.zip") != 0 {
 		t.Fatalf("inventory read error: %v, %d requests", err, o.count("/Alpine/all.zip"))
@@ -199,11 +199,11 @@ func TestAlpinePullOnlyWhileADeviceStatesAlpine(t *testing.T) {
 		}
 		return l[DistroAlpine]
 	}
-	// review r1 M1 of #968: on and never filled is loading (findings keeps the question); a failed pull with no rows still is
+	// on and never filled is loading (findings keeps the question); a failed pull with no rows still is
 	if !loading() {
 		t.Fatal("alpine-osv on and never filled is not loading")
 	}
-	inv.got = map[string]map[string]bool{DistroAlpine: {}} // BN340's SNMP answer says Alpine Linux
+	inv.got = map[string]map[string]bool{DistroAlpine: {}} // a device's SNMP answer says Alpine Linux
 	o.serve("/Alpine/all.zip", func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "busy", http.StatusServiceUnavailable) })
 	if err := e.svc.Fetch(t.Context(), alpineOSVFeedID); err != nil || o.count("/Alpine/all.zip") != 1 || e.feed(alpineOSVFeedID).Status != "error" || !loading() {
 		t.Fatalf("a failed first pull: %v, %d requests, feed %+v, loading %v", err, o.count("/Alpine/all.zip"), e.feed(alpineOSVFeedID), loading())

@@ -191,7 +191,7 @@ func TestFeedsInventoryDistros(t *testing.T) {
 	if got := distros(); !reflect.DeepEqual(got, map[string]map[string]bool{"debian": {"openssh": true}}) {
 		t.Fatalf("the same box on Debian: %v", got)
 	}
-	// D-605: a person says the device runs Alpine Linux (inventory INV-41): alpine-osv is needed, with no package; cleared, it is not
+	// a person says the device runs Alpine Linux (inventory INV-41): alpine-osv is needed, with no package; cleared, it is not
 	alpine, none := "Alpine Linux 3.23", ""
 	if err := s.d.Inventory.PatchDevice(ctx, "it@acme.example", id, inventory.Patch{OS: &alpine}); err != nil {
 		t.Fatal(err)
@@ -207,7 +207,7 @@ func TestFeedsInventoryDistros(t *testing.T) {
 	}
 }
 
-// D-605 end to end: alpine-osv's rows reach the matcher through findingsFeeds. BN340 (nmap's OpenSSH 10.2 on a device a person says runs
+// End to end: alpine-osv's rows reach the matcher through findingsFeeds. gw-alpine (nmap's OpenSSH 10.2 on a device a person says runs
 // Alpine Linux 3.23) with the package release 10.2_p1-r1 a person gave is not affected by CVE-2026-123158 by Alpine's fixed release for 3.23;
 // 10.2_p1-r0 is a version finding naming that release.
 func TestAlpineFixReachesFindings(t *testing.T) {
@@ -238,7 +238,7 @@ func TestAlpineFixReachesFindings(t *testing.T) {
 		t.Fatal(err)
 	}
 	ip := netip.MustParseAddr("192.168.18.1")
-	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.Hostname, Value: "BN340", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.Hostname, Value: "gw-alpine", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
 		t.Fatal(err)
 	}
 	addrs, err := s.d.Inventory.AddressMap(ctx)
@@ -256,7 +256,7 @@ func TestAlpineFixReachesFindings(t *testing.T) {
 	}
 	dev, err := s.d.Inventory.Device(ctx, id)
 	if err != nil || len(dev.Software) != 1 {
-		t.Fatalf("BN340: %+v %v", dev, err)
+		t.Fatalf("gw-alpine: %+v %v", dev, err)
 	}
 	give := func(rel string) []findings.Record {
 		t.Helper()
@@ -280,7 +280,7 @@ func TestAlpineFixReachesFindings(t *testing.T) {
 	}
 }
 
-// Review r1 M1 of #968: while alpine-osv is on but not loaded, BN340's Alpine-only CVE stays a question (never an NVD finding), and the
+// While alpine-osv is on but not loaded, gw-alpine's Alpine-only CVE stays a question (never an NVD finding), and the
 // person's "Alpine Linux 3.23" wakes the feeds pull at once; with the feed off NVD decides (a finding).
 func TestAlpineNotLoadedKeepsTheQuestionAndWakesThePull(t *testing.T) {
 	t.Parallel()
@@ -301,7 +301,7 @@ func TestAlpineNotLoadedKeepsTheQuestionAndWakesThePull(t *testing.T) {
 		t.Fatal(err)
 	}
 	ip := netip.MustParseAddr("192.168.18.1")
-	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.Hostname, Value: "BN340", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.Hostname, Value: "gw-alpine", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
 		t.Fatal(err)
 	}
 	addrs, err := s.d.Inventory.AddressMap(ctx)

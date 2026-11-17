@@ -37,10 +37,10 @@ func TestWiringCVEPageNotAffected(t *testing.T) {
 	if got, err := fi.NotAffected(ctx, "CVE-2024-6387", "OpenBSD", "OpenSSH", nil, []string{id}); err != nil || len(got) != 0 {
 		t.Fatalf("a CVE without a platform limit: %v %v", got, err)
 	}
-	// D-605: BN340, a scanned OpenSSH 10.2 whose package release a person gave on a device a person says runs Alpine Linux 3.23: not affected
+	// gw-alpine, a scanned OpenSSH 10.2 whose package release a person gave on a device a person says runs Alpine Linux 3.23: not affected
 	// by Alpine's fixed release from the feed's rows, and only with them (no rows: NVD decides, the page keeps it)
 	bn := netip.MustParseAddr("192.168.18.1")
-	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: bn}, Field: observe.Hostname, Value: "BN340", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: bn}, Field: observe.Hostname, Value: "gw-alpine", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
 		t.Fatal(err)
 	}
 	if addrs, err = s.d.Inventory.AddressMap(ctx); err != nil {
@@ -57,7 +57,7 @@ func TestWiringCVEPageNotAffected(t *testing.T) {
 	}
 	dev, err := s.d.Inventory.Device(ctx, bid)
 	if err != nil || len(dev.Software) != 1 {
-		t.Fatalf("BN340: %+v %v", dev, err)
+		t.Fatalf("gw-alpine: %+v %v", dev, err)
 	}
 	if err := s.d.Inventory.EditSoftware(ctx, "it@acme.example", bid, dev.Software[0].ID, inventory.SoftwareEdit{PkgVersion: &rel}); err != nil {
 		t.Fatal(err)
@@ -65,9 +65,9 @@ func TestWiringCVEPageNotAffected(t *testing.T) {
 	rows := []feeds.DistroFix{{Distro: "alpine", Release: "3.23", Package: "openssh", CVE: "CVE-2026-123158", Status: "fixed", Fixed: "10.2_p1-r1"},
 		{Distro: "alpine", Release: "3.24", Package: "openssh", CVE: "CVE-2026-123158", Status: "fixed", Fixed: "10.3_p1-r2"}}
 	if got, err := fi.NotAffected(ctx, "CVE-2026-123158", "OpenBSD", "OpenSSH", rows, []string{bid}); err != nil || !got[bid] {
-		t.Fatalf("BN340 with Alpine's rows: %v %v", got, err)
+		t.Fatalf("gw-alpine with Alpine's rows: %v %v", got, err)
 	}
 	if got, err := fi.NotAffected(ctx, "CVE-2026-123158", "OpenBSD", "OpenSSH", nil, []string{bid}); err != nil || got[bid] {
-		t.Fatalf("BN340 without Alpine's rows: %v %v", got, err)
+		t.Fatalf("gw-alpine without Alpine's rows: %v %v", got, err)
 	}
 }

@@ -317,11 +317,11 @@ func (h *FindingHandlers) unchecked(ctx context.Context, assetID string) ([]Unch
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading devices: %w", err)
 	}
-	var distro map[string][]DistroFix // D-605: the fixed releases a question names come from the distribution's feed
+	var distro map[string][]DistroFix // the fixed releases a question names come from the distribution's feed
 	if slices.ContainsFunc(rows, func(r UncheckedRow) bool {
 		return r.Reason == UncheckedPlatformUnknown || r.Reason == UncheckedPackageUnknown
 	}) {
-		// the list the matcher reads (cached per feeds stamp in cmd/vedette); unreadable, the questions go without releases (r1 L9 of #968)
+		// the list the matcher reads (cached per feeds stamp in cmd/vedette); unreadable, the questions go without releases
 		vulns, err := h.feed.Vulns(ctx)
 		if err != nil {
 			h.svc.cfg.Log.WarnContext(ctx, "reading the exploited list for the questions failed; they name no fixed release", "error", err)
@@ -394,7 +394,7 @@ type UncheckedAnswer struct {
 // UncheckedItems groups rows into items, with the CISA name, date and advisory (its first link, a web address) of each CVE (kev)
 // and the device (assets): devices by name, then software by display, then CVEs newest first (date_added, then id). A CVE the
 // exploited list no longer has is left out (KEV entries only), so no item is empty.
-// distro is the distributions' word by CVE (Vuln.Distro) for the questions of platform-limited CVEs (D-605: the fixed releases they
+// distro is the distributions' word by CVE (Vuln.Distro) for the questions of platform-limited CVEs (the fixed releases they
 // name); nil when none is asked.
 func UncheckedItems(rows []UncheckedRow, kev map[string]KevInfo, assets map[string]AssetView, distro map[string][]DistroFix) []UncheckedItem {
 	type key struct {

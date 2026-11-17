@@ -1,5 +1,5 @@
 -- +goose Up
--- D-605: the built-in feed alpine-osv (OSV.dev's Alpine all.zip, converted from Alpine's secdb) stores its rows in feeds_distro_fix
+-- The built-in feed alpine-osv (OSV.dev's Alpine all.zip, converted from Alpine's secdb) stores its rows in feeds_distro_fix
 -- with distro 'alpine': one Alpine branch ("3.23") and source package ("openssh") per row, the first fixed apk release, or
 -- not_affected (secdb's "0"). SQLite cannot change a CHECK, so the table is rebuilt with its rows and index. The release CHECK already
 -- takes a branch number. Forward-only.

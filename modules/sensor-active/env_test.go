@@ -116,7 +116,9 @@ type fakeInv struct {
 	// protected is what ProtectedIPs lists (a device by hand, never, fragile after its gentle scan, the box)
 	protected []netip.Addr
 	approved  map[string]bool // Asset.Approved (SNMP, D-512)
-	box       []netip.Addr    // BoxIPs: the box and its decoys (a part of protected)
+	// snmpDecision is what SNMPPolicy answers for a device (D-601); a device not in it gets its ScanPolicy answer, as before D-601.
+	snmpDecision map[string]sa.Decision
+	box          []netip.Addr // BoxIPs: the box and its decoys (a part of protected)
 	// onAddresses, when set, runs at every Addresses call, outside the lock (a test acting in the middle of a read's preparation).
 	onAddresses func()
 	// onInScope runs once, at the next InScope (outside the lock): a test changes something between a check and the run.
@@ -179,6 +181,17 @@ func (f *fakeInv) ScanPolicy(_ context.Context, id string) (sa.Decision, error) 
 		return d, nil
 	}
 	return sa.Decision{Allowed: true, Rate: f.st.Rate, Reason: "ok"}, nil
+}
+
+func (f *fakeInv) SNMPPolicy(ctx context.Context, id string) (sa.Decision, error) {
+	f.mu.Lock()
+	d, ok := f.snmpDecision[id]
+	_, known := f.assets[id]
+	f.mu.Unlock()
+	if ok && known {
+		return d, nil
+	}
+	return f.ScanPolicy(ctx, id)
 }
 
 func (f *fakeInv) MarkFirstScan(_ context.Context, id string) error {

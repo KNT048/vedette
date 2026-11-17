@@ -14,7 +14,7 @@ import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { isLive, useRuns, useStopRun } from './api'
 import { errMsg } from './errors'
-import { ResultChip, RunStatusChip } from './shared'
+import { ResultChip, RunStatusChip, runOutcome } from './shared'
 import { RescanLog } from './RescanLog'
 import type { RunIdentRow, RunResultRow, ScanRun } from './types'
 
@@ -110,7 +110,8 @@ function History({ runs }: { runs: ScanRun[] }) {
     { id: 'trigger', header: t('hist.trigger'), accessorFn: (r) => r.trigger, cell: ({ row: { original: r } }) => <div className="grid text-meta"><span>{t(`trigger.${r.trigger}`)}</span>{r.trigger_note ? <span className="text-muted">{r.trigger_note}</span> : <span className="text-muted">{r.started_by === 'system' ? t('hist.bySystem') : r.started_by}</span>}</div> },
     { id: 'total', header: t('hist.devices'), accessorFn: (r) => r.total, cell: ({ row: { original: r } }) => <span>{r.done === r.total ? r.total : t('hist.partial', { done: r.done, total: r.total })}</span> },
     { id: 'status', header: t('hist.status'), accessorFn: (r) => r.status, cell: ({ row: { original: r } }) => <RunStatusChip run={r} /> },
-    { id: 'matched', header: t('hist.matched'), accessorFn: (r) => r.matched, cell: ({ row: { original: r } }) => (r.matched ? <span className="font-medium text-danger">{r.matched}</span> : <span className="text-muted">0</span>) },
+    // kien G7a: what the run found in words, from its results (never "0 matches" when nothing could be checked)
+    { id: 'found', header: t('hist.found'), accessorFn: (r) => r.matched, cell: ({ row: { original: r } }) => <span className={r.matched ? 'text-meta font-medium text-danger' : 'text-meta'}>{runOutcome(r, t)}</span> },
     { id: 'actions', header: () => <span className="sr-only">{t('hist.actions')}</span>, enableSorting: false, cell: ({ row: { original: r } }) => (
       <Button size="sm" disabled={isLive(r)} aria-label={t('hist.viewAria', { time: fmtDateTime(r.started_at) })} onClick={(e) => view(e, r.id)}>{t('hist.view')}</Button>
     ) },
@@ -127,7 +128,7 @@ function History({ runs }: { runs: ScanRun[] }) {
             <span className="text-meta text-muted">{t(`trigger.${r.trigger}`)}{r.trigger_note ? `: ${r.trigger_note}` : r.started_by === 'system' ? '' : `, ${r.started_by}`}</span>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
               <span>{t('hist.devicesCount', { count: r.total })}</span>
-              <span className={r.matched ? 'font-medium text-danger' : 'text-muted'}>{t('hist.matchedCount', { count: r.matched })}</span>
+              <span className={r.matched ? 'font-medium text-danger' : ''}>{runOutcome(r, t)}</span>
             </div>
             <Button size="sm" className="w-fit" disabled={isLive(r)} aria-label={t('hist.viewAria', { time: fmtDateTime(r.started_at) })} onClick={(e) => view(e, r.id)}>{t('hist.view')}</Button>
           </div>
@@ -143,7 +144,7 @@ function Last({ run }: { run: ScanRun }) {
   return (
     <div role="status" className="mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-rule bg-surface px-4 py-3 text-sm">
       <RunStatusChip run={run} />
-      <span>{run.status === 'done' ? t('last.done', { time: fmtRelative(run.ended_at), total: run.total, count: run.matched }) : t('last.stopped', { time: fmtRelative(run.ended_at), done: run.done, total: run.total })}</span>
+      <span>{run.status === 'done' ? t('last.doneOutcome', { time: fmtRelative(run.ended_at), outcome: runOutcome(run, t) }) : t('last.stopped', { time: fmtRelative(run.ended_at), done: run.done, total: run.total })}</span>
       {run.stop_reason ? <span className="w-full text-meta text-muted">{run.stop_reason}</span> : null}
     </div>
   )

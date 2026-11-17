@@ -76376,6 +76376,152 @@
         }
       }
     },
+    "/scanning/history": {
+      "get": {
+        "operationId": "scanning_get_scanning_history",
+        "summary": "Every run of the LAN engines (discovery sweeps, device identifications, SNMP reads) and every stored scan of a public target, newest first, at most 200, with its outcome in words (kien G7a). The vulnerability checks keep their own list (GET /scans/runs). Answers whether or not the Vulnerability scans module is on",
+        "tags": [
+          "scanning"
+        ],
+        "x-stories": [
+          "S-SCAN-4",
+          "S-INV-1"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "The sa_job id of a LAN run, or the exposure snapshot id of a public scan"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "sweep",
+                              "device",
+                              "snmp",
+                              "external"
+                            ],
+                            "description": "sweep: discovery of the LAN ranges; device: the identification of one device (a window's queue, Check this device now, the first step of Scan now); snmp: SNMP reads; external: a scan of a public target (one per target and day)"
+                          },
+                          "engine": {
+                            "type": "string",
+                            "enum": [
+                              "passive",
+                              "nmap-discovery",
+                              "nmap-versions",
+                              "snmp",
+                              "osquery",
+                              "wazuh",
+                              "nuclei",
+                              "zap",
+                              "openvas",
+                              "honeypot"
+                            ]
+                          },
+                          "trigger": {
+                            "type": "string",
+                            "enum": [
+                              "sweep",
+                              "automatic",
+                              "person",
+                              "scan_now",
+                              "test"
+                            ],
+                            "description": "sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart); automatic: the window's queue (a new device, a weekly scan) or its SNMP round; person: a person asked (Check this device now, Read now, a public scan); scan_now: the identification step of a vulnerability check; test: an SNMP credential Test"
+                          },
+                          "label": {
+                            "type": "string",
+                            "description": "What it scanned: \"LAN 192.168.18.0/24\", \"192.168.18.20\", \"SNMP read of 3 devices\", \"203.0.113.10\""
+                          },
+                          "target_id": {
+                            "description": "The exposure target of a public scan, for a link; null otherwise (a LAN job does not record its device)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "started_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "ended_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "enum": [
+                              "ok",
+                              "partial",
+                              "failed",
+                              "stopped",
+                              "running"
+                            ],
+                            "description": "partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that failed)"
+                          },
+                          "text": {
+                            "type": "string",
+                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "engine",
+                          "trigger",
+                          "label",
+                          "target_id",
+                          "started_at",
+                          "ended_at",
+                          "outcome",
+                          "text"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scanning/safety": {
       "put": {
         "operationId": "scanning_put_scanning_safety",

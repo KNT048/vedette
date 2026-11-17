@@ -153,6 +153,20 @@ type LastRun struct {
 	Text    string
 }
 
+// HistoryRun is one past (or running) run of a LAN engine or a public scan, for Settings › Scanning › History (kien G7a). The
+// outcome text comes from what the run stored; it never claims a result nothing checked.
+type HistoryRun struct {
+	ID, Kind, Engine, Trigger, Label string
+	TargetID                         string // "" when none
+	StartedAt                        time.Time
+	EndedAt                          *time.Time
+	Outcome                          string // ok, partial, failed, stopped, running
+	Text                             string
+}
+
+// historyMax is how many runs GET /scanning/history answers at most.
+const historyMax = 200
+
 // RunningJob is a job of an engine running now.
 type RunningJob struct {
 	Engine    string
@@ -209,9 +223,10 @@ type ScanningConfig struct {
 	Log       *slog.Logger
 	Safety    SafetyStore
 	Engines   []ScanEngine
-	Discovery DiscoveryRunner                  // nil: the run answers 501
-	TimeZone  func(ctx context.Context) string // the organization's zone; nil or "": UTC
-	MemoryMB  func() (int, bool)               // MemTotal of the box; nil or false: unknown
+	Discovery DiscoveryRunner                                 // nil: the run answers 501
+	History   func(ctx context.Context) ([]HistoryRun, error) // the runs of GET /scanning/history, newest first; nil: none
+	TimeZone  func(ctx context.Context) string                // the organization's zone; nil or "": UTC
+	MemoryMB  func() (int, bool)                              // MemTotal of the box; nil or false: unknown
 }
 
 // ScanningHandlers implements GET /scanning, PUT /scanning/safety, POST /scanning/safety/ranges and /exclusions, PATCH /scanning/engines/{id} and POST
@@ -421,6 +436,45 @@ func (h *ScanningHandlers) ScanningGetScanning(ctx context.Context) (*oas.Scanni
 		return nil, err
 	}
 	return encode[oas.ScanningGetScanningOK](v)
+}
+
+// ScanningGetScanningHistory implements GET /scanning/history (viewer): the runs of the LAN engines and the stored public scans,
+// newest first, at most historyMax.
+func (h *ScanningHandlers) ScanningGetScanningHistory(ctx context.Context) (*oas.ScanningGetScanningHistoryOK, error) {
+	type item struct {
+		ID        string  `json:"id"`
+		Kind      string  `json:"kind"`
+		Engine    string  `json:"engine"`
+		Trigger   string  `json:"trigger"`
+		Label     string  `json:"label"`
+		TargetID  *string `json:"target_id"`
+		StartedAt string  `json:"started_at"`
+		EndedAt   *string `json:"ended_at"`
+		Outcome   string  `json:"outcome"`
+		Text      string  `json:"text"`
+	}
+	out := struct {
+		Items []item `json:"items"`
+	}{Items: []item{}}
+	if h.cfg.History != nil {
+		runs, err := h.cfg.History(ctx)
+		if err != nil {
+			return nil, err
+		}
+		slices.SortStableFunc(runs, func(a, b HistoryRun) int { return b.StartedAt.Compare(a.StartedAt) })
+		for i, r := range runs {
+			if i == historyMax {
+				break
+			}
+			it := item{ID: r.ID, Kind: r.Kind, Engine: r.Engine, Trigger: r.Trigger, Label: r.Label, TargetID: strOrNil(r.TargetID), StartedAt: store.FormatTS(r.StartedAt), Outcome: r.Outcome, Text: r.Text}
+			if r.EndedAt != nil {
+				e := store.FormatTS(*r.EndedAt)
+				it.EndedAt = &e
+			}
+			out.Items = append(out.Items, it)
+		}
+	}
+	return encode[oas.ScanningGetScanningHistoryOK](out)
 }
 
 // ScanningPutScanningSafety implements PUT /scanning/safety (admin): the inventory validates and stores the block, writes its audit

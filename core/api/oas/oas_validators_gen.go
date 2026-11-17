@@ -94241,6 +94241,178 @@ func (s *ScanPutScansConfigReqWindow) Validate() error {
 	return nil
 }
 
+func (s *ScanningGetScanningHistoryOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Items {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "items",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ScanningGetScanningHistoryOKItemsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Engine.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "engine",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Outcome.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "outcome",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Trigger.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trigger",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ScanningGetScanningHistoryOKItemsItemEngine) Validate() error {
+	switch s {
+	case "passive":
+		return nil
+	case "nmap-discovery":
+		return nil
+	case "nmap-versions":
+		return nil
+	case "snmp":
+		return nil
+	case "osquery":
+		return nil
+	case "wazuh":
+		return nil
+	case "nuclei":
+		return nil
+	case "zap":
+		return nil
+	case "openvas":
+		return nil
+	case "honeypot":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ScanningGetScanningHistoryOKItemsItemKind) Validate() error {
+	switch s {
+	case "sweep":
+		return nil
+	case "device":
+		return nil
+	case "snmp":
+		return nil
+	case "external":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ScanningGetScanningHistoryOKItemsItemOutcome) Validate() error {
+	switch s {
+	case "ok":
+		return nil
+	case "partial":
+		return nil
+	case "failed":
+		return nil
+	case "stopped":
+		return nil
+	case "running":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ScanningGetScanningHistoryOKItemsItemTrigger) Validate() error {
+	switch s {
+	case "sweep":
+		return nil
+	case "automatic":
+		return nil
+	case "person":
+		return nil
+	case "scan_now":
+		return nil
+	case "test":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *ScanningGetScanningOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer

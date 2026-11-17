@@ -40,6 +40,8 @@ Nguồn hành vi: `web/src/features/scan/{contract,mocks}.ts`. Phần `/scans/cr
 - **DEPENDED ON BY**: `scan-credentialed` (cửa sổ/phạm vi), `mitigation` (xác nhận), `reports`.
 
 ## Endpoints owned (role tối thiểu)
+- `GET /scans/runs` (viewer): History words each run from its stored `results`, `identification` and `stop_reason` (kien G7a, `runOutcome`), never from `matched` alone: a run whose CVEs have no template says "no check exists (still suspected)", not "0 matches".
+
 | Route | Vai |
 |---|---|
 | `GET /scans/config`, `/scans/targets`, `/scans/runs`, `/scans/probes`, `/scans/probes.csv`, `/scans/events` | viewer |

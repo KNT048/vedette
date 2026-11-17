@@ -3,6 +3,7 @@ package feeds
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"io/fs"
 	"maps"
 	"net/http"
@@ -190,8 +191,10 @@ func TestContentVersion_CISAListReadsBothCopiesInFull(t *testing.T) {
 	}
 }
 
-// Windows releases (version 2: the monthly updates): a box whose last pull ran before the update reads the three pages at the next
-// check; the new updates make findings match the Windows CVEs again and move the plan's stamp.
+// Windows releases (version 2: the monthly updates): a box whose updates table is still empty (its last pull ran before the table
+// existed) reads the pages at the next check; the first fill of the table makes findings match the Windows CVEs again as a baseline,
+// and moves the plan's stamp. A page that fails stores what was read but keeps the old version: the next try waits a back-off, then
+// reads the pages again until every page is in.
 func TestContentVersion_WindowsReleasesReadAgainAndMatchedAgain(t *testing.T) {
 	t.Cleanup(func() { winrel.Learn(nil); winrel.LearnUpdates(nil) })
 	e, o := pullEnv(t)
@@ -199,17 +202,17 @@ func TestContentVersion_WindowsReleasesReadAgainAndMatchedAgain(t *testing.T) {
 	e.only(winRelFeedID)
 	e.setURL(winRelFeedID, o.url("/rh/windows11-release-information"))
 	o.body("/rh/windows11-release-information", `"a"`, testFile(t, "winrel/windows11-release-information.html"))
-	o.body("/rh/"+winRelServerPage, `"b"`, "<html>moved</html>")
-	o.body("/rh/"+winRel10Page, `"c"`, "<html>moved</html>")
+	o.body("/rh/"+winRelServerPage, `"b"`, testFile(t, "winrel/windows-server-release-info.html"))
+	o.body("/rh/"+winRel10Page, `"c"`, testFile(t, "winrel/release-information.html"))
 	write(t, e.db, func(tx *sql.Tx) error {
 		_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-21001": {{CPE: "cpe:2.3:o:microsoft:windows_server_2025:*:*:*:*:*:*:*:*", EndExcl: "10.0.26100.32230"}}}, false, epoch0)
 		return err
 	})
-	if err := e.svc.RunPull(t.Context()); err != nil || o.count("/rh/windows11-release-information") != 1 {
-		t.Fatalf("first pull: %v", err)
+	if err := e.svc.RunPull(t.Context()); err != nil || o.count("/rh/windows11-release-information") != 1 || e.fv(winRelFeedID).reload() {
+		t.Fatalf("first pull: %v, %+v", err, e.fv(winRelFeedID))
 	}
-	if us := winrel.Updates(26100, true); len(us) != 0 {
-		t.Fatalf("no server page yet, but %d server updates", len(us))
+	pages := func() [3]int {
+		return [3]int{o.count("/rh/windows11-release-information"), o.count("/rh/" + winRelServerPage), o.count("/rh/" + winRel10Page)}
 	}
 	var got []RangesUpdatedEvent
 	e.svc.Events = publishFunc(func(ev events.Event) {
@@ -222,30 +225,111 @@ func TestContentVersion_WindowsReleasesReadAgainAndMatchedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// the update: the server page is read too, and the stored data came from the old code
-	o.body("/rh/"+winRelServerPage, `"b"`, testFile(t, "winrel/windows-server-release-info.html"))
+	// a box from before the updates table: no rows, version 1; at the reload the Windows 10 page fails
+	execSQL(t, e.db, `DELETE FROM feeds_winrel_update`)
+	winrel.LearnUpdates(nil)
 	setVersion(t, e, winRelFeedID, 1)
+	o.serve("/rh/"+winRel10Page, func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "busy", http.StatusServiceUnavailable) })
 	e.setNow(e.clock().Add(time.Hour))
-	if err := e.svc.RunPull(t.Context()); err != nil || o.count("/rh/windows11-release-information") != 2 || o.count("/rh/"+winRelServerPage) != 2 || o.count("/rh/"+winRel10Page) != 2 {
-		t.Fatalf("after the update: %v, %v", err, o.all())
+	if err := e.svc.RunPull(t.Context()); err != nil || pages() != [3]int{2, 2, 2} {
+		t.Fatalf("after the update: %v, pages %v", err, pages())
 	}
-	if f := e.fv(winRelFeedID); f.Status != "ok" || f.ContentVersion != 2 {
-		t.Fatalf("after the reload: %+v", f)
+	if f := e.fv(winRelFeedID); f.Status != "ok" || f.ContentVersion != 1 {
+		t.Fatalf("a reload with a page missing recorded the version: %+v", f)
 	}
 	if us := winrel.Updates(26100, true); len(us) == 0 || us[len(us)-1].Rev != 33822 {
 		t.Fatalf("Server 2025 updates after the reload: %+v", us)
 	}
-	if len(got) != 1 || !slices.Contains(got[0].CVEs, "CVE-2026-21001") {
-		t.Fatalf("findings was not asked to match the Windows CVEs again: %+v", got)
+	if len(got) != 1 || !slices.Contains(got[0].CVEs, "CVE-2026-21001") || !got[0].First {
+		t.Fatalf("findings was not asked to match the Windows CVEs again, as a baseline: %+v", got)
 	}
 	if now, err := e.svc.st.TierStamp(t.Context()); err != nil || now == stamp {
 		t.Fatalf("the plan's stamp did not move: %q %v", now, err)
 	}
+	// the next try waits the back-off of one short reload, then reads the pages again
+	got = nil
+	short := e.clock()
+	e.setNow(short.Add(BackoffBase - time.Minute))
+	if err := e.svc.RunPull(t.Context()); err != nil || pages() != [3]int{2, 2, 2} {
+		t.Fatalf("within the back-off: %v, pages %v", err, pages())
+	}
+	e.setNow(short.Add(BackoffBase))
+	if err := e.svc.RunPull(t.Context()); err != nil || pages() != [3]int{3, 3, 3} || e.fv(winRelFeedID).ContentVersion != 1 {
+		t.Fatalf("second try, the page still fails: %v, pages %v, %+v", err, pages(), e.fv(winRelFeedID))
+	}
+	e.setNow(short.Add(BackoffBase + 2*BackoffBase - time.Minute)) // two short reloads: 10 minutes
+	if err := e.svc.RunPull(t.Context()); err != nil || pages() != [3]int{3, 3, 3} {
+		t.Fatalf("within the second back-off: %v, pages %v", err, pages())
+	}
+	o.body("/rh/"+winRel10Page, `"c"`, testFile(t, "winrel/release-information.html"))
+	e.setNow(short.Add(3 * BackoffBase))
+	if err := e.svc.RunPull(t.Context()); err != nil || pages() != [3]int{4, 4, 4} {
+		t.Fatalf("third try: %v, pages %v", err, pages())
+	}
+	if f := e.fv(winRelFeedID); f.Status != "ok" || f.ContentVersion != 2 {
+		t.Fatalf("every page read: %+v", f)
+	}
+	if len(got) != 1 || got[0].First { // the Windows 10 rows are news to a table that has rows
+		t.Fatalf("Windows 10 updates: %+v", got)
+	}
 	// the same pages again a day later: nothing changed, nothing matched again
 	got = nil
 	e.setNow(e.clock().Add(25 * time.Hour))
-	if err := e.svc.RunPull(t.Context()); err != nil || len(got) != 0 {
-		t.Fatalf("an unchanged pull: %v, %+v", err, got)
+	if err := e.svc.RunPull(t.Context()); err != nil || len(got) != 0 || pages() != [3]int{5, 5, 5} {
+		t.Fatalf("an unchanged pull: %v, %+v, pages %v", err, got, pages())
+	}
+}
+
+// A reload of the CISA list never takes a shorter copy of the catalog it holds: the GitHub copy has the same version with one entry
+// fewer while cisa.gov fails, so nothing is stored, the version stays (nothing was parsed into the table) and no CVE is dropped. The
+// next try, after the back-off, reads cisa.gov's full list: the version is recorded and nothing is announced as new.
+func TestContentVersion_CISAReloadNeverTakesAShorterCopy(t *testing.T) {
+	t.Parallel()
+	e, o := kevEnv(t)
+	full := testFile(t, "kev.json")
+	o.body(primaryPath, `"p1"`, full)
+	o.body(mirrorPath, `"m1"`, full)
+	if err := e.svc.RunPull(t.Context()); err != nil || e.fv("cisa-kev").reload() {
+		t.Fatalf("first pull: %v %+v", err, e.fv("cisa-kev"))
+	}
+	held := rowsOf(t, e.db, "feeds_vuln")
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(full), &doc); err != nil {
+		t.Fatal(err)
+	}
+	vs, _ := doc["vulnerabilities"].([]any)
+	doc["vulnerabilities"] = slices.DeleteFunc(vs, func(v any) bool { return at(v, "cveID") == "CVE-2026-10003" }) // same catalogVersion and dateReleased
+	shorter, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.body(mirrorPath, `"m2"`, string(shorter))
+	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "busy", http.StatusServiceUnavailable) })
+	setVersion(t, e, "cisa-kev", 0)
+	e.setNow(e.clock().Add(PullEvery))
+	if err := e.svc.RunPull(t.Context()); err != nil || o.count(mirrorPath) != 2 {
+		t.Fatalf("reload: %v, GitHub copy asked %d times", err, o.count(mirrorPath))
+	}
+	if n := rowsOf(t, e.db, "feeds_vuln"); n != held {
+		t.Fatalf("a shorter copy was taken: %d rows, held %d", n, held)
+	}
+	if _, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10003"); !found {
+		t.Fatal("the reload dropped CVE-2026-10003")
+	}
+	if f := e.fv("cisa-kev"); f.Status != "ok" || !f.reload() {
+		t.Fatalf("the version was recorded though nothing was parsed into the table: %+v", f)
+	}
+	o.body(primaryPath, `"p1"`, full)
+	e.setNow(e.clock().Add(BackoffBase - time.Minute))
+	if err := e.svc.RunPull(t.Context()); err != nil || o.count(mirrorPath) != 2 {
+		t.Fatalf("within the back-off: %v, %d", err, o.count(mirrorPath))
+	}
+	e.setNow(e.clock().Add(time.Minute))
+	if err := e.svc.RunPull(t.Context()); err != nil || o.count(mirrorPath) != 3 || e.fv("cisa-kev").reload() {
+		t.Fatalf("after the back-off: %v, %d, %+v", err, o.count(mirrorPath), e.fv("cisa-kev"))
+	}
+	if n := len(e.pub.named(EventNewKEV)); n != 0 {
+		t.Fatalf("%d CVEs announced as new", n)
 	}
 }
 

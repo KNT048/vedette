@@ -80,7 +80,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 		}
 		due := r.state().Due(now, r.IntervalHours)
 		if r.Enabled && (reloads[r.ID] || contentResets[decoderOf(r)] == nil && r.reload()) {
-			due = reloadDue(r, now) // its stored data was read by other code: now, not after its interval (INV-32)
+			due = s.reloadDue(r, now) // its stored data was read by other code: now, not after its interval (INV-32)
 		}
 		if r.ID == recentFeedID && r.Enabled { // A fill the cursor says is unfinished (a migration reset it) goes on now, not a day after the last success
 			cur, err := s.st.recentCursor(ctx)
@@ -189,6 +189,10 @@ type pullPlan struct {
 	winRel    []winrel.Release // windows-releases: the releases Microsoft's pages list, replaced whole
 	winRelUpd []winrel.Update  // windows-releases: the monthly updates of the pages read, replaced per release
 	hasWinRel bool
+
+	// partial: a good pull that did not read every page of its source (a Windows page that failed): what it read is stored, but the
+	// content version is not recorded (INV-32)
+	partial bool
 }
 
 func (s *Service) get(ctx context.Context, req Request) (*Response, error) {
@@ -559,8 +563,12 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		p = pullPlan{out: outcome{Err: userError(perr, src.URL), Copies: p.out.Copies}}             // what each copy of the CISA list said is kept
 	}
 	p.out.Started, p.out.Finished = started, s.now()
-	if p.out.OK && contentResets[decoderOf(src)] == nil && (!p.out.NotModified || src.reload()) {
-		p.out.ContentVersion = contentVersionOf(src) // the whole source was read by this code (a reload sends no validators: INV-32)
+	if p.out.OK && contentResets[decoderOf(src)] == nil {
+		if !p.out.NotModified && !p.partial {
+			p.out.ContentVersion = contentVersionOf(src) // the whole source was read and stored by this code (INV-32)
+		} else if src.reload() {
+			s.shortReload(src.ID) // nothing new stored, or a page missing: the version stays, tried again after a back-off
+		}
 	}
 
 	var (
@@ -688,7 +696,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 					return fmt.Errorf("feeds: distro print: %w", err)
 				}
 			case p.hasWinRel: // findings matches the Windows entries again when the releases changed
-				if rangesChanged, err = applyWinRel(ctx, tx, p.winRel, p.winRelUpd); err != nil {
+				if rangesChanged, rangesFirst, err = applyWinRel(ctx, tx, p.winRel, p.winRelUpd); err != nil {
 					return err
 				}
 			}

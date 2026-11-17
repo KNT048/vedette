@@ -187,7 +187,7 @@ func (s *Service) buildKEVBoth(ctx context.Context, src sourceRow, p pullPlan) (
 		case held.newer(k):
 			return false // behind the box: never a roll back
 		case reload:
-			return true // the same catalog, parsed by this code
+			return count >= heldCount // the same catalog parsed by this code, never a shorter copy of it
 		}
 		return count > heldCount || (count == heldCount && by == AnsweredCISA && heldBy != AnsweredCISA)
 	}

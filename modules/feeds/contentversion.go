@@ -167,9 +167,25 @@ func (s *Store) stampUnpulled(ctx context.Context) error {
 	})
 }
 
-// reloadDue is State.Due for a feed whose stored data must be read again now: only the back-off after failures holds it back.
-func reloadDue(r sourceRow, now time.Time) bool {
+// reloadDue is State.Due for a feed whose stored data must be read again now: only the back-off after failures holds it back, or,
+// after reloads in a row that were good but short (shortReload), the same back-off of their count from the last attempt.
+func (s *Service) reloadDue(r sourceRow, now time.Time) bool {
 	st := r.state()
 	st.LastSuccess = time.Time{}
+	if st.Failures == 0 {
+		s.shortMu.Lock()
+		st.Failures = s.shortReloads[r.ID]
+		s.shortMu.Unlock()
+	}
 	return st.Due(now, r.IntervalHours)
+}
+
+// shortReload counts a reload of feed id that was good but did not read and store the whole source (INV-32).
+func (s *Service) shortReload(id string) {
+	s.shortMu.Lock()
+	defer s.shortMu.Unlock()
+	if s.shortReloads == nil {
+		s.shortReloads = map[string]int{}
+	}
+	s.shortReloads[id]++
 }

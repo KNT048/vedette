@@ -125,6 +125,12 @@ type Service struct {
 	idleMu     sync.Mutex
 	distroIdle map[string]bool // The distribution feeds the last check found no device for
 
+	// shortReloads counts, per feed, the reloads by new code in a row that were good but did not read the whole source (a page that
+	// failed, a list the box keeps): the version stays and the next try waits the back-off of that count (INV-32). Lost on a restart,
+	// which tries at once.
+	shortMu      sync.Mutex
+	shortReloads map[string]int
+
 	nvdMu  sync.Mutex
 	nvd    *nvdRun         // the NVD pull running now, or paused to go on later; nil when none
 	recent *recentProgress // where an unfinished nvd-recent pull stands, for its progress line; nil when none

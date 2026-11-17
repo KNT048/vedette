@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
@@ -9,13 +9,13 @@ import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatusChip } from './AcceptRisk'
 import { useFindings, usePlan, useToFix } from './api'
 import type { SoftwareView } from '@/features/inventory/types'
-import type { FindingRow } from './types'
+import type { FindingRow, ToFixDevice } from './types'
 import { isOpen, riskRank } from './basis'
 import { RiskChip } from './Risk'
-import { IUpdated } from './Updated'
+import { IUpdated, type UpdatedSoftware } from './Updated'
 import { useDeviceSoftware } from './rematch'
 import { PlanDataState } from './Plan'
-import { DeviceCard, WithBox, actionable, listed as hasWork } from './ToFix'
+import { DeviceCard, WithBox, actionable, listed as hasWork, typedSoftware } from './ToFix'
 import { NotRelevantToggle, withoutNotRelevant } from './notRelevant'
 
 /** Slot device.panels (trang chi tiết thiết bị của module inventory): phát hiện của đúng thiết bị này. */
@@ -35,8 +35,10 @@ export function DevicePanel(props: Record<string, unknown>) {
     <Section id="device-findings" title={t('device.title')} description={t('device.description')} stories={['S-MIT-1']}>
       {/* The device's To fix card whenever it has any action, recommended updates only included */}
       {card ? (actionable(card).some((a) => a.kind === 'distro')
-        ? <WithBox>{(boxId) => <ul aria-label={t('device.todo')} className="mb-3 grid"><DeviceCard d={card} box={boxId === assetId} showName={false} /></ul>}</WithBox>
-        : <ul aria-label={t('device.todo')} className="mb-3 grid"><DeviceCard d={card} box={false} showName={false} /></ul>) : null}
+        ? <WithBox>{(boxId) => <ul aria-label={t('device.todo')} className="mb-3 grid"><DeviceCard d={card} box={boxId === assetId} showName={false} typed={false} /></ul>}</WithBox>
+        : <ul aria-label={t('device.todo')} className="mb-3 grid"><DeviceCard d={card} box={false} showName={false} typed={false} /></ul>) : null}
+      {/* "I updated <software>" once per typed software, right after the card's rows */}
+      <Updated card={card} items={q.data?.items} software={sw.data?.asset.software} />
       <QueryState query={q}>
         {(d) => d.items.length === 0 ? (
           card ? null : <p className="text-sm text-muted">{t('device.none')}</p>
@@ -52,7 +54,6 @@ export function DevicePanel(props: Record<string, unknown>) {
           {d.items.some((f) => isOpen(f.status)) ? (
             <Link to={`/findings?tab=open&device=${encodeURIComponent(assetId)}`} className="w-fit text-meta text-accent underline underline-offset-4">{t('device.handleAll')}</Link>
           ) : null}
-          <Updated items={d.items} software={sw.data?.asset.software} />
           {rest.length ? <Card flush><ul aria-label={t('device.all')} className="divide-y divide-rule">
             {[...rest].sort((a, b) => riskRank(b) - riskRank(a)).map((f) => (
               <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
@@ -97,12 +98,23 @@ function DevicePlan({ assetId }: { assetId: string }) {
   )
 }
 
-/** "I updated <software>" for each hand-added software with findings; a scanned one is checked by a scan. */
-function Updated({ items, software }: { items: FindingRow[]; software: SoftwareView[] | undefined }) {
-  const asset = items.find((f) => f.asset)?.asset
-  // Any finding keeps it mounted (its dialog says what the re-match closed); it is shown only while one of them is open
-  const manual = (software ?? []).filter((s) => s.source === 'manual' && items.some((f) => s.kev_cves.includes(f.cve)))
-  if (!asset || manual.length === 0) return null
-  const active = (s: SoftwareView) => items.some((f) => isOpen(f.status) && s.kev_cves.includes(f.cve))
-  return <div className="flex flex-wrap gap-2 empty:hidden">{manual.map((s) => <IUpdated key={s.id} size="sm" asset={asset} software={s} active={active(s)} />)}</div>
+/** "I updated <software>" for each hand-added software of the device, one button per software however many rows name it (the
+ *  card's update rows, exploited and recommended, and its findings); a scanned or agent-read one is on the card (DeviceUpdated).
+ *  A software shown once stays mounted for the visit, so its dialog can say what the re-match closed after the row is gone; the button
+ *  shows only while a row of the card or an open finding names it. */
+function Updated({ card, items = [], software }: { card: ToFixDevice | undefined; items?: FindingRow[]; software: SoftwareView[] | undefined }) {
+  const kept = useRef(new Map<string, UpdatedSoftware>())
+  const seen = useRef<FindingRow['asset'] | undefined>(undefined)
+  const asset = (seen.current = card?.asset ?? items.find((f) => f.asset)?.asset ?? seen.current)
+  const rows = card ? typedSoftware(card) : new Map<string, { software: UpdatedSoftware }>()
+  for (const [id, r] of rows) {
+    const s = software?.find((x) => x.id === id)
+    kept.current.set(id, s ? { ...s, kev_cves: [...new Set([...s.kev_cves, ...r.software.kev_cves])] } : r.software)
+  }
+  for (const s of software ?? []) {
+    if (s.source === 'manual' && !rows.has(s.id) && items.some((f) => s.kev_cves.includes(f.cve))) kept.current.set(s.id, s)
+  }
+  if (!asset || kept.current.size === 0) return null
+  const active = (s: UpdatedSoftware) => rows.has(s.id) || items.some((f) => isOpen(f.status) && s.kev_cves.includes(f.cve))
+  return <div className="mb-3 flex flex-wrap gap-2 empty:hidden">{[...kept.current.values()].map((s) => <IUpdated key={s.id} size="sm" asset={asset} software={s} active={active(s)} />)}</div>
 }

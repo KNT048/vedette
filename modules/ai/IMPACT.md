@@ -19,7 +19,7 @@
 
 ## Modifying: `AskHook.step` / `notIDForms` (POST-7, INV-12a)
 - **GUI** `AssistantPage.tsx` đọc `hooks[].step`: chỉ `question` là "The AI was not asked", `answer` là "the answer was held back"; đổi giá trị = đổi `contract.ts` (`AskHookHit`), `api/openapi.json`, `core/api/oas`, mock.
-- `notIDForms` nới bộ tìm số định danh cho mọi lời gọi (câu hỏi, dữ liệu, kết quả công cụ, memory, kho tri thức): thêm một dạng = một dãy số định danh có thể lọt qua; giữ `TestContract_INV12_IDNumbersInEveryFormAreBlocked` và `TestIDNumbersAndTheFormsTheyAreNot` xanh.
+- `notIDForms` nới bộ tìm số định danh cho mọi lời gọi (câu hỏi, dữ liệu, kết quả công cụ, memory, kho tri thức): thêm một dạng = một dãy số định danh có thể lọt qua; giữ `TestContract_INV12_IDNumbersInEveryFormAreBlocked`, `TestIDNumbersAndTheFormsTheyAreNot` và `TestPersonalDataNextToVersionsIsStillFound` (mọi chuỗi số định danh đặt cạnh từng dạng) xanh; một dạng mới cần một từ trong `formNeeds` để văn bản 1 MiB vẫn xong xa dưới `HookTimeout`.
 
 ## Modifying: `Profiles.Resolve(job) ([]Profile, error)` (chọn chính/dự phòng, INV-3)
 - Mọi `RunJob`. Đổi logic loại hồ sơ cloud → có thể rò dữ liệu nội bộ; test INV-3 bắt buộc xanh.

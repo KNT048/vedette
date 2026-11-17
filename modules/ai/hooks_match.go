@@ -95,6 +95,8 @@ func foldRune(r rune) (rune, bool) {
 		return r - 0xFEE0, true
 	case r == 0x3002:
 		return '.', true
+	case r >= 0x2010 && r <= 0x2015, r == 0x2212, r == 0xFE58, r == 0xFE63:
+		return '-', true // hyphens, en and em dashes, minus signs
 	case unicode.IsSpace(r):
 		return ' ', true
 	case unicode.Is(unicode.Cf, r), unicode.Is(unicode.Mn, r):
@@ -326,10 +328,12 @@ func isIDSep(b byte) bool {
 }
 
 // findIDNumbers finds identity numbers of exactly 9 or 12 digits as people write them: unbroken, or in groups of
-// three or more digits joined by up to three separator characters ([ \t\n.-]), such as 0790.1234.5678,
-// 123 456 789 or 079 012 345 678. A digit run longer than that is not an ID number. IP address literals are blanked
-// first (blankIPs), so they are left alone and never join a digit run; dotted digits that are not an address are ID-shaped. (A list of numbers that happens to be nine digits in groups, such as three 3-digit ports with
-// spaces between them, is blocked too; the person can rephrase.)
+// three or more digits joined by up to three separator characters (idRuns), such as 0790.1234.5678, 123 456 789,
+// 079-012-345-678 or 079/012/345/678. IP address literals are blanked first (blankIPs), so they are left alone and never join a
+// digit run. Versions, builds, update numbers, advisory ids, CPE names, digests and port lists are blanked by their context next
+// (notIDForms), so they are not read and do not join the number beside them. A number next to an ID number does not hide it: the
+// words of a run are read on their own too (idRuns). (A list of numbers that happens to be nine digits in groups without such a
+// context is blocked; the person can rephrase.)
 func findIDNumbers(s string) []span {
 	// A number written after an ID label (CCCD 079201234567, CMND:123456789, passport C1234567) is an ID number whatever it sits in
 	// or next to: a link, a hash, letters. Read first, from the text as it is, so no blanking below can hide it.
@@ -376,12 +380,26 @@ func labelledIDs(s string) []span {
 	var out []span
 	for _, re := range []*regexp.Regexp{strongIDRE, weakIDRE} {
 		for _, m := range re.FindAllStringSubmatchIndex(s, -1) {
-			if idShaped(s[m[2]:m[3]]) {
-				out = append(out, span{m[2], m[3]})
+			if e := idShapedWords(s[m[2]:m[3]]); e > 0 {
+				out = append(out, span{m[2], m[2] + e})
 			}
 		}
 	}
 	return append(out, findAll(passportRE, s, 1)...)
+}
+
+// idShapedWords returns the end of the ID number at the start of run, or 0: the whole run when it is ID-shaped, or else the first
+// words of it (up to white space) that are (CMND AS201234567 5: a number after the ID does not hide it).
+func idShapedWords(run string) int {
+	if idShaped(run) {
+		return len(run)
+	}
+	for i := 0; i < len(run); i++ {
+		if isSpaceByte(run[i]) && i > 0 && isDigitByte(run[i-1]) && idShaped(run[:i]) {
+			return i
+		}
+	}
+	return 0
 }
 
 // idShaped reports whether a run of digit groups is ID-shaped: 9 or 12 digits, and every group of three or more when there are several.
@@ -407,35 +425,172 @@ func blankUUIDs(s string) string {
 
 // notIDForms are the written forms whose digits are never an ID number. Each match is blanked (blankForms) before the digit runs are
 // read; a number after an ID label is found before that (labelledIDs). An all-digit dotted 0790.1234.5678 stays ID-shaped (a Cisco
-// MAC address in that form has a letter in nearly every case, and then it is blanked), and so does a bare 2023-36844: only a CVE id
-// written with "CVE-" is blanked.
+// MAC address in that form has a letter in nearly every case, and then it is blanked), and so does a bare 2023-36844: only an
+// advisory id written with a known prefix (CVE-, ELSA-, GHSA-…) is blanked. Each form is anchored on its own context (a prefix, a
+// keyword, a fixed shape) and leaves out the shapes ID numbers are written in (a first group that starts with 0, groups of three
+// digits), so the same digits standing on their own are still read. A blanked form also never joins the number next to it into
+// one long run, so an ID number written right after a build or an update number is found.
 var notIDForms = []*regexp.Regexp{
 	linkRE, // a link: its scheme, host and path segments (blankLink); never userinfo, a query, a fragment or an ID-shaped segment
 	uuidRE, // a UUID
-	regexp.MustCompile(`\b[a-z][a-z0-9]{0,31}-[a-z2-7]{26}\b`),                                                        // a record id of this box (store.NewID: dev-…, fnd-…)
-	regexp.MustCompile(`(?i)\bcve-(?:19|20)\d{2}-\d{4,7}\b`),                                                          // a CVE id
+	regexp.MustCompile(`\b[a-z][a-z0-9]{0,31}-[a-z2-7]{26}\b`), // a record id of this box (store.NewID: dev-…, fnd-…)
+	cveFormRE,
+	advisoryRE,
+	ghsaRE,
 	regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:[.,]\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)?\b`), // a date or a timestamp
+	cpeRE,
+	digestRE,
 	hexRE,                                  // a hash or a long hex id (with a letter a-f; not one that starts with "cccd")
 	ciscoMAC,                               // a Cisco MAC address (kept when all digits: see above)
 	regexp.MustCompile(`\bASN?\d{1,10}\b`), // an autonomous system number written as one word (AS13335, ASN401234567)
+	kbRE,
+	versionFormRE,
+	buildRE,
+	androidBuildRE,
+	portListRE,
 }
 
 var (
 	linkRE   = regexp.MustCompile(`(?i)\b(?:https?|ftp)://[^\s"'<>\\?#,;]+`)
 	hexRE    = regexp.MustCompile(`(?i)\b[0-9a-f]{16,}\b`)
 	ciscoMAC = regexp.MustCompile(`(?i)\b[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}\b`)
+	// cveFormRE: a CVE id, also written with a space, an underscore, a colon or nothing after "CVE" (CVE 2024-12345, CVE2024-12345).
+	cveFormRE = regexp.MustCompile(`(?i)\bcve[-_: ]?(?:19|20)\d{2}-\d{4,7}\b`)
+	// advisoryRE: an advisory id of the shape PREFIX-YEAR-NUMBER from a known source (ELSA-2024-12345, CNVD-2024-12345,
+	// EUVD-2025-14498, BDU:2024-01234, MAL-2024-12345, NTAP-20240621-0002, BIT-nginx-2024-12345). The prefix is one of the
+	// advisory sources, written as they write it, and glued to a year (19xx or 20xx, optionally with month and day) by "-" or ":";
+	// another word or abbreviation before a bare 2012-34567 does not make it an advisory.
+	advisoryRE = regexp.MustCompile(`\b(?:` + advisoryPrefixes + `)[-:](?:19|20)\d{2}(?:\d{2}){0,2}[-:]\d{1,7}\b`)
+	// ghsaRE: a GitHub advisory id: three groups of four characters from its own alphabet, which has digits 2-9 (GHSA-2345-6789-2345).
+	ghsaRE = regexp.MustCompile(`(?i)\bGHSA(?:-[23456789cfghjmpqrvwx]{4}){3}\b`)
+	// cpeRE: the part of a CPE name that names the product: the part, the vendor and the product, up to the version
+	// (cpe:2.3:o:microsoft:windows_11_24h2, cpe:/o:juniper:junos). The version and the later fields are read like any other text, and
+	// the match stops at the first character a CPE field does not have.
+	cpeRE = regexp.MustCompile(`(?i)\bcpe:(?:2\.3:[aho*-]|/[aho]):` + cpeField + `:` + cpeField)
+	// digestRE: a base64 or hex digest written after its algorithm (sha384-<base64> as in a subresource integrity value,
+	// sha256:<hex>). keepForm keeps a match without a letter or with a run of nine or more digits: a digest has neither, in practice.
+	digestRE = regexp.MustCompile(`(?i)\b(?:sha(?:1|224|256|384|512)|sha3-(?:224|256|384|512)|md5|blake2[bs]?|blake3)[-:=][a-z0-9+/]{20,}={0,2}`)
+	// kbRE: a Microsoft update number (KB5034441, KB 5034441): six or seven digits after a capital "KB", never with a leading zero.
+	kbRE = regexp.MustCompile(`\bKB ?[1-9]\d{5,6}\b`)
+	// versionFormRE: a dotted number right after a version word or a "v" glued to it (version 2024.003.20180, v7.2.13). Only the
+	// dotted number is taken: a number after it, with a space between, is read on its own. Its first group never starts with 0, and
+	// keepForm keeps three or four groups of exactly three digits (123.456.789): that is how ID numbers are written, not versions.
+	versionFormRE = regexp.MustCompile(`(?i)(?:\b(?:version|ver|build|release|firmware|kernel|revision|rev)\.?[ \t]*[:#=]?[ \t]*v?|\bv)(?:0|[1-9]\d*)(?:\.\d+)+\b`)
+	// buildRE: a bare build number: a Windows build and its revision (26100.1742, 7601.24546: a first group of four or five digits
+	// that does not start with 0), or a date-stamped version (20260129.1928). keepForm keeps a match with a digit, or a dot and a
+	// digit, on either side: then it is part of a longer dotted number (10.0.26100.1742 is read whole).
+	buildRE = regexp.MustCompile(`[1-9]\d{3,4}\.\d{1,5}|(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\.\d{1,6}`)
+	// androidBuildRE: an Android build id (UP1A.231005.007, AP2A.240905.003): a four-character branch code, a six-digit date and a
+	// three-digit number.
+	androidBuildRE = regexp.MustCompile(`\b[A-Z]{2}[A-Z0-9]{2}\.\d{6}\.\d{3}\b`)
+	// portListRE: a list of port numbers after "port", "ports" or "cổng" (ports 8080 8443 9443, port 3389 8443/tcp). A port is
+	// written without a leading zero, so a citizen ID number (it starts with 0) never joins the list; keepForm also keeps a list
+	// with a number above 65535, a list of exactly three or four 3-digit numbers (271 234 567 is how a 9-digit ID number is written),
+	// and a list cut short by another group of digits.
+	portListRE = regexp.MustCompile(`(?i)(?:\bports?|\bcổng)[ \t]*[:=]?[ \t]*` + portNum + `(?:[ \t]*(?:,|and|or|&)?[ \t]*` + portNum + `)*`)
 )
 
-// keepForm reports whether a match of a form must not be blanked: a hex run or a Cisco MAC with no letter a-f is only digits, and a
-// hex run that starts with the label "cccd" is a label glued to its number (CCCD079201234567).
-func keepForm(re *regexp.Regexp, m string) bool {
+const (
+	portNum = `[1-9]\d{0,4}\b(?:/(?:tcp|udp)\b)?`
+	// cpeField is one field of a CPE name: letters, digits, . _ ~ % - and a character escaped with a backslash.
+	cpeField = `(?:[a-z0-9._~%-]|\\[^\s])*`
+	// advisoryPrefixes are the advisory sources whose ids are PREFIX-YEAR-NUMBER: Linux distributions (Oracle, Alma, Rocky, Red Hat,
+	// CentOS, Debian, Ubuntu, SUSE, Amazon, Mageia, Fedora), national databases (China CNVD/CNNVD, EU EUVD, Russia BDU, Japan JVNDB,
+	// Germany WID-SEC), package databases (OSV, PyPI, RustSec, Go, GSD, OpenSSF malicious packages, Bitnami), and vendors (NetApp, Talos,
+	// ZDI, Tenable, VDE).
+	advisoryPrefixes = `ELSA|ALSA|RLSA|RHSA|RHBA|RHEA|CESA|DSA|DLA|USN|SUSE-SU|openSUSE-SU|ALAS2023|ALAS2|ALAS|MGASA|FEDORA|` +
+		`CNVD|CNNVD|EUVD|BDU|JVNDB|WID-SEC|OSV|PYSEC|RUSTSEC|GO|GSD|MAL|BIT(?:-[A-Za-z0-9]+){0,3}|NTAP|TALOS|ZDI|TRA|VDE`
+)
+
+// keepForm reports whether a match s[a:z] of a form must not be blanked: a hex run or a Cisco MAC with no letter a-f is only digits,
+// a hex run that starts with the label "cccd" is a label glued to its number (CCCD079201234567), a digest with no letter or with nine
+// digits in a row is not a digest, a version written in groups of three digits or a port list that is not only ports has the shape
+// of an ID number, and a bare build with digits next to it is part of a longer number.
+func keepForm(re *regexp.Regexp, s string, a, z int) bool {
+	m := s[a:z]
 	switch re {
 	case hexRE:
 		return !hasHexLetter(m) || strings.HasPrefix(strings.ToLower(m), "cccd")
 	case ciscoMAC:
 		return !hasHexLetter(m)
+	case digestRE:
+		body := m[strings.IndexAny(m, "-:=")+1:]
+		return strings.IndexFunc(body, unicode.IsLetter) < 0 || longestDigits(body) >= 9
+	case versionFormRE:
+		return threeDigitGroups(m)
+	case buildRE:
+		return (a > 0 && (isDigitByte(s[a-1]) || (s[a-1] == '.' && a >= 2 && isDigitByte(s[a-2])))) ||
+			(z < len(s) && (isDigitByte(s[z]) || (s[z] == '.' && z+1 < len(s) && isDigitByte(s[z+1]))))
+	case portListRE: // a list cut short by a group that is not a port is part of a longer number (port 271 034 567)
+		return !allPorts(m) || digitAfterIDSeps(s, z)
 	}
 	return false
+}
+
+// digitAfterIDSeps reports whether one to three ID separators and then a digit follow position e.
+func digitAfterIDSeps(s string, e int) bool {
+	k := e
+	for k < len(s) && k-e < 3 && isIDSep(s[k]) {
+		k++
+	}
+	return k > e && k < len(s) && isDigitByte(s[k])
+}
+
+// longestDigits is the length of the longest run of digits in s.
+func longestDigits(s string) int {
+	best, n := 0, 0
+	for i := range len(s) {
+		if isDigitByte(s[i]) {
+			n++
+			best = max(best, n)
+		} else {
+			n = 0
+		}
+	}
+	return best
+}
+
+// threeDigitGroups reports whether the dotted number that ends m is three or four groups of exactly three digits (123.456.789).
+func threeDigitGroups(m string) bool {
+	k := len(m)
+	for k > 0 && (isDigitByte(m[k-1]) || m[k-1] == '.') {
+		k--
+	}
+	groups := strings.Split(m[k:], ".")
+	if len(groups) != 3 && len(groups) != 4 {
+		return false
+	}
+	for _, g := range groups {
+		if len(g) != 3 {
+			return false
+		}
+	}
+	return true
+}
+
+// allPorts reports whether every digit run of s is a port number (1-65535) and the list is not exactly three or four numbers of
+// three digits each (271 234 567 is how a 9-digit ID number is written).
+func allPorts(s string) bool {
+	runs, three := 0, 0
+	for i := 0; i < len(s); {
+		if !isDigitByte(s[i]) {
+			i++
+			continue
+		}
+		n, j := 0, i
+		for j < len(s) && isDigitByte(s[j]) {
+			if n = n*10 + int(s[j]-'0'); n > 65535 {
+				return false
+			}
+			j++
+		}
+		runs++
+		if j-i == 3 {
+			three++
+		}
+		i = j
+	}
+	return three != runs || (runs != 3 && runs != 4)
 }
 
 // blankLink blanks the parts of a link (linkRE) whose digits are never a person's ID: the scheme, the host and every path segment
@@ -475,12 +630,46 @@ func hasHexLetter(s string) bool {
 	return strings.IndexFunc(s, func(r rune) bool { return (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F') }) >= 0
 }
 
+// formNeeds holds, for the forms that have one, the words (in lower case) of which a match holds at least one. A form runs only on
+// a text that has one of them, so a long text pays only for the forms it can hold.
+var formNeeds = map[*regexp.Regexp][]string{
+	linkRE:         {"://"},
+	cveFormRE:      {"cve"},
+	advisoryRE:     strings.Split(strings.ToLower(strings.NewReplacer("(?:-[A-Za-z0-9]+){0,3}", "", "SUSE-SU", "suse").Replace(advisoryPrefixes)), "|"),
+	ghsaRE:         {"ghsa"},
+	cpeRE:          {"cpe:"},
+	digestRE:       {"sha", "md5", "blake"},
+	ciscoMAC:       {"."},
+	kbRE:           {"kb"},
+	versionFormRE:  {"."},
+	buildRE:        {"."},
+	androidBuildRE: {"."},
+	portListRE:     {"port", "cổng"},
+}
+
+func formMayMatch(re *regexp.Regexp, lower string) bool {
+	need, ok := formNeeds[re]
+	if !ok {
+		return true
+	}
+	for _, w := range need {
+		if strings.Contains(lower, w) {
+			return true
+		}
+	}
+	return false
+}
+
 // blankForms replaces every match of notIDForms with letters, so offsets stay and a blanked form never joins a digit run.
 func blankForms(s string) string {
 	var b []byte
+	lower := strings.ToLower(s)
 	for _, re := range notIDForms {
+		if !formMayMatch(re, lower) {
+			continue
+		}
 		for _, m := range re.FindAllStringIndex(s, -1) {
-			if keepForm(re, s[m[0]:m[1]]) {
+			if keepForm(re, s, m[0], m[1]) {
 				continue
 			}
 			if b == nil {
@@ -502,50 +691,144 @@ func blankForms(s string) string {
 	return s
 }
 
+// isIDJoin reports whether b is a comma, a slash or an underscore. These join digit groups only in a number that starts with 0
+// (079,201,234,567, 079/201/234/567, 079_201_234_567); elsewhere they stand in counts, port and speed lists, paths and file names
+// (123,456,789 lines, TCP 135/139/445, 100/1000/10000, scan_271234567_2.jpg) and end the run. Where they join, they also end a word,
+// so a 9- or 12-digit group beside them is read on its own (079201234567/2).
+func isIDJoin(b byte) bool { return b == ',' || b == '/' || b == '_' }
+
+func isSpaceByte(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v'
+}
+
+// digitGroup is one unbroken group of digits of a run; word reports that the separator before it ends a word (it holds white space
+// or a comma, a slash or an underscore).
+type digitGroup struct {
+	start, end int
+	word       bool
+}
+
+// idRuns finds the ID-shaped digit runs of s. A run is digit groups joined by one to three separators (isIDSep, and isIDJoin in a
+// run that starts with 0). A run is an ID number when it holds 9 or 12 digits in one group or in groups of three or more. When the
+// whole run is not, a word of it (the groups between white space, commas, slashes or underscores) can be, and so can a stretch of
+// words whose groups all have three digits or more next to at most two short numbers, and so can the groups from a word that starts
+// with 0: the number next to an ID never hides it (Windows 11 079201234567, 079201234567 2, room 5 079 201 234 567). Groups joined by
+// a dot stay one word, so a decimal or a version (1.123456789, v2.079123456789) is not cut.
 func idRuns(s string) []span {
 	var out []span
+	var gs []digitGroup
 	for i := 0; i < len(s); {
 		if !isDigitByte(s[i]) {
 			i++
 			continue
 		}
-		start, end, digits := i, i, 0
-		groups := 0
-		minGroup := math.MaxInt
-		for j := i; j < len(s) && isDigitByte(s[j]); {
+		gs = gs[:0]
+		zeroLed := s[i] == '0'
+		word := false
+		for j := i; ; {
 			k := j
 			for k < len(s) && isDigitByte(s[k]) {
 				k++
 			}
-			g := k - j
-			groups++
-			digits += g
-			minGroup = min(minGroup, g)
-			end = k
+			gs = append(gs, digitGroup{j, k, word})
 			// A separator run of one to three characters followed by a digit continues the number.
-			m := k
-			for m < len(s) && m-k < 4 && isIDSep(s[m]) {
+			m, join := k, false
+			word = false
+			for m < len(s) && m-k < 4 && (isIDSep(s[m]) || isIDJoin(s[m])) {
+				join = join || isIDJoin(s[m])
+				word = word || isSpaceByte(s[m]) || isIDJoin(s[m])
 				m++
 			}
-			if m-k >= 1 && m-k <= 3 && m < len(s) && isDigitByte(s[m]) {
+			if m-k >= 1 && m-k <= 3 && m < len(s) && isDigitByte(s[m]) && (!join || zeroLed) {
 				j = m
 				continue
 			}
 			break
 		}
-		i = end
-		if digits != 9 && digits != 12 {
-			continue
-		}
-		if groups > 1 && minGroup < 3 {
-			continue
-		}
-		if cveBefore(s, start) {
-			continue
-		}
-		out = append(out, span{start, end})
+		i = gs[len(gs)-1].end
+		out = appendIDRuns(out, s, gs)
 	}
 	return dropInside(out, findPhones(s))
+}
+
+// appendIDRuns adds the ID numbers of one run (see idRuns): the whole run, or else each word and each stretch of words whose groups
+// all have three digits or more. Each group is in at most two parts tested, so the work is linear.
+func appendIDRuns(out []span, s string, gs []digitGroup) []span {
+	try := func(part []digitGroup) bool {
+		if idGroups(s, part) {
+			out = append(out, span{part[0].start, part[len(part)-1].end})
+			return true
+		}
+		return false
+	}
+	if try(gs) {
+		return out
+	}
+	// A stretch of long words is read on its own only beside at most two short numbers (room 5 271 234 567, 271 234 567 2): in a
+	// longer list of numbers (open: 21 22 23 25 53 80 110 143 443) three 3-digit numbers in a row are part of the list.
+	short := 0
+	for _, g := range gs {
+		if g.end-g.start < 3 {
+			short++
+		}
+	}
+	stretches := short <= 2
+	stretch := -1 // the first group of the current stretch of long words
+	for a := 0; a < len(gs); {
+		b := a + 1
+		for b < len(gs) && !gs[b].word {
+			b++
+		}
+		long := true
+		for _, g := range gs[a:b] {
+			long = long && g.end-g.start >= 3
+		}
+		if b-a < len(gs) {
+			try(gs[a:b])
+		}
+		switch {
+		case long && stretch < 0:
+			stretch = a
+		case !long && stretch >= 0:
+			if stretches {
+				try(gs[stretch:a])
+			}
+			stretch = -1
+		}
+		a = b
+	}
+	if stretch > 0 && stretches { // a stretch from the first group to the end is the whole run, tested above
+		try(gs[stretch:])
+	}
+	// A citizen ID number starts with 0 (its province code): inside a run, the groups from the start of a word with a leading 0 that
+	// add up to 9 or 12 digits, each of three or more, are an ID number, whatever comes before or after them (port 8443 079 201 234 567,
+	// 079 201 234 567 1234). At most four such groups are read from each start.
+	for a := 0; a < len(gs); a++ {
+		if (a > 0 && !gs[a].word) || s[gs[a].start] != '0' {
+			continue
+		}
+		digits := 0
+		for b := a; b < len(gs) && b < a+4; b++ {
+			n := gs[b].end - gs[b].start
+			if n < 3 && b > a {
+				break
+			}
+			if digits += n; (digits == 9 || digits == 12) && b > a {
+				try(gs[a : b+1])
+			}
+		}
+	}
+	return out
+}
+
+// idGroups reports whether the groups hold 9 or 12 digits, in one group or in groups of three or more, and are not the tail of a CVE id.
+func idGroups(s string, gs []digitGroup) bool {
+	digits, minGroup := 0, math.MaxInt
+	for _, g := range gs {
+		digits += g.end - g.start
+		minGroup = min(minGroup, g.end-g.start)
+	}
+	return (digits == 9 || digits == 12) && (len(gs) == 1 || minGroup >= 3) && !cveBefore(s, gs[0].start)
 }
 
 func isPhoneSep(b byte) bool {

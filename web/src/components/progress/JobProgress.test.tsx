@@ -116,4 +116,18 @@ describe('JobProgress (#830)', () => {
     expect(sayDuration(s, 12 * 60_000 + 5_000)).toBe('12 min')
     expect(sayDuration(s, 65 * 60_000)).toBe('1 h 5 min')
   })
+
+  it('OpenVAS at 95% or more (or past its ETA): no minutes-left, the latest stop time; below: the normal estimate (#915)', () => {
+    freeze()
+    const started = ago(80 * 60_000)
+    const { rerender } = render(<JobProgress progress={job({ phase: 'openvas', percent: 98, phase_started_at: started, eta: ahead(2 * 60_000) })} />)
+    const stop = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(NOW - 80 * 60_000 + 90 * 60_000))
+    expect(screen.getByText(`OpenVAS is finishing its last checks (its slowest part). It stops by ${stop} at the latest and keeps what it found.`)).toBeInTheDocument()
+    expect(screen.queryByText(/left in this step/)).toBeNull()
+    rerender(<JobProgress progress={job({ phase: 'openvas', percent: 60, phase_started_at: started, eta: ahead(10 * 60_000) })} />)
+    expect(screen.getByText(/about 10 min left in this step/)).toBeInTheDocument()
+    expect(screen.queryByText(/finishing its last checks/)).toBeNull()
+    rerender(<JobProgress progress={job({ phase: 'openvas', percent: 60, phase_started_at: started, eta: ago(1_000) })} />)
+    expect(screen.getByText(/finishing its last checks/)).toBeInTheDocument()
+  })
 })

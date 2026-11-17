@@ -140,7 +140,7 @@ func (h *FindingHandlers) Summary(ctx context.Context) (*Summary, error) {
 	src := h.home
 	h.mu.RUnlock()
 	if c.val != nil && c.gen == gen && c.notifyOn == notifyOn && now.Sub(c.at) < summaryTTL && now.Sub(c.at) >= 0 {
-		return c.val, nil
+		return h.withIncidents(ctx, c.val, src, notifyOn)
 	}
 	s, err := h.computeSummary(ctx, src, notifyOn, now)
 	if err != nil {
@@ -149,7 +149,23 @@ func (h *FindingHandlers) Summary(ctx context.Context) (*Summary, error) {
 	h.mu.Lock()
 	h.sum = summaryCache{val: s, gen: gen, notifyOn: notifyOn, at: now}
 	h.mu.Unlock()
-	return s, nil
+	return h.withIncidents(ctx, s, src, notifyOn)
+}
+
+// withIncidents is the summary with notify's open incidents read now, never from the cache (G6: the nav badge said 9 urgent incidents
+// after every incident was resolved, because the cache follows changes of findings only). It is one count query, the same one notify
+// uses for its own list (OpenIncidents), so the Incidents page, Home and the badge agree. The cached answer is not changed.
+func (h *FindingHandlers) withIncidents(ctx context.Context, cached *Summary, src HomeSources, notifyOn bool) (*Summary, error) {
+	if src.Incidents == nil || !notifyOn {
+		return cached, nil
+	}
+	open, urgent, err := src.Incidents(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("findings: summary: counting incidents: %w", err)
+	}
+	s := *cached
+	s.Incidents = &SummaryIncidents{Open: open, Urgent: urgent}
+	return &s, nil
 }
 
 func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, notifyOn bool, now time.Time) (*Summary, error) {
@@ -265,14 +281,7 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 		}
 		s.Alerts = &SummaryAlerts{Sent: sent, Failed: failed, Days: alertDays}
 	}
-	if src.Incidents != nil && notifyOn {
-		open, urgent, err := src.Incidents(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("findings: summary: counting incidents: %w", err)
-		}
-		s.Incidents = &SummaryIncidents{Open: open, Urgent: urgent}
-	}
-	return s, nil
+	return s, nil // the incidents are added by withIncidents, read at every call
 }
 
 // productOf names the product as the findings list does: KEV's display name, else "<vendor> <product>".

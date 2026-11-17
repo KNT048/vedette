@@ -278,10 +278,12 @@ func (s *Service) IncidentsSince(ctx context.Context, since time.Time, top int) 
 	return w, nil
 }
 
-// Incidents lists every incident, most recently seen first (GET /notify/incidents).
+// Incidents lists the incidents for GET /notify/incidents: every open one (new or acknowledged) first, then the resolved ones, each
+// most recently seen first, at most incidentsLimit. An open incident is never cut by the limit (G6: the page counted its "open" from
+// the 500 seen last, while Home and the nav badge count every open one with OpenIncidents).
 func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	db := s.cfg.DB.Reader()
-	rows, err := db.QueryContext(ctx, `SELECT `+incidentCols+` FROM notify_incident ORDER BY last_seen DESC, rowid DESC LIMIT ?`, incidentsLimit)
+	rows, err := db.QueryContext(ctx, `SELECT `+incidentCols+` FROM notify_incident ORDER BY status = 'resolved', last_seen DESC, rowid DESC LIMIT ?`, incidentsLimit)
 	if err != nil {
 		return nil, fmt.Errorf("notify: list incidents: %w", err)
 	}
@@ -384,7 +386,7 @@ func (s *Service) withConnections(ctx context.Context, list []Incident) {
 	}
 }
 
-// incidentsLimit is the most incidents GET /notify/incidents returns, newest seen first (the page of an
+// incidentsLimit is the most incidents GET /notify/incidents returns, open ones first, then newest seen first (the page of an
 // unbounded list would grow with every trap hit).
 const incidentsLimit = 500
 

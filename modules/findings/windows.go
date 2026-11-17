@@ -78,6 +78,27 @@ func winDevice(in swInfo) (winDev, bool) {
 	return d, true
 }
 
+// winUnknownBuild is the build of a Windows row whose build core/winrel does not know (D-602): a Microsoft row with a full Windows 10.0
+// version ("10.0.26300.9974", an Insider or other build newer than the table) and no CPE of a known release, as agent-intake's
+// windowsRow writes it ("Windows (build 26300)"). Vedette cannot place such a build among the releases NVD lists.
+func winUnknownBuild(s Software, in swInfo) (int, bool) {
+	if _, ok := winDevice(in); ok || norm(s.Vendor) != "microsoft" {
+		return 0, false
+	}
+	m := winVersionRE.FindStringSubmatch(strings.TrimSpace(in.ver))
+	if m == nil {
+		return 0, false
+	}
+	b, _ := strconv.Atoi(m[1])
+	if _, ok := winrel.ByBuild(b, false); ok {
+		return 0, false
+	}
+	if _, ok := winrel.ByBuild(b, true); ok {
+		return 0, false
+	}
+	return b, true
+}
+
 // windowsProduct is the product of an operating-system CPE of Microsoft Windows as NVD writes it ("windows_11_23h2"); false
 // otherwise.
 func windowsProduct(c CPE) (string, bool) {
@@ -219,6 +240,9 @@ type winVerdict struct {
 	via    string // the sibling releases whose rows decided ("Windows 11 24H2"); "" when the device's own did
 	build  int    // Yes: the build of the range that matched (a sibling's when via is set)
 	note   string // the evidence of an Unknown that says more than "not checked", or of a proofRelease close
+	// later: the Unknown's note is winLaterNote's: NVD gives the fix build of the release of the other kind on the same build, and the
+	// device's revision is below it. That is version evidence (D-602: the finding stands though its basis stays product).
+	later bool
 }
 
 // windowsDecide reads entry v against a Windows release row (see the top of this file). ok is false when the software is not one,
@@ -327,7 +351,7 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 			v.CVE, winNames(others), also, y, d.rel.Display)}, true
 	}
 	if note := winLaterNote(d, in.winBuild, v); note != "" { // D-618: fixed after the build's month, in an update NVD names
-		return winVerdict{t: Unknown, note: note}, true
+		return winVerdict{t: Unknown, note: note, later: true}, true
 	}
 	switch {
 	case !allWindows || undecidable || newest == d.rel.Build:

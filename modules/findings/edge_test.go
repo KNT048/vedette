@@ -54,20 +54,23 @@ func TestMatchAsset_D619_EdgeLegacy(t *testing.T) {
 	anyEdge.Vendor, anyEdge.Product, anyEdge.Published = "Microsoft", "Edge", e7200.Published
 	noNVD := e7200
 	noNVD.Affected = nil
+	// D-602: kept means not closed as not affected; where only the product name matches (no version compared) it is under "Could not be
+	// checked" instead of a finding (nameonly)
 	for _, c := range []struct {
 		name string
 		a    Asset
 		v    Vuln
+		want string
 	}{
-		{"the EdgeHTML app's own version", edge("44.19041.1266.0"), e7200},
-		{"a version that is not a Chromium build", edge("157"), e7200},
-		{"published after Chromium Edge came out", edge("157.0.4341.46"), later},
-		{"no published day and a 2019 id", edge("157.0.4341.46"), undated},
-		{"an edge_chromium entry", edge("157.0.4341.46"), chromium},
-		{"every Edge version", edge("157.0.4341.46"), anyEdge},
-		{"no NVD data", edge("157.0.4341.46"), noNVD},
+		{"the EdgeHTML app's own version", edge("44.19041.1266.0"), e7200, "nameonly"},
+		{"a version that is not a Chromium build", edge("157"), e7200, "nameonly"},
+		{"published after Chromium Edge came out", edge("157.0.4341.46"), later, "nameonly"},
+		{"no published day and a 2019 id", edge("157.0.4341.46"), undated, "nameonly"},
+		{"an edge_chromium entry", edge("157.0.4341.46"), chromium, "existing"},
+		{"every Edge version", edge("157.0.4341.46"), anyEdge, "existing"},
+		{"no NVD data", edge("157.0.4341.46"), noNVD, "nameonly"},
 	} {
-		if w, m := oneMatch(t, c.a, c.v, true); w != "existing" {
+		if w, m := oneMatch(t, c.a, c.v, true); w != c.want {
 			t.Errorf("%s: %s %q", c.name, w, m.Evidence.Summary)
 		}
 	}
@@ -99,10 +102,10 @@ func TestMatchAsset_D619_EdgeLegacyBesideAnOldWindows10(t *testing.T) {
 		a    Asset
 		want string
 	}{
-		{"Windows 10 1607 before November 2016's update (14393.321)", pc("321"), "existing"},
+		{"Windows 10 1607 before November 2016's update (14393.321)", pc("321"), "nameonly"}, // D-602: kept, but not a finding
 		{"Windows 10 1607 at December 2016's update (14393.576)", pc("576"), "notaffected"},
-		{"only the OS name says Windows 10", Asset{ID: "a-pc", Name: "pc-01", OS: "Microsoft Windows 10 Pro", Software: []Software{edge}}, "existing"},
-		{"no system known", Asset{ID: "a-pc", Name: "pc-01", Software: []Software{edge}}, "existing"},
+		{"only the OS name says Windows 10", Asset{ID: "a-pc", Name: "pc-01", OS: "Microsoft Windows 10 Pro", Software: []Software{edge}}, "nameonly"},
+		{"no system known", Asset{ID: "a-pc", Name: "pc-01", Software: []Software{edge}}, "nameonly"},
 		{"a Mac", Asset{ID: "a-mac", Name: "mac-01", OS: "macOS 15.1", Software: []Software{edge}}, "notaffected"},
 	} {
 		res := MatchAsset(c.a, []Vuln{e7200, dec}, map[string]bool{"CVE-2016-7200": true}, winNow)
@@ -112,6 +115,8 @@ func TestMatchAsset_D619_EdgeLegacyBesideAnOldWindows10(t *testing.T) {
 			got = "notaffected"
 		case slices.ContainsFunc(res.Existing, func(m Match) bool { return m.CVE == e7200.CVE }):
 			got = "existing"
+		case slices.ContainsFunc(res.NameOnly, func(m Match) bool { return m.CVE == e7200.CVE }):
+			got = "nameonly"
 		}
 		if got != c.want {
 			t.Errorf("%s: %s, want %s", c.name, got, c.want)

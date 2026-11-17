@@ -84,9 +84,12 @@ func oneMatch(t *testing.T, a Asset, v Vuln, have bool, list ...Vuln) (where str
 	for _, x := range []struct {
 		name string
 		ms   []Match
-	}{{"new", res.New}, {"existing", res.Existing}, {"notaffected", res.NotAffected}, {"unlisted", res.Unlisted}} {
+	}{{"new", res.New}, {"existing", res.Existing}, {"notaffected", res.NotAffected}, {"unlisted", res.Unlisted}, {"nameonly", res.NameOnly}} {
 		for _, m := range x.ms {
 			if m.CVE == v.CVE {
+				if x.name == "nameonly" { // D-602: no finding; the rules' own sentence is what the tests read
+					m.Evidence.Summary = m.said
+				}
 				return x.name, m
 			}
 		}
@@ -140,7 +143,7 @@ func TestMatchAsset_D546_OutOfServiceRelease(t *testing.T) {
 		t.Errorf("weekly line of a sibling: %+v", g)
 	}
 	w, m = oneMatch(t, winPC(22000, false, "3260", "x64"), cve62215, true)
-	wantMatch(t, "11 21H2", w, m, "existing", BasisProduct, SeverityMedium, "newer ones among them", "check that Windows 11 21H2 is still supported")
+	wantMatch(t, "11 21H2", w, m, "nameonly", BasisProduct, SeverityMedium, "newer ones among them", "check that Windows 11 21H2 is still supported")
 }
 
 // Review H2: siblings on one build line are read with the device's revision; NVD names 25H2 and Server 2022 23H2 as the table does.
@@ -153,7 +156,7 @@ func TestMatchAsset_D546_SiblingRelease(t *testing.T) {
 	// a server is never a client's sibling, even on the same build
 	only24 := nvdWindows("CVE-2099-0002", "2026-10-01", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.7092"})
 	w, m = oneMatch(t, winPC(26100, true, "6899", "x64"), only24, false)
-	wantMatch(t, "Server 2025 on a client-only entry", w, m, "new", BasisProduct, SeverityMedium, "cannot compare version")
+	wantMatch(t, "Server 2025 on a client-only entry", w, m, "nameonly", BasisProduct, SeverityMedium, "cannot compare version")
 	// NVD's row ends at a build of another release of the line (windows_10_22h2 < 10.0.19044.3324): read at that build
 	w, m = oneMatch(t, winPC(19045, false, "3200", "x64"), cve36884, false)
 	wantMatch(t, "10 22H2 unpatched", w, m, "new", BasisVersion, SeverityHigh, "before 10.0.19045.3324")
@@ -198,11 +201,11 @@ func TestMatchAsset_D546_NewerThanEveryListedRelease(t *testing.T) {
 		t.Errorf("a fresh device: %s", w)
 	}
 	w, m = oneMatch(t, pc, cve36884, true)
-	wantMatch(t, "release NVD never named", w, m, "existing", BasisProduct, SeverityMedium, "has not named Windows 11 24H2")
+	wantMatch(t, "release NVD never named", w, m, "nameonly", BasisProduct, SeverityMedium, "has not named Windows 11 24H2")
 	recent := cve36884
 	recent.CVE, recent.DateAdded = "CVE-2025-36424", winDay("2026-04-13") // last year's flaw CISA listed this year (a CVE two years old or more is settled by its year, D-610)
 	w, m = oneMatch(t, pc, recent, true, cve62215)
-	wantMatch(t, "listed this year", w, m, "existing", BasisProduct, SeverityMedium, "less than a year old")
+	wantMatch(t, "listed this year", w, m, "nameonly", BasisProduct, SeverityMedium, "less than a year old")
 	old := recent
 	old.DateAdded = winDay("2025-06-01") // settled: NVD's list stood a year
 	w, m = oneMatch(t, pc, old, true, cve62215)
@@ -211,13 +214,13 @@ func TestMatchAsset_D546_NewerThanEveryListedRelease(t *testing.T) {
 	vc := cve36884
 	vc.CVE, vc.Source, vc.DateAdded = "CVE-2025-36884", SourceVulnCheck, winDay("2026-03-01")
 	w, m = oneMatch(t, pc, vc, true, cve62215)
-	wantMatch(t, "VulnCheck, recent", w, m, "existing", BasisProduct, SeverityMedium)
+	wantMatch(t, "VulnCheck, recent", w, m, "nameonly", BasisProduct, SeverityMedium)
 	// one row the table does not know: as before, not checked
 	other := cve36884
 	other.CVE = "CVE-2099-0003"
 	other.Affected = append(slices.Clone(other.Affected), Affected{CPE: "cpe:2.3:a:microsoft:server_message_block:1.0:*:*:*:*:*:*:*"})
 	w, m = oneMatch(t, pc, other, true, cve62215)
-	wantMatch(t, "a non-Windows row", w, m, "existing", BasisProduct, SeverityMedium, "cannot compare version")
+	wantMatch(t, "a non-Windows row", w, m, "nameonly", BasisProduct, SeverityMedium, "cannot compare version")
 }
 
 // Review L1: a target the release's rows do not list proves nothing; review L2: "-" rows stay not checked; family rows of every
@@ -225,13 +228,13 @@ func TestMatchAsset_D546_NewerThanEveryListedRelease(t *testing.T) {
 func TestMatchAsset_D546_WhatProvesNothing(t *testing.T) {
 	x64only := nvdWindows("CVE-2099-0004", "2025-04-08", nvdRow{"windows_11_23h2", "*", "x64", "10.0.22631.5189"})
 	w, m := oneMatch(t, winPC(22631, false, "5189", "arm64"), x64only, true)
-	wantMatch(t, "arm64 PC, x64 rows only", w, m, "existing", BasisProduct, SeverityMedium, "on x64 only")
+	wantMatch(t, "arm64 PC, x64 rows only", w, m, "nameonly", BasisProduct, SeverityMedium, "on x64 only")
 	dash := Vuln{CVE: "CVE-2099-0005", Vendor: "Microsoft", Product: "Windows", Affected: []Affected{{CPE: "cpe:2.3:o:microsoft:windows_server_2019:-:*:*:*:*:*:*:*"}}}
 	w, m = oneMatch(t, winPC(17763, true, "8027", "x64"), dash, true)
-	wantMatch(t, "windows_server_2019:-", w, m, "existing", BasisProduct, SeverityMedium)
+	wantMatch(t, "windows_server_2019:-", w, m, "nameonly", BasisProduct, SeverityMedium)
 	family := Vuln{CVE: "CVE-2099-0006", Vendor: "Microsoft", Product: "Windows", Affected: []Affected{{CPE: "cpe:2.3:o:microsoft:windows:*:*:*:*:*:*:*:*"}}}
 	w, m = oneMatch(t, winPC(22631, false, "5189", "x64"), family, false)
-	wantMatch(t, "o:microsoft:windows", w, m, "new", BasisProduct, SeverityMedium)
+	wantMatch(t, "o:microsoft:windows", w, m, "nameonly", BasisProduct, SeverityMedium)
 	// a family row next to the release's own patched row: the own row's No is not a proof
 	both := cve29824
 	both.CVE = "CVE-2099-0007"
@@ -249,8 +252,8 @@ func TestMatchAsset_D546_ManualWindowsRowIsCovered(t *testing.T) {
 	if w != "notaffected" {
 		t.Fatalf("agent row and a manual row: %s", w)
 	}
-	alone := Asset{ID: "a-m", Name: "m", Software: a.Software[1:]} // without the agent's row the manual one is matched as before
-	if w, _ := oneMatch(t, alone, cve29824, true); w != "existing" {
+	alone := Asset{ID: "a-m", Name: "m", Software: a.Software[1:]}   // without the agent's row the manual one is matched as before
+	if w, _ := oneMatch(t, alone, cve29824, true); w != "nameonly" { // D-602: kept, not a finding
 		t.Fatalf("manual row alone: %s", w)
 	}
 }
@@ -285,7 +288,7 @@ func TestMatchAsset_D546_PreviewBuildProvesNothing(t *testing.T) {
 	v := cve36884
 	v.CVE, v.DateAdded = "CVE-2099-0010", winDay("2024-06-20")
 	w, m := oneMatch(t, winPC(26100, false, "712", "arm64"), v, true, cve62215)
-	wantMatch(t, "24H2 at 26100.712", w, m, "existing", BasisProduct, SeverityMedium, "before Windows 11 24H2's first public one (10.0.26100.1742)")
+	wantMatch(t, "24H2 at 26100.712", w, m, "nameonly", BasisProduct, SeverityMedium, "before Windows 11 24H2's first public one (10.0.26100.1742)")
 	w, m = oneMatch(t, winPC(26100, false, "1742", "arm64"), v, true, cve62215)
 	wantMatch(t, "24H2 at its GA build", w, m, "notaffected", "", "", "came out on 1 Oct 2024")
 }
@@ -296,7 +299,7 @@ func TestMatchAsset_D546_BuildTheTableLacks(t *testing.T) {
 	a := Asset{ID: "a-new", Name: "pc-02", Software: []Software{{ID: "s", Display: "Windows 11 Pro", Vendor: "microsoft", Product: "Windows (build 28000)",
 		Version: "10.0.28000.1", Source: "agent", KevKeys: []string{"microsoft|windows"}}}}
 	w, m := oneMatch(t, a, cve62215, false)
-	wantMatch(t, "build 28000", w, m, "new", BasisProduct, SeverityMedium, "cannot compare version")
+	wantMatch(t, "build 28000", w, m, "nameonly", BasisProduct, SeverityMedium, "cannot compare version")
 }
 
 // Review r1 LOW-1 and LOW-2: a release row of every version with no range, and a bound without the revision, prove nothing either
@@ -304,12 +307,12 @@ func TestMatchAsset_D546_BuildTheTableLacks(t *testing.T) {
 func TestMatchAsset_D546_RowsWithoutARevision(t *testing.T) {
 	every := Vuln{CVE: "CVE-2099-0011", Vendor: "Microsoft", Product: "Windows", Affected: []Affected{{CPE: "cpe:2.3:o:microsoft:windows_11_23h2:*:*:*:*:*:*:*:*"}}}
 	w, m := oneMatch(t, winPC(22631, false, "9999", "x64"), every, false)
-	wantMatch(t, "every version of 23H2", w, m, "new", BasisProduct, SeverityMedium)
+	wantMatch(t, "every version of 23H2", w, m, "nameonly", BasisProduct, SeverityMedium)
 	buildOnly := Vuln{CVE: "CVE-2099-0012", Vendor: "Microsoft", Product: "Windows", Affected: []Affected{{CPE: "cpe:2.3:o:microsoft:windows_11_23h2:*:*:*:*:*:*:*:*",
 		Range: VersionRange{EndIncl: "10.0.22631"}}}}
 	for _, ubr := range []string{"1", "5000"} {
 		w, m = oneMatch(t, winPC(22631, false, ubr, "x64"), buildOnly, true)
-		wantMatch(t, "inclusive end 10.0.22631 at ."+ubr, w, m, "existing", BasisProduct, SeverityMedium)
+		wantMatch(t, "inclusive end 10.0.22631 at ."+ubr, w, m, "nameonly", BasisProduct, SeverityMedium)
 	}
 }
 
@@ -342,6 +345,6 @@ func TestMatchAsset_D546_UnknownFirstRevisionProvesNothing(t *testing.T) {
 	old := nvdWindows("CVE-2099-0014", "2022-03-01", nvdRow{"windows_server_2019", "*", "*", "10.0.17763.2686"}, nvdRow{"windows_server_2022", "*", "*", "10.0.20348.587"})
 	for _, ubr := range []string{"1", "1965"} {
 		w, m := oneMatch(t, winPC(25398, true, ubr, "x64"), old, true, cve62215)
-		wantMatch(t, "Server 2022 23H2 ."+ubr, w, m, "existing", BasisProduct, SeverityMedium, "does not know the first public build of Windows Server 2022 23H2")
+		wantMatch(t, "Server 2022 23H2 ."+ubr, w, m, "nameonly", BasisProduct, SeverityMedium, "does not know the first public build of Windows Server 2022 23H2")
 	}
 }

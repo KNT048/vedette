@@ -16,10 +16,10 @@ func TestHaveScope_OnlyTheDeclaredDeviceIsScoped(t *testing.T) {
 	day := func(s string) time.Time { d, _ := time.Parse(time.DateOnly, s); return d }
 	e := newEnv(t)
 	e.feeds.vulns = []Vuln{
-		{CVE: "CVE-2009-0556", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2022-03-03")},
-		{CVE: "CVE-2026-21508", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2026-10-27")}, // same week, earlier
-		{CVE: "CVE-2026-21509", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2026-11-01")}, // the answered one
-		{CVE: "CVE-2026-30001", Vendor: "QNAP", Product: "Photo Station"},                               // no date: kept
+		{CVE: "CVE-2009-0556", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2022-03-03"), HasTemplate: true},  // a scan checks them: product matches stay findings (D-602)
+		{CVE: "CVE-2026-21508", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2026-10-27"), HasTemplate: true}, // same week, earlier
+		{CVE: "CVE-2026-21509", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2026-11-01"), HasTemplate: true}, // the answered one
+		{CVE: "CVE-2026-30001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true},                               // no date: kept
 	}
 	declared := Asset{ID: "a-declared", Name: "QNAP", Software: nas("").Software}
 	e.inv.match["a-declared"] = declared
@@ -65,7 +65,7 @@ func TestHaveScope_OnlyTheDeclaredDeviceIsScoped(t *testing.T) {
 func TestSetStatusMany_OneRowEachAllOrNothing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station"})
+	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true})
 	res, err := e.svc.OnMatchChanged(t.Context(), "a-1")
 	if err != nil || len(res.Created) != 2 {
 		t.Fatalf("seed: %+v %v", res, err)

@@ -28,8 +28,10 @@ type ReconcileResult struct {
 	Closed  int // findings Vedette closed by itself: version proved outside every range (D-530)
 	Retired int // old product findings of settled "Multiple Products" entries NVD's list leaves out, closed (D-506)
 	Aged    int // product findings of KEV CVEs published over 12 months ago, closed (D-615, D-616)
-	Orphans int // findings removed because their device no longer exists
-	Expired int // risk acceptances whose day passed, reopened (D-498, INV-13)
+	// NameOnly: product findings with no version evidence, closed and listed under "Could not be checked" (D-602)
+	NameOnly int
+	Orphans  int // findings removed because their device no longer exists
+	Expired  int // risk acceptances whose day passed, reopened (D-498, INV-13)
 }
 
 // Reconcile heals what a lost event left behind (D-144: the bus is best-effort, findings owns the catch-up). It does the
@@ -105,6 +107,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		res.Closed += up.Closed
 		res.Retired += up.Retired
 		res.Aged += up.Aged
+		res.NameOnly += up.NameOnly
 	}
 	orphans, err := s.orphanAssets(ctx, live)
 	if err != nil {
@@ -135,7 +138,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	}
 	// One line per run, so a box's log shows the pass ran and what it changed (walk 3: the job's own line is debug).
 	s.cfg.Log.InfoContext(ctx, "findings: reconcile pass done", "devices", res.Devices, "created", res.Created,
-		"closed_not_affected", res.Closed, "closed_multiple_products", res.Retired, "closed_older_than_12_months", res.Aged, "removed_with_device", res.Orphans, "risk_acceptances_expired", res.Expired)
+		"closed_not_affected", res.Closed, "closed_multiple_products", res.Retired, "closed_older_than_12_months", res.Aged, "closed_no_version_evidence", res.NameOnly, "removed_with_device", res.Orphans, "risk_acceptances_expired", res.Expired)
 	return res, errors.Join(failed...)
 }
 
@@ -320,6 +323,7 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vu
 		sum.Closed += r.Closed
 		sum.Retired += r.Retired
 		sum.Aged += r.Aged
+		sum.NameOnly += r.NameOnly
 		return err
 	}
 	if len(backlog) > 0 {

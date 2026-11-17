@@ -66,7 +66,7 @@ func TestCVEOrgRecordsThroughTheMatcher(t *testing.T) {
 			got = "closed"
 		case len(all) == 1 && all[0].Basis == findings.BasisVersion:
 			got = "version"
-		case len(all) == 1:
+		case len(all) == 1, len(all) == 0 && len(m.NameOnly) == 1: // D-602: undecided is no finding but "could not be checked" (NameOnly)
 			got = "product"
 		}
 		if got != c.want {

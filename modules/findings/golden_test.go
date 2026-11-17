@@ -81,9 +81,11 @@ func keysFor(vulns []Vuln, fragments ...string) []string {
 	return keys
 }
 
+// goldenOut: version findings; product, the CVEs matched by the product name only, which D-602 makes no finding (NameOnly; before
+// D-602 they were product findings); productFindings, any product finding left (none in these sets); need, the "add the version" CVEs.
 type goldenOut struct {
-	version, product, need []string
-	severity               map[string]Severity
+	version, product, productFindings, need []string
+	severity                                map[string]Severity
 }
 
 func runGolden(t *testing.T, vulns []Vuln, sw Software) goldenOut {
@@ -95,8 +97,12 @@ func runGolden(t *testing.T, vulns []Vuln, sw Software) goldenOut {
 		if m.Basis == BasisVersion {
 			o.version = append(o.version, m.CVE)
 		} else {
-			o.product = append(o.product, m.CVE)
+			o.productFindings = append(o.productFindings, m.CVE)
 		}
+	}
+	for _, m := range res.NameOnly {
+		o.severity[m.CVE] = m.Severity
+		o.product = append(o.product, m.CVE)
 	}
 	for _, n := range res.NeedVersion {
 		o.need = append(o.need, n.CVEs...)
@@ -276,7 +282,10 @@ func TestGolden_KEVWithNVDRanges(t *testing.T) {
 			want = cves(tt.product)
 			slices.Sort(want)
 			if !slices.Equal(o.product, want) {
-				t.Errorf("product findings\n got %v\nwant %v", o.product, want)
+				t.Errorf("matched by the product name only (D-602: no finding)\n got %v\nwant %v", o.product, want)
+			}
+			if len(o.productFindings) != 0 {
+				t.Errorf("product findings (D-602: none): %v", o.productFindings)
 			}
 			if len(o.need) != tt.need {
 				t.Errorf("add-the-version item: %d CVEs, want %d", len(o.need), tt.need)
@@ -332,8 +341,8 @@ func TestGolden_DistroRowNeverClosesKernelCVEs(t *testing.T) {
 		}
 		for name, have := range map[string]map[string]bool{"new": nil, "existing": flood} {
 			res := MatchAsset(a, vulns, have, t0)
-			got := append(slices.Clone(res.New), res.Existing...)
-			if len(res.NotAffected) != 0 || len(res.NeedVersion) != 0 || len(got) != len(flood) {
+			got := res.NameOnly // D-602: kept (none closed), but by the product name only: no finding
+			if len(res.New)+len(res.Existing) != 0 || len(res.NotAffected) != 0 || len(res.NeedVersion) != 0 || len(got) != len(flood) {
 				t.Fatalf("%s %s (%s): %d findings, %d closed, %d items; want %d findings, none closed", tc.display, tc.ver, name, len(got), len(res.NotAffected), len(res.NeedVersion), len(flood))
 			}
 			for _, m := range got {

@@ -239,7 +239,7 @@ func (e *env) reconciler(pub Publisher, inv Inventory) *Service {
 }
 
 func kevVuln(cve string, added time.Time) Vuln {
-	v := qnapVuln()
+	v := qnapScanned()
 	v.CVE, v.DateAdded = cve, added
 	return v
 }

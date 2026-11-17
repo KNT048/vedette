@@ -1,6 +1,9 @@
 package findings
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // Review H1: the version schemes of PAN-OS (hotfix "-hN"), Junos (service release "RxSy") and Ivanti (R-release
 // "RxY.z") are read and ordered.
@@ -66,8 +69,8 @@ func TestMatchAsset_VendorReleaseSchemes(t *testing.T) {
 				t.Fatalf("sent to add the version: %+v", res.NeedVersion)
 			}
 			got, sev := Basis(""), Severity("")
-			if len(res.New) == 1 {
-				got, sev = res.New[0].Basis, res.New[0].Severity
+			if all := slices.Concat(res.New, res.NameOnly); len(all) == 1 { // D-602: a product match is in NameOnly
+				got, sev = all[0].Basis, all[0].Severity
 			}
 			if got != tc.want || sev != tc.sev {
 				t.Fatalf("basis %q severity %q, want %q %q", got, sev, tc.want, tc.sev)
@@ -93,14 +96,14 @@ func TestMatchAsset_OSReleasesOnlyRuleOutTheirOwnDistribution(t *testing.T) {
 		return a
 	}
 	ubuntu2004 := kernel("cpe:2.3:o:canonical:ubuntu_linux:20.04:*:*:*:lts:*:*:*")
-	if r := MatchAsset(box("Ubuntu 20.04.6 LTS"), []Vuln{ubuntu2004}, nil, t0); len(r.New) == 0 {
+	if r := MatchAsset(box("Ubuntu 20.04.6 LTS"), []Vuln{ubuntu2004}, nil, t0); len(r.New)+len(r.NameOnly) == 0 {
 		t.Error("Ubuntu 20.04.6 is 20.04: ruled out")
 	}
 	if r := MatchAsset(box("Ubuntu 22.04.4 LTS"), []Vuln{ubuntu2004}, nil, t0); len(r.New) != 0 {
 		t.Errorf("Ubuntu 22.04 is not listed: %+v", r.New)
 	}
 	debianOnly := kernel("cpe:2.3:o:debian:debian_linux:10.0:*:*:*:*:*:*:*")
-	if r := MatchAsset(box("Ubuntu 22.04.4 LTS"), []Vuln{debianOnly}, nil, t0); len(r.New) == 0 {
+	if r := MatchAsset(box("Ubuntu 22.04.4 LTS"), []Vuln{debianOnly}, nil, t0); len(r.New)+len(r.NameOnly) == 0 {
 		t.Error("an entry for Debian only ruled out an Ubuntu device")
 	}
 }

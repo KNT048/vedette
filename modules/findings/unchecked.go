@@ -76,6 +76,7 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 //   - no_nvd_data: NVD answered with no entry (Vuln.NVDAnswered); before it answered there is no row at all (ok false: the list
 //     says nothing it cannot back, review r1 M2 of #920);
 //   - no_nvd_versions: no entry gives a version (audit class 2);
+//   - not_comparable: a Windows row of a build core/winrel does not know, when NVD lists Windows rows (D-602, winUnknownBuild);
 //   - not_named: none names the row (audit class 5 and "3k", and #919's nvd_other_product);
 //   - no_nvd_versions: those that name it give no version, or no range that decides (only exact versions, only a start, or a
 //     partial CVE.org list);
@@ -87,6 +88,12 @@ func uncheckedReason(s Software, in swInfo, v Vuln, scheme bool) (UncheckedReaso
 	}
 	if !slices.ContainsFunc(v.Affected, versionEvidence) {
 		return UncheckedNoNVDVersions, true
+	}
+	if _, ok := winUnknownBuild(s, in); ok && slices.ContainsFunc(v.Affected, func(af Affected) bool { // D-602: NVD lists Windows, and the build is not in the table
+		c, err := af.cpe()
+		return err == nil && winNamesWindows(c)
+	}) {
+		return UncheckedNotComparable, true
 	}
 	own := rowEntries(s, in, v)
 	switch {
@@ -161,9 +168,12 @@ func replaceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []U
 	return nil
 }
 
-// uncheckedLive is the stored unchecked rows of CVEs the device has no finding for (any status): the list and Home count the
+// uncheckedLive is the stored unchecked rows of CVEs the device has no finding for (any status but one): the list and Home count the
 // same rows (rule 1 of #910: one place per device and CVE; a finding a person or an earlier match left wins).
-const uncheckedLive = ` FROM fnd_unchecked u WHERE NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.asset_id = u.asset_id AND f.cve = u.cve)`
+// A finding Vedette closed by itself (not_relevant with the reason not_affected_version: D-602's name-only rule, the age rule) does not
+// hide the row: the CVE was not checked, and the list is where the customer now finds it. A proof that closed one (D-530) gives no row.
+const uncheckedLive = ` FROM fnd_unchecked u WHERE NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.asset_id = u.asset_id AND f.cve = u.cve
+	AND NOT (f.status = 'not_relevant' AND f.resolution_reason IS NOT NULL AND f.resolution_reason = 'not_affected_version'))`
 
 // UncheckedRow is one stored unchecked (device, software, CVE).
 type UncheckedRow struct {

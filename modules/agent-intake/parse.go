@@ -155,7 +155,7 @@ type logIn struct {
 	result    bool             // log_type = result; status lines are read for their size only and dropped
 	snaps     map[string][]row // by query name, from the allow-list; the last event of a name wins
 	dropped   int              // rows and events that did not fit (not clean, wrong type, unknown query)
-	truncated map[string]bool  // lists cut at their cap
+	truncated map[string]bool  // lists cut at their cap, and listening lists with a row that could not be read (not whole)
 	events    int              // events in the request
 }
 
@@ -210,6 +210,9 @@ func (in *logIn) readEvent(item oas.InventoryPostIntakeOsqueryLogReqDataItem) {
 		r, ok := readRow(raw, cols, blank)
 		if !ok {
 			in.dropped++
+			if blank != "" { // a listening row that could not be read: the list is not whole (INV-22, #933 review r2 M1)
+				in.truncated[ev.Name] = true
+			}
 			continue
 		}
 		if len(rows) >= limit {

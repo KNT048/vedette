@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/host/api"
@@ -23,13 +24,15 @@ func TestReadPortsListsWhatTheBoxServes(t *testing.T) {
 		procRow("0A12A8C0:1F90", "0A", "14")+ // 192.168.18.10:8080 LISTEN on the card, no process found
 		procRow("0100590A:0035", "0A", "17")) // 10.89.0.1:53 LISTEN: aardvark-dns on Podman's bridge, not on a card
 	p.table("tcp6", "   0: 00000000000000000000000000000000:0016 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 15 1 0 100 0 0 10 0\n"+ // [::]:22, the same port again
-		"   1: 00000000000000000000000001000000:0050 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 16 1 0 100 0 0 10 0\n") // [::1]:80
+		"   1: 00000000000000000000000001000000:0050 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 16 1 0 100 0 0 10 0\n"+ // [::1]:80
+		"   2: 00000000000000000000000000000000:2382 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 18 1 0 100 0 0 10 0\n") // [::]:9090 only, no IPv4 socket
 	p.table("udp", procRow("00000000:0202", "07", "20")+ // 0.0.0.0:514: core's syslog
 		"   1: 0A12A8C0:A1B2 08080808:0035 01 00000000:00000000 00:00000000 00000000     0        0 21 1 0 100 0 0 10 0\n") // a DNS client socket with a peer
 	p.process("900", "conmon", cgCore, "10", "20")
 	p.process("700", "sshd", "0::/system.slice/ssh.service\n", "12", "15")
 	p.process("800", "python3", cgUser, "11")
 	p.process("850", "aardvark-dns", cgUser, "17")
+	p.process("860", "cockpit-ws", "0::/system.slice/cockpit.service\n", "18")
 	o := p.ops(t)
 	if err := os.MkdirAll(filepath.Join(p.root, "sys", "class", "net", "eth0", "device"), 0o750); err != nil {
 		t.Fatal(err)
@@ -49,6 +52,7 @@ func TestReadPortsListsWhatTheBoxServes(t *testing.T) {
 		{Port: 22, Proto: "tcp", Process: "sshd"},
 		{Port: 8080, Proto: "tcp"},
 		{Port: 8443, Proto: "tcp", Process: "vedette-core"},
+		{Port: 9090, Proto: "tcp", Process: "cockpit-ws"}, // bound to [::] only (dual stack): listed
 		{Port: 514, Proto: "udp", Process: "vedette-core"},
 	}
 	if ps := got.(api.PortsState).Ports; !slices.Equal(ps, want) {
@@ -81,5 +85,18 @@ func TestReadPortsFailsWithoutTheSocketTable(t *testing.T) {
 	}
 	if _, err := p.ops(t).readPorts(t.Context()); err == nil {
 		t.Fatal("no error")
+	}
+}
+
+// #933 review r2 L2: a socket table that exists but cannot be read to its end fails the read, so core keeps the box's list rather
+// than replacing it with part of one (the ports of that table would be deleted).
+func TestReadPortsFailsOnATableItCannotReadWhole(t *testing.T) {
+	t.Parallel()
+	littleEndianOnly(t)
+	p := newFakeProc(t)
+	p.table("tcp", procRow("00000000:0016", "0A", "12"))
+	p.table("udp6", "   0: "+strings.Repeat("0", 5000)+"\n") // a line over the scanner's bound
+	if _, err := p.ops(t).readPorts(t.Context()); err == nil {
+		t.Fatal("a table read in part gave a list")
 	}
 }

@@ -3,9 +3,7 @@ package ops
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"net/netip"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -22,10 +20,12 @@ import (
 // address (0.0.0.0, ::) or to an address of one of the box's network cards (a device with a hardware parent, or the management
 // interface). One bound to loopback, to a container bridge (Podman's aardvark-dns on 10.89.0.1:53, docker0) or to any other virtual
 // link is not listed: only the box itself reaches it.
-// The IPv4 table that cannot be read fails the read (core keeps what it has); the others say nothing when absent.
+// A table that exists but cannot be read to its end, or no IPv4 TCP table, fails the read (core keeps what it has); the other tables
+// say nothing when absent.
 func (o *Ops) readPorts(ctx context.Context) (any, error) {
-	if _, err := os.Stat(o.path("proc/net/tcp")); err != nil {
-		return nil, fmt.Errorf("ports: the socket table cannot be read: %w", err)
+	socks, err := o.socketsWhole()
+	if err != nil {
+		return nil, err
 	}
 	type key struct {
 		port uint16
@@ -34,7 +34,7 @@ func (o *Ops) readPorts(ctx context.Context) (any, error) {
 	inodes := map[key][]uint64{}
 	want := map[uint64]bool{}
 	lan := o.cardAddrs()
-	for _, s := range o.sockets(ctx) {
+	for _, s := range socks {
 		if (!s.addr.IsUnspecified() && !lan[s.addr]) || (s.udp && s.peer) {
 			continue
 		}

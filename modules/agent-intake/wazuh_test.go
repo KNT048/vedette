@@ -44,6 +44,7 @@ type fakeWazuh struct {
 	packages  map[string][]map[string]any
 	ports     map[string][]map[string]any
 	portsCode int  // answer the ports reads with this status (a 429 the retries do not outlast, a server error)
+	portsMore int  // the ports total says this many rows more than the server gives (a later page comes back empty)
 	forbid    bool // the role lacks syscollector:read
 	tooMany   int  // answer this many 429 before the next GET
 	expire    bool // answer 401 to the next GET (the token expired)
@@ -160,7 +161,9 @@ func (f *fakeWazuh) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				js(f.portsCode, map[string]any{"title": "Wazuh Error", "detail": "ports", "error": 1})
 				return
 			}
-			js(200, page(f.ports[parts[1]], q))
+			p := page(f.ports[parts[1]], q)
+			p["data"].(map[string]any)["total_affected_items"] = len(f.ports[parts[1]]) + f.portsMore
+			js(200, p)
 		case "packages":
 			if f.onPackage != nil {
 				f.onPackage(r.Context())
@@ -897,5 +900,15 @@ func TestWazuh_APortsReadThatFailsOrIsCutKeepsWhatIsKnown(t *testing.T) {
 	r.pull()
 	if d, _ := r.device(ipLinux); len(d.Services) != 2 {
 		t.Fatalf("a cut read replaced the services: %+v", d.Services)
+	}
+	// review r2 L1: a page that comes back empty before the total is reached is no whole list either
+	r.fake.mu.Lock()
+	r.fake.ports["001"] = []map[string]any{{"local": map[string]any{"ip": "0.0.0.0", "port": 80}, "remote": map[string]any{"port": 0}, "protocol": "tcp", "state": "listening", "process": "nginx"}}
+	r.fake.portsMore = 5
+	r.fake.mu.Unlock()
+	r.clock.Advance(2 * time.Hour)
+	r.pull()
+	if d, _ := r.device(ipLinux); len(d.Services) != 2 {
+		t.Fatalf("a short read replaced the services: %+v", d.Services)
 	}
 }

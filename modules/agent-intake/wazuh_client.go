@@ -371,20 +371,28 @@ type wzPort struct {
 	Process  string `json:"process"`
 }
 
-// ports reads an agent's open ports (INV-22). complete is false when the server holds more rows than maxPortRows (a busy server whose
-// syscollector reads every socket, <ports all="yes">): a cut list would drop real listeners, so the caller keeps what it has.
+// ports reads an agent's open ports (INV-22). complete is false when the read is not one whole list, so the caller keeps what it has
+// (#933 review L4, r2 L1): the server holds more rows than maxPortRows (a busy server whose syscollector reads every socket,
+// <ports all="yes">), a page comes back empty before the total is reached, or the total changes between pages (syscollector rescanned
+// meanwhile, and offset paging skipped or repeated rows).
 func (c *wazuhClient) ports(ctx context.Context, id string) (rows []wzPort, complete bool, err error) {
+	first := -1
 	for offset := 0; ; {
 		items, total, err := syscollPage[wzPort](ctx, c, id, "ports", "local.ip,local.port,remote.port,protocol,state,process", offset)
 		if err != nil {
 			return nil, false, err
 		}
+		if first < 0 {
+			first = total
+		}
 		rows = append(rows, items...)
 		offset += len(items)
-		if len(items) == 0 || offset >= total {
+		switch {
+		case total != first:
+			return rows, false, nil
+		case offset >= total:
 			return rows, true, nil
-		}
-		if len(rows) >= maxPortRows {
+		case len(items) == 0, len(rows) >= maxPortRows:
 			return rows, false, nil
 		}
 	}

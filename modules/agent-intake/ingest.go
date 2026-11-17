@@ -526,7 +526,16 @@ func (s *Service) deliverServices(ctx context.Context, src netip.Addr, hint obse
 			rows, answered = append(rows, r...), true
 		}
 	}
-	if !answered || s.cfg.Services == nil || !s.allowReplace(ctx, src, node, listServices) {
+	if !answered || s.cfg.Services == nil {
+		return false, nil
+	}
+	// A list that is not whole (cut at maxRows, a row that could not be read) never replaces the known one: the cut falls in osquery's
+	// row order, so it could delete real listeners (#933 review r2 M1; a domain controller's DNS socket pool alone passes 5000 rows).
+	if in.truncated["listening_ports"] || in.truncated["listening_ports_windows"] {
+		s.cfg.Log.InfoContext(ctx, "agent-intake: a list of open ports was not whole; the known open ports stay", "node", node)
+		return false, nil
+	}
+	if !s.allowReplace(ctx, src, node, listServices) {
 		return false, nil
 	}
 	if err := s.cfg.Services.ReplaceServices(ctx, hint, observe.Agent, mapServices(osqueryListening(rows))); err != nil {

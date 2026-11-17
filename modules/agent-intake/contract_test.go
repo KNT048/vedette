@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -949,6 +950,18 @@ func TestContract_INV22_TheAgentReportsItsOpenPorts(t *testing.T) {
 	}
 	if got := services(); !slices.Equal(got, want) {
 		t.Fatalf("a second list within the window changed the services: %q", got)
+	}
+	// A list cut at its row limit is not whole: the known ports stay (review r2 M1), and nothing counts as taken.
+	w.clock.Advance(5 * time.Minute)
+	many := make([]map[string]string, 0, 5001)
+	for i := range 5001 {
+		many = append(many, port(strconv.Itoa(10000+i%50000), "17", "0.0.0.0", "dns"))
+	}
+	if lr := w.post("/intake/osquery/log", peerA, logBody(key, snap("listening_ports", many...))); lr.code != 200 {
+		t.Fatalf("log: %d %s", lr.code, lr.raw)
+	}
+	if got := services(); !slices.Equal(got, want) {
+		t.Fatalf("a cut list replaced the services: %d rows", len(got))
 	}
 	w.clock.Advance(5 * time.Minute)
 	if lr := w.post("/intake/osquery/log", peerA, logBody(key, snap("listening_ports"))); lr.code != 200 {

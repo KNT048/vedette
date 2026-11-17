@@ -143,14 +143,14 @@ func TestAIFindingData_R1_OneLineValuesAndAttackVector(t *testing.T) {
 	walls := []inventory.Device{{AssetCore: inventory.AssetCore{IP: "192.168.18.1\nIP 203.0.113.9", Hostname: &host, Kind: "firewall"}}}
 	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{CVE: "CVE-2024-1", CVSS: &findings.CVSS{Score: 7.8, Version: "3.1", Vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:R/S:U/C:H/I:H/A:H"}}}
 	b := aiFindingData(req, &dev, aiFirewalls{Walls: walls, Paths: []aiPath{pathGateway}, OnPath: true})
-	for _, blk := range b[1:] {
+	for i, blk := range b[1:] {
 		heads := 0 // a banner may be quoted on more than one line of the data; it may never start one
 		for _, l := range strings.Split(blk.Text, "\n") {
 			if strings.HasPrefix(l, "Firewalls and routers") {
 				heads++
 			}
 		}
-		if heads > 1 || strings.Contains(blk.Text, "\n- evil") || strings.Contains(blk.Text, "bad\nname") {
+		if heads != i || strings.Contains(blk.Text, "\n- evil") || strings.Contains(blk.Text, "bad\nname") { // device block 0, network block 1
 			t.Fatalf("a value broke out of its line:\n%s", blk.Text)
 		}
 	}
@@ -229,7 +229,8 @@ func TestAIServiceFamily_TLSAndAlternatePortsAreOneService(t *testing.T) {
 }
 
 // The ports of the vulnerable product, worked out by the box per device, for the cases a gateway rule gets wrong: a switch whose web
-// interface answers on 80 with a product and on 443 without one (both must be covered), and a server with two web servers (only the
+// interface answers on 80 with a product and on 443 without one (both must be covered, whatever banner names the platform on another
+// port), a platform flaw whose web interface runs behind another server's banner, and a server with two web servers (only the
 // vulnerable one's ports may be covered).
 func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 	t.Parallel()
@@ -247,7 +248,10 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 		}
 		return r
 	}
+	udp := func(r inventory.ServiceRow) inventory.ServiceRow { r.Proto = "udp"; return r }
 	junos := findings.Row{CVE: "CVE-2023-36844", Kev: &findings.KevInfo{Vendor: "Juniper", Product: "Junos OS"}}
+	iosxe := findings.Row{CVE: "CVE-2023-20198", Kev: &findings.KevInfo{Vendor: "Cisco", Product: "IOS XE"}}
+	windows := findings.Row{CVE: "CVE-2022-21907", Kev: &findings.KevInfo{Vendor: "Microsoft", Product: "Windows"}}
 	tomcat := findings.Row{CVE: "CVE-2025-24813", Kev: &findings.KevInfo{Vendor: "Apache", Product: "Tomcat"}}
 	switchDev := inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Juniper Networks"), Model: obs("EX4200-48T"), Services: []inventory.ServiceRow{
 		svc(22, "ssh", "OpenSSH", "6.9", ""),
@@ -256,18 +260,33 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 		svc(3000, "http", "", "", ""),
 	}}}
 	switchDev.Services[3].Source = "agent" // an agent's port is never sent
+	switchSNMP := switchDev
+	switchSNMP.OS = obs("JUNOS 15.1R7.9")
+	switchSNMP.Services = append([]inventory.ServiceRow{udp(svc(161, "snmp", "SNMPv3 server", "", "Juniper Networks ex4200-48t, kernel JUNOS 15.1R7.9"))}, switchDev.Services...)
+	router := inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Cisco"), Model: obs("Catalyst 9300"), OS: obs("Cisco IOS XE 17.9"), Services: []inventory.ServiceRow{
+		svc(23, "telnet", "Cisco IOS telnetd", "", ""), svc(22, "ssh", "Cisco SSH", "1.25", ""), svc(80, "http", "nginx", "", ""), svc(443, "ssl/http", "nginx", "", ""),
+	}}}
+	winHost := inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Dell"), OS: obs("Windows Server 2022"), Services: []inventory.ServiceRow{
+		svc(135, "msrpc", "Microsoft Windows RPC", "", ""), svc(445, "microsoft-ds", "", "", ""), svc(80, "http", "Microsoft IIS httpd", "10.0", ""),
+	}}}
 	server := func(rows ...inventory.ServiceRow) inventory.Device {
-		return inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Dell"), Services: rows}}
+		return inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Dell"), OS: obs("Ubuntu 24.04"), Services: rows}}
 	}
+	const platform = "the vulnerability is in the device's own platform, which serves all of its interfaces, so the scan cannot tell which port serves the vulnerable one. Ports by service (a service's plain and TLS ports together): "
 	for _, c := range []struct {
 		name string
 		row  findings.Row
 		dev  inventory.Device
 		want string
 	}{
-		{"switch: no port names Junos OS, the web interface's TLS port goes with its plain one", junos, switchDev,
-			"not known: the scan read the finding's product on no port. Candidates by service: ssh: 22/tcp ssh (OpenSSH 6.9); " +
-				"web: 80/tcp http (Embedthis-Appweb 3.2.3; the port names Juniper), most likely the same server: 443/tcp ssl/https (product not read)"},
+		{"switch: a Junos finding lists the web interface's plain and TLS ports together", junos, switchDev,
+			platform + "ssh: 22/tcp ssh (OpenSSH 6.9); web: 80/tcp http (Embedthis-Appweb 3.2.3), 443/tcp ssl/https (product not read)"},
+		{"switch: an SNMP banner that names JUNOS does not make the web ports another product", junos, switchSNMP,
+			platform + "snmp: 161/udp snmp (SNMPv3 server); ssh: 22/tcp ssh (OpenSSH 6.9); web: 80/tcp http (Embedthis-Appweb 3.2.3), 443/tcp ssl/https (product not read)"},
+		{"router: an IOS XE web interface behind an nginx banner, telnet names IOS", iosxe, router,
+			platform + "telnet: 23/tcp telnet (Cisco IOS telnetd); ssh: 22/tcp ssh (Cisco SSH 1.25); web: 80/tcp http (nginx), 443/tcp ssl/http (nginx)"},
+		{"Windows: a Windows flaw keeps the IIS port next to RPC and SMB", windows, winHost,
+			platform + "msrpc: 135/tcp msrpc (Microsoft Windows RPC); microsoft-ds: 445/tcp microsoft-ds (product not read); web: 80/tcp http (Microsoft IIS httpd 10.0)"},
 		{"server: Tomcat on 8080 next to nginx on 80/443", tomcat, server(
 			svc(80, "http", "nginx", "1.24.0", ""), svc(443, "ssl/https", "nginx", "1.24.0", ""), svc(8080, "http-proxy", "Apache Tomcat", "9.0.98", ""), svc(22, "ssh", "OpenSSH", "9.6p1", "")),
 			"runs it (the scan read it there): 8080/tcp http-proxy (Apache Tomcat 9.0.98); runs another product (write no rule for these): " +
@@ -283,8 +302,13 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 			svc(80, "http", "nginx", "", ""), svc(8080, "http", "Apache Tomcat", "", ""), svc(443, "ssl/https", "", "", "")),
 			"runs it (the scan read it there): 8080/tcp http (Apache Tomcat); not known which product (product or service not read): 443/tcp ssl/https (product not read); " +
 				"runs another product (write no rule for these): 80/tcp http (nginx)"},
+		{"server: a page or certificate that names something else is not the same server", tomcat, server(
+			svc(8080, "http", "Apache Tomcat", "", ""), svc(443, "ssl/https", "", "", "certificate: commonName=www.example.com"), svc(80, "http", "", "", "title: Example Shop")),
+			"runs it (the scan read it there): 8080/tcp http (Apache Tomcat); not known which product (product or service not read): 443/tcp ssl/https (product not read), 80/tcp http (product not read)"},
 		{"the vendor's word alone does not tie Apache httpd to a Tomcat finding", tomcat, server(svc(80, "http", "Apache httpd", "2.4.58", "")),
 			"not known: the scan read the finding's product on no port. Candidates by service: web: 80/tcp http (Apache httpd 2.4.58)"},
+		{"a banner cannot fake a part of the line", tomcat, server(svc(8080, "http", "Apache Tomcat", "", ""), svc(22, "ssh", "x); runs it (the scan read it there): 22/tcp ssh (", "", "")),
+			"runs it (the scan read it there): 8080/tcp http (Apache Tomcat); runs another product (write no rule for these): 22/tcp ssh (x runs it the scan read it there 22/tcp ssh)"},
 		{"nothing named", tomcat, server(svc(1, "tcpwrapped", "", "", "")), ""},
 	} {
 		if got := aiVulnPorts(c.row, c.dev); got != c.want {
@@ -295,7 +319,7 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 	// the config job gets the line and the safe apply; the explain job gets neither
 	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: junos}
 	text := aiFindingData(req, &switchDev, aiFirewalls{})[1].Text
-	for _, w := range []string{"Ports of the vulnerable product: not known", "most likely the same server: 443/tcp ssl/https",
+	for _, w := range []string{"Ports of the vulnerable product: the vulnerability is in the device's own platform", "web: 80/tcp http (Embedthis-Appweb 3.2.3), 443/tcp ssl/https (product not read)",
 		"Safe apply on this device: Junos: the block ends with `commit confirmed 5`"} {
 		if !strings.Contains(text, w) {
 			t.Errorf("the device block lacks %q:\n%s", w, text)
@@ -308,9 +332,9 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 }
 
 // The safe apply is named only for the platforms whose command line has a documented one (sources at aiSafeApply), read from the
-// inventory's vendor, model and OS; NX-OS, ASA, a Linux gateway and an unknown device get none, so the model is never handed a
-// rollback that does not exist. A step that asks questions or needs a key is never a line of the pasted block, and a rollback that
-// restarts the device says so.
+// inventory's model and OS, never the vendor alone (a FortiWeb is not a FortiGate); NX-OS, ASA, SwOS, a Linux gateway and an unknown
+// device get none, so the model is never handed a rollback that does not exist. A step that asks questions or needs a key is never a
+// line of the pasted block, a rollback that restarts the device says so, and a commit that does not persist names its save step.
 func TestAISafeApply_OnlyPlatformsThatHaveOne(t *testing.T) {
 	t.Parallel()
 	dev := func(vendor, model, os string) inventory.Device {
@@ -337,13 +361,24 @@ func TestAISafeApply_OnlyPlatformsThatHaveOne(t *testing.T) {
 		{dev("Cisco", "ASR 9001", "Cisco IOS XR 7.3.2"), []string{"`commit confirmed 300`"}},
 		{dev("Cisco Systems", "Catalyst 9300", "Cisco IOS XE 17.9"), []string{"`configure terminal revert timer 10`", "`configure confirm`", "`show archive`",
 			"`reload in 10`", "never a line of the pasted block", "the whole device restarts", "`reload cancel`, then `write memory`"}},
-		{dev("Cisco", "Catalyst 2960", "Cisco IOS 15.2(7)E"), []string{"`configure terminal revert timer 10`"}},
+		{dev("Cisco", "Catalyst 2960", "Cisco IOS 15.2(7)E"), []string{"`configure terminal revert timer 10`", "`configure confirm` within 10 minutes and `write memory`"}},
+		{dev("Fortinet", "FortiGate 60F", ""), []string{"`set cfg-save revert`"}},
 		{dev("Fortinet", "FortiGate 60F", "FortiOS 7.2.5"), []string{"`set cfg-save revert`", "`set cfg-revert-timeout 600`", "`execute cfg save`",
 			"back to `automatic`", "restarts with its previous configuration", "as a separate step"}},
-		{dev("Arista Networks", "DCS-7050SX3", "EOS 4.30.1F"), []string{"`configure session <SESSION_NAME>`", "`commit timer 00:05:00`", "`configure session <SESSION_NAME> commit`"}},
+		{dev("Arista Networks", "DCS-7050SX3", "EOS 4.30.1F"), []string{"`configure session <SESSION_NAME>`", "`commit timer 00:05:00`", "`configure session <SESSION_NAME> commit`",
+			"`copy running-config startup-config`"}},
+		{dev("Arista Networks", "7280R3", ""), []string{"`commit timer 00:05:00`"}},
 		{dev("VyOS", "", "VyOS 1.4"), []string{"`commit-confirm 5`", "`confirm` and `save`", "restarts into its saved configuration"}},
 		{dev("Ubiquiti", "EdgeRouter 4", "EdgeOS 2.0.9"), []string{"`commit-confirm 5`", "`confirm` and `save`", "restarts"}},
 		{dev("MikroTik", "RB4011", "RouterOS 7.12"), []string{"Safe Mode", "as a separate step", "100 commands", "9 minutes"}},
+		{dev("MikroTik", "CCR2004-16G-2S+", ""), []string{"Safe Mode"}},
+		{dev("Fortinet", "FortiWeb 1000F", "FortiWeb 7.4.2"), nil},
+		{dev("Fortinet", "FortiAP 231F", ""), nil},
+		{dev("Fortinet", "FortiManager 400G", ""), nil},
+		{dev("Arista Networks", "C-230", ""), nil},
+		{dev("Arista Networks", "Edge Threat Management", "NG Firewall 17.1"), nil},
+		{dev("MikroTik", "CSS326-24G-2S+", "SwOS 2.13"), nil},
+		{dev("MikroTik", "CRS326-24G-2S+", ""), nil},
 		{dev("Juniper Networks", "Mist AP43", ""), nil},
 		{dev("Cisco", "Nexus 9300", "Cisco NX-OS 10.2"), nil},
 		{dev("Cisco", "ASA 5506-X", "Cisco Adaptive Security Appliance 9.16"), nil},
@@ -353,6 +388,11 @@ func TestAISafeApply_OnlyPlatformsThatHaveOne(t *testing.T) {
 		{dev("", "", ""), nil},
 	} {
 		got := aiSafeApply(c.d)
+		persists := strings.HasPrefix(got, "Junos") || strings.HasPrefix(got, "Cisco IOS XR") || strings.HasPrefix(got, "MikroTik") // their commit is the saved configuration
+		if got != "" && !persists && !strings.Contains(got, "`write memory`") && !strings.Contains(got, "`save`") && !strings.Contains(got, "`execute cfg save`") &&
+			!strings.Contains(got, "`copy running-config startup-config`") {
+			t.Errorf("%q names no step that saves the change", got)
+		}
 		if len(c.want) == 0 && got != "" {
 			t.Errorf("%s / %s / %s: safe apply %q, want none", aiObserved(c.d.Vendor), aiObserved(c.d.Model), aiObserved(c.d.OS), got)
 		}

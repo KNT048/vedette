@@ -149,6 +149,7 @@ func TestBriefConfig_EveryPortOfTheServiceAndSafeApply(t *testing.T) {
 	for _, w := range []string{
 		`as the "Ports of the vulnerable product" line gives them`, "plain and TLS alike", "never only one of them",
 		"never a port it says runs another product", "never every web port of the device",
+		"When it says the vulnerability is in the device's own platform, choose the interface the vulnerability names",
 		"that target's change is applied that way", `a command it calls a separate step goes in "steps", never in "lines"`,
 		"never end such a block with a plain commit alone",
 		"For a remote change to a network device or firewall the data gives no safe apply, never name an automatic rollback",

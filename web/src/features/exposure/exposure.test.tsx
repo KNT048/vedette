@@ -8,6 +8,7 @@ import { eachOption } from '@/test/formMatrix'
 import { auditStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
 import { scanPoll } from './api'
 import { NOTICE_VERSION } from './contract'
+import { dateTimeText } from './dates'
 import { feature } from './index'
 import { portLabel, riskOf } from './services'
 
@@ -242,6 +243,29 @@ describe('exposure: a verified and confirmed domain', () => {
     renderApp('/exposure/xt-1?tab=surface')
     expect(await screen.findByText(/This scan ran before the surface map/)).toBeInTheDocument()
     expect(within(screen.getByRole('table', { name: 'Names under this domain and their addresses' })).getByText('198.51.100.20')).toBeInTheDocument()
+  })
+
+  it('every scan picker shows the time of each scan, so two scans that fall on one calendar day read apart', async () => {
+    // the box keeps a snapshot per day of its own time zone: two of them can share a day in the browser's
+    const counts = { subdomains: 1, ips: 1, ports: 0, admin_panels: 0, certs_expiring: 0 }
+    const items = [
+      { id: 'sn-b', date: '2026-11-17', scanned_at: '2026-11-17T14:29:00.000Z', counts },
+      { id: 'sn-a', date: '2026-11-16', scanned_at: '2026-11-17T01:05:00.000Z', counts },
+      { id: 'sn-0', date: '2026-11-15', scanned_at: '2026-11-15T09:00:00.000Z', counts },
+    ]
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-1/snapshots', () => HttpResponse.json({ items })),
+      http.get('*/api/v1/exposure/targets/xt-1/snapshots/:date', ({ params }) => HttpResponse.json({ id: 'sn-x', date: params.date, scanned_at: items[0]!.scanned_at, hosts: [], ports: [], admin_panels: [], certs: [],
+        counts, services: [], templates: [], checks: [], not_checked: [], web_findings: [], greenbone: [], vulns: [], version_gaps: [] })),
+    )
+    renderApp('/exposure/xt-1')
+    const pickers = [await screen.findByRole('combobox', { name: 'Snapshot of' }), screen.getByLabelText('From date'), screen.getByLabelText('To date')]
+    for (const pick of pickers) {
+      const labels = within(pick).getAllByRole('option').map((o) => o.textContent)
+      expect(labels).toEqual(items.map((i) => dateTimeText(i.scanned_at)))
+      for (const l of labels) expect(l).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}$/)
+      expect(new Set(labels).size).toBe(labels.length)
+    }
   })
 
   it('compare defaults to the two latest days and lets you change the day', async () => {

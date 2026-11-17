@@ -205,6 +205,15 @@
     "noVendorLink": "The exploited list gives no vendor link for this flaw. Search the vendor's security advisories for {{cve}} ({{product}}).",
     "nvdLink": "NVD entry (affected versions)",
     "cisaLink": "CISA notice",
+    "cisa": {
+      "directive": "CISA directive {{id}}",
+      "ics": "CISA ICS advisory {{id}}",
+      "advisory": "CISA cybersecurity advisory {{id}}",
+      "alert": "CISA alert",
+      "kev": "CISA catalog entry of exploited vulnerabilities"
+    },
+    "linkDetail": "{{label}}: {{detail}}",
+    "linkNumbered": "{{label}} ({{n}})",
     "stepsTitle": "Steps you can take now",
     "step1": "Find which version of {{product}} runs on {{device}}, and add it to the device on the Devices page so Vedette can compare it.",
     "step1Known": "Nothing to look up: {{device}} runs {{software}} {{version}} ({{from}}).",

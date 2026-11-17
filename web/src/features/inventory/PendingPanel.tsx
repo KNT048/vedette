@@ -63,6 +63,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
 }) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
+  const admin = useCan('admin')
   const notify = useNotifyNew()
   const pending = [...items].sort((a, b) => b.first_seen.localeCompare(a.first_seen))
   return (
@@ -82,7 +83,8 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
         </div>
       </div>
       {notifyNew && !notifyAvailable ? <TurnOnModule id="notify" reason={t('pending.notifyOff2')} /> : null}
-      {notifyNew && notifyAvailable ? <p className="text-meta text-muted">{t('pending.notifyVia')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></p> : null}
+      {/* kien G5: the channels page is an administrator's: others get the sentence without a link they cannot open */}
+      {notifyNew && notifyAvailable ? <p className="text-meta text-muted">{t('pending.notifyVia')}{admin ? <> <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></> : null}</p> : null}
       {total ? search : null}
       {pending.length ? (
         <Card flush>

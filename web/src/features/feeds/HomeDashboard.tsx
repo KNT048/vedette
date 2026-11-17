@@ -147,7 +147,7 @@ function FixFirst({ s, kevNotice }: { s: HomeSummary; kevNotice: ReactNode }) {
   }
   return (
     <Card id="fix-first" flush className="mb-8" title={t('dash.fixFirst')} info={t('dash.fixFirstInfo')}
-      actions={<Link to="/findings?tab=open" className="text-meta text-accent underline-offset-4 hover:underline">{t('dash.allFindings', { count: s.open.total })}</Link>}>
+      actions={/* empty-guard: the Fix first card is drawn only when it lists open findings (an empty one returns earlier) */ <Link to="/findings?tab=open" className="text-meta text-accent underline-offset-4 hover:underline">{t('dash.allFindings', { count: s.open.total })}</Link>}>
       <RankedList label={t('dash.fixFirst')}>
         {s.top.map((f, i) => <FixRow key={f.id} f={f} rank={i + 1} />)}
       </RankedList>

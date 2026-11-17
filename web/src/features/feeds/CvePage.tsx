@@ -12,6 +12,9 @@ import { CVE_ID, useCve, useTierCve } from './api'
 import { ApiError } from '@/lib/api'
 import { TierCvePage } from './TierCvePage'
 import { YouHaveCell } from './YouHaveCell'
+import { useModuleEnabled } from '@/lib/modules'
+import { useFindings } from '@/features/findings/api'
+import { isOpen } from '@/features/findings/basis'
 
 const yearAgo = () => new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10)
 
@@ -23,6 +26,9 @@ export default function CvePage() {
   // D-613 (S-TIER-1): a CVE on no exploited list answers from the tier data instead of a dead end
   const notInKev = cve.error instanceof ApiError && cve.error.code === 'not_in_kev'
   const tier = useTierCve(id, notInKev)
+  // kien G5: "See findings" only when this CVE has open findings (a matched device may not be a finding: D-616, or all are closed)
+  const findingsOn = useModuleEnabled('findings') === true
+  const openFindings = useFindings(undefined, findingsOn && CVE_ID.test(id)).data?.items.filter((f) => f.cve === id && isOpen(f.status)).length ?? 0
   // docs/UI.md §3: a CVE page's parent is Lookup (where any CVE is looked up), shown in every state of the page. Breadcrumbs show where
   // the page sits, not the path taken (Primer, Atlassian page header): Home and Findings link here too, the browser's Back returns there.
   const crumbs = <Breadcrumbs items={[{ label: t('nav.lookup'), to: '/lookup' }]} />
@@ -90,7 +96,7 @@ export default function CvePage() {
                     </ul></Card>
                   )}
                   {v.matched?.length && v.not_affected ? <p className="mt-2 text-meta text-muted">{t('cve.notAffected', { count: v.not_affected })}</p> : null}
-                  {v.matched?.length ? <Link to={`/findings?cve=${v.cve}`} className="mt-3 inline-block text-sm text-accent underline-offset-4 hover:underline">{t('cve.toFindings')}</Link> : null}
+                  {openFindings > 0 ? <Link to={`/findings?cve=${v.cve}`} className="mt-3 inline-block text-sm text-accent underline-offset-4 hover:underline">{t('cve.toFindings', { count: openFindings })}</Link> : null}
                 </Section>
               </aside>
             </div>

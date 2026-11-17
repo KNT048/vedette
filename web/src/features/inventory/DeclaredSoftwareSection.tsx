@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { useOpenFindingsByAsset } from '@/features/findings/notRelevant'
 import { toast } from 'sonner'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Section } from '@/components/common/PageHeader'
@@ -50,6 +51,9 @@ function Body() {
   const q = useDevices()
   const can = useCan('operator')
   const findingsOn = useModuleEnabled('findings')
+  // kien G5: the link opens the device's open findings, so it counts those (findings_count counts every status)
+  const openBy = useOpenFindingsByAsset(findingsOn === true)
+  const openOf = (r: Row) => openBy?.get(r.d.id) ?? 0
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Row | null>(null)
   const [removing, setRemoving] = useState<Row | null>(null)
@@ -67,8 +71,8 @@ function Body() {
       )
     } },
     { id: 'version', header: t('software.version'), accessorFn: (r) => r.sw?.version ?? '', cell: ({ row }) => row.original.sw?.version || <span className="text-muted">{t('software.noVersion')}</span> },
-    ...(findingsOn ? [{ id: 'findings', header: t('declaredPage.col.findings'), accessorFn: (r: Row) => r.d.findings_count, cell: ({ row }: { row: { original: Row } }) => (row.original.d.findings_count
-      ? <Link to={`/findings?device=${encodeURIComponent(row.original.d.id)}`} className="tabular-nums text-accent underline-offset-4 hover:underline">{t('declaredPage.findings', { count: row.original.d.findings_count })}</Link>
+    ...(findingsOn ? [{ id: 'findings', header: t('declaredPage.col.findings'), accessorFn: (r: Row) => openOf(r), cell: ({ row }: { row: { original: Row } }) => (openOf(row.original) > 0
+      ? <Link to={`/findings?device=${encodeURIComponent(row.original.d.id)}`} className="tabular-nums text-accent underline-offset-4 hover:underline">{t('declaredPage.findings', { count: openOf(row.original) })}</Link>
       : <span className="text-muted">{t('declaredPage.noFindings')}</span>) } satisfies ColumnDef<Row>] : []),
     { id: 'added', header: t('declaredPage.col.added'), accessorFn: (r) => new Date(r.d.first_seen).getTime(), cell: ({ row }) => <time className="whitespace-nowrap text-meta text-muted" dateTime={row.original.d.first_seen} title={fmtDateTime(row.original.d.first_seen)}>{fmtRelative(row.original.d.first_seen)}</time> },
     { id: 'actions', header: () => <span className="sr-only">{t('declaredPage.col.actions')}</span>, enableSorting: false, cell: ({ row }) => {
@@ -100,7 +104,7 @@ function Body() {
                 </div>
                 <span className="flex flex-wrap gap-x-3 text-meta text-muted">
                   <span>{r.sw?.version || t('software.noVersion')}</span>
-                  {findingsOn ? <span>{r.d.findings_count ? t('declaredPage.findings', { count: r.d.findings_count }) : t('declaredPage.noFindingsLong')}</span> : null}
+                  {findingsOn ? <span>{openOf(r) > 0 ? t('declaredPage.findings', { count: openOf(r) }) : t('declaredPage.noFindingsLong')}</span> : null}
                 </span>
               </div>
             )} />

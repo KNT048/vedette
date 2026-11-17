@@ -738,7 +738,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeChecked()
     // D-543: the page frame: numbers that link to the detail, then one tab per area of the device
     const kpis = screen.getByRole('list', { name: 'This device at a glance' })
-    expect(within(kpis).getByRole('link', { name: /Findings/ })).toHaveAttribute('href', '/findings?device=a-nas02')
+    expect(within(kpis).getByRole('link', { name: /Open findings/ })).toHaveAttribute('href', '/findings?device=a-nas02')
     expect(within(kpis).getByRole('link', { name: '3 Open services' })).toHaveAttribute('href', '/devices/a-nas02?tab=services')
     expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Overview', 'Software', 'Services', 'Observations'])
     await expectNoA11yViolations()
@@ -2110,11 +2110,10 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     expect(within(table).getAllByRole('row')[1]).toBe(row) // first row
   })
 
-  it('it is matched against exploited vulnerabilities like any device, and the device page points to the operating system update', async () => {
+  it('it is matched against exploited vulnerabilities like any device (the fix line: boxNotice.test.tsx)', async () => {
     renderApp(`/devices/${BOX_ID}?tab=software`)
     expect(await screen.findByText('This is the Vedette box itself', undefined, T)).toBeInTheDocument()
     expect(findingsStore.get().some((f) => f.asset_id === BOX_ID)).toBe(true)
-    expect(screen.getByRole('link', { name: 'Fix by updating the operating system' })).toHaveAttribute('href', '/settings/updates')
     const sw = screen.getByRole('table', { name: 'Software on the device' })
     expect(within(sw).getAllByText('This box').length).toBeGreaterThan(5)
     expect(screen.getAllByText('This box').length).toBeGreaterThan(1) // badge and software sources

@@ -28,7 +28,7 @@ func TestPlatform_D620_LLDPJunosOnAJuniperCard(t *testing.T) {
 		if got != tc.out {
 			t.Errorf("%s: closed %v, want %v (existing %+v)", tc.name, got, tc.out, res.Existing)
 		}
-		if got := PlatformRuledOut(a, "CVE-2026-123158", "OpenBSD", "OpenSSH", t0); got != tc.out {
+		if got := PlatformRuledOut(a, "CVE-2026-123158", "OpenBSD", "OpenSSH", alpineSSH(), t0); got != tc.out {
 			t.Errorf("%s: CVE page ruled out %v, want %v", tc.name, got, tc.out)
 		}
 	}

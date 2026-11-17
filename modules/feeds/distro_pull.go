@@ -324,9 +324,20 @@ func applyDistro(ctx context.Context, tx *sql.Tx, sourceID string, rows []Distro
 // that are on (D-516): a feed an admin turned off is not used, its rows stay until it is on again. The tier rows (D-622) are
 // not read here: the KEV matcher sees exactly the rows it saw before them.
 func (s *Store) DistroFixes(ctx context.Context) (map[string][]DistroFix, error) {
+	return s.distroFixes(ctx, "")
+}
+
+// DistroFixesOf is DistroFixes of one CVE (the CVE page's platform check, D-605); nil when none.
+func (s *Store) DistroFixesOf(ctx context.Context, cve string) ([]DistroFix, error) {
+	out, err := s.distroFixes(ctx, cve)
+	return out[cve], err
+}
+
+// distroFixes reads DistroFixes, of one CVE when cve is not "".
+func (s *Store) distroFixes(ctx context.Context, cve string) (map[string][]DistroFix, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro
 FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.cve IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev')
-ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`)
+AND (? = '' OR d.cve = ?) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, cve, cve)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read distro: %w", err)
 	}

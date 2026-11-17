@@ -288,7 +288,20 @@ func (h *FindingHandlers) unchecked(ctx context.Context, assetID string) ([]Unch
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading devices: %w", err)
 	}
-	return UncheckedItems(rows, kev, assets), nil
+	var distro map[string][]DistroFix // D-605: the fixed releases a question names come from the distribution's feed
+	if slices.ContainsFunc(rows, func(r UncheckedRow) bool { return r.Reason == UncheckedPlatformUnknown || r.Reason == UncheckedPackageUnknown }) {
+		vulns, err := h.feed.Vulns(ctx) // the list the matcher reads (cached per feeds stamp in cmd/vedette)
+		if err != nil {
+			return nil, fmt.Errorf("findings: reading the exploited list: %w", err)
+		}
+		distro = map[string][]DistroFix{}
+		for _, v := range vulns {
+			if HasPlatformLimit(v.CVE) {
+				distro[v.CVE] = v.Distro
+			}
+		}
+	}
+	return UncheckedItems(rows, kev, assets, distro), nil
 }
 
 // uncheckedCounts is Home's line (INV-23): the distinct CVEs and devices of the list.
@@ -348,8 +361,9 @@ type UncheckedAnswer struct {
 
 // UncheckedItems groups rows into items, with the CISA name, date and advisory (its first link, a web address) of each CVE (kev)
 // and the device (assets): devices by name, then software by display, then CVEs newest first (date_added, then id). A CVE the
-// exploited list no longer has is left out (KEV entries only), so no item is empty.
-func UncheckedItems(rows []UncheckedRow, kev map[string]KevInfo, assets map[string]AssetView) []UncheckedItem {
+// exploited list no longer has is left out (KEV entries only), so no item is empty. distro is the distributions' word by CVE (Vuln.Distro)
+// for the questions of platform-limited CVEs (D-605: the fixed releases they name); nil when none is asked.
+func UncheckedItems(rows []UncheckedRow, kev map[string]KevInfo, assets map[string]AssetView, distro map[string][]DistroFix) []UncheckedItem {
 	type key struct {
 		asset, sw string
 		reason    UncheckedReason
@@ -398,7 +412,7 @@ func UncheckedItems(rows []UncheckedRow, kev map[string]KevInfo, assets map[stri
 				if it.Asset != nil {
 					name = it.Asset.Name
 				}
-				if q := platformQuestion(r.CVE, name, r.Reason, r.Answer); q != nil {
+				if q := platformQuestion(r.CVE, name, r.Reason, r.Answer, distro[r.CVE]); q != nil {
 					it.Question, it.Action = q, "answer_platform"
 				}
 			}

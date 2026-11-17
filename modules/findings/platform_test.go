@@ -16,18 +16,28 @@ func TestPlatformLimits_DataIsValid(t *testing.T) {
 	if l, ok := platformLimits["CVE-2026-123158"]; !ok || len(l.Only) != 1 || l.Only[0] != "alpine" {
 		t.Fatalf("CVE-2026-123158 = %+v, want only alpine", l)
 	}
-	// D-604: Alpine's secdb (https://secdb.alpinelinux.org/<branch>/main.json, package openssh, read 2026-11-17)
-	// every branch with a fix (review r1 H1 of #961); v3.15 and older have none
-	want := map[string]string{"edge": "10.6_p2-r0", "3.24": "10.3_p1-r2", "3.23": "10.2_p1-r1", "3.22": "10.0_p1-r11", "3.21": "9.9_p2-r1",
+	// D-605: the releases come from the feed's rows (every branch OSV.dev lists for openssh, which matches Alpine's secdb
+	// https://secdb.alpinelinux.org/<branch>/main.json read 2026-11-17 for v3.16–v3.24; OSV.dev has no edge, secdb's edge 10.6_p2-r0 is not here)
+	want := map[string]string{"3.24": "10.3_p1-r2", "3.23": "10.2_p1-r1", "3.22": "10.0_p1-r11", "3.21": "9.9_p2-r1",
 		"3.20": "9.7_p1-r6", "3.19": "9.6_p1-r3", "3.18": "9.3_p2-r4", "3.17": "9.1_p1-r7", "3.16": "9.0_p1-r6"}
-	if f := distroFixes("CVE-2026-123158"); f == nil || !maps.Equal(f.Releases, want) || !strings.HasPrefix(f.fixList(), "10.6_p2-r0 (edge), 10.3_p1-r2 (3.24), ") ||
-		!strings.HasSuffix(f.fixList(), "9.1_p1-r7 (3.17), 9.0_p1-r6 (3.16)") || f.sourceFor("3.20") != "https://secdb.alpinelinux.org/v3.20/main.json" {
+	if f := distroFixes("CVE-2026-123158", alpineSSH()); f == nil || !maps.Equal(f.Releases, want) || !strings.HasPrefix(f.fixList(), "10.3_p1-r2 (3.24), 10.2_p1-r1 (3.23), ") ||
+		!strings.HasSuffix(f.fixList(), "9.1_p1-r7 (3.17), 9.0_p1-r6 (3.16)") || f.sourceFor("3.20") != "https://secdb.alpinelinux.org/v3.20/main.json" || f.Package != "openssh-server" {
 		t.Fatalf("fixed list %+v", f)
+	}
+	// only the catalog's distribution and source package, fixed rows with an apk release; none at all is no list (NVD decides), never a guess
+	other := []DistroFix{{Distro: "alpine", Release: "3.23", Package: "openssh-client", Status: "fixed", Fixed: "1.0-r0"}, {Distro: "debian", Release: "12", Package: "openssh", Status: "fixed", Fixed: "1:9.2p1-2+deb12u3"},
+		{Distro: "alpine", Release: "3.22", Package: "openssh", Status: "not_affected"}, {Distro: "alpine", Release: "3.21", Package: "openssh", Status: "fixed", Fixed: "9.9p2-r1"}}
+	if f := distroFixes("CVE-2026-123158", other); f != nil {
+		t.Fatalf("rows of no use gave %+v", f)
+	}
+	if distroFixes("CVE-2026-123158", nil) != nil || distroFixes("CVE-2025-2783", alpineSSH()) != nil {
+		t.Fatal("a list without rows, or for a CVE without a fixed list")
 	}
 	for _, bad := range []string{
 		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Is it Alpine?", "source": "https://e"}}`,                                        // no {device}
 		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "ubuntu"}}}`, // not apk
-		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e/{branch}", "releases": {"3.23": "10.2p1"}}}}`,
+		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "source_package": "p", "command": "c", "source": "https://e/{branch}", "releases": {"3.23": "10.2_p1-r1"}}}}`, // a hand copy (D-605)
+		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e/{branch}"}}}`, // no source_package
 		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e", "releases": {"3.23": "10.2_p1-r1"}}}}`,
 	} {
 		if _, err := loadPlatformLimits([]byte(bad)); err == nil {
@@ -64,7 +74,18 @@ func TestAPKVersionCompare(t *testing.T) {
 func sshhole() Vuln {
 	return Vuln{CVE: "CVE-2026-123158", Vendor: "OpenBSD", Product: "OpenSSH", Affected: []Affected{
 		{CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.6"}},
-	}}
+	}, Distro: alpineSSH()}
+}
+
+// alpineSSH are the rows feeds' alpine-osv keeps for CVE-2026-123158 (D-605): OSV.dev's record ALPINE-CVE-2026-123158 as served on
+// 2026-11-17 (modules/feeds/testdata/alpine), one per branch OSV lists, source package openssh.
+func alpineSSH() []DistroFix {
+	var out []DistroFix
+	for _, r := range [][2]string{{"3.16", "9.0_p1-r6"}, {"3.17", "9.1_p1-r7"}, {"3.18", "9.3_p2-r4"}, {"3.19", "9.6_p1-r3"}, {"3.20", "9.7_p1-r6"},
+		{"3.21", "9.9_p2-r1"}, {"3.22", "10.0_p1-r11"}, {"3.23", "10.2_p1-r1"}, {"3.24", "10.3_p1-r2"}} {
+		out = append(out, DistroFix{Distro: DistroAlpine, Release: r[0], Package: "openssh", Status: "fixed", Fixed: r[1]})
+	}
+	return out
 }
 
 func sshRow(version, banner, source string) Software {
@@ -207,8 +228,8 @@ func TestPlatform_D604_PackageReleaseDecides(t *testing.T) {
 // applied as the device's OS, gives the package question, and the release for that branch then decides.
 func TestPlatform_D604_EveryAnswerSettles(t *testing.T) {
 	t.Parallel()
-	f := distroFixes("CVE-2026-123158")
-	q := platformQuestion("CVE-2026-123158", "BN340", UncheckedPlatformUnknown, "")
+	f := distroFixes("CVE-2026-123158", alpineSSH())
+	q := platformQuestion("CVE-2026-123158", "BN340", UncheckedPlatformUnknown, "", alpineSSH())
 	for _, ans := range q.Answers {
 		if ans.OS == nil {
 			continue

@@ -67,18 +67,22 @@ func (a feedsInventory) MatchProducts(ctx context.Context, products []feeds.Prod
 
 // NotAffected implements feeds.PlatformChecker (D-549, KF-CVEPAGE): the devices the findings matcher's platform rules (D-547) prove are
 // not affected by the CVE, read as findings reads them (findingsInventory.MatchInput), so the CVE page agrees with their findings.
-func (a feedsInventory) NotAffected(ctx context.Context, cve, vendor, product string, ids []string) (map[string]bool, error) {
+func (a feedsInventory) NotAffected(ctx context.Context, cve, vendor, product string, distro []feeds.DistroFix, ids []string) (map[string]bool, error) {
 	out := map[string]bool{}
 	if !findings.HasPlatformLimit(cve) { // review r1 #9: only a platform-limited CVE reads the devices
 		return out, nil
 	}
 	now := time.Now()
+	fixes := make([]findings.DistroFix, len(distro)) // D-605: the release a person gave is read against the distribution's feed
+	for i, d := range distro {
+		fixes[i] = findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro}
+	}
 	for _, id := range ids {
 		d, ok, err := findingsInventory(a).MatchInput(ctx, id)
 		if err != nil {
 			return nil, err
 		}
-		if ok && findings.PlatformRuledOut(d, cve, vendor, product, now) {
+		if ok && findings.PlatformRuledOut(d, cve, vendor, product, fixes, now) {
 			out[id] = true
 		}
 	}

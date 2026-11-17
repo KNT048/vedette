@@ -1,6 +1,9 @@
 package findings
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // D-605: only the device's own statement (agent, SNMP answer) or a person's OS says Alpine; a person's other OS wins; the folded OS (an
 // nmap or DHCP guess) never does.
@@ -20,5 +23,34 @@ func TestStatesAlpine(t *testing.T) {
 		if got := StatesAlpine(tc.a); got != tc.want {
 			t.Errorf("%+v: %v, want %v", tc.a, got, tc.want)
 		}
+	}
+}
+
+// D-605: BN340's package release is read against the feed's rows, and only them. With Alpine's rows (alpine-osv) 10.2_p1-r1 on 3.23 is
+// not affected; without them (the feed off or not pulled yet) nothing proves it: NVD's range decides (a finding), never a made-up list;
+// a branch the feed has no row for (edge: OSV.dev lists none) is never closed either.
+func TestPlatform_D605_FeedRowsDecide(t *testing.T) {
+	t.Parallel()
+	bn340 := func(os, rel string) Asset {
+		row := sshRow("10.2", "", "manual")
+		row.PkgVersion, row.ReportedSource = rel, "nmap"
+		return Asset{ID: "a-bn340", Name: "BN340", SNMPOS: "Alpine Linux", ManualOS: os, Software: []Software{row}}
+	}
+	have := map[string]bool{"CVE-2026-123158": true}
+	if res := MatchAsset(bn340("Alpine Linux 3.23", "10.2_p1-r1"), []Vuln{sshhole()}, have, t0); len(res.NotAffected) != 1 ||
+		!strings.Contains(res.NotAffected[0].Evidence.Summary, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1") {
+		t.Fatalf("with the feed's rows: %+v", res)
+	}
+	noRows := sshhole()
+	noRows.Distro = nil
+	if res := MatchAsset(bn340("Alpine Linux 3.23", "10.2_p1-r1"), []Vuln{noRows}, have, t0); len(res.NotAffected) != 0 || len(res.New)+len(res.Existing) != 1 {
+		t.Fatalf("without the feed's rows: %+v", res)
+	}
+	below := MatchAsset(bn340("Alpine Linux 3.23", "10.2_p1-r0"), []Vuln{sshhole()}, nil, t0)
+	if len(below.New) != 1 || !strings.Contains(below.New[0].Evidence.Summary, "Update openssh-server to 10.2_p1-r1 or later") {
+		t.Fatalf("below the 3.23 fix: %+v", below)
+	}
+	if res := MatchAsset(bn340("Alpine Linux edge", "10.6_p2-r0"), []Vuln{sshhole()}, have, t0); len(res.NotAffected) != 0 {
+		t.Fatalf("edge has no row in the feed, yet: %+v", res)
 	}
 }

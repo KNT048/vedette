@@ -154,7 +154,7 @@ func TestUnchecked_910_ItemsActionAndOrder(t *testing.T) {
 		"CVE-2026-0003": {Name: "Three", DateAdded: "2026-02-01", Links: []string{"not a url"}},
 	}
 	assets := map[string]AssetView{"a1": {ID: "a1", Name: "Zulu"}, "a2": {ID: "a2", Name: "alpha"}}
-	items := UncheckedItems(rows, kev, assets)
+	items := UncheckedItems(rows, kev, assets, nil)
 	type got struct {
 		asset, sw, action string
 		swID              bool
@@ -311,7 +311,7 @@ func TestUncheckedItems_D604_Question(t *testing.T) {
 	row := func(cve string, r UncheckedReason) UncheckedRow {
 		return UncheckedRow{AssetID: "a-1", Unchecked: Unchecked{CVE: cve, SoftwareID: "s-1", Software: "OpenSSH", Version: "10.2", Source: "nmap", Reason: r}}
 	}
-	items := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPlatformUnknown), row("CVE-2099-0001", UncheckedNoNVDVersions)}, kev, assets)
+	items := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPlatformUnknown), row("CVE-2099-0001", UncheckedNoNVDVersions)}, kev, assets, map[string][]DistroFix{"CVE-2026-123158": alpineSSH()})
 	if len(items) != 2 || items[0].Reason != UncheckedPlatformUnknown || items[0].Action != "answer_platform" || items[1].Question != nil || items[1].Action != "none" {
 		t.Fatalf("items %+v", items)
 	}
@@ -320,11 +320,12 @@ func TestUncheckedItems_D604_Question(t *testing.T) {
 		t.Fatalf("question %+v", q)
 	}
 	last := q.Answers[len(q.Answers)-1]
-	if len(q.Answers) != 11 || q.Answers[2].Label != "Alpine Linux 3.23" || q.Answers[2].OS == nil || *q.Answers[2].OS != "Alpine Linux 3.23" ||
-		q.Answers[9].Label != "Alpine Linux 3.16" || !slices.Equal(last.Ask, []string{"os", "pkg_version"}) || last.OS != nil {
+	// D-605: one per branch the feed has a fixed release for (OSV.dev's nine, no edge)
+	if len(q.Answers) != 10 || q.Answers[1].Label != "Alpine Linux 3.23" || q.Answers[1].OS == nil || *q.Answers[1].OS != "Alpine Linux 3.23" ||
+		q.Answers[8].Label != "Alpine Linux 3.16" || !slices.Equal(last.Ask, []string{"os", "pkg_version"}) || last.OS != nil {
 		t.Fatalf("answers %+v", q.Answers)
 	}
-	items = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets)
+	items = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets, map[string][]DistroFix{"CVE-2026-123158": alpineSSH()})
 	q = items[0].Question
 	if q == nil || q.Command == nil || *q.Command != "apk info -v openssh-server" || len(q.Answers) != 1 || !slices.Equal(q.Answers[0].Ask, []string{"pkg_version"}) || q.Error != nil ||
 		!strings.Contains(q.Text, "Which openssh-server package release does BN340 have?") || !strings.Contains(q.Text, "10.2_p1-r1 (3.23)") {
@@ -332,8 +333,17 @@ func TestUncheckedItems_D604_Question(t *testing.T) {
 	}
 	bad := row("CVE-2026-123158", UncheckedPackageUnknown)
 	bad.Answer = "10.2p1" // review r1 M2 of #961: a release Vedette could not read is said
-	q = UncheckedItems([]UncheckedRow{bad}, kev, assets)[0].Question
-	if q == nil || q.Error == nil || !strings.Contains(*q.Error, `could not read the release you entered ("10.2p1")`) || !strings.Contains(*q.Error, "openssh-server-10.6_p2-r0") {
+	q = UncheckedItems([]UncheckedRow{bad}, kev, assets, map[string][]DistroFix{"CVE-2026-123158": alpineSSH()})[0].Question
+	if q == nil || q.Error == nil || !strings.Contains(*q.Error, `could not read the release you entered ("10.2p1")`) || !strings.Contains(*q.Error, "openssh-server-10.3_p1-r2") {
 		t.Fatalf("unreadable answer %+v", q)
+	}
+	// D-605: without the feed's rows (alpine-osv off or not pulled yet) there is no fixed list to ask against: no package question,
+	// and the platform question offers only Alpine Linux and another system, never releases made up
+	if q := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets, nil)[0].Question; q != nil {
+		t.Fatalf("package question without rows %+v", q)
+	}
+	q = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPlatformUnknown)}, kev, assets, nil)[0].Question
+	if q == nil || len(q.Answers) != 2 || q.Answers[0].Label != "Alpine Linux" || strings.Contains(q.Text, "release it runs") {
+		t.Fatalf("platform question without rows %+v", q)
 	}
 }

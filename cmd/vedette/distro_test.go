@@ -2,11 +2,13 @@ package main
 
 import (
 	"database/sql"
+	"net/netip"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/feeds"
@@ -189,7 +191,7 @@ func TestFeedsInventoryDistros(t *testing.T) {
 	if got := distros(); !reflect.DeepEqual(got, map[string]map[string]bool{"debian": {"openssh": true}}) {
 		t.Fatalf("the same box on Debian: %v", got)
 	}
-	// D-605: a person says the device runs Alpine Linux (inventory INV-39): alpine-osv is needed, with no package; cleared, it is not
+	// D-605: a person says the device runs Alpine Linux (inventory INV-41): alpine-osv is needed, with no package; cleared, it is not
 	alpine, none := "Alpine Linux 3.23", ""
 	if err := s.d.Inventory.PatchDevice(ctx, "it@acme.example", id, inventory.Patch{OS: &alpine}); err != nil {
 		t.Fatal(err)
@@ -202,5 +204,78 @@ func TestFeedsInventoryDistros(t *testing.T) {
 	}
 	if got := distros(); got["alpine"] != nil {
 		t.Fatalf("the correction cleared: %v", got)
+	}
+}
+
+// D-605 end to end: alpine-osv's rows reach the matcher through findingsFeeds. BN340 (nmap's OpenSSH 10.2 on a device a person says runs
+// Alpine Linux 3.23) with the package release 10.2_p1-r1 a person gave is not affected by CVE-2026-123158 by Alpine's fixed release for 3.23;
+// 10.2_p1-r0 is a version finding naming that release.
+func TestAlpineFixReachesFindings(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	const cve = "CVE-2026-123158"
+	s.kevAdded(cve, "OpenBSD", "OpenSSH", time.Now().AddDate(0, 0, -11))
+	now := store.FormatTS(time.Now().UTC())
+	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		for _, q := range []struct {
+			sql  string
+			args []any
+		}{
+			{`INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, []any{cve, now}},
+			{`INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, 'cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*', '', '', '', '10.6')`, []any{cve}},
+			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('alpine-osv', 'alpine', '3.23', 'openssh', ?, 'fixed', '10.2_p1-r1')`, []any{cve}},
+			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('alpine-osv', 'alpine', '3.24', 'openssh', ?, 'fixed', '10.3_p1-r2')`, []any{cve}},
+			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('alpine-osv', 'alpine', '3.22', 'openssh', ?, 'fixed', '10.0_p1-r11')`, []any{cve}},
+		} {
+			if _, err := tx.ExecContext(ctx, q.sql, q.args...); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ip := netip.MustParseAddr("192.168.18.1")
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.Hostname, Value: "BN340", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
+		t.Fatal(err)
+	}
+	addrs, err := s.d.Inventory.AddressMap(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := addrs[ip.String()]
+	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{{Display: "OpenSSH 10.2", Vendor: "OpenBSD", Product: "OpenSSH", Version: "10.2",
+		KevKeys: []string{"openbsd|openssh"}, Confidence: 0.8}}, "scan"); err != nil {
+		t.Fatal(err)
+	}
+	alpine := "Alpine Linux 3.23"
+	if err := s.d.Inventory.PatchDevice(ctx, "it@acme.example", id, inventory.Patch{OS: &alpine}); err != nil {
+		t.Fatal(err)
+	}
+	dev, err := s.d.Inventory.Device(ctx, id)
+	if err != nil || len(dev.Software) != 1 {
+		t.Fatalf("BN340: %+v %v", dev, err)
+	}
+	give := func(rel string) []findings.Record {
+		t.Helper()
+		if err := s.d.Inventory.EditSoftware(ctx, "it@acme.example", id, dev.Software[0].ID, inventory.SoftwareEdit{PkgVersion: &rel}); err != nil {
+			t.Fatal(err)
+		}
+		if err := findingsJobs(*s.d)[0].Run(ctx); err != nil {
+			t.Fatal(err)
+		}
+		recs, err := s.d.Findings.List(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return recs
+	}
+	if recs := give("10.2_p1-r0"); len(recs) != 1 || recs[0].Status != findings.StatusSuspected || !strings.Contains(recs[0].Evidence.Summary, "Update openssh-server to 10.2_p1-r1 or later") {
+		t.Fatalf("below the 3.23 fix: %+v", recs)
+	}
+	if recs := give("10.2_p1-r1"); len(recs) != 1 || recs[0].Status != findings.StatusNotRelevant || !strings.Contains(recs[0].ResolutionNote, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1") {
+		t.Fatalf("at the 3.23 fix: %+v", recs)
 	}
 }

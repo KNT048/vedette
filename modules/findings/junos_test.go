@@ -135,7 +135,7 @@ func TestJunos_VersionForms(t *testing.T) {
 		{"17.4R1-S8", "CVE-2020-1631", No, proofNone},
 	} {
 		in := newSWInfo(Software{Vendor: "Juniper", Product: "Junos OS", Version: tc.ver}, "")
-		got, _, _, proof := decide(in, byCVE[tc.cve], false)
+		got, _, _, proof := decide(in, byCVE[tc.cve], keyIDs(byCVE[tc.cve]))
 		if got != tc.want || proof != tc.proof {
 			t.Errorf("%s %s: %v proof %d, want %v proof %d", tc.ver, tc.cve, got, proof, tc.want, tc.proof)
 		}
@@ -293,7 +293,7 @@ func TestJunos_ProofRuleIsForJunosRowsOnly(t *testing.T) {
 		{CPE: "cpe:2.3:o:acme:router_os:*:*:*:*:*:*:arm64:*", Range: VersionRange{EndExcl: "20.1"}},
 	}}
 	in := newSWInfo(Software{Vendor: "Acme", Product: "Router OS", Version: "15.1F6", CPE: "cpe:2.3:o:acme:router_os:15.1f6:*:*:*:*:*:x86:*"}, "")
-	if got, _, _, proof := decide(in, v, false); got != No || proof != proofNone {
+	if got, _, _, proof := decide(in, v, keyIDs(v)); got != No || proof != proofNone {
 		t.Errorf("Acme 15.1F6 on x86: %v proof %d", got, proof)
 	}
 }
@@ -324,7 +324,7 @@ func TestJunos_WhatNVDListsBesidesTheBranch(t *testing.T) {
 	} {
 		v := Vuln{CVE: "CVE-2099-0001", Vendor: "Juniper", Product: "Junos OS", Affected: tc.aff}
 		in := newSWInfo(Software{Vendor: "Juniper", Product: "Junos OS", Version: tc.ver}, "")
-		if got, _, _, proof := decide(in, v, false); got != tc.want || proof != tc.proof {
+		if got, _, _, proof := decide(in, v, keyIDs(v)); got != tc.want || proof != tc.proof {
 			t.Errorf("%s (%s): %v proof %d, want %v proof %d", tc.name, tc.ver, got, proof, tc.want, tc.proof)
 		}
 	}

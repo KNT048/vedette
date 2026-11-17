@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 )
 
 // FixedIn is what NVD's affected versions say about the fix of one finding, for the device it is on (D-488): the
@@ -60,13 +61,22 @@ const maxFixedBranches = 5
 // fixed release is named only when it lies outside EVERY applicable entry (an iPhone range ending at 18.3 does not
 // make the iPadOS-only 17.7.6 a fix), and a distribution's package is told to take the distribution's security updates
 // (the upstream number only as a reference). Of several software rows of the product,
-// the one with the most definite answer wins.
+// the one with the most definite answer wins. When the matcher matches the entry on a row only NVD's list ties to it (viaNVD,
+// #910: a Chrome row for CISA's "Chromium V8"), the fix is that row's, the one the finding is about.
 func FixedInFor(a Asset, v Vuln) *FixedIn {
-	multi := isMultiProduct(v.Product)
-	var key []identity
-	if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !multi && n.ok() {
-		key = []identity{n}
+	if id, ok := nvdRows(a, []Vuln{v})[v.CVE]; ok {
+		for _, s := range deviceSoftware(a) {
+			if s.ID != id {
+				continue
+			}
+			in := newSWInfo(s, a.OS)
+			if f, ok := windowsFixedIn(in, v); ok {
+				return f
+			}
+			return fixedInSoftware(in, v, nil)
+		}
 	}
+	key := keyIDs(v)
 	var best *FixedIn
 	rank := func(f *FixedIn) int {
 		switch {
@@ -376,27 +386,62 @@ type GroupFix struct {
 	Ranged map[string]bool
 }
 
+// nvdRows is, by CVE, the software row the matcher matches an entry of vulns on when no KEV key of that row reaches it (viaNVD,
+// #910): only that row's fix is the finding's.
+func nvdRows(a Asset, vulns []Vuln) map[string]string {
+	have := make(map[string]bool, len(vulns))
+	byCVE := make(map[string]Vuln, len(vulns))
+	for _, v := range vulns {
+		have[v.CVE], byCVE[v.CVE] = true, v
+	}
+	sws := deviceSoftware(a)
+	need := false // a row the matcher may match through NVD's list; else no need to run it
+	for i, named := range nvdCandidates(sws, vulns) {
+		for vi := range named {
+			need = need || !keyedTo(sws[i], vulns[vi])
+		}
+	}
+	if !need {
+		return nil
+	}
+	out := map[string]string{}
+	for _, m := range MatchAsset(a, vulns, have, time.Time{}).Existing {
+		i := slices.IndexFunc(sws, func(s Software) bool { return s.ID == m.SoftwareID })
+		if i >= 0 && !keyedTo(sws[i], byCVE[m.CVE]) {
+			out[m.CVE] = m.SoftwareID
+		}
+	}
+	return out
+}
+
 // FixedInForAll is FixedInFor for the vulnerabilities of the software of one device. It does not take the highest release
 // FixedInFor names for each (a release that fixes one can still be inside the range of another: 26.3 for CVE A, in [26.0, 26.7.1) of
 // CVE B), and it is not limited to the ranges the device is inside: it takes the nearest end bound ABOVE the device's version, of any
 // range of any of the vulnerabilities, that is outside the affected ranges of all of them (a phone on 18.2 is cleared by 26.7.1 when
-// every 18.x and 26.x before it is still inside some range). A vulnerability belongs to the software row it matches (keyedTo), so one
-// phone is one group whatever names CISA gives the CVEs. The map is by CVE; a CVE the device is not affected by through a range with
-// an end is not in it. A CVE that matches several software rows takes the group that closes the most.
+// every 18.x and 26.x before it is still inside some range). A vulnerability belongs to the software row it is keyed to, or the one the
+// matcher matches it on through NVD's list (nvdRows, #910), so one phone is one group whatever names CISA gives the CVEs. The map is by
+// CVE; a CVE the device is not affected by through a range with an end is not in it. A CVE that matches several software rows takes the
+// group that closes the most.
 func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
 	out := map[string]*GroupFix{}
+	byNVD := nvdRows(a, vulns)
 	for _, s := range deviceSoftware(a) {
 		in := newSWInfo(s, a.OS)
 		if !in.given || !versionKnown(in.ver) {
 			continue
 		}
 		var mine []Vuln
+		nvd := map[string]bool{} // the CVEs only NVD's list ties to the row, which the matcher matches on it (#910)
 		for _, v := range vulns {
-			if keyedTo(s, v) {
+			switch {
+			case keyedTo(s, v):
 				mine = append(mine, v)
+			case byNVD[v.CVE] == s.ID:
+				mine = append(mine, v)
+				nvd[v.CVE] = true
 			}
 		}
-		g := groupFixOf(in, mine)
+		g := groupFixOf(in, mine, nvd)
 		if _, ok := winDevice(in); ok {
 			g = windowsGroupFix(in, mine) // D-546
 		}
@@ -415,15 +460,16 @@ func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
 	return out
 }
 
-func groupFixOf(in swInfo, vulns []Vuln) *GroupFix {
+// groupFixOf is the group of vulns on one row; nvd holds those only NVD's list ties to it (#910), read without CISA's key.
+func groupFixOf(in swInfo, vulns []Vuln, nvd map[string]bool) *GroupFix {
 	closed := map[string]bool{}
 	var ends []string // every readable end bound of every applicable range: the releases a fix can be
 	haveExcl := false
 	var parts []fixedParts
 	for _, v := range vulns {
-		var key []identity
-		if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !isMultiProduct(v.Product) && n.ok() {
-			key = []identity{n}
+		key := keyIDs(v)
+		if nvd[v.CVE] {
+			key = nil
 		}
 		p := fixedPartsOf(in, v, key)
 		parts = append(parts, p)

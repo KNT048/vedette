@@ -70288,7 +70288,8 @@ func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetRansomware(val bool) {
 // D-604: with action answer_platform; one item per CVE then.
 type FindingsGetFindingsOKUncheckedItemQuestion struct {
 	Answers []FindingsGetFindingsOKUncheckedItemQuestionAnswersItem `json:"answers"`
-	// What shows the answer on the device ("apk info -v openssh-server"), null when none.
+	// What prints the answer on the device ("apk info -e -v openssh-server" for the package release, "cat
+	// /etc/alpine-release" for the branch), null when none.
 	Command NilString `json:"command"`
 	// The last answer could not be read: "Vedette could not read the release you entered (…)"; show it
 	// at the field.
@@ -70340,8 +70341,9 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestion) SetText(val string) {
 
 type FindingsGetFindingsOKUncheckedItemQuestionAnswersItem struct {
 	// What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH
-	// /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (apk info -v output is read as
-	// is). "Another system" asks both: on a row a scan saw only the row's release rules it out.
+	// /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (the bare release or the line
+	// `apk info -e -v openssh-server` prints, "openssh-server-10.2_p1-r1"). "Another system" asks both: on
+	// a row a scan saw only the row's release rules it out.
 	Ask []FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem `json:"ask"`
 	// The button: "Alpine Linux 3.23", "Another system", "Enter the package release".
 	Label string `json:"label"`

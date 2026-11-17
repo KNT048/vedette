@@ -84,6 +84,12 @@ func compareAPK(a, b apkVer) int {
 	return cmp.Compare(a.rev, b.rev)
 }
 
+// upstreamOrder orders two releases by their upstream version only (the -rN revision left out).
+func upstreamOrder(a, b apkVer) int {
+	a.rev, b.rev = 0, 0
+	return compareAPK(a, b)
+}
+
 // apkUpstream is the release without its revision ("10.2_p1" of "10.2_p1-r1").
 func apkUpstream(s string) string {
 	if i := strings.LastIndex(s, "-r"); i > 0 {

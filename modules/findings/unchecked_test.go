@@ -316,7 +316,7 @@ func TestUncheckedItems_D604_Question(t *testing.T) {
 		t.Fatalf("items %+v", items)
 	}
 	q := items[0].Question
-	if q == nil || !strings.HasPrefix(q.Text, "Is the OpenSSH on BN340 Alpine Linux's openssh-server package") || q.Command != nil {
+	if q == nil || !strings.HasPrefix(q.Text, "Is the OpenSSH on BN340 Alpine Linux's openssh-server package") || q.Command == nil || *q.Command != "cat /etc/alpine-release" {
 		t.Fatalf("question %+v", q)
 	}
 	last := q.Answers[len(q.Answers)-1]
@@ -326,7 +326,7 @@ func TestUncheckedItems_D604_Question(t *testing.T) {
 	}
 	items = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets)
 	q = items[0].Question
-	if q == nil || q.Command == nil || *q.Command != "apk info -v openssh-server" || len(q.Answers) != 1 || !slices.Equal(q.Answers[0].Ask, []string{"pkg_version"}) || q.Error != nil ||
+	if q == nil || q.Command == nil || *q.Command != "apk info -e -v openssh-server" || len(q.Answers) != 1 || !slices.Equal(q.Answers[0].Ask, []string{"pkg_version"}) || q.Error != nil ||
 		!strings.Contains(q.Text, "Which openssh-server package release does BN340 have?") || !strings.Contains(q.Text, "10.2_p1-r1 (3.23)") {
 		t.Fatalf("package question %+v", q)
 	}

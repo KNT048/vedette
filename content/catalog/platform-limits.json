@@ -5,13 +5,13 @@
    "alpine"
   ],
   "affects": "OpenSSH built with musl libc and without PAM, such as Alpine Linux's openssh-server package",
-  "check": "check the openssh package version on that device (apk info -v openssh-server): Alpine fixed it in 10.6_p2-r0 (edge), 10.3_p1-r2 (3.24), 10.2_p1-r1 (3.23), 10.0_p1-r11 (3.22) and 9.9_p2-r1 (3.21); until then set PasswordAuthentication no",
+  "check": "check the openssh-server package release on that device (apk info -e -v openssh-server) against Alpine's fixed release for its branch (cat /etc/alpine-release); until then set PasswordAuthentication no",
   "ask": "Is the OpenSSH on {device} Alpine Linux's openssh-server package, or another build of OpenSSH with musl libc and without PAM?",
   "source": "https://alpinelinux.org/posts/2026-11-05-openssh-password-authentication-bypass/",
   "fixed": {
    "distro": "alpine",
    "package": "openssh-server",
-   "command": "apk info -v openssh-server",
+   "command": "apk info -e -v openssh-server",
    "releases": {
     "edge": "10.6_p2-r0",
     "3.24": "10.3_p1-r2",
@@ -24,7 +24,8 @@
     "3.17": "9.1_p1-r7",
     "3.16": "9.0_p1-r6"
    },
-   "source": "https://secdb.alpinelinux.org/{branch}/main.json"
+   "source": "https://secdb.alpinelinux.org/{branch}/main.json",
+   "branch_command": "cat /etc/alpine-release"
   }
  },
  "CVE-2025-2783": {

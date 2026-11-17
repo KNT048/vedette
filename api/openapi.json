@@ -32495,7 +32495,7 @@
                                 "type": "string"
                               },
                               "command": {
-                                "description": "What shows the answer on the device (\"apk info -v openssh-server\"), null when none",
+                                "description": "What prints the answer on the device (\"apk info -e -v openssh-server\" for the package release, \"cat /etc/alpine-release\" for the branch), null when none",
                                 "type": [
                                   "string",
                                   "null"
@@ -32516,7 +32516,7 @@
                                       "type": "string"
                                     },
                                     "ask": {
-                                      "description": "What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (apk info -v output is read as is). \"Another system\" asks both: on a row a scan saw only the row's release rules it out",
+                                      "description": "What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (the bare release or the line `apk info -e -v openssh-server` prints, \"openssh-server-10.2_p1-r1\"). \"Another system\" asks both: on a row a scan saw only the row's release rules it out",
                                       "type": "array",
                                       "items": {
                                         "type": "string",

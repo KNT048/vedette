@@ -333,7 +333,7 @@ type UncheckedQuestion struct {
 	Text string `json:"text"`
 	// Error says the last answer could not be read ("Vedette could not read the release you entered …"), nil otherwise.
 	Error   *string           `json:"error,omitempty"`
-	Command *string           `json:"command"` // what to run on the device to read the answer ("apk info -v openssh-server"), nil when none
+	Command *string           `json:"command"` // what to run on the device to read the answer ("apk info -e -v openssh-server"), nil when none
 	Answers []UncheckedAnswer `json:"answers"`
 }
 

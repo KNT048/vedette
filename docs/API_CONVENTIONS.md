@@ -388,7 +388,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (105 mã)
+#### HTTP 409 (106 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -443,6 +443,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_executed` | 409 | Only an executed action can be rolled back. | module response (validator dùng chung) |
 | `not_on` | 409 | Two-step sign-in is already off for this user. | `POST /core/users/{id}/2fa/reset` |
 | `not_pending` | 409 | This request is already ${a.status.replace('_', ' ')}. One approval covers one request. | module response (validator dùng chung) |
+| `nothing_to_rerun` | 409 | The newest scan of this target has no OpenVAS step that was stopped or did not finish, so there is nothing to run again. Run a deep scan instead. | `POST /exposure/targets/{id}/openvas` |
 | `not_running` | 409 | This scan has already ended, so there is nothing to stop. Also: No scan is running now. | `POST /scans/runs/{id}/stop`; `POST /exposure/scan/stop` |
 | `not_verified` | 409 | Verify ownership first; only then can this target be scanned. | `POST /exposure/targets/{id}/scan` |
 | `nothing_scheduled` | 409 | No reboot is scheduled. | `DELETE /core/updates/os/reboot` |
@@ -594,7 +595,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `host_unreachable` | 503 | The operating system helper (vedette-host) is not answering. (`POST /core/data/purge` answers it with status 502: a configured helper that holds the backups does not answer, its socket file missing included, and nothing is deleted.) Try again in a minute; if it keeps happening, check that the vedette-host service is running. Backend [ĐX]: socket có nhưng không trả lời, host từ chối tiến trình này, hoặc `host_shutting_down`. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup`; `PUT /notify/channels/{type}` (webhook: địa chỉ của hộp chưa biết vì vedette-host chưa từng trả lời, #157) |
 | `approver_check_unavailable` | 503 | Vedette could not check the approver just now. Try again in a moment. (`retry_after` seconds, `Retry-After` header, §8; the user directory or the link store did not answer.) | `POST /notify/history/{id}/resend` |
 | `update_source_unreachable` | 503 | Could not reach the update source (<host>): <reason>. Try again later; if it keeps happening, check that the box can reach <host> over HTTPS. Chỉ backend: lỗi mạng, hết giờ (30 s mỗi tệp), chuyển hướng ra ngoài các host GitHub của PRIVACY luồng 6, chuyển hướng bị từ chối, trả lời khác 200, 404 cho chữ ký của index, 404 cho index khi hộp đã lưu một index, hoặc 404 cho manifest mà index nêu (404 cho index khi hộp chưa từng lưu index là lần kiểm tốt). `<host>` là host nguồn đã cấu hình; `<reason>` là chữ cố định theo loại lỗi (`unreachableReason`), không chép chữ hay mã trạng thái từ mạng. | `POST /core/updates/check` |
-| `scanner_unavailable` | 503 | The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again. | `POST /scans/runs`; job quét lịch và quét lại KEV của `scan` (không có heartbeat của worker, hoặc heartbeat báo thiếu nuclei hay gói mẫu); `POST /scanning/engines/nmap-discovery/run` (#850: nmap); `POST /exposure/targets/{id}/scan` (the shared safety settings cannot be read, exposure INV-31) |
+| `scanner_unavailable` | 503 | The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again. | `POST /scans/runs`; job quét lịch và quét lại KEV của `scan` (không có heartbeat của worker, hoặc heartbeat báo thiếu nuclei hay gói mẫu); `POST /scanning/engines/nmap-discovery/run` (#850: nmap); `POST /exposure/targets/{id}/scan` (the shared safety settings cannot be read, exposure INV-31); `POST /exposure/targets/{id}/openvas` ("OpenVAS cannot run now: …": off, starting, loading its feed, testing terms not accepted) |
 
 ## 4. Phân trang, lọc, sắp xếp
 

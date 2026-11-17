@@ -3,7 +3,6 @@ package exposure
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -266,7 +265,7 @@ func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion st
 			return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 		}
 	}
-	run, err := s.begin(ctx, who.Email, t, reason)
+	run, err := s.begin(ctx, who.Email, t, reason, nil)
 	if err != nil {
 		s.auditFailedScan(ctx, who.Email, t, err)
 		return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
@@ -299,16 +298,7 @@ func (s *Service) checkSafety(ctx context.Context, t Target) error {
 // auditFailedScan writes the exposure.scan row of an attempt that ended without a snapshot: refused by the gate, busy, too soon,
 // the module off, or failed. The write outlives a caller that hung up; a failure to write is logged.
 func (s *Service) auditFailedScan(ctx context.Context, user string, t Target, cause error) {
-	detail := "failed: the scan stopped (" + clipText(cause.Error(), 200) + ")"
-	var ae *APIError
-	var sb *stoppedBy
-	switch {
-	case errors.As(cause, &sb):
-		detail = "stopped by " + sb.by
-	case errors.As(cause, &ae):
-		detail = "not done: " + ae.Code + ": " + clipText(ae.Message, 300)
-	}
-	s.auditScanRow(ctx, user, t.Value, detail)
+	s.auditScanRow(ctx, user, t.Value, failedDetail(cause))
 }
 
 func (s *Service) auditScanRow(ctx context.Context, user, target, detail string) {
@@ -649,7 +639,7 @@ func (s *Service) SnapshotOf(ctx context.Context, id, date string) (Snapshot, er
 	nameAppliances(snap.Ports, snap.AdminPanels, snap.Services)
 	s.tieAppliances(ctx, snap.Ports, snap.AdminPanels)
 	if snap.GreenboneRun.State == GBRunRunning && snap.ID != live {
-		cutOff(&snap)
+		cutOff(&snap, nil, &GreenboneStop{Reason: StopRestart}) // when is not known: CutOffAtStart stores it at the next start
 	}
 	return snap, nil
 }
@@ -667,23 +657,33 @@ func (s *Service) gbLive() string {
 
 // cutOff: a snapshot whose OpenVAS step says "running" while no run of this box scans it was left by a restart of the box in the middle
 // of it: it is stopped, so the heading never says "scanning" for ever.
-func cutOff(snap *Snapshot) {
+// at is when the restart was seen (nil when not known); it is the step's end and, when the scan has none, the scan's. stop is why:
+// a restart, or a shutdown whose OpenVAS stop outlasted Close's wait.
+func cutOff(snap *Snapshot, at *string, stop *GreenboneStop) {
 	snap.GreenboneRun.State = GBRunStopped
+	snap.GreenboneRun.Stop = stop
+	snap.GreenboneRun.EndedAt = at
+	if snap.FinishedAt == nil {
+		snap.FinishedAt = at
+	}
 	for i, a := range snap.GreenboneRun.Addresses {
 		if a.State == GBRunRunning {
 			snap.GreenboneRun.Addresses[i].State = GBRunStopped
 		}
 	}
-	snap.NotChecked = gbCutOff(snap.NotChecked)
+	snap.NotChecked = gbCutOffWith(snap.NotChecked, gbStoppedLine(stop, false))
 }
 
 // gbCutOff replaces the waiting line of an OpenVAS step nothing runs any more (also the older one with a time) with the line
 // that says it was stopped, so the page never says "scanning" under a "stopped" heading.
-func gbCutOff(rows []NotCheckedRow) []NotCheckedRow {
+func gbCutOff(rows []NotCheckedRow) []NotCheckedRow { return gbCutOffWith(rows, notGBCutOff) }
+
+// gbCutOffWith is gbCutOff with the line that replaces the waiting one.
+func gbCutOffWith(rows []NotCheckedRow, line string) []NotCheckedRow {
 	out := slices.Clone(rows)
 	for i, n := range out {
 		if n.Kind == "greenbone" && (n.Text == gbPending || strings.HasPrefix(n.Text, "OpenVAS started at ")) {
-			out[i].Text = notGBCutOff
+			out[i].Text = line
 		}
 	}
 	return out

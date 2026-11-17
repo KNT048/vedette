@@ -179,6 +179,7 @@ var contractRoutes = map[string][]string{
 		"POST /exposure/box-ip/verify",
 		"POST /exposure/scan/stop",
 		"POST /exposure/targets",
+		"POST /exposure/targets/{id}/openvas",
 		"POST /exposure/targets/{id}/outside",
 		"POST /exposure/targets/{id}/scan",
 		"POST /exposure/targets/{id}/verify",

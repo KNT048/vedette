@@ -175,8 +175,8 @@ const (
 )
 
 // rows takes the steps that ended and were not saved yet. Once the run ended (end != runOn), a step it cut, in a call or between two
-// calls, is stopped at now, or failed when the box's error ended the run.
-func (l *stepLog) rows(runID, target string, now time.Time, end int) []EngineRun {
+// calls, is stopped at now (why says why, stopWhy), or failed when the box's error ended the run.
+func (l *stepLog) rows(runID, target string, now time.Time, end int, why string) []EngineRun {
 	if l == nil {
 		return nil
 	}
@@ -200,7 +200,7 @@ func (l *stepLog) rows(runID, target string, now time.Time, end int) []EngineRun
 					StepZAP: "the scan stopped because of an error on the box while ZAP ran"}[engine]
 			case cut:
 				outcome, at = StepStopped, now
-				text = map[string]string{StepNuclei: "stopped while the templates ran", StepZAP: "stopped while ZAP ran"}[engine]
+				text = map[string]string{StepNuclei: "stopped while the templates ran", StepZAP: "stopped while ZAP ran"}[engine] + whyNote(why)
 			default:
 				switch {
 				case t.failed == 0:
@@ -246,8 +246,17 @@ func stepText(engine, outcome string, t *stepTally) string {
 	return "the " + kind + " did not finish"
 }
 
-// openVASStep is the outcome and text of the OpenVAS step from its state (GreenboneRun.State) and its rows; "" when it did not run.
-func openVASStep(state string, results int) (string, string) {
+// whyNote is why, as the end of a stopped step's text: " (Vedette shut down while it ran …)"; "" when not known.
+func whyNote(why string) string {
+	if why == "" {
+		return ""
+	}
+	return " (" + why + ")"
+}
+
+// openVASStep is the outcome and text of the OpenVAS step from its state (GreenboneRun.State), its rows and, when stopped, why;
+// "" when it did not run.
+func openVASStep(state string, results int, stop *GreenboneStop) (string, string) {
 	switch state {
 	case GBRunDone:
 		return StepOK, "OpenVAS found " + plural(results, "result")
@@ -258,15 +267,15 @@ func openVASStep(state string, results int) (string, string) {
 	case GBRunFailed:
 		return StepFailed, "OpenVAS failed (the scan's Not checked list says why)"
 	case GBRunStopped:
-		return StepStopped, "stopped while OpenVAS ran"
+		return StepStopped, "stopped while OpenVAS ran" + whyNote(stopWhy(stop))
 	}
 	return "", ""
 }
 
 // saveSteps stores the steps of the run that ended and were not stored yet (INV-30): before the OpenVAS step starts (nuclei and ZAP
 // are done by then, end runOn), and when the run ends. A target deleted meanwhile gets no row. It runs on its own context, so a stop or a shutdown still records it; a failure is logged.
-func (s *Service) saveSteps(ctx context.Context, run *scanRun, end int) {
-	rows := run.steps.rows(run.view.ID, run.view.TargetValue, s.clock(), end)
+func (s *Service) saveSteps(ctx context.Context, run *scanRun, end int, why string) {
+	rows := run.steps.rows(run.view.ID, run.view.TargetValue, s.clock(), end, why)
 	if len(rows) == 0 {
 		return
 	}

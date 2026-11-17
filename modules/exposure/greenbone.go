@@ -538,6 +538,7 @@ func (s *Service) GreenboneAtStart(ctx context.Context) {
 // start, and SnapshotOf reads it as stopped meanwhile. Failures are logged.
 func (s *Service) CutOffAtStart(ctx context.Context) {
 	live := s.gbLive()
+	now := store.FormatTS(s.clock()) // when the restart was seen: the step's end as far as anyone can tell
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		rows, err := tx.QueryContext(ctx, `SELECT target_id, date FROM exp_snapshot WHERE json_extract(greenbone_run, '$.state') = 'running'`)
 		if err != nil {
@@ -564,16 +565,7 @@ func (s *Service) CutOffAtStart(ctx context.Context) {
 				}
 				continue
 			}
-			cutOff(&snap)
-			docs, err := snapshotDocs(snap.Content, snap.Counts)
-			if err != nil {
-				return err
-			}
-			run, err := json.Marshal(snap.GreenboneRun)
-			if err != nil {
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, `UPDATE exp_snapshot SET not_checked = ?, greenbone_run = ? WHERE id = ?`, docs[7], string(run), snap.ID); err != nil {
+			if err := storeCut(ctx, tx, d.target, snap, now, &GreenboneStop{Reason: StopRestart}); err != nil {
 				return err
 			}
 		}
@@ -582,6 +574,33 @@ func (s *Service) CutOffAtStart(ctx context.Context) {
 	if err != nil {
 		s.cfg.Log.ErrorContext(ctx, "exposure: marking OpenVAS steps a restart cut off as stopped failed", "error", err)
 	}
+}
+
+// storeCut stores snap's OpenVAS step, which nothing runs any more, as stopped at now for stop (cutOff), and Settings › Scanning's
+// OpenVAS card with it, as a Stop or a shutdown does (INV-30).
+func storeCut(ctx context.Context, tx *sql.Tx, target string, snap Snapshot, now string, stop *GreenboneStop) error {
+	cutOff(&snap, &now, stop)
+	docs, err := snapshotDocs(snap.Content, snap.Counts)
+	if err != nil {
+		return err
+	}
+	run, err := json.Marshal(snap.GreenboneRun)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE exp_snapshot SET not_checked = ?, greenbone_run = ?, finished_at = coalesce(finished_at, ?) WHERE id = ?`, docs[7], string(run), now, snap.ID); err != nil {
+		return err
+	}
+	var value string
+	if err := tx.QueryRowContext(ctx, `SELECT value FROM exp_target WHERE id = ?`, target).Scan(&value); err != nil {
+		return err
+	}
+	_, text := openVASStep(GBRunStopped, 0, snap.GreenboneRun.Stop)
+	_, err = tx.ExecContext(ctx, `INSERT INTO exp_engine_run (engine, run_id, target, at, outcome, text) VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT (engine) DO UPDATE SET run_id = excluded.run_id, target = excluded.target, at = excluded.at, outcome = excluded.outcome, text = excluded.text
+		WHERE excluded.at >= exp_engine_run.at`,
+		StepOpenVAS, snap.ID, value, now, StepStopped, clipText("External scan of "+value+": "+text, maxLineText))
+	return err
 }
 
 // gbModuleOff stops Greenbone's containers when the External exposure module is switched off while Greenbone is enabled: no
@@ -845,6 +864,30 @@ type GreenboneRun struct {
 	State     string          `json:"state"`
 	StartedAt *string         `json:"started_at"`
 	Addresses []GreenboneAddr `json:"addresses"`
+	// EndedAt is when the step ended, in any final state (RFC 3339 UTC); nil while it runs, when it did not run, and on a step
+	// stored before it was kept. For a restart that cut it, it is when the box started again (the moment it was seen).
+	EndedAt *string `json:"ended_at,omitempty"`
+	// Stop says why a stopped step was stopped; nil in any other state, and on a step stored before it was kept.
+	Stop *GreenboneStop `json:"stop,omitempty"`
+	// Again: the step ran on its own, after the scan, on the open ports that scan found (POST …/openvas).
+	Again bool `json:"again,omitempty"`
+}
+
+// Why an OpenVAS step (or a run) was stopped (GreenboneStop.Reason, contract.ts GreenboneStop).
+const (
+	StopPerson   = "person"     // someone pressed Stop (By names them)
+	StopShutdown = "shutdown"   // Vedette shut down while it ran (an update, a restart or a stop of the service)
+	StopRestart  = "restart"    // Vedette started again and found it still "running": it stopped before the step could store how it ended
+	StopModule   = "module_off" // the External exposure module was switched off
+	StopTerms    = "terms"      // the testing terms of the target were withdrawn or lowered (By names who)
+)
+
+var stopReasons = []string{StopPerson, StopShutdown, StopRestart, StopModule, StopTerms}
+
+// GreenboneStop is why and by whom a stopped OpenVAS step was stopped.
+type GreenboneStop struct {
+	Reason string  `json:"reason"`
+	By     *string `json:"by"`
 }
 
 // GreenboneAddr is the OpenVAS state of one address of a domain's run.
@@ -872,6 +915,7 @@ type gbOutcome struct {
 	audit  string          // the detail of the exposure.greenbone_scan audit row
 	state  string          // GreenboneRun.State after the step
 	addrs  []GreenboneAddr // a domain's: the state of each address
+	stop   *GreenboneStop  // why a stopped step was stopped (GreenboneRun.Stop)
 }
 
 // gbRunOf is the state of OpenVAS over several addresses of a domain: stopped, else ended, else partial, else done, else failed,
@@ -1113,6 +1157,11 @@ func (s *Service) addGreenbone(ctx context.Context, user string, t Target, snap 
 	if !slices.Contains(gbRunStates, o.state) || o.state == GBRunRunning {
 		snap.GreenboneRun.State = GBRunFailed // never reached: every outcome names its state
 	}
+	end := store.FormatTS(s.clock()) // the step, and with it the scan, ends now
+	snap.GreenboneRun.EndedAt, snap.GreenboneRun.Stop, snap.FinishedAt = &end, nil, &end
+	if snap.GreenboneRun.State == GBRunStopped {
+		snap.GreenboneRun.Stop = o.stop
+	}
 	run, err := json.Marshal(snap.GreenboneRun)
 	if err != nil {
 		s.cfg.Log.ErrorContext(ctx, "exposure: encoding Greenbone's state failed", "target", t.Value, "error", err)
@@ -1131,11 +1180,8 @@ func (s *Service) addGreenbone(ctx context.Context, user string, t Target, snap 
 		if err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(wctx, `UPDATE exp_snapshot SET checks = ?, not_checked = ?, greenbone = ?, greenbone_run = ? WHERE id = ?`, d[6], d[7], d[9], string(run), snap.ID); err != nil {
-			return fmt.Errorf("adding Greenbone's results: %w", err)
-		}
-		// "Last scanned" is when the scan ended, not when its other steps were stored (OpenVAS runs an hour or more after them)
-		if _, err := tx.ExecContext(wctx, `UPDATE exp_target SET last_scan_at = ? WHERE id = ?`, store.FormatTS(s.clock()), t.ID); err != nil {
+		// "Last scanned" stays the scan's start (upsertSnapshot); its end is the snapshot's finished_at
+		if _, err := tx.ExecContext(wctx, `UPDATE exp_snapshot SET checks = ?, not_checked = ?, greenbone = ?, greenbone_run = ?, finished_at = ? WHERE id = ?`, d[6], d[7], d[9], string(run), end, snap.ID); err != nil {
 			return fmt.Errorf("adding Greenbone's results: %w", err)
 		}
 		return s.audit(wctx, tx, user, "exposure.greenbone_scan", t.Value, clipText(o.audit, 500))

@@ -42933,13 +42933,17 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan   bool                                               `json:"full_scan"`
-	ID         string                                             `json:"id"`
-	Kind       ExposureDeleteExposureTargetsIDTermsOKKind         `json:"kind"`
-	LastCheck  NilExposureDeleteExposureTargetsIDTermsOKLastCheck `json:"last_check"`
-	LastScanAt NilDateTime                                        `json:"last_scan_at"`
-	Latest     NilExposureDeleteExposureTargetsIDTermsOKLatest    `json:"latest"`
-	Method     NilExposureDeleteExposureTargetsIDTermsOKMethod    `json:"method"`
+	FullScan  bool                                               `json:"full_scan"`
+	ID        string                                             `json:"id"`
+	Kind      ExposureDeleteExposureTargetsIDTermsOKKind         `json:"kind"`
+	LastCheck NilExposureDeleteExposureTargetsIDTermsOKLastCheck `json:"last_check"`
+	// When the newest scan started: every page names a scan by its start.
+	LastScanAt NilDateTime `json:"last_scan_at"`
+	// When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never
+	// scanned, or when not known.
+	LastScanFinishedAt OptNilDateTime                                  `json:"last_scan_finished_at"`
+	Latest             NilExposureDeleteExposureTargetsIDTermsOKLatest `json:"latest"`
+	Method             NilExposureDeleteExposureTargetsIDTermsOKMethod `json:"method"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
@@ -43016,6 +43020,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) GetLastCheck() NilExposureDelet
 // GetLastScanAt returns the value of LastScanAt.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) GetLastScanAt() NilDateTime {
 	return s.LastScanAt
+}
+
+// GetLastScanFinishedAt returns the value of LastScanFinishedAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetLastScanFinishedAt() OptNilDateTime {
+	return s.LastScanFinishedAt
 }
 
 // GetLatest returns the value of Latest.
@@ -43131,6 +43140,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) SetLastCheck(val NilExposureDel
 // SetLastScanAt sets the value of LastScanAt.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) SetLastScanAt(val NilDateTime) {
 	s.LastScanAt = val
+}
+
+// SetLastScanFinishedAt sets the value of LastScanFinishedAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetLastScanFinishedAt(val OptNilDateTime) {
+	s.LastScanFinishedAt = val
 }
 
 // SetLatest sets the value of Latest.
@@ -44534,6 +44548,9 @@ type ExposureGetExposureScanOK struct {
 	Error      NilExposureGetExposureScanOKError `json:"error"`
 	FinishedAt NilDateTime                       `json:"finished_at"`
 	ID         string                            `json:"id"`
+	// The run is OpenVAS again for the newest scan of the target (POST /exposure/targets/{id}/openvas),
+	// not a scan: its phase is greenbone from the start.
+	OpenvasOnly OptBool `json:"openvas_only"`
 	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
 	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
 	// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
@@ -44549,7 +44566,7 @@ type ExposureGetExposureScanOK struct {
 	StartedAt  time.Time                       `json:"started_at"`
 	Status     ExposureGetExposureScanOKStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
-	// were withdrawn".
+	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
 	TargetID    string       `json:"target_id"`
 	TargetValue string       `json:"target_value"`
@@ -44573,6 +44590,11 @@ func (s *ExposureGetExposureScanOK) GetFinishedAt() NilDateTime {
 // GetID returns the value of ID.
 func (s *ExposureGetExposureScanOK) GetID() string {
 	return s.ID
+}
+
+// GetOpenvasOnly returns the value of OpenvasOnly.
+func (s *ExposureGetExposureScanOK) GetOpenvasOnly() OptBool {
+	return s.OpenvasOnly
 }
 
 // GetPhase returns the value of Phase.
@@ -44633,6 +44655,11 @@ func (s *ExposureGetExposureScanOK) SetFinishedAt(val NilDateTime) {
 // SetID sets the value of ID.
 func (s *ExposureGetExposureScanOK) SetID(val string) {
 	s.ID = val
+}
+
+// SetOpenvasOnly sets the value of OpenvasOnly.
+func (s *ExposureGetExposureScanOK) SetOpenvasOnly(val OptBool) {
+	s.OpenvasOnly = val
 }
 
 // SetPhase sets the value of Phase.
@@ -45537,13 +45564,17 @@ type ExposureGetExposureTargetsIDOK struct {
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan   bool                                       `json:"full_scan"`
-	ID         string                                     `json:"id"`
-	Kind       ExposureGetExposureTargetsIDOKKind         `json:"kind"`
-	LastCheck  NilExposureGetExposureTargetsIDOKLastCheck `json:"last_check"`
-	LastScanAt NilDateTime                                `json:"last_scan_at"`
-	Latest     NilExposureGetExposureTargetsIDOKLatest    `json:"latest"`
-	Method     NilExposureGetExposureTargetsIDOKMethod    `json:"method"`
+	FullScan  bool                                       `json:"full_scan"`
+	ID        string                                     `json:"id"`
+	Kind      ExposureGetExposureTargetsIDOKKind         `json:"kind"`
+	LastCheck NilExposureGetExposureTargetsIDOKLastCheck `json:"last_check"`
+	// When the newest scan started: every page names a scan by its start.
+	LastScanAt NilDateTime `json:"last_scan_at"`
+	// When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never
+	// scanned, or when not known.
+	LastScanFinishedAt OptNilDateTime                          `json:"last_scan_finished_at"`
+	Latest             NilExposureGetExposureTargetsIDOKLatest `json:"latest"`
+	Method             NilExposureGetExposureTargetsIDOKMethod `json:"method"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureGetExposureTargetsIDOKOpenPortsItem `json:"open_ports"`
@@ -45620,6 +45651,11 @@ func (s *ExposureGetExposureTargetsIDOK) GetLastCheck() NilExposureGetExposureTa
 // GetLastScanAt returns the value of LastScanAt.
 func (s *ExposureGetExposureTargetsIDOK) GetLastScanAt() NilDateTime {
 	return s.LastScanAt
+}
+
+// GetLastScanFinishedAt returns the value of LastScanFinishedAt.
+func (s *ExposureGetExposureTargetsIDOK) GetLastScanFinishedAt() OptNilDateTime {
+	return s.LastScanFinishedAt
 }
 
 // GetLatest returns the value of Latest.
@@ -45735,6 +45771,11 @@ func (s *ExposureGetExposureTargetsIDOK) SetLastCheck(val NilExposureGetExposure
 // SetLastScanAt sets the value of LastScanAt.
 func (s *ExposureGetExposureTargetsIDOK) SetLastScanAt(val NilDateTime) {
 	s.LastScanAt = val
+}
+
+// SetLastScanFinishedAt sets the value of LastScanFinishedAt.
+func (s *ExposureGetExposureTargetsIDOK) SetLastScanFinishedAt(val OptNilDateTime) {
+	s.LastScanFinishedAt = val
 }
 
 // SetLatest sets the value of Latest.
@@ -46951,6 +46992,9 @@ type ExposureGetExposureTargetsIDSnapshotsDateOK struct {
 	Checks      []ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem      `json:"checks"`
 	Counts      ExposureGetExposureTargetsIDSnapshotsDateOKCounts            `json:"counts"`
 	Date        string                                                       `json:"date"`
+	// When its last step ended; null while OpenVAS still runs, or on a scan stored before it was kept
+	// whose end is not known.
+	FinishedAt NilDateTime `json:"finished_at"`
 	// Results of the optional deep scan with Greenbone (INV-25); empty when it did not run (the
 	// not_checked lines of kind greenbone say why).
 	Greenbone    []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem  `json:"greenbone"`
@@ -46959,8 +47003,11 @@ type ExposureGetExposureTargetsIDSnapshotsDateOK struct {
 	ID           string                                                      `json:"id"`
 	NotChecked   []ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem `json:"not_checked"`
 	Ports        []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem      `json:"ports"`
-	ScannedAt    time.Time                                                   `json:"scanned_at"`
-	Services     []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem   `json:"services"`
+	// When the results of the steps before OpenVAS were stored.
+	ScannedAt time.Time                                                 `json:"scanned_at"`
+	Services  []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem `json:"services"`
+	// When the scan started: the time every page names it by (header, pickers, compare, history).
+	StartedAt time.Time `json:"started_at"`
 	// The safe templates that ran on the services (INV-23); the box ran no template when empty.
 	Templates   []ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem   `json:"templates"`
 	VersionGaps []ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem `json:"version_gaps"`
@@ -46992,6 +47039,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetCounts() ExposureGetExp
 // GetDate returns the value of Date.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetDate() string {
 	return s.Date
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
 }
 
 // GetGreenbone returns the value of Greenbone.
@@ -47032,6 +47084,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetScannedAt() time.Time {
 // GetServices returns the value of Services.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetServices() []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem {
 	return s.Services
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetStartedAt() time.Time {
+	return s.StartedAt
 }
 
 // GetTemplates returns the value of Templates.
@@ -47079,6 +47136,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetDate(val string) {
 	s.Date = val
 }
 
+// SetFinishedAt sets the value of FinishedAt.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
 // SetGreenbone sets the value of Greenbone.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetGreenbone(val []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) {
 	s.Greenbone = val
@@ -47117,6 +47179,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetScannedAt(val time.Time
 // SetServices sets the value of Services.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetServices(val []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) {
 	s.Services = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetStartedAt(val time.Time) {
+	s.StartedAt = val
 }
 
 // SetTemplates sets the value of Templates.
@@ -47715,6 +47782,12 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetSolution(v
 type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun struct {
 	// A domain's run: the OpenVAS state of each deep-scanned address; [] for an IP.
 	Addresses []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem `json:"addresses"`
+	// The step ran again on its own after the scan (POST /exposure/targets/{id}/openvas), on the open
+	// ports that scan found.
+	Again OptBool `json:"again"`
+	// When the step ended, in any final state; for a step a restart cut, when the box started again.
+	// Missing while it runs, when it did not run, and on a scan stored before it was kept.
+	EndedAt OptNilDateTime `json:"ended_at"`
 	// When the OpenVAS step started; null when it did not.
 	StartedAt NilDateTime `json:"started_at"`
 	// Running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute
@@ -47726,11 +47799,23 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun struct {
 	// stopped it), with the rows it had found if any; a task OpenVAS ended before it was seen scanning is
 	// not_run.
 	State ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState `json:"state"`
+	// Why a stopped step was stopped; missing in any other state and on a scan stored before it was kept.
+	Stop OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop `json:"stop"`
 }
 
 // GetAddresses returns the value of Addresses.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) GetAddresses() []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem {
 	return s.Addresses
+}
+
+// GetAgain returns the value of Again.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) GetAgain() OptBool {
+	return s.Again
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) GetEndedAt() OptNilDateTime {
+	return s.EndedAt
 }
 
 // GetStartedAt returns the value of StartedAt.
@@ -47743,9 +47828,24 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) GetState() Exp
 	return s.State
 }
 
+// GetStop returns the value of Stop.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) GetStop() OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop {
+	return s.Stop
+}
+
 // SetAddresses sets the value of Addresses.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) SetAddresses(val []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem) {
 	s.Addresses = val
+}
+
+// SetAgain sets the value of Again.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) SetAgain(val OptBool) {
+	s.Again = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) SetEndedAt(val OptNilDateTime) {
+	s.EndedAt = val
 }
 
 // SetStartedAt sets the value of StartedAt.
@@ -47756,6 +47856,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) SetStartedAt(v
 // SetState sets the value of State.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) SetState(val ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState) {
 	s.State = val
+}
+
+// SetStop sets the value of Stop.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) SetStop(val OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) {
+	s.Stop = val
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem struct {
@@ -47937,6 +48042,94 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState) Unmarshal
 		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateEnded:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateEnded
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop struct {
+	// The e-mail of who stopped it (person, terms); null when the box did.
+	By     NilString                                                         `json:"by"`
+	Reason ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason `json:"reason"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) GetBy() NilString {
+	return s.By
+}
+
+// GetReason returns the value of Reason.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) GetReason() ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason {
+	return s.Reason
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) SetBy(val NilString) {
+	s.By = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) SetReason(val ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason) {
+	s.Reason = val
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonPerson    ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason = "person"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonShutdown  ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason = "shutdown"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonRestart   ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason = "restart"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonModuleOff ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason = "module_off"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonTerms     ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason = "terms"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason{
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonPerson,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonShutdown,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonRestart,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonModuleOff,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonTerms,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonPerson:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonShutdown:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonRestart:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonModuleOff:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonTerms:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReason(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonPerson:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonPerson
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonShutdown:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonShutdown
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonRestart:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonRestart
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonModuleOff:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonModuleOff
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonTerms:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStopReasonTerms
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -49862,10 +50055,16 @@ func (s *ExposureGetExposureTargetsIDSnapshotsOK) SetItems(val []ExposureGetExpo
 }
 
 type ExposureGetExposureTargetsIDSnapshotsOKItemsItem struct {
-	Counts    ExposureGetExposureTargetsIDSnapshotsOKItemsItemCounts `json:"counts"`
-	Date      string                                                 `json:"date"`
-	ID        string                                                 `json:"id"`
-	ScannedAt time.Time                                              `json:"scanned_at"`
+	Counts ExposureGetExposureTargetsIDSnapshotsOKItemsItemCounts `json:"counts"`
+	Date   string                                                 `json:"date"`
+	// When its last step ended; null while OpenVAS still runs, or on a scan stored before it was kept
+	// whose end is not known.
+	FinishedAt NilDateTime `json:"finished_at"`
+	ID         string      `json:"id"`
+	// When the results of the steps before OpenVAS were stored.
+	ScannedAt time.Time `json:"scanned_at"`
+	// When the scan started: the time every page names it by (header, pickers, compare, history).
+	StartedAt time.Time `json:"started_at"`
 }
 
 // GetCounts returns the value of Counts.
@@ -49878,6 +50077,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) GetDate() string {
 	return s.Date
 }
 
+// GetFinishedAt returns the value of FinishedAt.
+func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
 // GetID returns the value of ID.
 func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) GetID() string {
 	return s.ID
@@ -49886,6 +50090,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) GetID() string {
 // GetScannedAt returns the value of ScannedAt.
 func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) GetScannedAt() time.Time {
 	return s.ScannedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) GetStartedAt() time.Time {
+	return s.StartedAt
 }
 
 // SetCounts sets the value of Counts.
@@ -49898,6 +50107,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) SetDate(val string) {
 	s.Date = val
 }
 
+// SetFinishedAt sets the value of FinishedAt.
+func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
 // SetID sets the value of ID.
 func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) SetID(val string) {
 	s.ID = val
@@ -49906,6 +50120,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) SetID(val string) {
 // SetScannedAt sets the value of ScannedAt.
 func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) SetScannedAt(val time.Time) {
 	s.ScannedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItem) SetStartedAt(val time.Time) {
+	s.StartedAt = val
 }
 
 type ExposureGetExposureTargetsIDSnapshotsOKItemsItemCounts struct {
@@ -50212,13 +50431,17 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan   bool                                              `json:"full_scan"`
-	ID         string                                            `json:"id"`
-	Kind       ExposureGetExposureTargetsOKItemsItemKind         `json:"kind"`
-	LastCheck  NilExposureGetExposureTargetsOKItemsItemLastCheck `json:"last_check"`
-	LastScanAt NilDateTime                                       `json:"last_scan_at"`
-	Latest     NilExposureGetExposureTargetsOKItemsItemLatest    `json:"latest"`
-	Method     NilExposureGetExposureTargetsOKItemsItemMethod    `json:"method"`
+	FullScan  bool                                              `json:"full_scan"`
+	ID        string                                            `json:"id"`
+	Kind      ExposureGetExposureTargetsOKItemsItemKind         `json:"kind"`
+	LastCheck NilExposureGetExposureTargetsOKItemsItemLastCheck `json:"last_check"`
+	// When the newest scan started: every page names a scan by its start.
+	LastScanAt NilDateTime `json:"last_scan_at"`
+	// When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never
+	// scanned, or when not known.
+	LastScanFinishedAt OptNilDateTime                                 `json:"last_scan_finished_at"`
+	Latest             NilExposureGetExposureTargetsOKItemsItemLatest `json:"latest"`
+	Method             NilExposureGetExposureTargetsOKItemsItemMethod `json:"method"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureGetExposureTargetsOKItemsItemOpenPortsItem `json:"open_ports"`
@@ -50295,6 +50518,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetLastCheck() NilExposureGetExp
 // GetLastScanAt returns the value of LastScanAt.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetLastScanAt() NilDateTime {
 	return s.LastScanAt
+}
+
+// GetLastScanFinishedAt returns the value of LastScanFinishedAt.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetLastScanFinishedAt() OptNilDateTime {
+	return s.LastScanFinishedAt
 }
 
 // GetLatest returns the value of Latest.
@@ -50410,6 +50638,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetLastCheck(val NilExposureGetE
 // SetLastScanAt sets the value of LastScanAt.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetLastScanAt(val NilDateTime) {
 	s.LastScanAt = val
+}
+
+// SetLastScanFinishedAt sets the value of LastScanFinishedAt.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetLastScanFinishedAt(val OptNilDateTime) {
+	s.LastScanFinishedAt = val
 }
 
 // SetLatest sets the value of Latest.
@@ -51529,13 +51762,17 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan   bool                                                   `json:"full_scan"`
-	ID         string                                                 `json:"id"`
-	Kind       ExposurePostExposureBoxIPVerifyOKItemsItemKind         `json:"kind"`
-	LastCheck  NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck `json:"last_check"`
-	LastScanAt NilDateTime                                            `json:"last_scan_at"`
-	Latest     NilExposurePostExposureBoxIPVerifyOKItemsItemLatest    `json:"latest"`
-	Method     NilExposurePostExposureBoxIPVerifyOKItemsItemMethod    `json:"method"`
+	FullScan  bool                                                   `json:"full_scan"`
+	ID        string                                                 `json:"id"`
+	Kind      ExposurePostExposureBoxIPVerifyOKItemsItemKind         `json:"kind"`
+	LastCheck NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck `json:"last_check"`
+	// When the newest scan started: every page names a scan by its start.
+	LastScanAt NilDateTime `json:"last_scan_at"`
+	// When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never
+	// scanned, or when not known.
+	LastScanFinishedAt OptNilDateTime                                      `json:"last_scan_finished_at"`
+	Latest             NilExposurePostExposureBoxIPVerifyOKItemsItemLatest `json:"latest"`
+	Method             NilExposurePostExposureBoxIPVerifyOKItemsItemMethod `json:"method"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem `json:"open_ports"`
@@ -51612,6 +51849,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetLastCheck() NilExposureP
 // GetLastScanAt returns the value of LastScanAt.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetLastScanAt() NilDateTime {
 	return s.LastScanAt
+}
+
+// GetLastScanFinishedAt returns the value of LastScanFinishedAt.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetLastScanFinishedAt() OptNilDateTime {
+	return s.LastScanFinishedAt
 }
 
 // GetLatest returns the value of Latest.
@@ -51727,6 +51969,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetLastCheck(val NilExposur
 // SetLastScanAt sets the value of LastScanAt.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetLastScanAt(val NilDateTime) {
 	s.LastScanAt = val
+}
+
+// SetLastScanFinishedAt sets the value of LastScanFinishedAt.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetLastScanFinishedAt(val OptNilDateTime) {
+	s.LastScanFinishedAt = val
 }
 
 // SetLatest sets the value of Latest.
@@ -52811,6 +53058,9 @@ type ExposurePostExposureScanStopOK struct {
 	Error      NilExposurePostExposureScanStopOKError `json:"error"`
 	FinishedAt NilDateTime                            `json:"finished_at"`
 	ID         string                                 `json:"id"`
+	// The run is OpenVAS again for the newest scan of the target (POST /exposure/targets/{id}/openvas),
+	// not a scan: its phase is greenbone from the start.
+	OpenvasOnly OptBool `json:"openvas_only"`
 	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
 	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
 	// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
@@ -52826,7 +53076,7 @@ type ExposurePostExposureScanStopOK struct {
 	StartedAt  time.Time                            `json:"started_at"`
 	Status     ExposurePostExposureScanStopOKStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
-	// were withdrawn".
+	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
 	TargetID    string       `json:"target_id"`
 	TargetValue string       `json:"target_value"`
@@ -52850,6 +53100,11 @@ func (s *ExposurePostExposureScanStopOK) GetFinishedAt() NilDateTime {
 // GetID returns the value of ID.
 func (s *ExposurePostExposureScanStopOK) GetID() string {
 	return s.ID
+}
+
+// GetOpenvasOnly returns the value of OpenvasOnly.
+func (s *ExposurePostExposureScanStopOK) GetOpenvasOnly() OptBool {
+	return s.OpenvasOnly
 }
 
 // GetPhase returns the value of Phase.
@@ -52910,6 +53165,11 @@ func (s *ExposurePostExposureScanStopOK) SetFinishedAt(val NilDateTime) {
 // SetID sets the value of ID.
 func (s *ExposurePostExposureScanStopOK) SetID(val string) {
 	s.ID = val
+}
+
+// SetOpenvasOnly sets the value of OpenvasOnly.
+func (s *ExposurePostExposureScanStopOK) SetOpenvasOnly(val OptBool) {
+	s.OpenvasOnly = val
 }
 
 // SetPhase sets the value of Phase.
@@ -53386,13 +53646,17 @@ type ExposurePostExposureTargetsCreated struct {
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan   bool                                           `json:"full_scan"`
-	ID         string                                         `json:"id"`
-	Kind       ExposurePostExposureTargetsCreatedKind         `json:"kind"`
-	LastCheck  NilExposurePostExposureTargetsCreatedLastCheck `json:"last_check"`
-	LastScanAt NilDateTime                                    `json:"last_scan_at"`
-	Latest     NilExposurePostExposureTargetsCreatedLatest    `json:"latest"`
-	Method     NilExposurePostExposureTargetsCreatedMethod    `json:"method"`
+	FullScan  bool                                           `json:"full_scan"`
+	ID        string                                         `json:"id"`
+	Kind      ExposurePostExposureTargetsCreatedKind         `json:"kind"`
+	LastCheck NilExposurePostExposureTargetsCreatedLastCheck `json:"last_check"`
+	// When the newest scan started: every page names a scan by its start.
+	LastScanAt NilDateTime `json:"last_scan_at"`
+	// When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never
+	// scanned, or when not known.
+	LastScanFinishedAt OptNilDateTime                              `json:"last_scan_finished_at"`
+	Latest             NilExposurePostExposureTargetsCreatedLatest `json:"latest"`
+	Method             NilExposurePostExposureTargetsCreatedMethod `json:"method"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureTargetsCreatedOpenPortsItem `json:"open_ports"`
@@ -53469,6 +53733,11 @@ func (s *ExposurePostExposureTargetsCreated) GetLastCheck() NilExposurePostExpos
 // GetLastScanAt returns the value of LastScanAt.
 func (s *ExposurePostExposureTargetsCreated) GetLastScanAt() NilDateTime {
 	return s.LastScanAt
+}
+
+// GetLastScanFinishedAt returns the value of LastScanFinishedAt.
+func (s *ExposurePostExposureTargetsCreated) GetLastScanFinishedAt() OptNilDateTime {
+	return s.LastScanFinishedAt
 }
 
 // GetLatest returns the value of Latest.
@@ -53584,6 +53853,11 @@ func (s *ExposurePostExposureTargetsCreated) SetLastCheck(val NilExposurePostExp
 // SetLastScanAt sets the value of LastScanAt.
 func (s *ExposurePostExposureTargetsCreated) SetLastScanAt(val NilDateTime) {
 	s.LastScanAt = val
+}
+
+// SetLastScanFinishedAt sets the value of LastScanFinishedAt.
+func (s *ExposurePostExposureTargetsCreated) SetLastScanFinishedAt(val OptNilDateTime) {
+	s.LastScanFinishedAt = val
 }
 
 // SetLatest sets the value of Latest.
@@ -54660,6 +54934,585 @@ func (s *ExposurePostExposureTargetsCreatedValidity) UnmarshalText(data []byte) 
 	}
 }
 
+type ExposurePostExposureTargetsIDOpenvasAccepted struct {
+	// Who pressed Scan now (an e-mail).
+	By string `json:"by"`
+	// Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many,
+	// module_off ...); null otherwise.
+	Error      NilExposurePostExposureTargetsIDOpenvasAcceptedError `json:"error"`
+	FinishedAt NilDateTime                                          `json:"finished_at"`
+	ID         string                                               `json:"id"`
+	// The run is OpenVAS again for the newest scan of the target (POST /exposure/targets/{id}/openvas),
+	// not a scan: its phase is greenbone from the start.
+	OpenvasOnly OptBool `json:"openvas_only"`
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
+	// exists. A failed or stopped run keeps the phase it reached.
+	Phase ExposurePostExposureTargetsIDOpenvasAcceptedPhase `json:"phase"`
+	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
+	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
+	// greenbone phase. Set while status is running; null otherwise.
+	Progress NilExposurePostExposureTargetsIDOpenvasAcceptedProgress `json:"progress"`
+	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
+	// earlier results are kept.
+	SnapshotID NilString                                          `json:"snapshot_id"`
+	StartedAt  time.Time                                          `json:"started_at"`
+	Status     ExposurePostExposureTargetsIDOpenvasAcceptedStatus `json:"status"`
+	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
+	// were withdrawn", "Vedette shut down".
+	StopReason  OptNilString `json:"stop_reason"`
+	TargetID    string       `json:"target_id"`
+	TargetValue string       `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetBy() string {
+	return s.By
+}
+
+// GetError returns the value of Error.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetError() NilExposurePostExposureTargetsIDOpenvasAcceptedError {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetID() string {
+	return s.ID
+}
+
+// GetOpenvasOnly returns the value of OpenvasOnly.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetOpenvasOnly() OptBool {
+	return s.OpenvasOnly
+}
+
+// GetPhase returns the value of Phase.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetPhase() ExposurePostExposureTargetsIDOpenvasAcceptedPhase {
+	return s.Phase
+}
+
+// GetProgress returns the value of Progress.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetProgress() NilExposurePostExposureTargetsIDOpenvasAcceptedProgress {
+	return s.Progress
+}
+
+// GetSnapshotID returns the value of SnapshotID.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetSnapshotID() NilString {
+	return s.SnapshotID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetStatus() ExposurePostExposureTargetsIDOpenvasAcceptedStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetStopReason() OptNilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetBy(val string) {
+	s.By = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetError(val NilExposurePostExposureTargetsIDOpenvasAcceptedError) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetID(val string) {
+	s.ID = val
+}
+
+// SetOpenvasOnly sets the value of OpenvasOnly.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetOpenvasOnly(val OptBool) {
+	s.OpenvasOnly = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetPhase(val ExposurePostExposureTargetsIDOpenvasAcceptedPhase) {
+	s.Phase = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetProgress(val NilExposurePostExposureTargetsIDOpenvasAcceptedProgress) {
+	s.Progress = val
+}
+
+// SetSnapshotID sets the value of SnapshotID.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetSnapshotID(val NilString) {
+	s.SnapshotID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetStatus(val ExposurePostExposureTargetsIDOpenvasAcceptedStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetStopReason(val OptNilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDOpenvasAccepted) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+type ExposurePostExposureTargetsIDOpenvasAcceptedError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// GetCode returns the value of Code.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedError) GetCode() string {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedError) GetMessage() string {
+	return s.Message
+}
+
+// SetCode sets the value of Code.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedError) SetCode(val string) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedError) SetMessage(val string) {
+	s.Message = val
+}
+
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
+// exists. A failed or stopped run keeps the phase it reached.
+type ExposurePostExposureTargetsIDOpenvasAcceptedPhase string
+
+const (
+	ExposurePostExposureTargetsIDOpenvasAcceptedPhaseQueued    ExposurePostExposureTargetsIDOpenvasAcceptedPhase = "queued"
+	ExposurePostExposureTargetsIDOpenvasAcceptedPhaseProbing   ExposurePostExposureTargetsIDOpenvasAcceptedPhase = "probing"
+	ExposurePostExposureTargetsIDOpenvasAcceptedPhaseSaving    ExposurePostExposureTargetsIDOpenvasAcceptedPhase = "saving"
+	ExposurePostExposureTargetsIDOpenvasAcceptedPhaseGreenbone ExposurePostExposureTargetsIDOpenvasAcceptedPhase = "greenbone"
+	ExposurePostExposureTargetsIDOpenvasAcceptedPhaseDone      ExposurePostExposureTargetsIDOpenvasAcceptedPhase = "done"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDOpenvasAcceptedPhase values.
+func (ExposurePostExposureTargetsIDOpenvasAcceptedPhase) AllValues() []ExposurePostExposureTargetsIDOpenvasAcceptedPhase {
+	return []ExposurePostExposureTargetsIDOpenvasAcceptedPhase{
+		ExposurePostExposureTargetsIDOpenvasAcceptedPhaseQueued,
+		ExposurePostExposureTargetsIDOpenvasAcceptedPhaseProbing,
+		ExposurePostExposureTargetsIDOpenvasAcceptedPhaseSaving,
+		ExposurePostExposureTargetsIDOpenvasAcceptedPhaseGreenbone,
+		ExposurePostExposureTargetsIDOpenvasAcceptedPhaseDone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDOpenvasAcceptedPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedPhaseQueued:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedPhaseProbing:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedPhaseSaving:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedPhaseGreenbone:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedPhaseDone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedPhase) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDOpenvasAcceptedPhase(data) {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedPhaseQueued:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedPhaseQueued
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedPhaseProbing:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedPhaseProbing
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedPhaseSaving:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedPhaseSaving
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedPhaseGreenbone:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedPhaseGreenbone
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedPhaseDone:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedPhaseDone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTargetsIDOpenvasAcceptedProgress struct {
+	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
+	Done NilInt `json:"done"`
+	// The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its
+	// 90-minute cap plus the time to stop the task and read what it found); null when none.
+	EndsBy NilDateTime `json:"ends_by"`
+	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
+	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
+	Eta NilDateTime `json:"eta"`
+	// A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null
+	// when none.
+	Message NilString `json:"message"`
+	// How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the
+	// phase without a bar).
+	Percent NilFloat64 `json:"percent"`
+	// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+	// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+	// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+	// result is being stored.
+	Phase ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase `json:"phase"`
+	// When the current phase (or the current pass of it: a device gets a second nmap pass over admin
+	// ports) started.
+	PhaseStartedAt time.Time `json:"phase_started_at"`
+	// When the job (the device, or the public IP scan) started: elapsed time is now minus this.
+	StartedAt time.Time `json:"started_at"`
+	Total     NilInt    `json:"total"`
+	// Checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch.
+	Unit NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit `json:"unit"`
+	// The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is
+	// quiet, not that the box hangs.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetDone returns the value of Done.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetDone() NilInt {
+	return s.Done
+}
+
+// GetEndsBy returns the value of EndsBy.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetEndsBy() NilDateTime {
+	return s.EndsBy
+}
+
+// GetEta returns the value of Eta.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetEta() NilDateTime {
+	return s.Eta
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetMessage() NilString {
+	return s.Message
+}
+
+// GetPercent returns the value of Percent.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetPercent() NilFloat64 {
+	return s.Percent
+}
+
+// GetPhase returns the value of Phase.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetPhase() ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase {
+	return s.Phase
+}
+
+// GetPhaseStartedAt returns the value of PhaseStartedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetPhaseStartedAt() time.Time {
+	return s.PhaseStartedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTotal returns the value of Total.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetTotal() NilInt {
+	return s.Total
+}
+
+// GetUnit returns the value of Unit.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetUnit() NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit {
+	return s.Unit
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetDone sets the value of Done.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetDone(val NilInt) {
+	s.Done = val
+}
+
+// SetEndsBy sets the value of EndsBy.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetEndsBy(val NilDateTime) {
+	s.EndsBy = val
+}
+
+// SetEta sets the value of Eta.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetEta(val NilDateTime) {
+	s.Eta = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetPercent(val NilFloat64) {
+	s.Percent = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetPhase(val ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase) {
+	s.Phase = val
+}
+
+// SetPhaseStartedAt sets the value of PhaseStartedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetPhaseStartedAt(val time.Time) {
+	s.PhaseStartedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetTotal(val NilInt) {
+	s.Total = val
+}
+
+// SetUnit sets the value of Unit.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetUnit(val NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) {
+	s.Unit = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+// result is being stored.
+type ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase string
+
+const (
+	ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseDiscovery ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase = "discovery"
+	ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhasePorts     ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase = "ports"
+	ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseServices  ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase = "services"
+	ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseScripts   ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase = "scripts"
+	ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseVulns     ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase = "vulns"
+	ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseWeb       ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase = "web"
+	ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseOpenvas   ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase = "openvas"
+	ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseSaving    ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase = "saving"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase values.
+func (ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase) AllValues() []ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase {
+	return []ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase{
+		ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseDiscovery,
+		ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhasePorts,
+		ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseServices,
+		ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseScripts,
+		ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseVulns,
+		ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseWeb,
+		ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseOpenvas,
+		ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseSaving,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseDiscovery:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhasePorts:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseServices:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseScripts:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseVulns:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseWeb:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseOpenvas:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseSaving:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhase(data) {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseDiscovery:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseDiscovery
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhasePorts:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhasePorts
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseServices:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseServices
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseScripts:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseScripts
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseVulns:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseVulns
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseWeb:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseWeb
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseOpenvas:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseOpenvas
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseSaving:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedProgressPhaseSaving
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit string
+
+const (
+	ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnitChecks ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit = "checks"
+	ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnitHosts  ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit = "hosts"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit values.
+func (ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) AllValues() []ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit {
+	return []ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit{
+		ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnitChecks,
+		ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnitHosts,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnitChecks:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnitHosts:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit(data) {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnitChecks:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnitChecks
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnitHosts:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnitHosts
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTargetsIDOpenvasAcceptedStatus string
+
+const (
+	ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "running"
+	ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone    ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "done"
+	ExposurePostExposureTargetsIDOpenvasAcceptedStatusFailed  ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "failed"
+	ExposurePostExposureTargetsIDOpenvasAcceptedStatusStopped ExposurePostExposureTargetsIDOpenvasAcceptedStatus = "stopped"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDOpenvasAcceptedStatus values.
+func (ExposurePostExposureTargetsIDOpenvasAcceptedStatus) AllValues() []ExposurePostExposureTargetsIDOpenvasAcceptedStatus {
+	return []ExposurePostExposureTargetsIDOpenvasAcceptedStatus{
+		ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning,
+		ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone,
+		ExposurePostExposureTargetsIDOpenvasAcceptedStatusFailed,
+		ExposurePostExposureTargetsIDOpenvasAcceptedStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDOpenvasAcceptedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusFailed:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDOpenvasAcceptedStatus) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDOpenvasAcceptedStatus(data) {
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedStatusRunning
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedStatusDone
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusFailed:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedStatusFailed
+		return nil
+	case ExposurePostExposureTargetsIDOpenvasAcceptedStatusStopped:
+		*s = ExposurePostExposureTargetsIDOpenvasAcceptedStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePostExposureTargetsIDOutsideOK struct {
 	// When the box asked Shodan (InternetDB itself gives no date; its data is updated about once a week).
 	CheckedAt time.Time `json:"checked_at"`
@@ -54802,6 +55655,9 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	Error      NilExposurePostExposureTargetsIDScanAcceptedError `json:"error"`
 	FinishedAt NilDateTime                                       `json:"finished_at"`
 	ID         string                                            `json:"id"`
+	// The run is OpenVAS again for the newest scan of the target (POST /exposure/targets/{id}/openvas),
+	// not a scan: its phase is greenbone from the start.
+	OpenvasOnly OptBool `json:"openvas_only"`
 	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
 	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
 	// Greenbone scan runs (up to 90 minutes), the box's one scan slot stays busy; done: the snapshot
@@ -54817,7 +55673,7 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	StartedAt  time.Time                                       `json:"started_at"`
 	Status     ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
 	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
-	// were withdrawn".
+	// were withdrawn", "Vedette shut down".
 	StopReason  OptNilString `json:"stop_reason"`
 	TargetID    string       `json:"target_id"`
 	TargetValue string       `json:"target_value"`
@@ -54841,6 +55697,11 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) GetFinishedAt() NilDateTime 
 // GetID returns the value of ID.
 func (s *ExposurePostExposureTargetsIDScanAccepted) GetID() string {
 	return s.ID
+}
+
+// GetOpenvasOnly returns the value of OpenvasOnly.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetOpenvasOnly() OptBool {
+	return s.OpenvasOnly
 }
 
 // GetPhase returns the value of Phase.
@@ -54901,6 +55762,11 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) SetFinishedAt(val NilDateTim
 // SetID sets the value of ID.
 func (s *ExposurePostExposureTargetsIDScanAccepted) SetID(val string) {
 	s.ID = val
+}
+
+// SetOpenvasOnly sets the value of OpenvasOnly.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetOpenvasOnly(val OptBool) {
+	s.OpenvasOnly = val
 }
 
 // SetPhase sets the value of Phase.
@@ -55429,13 +56295,17 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan   bool                                                    `json:"full_scan"`
-	ID         string                                                  `json:"id"`
-	Kind       ExposurePostExposureTargetsIDVerifyOKTargetKind         `json:"kind"`
-	LastCheck  NilExposurePostExposureTargetsIDVerifyOKTargetLastCheck `json:"last_check"`
-	LastScanAt NilDateTime                                             `json:"last_scan_at"`
-	Latest     NilExposurePostExposureTargetsIDVerifyOKTargetLatest    `json:"latest"`
-	Method     NilExposurePostExposureTargetsIDVerifyOKTargetMethod    `json:"method"`
+	FullScan  bool                                                    `json:"full_scan"`
+	ID        string                                                  `json:"id"`
+	Kind      ExposurePostExposureTargetsIDVerifyOKTargetKind         `json:"kind"`
+	LastCheck NilExposurePostExposureTargetsIDVerifyOKTargetLastCheck `json:"last_check"`
+	// When the newest scan started: every page names a scan by its start.
+	LastScanAt NilDateTime `json:"last_scan_at"`
+	// When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never
+	// scanned, or when not known.
+	LastScanFinishedAt OptNilDateTime                                       `json:"last_scan_finished_at"`
+	Latest             NilExposurePostExposureTargetsIDVerifyOKTargetLatest `json:"latest"`
+	Method             NilExposurePostExposureTargetsIDVerifyOKTargetMethod `json:"method"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem `json:"open_ports"`
@@ -55512,6 +56382,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetLastCheck() NilExposure
 // GetLastScanAt returns the value of LastScanAt.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetLastScanAt() NilDateTime {
 	return s.LastScanAt
+}
+
+// GetLastScanFinishedAt returns the value of LastScanFinishedAt.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetLastScanFinishedAt() OptNilDateTime {
+	return s.LastScanFinishedAt
 }
 
 // GetLatest returns the value of Latest.
@@ -55627,6 +56502,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetLastCheck(val NilExposu
 // SetLastScanAt sets the value of LastScanAt.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetLastScanAt(val NilDateTime) {
 	s.LastScanAt = val
+}
+
+// SetLastScanFinishedAt sets the value of LastScanFinishedAt.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetLastScanFinishedAt(val OptNilDateTime) {
+	s.LastScanFinishedAt = val
 }
 
 // SetLatest sets the value of Latest.
@@ -57182,13 +58062,17 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
-	FullScan   bool                                            `json:"full_scan"`
-	ID         string                                          `json:"id"`
-	Kind       ExposurePutExposureTargetsIDTermsOKKind         `json:"kind"`
-	LastCheck  NilExposurePutExposureTargetsIDTermsOKLastCheck `json:"last_check"`
-	LastScanAt NilDateTime                                     `json:"last_scan_at"`
-	Latest     NilExposurePutExposureTargetsIDTermsOKLatest    `json:"latest"`
-	Method     NilExposurePutExposureTargetsIDTermsOKMethod    `json:"method"`
+	FullScan  bool                                            `json:"full_scan"`
+	ID        string                                          `json:"id"`
+	Kind      ExposurePutExposureTargetsIDTermsOKKind         `json:"kind"`
+	LastCheck NilExposurePutExposureTargetsIDTermsOKLastCheck `json:"last_check"`
+	// When the newest scan started: every page names a scan by its start.
+	LastScanAt NilDateTime `json:"last_scan_at"`
+	// When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never
+	// scanned, or when not known.
+	LastScanFinishedAt OptNilDateTime                               `json:"last_scan_finished_at"`
+	Latest             NilExposurePutExposureTargetsIDTermsOKLatest `json:"latest"`
+	Method             NilExposurePutExposureTargetsIDTermsOKMethod `json:"method"`
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePutExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
@@ -57265,6 +58149,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) GetLastCheck() NilExposurePutExpos
 // GetLastScanAt returns the value of LastScanAt.
 func (s *ExposurePutExposureTargetsIDTermsOK) GetLastScanAt() NilDateTime {
 	return s.LastScanAt
+}
+
+// GetLastScanFinishedAt returns the value of LastScanFinishedAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetLastScanFinishedAt() OptNilDateTime {
+	return s.LastScanFinishedAt
 }
 
 // GetLatest returns the value of Latest.
@@ -57380,6 +58269,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) SetLastCheck(val NilExposurePutExp
 // SetLastScanAt sets the value of LastScanAt.
 func (s *ExposurePutExposureTargetsIDTermsOK) SetLastScanAt(val NilDateTime) {
 	s.LastScanAt = val
+}
+
+// SetLastScanFinishedAt sets the value of LastScanFinishedAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetLastScanFinishedAt(val OptNilDateTime) {
+	s.LastScanFinishedAt = val
 }
 
 // SetLatest sets the value of Latest.
@@ -128417,6 +129311,141 @@ func (o NilExposurePostExposureTargetsCreatedValidity) Or(d ExposurePostExposure
 	return d
 }
 
+// NewNilExposurePostExposureTargetsIDOpenvasAcceptedError returns new NilExposurePostExposureTargetsIDOpenvasAcceptedError with value set to v.
+func NewNilExposurePostExposureTargetsIDOpenvasAcceptedError(v ExposurePostExposureTargetsIDOpenvasAcceptedError) NilExposurePostExposureTargetsIDOpenvasAcceptedError {
+	return NilExposurePostExposureTargetsIDOpenvasAcceptedError{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsIDOpenvasAcceptedError is nullable ExposurePostExposureTargetsIDOpenvasAcceptedError.
+type NilExposurePostExposureTargetsIDOpenvasAcceptedError struct {
+	Value ExposurePostExposureTargetsIDOpenvasAcceptedError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsIDOpenvasAcceptedError) SetTo(v ExposurePostExposureTargetsIDOpenvasAcceptedError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsIDOpenvasAcceptedError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsIDOpenvasAcceptedError) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsIDOpenvasAcceptedError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsIDOpenvasAcceptedError) Get() (v ExposurePostExposureTargetsIDOpenvasAcceptedError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsIDOpenvasAcceptedError) Or(d ExposurePostExposureTargetsIDOpenvasAcceptedError) ExposurePostExposureTargetsIDOpenvasAcceptedError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsIDOpenvasAcceptedProgress returns new NilExposurePostExposureTargetsIDOpenvasAcceptedProgress with value set to v.
+func NewNilExposurePostExposureTargetsIDOpenvasAcceptedProgress(v ExposurePostExposureTargetsIDOpenvasAcceptedProgress) NilExposurePostExposureTargetsIDOpenvasAcceptedProgress {
+	return NilExposurePostExposureTargetsIDOpenvasAcceptedProgress{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsIDOpenvasAcceptedProgress is nullable ExposurePostExposureTargetsIDOpenvasAcceptedProgress.
+type NilExposurePostExposureTargetsIDOpenvasAcceptedProgress struct {
+	Value ExposurePostExposureTargetsIDOpenvasAcceptedProgress
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetTo(v ExposurePostExposureTargetsIDOpenvasAcceptedProgress) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsIDOpenvasAcceptedProgress) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsIDOpenvasAcceptedProgress) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsIDOpenvasAcceptedProgress
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsIDOpenvasAcceptedProgress) Get() (v ExposurePostExposureTargetsIDOpenvasAcceptedProgress, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsIDOpenvasAcceptedProgress) Or(d ExposurePostExposureTargetsIDOpenvasAcceptedProgress) ExposurePostExposureTargetsIDOpenvasAcceptedProgress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit returns new NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit with value set to v.
+func NewNilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit(v ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit {
+	return NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit is nullable ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit.
+type NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit struct {
+	Value ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) SetTo(v ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) Get() (v ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) Or(d ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit) ExposurePostExposureTargetsIDOpenvasAcceptedProgressUnit {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsIDScanAcceptedError returns new NilExposurePostExposureTargetsIDScanAcceptedError with value set to v.
 func NewNilExposurePostExposureTargetsIDScanAcceptedError(v ExposurePostExposureTargetsIDScanAcceptedError) NilExposurePostExposureTargetsIDScanAcceptedError {
 	return NilExposurePostExposureTargetsIDScanAcceptedError{
@@ -151688,6 +152717,144 @@ func (o OptInventoryPutInventorySnmpDevicesIDReqVersion) Get() (v InventoryPutIn
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPutInventorySnmpDevicesIDReqVersion) Or(d InventoryPutInventorySnmpDevicesIDReqVersion) InventoryPutInventorySnmpDevicesIDReqVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilDateTime returns new OptNilDateTime with value set to v.
+func NewOptNilDateTime(v time.Time) OptNilDateTime {
+	return OptNilDateTime{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilDateTime is optional nullable time.Time.
+type OptNilDateTime struct {
+	Value time.Time
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilDateTime was set.
+func (o OptNilDateTime) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilDateTime) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilDateTime) SetTo(v time.Time) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilDateTime) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilDateTime) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v time.Time
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilDateTime) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilDateTime) Get() (v time.Time, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop returns new OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop with value set to v.
+func NewOptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop(v ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop {
+	return OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop is optional nullable ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop.
+type OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop struct {
+	Value ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop was set.
+func (o OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) Reset() {
+	var v ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) SetTo(v ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) Get() (v ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) Or(d ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop) ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStop {
 	if v, ok := o.Get(); ok {
 		return v
 	}

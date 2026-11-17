@@ -221,6 +221,7 @@
   "POST /exposure/box-ip/verify": "exposure",
   "POST /exposure/scan/stop": "exposure",
   "POST /exposure/targets": "exposure",
+  "POST /exposure/targets/{id}/openvas": "exposure",
   "POST /exposure/targets/{id}/outside": "exposure",
   "POST /exposure/targets/{id}/scan": "exposure",
   "POST /exposure/targets/{id}/verify": "exposure",

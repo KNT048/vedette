@@ -56,6 +56,12 @@ func TestEveryFieldFitsTheAPISchema(t *testing.T) {
 	if _, err := into[oas.ExposureGetExposureTargetsIDOK](v); err != nil {
 		t.Fatalf("target: %v", err)
 	}
+	var r ScanRun
+	fillAll(reflect.ValueOf(&r).Elem(), "")
+	r.Progress = nil // core/progress's own shape, tested there
+	if _, err := into[oas.ExposurePostExposureTargetsIDOpenvasAccepted](r); err != nil {
+		t.Fatalf("run: %v", err)
+	}
 	var d Diff
 	fillAll(reflect.ValueOf(&d).Elem(), "")
 	if _, err := into[oas.ExposureGetExposureTargetsIDDiffOK](d); err != nil {

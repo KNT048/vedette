@@ -162,11 +162,11 @@ func TestStepLogOutcomes(t *testing.T) {
 			l.close(tc.engine)
 		}
 		if !tc.closed {
-			if rows := l.rows("sr-1", ipA, t0, runOn); len(rows) != 0 {
+			if rows := l.rows("sr-1", ipA, t0, runOn, ""); len(rows) != 0 {
 				t.Errorf("%s: stored before the run is past it: %+v", tc.name, rows)
 			}
 		}
-		rows := l.rows("sr-1", ipA, at, tc.end)
+		rows := l.rows("sr-1", ipA, at, tc.end, "")
 		if tc.want == "" {
 			if len(rows) != 0 {
 				t.Errorf("%s: %+v", tc.name, rows)
@@ -180,7 +180,7 @@ func TestStepLogOutcomes(t *testing.T) {
 		if len(rows) != 1 || rows[0].Engine != tc.engine || rows[0].Outcome != tc.want || rows[0].Text != "External scan of "+ipA+": "+tc.text || rows[0].At != store.FormatTS(wantAt) {
 			t.Errorf("%s: %+v", tc.name, rows)
 		}
-		if again := l.rows("sr-1", ipA, at, tc.end); len(again) != 0 {
+		if again := l.rows("sr-1", ipA, at, tc.end, ""); len(again) != 0 {
 			t.Errorf("%s: stored twice: %+v", tc.name, again)
 		}
 	}
@@ -188,7 +188,7 @@ func TestStepLogOutcomes(t *testing.T) {
 	none.begin(StepNuclei, false)
 	none.end(StepNuclei, callRan, 0, at)
 	none.close(StepNuclei)
-	if none.rows("sr-1", ipA, at, runEnded) != nil {
+	if none.rows("sr-1", ipA, at, runEnded, "") != nil {
 		t.Fatal("a nil log stored a run")
 	}
 }

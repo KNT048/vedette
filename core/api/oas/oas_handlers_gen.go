@@ -19019,6 +19019,158 @@ func (s *Server) handleExposurePostExposureTargetsRequest(args [0]string, argsEs
 	}
 }
 
+// handleExposurePostExposureTargetsIDOpenvasRequest handles exposure_post_exposure_targets_id_openvas operation.
+//
+// Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24
+// hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or
+// ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It
+// checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot;
+// the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone);
+// the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409
+// not_verified, expired, ip_not_current; 400 commitment_required when the target has no current
+// commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400
+// bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no
+// such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now
+// (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as
+// exposure.scan.
+//
+// POST /exposure/targets/{id}/openvas
+func (s *Server) handleExposurePostExposureTargetsIDOpenvasRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposurePostExposureTargetsIDOpenvasOperation,
+			ID:   "exposure_post_exposure_targets_id_openvas",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposurePostExposureTargetsIDOpenvasOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeExposurePostExposureTargetsIDOpenvasParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *ExposurePostExposureTargetsIDOpenvasAccepted
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposurePostExposureTargetsIDOpenvasOperation,
+			OperationSummary: "Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24 hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409 not_verified, expired, ip_not_current; 400 commitment_required when the target has no current commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400 bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as exposure.scan",
+			OperationID:      "exposure_post_exposure_targets_id_openvas",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ExposurePostExposureTargetsIDOpenvasParams
+			Response = *ExposurePostExposureTargetsIDOpenvasAccepted
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackExposurePostExposureTargetsIDOpenvasParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExposurePostExposureTargetsIDOpenvas(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExposurePostExposureTargetsIDOpenvas(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposurePostExposureTargetsIDOpenvasResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleExposurePostExposureTargetsIDOutsideRequest handles exposure_post_exposure_targets_id_outside operation.
 //
 // Ask Shodan InternetDB what it has seen on this public IP. Only an administrator's click sends it: no

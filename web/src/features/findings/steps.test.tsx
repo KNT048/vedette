@@ -44,7 +44,7 @@ describe('NowSteps', () => {
     render(<MemoryRouter><NowSteps finding={f} kev={kev(null)} updatable today={today} agentGone /></MemoryRouter>)
     const [s1, , s3] = screen.getAllByRole('listitem').map((li) => li.textContent)
     expect(s1).toBe('Nothing to look up: Windows Server 2025 host runs Windows Server 2025 10.0.26100.1742 (an agent last reported it; no agent reports it now).')
-    expect(s3).toMatch(/^No agent reports Windows Server 2025 host to Vedette now, so the new version does not arrive by itself: install its agent again, or press "I updated it"/)
+    expect(s3).toMatch(/^No agent reports Windows Server 2025 host to Vedette now, so the new version does not arrive by itself: install its agent again so it reports the new one\. .*choose Patched\.$/)
     expect(s3).not.toMatch(/by itself, usually within two hours/)
   })
 

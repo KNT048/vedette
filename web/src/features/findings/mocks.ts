@@ -220,6 +220,14 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null, kv: K
   const reachable = !!a && a.ip !== '—'
   if (kv && !f.evidence?.agent && !f.evidence?.agent_row && !(f.basis === 'scan' && reachable)) return knownRecheck(f, kv, k, a?.name ?? 'the device', reachable)
   if (f.evidence?.agent) { // The agent reports the installed version; nothing to look up (mitigation genericRecheck)
+    // as the box: no agent reports the device now (agent-intake off, or no agent row) → the last report, no promise it arrives
+    const dev = a?.name ?? 'the device'
+    if (a && a.id !== 'a-box' && !(isOn('agent-intake') && assetsStore.get().find((x) => x.id === a.id)?.software.some((s) => s.source === 'agent'))) {
+      return { steps: [
+        `Nothing to look up: an agent last reported the installed version of ${k?.display ?? 'the software'} on ${dev}, and Vedette compared it with the affected versions (Evidence above). No agent reports ${dev} now.`,
+        `Install the update (What to do below). No agent reports ${dev} to Vedette now, so the new version does not arrive by itself: install its agent again so it reports the new one, and Vedette then closes the findings it can prove that version fixes. If this one stays open, press "Mark as handled" and choose Patched.`,
+      ] }
+    }
     return { steps: [
       `Nothing to look up: the agent on ${a?.name ?? 'the device'} reports the installed version of ${k?.display ?? 'the software'}, and Vedette compared it with the affected versions (Evidence above).`,
       'Install the update (What to do below). The agent reports the new version by itself, usually within two hours (after the restart the update needs), and Vedette then closes this finding by itself.',

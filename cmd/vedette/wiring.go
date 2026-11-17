@@ -621,6 +621,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if err != nil {
 		return err
 	}
+	provider.SetAgents(agentReports(d)) // the same agent check as Updates to plan: "How to check" never promises a gone agent
 	d.FindingHandlers.SetGuidance(provider)
 	if d.MitigationHandlers, err = mitigation.NewActionHandlers(d.DB, d.Audit, d.Findings, d.FindingHandlers, aiDoor, d.Clock); err != nil {
 		return err

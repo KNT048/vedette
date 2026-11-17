@@ -973,6 +973,7 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
     agentWindows()
     // agent-intake on and the device's osquery agent calls: an agent reports the version now
     modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-srvad' ? { ...a, software: a.software.map((x) => ({ ...x, source: 'agent' as const })) } : a)))
     const reportIs = (agent: string, stale = false) => server.use(http.get('*/api/v1/inventory/agents/devices/:id/report', () =>
       HttpResponse.json({ agent, asked_at: null, ask_again_at: null, last_seen: '2026-11-10T08:00:00Z', stale, wazuh_interval_minutes: null })))
     reportIs('osquery')
@@ -989,6 +990,11 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
       expect(await screen.findByRole('heading', { level: 1, name: 'SRV-AD has CVE-2024-43451: an agent last reported an affected version' })).toBeInTheDocument()
       cleanup()
     }
+    // agent-intake off (the last case): "How to check" says the same, and promises no new version by itself
+    renderApp('/findings/f-9')
+    expect(await screen.findByText(/^Nothing to look up: an agent last reported the installed version of .* on SRV-AD/)).toBeInTheDocument()
+    expect(screen.queryByText(/usually within two hours/)).toBeNull()
+    cleanup()
     cleanup()
     renderApp('/devices/a-srvad')
     // The device page shows the same To fix card as Findings (one grouping), no warning box

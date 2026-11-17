@@ -76939,7 +76939,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "A device id (kien G7b/c, the device page's Last checks): only the runs that reached its address now, the identifications of that address (kind device) and the SNMP reads that asked it, at most 200 of each kind, from the year of runs the box keeps; no sweep, no public scan. An unknown device, or one without an address, gives an empty list",
+              "description": "A device id (kien G7b/c, the device page's Last checks): only the runs that reached its address now, the identifications of that address (kind device) and the SNMP reads that asked it, at most 200 of each kind: the identifications from the year of runs the box keeps, the SNMP reads among its newest 1000 reads; no sweep, no public scan. The jobs record addresses, so a run of the device under an earlier address is not listed. An unknown device, or one without an address, gives an empty list",
               "type": "string",
               "maxLength": 96
             }

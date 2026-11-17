@@ -81,3 +81,33 @@ type ConnReader interface {
 	ListReadTools(ctx context.Context) ([]read.ReadTool, error)
 	CallRead(ctx context.Context, connID, tool string, args map[string]any) (string, error)
 }
+
+// UpdateRow is one update of a device as device_updates shows it (findings.UpdateAction): what to install and what it clears.
+type UpdateRow struct {
+	Action     string // the sentence of the Findings page: "Upgrade Mozilla Firefox from 115.0 to 128.1 or later"
+	Software   string
+	Version    string   // installed
+	Fixed      string   // the release or build to install; "" when none is named
+	CVEs       []string // worst first
+	Worst      string   // highest severity among them; "" when none is scored
+	Ransomware int      // exploited: CVEs known to be used in ransomware
+	Likely     int      // planned: CVEs likely to be exploited soon (EPSS)
+	// How each exploited finding is known: confirmed (a scan proved it), detected (the device's agent or another trusted source
+	// reported the version), suspected (a network guess: a banner, a fingerprint, the product name only).
+	Confirmed, Detected, Suspected int
+}
+
+// DeviceUpdates is what to install on one device to clear its CVEs (findings.DeviceUpdates).
+type DeviceUpdates struct {
+	Open      int         // open exploited findings of the device
+	Exploited []UpdateRow // open exploited findings a named update fixes, one row per update
+	NoUpdate  []UpdateRow // open exploited findings no update is named for, one row per software
+	Planned   []UpdateRow // recommended updates: CVEs on no exploited list ("Recommended updates")
+	PlanRan   bool        // false: the recommended updates are not compared yet
+}
+
+// Updates is the door of the device_updates tool. A nil Updates in Config leaves the tool out.
+type Updates interface {
+	// DeviceUpdates returns the updates of one device by its id; ok is false when there is no such device.
+	DeviceUpdates(ctx context.Context, assetID string) (DeviceUpdates, bool, error)
+}

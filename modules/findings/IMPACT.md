@@ -165,3 +165,8 @@
 - **inventory**: `Service.DeviceCounts` (cùng COUNT với `Devices().Counts.All/Pending`); **notify**: `Service.SentSince` (một COUNT trên chỉ mục `notify_send_at_ix`) và `Service.OpenIncidents` (trên `notify_incident_status_ix`); nối ở `cmd/vedette/wiring.go` (`TestWiringHomeSummaryCarriesDevicesAndAlerts`). Đổi chữ ký = đổi `HomeSources`.
 - **GUI**: `web/src/features/findings/{contract.ts (HomeSummary, SummaryItem),api.ts (useHomeSummary, 60 s, dừng khi tab ẩn, làm mới sau mỗi đổi trạng thái),types.ts,mocks.ts,conformance.test.ts}`, `web/src/features/notify/mocks.ts` (`sentSince`, `openIncidents`). Home (`web/src/features/feeds/HomePage.tsx`) chưa đọc nó ở bản này; trang Home mới và đường xu hướng đến cùng PR giao diện Home (#842).
 - **Đo trên hộp**: `scripts/dev/home-summary-measure.sh` (thời gian API p50/p95, cỡ câu trả lời, RSS của core trước/sau, tải trang).
+
+## Modifying: `Service.DeviceUpdates`, `UpdateAction`, `Proof*`, `RowFix.SoftwareID`, `PlanItem.SoftwareID` (INV-24, G9)
+- Người gọi: `cmd/vedette` `aiAsk.DeviceUpdates` (công cụ `device_updates` của Ask my AI, ai INV-22c); sắp tới G8 (trang Findings, tab Software của thiết bị nối theo `SoftwareID`). Đổi trường → sửa adapter và mô tả công cụ.
+- Gộp theo `RowFixes`/`PlanItem`: đổi INV-18 hay INV-20 là đổi câu trả lời này cùng lúc (cố ý: một cách gộp). `SoftwareID` của `RowFix`/`PlanItem` là `json:"-"`, không vào API.
+- `proofOf` đọc `basis`, `evidence.agent`/`agent_row` và `tierSource`: đổi một trong ba là đổi lời "detected"/"suspected" khách đọc.

@@ -7,16 +7,15 @@ import { ModuleOff, QueryState } from '@/components/common/States'
 import { fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatusChip } from './AcceptRisk'
-import { useFindings, usePlan } from './api'
+import { useFindings, usePlan, useToFix } from './api'
 import type { SoftwareView } from '@/features/inventory/types'
 import type { FindingRow } from './types'
 import { isOpen, riskRank } from './basis'
 import { RiskChip } from './Risk'
 import { IUpdated } from './Updated'
 import { useDeviceSoftware } from './rematch'
-import { FixGroupList } from './FixGroups'
-import { fixGroups } from './fix'
-import { PlanDataState, PlanItems } from './Plan'
+import { PlanDataState } from './Plan'
+import { DeviceCard, WithBox, actionable, listed as hasWork } from './ToFix'
 import { NotRelevantToggle, withoutNotRelevant } from './notRelevant'
 
 /** Slot device.panels (trang chi tiết thiết bị của module inventory): phát hiện của đúng thiết bị này. */
@@ -25,29 +24,36 @@ export function DevicePanel(props: Record<string, unknown>) {
   const { t } = useTranslation('findings')
   const on = useModuleEnabled('findings')
   const q = useFindings(assetId)
+  const toFix = useToFix(assetId, on === true)
   const sw = useDeviceSoftware(assetId)
   const [showNotRelevant, setShowNotRelevant] = useState(false)
+  const found = toFix.data?.devices.find((x) => x.asset.id === assetId)
+  const card = found && hasWork(found) ? found : undefined
   if (on === false) return <Section title={t('device.title')}><ModuleOff module="findings" /></Section>
   return (
     <>
     <Section id="device-findings" title={t('device.title')} description={t('device.description')} stories={['S-MIT-1']}>
+      {/* kien G8 (review r2 of #943): the device's To fix card whenever it has any action, recommended updates only included */}
+      {card ? (actionable(card).some((a) => a.kind === 'distro')
+        ? <WithBox>{(boxId) => <ul aria-label={t('device.todo')} className="mb-3 grid"><DeviceCard d={card} box={boxId === assetId} showName={false} /></ul>}</WithBox>
+        : <ul aria-label={t('device.todo')} className="mb-3 grid"><DeviceCard d={card} box={false} showName={false} /></ul>) : null}
       <QueryState query={q}>
         {(d) => d.items.length === 0 ? (
-          <p className="text-sm text-muted">{t('device.none')}</p>
+          card ? null : <p className="text-sm text-muted">{t('device.none')}</p>
         ) : (() => {
-          // kien G5: not relevant is hidden until asked for; D-545: the findings one update fixes are one item, the rest one by one.
+          // kien G5: not relevant is hidden until asked for. kien G8 (review r1 of #943): what to do is the device's To fix card, the
+          // same answer and component as Findings (one grouping on the page); below it every finding of the device, one row each.
           const listed = withoutNotRelevant(d.items, showNotRelevant)
-          const { groups, rest } = fixGroups(listed.rows)
+          const rest = listed.rows
           const toggle = <NotRelevantToggle count={listed.total} shown={showNotRelevant} onChange={setShowNotRelevant} />
           if (listed.rows.length === 0) return <div className="grid gap-1"><p className="text-sm text-muted">{t('device.onlyNotRelevant', { count: listed.total })}</p>{toggle}</div>
           return (
           <div className="grid gap-2">
           {d.items.some((f) => isOpen(f.status)) ? (
-            <Link to={`/findings?device=${encodeURIComponent(assetId)}`} className="w-fit text-meta text-accent underline underline-offset-4">{t('device.handleAll')}</Link>
+            <Link to={`/findings?tab=open&device=${encodeURIComponent(assetId)}`} className="w-fit text-meta text-accent underline underline-offset-4">{t('device.handleAll')}</Link>
           ) : null}
           <Updated items={d.items} software={sw.data?.asset.software} />
-          <FixGroupList groups={groups} showDevice={false} />
-          {rest.length ? <Card flush><ul className="divide-y divide-rule">
+          {rest.length ? <Card flush><ul aria-label={t('device.all')} className="divide-y divide-rule">
             {[...rest].sort((a, b) => riskRank(b) - riskRank(a)).map((f) => (
               <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
                 <Link to={`/findings/${f.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{f.cve}</Link>
@@ -80,7 +86,7 @@ function DevicePlan({ assetId }: { assetId: string }) {
         {(d) => (
           <div className="grid gap-2">
             <PlanDataState plan={d} compact />
-            {d.compared && d.items.length > 0 ? <PlanItems items={d.items} showDevice={false} /> : null}
+            {/* kien G8: the updates themselves are on the device's To fix card above (one grouping on the page) */}
             {d.compared && d.items.length === 0 && (d.data.epss === 'ready' || d.data.recent === 'ready') ? <p className="text-sm text-muted">{t('plan.device.none')}</p> : null}
             {/* kien G5: the way to every update to plan only when this device has some (no link to an empty list) */}
             {d.items.length > 0 ? <Link to="/plan" className="w-fit text-meta text-accent underline underline-offset-4">{t('plan.device.all')}</Link> : null}

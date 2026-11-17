@@ -188,6 +188,7 @@ var operationRolesSession = map[string][]string{
 	FindingsGetFindingsIDOperation:                          []string{},
 	FindingsGetFindingsPlanOperation:                        []string{},
 	FindingsGetFindingsSummaryOperation:                     []string{},
+	FindingsGetFindingsToFixOperation:                       []string{},
 	FindingsPostFindingsIDAiOperation:                       []string{},
 	FindingsPostFindingsIDAppliedOperation:                  []string{},
 	FindingsPostFindingsIDStatusOperation:                   []string{},

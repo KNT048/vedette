@@ -34,6 +34,9 @@ export type ApplyItem = z.infer<typeof C.ApplyItem>
 /** Updates to plan (D-613, D-615): tier 2 and 3 CVEs grouped by the update that fixes them. */
 export type Plan = z.infer<typeof C.Plan>
 export type PlanItem = z.infer<typeof C.PlanItem>
+export type ToFix = z.infer<typeof C.ToFix>
+export type ToFixDevice = z.infer<typeof C.ToFixDevice>
+export type ToFixAction = z.infer<typeof C.ToFixAction>
 export type PlanCve = z.infer<typeof C.PlanCve>
 export type PlanFilter = z.infer<typeof C.PlanFilter>
 /** #825: Home's one read: open findings, the few to fix first, the 30-day trend, device and alert counts. */

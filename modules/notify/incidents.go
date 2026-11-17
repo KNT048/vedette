@@ -681,7 +681,7 @@ func (s *Service) AlertTarget(ctx context.Context, id string) (string, error) {
 		return "", fmt.Errorf("notify: read alert: %w", err)
 	}
 	if err := db.QueryRowContext(ctx, `SELECT 1 FROM notify_notice WHERE id = ?`, id).Scan(&one); err == nil {
-		return "/findings", nil // a notice that names no finding
+		return findingsList, nil // a notice that names no finding
 	}
 	return "", notFound("No such alert. It may have been removed from the log.")
 }

@@ -1654,6 +1654,16 @@ func (UnimplementedHandler) FindingsGetFindingsSummary(ctx context.Context) (r *
 	return r, ht.ErrNotImplemented
 }
 
+// FindingsGetFindingsToFix implements findings_get_findings_to_fix operation.
+//
+// To fix (kien G8): every device that needs an update or an action, the most urgent first, each with
+// its actions in plain sentences (findings.DeviceUpdates), at most 500 devices.
+//
+// GET /findings/to-fix
+func (UnimplementedHandler) FindingsGetFindingsToFix(ctx context.Context, params FindingsGetFindingsToFixParams) (r *FindingsGetFindingsToFixOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FindingsPostFindingsIDAi implements findings_post_findings_id_ai operation.
 //
 // Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off.

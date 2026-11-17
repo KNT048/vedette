@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
 
 describe('#910 phase 1: exploited CVEs that could not be checked', () => {
   it('Findings lists each reason in plain words, with advisory or NVD links, and says no finding is made', async () => {
-    renderApp('/findings')
+    renderApp('/findings?tab=input')
     const box = (await screen.findByText(/exploited CVEs could not be checked automatically/)).closest('section')!
     const b = within(box)
     expect(b.getByText(/created no finding/)).toBeInTheDocument()
@@ -23,7 +23,7 @@ describe('#910 phase 1: exploited CVEs that could not be checked', () => {
   })
 
   it('"Add the version" opens the version dialog in place, only where it can help', async () => {
-    renderApp('/findings')
+    renderApp('/findings?tab=input')
     const box = (await screen.findByText(/exploited CVEs could not be checked automatically/)).closest('section')!
     const add = within(box).getAllByRole('button', { name: 'Add the version' })
     expect(add).toHaveLength(1)
@@ -34,6 +34,10 @@ describe('#910 phase 1: exploited CVEs that could not be checked', () => {
   it('Home links the count to the Findings block', async () => {
     renderApp('/')
     const link = await screen.findByRole('link', { name: /You have 8 exploited CVEs Vedette could not check on 4 devices/ })
-    expect(link).toHaveAttribute('href', '/findings?tab=open#unchecked')
+    expect(link).toHaveAttribute('href', '/findings?tab=input#unchecked')
+    // review r1 of #943: the link lands on the list (Needs your input), not on a tab without it
+    await userEvent.click(link)
+    expect(await screen.findByRole('tab', { name: /Needs your input/, selected: true })).toBeInTheDocument()
+    await waitFor(() => expect(document.getElementById('unchecked')).not.toBeNull())
   })
 })

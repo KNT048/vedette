@@ -40693,6 +40693,623 @@
         }
       }
     },
+    "/findings/to-fix": {
+      "get": {
+        "operationId": "findings_get_findings_to_fix",
+        "summary": "To fix (kien G8): every device that needs an update or an action, the most urgent first, each with its actions in plain sentences (findings.DeviceUpdates), at most 500 devices",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1",
+          "S-TIER-1"
+        ],
+        "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "One device only (its Software tab)",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "devices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "asset": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)"
+                              },
+                              "hostname": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ip": {
+                                "type": "string",
+                                "description": "\"—\" when the device has no IP address"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "router",
+                                  "switch",
+                                  "modem",
+                                  "sd_wan",
+                                  "load_balancer",
+                                  "network_controller",
+                                  "firewall",
+                                  "vpn_gateway",
+                                  "ids_sensor",
+                                  "proxy",
+                                  "ap",
+                                  "wireless_controller",
+                                  "wifi_extender",
+                                  "mesh_node",
+                                  "server",
+                                  "virtual_machine",
+                                  "hypervisor",
+                                  "bmc",
+                                  "domain_controller",
+                                  "mail_server",
+                                  "database_server",
+                                  "backup_server",
+                                  "pc",
+                                  "laptop",
+                                  "workstation",
+                                  "thin_client",
+                                  "pos_terminal",
+                                  "kiosk",
+                                  "smartphone",
+                                  "tablet",
+                                  "smartwatch",
+                                  "printer",
+                                  "mfp",
+                                  "scanner",
+                                  "label_printer",
+                                  "receipt_printer",
+                                  "plotter",
+                                  "3d_printer",
+                                  "camera",
+                                  "nvr",
+                                  "dvr",
+                                  "video_encoder",
+                                  "doorbell",
+                                  "video_conferencing",
+                                  "ip_phone",
+                                  "pbx",
+                                  "voip_adapter",
+                                  "voip_gateway",
+                                  "conference_phone",
+                                  "intercom",
+                                  "nas",
+                                  "san",
+                                  "backup_appliance",
+                                  "tape_library",
+                                  "iot",
+                                  "smart_tv",
+                                  "media_player",
+                                  "smart_speaker",
+                                  "game_console",
+                                  "smart_plug",
+                                  "smart_light",
+                                  "smart_hub",
+                                  "thermostat",
+                                  "projector",
+                                  "digital_signage",
+                                  "single_board_computer",
+                                  "smart_appliance",
+                                  "robot_vacuum",
+                                  "wireless_bridge",
+                                  "plc",
+                                  "hmi",
+                                  "rtu",
+                                  "scada_server",
+                                  "industrial_switch",
+                                  "ups",
+                                  "pdu",
+                                  "access_control",
+                                  "time_clock",
+                                  "alarm_panel",
+                                  "hvac_controller",
+                                  "building_controller",
+                                  "power_meter",
+                                  "environment_monitor",
+                                  "ev_charger",
+                                  "solar_inverter",
+                                  "medical_device",
+                                  "web",
+                                  "cloud_service",
+                                  "unknown"
+                                ]
+                              },
+                              "display": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "hostname",
+                              "ip",
+                              "kind",
+                              "display"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "open": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Open findings of the device"
+                          },
+                          "exploited": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "group": {
+                                  "type": "string",
+                                  "description": "The key of the action on its device: FindingRow.fix.group of an exploited update (\"<device>/<software>\", the ?fix= filter of the list), PlanItem.group of a planned one, \"<device>/<software>\" for findings no update is named for. Per device: \"By fix\" groups by product and release instead"
+                                },
+                                "product": {
+                                  "type": "string",
+                                  "description": "The software row's identity across devices, \"vendor|product\" in lower case (\"\" when no row matches): \"By fix\" groups the same update on several devices by it, whatever each device calls the row"
+                                },
+                                "software_id": {
+                                  "type": "string",
+                                  "description": "The device's software row it is about; \"\" when none matches"
+                                },
+                                "software": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "string",
+                                  "description": "The installed version; \"\" when none"
+                                },
+                                "fixed": {
+                                  "type": "string",
+                                  "description": "The release or build to install; \"\" for a distribution's updates and when no update is named"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "fixed",
+                                    "esu",
+                                    "feature_update",
+                                    "distro",
+                                    "windows",
+                                    "none"
+                                  ],
+                                  "description": "none: no update is named that fixes these findings (follow the vendor's advice)"
+                                },
+                                "windows": {
+                                  "type": "boolean",
+                                  "description": "The monthly cumulative update of a Windows release"
+                                },
+                                "distro": {
+                                  "type": "string"
+                                },
+                                "pro": {
+                                  "type": "boolean"
+                                },
+                                "action": {
+                                  "type": "string",
+                                  "description": "The sentence the page shows: \"Upgrade RARLAB WinRAR from 7.01 to 7.13 or later\""
+                                },
+                                "cves": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "Worst first"
+                                },
+                                "finding_ids": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "The open findings of the CVEs, same order (exploited only; empty for planned)"
+                                },
+                                "worst": {
+                                  "type": "string",
+                                  "description": "The finding's severity (critical, high, medium, low) for exploited ones; NVD's for planned ones; \"\" when none"
+                                },
+                                "ransomware": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "likely": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "Planned: CVEs EPSS says are likely to be exploited soon"
+                                },
+                                "confirmed": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "detected": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "reported": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "suspected": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                }
+                              },
+                              "required": [
+                                "group",
+                                "product",
+                                "software_id",
+                                "software",
+                                "version",
+                                "fixed",
+                                "kind",
+                                "windows",
+                                "distro",
+                                "pro",
+                                "action",
+                                "cves",
+                                "finding_ids",
+                                "worst",
+                                "ransomware",
+                                "likely",
+                                "confirmed",
+                                "detected",
+                                "reported",
+                                "suspected"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Open exploited findings one named update fixes, one action per update, worst first"
+                          },
+                          "no_update": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "group": {
+                                  "type": "string",
+                                  "description": "The key of the action on its device: FindingRow.fix.group of an exploited update (\"<device>/<software>\", the ?fix= filter of the list), PlanItem.group of a planned one, \"<device>/<software>\" for findings no update is named for. Per device: \"By fix\" groups by product and release instead"
+                                },
+                                "product": {
+                                  "type": "string",
+                                  "description": "The software row's identity across devices, \"vendor|product\" in lower case (\"\" when no row matches): \"By fix\" groups the same update on several devices by it, whatever each device calls the row"
+                                },
+                                "software_id": {
+                                  "type": "string",
+                                  "description": "The device's software row it is about; \"\" when none matches"
+                                },
+                                "software": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "string",
+                                  "description": "The installed version; \"\" when none"
+                                },
+                                "fixed": {
+                                  "type": "string",
+                                  "description": "The release or build to install; \"\" for a distribution's updates and when no update is named"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "fixed",
+                                    "esu",
+                                    "feature_update",
+                                    "distro",
+                                    "windows",
+                                    "none"
+                                  ],
+                                  "description": "none: no update is named that fixes these findings (follow the vendor's advice)"
+                                },
+                                "windows": {
+                                  "type": "boolean",
+                                  "description": "The monthly cumulative update of a Windows release"
+                                },
+                                "distro": {
+                                  "type": "string"
+                                },
+                                "pro": {
+                                  "type": "boolean"
+                                },
+                                "action": {
+                                  "type": "string",
+                                  "description": "The sentence the page shows: \"Upgrade RARLAB WinRAR from 7.01 to 7.13 or later\""
+                                },
+                                "cves": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "Worst first"
+                                },
+                                "finding_ids": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "The open findings of the CVEs, same order (exploited only; empty for planned)"
+                                },
+                                "worst": {
+                                  "type": "string",
+                                  "description": "The finding's severity (critical, high, medium, low) for exploited ones; NVD's for planned ones; \"\" when none"
+                                },
+                                "ransomware": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "likely": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "Planned: CVEs EPSS says are likely to be exploited soon"
+                                },
+                                "confirmed": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "detected": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "reported": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "suspected": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                }
+                              },
+                              "required": [
+                                "group",
+                                "product",
+                                "software_id",
+                                "software",
+                                "version",
+                                "fixed",
+                                "kind",
+                                "windows",
+                                "distro",
+                                "pro",
+                                "action",
+                                "cves",
+                                "finding_ids",
+                                "worst",
+                                "ransomware",
+                                "likely",
+                                "confirmed",
+                                "detected",
+                                "reported",
+                                "suspected"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Open findings no update is named for, one per software row; one with confirmed + detected = 0 is the person's to check (Needs your input), not to fix"
+                          },
+                          "planned": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "group": {
+                                  "type": "string",
+                                  "description": "The key of the action on its device: FindingRow.fix.group of an exploited update (\"<device>/<software>\", the ?fix= filter of the list), PlanItem.group of a planned one, \"<device>/<software>\" for findings no update is named for. Per device: \"By fix\" groups by product and release instead"
+                                },
+                                "product": {
+                                  "type": "string",
+                                  "description": "The software row's identity across devices, \"vendor|product\" in lower case (\"\" when no row matches): \"By fix\" groups the same update on several devices by it, whatever each device calls the row"
+                                },
+                                "software_id": {
+                                  "type": "string",
+                                  "description": "The device's software row it is about; \"\" when none matches"
+                                },
+                                "software": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "string",
+                                  "description": "The installed version; \"\" when none"
+                                },
+                                "fixed": {
+                                  "type": "string",
+                                  "description": "The release or build to install; \"\" for a distribution's updates and when no update is named"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "fixed",
+                                    "esu",
+                                    "feature_update",
+                                    "distro",
+                                    "windows",
+                                    "none"
+                                  ],
+                                  "description": "none: no update is named that fixes these findings (follow the vendor's advice)"
+                                },
+                                "windows": {
+                                  "type": "boolean",
+                                  "description": "The monthly cumulative update of a Windows release"
+                                },
+                                "distro": {
+                                  "type": "string"
+                                },
+                                "pro": {
+                                  "type": "boolean"
+                                },
+                                "action": {
+                                  "type": "string",
+                                  "description": "The sentence the page shows: \"Upgrade RARLAB WinRAR from 7.01 to 7.13 or later\""
+                                },
+                                "cves": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "Worst first"
+                                },
+                                "finding_ids": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "The open findings of the CVEs, same order (exploited only; empty for planned)"
+                                },
+                                "worst": {
+                                  "type": "string",
+                                  "description": "The finding's severity (critical, high, medium, low) for exploited ones; NVD's for planned ones; \"\" when none"
+                                },
+                                "ransomware": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "likely": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "Planned: CVEs EPSS says are likely to be exploited soon"
+                                },
+                                "confirmed": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "detected": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "reported": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "suspected": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "How each exploited finding is known (G9 proof): confirmed by a scan, detected from a version the device reported, reported but not compared, suspected from the network"
+                                }
+                              },
+                              "required": [
+                                "group",
+                                "product",
+                                "software_id",
+                                "software",
+                                "version",
+                                "fixed",
+                                "kind",
+                                "windows",
+                                "distro",
+                                "pro",
+                                "action",
+                                "cves",
+                                "finding_ids",
+                                "worst",
+                                "ransomware",
+                                "likely",
+                                "confirmed",
+                                "detected",
+                                "reported",
+                                "suspected"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Recommended updates (D-613): CVEs on no exploited list, as GET /findings/plan lists them"
+                          },
+                          "plan_compared": {
+                            "type": "boolean",
+                            "description": "The last plan pass compared this device"
+                          }
+                        },
+                        "required": [
+                          "asset",
+                          "open",
+                          "exploited",
+                          "no_update",
+                          "planned",
+                          "plan_compared"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every device with something to fix or plan, the most urgent first: something exploited to fix (a named update, or proved), then the worst severity, ransomware, proved findings and CVEs; then the plan's worst severity, likely and CVEs"
+                    },
+                    "truncated": {
+                      "type": "boolean",
+                      "description": "More devices had something than the 500 listed"
+                    },
+                    "plan_ran": {
+                      "type": "boolean",
+                      "description": "The plan job compared the devices since the box started; false: recommended updates are not known yet"
+                    },
+                    "plan_off": {
+                      "type": "boolean",
+                      "description": "The feeds module is off: no recommended update is listed"
+                    }
+                  },
+                  "required": [
+                    "devices",
+                    "truncated",
+                    "plan_ran",
+                    "plan_off"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/honeypot": {
       "get": {
         "operationId": "honeypot_get_honeypot",

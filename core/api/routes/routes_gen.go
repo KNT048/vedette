@@ -190,6 +190,7 @@ var Operations = map[string]Operation{
 	"findings_get_findings_id":                              {Method: "GET", Path: "/findings/{id}", MinRole: Viewer, Tag: "findings"},
 	"findings_get_findings_plan":                            {Method: "GET", Path: "/findings/plan", MinRole: Viewer, Tag: "findings"},
 	"findings_get_findings_summary":                         {Method: "GET", Path: "/findings/summary", MinRole: Viewer, Tag: "findings"},
+	"findings_get_findings_to_fix":                          {Method: "GET", Path: "/findings/to-fix", MinRole: Viewer, Tag: "findings"},
 	"findings_post_findings_id_ai":                          {Method: "POST", Path: "/findings/{id}/ai", MinRole: Operator, Tag: "findings"},
 	"findings_post_findings_id_applied":                     {Method: "POST", Path: "/findings/{id}/applied", MinRole: Operator, Tag: "findings"},
 	"findings_post_findings_id_status":                      {Method: "POST", Path: "/findings/{id}/status", MinRole: Operator, Tag: "findings"},

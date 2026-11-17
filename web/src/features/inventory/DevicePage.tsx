@@ -1,5 +1,5 @@
 import { useRef, useState, type RefObject } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { EyeOff, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -24,8 +24,7 @@ import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/d
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useDevice, useDeviceAction } from './api'
 import { useModuleEnabled } from '@/lib/modules'
-import { useFindings } from '@/features/findings/api'
-import { isOpen } from '@/features/findings/basis'
+import { OsNeeds, SoftwareNeeds, useSoftwareNeeds } from '@/features/findings/SoftwareNeeds'
 import { useDeviceFindingCounts } from '@/features/findings/notRelevant'
 import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
@@ -246,40 +245,16 @@ function seenVersion(sw: SoftwareView, list: SoftwareView[]) {
   return list.find((o) => o.source !== 'manual' && o.version && sameProduct(o, sw) && o.version.trim().toLowerCase() !== typed) ?? null
 }
 
-/**
- * W11-1: the exploited CVEs of a software row are the device's OPEN findings (findings' isOpen) whose CVE is one of
- * that product's KEV CVEs. kev_cves alone is every CVE ever exploited in the product, versions not checked (Bash 5.3
- * "has" Shellshock); like Tenable and Qualys, the device shows only what detection found. Findings off → it says so.
- */
-function OpenCves({ sw, open }: { sw: SoftwareView; open: Map<string, string> | 'off' | 'pending' | 'error' }) {
-  const { t } = useTranslation('inventory')
-  if (open === 'off') return <span className="text-meta text-muted">{t('software.kevOff')}</span>
-  if (open === 'pending') return <span className="text-meta text-muted">{t('software.kevPending')}</span>
-  if (open === 'error') return <span className="text-meta text-muted">{t('software.kevError')}</span>
-  const cves = sw.kev_cves.filter((c) => open.has(c))
-  if (!cves.length) return <span className="text-meta text-muted">{t('software.noKev')}</span>
-  return <div className="flex flex-wrap gap-x-2">{cves.map((c) => <Link key={c} to={`/findings/${encodeURIComponent(open.get(c)!)}`} className="whitespace-nowrap text-accent underline-offset-4 hover:underline">{c}</Link>)}</div>
-}
-
-/** CVE → id of the device's open finding for it; the states the column shows instead while there is no list. */
-function useOpenFindings(assetId: string): Map<string, string> | 'off' | 'pending' | 'error' {
-  const on = useModuleEnabled('findings')
-  const q = useFindings(assetId)
-  if (on === false) return 'off'
-  if (q.isError) return 'error'
-  if (on === undefined || q.isPending) return 'pending'
-  return new Map(q.data.items.filter((f) => isOpen(f.status)).map((f) => [f.cve, f.id]))
-}
-
 function SoftwareList({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
   const act = useDeviceAction(d.asset.id)
   const [editing, setEditing] = useState<SoftwareView | null>(null)
-  const open = useOpenFindings(d.asset.id)
+  // kien G8: what each software row needs, from the same answer as Findings › To fix
+  const needs = useSoftwareNeeds(d.asset.id)
   const list = d.asset.software
   if (!list.length) return <EmptyState title={t('software.empty')} info={t('software.emptyBodyInfo')}>{t('software.emptyBody')}</EmptyState>
-  const openCount = (sw: SoftwareView) => (open instanceof Map ? sw.kev_cves.filter((c) => open.has(c)).length : 0)
+  const needCount = (sw: SoftwareView) => (needs instanceof Map ? (needs.get(sw.id)?.exploited.reduce((n, a) => n + a.cves.length, 0) ?? 0) : 0)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const version = (sw: SoftwareView) => {
     const seen = seenVersion(sw, list)
@@ -314,12 +289,13 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
       return <div className="grid"><span className="font-medium">{row.original.display}</span>{raw ? <span className="text-caption text-muted">{raw}</span> : null}</div>
     } },
     { id: 'version', header: t('software.version'), accessorFn: (s) => s.version ?? '', cell: ({ row }) => version(row.original) },
-    { id: 'kev', header: t('software.kev'), accessorFn: openCount, cell: ({ row }) => <OpenCves sw={row.original} open={open} /> },
+    { id: 'kev', header: t('findings:needs.column'), accessorFn: needCount, cell: ({ row }) => <SoftwareNeeds assetId={d.asset.id} softwareId={row.original.id} needs={needs} /> },
     { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => (d.asset.is_box ? <span className="text-caption text-muted">{t('box.source')}</span> : <SourceBadge source={row.original.source} confidence={row.original.confidence} />) },
     { id: 'actions', header: () => <span className="sr-only">{t('software.actions')}</span>, enableSorting: false, cell: ({ row }) => actions(row.original) },
   ]
   return (
     <>
+      <OsNeeds assetId={d.asset.id} needs={needs} />
       <DataTable caption={t('software.caption')} data={list} columns={columns}
         mobileRow={(sw) => (
           <div className="flex items-start justify-between gap-3">
@@ -327,7 +303,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
               <span className="text-sm font-medium [overflow-wrap:anywhere]">{sw.display}</span>
               {rawProductLine(sw.display, sw.vendor, sw.product) ? <span className="text-caption text-muted">{rawProductLine(sw.display, sw.vendor, sw.product)}</span> : null}
               <div className="text-meta">{version(sw)}</div>
-              <div className="text-meta"><OpenCves sw={sw} open={open} /></div>
+              <SoftwareNeeds assetId={d.asset.id} softwareId={sw.id} needs={needs} />
               <span className="text-caption text-muted">{d.asset.is_box ? t('box.source') : <SourceBadge source={sw.source} confidence={sw.confidence} />}</span>
             </div>
             {actions(sw)}
@@ -467,7 +443,7 @@ function DeviceKpis({ d }: { d: DeviceDetail }) {
   const id = encodeURIComponent(d.asset.id)
   return (
     <KpiStrip label={t('detail.kpi.label')} items={[
-      ...(findingsOn ? [{ value: counts ? counts.open : '–', label: t('detail.kpi.findings'), to: `/findings?device=${id}` }] : []),
+      ...(findingsOn ? [{ value: counts ? counts.open : '–', label: t('detail.kpi.findings'), to: `/findings?tab=open&device=${id}` }] : []),
       { value: d.asset.software.length, label: t('detail.kpi.software'), to: '?tab=software' },
       { value: d.asset.services.length, label: t('detail.kpi.services'), to: '?tab=services' },
     ]} />

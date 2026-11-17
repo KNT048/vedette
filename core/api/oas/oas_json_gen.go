@@ -141283,6 +141283,2236 @@ func (s *FindingsGetFindingsSummaryOKUnchecked) UnmarshalJSON(data []byte) error
 }
 
 // Encode implements json.Marshaler.
+func (s *FindingsGetFindingsToFixOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsToFixOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("devices")
+		e.ArrStart()
+		for _, elem := range s.Devices {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("plan_off")
+		e.Bool(s.PlanOff)
+	}
+	{
+		e.FieldStart("plan_ran")
+		e.Bool(s.PlanRan)
+	}
+	{
+		e.FieldStart("truncated")
+		e.Bool(s.Truncated)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsToFixOK = [4]string{
+	0: "devices",
+	1: "plan_off",
+	2: "plan_ran",
+	3: "truncated",
+}
+
+// Decode decodes FindingsGetFindingsToFixOK from json.
+func (s *FindingsGetFindingsToFixOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "devices":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Devices = make([]FindingsGetFindingsToFixOKDevicesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem FindingsGetFindingsToFixOKDevicesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Devices = append(s.Devices, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"devices\"")
+			}
+		case "plan_off":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.PlanOff = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"plan_off\"")
+			}
+		case "plan_ran":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.PlanRan = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"plan_ran\"")
+			}
+		case "truncated":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.Truncated = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"truncated\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsToFixOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsToFixOK) {
+					name = jsonFieldsNameOfFindingsGetFindingsToFixOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsToFixOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsToFixOKDevicesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("asset")
+		s.Asset.Encode(e)
+	}
+	{
+		e.FieldStart("exploited")
+		e.ArrStart()
+		for _, elem := range s.Exploited {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("no_update")
+		e.ArrStart()
+		for _, elem := range s.NoUpdate {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("open")
+		e.Int(s.Open)
+	}
+	{
+		e.FieldStart("plan_compared")
+		e.Bool(s.PlanCompared)
+	}
+	{
+		e.FieldStart("planned")
+		e.ArrStart()
+		for _, elem := range s.Planned {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItem = [6]string{
+	0: "asset",
+	1: "exploited",
+	2: "no_update",
+	3: "open",
+	4: "plan_compared",
+	5: "planned",
+}
+
+// Decode decodes FindingsGetFindingsToFixOKDevicesItem from json.
+func (s *FindingsGetFindingsToFixOKDevicesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKDevicesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "asset":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Asset.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"asset\"")
+			}
+		case "exploited":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Exploited = make([]FindingsGetFindingsToFixOKDevicesItemExploitedItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem FindingsGetFindingsToFixOKDevicesItemExploitedItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Exploited = append(s.Exploited, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"exploited\"")
+			}
+		case "no_update":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.NoUpdate = make([]FindingsGetFindingsToFixOKDevicesItemNoUpdateItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem FindingsGetFindingsToFixOKDevicesItemNoUpdateItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.NoUpdate = append(s.NoUpdate, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_update\"")
+			}
+		case "open":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Open = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open\"")
+			}
+		case "plan_compared":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.PlanCompared = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"plan_compared\"")
+			}
+		case "planned":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				s.Planned = make([]FindingsGetFindingsToFixOKDevicesItemPlannedItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem FindingsGetFindingsToFixOKDevicesItemPlannedItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Planned = append(s.Planned, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"planned\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsToFixOKDevicesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItem) {
+					name = jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("display")
+		e.Str(s.Display)
+	}
+	{
+		e.FieldStart("hostname")
+		s.Hostname.Encode(e)
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ip")
+		e.Str(s.IP)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemAsset = [6]string{
+	0: "display",
+	1: "hostname",
+	2: "id",
+	3: "ip",
+	4: "kind",
+	5: "name",
+}
+
+// Decode decodes FindingsGetFindingsToFixOKDevicesItemAsset from json.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKDevicesItemAsset to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "display":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Display = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"display\"")
+			}
+		case "hostname":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Hostname.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hostname\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "ip":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.IP = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsToFixOKDevicesItemAsset")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemAsset) {
+					name = jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemAsset[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemAsset) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsToFixOKDevicesItemAssetKind as json.
+func (s FindingsGetFindingsToFixOKDevicesItemAssetKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsToFixOKDevicesItemAssetKind from json.
+func (s *FindingsGetFindingsToFixOKDevicesItemAssetKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKDevicesItemAssetKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsToFixOKDevicesItemAssetKind(v) {
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindRouter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindRouter
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSwitch:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSwitch
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindModem:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindModem
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSdWan:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSdWan
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindLoadBalancer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindLoadBalancer
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindNetworkController:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindNetworkController
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindFirewall:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindFirewall
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVpnGateway:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVpnGateway
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIdsSensor:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindIdsSensor
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindProxy:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindProxy
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindAp:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindAp
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessController:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessController
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWifiExtender:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindWifiExtender
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMeshNode:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindMeshNode
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindServer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindServer
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVirtualMachine:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVirtualMachine
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindHypervisor:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindHypervisor
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBmc:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindBmc
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDomainController:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindDomainController
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMailServer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindMailServer
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDatabaseServer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindDatabaseServer
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBackupServer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindBackupServer
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPc:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPc
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindLaptop:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindLaptop
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWorkstation:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindWorkstation
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindThinClient:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindThinClient
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPosTerminal:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPosTerminal
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindKiosk:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindKiosk
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartphone:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartphone
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindTablet:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindTablet
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartwatch:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartwatch
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPrinter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPrinter
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMfp:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindMfp
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindScanner:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindScanner
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindLabelPrinter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindLabelPrinter
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindReceiptPrinter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindReceiptPrinter
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPlotter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPlotter
+	case FindingsGetFindingsToFixOKDevicesItemAssetKind3dPrinter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKind3dPrinter
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindCamera:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindCamera
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindNvr:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindNvr
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDvr:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindDvr
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVideoEncoder:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVideoEncoder
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDoorbell:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindDoorbell
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVideoConferencing:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVideoConferencing
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIPPhone:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindIPPhone
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPbx:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPbx
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVoipAdapter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVoipAdapter
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindVoipGateway:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindVoipGateway
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindConferencePhone:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindConferencePhone
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIntercom:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindIntercom
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindNas:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindNas
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSan:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSan
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBackupAppliance:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindBackupAppliance
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindTapeLibrary:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindTapeLibrary
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIot:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindIot
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartTv:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartTv
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMediaPlayer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindMediaPlayer
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartSpeaker:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartSpeaker
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindGameConsole:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindGameConsole
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartPlug:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartPlug
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartLight:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartLight
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartHub:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartHub
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindThermostat:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindThermostat
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindProjector:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindProjector
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindDigitalSignage:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindDigitalSignage
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSingleBoardComputer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSingleBoardComputer
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSmartAppliance:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSmartAppliance
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindRobotVacuum:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindRobotVacuum
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessBridge:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindWirelessBridge
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPlc:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPlc
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindHmi:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindHmi
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindRtu:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindRtu
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindScadaServer:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindScadaServer
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindIndustrialSwitch:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindIndustrialSwitch
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindUps:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindUps
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPdu:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPdu
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindAccessControl:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindAccessControl
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindTimeClock:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindTimeClock
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindAlarmPanel:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindAlarmPanel
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindHvacController:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindHvacController
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindBuildingController:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindBuildingController
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindPowerMeter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindPowerMeter
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindEnvironmentMonitor:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindEnvironmentMonitor
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindEvCharger:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindEvCharger
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindSolarInverter:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindSolarInverter
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindMedicalDevice:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindMedicalDevice
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindWeb:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindWeb
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindCloudService:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindCloudService
+	case FindingsGetFindingsToFixOKDevicesItemAssetKindUnknown:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKindUnknown
+	default:
+		*s = FindingsGetFindingsToFixOKDevicesItemAssetKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemAssetKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemAssetKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("confirmed")
+		e.Int(s.Confirmed)
+	}
+	{
+		e.FieldStart("cves")
+		e.ArrStart()
+		for _, elem := range s.Cves {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("detected")
+		e.Int(s.Detected)
+	}
+	{
+		e.FieldStart("distro")
+		e.Str(s.Distro)
+	}
+	{
+		e.FieldStart("finding_ids")
+		e.ArrStart()
+		for _, elem := range s.FindingIds {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("fixed")
+		e.Str(s.Fixed)
+	}
+	{
+		e.FieldStart("group")
+		e.Str(s.Group)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("likely")
+		e.Int(s.Likely)
+	}
+	{
+		e.FieldStart("pro")
+		e.Bool(s.Pro)
+	}
+	{
+		e.FieldStart("product")
+		e.Str(s.Product)
+	}
+	{
+		e.FieldStart("ransomware")
+		e.Int(s.Ransomware)
+	}
+	{
+		e.FieldStart("reported")
+		e.Int(s.Reported)
+	}
+	{
+		e.FieldStart("software")
+		e.Str(s.Software)
+	}
+	{
+		e.FieldStart("software_id")
+		e.Str(s.SoftwareID)
+	}
+	{
+		e.FieldStart("suspected")
+		e.Int(s.Suspected)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+	{
+		e.FieldStart("windows")
+		e.Bool(s.Windows)
+	}
+	{
+		e.FieldStart("worst")
+		e.Str(s.Worst)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemExploitedItem = [20]string{
+	0:  "action",
+	1:  "confirmed",
+	2:  "cves",
+	3:  "detected",
+	4:  "distro",
+	5:  "finding_ids",
+	6:  "fixed",
+	7:  "group",
+	8:  "kind",
+	9:  "likely",
+	10: "pro",
+	11: "product",
+	12: "ransomware",
+	13: "reported",
+	14: "software",
+	15: "software_id",
+	16: "suspected",
+	17: "version",
+	18: "windows",
+	19: "worst",
+}
+
+// Decode decodes FindingsGetFindingsToFixOKDevicesItemExploitedItem from json.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKDevicesItemExploitedItem to nil")
+	}
+	var requiredBitSet [3]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "confirmed":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Confirmed = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"confirmed\"")
+			}
+		case "cves":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.Cves = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Cves = append(s.Cves, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cves\"")
+			}
+		case "detected":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Detected = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"detected\"")
+			}
+		case "distro":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Distro = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro\"")
+			}
+		case "finding_ids":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				s.FindingIds = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.FindingIds = append(s.FindingIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"finding_ids\"")
+			}
+		case "fixed":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.Fixed = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fixed\"")
+			}
+		case "group":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.Group = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"group\"")
+			}
+		case "kind":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "likely":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Likely = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"likely\"")
+			}
+		case "pro":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Pro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pro\"")
+			}
+		case "product":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Product = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"product\"")
+			}
+		case "ransomware":
+			requiredBitSet[1] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.Ransomware = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ransomware\"")
+			}
+		case "reported":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.Reported = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reported\"")
+			}
+		case "software":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.Software = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software\"")
+			}
+		case "software_id":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.SoftwareID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software_id\"")
+			}
+		case "suspected":
+			requiredBitSet[2] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Suspected = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"suspected\"")
+			}
+		case "version":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "windows":
+			requiredBitSet[2] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Windows = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"windows\"")
+			}
+		case "worst":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Worst = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"worst\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsToFixOKDevicesItemExploitedItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [3]uint8{
+		0b11111111,
+		0b11111111,
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemExploitedItem) {
+					name = jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemExploitedItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsToFixOKDevicesItemExploitedItemKind as json.
+func (s FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsToFixOKDevicesItemExploitedItemKind from json.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKDevicesItemExploitedItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsToFixOKDevicesItemExploitedItemKind(v) {
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFixed:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFixed
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindEsu:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindEsu
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFeatureUpdate:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindFeatureUpdate
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindDistro:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindDistro
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindWindows:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindWindows
+	case FindingsGetFindingsToFixOKDevicesItemExploitedItemKindNone:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKindNone
+	default:
+		*s = FindingsGetFindingsToFixOKDevicesItemExploitedItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("confirmed")
+		e.Int(s.Confirmed)
+	}
+	{
+		e.FieldStart("cves")
+		e.ArrStart()
+		for _, elem := range s.Cves {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("detected")
+		e.Int(s.Detected)
+	}
+	{
+		e.FieldStart("distro")
+		e.Str(s.Distro)
+	}
+	{
+		e.FieldStart("finding_ids")
+		e.ArrStart()
+		for _, elem := range s.FindingIds {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("fixed")
+		e.Str(s.Fixed)
+	}
+	{
+		e.FieldStart("group")
+		e.Str(s.Group)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("likely")
+		e.Int(s.Likely)
+	}
+	{
+		e.FieldStart("pro")
+		e.Bool(s.Pro)
+	}
+	{
+		e.FieldStart("product")
+		e.Str(s.Product)
+	}
+	{
+		e.FieldStart("ransomware")
+		e.Int(s.Ransomware)
+	}
+	{
+		e.FieldStart("reported")
+		e.Int(s.Reported)
+	}
+	{
+		e.FieldStart("software")
+		e.Str(s.Software)
+	}
+	{
+		e.FieldStart("software_id")
+		e.Str(s.SoftwareID)
+	}
+	{
+		e.FieldStart("suspected")
+		e.Int(s.Suspected)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+	{
+		e.FieldStart("windows")
+		e.Bool(s.Windows)
+	}
+	{
+		e.FieldStart("worst")
+		e.Str(s.Worst)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemNoUpdateItem = [20]string{
+	0:  "action",
+	1:  "confirmed",
+	2:  "cves",
+	3:  "detected",
+	4:  "distro",
+	5:  "finding_ids",
+	6:  "fixed",
+	7:  "group",
+	8:  "kind",
+	9:  "likely",
+	10: "pro",
+	11: "product",
+	12: "ransomware",
+	13: "reported",
+	14: "software",
+	15: "software_id",
+	16: "suspected",
+	17: "version",
+	18: "windows",
+	19: "worst",
+}
+
+// Decode decodes FindingsGetFindingsToFixOKDevicesItemNoUpdateItem from json.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKDevicesItemNoUpdateItem to nil")
+	}
+	var requiredBitSet [3]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "confirmed":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Confirmed = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"confirmed\"")
+			}
+		case "cves":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.Cves = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Cves = append(s.Cves, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cves\"")
+			}
+		case "detected":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Detected = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"detected\"")
+			}
+		case "distro":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Distro = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro\"")
+			}
+		case "finding_ids":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				s.FindingIds = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.FindingIds = append(s.FindingIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"finding_ids\"")
+			}
+		case "fixed":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.Fixed = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fixed\"")
+			}
+		case "group":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.Group = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"group\"")
+			}
+		case "kind":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "likely":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Likely = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"likely\"")
+			}
+		case "pro":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Pro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pro\"")
+			}
+		case "product":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Product = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"product\"")
+			}
+		case "ransomware":
+			requiredBitSet[1] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.Ransomware = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ransomware\"")
+			}
+		case "reported":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.Reported = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reported\"")
+			}
+		case "software":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.Software = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software\"")
+			}
+		case "software_id":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.SoftwareID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software_id\"")
+			}
+		case "suspected":
+			requiredBitSet[2] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Suspected = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"suspected\"")
+			}
+		case "version":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "windows":
+			requiredBitSet[2] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Windows = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"windows\"")
+			}
+		case "worst":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Worst = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"worst\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsToFixOKDevicesItemNoUpdateItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [3]uint8{
+		0b11111111,
+		0b11111111,
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemNoUpdateItem) {
+					name = jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemNoUpdateItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind as json.
+func (s FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind from json.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind(v) {
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFixed:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFixed
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindEsu:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindEsu
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFeatureUpdate:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindFeatureUpdate
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindDistro:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindDistro
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindWindows:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindWindows
+	case FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindNone:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKindNone
+	default:
+		*s = FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("confirmed")
+		e.Int(s.Confirmed)
+	}
+	{
+		e.FieldStart("cves")
+		e.ArrStart()
+		for _, elem := range s.Cves {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("detected")
+		e.Int(s.Detected)
+	}
+	{
+		e.FieldStart("distro")
+		e.Str(s.Distro)
+	}
+	{
+		e.FieldStart("finding_ids")
+		e.ArrStart()
+		for _, elem := range s.FindingIds {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("fixed")
+		e.Str(s.Fixed)
+	}
+	{
+		e.FieldStart("group")
+		e.Str(s.Group)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("likely")
+		e.Int(s.Likely)
+	}
+	{
+		e.FieldStart("pro")
+		e.Bool(s.Pro)
+	}
+	{
+		e.FieldStart("product")
+		e.Str(s.Product)
+	}
+	{
+		e.FieldStart("ransomware")
+		e.Int(s.Ransomware)
+	}
+	{
+		e.FieldStart("reported")
+		e.Int(s.Reported)
+	}
+	{
+		e.FieldStart("software")
+		e.Str(s.Software)
+	}
+	{
+		e.FieldStart("software_id")
+		e.Str(s.SoftwareID)
+	}
+	{
+		e.FieldStart("suspected")
+		e.Int(s.Suspected)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+	{
+		e.FieldStart("windows")
+		e.Bool(s.Windows)
+	}
+	{
+		e.FieldStart("worst")
+		e.Str(s.Worst)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemPlannedItem = [20]string{
+	0:  "action",
+	1:  "confirmed",
+	2:  "cves",
+	3:  "detected",
+	4:  "distro",
+	5:  "finding_ids",
+	6:  "fixed",
+	7:  "group",
+	8:  "kind",
+	9:  "likely",
+	10: "pro",
+	11: "product",
+	12: "ransomware",
+	13: "reported",
+	14: "software",
+	15: "software_id",
+	16: "suspected",
+	17: "version",
+	18: "windows",
+	19: "worst",
+}
+
+// Decode decodes FindingsGetFindingsToFixOKDevicesItemPlannedItem from json.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKDevicesItemPlannedItem to nil")
+	}
+	var requiredBitSet [3]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "confirmed":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Confirmed = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"confirmed\"")
+			}
+		case "cves":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.Cves = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Cves = append(s.Cves, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cves\"")
+			}
+		case "detected":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Detected = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"detected\"")
+			}
+		case "distro":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Distro = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro\"")
+			}
+		case "finding_ids":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				s.FindingIds = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.FindingIds = append(s.FindingIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"finding_ids\"")
+			}
+		case "fixed":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.Fixed = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fixed\"")
+			}
+		case "group":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.Group = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"group\"")
+			}
+		case "kind":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "likely":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Likely = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"likely\"")
+			}
+		case "pro":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Pro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pro\"")
+			}
+		case "product":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Product = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"product\"")
+			}
+		case "ransomware":
+			requiredBitSet[1] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.Ransomware = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ransomware\"")
+			}
+		case "reported":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.Reported = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reported\"")
+			}
+		case "software":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.Software = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software\"")
+			}
+		case "software_id":
+			requiredBitSet[1] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.SoftwareID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software_id\"")
+			}
+		case "suspected":
+			requiredBitSet[2] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Suspected = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"suspected\"")
+			}
+		case "version":
+			requiredBitSet[2] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "windows":
+			requiredBitSet[2] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Windows = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"windows\"")
+			}
+		case "worst":
+			requiredBitSet[2] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Worst = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"worst\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsToFixOKDevicesItemPlannedItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [3]uint8{
+		0b11111111,
+		0b11111111,
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemPlannedItem) {
+					name = jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemPlannedItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsToFixOKDevicesItemPlannedItemKind as json.
+func (s FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsToFixOKDevicesItemPlannedItemKind from json.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsToFixOKDevicesItemPlannedItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsToFixOKDevicesItemPlannedItemKind(v) {
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFixed:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFixed
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindEsu:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindEsu
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFeatureUpdate:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindFeatureUpdate
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindDistro:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindDistro
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindWindows:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindWindows
+	case FindingsGetFindingsToFixOKDevicesItemPlannedItemKindNone:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKindNone
+	default:
+		*s = FindingsGetFindingsToFixOKDevicesItemPlannedItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsPostFindingsIDAiOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)

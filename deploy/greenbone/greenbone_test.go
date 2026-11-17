@@ -152,6 +152,10 @@ type override struct {
 		Secrets   []string          `yaml:"secrets"`
 		Volumes   yaml.Node         `yaml:"volumes"`
 		DependsOn yaml.Node         `yaml:"depends_on"`
+		Logging   *struct {
+			Driver  string            `yaml:"driver"`
+			Options map[string]string `yaml:"options"`
+		} `yaml:"logging"`
 	} `yaml:"services"`
 }
 
@@ -165,7 +169,7 @@ type bindMount struct {
 	} `yaml:"bind"`
 }
 
-// The override hands gvmd's socket to the host directory core mounts, adds labels, turns the web interface, its helpers and the SCAP
+// The override hands gvmd's socket to the host directory core mounts, adds labels and a bounded log file (D-600), turns the web interface, its helpers and the SCAP
 // and CERT data off and takes their mounts and dependencies out of gvmd, and nothing else: no port, no capability, no other mount
 // (decoded with KnownFields, so any other key fails here).
 func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
@@ -174,7 +178,7 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 	dec.KnownFields(true)
 	var ov override
 	if err := dec.Decode(&ov); err != nil {
-		t.Fatalf("compose.vedette.yaml: %v (only profiles, labels and gvmd's socket volume belong in it)", err)
+		t.Fatalf("compose.vedette.yaml: %v (only profiles, labels, logging and gvmd's socket volume belong in it)", err)
 	}
 	off := loadOfficial(t)
 	var gotOff []string
@@ -183,7 +187,7 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 			t.Errorf("the override names %s, which Greenbone's file does not have", name)
 		}
 		if len(s.Profiles) > 0 {
-			if !slices.Equal(s.Profiles, []string{"disabled"}) || len(s.Labels) > 0 || s.Volumes.Kind != 0 || s.DependsOn.Kind != 0 {
+			if !slices.Equal(s.Profiles, []string{"disabled"}) || len(s.Labels) > 0 || s.Volumes.Kind != 0 || s.DependsOn.Kind != 0 || s.Logging != nil {
 				t.Errorf("%s: a disabled service carries only profiles: [disabled]", name)
 			}
 			gotOff = append(gotOff, name)
@@ -191,6 +195,10 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 		}
 		if s.Labels["io.vedette.started-by"] != "vedette-host" || len(s.Labels) != 1 {
 			t.Errorf("%s: labels %v, want exactly io.vedette.started-by=vedette-host", name, s.Labels)
+		}
+		// D-600: each service logs to its own bounded file, never to the box's journal
+		if l := s.Logging; l == nil || l.Driver != "json-file" || len(l.Options) != 1 || l.Options["max-size"] != "10m" {
+			t.Errorf("%s: logging %+v, want json-file with max-size 10m", name, s.Logging)
 		}
 		if name != "gvmd" && (s.Volumes.Kind != 0 || s.DependsOn.Kind != 0 || len(s.Command) > 0 || len(s.Secrets) > 0) {
 			t.Errorf("%s: the override mounts something or changes its command; only gvmd's socket directory and login are handed over", name)

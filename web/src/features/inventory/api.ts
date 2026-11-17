@@ -27,7 +27,7 @@ export function useSensorCard(id: string) {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (b: SensorPatch) => api.patch<Sensor>(`/inventory/sensors/${encodeURIComponent(id)}`, b), onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'sensors'] }) })
 }
-/** `enabled` false while the agent-intake module is off: a module that is off answers 404 (rules/modules.md), so the GUI does not ask. */
+/** `enabled` false while the agent-intake module is off: a module that is off answers 404, so the GUI does not ask. */
 export const useAgents = (enabled = true) => useQuery({ queryKey: ['inventory', 'agents'], queryFn: () => api.get<AgentsResponse>('/inventory/agents'), retry: false, enabled })
 
 /** "I updated it" for agent-read software (S-MIT-1, agent-intake INV-23): which agent of this box reads the device and the open ask.
@@ -41,7 +41,7 @@ export function useAskReport(id: string) {
   return useMutation({ mutationFn: () => api.post<AgentReport>(reportPath(id)), onSuccess: (r) => qc.setQueryData(['inventory', 'agent-report', id], r) })
 }
 
-/** D-512: `enabled` false while sensor-active is off (its SNMP routes answer 404 then, rules/modules.md), so the GUI does not ask. */
+/** D-512: `enabled` false while sensor-active is off (its SNMP routes answer 404 then), so the GUI does not ask. */
 export const useSnmp = (enabled = true) => useQuery({ queryKey: ['inventory', 'snmp'], queryFn: () => api.get<SnmpResponse>('/inventory/snmp'), retry: false, enabled })
 
 /** Sau mọi thay đổi thiết bị: làm mới cả danh sách, chi tiết và các trang module khác đọc tài sản (feeds, findings). */

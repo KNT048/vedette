@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lab VMs for the LAB checks (D-315, docs/LAB-VM.md): Ubuntu 24.04 and Debian 13 cloud images under plain QEMU/KVM, no libvirt.
+# Lab VMs for the LAB checks (D-315): Ubuntu 24.04 and Debian 13 cloud images under plain QEMU/KVM, no libvirt.
 # One VM up at a time, 2 vCPU / 2.5 GiB, a qcow2 overlay on a verified base image, a cloud-init NoCloud seed (user `lab`, a dedicated
 # SSH key, passwordless sudo). Network: passt (user mode, no host network change), SSH on 127.0.0.1:<port>; optional `lan` mode adds a
 # second NIC on a macvtap over a WIRED host NIC, made by the root subcommand `lan-up` and never over Wi-Fi: passthru (the NIC is the
@@ -13,7 +13,7 @@ umask 077
 
 prog=lab-vm.sh
 VMS="ubuntu2404 ubuntu2604 debian13"
-# a test box that runs OpenVAS (docs/LAB-VM.md "A persistent test box") sets these; create reads LAB_DISK_SIZE, start the other two
+# a test box that runs OpenVAS sets these; create reads LAB_DISK_SIZE, start the other two
 MEM_MB=${LAB_MEM_MB:-2560}
 CPUS=${LAB_CPUS:-2}
 DISK_SIZE=${LAB_DISK_SIZE:-20G}

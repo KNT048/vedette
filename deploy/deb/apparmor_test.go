@@ -78,7 +78,7 @@ func TestAppArmorProfile_NameAndRules(t *testing.T) {
 }
 
 // The profile compiles with the machine's apparmor_parser (without loading it: no root needed). Skipped where AppArmor's tools or
-// its include files are missing; the lab loads it on Ubuntu 24.04, 26.04 and Debian 13 (.ai/deferred).
+// its include files are missing; the lab loads it on Ubuntu 24.04, 26.04 and Debian 13.
 func TestAppArmorProfile_Compiles(t *testing.T) {
 	t.Parallel()
 	parser, err := exec.LookPath("apparmor_parser")

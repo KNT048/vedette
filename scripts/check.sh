@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make check — kiểm nhanh, chỉ phần đã đổi so với origin/main (D-62, rules/local-checks.md).
+# make check — kiểm nhanh, chỉ phần đã đổi so với origin/main (D-62).
 # Kể cả khi đổi file dùng chung (D-199): bộ đầy đủ chạy trên CI khi push lên main và hằng ngày (D-413, không còn merge queue).
 # Go test chỉ chạy gói có file đổi và gói import trực tiếp chúng (D-251).
 # Giả định OS: macOS hoặc Linux. Windows: chạy trong WSL2 (Makefile chặn Windows gốc).

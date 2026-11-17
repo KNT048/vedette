@@ -1,6 +1,6 @@
 # Kiến trúc kỹ thuật
 
-Trạng thái: **viết lại 2026-11-09** theo D-1…D-56 (giai đoạn M2-0, docs-first); giao thức sensor, container `sensor`/`scan` cập nhật 2026-11-10 theo D-109…D-116. Chưa có mã backend; GUI chạy trên mock (D-22). Khi mâu thuẫn, quyết định sau thắng quyết định trước. Mọi lựa chọn có lý do trong `DECISIONS.md`.
+Trạng thái: **viết lại 2026-11-09** theo D-1…D-56 (giai đoạn M2-0, docs-first); giao thức sensor, container `sensor`/`scan` cập nhật 2026-11-10 theo D-109…D-116. Chưa có mã backend; GUI chạy trên mock (D-22). Khi mâu thuẫn, quyết định sau thắng quyết định trước.
 
 Bản cũ (2026-11-06) mô tả builder trung tâm, module fleet, giao diện vi/en, Zeek/Suricata, A/B slot cho binary: tất cả đã bị thay (D-36, D-24, D-28, D-43, D-55).
 
@@ -73,7 +73,7 @@ Không dùng: Zeek, Suricata (D-43), builder trung tâm/Cloudflare/CDN (D-36), A
 
 ## 4. Bản đồ module
 
-Module bật/tắt riêng (D-10; `MODULES.md`, `rules/modules.md`): tắt = không route, không job, không cổng, dữ liệu giữ (SYS-5; trừ job xoá theo thời hạn lưu hoặc trần lưu trữ, D-160, D-201). Cột "Container" cho biết tiến trình thực chạy.
+Module bật/tắt riêng (D-10; `MODULES.md`): tắt = không route, không job, không cổng, dữ liệu giữ (SYS-5; trừ job xoá theo thời hạn lưu hoặc trần lưu trữ, D-160, D-201). Cột "Container" cho biết tiến trình thực chạy.
 
 | Module | Tier | Container | Phụ thuộc | Cổng/quyền | Story |
 |---|---|---|---|---|---|
@@ -97,7 +97,7 @@ Module bật/tắt riêng (D-10; `MODULES.md`, `rules/modules.md`): tắt = khô
 | `auth-oidc` | tuỳ chọn | core | core | ra IdP | S-CORE-3 |
 | `fleet` | — | — | — | — | S-FLEET-1 rớt (D-24) |
 
-Quy ước còn hiệu lực: bảng DB có tiền tố module, không module nào đọc bảng module khác trực tiếp mà qua interface trong `core/` (`rules/modules.md`). Chi tiết bảng: `DATA_MODEL.md`.
+Quy ước còn hiệu lực: bảng DB có tiền tố module, không module nào đọc bảng module khác trực tiếp mà qua interface trong `core/`. Chi tiết bảng: `DATA_MODEL.md`.
 
 ## 5. Luồng dữ liệu chính
 
@@ -192,7 +192,7 @@ Ngoại lệ không mở rộng sang `vedette-host`: AI không bao giờ gọi `
 - REST JSON `/api/v1`, OpenAPI 3.1 **spec-first** (D-18): hợp đồng sinh từ schema Zod của mock, hiện là `api/openapi.json` (D-18 ghi `.yaml`; tên file chốt trong `API_CONVENTIONS.md`). Go sinh type/handler; CI so khớp. SSE `/api/v1/events`. Lỗi chuẩn `{"error": {"code","message"}}`.
 - 3 vai: viewer / operator / admin; quyền thật luôn kiểm ở máy chủ (GUI chỉ ẩn nút). Bật thực thi phản ứng: chỉ admin + 2FA.
 - Mật khẩu argon2id (tối thiểu 12 ký tự); 2FA TOTP hoặc mã email (D-35); OIDC tuỳ chọn (`auth-oidc`); token API chỉ đọc, scoped; MCP chỉ đọc, mặc định localhost.
-- Secret: `core/secrets` AES-256-GCM, UI chỉ hiện 4 ký tự cuối. Header: CSP nghiêm, không tài nguyên CDN ngoài, chỉ ba cookie đăng nhập (phiên, CSRF, thiết bị), không analytics (`rules/legal.md`).
+- Secret: `core/secrets` AES-256-GCM, UI chỉ hiện 4 ký tự cuối. Header: CSP nghiêm, không tài nguyên CDN ngoài, chỉ ba cookie đăng nhập (phiên, CSRF, thiết bị), không analytics.
 
 ## 8. Harness AI (D-39, D-29, D-48)
 
@@ -240,7 +240,7 @@ Tham số do kẻ tấn công kiểm soát (IP, domain trong log) được kiể
 | Dữ liệu feed | theo nguồn | hộp tự kéo trực tiếp (D-36); IOC giấy phép hạn chế vẫn do hộp kéo |
 | OpenCVE | BSL 1.1 | không dùng trong lõi |
 
-Dependency/feed mới → cập nhật `../THIRD_PARTY_NOTICES.md` cùng commit (`rules/legal.md`).
+Dependency/feed mới → cập nhật `../THIRD_PARTY_NOTICES.md` cùng commit.
 
 ## 11. Hiệu năng mục tiêu (đo lại khi có mã)
 
@@ -256,7 +256,7 @@ Dependency/feed mới → cập nhật `../THIRD_PARTY_NOTICES.md` cùng commit 
 |---|---|---|
 | A1 | ~~Debian 12 đi kèm Podman 4.3 (không có Quadlet). Chọn bản OS nào?~~ **Đã chốt:** appliance chạy Ubuntu 24.04, Ubuntu 26.04, Debian 13 (D-57 (1)), cả ba dùng netplan với renderer `networkd` (D-99) và chrony (D-106); Debian 12 chỉ cho kiểu Chỉ container. Phiên bản gói thật kiểm ở lab | `DEPLOYMENT.md` §4 |
 | A2 | ~~Image `scan` chứa nmap là phân phối lại nmap (NPSL 0.95), khác D-4. Giữ D-55 hay build image tại máy khách?~~ **Đã chốt:** dựng trên hộp (D-57 (2)); `vedette-host` dựng `scan` từ Containerfile hằng trên image nền đã ký, nmap từ kho gói OS (D-113 (7), lát SP-6) | Giấy phép, `THIRD_PARTY_NOTICES.md` |
-| A3 | ~~Registry chứa image và cosign key-based hay keyless~~ **Đã chốt:** `ghcr.io/knt048/vedette-<service>`, cosign bằng khoá, kiểm ngoại tuyến (D-57 (3)), chữ ký đi trong manifest và được kiểm trong mã của host (D-103). `PRIVACY.md` luồng 6 + Settings → Privacy thêm `ghcr.io` cùng PR với mã kéo image (lát 3-7, `.ai/deferred/feat-host-net-containers.md`) | `rules/legal.md` |
+| A3 | ~~Registry chứa image và cosign key-based hay keyless~~ **Đã chốt:** `ghcr.io/knt048/vedette-<service>`, cosign bằng khoá, kiểm ngoại tuyến (D-57 (3)), chữ ký đi trong manifest và được kiểm trong mã của host (D-103). `PRIVACY.md` luồng 6 + Settings → Privacy thêm `ghcr.io` cùng PR với mã kéo image (lát 3-7) | |
 | A4 | ~~Capability cho non-root trong container (sensor/scan)~~ **Đã chốt (D-114):** `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL` + `AddCapability=NET_RAW` (ambient); kiểm bằng hiệu ứng ở lab, không được thì UID 0 + `NET_RAW` | §7.4 |
 | A5 | ~~Một container honeypot cho mỗi IP/vai giả hay nhiều IP trong một container?~~ **Đã chốt:** một container, một tiến trình OpenCanary (D-90 (1)) trong namespace `vedette-hp` với mọi decoy (D-102); chặn egress của bẫy (câu hỏi B5 của `DEPLOYMENT.md`) bằng nft trong namespace đó | `DEPLOYMENT.md` §2.3 |
 | A6 | Sao lưu có kèm khoá bí mật không (mã hoá bằng passphrase?) | `DEPLOYMENT.md` §10 |

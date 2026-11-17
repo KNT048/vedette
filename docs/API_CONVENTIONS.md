@@ -1,6 +1,6 @@
 # Quy ước API (M2-0)
 
-Trạng thái: **bản thảo spec, chưa có backend.** Nguồn, theo thứ tự thắng: `docs/DECISIONS.md` (D-18 spec-first, D-22, D-46, D-48, D-51…) → `docs/MODULE_CONTRACTS.md` (SYS-1…8) → mock API hiện tại (`web/src/features/*/contract.ts`, `mocks.ts`, `web/src/mocks/*.ts`; mock là hợp đồng thực tế) → `api/openapi.json` (sinh ra từ contract: **267 thao tác**, 12 tag) → `docs/ARCHITECTURE.md` §5 (đã cũ).
+Trạng thái: **bản thảo spec, chưa có backend.** Nguồn, theo thứ tự thắng: các quyết định thiết kế (D-18 spec-first, D-22, D-46, D-48, D-51…) → `docs/MODULE_CONTRACTS.md` (SYS-1…8) → mock API hiện tại (`web/src/features/*/contract.ts`, `mocks.ts`, `web/src/mocks/*.ts`; mock là hợp đồng thực tế) → `api/openapi.json` (sinh ra từ contract: **267 thao tác**, 12 tag) → `docs/ARCHITECTURE.md` §5 (đã cũ).
 Số liệu trong file này (số thao tác, mã lỗi, vai tối thiểu) **đo từ mã ngày 2026-11-09**, không đoán; chỗ tôi tự quyết ghi **[ĐX]** (đề xuất), chỗ còn thiếu nằm ở "Câu hỏi mở". Kiểu dữ liệu và bảng DB xem `docs/DATA_MODEL.md`.
 Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng Việt (D-28).
 
@@ -874,16 +874,16 @@ Thêm khi có Go **[ĐX]**, đều chạy trong `make verify` và workflow CI đ
 
 ### 12.2 Thêm một endpoint, từng bước
 
-1. **Story.** Có ID trong `docs/USER_STORIES.md` (`rules/no-imagined-features.md`). Không có: dừng, đề xuất story `[chưa]` rồi hỏi kien.
-2. **GUI trước** (`rules/gui-first.md`): màn hình đã qua plan → build → critique; không viết backend cho màn hình chưa duyệt.
+1. **Story.** Có ID story. Không có: dừng, đề xuất story `[chưa]` rồi hỏi người duy trì.
+2. **GUI trước**: màn hình đã qua plan → build → critique; không viết backend cho màn hình chưa duyệt.
 3. **Thiết kế đường dẫn** theo mục 1 (nhóm module, danh từ, động từ là POST vào tài nguyên con) và chọn `role` tối thiểu (mục 7.4).
 4. **Khai trong `web/src/features/<m>/contract.ts`**: schema Zod (dùng lại schema sẵn có, `.describe()` cho điều không hiển nhiên), rồi thêm phần tử vào `endpoints` với `stories`, `role`, `example` nếu là GET có tham số. `summary` một câu tiếng Anh.
 5. **Mock** trong `features/<m>/mocks.ts`: `guard(role)` ở đầu; validate ở biên và trả lỗi qua `fail(status, code, message)` bằng **mã có trong mục 3.3** (mã mới → thêm vào bảng và kèm HTTP); mutation gọi `audit(...)`; trả đúng mã 200/201/204 theo mục 1.
 6. **Kiểu và hook**: `z.infer` trong `types.ts`, hàm gọi trong `api.ts` (`useQuery`/`useMutation`; `invalidateQueries` đúng khoá; nếu endpoint đổi dữ liệu thời gian thực, thêm sự kiện SSE ở mục 10.2).
 7. **Chạy**: `pnpm --dir web exec vitest run src/lib/contract.test.ts -t "<module>"` (handler ↔ contract, GET khớp schema), rồi `pnpm --dir web openapi` để sinh lại `api/openapi.json`; commit file đó **cùng** `contract.ts`. Không sửa tay `api/openapi.json`.
-8. **Tài liệu**: cập nhật `CONTRACT.md` + `IMPACT.md` của module (`rules/contracts.md`); bảng/cột mới → `docs/DATA_MODEL.md`; luồng dữ liệu ra ngoài mới → `PRIVACY.md` + UI Cài đặt → Quyền riêng tư (`rules/legal.md`); dependency mới → `THIRD_PARTY_NOTICES.md`.
-9. **Chạy `make verify`** (tsc + lint + vitest + build rồi dọn, `rules/build-artifacts.md`).
-10. **Backend (sau khi GUI được duyệt):** sinh lại mã Go từ `api/openapi.json`; thêm migration một chiều của module (DATA_MODEL §6); cài handler **chỉ** qua giao diện sinh ra, kiểm tra vào qua schema trước dịch vụ (SYS-2), ghi `core_audit` (SYS-3), không gọi shell (SYS-1); viết test hợp đồng Go (`-run Contract`, `rules/contracts.md`); `make verify` có `go test ./...` + `golangci-lint` khi Go có mặt.
+8. **Tài liệu**: cập nhật `CONTRACT.md` + `IMPACT.md` của module; bảng/cột mới → `docs/DATA_MODEL.md`; luồng dữ liệu ra ngoài mới → `PRIVACY.md` + UI Cài đặt → Quyền riêng tư; dependency mới → `THIRD_PARTY_NOTICES.md`.
+9. **Chạy `make verify`** (tsc + lint + vitest + build rồi dọn).
+10. **Backend (sau khi GUI được duyệt):** sinh lại mã Go từ `api/openapi.json`; thêm migration một chiều của module (DATA_MODEL §6); cài handler **chỉ** qua giao diện sinh ra, kiểm tra vào qua schema trước dịch vụ (SYS-2), ghi `core_audit` (SYS-3), không gọi shell (SYS-1); viết test hợp đồng Go (`-run Contract`); `make verify` có `go test ./...` + `golangci-lint` khi Go có mặt.
 11. **PR** trên nhánh `feat/…` (`docs/…` cho tài liệu); không push `main`; AI không tạo git tag.
 
 ## 13. Câu hỏi mở

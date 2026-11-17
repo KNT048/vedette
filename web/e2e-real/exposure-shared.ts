@@ -2,7 +2,7 @@
 // and the texts of the page worked out from it, so a test never guesses what is on the box.
 // Nothing here (or in the two specs) makes the box reach the internet: Detect now, Verify again, the DNS Check of a domain and auto-detect
 // being turned on all call the public IP services or real DNS from the box, and the box has no setting that points them at loopback
-// (cmd/vedette/exposure.go builds the real prober and net.DefaultResolver), so no test presses them. See .ai/deferred/feat-e2e-real-exposure.md.
+// (cmd/vedette/exposure.go builds the real prober and net.DefaultResolver), so no test presses them.
 import { expect, request, type APIRequestContext } from '@playwright/test'
 import { api, authFile, box, type Role } from './box'
 

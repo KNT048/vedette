@@ -154,7 +154,7 @@ func zapURL(raw string) (host string, port int, ok bool) {
 	return host, port, true
 }
 
-// zapArgs validates the args at the edge (rules/security.md): every refusal names the field.
+// zapArgs validates the args at the edge: every refusal names the field.
 func zapArgs(a api.ZapBaselineArgs) (zapPage, error) {
 	ip, err := netip.ParseAddr(a.IP)
 	if err != nil || !ip.Is4() || !egressip.IsPublicIPv4(ip) {

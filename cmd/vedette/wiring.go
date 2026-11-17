@@ -35,7 +35,7 @@ import (
 
 // Modules do not import each other. Each module declares the port it needs; the adapters below convert
 // between that port and the neutral exported methods of the module that provides it (issues #38, #39), so
-// the provider's tables stay private (rules/modules.md). They live here because only the binary knows both.
+// the provider's tables stay private. They live here because only the binary knows both.
 
 // ---- inventory -> feeds (feeds.Inventory) ----
 

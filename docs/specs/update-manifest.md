@@ -277,7 +277,7 @@ Mối đe doạ và biện pháp: (a) chiếm kho GitHub/registry → không ký
 
 ## 15. Câu hỏi mở
 
-1. ~~**Cosign: khoá hay keyless**~~ **Đã chốt:** hộp kiểm bằng khoá cosign nhúng, ngoại tuyến (D-57 (3)), trong mã của dự án, chữ ký đi trong manifest (D-103); khoá minisign dự phòng ngoại tuyến do kien giữ được nhúng cùng khoá đang dùng (D-103 (2)). Còn mở: CI có đăng thêm chữ ký keyless cho người dùng không. Mã kiểm đã có (lát 3-2, mục 5.1); kien còn phải tạo ba khoá ngoại tuyến và dán phần công khai vào `internal/release/keys.go` (`.ai/deferred/feat-host-net-containers.md`).
+1. ~~**Cosign: khoá hay keyless**~~ **Đã chốt:** hộp kiểm bằng khoá cosign nhúng, ngoại tuyến (D-57 (3)), trong mã của dự án, chữ ký đi trong manifest (D-103); khoá minisign dự phòng ngoại tuyến do kien giữ được nhúng cùng khoá đang dùng (D-103 (2)). Còn mở: CI có đăng thêm chữ ký keyless cho người dùng không. Mã kiểm đã có (lát 3-2, mục 5.1); kien còn phải tạo ba khoá ngoại tuyến và dán phần công khai vào `internal/release/keys.go`.
 2. **Registry image và nơi lưu `index.json`**: D-36 nói GitHub chỉ để phát hành phần mềm; GHCR hợp lý nhưng chưa chốt. Hộp thử nghiệm khi repo còn riêng tư (D-54) cần token đọc (credential nằm ở đâu?). `channels.json` + mirror thứ hai của UPDATES §6 còn giữ không khi D-7 đã bỏ builder/Cloudflare cho dữ liệu?
 3. ~~**Cập nhật chính `vedette-host`**~~ **Đã chốt (D-57 (21)):** `.deb` ký trên GitHub Release, host tự nâng cấp; lệnh chưa có trong allowlist (để sau).
 4. Có nên cho nút "Install anyway" với bản chưa tới cohort (spec: không)?

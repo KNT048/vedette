@@ -120,7 +120,7 @@ func (s *Service) enrolHostname(ctx context.Context, n nodeRow, hint observe.Ass
 	return true, nil
 }
 
-// machineNameRE is the product's name rule (rules/security.md); uuidRE a host_identifier of --host_identifier=uuid, which names no machine.
+// machineNameRE is the product's name rule; uuidRE a host_identifier of --host_identifier=uuid, which names no machine.
 var (
 	machineNameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 	uuidRE        = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)

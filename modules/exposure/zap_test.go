@@ -101,7 +101,7 @@ func TestContract_INV24_ReportsThatAreRefused(t *testing.T) {
 	}
 }
 
-// INV-24, rules/security.md: text from the target's pages is data. Markup, scripts, control characters and long text cannot reach
+// INV-24: text from the target's pages is data. Markup, scripts, control characters and long text cannot reach
 // the page as anything but short printable text; a sample URL that is not http(s) on the scanned site is dropped.
 func TestContract_INV24_HostileTextIsTamed(t *testing.T) {
 	t.Parallel()

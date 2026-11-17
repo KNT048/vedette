@@ -93,7 +93,7 @@ Không route `/honeypot*`, container `honeypot` dừng, IP phụ/IP bẫy đư�
 - **DEPENDED ON BY**: `response` (trigger), `notify` (cảnh báo), `logs` (SIEM kênh `honeypot`), `reports` (chưa dùng, xem câu hỏi mở), `ai` (đọc hit qua công cụ chỉ-đọc), GUI `inventory` (panel `device.panels`).
 
 ## Câu hỏi mở
-1. Phát hiện "quét cổng tới IP bẫy" (D-50): container `honeypot` (OpenCanary không log SYN) hay `sensor` (pcap) làm? Quyết định vì quyền `net_raw`. Hướng mới từ D-102 (để sau, `.ai/deferred/feat-host-net-containers.md`): luật nft `log` trong namespace `vedette-hp`, không cần `net_raw` trong container.
+1. Phát hiện "quét cổng tới IP bẫy" (D-50): container `honeypot` (OpenCanary không log SYN) hay `sensor` (pcap) làm? Quyết định vì quyền `net_raw`. Hướng mới từ D-102 (để sau): luật nft `log` trong namespace `vedette-hp`, không cần `net_raw` trong container.
 2. ~~Có cần chặn `sensor-passive`/`inventory` lập thiết bị từ IP bẫy không?~~ **Đã chốt (rà WP-14, D-89):** có; INV-19.
 3. URL token/DNS token kích hoạt bằng cách nào khi người chạm ở ngoài LAN (cần tên miền/điểm thu của dự án)? Nếu cần thì thêm luồng ra → `PRIVACY.md` (legal.md). Trong LAN: URL token bắn qua `/t/{id}` của chính hộp (D-507); DNS token chưa bắn được (hộp không có DNS server).
 4. Hit thử có kích hoạt trigger `response` không? Hợp đồng đề xuất: không (INV-4).

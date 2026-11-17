@@ -146,7 +146,7 @@ describe('Settings, AI assistant tabs', () => {
   })
 })
 
-describe('Hooks form: form matrix (docs/QA.md §2)', () => {
+describe('Hooks form: form matrix', () => {
   function renderTab(tab: string) {
     asAdmin()
     return render(<QueryClientProvider client={makeQueryClient()}><MemoryRouter initialEntries={[`/settings/ai?tab=${tab}`]}><AiSettings /></MemoryRouter><Toaster /></QueryClientProvider>)

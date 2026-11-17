@@ -7,7 +7,7 @@ assignees: ""
 ---
 
 <!--
-Vedette does not build features without a story (docs/USER_STORIES.md).
+Vedette does not build features without a user story.
 Examples in a request are examples, not a spec. Fill in every section; an
 incomplete request will be sent back. Product copy is English only.
 -->

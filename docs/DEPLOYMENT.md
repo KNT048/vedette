@@ -1,6 +1,6 @@
 # Triển khai
 
-Trạng thái: **mới, 2026-11-09**, theo D-55 (appliance + container) và D-56 (cấu hình mạng của hộp); mạng, decoy, unit Quadlet và xác minh image cập nhật theo D-99…D-107 (WP-07b phần 3, 2026-11-10); container `sensor`/`scan`, volume khoá và giao thức sensor theo D-109…D-116 (lát SP-0, 2026-11-10). Chưa có mã; các giá trị đánh dấu **(đề xuất)** là mặc định thiết kế để người cài đặt/test dựa vào, **chốt sau khi đo ở M2** (xem §14). Mọi thứ ship như code (`rules/ships-as-code.md`): máy mới dựng từ repo phải đạt cùng trạng thái, xác minh bằng **hiệu ứng** (dịch vụ chạy, cổng mở, cấu hình đúng), không bằng exit code.
+Trạng thái: **mới, 2026-11-09**, theo D-55 (appliance + container) và D-56 (cấu hình mạng của hộp); mạng, decoy, unit Quadlet và xác minh image cập nhật theo D-99…D-107 (WP-07b phần 3, 2026-11-10); container `sensor`/`scan`, volume khoá và giao thức sensor theo D-109…D-116 (lát SP-0, 2026-11-10). Chưa có mã; các giá trị đánh dấu **(đề xuất)** là mặc định thiết kế để người cài đặt/test dựa vào, **chốt sau khi đo ở M2** (xem §14). Mọi thứ ship như code: máy mới dựng từ repo phải đạt cùng trạng thái, xác minh bằng **hiệu ứng** (dịch vụ chạy, cổng mở, cấu hình đúng), không bằng exit code.
 
 Liên quan: [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`specs/host-api.md`](specs/host-api.md) (lệnh của `vedette-host`) · `specs/*.md` · [`UPDATES.md`](UPDATES.md) · [`DATA_MODEL.md`](DATA_MODEL.md) · `../PRIVACY.md`.
 
@@ -13,7 +13,7 @@ Liên quan: [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`specs/host-api.md`](specs/
 3. Cấu hình sinh từ DB/repo, không sửa tay trên máy: unit Quadlet do `vedette-host` render từ mẫu + trạng thái module.
 4. Module tắt thì container tương ứng không khởi động (SYS-5).
 5. Image ghim **digest**, ký cosign; host từ chối image không ký (fail-closed).
-6. Subagent/AI dev không SSH, không deploy, không quét mạng thật (`rules/agent-safety.md`); kiểm bằng lab và fixture.
+6. Subagent/AI dev không SSH, không deploy, không quét mạng thật; kiểm bằng lab và fixture.
 
 ## 2. Topology container
 
@@ -113,7 +113,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 
 ### 2.5 Lean tools
 
-Mỗi công cụ tích hợp chỉ chạy phần Vedette dùng (kien 2026-11-14, LEAN-1/2/3; kế hoạch `docs/plans/2026-11-14-lean-tools.md`). **Luật cho một công cụ mới:** liệt kê thứ Vedette hỏi nó, tắt phần còn lại, thêm một hàng vào bảng này với số đo trên N100. Số chỉ từ N100 (lệnh đo: kế hoạch §5: `memory.peak` của cgroup container, `du -sh` volume, kích thước schema PostgreSQL, `podman system df -v`).
+Mỗi công cụ tích hợp chỉ chạy phần Vedette dùng (kien 2026-11-14, LEAN-1/2/3). **Luật cho một công cụ mới:** liệt kê thứ Vedette hỏi nó, tắt phần còn lại, thêm một hàng vào bảng này với số đo trên N100. Số chỉ từ N100 (lệnh đo: kế hoạch §5: `memory.peak` của cgroup container, `du -sh` volume, kích thước schema PostgreSQL, `podman system df -v`).
 
 | Tool | Switched off | Why it is safe (source) | RAM idle / peak before → after | Disk before → after | Time/CPU before → after | Measured (date, build, by) | Owner |
 |---|---|---|---|---|---|---|---|
@@ -132,7 +132,7 @@ Mỗi công cụ tích hợp chỉ chạy phần Vedette dùng (kien 2026-11-14,
 
 Cổng băm mật khẩu argon2 của `core` (`core/auth/hashgate.go`): số lượt chạy cùng lúc = `max(1, GOMAXPROCS/2)`, tối đa 1/4 `GOMEMLIMIT` chia 64 MiB mỗi lượt. Với `--cpus=2` Go 1.26 đặt GOMAXPROCS = 2, nên trên hộp chỉ **1 lượt, 64 MiB** cùng lúc; yêu cầu đăng nhập thứ hai xếp hàng (hàng chờ 4 lượt, chờ tối đa 2 s) rồi nhận 503 `server_busy` kèm `Retry-After`. `Config.MaxHashing` không có trong cấu hình hay cờ của `core` (`cmd/vedette`), nên không chỉnh được trên hộp; muốn nhiều lượt hơn thì nâng `--cpus` ở quadlet.
 
-Tổng không kể greenbone ≈ 3,75 GiB, chừa phần còn lại cho OS và page cache. Swap tắt trong container (`memory-swap` = `memory`). Cách đo: `podman stats` trong bài test tải M2 (1.000 thiết bị, 50k IOC), ghi vào `docs/project-map/`. Hạn mức vượt thì container bị OOM-kill và `Restart=always` dựng lại; sự kiện hiện ở trang sức khoẻ module.
+Tổng không kể greenbone ≈ 3,75 GiB, chừa phần còn lại cho OS và page cache. Swap tắt trong container (`memory-swap` = `memory`). Cách đo: `podman stats` trong bài test tải M2 (1.000 thiết bị, 50k IOC). Hạn mức vượt thì container bị OOM-kill và `Restart=always` dựng lại; sự kiện hiện ở trang sức khoẻ module.
 
 ## 3. `vedette-host`
 
@@ -217,7 +217,7 @@ Quy tắc: OS ngoài bảng thì `install.sh` dừng và báo rõ (không cài d
 
 Hạn chế của kiểu Chỉ container phải hiện rõ ở GUI (Cài đặt → Updates, Box network): tiêu đề "Not available on this install" kèm câu của hộp, không ẩn mục (S-CORE-1: nói rõ chỗ thiếu vì sao thiếu; đã có, `web/src/components/common/States.tsx`); các câu "khách tự làm gì" còn thiếu là G1 đến G6 trong S-CORE-9 và các story liên quan. Phiên bản Docker/Podman tối thiểu (B8): ghi bản đã thử (Docker Engine 29.1.3 + Compose 2.40.3; Podman 5.7.0 với compose v2) rồi bản của lab; không đoán sàn (D-168 (7)).
 
-Chỉ có một kiểu cài thứ hai này: Compose, không Quadlet. Lý do và các lát còn lại: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`.
+Chỉ có một kiểu cài thứ hai này: Compose, không Quadlet. Lý do: D-168.
 
 ## 6. Unit mẫu
 
@@ -653,7 +653,7 @@ Ngoại tuyến (mạng cách ly): bundle ký chứa index, manifest + image d�
 | Chuyển tiếp | SIEM syslog/CEF/JSON (S-LOG-3), tắt mặc định |
 | Báo lỗi | gói chẩn đoán đã lọc, người dùng xem trước và tự gửi (D-42); hộp không tự gửi gì |
 
-Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`rules/no-imagined-features.md`); đề xuất thành story nếu cần.
+Không có endpoint metrics kiểu Prometheus: chưa có story, không làm; đề xuất thành story nếu cần.
 
 ## 12. Hardening
 
@@ -684,7 +684,7 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 | Việc | Lệnh | Ghi chú |
 |---|---|---|
 | Giao diện + dữ liệu mẫu | `make dev` (http://localhost:5173) | mock API (MSW), không cần container |
-| Kiểm FE | `make verify` (tsc, lint, vitest, build rồi dọn) | `rules/build-artifacts.md` |
+| Kiểm FE | `make verify` (tsc, lint, vitest, build rồi dọn) | |
 | E2E | `make e2e` (Playwright) | |
 | Fixture KEV/EPSS thật | `make fixtures` | |
 | Backend (từ M2) | `go test ./...`, `golangci-lint`; `go test ./modules/<id>/... -run Contract` | thêm vào `make verify` khi có Go |
@@ -699,7 +699,7 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 
 **`make dev-api` chi tiết.** `VITE_API_REAL` (danh sách id module hoặc `all`) quyết định handler MSW nào được đăng ký: `web/src/lib/apiModules.ts` ánh xạ đường dẫn → module đúng như `core/server/modules.go`, và `api/route-modules.json` (Go test `core/server/routemodules_test.go` giữ bằng bảng Go, vitest đối chiếu với `apiModules.ts`) ngăn lệch. Origin: Vite proxy với `changeOrigin: false` nên `Host` giữ `localhost:5173` đúng bằng `Origin` của trình duyệt, và `checkOrigin` của backend so `Origin` với `Host` của chính request đó nên chấp nhận; POST/PUT/PATCH/DELETE gửi thêm `X-CSRF-Token` lấy từ cookie `__Host-vedette_csrf`. Cookie của hộp mang tiền tố `__Host-`/`__Secure-` và thuộc tính `Secure`: Chrome và Firefox chấp nhận chúng từ `http://localhost` (coi localhost là ngữ cảnh an toàn) nên `make dev-api` chạy bình thường qua `http://localhost:5173`; Safari thì không, hãy dùng Chrome hoặc Firefox (hoặc TLS) khi thử với backend thật. Chưa có đăng nhập ở backend (WP-04b phần 2) thì `GET /api/v1/modules` trả 401: đúng như mong đợi. **Module mock khi `core` là thật (issue #78).** Đăng nhập thật không điền phiên của mock, nên handler MSW của module mock (feeds, kiểm kê…) sẽ trả 401. Khi `core` ∈ `VITE_API_REAL` mà còn module mock, `web/src/mocks/realSession.ts` đăng ký một handler đứng đầu: trước khi module mock trả lời, nó đọc `GET /api/v1/me` của backend thật (qua `bypass()` của MSW), giữ kết quả 3 giây và bỏ khi có yêu cầu ghi tới module thật (đăng nhập, đăng xuất, setup, đổi vai); `guard()` và `currentUser()` của mock dùng người dùng và vai đó, không cấp quyền admin. Chưa đăng nhập thật = 401 như thường. Docker Compose cả bộ container chờ image (WP-08).
 
-Quy ước: dev trên macOS dùng Docker Desktop/Podman machine: không có mạng host, macvlan, bắt gói thật, nên sensor chạy chế độ phát lại fixture. CI (GitHub Actions): test từng module, contract test, build đa kiến trúc, `trivy` + SBOM, **ký cosign** ở job phát hành, bài restore drill, thử "kéo image không ký bị từ chối". AI không tạo git tag; kien tag tay (`CLAUDE.md` #12).
+Quy ước: dev trên macOS dùng Docker Desktop/Podman machine: không có mạng host, macvlan, bắt gói thật, nên sensor chạy chế độ phát lại fixture. CI (GitHub Actions): test từng module, contract test, build đa kiến trúc, `trivy` + SBOM, **ký cosign** ở job phát hành, bài restore drill, thử "kéo image không ký bị từ chối". AI không tạo git tag; kien tag tay (#12).
 
 ## 14. Câu hỏi mở
 

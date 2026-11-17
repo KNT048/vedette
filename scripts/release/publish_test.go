@@ -277,7 +277,8 @@ func TestPublishRun(t *testing.T) {
 		b, _ := os.ReadFile(filepath.Join(dir2, indexFile)) // ... then only the new index.json went up
 		g.put(indexTag, indexFile, b)
 		e, fr := env(g, r, ghcr(t, http.StatusOK), dir, false)
-		if err := Publish(context.Background(), e, p2, true); err == nil || !strings.Contains(err.Error(), `row "publish 7"`) {
+		if err := Publish(context.Background(), e, p2, true); err == nil || !strings.Contains(err.Error(), "download index.json and index.json.minisig") ||
+			!strings.Contains(err.Error(), "upload this run's pair with --clobber and run release-publish again") {
 			t.Fatalf("%v", err)
 		}
 		if slices.ContainsFunc(fr.joined(), func(c string) bool { return strings.HasPrefix(c, "gh release upload") }) {

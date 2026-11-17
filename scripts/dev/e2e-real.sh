@@ -5,7 +5,7 @@
 #   4. Playwright (desktop) against it, 5. stop everything and remove the temp folder, web/dist and internal/webui/dist on every exit path.
 # Variables: SPECS="e2e-real/auth.spec.ts ..." (default: all), E2E_WORKERS (default 2 with 8+ CPUs, else 1),
 #            HOLD=1 keeps the box up after the run: then rerun one spec with the two variables the script prints, plus `--no-deps`.
-# Heavy job (Chromium + a Go build): two at once at most (rules/local-checks.md). Linux or macOS. Kept out of CI and `make check` (D-63, D-64).
+# Heavy job (Chromium + a Go build): two at once at most. Linux or macOS. Kept out of CI and `make check` (D-63, D-64).
 # Two runs at once are safe: the box listens on a random port, everything the run writes is in its own temp folder or its own
 # web/test-results/real-<pid> folder, and the one shared place, web/dist and internal/webui/dist (the build, plus pnpm install), is taken
 # under a lock only while the GUI is built and compiled into the test binary.
@@ -17,7 +17,7 @@ ncpu=$(getconf _NPROCESSORS_ONLN)
 t0=$SECONDS
 lap() { printf 'e2e-real: %-34s %4ds\n' "$1" "$((SECONDS - t0))"; t0=$SECONDS; }
 
-# Preflight (rules/local-checks.md): not on a loaded machine (load5 above 2 x CPUs: wait, at most 30 minutes). The two-heavy-jobs limit is the
+# Preflight: not on a loaded machine (load5 above 2 x CPUs: wait, at most 30 minutes). The two-heavy-jobs limit is the
 # machine-wide semaphore of the caller (mac-heavy.sh); runs do not look at each other any more.
 for i in $(seq 0 30); do
 	load5=$(LC_ALL=C uptime | sed 's/,/ /g; s/.*load averages*: *//' | awk '{print $2}')
@@ -73,7 +73,7 @@ lap "webui-dist (tsc + vite)"
 go test -c -tags webui -o "$tmp/box.test" ./cmd/vedette
 # slice 7: the real sensor binary, which the box starts as a child on request (cmd/vedette/e2esensor_test.go)
 go build -o "$tmp/vedette-sensor" ./cmd/vedette-sensor
-unlock # the GUI is inside the test binary now (rules/build-artifacts.md); the other run may build
+unlock # the GUI is inside the test binary now; the other run may build
 lap "go test -c -tags webui"
 
 mkdir -p "$tmp/box" && chmod 700 "$tmp/box"

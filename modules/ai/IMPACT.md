@@ -130,7 +130,7 @@
 
 ## CVE news (WP-25 slice 6: `POST /ai/cve/{id}/news`, `news` of `/cached`) — chữ ký thật
 - `NewsCVE(ctx, actor, id) (NewsResult, error)`, `CachedNews(ctx, id) (*NewsResult, error)`; handler `AiPostAiCveIDNews`, và `AiGetAiCveIDCached` nay trả cả `news`. Dữ liệu CVE vẫn qua `Config.Facts.CVE` (không đọc bảng `feeds`); không import `modules/feeds`.
-- Bộ fetch của hộp (`news_fetch.go`): danh sách host (`newsFeeds`, `advisoryHosts`, NVD, GitHub API), dialer chỉ global unicast cổng 443 + Control hook, không proxy, chuyển hướng cùng host. **Thêm/bớt host = đổi luồng dữ liệu 8**: PRIVACY.md, `privacy.flow.8.*` (`web/src/locales/en/core.json`), THIRD_PARTY_NOTICES.md và một D-xx cùng commit (rules/legal.md).
+- Bộ fetch của hộp (`news_fetch.go`): danh sách host (`newsFeeds`, `advisoryHosts`, NVD, GitHub API), dialer chỉ global unicast cổng 443 + Control hook, không proxy, chuyển hướng cùng host. **Thêm/bớt host = đổi luồng dữ liệu 8**: PRIVACY.md, `privacy.flow.8.*` (`web/src/locales/en/core.json`), THIRD_PARTY_NOTICES.md cùng commit.
 - Bộ đọc (`news_parse.go`): NVD JSON, GitHub search JSON, RSS/Atom (`encoding/xml`), HTML → text (`golang.org/x/net/html`); đổi giới hạn → chạy lại các fuzz `Fuzz*` của gói.
 - `RunJob` không đổi. Việc `cve-news` không mang memory (`CarriesInternalData`), không công cụ; đổi `CarriesInternalData` của nó → INV-3 và PRIVACY luồng 3.
 - Không bảng mới, không migration (dùng `ai_result` kind `news`), không sự kiện, không job nền. Tắt module: không route, không fetch.

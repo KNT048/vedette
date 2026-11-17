@@ -311,7 +311,7 @@ focus. Status is never colour alone (words, shape). axe runs in the component te
 
 ## 13. Review
 
-**Checklist for every page and dialog** (with docs/QA.md §3): (1) list every dependency the page needs (credential, scope,
+**Checklist for every page and dialog**: (1) list every dependency the page needs (credential, scope,
 channel, token, key, user, module on…); (2) each is created inline (`CreatableSelect` with its small dialog, new item selected)
 or deep-linked to the exact tab and field (`DependencyLink`); (3) no text says "go to Settings" without that link; (4) the same
 item is still editable on its own page. A dependency that fails (2) is a defect, not a follow-up.

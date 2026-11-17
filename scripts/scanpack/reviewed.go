@@ -22,7 +22,7 @@ import (
 // checks" default is: a template is in it only if a person read it and listed it in reviewed.tsv with the SHA-256 of the file they
 // read (step-2 review r1: the reviewer read every request line of the 338 of 2026.11.4). Rule (a), a read-only GET (readOnlyGET)
 // whose id and name name no state change (stateName), only puts a template in the "read first" group of the review queue
-// (docs/research/kev-review-queue.md). The D-528 step-1 rule (changeReason: denylist, tags, NoChangeText, destination, third party)
+// (scripts/scanpack/kev-review-queue.md). The D-528 step-1 rule (changeReason: denylist, tags, NoChangeText, destination, third party)
 // still applies to every template, listed or not.
 
 // reviewedTSV is the reviewed allowlist: one template a line, "id<TAB>sha256<TAB>why it changes nothing", # for comments.

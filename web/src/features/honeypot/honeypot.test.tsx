@@ -332,7 +332,7 @@ describe('honeypot: S-HP-2 suggestions, tokens, respond, coverage', () => {
   })
 })
 
-describe('honeypot: Trap IP and honey token form matrix (docs/QA.md §2)', () => {
+describe('honeypot: Trap IP and honey token form matrix', () => {
   const pick = (label: string) => async (o: string) => { const s = screen.getByLabelText(label); await userEvent.selectOptions(s, within(s).getByRole('option', { name: o })) }
   const formOf = (label: string) => screen.getByLabelText(label).closest('form')!
 

@@ -379,9 +379,8 @@ func readSmall(p string, limit int64) ([]byte, error) {
 // uploaded here, identity = the repository without tag or digest), the flags of internal/release/testdata/README.md plus
 // --tlog-upload=false (D-57 (3): verification is offline, so nothing goes to Rekor). Read in the cosign docs on 2026-11-11:
 // these flags exist in cosign v2.6.1 and are gone from `cosign sign` in v3.1.4 (which has --bundle and --signing-config), so the
-// cosign WP-08k pins must be a v2 release; whether v2 still contacts the registry with --upload=false is for 08k to measure
-// (.ai/deferred/feat-release-builder.md). The key file's password comes from COSIGN_PASSWORD in
-// the environment of the maintainer's shell, never from argv.
+// cosign WP-08k pins must be a v2 release; whether v2 still contacts the registry with --upload=false is for 08k to measure.
+// The key file's password comes from COSIGN_PASSWORD in the environment of the maintainer's shell, never from argv.
 func CosignArgv(cosignBin, keyPath, outDir, service, digest string) ([]string, error) {
 	if _, err := release.PullRef(service, digest); err != nil || !serviceDigestRE.MatchString(digest) {
 		return nil, fmt.Errorf("image %q: unknown service or malformed digest", service)

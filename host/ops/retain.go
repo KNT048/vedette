@@ -18,7 +18,7 @@ import (
 // images of that service that nothing keeps are removed with "podman rmi <image id>", after "podman untag <id> <tag>"
 // of its local tags: Podman refuses rmi by ID of an image with more than one name (exit 125, "by ID with more than
 // one tag"), and every release the host pulled has two, localhost/vedette-<service>:<version> and the pull reference
-// (Podman 4.9.3 in the lab VM, 2026-11-12, docs/lab/2026-11-12-podman-nuclei.md). The image keeps one name, so a
+// (Podman 4.9.3 in the lab VM, 2026-11-12). The image keeps one name, so a
 // failed rmi leaves it listed for the next run:
 //
 //	kept: the digest of every unit, of every current and previous version, of every pulled record

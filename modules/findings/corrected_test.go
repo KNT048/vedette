@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-// Review r1 M3 of #950 (inventory INV-40): a finding Vedette closes or reopens because of a person's correction says who corrected what
+// Review r1 M3 of #950 (inventory INV-41): a finding Vedette closes or reopens because of a person's correction says who corrected what
 // and when, in the close note and the history, instead of reading as Vedette's own proof.
-func TestContract_INV40_ACorrectionNamesThePersonInTheHistory(t *testing.T) {
+func TestContract_INV41_ACorrectionNamesThePersonInTheHistory(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	v := []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})}
@@ -77,7 +77,7 @@ func TestCorrectionWhy(t *testing.T) {
 }
 
 // Review r2 M-B of #950: a finding whose row is a person's correction says so in its evidence, not as Vedette's own reading.
-func TestContract_INV40_EvidenceSaysTheVersionIsAPersons(t *testing.T) {
+func TestContract_INV41_EvidenceSaysTheVersionIsAPersons(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	v := []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})}

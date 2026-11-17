@@ -38829,6 +38829,42 @@
                             ],
                             "additionalProperties": false
                           },
+                          "risk": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "level": {
+                                    "type": "string",
+                                    "enum": [
+                                      "exploited",
+                                      "update"
+                                    ]
+                                  },
+                                  "exploited": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "updates": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "level",
+                                  "exploited",
+                                  "updates"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The device's risk marker (G4): exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read"
+                          },
                           "software": {
                             "type": "string",
                             "description": "Display name of the software row"
@@ -38973,6 +39009,7 @@
                         "required": [
                           "group",
                           "asset",
+                          "risk",
                           "software",
                           "version",
                           "fixed",
@@ -39867,6 +39904,42 @@
                             ],
                             "additionalProperties": false
                           },
+                          "risk": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "level": {
+                                    "type": "string",
+                                    "enum": [
+                                      "exploited",
+                                      "update"
+                                    ]
+                                  },
+                                  "exploited": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "updates": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "level",
+                                  "exploited",
+                                  "updates"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The device's risk marker (G4): exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read"
+                          },
                           "open": {
                             "type": "integer",
                             "minimum": -9007199254740991,
@@ -40288,6 +40361,7 @@
                         },
                         "required": [
                           "asset",
+                          "risk",
                           "open",
                           "exploited",
                           "no_update",
@@ -40309,13 +40383,49 @@
                     "plan_off": {
                       "type": "boolean",
                       "description": "The feeds module is off: no recommended update is listed"
+                    },
+                    "risks": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "level": {
+                            "type": "string",
+                            "enum": [
+                              "exploited",
+                              "update"
+                            ]
+                          },
+                          "exploited": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "updates": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "level",
+                          "exploited",
+                          "updates"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "G4: the risk marker of every marked device by id, not capped like devices (empty for ?asset=): the Findings table and filter read it"
                     }
                   },
                   "required": [
                     "devices",
                     "truncated",
                     "plan_ran",
-                    "plan_off"
+                    "plan_off",
+                    "risks"
                   ],
                   "additionalProperties": false
                 }
@@ -45047,6 +45157,16 @@
             }
           },
           {
+            "name": "risk",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated: exploited, update, none (no risk marker). Unknown value: 400 bad_filter (G4)",
+              "type": "string",
+              "maxLength": 60
+            }
+          },
+          {
             "name": "q",
             "in": "query",
             "required": false,
@@ -45805,6 +45925,44 @@
                             "maximum": 9007199254740991,
                             "description": "Number of findings attached to the device; deleting the device also deletes these findings"
                           },
+                          "risk": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "level": {
+                                    "type": "string",
+                                    "enum": [
+                                      "exploited",
+                                      "update"
+                                    ]
+                                  },
+                                  "exploited": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "Open exploited findings of the device that Findings › To fix lists: an update is named for them, or the box proved them (a product-only guess is in Needs your input, not here)"
+                                  },
+                                  "updates": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity"
+                                  }
+                                },
+                                "required": [
+                                  "level",
+                                  "exploited",
+                                  "updates"
+                                ],
+                                "additionalProperties": false,
+                                "description": "The device's risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "summary": {
                             "anyOf": [
                               {
@@ -45870,6 +46028,7 @@
                           "sources",
                           "suspicious",
                           "findings_count",
+                          "risk",
                           "summary"
                         ],
                         "additionalProperties": false
@@ -45920,13 +46079,18 @@
                     "notify_available": {
                       "type": "boolean",
                       "description": "false when the notify module is off"
+                    },
+                    "risk_unavailable": {
+                      "type": "boolean",
+                      "description": "G4: the risk markers could not be read (the findings module failed): no row has one and a risk filter was not applied"
                     }
                   },
                   "required": [
                     "items",
                     "counts",
                     "notify_new",
-                    "notify_available"
+                    "notify_available",
+                    "risk_unavailable"
                   ],
                   "additionalProperties": false
                 }
@@ -46807,11 +46971,11 @@
                                 "type": "string"
                               },
                               "corrected_by": {
-                                "description": "On a row a sensor or agent reported: the id of the person's correction that replaces it for matching (INV-40). Show it as replaced; Clear on the correction brings it back",
+                                "description": "On a row a sensor or agent reported: the id of the person's correction that replaces it for matching (INV-41). Show it as replaced; Clear on the correction brings it back",
                                 "type": "string"
                               },
                               "correction": {
-                                "description": "On a person's correction of a reported row (INV-40): when it was set and what the sources read now. Clear = DELETE the row",
+                                "description": "On a person's correction of a reported row (INV-41): when it was set and what the sources read now. Clear = DELETE the row",
                                 "type": "object",
                                 "properties": {
                                   "set_at": {
@@ -46913,7 +47077,7 @@
                           }
                         },
                         "os_correction": {
-                          "description": "The OS a person set (PATCH os, INV-40); absent when none: os is then what the sources read",
+                          "description": "The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read",
                           "type": "object",
                           "properties": {
                             "value": {
@@ -47020,6 +47184,48 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
                       "description": "Number of findings attached to the device; deleting the device also deletes these findings"
+                    },
+                    "risk": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "level": {
+                              "type": "string",
+                              "enum": [
+                                "exploited",
+                                "update"
+                              ]
+                            },
+                            "exploited": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Open exploited findings of the device that Findings › To fix lists: an update is named for them, or the box proved them (a product-only guess is in Needs your input, not here)"
+                            },
+                            "updates": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity"
+                            }
+                          },
+                          "required": [
+                            "level",
+                            "exploited",
+                            "updates"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The device's risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "risk_unavailable": {
+                      "type": "boolean",
+                      "description": "G4: the risk marker could not be read (the findings module failed)"
                     },
                     "observations": {
                       "type": "array",
@@ -47224,6 +47430,8 @@
                     "asset",
                     "suspicious",
                     "findings_count",
+                    "risk",
+                    "risk_unavailable",
                     "observations",
                     "kinds",
                     "possible_same"
@@ -47389,7 +47597,7 @@
                     "maxLength": 2000
                   },
                   "os": {
-                    "description": "Correct the operating system (INV-40): trimmed, at most 200 characters, no < or >; it wins over every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources read). 400 bad_os",
+                    "description": "Correct the operating system (INV-41): trimmed, at most 200 characters, no < or >; it wins over every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources read). 400 bad_os",
                     "type": "string",
                     "maxLength": 400
                   }
@@ -47805,7 +48013,7 @@
     "/inventory/devices/{id}/software/{sid}": {
       "delete": {
         "operationId": "inventory_delete_inventory_devices_id_software_sid",
-        "summary": "Remove manually declared software from a device; on a correction (INV-40) this clears it and the reported row matches again (audit inventory.clear_software_correction)",
+        "summary": "Remove manually declared software from a device; on a correction (INV-41) this clears it and the reported row matches again (audit inventory.clear_software_correction)",
         "tags": [
           "inventory"
         ],
@@ -47849,7 +48057,7 @@
       },
       "patch": {
         "operationId": "inventory_patch_inventory_devices_id_software_sid",
-        "summary": "Change a software row (D-471, INV-40). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
+        "summary": "Change a software row (D-471, INV-41). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
         "tags": [
           "inventory"
         ],
@@ -48196,6 +48404,16 @@
                 "true",
                 "false"
               ]
+            }
+          },
+          {
+            "name": "risk",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated: exploited, update, none (no risk marker). Unknown value: 400 bad_filter (G4)",
+              "type": "string",
+              "maxLength": 60
             }
           },
           {

@@ -13,8 +13,8 @@ import (
 
 // BN340 (n82): nmap's fingerprint guesses "Android 9 - 10 (Linux 4.9 - 4.14)"; the device's SNMP answer (net-snmp's uname layout) says
 // Alpine Linux and wins over the guess (INV-1); a person's correction wins over both, drives matching, survives later reads, says when
-// the sources disagree, and can be cleared (INV-40).
-func TestINV40_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
+// the sources disagree, and can be cleared (INV-41).
+func TestINV41_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ip := netip.MustParseAddr("192.168.18.1")
@@ -102,11 +102,11 @@ func TestINV40_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 	}
 }
 
-// INV-40: a person corrects the OpenSSH row a scan reported (BN340: package release 10.2_p1-r1). The correction replaces exactly that
+// INV-41: a person corrects the OpenSSH row a scan reported (BN340: package release 10.2_p1-r1). The correction replaces exactly that
 // row for matching, and its re-reports; a later scan that reads another version is another row, which matches and makes the device
 // say the scan disagrees. The correction can change the product (the wrong row's CVEs stop matching); clearing it brings the scanned
 // row back.
-func TestINV40_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
+func TestINV41_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, withKEV(fakeKEV{cves: map[string][]string{"openbsd|openssh": {"CVE-2026-123158"}, "matt johnston|dropbear ssh": {"CVE-2026-0002"}}}))
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.18.1")}
@@ -209,7 +209,7 @@ func TestINV40_CorrectedSoftwareReplacesTheScannedRow(t *testing.T) {
 // Review r1 H1 of #950: a correction replaces exactly the row the person corrected. Another source's row of the product (.181: the
 // nmap row corrected while the agent's packaged row stands), another version from the same agent (a Debian box with two kernels) and
 // another version from the same scan (OpenSSH on two ports) keep matching.
-func TestINV40_ACorrectionReplacesOnlyItsRow(t *testing.T) {
+func TestINV41_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	at := netip.MustParseAddr("192.168.18.181")
@@ -275,7 +275,7 @@ func TestINV40_ACorrectionReplacesOnlyItsRow(t *testing.T) {
 
 // Review r2 M-A of #950: nmap and the agent both read OpenSSH 7.4; both rows are corrected to 9.6 (the same release), and neither
 // original matches. Corrections never collide with each other, with the rows they correct, or with a declared row.
-func TestINV40_TwoSourcesCorrectedToTheSameVersion(t *testing.T) {
+func TestINV41_TwoSourcesCorrectedToTheSameVersion(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	at := netip.MustParseAddr("192.168.18.60")
@@ -302,7 +302,7 @@ func TestINV40_TwoSourcesCorrectedToTheSameVersion(t *testing.T) {
 
 // Review r2 M-B of #950: the agent stops reporting the package (removed, or its row expired): the correction rests and stops matching,
 // the device says so, and the findings history can name it.
-func TestINV40_TheAgentStopsReportingTheCorrectedPackage(t *testing.T) {
+func TestINV41_TheAgentStopsReportingTheCorrectedPackage(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	at := netip.MustParseAddr("192.168.18.61")
@@ -345,7 +345,7 @@ func TestINV40_TheAgentStopsReportingTheCorrectedPackage(t *testing.T) {
 // Review r1 M1 of #950: a version-only correction of an agent's packaged row keeps the row's distribution semantics: matching reads it
 // as built by the agent's packages (ReportedSource agent, Packaged, the source package, the CPE); the package release of the old
 // version is dropped, so no distribution fix is read against it; a package-only correction keeps the version.
-func TestINV40_ACorrectionKeepsWhatThePersonDidNotChange(t *testing.T) {
+func TestINV41_ACorrectionKeepsWhatThePersonDidNotChange(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	at := netip.MustParseAddr("192.168.18.50")

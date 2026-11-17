@@ -1292,7 +1292,7 @@ type Handler interface {
 	InventoryDeleteInventoryDevicesID(ctx context.Context, params InventoryDeleteInventoryDevicesIDParams) error
 	// InventoryDeleteInventoryDevicesIDSoftwareSid implements inventory_delete_inventory_devices_id_software_sid operation.
 	//
-	// Remove manually declared software from a device; on a correction (INV-40) this clears it and the
+	// Remove manually declared software from a device; on a correction (INV-41) this clears it and the
 	// reported row matches again (audit inventory.clear_software_correction).
 	//
 	// DELETE /inventory/devices/{id}/software/{sid}
@@ -1418,7 +1418,7 @@ type Handler interface {
 	InventoryPatchInventoryDevicesID(ctx context.Context, req *InventoryPatchInventoryDevicesIDReq, params InventoryPatchInventoryDevicesIDParams) (*InventoryPatchInventoryDevicesIDOK, error)
 	// InventoryPatchInventoryDevicesIDSoftwareSid implements inventory_patch_inventory_devices_id_software_sid operation.
 	//
-	// Change a software row (D-471, INV-40). A row a person declared changes in place. A row a sensor or
+	// Change a software row (D-471, INV-41). A row a person declared changes in place. A row a sensor or
 	// agent reported is corrected: the values go in a manual correction row (source manual, correction
 	// set) that replaces exactly that row (its source, product and version, and its re-reports) for
 	// matching until it is deleted; another install of the product (another version or source) keeps

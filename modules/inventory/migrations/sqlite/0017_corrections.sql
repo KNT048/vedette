@@ -1,5 +1,5 @@
 -- +goose Up
--- INV-40 (BN340, n82; review r1 H1, r2 M-A of #950): a person corrects a software row a sensor or agent reported. The correction is a
+-- INV-41 (BN340, n82; review r1 H1, r2 M-A of #950): a person corrects a software row a sensor or agent reported. The correction is a
 -- manual row; corrects is the identity of exactly the row it replaces: source, lower(vendor), lower(product) and version, joined by
 -- char(31) (inv_software_uq allows one such reported row per device). A re-report of that row (the same source, product and version)
 -- is replaced too; another install (another version, another source) is not. set_by is the person who set it (the findings history

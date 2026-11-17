@@ -88,6 +88,7 @@ type AssetView struct {
 	IP       string  `json:"ip"`       // "—" when the device has no IP address (hand-added, LLDP only)
 	Kind     string  `json:"kind"`     // one of the inventory kinds; anything else is shown as "unknown"
 	Display  string  `json:"display"`  // the device's OS, else its kind; GET /findings/{id} puts the matched software here (matchedOn, #905)
+	Box      bool    `json:"-"`        // the Vedette box itself: never given a risk marker (G4)
 }
 
 // NoIP is the IP of a device without an address, as the inventory API writes it.

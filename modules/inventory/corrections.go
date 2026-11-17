@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Corrections (BN340, INV-40): a person says what a device really runs where Vedette shows it. The device's OS is a manual
+// Corrections (BN340, INV-41): a person says what a device really runs where Vedette shows it. The device's OS is a manual
 // observation, which wins the field over every sensor and agent (INV-1); a software row a sensor or agent reported is corrected by a
 // manual row linked to exactly that row (inv_software.corrects: its source, product and version), which replaces it for matching
 // while it stands; another install of the product (another version, another source) keeps matching (review r1 H1 of #950). Neither is ever touched by a later
@@ -38,7 +38,7 @@ func productKey(s string) string {
 // rules, and the device shows the correction as not in use until the person sets it again on what the source reads now.
 var correctionLive = `EXISTS (SELECT 1 FROM inv_software r WHERE r.asset_id = s.asset_id AND r.source <> 'manual' AND ` + rowKey("r") + ` = s.corrects)`
 
-// liveSW is the SQL condition on a software row (alias s) that counts for matching and the "Do you have it?" lists (INV-40): a row a
+// liveSW is the SQL condition on a software row (alias s) that counts for matching and the "Do you have it?" lists (INV-41): a row a
 // person declared; a correction in use (correctionLive); a reported row no correction in use replaces.
 var liveSW = `(CASE WHEN s.corrects IS NOT NULL THEN ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
 	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END)`
@@ -179,7 +179,7 @@ type SoftwareEdit struct {
 
 func (e SoftwareEdit) product() bool { return e.CatalogID != "" || e.Vendor != "" || e.Product != "" }
 
-// EditSoftware changes a software row of a device (INV-40). A row a person declared changes in place (D-471). A row a sensor or agent
+// EditSoftware changes a software row of a device (INV-41). A row a person declared changes in place (D-471). A row a sensor or agent
 // reported is corrected: the person's values go in a manual row linked to exactly that row (its source, product and version), the
 // existing correction of that row when there is one, and that row replaces it for matching while it stands; another install of the
 // product keeps matching. What the person does not change is kept (review r1 M1): the CPE, the packaged flag and the source package,

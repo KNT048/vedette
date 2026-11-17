@@ -1,0 +1,272 @@
+package inventory_test
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/netip"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/modules/inventory"
+)
+
+// G4 (kien): every list shows which devices carry risk. Inventory reads it from findings through Config.Risk (RiskSource), never
+// from fnd_* tables: exploited = open exploited findings, update = none of those but a likely-exploited or High+ Recommended update,
+// nil when clean. The Devices search filters on it.
+
+type fakeRisk map[string]inventory.RiskCounts
+
+func (f fakeRisk) RiskByAsset(context.Context) (map[string]inventory.RiskCounts, error) {
+	return f, nil
+}
+
+// countingRisk counts the calls and fails when err is set.
+type countingRisk struct {
+	calls atomic.Int64
+	err   error
+	m     fakeRisk
+}
+
+func (c *countingRisk) RiskByAsset(context.Context) (map[string]inventory.RiskCounts, error) {
+	c.calls.Add(1)
+	if c.err != nil {
+		return nil, c.err
+	}
+	return c.m, nil
+}
+
+func withRisk(r inventory.RiskSource) opt { return func(c *inventory.Config) { c.Risk = r } }
+
+// riskDevices records three devices found on the network: one with exploited findings, one with an update, one clean.
+func riskDevices(e *env) (exploited, update, clean string) {
+	e.t.Helper()
+	for i, mac := range []string{macA, macB, "aa:bb:cc:00:00:03"} {
+		e.record(obs(netip.AddrFrom4([4]byte{192, 168, 18, byte(10 + i)}), mac, observe.Kind, "server", observe.Nmap, 0.9))
+	}
+	return e.idByMAC(macA), e.idByMAC(macB), e.idByMAC("aa:bb:cc:00:00:03")
+}
+
+func TestContract_G4_RiskMarkerOnRowsAndDetail(t *testing.T) {
+	t.Parallel()
+	risk := fakeRisk{}
+	e := newEnv(t, withRisk(risk))
+	x, u, c := riskDevices(e)
+	risk[x] = inventory.RiskCounts{Exploited: 2, Updates: 1}
+	risk[u] = inventory.RiskCounts{Updates: 3}
+	risk[c] = inventory.RiskCounts{} // counts of zero are clean
+	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]*inventory.Risk{}
+	for _, d := range l.Items {
+		got[d.ID] = d.Risk
+	}
+	if r := got[x]; r == nil || *r != (inventory.Risk{Level: "exploited", Exploited: 2, Updates: 1}) {
+		t.Errorf("exploited: %+v", r)
+	}
+	if r := got[u]; r == nil || *r != (inventory.Risk{Level: "update", Updates: 3}) {
+		t.Errorf("update: %+v", r)
+	}
+	if got[c] != nil {
+		t.Errorf("clean: %+v", got[c])
+	}
+	d, err := e.svc.DetailPage(e.ctx(), x)
+	if err != nil || d.Risk == nil || d.Risk.Level != "exploited" {
+		t.Errorf("detail: %+v, %v", d.Risk, err)
+	}
+	// No RiskSource (findings off): nothing is marked.
+	plain := newEnv(t)
+	riskDevices(plain)
+	l, _ = plain.svc.DevicesPage(plain.ctx(), inventory.DeviceFilter{})
+	for _, d := range l.Items {
+		if d.Risk != nil {
+			t.Errorf("no risk source, yet %s is marked %+v", d.ID, d.Risk)
+		}
+	}
+}
+
+func TestContract_G4_TheRiskFilter(t *testing.T) {
+	t.Parallel()
+	risk := fakeRisk{}
+	e := newEnv(t, withRisk(risk))
+	x, u, c := riskDevices(e)
+	risk[x], risk[u] = inventory.RiskCounts{Exploited: 1}, inventory.RiskCounts{Updates: 1}
+	ids := func(risks string) map[string]bool {
+		t.Helper()
+		f, err := inventory.ParseDeviceSearch("", "", "", "", "", "", risks, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		l, err := e.svc.DevicesPage(e.ctx(), f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]bool{}
+		for _, d := range l.Items {
+			if !d.IsBox {
+				out[d.ID] = true
+			}
+		}
+		return out
+	}
+	for risks, want := range map[string][]string{
+		"exploited": {x}, "update": {u}, "none": {c}, "exploited,update": {x, u}, "update,none": {u, c}, "EXPLOITED, none": {x, c}, "": {x, u, c},
+	} {
+		got := ids(risks)
+		if len(got) != len(want) {
+			t.Errorf("risk=%q: %v, want %v", risks, got, want)
+		}
+		for _, id := range want {
+			if !got[id] {
+				t.Errorf("risk=%q: %s missing", risks, id)
+			}
+		}
+	}
+	_, err := inventory.ParseDeviceSearch("", "", "", "", "", "", "high", "")
+	var ae *apierr.Error
+	if !errors.As(err, &ae) || ae.Code != "bad_filter" {
+		t.Errorf("risk=high: %v, want 400 bad_filter", err)
+	}
+}
+
+func TestHandlers_G4_RiskThroughTheAPI(t *testing.T) {
+	t.Parallel()
+	a := newAPI(t)
+	id := a.want("POST", "/inventory/devices", "operator", `{"catalog_id":"fortigate","ip":"192.168.30.1"}`, 201, "")["id"].(string)
+	// newAPI has no RiskSource: the field is there and null
+	row := a.want("GET", "/inventory/devices?risk=none", "viewer", "", 200, "")["items"].([]any)
+	if len(row) != 2 || row[0].(map[string]any)["risk"] != nil {
+		t.Fatalf("risk=none = %v", row)
+	}
+	if items := a.want("GET", "/inventory/devices?risk=exploited", "viewer", "", 200, "")["items"].([]any); len(items) != 0 {
+		t.Fatalf("risk=exploited = %v", items)
+	}
+	a.want("GET", "/inventory/devices?risk=bad", "viewer", "", 400, "bad_filter")
+	if d := a.want("GET", "/inventory/devices/"+id, "viewer", "", 200, ""); d["risk"] != nil {
+		t.Fatalf("detail risk = %v", d["risk"])
+	}
+	if _, ok := a.want("GET", "/inventory/devices/"+id, "viewer", "", 200, "")["risk"]; !ok {
+		t.Fatal("detail has no risk field")
+	}
+}
+
+// Review r1 of #949 (High): only the Devices page, the device page and the export with a risk filter read the markers. The other
+// readers (honeypot ingest, scans, reports, MCP: Devices, AllDevices, Device, Detail) never call the risk port, and a failing port
+// never fails a list: the rows have no marker and RiskUnavailable says so.
+func TestContract_G4_RiskIsOptInAndNeverFailsTheList(t *testing.T) {
+	t.Parallel()
+	src := &countingRisk{m: fakeRisk{}}
+	e := newEnv(t, withRisk(src))
+	x, _, c := riskDevices(e)
+	src.m[x] = inventory.RiskCounts{Exploited: 1}
+	if _, err := e.svc.Devices(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.AllDevices(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Device(e.ctx(), x); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Detail(e.ctx(), x); err != nil {
+		t.Fatal(err)
+	}
+	if n := src.calls.Load(); n != 0 {
+		t.Fatalf("internal device reads called the risk port %d times", n)
+	}
+	if _, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{}); err != nil || src.calls.Load() != 1 {
+		t.Fatalf("the Devices page reads it once: %d calls, %v", src.calls.Load(), err)
+	}
+
+	src.err = errors.New("findings: database is locked")
+	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{})
+	if err != nil {
+		t.Fatalf("a failing risk source failed the list: %v", err)
+	}
+	if !l.RiskUnavailable || len(l.Items) < 3 {
+		t.Errorf("unavailable = %v, %d rows: want the list, saying so", l.RiskUnavailable, len(l.Items))
+	}
+	for _, d := range l.Items {
+		if d.Risk != nil {
+			t.Errorf("%s marked while the source failed", d.ID)
+		}
+	}
+	d, err := e.svc.DetailPage(e.ctx(), c)
+	if err != nil || !d.RiskUnavailable || d.Risk != nil {
+		t.Errorf("detail: %+v, %v", d.Risk, err)
+	}
+	if _, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{}); err != nil {
+		t.Errorf("an unfiltered export while the source fails: %v", err)
+	}
+	// review r2 of #949 L1: a risk filter that cannot be applied is 503 risk_unavailable, never every device
+	f, _ := inventory.ParseDeviceSearch("", "", "", "", "", "", "exploited", "")
+	for name, call := range map[string]func() error{
+		"list":   func() error { _, err := e.svc.DevicesPage(e.ctx(), f); return err },
+		"export": func() error { _, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", f); return err },
+	} {
+		var ae *apierr.Error
+		if err := call(); !errors.As(err, &ae) || ae.Status != 503 || ae.Code != "risk_unavailable" {
+			t.Errorf("%s with a risk filter while the source fails: %v, want 503 risk_unavailable", name, err)
+		}
+	}
+}
+
+// Review r2 of #949 (Medium): the CSV says what the marker says, in its words: "2 exploited", "Update recommended", empty when clean.
+func TestContract_G4_TheCSVHasTheRisk(t *testing.T) {
+	t.Parallel()
+	src := fakeRisk{}
+	e := newEnv(t, withRisk(src))
+	x, u, c := riskDevices(e)
+	src[x], src[u] = inventory.RiskCounts{Exploited: 2, Updates: 1}, inventory.RiskCounts{Updates: 3}
+	rd, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := io.ReadAll(rd)
+	lines := strings.Split(strings.TrimPrefix(string(raw), "\ufeff"), "\r\n")
+	if !strings.HasSuffix(lines[0], ",risk") {
+		t.Fatalf("header = %q", lines[0])
+	}
+	want := map[string]string{"192.168.18.10": ",2 exploited", "192.168.18.11": ",Update recommended", "192.168.18.12": ","}
+	for _, l := range lines[1:] {
+		for ip, end := range want {
+			if strings.Contains(l, ","+ip+",") && !strings.HasSuffix(l, end) {
+				t.Errorf("%s: %q, want it to end %q", ip, l, end)
+			}
+		}
+	}
+	_ = c
+}
+
+// The Vedette box itself is never marked (the owner's done check: boxkien shows nothing); its updates stay in To fix.
+func TestContract_G4_TheBoxIsNeverMarked(t *testing.T) {
+	t.Parallel()
+	src := fakeRisk{}
+	e := newEnv(t, withRisk(src))
+	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "boxkien", IP: "192.168.18.2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src[box] = inventory.RiskCounts{Exploited: 1, Updates: 3}
+	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range l.Items {
+		if d.IsBox && d.Risk != nil {
+			t.Errorf("the box is marked %+v", d.Risk)
+		}
+	}
+	if d, err := e.svc.DetailPage(e.ctx(), box); err != nil || d.Risk != nil {
+		t.Errorf("box detail: %+v, %v", d.Risk, err)
+	}
+	f, _ := inventory.ParseDeviceSearch("", "", "", "", "", "", "none", "")
+	if l, _ := e.svc.DevicesPage(e.ctx(), f); len(l.Items) != 1 || !l.Items[0].IsBox {
+		t.Errorf("risk=none: %+v", l.Items)
+	}
+}

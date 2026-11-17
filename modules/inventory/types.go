@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/knt048/vedette/content/devicetypes"
 )
@@ -132,6 +133,64 @@ type FindingCounter interface {
 	CountByAsset(ctx context.Context) (map[string]int, error)
 }
 
+// RiskCounts is what findings says about one device (G4), read from what its "To fix" shows (findings DeviceUpdates, one rule):
+// Exploited = its open exploited findings To fix lists (an update is named for them, or the box proved them); Updates = its
+// Recommended updates (findings INV-20) that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity.
+type RiskCounts struct{ Exploited, Updates int }
+
+// RiskSource says which devices carry risk (owned by findings; inventory may not read fnd_* tables): one batch for every device
+// (findings.RiskMap, cached there). A device that is absent, or whose counts are both 0, is clean.
+type RiskSource interface {
+	RiskByAsset(ctx context.Context) (map[string]RiskCounts, error)
+}
+
+// Risk levels of a device (G4), worst first: the words of DeviceRisk.level and of the Devices search's risk filter ("none" = clean).
+const (
+	RiskExploited = "exploited" // open exploited findings
+	RiskUpdate    = "update"    // none of those, but a Recommended update for a likely-exploited or High+ CVE
+	RiskNone      = "none"
+)
+
+// RiskLevels are the words of the risk filter, worst first.
+var RiskLevels = []string{RiskExploited, RiskUpdate, RiskNone}
+
+// Risk is the marker of a device in every list (G4, contract.ts DeviceRisk): nil when the device is clean.
+type Risk struct {
+	Level     string `json:"level"`     // RiskExploited or RiskUpdate
+	Exploited int    `json:"exploited"` // open exploited findings
+	Updates   int    `json:"updates"`   // Recommended updates for a likely-exploited or High+ CVE
+}
+
+// riskOf is the marker of counts c: exploited when it has open exploited findings, else update when it has such updates, else nil.
+func riskOf(c RiskCounts) *Risk {
+	switch {
+	case c.Exploited > 0:
+		return &Risk{Level: RiskExploited, Exploited: c.Exploited, Updates: c.Updates}
+	case c.Updates > 0:
+		return &Risk{Level: RiskUpdate, Updates: c.Updates}
+	}
+	return nil
+}
+
+// riskWords is the marker's text, as the pages show it (G4: the CSV's risk column): "2 exploited", "Update recommended", "" when clean.
+func riskWords(r *Risk) string {
+	switch {
+	case r == nil:
+		return ""
+	case r.Level == RiskExploited:
+		return fmt.Sprintf("%d exploited", r.Exploited)
+	}
+	return "Update recommended"
+}
+
+// riskLevel is the filter word of a device's marker.
+func riskLevel(r *Risk) string {
+	if r == nil {
+		return RiskNone
+	}
+	return r.Level
+}
+
 // ModuleGate says whether another module is on (modreg.Registry implements it).
 type ModuleGate interface{ Enabled(id string) bool }
 
@@ -180,11 +239,11 @@ type SoftwareView struct {
 	KevCVEs    []string `json:"kev_cves"`
 	Source     string   `json:"source"`
 	Confidence float64  `json:"confidence"`
-	// PkgVersion is the full package release (an agent's packaged row, D-516, or a person's correction, INV-40); absent when none.
+	// PkgVersion is the full package release (an agent's packaged row, D-516, or a person's correction, INV-41); absent when none.
 	PkgVersion *string `json:"pkg_version,omitempty"`
-	// CorrectedBy, on a row a sensor or agent reported, is the id of the person's correction that replaces it for matching (INV-40).
+	// CorrectedBy, on a row a sensor or agent reported, is the id of the person's correction that replaces it for matching (INV-41).
 	CorrectedBy *string `json:"corrected_by,omitempty"`
-	// Correction, on a person's correction, says when it was set and what the sources read now (INV-40).
+	// Correction, on a person's correction, says when it was set and what the sources read now (INV-41).
 	Correction *SoftwareCorrection `json:"correction,omitempty"`
 }
 
@@ -248,6 +307,7 @@ type Device struct {
 	Software      []Software  `json:"software"`
 	Suspicious    bool        `json:"suspicious"`
 	FindingsCount int         `json:"findings_count"`
+	Risk          *Risk       `json:"risk"` // G4: the device's risk marker, nil when clean
 	Summary       *Summary    `json:"summary"`
 	Sources       []string    `json:"sources"` // what feeds the device, in the words of the Devices search (#849, DeviceSources); set by DevicesPage only
 	ident         []*Observed // current hostname and MAC observations: the summary of a device with no vendor, model or OS
@@ -257,7 +317,7 @@ type Device struct {
 type DetailAsset struct {
 	AssetCore
 	Software []SoftwareView `json:"software"`
-	// OSCorrection is the OS a person set (INV-40), with what the sources read now; absent when none.
+	// OSCorrection is the OS a person set (INV-41), with what the sources read now; absent when none.
 	OSCorrection *OSCorrection `json:"os_correction,omitempty"`
 }
 
@@ -274,12 +334,15 @@ type ObservationRow struct {
 
 // Detail is GET /inventory/devices/{id} (contract.ts DeviceDetail).
 type Detail struct {
-	Asset         DetailAsset      `json:"asset"`
-	Suspicious    bool             `json:"suspicious"`
-	FindingsCount int              `json:"findings_count"`
-	Observations  []ObservationRow `json:"observations"`
-	Kinds         []string         `json:"kinds"`
-	PossibleSame  []PossibleSame   `json:"possible_same"` // devices that may be the same machine (D-599)
+	Asset         DetailAsset `json:"asset"`
+	Suspicious    bool        `json:"suspicious"`
+	FindingsCount int         `json:"findings_count"`
+	Risk          *Risk       `json:"risk"` // G4: the device's risk marker, nil when clean, for the box, or when not read
+	// RiskUnavailable: the marker could not be read (findings failed, G4).
+	RiskUnavailable bool             `json:"risk_unavailable"`
+	Observations    []ObservationRow `json:"observations"`
+	Kinds           []string         `json:"kinds"`
+	PossibleSame    []PossibleSame   `json:"possible_same"` // devices that may be the same machine (D-599)
 }
 
 // Counts are the numbers behind the filter chips of the device list.
@@ -298,4 +361,6 @@ type DeviceList struct {
 	Counts          Counts   `json:"counts"`
 	NotifyNew       bool     `json:"notify_new"`
 	NotifyAvailable bool     `json:"notify_available"`
+	// RiskUnavailable: the risk markers could not be read (findings failed, G4): no row has one and a risk filter was not applied.
+	RiskUnavailable bool `json:"risk_unavailable"`
 }

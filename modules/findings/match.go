@@ -59,14 +59,14 @@ type Software struct {
 	// Banner is what a service says about its build beside the version (nmap's extrainfo, "Ubuntu Linux; protocol 2.0"); "" when
 	// none. Untrusted; only read for the platform it names (D-547).
 	Banner string
-	// ReportedSource is, on a person's correction of a reported row (Source "manual", inventory INV-40), the source of the row it
+	// ReportedSource is, on a person's correction of a reported row (Source "manual", inventory INV-41), the source of the row it
 	// replaces: the distribution and platform rules of that source still hold (builtBy, review r1 M1 of #950); "" otherwise.
 	ReportedSource string
 	// Correction names the person's correction this row is ("it@acme.example corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2p1 on
 	// 17 Nov 2026"), for the history of a finding it closes or reopens (review r1 M3); "" otherwise.
 	Correction string
 	// Superseded names, on a reported row, a person's correction of an earlier reading of it that rests since the source moved on
-	// (inventory INV-40, review r2 M-B of #950); "" otherwise.
+	// (inventory INV-41, review r2 M-B of #950); "" otherwise.
 	Superseded string
 }
 
@@ -99,10 +99,10 @@ type Asset struct {
 	// Networks it lets an LLDP statement of Junos count for the device's scan-seen rows (D-620, networkStated).
 	MAC      string
 	Software []Software
-	// OSCorrection names a person's corrected OS ("it@acme.example set the OS to Alpine Linux 3.23 on 17 Nov 2026", inventory INV-40),
+	// OSCorrection names a person's corrected OS ("it@acme.example set the OS to Alpine Linux 3.23 on 17 Nov 2026", inventory INV-41),
 	// for the history of a finding it closes or reopens (review r1 M3 of #950); "" when none.
 	OSCorrection string
-	// StaleCorrections names the device's resting corrections (inventory INV-40, review r2 M-B), for the history of a finding that stops
+	// StaleCorrections names the device's resting corrections (inventory INV-41, review r2 M-B), for the history of a finding that stops
 	// matching because of one; nil when none.
 	StaleCorrections []string
 	// winList is the whole stored exploited list a Windows release row's build month is read from (D-618, review r1 #1 of #806) when

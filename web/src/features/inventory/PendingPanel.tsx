@@ -18,6 +18,7 @@ import type { DeviceRow } from './types'
 import { kindLabel } from '@/lib/deviceTypes'
 import { InfoTip } from '@/components/common/InfoTip'
 import { SameHint } from './SameDevice'
+import { RiskMarker } from './RiskMarker'
 
 function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
   const { t } = useTranslation('inventory')
@@ -35,6 +36,7 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
       <div className="grid gap-0.5">
         <div className="flex flex-wrap items-center gap-2">
           <Link to={`/devices/${d.id}`} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name}</Link>
+          <RiskMarker id={d.id} risk={d.risk} />
           {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
         </div>
         <p className="text-meta text-muted">

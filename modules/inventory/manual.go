@@ -283,7 +283,7 @@ func (s *Service) RemoveSoftware(ctx context.Context, actor, assetID, softwareID
 			return fmt.Errorf("inventory: remove software: %w", err)
 		}
 		o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID})
-		if corrects != "" { // clearing a correction (INV-40): the device is back to what its sources report
+		if corrects != "" { // clearing a correction (INV-41): the device is back to what its sources report
 			return s.auditTx(ctx, tx, actor, "inventory.clear_software_correction", deviceName(ctx, tx, assetID)+": "+display, "back to detected")
 		}
 		return s.auditTx(ctx, tx, actor, "inventory.remove_software", deviceName(ctx, tx, assetID)+": "+display, "")
@@ -355,7 +355,7 @@ type Patch struct {
 	RegularScan *string
 	Notes       *string
 	Name        *string // the name in Vedette (G2): trimmed; "" clears it, back to the naming rule (D-471)
-	OS          *string // the person's OS (INV-40): trimmed; "" clears the correction, back to what the sources read
+	OS          *string // the person's OS (INV-41): trimmed; "" clears the correction, back to what the sources read
 }
 
 // PatchDevice changes the name in Vedette, type, fragile flag, regular-scan override or notes of a device (PRE-4, POST-4).

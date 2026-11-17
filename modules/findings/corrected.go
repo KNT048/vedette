@@ -2,7 +2,7 @@ package findings
 
 import "strings"
 
-// correctionWhy names the person's corrections behind a match of one software row (inventory INV-40, review r1 M3 and r2 M-B, L-a of
+// correctionWhy names the person's corrections behind a match of one software row (inventory INV-41, review r1 M3 and r2 M-B, L-a of
 // #950), so a finding Vedette closes or reopens because of them says who changed what instead of reading as Vedette's own proof:
 //   - the row's own correction, or the resting correction its reading replaced (Superseded);
 //   - the device's corrected OS, only for a row whose match reads the OS (built by an agent or read over SNMP) and for the OS row.

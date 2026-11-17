@@ -9,6 +9,8 @@ import './JobProgress.css'
 /** A report older than this reads "Last report N s ago": the box reports every 5 s at most, and some checks are silent until they end. */
 export const QUIET_AFTER_MS = 30_000
 
+const OPENVAS_TAIL_PERCENT = 95
+
 /** The clock of the elapsed time and the estimate: one tick a second, local only (no request). */
 function useNow(stepMs = 1000) {
   const [now, setNow] = useState(() => Date.now())
@@ -35,7 +37,11 @@ export function JobProgress({ progress, className }: { progress: Progress | null
   const count = counted ? t(`count.${progress.unit ?? 'plain'}`, { done: progress.done, total: progress.total, count: progress.total }) : null
   const elapsed = progress ? now - Date.parse(progress.started_at) : null
   const etaMs = progress?.eta ? Date.parse(progress.eta) - now : null
-  const left = etaMs === null || etaMs <= 0 ? null : etaMs < 60_000 ? t('leftSoon') : t('left', { time: sayDuration(t, Math.ceil(etaMs / 60_000) * 60_000) })
+  const endsMs = progress?.ends_by ? Date.parse(progress.ends_by) : null
+  const finishing = progress?.phase === 'openvas' && ((progress.percent ?? 0) >= OPENVAS_TAIL_PERCENT || (etaMs !== null && etaMs <= 0))
+  const overdue = finishing && endsMs !== null && now > endsMs
+  const stopBy = finishing && endsMs !== null && !overdue ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(endsMs)) : null
+  const left = finishing || etaMs === null || etaMs <= 0 ? null : etaMs < 60_000 ? t('leftSoon') : t('left', { time: sayDuration(t, Math.ceil(etaMs / 60_000) * 60_000) })
   const quietMs = progress ? now - Date.parse(progress.updated_at) : 0
   const quiet = quietMs >= QUIET_AFTER_MS
   return (
@@ -65,6 +71,8 @@ export function JobProgress({ progress, className }: { progress: Progress | null
         {count ? <span className="text-ink">{count}</span> : null}
         {elapsed !== null ? <span>{t('elapsed', { time: sayDuration(t, elapsed) })}</span> : null}
         {left ? <span>{left}</span> : null}
+        {stopBy ? <span>{t('finishing', { time: stopBy })}</span> : null}
+        {overdue ? <span>{t('limitReached')}</span> : null}
         {quiet ? (
           <span className="inline-flex items-center gap-1">
             {t('quiet', { time: sayDuration(t, quietMs) })}

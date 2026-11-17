@@ -89284,6 +89284,10 @@ func (s *ExposureGetExposureScanOKProgress) encodeFields(e *jx.Encoder) {
 		s.Done.Encode(e)
 	}
 	{
+		e.FieldStart("ends_by")
+		s.EndsBy.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("eta")
 		s.Eta.Encode(e, json.EncodeDateTime)
 	}
@@ -89321,17 +89325,18 @@ func (s *ExposureGetExposureScanOKProgress) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureScanOKProgress = [10]string{
-	0: "done",
-	1: "eta",
-	2: "message",
-	3: "percent",
-	4: "phase",
-	5: "phase_started_at",
-	6: "started_at",
-	7: "total",
-	8: "unit",
-	9: "updated_at",
+var jsonFieldsNameOfExposureGetExposureScanOKProgress = [11]string{
+	0:  "done",
+	1:  "ends_by",
+	2:  "eta",
+	3:  "message",
+	4:  "percent",
+	5:  "phase",
+	6:  "phase_started_at",
+	7:  "started_at",
+	8:  "total",
+	9:  "unit",
+	10: "updated_at",
 }
 
 // Decode decodes ExposureGetExposureScanOKProgress from json.
@@ -89353,8 +89358,18 @@ func (s *ExposureGetExposureScanOKProgress) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"done\"")
 			}
-		case "eta":
+		case "ends_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EndsBy.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ends_by\"")
+			}
+		case "eta":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Eta.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -89364,7 +89379,7 @@ func (s *ExposureGetExposureScanOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"eta\"")
 			}
 		case "message":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Message.Decode(d); err != nil {
 					return err
@@ -89374,7 +89389,7 @@ func (s *ExposureGetExposureScanOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"message\"")
 			}
 		case "percent":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Percent.Decode(d); err != nil {
 					return err
@@ -89384,7 +89399,7 @@ func (s *ExposureGetExposureScanOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"percent\"")
 			}
 		case "phase":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Phase.Decode(d); err != nil {
 					return err
@@ -89394,7 +89409,7 @@ func (s *ExposureGetExposureScanOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase\"")
 			}
 		case "phase_started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.PhaseStartedAt = v
@@ -89406,7 +89421,7 @@ func (s *ExposureGetExposureScanOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase_started_at\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -89418,7 +89433,7 @@ func (s *ExposureGetExposureScanOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Total.Decode(d); err != nil {
 					return err
@@ -89428,7 +89443,7 @@ func (s *ExposureGetExposureScanOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "unit":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Unit.Decode(d); err != nil {
 					return err
@@ -89438,7 +89453,7 @@ func (s *ExposureGetExposureScanOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unit\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -89460,7 +89475,7 @@ func (s *ExposureGetExposureScanOKProgress) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -102330,6 +102345,10 @@ func (s *ExposurePostExposureScanStopOKProgress) encodeFields(e *jx.Encoder) {
 		s.Done.Encode(e)
 	}
 	{
+		e.FieldStart("ends_by")
+		s.EndsBy.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("eta")
 		s.Eta.Encode(e, json.EncodeDateTime)
 	}
@@ -102367,17 +102386,18 @@ func (s *ExposurePostExposureScanStopOKProgress) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureScanStopOKProgress = [10]string{
-	0: "done",
-	1: "eta",
-	2: "message",
-	3: "percent",
-	4: "phase",
-	5: "phase_started_at",
-	6: "started_at",
-	7: "total",
-	8: "unit",
-	9: "updated_at",
+var jsonFieldsNameOfExposurePostExposureScanStopOKProgress = [11]string{
+	0:  "done",
+	1:  "ends_by",
+	2:  "eta",
+	3:  "message",
+	4:  "percent",
+	5:  "phase",
+	6:  "phase_started_at",
+	7:  "started_at",
+	8:  "total",
+	9:  "unit",
+	10: "updated_at",
 }
 
 // Decode decodes ExposurePostExposureScanStopOKProgress from json.
@@ -102399,8 +102419,18 @@ func (s *ExposurePostExposureScanStopOKProgress) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"done\"")
 			}
-		case "eta":
+		case "ends_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EndsBy.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ends_by\"")
+			}
+		case "eta":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Eta.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -102410,7 +102440,7 @@ func (s *ExposurePostExposureScanStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"eta\"")
 			}
 		case "message":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Message.Decode(d); err != nil {
 					return err
@@ -102420,7 +102450,7 @@ func (s *ExposurePostExposureScanStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"message\"")
 			}
 		case "percent":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Percent.Decode(d); err != nil {
 					return err
@@ -102430,7 +102460,7 @@ func (s *ExposurePostExposureScanStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"percent\"")
 			}
 		case "phase":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Phase.Decode(d); err != nil {
 					return err
@@ -102440,7 +102470,7 @@ func (s *ExposurePostExposureScanStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase\"")
 			}
 		case "phase_started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.PhaseStartedAt = v
@@ -102452,7 +102482,7 @@ func (s *ExposurePostExposureScanStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase_started_at\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -102464,7 +102494,7 @@ func (s *ExposurePostExposureScanStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Total.Decode(d); err != nil {
 					return err
@@ -102474,7 +102504,7 @@ func (s *ExposurePostExposureScanStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "unit":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Unit.Decode(d); err != nil {
 					return err
@@ -102484,7 +102514,7 @@ func (s *ExposurePostExposureScanStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unit\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -102506,7 +102536,7 @@ func (s *ExposurePostExposureScanStopOKProgress) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -105305,6 +105335,10 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) encodeFields(e *jx.E
 		s.Done.Encode(e)
 	}
 	{
+		e.FieldStart("ends_by")
+		s.EndsBy.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("eta")
 		s.Eta.Encode(e, json.EncodeDateTime)
 	}
@@ -105342,17 +105376,18 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) encodeFields(e *jx.E
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsIDScanAcceptedProgress = [10]string{
-	0: "done",
-	1: "eta",
-	2: "message",
-	3: "percent",
-	4: "phase",
-	5: "phase_started_at",
-	6: "started_at",
-	7: "total",
-	8: "unit",
-	9: "updated_at",
+var jsonFieldsNameOfExposurePostExposureTargetsIDScanAcceptedProgress = [11]string{
+	0:  "done",
+	1:  "ends_by",
+	2:  "eta",
+	3:  "message",
+	4:  "percent",
+	5:  "phase",
+	6:  "phase_started_at",
+	7:  "started_at",
+	8:  "total",
+	9:  "unit",
+	10: "updated_at",
 }
 
 // Decode decodes ExposurePostExposureTargetsIDScanAcceptedProgress from json.
@@ -105374,8 +105409,18 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) Decode(d *jx.Decoder
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"done\"")
 			}
-		case "eta":
+		case "ends_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EndsBy.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ends_by\"")
+			}
+		case "eta":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Eta.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -105385,7 +105430,7 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"eta\"")
 			}
 		case "message":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Message.Decode(d); err != nil {
 					return err
@@ -105395,7 +105440,7 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"message\"")
 			}
 		case "percent":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Percent.Decode(d); err != nil {
 					return err
@@ -105405,7 +105450,7 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"percent\"")
 			}
 		case "phase":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Phase.Decode(d); err != nil {
 					return err
@@ -105415,7 +105460,7 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"phase\"")
 			}
 		case "phase_started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.PhaseStartedAt = v
@@ -105427,7 +105472,7 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"phase_started_at\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -105439,7 +105484,7 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Total.Decode(d); err != nil {
 					return err
@@ -105449,7 +105494,7 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "unit":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Unit.Decode(d); err != nil {
 					return err
@@ -105459,7 +105504,7 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"unit\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -105481,7 +105526,7 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) Decode(d *jx.Decoder
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -319507,6 +319552,10 @@ func (s *ScanGetScansRunsOKItemsItemProgress) encodeFields(e *jx.Encoder) {
 		s.Done.Encode(e)
 	}
 	{
+		e.FieldStart("ends_by")
+		s.EndsBy.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("eta")
 		s.Eta.Encode(e, json.EncodeDateTime)
 	}
@@ -319544,17 +319593,18 @@ func (s *ScanGetScansRunsOKItemsItemProgress) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanGetScansRunsOKItemsItemProgress = [10]string{
-	0: "done",
-	1: "eta",
-	2: "message",
-	3: "percent",
-	4: "phase",
-	5: "phase_started_at",
-	6: "started_at",
-	7: "total",
-	8: "unit",
-	9: "updated_at",
+var jsonFieldsNameOfScanGetScansRunsOKItemsItemProgress = [11]string{
+	0:  "done",
+	1:  "ends_by",
+	2:  "eta",
+	3:  "message",
+	4:  "percent",
+	5:  "phase",
+	6:  "phase_started_at",
+	7:  "started_at",
+	8:  "total",
+	9:  "unit",
+	10: "updated_at",
 }
 
 // Decode decodes ScanGetScansRunsOKItemsItemProgress from json.
@@ -319576,8 +319626,18 @@ func (s *ScanGetScansRunsOKItemsItemProgress) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"done\"")
 			}
-		case "eta":
+		case "ends_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EndsBy.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ends_by\"")
+			}
+		case "eta":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Eta.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -319587,7 +319647,7 @@ func (s *ScanGetScansRunsOKItemsItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"eta\"")
 			}
 		case "message":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Message.Decode(d); err != nil {
 					return err
@@ -319597,7 +319657,7 @@ func (s *ScanGetScansRunsOKItemsItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"message\"")
 			}
 		case "percent":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Percent.Decode(d); err != nil {
 					return err
@@ -319607,7 +319667,7 @@ func (s *ScanGetScansRunsOKItemsItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"percent\"")
 			}
 		case "phase":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Phase.Decode(d); err != nil {
 					return err
@@ -319617,7 +319677,7 @@ func (s *ScanGetScansRunsOKItemsItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase\"")
 			}
 		case "phase_started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.PhaseStartedAt = v
@@ -319629,7 +319689,7 @@ func (s *ScanGetScansRunsOKItemsItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase_started_at\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -319641,7 +319701,7 @@ func (s *ScanGetScansRunsOKItemsItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Total.Decode(d); err != nil {
 					return err
@@ -319651,7 +319711,7 @@ func (s *ScanGetScansRunsOKItemsItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "unit":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Unit.Decode(d); err != nil {
 					return err
@@ -319661,7 +319721,7 @@ func (s *ScanGetScansRunsOKItemsItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unit\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -319683,7 +319743,7 @@ func (s *ScanGetScansRunsOKItemsItemProgress) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -322488,6 +322548,10 @@ func (s *ScanPostScansRunsCreatedProgress) encodeFields(e *jx.Encoder) {
 		s.Done.Encode(e)
 	}
 	{
+		e.FieldStart("ends_by")
+		s.EndsBy.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("eta")
 		s.Eta.Encode(e, json.EncodeDateTime)
 	}
@@ -322525,17 +322589,18 @@ func (s *ScanPostScansRunsCreatedProgress) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanPostScansRunsCreatedProgress = [10]string{
-	0: "done",
-	1: "eta",
-	2: "message",
-	3: "percent",
-	4: "phase",
-	5: "phase_started_at",
-	6: "started_at",
-	7: "total",
-	8: "unit",
-	9: "updated_at",
+var jsonFieldsNameOfScanPostScansRunsCreatedProgress = [11]string{
+	0:  "done",
+	1:  "ends_by",
+	2:  "eta",
+	3:  "message",
+	4:  "percent",
+	5:  "phase",
+	6:  "phase_started_at",
+	7:  "started_at",
+	8:  "total",
+	9:  "unit",
+	10: "updated_at",
 }
 
 // Decode decodes ScanPostScansRunsCreatedProgress from json.
@@ -322557,8 +322622,18 @@ func (s *ScanPostScansRunsCreatedProgress) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"done\"")
 			}
-		case "eta":
+		case "ends_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EndsBy.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ends_by\"")
+			}
+		case "eta":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Eta.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -322568,7 +322643,7 @@ func (s *ScanPostScansRunsCreatedProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"eta\"")
 			}
 		case "message":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Message.Decode(d); err != nil {
 					return err
@@ -322578,7 +322653,7 @@ func (s *ScanPostScansRunsCreatedProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"message\"")
 			}
 		case "percent":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Percent.Decode(d); err != nil {
 					return err
@@ -322588,7 +322663,7 @@ func (s *ScanPostScansRunsCreatedProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"percent\"")
 			}
 		case "phase":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Phase.Decode(d); err != nil {
 					return err
@@ -322598,7 +322673,7 @@ func (s *ScanPostScansRunsCreatedProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase\"")
 			}
 		case "phase_started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.PhaseStartedAt = v
@@ -322610,7 +322685,7 @@ func (s *ScanPostScansRunsCreatedProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase_started_at\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -322622,7 +322697,7 @@ func (s *ScanPostScansRunsCreatedProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Total.Decode(d); err != nil {
 					return err
@@ -322632,7 +322707,7 @@ func (s *ScanPostScansRunsCreatedProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "unit":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Unit.Decode(d); err != nil {
 					return err
@@ -322642,7 +322717,7 @@ func (s *ScanPostScansRunsCreatedProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unit\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -322664,7 +322739,7 @@ func (s *ScanPostScansRunsCreatedProgress) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -323865,6 +323940,10 @@ func (s *ScanPostScansRunsIDStopOKProgress) encodeFields(e *jx.Encoder) {
 		s.Done.Encode(e)
 	}
 	{
+		e.FieldStart("ends_by")
+		s.EndsBy.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("eta")
 		s.Eta.Encode(e, json.EncodeDateTime)
 	}
@@ -323902,17 +323981,18 @@ func (s *ScanPostScansRunsIDStopOKProgress) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanPostScansRunsIDStopOKProgress = [10]string{
-	0: "done",
-	1: "eta",
-	2: "message",
-	3: "percent",
-	4: "phase",
-	5: "phase_started_at",
-	6: "started_at",
-	7: "total",
-	8: "unit",
-	9: "updated_at",
+var jsonFieldsNameOfScanPostScansRunsIDStopOKProgress = [11]string{
+	0:  "done",
+	1:  "ends_by",
+	2:  "eta",
+	3:  "message",
+	4:  "percent",
+	5:  "phase",
+	6:  "phase_started_at",
+	7:  "started_at",
+	8:  "total",
+	9:  "unit",
+	10: "updated_at",
 }
 
 // Decode decodes ScanPostScansRunsIDStopOKProgress from json.
@@ -323934,8 +324014,18 @@ func (s *ScanPostScansRunsIDStopOKProgress) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"done\"")
 			}
-		case "eta":
+		case "ends_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EndsBy.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ends_by\"")
+			}
+		case "eta":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Eta.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -323945,7 +324035,7 @@ func (s *ScanPostScansRunsIDStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"eta\"")
 			}
 		case "message":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Message.Decode(d); err != nil {
 					return err
@@ -323955,7 +324045,7 @@ func (s *ScanPostScansRunsIDStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"message\"")
 			}
 		case "percent":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Percent.Decode(d); err != nil {
 					return err
@@ -323965,7 +324055,7 @@ func (s *ScanPostScansRunsIDStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"percent\"")
 			}
 		case "phase":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Phase.Decode(d); err != nil {
 					return err
@@ -323975,7 +324065,7 @@ func (s *ScanPostScansRunsIDStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase\"")
 			}
 		case "phase_started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.PhaseStartedAt = v
@@ -323987,7 +324077,7 @@ func (s *ScanPostScansRunsIDStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase_started_at\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -323999,7 +324089,7 @@ func (s *ScanPostScansRunsIDStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Total.Decode(d); err != nil {
 					return err
@@ -324009,7 +324099,7 @@ func (s *ScanPostScansRunsIDStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "unit":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Unit.Decode(d); err != nil {
 					return err
@@ -324019,7 +324109,7 @@ func (s *ScanPostScansRunsIDStopOKProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unit\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -324041,7 +324131,7 @@ func (s *ScanPostScansRunsIDStopOKProgress) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -327521,6 +327611,10 @@ func (s *ScanningGetScanningOKRunningItemProgress) encodeFields(e *jx.Encoder) {
 		s.Done.Encode(e)
 	}
 	{
+		e.FieldStart("ends_by")
+		s.EndsBy.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("eta")
 		s.Eta.Encode(e, json.EncodeDateTime)
 	}
@@ -327558,17 +327652,18 @@ func (s *ScanningGetScanningOKRunningItemProgress) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanningGetScanningOKRunningItemProgress = [10]string{
-	0: "done",
-	1: "eta",
-	2: "message",
-	3: "percent",
-	4: "phase",
-	5: "phase_started_at",
-	6: "started_at",
-	7: "total",
-	8: "unit",
-	9: "updated_at",
+var jsonFieldsNameOfScanningGetScanningOKRunningItemProgress = [11]string{
+	0:  "done",
+	1:  "ends_by",
+	2:  "eta",
+	3:  "message",
+	4:  "percent",
+	5:  "phase",
+	6:  "phase_started_at",
+	7:  "started_at",
+	8:  "total",
+	9:  "unit",
+	10: "updated_at",
 }
 
 // Decode decodes ScanningGetScanningOKRunningItemProgress from json.
@@ -327590,8 +327685,18 @@ func (s *ScanningGetScanningOKRunningItemProgress) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"done\"")
 			}
-		case "eta":
+		case "ends_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EndsBy.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ends_by\"")
+			}
+		case "eta":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Eta.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -327601,7 +327706,7 @@ func (s *ScanningGetScanningOKRunningItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"eta\"")
 			}
 		case "message":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Message.Decode(d); err != nil {
 					return err
@@ -327611,7 +327716,7 @@ func (s *ScanningGetScanningOKRunningItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"message\"")
 			}
 		case "percent":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Percent.Decode(d); err != nil {
 					return err
@@ -327621,7 +327726,7 @@ func (s *ScanningGetScanningOKRunningItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"percent\"")
 			}
 		case "phase":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Phase.Decode(d); err != nil {
 					return err
@@ -327631,7 +327736,7 @@ func (s *ScanningGetScanningOKRunningItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase\"")
 			}
 		case "phase_started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.PhaseStartedAt = v
@@ -327643,7 +327748,7 @@ func (s *ScanningGetScanningOKRunningItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"phase_started_at\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -327655,7 +327760,7 @@ func (s *ScanningGetScanningOKRunningItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Total.Decode(d); err != nil {
 					return err
@@ -327665,7 +327770,7 @@ func (s *ScanningGetScanningOKRunningItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "unit":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Unit.Decode(d); err != nil {
 					return err
@@ -327675,7 +327780,7 @@ func (s *ScanningGetScanningOKRunningItemProgress) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unit\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -327697,7 +327802,7 @@ func (s *ScanningGetScanningOKRunningItemProgress) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -330162,6 +330267,10 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) encodeFields(e *jx
 		s.Done.Encode(e)
 	}
 	{
+		e.FieldStart("ends_by")
+		s.EndsBy.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("eta")
 		s.Eta.Encode(e, json.EncodeDateTime)
 	}
@@ -330199,17 +330308,18 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) encodeFields(e *jx
 	}
 }
 
-var jsonFieldsNameOfScanningPatchScanningEnginesIDOKRunningItemProgress = [10]string{
-	0: "done",
-	1: "eta",
-	2: "message",
-	3: "percent",
-	4: "phase",
-	5: "phase_started_at",
-	6: "started_at",
-	7: "total",
-	8: "unit",
-	9: "updated_at",
+var jsonFieldsNameOfScanningPatchScanningEnginesIDOKRunningItemProgress = [11]string{
+	0:  "done",
+	1:  "ends_by",
+	2:  "eta",
+	3:  "message",
+	4:  "percent",
+	5:  "phase",
+	6:  "phase_started_at",
+	7:  "started_at",
+	8:  "total",
+	9:  "unit",
+	10: "updated_at",
 }
 
 // Decode decodes ScanningPatchScanningEnginesIDOKRunningItemProgress from json.
@@ -330231,8 +330341,18 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) Decode(d *jx.Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"done\"")
 			}
-		case "eta":
+		case "ends_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EndsBy.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ends_by\"")
+			}
+		case "eta":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Eta.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -330242,7 +330362,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"eta\"")
 			}
 		case "message":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Message.Decode(d); err != nil {
 					return err
@@ -330252,7 +330372,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"message\"")
 			}
 		case "percent":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Percent.Decode(d); err != nil {
 					return err
@@ -330262,7 +330382,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"percent\"")
 			}
 		case "phase":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Phase.Decode(d); err != nil {
 					return err
@@ -330272,7 +330392,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"phase\"")
 			}
 		case "phase_started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.PhaseStartedAt = v
@@ -330284,7 +330404,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"phase_started_at\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -330296,7 +330416,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Total.Decode(d); err != nil {
 					return err
@@ -330306,7 +330426,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "unit":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Unit.Decode(d); err != nil {
 					return err
@@ -330316,7 +330436,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"unit\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -330338,7 +330458,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) Decode(d *jx.Decod
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -331703,6 +331823,10 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) encodeFiel
 		s.Done.Encode(e)
 	}
 	{
+		e.FieldStart("ends_by")
+		s.EndsBy.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("eta")
 		s.Eta.Encode(e, json.EncodeDateTime)
 	}
@@ -331740,17 +331864,18 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) encodeFiel
 	}
 }
 
-var jsonFieldsNameOfScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress = [10]string{
-	0: "done",
-	1: "eta",
-	2: "message",
-	3: "percent",
-	4: "phase",
-	5: "phase_started_at",
-	6: "started_at",
-	7: "total",
-	8: "unit",
-	9: "updated_at",
+var jsonFieldsNameOfScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress = [11]string{
+	0:  "done",
+	1:  "ends_by",
+	2:  "eta",
+	3:  "message",
+	4:  "percent",
+	5:  "phase",
+	6:  "phase_started_at",
+	7:  "started_at",
+	8:  "total",
+	9:  "unit",
+	10: "updated_at",
 }
 
 // Decode decodes ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress from json.
@@ -331772,8 +331897,18 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Decode(d *
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"done\"")
 			}
-		case "eta":
+		case "ends_by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.EndsBy.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ends_by\"")
+			}
+		case "eta":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Eta.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -331783,7 +331918,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Decode(d *
 				return errors.Wrap(err, "decode field \"eta\"")
 			}
 		case "message":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Message.Decode(d); err != nil {
 					return err
@@ -331793,7 +331928,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Decode(d *
 				return errors.Wrap(err, "decode field \"message\"")
 			}
 		case "percent":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Percent.Decode(d); err != nil {
 					return err
@@ -331803,7 +331938,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Decode(d *
 				return errors.Wrap(err, "decode field \"percent\"")
 			}
 		case "phase":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Phase.Decode(d); err != nil {
 					return err
@@ -331813,7 +331948,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Decode(d *
 				return errors.Wrap(err, "decode field \"phase\"")
 			}
 		case "phase_started_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.PhaseStartedAt = v
@@ -331825,7 +331960,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Decode(d *
 				return errors.Wrap(err, "decode field \"phase_started_at\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -331837,7 +331972,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Decode(d *
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Total.Decode(d); err != nil {
 					return err
@@ -331847,7 +331982,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Decode(d *
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "unit":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Unit.Decode(d); err != nil {
 					return err
@@ -331857,7 +331992,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Decode(d *
 				return errors.Wrap(err, "decode field \"unit\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -331879,7 +332014,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Decode(d *
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

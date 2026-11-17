@@ -16,7 +16,7 @@ import { useModules } from '@/lib/modules'
 import { useHits, useOverview, useTestHit } from './api'
 import { hitName } from './hitName'
 import { RespondLink } from './hitParts'
-import { useScope } from '@/lib/v1'
+import { notOffered } from '@/lib/v1'
 import TrapIpsTab from './TrapIps'
 import TokensSection from './Tokens'
 import CoverageSection from './Coverage'
@@ -193,7 +193,7 @@ function ExclusionSection({ data }: { data: HpOverview }) {
 export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn?: boolean }) {
   const { t } = useTranslation('honeypot')
   const admin = useCan('admin')
-  const respond = useScope('response') !== 'hidden' // No Respond link while the response module is hidden
+  const respond = !notOffered('response') // Respond starts a new action: none while this build does not offer the response module, even on a box that has it on
   const columns: ColumnDef<Hit>[] = [
     { id: 'ts', header: t('hits.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => (
       <Link className="whitespace-nowrap text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${row.original.id}`}>{fmtDateTime(row.original.ts)}</Link>

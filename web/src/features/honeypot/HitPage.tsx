@@ -11,7 +11,7 @@ import { fmtDateTime } from '@/lib/format'
 import { useHit } from './api'
 import { hitName } from './hitName'
 import { RespondLink } from './hitParts'
-import { useScope } from '@/lib/v1'
+import { notOffered } from '@/lib/v1'
 import type { HitDetail, HitEvent } from './types'
 import { kindLabel } from '@/lib/deviceTypes'
 
@@ -19,7 +19,7 @@ export default function HitPage() {
   const { t } = useTranslation('honeypot')
   const { id = '' } = useParams()
   const hit = useHit(id)
-  const respond = useScope('response') !== 'hidden' // No Respond link while the response module is hidden
+  const respond = !notOffered('response') // Respond starts a new action: none while this build does not offer the response module, even on a box that has it on
   // UI.md §3: the parent above the title, also while the hit loads or fails, so the way back is always there.
   const crumbs = [{ label: t('nav'), to: '/honeypot' }]
   return (

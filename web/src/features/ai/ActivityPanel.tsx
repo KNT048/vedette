@@ -31,6 +31,7 @@ export default function ActivityPanel() {
   const verify = useVerifyChain()
   const v = verify.data
   const job = (j: string) => t(`skill.${j}`, { defaultValue: j })
+  const jobs = useScope('response') === 'hidden' ? JOBS.filter((j) => j !== 'response-plan') : JOBS // no filter for a module this build does not offer and this box never ran
   const cols: ColumnDef<ActivityEntry>[] = [
     { id: 'ts', header: t('activity.col.time'), accessorKey: 'ts', cell: ({ getValue }) => fmtDateTime(getValue() as string) },
     { id: 'job', header: t('activity.col.job'), accessorFn: (e) => job(e.job) },
@@ -48,7 +49,7 @@ export default function ActivityPanel() {
           <Field label={t('activity.filter.job')} htmlFor="act-job">
             <Select id="act-job" value={f.job} onChange={(e) => setF({ ...f, job: e.target.value })}>
               <option value="">{t('activity.filter.any')}</option>
-              {JOBS.map((j) => <option key={j} value={j}>{job(j)}</option>)}
+              {jobs.map((j) => <option key={j} value={j}>{job(j)}</option>)}
             </Select>
           </Field>
           <Field label={t('activity.filter.result')} htmlFor="act-result">

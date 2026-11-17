@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtDate, fmtDateTime, fmtNumber } from '@/lib/format'
 import { useInstallKind } from '@/lib/modules'
+import { notOffered } from '@/lib/v1'
 import { useCan } from '@/lib/session'
 import { fetchSuggestion, useActivitySettings, useAiConfig, useAssignments, useProfiles, useRemoveProfile, useSaveActivitySettings, useSaveAssignments, useSaveConfig, useListModels, useSaveProfile, useTestProfile } from './api'
 import { ActionError } from './parts'
@@ -63,6 +64,8 @@ const JOBS: { id: AiJob; data: 'internal' | 'public' }[] = [
   { id: 'explain-finding', data: 'internal' }, { id: 'mitigation-config', data: 'internal' }, { id: 'ask-my-data', data: 'internal' }, { id: 'log-digest', data: 'internal' }, { id: 'log-investigate', data: 'internal' },
   { id: 'weekly-report', data: 'internal' }, { id: 'pdpl-assessment', data: 'internal' }, { id: 'cve-news', data: 'public' }, { id: 'translate-advisory', data: 'public' }, { id: 'response-plan', data: 'internal' },
 ]
+// The response plan is set on the response module's own page; no row for it while this build does not offer that module
+const shownJobs = () => (notOffered('response') ? JOBS.filter((j) => j.id !== 'response-plan') : JOBS)
 const hostOf = (u: string) => { try { return new URL(u).host } catch { return u || '…' } }
 const usable = (p: AiProfile) => p.usable
 
@@ -509,7 +512,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
                 <th scope="col" className="px-3 py-2 font-medium">{t('assign.col.fallback')}</th>
               </tr></thead>
               <tbody>
-                {JOBS.map((j) => {
+                {shownJobs().map((j) => {
                   const s = draft.jobs[j.id]
                   const opts = (slot: 'primary' | 'fallback'): SelectOption[] => [{ value: '', label: t('assign.none') }, ...profiles.map((p) => {
                     const off = !p.usable || blocked(p, j.data) || (slot === 'fallback' && s.primary === p.id)

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -13,6 +13,11 @@ import { seedAssets } from '@/mocks/seed/assets'
 import DevicePanel from './DevicePanel'
 import TrapIpsTab from './TrapIps'
 import { feature } from './index'
+
+// Respond opens the response module, which this build does not offer; this file runs it as offered, and
+// features/core/v1Scope.test.tsx runs the build's own view.
+const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
+vi.mock('@/lib/postV1', () => postV1)
 
 // The page is the shared page frame with tabs in ?tab= (overview, trap-ips, services, tokens, hits).
 const svcRow = (name: RegExp) => within(screen.getByRole('table', { name: 'Services and their status' })).getByRole('row', { name })

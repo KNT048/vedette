@@ -99,8 +99,8 @@
     "notHereTitle": "{{name}} is not on this install",
     "notHereBody": "It needs the appliance install. Existing data is kept.",
     "notHereInfo": "This container-only install has no vedette-host to run it, so the module cannot be turned on here.",
-    "notOfferedTitle": "{{name}} is not part of v1",
-    "notOfferedBody": "This build does not offer it. Existing data is kept."
+    "notOfferedTitle": "{{name}} is not available in this release",
+    "notOfferedBody": "This feature is not part of this release. Existing data is kept."
   },
   "modules": {
     "core": {
@@ -237,9 +237,9 @@
     "preview": "Preview",
     "previewLine": "Not part of the v1 promise yet.",
     "previewInfo": "Preview modules ship off by default. They work, but v1 is judged on finding exploited vulnerabilities in what you own and telling you what to do. A preview fault is fixed before v1 only when it is a security fault, loses data or breaks that path.",
-    "leaving": "Not in v1",
-    "leavingLine": "Not part of v1: you can turn it off; once off it is hidden.",
-    "leavingInfo": "This box turned it on before v1 left it out. It keeps working as set and its data is kept. This build does not offer it, so once it is off it cannot be turned on again here; it comes back in a later release.",
+    "leaving": "Not in this release",
+    "leavingLine": "This feature is not part of this release. Its settings are kept and shown read-only.",
+    "leavingInfo": "This box turned it on before this release left it out. It keeps working as set and its data is kept. You can turn it off; once off it is hidden and cannot be turned on again here. A later release brings it back.",
     "turnOff": "Turn off in Settings, Modules"
   },
   "tokenSearch": {

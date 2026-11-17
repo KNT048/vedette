@@ -3,13 +3,16 @@ import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations, mainNavLink } from '@/test/render'
-import { modulesStore } from '@/mocks/stores'
+import { modulesStore, sessionStore } from '@/mocks/stores'
+import { server } from '@/test/server'
 import { MOCK_SETUP_CODE } from './mocks'
+import { saveSsoFlow } from './ssoFlow'
 
 const setModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
 const mainNav = () => screen.getByRole('navigation', { name: 'Main navigation' })
 const settingsNav = () => screen.getByRole('navigation', { name: 'Settings sections' })
-const LEAVING = 'Not part of v1: you can turn it off; once off it is hidden.'
+const LEAVING = 'This feature is not part of this release. Its settings are kept and shown read-only.'
+const BADGE = 'Not in this release'
 
 describe('preview modules (#818)', () => {
   it('a preview module that is on has a Preview badge in the nav, on its Settings → Modules row and on its page header; a v1 module has none', async () => {
@@ -34,8 +37,8 @@ describe('preview modules (#818)', () => {
   })
 })
 
-describe('modules left out of v1 (#819)', () => {
-  it('off: absent from the nav, Settings → Modules, the Settings menu, Users (SSO) and Incidents (Respond); a direct link says it is not part of v1', async () => {
+describe('modules that are not part of this release', () => {
+  it('off: absent from the nav, Settings → Modules, the Settings menu, Users (SSO) and Incidents (Respond); a direct link says it is not available', async () => {
     setModule('response', false) // mcp-server, auth-oidc and scan-credentialed are off in the mock already
     const u = userEvent.setup()
     renderApp('/settings/modules')
@@ -51,9 +54,9 @@ describe('modules left out of v1 (#819)', () => {
     expect(screen.queryByRole('button', { name: 'Turn on SSO sign-in' })).toBeNull()
   })
 
-  it('off: opening its Settings path says it is not part of v1, with no link to turn it on', async () => {
+  it('off: opening its Settings path says it is not available, with no link to turn it on', async () => {
     renderApp('/settings/mcp')
-    expect(await screen.findByText('MCP server is not part of v1')).toBeInTheDocument()
+    expect(await screen.findByText('MCP server is not available in this release')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: 'MCP server' })).toBeInTheDocument() // the page has its h1
     expect(screen.queryByRole('link', { name: 'Open module settings' })).toBeNull()
     expect(screen.queryByRole('switch', { name: 'MCP server' })).toBeNull()
@@ -68,13 +71,13 @@ describe('modules left out of v1 (#819)', () => {
     expect(screen.queryByRole('link', { name: /^Respond/ })).toBeNull()
   })
 
-  it('on (a box that turned it on before v1): shown read-only with its note; the only action is turning it off, then it is gone', async () => {
+  it('on (a box that turned it on earlier): shown read-only with its note; the only action is turning it off, then it is gone', async () => {
     const u = userEvent.setup()
     renderApp('/settings/modules') // response is on in the mock
     const row = (await screen.findByRole('switch', { name: 'Turn off module AI response' })).closest('tr')!
-    expect(within(row).getByText('Not in v1')).toBeInTheDocument()
+    expect(within(row).getByText(BADGE)).toBeInTheDocument()
     expect(within(row).getByText(LEAVING)).toBeInTheDocument()
-    const nav = await mainNavLink('Response Not in v1')
+    const nav = await mainNavLink(`Response ${BADGE}`)
     expect(nav).toHaveAttribute('href', '/response')
     expect(within(settingsNav()).getByRole('link', { name: 'AI response (high risk)' })).toBeInTheDocument()
 
@@ -90,7 +93,7 @@ describe('modules left out of v1 (#819)', () => {
   it('on: its page header carries the note and the way to Settings → Modules', async () => {
     renderApp('/response')
     const header = (await screen.findByRole('heading', { level: 1 })).closest('header')!
-    expect(within(header).getByText('Not in v1')).toBeInTheDocument()
+    expect(within(header).getByText(BADGE)).toBeInTheDocument()
     expect(within(header).getByText(LEAVING)).toBeInTheDocument()
     expect(within(header).getByRole('link', { name: 'Turn off in Settings, Modules' })).toHaveAttribute('href', '/settings/modules#module-response') // its own switch
   })
@@ -107,6 +110,7 @@ describe('modules left out of v1 (#819)', () => {
     await u.click(within(settingsNav()).getByRole('link', { name: 'Users' }))
     expect(await screen.findByRole('heading', { name: 'SSO sign-in (OIDC)' })).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: 'Turn off SSO' })).toBeEnabled()
+    expect(screen.getByText(LEAVING)).toBeInTheDocument()
     expect(screen.queryByLabelText('Issuer')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
     await u.click(screen.getByRole('button', { name: 'Turn off SSO' }))
@@ -150,7 +154,7 @@ describe('setup bundles turn on v1 modules only', () => {
   })
 })
 
-describe('more entry points of the post-v1 modules', () => {
+describe('more entry points of those modules', () => {
   const APPROVE = 'Approve actions from this channel'
 
   it('channel Approvals: a channel without them has no section; one with them can turn them off, not change its approvers', async () => {
@@ -171,7 +175,7 @@ describe('more entry points of the post-v1 modules', () => {
     expect(sw).toBeDisabled() // off again; cannot be turned back on here
   })
 
-  it('trap hits: no Respond while the response module is hidden; Respond while it is on', async () => {
+  it('trap hits: no Respond while the response module is hidden', async () => {
     setModule('response', false)
     renderApp('/honeypot?tab=hits')
     await screen.findByRole('table', { name: /hit/i })
@@ -194,5 +198,103 @@ describe('more entry points of the post-v1 modules', () => {
     const dlg = await screen.findByRole('dialog', { name: 'Turn off SSO sign-in?' })
     expect(within(dlg).queryByText(/Turn it back on any time/)).toBeNull()
     expect(within(dlg).getByText(/cannot be turned on again here/, { selector: '[hidden], [hidden] *' })).toBeInTheDocument()
+  })
+})
+
+describe('every entry point is gone, and old links land on a plain page', () => {
+  const NOT_AVAILABLE = 'AI response is not available in this release'
+
+  it('a box with AI response on: its own nav entry stays, but Incidents has no Respond', async () => {
+    renderApp('/incidents') // response is on in the mock
+    await screen.findByRole('heading', { level: 1 })
+    await waitFor(() => expect(screen.getAllByRole('columnheader').length).toBeGreaterThan(2))
+    expect(screen.queryByRole('columnheader', { name: 'Respond' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /^Respond/ })).toBeNull()
+    expect(await mainNavLink(`Response ${BADGE}`)).toHaveAttribute('href', '/response')
+  })
+
+  it('a box with AI response on: the incident page has no Respond button', async () => {
+    renderApp('/incidents/al-4')
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Respond' })).toBeNull()
+  })
+
+  it('a box with AI response on: trap hits have no Respond link', async () => {
+    renderApp('/honeypot?tab=hits')
+    await screen.findByRole('table', { name: /hit/i })
+    expect(screen.queryByRole('columnheader', { name: 'Respond' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /^Respond/ })).toBeNull()
+  })
+
+  it('a box with AI response on: the finding page shows no response plan and does not ask for one', async () => {
+    const asked: string[] = []
+    let modules = false
+    server.events.on('response:mocked', ({ request }) => {
+      const path = new URL(request.url).pathname
+      if (path.endsWith('/modules')) modules = true
+      if (path.includes('/response/')) asked.push(path)
+    })
+    try {
+      renderApp('/findings/f-1')
+      expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
+      await waitFor(() => expect(modules).toBe(true))
+      expect(screen.queryByRole('heading', { name: 'Response plan' })).toBeNull()
+      expect(asked).toEqual([])
+    } finally { server.events.removeAllListeners() }
+  })
+
+  it('off: the AI task routing has no response plan row', async () => {
+    setModule('response', false)
+    renderApp('/settings/ai')
+    const table = await screen.findByRole('table', { name: 'AI job routing' })
+    expect(within(table).getByLabelText('Primary profile for Log summaries')).toBeInTheDocument()
+    expect(within(table).queryByLabelText('Primary profile for Response plans')).toBeNull()
+  })
+
+  it('off: the log download has no response log', async () => {
+    setModule('response', false)
+    renderApp('/settings/data')
+    expect(await screen.findByRole('checkbox', { name: 'Audit log' })).toBeChecked()
+    expect(screen.queryByRole('checkbox', { name: 'Response log' })).toBeNull()
+  })
+
+  it.each([
+    ['/response', 'the response page'],
+    ['/response?incident=al-4', 'an old Respond link of an incident'],
+    ['/settings/response', 'its Settings section'],
+    ['/link/telegram?c=abc', 'a chat approver confirm link'],
+  ])('off: %s (%s) shows the not-available page with no way to turn it on', async (path) => {
+    setModule('response', false)
+    renderApp(path)
+    expect(await screen.findByText(NOT_AVAILABLE)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Open module settings' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Respond to this incident' })).toBeNull()
+  })
+
+  it('the credentialed scan has no tab; its old link opens the first tab', async () => {
+    renderApp('/settings/scanning?tab=credentialed')
+    expect(await screen.findByRole('tab', { name: 'Engines', selected: true })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Credentialed scan' })).toBeNull()
+  })
+
+  it('SSO configured and on: the sign-in page keeps its SSO button and the sign-in completes', async () => {
+    setModule('auth-oidc', true)
+    sessionStore.set({ userId: 'u-admin' })
+    const put = await fetch(`${location.origin}/api/v1/core/oidc`, { method: 'PUT', body: JSON.stringify({ issuer: 'https://sso.acme.example', client_id: 'v', client_secret: 'a-long-client-secret', scopes: 'openid email profile', groups_claim: 'groups', default_role: null, role_map: [{ group: 'vedette-operators', role: 'operator' }] }) })
+    expect(put.status).toBe(200)
+    sessionStore.set({ userId: null })
+    const { unmount } = renderApp('/login', { role: null })
+    expect(await screen.findByRole('button', { name: 'Sign in with SSO' })).toBeEnabled()
+    unmount()
+    // what the button starts; the mock identity provider sends the browser straight back to the callback
+    const r = await fetch(`${location.origin}/api/v1/auth/oidc/start`, { method: 'POST' })
+    expect(r.status).toBe(200)
+    const b = (await r.json()) as { authorize_url: string; binding: string }
+    saveSsoFlow({ binding: b.binding, next: '/account?tab=sign-in' })
+    const back = new URL(b.authorize_url)
+    renderApp(back.pathname + back.search, { role: null })
+    expect(await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)).toBeInTheDocument()
   })
 })

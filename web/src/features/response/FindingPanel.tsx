@@ -4,21 +4,21 @@ import { Section } from '@/components/common/PageHeader'
 import { useModuleEnabled } from '@/lib/modules'
 import { usePlans } from './api'
 import { PlanView } from './parts'
-import { FrozenCtx, useLeaving } from './frozen'
+import { notOffered } from '@/lib/v1'
 
 /** Slot `finding.panels` (S-RESP-1): the AI response plan for this finding, when it is an open critical one. */
 export default function FindingPanel({ findingId }: Record<string, unknown>) {
   const { t } = useTranslation('response')
-  const on = useModuleEnabled('response')
-  const leaving = useLeaving() // No new request from a plan on a box that had it on before v1
+  // A plan is a new action: none while this build does not offer the module, even on a box that has it on (its own page stays)
+  const on = useModuleEnabled('response') === true && !notOffered('response')
   const id = String(findingId ?? '')
-  const q = usePlans(id, on === true) // a module that is off is not called: no request, no 404 in the console
+  const q = usePlans(id, on) // a module that is off is not called: no request, no 404 in the console
   const plan = q.data?.items[0]
   if (!on || !plan) return null
   return (
     <Section id="response" title={t('panel.title')} description={t('panel.description')} stories={['S-RESP-1']}
       actions={<Link to="/response" className="text-meta text-accent underline-offset-4 hover:underline">{t('panel.open')}</Link>}>
-      <FrozenCtx.Provider value={leaving}><PlanView plan={plan} /></FrozenCtx.Provider>
+      <PlanView plan={plan} />
     </Section>
   )
 }

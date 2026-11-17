@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
-import { modulesStore, sessionStore } from '@/mocks/stores'
+import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { scannerStore } from '@/features/scan/mocks'
 import type { ScanRun } from '@/features/scan/types'
 import { historyStore, markReached } from './mocks'
 
@@ -60,6 +61,9 @@ describe('the device page says what each check does and when each last ran', () 
     server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ engine_busy: false, items: [] })))
     renderApp('/devices/a-nas01')
     const ident = await screen.findByRole('group', { name: IDENT }, T)
+    // the hints name the two buttons, which this device's page shows
+    expect(screen.getAllByRole('button', { name: 'Check this device now' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: 'Run vulnerability checks now' }).length).toBeGreaterThan(0)
     expect(within(ident).getByText('Never')).toBeInTheDocument()
     expect(within(ident).getByText(/Check this device now” above runs it/)).toBeInTheDocument()
     expect(within(ident).queryByRole('link', { name: 'See it in History' })).toBeNull()
@@ -125,4 +129,93 @@ describe('the device page says what each check does and when each last ran', () 
     expect(within(vuln).queryByText('Never')).toBeNull()
   })
 
+})
+
+// A hint names a button only when the device page shows it for this device; otherwise it says what would let the check run.
+describe('Last checks never points at a button the device page does not show', () => {
+  const noRuns = () => server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ engine_busy: false, items: [] })))
+  const addDevice = (over: Record<string, unknown>) => {
+    const pc = assetsStore.get().find((a) => a.id === 'a-pc01')!
+    assetsStore.update((l) => [...l, { ...pc, id: 'a-man1', ip: '192.168.10.240', mac: null, hostname: 'MAN-ONE', services: [], software: [], ...over }])
+  }
+  const lastChecks = () => screen.findByRole('region', { name: 'Last checks' }, T)
+
+  it('a device added by hand: neither button, and the hints say to turn its network scan on under Sources', async () => {
+    noRuns()
+    addDevice({ origin: 'manual' })
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    const ident = await within(section).findByRole('group', { name: IDENT }, T)
+    expect(within(ident).getByText('Added by hand: network discovery checks it only once you turn its network scan on under Sources on this page.')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: VULN })).getByText('Added by hand: vulnerability checks run on it only once you turn its network scan on under Sources on this page.')).toBeInTheDocument()
+    expect(screen.queryAllByRole('button', { name: 'Check this device now' })).toHaveLength(0)
+    expect(screen.queryAllByRole('button', { name: 'Run vulnerability checks now' })).toHaveLength(0)
+    expect(within(section).queryByText(/above/)).toBeNull()
+  })
+
+  it('the Services tab of a device added by hand does not send the person to Check this device now', async () => {
+    addDevice({ origin: 'manual' })
+    renderApp('/devices/a-man1?tab=services')
+    const tip = await screen.findByRole('button', { name: 'About No open port seen yet' }, T)
+    expect(tip).toHaveAccessibleDescription('Added by hand: network discovery checks it only once you turn its network scan on under Sources on this page.')
+  })
+
+  it('the Services tab of a device that can be checked names the button at the top of the page', async () => {
+    addDevice({})
+    renderApp('/devices/a-man1?tab=services')
+    const tip = await screen.findByRole('button', { name: 'About No open port seen yet' }, T)
+    expect(tip).toHaveAccessibleDescription(/press Check this device now at the top of this page/)
+    expect(screen.getAllByRole('button', { name: 'Check this device now' }).length).toBeGreaterThan(0)
+  })
+
+  it('a product declared without an address: no button, no SNMP card link, and the hints ask for its IP', async () => {
+    noRuns()
+    addDevice({ origin: 'manual', ip: '—', hostname: null })
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    const vuln = await within(section).findByRole('group', { name: VULN }, T)
+    expect(within(vuln).getByText('No IP address yet, so no vulnerability check can run on it. Add its IP on this page.')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: IDENT })).getByText(/^No IP address yet, so network discovery cannot check it/)).toBeInTheDocument()
+    expect(within(section).queryByRole('link', { name: 'Set it up on the SNMP card' })).toBeNull()
+    expect(within(section).queryByText(/above/)).toBeNull()
+  })
+
+  it('a device not approved yet: the device check button is there and named, the vulnerability check says to approve it', async () => {
+    noRuns()
+    addDevice({ approved: false })
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    const vuln = await within(section).findByRole('group', { name: VULN }, T)
+    expect(within(vuln).getByText('Not approved yet: vulnerability checks run on it only once you approve it on this page.')).toBeInTheDocument()
+    expect(screen.queryAllByRole('button', { name: 'Run vulnerability checks now' })).toHaveLength(0)
+    expect(screen.getAllByRole('button', { name: 'Check this device now' }).length).toBeGreaterThan(0)
+    expect(within(screen.getByRole('group', { name: IDENT })).getByText(/Check this device now” above runs it/)).toBeInTheDocument()
+  })
+
+  it('a viewer sees both buttons disabled: the hints say who can run them', async () => {
+    noRuns()
+    renderApp('/devices/a-nas01', { role: 'viewer' })
+    const section = await lastChecks()
+    const ident = await within(section).findByRole('group', { name: IDENT }, T)
+    expect(within(ident).getByText(/^An admin can run it with “Check this device now” above\./)).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: VULN })).getByText(/^An operator can run it with “Run vulnerability checks now” above\./)).toBeInTheDocument()
+  })
+
+  it('an operator runs the vulnerability checks, an admin the device check', async () => {
+    noRuns()
+    renderApp('/devices/a-nas01', { role: 'operator' })
+    const section = await lastChecks()
+    const ident = await within(section).findByRole('group', { name: IDENT }, T)
+    expect(within(ident).getByText(/^An admin can run it with “Check this device now” above\./)).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: VULN })).getByText(/^“Run vulnerability checks now” above runs it\./)).toBeInTheDocument()
+  })
+
+  it('the scanner not available: the vulnerability row says why, as the button does, not that the button runs it', async () => {
+    noRuns()
+    scannerStore.set({ available: false })
+    renderApp('/devices/a-nas01')
+    const vuln = await screen.findByRole('group', { name: VULN }, T)
+    expect(await within(vuln).findByText(/^The vulnerability scanner is not available/, {}, T)).toBeInTheDocument()
+    expect(within(vuln).queryByText(/above runs it/)).toBeNull()
+  })
 })

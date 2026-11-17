@@ -34,6 +34,10 @@ export function nameOf(a: Named, fallback: string) {
  *  declared software, not a device; nothing scans it, it is matched against exploited CVEs by its product. */
 export const declaredSoftwareOnly = (a: Named) => a.origin === 'manual' && !a.hostname && !hasIp(a)
 
+/** Whether the device page shows this device's SNMP card: an admin, active discovery on, a real device (not the box, not ignored,
+ *  not declared software only). Last checks reads it too, so its "Set it up on the SNMP card" link never points at no card. */
+export const hasSnmpCard = (a: Named & { is_box: boolean; ignored_at?: string | null }, admin: boolean, on: boolean) => admin && on && !a.is_box && !a.ignored_at && !declaredSoftwareOnly(a)
+
 /** Characters a name in Vedette cannot hold (as the backend's userName, #929): < >, C0 and C1 controls, bidi marks,
  *  overrides and isolates, zero-width characters, the soft hyphen, word joiners and U+FEFF. They would show the name reversed or blank. */
 const BAD_NAME = /[<>\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/

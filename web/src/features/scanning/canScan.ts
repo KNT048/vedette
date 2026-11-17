@@ -4,6 +4,10 @@
 // refuses (sensor-active runnow.go: the box and outside the scope are out_of_scope; never scan, added by hand, no address are
 // not_scannable) and what the run needs of the box (the ranges confirmed, network discovery on).
 import { inRanges } from '@/features/inventory/AddToScopeDialog'
+import { useTargets } from '@/features/scan/api'
+import type { ScanTarget } from '@/features/scan/types'
+import { useModuleEnabled } from '@/lib/modules'
+import { useScanning } from './api'
 import type { Safety, Scanning } from './types'
 
 /** What a device brings to the rule: the device page's read or a Devices list row (inventory DeviceRow). */
@@ -33,3 +37,17 @@ export function scanRefusal(d: ScanFacts, s?: Scanning): ScanRefusal | null {
   if (!disc?.enabled) return 'discovery_off'
   return null
 }
+
+/** Which of this page's two check buttons the device gets, the one rule DeviceActions shows them by: identify is why "Check this
+ *  device now" gives way to a reason (null: the button is shown); vuln is 'off' (the vulnerability checks are off: neither button
+ *  nor reason), the scan list's reason shown instead of "Run vulnerability checks now", or null (the button is shown). Last checks
+ *  reads the same answer, so its hints name only a button that is on the page. pending: the scan list has not answered yet. */
+export function useDeviceButtons(assetId: string, d?: ScanFacts) {
+  const safety = useScanning().data?.safety
+  const on = useModuleEnabled('scan')
+  const targets = useTargets(on === true)
+  const x = targets.data?.items.find((i) => i.id === assetId)
+  const vuln: VulnButton = on !== true ? 'off' : x && !x.selectable ? (x.reason ?? 'out_of_scope') : null
+  return { identify: d ? deviceRefusal(d, safety) : null, vuln, pending: on === true && targets.isPending }
+}
+export type VulnButton = 'off' | NonNullable<ScanTarget['reason']> | null

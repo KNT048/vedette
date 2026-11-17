@@ -386,7 +386,17 @@
       "snmp": "SNMP read: model and firmware"
     },
     "neverIdentify": "“Check this device now” above runs it. Network discovery also checks each new device, and every device weekly, in the scan window.",
+    "neverIdentifyRole": "An admin can run it with “Check this device now” above. Network discovery also checks each new device, and every device weekly, in the scan window.",
     "neverVuln": "“Run vulnerability checks now” above runs it. A newly exploited flaw that matches this device can start one too.",
+    "neverVulnRole": "An operator can run it with “Run vulnerability checks now” above. A newly exploited flaw that matches this device can start one too.",
+    "vulnWhy": {
+      "manual": "Added by hand: vulnerability checks run on it only once you turn its network scan on under Sources on this page.",
+      "no_ip": "No IP address yet, so no vulnerability check can run on it. Add its IP on this page.",
+      "regular_scan_never": "Set to never scan, or its network scan is off under Sources: no vulnerability check runs on it.",
+      "unapproved": "Not approved yet: vulnerability checks run on it only once you approve it on this page.",
+      "excluded": "In the exclusion list: no vulnerability check runs on it. Settings, Scanning, Safety holds the list.",
+      "out_of_scope": "Outside the confirmed network ranges: no vulnerability check runs on it. Settings, Scanning, Safety holds the ranges."
+    },
     "vulnOff": "The vulnerability checks (Preview) are off, so none runs.",
     "vulnOffLink": "Turn them on: Settings, Scanning, Engines",
     "neverSnmp": "An SNMP read runs in the scan window once SNMP is set up on this device.",

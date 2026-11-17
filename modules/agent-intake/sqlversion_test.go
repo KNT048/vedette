@@ -1,6 +1,8 @@
 package agentintake_test
 
 import (
+	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -39,26 +41,63 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 		display, version string
 		confidence       float64
 	}
-	rows := func() []sqlRow {
+	// agent is the device's software rows the agent reported, read through inventory's own reads (INV-2: no SQL on inv_* outside
+	// inventory): the device detail for display, version and confidence, MatchInput for the KEV keys of each row.
+	type agentRow struct {
+		sqlRow
+		keys []string
+	}
+	agent := func() []agentRow {
 		t.Helper()
-		q, err := w.db.Reader().QueryContext(t.Context(), `SELECT display, ifnull(version, ''), confidence FROM inv_software s JOIN inv_software_kev k ON k.software_id = s.id
-			WHERE k.kev_key = 'microsoft|sql server' AND s.source = 'agent' ORDER BY display`)
+		d, ok := w.device(peerA)
+		if !ok {
+			t.Fatal("no device")
+		}
+		det, err := w.inv.Detail(t.Context(), d.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer func() { _ = q.Close() }()
-		var out []sqlRow
-		for q.Next() {
-			var r sqlRow
-			if err := q.Scan(&r.display, &r.version, &r.confidence); err != nil {
-				t.Fatal(err)
+		in, _, err := w.inv.MatchInput(t.Context(), d.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		keys := map[string][]string{}
+		for _, s := range in.Software {
+			keys[s.ID] = s.KevKeys
+		}
+		var out []agentRow
+		for _, s := range det.Asset.Software {
+			if s.Source != "agent" {
+				continue
+			}
+			r := agentRow{sqlRow: sqlRow{display: s.Display, confidence: s.Confidence}, keys: keys[s.ID]}
+			if s.Version != nil {
+				r.version = *s.Version
 			}
 			out = append(out, r)
 		}
-		if err := q.Err(); err != nil {
-			t.Fatal(err)
-		}
 		return out
+	}
+	rows := func() []sqlRow { // the rows keyed to SQL Server
+		t.Helper()
+		var out []sqlRow
+		for _, r := range agent() {
+			if slices.Contains(r.keys, "microsoft|sql server") {
+				out = append(out, r.sqlRow)
+			}
+		}
+		slices.SortFunc(out, func(a, b sqlRow) int { return strings.Compare(a.display, b.display) })
+		return out
+	}
+	without := func(bad func(agentRow) bool) int {
+		t.Helper()
+		n := 0
+		for _, r := range agent() {
+			if bad(r) {
+				n++
+			}
+		}
+		return n
 	}
 
 	// an agent whose config predates D-606: the components give the build (the RsFx Driver stated the same one)
@@ -66,7 +105,7 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 	if got := rows(); len(got) != 1 || got[0].version != rtm {
 		t.Fatalf("components: %+v", got)
 	}
-	if n := w.count(`SELECT count(*) FROM inv_software WHERE source = 'agent' AND version IS NULL`); n != 0 {
+	if n := without(func(r agentRow) bool { return r.version == "" }); n != 0 {
 		t.Fatalf("%d agent rows without a version", n)
 	}
 
@@ -78,10 +117,12 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 	if got := rows(); len(got) != 1 || got[0] != (sqlRow{"Microsoft SQL Server 2022 (64-bit)", "16.0.4135.4", 0.95}) {
 		t.Fatalf("setup registry: %+v", got)
 	}
-	if n := w.count(`SELECT count(*) FROM inv_software WHERE display LIKE 'HKEY%' OR version LIKE 'HKEY%' OR display = ''`); n != 0 {
+	if n := without(func(r agentRow) bool {
+		return strings.HasPrefix(r.display, "HKEY") || strings.HasPrefix(r.version, "HKEY") || r.display == ""
+	}); n != 0 {
 		t.Fatalf("the setup value became %d software rows", n)
 	}
-	if n := w.count(`SELECT count(*) FROM inv_software WHERE source = 'agent'`); n != len(list) {
+	if n := len(agent()); n != len(list) {
 		t.Fatalf("%d agent rows for %d programs", n, len(list))
 	}
 }

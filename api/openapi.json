@@ -45650,6 +45650,14 @@
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "basis": {
+                                    "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                    "type": "string",
+                                    "enum": [
+                                      "stated",
+                                      "guess"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -45693,6 +45701,14 @@
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "basis": {
+                                    "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                    "type": "string",
+                                    "enum": [
+                                      "stated",
+                                      "guess"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -45736,6 +45752,14 @@
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "basis": {
+                                    "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                    "type": "string",
+                                    "enum": [
+                                      "stated",
+                                      "guess"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -45797,6 +45821,14 @@
                                   "type": "number",
                                   "minimum": 0,
                                   "maximum": 1
+                                },
+                                "basis": {
+                                  "description": "guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise",
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "guess"
+                                  ]
                                 }
                               },
                               "required": [
@@ -46730,6 +46762,14 @@
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "basis": {
+                                  "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "guess"
+                                  ]
                                 }
                               },
                               "required": [
@@ -46773,6 +46813,14 @@
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "basis": {
+                                  "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "guess"
+                                  ]
                                 }
                               },
                               "required": [
@@ -46816,6 +46864,14 @@
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "basis": {
+                                  "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "guess"
+                                  ]
                                 }
                               },
                               "required": [
@@ -47022,6 +47078,14 @@
                                 "minimum": 0,
                                 "maximum": 1
                               },
+                              "basis": {
+                                "description": "guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise",
+                                "type": "string",
+                                "enum": [
+                                  "stated",
+                                  "guess"
+                                ]
+                              },
                               "kev_cves": {
                                 "type": "array",
                                 "items": {
@@ -47182,6 +47246,14 @@
                                       "type": "string",
                                       "format": "date-time",
                                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                    },
+                                    "basis": {
+                                      "description": "stated: the device announced it about itself (its LLDP description, on its own vendor's network card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                      "type": "string",
+                                      "enum": [
+                                        "stated",
+                                        "guess"
+                                      ]
                                     }
                                   },
                                   "required": [
@@ -47342,6 +47414,14 @@
                           "contradicts_type": {
                             "description": "An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS; absent otherwise",
                             "type": "boolean"
+                          },
+                          "basis": {
+                            "description": "On an OS observation, as Observed.basis",
+                            "type": "string",
+                            "enum": [
+                              "stated",
+                              "guess"
+                            ]
                           }
                         },
                         "required": [

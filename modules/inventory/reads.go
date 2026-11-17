@@ -74,6 +74,9 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		}
 		d.MAC, d.Hostname, d.UserName, d.FirstScanAt, d.ApprovedAt, d.Notes, d.KindSource = ptr(mac), ptr(host), ptr(userName), ptr(scan), ptr(approvedAt), ptr(notes), ptr(kindSrc)
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
+		if d.OS != nil {
+			d.OS.Basis = osBasis(d.OS.Value, d.OS.Source, mac.String)
+		}
 		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
 		d.IgnoredAt = ptr(ignoredAt)
@@ -109,7 +112,8 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 }
 
 func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
-	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key, `+notInstalledSW+`
+	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key, `+notInstalledSW+`,
+		`+fingerprintRow+`
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id
 		WHERE s.asset_id IN `+sub+` AND NOT `+hiddenGuess+` ORDER BY s.asset_id, s.display, s.id, k.kev_key`, args...)
 	if err != nil {
@@ -120,7 +124,8 @@ func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx m
 		var asset, key sql.NullString
 		var sw Software
 		var ver sql.NullString
-		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key, &sw.NotInstalled); err != nil {
+		var guess bool
+		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key, &sw.NotInstalled, &guess); err != nil {
 			return fmt.Errorf("inventory: read software: %w", err)
 		}
 		d := &out[idx[asset.String]]
@@ -129,6 +134,9 @@ func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx m
 			continue
 		}
 		sw.Version = ptr(ver)
+		if guess {
+			sw.Basis = basisGuess
+		}
 		sw.Kev = []string{}
 		if key.Valid {
 			sw.Kev = append(sw.Kev, key.String)
@@ -353,6 +361,10 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		Scan(&cur[0], &cur[1], &cur[2], &cur[3], &cur[4], &cur[5], &kind, &kindSrc); err != nil {
 		return Detail{}, fmt.Errorf("inventory: read device: %w", err)
 	}
+	mac := ""
+	if d.MAC != nil {
+		mac = *d.MAC
+	}
 	current := map[string]bool{}
 	for _, c := range cur {
 		if c.Valid {
@@ -372,6 +384,9 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		}
 		o.Current = current[o.ID]
 		o.ContradictsType = o.Field == "os" && o.Source == "nmap" && guessContradicts(kind, kindSrc.String, o.Value)
+		if o.Field == "os" {
+			o.Basis = osBasis(o.Value, o.Source, mac)
+		}
 		list = append(list, o)
 	}
 	if err := rows.Err(); err != nil {
@@ -390,7 +405,7 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		if err != nil {
 			return Detail{}, err
 		}
-		views = append(views, SoftwareView{ID: sw.ID, Display: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version, KevCVEs: cves, Source: sw.Source, Confidence: sw.Confidence})
+		views = append(views, SoftwareView{ID: sw.ID, Display: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version, KevCVEs: cves, Source: sw.Source, Confidence: sw.Confidence, Basis: sw.Basis})
 	}
 	if err := addCorrections(ctx, db, id, views); err != nil {
 		return Detail{}, err

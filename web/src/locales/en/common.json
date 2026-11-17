@@ -73,6 +73,10 @@
     "nuclei": "nuclei-templates",
     "project": "Vedette"
   },
+  "basis": {
+    "stated": "Announced by the device (LLDP)",
+    "guess": "Network scan guess"
+  },
   "confidence": {
     "high": "high confidence",
     "medium": "medium confidence",

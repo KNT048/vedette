@@ -99797,10 +99797,19 @@ func (s *InventoryGetInventoryDevicesIDOKAssetKindSource) UnmarshalText(data []b
 }
 
 type InventoryGetInventoryDevicesIDOKAssetModel struct {
-	Confidence float64                                          `json:"confidence"`
-	SeenAt     time.Time                                        `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetModelSource `json:"source"`
-	Value      string                                           `json:"value"`
+	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+	// source and confidence say it all.
+	Basis      OptInventoryGetInventoryDevicesIDOKAssetModelBasis `json:"basis"`
+	Confidence float64                                            `json:"confidence"`
+	SeenAt     time.Time                                          `json:"seen_at"`
+	Source     InventoryGetInventoryDevicesIDOKAssetModelSource   `json:"source"`
+	Value      string                                             `json:"value"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKAssetModel) GetBasis() OptInventoryGetInventoryDevicesIDOKAssetModelBasis {
+	return s.Basis
 }
 
 // GetConfidence returns the value of Confidence.
@@ -99823,6 +99832,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModel) GetValue() string {
 	return s.Value
 }
 
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetBasis(val OptInventoryGetInventoryDevicesIDOKAssetModelBasis) {
+	s.Basis = val
+}
+
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetConfidence(val float64) {
 	s.Confidence = val
@@ -99841,6 +99855,50 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetSource(val InventoryGetI
 // SetValue sets the value of Value.
 func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetValue(val string) {
 	s.Value = val
+}
+
+// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+// source and confidence say it all.
+type InventoryGetInventoryDevicesIDOKAssetModelBasis string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetModelBasisStated InventoryGetInventoryDevicesIDOKAssetModelBasis = "stated"
+	InventoryGetInventoryDevicesIDOKAssetModelBasisGuess  InventoryGetInventoryDevicesIDOKAssetModelBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetModelBasis values.
+func (InventoryGetInventoryDevicesIDOKAssetModelBasis) AllValues() []InventoryGetInventoryDevicesIDOKAssetModelBasis {
+	return []InventoryGetInventoryDevicesIDOKAssetModelBasis{
+		InventoryGetInventoryDevicesIDOKAssetModelBasisStated,
+		InventoryGetInventoryDevicesIDOKAssetModelBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetModelBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetModelBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetModelBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetModelBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetModelBasis(data) {
+	case InventoryGetInventoryDevicesIDOKAssetModelBasisStated:
+		*s = InventoryGetInventoryDevicesIDOKAssetModelBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetModelBasisGuess:
+		*s = InventoryGetInventoryDevicesIDOKAssetModelBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryDevicesIDOKAssetModelSource string
@@ -99954,10 +100012,19 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOrigin) UnmarshalText(data []byte)
 }
 
 type InventoryGetInventoryDevicesIDOKAssetOs struct {
-	Confidence float64                                       `json:"confidence"`
-	SeenAt     time.Time                                     `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetOsSource `json:"source"`
-	Value      string                                        `json:"value"`
+	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+	// source and confidence say it all.
+	Basis      OptInventoryGetInventoryDevicesIDOKAssetOsBasis `json:"basis"`
+	Confidence float64                                         `json:"confidence"`
+	SeenAt     time.Time                                       `json:"seen_at"`
+	Source     InventoryGetInventoryDevicesIDOKAssetOsSource   `json:"source"`
+	Value      string                                          `json:"value"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKAssetOs) GetBasis() OptInventoryGetInventoryDevicesIDOKAssetOsBasis {
+	return s.Basis
 }
 
 // GetConfidence returns the value of Confidence.
@@ -99980,6 +100047,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) GetValue() string {
 	return s.Value
 }
 
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetBasis(val OptInventoryGetInventoryDevicesIDOKAssetOsBasis) {
+	s.Basis = val
+}
+
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetConfidence(val float64) {
 	s.Confidence = val
@@ -99998,6 +100070,50 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetSource(val InventoryGetInve
 // SetValue sets the value of Value.
 func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetValue(val string) {
 	s.Value = val
+}
+
+// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+// source and confidence say it all.
+type InventoryGetInventoryDevicesIDOKAssetOsBasis string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetOsBasisStated InventoryGetInventoryDevicesIDOKAssetOsBasis = "stated"
+	InventoryGetInventoryDevicesIDOKAssetOsBasisGuess  InventoryGetInventoryDevicesIDOKAssetOsBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetOsBasis values.
+func (InventoryGetInventoryDevicesIDOKAssetOsBasis) AllValues() []InventoryGetInventoryDevicesIDOKAssetOsBasis {
+	return []InventoryGetInventoryDevicesIDOKAssetOsBasis{
+		InventoryGetInventoryDevicesIDOKAssetOsBasisStated,
+		InventoryGetInventoryDevicesIDOKAssetOsBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetOsBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetOsBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetOsBasis(data) {
+	case InventoryGetInventoryDevicesIDOKAssetOsBasisStated:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsBasisGuess:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read.
@@ -100051,10 +100167,19 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) SetValue(val string)
 }
 
 type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected struct {
-	Confidence float64                                                         `json:"confidence"`
-	SeenAt     time.Time                                                       `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource `json:"source"`
-	Value      string                                                          `json:"value"`
+	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+	// source and confidence say it all.
+	Basis      OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis `json:"basis"`
+	Confidence float64                                                           `json:"confidence"`
+	SeenAt     time.Time                                                         `json:"seen_at"`
+	Source     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource   `json:"source"`
+	Value      string                                                            `json:"value"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetBasis() OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis {
+	return s.Basis
 }
 
 // GetConfidence returns the value of Confidence.
@@ -100077,6 +100202,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetValue() s
 	return s.Value
 }
 
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetBasis(val OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) {
+	s.Basis = val
+}
+
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetConfidence(val float64) {
 	s.Confidence = val
@@ -100095,6 +100225,50 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetSource(va
 // SetValue sets the value of Value.
 func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetValue(val string) {
 	s.Value = val
+}
+
+// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+// source and confidence say it all.
+type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis = "stated"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess  InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis values.
+func (InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) AllValues() []InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis {
+	return []InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis{
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated,
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis(data) {
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource string
@@ -100577,7 +100751,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSnmpSource) UnmarshalText(data []b
 }
 
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
-	Confidence float64 `json:"confidence"`
+	// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
+	Basis      OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis `json:"basis"`
+	Confidence float64                                                   `json:"confidence"`
 	// On a row a sensor or agent reported: the id of the person's correction that replaces it for matching
 	// (INV-41). Show it as replaced; Clear on the correction brings it back.
 	CorrectedBy OptString `json:"corrected_by"`
@@ -100595,6 +100771,11 @@ type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 	Source     InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource `json:"source"`
 	Vendor     string                                                  `json:"vendor"`
 	Version    NilString                                               `json:"version"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetBasis() OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis {
+	return s.Basis
 }
 
 // GetConfidence returns the value of Confidence.
@@ -100652,6 +100833,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetVersion() NilStri
 	return s.Version
 }
 
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetBasis(val OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) {
+	s.Basis = val
+}
+
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetConfidence(val float64) {
 	s.Confidence = val
@@ -100705,6 +100891,48 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetVendor(val string
 // SetVersion sets the value of Version.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
+type InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis = "stated"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess  InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis values.
+func (InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) AllValues() []InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis {
+	return []InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis{
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis(data) {
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // On a person's correction of a reported row (INV-41): when it was set and what the sources read now.
@@ -101003,10 +101231,19 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource) UnmarshalText(
 }
 
 type InventoryGetInventoryDevicesIDOKAssetVendor struct {
-	Confidence float64                                           `json:"confidence"`
-	SeenAt     time.Time                                         `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetVendorSource `json:"source"`
-	Value      string                                            `json:"value"`
+	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+	// source and confidence say it all.
+	Basis      OptInventoryGetInventoryDevicesIDOKAssetVendorBasis `json:"basis"`
+	Confidence float64                                             `json:"confidence"`
+	SeenAt     time.Time                                           `json:"seen_at"`
+	Source     InventoryGetInventoryDevicesIDOKAssetVendorSource   `json:"source"`
+	Value      string                                              `json:"value"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKAssetVendor) GetBasis() OptInventoryGetInventoryDevicesIDOKAssetVendorBasis {
+	return s.Basis
 }
 
 // GetConfidence returns the value of Confidence.
@@ -101029,6 +101266,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) GetValue() string {
 	return s.Value
 }
 
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetBasis(val OptInventoryGetInventoryDevicesIDOKAssetVendorBasis) {
+	s.Basis = val
+}
+
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetConfidence(val float64) {
 	s.Confidence = val
@@ -101047,6 +101289,50 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetSource(val InventoryGet
 // SetValue sets the value of Value.
 func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetValue(val string) {
 	s.Value = val
+}
+
+// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+// source and confidence say it all.
+type InventoryGetInventoryDevicesIDOKAssetVendorBasis string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetVendorBasisStated InventoryGetInventoryDevicesIDOKAssetVendorBasis = "stated"
+	InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess  InventoryGetInventoryDevicesIDOKAssetVendorBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetVendorBasis values.
+func (InventoryGetInventoryDevicesIDOKAssetVendorBasis) AllValues() []InventoryGetInventoryDevicesIDOKAssetVendorBasis {
+	return []InventoryGetInventoryDevicesIDOKAssetVendorBasis{
+		InventoryGetInventoryDevicesIDOKAssetVendorBasisStated,
+		InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetVendorBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetVendorBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetVendorBasis(data) {
+	case InventoryGetInventoryDevicesIDOKAssetVendorBasisStated:
+		*s = InventoryGetInventoryDevicesIDOKAssetVendorBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess:
+		*s = InventoryGetInventoryDevicesIDOKAssetVendorBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryDevicesIDOKAssetVendorSource string
@@ -101770,7 +102056,9 @@ func (s *InventoryGetInventoryDevicesIDOKKindsItem) UnmarshalText(data []byte) e
 }
 
 type InventoryGetInventoryDevicesIDOKObservationsItem struct {
-	Confidence float64 `json:"confidence"`
+	// On an OS observation, as Observed.basis.
+	Basis      OptInventoryGetInventoryDevicesIDOKObservationsItemBasis `json:"basis"`
+	Confidence float64                                                  `json:"confidence"`
 	// An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS;
 	// absent otherwise.
 	ContradictsType OptBool                                                `json:"contradicts_type"`
@@ -101780,6 +102068,11 @@ type InventoryGetInventoryDevicesIDOKObservationsItem struct {
 	SeenAt          time.Time                                              `json:"seen_at"`
 	Source          InventoryGetInventoryDevicesIDOKObservationsItemSource `json:"source"`
 	Value           string                                                 `json:"value"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKObservationsItem) GetBasis() OptInventoryGetInventoryDevicesIDOKObservationsItemBasis {
+	return s.Basis
 }
 
 // GetConfidence returns the value of Confidence.
@@ -101822,6 +102115,11 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) GetValue() string {
 	return s.Value
 }
 
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesIDOKObservationsItem) SetBasis(val OptInventoryGetInventoryDevicesIDOKObservationsItemBasis) {
+	s.Basis = val
+}
+
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKObservationsItem) SetConfidence(val float64) {
 	s.Confidence = val
@@ -101860,6 +102158,48 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) SetSource(val Invento
 // SetValue sets the value of Value.
 func (s *InventoryGetInventoryDevicesIDOKObservationsItem) SetValue(val string) {
 	s.Value = val
+}
+
+// On an OS observation, as Observed.basis.
+type InventoryGetInventoryDevicesIDOKObservationsItemBasis string
+
+const (
+	InventoryGetInventoryDevicesIDOKObservationsItemBasisStated InventoryGetInventoryDevicesIDOKObservationsItemBasis = "stated"
+	InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess  InventoryGetInventoryDevicesIDOKObservationsItemBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKObservationsItemBasis values.
+func (InventoryGetInventoryDevicesIDOKObservationsItemBasis) AllValues() []InventoryGetInventoryDevicesIDOKObservationsItemBasis {
+	return []InventoryGetInventoryDevicesIDOKObservationsItemBasis{
+		InventoryGetInventoryDevicesIDOKObservationsItemBasisStated,
+		InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKObservationsItemBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKObservationsItemBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKObservationsItemBasis(data) {
+	case InventoryGetInventoryDevicesIDOKObservationsItemBasisStated:
+		*s = InventoryGetInventoryDevicesIDOKObservationsItemBasisStated
+		return nil
+	case InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess:
+		*s = InventoryGetInventoryDevicesIDOKObservationsItemBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryDevicesIDOKObservationsItemField string
@@ -104791,10 +105131,19 @@ func (s *InventoryGetInventoryDevicesOKItemsItemKindSource) UnmarshalText(data [
 }
 
 type InventoryGetInventoryDevicesOKItemsItemModel struct {
-	Confidence float64                                            `json:"confidence"`
-	SeenAt     time.Time                                          `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesOKItemsItemModelSource `json:"source"`
-	Value      string                                             `json:"value"`
+	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+	// source and confidence say it all.
+	Basis      OptInventoryGetInventoryDevicesOKItemsItemModelBasis `json:"basis"`
+	Confidence float64                                              `json:"confidence"`
+	SeenAt     time.Time                                            `json:"seen_at"`
+	Source     InventoryGetInventoryDevicesOKItemsItemModelSource   `json:"source"`
+	Value      string                                               `json:"value"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemModel) GetBasis() OptInventoryGetInventoryDevicesOKItemsItemModelBasis {
+	return s.Basis
 }
 
 // GetConfidence returns the value of Confidence.
@@ -104817,6 +105166,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModel) GetValue() string {
 	return s.Value
 }
 
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetBasis(val OptInventoryGetInventoryDevicesOKItemsItemModelBasis) {
+	s.Basis = val
+}
+
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetConfidence(val float64) {
 	s.Confidence = val
@@ -104835,6 +105189,50 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetSource(val InventoryGe
 // SetValue sets the value of Value.
 func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetValue(val string) {
 	s.Value = val
+}
+
+// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+// source and confidence say it all.
+type InventoryGetInventoryDevicesOKItemsItemModelBasis string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemModelBasisStated InventoryGetInventoryDevicesOKItemsItemModelBasis = "stated"
+	InventoryGetInventoryDevicesOKItemsItemModelBasisGuess  InventoryGetInventoryDevicesOKItemsItemModelBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemModelBasis values.
+func (InventoryGetInventoryDevicesOKItemsItemModelBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemModelBasis {
+	return []InventoryGetInventoryDevicesOKItemsItemModelBasis{
+		InventoryGetInventoryDevicesOKItemsItemModelBasisStated,
+		InventoryGetInventoryDevicesOKItemsItemModelBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemModelBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemModelBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemModelBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemModelBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemModelBasis(data) {
+	case InventoryGetInventoryDevicesOKItemsItemModelBasisStated:
+		*s = InventoryGetInventoryDevicesOKItemsItemModelBasisStated
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemModelBasisGuess:
+		*s = InventoryGetInventoryDevicesOKItemsItemModelBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryDevicesOKItemsItemModelSource string
@@ -104948,10 +105346,19 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOrigin) UnmarshalText(data []byt
 }
 
 type InventoryGetInventoryDevicesOKItemsItemOs struct {
-	Confidence float64                                         `json:"confidence"`
-	SeenAt     time.Time                                       `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesOKItemsItemOsSource `json:"source"`
-	Value      string                                          `json:"value"`
+	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+	// source and confidence say it all.
+	Basis      OptInventoryGetInventoryDevicesOKItemsItemOsBasis `json:"basis"`
+	Confidence float64                                           `json:"confidence"`
+	SeenAt     time.Time                                         `json:"seen_at"`
+	Source     InventoryGetInventoryDevicesOKItemsItemOsSource   `json:"source"`
+	Value      string                                            `json:"value"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemOs) GetBasis() OptInventoryGetInventoryDevicesOKItemsItemOsBasis {
+	return s.Basis
 }
 
 // GetConfidence returns the value of Confidence.
@@ -104974,6 +105381,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) GetValue() string {
 	return s.Value
 }
 
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetBasis(val OptInventoryGetInventoryDevicesOKItemsItemOsBasis) {
+	s.Basis = val
+}
+
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetConfidence(val float64) {
 	s.Confidence = val
@@ -104992,6 +105404,50 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetSource(val InventoryGetIn
 // SetValue sets the value of Value.
 func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetValue(val string) {
 	s.Value = val
+}
+
+// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+// source and confidence say it all.
+type InventoryGetInventoryDevicesOKItemsItemOsBasis string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemOsBasisStated InventoryGetInventoryDevicesOKItemsItemOsBasis = "stated"
+	InventoryGetInventoryDevicesOKItemsItemOsBasisGuess  InventoryGetInventoryDevicesOKItemsItemOsBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemOsBasis values.
+func (InventoryGetInventoryDevicesOKItemsItemOsBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemOsBasis {
+	return []InventoryGetInventoryDevicesOKItemsItemOsBasis{
+		InventoryGetInventoryDevicesOKItemsItemOsBasisStated,
+		InventoryGetInventoryDevicesOKItemsItemOsBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemOsBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemOsBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemOsBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemOsBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemOsBasis(data) {
+	case InventoryGetInventoryDevicesOKItemsItemOsBasisStated:
+		*s = InventoryGetInventoryDevicesOKItemsItemOsBasisStated
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemOsBasisGuess:
+		*s = InventoryGetInventoryDevicesOKItemsItemOsBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryDevicesOKItemsItemOsSource string
@@ -105488,7 +105944,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSnmpSource) UnmarshalText(data [
 }
 
 type InventoryGetInventoryDevicesOKItemsItemSoftwareItem struct {
-	Confidence float64 `json:"confidence"`
+	// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
+	Basis      OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis `json:"basis"`
+	Confidence float64                                                     `json:"confidence"`
 	// Commercial name the user recognizes.
 	Display string `json:"display"`
 	ID      string `json:"id"`
@@ -105498,6 +105956,11 @@ type InventoryGetInventoryDevicesOKItemsItemSoftwareItem struct {
 	Source  InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource `json:"source"`
 	Vendor  string                                                    `json:"vendor"`
 	Version NilString                                                 `json:"version"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetBasis() OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis {
+	return s.Basis
 }
 
 // GetConfidence returns the value of Confidence.
@@ -105540,6 +106003,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetVersion() NilSt
 	return s.Version
 }
 
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetBasis(val OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) {
+	s.Basis = val
+}
+
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetConfidence(val float64) {
 	s.Confidence = val
@@ -105578,6 +106046,48 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetVendor(val stri
 // SetVersion sets the value of Version.
 func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
+type InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "stated"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess  InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis values.
+func (InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis {
+	return []InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis{
+		InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated,
+		InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis(data) {
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated:
+		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess:
+		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource string
@@ -105813,10 +106323,19 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSummarySource) UnmarshalText(dat
 }
 
 type InventoryGetInventoryDevicesOKItemsItemVendor struct {
-	Confidence float64                                             `json:"confidence"`
-	SeenAt     time.Time                                           `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesOKItemsItemVendorSource `json:"source"`
-	Value      string                                              `json:"value"`
+	// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+	// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+	// source and confidence say it all.
+	Basis      OptInventoryGetInventoryDevicesOKItemsItemVendorBasis `json:"basis"`
+	Confidence float64                                               `json:"confidence"`
+	SeenAt     time.Time                                             `json:"seen_at"`
+	Source     InventoryGetInventoryDevicesOKItemsItemVendorSource   `json:"source"`
+	Value      string                                                `json:"value"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemVendor) GetBasis() OptInventoryGetInventoryDevicesOKItemsItemVendorBasis {
+	return s.Basis
 }
 
 // GetConfidence returns the value of Confidence.
@@ -105839,6 +106358,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) GetValue() string {
 	return s.Value
 }
 
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetBasis(val OptInventoryGetInventoryDevicesOKItemsItemVendorBasis) {
+	s.Basis = val
+}
+
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetConfidence(val float64) {
 	s.Confidence = val
@@ -105857,6 +106381,50 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetSource(val InventoryG
 // SetValue sets the value of Value.
 func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetValue(val string) {
 	s.Value = val
+}
+
+// Stated: the device announced it about itself (its LLDP description, on its own vendor's network
+// card); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the
+// source and confidence say it all.
+type InventoryGetInventoryDevicesOKItemsItemVendorBasis string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemVendorBasisStated InventoryGetInventoryDevicesOKItemsItemVendorBasis = "stated"
+	InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess  InventoryGetInventoryDevicesOKItemsItemVendorBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemVendorBasis values.
+func (InventoryGetInventoryDevicesOKItemsItemVendorBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemVendorBasis {
+	return []InventoryGetInventoryDevicesOKItemsItemVendorBasis{
+		InventoryGetInventoryDevicesOKItemsItemVendorBasisStated,
+		InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemVendorBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemVendorBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemVendorBasis(data) {
+	case InventoryGetInventoryDevicesOKItemsItemVendorBasisStated:
+		*s = InventoryGetInventoryDevicesOKItemsItemVendorBasisStated
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess:
+		*s = InventoryGetInventoryDevicesOKItemsItemVendorBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryDevicesOKItemsItemVendorSource string
@@ -146911,6 +147479,98 @@ func (o OptInventoryGetInventoryDevicesHasFindings) Or(d InventoryGetInventoryDe
 	return d
 }
 
+// NewOptInventoryGetInventoryDevicesIDOKAssetModelBasis returns new OptInventoryGetInventoryDevicesIDOKAssetModelBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesIDOKAssetModelBasis(v InventoryGetInventoryDevicesIDOKAssetModelBasis) OptInventoryGetInventoryDevicesIDOKAssetModelBasis {
+	return OptInventoryGetInventoryDevicesIDOKAssetModelBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIDOKAssetModelBasis is optional InventoryGetInventoryDevicesIDOKAssetModelBasis.
+type OptInventoryGetInventoryDevicesIDOKAssetModelBasis struct {
+	Value InventoryGetInventoryDevicesIDOKAssetModelBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIDOKAssetModelBasis was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetModelBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetModelBasis) Reset() {
+	var v InventoryGetInventoryDevicesIDOKAssetModelBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetModelBasis) SetTo(v InventoryGetInventoryDevicesIDOKAssetModelBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetModelBasis) Get() (v InventoryGetInventoryDevicesIDOKAssetModelBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIDOKAssetModelBasis) Or(d InventoryGetInventoryDevicesIDOKAssetModelBasis) InventoryGetInventoryDevicesIDOKAssetModelBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesIDOKAssetOsBasis returns new OptInventoryGetInventoryDevicesIDOKAssetOsBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesIDOKAssetOsBasis(v InventoryGetInventoryDevicesIDOKAssetOsBasis) OptInventoryGetInventoryDevicesIDOKAssetOsBasis {
+	return OptInventoryGetInventoryDevicesIDOKAssetOsBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIDOKAssetOsBasis is optional InventoryGetInventoryDevicesIDOKAssetOsBasis.
+type OptInventoryGetInventoryDevicesIDOKAssetOsBasis struct {
+	Value InventoryGetInventoryDevicesIDOKAssetOsBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIDOKAssetOsBasis was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetOsBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetOsBasis) Reset() {
+	var v InventoryGetInventoryDevicesIDOKAssetOsBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetOsBasis) SetTo(v InventoryGetInventoryDevicesIDOKAssetOsBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetOsBasis) Get() (v InventoryGetInventoryDevicesIDOKAssetOsBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIDOKAssetOsBasis) Or(d InventoryGetInventoryDevicesIDOKAssetOsBasis) InventoryGetInventoryDevicesIDOKAssetOsBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptInventoryGetInventoryDevicesIDOKAssetOsCorrection returns new OptInventoryGetInventoryDevicesIDOKAssetOsCorrection with value set to v.
 func NewOptInventoryGetInventoryDevicesIDOKAssetOsCorrection(v InventoryGetInventoryDevicesIDOKAssetOsCorrection) OptInventoryGetInventoryDevicesIDOKAssetOsCorrection {
 	return OptInventoryGetInventoryDevicesIDOKAssetOsCorrection{
@@ -146951,6 +147611,98 @@ func (o OptInventoryGetInventoryDevicesIDOKAssetOsCorrection) Get() (v Inventory
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryGetInventoryDevicesIDOKAssetOsCorrection) Or(d InventoryGetInventoryDevicesIDOKAssetOsCorrection) InventoryGetInventoryDevicesIDOKAssetOsCorrection {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis returns new OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis(v InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis {
+	return OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis is optional InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis.
+type OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis struct {
+	Value InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) Reset() {
+	var v InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) SetTo(v InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) Get() (v InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) Or(d InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis returns new OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis(v InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis {
+	return OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis is optional InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis.
+type OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis struct {
+	Value InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) Reset() {
+	var v InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) SetTo(v InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) Get() (v InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) Or(d InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -147003,6 +147755,98 @@ func (o OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Or(d Inv
 	return d
 }
 
+// NewOptInventoryGetInventoryDevicesIDOKAssetVendorBasis returns new OptInventoryGetInventoryDevicesIDOKAssetVendorBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesIDOKAssetVendorBasis(v InventoryGetInventoryDevicesIDOKAssetVendorBasis) OptInventoryGetInventoryDevicesIDOKAssetVendorBasis {
+	return OptInventoryGetInventoryDevicesIDOKAssetVendorBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIDOKAssetVendorBasis is optional InventoryGetInventoryDevicesIDOKAssetVendorBasis.
+type OptInventoryGetInventoryDevicesIDOKAssetVendorBasis struct {
+	Value InventoryGetInventoryDevicesIDOKAssetVendorBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIDOKAssetVendorBasis was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetVendorBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetVendorBasis) Reset() {
+	var v InventoryGetInventoryDevicesIDOKAssetVendorBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetVendorBasis) SetTo(v InventoryGetInventoryDevicesIDOKAssetVendorBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetVendorBasis) Get() (v InventoryGetInventoryDevicesIDOKAssetVendorBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIDOKAssetVendorBasis) Or(d InventoryGetInventoryDevicesIDOKAssetVendorBasis) InventoryGetInventoryDevicesIDOKAssetVendorBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesIDOKObservationsItemBasis returns new OptInventoryGetInventoryDevicesIDOKObservationsItemBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesIDOKObservationsItemBasis(v InventoryGetInventoryDevicesIDOKObservationsItemBasis) OptInventoryGetInventoryDevicesIDOKObservationsItemBasis {
+	return OptInventoryGetInventoryDevicesIDOKObservationsItemBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIDOKObservationsItemBasis is optional InventoryGetInventoryDevicesIDOKObservationsItemBasis.
+type OptInventoryGetInventoryDevicesIDOKObservationsItemBasis struct {
+	Value InventoryGetInventoryDevicesIDOKObservationsItemBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIDOKObservationsItemBasis was set.
+func (o OptInventoryGetInventoryDevicesIDOKObservationsItemBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIDOKObservationsItemBasis) Reset() {
+	var v InventoryGetInventoryDevicesIDOKObservationsItemBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIDOKObservationsItemBasis) SetTo(v InventoryGetInventoryDevicesIDOKObservationsItemBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIDOKObservationsItemBasis) Get() (v InventoryGetInventoryDevicesIDOKObservationsItemBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIDOKObservationsItemBasis) Or(d InventoryGetInventoryDevicesIDOKObservationsItemBasis) InventoryGetInventoryDevicesIDOKObservationsItemBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptInventoryGetInventoryDevicesIgnored returns new OptInventoryGetInventoryDevicesIgnored with value set to v.
 func NewOptInventoryGetInventoryDevicesIgnored(v InventoryGetInventoryDevicesIgnored) OptInventoryGetInventoryDevicesIgnored {
 	return OptInventoryGetInventoryDevicesIgnored{
@@ -147043,6 +147887,190 @@ func (o OptInventoryGetInventoryDevicesIgnored) Get() (v InventoryGetInventoryDe
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryGetInventoryDevicesIgnored) Or(d InventoryGetInventoryDevicesIgnored) InventoryGetInventoryDevicesIgnored {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesOKItemsItemModelBasis returns new OptInventoryGetInventoryDevicesOKItemsItemModelBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesOKItemsItemModelBasis(v InventoryGetInventoryDevicesOKItemsItemModelBasis) OptInventoryGetInventoryDevicesOKItemsItemModelBasis {
+	return OptInventoryGetInventoryDevicesOKItemsItemModelBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesOKItemsItemModelBasis is optional InventoryGetInventoryDevicesOKItemsItemModelBasis.
+type OptInventoryGetInventoryDevicesOKItemsItemModelBasis struct {
+	Value InventoryGetInventoryDevicesOKItemsItemModelBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesOKItemsItemModelBasis was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemModelBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesOKItemsItemModelBasis) Reset() {
+	var v InventoryGetInventoryDevicesOKItemsItemModelBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesOKItemsItemModelBasis) SetTo(v InventoryGetInventoryDevicesOKItemsItemModelBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemModelBasis) Get() (v InventoryGetInventoryDevicesOKItemsItemModelBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesOKItemsItemModelBasis) Or(d InventoryGetInventoryDevicesOKItemsItemModelBasis) InventoryGetInventoryDevicesOKItemsItemModelBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesOKItemsItemOsBasis returns new OptInventoryGetInventoryDevicesOKItemsItemOsBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesOKItemsItemOsBasis(v InventoryGetInventoryDevicesOKItemsItemOsBasis) OptInventoryGetInventoryDevicesOKItemsItemOsBasis {
+	return OptInventoryGetInventoryDevicesOKItemsItemOsBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesOKItemsItemOsBasis is optional InventoryGetInventoryDevicesOKItemsItemOsBasis.
+type OptInventoryGetInventoryDevicesOKItemsItemOsBasis struct {
+	Value InventoryGetInventoryDevicesOKItemsItemOsBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesOKItemsItemOsBasis was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemOsBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesOKItemsItemOsBasis) Reset() {
+	var v InventoryGetInventoryDevicesOKItemsItemOsBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesOKItemsItemOsBasis) SetTo(v InventoryGetInventoryDevicesOKItemsItemOsBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemOsBasis) Get() (v InventoryGetInventoryDevicesOKItemsItemOsBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesOKItemsItemOsBasis) Or(d InventoryGetInventoryDevicesOKItemsItemOsBasis) InventoryGetInventoryDevicesOKItemsItemOsBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis returns new OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis(v InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis {
+	return OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis is optional InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis.
+type OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis struct {
+	Value InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Reset() {
+	var v InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) SetTo(v InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Get() (v InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Or(d InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesOKItemsItemVendorBasis returns new OptInventoryGetInventoryDevicesOKItemsItemVendorBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesOKItemsItemVendorBasis(v InventoryGetInventoryDevicesOKItemsItemVendorBasis) OptInventoryGetInventoryDevicesOKItemsItemVendorBasis {
+	return OptInventoryGetInventoryDevicesOKItemsItemVendorBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesOKItemsItemVendorBasis is optional InventoryGetInventoryDevicesOKItemsItemVendorBasis.
+type OptInventoryGetInventoryDevicesOKItemsItemVendorBasis struct {
+	Value InventoryGetInventoryDevicesOKItemsItemVendorBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesOKItemsItemVendorBasis was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemVendorBasis) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesOKItemsItemVendorBasis) Reset() {
+	var v InventoryGetInventoryDevicesOKItemsItemVendorBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesOKItemsItemVendorBasis) SetTo(v InventoryGetInventoryDevicesOKItemsItemVendorBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemVendorBasis) Get() (v InventoryGetInventoryDevicesOKItemsItemVendorBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesOKItemsItemVendorBasis) Or(d InventoryGetInventoryDevicesOKItemsItemVendorBasis) InventoryGetInventoryDevicesOKItemsItemVendorBasis {
 	if v, ok := o.Get(); ok {
 		return v
 	}

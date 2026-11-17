@@ -215,6 +215,9 @@ type Observed struct {
 	Source     string  `json:"source"`
 	Confidence float64 `json:"confidence"`
 	SeenAt     string  `json:"seen_at"`
+	// Basis is how Vedette knows the value besides its source (INV-44): "stated" (the device announced it over LLDP on its own
+	// vendor's card), "guess" (nmap's OS fingerprint) or "" (the source and confidence say it all).
+	Basis string `json:"basis,omitempty"`
 }
 
 // Software is one software row (contract.ts Software).
@@ -227,6 +230,8 @@ type Software struct {
 	Kev        []string `json:"kev"`
 	Source     string   `json:"source"`
 	Confidence float64  `json:"confidence"`
+	// Basis is "guess" on the row of nmap's OS fingerprint (no version, no match key), "" otherwise (INV-44).
+	Basis string `json:"basis,omitempty"`
 	// NotInstalled: a person said this software is not installed on the device (INV-41 (6)): the mark itself, or the reported row it
 	// covers. Readers that tell what the device runs (the Ask context, the MCP asset data) leave it out. Not in the API.
 	NotInstalled bool `json:"-"`
@@ -242,6 +247,7 @@ type SoftwareView struct {
 	KevCVEs    []string `json:"kev_cves"`
 	Source     string   `json:"source"`
 	Confidence float64  `json:"confidence"`
+	Basis      string   `json:"basis,omitempty"` // Software.Basis
 	// PkgVersion is the full package release (an agent's packaged row, or a person's correction, INV-41); absent when none.
 	PkgVersion *string `json:"pkg_version,omitempty"`
 	// CorrectedBy, on a row a sensor or agent reported, is the id of the person's correction that replaces it for matching (INV-41).
@@ -334,7 +340,8 @@ type ObservationRow struct {
 	SeenAt     string  `json:"seen_at"`
 	Current    bool    `json:"current"`
 	// ContradictsType: an nmap OS guess the device's type rules out (osguess.go): kept and shown, never the device's OS.
-	ContradictsType bool `json:"contradicts_type,omitempty"`
+	ContradictsType bool   `json:"contradicts_type,omitempty"`
+	Basis           string `json:"basis,omitempty"` // Observed.Basis, of an OS observation
 }
 
 // Detail is GET /inventory/devices/{id} (contract.ts DeviceDetail).

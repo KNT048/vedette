@@ -51377,6 +51377,24 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModel) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -51412,6 +51430,17 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModel) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDOKAssetModelBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesIDOKAssetModelSource) Validate() error {
@@ -51451,6 +51480,24 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -51486,6 +51533,17 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDOKAssetOsBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) Validate() error {
@@ -51525,6 +51583,24 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) Validate() e
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -51560,6 +51636,17 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) Validate() e
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) Validate() error {
@@ -51748,6 +51835,24 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -51812,6 +51917,17 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Validate() error {
@@ -51912,6 +52028,24 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -51947,6 +52081,17 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDOKAssetVendorBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesIDOKAssetVendorSource) Validate() error {
@@ -52160,6 +52305,24 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -52206,6 +52369,17 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDOKObservationsItemBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesIDOKObservationsItemField) Validate() error {
@@ -53449,6 +53623,24 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModel) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -53484,6 +53676,17 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModel) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesOKItemsItemModelBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesOKItemsItemModelSource) Validate() error {
@@ -53523,6 +53726,24 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -53558,6 +53779,17 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesOKItemsItemOsBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesOKItemsItemOsSource) Validate() error {
@@ -53803,6 +54035,24 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -53849,6 +54099,17 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) Validate() error {
@@ -53959,6 +54220,24 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Basis.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "basis",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -53994,6 +54273,17 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesOKItemsItemVendorBasis) Validate() error {
+	switch s {
+	case "stated":
+		return nil
+	case "guess":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesOKItemsItemVendorSource) Validate() error {

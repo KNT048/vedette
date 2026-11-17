@@ -9,9 +9,10 @@ import (
 // answers: a guess, stored as an OS observation of source nmap and as Guess software rows (an OS CPE, no match keys). Two read
 // rules keep a wrong guess off the device without deleting anything, so a later scan or a change of source decides again:
 //
-//  1. Outranked (INV-1: manual > agent > snmp > nmap): once a person, the device's agent or its SNMP answer states the OS, every OS
-//     row nmap stored as a guess (the fingerprint's, and the Windows release of an NTLM answer) leaves the device's software,
-//     its matching and its name: a device whose SNMP answer says Alpine no longer lists "Android 9 - 10 (Linux 4.9 - 4.14)".
+//  1. Outranked (INV-1: manual > agent > snmp > LLDP statement > nmap, INV-44): once a person, the device's agent, its SNMP answer or
+//     its LLDP statement on its vendor's card gives the OS, every OS row nmap stored as a guess (the fingerprint's, and the Windows
+//     release of an NTLM answer) leaves the device's software, its matching and its name: a device whose SNMP answer says Alpine no
+//     longer lists "Android 9 - 10 (Linux 4.9 - 4.14)", a switch stating "JUNOS 15.1R7.9" no longer lists "Juniper EX2200 switch (JUNOS 12)".
 //  2. Contradicted: a fingerprint guess (never the device's own NTLM answer) of a family the device's type never runs (guessFamilies)
 //     is neither its OS nor its software, even when nmap is the only source. The type counts only when a person, the agent or SNMP
 //     gave it (sources INV-1 ranks above nmap); nmap's own type comes from the same fingerprint, and a frame the device sent ranks
@@ -73,6 +74,9 @@ func concat(lists ...[]string) []string {
 // device's statement, never a fingerprint guess, so never contradicted.
 const ntlmMark = "(build "
 
+// ntlmAnswer says whether an nmap OS name is the device's own NTLM answer (ntlmMark), not a fingerprint guess.
+func ntlmAnswer(name string) bool { return strings.Contains(strings.ToLower(name), ntlmMark) }
+
 // typeSources are the sources of a type that can rule out nmap's guess (rule 2).
 var typeSources = map[string]bool{"manual": true, "agent": true, "snmp": true}
 
@@ -83,10 +87,10 @@ func guessContradicts(kind, kindSource, osName string) bool {
 	if !typeSources[kindSource] {
 		return false
 	}
-	name := strings.ToLower(osName)
-	if strings.Contains(name, ntlmMark) {
+	if ntlmAnswer(osName) {
 		return false
 	}
+	name := strings.ToLower(osName)
 	for _, f := range guessFamilies {
 		if slices.Contains(f.types, kind) && containsAny(name, f.words) && !containsAny(name, f.not) {
 			return true
@@ -128,9 +132,14 @@ func dropContradictedOS(list []obs, best map[string]obs) {
 // key (observe.Software.Guess).
 const osGuessRow = `(s.source = 'nmap' AND s.cpe LIKE 'cpe:/o:%' AND NOT EXISTS (SELECT 1 FROM inv_software_kev gk WHERE gk.software_id = s.id))`
 
-// outrankedGuess (rule 1): a person, the agent or SNMP gave the device's OS.
+// outrankedGuess (rule 1): a person, the agent, SNMP or the device's LLDP statement gave the device's OS. A passive OS wins over
+// nmap's only as the device's LLDP statement (INV-44); a passive hint (a DHCP client's OS family) never outranks a guess.
 const outrankedGuess = `EXISTS (SELECT 1 FROM inv_asset ga JOIN inv_observation gob ON gob.id = ga.os_obs_id WHERE ga.id = s.asset_id
-	AND gob.source IN ('manual', 'agent', 'snmp'))`
+	AND gob.source IN ('manual', 'agent', 'snmp', 'passive'))`
+
+// fingerprintRow is the SQL condition on a software row (alias s) that it is nmap's OS fingerprint guess: an OS guess row with no
+// version that is not the device's own NTLM answer (its basis is a guess, contract.ts Software.basis).
+const fingerprintRow = `(` + osGuessRow + ` AND s.version IS NULL AND instr(lower(s.display), '` + ntlmMark + `') = 0)`
 
 // hiddenGuess is the SQL condition on a software row (alias s) that it is an nmap OS guess the device does not show or match (rules 1
 // and 2). Every reader of a device's software leaves these rows out: the software list, matching, the "Do you have it?" lists, the

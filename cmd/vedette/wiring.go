@@ -734,6 +734,17 @@ func subscribe(d deps) {
 		_, err := d.Findings.OnAssetDeleted(ctx, ev.AssetID)
 		return err
 	}))
+	// D-628: an ignored device has no findings: they go as on a delete (the device stays in the inventory, outside every
+	// vulnerability reader: MatchInput says it is not there and AssetIDs leaves it out, so nothing new is made for it). Stopping to
+	// ignore it publishes inventory.asset.updated with match, which matches it again.
+	d.Bus.Subscribe(inventory.EventAssetIgnored, on("findings", func(ctx context.Context, data any) error {
+		ev, ok := data.(inventory.AssetEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		_, err := d.Findings.OnAssetDeleted(ctx, ev.AssetID)
+		return err
+	}))
 	d.Bus.Subscribe(feeds.EventNewKEV, on("inventory", func(ctx context.Context, data any) error {
 		ev, ok := data.(feeds.NewKEVEvent)
 		if !ok {

@@ -226,6 +226,7 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 			suspicious = max(suspicious, (SELECT suspicious FROM inv_asset WHERE id = ?2)),
 			notes = coalesce(notes, (SELECT notes FROM inv_asset WHERE id = ?2)),
 			user_name = coalesce(user_name, (SELECT user_name FROM inv_asset WHERE id = ?2)),
+			ignored_at = coalesce(ignored_at, (SELECT ignored_at FROM inv_asset WHERE id = ?2)),
 			regular_scan = CASE WHEN regular_scan = 'follow' THEN (SELECT regular_scan FROM inv_asset WHERE id = ?2) ELSE regular_scan END,
 			scan_source = CASE WHEN 'off' IN (coalesce(scan_source, ''), (SELECT coalesce(scan_source, '') FROM inv_asset WHERE id = ?2)) THEN 'off'
 				ELSE coalesce(scan_source, (SELECT scan_source FROM inv_asset WHERE id = ?2)) END,

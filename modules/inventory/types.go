@@ -56,6 +56,7 @@ const (
 	EventAssetDeleted    = "inventory.asset.deleted"
 	EventAssetMerged     = "inventory.asset.merged"
 	EventAssetApproved   = "inventory.asset.approved" // a person approved a discovered device (D-474, B9b)
+	EventAssetIgnored    = "inventory.asset.ignored"  // a person ignored a device (D-628): {asset_id, actor}
 	EventSoftwareChanged = "inventory.software.changed"
 	EventMatchChanged    = "inventory.match.changed"
 	EventSettingsChanged = "inventory.settings.changed"
@@ -75,7 +76,8 @@ type AssetEvent struct {
 	// ScanOn is set on inventory.asset.updated when a person turned the device's network scan on (D-601): sensor-active queues it for
 	// the next window, as a newly discovered device.
 	ScanOn bool `json:"scan_on,omitempty"`
-	// Actor is the person who approved (inventory.asset.approved) or deleted (inventory.asset.deleted) the device; "" for the system.
+	// Actor is the person who approved (inventory.asset.approved), ignored (inventory.asset.ignored) or deleted
+	// (inventory.asset.deleted) the device; "" for the system.
 	Actor string `json:"actor,omitempty"`
 }
 
@@ -223,6 +225,8 @@ type AssetCore struct {
 	// default resolved: on for a device a sensor found, off for one added by hand; D-601).
 	ScanSource string `json:"scan_source"`
 	SNMPSource string `json:"snmp_source"`
+	// IgnoredAt is when a person ignored the device (D-628): known, not watched. nil = watched.
+	IgnoredAt *string `json:"ignored_at"`
 }
 
 // Summary is the source of the most trusted value and the confidence of the weakest (DATA_MODEL 5.1 (5)).
@@ -270,11 +274,13 @@ type Detail struct {
 }
 
 // Counts are the numbers behind the filter chips of the device list.
+// Every count but Ignored leaves the ignored devices out (D-628).
 type Counts struct {
 	All     int `json:"all"`
 	Pending int `json:"pending"`
 	Fragile int `json:"fragile"`
 	Manual  int `json:"manual"`
+	Ignored int `json:"ignored"`
 }
 
 // DeviceList is GET /inventory/devices.

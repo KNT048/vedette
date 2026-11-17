@@ -15,7 +15,7 @@ import (
 
 const noIP = "—" // what the API says for a device whose IP is unknown (contract.ts Asset.ip)
 
-const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.user_name, a.kind, k.source, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen, coalesce(a.scan_source, ''), coalesce(a.snmp_source, ''),
+const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.user_name, a.kind, k.source, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen, coalesce(a.scan_source, ''), coalesce(a.snmp_source, ''), a.ignored_at,
 	v.value, v.source, v.confidence, v.seen_at, m.value, m.source, m.confidence, m.seen_at, o.value, o.source, o.confidence, o.seen_at,
 	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at`
 
@@ -58,10 +58,10 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 	var out []Device
 	for rows.Next() {
 		var d Device
-		var ip, mac, host, userName, scan, approvedAt, notes, kindSrc sql.NullString
+		var ip, mac, host, userName, scan, approvedAt, notes, kindSrc, ignoredAt sql.NullString
 		var v, m, o, h, x obsCols
 		var approved, fragile, suspicious, box bool
-		if err := rows.Scan(&d.ID, &ip, &mac, &host, &userName, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen, &d.ScanSource, &d.SNMPSource,
+		if err := rows.Scan(&d.ID, &ip, &mac, &host, &userName, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen, &d.ScanSource, &d.SNMPSource, &ignoredAt,
 			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen,
 			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
@@ -75,6 +75,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
 		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
+		d.IgnoredAt = ptr(ignoredAt)
 		d.ScanSource, d.SNMPSource = sourceState(d.ScanSource, d.Origin), snmpState(st, d.SNMPSource, d.Origin, ip.String)
 		d.Software, d.Services = []Software{}, []ServiceRow{}
 		out = append(out, d)
@@ -208,8 +209,10 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources bool)
 		return DeviceList{}, err
 	}
 	out := DeviceList{Items: items}
-	err = db.QueryRowContext(ctx, `SELECT count(*), ifnull(sum(approved = 0), 0), ifnull(sum(fragile), 0), ifnull(sum(origin = 'manual'), 0) FROM inv_asset`).
-		Scan(&out.Counts.All, &out.Counts.Pending, &out.Counts.Fragile, &out.Counts.Manual)
+	// An ignored device is in no count but its own (D-628): not in All, not in the To review badge.
+	err = db.QueryRowContext(ctx, `SELECT ifnull(sum(ignored_at IS NULL), 0), ifnull(sum(approved = 0 AND ignored_at IS NULL), 0), ifnull(sum(fragile AND ignored_at IS NULL), 0),
+		ifnull(sum(origin = 'manual' AND ignored_at IS NULL), 0), ifnull(sum(ignored_at IS NOT NULL), 0) FROM inv_asset`).
+		Scan(&out.Counts.All, &out.Counts.Pending, &out.Counts.Fragile, &out.Counts.Manual, &out.Counts.Ignored)
 	if err != nil {
 		return DeviceList{}, fmt.Errorf("inventory: count devices: %w", err)
 	}
@@ -221,9 +224,9 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources bool)
 }
 
 // DeviceCounts is the "All" and "To review" counts of the device list without the list (Home's device tile, findings
-// GET /findings/summary, #825): one aggregate over inv_asset.
+// GET /findings/summary, #825): one aggregate over inv_asset. Ignored devices are in neither (D-628).
 func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err error) {
-	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(approved = 0), 0) FROM inv_asset`).Scan(&total, &pending)
+	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(approved = 0), 0) FROM inv_asset WHERE ignored_at IS NULL`).Scan(&total, &pending)
 	if err != nil {
 		return 0, 0, fmt.Errorf("inventory: count devices: %w", err)
 	}

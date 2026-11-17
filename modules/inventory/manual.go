@@ -471,9 +471,9 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 	var out Sources
 	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		var origin, curScan, curSNMP, ip string
-		var box bool
-		err := tx.QueryRowContext(ctx, `SELECT origin, is_box, coalesce(scan_source, ''), coalesce(snmp_source, ''), coalesce(ip, '') FROM inv_asset WHERE id = ?`, id).
-			Scan(&origin, &box, &curScan, &curSNMP, &ip)
+		var box, ignored bool
+		err := tx.QueryRowContext(ctx, `SELECT origin, is_box, coalesce(scan_source, ''), coalesce(snmp_source, ''), coalesce(ip, ''), ignored_at IS NOT NULL FROM inv_asset WHERE id = ?`, id).
+			Scan(&origin, &box, &curScan, &curSNMP, &ip, &ignored)
 		if errors.Is(err, sql.ErrNoRows) {
 			return notFoundDevice()
 		} else if err != nil {
@@ -481,6 +481,9 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 		}
 		if box {
 			return conflict("box_device", "This is the Vedette box itself: Vedette never scans or reads it on its own.")
+		}
+		if ignored && (deref(scan) == SourceOn || deref(snmp) == SourceOn) { // D-628: an ignored device is not watched
+			return conflict("device_ignored", "This device is ignored, so Vedette does not scan or read it. Stop ignoring it first.")
 		}
 		name := deviceName(ctx, tx, id)
 		scanOn, changed := false, false
@@ -553,6 +556,50 @@ func (s *Service) SetSuspicious(ctx context.Context, actor, id string, suspiciou
 		action = "inventory.mark_suspicious"
 	}
 	return s.setFlag(ctx, actor, id, `UPDATE inv_asset SET suspicious = ? WHERE id = ?`, []any{suspicious, id}, action)
+}
+
+// SetIgnored ignores a device or stops ignoring it (D-628, S-INV-3): "this device needs no watching", a staff phone. An ignored device
+// stays known (its row, so its MAC and agent key keep matching it when it is seen again) but is out of To review, the counts and the
+// Devices list unless asked for; it sends no new-device alert (notify closes its open one on inventory.asset.ignored), its network scan
+// and SNMP reads are set off (the per-device sources of D-601, one switch), and it is out of the vulnerability readers (MatchInput,
+// AssetIDs, DevicesRunning), so findings removes its findings and makes none. A trap hit or an intrusion-detection incident from it still
+// alerts: those modules never ask about it. Stopping sends it through review again: not approved, both sources back to their default,
+// matched again. Saying it again changes nothing (no audit row, no event). The box is 409 box_device.
+func (s *Service) SetIgnored(ctx context.Context, actor, id string, ignored bool) error {
+	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		var box bool
+		var origin string
+		var at sql.NullString
+		err := tx.QueryRowContext(ctx, `SELECT is_box, origin, ignored_at FROM inv_asset WHERE id = ?`, id).Scan(&box, &origin, &at)
+		if errors.Is(err, sql.ErrNoRows) {
+			return notFoundDevice()
+		} else if err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
+		}
+		if box {
+			return conflict("box_device", "This is the Vedette box itself: it cannot be ignored.")
+		}
+		if at.Valid == ignored {
+			return nil
+		}
+		name := deviceName(ctx, tx, id)
+		if ignored {
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ignored_at = ?, suspicious = 0, scan_source = 'off', snmp_source = 'off' WHERE id = ?`, s.now(), id); err != nil {
+				return fmt.Errorf("inventory: ignore a device: %w", err)
+			}
+			// updated first: sensor-active and scan stop what runs on it; then ignored: notify closes its new-device incident, findings
+			// removes its findings.
+			o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+			o.add(EventAssetIgnored, AssetEvent{AssetID: id, Actor: actor})
+			return s.auditTx(ctx, tx, actor, "inventory.ignore", name, id)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ignored_at = NULL, approved = 0, approved_at = NULL, scan_source = NULL, snmp_source = NULL WHERE id = ?`, id); err != nil {
+			return fmt.Errorf("inventory: stop ignoring a device: %w", err)
+		}
+		// match: findings matches it again; ScanOn: sensor-active queues a discovered device for its next window (the default is on).
+		o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: true, ScanOn: origin != "manual"})
+		return s.auditTx(ctx, tx, actor, "inventory.unignore", name, id)
+	})
 }
 
 func (s *Service) setFlag(ctx context.Context, actor, id, query string, args []any, action string) error {

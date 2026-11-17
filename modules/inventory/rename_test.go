@@ -99,7 +99,7 @@ func TestContract_G2_RenameReachesEveryReader(t *testing.T) {
 	}
 	// The Devices search finds it by the name in Vedette, and still by its host name.
 	for _, q := range []string{"office", "fw-core"} {
-		f, err := inventory.ParseDeviceFilter("", "", "", "", "", q)
+		f, err := inventory.ParseDeviceFilter("", "", "", "", "", "", q)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -237,7 +237,7 @@ func TestContract_G2_CSVKeepsBothNames(t *testing.T) {
 	if r := other.importCSV(string(raw)); r.Created != 1 || len(r.Errors) != 0 {
 		t.Fatalf("import = %+v", r)
 	}
-	f, err := inventory.ParseDeviceFilter("", "", "", "", "", "192.168.18.1")
+	f, err := inventory.ParseDeviceFilter("", "", "", "", "", "", "192.168.18.1")
 	if err != nil {
 		t.Fatal(err)
 	}

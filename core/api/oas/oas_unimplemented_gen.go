@@ -2137,6 +2137,20 @@ func (UnimplementedHandler) InventoryPostInventoryDevicesIDApprove(ctx context.C
 	return r, ht.ErrNotImplemented
 }
 
+// InventoryPostInventoryDevicesIDIgnore implements inventory_post_inventory_devices_id_ignore operation.
+//
+// Ignore a device that needs no watching, such as a staff phone, or stop ignoring it (D-628). Ignored:
+// it stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the
+// Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its findings
+// are removed; a trap hit or an intrusion-detection incident from it still alerts. Stopped: it goes
+// back to To review (not approved), both sources back to their default, matched again. Saying it again
+// changes nothing. 404 not_found. 409 box_device: the Vedette box itself.
+//
+// POST /inventory/devices/{id}/ignore
+func (UnimplementedHandler) InventoryPostInventoryDevicesIDIgnore(ctx context.Context, req *InventoryPostInventoryDevicesIDIgnoreReq, params InventoryPostInventoryDevicesIDIgnoreParams) (r *InventoryPostInventoryDevicesIDIgnoreOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // InventoryPostInventoryDevicesIDKeepSeparate implements inventory_post_inventory_devices_id_keep_separate operation.
 //
 // Two machines: the pair is never offered as possibly the same device again, until either is deleted
@@ -2241,7 +2255,8 @@ func (UnimplementedHandler) InventoryPutInventoryAgentsWazuh(ctx context.Context
 // exclusions, window, fragile, never scan); turning the network scan on queues the device for the next
 // window. Off stops it for any device (the run on it stops); what the source found stays and manual
 // values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404
-// not_found. 409 box_device: the Vedette box itself.
+// not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an
+// ignored device (D-628).
 //
 // PUT /inventory/devices/{id}/sources
 func (UnimplementedHandler) InventoryPutInventoryDevicesIDSources(ctx context.Context, req *InventoryPutInventoryDevicesIDSourcesReq, params InventoryPutInventoryDevicesIDSourcesParams) (r *InventoryPutInventoryDevicesIDSourcesOK, _ error) {

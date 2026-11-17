@@ -180116,6 +180116,10 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("ignored_at")
+		s.IgnoredAt.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("ip")
 		e.Str(s.IP)
 	}
@@ -180199,7 +180203,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAsset = [26]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAsset = [27]string{
 	0:  "approved",
 	1:  "approved_at",
 	2:  "first_scan_at",
@@ -180208,24 +180212,25 @@ var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAsset = [26]string{
 	5:  "guess",
 	6:  "hostname",
 	7:  "id",
-	8:  "ip",
-	9:  "is_box",
-	10: "kind",
-	11: "kind_source",
-	12: "last_seen",
-	13: "mac",
-	14: "model",
-	15: "name",
-	16: "notes",
-	17: "origin",
-	18: "os",
-	19: "regular_scan",
-	20: "scan_source",
-	21: "services",
-	22: "site",
-	23: "snmp_source",
-	24: "software",
-	25: "vendor",
+	8:  "ignored_at",
+	9:  "ip",
+	10: "is_box",
+	11: "kind",
+	12: "kind_source",
+	13: "last_seen",
+	14: "mac",
+	15: "model",
+	16: "name",
+	17: "notes",
+	18: "origin",
+	19: "os",
+	20: "regular_scan",
+	21: "scan_source",
+	22: "services",
+	23: "site",
+	24: "snmp_source",
+	25: "software",
+	26: "vendor",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDOKAsset from json.
@@ -180325,8 +180330,18 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "ip":
+		case "ignored_at":
 			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.IgnoredAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored_at\"")
+			}
+		case "ip":
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -180338,7 +180353,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "is_box":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.IsBox = bool(v)
@@ -180350,7 +180365,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"is_box\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -180360,7 +180375,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "kind_source":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.KindSource.Decode(d); err != nil {
 					return err
@@ -180370,7 +180385,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind_source\"")
 			}
 		case "last_seen":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.LastSeen = v
@@ -180382,7 +180397,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "mac":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.MAC.Decode(d); err != nil {
 					return err
@@ -180392,7 +180407,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mac\"")
 			}
 		case "model":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				if err := s.Model.Decode(d); err != nil {
 					return err
@@ -180402,7 +180417,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.Name.Decode(d); err != nil {
 					return err
@@ -180422,7 +180437,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"notes\"")
 			}
 		case "origin":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				if err := s.Origin.Decode(d); err != nil {
 					return err
@@ -180432,7 +180447,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"origin\"")
 			}
 		case "os":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Os.Decode(d); err != nil {
 					return err
@@ -180442,7 +180457,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"os\"")
 			}
 		case "regular_scan":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				if err := s.RegularScan.Decode(d); err != nil {
 					return err
@@ -180452,7 +180467,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"regular_scan\"")
 			}
 		case "scan_source":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.ScanSource.Decode(d); err != nil {
 					return err
@@ -180462,7 +180477,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scan_source\"")
 			}
 		case "services":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				s.Services = make([]InventoryGetInventoryDevicesIDOKAssetServicesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -180480,7 +180495,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"services\"")
 			}
 		case "site":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Site = string(v)
@@ -180492,7 +180507,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"site\"")
 			}
 		case "snmp_source":
-			requiredBitSet[2] |= 1 << 7
+			requiredBitSet[3] |= 1 << 0
 			if err := func() error {
 				if err := s.SnmpSource.Decode(d); err != nil {
 					return err
@@ -180502,7 +180517,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"snmp_source\"")
 			}
 		case "software":
-			requiredBitSet[3] |= 1 << 0
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				s.Software = make([]InventoryGetInventoryDevicesIDOKAssetSoftwareItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -180520,7 +180535,7 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "vendor":
-			requiredBitSet[3] |= 1 << 1
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				if err := s.Vendor.Decode(d); err != nil {
 					return err
@@ -180541,8 +180556,8 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Decode(d *jx.Decoder) error {
 	for i, mask := range [4]uint8{
 		0b11111111,
 		0b11111111,
-		0b11111110,
-		0b00000011,
+		0b11111101,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -183603,6 +183618,10 @@ func (s *InventoryGetInventoryDevicesOKCounts) encodeFields(e *jx.Encoder) {
 		e.Int(s.Fragile)
 	}
 	{
+		e.FieldStart("ignored")
+		e.Int(s.Ignored)
+	}
+	{
 		e.FieldStart("manual")
 		e.Int(s.Manual)
 	}
@@ -183612,11 +183631,12 @@ func (s *InventoryGetInventoryDevicesOKCounts) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesOKCounts = [4]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesOKCounts = [5]string{
 	0: "all",
 	1: "fragile",
-	2: "manual",
-	3: "pending",
+	2: "ignored",
+	3: "manual",
+	4: "pending",
 }
 
 // Decode decodes InventoryGetInventoryDevicesOKCounts from json.
@@ -183652,8 +183672,20 @@ func (s *InventoryGetInventoryDevicesOKCounts) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"fragile\"")
 			}
-		case "manual":
+		case "ignored":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Ignored = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
+		case "manual":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Manual = int(v)
@@ -183665,7 +183697,7 @@ func (s *InventoryGetInventoryDevicesOKCounts) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"manual\"")
 			}
 		case "pending":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Pending = int(v)
@@ -183686,7 +183718,7 @@ func (s *InventoryGetInventoryDevicesOKCounts) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -183776,6 +183808,10 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored_at")
+		s.IgnoredAt.Encode(e, json.EncodeDateTime)
 	}
 	{
 		e.FieldStart("ip")
@@ -183877,7 +183913,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesOKItemsItem = [30]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesOKItemsItem = [31]string{
 	0:  "approved",
 	1:  "approved_at",
 	2:  "findings_count",
@@ -183887,27 +183923,28 @@ var jsonFieldsNameOfInventoryGetInventoryDevicesOKItemsItem = [30]string{
 	6:  "guess",
 	7:  "hostname",
 	8:  "id",
-	9:  "ip",
-	10: "is_box",
-	11: "kind",
-	12: "kind_source",
-	13: "last_seen",
-	14: "mac",
-	15: "model",
-	16: "name",
-	17: "notes",
-	18: "origin",
-	19: "os",
-	20: "regular_scan",
-	21: "scan_source",
-	22: "services",
-	23: "site",
-	24: "snmp_source",
-	25: "software",
-	26: "sources",
-	27: "summary",
-	28: "suspicious",
-	29: "vendor",
+	9:  "ignored_at",
+	10: "ip",
+	11: "is_box",
+	12: "kind",
+	13: "kind_source",
+	14: "last_seen",
+	15: "mac",
+	16: "model",
+	17: "name",
+	18: "notes",
+	19: "origin",
+	20: "os",
+	21: "regular_scan",
+	22: "scan_source",
+	23: "services",
+	24: "site",
+	25: "snmp_source",
+	26: "software",
+	27: "sources",
+	28: "summary",
+	29: "suspicious",
+	30: "vendor",
 }
 
 // Decode decodes InventoryGetInventoryDevicesOKItemsItem from json.
@@ -184019,8 +184056,18 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "ip":
+		case "ignored_at":
 			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.IgnoredAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored_at\"")
+			}
+		case "ip":
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -184032,7 +184079,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "is_box":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.IsBox = bool(v)
@@ -184044,7 +184091,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"is_box\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -184054,7 +184101,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "kind_source":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.KindSource.Decode(d); err != nil {
 					return err
@@ -184064,7 +184111,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind_source\"")
 			}
 		case "last_seen":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.LastSeen = v
@@ -184076,7 +184123,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "mac":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				if err := s.MAC.Decode(d); err != nil {
 					return err
@@ -184086,7 +184133,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mac\"")
 			}
 		case "model":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.Model.Decode(d); err != nil {
 					return err
@@ -184096,7 +184143,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "name":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Name.Decode(d); err != nil {
 					return err
@@ -184116,7 +184163,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"notes\"")
 			}
 		case "origin":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Origin.Decode(d); err != nil {
 					return err
@@ -184126,7 +184173,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"origin\"")
 			}
 		case "os":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				if err := s.Os.Decode(d); err != nil {
 					return err
@@ -184136,7 +184183,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"os\"")
 			}
 		case "regular_scan":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.RegularScan.Decode(d); err != nil {
 					return err
@@ -184146,7 +184193,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"regular_scan\"")
 			}
 		case "scan_source":
-			requiredBitSet[2] |= 1 << 5
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				if err := s.ScanSource.Decode(d); err != nil {
 					return err
@@ -184156,7 +184203,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scan_source\"")
 			}
 		case "services":
-			requiredBitSet[2] |= 1 << 6
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				s.Services = make([]InventoryGetInventoryDevicesOKItemsItemServicesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -184174,7 +184221,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"services\"")
 			}
 		case "site":
-			requiredBitSet[2] |= 1 << 7
+			requiredBitSet[3] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Site = string(v)
@@ -184186,7 +184233,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"site\"")
 			}
 		case "snmp_source":
-			requiredBitSet[3] |= 1 << 0
+			requiredBitSet[3] |= 1 << 1
 			if err := func() error {
 				if err := s.SnmpSource.Decode(d); err != nil {
 					return err
@@ -184196,7 +184243,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"snmp_source\"")
 			}
 		case "software":
-			requiredBitSet[3] |= 1 << 1
+			requiredBitSet[3] |= 1 << 2
 			if err := func() error {
 				s.Software = make([]InventoryGetInventoryDevicesOKItemsItemSoftwareItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -184214,7 +184261,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "sources":
-			requiredBitSet[3] |= 1 << 2
+			requiredBitSet[3] |= 1 << 3
 			if err := func() error {
 				s.Sources = make([]InventoryGetInventoryDevicesOKItemsItemSourcesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -184232,7 +184279,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sources\"")
 			}
 		case "summary":
-			requiredBitSet[3] |= 1 << 3
+			requiredBitSet[3] |= 1 << 4
 			if err := func() error {
 				if err := s.Summary.Decode(d); err != nil {
 					return err
@@ -184242,7 +184289,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"summary\"")
 			}
 		case "suspicious":
-			requiredBitSet[3] |= 1 << 4
+			requiredBitSet[3] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Suspicious = bool(v)
@@ -184254,7 +184301,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"suspicious\"")
 			}
 		case "vendor":
-			requiredBitSet[3] |= 1 << 5
+			requiredBitSet[3] |= 1 << 6
 			if err := func() error {
 				if err := s.Vendor.Decode(d); err != nil {
 					return err
@@ -184275,8 +184322,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Decode(d *jx.Decoder) error {
 	for i, mask := range [4]uint8{
 		0b11111111,
 		0b11111111,
-		0b11111101,
-		0b00111111,
+		0b11111011,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -194032,6 +194079,198 @@ func (s *InventoryPostInventoryDevicesIDApproveOK) MarshalJSON() ([]byte, error)
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InventoryPostInventoryDevicesIDApproveOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryPostInventoryDevicesIDIgnoreOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryPostInventoryDevicesIDIgnoreOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("ok")
+		e.Bool(true)
+	}
+}
+
+var jsonFieldsNameOfInventoryPostInventoryDevicesIDIgnoreOK = [1]string{
+	0: "ok",
+}
+
+// Decode decodes InventoryPostInventoryDevicesIDIgnoreOK from json.
+func (s *InventoryPostInventoryDevicesIDIgnoreOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryDevicesIDIgnoreOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "ok":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ok = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ok\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryPostInventoryDevicesIDIgnoreOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryPostInventoryDevicesIDIgnoreOK) {
+					name = jsonFieldsNameOfInventoryPostInventoryDevicesIDIgnoreOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryPostInventoryDevicesIDIgnoreOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryDevicesIDIgnoreOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryPostInventoryDevicesIDIgnoreReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryPostInventoryDevicesIDIgnoreReq) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
+	}
+}
+
+var jsonFieldsNameOfInventoryPostInventoryDevicesIDIgnoreReq = [1]string{
+	0: "ignored",
+}
+
+// Decode decodes InventoryPostInventoryDevicesIDIgnoreReq from json.
+func (s *InventoryPostInventoryDevicesIDIgnoreReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryDevicesIDIgnoreReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "ignored":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryPostInventoryDevicesIDIgnoreReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryPostInventoryDevicesIDIgnoreReq) {
+					name = jsonFieldsNameOfInventoryPostInventoryDevicesIDIgnoreReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryPostInventoryDevicesIDIgnoreReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryDevicesIDIgnoreReq) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

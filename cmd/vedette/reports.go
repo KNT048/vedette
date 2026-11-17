@@ -62,6 +62,9 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 	}
 	out := make([]reports.Device, 0, len(devs))
 	for _, d := range devs {
+		if d.IgnoredAt != nil {
+			continue // D-628: a device a person ignored is in no count of the Devices page, so in none of a report
+		}
 		// The box is listed: the weekly report counts what the Devices page counts (D-485); the PDPL report leaves it out.
 		name := deviceLabel(d)
 		r := reports.Device{ID: d.ID, Name: name, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, Box: d.IsBox,

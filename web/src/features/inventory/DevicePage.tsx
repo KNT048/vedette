@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea, Label } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
-import { fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import type { AssetKind, Service } from '@/lib/types'
 import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/deviceTypes'
@@ -31,6 +31,7 @@ import { OsNeeds, SoftwareNeeds, useSoftwareNeeds } from '@/features/findings/So
 import { useDeviceFindingCounts } from '@/features/findings/notRelevant'
 import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
+import { NotInstalledDialog } from './NotInstalledDialog'
 import { errMsg } from './kinds'
 import { badUserName, declaredSoftwareOnly, nameOf } from './nameOf'
 import { DeviceSources } from './DeviceSources'
@@ -266,13 +267,28 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const can = useCan('operator')
   const act = useDeviceAction(d.asset.id)
   const [editing, setEditing] = useState<SoftwareView | null>(null)
+  const [gone, setGone] = useState<SoftwareView | null>(null)
   // kien G8: what each software row needs, from the same answer as Findings › To fix
   const needs = useSoftwareNeeds(d.asset.id)
-  const list = d.asset.software
+  // INV-41 (6): a reported row a person said is not installed is shown once, as that "not installed" row (with Clear)
+  const notInstalledIn = (sw: SoftwareView) => !!sw.correction?.not_installed
+  const list = d.asset.software.filter((sw) => !(sw.corrected_by && d.asset.software.some((c) => c.id === sw.corrected_by && notInstalledIn(c) && c.correction?.active)))
   if (!list.length) return <EmptyState title={t('software.empty')} info={t('software.emptyBodyInfo')}>{t('software.emptyBody')}</EmptyState>
   const needCount = (sw: SoftwareView) => (needs instanceof Map ? (needs.get(sw.id)?.exploited.reduce((n, a) => n + a.cves.length, 0) ?? 0) : 0)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const version = (sw: SoftwareView) => {
+    const c = sw.correction
+    if (c?.not_installed) {
+      const date = fmtDate(c.set_at)
+      const now = c.detected ? [c.detected.display, c.detected.version].filter(Boolean).join(' ') : ''
+      return (
+        <div className="grid gap-1">
+          <span className="text-muted line-through">{sw.version || t('software.noVersion')}</span>
+          {c.active ? <span className="text-caption font-medium">{t('software.notInstalled', { date })}</span>
+            : <span className="text-caption text-warn">{c.detected ? t('software.notInstalledStale', { date, now, source: t(`common:source.${c.detected.source}`) }) : t('software.notInstalledGone', { date })}</span>}
+        </div>
+      )
+    }
     const seen = seenVersion(sw, list)
     const v = seen?.version ?? ''
     return (
@@ -292,7 +308,13 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
       </div>
     )
   }
-  const actions = (sw: SoftwareView) => (sw.source === 'manual' ? (
+  const actions = (sw: SoftwareView) => (sw.correction?.not_installed ? (
+    <Button size="sm" variant="secondary" disabled={!can || act.removeSoftware.isPending} busy={act.removeSoftware.isPending && act.removeSoftware.variables === sw.id} busyLabel={t('common:busy.saving')}
+      title={needRole} aria-label={t('software.clearLabel', { name: sw.display })}
+      onClick={() => act.removeSoftware.mutate(sw.id, { onSuccess: () => toast.success(t('software.cleared', { name: sw.display })), onError: (e) => toast.error(errMsg(e)) })}>{t('software.clear')}</Button>
+  ) : sw.source !== 'manual' && !d.asset.is_box ? (
+    <Button size="sm" variant="ghost" disabled={!can} title={needRole} aria-label={t('software.notInstalledActionLabel', { name: sw.display })} onClick={() => setGone(sw)}>{t('software.notInstalledAction')}</Button>
+  ) : sw.source === 'manual' ? (
     <div className="flex">
       <Button size="sm" variant="ghost" disabled={!can} aria-label={t('software.edit', { name: sw.display })} title={needRole ?? t('software.edit', { name: sw.display })} onClick={() => setEditing(sw)}><Pencil /></Button>
       <Button size="sm" variant="ghost" disabled={!can || act.removeSoftware.isPending} busy={act.removeSoftware.isPending && act.removeSoftware.variables === sw.id} aria-label={t('software.remove', { name: sw.display })} title={t('software.remove', { name: sw.display })}
@@ -326,6 +348,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
           </div>
         )} />
       <VersionDialog key={editing?.id ?? ''} sw={editing} assetId={d.asset.id} onClose={() => setEditing(null)} />
+      <NotInstalledDialog sw={gone} assetId={d.asset.id} device={nameOf(d.asset, kindLabel(d.asset.kind))} onClose={() => setGone(null)} />
     </>
   )
 }

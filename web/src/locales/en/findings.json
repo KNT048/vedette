@@ -750,6 +750,8 @@
     "remove": "Remove",
     "removed": "Removed {{software}} from {{device}}.",
     "removedDevice": "Removed {{device}}.",
+    "notInstalledAsk": "Say {{software}} is not installed on {{device}}? The findings only it produced close. If a later scan or agent read finds it at another version, Vedette checks that version. Clear it on the device page to undo.",
+    "notInstalledConfirm": "Not installed",
     "notAffected": "Not affected",
     "notAffectedNote": "Why is the device not affected? (required)",
     "notAffectedHint": "For example: the vendor's advisory says our version is fixed",
@@ -768,5 +770,19 @@
       "saved": "Saved. Vedette checked {{software}} again.",
       "osSaved": "Saved: the device runs {{os}}. Vedette checked it again."
     }
+  },
+  "notInstalled": {
+    "done": "{{software}} is marked not installed on {{device}}.",
+    "closed_one": "{{count}} finding closed.",
+    "closed_other": "{{count}} findings closed.",
+    "none": "No open finding was on it.",
+    "keptScan_one": "{{count}} stays open: a scan confirmed it.",
+    "keptScan_other": "{{count}} stay open: a scan confirmed them.",
+    "keptReopened_one": "{{count}} stays open: a person reopened it.",
+    "keptReopened_other": "{{count}} stay open: a person reopened them.",
+    "keptAccepted_one": "{{count}} stays open: a person accepted its risk.",
+    "keptAccepted_other": "{{count}} stay open: a person accepted their risk.",
+    "keptOther_one": "{{count}} stays open: another source still reports the software.",
+    "keptOther_other": "{{count}} stay open: another source still reports the software."
   }
 }

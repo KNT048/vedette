@@ -22,6 +22,8 @@ export interface Software {
   corrects?: string
   /** Mock only: when the correction was set. */
   corrected_at?: string
+  /** Mock only (INV-41 (6)): on a correction, the person said the reported row is not installed; it matches nothing. */
+  not_installed?: boolean
 }
 
 export interface Service { port: number; proto: 'tcp' | 'udp'; name: string; product?: string; version?: string; detail?: string; source: ObsSource; confidence: number }

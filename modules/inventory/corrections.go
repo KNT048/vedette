@@ -39,10 +39,14 @@ func productKey(s string) string {
 var correctionLive = `EXISTS (SELECT 1 FROM inv_software r WHERE r.asset_id = s.asset_id AND r.source <> 'manual' AND ` + rowKey("r") + ` = s.corrects)`
 
 // liveSW is the SQL condition on a software row (alias s) that counts for matching and the "Do you have it?" lists (INV-41): a row a
-// person declared; a correction in use (correctionLive); a reported row no correction in use replaces; never an nmap OS guess the
-// device does not use (hiddenGuess).
-var liveSW = `(NOT ` + hiddenGuess + ` AND (CASE WHEN s.corrects IS NOT NULL THEN ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
+// person declared; a correction in use (correctionLive) that is not a "not installed" one (INV-41 (6): it replaces its row with
+// nothing); a reported row no correction in use replaces; never an nmap OS guess the device does not use (hiddenGuess).
+var liveSW = `(NOT ` + hiddenGuess + ` AND (CASE WHEN s.corrects IS NOT NULL THEN s.not_installed = 0 AND ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
 	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END))`
+
+// notInstalledSW is the SQL condition on a software row (alias s) that a person said it is not installed (INV-41 (6)): the mark itself,
+// or the reported row a mark covers (a mark whose corrects is the row's key).
+var notInstalledSW = `(s.not_installed = 1 OR EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.not_installed = 1 AND c.corrects = ` + rowKey("s") + `))`
 
 // pkgVersionRE is a distribution's full package version as a person copies it from the device: Debian's "1:9.6p1-3ubuntu13.14",
 // Alpine's "10.2_p1-r1", RPM's "8.7p1-38.el9_4.4".
@@ -176,6 +180,9 @@ type SoftwareEdit struct {
 	CatalogID  string  // another product, from the catalog...
 	Vendor     string  // ...or typed
 	Product    string
+	// NotInstalled: the person says the reported row is not installed on the device (INV-41 (6)). It takes no other field; a later
+	// edit of the version, release or product of the correction makes it an ordinary correction again (the person says what is there).
+	NotInstalled bool
 }
 
 func (e SoftwareEdit) product() bool { return e.CatalogID != "" || e.Vendor != "" || e.Product != "" }
@@ -190,8 +197,11 @@ func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID s
 	if err := s.requireDevice(ctx, assetID); err != nil {
 		return err
 	}
-	if e.Version == nil && e.PkgVersion == nil && !e.product() {
-		return badRequest("bad_edit", "Say what to change: the product, the version or the package release.")
+	if e.Version == nil && e.PkgVersion == nil && !e.product() && !e.NotInstalled {
+		return badRequest("bad_edit", "Say what to change: the product, the version or the package release, or that it is not installed.")
+	}
+	if e.NotInstalled && (e.Version != nil || e.PkgVersion != nil || e.product()) {
+		return badRequest("bad_edit", "\"Not installed\" takes no version, package release or product: send it alone.")
 	}
 	if e.Version != nil {
 		v := strings.TrimSpace(*e.Version)
@@ -226,6 +236,18 @@ func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID s
 	} else if err != nil {
 		return fmt.Errorf("inventory: read software: %w", err)
 	}
+	if source == "manual" && !corrects.Valid && e.NotInstalled {
+		return badRequest("bad_edit", "A person added this software: remove it instead (Not installed on a row a person added deletes it).")
+	}
+	if e.NotInstalled {
+		var box bool
+		if err := s.db.Reader().QueryRowContext(ctx, `SELECT is_box FROM inv_asset WHERE id = ?`, assetID).Scan(&box); err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
+		}
+		if box { // the box reads its own package list: what it reports is installed
+			return conflict("box_device", "This is the Vedette box itself: it reads its own software, so a row cannot be marked not installed.")
+		}
+	}
 	if source == "manual" && !corrects.Valid && e.PkgVersion == nil && entry == nil {
 		return s.SetSoftwareVersion(ctx, actor, assetID, softwareID, *e.Version) // a declared row's version (D-471)
 	}
@@ -237,14 +259,14 @@ func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID s
 // swRow is a software row as EditSoftware reads it.
 type swRow struct {
 	id, display, vendor, product, version, cpe, source, pkgVersion, pkgSource, corrects, key string
-	packaged                                                                                 bool
+	packaged, notInstalled                                                                   bool
 }
 
 func readSW(ctx context.Context, q querier, where string, args ...any) (swRow, error) {
 	var r swRow
 	err := q.QueryRowContext(ctx, `SELECT id, display, vendor, product, ifnull(version, ''), ifnull(cpe, ''), source, packaged, ifnull(pkg_version, ''), ifnull(pkg_source, ''),
-		ifnull(corrects, ''), `+rowKey("inv_software")+` FROM inv_software WHERE `+where, args...).
-		Scan(&r.id, &r.display, &r.vendor, &r.product, &r.version, &r.cpe, &r.source, &r.packaged, &r.pkgVersion, &r.pkgSource, &r.corrects, &r.key)
+		ifnull(corrects, ''), not_installed, `+rowKey("inv_software")+` FROM inv_software WHERE `+where, args...).
+		Scan(&r.id, &r.display, &r.vendor, &r.product, &r.version, &r.cpe, &r.source, &r.packaged, &r.pkgVersion, &r.pkgSource, &r.corrects, &r.notInstalled, &r.key)
 	return r, err
 }
 
@@ -306,6 +328,17 @@ func (s *Service) editSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, act
 		next.corrects = relink
 	}
 	keys := []string(nil) // nil: the target's keys stay (a new correction copies the reported row's)
+	keysFrom := ""        // an existing correction takes the keys of this reported row (Not installed, INV-41 (6))
+	next.notInstalled = e.NotInstalled
+	if e.NotInstalled && detected.id != "" && (target.id == "" || detected.id != target.id) {
+		// The person says the row the source reports is not there: the correction holds what that row says (a version the person
+		// gave before no longer matters), so the device page and findings name what the source reads.
+		next.display, next.vendor, next.product, next.version, next.cpe = detected.display, detected.vendor, detected.product, detected.version, detected.cpe
+		next.packaged, next.pkgVersion, next.pkgSource = detected.packaged, detected.pkgVersion, detected.pkgSource
+		if target.id != "" {
+			keysFrom = detected.id
+		}
+	}
 	if entry != nil && (!strings.EqualFold(entry.vendor, target.vendor) || !strings.EqualFold(entry.product, target.product)) {
 		next.display, next.vendor, next.product, keys = entry.display, entry.vendor, entry.product, entry.kev
 		if keys == nil {
@@ -336,15 +369,15 @@ func (s *Service) editSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, act
 	}
 	if target.id == "" {
 		next.id = store.NewID("s")
-		_, err = tx.ExecContext(ctx, `INSERT INTO inv_software (id, asset_id, display, vendor, product, version, cpe, source, confidence, seen_at, packaged, pkg_version, pkg_source, corrects, set_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', 1, ?, ?, ?, ?, ?, ?)`,
-			next.id, assetID, next.display, next.vendor, next.product, nullStr(next.version), nullStr(next.cpe), now, next.packaged, nullStr(next.pkgVersion), pkgSrc, next.corrects, nullStr(actor))
+		_, err = tx.ExecContext(ctx, `INSERT INTO inv_software (id, asset_id, display, vendor, product, version, cpe, source, confidence, seen_at, packaged, pkg_version, pkg_source, corrects, set_by, not_installed)
+			VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', 1, ?, ?, ?, ?, ?, ?, ?)`,
+			next.id, assetID, next.display, next.vendor, next.product, nullStr(next.version), nullStr(next.cpe), now, next.packaged, nullStr(next.pkgVersion), pkgSrc, next.corrects, nullStr(actor), next.notInstalled)
 		if err == nil && keys == nil {
 			_, err = tx.ExecContext(ctx, `INSERT INTO inv_software_kev (software_id, kev_key) SELECT ?, kev_key FROM inv_software_kev WHERE software_id = ?`, next.id, row.id)
 		}
 	} else {
-		_, err = tx.ExecContext(ctx, `UPDATE inv_software SET display = ?, vendor = ?, product = ?, version = ?, cpe = ?, packaged = ?, pkg_version = ?, pkg_source = ?, seen_at = ?, set_by = ?, corrects = ? WHERE id = ?`,
-			next.display, next.vendor, next.product, nullStr(next.version), nullStr(next.cpe), next.packaged, nullStr(next.pkgVersion), pkgSrc, now, nullStr(actor), nullStr(next.corrects), next.id)
+		_, err = tx.ExecContext(ctx, `UPDATE inv_software SET display = ?, vendor = ?, product = ?, version = ?, cpe = ?, packaged = ?, pkg_version = ?, pkg_source = ?, seen_at = ?, set_by = ?, corrects = ?, not_installed = ? WHERE id = ?`,
+			next.display, next.vendor, next.product, nullStr(next.version), nullStr(next.cpe), next.packaged, nullStr(next.pkgVersion), pkgSrc, now, nullStr(actor), nullStr(next.corrects), next.notInstalled, next.id)
 	}
 	if err != nil {
 		if store.IsUniqueViolation(err) {
@@ -352,12 +385,18 @@ func (s *Service) editSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, act
 		}
 		return fmt.Errorf("inventory: correct software: %w", err)
 	}
-	if keys != nil {
+	if keys != nil || keysFrom != "" {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_kev WHERE software_id = ?`, next.id); err != nil {
 			return fmt.Errorf("inventory: correct match keys: %w", err)
 		}
+	}
+	if keys != nil {
 		if err := insertKeys(ctx, tx, next.id, keys); err != nil {
 			return err
+		}
+	} else if keysFrom != "" {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO inv_software_kev (software_id, kev_key) SELECT ?, kev_key FROM inv_software_kev WHERE software_id = ?`, next.id, keysFrom); err != nil {
+			return fmt.Errorf("inventory: correct match keys: %w", err)
 		}
 	}
 	after, err := softwareKeys(ctx, tx, assetID)
@@ -367,8 +406,14 @@ func (s *Service) editSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, act
 	o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID}) // findings matches the device again on it (#910)
 	o.after = append(o.after, s.matchEvents(assetID, before, after))
 	from := swText(target.display, target.version, target.pkgVersion)
-	if target.id == "" {
+	if target.id == "" || next.notInstalled {
 		from = swText(detected.display, detected.version, detected.pkgVersion) + " (" + detected.source + ")"
+	}
+	if next.notInstalled { // INV-41 (6): "OpenSSH 10.2 (nmap) → not installed"
+		return s.auditTx(ctx, tx, actor, "inventory.mark_not_installed", deviceName(ctx, tx, assetID)+": "+detected.display, from+" → not installed")
+	}
+	if target.notInstalled { // the person now says what is installed
+		from = "not installed"
 	}
 	return s.auditTx(ctx, tx, actor, "inventory.correct_software", deviceName(ctx, tx, assetID)+": "+detected.display, from+" → "+swText(next.display, next.version, next.pkgVersion))
 }
@@ -412,22 +457,29 @@ type SoftwareCorrection struct {
 	// (Detected is what it reads now) or reports the product no more (Detected nil); the source's reading decides until the person
 	// sets the correction again (PATCH on Detected or on this row), and Disagrees is true.
 	Active bool `json:"active"`
+	// NotInstalled: the person said the row is not installed on the device (INV-41 (6)); while Active it matches nothing, and Disagrees
+	// is false (the source still reading the row is what the person corrected). Not active: the source now reads another version
+	// (Detected), a new install that matches.
+	NotInstalled bool `json:"not_installed"`
 }
 
 // addCorrections fills the correction fields of a device's software views: on a correction, what it corrects; on the reported row a
 // correction replaces, the id of that correction.
 func addCorrections(ctx context.Context, q querier, assetID string, views []SoftwareView) error {
-	rows, err := q.QueryContext(ctx, `SELECT s.id, ifnull(s.pkg_version, ''), ifnull(s.corrects, ''), ifnull(s.set_by, ''), s.seen_at, `+rowKey("s")+`, `+productKey("s")+`
+	rows, err := q.QueryContext(ctx, `SELECT s.id, ifnull(s.pkg_version, ''), ifnull(s.corrects, ''), ifnull(s.set_by, ''), s.seen_at, s.not_installed, `+rowKey("s")+`, `+productKey("s")+`
 		FROM inv_software s WHERE s.asset_id = ?`, assetID)
 	if err != nil {
 		return fmt.Errorf("inventory: read corrections: %w", err)
 	}
-	type info struct{ pkg, corrects, setBy, seenAt, key, product string }
+	type info struct {
+		pkg, corrects, setBy, seenAt, key, product string
+		notInstalled                               bool
+	}
 	byID := map[string]info{}
 	for rows.Next() {
 		var id string
 		var i info
-		if err := rows.Scan(&id, &i.pkg, &i.corrects, &i.setBy, &i.seenAt, &i.key, &i.product); err != nil {
+		if err := rows.Scan(&id, &i.pkg, &i.corrects, &i.setBy, &i.seenAt, &i.notInstalled, &i.key, &i.product); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("inventory: read corrections: %w", err)
 		}
@@ -460,7 +512,7 @@ func addCorrections(ctx context.Context, q querier, assetID string, views []Soft
 		if v.Source != "manual" || in.corrects == "" {
 			continue
 		}
-		c := &SoftwareCorrection{SetAt: in.seenAt, SetBy: in.setBy}
+		c := &SoftwareCorrection{SetAt: in.seenAt, SetBy: in.setBy, NotInstalled: in.notInstalled}
 		var best *SoftwareView // the corrected row itself, else that source's newest row of the product
 		for j := range views {
 			d := &views[j]
@@ -485,18 +537,26 @@ func addCorrections(ctx context.Context, q querier, assetID string, views []Soft
 				deref(d.PkgVersion) != "" && deref(v.PkgVersion) != "" && deref(d.PkgVersion) != deref(v.PkgVersion)
 		}
 		c.Disagrees = c.Disagrees || !c.Active
+		if c.NotInstalled { // the source reading the row the person said is not there is the state corrected, not a disagreement
+			c.Disagrees = !c.Active
+			v.KevCVEs = []string{} // it matches nothing
+		}
 		v.Correction = c
 	}
 	return nil
 }
 
 // correctionNote names a person's software correction for the findings history (review r1 M3): "it@acme.example corrected OpenSSH
-// 10.2 (nmap) to OpenSSH 10.2p1 (package 10.2_p1-r1) on 17 Nov 2026".
-func correctionNote(display, version, pkg, corrects, setBy, setAt string) string {
+// 10.2 (nmap) to OpenSSH 10.2p1 (package 10.2_p1-r1) on 17 Nov 2026"; a "not installed" one (INV-41 (6)): "it@acme.example said
+// OpenSSH 10.2 (nmap) is not installed on 17 Nov 2026".
+func correctionNote(display, version, pkg, corrects, setBy, setAt string, notInstalled bool) string {
 	src, _, product, from := correctedFrom(corrects)
 	was := display
 	if !strings.EqualFold(strings.ToLower(display), product) && !strings.Contains(strings.ToLower(display), product) {
 		was = product
+	}
+	if notInstalled { // the row's own name, as the reported row shows it: findings reads "said <name> <version> (<source>)" to tell a person's Clear from a new reading
+		return cmp.Or(setBy, "a person") + " said " + swText(display, from, "") + " (" + src + ") is not installed on " + correctionDay(setAt)
 	}
 	return cmp.Or(setBy, "a person") + " corrected " + swText(was, from, "") + " (" + src + ") to " + swText(display, version, pkg) + " on " + correctionDay(setAt)
 }
@@ -504,7 +564,7 @@ func correctionNote(display, version, pkg, corrects, setBy, setAt string) string
 // restingCorrections names the device's corrections that rest (review r2 M-B of #950: the row each corrects is no longer reported) on
 // the reported rows of the same source and product that decide now (Superseded) and in StaleCorrections.
 func restingCorrections(ctx context.Context, q querier, id string, d *MatchDevice, prefix map[string]string) error {
-	rows, err := q.QueryContext(ctx, `SELECT s.display, ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.corrects, ifnull(s.set_by, ''), s.seen_at
+	rows, err := q.QueryContext(ctx, `SELECT s.display, ifnull(s.version, ''), ifnull(s.pkg_version, ''), s.corrects, ifnull(s.set_by, ''), s.seen_at, s.not_installed
 		FROM inv_software s WHERE s.asset_id = ? AND s.corrects IS NOT NULL AND NOT `+correctionLive+` ORDER BY s.seen_at, s.id`, id)
 	if err != nil {
 		return fmt.Errorf("inventory: read resting corrections: %w", err)
@@ -512,11 +572,12 @@ func restingCorrections(ctx context.Context, q querier, id string, d *MatchDevic
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var display, version, pkg, corrects, setBy, setAt string
-		if err := rows.Scan(&display, &version, &pkg, &corrects, &setBy, &setAt); err != nil {
+		var notInstalled bool
+		if err := rows.Scan(&display, &version, &pkg, &corrects, &setBy, &setAt, &notInstalled); err != nil {
 			return fmt.Errorf("inventory: read resting corrections: %w", err)
 		}
 		src, _, _, _ := correctedFrom(corrects)
-		note := correctionNote(display, version, pkg, corrects, setBy, setAt)
+		note := correctionNote(display, version, pkg, corrects, setBy, setAt, notInstalled)
 		var now []int
 		for i, sw := range d.Software {
 			if prefix[sw.ID] == productPrefix(corrects) {

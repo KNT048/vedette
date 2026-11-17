@@ -100,6 +100,7 @@ var exportPolicy = map[string]tablePolicy{
 	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"},                                 // D-500
 	"fnd_unchecked":          {export: "asset_id software_id software version source reason cve updated_at nvd_pending answer"}, // INV-4d, #910
 	"fnd_unchecked_seen":     {export: "asset_id cve first_seen"},                                                               // D-602: the (device, CVE) pairs the could-not-check list announced
+	"fnd_not_installed":      {export: "finding_id mark"},                                                                       // INV-6c: the row a "not installed" close covers
 	"fnd_reach_run":          {export: "id ran_at stamp total", json: "counts unreachable added"},                               // INV-4e, #910: the KEV reachability audit, public feed data only
 	"hp_config":              {export: "key updated_at updated_by", json: "value"},
 	"hp_hits":                {export: "id ts kind service label port src_ip is_test excerpt trap_ip trap_hostname token_id conn_key conn_count handshake", json: "events"},
@@ -110,7 +111,7 @@ var exportPolicy = map[string]tablePolicy{
 	"inv_observation":        {export: "id asset_id field value source confidence seen_at evidence"},
 	"inv_service":            {export: "id asset_id port proto name product version detail source confidence seen_at"},
 	"inv_setting":            {export: "key updated_at updated_by", json: "value"},
-	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source corrects set_by"},
+	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source corrects set_by not_installed"},
 	"inv_source":             {export: "source first_seen"},
 	"inv_separate":           {export: "a b decided_by decided_at"},         // D-599: pairs a person kept separate
 	"inv_hand_seen":          {export: "asset_id mac first_seen last_seen"}, // #829: MACs seen at a hand-added device's address

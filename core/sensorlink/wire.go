@@ -287,7 +287,8 @@ type SNMPAnswer struct {
 	Values     SNMPValues `json:"values"`
 }
 
-// SNMPValues are the objects the worker reads ("" when the agent has none): MIB-2 system and ENTITY-MIB entPhysical for index 1.
+// SNMPValues are the objects the worker reads ("" when the agent has none): MIB-2 system, ENTITY-MIB entPhysical for index 1, and
+// MikroTik's software version.
 // EntClass is entPhysicalClass as a decimal number, SysObjectID a dotted object identifier.
 type SNMPValues struct {
 	SysDescr    string `json:"sys_descr"`
@@ -297,10 +298,13 @@ type SNMPValues struct {
 	EntModel    string `json:"ent_model"`
 	EntSoftware string `json:"ent_software"`
 	EntSerial   string `json:"ent_serial"`
+	// OSVersion is a vendor MIB's software version, read only for the device that has it: MIKROTIK-MIB mtxrLicVersion.0, the
+	// RouterOS version ("6.49.10"), which MikroTik's sysDescr ("RouterOS RB4011iGS+") does not carry (#910, review r1 M3 of #919).
+	OSVersion string `json:"os_version,omitempty"`
 }
 
 func (v SNMPValues) all() []string {
-	return []string{v.SysDescr, v.SysObjectID, v.SysName, v.EntClass, v.EntModel, v.EntSoftware, v.EntSerial}
+	return []string{v.SysDescr, v.SysObjectID, v.SysName, v.EntClass, v.EntModel, v.EntSoftware, v.EntSerial, v.OSVersion}
 }
 
 // CheckSNMPJob is the grammar of an snmp job, the same for core before it dispatches and for the worker before it sends anything: a

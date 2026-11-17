@@ -14,6 +14,7 @@ export const JobProgress = z.object({
   phase_started_at: z.iso.datetime().describe('When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started'),
   updated_at: z.iso.datetime().describe('The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs'),
   eta: z.iso.datetime().nullable().describe('Estimated end of the current phase: nmap\'s own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated'),
+  ends_by: z.iso.datetime().nullable().describe('The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its 90-minute cap plus the time to stop the task and read what it found); null when none'),
   message: z.string().max(120).nullable().describe('A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null when none'),
 })
 export type JobProgress = z.infer<typeof JobProgress>
@@ -37,6 +38,6 @@ export function mockDeviceProgress(startedMs: number, fraction: number, nowMs: n
     phase: step.phase, percent: step.phase === 'discovery' ? null : Math.round((counted ? (done * 100) / 12 : inPhase * 100) * 10) / 10,
     done: counted ? done : null, total: counted ? 12 : null, unit: counted ? 'checks' : null,
     started_at: iso(startedMs), phase_started_at: iso(phaseStart), updated_at: iso(nowMs),
-    eta: inPhase > 0.05 ? iso(startedMs + span * step.to) : null, message: null,
+    eta: inPhase > 0.05 ? iso(startedMs + span * step.to) : null, ends_by: null, message: null,
   }
 }

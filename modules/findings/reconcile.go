@@ -309,16 +309,13 @@ func (s *Service) splitByNews(vulns []Vuln) (backlog, recent []Vuln) {
 // per software for the whole exploited list (D-500), and each write replaces them (W6-1).
 func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vuln) (UpsertResult, error) {
 	var sum UpsertResult
-	a.winList = slices.Concat(backlog, recent)                 // D-618: a Windows build's month is read from the whole list in both writes
-	need := MatchAsset(a, a.winList, nil, s.now()).NeedVersion // which findings exist does not change them
-	if need == nil {
-		need = []VersionNeeded{} // not nil: the device has no item, so a write must clear the ones it had
-	}
+	a.winList = slices.Concat(backlog, recent)      // D-618: a Windows build's month is read from the whole list in both writes
+	whole := MatchAsset(a, a.winList, nil, s.now()) // its NeedVersion and Unchecked: which findings exist does not change them
 	add := func(wctx context.Context, vulns []Vuln) error {
 		if len(vulns) == 0 {
 			return nil
 		}
-		r, err := s.upsertWithin(wctx, a, vulns, need)
+		r, err := s.upsertWithin(wctx, a, vulns, &whole)
 		sum.Created = append(sum.Created, r.Created...)
 		sum.Closed += r.Closed
 		sum.Retired += r.Retired
@@ -333,10 +330,10 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vu
 	return sum, add(ctx, recent)
 }
 
-func (s *Service) upsertWithin(ctx context.Context, a Asset, vulns []Vuln, need []VersionNeeded) (UpsertResult, error) {
+func (s *Service) upsertWithin(ctx context.Context, a Asset, vulns []Vuln, whole *MatchResult) (UpsertResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, eventWriteTimeout)
 	defer cancel()
-	return s.upsert(ctx, a, vulns, need)
+	return s.upsert(ctx, a, vulns, whole)
 }
 
 func (s *Service) deleteWithin(ctx context.Context, id string) (int, error) {
@@ -345,9 +342,9 @@ func (s *Service) deleteWithin(ctx context.Context, id string) (int, error) {
 	return s.deleteAsset(ctx, id)
 }
 
-// orphanAssets lists the devices that have findings or "add the version" items but are not in live, in id order.
+// orphanAssets lists the devices that have findings, "add the version" items or unchecked rows but are not in live, in id order.
 func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]string, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT asset_id FROM fnd_finding UNION SELECT asset_id FROM fnd_version_needed ORDER BY asset_id`)
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT asset_id FROM fnd_finding UNION SELECT asset_id FROM fnd_version_needed UNION SELECT asset_id FROM fnd_unchecked ORDER BY asset_id`)
 	if err != nil {
 		return nil, fmt.Errorf("findings: reconcile: reading the devices with findings: %w", err)
 	}

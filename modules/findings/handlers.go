@@ -327,11 +327,15 @@ func (h *FindingHandlers) FindingsGetFindings(ctx context.Context, params oas.Fi
 	if err != nil {
 		return nil, err
 	}
+	unchecked, err := h.unchecked(ctx, params.Asset.Or(""))
+	if err != nil {
+		return nil, err
+	}
 	return Into[oas.FindingsGetFindingsOK](struct {
 		Items         []Row             `json:"items"`
 		VersionNeeded []versionNeededJS `json:"version_needed"`
-		Unchecked     []struct{}        `json:"unchecked"` // TODO(#910): AI-Truong returns the could-not-check list (contract.ts UncheckedItem)
-	}{rows, need, []struct{}{}})
+		Unchecked     []UncheckedItem   `json:"unchecked"` // #910 phase 1 (contract.ts UncheckedItem)
+	}{rows, need, unchecked})
 }
 
 // versionNeededJS is contract.ts VersionNeeded (D-500).

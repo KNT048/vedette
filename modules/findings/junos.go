@@ -311,65 +311,6 @@ func junosEnd(r VersionRange) (junosVer, bool) {
 	return junosVer{major: pv.rel[0], minor: pv.rel[1]}, true
 }
 
-// deviceOSes turn the operating system a network device states about itself (Asset.StatedOS: the OS the LLDP or SNMP
-// system description gave, "JUNOS 15.1R7.9", "Junos OS 21.4R3-S5"; never nmap's) into the product the exploited list
-// names, with its version (W1-32, D-510). Only the whole value, a full Junos version: nmap's OS guess ("Juniper Junos OS
-// 12.1 - 15.1", "Juniper JUNOS 10.4R1.9 (EX4200 switch)") is a guess (D-501) and is not read even when it won the device's
-// OS field (review M2 of #703). Junos OS Evolved ("22.4R3-EVO") is another product and is left out.
-//
-// ponytail: Junos only; Cisco IOS ("15.2(4)M3" cannot be ordered: a flood of medium findings) and RouterOS are a row
-// each here with their real feed data.
-var deviceOSes = []struct {
-	re *regexp.Regexp
-	sw Software
-}{
-	{
-		regexp.MustCompile(`(?i)^\s*junos(?:\s+os)?\s+(\d{1,2}\.\d{1,2}(?:[rf]\d{1,3}(?:-s\d{1,3})?|x\d{1,3}-d\d{1,4})(?:\.\d{1,4})?)\s*$`),
-		Software{Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS", KevKeys: []string{"juniper|junos os"}},
-	},
-}
-
-// osSoftwareID is the software id of the row a device's own OS gives (deviceSoftware): no inventory row has it.
-func osSoftwareID(assetID string) string { return "os:" + assetID }
-
-// deviceSoftware is the software the matcher reads for a device: its inventory rows and, when the device states a
-// network OS with its version (deviceOSes), one row for that OS. A row a person, an agent or a scan recorded for that
-// product with a full Junos version wins over the device's statement (no OS row). A recorded row of the product without a
-// readable version, all of whose KEV keys are the OS row's, gives way to it: the device's own version decides instead of
-// "add the version" (review M3 of #703).
-func deviceSoftware(a Asset) []Software {
-	return withoutCoveredWindows(deviceOSSoftware(a)) // D-546, review M4: the agent's Windows release row covers a person's "Windows 11"
-}
-
-func deviceOSSoftware(a Asset) []Software {
-	for _, d := range deviceOSes {
-		m := d.re.FindStringSubmatch(a.StatedOS)
-		if m == nil {
-			continue
-		}
-		out := make([]Software, 0, len(a.Software)+1)
-		for _, s := range a.Software {
-			keyed, covered := false, len(s.KevKeys) > 0
-			for _, k := range s.KevKeys {
-				in := slices.Contains(d.sw.KevKeys, NormalizeKevKey(k))
-				keyed, covered = keyed || in, covered && in
-			}
-			_, junos := junosParse(s.Version)
-			switch {
-			case keyed && junos: // "15.1" or "JUNOS 15.1R7.9" typed by a person is not a Junos version: the stated one decides (review L2)
-				return a.Software
-			case covered:
-				continue
-			}
-			out = append(out, s)
-		}
-		sw := d.sw
-		sw.ID, sw.Version, sw.KevKeys = osSoftwareID(a.ID), m[1], slices.Clone(d.sw.KevKeys)
-		return append(out, sw)
-	}
-	return a.Software
-}
-
 // Juniper names its platforms by series, and CISA's entry names the series a Junos flaw is about ("Juniper Junos OS
 // EX Series and SRX Series PHP External Variable Modification Vulnerability"). The model a device states ("EX4200-48T")
 // gives its series (D-510).

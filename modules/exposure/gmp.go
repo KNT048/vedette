@@ -38,7 +38,7 @@ const (
 	// alone does not stop them (D-563 review r1 M2).
 	gmpBruteOID = "1.3.6.1.4.1.25623.1.0.103697"
 	// gmpGlobalOID is the feed's "Global variable settings" (family Settings): its checkbox "Enable generic web application scanning"
-	// turns on the generic SQL injection and XSS fuzzing of the web application tests; the testing terms cover it (D-566).
+	// turns on the generic SQL injection, XSS and directory-traversal fuzzing of the web application tests: off in the deep level (Greenbone's default; on the N100 it kept three CPU-bound NVTs running 40+ min, #915), on only with the disruptive tick (D-566).
 	gmpGlobalOID = "1.3.6.1.4.1.25623.1.0.12288"
 	// GreenboneMinQoD is the lowest quality of detection a result is read with (Greenbone's own default filter is 70).
 	GreenboneMinQoD = 70
@@ -80,16 +80,16 @@ type gbLevel struct {
 var (
 	gbDeep = gbLevel{
 		name: "vedette-deep-full-and-fast", disruptive: false, safeChecks: "yes",
-		text: "Full and fast, every non-disruptive check (active ones and generic web scanning included); safe checks on",
+		text: "Full and fast, every non-disruptive check (active ones included; generic web scanning off, as in a stock Full and fast scan); safe checks on",
 		prefs: []gmpCheckbox{
 			{gmpBruteOID, "Disable brute force checks", "yes"},
 			{gmpBruteOID, "Disable default account checks", "yes"},
-			{gmpGlobalOID, "Enable generic web application scanning", "yes"},
+			{gmpGlobalOID, "Enable generic web application scanning", "no"},
 		},
 	}
 	gbDisruptive = gbLevel{
 		name: "vedette-disruptive-full-and-fast", disruptive: true, safeChecks: "no",
-		text: "Full and fast, every check (brute force, default accounts and denial of service included); safe checks off",
+		text: "Full and fast, every check (brute force, default accounts, denial of service and generic web scanning included, which can take up to the time cap); safe checks off",
 		prefs: []gmpCheckbox{
 			{gmpBruteOID, "Disable brute force checks", "no"},
 			{gmpBruteOID, "Disable default account checks", "no"},

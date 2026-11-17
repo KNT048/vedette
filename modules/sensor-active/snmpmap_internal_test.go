@@ -43,6 +43,22 @@ func TestIdentifySNMP(t *testing.T) {
 				SysObjectID: ".1.3.6.1.4.1.9.1.1208", SysName: "sw2.corp.example", EntClass: "3", EntModel: "WS-C2960X-48FPD-L"},
 			SNMPFacts{Vendor: "Cisco", Model: "WS-C2960X-48FPD-L", OS: "Cisco IOS 15.0(2)SE11", Hostname: "sw2.corp.example"},
 		},
+		"mikrotik: sysDescr names the board, MIKROTIK-MIB mtxrLicVersion the RouterOS version (review r1 M3 of #919)": {
+			sensorlink.SNMPValues{SysDescr: "RouterOS RB4011iGS+", SysObjectID: ".1.3.6.1.4.1.14988.1", SysName: "gw1", OSVersion: "6.49.10"},
+			SNMPFacts{Vendor: "MikroTik", OS: "RouterOS 6.49.10", Hostname: "gw1"},
+		},
+		"mikrotik: a release candidate with its channel": {
+			sensorlink.SNMPValues{SysDescr: "RouterOS CRS326-24G-2S+", SysObjectID: ".1.3.6.1.4.1.14988.1", OSVersion: "7.14rc1 (testing)"},
+			SNMPFacts{Vendor: "MikroTik", OS: "RouterOS 7.14rc1"},
+		},
+		"mikrotik: a version object that is not a version": {
+			sensorlink.SNMPValues{SysObjectID: ".1.3.6.1.4.1.14988.1", OSVersion: "6.49.10; FortiOS 7.0.1"},
+			SNMPFacts{Vendor: "MikroTik"},
+		},
+		"not mikrotik: the MikroTik version object is not read": {
+			sensorlink.SNMPValues{SysObjectID: ".1.3.6.1.4.1.9.1.1208", OSVersion: "6.49.10"},
+			SNMPFacts{Vendor: "Cisco"},
+		},
 		"hp printer": {
 			sensorlink.SNMPValues{SysDescr: "HP ETHERNET MULTI-ENVIRONMENT,ROM none,JETDIRECT,JD153,EEPROM JSI23900", SysObjectID: ".1.3.6.1.4.1.11.2.3.9.1"},
 			SNMPFacts{Vendor: "HP", Product: "JetDirect printer", Kind: "printer"},

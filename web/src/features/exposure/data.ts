@@ -271,7 +271,7 @@ function withGreenbone(snap: Snapshot, c: Content, at: string, ip?: string): Sna
   })))
   const low = rows.filter((r) => r.severity < 4).length // D-564 G3: Low results are hardening notes
   return { ...snap, greenbone: rows, greenbone_run: { state: 'done', started_at: at, addresses: [] }, vulns: [...snap.vulns, ...vulns], checks: [...snap.checks, { kind: 'greenbone', at,
-    text: `OpenVAS scanned ${ip} from outside without logging in (Full and fast, every non-disruptive check (active ones and generic web scanning included); safe checks on; TCP ports ${snap.ports.filter((p) => p.ip === ip).map((p) => p.port).sort((x, y) => x - y).join(', ')}): ${plural(rows.length, 'result')} with QoD 70 or more (${rows.length - low} high or medium, ${plural(low, 'hardening note')}), ${plural(cves.size, 'CVE')} named.` }] }
+    text: `OpenVAS scanned ${ip} from outside without logging in (Full and fast, every non-disruptive check (active ones included); safe checks on; TCP ports ${snap.ports.filter((p) => p.ip === ip).map((p) => p.port).sort((x, y) => x - y).join(', ')}): ${plural(rows.length, 'result')} with QoD 70 or more (${rows.length - low} high or medium, ${plural(low, 'hardening note')}), ${plural(cves.size, 'CVE')} named.` }] }
 }
 
 export function makeSnapshot(id: string, at: string, c: Content, extraIp?: string): Snapshot {

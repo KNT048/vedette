@@ -44476,6 +44476,9 @@ func (s *ExposureGetExposureScanOKPhase) UnmarshalText(data []byte) error {
 type ExposureGetExposureScanOKProgress struct {
 	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
 	Done NilInt `json:"done"`
+	// The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its
+	// 90-minute cap plus the time to stop the task and read what it found); null when none.
+	EndsBy NilDateTime `json:"ends_by"`
 	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
 	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
 	Eta NilDateTime `json:"eta"`
@@ -44506,6 +44509,11 @@ type ExposureGetExposureScanOKProgress struct {
 // GetDone returns the value of Done.
 func (s *ExposureGetExposureScanOKProgress) GetDone() NilInt {
 	return s.Done
+}
+
+// GetEndsBy returns the value of EndsBy.
+func (s *ExposureGetExposureScanOKProgress) GetEndsBy() NilDateTime {
+	return s.EndsBy
 }
 
 // GetEta returns the value of Eta.
@@ -44556,6 +44564,11 @@ func (s *ExposureGetExposureScanOKProgress) GetUpdatedAt() time.Time {
 // SetDone sets the value of Done.
 func (s *ExposureGetExposureScanOKProgress) SetDone(val NilInt) {
 	s.Done = val
+}
+
+// SetEndsBy sets the value of EndsBy.
+func (s *ExposureGetExposureScanOKProgress) SetEndsBy(val NilDateTime) {
+	s.EndsBy = val
 }
 
 // SetEta sets the value of Eta.
@@ -51277,6 +51290,9 @@ func (s *ExposurePostExposureScanStopOKPhase) UnmarshalText(data []byte) error {
 type ExposurePostExposureScanStopOKProgress struct {
 	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
 	Done NilInt `json:"done"`
+	// The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its
+	// 90-minute cap plus the time to stop the task and read what it found); null when none.
+	EndsBy NilDateTime `json:"ends_by"`
 	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
 	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
 	Eta NilDateTime `json:"eta"`
@@ -51307,6 +51323,11 @@ type ExposurePostExposureScanStopOKProgress struct {
 // GetDone returns the value of Done.
 func (s *ExposurePostExposureScanStopOKProgress) GetDone() NilInt {
 	return s.Done
+}
+
+// GetEndsBy returns the value of EndsBy.
+func (s *ExposurePostExposureScanStopOKProgress) GetEndsBy() NilDateTime {
+	return s.EndsBy
 }
 
 // GetEta returns the value of Eta.
@@ -51357,6 +51378,11 @@ func (s *ExposurePostExposureScanStopOKProgress) GetUpdatedAt() time.Time {
 // SetDone sets the value of Done.
 func (s *ExposurePostExposureScanStopOKProgress) SetDone(val NilInt) {
 	s.Done = val
+}
+
+// SetEndsBy sets the value of EndsBy.
+func (s *ExposurePostExposureScanStopOKProgress) SetEndsBy(val NilDateTime) {
+	s.EndsBy = val
 }
 
 // SetEta sets the value of Eta.
@@ -52934,6 +52960,9 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedPhase) UnmarshalText(data []by
 type ExposurePostExposureTargetsIDScanAcceptedProgress struct {
 	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
 	Done NilInt `json:"done"`
+	// The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its
+	// 90-minute cap plus the time to stop the task and read what it found); null when none.
+	EndsBy NilDateTime `json:"ends_by"`
 	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
 	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
 	Eta NilDateTime `json:"eta"`
@@ -52964,6 +52993,11 @@ type ExposurePostExposureTargetsIDScanAcceptedProgress struct {
 // GetDone returns the value of Done.
 func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetDone() NilInt {
 	return s.Done
+}
+
+// GetEndsBy returns the value of EndsBy.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetEndsBy() NilDateTime {
+	return s.EndsBy
 }
 
 // GetEta returns the value of Eta.
@@ -53014,6 +53048,11 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetUpdatedAt() time.
 // SetDone sets the value of Done.
 func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetDone(val NilInt) {
 	s.Done = val
+}
+
+// SetEndsBy sets the value of EndsBy.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetEndsBy(val NilDateTime) {
+	s.EndsBy = val
 }
 
 // SetEta sets the value of Eta.
@@ -69308,8 +69347,8 @@ func (s *FindingsGetFindingsOKItemsItemStatus) UnmarshalText(data []byte) error 
 // #910 phase 1: exploited CVEs of software the box has that it could not check; one item per device x
 // software x reason. No finding is created from it.
 type FindingsGetFindingsOKUncheckedItem struct {
-	// Add_version: typing the version as the vendor writes it lets Vedette check these CVEs
-	// (not_comparable, and not_named once phase 2 lands); none: only the advisory decides.
+	// Add_version: only not_comparable on a software row a person declared (#920): typing the version as
+	// the vendor writes it lets Vedette check these CVEs; none: only the advisory decides.
 	Action  FindingsGetFindingsOKUncheckedItemAction     `json:"action"`
 	Asset   NilFindingsGetFindingsOKUncheckedItemAsset   `json:"asset"`
 	AssetID string                                       `json:"asset_id"`
@@ -69401,8 +69440,8 @@ func (s *FindingsGetFindingsOKUncheckedItem) SetVersion(val NilString) {
 	s.Version = val
 }
 
-// Add_version: typing the version as the vendor writes it lets Vedette check these CVEs
-// (not_comparable, and not_named once phase 2 lands); none: only the advisory decides.
+// Add_version: only not_comparable on a software row a person declared (#920): typing the version as
+// the vendor writes it lets Vedette check these CVEs; none: only the advisory decides.
 type FindingsGetFindingsOKUncheckedItemAction string
 
 const (
@@ -188213,6 +188252,9 @@ func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) UnmarshalText(data
 type ScanGetScansRunsOKItemsItemProgress struct {
 	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
 	Done NilInt `json:"done"`
+	// The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its
+	// 90-minute cap plus the time to stop the task and read what it found); null when none.
+	EndsBy NilDateTime `json:"ends_by"`
 	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
 	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
 	Eta NilDateTime `json:"eta"`
@@ -188243,6 +188285,11 @@ type ScanGetScansRunsOKItemsItemProgress struct {
 // GetDone returns the value of Done.
 func (s *ScanGetScansRunsOKItemsItemProgress) GetDone() NilInt {
 	return s.Done
+}
+
+// GetEndsBy returns the value of EndsBy.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetEndsBy() NilDateTime {
+	return s.EndsBy
 }
 
 // GetEta returns the value of Eta.
@@ -188293,6 +188340,11 @@ func (s *ScanGetScansRunsOKItemsItemProgress) GetUpdatedAt() time.Time {
 // SetDone sets the value of Done.
 func (s *ScanGetScansRunsOKItemsItemProgress) SetDone(val NilInt) {
 	s.Done = val
+}
+
+// SetEndsBy sets the value of EndsBy.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetEndsBy(val NilDateTime) {
+	s.EndsBy = val
 }
 
 // SetEta sets the value of Eta.
@@ -190475,6 +190527,9 @@ func (s *ScanPostScansRunsCreatedIdentificationItemReason) UnmarshalText(data []
 type ScanPostScansRunsCreatedProgress struct {
 	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
 	Done NilInt `json:"done"`
+	// The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its
+	// 90-minute cap plus the time to stop the task and read what it found); null when none.
+	EndsBy NilDateTime `json:"ends_by"`
 	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
 	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
 	Eta NilDateTime `json:"eta"`
@@ -190505,6 +190560,11 @@ type ScanPostScansRunsCreatedProgress struct {
 // GetDone returns the value of Done.
 func (s *ScanPostScansRunsCreatedProgress) GetDone() NilInt {
 	return s.Done
+}
+
+// GetEndsBy returns the value of EndsBy.
+func (s *ScanPostScansRunsCreatedProgress) GetEndsBy() NilDateTime {
+	return s.EndsBy
 }
 
 // GetEta returns the value of Eta.
@@ -190555,6 +190615,11 @@ func (s *ScanPostScansRunsCreatedProgress) GetUpdatedAt() time.Time {
 // SetDone sets the value of Done.
 func (s *ScanPostScansRunsCreatedProgress) SetDone(val NilInt) {
 	s.Done = val
+}
+
+// SetEndsBy sets the value of EndsBy.
+func (s *ScanPostScansRunsCreatedProgress) SetEndsBy(val NilDateTime) {
+	s.EndsBy = val
 }
 
 // SetEta sets the value of Eta.
@@ -191439,6 +191504,9 @@ func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) UnmarshalText(data [
 type ScanPostScansRunsIDStopOKProgress struct {
 	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
 	Done NilInt `json:"done"`
+	// The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its
+	// 90-minute cap plus the time to stop the task and read what it found); null when none.
+	EndsBy NilDateTime `json:"ends_by"`
 	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
 	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
 	Eta NilDateTime `json:"eta"`
@@ -191469,6 +191537,11 @@ type ScanPostScansRunsIDStopOKProgress struct {
 // GetDone returns the value of Done.
 func (s *ScanPostScansRunsIDStopOKProgress) GetDone() NilInt {
 	return s.Done
+}
+
+// GetEndsBy returns the value of EndsBy.
+func (s *ScanPostScansRunsIDStopOKProgress) GetEndsBy() NilDateTime {
+	return s.EndsBy
 }
 
 // GetEta returns the value of Eta.
@@ -191519,6 +191592,11 @@ func (s *ScanPostScansRunsIDStopOKProgress) GetUpdatedAt() time.Time {
 // SetDone sets the value of Done.
 func (s *ScanPostScansRunsIDStopOKProgress) SetDone(val NilInt) {
 	s.Done = val
+}
+
+// SetEndsBy sets the value of EndsBy.
+func (s *ScanPostScansRunsIDStopOKProgress) SetEndsBy(val NilDateTime) {
+	s.EndsBy = val
 }
 
 // SetEta sets the value of Eta.
@@ -193656,6 +193734,9 @@ func (s *ScanningGetScanningOKRunningItemEngine) UnmarshalText(data []byte) erro
 type ScanningGetScanningOKRunningItemProgress struct {
 	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
 	Done NilInt `json:"done"`
+	// The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its
+	// 90-minute cap plus the time to stop the task and read what it found); null when none.
+	EndsBy NilDateTime `json:"ends_by"`
 	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
 	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
 	Eta NilDateTime `json:"eta"`
@@ -193686,6 +193767,11 @@ type ScanningGetScanningOKRunningItemProgress struct {
 // GetDone returns the value of Done.
 func (s *ScanningGetScanningOKRunningItemProgress) GetDone() NilInt {
 	return s.Done
+}
+
+// GetEndsBy returns the value of EndsBy.
+func (s *ScanningGetScanningOKRunningItemProgress) GetEndsBy() NilDateTime {
+	return s.EndsBy
 }
 
 // GetEta returns the value of Eta.
@@ -193736,6 +193822,11 @@ func (s *ScanningGetScanningOKRunningItemProgress) GetUpdatedAt() time.Time {
 // SetDone sets the value of Done.
 func (s *ScanningGetScanningOKRunningItemProgress) SetDone(val NilInt) {
 	s.Done = val
+}
+
+// SetEndsBy sets the value of EndsBy.
+func (s *ScanningGetScanningOKRunningItemProgress) SetEndsBy(val NilDateTime) {
+	s.EndsBy = val
 }
 
 // SetEta sets the value of Eta.
@@ -195573,6 +195664,9 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemEngine) UnmarshalText(data [
 type ScanningPatchScanningEnginesIDOKRunningItemProgress struct {
 	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
 	Done NilInt `json:"done"`
+	// The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its
+	// 90-minute cap plus the time to stop the task and read what it found); null when none.
+	EndsBy NilDateTime `json:"ends_by"`
 	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
 	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
 	Eta NilDateTime `json:"eta"`
@@ -195603,6 +195697,11 @@ type ScanningPatchScanningEnginesIDOKRunningItemProgress struct {
 // GetDone returns the value of Done.
 func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetDone() NilInt {
 	return s.Done
+}
+
+// GetEndsBy returns the value of EndsBy.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetEndsBy() NilDateTime {
+	return s.EndsBy
 }
 
 // GetEta returns the value of Eta.
@@ -195653,6 +195752,11 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetUpdatedAt() tim
 // SetDone sets the value of Done.
 func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetDone(val NilInt) {
 	s.Done = val
+}
+
+// SetEndsBy sets the value of EndsBy.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetEndsBy(val NilDateTime) {
+	s.EndsBy = val
 }
 
 // SetEta sets the value of Eta.
@@ -196499,6 +196603,9 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine) UnmarshalTex
 type ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress struct {
 	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
 	Done NilInt `json:"done"`
+	// The latest time the current phase ends, when the box enforces a limit on it (the OpenVAS step: its
+	// 90-minute cap plus the time to stop the task and read what it found); null when none.
+	EndsBy NilDateTime `json:"ends_by"`
 	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
 	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
 	Eta NilDateTime `json:"eta"`
@@ -196529,6 +196636,11 @@ type ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress struct {
 // GetDone returns the value of Done.
 func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetDone() NilInt {
 	return s.Done
+}
+
+// GetEndsBy returns the value of EndsBy.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetEndsBy() NilDateTime {
+	return s.EndsBy
 }
 
 // GetEta returns the value of Eta.
@@ -196579,6 +196691,11 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetUpdated
 // SetDone sets the value of Done.
 func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetDone(val NilInt) {
 	s.Done = val
+}
+
+// SetEndsBy sets the value of EndsBy.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetEndsBy(val NilDateTime) {
+	s.EndsBy = val
 }
 
 // SetEta sets the value of Eta.

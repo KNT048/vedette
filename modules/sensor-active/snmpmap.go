@@ -104,6 +104,8 @@ var (
 	modelRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 ._/+()-]{0,63}$`)
 	// fortiFirmware is a Fortinet device's entPhysicalSoftwareRev: "FortiGate-1500D v6.4.8,build1914,211117 (GA)".
 	fortiFirmware = regexp.MustCompile(`^(Forti[A-Za-z]{2,12}-[A-Za-z0-9]{1,16}) v([0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,3})\b`)
+	// routerOSVersion is MIKROTIK-MIB mtxrLicVersion.0: "6.49.10", "7.14rc1", optionally with its channel "(long-term)".
+	routerOSVersion = regexp.MustCompile(`^([0-9]{1,2}\.[0-9]{1,3}(?:\.[0-9]{1,3})?(?:beta[0-9]{1,3}|rc[0-9]{1,3})?)(?: \([a-z -]{1,20}\))?$`)
 )
 
 // cleanSNMP makes a device's value safe text: valid UTF-8, no control, format (bidi) or separator character, runs of spaces as one,
@@ -182,6 +184,9 @@ func identifySNMP(v sensorlink.SNMPValues) SNMPFacts {
 		if os == "" && (strings.HasPrefix(m[1], "FortiGate-") || strings.HasPrefix(m[1], "FortiWiFi-")) { // FortiSwitch and FortiAP run other systems
 			os = "FortiOS " + m[2]
 		}
+	}
+	if m := routerOSVersion.FindStringSubmatch(cleanSNMP(v.OSVersion)); m != nil && f.Vendor == "MikroTik" {
+		os = "RouterOS " + m[1] // MikroTik's SNMP sysDescr names the board, not the version (review r1 M3 of #919)
 	}
 	f.Model, f.OS = model, os
 	if hostnameRE.MatchString(f.SysName) {

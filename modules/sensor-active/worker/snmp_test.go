@@ -174,3 +174,26 @@ func TestHeartbeatSaysSNMP(t *testing.T) {
 		t.Fatal("no heartbeat")
 	}
 }
+
+// #910, review r1 M3 of #919: MikroTik's sysDescr names the board only; the same one GET reads MIKROTIK-MIB mtxrLicVersion.0, the
+// RouterOS version. An agent without the object (the Juniper here) answers noSuchObject: "", and the rest of its answer is kept.
+func TestSNMPReadsTheMikroTikVersionInTheSameGet(t *testing.T) {
+	t.Parallel()
+	mt := &snmptest.Agent{Community: "c0mmunity-mt", Values: map[string]any{snmptest.SysDescr: "RouterOS RB4011iGS+",
+		snmptest.SysObjectID: snmptest.Object(".1.3.6.1.4.1.14988.1"), snmptest.SysName: "gw1", snmptest.MikroTikVer: "6.49.10"}}
+	sw := &snmptest.Agent{Community: "c0mmunity-mt", Values: juniper()}
+	r := startSNMP(t, map[string]*snmptest.Agent{"192.168.10.30": mt, "192.168.10.31": sw})
+	id := strings.Repeat("6", 32)
+	r.core.push(snmpJob(id, []sensorlink.SNMPCredential{v2c("c0mmunity-mt")},
+		sensorlink.SNMPTarget{IP: "192.168.10.30", Credentials: []int{0}}, sensorlink.SNMPTarget{IP: "192.168.10.31", Credentials: []int{0}}))
+	got := r.core.next(t)
+	if got.id != id || got.res.Status != "done" || len(got.res.SNMP) != 2 {
+		t.Fatalf("result %+v", got.res)
+	}
+	if a := got.res.SNMP[0]; a.Status != sensorlink.SNMPStatusOK || a.Values.OSVersion != "6.49.10" || a.Values.SysDescr != "RouterOS RB4011iGS+" {
+		t.Errorf("the MikroTik: %+v", a)
+	}
+	if a := got.res.SNMP[1]; a.Status != sensorlink.SNMPStatusOK || a.Values.OSVersion != "" || a.Values.SysDescr != junosDescr {
+		t.Errorf("the switch: %+v", a)
+	}
+}

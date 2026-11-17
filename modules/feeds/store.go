@@ -417,6 +417,7 @@ func scanVuln(r scanner) (VulnRow, error) {
 	if err := json.Unmarshal([]byte(links), &v.Links); err != nil || v.Links == nil {
 		v.Links = []string{}
 	}
+	v.Links = cleanLinks(v.Links) // rows stored before cleanLink read as a pull writes them now
 	if due != nil {
 		v.DueDate = *due
 	}
@@ -554,6 +555,7 @@ func applyVulns(ctx context.Context, tx *sql.Tx, now time.Time, source string, v
 			}
 		}
 		listed[v.CVE] = true
+		v.Links = cleanLinks(v.Links) // every feed: what a stored row reads as (scanVuln), so unchanged rows compare equal
 		if v.DateAdded != "" {
 			v.DateAdded = clampDate(v.DateAdded, today)
 		}

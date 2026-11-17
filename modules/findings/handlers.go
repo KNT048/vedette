@@ -173,9 +173,9 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 // matchedOn names the device's software row the finding's KEV entry is keyed to, as the matcher reads the device (its rows and the network
 // OS it states, deviceSoftware): the Device panel of the finding names it (N53-1, D-619), not the device's first software by name, which
 // showed "Microsoft Edge" for a Windows CVE. A "Multiple Products" entry is keyed to every row of its vendor, so there it is the row the
-// matcher matches through NVD's list (review r1 #2 of #807: MatchAsset on that entry alone, v the stored entry). "" when no row is keyed
-// to the entry, or for Multiple Products when the entry is not read or the matcher matches none (the panel then keeps AssetView.Display:
-// the device's OS, else its kind, never an arbitrary software row, #905).
+// matcher matches through NVD's list (review r1 #2 of #807: MatchAsset on that entry alone, v the stored entry), as it is for an entry no
+// row is keyed to (#910: NVD's list names the row). "" when no row is keyed to the entry and the entry is not read or the matcher
+// matches none (the panel then keeps AssetView.Display: the device's OS, else its kind, never an arbitrary software row, #905).
 func matchedOn(a Asset, k KevInfo, v *Vuln) string {
 	if s, ok := matchedRow(a, k, v); ok {
 		return clean(s.Display)
@@ -225,13 +225,12 @@ func findingRow(a Asset, k KevInfo, v *Vuln) (Software, bool) {
 	return matchedRow(a, k, v)
 }
 
-// matchedRow is the software row matchedOn names; ok is false when there is none.
+// matchedRow is the software row matchedOn names; ok is false when there is none. With the stored entry, the row the matcher matches
+// it on (the finding's row, as FixedInFor and RowFixes read it: a version match through NVD's list beats a keyed row's product match,
+// #910, review r1 L1 of #913); else, or when it matches none, a row keyed to the entry (never for "Multiple Products").
 func matchedRow(a Asset, k KevInfo, v *Vuln) (Software, bool) {
 	sws := deviceSoftware(a)
-	if isMultiProduct(k.Product) {
-		if v == nil {
-			return Software{}, false
-		}
+	if v != nil {
 		r := MatchAsset(a, []Vuln{*v}, map[string]bool{v.CVE: true}, time.Now())
 		for _, m := range slices.Concat(r.New, r.Existing) {
 			if m.CVE != v.CVE || m.SoftwareDisplay == "" {
@@ -244,6 +243,8 @@ func matchedRow(a Asset, k KevInfo, v *Vuln) (Software, bool) {
 			}
 			return Software{ID: m.SoftwareID, Display: m.SoftwareDisplay}, true
 		}
+	}
+	if isMultiProduct(k.Product) {
 		return Software{}, false
 	}
 	key := Vuln{Vendor: k.Vendor, Product: k.Product}

@@ -5,5 +5,11 @@
   "affects": "OpenSSH built with musl libc and without PAM, such as Alpine Linux's openssh-server package",
   "check": "check the openssh package version on that device (apk info -v openssh-server): Alpine fixed it in 10.6_p2-r0 (edge), 10.3_p1-r2 (3.24), 10.2_p1-r1 (3.23), 10.0_p1-r11 (3.22) and 9.9_p2-r1 (3.21); until then set PasswordAuthentication no",
   "source": "https://alpinelinux.org/posts/2026-11-05-openssh-password-authentication-bypass/"
+ },
+ "CVE-2025-2783": {
+  "only": ["windows"],
+  "affects": "Chrome and other Chromium browsers on Windows (a sandbox escape in Mojo's Windows code)",
+  "check": "check whether the device runs Windows; Google fixed it in Chrome 134.0.6998.177/.178 for Windows",
+  "source": "https://chromereleases.googleblog.com/2025/03/stable-channel-update-for-desktop_25.html"
  }
 }

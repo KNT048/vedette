@@ -503,3 +503,19 @@ func TestSummary_TopNamesTheMatchedSoftware(t *testing.T) {
 		t.Fatalf("top[1] software %q product %q, want no software", got.Software, got.Product)
 	}
 }
+
+// #910 (review r2 M1 of #913): an entry reached only through NVD's list (CISA "Google | Chromium V8", no row keyed to it) names the
+// matcher's row on Home, as on the finding's page.
+func TestSummary_TopNamesTheRowReachedThroughNVD(t *testing.T) {
+	t.Parallel()
+	e, h, _ := sumEnv(t)
+	e.inv.match["a-1"] = Asset{ID: "a-1", Name: "pc", OS: "Microsoft Windows 11 Pro", Software: []Software{chromeRow("150.0.7871.4")}}
+	v := cve202687491()
+	e.feeds.vulns = append(e.feeds.vulns, v)
+	e.feeds.kev = map[string]KevInfo{v.CVE: {Vendor: v.Vendor, Product: v.Product}}
+	e.insertRows(sumRow{"f-con-0001", "a-1", v.CVE, StatusSuspected, t0.AddDate(0, 0, -1), time.Time{}})
+	s := mustSummary(t, h)
+	if len(s.Top) != 1 || s.Top[0].Software != "Google Chrome" {
+		t.Fatalf("top = %+v, want the Chrome row named", s.Top)
+	}
+}

@@ -356,7 +356,7 @@ func TestGolden_OfficeN22WithoutAVersionCountsAllThirty(t *testing.T) {
 	in := newSWInfo(sw, "")
 	names := map[outcome]string{outNone: "no", outMatch: "finding", outNeedVersion: "need-version", outRuledOut: "ruled out", outNotAffected: "not affected"}
 	for _, v := range vulns {
-		_, out := matchOne(a, sw, in, v, t0)
+		_, out := matchOne(a, sw, in, v, false, t0)
 		t.Logf("%s added %s: %s (NVD: %s)", v.CVE, v.DateAdded.Format(time.DateOnly), names[out], nvdProducts(v.Vendor, v.Affected))
 		if out != outNeedVersion {
 			t.Errorf("%s: %s, want need-version", v.CVE, names[out])

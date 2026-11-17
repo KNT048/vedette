@@ -222,8 +222,8 @@ test.describe('findings: no pack yet, and the AI (S-MIT-1, S-AI-2)', () => {
     await expect(page.getByText(/CISA's required action when it added this vulnerability on/)).toBeVisible()
     await expect(page.locator('blockquote').first()).not.toBeEmpty()
     await expect(page.locator('main a[target="_blank"]').first()).toBeVisible()
-    // M2-1 (mitigation INV-8): general hardening and general checks, labelled as not a recommendation for the CVE
-    await expect(page.getByRole('region', { name: 'General hardening' })).toBeVisible()
+    // mitigation INV-8: the general checks, labelled as not a recommendation for the CVE; no generated firewall config (D-631)
+    await expect(page.getByRole('region', { name: 'General hardening' })).toHaveCount(0)
     await expect(page.getByTestId('general-checks')).toBeVisible()
     await shot(page, 'findings-box', `${info.project.name}-nopack`)
     const ask = page.getByRole('button', { name: 'Ask my AI', exact: true })

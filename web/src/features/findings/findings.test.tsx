@@ -312,7 +312,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     // M2-2: the config skill answers with a config block to copy, with its source and side effect
     expect(within(block).getByText('Configuration to review before pasting')).toBeInTheDocument()
     expect(within(block).getByText(/^nft add rule inet filter forward/)).toBeInTheDocument()
-    expect(within(block).getByText('Based on: general hardening')).toBeInTheDocument()
+    expect(within(block).getByText('Based on: general practice, no source in the data names it')).toBeInTheDocument()
     expect(within(block).getByRole('button', { name: 'Copy' })).toBeInTheDocument()
     expect(within(block).queryByText('Drafted by Vedette with AI')).not.toBeInTheDocument()
     expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()

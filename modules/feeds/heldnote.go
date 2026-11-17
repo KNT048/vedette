@@ -81,7 +81,13 @@ FROM feeds_affected_cve a WHERE a.source = 'nvd'`, nil, &all, &ranged); err != n
 // heldCVEOrg: CVE.org is read only for the exploited CVEs NVD gives no affected versions for, so 0 is a healthy count when NVD has
 // versions for every one, or when the records of the others name none Vedette can compare.
 func heldCVEOrg(ctx context.Context, tx *sql.Tx) (string, error) {
-	var gap, read, held int
+	var kev, gap, read, held int
+	if err := counts(ctx, tx, `SELECT count(*) FROM (`+kevSet+` LIMIT 1)`, nil, &kev); err != nil {
+		return "", err
+	}
+	if kev == 0 { // a fresh box, or the CISA list not loaded yet: nothing to say about NVD
+		return "Nothing to read yet: CVE.org is read for the exploited CVEs NVD gives no affected versions for, once the CISA list is on the box.", nil
+	}
 	noNVD := `FROM (SELECT DISTINCT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev')) v
 WHERE NOT EXISTS (SELECT 1 FROM feeds_affected_cve a WHERE a.cve = v.cve AND a.source = 'nvd' AND EXISTS (SELECT 1 FROM feeds_affected r WHERE r.cve = v.cve))`
 	if err := counts(ctx, tx, `SELECT count(*), count(*) FILTER (WHERE EXISTS (SELECT 1 FROM feeds_cveorg_checked c WHERE c.cve = v.cve)) `+noNVD, nil, &gap, &read); err != nil {
@@ -99,13 +105,18 @@ WHERE NOT EXISTS (SELECT 1 FROM feeds_affected_cve a WHERE a.cve = v.cve AND a.s
 	case gap == 0:
 		return "Read only for exploited CVEs NVD gives no affected versions for, and NVD gives them for every one now.", nil
 	case held == 0 && unread == 0:
-		return fmt.Sprintf("%s %s no affected versions from NVD, and CVE.org gives none Vedette can compare for them either; each is asked again every 12 hours.",
-			cves(gap, "exploited"), verb), nil
+		if gap == 1 {
+			return "1 exploited CVE has no affected versions from NVD, and CVE.org gives none Vedette can compare for it either; it is asked again every 12 hours.", nil
+		}
+		return fmt.Sprintf("%s have no affected versions from NVD, and CVE.org gives none Vedette can compare for them either; each is asked again every 12 hours.",
+			cves(gap, "exploited")), nil
 	}
 	var parts []string
 	switch {
 	case held > 0 && none > 0:
 		parts = append(parts, fmt.Sprintf("CVE.org gives versions Vedette can compare for %s of them, none for %s", grouped(held), grouped(none)))
+	case held > 0 && gap == 1:
+		parts = append(parts, "CVE.org gives versions Vedette can compare for it")
 	case held > 0:
 		parts = append(parts, fmt.Sprintf("CVE.org gives versions Vedette can compare for %s of them", grouped(held)))
 	case none > 0:

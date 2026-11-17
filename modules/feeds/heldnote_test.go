@@ -56,7 +56,7 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 	}
 	empty := map[string]string{
 		"first-epss":    "No score yet: the exploited CVEs are scored once the CISA list is on the box.",
-		cveOrgFeedID:    "Read only for exploited CVEs NVD gives no affected versions for, and NVD gives them for every one now.",
+		cveOrgFeedID:    "Nothing to read yet: CVE.org is read for the exploited CVEs NVD gives no affected versions for, once the CISA list is on the box.",
 		nvdFeedID:       "",
 		winRelFeedID:    "",
 		ubuntuOSVFeedID: "",
@@ -83,6 +83,21 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 		if got := held(id); got != want {
 			t.Errorf("filled box, %s: %q, want %q", id, got, want)
 		}
+	}
+	// read, nothing comparable: one CVE is "it"; NVD gives versions for every exploited CVE: CVE.org has nothing to do
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cveorg_checked (cve, checked_at) VALUES ('CVE-2026-0001', '2026-11-05T12:00:00.000Z')`)
+		return err
+	})
+	if got, want := held(cveOrgFeedID), "1 exploited CVE has no affected versions from NVD, and CVE.org gives none Vedette can compare for it either; it is asked again every 12 hours."; got != want {
+		t.Errorf("one CVE read: %q, want %q", got, want)
+	}
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0001": {{CPE: "cpe:2.3:o:acme:gateway:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}}, false, epoch0)
+		return err
+	})
+	if got, want := held(cveOrgFeedID), "Read only for exploited CVEs NVD gives no affected versions for, and NVD gives them for every one now."; got != want {
+		t.Errorf("NVD covers all: %q, want %q", got, want)
 	}
 	if got, err := func() (got string, err error) {
 		write(t, e.db, func(tx *sql.Tx) error {

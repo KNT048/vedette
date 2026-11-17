@@ -433,9 +433,14 @@ func (s *Service) withServiceVulns(ctx context.Context, snap *Snapshot) {
 	markTemplates(snap.Vulns, snap.Templates) // INV-23 first: a confirmed row is not a "maybe patched"
 	backported := markBackports(snap.Vulns, snap.Services)
 	// "N of M services", never "N identified services": the services line counts what was identified, and a service a probe named
-	// without a product the list has entries under is identified but not compared
+	// without a product the list has entries under is identified but not compared. The rows an earlier scan kept are compared
+	// too; the services line counts only what this scan read, so the kept ones are said apart
+	of := plural(len(snap.Services), "service")
+	if k := len(keptServices(*snap)); k > 0 {
+		of += fmt.Sprintf(" (%d kept from an earlier scan)", k)
+	}
 	text := fmt.Sprintf("%d of %s compared with today's CISA list of exploited vulnerabilities (%d entries) and its NVD version ranges: %s.",
-		m.Compared, plural(len(snap.Services), "service"), m.Listed, plural(len(m.Vulns), "exploited CVE")+" matched")
+		m.Compared, of, m.Listed, plural(len(m.Vulns), "exploited CVE")+" matched")
 	if backported > 0 {
 		text = strings.TrimSuffix(text, ".") + fmt.Sprintf(", %d of them on a distribution package that may carry a backported fix.", backported)
 	}

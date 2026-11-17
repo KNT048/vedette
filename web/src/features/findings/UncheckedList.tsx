@@ -29,7 +29,7 @@ function Item({ item, onAdd }: { item: UncheckedItem; onAdd: (i: UncheckedItem) 
       <p>
         {self ? null : <><Link to={`/devices/${item.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{name}</Link>{': '}</>}
         <span className="font-medium">{item.software}{item.version ? ` ${item.version}` : ''}</span>
-        {' - '}{t(`unchecked.reason.${item.reason}`, { software: item.software, version: item.version ?? '' })}
+        {' - '}{t(`unchecked.reason.${item.reason === 'not_comparable' && !item.version ? 'not_comparable_none' : item.reason}`, { software: item.software, version: item.version ?? '' })}
       </p>
       <ul className="grid gap-0.5 pl-4">
         {shown.map((c) => (

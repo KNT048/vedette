@@ -27,7 +27,8 @@
       "no_nvd_data": "NVD has not published which products this CVE affects yet",
       "no_nvd_versions": "NVD names {{software}} but not which versions are affected",
       "not_named": "Vedette cannot yet name {{software}} the way NVD does",
-      "not_comparable": "Vedette cannot compare version {{version}} with NVD's ranges"
+      "not_comparable": "Vedette cannot compare version {{version}} with NVD's ranges",
+      "not_comparable_none": "Vedette cannot compare the version of {{software}} with NVD's ranges"
     },
     "ransomware": "Ransomware",
     "advisoryLabel": "{{cve}}: open the advisory",

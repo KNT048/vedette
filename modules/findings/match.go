@@ -150,9 +150,13 @@ type Vuln struct {
 	// CVE.org record's), even an empty one. False before the NVD pull, with it off or failing: an empty Affected then says nothing
 	// about NVD, so the "could not be checked" list does not claim "no NVD data" (#910, review r1 M2 of #920).
 	NVDAnswered bool
-	// Distro is what Ubuntu and Debian say about the CVE in their own packages (D-516): per release and source package,
-	// fixed in a version or not affected. Empty when the distribution feeds are off or have no word on it.
+	// Distro is what Ubuntu and Debian say about the CVE in their own packages, and Alpine per branch (read only for
+	// a CVE of the platform list, distroFixes): per release and source package, fixed in a version or not affected. Empty when the
+	// distribution feeds are off or have no word on it.
 	Distro []DistroFix
+	// DistroLoading: the distributions one of whose feeds is on but holds no row yet (feeds' DistroLoading): a platform-limited
+	// CVE whose fixed list that distribution's data gives stays a question then, instead of NVD deciding (it would raise a false finding).
+	DistroLoading map[string]bool
 }
 
 // RangesCVEOrg and RangesCVEOrgPartial mark a Vuln whose affected versions come from the CNA's CVE.org record because
@@ -191,8 +195,8 @@ func (v Vuln) rangesBy(first bool) string {
 
 // DistroFix is one distribution's word on a CVE for one source package of one release (feeds.DistroFix).
 type DistroFix struct {
-	Distro  string // "ubuntu" or "debian"
-	Release string // "24.04", "12"
+	Distro  string // "ubuntu", "debian" or "alpine" (DistroAlpine)
+	Release string // "24.04", "12", "3.23" (an Alpine branch)
 	Package string // source package
 	Status  string // "fixed" or "not_affected"
 	Fixed   string // the first fixed version (status fixed)
@@ -237,6 +241,8 @@ type Match struct {
 	gap, said string
 	listed    bool // NameOnly: the CVE is on the device's could-not-check list (the audit line says so only then, review r1 L2 of #939)
 	// ask: a platform-limited CVE that needs a person's answer on the row (D-604, outQuestion): no finding, a could-not-check row.
+	// fix: the distribution's fixed releases it was asked against (from Vuln.Distro), for AskedWhy; nil when none.
+	fix *platformFix
 	ask askKind
 	// answer: with ask, the package release a person gave that is no release of the distribution (the question says so, D-604).
 	answer string
@@ -949,7 +955,7 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why}, outNotAffected
 	}
-	ps := platformCheck(a, s, in, v.CVE) // D-604: what a platform-limited CVE still needs on this row
+	ps := platformCheck(a, s, in, v.CVE, v.Distro, v.DistroLoading) // what a platform-limited CVE still needs on this row
 	if ps.fixed {
 		note := "Not affected: " + ps.note + " Vedette closed this by itself and reopens it if a later match says the device is affected."
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: ps.note, pkgFixed: true}, outNotAffected
@@ -1045,10 +1051,10 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	}
 	switch {
 	case ps.ask != askNone: // D-604: only a person's answer decides; the CVE goes to "Could not be checked" with the question
-		l := platformLimits[v.CVE]
+		l, fix := platformLimits[v.CVE], distroFixes(v.CVE, v.Distro)
 		note := fmt.Sprintf("%s Vedette cannot check %s on %s yet: it affects only %s, and %s. It is under \"Could not be checked\" with the question; Vedette reopens this if your answer says the device is affected.",
-			AskedNote, v.CVE, name, l.Affects, askGap(ps.ask, v.CVE))
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, ask: ps.ask, answer: ps.bad, bounded: m.bounded}, outQuestion
+			AskedNote, v.CVE, name, l.Affects, askGap(ps.ask, v.CVE, fix))
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, ask: ps.ask, answer: ps.bad, bounded: m.bounded, fix: fix}, outQuestion
 	case ps.below: // D-604: below the distribution's fix for the device's branch (or older than every fix): a version finding
 		m.Basis, m.Confidence, m.Severity, m.bounded, m.backed = BasisVersion, ConfVersion, SeverityHigh, true, true
 		if v.Ransomware || v.EPSS >= 0.5 {

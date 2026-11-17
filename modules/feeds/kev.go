@@ -3,6 +3,7 @@ package feeds
 import (
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -27,7 +28,9 @@ func (v Vuln) Key() string { return ProductKey(v.Vendor, v.Product) }
 type KEVCatalog struct {
 	Version  string // catalogVersion, "" when absent or odd
 	Released string // dateReleased as YYYY-MM-DD, "" when absent or odd
-	Vulns    []Vuln
+	// ReleasedAt is dateReleased to the second (zero when absent or odd): the tie-breaker of two copies with one catalogVersion (D-91)
+	ReleasedAt time.Time
+	Vulns      []Vuln
 	Stats
 }
 
@@ -175,6 +178,9 @@ func ParseKEV(data []byte) (KEVCatalog, error) {
 	if v, ok := root.get("dateReleased"); ok && v.k == jStr {
 		if d, ok := normDate(v.s, DateAuto); ok && isoRE.MatchString(v.s) {
 			cat.Released = d
+		}
+		if at, err := time.Parse(time.RFC3339Nano, v.s); err == nil {
+			cat.ReleasedAt = at.UTC().Truncate(time.Millisecond) // as stored (store.FormatTS), so a held catalog compares equal to itself
 		}
 	}
 	tl := newTally()

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
+import { api } from '@/lib/api'
 import { collection } from '@/mocks/db'
 import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, installStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
@@ -14,7 +15,7 @@ import { CATALOG, customEntry, findCatalog, searchCatalog } from './catalog'
 import { sha256Hex } from './kinds'
 import { OSQUERY_VERSION } from './installScripts'
 import { BOX_ID, compareObs, ensureBox, inventorySettingsStore, markCurrent, sensorsStore, type StoredObs } from './mocks'
-import type { OsqueryPackage } from './types'
+import type { DevicesResponse, OsqueryPackage } from './types'
 import { normalizeRange, rangeProblem } from './validate'
 
 vi.setConfig({ testTimeout: 30_000 })
@@ -441,16 +442,60 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('approved:24h')
   })
 
-  it('S-INV-3: mark unknown, then remove the mark', async () => {
+  it('S-INV-3 (kien 2026-11-17, D-628): a To review row offers Approve, Ignore and Remove; the unknown mark lives on the device page', async () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=review')
-    await screen.findByText('2 new devices not approved', undefined, T)
-    await user.click(screen.getAllByRole('button', { name: 'Mark unknown' })[0]!)
+    const list = await screen.findByRole('list', { name: '2 new devices not approved' }, T)
+    const row = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('192.168.10.157'))!
+    expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual(['Approve', 'Ignore', 'Remove'])
+    expect(within(list).queryByRole('button', { name: /unknown/ })).toBeNull()
+    // the device page keeps Mark unknown / Remove unknown mark next to Approve and Ignore
+    renderApp('/devices/a-unk01')
+    await user.click(await screen.findByRole('button', { name: 'Mark unknown' }, T))
     expect(await screen.findByText(/as unknown\./, undefined, T)).toBeInTheDocument()
-    expect((await screen.findAllByText('Marked unknown', undefined, T)).length).toBeGreaterThan(0) // the chip in the To review list
-    expect(find('a-unk01').approved).toBe(false)
-    await user.click((await screen.findAllByRole('button', { name: 'Remove unknown mark' }, T))[0]!)
+    await user.click(await screen.findByRole('button', { name: 'Remove unknown mark' }, T))
     expect(await screen.findByText(/Removed the unknown mark from/, undefined, T)).toBeInTheDocument()
+    expect(find('a-unk01').approved).toBe(false)
+  })
+
+  it('D-628: Ignore asks first, says what still alerts and that a private MAC may come back; the Ignored tab lists it with Stop ignoring', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices?tab=review')
+    const list = await screen.findByRole('list', { name: '2 new devices not approved' }, T)
+    const row = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('192.168.10.157'))!
+    await user.click(within(row).getByRole('button', { name: 'Ignore' }))
+    expect(auditStore.get().some((e) => e.action === 'inventory.ignore')).toBe(false) // nothing before confirming
+    const dialog = await screen.findByRole('dialog', undefined, T)
+    expect(dialog).toHaveTextContent('when it touches a trap or the intrusion detection reports it')
+    expect(dialog).toHaveTextContent('It uses a private Wi-Fi address (da:a1:19:5c:77:01).')
+    await user.click(within(dialog).getByRole('button', { name: 'Ignore device' }))
+    expect(await screen.findByRole('list', { name: '1 new device not approved' }, T)).toBeInTheDocument()
+    expect(auditStore.get().some((e) => e.action === 'inventory.ignore')).toBe(true)
+    // the Ignored tab appears with the device and Stop ignoring sends it back to To review
+    await user.click(await screen.findByRole('tab', { name: 'Ignored (1)' }, T))
+    const ignored = await screen.findByRole('list', { name: 'Ignored devices' }, T)
+    const item = within(ignored).getAllByRole('listitem').find((li) => li.textContent?.includes('192.168.10.157'))!
+    await user.click(within(item).getByRole('button', { name: 'Stop ignoring' }))
+    expect(await screen.findByText(/is back in To review\./, undefined, T)).toBeInTheDocument()
+    expect(auditStore.get().some((e) => e.action === 'inventory.unignore')).toBe(true)
+    await user.click(await screen.findByRole('tab', { name: /To review/ }, T))
+    expect(await screen.findByRole('list', { name: '2 new devices not approved' }, T)).toBeInTheDocument()
+  })
+
+  it('D-628: an ignored device is out of Devices by default; its page says so and offers Stop ignoring', async () => {
+    const user = userEvent.setup()
+    asAdmin()
+    const r = await api.post('/inventory/devices/a-nas02/ignore', { ignored: true })
+    expect(r).toEqual({ ok: true })
+    const all = await api.get<DevicesResponse>('/inventory/devices')
+    expect(all.items.some((d) => d.id === 'a-nas02')).toBe(false)
+    expect(all.counts.ignored).toBe(1)
+    expect((await api.get<DevicesResponse>('/inventory/devices?ignored=true')).items.map((d) => d.id)).toEqual(['a-nas02'])
+    expect(findingsStore.get().some((f) => f.asset_id === 'a-nas02')).toBe(false) // no findings for an ignored device
+    renderApp('/devices/a-nas02')
+    expect(await screen.findByText('This device is ignored', undefined, T)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Stop ignoring' }))
+    await waitFor(() => expect(find('a-nas02').approved).toBe(false), T) // back through review
   })
 
   it('S-INV-3: removing a pending device asks for confirmation', async () => {

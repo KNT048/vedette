@@ -110,7 +110,9 @@
     "label": "Device lists",
     "devices": "Devices",
     "review": "To review",
-    "reviewBadge": "waiting for your approval"
+    "reviewBadge": "waiting for your approval",
+    "ignoredCount_one": "Ignored ({{count}})",
+    "ignoredCount_other": "Ignored ({{count}})"
   },
   "col": {
     "name": "Name",
@@ -146,7 +148,7 @@
     "title_other": "{{count}} new devices not approved",
     "titleNone": "No new devices waiting",
     "description": "New devices wait here until you approve them.",
-    "descriptionInfo": "A device seen on the network for the first time stays here until you approve it. If you do not recognise it, mark it unknown or remove it from the list. Removing does not disconnect it.",
+    "descriptionInfo": "A device seen on the network for the first time stays here until you approve it. If it needs no watching, such as a staff phone, ignore it. If you do not recognise it, remove it from the list. Removing does not disconnect it.",
     "firstSeen": "First seen {{when}}.",
     "approve": "Approve",
     "approved": "Approved {{name}}.",
@@ -162,7 +164,10 @@
     "notifyVia": "Notifications go through the channels you set up.",
     "openChannels": "Open alert channel settings",
     "notifyOff2": "The Notifications module is off, so alerts cannot be sent yet.",
-    "openModules": "Open module settings"
+    "openModules": "Open module settings",
+    "ignore": "Ignore",
+    "ignored": "Ignored {{name}}.",
+    "ignoredLater": "Find it later under Devices → Ignored."
   },
   "delete": {
     "title": "Remove {{name}} from the list?",
@@ -1167,5 +1172,29 @@
     "hint": "Possibly the same device as {{name}}",
     "hintMany_one": "Possibly the same device as {{name}} or {{count}} other",
     "hintMany_other": "Possibly the same device as {{name}} or {{count}} others"
+  },
+  "ignore": {
+    "title": "Ignore {{name}}?",
+    "body": "Use this for a device that needs no watching, such as a staff phone. Vedette keeps it in its list, so it is the same device when it is seen again, but stops watching it:",
+    "review": "It leaves To review and sends no new-device alert.",
+    "scans": "Vedette stops scanning it and reading it over SNMP.",
+    "findings_one": "Its {{count}} finding is removed and it is no longer checked for exploited vulnerabilities.",
+    "findings_other": "Its {{count}} findings are removed and it is no longer checked for exploited vulnerabilities.",
+    "noFindings": "It is no longer checked for exploited vulnerabilities.",
+    "stillTitle": "You are still alerted",
+    "still": "when it touches a trap or the intrusion detection reports it: a staff phone probing your network is exactly what you need to hear about.",
+    "privateMac": "It uses a private Wi-Fi address ({{mac}}). Phones change this address from time to time; when this one does, it comes back in To review as a new device, and you can ignore it again.",
+    "undo": "You can stop ignoring it at any time under Devices → Ignored or on its page; it then comes back to To review.",
+    "confirm": "Ignore device"
+  },
+  "ignored": {
+    "title": "This device is ignored",
+    "body": "Ignored {{when}}. Vedette does not scan it, read it over SNMP, alert about it as a new device or check it for exploited vulnerabilities. A trap hit or an intrusion alert from it still reaches you.",
+    "stop": "Stop ignoring",
+    "undone": "{{name}} is back in To review.",
+    "since": "Ignored {{when}}.",
+    "listTitle": "Ignored devices",
+    "description": "Devices you said need no watching, such as staff phones. They are not scanned and raise no new-device or vulnerability alerts; a trap hit or an intrusion alert from one still reaches you.",
+    "none": "No ignored devices."
   }
 }

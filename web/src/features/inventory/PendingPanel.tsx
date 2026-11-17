@@ -11,6 +11,7 @@ import { useCan } from '@/lib/session'
 import { useDeviceAction, useNotifyNew } from './api'
 import { TurnOnModule } from './Inline'
 import { DeleteDialog } from './DeleteDialog'
+import { IgnoreDialog } from './IgnoreDevice'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
 import type { DeviceRow } from './types'
@@ -24,9 +25,10 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
   const act = useDeviceAction(d.id)
   const navigate = useNavigate()
   const [del, setDel] = useState(false)
+  const [ign, setIgn] = useState(false)
   const name = nameOf(d, kindLabel(d.kind))
   const title = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
-  const busy = act.approve.isPending || act.suspicious.isPending || act.remove.isPending
+  const busy = act.approve.isPending || act.ignore.isPending || act.remove.isPending
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
     <li className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
@@ -43,18 +45,20 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
       {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (D-471: the toast links the device). */}
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="primary" disabled={!can || busy} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} title={title} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
-        <Button size="sm" disabled={!can || busy} busy={act.suspicious.isPending} busyLabel={t('common:busy.saving')} title={title} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>
-          {d.suspicious ? t('pending.unmark') : t('pending.mark')}
-        </Button>
+        {/* kien 2026-11-17 (D-628): Ignore replaces "Remove unknown mark" here; marking stays on the device page. */}
+        <Button size="sm" disabled={!can || busy} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={title} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
         <Button size="sm" disabled={!can || busy} busy={act.remove.isPending} busyLabel={t('common:busy.deleting')} title={title} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </div>
+      {/* mutateAsync: the row leaves this list when the list reloads (as Approve) */}
+      <IgnoreDialog open={ign} onOpenChange={setIgn} name={name} mac={d.mac} findings={d.findings_count} pending={act.ignore.isPending}
+        onConfirm={() => void act.ignore.mutateAsync(true).then(() => { setIgn(false); toast.success(t('pending.ignored', { name }), { description: t('pending.ignoredLater') }) }, fail)} />
       <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}
         onConfirm={() => act.remove.mutate(undefined, { onSuccess: () => { setDel(false); toast.success(t('delete.done', { name })) }, onError: fail })} />
     </li>
   )
 }
 
-/** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, mark unknown or remove.
+/** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, ignore (D-628) or remove.
  *  The switch "notify me about new devices". `items` is the list after the search; `total` before it. */
 export function PendingPanel({ items, total, notifyNew, notifyAvailable, search, filtered, onClear, sameAs }: {
   items: DeviceRow[]; total: number; notifyNew: boolean; notifyAvailable: boolean; search?: ReactNode; filtered?: boolean; onClear?: () => void

@@ -31,7 +31,7 @@ const kevVulns = (kev as { vulns: { cve: string; vendor: string; product: string
 const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.vendor}|${v.product}`.toLowerCase())).map((v) => v.cve)
 
 // ---- bảng riêng ----
-interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string; scan_source?: 'on' | 'off'; snmp_source?: 'on' | 'off' }
+interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string; scan_source?: 'on' | 'off'; snmp_source?: 'on' | 'off'; ignored_at?: string }
 /** D-601: a device's network scan and SNMP reads, the default resolved (on for a device a sensor found, off for one added by hand). */
 const sourceOf = (a: Asset, which: 'scan_source' | 'snmp_source'): 'on' | 'off' => {
   const stored = metaStore.get()[a.id]?.[which]
@@ -261,6 +261,7 @@ const scanInfo = (a: Asset) => ({
   approved_at: metaStore.get()[a.id]?.approved_at ?? null, // D-471: a person's first approval
   scan_source: sourceOf(a, 'scan_source'),
   snmp_source: sourceOf(a, 'snmp_source'),
+  ignored_at: metaStore.get()[a.id]?.ignored_at ?? null, // D-628: a person ignored it (known, not watched)
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
@@ -290,8 +291,8 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   const p = new URL(url).searchParams
   const list = (k: string) => [...new Set((p.get(k) ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean))]
   const bool = (k: string): boolean | null | 'bad' => { const v = p.get(k); return v === null || v === '' ? null : v === 'true' ? true : v === 'false' ? false : 'bad' }
-  const approved = bool('approved'), fragile = bool('fragile'), hasFindings = bool('has_findings')
-  for (const [k, v] of [['approved', approved], ['fragile', fragile], ['has_findings', hasFindings]] as const) if (v === 'bad') return fail(400, 'invalid', `The parameter "${k}" is not valid.`)
+  const approved = bool('approved'), fragile = bool('fragile'), hasFindings = bool('has_findings'), ignored = bool('ignored')
+  for (const [k, v] of [['approved', approved], ['fragile', fragile], ['has_findings', hasFindings], ['ignored', ignored]] as const) if (v === 'bad') return fail(400, 'invalid', `The parameter "${k}" is not valid.`)
   const types = list('type'), sources = list('source')
   const badType = types.find((t) => !TYPE_IDS.includes(t))
   if (badType) return fail(400, 'bad_filter', `"${badType}" is not a device type. Use a type id such as server, switch, firewall or printer.`)
@@ -303,7 +304,8 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   const macLike = /^[0-9a-f]{2}([:-][0-9a-f]{2})+$/.test(q) || /^([0-9a-f]{4}\.)+[0-9a-f]{2}([0-9a-f]{2})?$/.test(q) || /^([0-9a-f]{2}){3,6}$/.test(q)
   const macBytes = (q.replace(/[:.-]/g, '').match(/../g) ?? []).join(':')
   return (r) =>
-    (approved === null || r.approved === approved)
+    (r.ignored_at !== null) === (ignored === true) // D-628: an ignored device only when asked for
+    && (approved === null || r.approved === approved)
     && (fragile === null || r.fragile === fragile)
     && (hasFindings === null || (r.findings_count > 0) === hasFindings)
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
@@ -653,10 +655,11 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     const keep = deviceFilter(request.url)
     if (keep instanceof Response) return keep
-    const all = allAssets().map(toRow)
+    const rows = allAssets().map(toRow)
+    const all = rows.filter((a) => a.ignored_at === null) // D-628: an ignored device is in no count but its own
     return HttpResponse.json({
-      items: all.filter(keep),
-      counts: { all: all.length, pending: all.filter((a) => !a.approved).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length },
+      items: rows.filter(keep),
+      counts: { all: all.length, pending: all.filter((a) => !a.approved).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
       notify_new: notifyStore.get().enabled,
       notify_available: isOn('notify'),
     } satisfies DevicesResponse)
@@ -738,6 +741,7 @@ export const handlers = [
     if (!ok(b.scan) || !ok(b.snmp)) return fail(400, 'invalid', 'Each source is on or off.')
     if (b.scan === undefined && b.snmp === undefined) return fail(400, 'bad_source', 'Say which source to turn on or off: scan, snmp or both.')
     if (a.id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself: Vedette never scans or reads it on its own.')
+    if (metaStore.get()[a.id]?.ignored_at && (b.scan === 'on' || b.snmp === 'on')) return fail(409, 'device_ignored', 'This device is ignored, so Vedette does not scan or read it. Stop ignoring it first.')
     for (const [key, label, v] of [['scan_source', 'network scan', b.scan], ['snmp_source', 'SNMP', b.snmp]] as const) {
       if (v === undefined) continue
       const before = sourceOf(a, key)
@@ -814,6 +818,28 @@ export const handlers = [
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, approved: true } : x)))
     metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: false, approved_at: m[a.id]?.approved_at ?? (a.approved ? undefined : nowIso()) } }))
     audit('inventory.approve', nameOf(a, a.kind), a.id)
+    return HttpResponse.json({ ok: true })
+  }),
+
+  // D-628: ignore a device that needs no watching (a staff phone), or stop ignoring it (back to To review).
+  http.post(`${API}/inventory/devices/:id/ignore`, async ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const b = await body<{ ignored: boolean }>(request)
+    if (typeof b.ignored !== 'boolean') return fail(400, 'invalid', 'ignored must be true or false.')
+    if (a.id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself: it cannot be ignored.')
+    if (!!metaStore.get()[a.id]?.ignored_at === b.ignored) return HttpResponse.json({ ok: true })
+    if (b.ignored) {
+      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], ignored_at: nowIso(), suspicious: false, scan_source: 'off', snmp_source: 'off' } }))
+      findingsStore.update((l) => l.filter((f) => f.asset_id !== a.id)) // its findings go, as on the box
+      audit('inventory.ignore', nameOf(a, a.kind), a.id)
+    } else {
+      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], ignored_at: undefined, approved_at: undefined, scan_source: undefined, snmp_source: undefined } }))
+      assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, approved: false } : x)))
+      matchAssetToKev(a.id)
+      audit('inventory.unignore', nameOf(a, a.kind), a.id)
+    }
     return HttpResponse.json({ ok: true })
   }),
 

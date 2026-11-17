@@ -29,9 +29,9 @@ type DeviceFilter struct {
 	// Ignored keeps only the ignored devices (true) or leaves them out (false); nil keeps both (D-628). ParseDeviceFilter, the query of
 	// the page and the export, never leaves it nil: an ignored device is out of the Devices list unless asked for.
 	Ignored *bool
-	Types                          []string // device type ids; a type also matches the types that act as it (D-511)
-	Sources                        []string // DeviceSources
-	Q                              string   // free text: name, IP, MAC (any notation), vendor, model
+	Types   []string // device type ids; a type also matches the types that act as it (D-511)
+	Sources []string // DeviceSources
+	Q       string   // free text: name, IP, MAC (any notation), vendor, model
 }
 
 func badFilter(msg string) *apierr.Error { return apierr.New(400, "bad_filter", msg) }

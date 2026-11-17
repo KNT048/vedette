@@ -610,7 +610,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	// The ai service comes before mitigation: mitigation reaches the AI only through this door (mitigation.AI), and the door is
 	// unavailable while no profile is assigned, so the page offers no AI button then.
 	d.AIFacts = aiFacts{fs.Store(), d.Findings, inv, aiBoxID(d.Inventory)}
-	if d.AI, err = newAI(ctx, d, d.AIFacts, aiAsk{fs.Store(), d.Findings, d.Inventory}); err != nil {
+	ask := aiAsk{feeds: fs.Store(), findings: d.Findings, inv: d.Inventory, gate: gate}
+	if d.AI, err = newAI(ctx, d, d.AIFacts, ask, ask); err != nil { // ask is also device_updates' door, typed: review r1 L3 of #935
 		return fmt.Errorf("ai: %w", err)
 	}
 	aiDoor := aiMitigation{d.AI, d.Inventory, d.Log}
@@ -741,7 +742,15 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchCVE(ctx, ev.CVE, ev.Vendor, ev.Product)
 		return err
 	}))
-	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d)))          // after inventory's: the findings of the new entry exist when the job looks
+	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d))) // after inventory's: the findings of the new entry exist when the job looks
+	// D-601 (review r1 M2): a device whose network scan was turned off (or that may no longer be scanned) stops being scanned now.
+	d.Bus.Subscribe(inventory.EventAssetUpdated, on("scan", func(ctx context.Context, data any) error {
+		ev, ok := data.(inventory.AssetEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		return scanService(d).DeviceChanged(ctx, ev.AssetID)
+	}))
 	d.Bus.Subscribe(feeds.EventVulnUpdated, on("inventory", rematchUpdated(d))) // D-328: a CVE whose vendor or product changed
 	// D-500: new NVD affected versions decide findings again for every device; the first fill is backlog, like D-78.
 	// Review H3: one event per device; after a later update only the devices of the changed CVEs.

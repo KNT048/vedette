@@ -184,7 +184,7 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
               ))}
             </div>
           </fieldset>
-          <Link to="/devices?show=fragile" className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t('safety.fragileDevices', { count: devices })}</Link>
+          {devices > 0 ? <Link to="/devices?show=fragile" className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t('safety.fragileDevices', { count: devices })}</Link> : null}
         </Card>
       </Section>
 

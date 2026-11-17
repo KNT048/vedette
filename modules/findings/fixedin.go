@@ -537,6 +537,8 @@ type RowFix struct {
 	Fixed    string `json:"fixed"`    // the release or build that fixes them all (feature_update: the release to move to); "" for distro
 	Distro   string `json:"distro"`   // distro: "Ubuntu" or "Debian", "" for the distribution's
 	Pro      bool   `json:"pro"`      // distro: the fix of at least one of them is in Ubuntu Pro (ESM) only
+	// SoftwareID is the id of the software row (GroupFix.Software), so DeviceUpdates can name the row an update is for. Not in the API.
+	SoftwareID string `json:"-"`
 }
 
 // RowFixes is FixedInForAll as FindingRow.fix, by CVE, for the vulnerabilities of a device's open findings (vulns: only those, as the
@@ -576,7 +578,7 @@ func RowFixes(a Asset, vulns []Vuln) map[string]*RowFix {
 				pro[group] = true
 			}
 		}
-		out[cve] = &RowFix{Group: group, Kind: g.Kind, Windows: win, Software: clean(s.Display), Version: g.Version, Fixed: g.Fixed, Distro: g.Distro}
+		out[cve] = &RowFix{Group: group, SoftwareID: g.Software, Kind: g.Kind, Windows: win, Software: clean(s.Display), Version: g.Version, Fixed: g.Fixed, Distro: g.Distro}
 	}
 	for _, f := range out {
 		f.Pro = pro[f.Group]

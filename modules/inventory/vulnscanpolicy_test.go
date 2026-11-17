@@ -93,23 +93,45 @@ func TestContract_VulnScanPolicy_Rules(t *testing.T) {
 		}, deny(inventory.ReasonFragilePassiveOnly), ok(quarter)},
 		{"unclassified", false, func(e *env) string { return seen(e, "192.168.10.20", "") },
 			deny(inventory.ReasonUnclassifiedPassiveOnly), ok(quarter)},
+		// D-601 (review r1 M1): a device added by hand whose network scan nobody turned on is refused even when picked; turned on, it is
+		// scanned like a discovered one (fragile: a pick at a quarter of the rate, no schedule).
 		{"declared by hand, ordinary", false, func(e *env) string {
 			id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.30"})
 			pc := "pc"
 			patch(e, id, inventory.Patch{Kind: &pc})
 			return id
-		}, deny(inventory.ReasonDeclaredByHand), ok(normal)},
-		{"declared by hand, fragile", false, func(e *env) string {
-			id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.30"})
-			yes := true
-			patch(e, id, inventory.Patch{Fragile: &yes})
-			return id
-		}, deny(inventory.ReasonDeclaredByHand), ok(quarter)},
+		}, deny(inventory.ReasonDeclaredByHand), deny(inventory.ReasonDeclaredByHand)},
 		{"declared by hand, regular_scan=allow", false, func(e *env) string {
 			id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.30"})
 			patch(e, id, regular("allow"))
 			return id
-		}, deny(inventory.ReasonDeclaredByHand), ok(normal)},
+		}, deny(inventory.ReasonDeclaredByHand), deny(inventory.ReasonDeclaredByHand)},
+		{"declared by hand, scan on, ordinary", false, func(e *env) string {
+			id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.30"})
+			pc, on := "pc", inventory.SourceOn
+			patch(e, id, inventory.Patch{Kind: &pc})
+			if _, err := e.svc.SetSources(e.ctx(), "it@acme.example", id, &on, nil); err != nil {
+				e.t.Fatal(err)
+			}
+			return id
+		}, ok(normal), ok(normal)},
+		{"declared by hand, scan on, fragile", false, func(e *env) string {
+			id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.10.30"})
+			yes, on := true, inventory.SourceOn
+			patch(e, id, inventory.Patch{Fragile: &yes})
+			if _, err := e.svc.SetSources(e.ctx(), "it@acme.example", id, &on, nil); err != nil {
+				e.t.Fatal(err)
+			}
+			return id
+		}, deny(inventory.ReasonFragilePassiveOnly), ok(quarter)},
+		{"discovered, scan off", false, func(e *env) string {
+			id := seen(e, "192.168.10.20", "pc")
+			off := inventory.SourceOff
+			if _, err := e.svc.SetSources(e.ctx(), "it@acme.example", id, &off, nil); err != nil {
+				e.t.Fatal(err)
+			}
+			return id
+		}, deny(inventory.ReasonRegularScanNever), deny(inventory.ReasonRegularScanNever)},
 		{"fragile, regular_scan=allow", false, func(e *env) string {
 			id := seen(e, "192.168.10.20", "printer")
 			patch(e, id, regular("allow"))

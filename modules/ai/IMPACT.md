@@ -31,6 +31,11 @@
 - Đổi hình dạng kết quả của `search_assets`/`list_findings`/`lookup_cve` hay trần của vòng (D-482): mỗi lượt gửi lại cả hội thoại, nên số token đầu vào của một câu hỏi tăng theo kích thước kết quả nhân số lượt sau nó; chạy `TestAskBetaBoxQuestionStaysInBudget` (≤ 8.000 / ≤ 20.000) và giữ tổng rõ ràng (`matching_*`, `note`) để mô hình không đọc một trang là toàn bộ.
 - `ai_result` kind `ask` do `insertAsk` ghi, giữ 100 dòng; `GET /ai/asks` đọc 10 dòng. Xuất qua chính sách `ai_result` của core (payload là JSON).
 
+## Modifying: `device_updates` (`ask_updates.go`, `Config.Updates`, `Updates`/`DeviceUpdates`/`UpdateRow`; INV-22c, G9)
+- Người cấp dữ liệu là `findings.Service.DeviceUpdates` qua `aiAsk.DeviceUpdates` (cmd/vedette/ai.go); đổi hình dạng ở findings thì sửa adapter. Đổi lời `status` (confirmed/detected/suspected) phải giữ đúng luật của findings (`proofOf`), không tự đặt luật mới.
+- Mô tả và schema đi trong mọi lượt: dài thêm thì `TestAskBetaBoxQuestionStaysInBudget` (≤ 8.000) hỏng trước.
+- Kết quả là dữ liệu rời hộp tới nhà cung cấp AI: PRIVACY.md luồng 3 "Ask your data" và `privacy.flow.3.items` của `core.json` nêu "the updates of one device"; thêm trường thì sửa cả hai cùng commit.
+
 ## Modifying: `Tools.ForModel(job) []Tool` (INV-14)
 - **mcp-server**: không dùng. **ask-my-data / log-investigate**: thêm công cụ chỉ-đọc mới = đổi bề mặt dữ liệu AI thấy; công cụ `write` không bao giờ vào danh sách.
 

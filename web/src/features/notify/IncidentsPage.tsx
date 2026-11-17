@@ -67,6 +67,7 @@ function BulkDialog({ ids, status, onOpenChange, opener, onDone }: { ids: string
         </Field>
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
+          {/* empty-guard: the bulk dialog opens only from the selection bar, which shows only with a selection */}
           <Button variant="primary" busy={bulk.isPending} busyLabel={t('common:busy.updating')} onClick={submit}>{status ? t(`bulk.submit.${status}`, { count: ids.length }) : null}</Button>
         </DialogFooter>
       </DialogContent>
@@ -84,6 +85,7 @@ function Handled({ i }: { i: Incident }) {
 }
 function RespondLink({ i }: { i: Incident }) {
   const { t } = useTranslation('notify')
+  if (i.status === 'resolved') return null // kien G5: nothing to respond to on a resolved incident
   return <Link to={`/response?incident=${encodeURIComponent(i.id)}`} onClick={(e) => e.stopPropagation()} aria-label={t('incidents.respondFor', { title: i.title })} className={`${link} whitespace-nowrap`}>{t('incidents.respond')}</Link>
 }
 
@@ -149,6 +151,7 @@ function Content() {
         setSelected((s) => { const n = new Set(s); for (const id of page) { if (v) n.add(id); else n.delete(id) } return n })
         setPageIds(v ? page : null)
       }
+      if (page.length === 0) return null // kien G5: no "Select all 0" on an empty page
       return <><Checkbox checked={page.length > 0 && on === page.length ? true : on > 0 ? 'indeterminate' : false} onCheckedChange={(v) => set(v === true)} aria-label={t('bulk.selectPage', { count: page.length })} /><PageWatch ids={page} onChange={onPage} /></>
     }, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<Incident>] : []),
     { id: 'incident', header: t('incidents.col.incident'), accessorFn: (r) => r.title, cell: ({ row: { original: r } }) => (

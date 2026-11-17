@@ -144,7 +144,9 @@ func TestProof_D628_ParentCoversChild(t *testing.T) {
 	if r := e.verify(parent.ID); !r.Verified || r.Message != "Found the TXT record vedette-verify="+parent.Token+" on beyondnetglobal.com." {
 		t.Fatalf("parent: %+v", r)
 	}
-	for id, by := range map[string]string{child.ID: "beyondnetglobal.com", deep.ID: "git.beyondnetglobal.com"} { // the nearest verified one
+	// review r1 M1 of #960: only a domain whose own record is on its own name covers the names under it: git is verified by its parent's
+	// record, so it covers nothing, and a.b.git is covered by beyondnetglobal.com
+	for id, by := range map[string]string{child.ID: "beyondnetglobal.com", deep.ID: "beyondnetglobal.com"} {
 		v := e.target(id)
 		if v.Status != "verified" || v.LastCheck == nil || !v.LastCheck.OK || !strings.Contains(v.LastCheck.Message, "Covered by the TXT record on beyondnetglobal.com") {
 			t.Fatalf("a target added before its parent was verified is covered when it is: %+v %+v", v, v.LastCheck)
@@ -325,7 +327,7 @@ func TestProof_D628_TheErrorSaysWhatWasAskedAndWhatCameBack(t *testing.T) {
 	git := e.add("admin@acme.example", "git.beyondnetglobal.com")
 	r := e.verify(git.ID)
 	for _, want := range []string{
-		"No TXT record vedette-verify=" + git.Token + " was found. Vedette asked git.beyondnetglobal.com, _vedette-verify.git.beyondnetglobal.com, beyondnetglobal.com.",
+		"No TXT record vedette-verify=" + git.Token + " was found. Vedette asked git.beyondnetglobal.com, _vedette-verify.git.beyondnetglobal.com, beyondnetglobal.com, _vedette-verify.beyondnetglobal.com.",
 		"git.beyondnetglobal.com: a CNAME to beyondhcm.ddns.net, so a TXT record cannot sit on this name: put it on @ of the zone (the registered domain) or on _vedette-verify.git.beyondnetglobal.com instead.",
 		"_vedette-verify.git.beyondnetglobal.com: no TXT record.",
 		"beyondnetglobal.com: no TXT record.",
@@ -336,7 +338,7 @@ func TestProof_D628_TheErrorSaysWhatWasAskedAndWhatCameBack(t *testing.T) {
 		}
 	}
 	e.add("admin@acme.example", "beyondnetglobal.com")
-	if r := e.verify(git.ID); !strings.Contains(r.Message, "The box's beyondnetglobal.com, which would cover it, has no record of its own now either.") {
+	if r := e.verify(git.ID); !strings.Contains(r.Message, "The box's beyondnetglobal.com would cover it only with its own record on that name itself (or _vedette-verify before it); there is none there now.") {
 		t.Fatalf("parent named: %q", r.Message)
 	}
 	nx := e.add("admin@acme.example", "nope.beyondnetglobal.com")

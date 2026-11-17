@@ -320,8 +320,10 @@ describe('exposure: domain ownership = DNS TXT only', () => {
     if (alt) {
       expect(screen.getByTestId('proof-cname')).toHaveTextContent(`If you cannot add a record at @ of beyondnetglobal.com, use the Name ${alt} instead`)
       expect(screen.getByTestId('proof-cname')).toHaveTextContent(`Not on ${value} itself if it is a CNAME`)
+      expect(screen.getByTestId('proof-delegated')).toHaveTextContent(`If ${value} sits in a sub-zone of beyondnetglobal.com whose DNS is managed separately, add the record at @ of that sub-zone instead`)
     } else {
       expect(screen.queryByTestId('proof-cname')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('proof-delegated')).not.toBeInTheDocument()
     }
     expect(screen.queryByText(/^git \(that is|@ \(or /)).not.toBeInTheDocument()
   })

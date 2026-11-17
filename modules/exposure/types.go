@@ -64,6 +64,10 @@ type Check struct {
 	At      string `json:"at"`
 	OK      bool   `json:"ok"`
 	Message string `json:"message"`
+	// Covers (stored with the check by checkDoc, never in the API) says the check found this domain target's own record on its own
+	// name or its _vedette-verify name, which covers the names under it (D-628). A record of its own token on a parent name (D-632)
+	// proves it only, so covered_by never names it (review r1 M1 of #960).
+	Covers bool `json:"-"`
 }
 
 // Commitment is who ticked "my company owns it and I am authorized to scan it", and when (D-26).

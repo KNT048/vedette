@@ -62,7 +62,7 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 			if !found {
 				msg, action = pr.failure, "exposure.verify_fail"
 			}
-			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg}, time.Time{}, ""); err != nil {
+			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value)}, time.Time{}, ""); err != nil {
 				return err
 			}
 			if t.LastCheck != nil && t.LastCheck.OK == found { // nothing changed: the check is not a row of its own (L5)

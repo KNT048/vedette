@@ -64,8 +64,9 @@ type ScanTarget struct {
 	Proof *ProofOwner
 }
 
-// ProofOwner is the domain whose record proves a scanned domain, and that domain's stored token.
-type ProofOwner struct{ Domain, Token string }
+// ProofOwner is the domain whose record proves a scanned domain, and that domain's stored token. ProofAt (D-632) is set when the
+// record is the domain's own on a parent name of it (the zone apex): Domain is then the scanned target itself.
+type ProofOwner struct{ Domain, Token, ProofAt string }
 
 // DomainScope is the domain_ip scope of one deep step (D-571, plan 2026-11-14 §5): the job fields {domain, name, ip, token} without the
 // address and ports, which the seam call carries.

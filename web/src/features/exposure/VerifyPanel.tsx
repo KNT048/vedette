@@ -70,6 +70,8 @@ export function VerifyPanel({ target }: { target: Target }) {
               <InfoLine className="max-w-3xl text-meta text-muted" topic={t('verify.dns.valueLabel')} info={t('verify.dnsHintInfo')}>{t('verify.dnsHint')}</InfoLine>
               {/* D-632: the zone apex is the main path for every target; the dedicated name is the alternative for a subdomain */}
               {proof && proof.zone !== target.value && proof.alt_host ? <p className="max-w-3xl text-meta text-muted" data-testid="proof-cname">{t('verify.cnameHint', { zone: proof.zone, value: target.value, alt: proof.alt_host })}</p> : null}
+              {/* review r1 L4 of #960: a delegated sub-zone takes the record at its own @ (prove accepts any parent name) */}
+              {proof && proof.zone !== target.value ? <p className="max-w-3xl text-meta text-muted" data-testid="proof-delegated">{t('verify.delegatedHint', { zone: proof.zone, value: target.value })}</p> : null}
             </>
           ) : <p className="max-w-3xl text-meta text-muted">{t('verify.keepRecord')}</p>}
         </>

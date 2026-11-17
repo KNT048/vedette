@@ -1,10 +1,14 @@
 package exposure
 
 import (
+	"context"
+	"errors"
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // D-632 (kien G10 reopen): a target is proved by its OWN token on a parent name down to its registered domain, the zone apex first:
@@ -82,7 +86,8 @@ func TestProof_D632_TheGateAndTheScanUseTheApexRecord(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", git.ID); err != nil {
 		t.Fatal(err)
 	}
-	if p := run.last.Proof; p == nil || p.Domain != "beyondnetglobal.com" || p.Token != git.Token {
+	// review r1 M2 of #960: ZAP is told the target itself, its own token and where its record sits, never the apex as the domain
+	if p := run.last.Proof; p == nil || p.Domain != "git.beyondnetglobal.com" || p.ProofAt != "beyondnetglobal.com" || p.Token != git.Token {
 		t.Fatalf("scan proof %+v", run.last.Proof)
 	}
 	e.dns.put("beyondnetglobal.com", "v=spf1 -all") // the record goes: blocked at the next gate
@@ -133,5 +138,102 @@ func TestContract_INV28_Deep_OwnTokenOnTheApexSetsProofAt(t *testing.T) {
 	out, why, err := d.svc.deepGate(d.ctx(), st, netip.MustParseAddr(ipB), []string{"git.acme.example"})
 	if err != nil || why != "" || out.Domain == nil || out.Domain.Domain != "git.acme.example" || out.Domain.ProofAt != "acme.example" || out.Domain.Name != "git.acme.example" {
 		t.Fatalf("scope %+v %q %v", out.Domain, why, err)
+	}
+}
+
+// Review r1 M1 of #960: git proved by its own token at the apex covers nothing under it. ci.git gets no "covered by git" note, the
+// "@" instruction, and a failed Check that does not claim git has no record.
+func TestProof_D632_AnApexProvedTargetCoversNothingBelow(t *testing.T) {
+	t.Parallel()
+	e, _ := newProofEnv(t)
+	git := e.add("admin@acme.example", "git.beyondnetglobal.com")
+	e.dns.put("beyondnetglobal.com", "v=spf1 -all", txtRecord(git.Token))
+	if r := e.verify(git.ID); !r.Verified {
+		t.Fatalf("%+v", r)
+	}
+	ci := e.add("admin@acme.example", "ci.git.beyondnetglobal.com")
+	if p := e.target(ci.ID).Proof; p == nil || p.CoveredBy != nil || p.Host != "@" || p.Zone != "beyondnetglobal.com" {
+		t.Fatalf("hint %+v", p)
+	}
+	r := e.verify(ci.ID)
+	if r.Verified || !strings.Contains(r.Message, "The box's git.beyondnetglobal.com would cover it only with its own record on that name itself") {
+		t.Fatalf("%+v", r)
+	}
+	// with ci's own token at the apex too, ci is proved by itself
+	e.dns.put("beyondnetglobal.com", "v=spf1 -all", txtRecord(git.Token), txtRecord(ci.Token))
+	if r := e.verify(ci.ID); !r.Verified {
+		t.Fatalf("%+v", r)
+	}
+}
+
+// deadlineDNS records the deadline of every lookup; names in block wait until their context ends and report how it ended.
+type deadlineDNS struct {
+	*cnameDNS
+	mu        sync.Mutex
+	deadlines []time.Time
+	block     map[string]bool
+	ended     chan error
+}
+
+func (d *deadlineDNS) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	dl, _ := ctx.Deadline()
+	d.mu.Lock()
+	d.deadlines = append(d.deadlines, dl)
+	d.mu.Unlock()
+	if d.block[strings.TrimSuffix(name, ".")] {
+		<-ctx.Done()
+		d.ended <- ctx.Err()
+		return nil, ctx.Err()
+	}
+	return d.cnameDNS.LookupTXT(ctx, name)
+}
+
+// Review r1 L2 of #960: a check has one DNS budget (every lookup ends by the same deadline), and as soon as the nearest valid record
+// is known the lookups still running are stopped.
+func TestProof_D632_OneBudgetAndTheRestStop(t *testing.T) {
+	t.Parallel()
+	e, c := newProofEnv(t)
+	d := &deadlineDNS{cnameDNS: c, block: map[string]bool{}, ended: make(chan error, 8)}
+	e.svc.cfg.Resolver = d
+	v := e.add("admin@acme.example", "a.b.beyondnetglobal.com")
+	r := e.verify(v.ID) // nothing anywhere: every lookup, the explanation's included
+	d.mu.Lock()
+	all := slices.Clone(d.deadlines)
+	d.deadlines = nil
+	d.mu.Unlock()
+	if r.Verified || len(all) < 7 {
+		t.Fatalf("%+v, %d lookups", r, len(all))
+	}
+	for _, dl := range all {
+		if dl.IsZero() || !dl.Equal(all[0]) {
+			t.Fatalf("deadlines %v: not one budget", all)
+		}
+	}
+	e.dns.put("a.b.beyondnetglobal.com", txtRecord(v.Token)) // the nearest record; the apex never answers
+	d.block["beyondnetglobal.com"] = true
+	if r := e.verify(v.ID); !r.Verified || !strings.Contains(r.Message, "on a.b.beyondnetglobal.com") {
+		t.Fatalf("%+v", r)
+	}
+	select {
+	case err := <-d.ended:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("the apex lookup ended with %v, want cancelled", err)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("the apex lookup was not stopped")
+	}
+}
+
+// Review r1 L3 of #960: a target whose stored token is older than the value the box binds to it (added before D-591, or while the
+// host gave none) keeps passing Check on its stored token, and the message names the bound value the deep steps check.
+func TestProof_D632_AnOlderTokenNamesTheBoundValue(t *testing.T) {
+	t.Parallel()
+	e, _ := newProofEnv(t)
+	git := e.add("admin@acme.example", "git.beyondnetglobal.com") // random token: no fence at add time
+	e.svc.cfg.DomainFence = &fakeFence{}
+	e.dns.put("beyondnetglobal.com", txtRecord(git.Token))
+	r := e.verify(git.ID)
+	if !r.Verified || !strings.Contains(r.Message, "add the TXT record vedette-verify="+deepToken+" on beyondnetglobal.com too, keeping the current one") {
+		t.Fatalf("%+v", r)
 	}
 }

@@ -212,6 +212,7 @@
     "recheckHint": "Select it after you have saved the record at your DNS provider.",
     "dnsIntro": "Add a TXT record to the DNS of {{value}}.",
     "dnsIntroZone": "Add a TXT record at @ of the DNS zone {{zone}}.",
+    "delegatedHint": "If {{value}} sits in a sub-zone of {{zone}} whose DNS is managed separately, add the record at @ of that sub-zone instead: it proves {{value}} too.",
     "dnsIntroSub": "Add a TXT record at @ of the DNS zone {{zone}}, where you manage {{value}}: a record there proves {{value}}, and {{value}} itself needs no record.",
     "coveredBy": "{{parent}} is verified on this box and covers {{value}}: no record is needed here. Select Check.",
     "cnameHint": "If you cannot add a record at @ of {{zone}}, use the Name {{alt}} instead: it proves {{value}} just the same. Not on {{value}} itself if it is a CNAME: DNS allows no other record beside a CNAME, so your provider answers \"Record could not be added\".",

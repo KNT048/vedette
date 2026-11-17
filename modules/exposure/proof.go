@@ -10,9 +10,8 @@ import (
 	"sync"
 	"unicode"
 
-	"golang.org/x/net/publicsuffix"
-
 	"github.com/knt048/vedette/core/domainfence"
+	"github.com/knt048/vedette/core/domainfence/proofat"
 )
 
 // Ownership proof of a domain (D-628, J6, kien G10), the way Google Search Console's domain properties, Detectify and Tenable work:
@@ -44,29 +43,17 @@ const maxProofLevels = 8
 
 // registered is the registered domain of name ("beyondnetglobal.com" for git.beyondnetglobal.com, "beyondhcm.ddns.net" for
 // x.beyondhcm.ddns.net); ok is false when name is a public suffix or not under any.
-func registered(name string) (string, bool) {
-	r, err := publicsuffix.EffectiveTLDPlusOne(name)
-	if err != nil || r == "" {
-		return "", false
-	}
-	return r, true
-}
+func registered(name string) (string, bool) { return proofat.Registered(name) }
 
 // IsPublicSuffix says whether name is itself a public suffix of the list (co.uk, ddns.net, github.io): never a target (D-628).
-func IsPublicSuffix(name string) bool {
-	s, _ := publicsuffix.PublicSuffix(name)
-	return s == name
-}
+func IsPublicSuffix(name string) bool { return proofat.IsPublicSuffix(name) }
 
 // under says whether name is parent or a name under it.
 func under(name, parent string) bool { return name == parent || strings.HasSuffix(name, "."+parent) }
 
 // Covers says whether a proof of the name proven covers name: name is proven or under it, and proven is name's registered domain
 // or under it (never a public suffix above it).
-func Covers(proven, name string) bool {
-	r, ok := registered(name)
-	return ok && under(name, proven) && under(proven, r)
-}
+func Covers(proven, name string) bool { return proofat.Within(name, proven) } // the executors' rule too
 
 // proofChain is the names whose records can prove name, nearest first: name, then each parent down to its registered domain
 // (at most maxProofLevels, the registered domain always last). Empty for a public suffix.
@@ -117,7 +104,8 @@ func proofHint(t Target, others []Target) *ProofHint {
 	}
 	best := ""
 	for _, o := range others {
-		if o.Kind == KindDomain && o.ID != t.ID && !o.VerifiedAt.IsZero() && o.LastCheck != nil && o.LastCheck.OK && Covers(o.Value, t.Value) && len(o.Value) > len(best) {
+		// review r1 M1 of #960: only a box domain whose last check found its own record on its own name covers the names under it
+		if o.Kind == KindDomain && o.ID != t.ID && !o.VerifiedAt.IsZero() && o.LastCheck != nil && o.LastCheck.OK && o.LastCheck.Covers && Covers(o.Value, t.Value) && len(o.Value) > len(best) {
 			best = o.Value
 		}
 	}
@@ -192,27 +180,37 @@ func (s *Service) prove(ctx context.Context, t Target, all []Target) proof {
 			cands = append(cands, candidate{name: n, t: o})
 		}
 	}
-	var wg sync.WaitGroup
+	// One DNS budget for the whole check (review r1 L2 of #960): every lookup, the explanation of a failure included, ends by one
+	// deadline, and the lookups still running stop as soon as the nearest valid record is known.
+	bctx, cancel := context.WithTimeout(ctx, dnsTimeout)
+	defer cancel()
+	done := make([]chan struct{}, len(cands))
 	for i := range cands {
-		wg.Add(1)
+		done[i] = make(chan struct{})
 		go func() {
-			defer wg.Done()
-			cands[i].got = domainfence.Owned(ctx, proofResolver{s.cfg.Resolver}, cands[i].name, cands[i].t.Token, dnsTimeout)
+			defer close(done[i])
+			cands[i].got = domainfence.Owned(bctx, proofResolver{s.cfg.Resolver}, cands[i].name, cands[i].t.Token, dnsTimeout)
 		}()
 	}
-	wg.Wait()
-	for _, c := range cands { // the nearest first: the target's own record, then the nearest parent's
+	for i := range cands { // the nearest first: the target's own record, then the nearest parent's
+		<-done[i]
+		c := cands[i]
 		if c.got.At == "" {
 			continue
 		}
+		cancel()
 		p := proof{found: true, at: c.got.At, proven: c.name, owner: c.t.ID, token: c.t.Token, own: c.t.ID == t.ID}
 		if !p.own {
 			p.via = c.t.Value
 		}
 		return p
 	}
-	return proof{failure: s.whyNot(ctx, t, cands)}
+	return proof{failure: s.whyNot(bctx, t, cands)}
 }
+
+// coversBelow says the record found is the checked target's own on its own name (or its _vedette-verify name), which covers the
+// names under it (D-628); its own token on a parent name proves it only (D-632, review r1 M1 of #960).
+func (p proof) coversBelow(value string) bool { return p.found && p.own && p.proven == value }
 
 // stillOwner re-reads, in the write transaction of a check, the target whose record proved another one (review r1 L of #941): a
 // parent removed, or given a new token, while the lookups ran proves nothing. The target's own record needs no re-read.
@@ -255,16 +253,18 @@ func (s *Service) whyNot(ctx context.Context, t Target, cands []candidate) strin
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			lctx, cancel := context.WithTimeout(ctx, dnsTimeout)
-			defer cancel()
-			got[i].vals, got[i].err = s.cfg.Resolver.LookupTXT(lctx, n+".") // rooted: no search domain (as domainfence.Owned)
+			got[i].vals, got[i].err = s.cfg.Resolver.LookupTXT(ctx, n+".") // rooted: no search domain (as domainfence.Owned); ctx: the check's budget
 		}()
 	}
 	wg.Wait()
 	var b strings.Builder
 	fmt.Fprintf(&b, "No TXT record vedette-verify=%s was found. Vedette asked %s", t.Token, strings.Join(names, ", "))
-	if n := len(proofChain(t.Value)) - 2; n > 0 {
-		fmt.Fprintf(&b, " (and %s between them)", plural(n, "parent name"))
+	chain := proofChain(t.Value)
+	if r := chain[len(chain)-1]; r != t.Value && len(verifyLabel)+1+len(r) <= 253 { // review r1 L4 of #960: every name asked is said
+		b.WriteString(", " + verifyLabel + "." + r)
+	}
+	if n := len(chain) - 2; n > 0 {
+		fmt.Fprintf(&b, ", and %s between them, each also with %s before it", plural(n, "parent name"), verifyLabel)
 	}
 	b.WriteString(". ")
 	for i, n := range names {
@@ -287,7 +287,9 @@ func (s *Service) whyNot(ctx context.Context, t Target, cands []candidate) strin
 	if len(above) == 0 {
 		b.WriteString("No domain of this box above it covers it. ")
 	} else {
-		fmt.Fprintf(&b, "The box's %s, which would cover it, has no record of its own now either. ", strings.Join(above, " and "))
+		// review r1 M1 of #960: a box domain covers the names under it only with its own record on its own name (or its _vedette-verify
+		// name), never with a record on a parent of it
+		fmt.Fprintf(&b, "The box's %s would cover it only with its own record on that name itself (or %s before it); there is none there now. ", strings.Join(above, " and "), verifyLabel)
 	}
 	return strings.TrimSpace(b.String())
 }

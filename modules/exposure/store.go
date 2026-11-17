@@ -71,9 +71,11 @@ func scanTarget(s scanner) (Target, error) {
 	}
 	if check.Valid {
 		t.LastCheck = new(Check)
-		if err := json.Unmarshal([]byte(check.String), t.LastCheck); err != nil {
+		doc := storedCheck{Check: t.LastCheck}
+		if err := json.Unmarshal([]byte(check.String), &doc); err != nil {
 			return Target{}, fmt.Errorf("last_check: %w", err)
 		}
+		t.LastCheck.Covers = doc.Covers
 	}
 	if by.Valid && byAt.Valid {
 		t.Commitment = &Commitment{By: by.String, At: byAt.String}
@@ -201,11 +203,17 @@ func checkDoc(c *Check) (any, error) {
 	if c == nil {
 		return nil, nil
 	}
-	b, err := json.Marshal(c)
+	b, err := json.Marshal(storedCheck{Check: c, Covers: c.Covers})
 	if err != nil {
 		return nil, fmt.Errorf("encoding check: %w", err)
 	}
 	return string(b), nil
+}
+
+// storedCheck is the column's JSON: the check as the API shows it, plus Covers, which only the box reads (review r1 M1 of #960).
+type storedCheck struct {
+	*Check
+	Covers bool `json:"covers,omitempty"`
 }
 
 func nullString(s string) any {

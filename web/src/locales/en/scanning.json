@@ -334,7 +334,7 @@
   "history": {
     "title": "Discovery and other runs",
     "description": "Every LAN sweep, device check, SNMP read and public scan, with what it found.",
-    "descriptionInfo": "The vulnerability checks are listed above with their results. Each line says only what the run stored. A LAN check lists the address it scanned; what the device runs is on its device page. A public target keeps one scan a day, the newest; a public scan that failed before its results were stored is not kept, and who started a public scan is in the audit log. A sweep of the window and Scan the LAN now look the same here.",
+    "descriptionInfo": "The vulnerability checks are listed above with their results. Each line says only what the run stored. A LAN check lists the address it scanned; what the device runs is on its device page. A public target keeps one scan a day: a second scan the same day replaces the first; a public scan that failed before its results were stored is not kept, and who started a public scan is in the audit log. A sweep of the window and Scan the LAN now look the same here.",
     "caption": "History of discovery runs and public scans",
     "empty": "No run yet. Runs appear here as soon as discovery, a device check or a public scan starts.",
     "col": { "started": "Started", "what": "What ran", "outcome": "Outcome" },

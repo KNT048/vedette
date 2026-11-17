@@ -29,6 +29,12 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 		{"check now", job("device", "done", "check_now", "", 1, 0, p("192.168.18.20", "ok: 1 hosts up")), "person", "192.168.18.20", "ok", "Scanned 192.168.18.20: it answered; what it runs is on its device page"},
 		{"no answer", job("device", "done", "discovered", "", 1, 0, p("192.168.18.21", "ok: 0 hosts up")), "automatic", "192.168.18.21", "ok", "Scanned 192.168.18.21: it did not answer"},
 		{"scan now failed", job("device", "failed", "scan_now", "nmap exited 1", 1, 0), "scan_now", "A device", "failed", "Failed: nmap exited 1. Nothing was sent"},
+		// #940 review r2: only what is stored; a running sweep has not swept its planned size, a failed probe found nothing
+		{"sweep running", job("sweep", "running", "", "", 1024, 0, p("192.168.18.0/24", "ok: 4 hosts up")), "sweep", "LAN sweep of 192.168.18.0/24", "running", "Running: 1 batch finished: 4 hosts answered so far"},
+		{"sweep running, no batch yet", job("sweep", "running", "", "", 1024, 0), "sweep", "LAN sweep", "running", "Running: sweeping"},
+		{"sweep, only batch failed", job("sweep", "done", "", "", 254, 0, p("192.168.18.0/24", "failed: nmap exited 1")), "sweep", "LAN sweep of 192.168.18.0/24", "failed", "Failed: nmap exited 1."},
+		{"device probe failed", job("device", "done", "check_now", "", 1, 0, p("10.0.0.5", "failed: nmap gave up")), "person", "10.0.0.5", "failed", "Failed: nmap gave up."},
+		{"done, nothing sent", job("sweep", "done", "", "", 0, 0), "sweep", "LAN sweep", "partial", "Nothing was sent"},
 		// #940 review r1 H1: an SNMP read says how many answered, from its probes, never only how many it asked
 		{"snmp, none answered", job("snmp", "done", "window", "", 3, 0, p("192.168.18.1,192.168.18.2,192.168.18.3", "ok: 0 of 3 answered")), "automatic", "SNMP read", "partial", "0 of 3 devices answered over SNMP"},
 		{"snmp, all answered", job("snmp", "done", "snmp_read", "", 2, 0, p("192.168.18.1", "ok: 1 of 1 answered"), p("192.168.18.2", "ok: 1 of 1 answered")), "person", "SNMP read", "ok", "2 of 2 devices answered over SNMP"},

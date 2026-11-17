@@ -84,16 +84,28 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 	switch j.Kind {
 	case sensoractive.KindSweep:
 		r.Engine, r.Trigger, r.Label = "nmap-discovery", "sweep", "LAN sweep"
-		up := 0
+		up, okBatches := 0, 0
 		for _, p := range j.Probes {
 			if m := probeUp.FindStringSubmatch(p.Result); m != nil {
 				n, _ := strconv.Atoi(m[1])
 				up += n
+				okBatches++
 			}
 		}
-		switch len(j.Probes) {
-		case 0:
-		case 1:
+		switch {
+		case len(j.Probes) == 0:
+		case j.Status == sensoractive.StatusRunning:
+			// j.Targets is the planned size while it runs; only the finished batches are stored
+			r.Label = "LAN sweep of " + j.Probes[0].Targets
+			if len(j.Probes) > 1 {
+				r.Label = fmt.Sprintf("LAN sweep in %d batches so far", len(j.Probes))
+			}
+			if okBatches > 0 {
+				found = fmt.Sprintf("%s finished: %s answered", count(okBatches, "batch", "batches"), count(up, "host", "hosts"))
+			}
+		case okBatches == 0: // every batch failed: nothing it found is stored
+			r.Label = "LAN sweep of " + j.Probes[0].Targets
+		case len(j.Probes) == 1:
 			r.Label = "LAN sweep of " + j.Probes[0].Targets
 			found = fmt.Sprintf("swept %d addresses: %s answered, %d new %s", j.Targets, count(up, "host", "hosts"), j.NewDevices, plural(j.NewDevices, "device", "devices"))
 		default:
@@ -118,6 +130,7 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 				found = "scanned " + addr + ": it did not answer"
 			case m != nil:
 				found = "scanned " + addr + ": it answered; what it runs is on its device page"
+			case strings.HasPrefix(j.Probes[0].Result, "failed"): // the failed reason is the text; nothing was found
 			default:
 				found = "scanned " + addr
 			}
@@ -162,12 +175,17 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 	did := found
 	if did == "" && len(j.Probes) == 0 {
 		did = "nothing was sent"
+		if r.Outcome == "ok" { // a green badge says it checked something
+			r.Outcome = "partial"
+		}
 	}
 	switch r.Outcome {
 	case "running":
 		r.Text = "Running"
 		if found != "" {
 			r.Text += ": " + found + " so far"
+		} else if len(j.Probes) == 0 && j.Kind == sensoractive.KindSweep {
+			r.Text += ": sweeping"
 		}
 	case "failed", "stopped":
 		why := orDefault(j.Error, orDefault(probeErr, map[string]string{"failed": "the box did not record why", "stopped": "stopped before the end"}[r.Outcome]))

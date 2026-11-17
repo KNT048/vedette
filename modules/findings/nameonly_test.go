@@ -370,6 +370,16 @@ func TestMatchAsset_D602_PinnedEditionStillDecides(t *testing.T) {
 			KevKeys: []string{KevKey(v.Vendor, v.Product)}}}}
 	}
 	mac := row("Cisco AnyConnect Secure Mobility Client", "Cisco", "AnyConnect Secure Mobility Client", "4.8.01090", "agent", anyconnect)
+	// Platform pins never lift, even when NVD lists two of them (the narrow check of #939's final H1): WhatsApp for iPhone and macOS
+	// only, on a Windows PC, is no finding.
+	whatsapp := rows("CVE-2025-55177", "Meta Platforms", "WhatsApp",
+		[3]string{"cpe:2.3:a:whatsapp:whatsapp:*:*:*:*:*:iphone_os:*:*", "2.22.25.2", "2.25.21.73"},
+		[3]string{"cpe:2.3:a:whatsapp:whatsapp:*:*:*:*:*:macos:*:*", "2.22.25.2", "2.25.21.78"})
+	win := row("WhatsApp", "WhatsApp", "WhatsApp", "2.24.10.70", "agent", whatsapp)
+	win.OS, win.AgentOS = "Microsoft Windows 11 Pro", "Microsoft Windows 11 Pro"
+	if r := MatchAsset(win, []Vuln{whatsapp}, nil, t0); len(r.New) != 0 {
+		t.Errorf("WhatsApp on Windows: platform pins lifted: %+v", r.New)
+	}
 	mac.OS, mac.AgentOS = "macOS 14.6", "macOS 14.6"
 	for _, tc := range []struct {
 		name string

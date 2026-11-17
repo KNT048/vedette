@@ -12,7 +12,7 @@
 - Ghi chú trạng thái đo như GUI: `trim` của JavaScript và độ dài UTF-16 (ngưỡng 3 và 500).
 
 ## Modifying: kiểm khả năng chạm KEV (`Reachability`, `ReachAudit`, `StoreReach`, `fnd_reach_run`; INV-4e, #910)
-- Đổi `keyedTo`, `rowEntries`, `versionEvidence`, `nvdReaches`/`nvdNames`, `newSWInfo`/`cpeAliases`, `network-os.json`, `pkgmap.json` (agent-intake), `curated.json` (inventory) hay `core/winrel` là đổi số lớp: `cmd/vedette TestReachability_910_Fixture` đỏ và nêu CVE dời lớp. Lớp không chạm được tăng = hồi quy; giảm = cập nhật `reachWant` trong cùng PR và nói trong mô tả.
+- Đổi `keyedTo`, `entryFor` (dùng chung với `decide`), `versionEvidence`, `nvdReaches`/`nvdNames`, `newSWInfo`/`cpeAliases`, `network-os.json`, `pkgmap.json` (agent-intake), `curated.json` (inventory) hay `core/winrel` là đổi lớp: `cmd/vedette TestReachability_910_Fixture` đỏ và chỉ nêu CVE dời lớp (so với `testdata/kev-reach-classes.txt`). Dời sang lớp không chạm được = hồi quy; cải thiện = sinh lại tệp (`-args -update-reach`), cập nhật `reachWant` trong cùng PR và nêu các CVE dời trong mô tả.
 - `cmd/vedette reachRows` là nơi duy nhất ghép dòng của agent-intake và inventory (findings không import hai module đó); job `reach-audit` đọc `feeds.Store.MatchStamp` và `Inventory.Catalog`. Thêm cột vào `fnd_reach_run` phải thêm vào `modules/core/export_policy.go`.
 
 ## Modifying: `findings.Service.OnAssetMerged(ctx, from, into)` và người nghe `inventory.asset.merged` (D-515, INV-7)

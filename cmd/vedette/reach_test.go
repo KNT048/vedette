@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"compress/gzip"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"maps"
 	"os"
@@ -23,16 +24,23 @@ import (
 // end_excl]).
 const reachFixture = "testdata/kev-nvd-2026-11-16.json.gz"
 
-// reachWant is the class count of every entry of the fixture against the software Vedette produces today (reachRows: pkgmap.json, the
-// Windows release rows of core/winrel, the curated catalog with its KEV keys, nvd-cpe.json aliases, network-os.json). A code or map
-// change that moves entries out of 3v or 4 (a version comparison) turns this red: that is the point (kien's root-cause rule, #910).
-// A change that makes more entries reachable updates these numbers in the same PR, and says so.
+// reachGolden is the class of every CVE of the fixture against the software Vedette produces today (reachRows: pkgmap.json, the
+// Windows release rows of core/winrel, the curated catalog with its KEV keys, nvd-cpe.json aliases, network-os.json), one
+// "CVE class" line each, sorted. A code or map change that moves any entry turns this red and names each move ("CVE-2010-4344:
+// 3v -> 5"), so a swap (one entry lost, another gained) fails too: kien's root-cause rule, #910. A change that makes more entries
+// reachable regenerates it in the same PR (go test ./cmd/vedette -run TestReachability_910_Fixture -args -update-reach) and
+// states the moves.
+const reachGolden = "testdata/kev-reach-classes.txt"
+
+var updateReach = flag.Bool("update-reach", false, "rewrite "+reachGolden+" from the current code and maps")
+
+// reachWant is the summary of reachGolden: the count of each class.
 var reachWant = map[findings.ReachClass]int{
 	findings.ReachNoNVDData:     1,
 	findings.ReachNoNVDVersions: 72,
-	findings.ReachKeyedVersion:  712,
-	findings.ReachKeyedOnly:     248,
-	findings.ReachViaNVD:        110,
+	findings.ReachKeyedVersion:  786,
+	findings.ReachKeyedOnly:     165,
+	findings.ReachViaNVD:        119,
 	findings.ReachNone:          638,
 }
 
@@ -50,15 +58,45 @@ func TestReachability_910_Fixture(t *testing.T) {
 	if r.Total != len(vulns) {
 		t.Errorf("total = %d, want %d", r.Total, len(vulns))
 	}
+	if *updateReach {
+		var b strings.Builder
+		for _, cve := range slices.Sorted(maps.Keys(r.Class)) {
+			fmt.Fprintf(&b, "%s %s\n", cve, r.Class[cve])
+		}
+		if err := os.WriteFile(reachGolden, []byte(b.String()), 0o600); err != nil { // an existing file keeps its mode
+			t.Fatal(err)
+		}
+	}
+	b, err := os.ReadFile(reachGolden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]findings.ReachClass{}
+	for l := range strings.Lines(string(b)) {
+		cve, c, ok := strings.Cut(strings.TrimSpace(l), " ")
+		if !ok {
+			t.Fatalf("%s: bad line %q", reachGolden, l)
+		}
+		want[cve] = findings.ReachClass(c)
+	}
+	var moved []string
+	all := maps.Clone(want)
+	maps.Copy(all, r.Class)
+	for _, cve := range slices.Sorted(maps.Keys(all)) {
+		if g, w := r.Class[cve], want[cve]; g != w {
+			moved = append(moved, fmt.Sprintf("%s: %s -> %s", cve, cmp.Or(string(w), "none"), cmp.Or(string(g), "none")))
+		}
+	}
+	if len(moved) > 0 {
+		t.Errorf("KEV reachability: %d entries moved class (#910; regenerate with -args -update-reach only when the move is wanted):\n  %s",
+			len(moved), strings.Join(moved, "\n  "))
+	}
 	if !maps.Equal(r.Counts, reachWant) {
 		var b strings.Builder
 		for _, c := range findings.ReachClasses {
 			fmt.Fprintf(&b, "\n  class %-2s got %4d want %4d", c, r.Counts[c], reachWant[c])
-			if c.Unreachable() && r.Counts[c] > reachWant[c] {
-				fmt.Fprintf(&b, " (grew: an entry that had a version comparison lost it; its CVEs: %s)", strings.Join(r.CVEs[c], " "))
-			}
 		}
-		t.Errorf("KEV reachability classes changed (#910):%s", b.String())
+		t.Errorf("KEV reachability class counts changed (#910):%s", b.String())
 	}
 }
 

@@ -37,13 +37,15 @@ type ReachReport struct {
 	Total  int
 	Counts map[ReachClass]int
 	CVEs   map[ReachClass][]string // the CVEs of each unreachable class (Unreachable), sorted
+	Class  map[string]ReachClass   // every CVE's class
 }
 
 // Reachability classes every entry of vulns against the software Vedette can produce: rows (what cmd/vedette assembles from
 // agent-intake's package map and Windows release rows and inventory's curated catalog, with their KEV keys) plus the network OS
 // rows of network-os.json (deviceOS). It reads them through the matcher's own predicates, never a copy of its rules: newSWInfo
-// (names and nvd-cpe.json aliases), keyedTo (CISA's key), rowEntries and versionEvidence (the "could not be checked" list's
-// not_named and no_nvd_versions), nvdCandidates and nvdReaches (the NVD path of viaNVD). Pure: no clock, no DB.
+// (names and nvd-cpe.json aliases), keyedTo (CISA's key), entryFor (the entries decide reads for a keyed row: the row's own names
+// and CISA's key) and versionEvidence, nvdCandidates and nvdReaches (viaNVD's gate, for every row the key does not reach, as
+// matchOne). Pure: no clock, no DB.
 func Reachability(vulns []Vuln, rows []Software) ReachReport {
 	sws := slices.Concat(rows, networkOSRows())
 	infos := make([]swInfo, len(sws))
@@ -51,14 +53,13 @@ func Reachability(vulns []Vuln, rows []Software) ReachReport {
 		infos[i] = newSWInfo(s, "")
 	}
 	named := nvdCandidates(sws, vulns)
-	r := ReachReport{Counts: map[ReachClass]int{}, CVEs: map[ReachClass][]string{}}
-	seen := make(map[string]bool, len(vulns))
+	r := ReachReport{Counts: map[ReachClass]int{}, CVEs: map[ReachClass][]string{}, Class: make(map[string]ReachClass, len(vulns))}
 	for vi, v := range vulns {
-		if !ValidCVE(v.CVE) || seen[v.CVE] {
+		if !ValidCVE(v.CVE) || r.Class[v.CVE] != "" {
 			continue
 		}
-		seen[v.CVE] = true
 		c := reachClass(sws, infos, named, vi, v)
+		r.Class[v.CVE] = c
 		r.Total++
 		r.Counts[c]++
 		if c.Unreachable() {
@@ -71,6 +72,8 @@ func Reachability(vulns []Vuln, rows []Software) ReachReport {
 	return r
 }
 
+// reachClass reads v for every row as matchOne does (a keyed row through judge, any other through viaNVD) and keeps the best
+// outcome: a version comparison through the key (3v), else through NVD's list (4), else keyed without a version (3k), else none.
 func reachClass(sws []Software, infos []swInfo, named []map[int]bool, vi int, v Vuln) ReachClass {
 	switch {
 	case len(v.Affected) == 0:
@@ -78,37 +81,40 @@ func reachClass(sws []Software, infos []swInfo, named []map[int]bool, vi int, v 
 	case !slices.ContainsFunc(v.Affected, versionEvidence):
 		return ReachNoNVDVersions
 	}
-	keyed := false
+	keyed, via := false, false
 	for i, s := range sws {
-		if keyedTo(s, v) {
-			keyed = true
-			if versionNamed(s, infos[i], v) {
+		switch {
+		case keyedTo(s, v):
+			if versionNamed(infos[i], v) {
 				return ReachKeyedVersion
 			}
+			keyed = true
+		case named[i][vi] && !via:
+			via = nvdReaches(s, infos[i], v)
 		}
 	}
-	if keyed {
+	switch {
+	case via:
+		return ReachViaNVD
+	case keyed:
 		return ReachKeyedOnly
-	}
-	for i, s := range sws {
-		if named[i][vi] && nvdReaches(s, infos[i], v) {
-			return ReachViaNVD
-		}
 	}
 	return ReachNone
 }
 
-// versionNamed says an NVD entry with a version names the row (rowEntries), or, for a Windows release row, any Windows release or
-// component Windows' monthly update services (the Windows branch of nvdNames: windowsDecide reads the release's siblings).
-func versionNamed(s Software, in swInfo, v Vuln) bool {
-	if slices.ContainsFunc(rowEntries(s, in, v), versionEvidence) {
-		return true
-	}
-	if _, win := winDevice(in); win {
-		for _, af := range v.Affected {
-			if c, err := af.cpe(); err == nil && versionEvidence(af) && winNamesWindows(c) {
-				return true
-			}
+// versionNamed says an NVD entry with a version is one decide reads for a row CISA's key reaches (entryFor: its own names, or the
+// KEV entry's vendor and product), or, for a Windows release row, any Windows release or component Windows' monthly update
+// services (the Windows branch of nvdNames: windowsDecide reads the release's siblings).
+func versionNamed(in swInfo, v Vuln) bool {
+	key := keyIDs(v)
+	_, win := winDevice(in)
+	for _, af := range v.Affected {
+		c, err := af.cpe()
+		if err != nil || c.Part.Kind == NA || !versionEvidence(af) {
+			continue
+		}
+		if own, byKey, _ := entryFor(c, in, key); own || byKey || win && winNamesWindows(c) {
+			return true
 		}
 	}
 	return false
@@ -138,8 +144,9 @@ const reachKeep = 30
 
 // StoreReach records one run of the reachability audit after a feed refresh (fnd_reach_run, #910 phase 1): the stamp of the feed
 // data it read, the counts per class and the CVEs of each unreachable class, with those that were not in that class in the previous
-// run ("new"), and logs one line with the counts and one per new unreachable CVE. A run whose stamp and classes equal the previous
-// run's is not stored (a restart with nothing new); false then. The newest reachKeep runs are kept.
+// run ("added"), and logs one line with the counts and one per new unreachable CVE. A run whose classes (counts and unreachable CVEs)
+// equal the previous run's is not stored, whatever its stamp (review r1 M3 of #923: the stamp moves on every pull of 11 feeds); false
+// then. So each row is a change, its stamp the feed data it was first seen on; the newest reachKeep are kept.
 func (s *Service) StoreReach(ctx context.Context, stamp string, r ReachReport) (bool, error) {
 	counts := map[string]int{}
 	for _, c := range ReachClasses {
@@ -164,14 +171,14 @@ func (s *Service) StoreReach(ctx context.Context, stamp string, r ReachReport) (
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		stored = false
 		clear(added)
-		var prevStamp, prevCVEs string
-		err := tx.QueryRowContext(ctx, `SELECT stamp, unreachable FROM fnd_reach_run ORDER BY id DESC LIMIT 1`).Scan(&prevStamp, &prevCVEs)
+		var prevCounts, prevCVEs string
+		err := tx.QueryRowContext(ctx, `SELECT counts, unreachable FROM fnd_reach_run ORDER BY id DESC LIMIT 1`).Scan(&prevCounts, &prevCVEs)
 		first := errors.Is(err, sql.ErrNoRows)
 		if err != nil && !first {
 			return fmt.Errorf("findings: reading the last reach run: %w", err)
 		}
-		if !first && prevStamp == stamp && prevCVEs == string(ub) {
-			return nil
+		if !first && prevCounts == string(cb) && prevCVEs == string(ub) {
+			return nil // nothing moved: the last row still says it, so 30 rows are 30 changes
 		}
 		if !first {
 			var prev map[string][]string

@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The argv of podman (spec 6.7, D-104 (1), D-130, D-138). Seven shapes and no others:
+// The argv of podman (spec 6.7, D-104 (1), D-130, D-138). These shapes and no others:
 //
 //	container inspect vedette-<service>
 //	pull -q ghcr.io/knt048/vedette-<service>@sha256:<64 hex>
@@ -23,6 +23,7 @@ import (
 //	                                           (exit 125, Podman 4.9.3 in the lab, 2026-11-12), and a pulled release has two (its
 //	                                           local tag and its pull reference); local tag: localhost/vedette-<service>:<version>
 //	                                           or localhost/vedette-scan-nmap:<version>
+//	container exists <64 hex>                  is a running container one podman knows, or an orphan (orphans.go, D-600)
 //
 // Every shape is built here from the closed service list, a digest that passed digestRE and a version
 // that passed tagVersionRE; the registry part is the compile-time constant release.RegistryPrefix. Nothing
@@ -303,6 +304,8 @@ func validatePodman(args []string) error {
 	case slices.Equal(args, listImagesArgv()):
 		return nil
 	case len(args) == 2 && args[0] == "rmi" && imageIDRE.MatchString(args[1]):
+		return nil
+	case len(args) == 3 && args[0] == "container" && args[1] == "exists" && imageIDRE.MatchString(args[2]): // orphans.go (D-600)
 		return nil
 	case len(args) == 3 && args[0] == "untag" && imageIDRE.MatchString(args[1]) && (isLocalTag(args[2]) || isNmapTag(args[2])):
 		return nil

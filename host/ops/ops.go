@@ -240,6 +240,8 @@ type Ops struct {
 	// up call it.
 	gbResyncStop context.CancelFunc
 	gbExec       zapExecFn
+	// orphanUnmount replaces the unmount of an orphaned container's mounts in internal tests (orphans.go, D-600).
+	orphanUnmount func(string) error
 	// fence is the domain fence over the box's fence key (fence.go, D-591); nil when the key is not usable.
 	fence *domainfence.Fence
 	// fenceMu guards fenceList, the domains the host issued a fence token for (review r1 H1).
@@ -487,6 +489,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.zapAtStart(ctx)                           // a passive web scan this process's predecessor did not finish: container, rule, files (D-521)
 	o.gbAtStart()                               // /run/vedette-greenbone, which core's unit mounts for OpenVAS's socket (D-529)
 	go o.gbResume(lctx)                         // the re-sync of OpenVAS's login a restart cut short (D-590, review r1 M1); never blocks the start
+	go o.orphansAtStart(lctx)                   // containers that run but podman lost (D-600): every install, upgrade and reboot starts the host
 	_ = os.RemoveAll(o.stateFile(layoutParent)) // a bundle image staged by a pull that was cut short (D-452): GiBs
 	// the containers' AppArmor profile, loaded when the kernel lacks it (D-458): beside startHP, joined before READY, never blocks
 	aaDone := make(chan struct{})

@@ -48869,6 +48869,12 @@
                             "type": "string",
                             "description": "Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters"
                           },
+                          "port": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that answers SNMP elsewhere"
+                          },
                           "scope": {
                             "type": "array",
                             "items": {
@@ -48945,6 +48951,7 @@
                           "priv",
                           "secret_last4",
                           "priv_last4",
+                          "port",
                           "scope",
                           "created_at",
                           "last_answer_at",
@@ -49056,6 +49063,12 @@
                     "type": "string",
                     "maxLength": 64
                   },
+                  "port": {
+                    "description": "The UDP port the devices answer SNMP on; left out = 161. A device on another port gets a credential of its own whose scope holds it",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                  },
                   "scope": {
                     "maxItems": 16,
                     "type": "array",
@@ -49144,6 +49157,12 @@
                       "type": "string",
                       "description": "Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters"
                     },
+                    "port": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that answers SNMP elsewhere"
+                    },
                     "scope": {
                       "type": "array",
                       "items": {
@@ -49220,6 +49239,7 @@
                     "priv",
                     "secret_last4",
                     "priv_last4",
+                    "port",
                     "scope",
                     "created_at",
                     "last_answer_at",
@@ -49358,6 +49378,12 @@
                     "type": "string",
                     "maxLength": 64
                   },
+                  "port": {
+                    "description": "The UDP port the devices answer SNMP on; left out = 161. A device on another port gets a credential of its own whose scope holds it",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                  },
                   "scope": {
                     "maxItems": 16,
                     "type": "array",
@@ -49446,6 +49472,12 @@
                       "type": "string",
                       "description": "Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters"
                     },
+                    "port": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that answers SNMP elsewhere"
+                    },
                     "scope": {
                       "type": "array",
                       "items": {
@@ -49522,6 +49554,7 @@
                     "priv",
                     "secret_last4",
                     "priv_last4",
+                    "port",
                     "scope",
                     "created_at",
                     "last_answer_at",

@@ -110,7 +110,7 @@ func debUpstream(v string) string {
 // (windowsRow, D-546), first in the list so a list cut at limit keeps it.
 func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
 	seen := map[string]int{} // key -> index in items
-	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string) {
+	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string, conf float64) {
 		if !debver.Valid(pkgVersion) || pkgSource == "" {
 			pkgVersion, pkgSource = "", ""
 		}
@@ -121,6 +121,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 		k := strings.ToLower(vendor) + "\x00" + strings.ToLower(product) + "\x00" + version
 		if i, ok := seen[k]; ok {
+			items[i].Confidence = max(items[i].Confidence, conf) // a version the machine stated outranks one from its components
 			if pkgVersion == "" {
 				return
 			}
@@ -131,7 +132,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 			return
 		}
 		seen[k] = len(items)
-		s := observe.Software{Display: display, Vendor: vendor, Product: product, Version: version, Confidence: softwareConfidence, Packaged: packaged,
+		s := observe.Software{Display: display, Vendor: vendor, Product: product, Version: version, Confidence: conf, Packaged: packaged,
 			PkgVersion: pkgVersion, PkgSource: pkgSource}
 		if mapped {
 			s.KevKeys = []string{strings.ToLower(vendor) + "|" + strings.ToLower(product)}
@@ -163,32 +164,43 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 		switch {
 		case ok && p.Upstream:
-			add(p.Product, p.Vendor, p.Product, version, true, false, "", "")
+			add(p.Product, p.Vendor, p.Product, version, true, false, "", "", softwareConfidence)
 		case ok:
-			add(p.Product, p.Vendor, p.Product, version, true, true, full, src)
+			add(p.Product, p.Vendor, p.Product, version, true, true, full, src, softwareConfidence)
 		default:
-			add(name, name, name, version, false, true, full, src)
+			add(name, name, name, version, false, true, full, src, softwareConfidence)
 		}
 	}
 	for _, r := range snaps["rpm_packages"] {
 		name := r["name"]
 		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
 		if ok {
-			add(p.Product, p.Vendor, p.Product, r["version"], true, !p.Upstream, "", "")
+			add(p.Product, p.Vendor, p.Product, r["version"], true, !p.Upstream, "", "", softwareConfidence)
 		} else {
-			add(name, name, name, r["version"], false, true, "", "")
+			add(name, name, name, r["version"], false, true, "", "", softwareConfidence)
 		}
 	}
-	for _, r := range snaps["programs"] {
-		name := r["name"]
+	sql := sqlServerVersions(snaps["programs"])
+	for _, r := range sqlUmbrellaFirst(snaps["programs"]) {
+		if r["sql_setup"] != "" {
+			continue // a SQL Server instance's setup value the programs query reads with the list (D-606), not a program
+		}
+		name, version, conf := r["name"], r["version"], softwareConfidence
+		rel, umbrella := sqlUmbrella(name)
+		if v, ok := sql[rel]; ok && umbrella && version == "" {
+			version, conf = v.version, v.confidence
+		}
 		p, ok := pkgmap.Windows.lookup(strings.ToLower(name))
+		if ok && !umbrella && sql.authoritative(name, p) {
+			ok = false // a component of a release whose own version the setup registry gave: its version is not the release's (D-606)
+		}
 		switch {
 		case ok:
-			add(name, p.Vendor, p.Product, r["version"], true, false, "", "")
+			add(name, p.Vendor, p.Product, version, true, false, "", "", conf)
 		case r["publisher"] != "":
-			add(name, r["publisher"], name, r["version"], false, false, "", "")
+			add(name, r["publisher"], name, version, false, false, "", "", conf)
 		default:
-			add(name, name, name, r["version"], false, false, "", "")
+			add(name, name, name, version, false, false, "", "", conf)
 		}
 	}
 	return items, dropped

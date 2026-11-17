@@ -1593,6 +1593,8 @@ func evalAffected(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) (Tri, V
 	var t Tri
 	if et, ok := officeEdition(c, r, exact, ver); ok {
 		t = et
+	} else if et, ok := sqlServerRelease(c, r, exact, ver); ok { // D-606
+		t = et
 	} else if schemeClash(r, ver) {
 		t = Unknown // "2016" against "16.0.1", "1607" against "10.0.14393": two ways of writing versions
 	} else if c.Update.Kind == Any {

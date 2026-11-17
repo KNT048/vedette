@@ -50,13 +50,16 @@ func (h *FindingHandlers) SetHome(src HomeSources) {
 
 // Summary is contract.ts HomeSummary.
 type Summary struct {
-	Open        SummaryOpen       `json:"open"`
-	Top         []SummaryItem     `json:"top"`
-	Trend       []int             `json:"trend"`
-	Devices     SummaryDevices    `json:"devices"`
-	Alerts      *SummaryAlerts    `json:"alerts"`
-	Incidents   *SummaryIncidents `json:"incidents"`
-	GeneratedAt string            `json:"generated_at"`
+	Open      SummaryOpen       `json:"open"`
+	Top       []SummaryItem     `json:"top"`
+	Trend     []int             `json:"trend"`
+	Devices   SummaryDevices    `json:"devices"`
+	Alerts    *SummaryAlerts    `json:"alerts"`
+	Incidents *SummaryIncidents `json:"incidents"`
+	// Unchecked is the Findings "could not be checked" counts (#910 phase 1).
+	// TODO(#910): AI-Truong fills it from the matcher; zero until then.
+	Unchecked   SummaryUnchecked `json:"unchecked"`
+	GeneratedAt string           `json:"generated_at"`
 }
 
 // SummaryOpen counts the open findings.
@@ -93,6 +96,12 @@ type SummaryAlerts struct {
 	Sent   int `json:"sent"`
 	Failed int `json:"failed"`
 	Days   int `json:"days"`
+}
+
+// SummaryUnchecked counts the distinct exploited CVEs and the devices of the unchecked list (#910 phase 1).
+type SummaryUnchecked struct {
+	CVEs    int `json:"cves"`
+	Devices int `json:"devices"`
 }
 
 // SummaryIncidents is notify's open incidents (new or acknowledged) and, of them, the high and critical ones.

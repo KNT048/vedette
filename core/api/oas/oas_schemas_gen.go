@@ -67495,12 +67495,18 @@ func (s *FindingsGetFindingsIDOKStatus) UnmarshalText(data []byte) error {
 
 type FindingsGetFindingsOK struct {
 	Items         []FindingsGetFindingsOKItemsItem         `json:"items"`
+	Unchecked     []FindingsGetFindingsOKUncheckedItem     `json:"unchecked"`
 	VersionNeeded []FindingsGetFindingsOKVersionNeededItem `json:"version_needed"`
 }
 
 // GetItems returns the value of Items.
 func (s *FindingsGetFindingsOK) GetItems() []FindingsGetFindingsOKItemsItem {
 	return s.Items
+}
+
+// GetUnchecked returns the value of Unchecked.
+func (s *FindingsGetFindingsOK) GetUnchecked() []FindingsGetFindingsOKUncheckedItem {
+	return s.Unchecked
 }
 
 // GetVersionNeeded returns the value of VersionNeeded.
@@ -67511,6 +67517,11 @@ func (s *FindingsGetFindingsOK) GetVersionNeeded() []FindingsGetFindingsOKVersio
 // SetItems sets the value of Items.
 func (s *FindingsGetFindingsOK) SetItems(val []FindingsGetFindingsOKItemsItem) {
 	s.Items = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *FindingsGetFindingsOK) SetUnchecked(val []FindingsGetFindingsOKUncheckedItem) {
+	s.Unchecked = val
 }
 
 // SetVersionNeeded sets the value of VersionNeeded.
@@ -69294,6 +69305,980 @@ func (s *FindingsGetFindingsOKItemsItemStatus) UnmarshalText(data []byte) error 
 	}
 }
 
+// #910 phase 1: exploited CVEs of software the box has that it could not check; one item per device x
+// software x reason. No finding is created from it.
+type FindingsGetFindingsOKUncheckedItem struct {
+	// Add_version: typing the version as the vendor writes it lets Vedette check these CVEs
+	// (not_comparable, and not_named once phase 2 lands); none: only the advisory decides.
+	Action  FindingsGetFindingsOKUncheckedItemAction     `json:"action"`
+	Asset   NilFindingsGetFindingsOKUncheckedItemAsset   `json:"asset"`
+	AssetID string                                       `json:"asset_id"`
+	Cves    []FindingsGetFindingsOKUncheckedItemCvesItem `json:"cves"`
+	Reason  FindingsGetFindingsOKUncheckedItemReason     `json:"reason"`
+	// Display name, as on the device page.
+	Software   string    `json:"software"`
+	SoftwareID NilString `json:"software_id"`
+	Version    NilString `json:"version"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsGetFindingsOKUncheckedItem) GetAction() FindingsGetFindingsOKUncheckedItemAction {
+	return s.Action
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsGetFindingsOKUncheckedItem) GetAsset() NilFindingsGetFindingsOKUncheckedItemAsset {
+	return s.Asset
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *FindingsGetFindingsOKUncheckedItem) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetCves returns the value of Cves.
+func (s *FindingsGetFindingsOKUncheckedItem) GetCves() []FindingsGetFindingsOKUncheckedItemCvesItem {
+	return s.Cves
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsOKUncheckedItem) GetReason() FindingsGetFindingsOKUncheckedItemReason {
+	return s.Reason
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsOKUncheckedItem) GetSoftware() string {
+	return s.Software
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsGetFindingsOKUncheckedItem) GetSoftwareID() NilString {
+	return s.SoftwareID
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsOKUncheckedItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsGetFindingsOKUncheckedItem) SetAction(val FindingsGetFindingsOKUncheckedItemAction) {
+	s.Action = val
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsGetFindingsOKUncheckedItem) SetAsset(val NilFindingsGetFindingsOKUncheckedItemAsset) {
+	s.Asset = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *FindingsGetFindingsOKUncheckedItem) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetCves sets the value of Cves.
+func (s *FindingsGetFindingsOKUncheckedItem) SetCves(val []FindingsGetFindingsOKUncheckedItemCvesItem) {
+	s.Cves = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsOKUncheckedItem) SetReason(val FindingsGetFindingsOKUncheckedItemReason) {
+	s.Reason = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsOKUncheckedItem) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsGetFindingsOKUncheckedItem) SetSoftwareID(val NilString) {
+	s.SoftwareID = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsOKUncheckedItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+// Add_version: typing the version as the vendor writes it lets Vedette check these CVEs
+// (not_comparable, and not_named once phase 2 lands); none: only the advisory decides.
+type FindingsGetFindingsOKUncheckedItemAction string
+
+const (
+	FindingsGetFindingsOKUncheckedItemActionAddVersion FindingsGetFindingsOKUncheckedItemAction = "add_version"
+	FindingsGetFindingsOKUncheckedItemActionNone       FindingsGetFindingsOKUncheckedItemAction = "none"
+)
+
+// AllValues returns all FindingsGetFindingsOKUncheckedItemAction values.
+func (FindingsGetFindingsOKUncheckedItemAction) AllValues() []FindingsGetFindingsOKUncheckedItemAction {
+	return []FindingsGetFindingsOKUncheckedItemAction{
+		FindingsGetFindingsOKUncheckedItemActionAddVersion,
+		FindingsGetFindingsOKUncheckedItemActionNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKUncheckedItemAction) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKUncheckedItemActionAddVersion:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemActionNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKUncheckedItemAction) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKUncheckedItemAction(data) {
+	case FindingsGetFindingsOKUncheckedItemActionAddVersion:
+		*s = FindingsGetFindingsOKUncheckedItemActionAddVersion
+		return nil
+	case FindingsGetFindingsOKUncheckedItemActionNone:
+		*s = FindingsGetFindingsOKUncheckedItemActionNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsOKUncheckedItemAsset struct {
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                      `json:"ip"`
+	Kind FindingsGetFindingsOKUncheckedItemAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) GetDisplay() string {
+	return s.Display
+}
+
+// GetHostname returns the value of Hostname.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) GetHostname() NilString {
+	return s.Hostname
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) GetKind() FindingsGetFindingsOKUncheckedItemAssetKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) GetName() string {
+	return s.Name
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetHostname sets the value of Hostname.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) SetHostname(val NilString) {
+	s.Hostname = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) SetKind(val FindingsGetFindingsOKUncheckedItemAssetKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsOKUncheckedItemAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsOKUncheckedItemAssetKind string
+
+const (
+	FindingsGetFindingsOKUncheckedItemAssetKindRouter              FindingsGetFindingsOKUncheckedItemAssetKind = "router"
+	FindingsGetFindingsOKUncheckedItemAssetKindSwitch              FindingsGetFindingsOKUncheckedItemAssetKind = "switch"
+	FindingsGetFindingsOKUncheckedItemAssetKindModem               FindingsGetFindingsOKUncheckedItemAssetKind = "modem"
+	FindingsGetFindingsOKUncheckedItemAssetKindSdWan               FindingsGetFindingsOKUncheckedItemAssetKind = "sd_wan"
+	FindingsGetFindingsOKUncheckedItemAssetKindLoadBalancer        FindingsGetFindingsOKUncheckedItemAssetKind = "load_balancer"
+	FindingsGetFindingsOKUncheckedItemAssetKindNetworkController   FindingsGetFindingsOKUncheckedItemAssetKind = "network_controller"
+	FindingsGetFindingsOKUncheckedItemAssetKindFirewall            FindingsGetFindingsOKUncheckedItemAssetKind = "firewall"
+	FindingsGetFindingsOKUncheckedItemAssetKindVpnGateway          FindingsGetFindingsOKUncheckedItemAssetKind = "vpn_gateway"
+	FindingsGetFindingsOKUncheckedItemAssetKindIdsSensor           FindingsGetFindingsOKUncheckedItemAssetKind = "ids_sensor"
+	FindingsGetFindingsOKUncheckedItemAssetKindProxy               FindingsGetFindingsOKUncheckedItemAssetKind = "proxy"
+	FindingsGetFindingsOKUncheckedItemAssetKindAp                  FindingsGetFindingsOKUncheckedItemAssetKind = "ap"
+	FindingsGetFindingsOKUncheckedItemAssetKindWirelessController  FindingsGetFindingsOKUncheckedItemAssetKind = "wireless_controller"
+	FindingsGetFindingsOKUncheckedItemAssetKindWifiExtender        FindingsGetFindingsOKUncheckedItemAssetKind = "wifi_extender"
+	FindingsGetFindingsOKUncheckedItemAssetKindMeshNode            FindingsGetFindingsOKUncheckedItemAssetKind = "mesh_node"
+	FindingsGetFindingsOKUncheckedItemAssetKindServer              FindingsGetFindingsOKUncheckedItemAssetKind = "server"
+	FindingsGetFindingsOKUncheckedItemAssetKindVirtualMachine      FindingsGetFindingsOKUncheckedItemAssetKind = "virtual_machine"
+	FindingsGetFindingsOKUncheckedItemAssetKindHypervisor          FindingsGetFindingsOKUncheckedItemAssetKind = "hypervisor"
+	FindingsGetFindingsOKUncheckedItemAssetKindBmc                 FindingsGetFindingsOKUncheckedItemAssetKind = "bmc"
+	FindingsGetFindingsOKUncheckedItemAssetKindDomainController    FindingsGetFindingsOKUncheckedItemAssetKind = "domain_controller"
+	FindingsGetFindingsOKUncheckedItemAssetKindMailServer          FindingsGetFindingsOKUncheckedItemAssetKind = "mail_server"
+	FindingsGetFindingsOKUncheckedItemAssetKindDatabaseServer      FindingsGetFindingsOKUncheckedItemAssetKind = "database_server"
+	FindingsGetFindingsOKUncheckedItemAssetKindBackupServer        FindingsGetFindingsOKUncheckedItemAssetKind = "backup_server"
+	FindingsGetFindingsOKUncheckedItemAssetKindPc                  FindingsGetFindingsOKUncheckedItemAssetKind = "pc"
+	FindingsGetFindingsOKUncheckedItemAssetKindLaptop              FindingsGetFindingsOKUncheckedItemAssetKind = "laptop"
+	FindingsGetFindingsOKUncheckedItemAssetKindWorkstation         FindingsGetFindingsOKUncheckedItemAssetKind = "workstation"
+	FindingsGetFindingsOKUncheckedItemAssetKindThinClient          FindingsGetFindingsOKUncheckedItemAssetKind = "thin_client"
+	FindingsGetFindingsOKUncheckedItemAssetKindPosTerminal         FindingsGetFindingsOKUncheckedItemAssetKind = "pos_terminal"
+	FindingsGetFindingsOKUncheckedItemAssetKindKiosk               FindingsGetFindingsOKUncheckedItemAssetKind = "kiosk"
+	FindingsGetFindingsOKUncheckedItemAssetKindSmartphone          FindingsGetFindingsOKUncheckedItemAssetKind = "smartphone"
+	FindingsGetFindingsOKUncheckedItemAssetKindTablet              FindingsGetFindingsOKUncheckedItemAssetKind = "tablet"
+	FindingsGetFindingsOKUncheckedItemAssetKindSmartwatch          FindingsGetFindingsOKUncheckedItemAssetKind = "smartwatch"
+	FindingsGetFindingsOKUncheckedItemAssetKindPrinter             FindingsGetFindingsOKUncheckedItemAssetKind = "printer"
+	FindingsGetFindingsOKUncheckedItemAssetKindMfp                 FindingsGetFindingsOKUncheckedItemAssetKind = "mfp"
+	FindingsGetFindingsOKUncheckedItemAssetKindScanner             FindingsGetFindingsOKUncheckedItemAssetKind = "scanner"
+	FindingsGetFindingsOKUncheckedItemAssetKindLabelPrinter        FindingsGetFindingsOKUncheckedItemAssetKind = "label_printer"
+	FindingsGetFindingsOKUncheckedItemAssetKindReceiptPrinter      FindingsGetFindingsOKUncheckedItemAssetKind = "receipt_printer"
+	FindingsGetFindingsOKUncheckedItemAssetKindPlotter             FindingsGetFindingsOKUncheckedItemAssetKind = "plotter"
+	FindingsGetFindingsOKUncheckedItemAssetKind3dPrinter           FindingsGetFindingsOKUncheckedItemAssetKind = "3d_printer"
+	FindingsGetFindingsOKUncheckedItemAssetKindCamera              FindingsGetFindingsOKUncheckedItemAssetKind = "camera"
+	FindingsGetFindingsOKUncheckedItemAssetKindNvr                 FindingsGetFindingsOKUncheckedItemAssetKind = "nvr"
+	FindingsGetFindingsOKUncheckedItemAssetKindDvr                 FindingsGetFindingsOKUncheckedItemAssetKind = "dvr"
+	FindingsGetFindingsOKUncheckedItemAssetKindVideoEncoder        FindingsGetFindingsOKUncheckedItemAssetKind = "video_encoder"
+	FindingsGetFindingsOKUncheckedItemAssetKindDoorbell            FindingsGetFindingsOKUncheckedItemAssetKind = "doorbell"
+	FindingsGetFindingsOKUncheckedItemAssetKindVideoConferencing   FindingsGetFindingsOKUncheckedItemAssetKind = "video_conferencing"
+	FindingsGetFindingsOKUncheckedItemAssetKindIPPhone             FindingsGetFindingsOKUncheckedItemAssetKind = "ip_phone"
+	FindingsGetFindingsOKUncheckedItemAssetKindPbx                 FindingsGetFindingsOKUncheckedItemAssetKind = "pbx"
+	FindingsGetFindingsOKUncheckedItemAssetKindVoipAdapter         FindingsGetFindingsOKUncheckedItemAssetKind = "voip_adapter"
+	FindingsGetFindingsOKUncheckedItemAssetKindVoipGateway         FindingsGetFindingsOKUncheckedItemAssetKind = "voip_gateway"
+	FindingsGetFindingsOKUncheckedItemAssetKindConferencePhone     FindingsGetFindingsOKUncheckedItemAssetKind = "conference_phone"
+	FindingsGetFindingsOKUncheckedItemAssetKindIntercom            FindingsGetFindingsOKUncheckedItemAssetKind = "intercom"
+	FindingsGetFindingsOKUncheckedItemAssetKindNas                 FindingsGetFindingsOKUncheckedItemAssetKind = "nas"
+	FindingsGetFindingsOKUncheckedItemAssetKindSan                 FindingsGetFindingsOKUncheckedItemAssetKind = "san"
+	FindingsGetFindingsOKUncheckedItemAssetKindBackupAppliance     FindingsGetFindingsOKUncheckedItemAssetKind = "backup_appliance"
+	FindingsGetFindingsOKUncheckedItemAssetKindTapeLibrary         FindingsGetFindingsOKUncheckedItemAssetKind = "tape_library"
+	FindingsGetFindingsOKUncheckedItemAssetKindIot                 FindingsGetFindingsOKUncheckedItemAssetKind = "iot"
+	FindingsGetFindingsOKUncheckedItemAssetKindSmartTv             FindingsGetFindingsOKUncheckedItemAssetKind = "smart_tv"
+	FindingsGetFindingsOKUncheckedItemAssetKindMediaPlayer         FindingsGetFindingsOKUncheckedItemAssetKind = "media_player"
+	FindingsGetFindingsOKUncheckedItemAssetKindSmartSpeaker        FindingsGetFindingsOKUncheckedItemAssetKind = "smart_speaker"
+	FindingsGetFindingsOKUncheckedItemAssetKindGameConsole         FindingsGetFindingsOKUncheckedItemAssetKind = "game_console"
+	FindingsGetFindingsOKUncheckedItemAssetKindSmartPlug           FindingsGetFindingsOKUncheckedItemAssetKind = "smart_plug"
+	FindingsGetFindingsOKUncheckedItemAssetKindSmartLight          FindingsGetFindingsOKUncheckedItemAssetKind = "smart_light"
+	FindingsGetFindingsOKUncheckedItemAssetKindSmartHub            FindingsGetFindingsOKUncheckedItemAssetKind = "smart_hub"
+	FindingsGetFindingsOKUncheckedItemAssetKindThermostat          FindingsGetFindingsOKUncheckedItemAssetKind = "thermostat"
+	FindingsGetFindingsOKUncheckedItemAssetKindProjector           FindingsGetFindingsOKUncheckedItemAssetKind = "projector"
+	FindingsGetFindingsOKUncheckedItemAssetKindDigitalSignage      FindingsGetFindingsOKUncheckedItemAssetKind = "digital_signage"
+	FindingsGetFindingsOKUncheckedItemAssetKindSingleBoardComputer FindingsGetFindingsOKUncheckedItemAssetKind = "single_board_computer"
+	FindingsGetFindingsOKUncheckedItemAssetKindSmartAppliance      FindingsGetFindingsOKUncheckedItemAssetKind = "smart_appliance"
+	FindingsGetFindingsOKUncheckedItemAssetKindRobotVacuum         FindingsGetFindingsOKUncheckedItemAssetKind = "robot_vacuum"
+	FindingsGetFindingsOKUncheckedItemAssetKindWirelessBridge      FindingsGetFindingsOKUncheckedItemAssetKind = "wireless_bridge"
+	FindingsGetFindingsOKUncheckedItemAssetKindPlc                 FindingsGetFindingsOKUncheckedItemAssetKind = "plc"
+	FindingsGetFindingsOKUncheckedItemAssetKindHmi                 FindingsGetFindingsOKUncheckedItemAssetKind = "hmi"
+	FindingsGetFindingsOKUncheckedItemAssetKindRtu                 FindingsGetFindingsOKUncheckedItemAssetKind = "rtu"
+	FindingsGetFindingsOKUncheckedItemAssetKindScadaServer         FindingsGetFindingsOKUncheckedItemAssetKind = "scada_server"
+	FindingsGetFindingsOKUncheckedItemAssetKindIndustrialSwitch    FindingsGetFindingsOKUncheckedItemAssetKind = "industrial_switch"
+	FindingsGetFindingsOKUncheckedItemAssetKindUps                 FindingsGetFindingsOKUncheckedItemAssetKind = "ups"
+	FindingsGetFindingsOKUncheckedItemAssetKindPdu                 FindingsGetFindingsOKUncheckedItemAssetKind = "pdu"
+	FindingsGetFindingsOKUncheckedItemAssetKindAccessControl       FindingsGetFindingsOKUncheckedItemAssetKind = "access_control"
+	FindingsGetFindingsOKUncheckedItemAssetKindTimeClock           FindingsGetFindingsOKUncheckedItemAssetKind = "time_clock"
+	FindingsGetFindingsOKUncheckedItemAssetKindAlarmPanel          FindingsGetFindingsOKUncheckedItemAssetKind = "alarm_panel"
+	FindingsGetFindingsOKUncheckedItemAssetKindHvacController      FindingsGetFindingsOKUncheckedItemAssetKind = "hvac_controller"
+	FindingsGetFindingsOKUncheckedItemAssetKindBuildingController  FindingsGetFindingsOKUncheckedItemAssetKind = "building_controller"
+	FindingsGetFindingsOKUncheckedItemAssetKindPowerMeter          FindingsGetFindingsOKUncheckedItemAssetKind = "power_meter"
+	FindingsGetFindingsOKUncheckedItemAssetKindEnvironmentMonitor  FindingsGetFindingsOKUncheckedItemAssetKind = "environment_monitor"
+	FindingsGetFindingsOKUncheckedItemAssetKindEvCharger           FindingsGetFindingsOKUncheckedItemAssetKind = "ev_charger"
+	FindingsGetFindingsOKUncheckedItemAssetKindSolarInverter       FindingsGetFindingsOKUncheckedItemAssetKind = "solar_inverter"
+	FindingsGetFindingsOKUncheckedItemAssetKindMedicalDevice       FindingsGetFindingsOKUncheckedItemAssetKind = "medical_device"
+	FindingsGetFindingsOKUncheckedItemAssetKindWeb                 FindingsGetFindingsOKUncheckedItemAssetKind = "web"
+	FindingsGetFindingsOKUncheckedItemAssetKindCloudService        FindingsGetFindingsOKUncheckedItemAssetKind = "cloud_service"
+	FindingsGetFindingsOKUncheckedItemAssetKindUnknown             FindingsGetFindingsOKUncheckedItemAssetKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsOKUncheckedItemAssetKind values.
+func (FindingsGetFindingsOKUncheckedItemAssetKind) AllValues() []FindingsGetFindingsOKUncheckedItemAssetKind {
+	return []FindingsGetFindingsOKUncheckedItemAssetKind{
+		FindingsGetFindingsOKUncheckedItemAssetKindRouter,
+		FindingsGetFindingsOKUncheckedItemAssetKindSwitch,
+		FindingsGetFindingsOKUncheckedItemAssetKindModem,
+		FindingsGetFindingsOKUncheckedItemAssetKindSdWan,
+		FindingsGetFindingsOKUncheckedItemAssetKindLoadBalancer,
+		FindingsGetFindingsOKUncheckedItemAssetKindNetworkController,
+		FindingsGetFindingsOKUncheckedItemAssetKindFirewall,
+		FindingsGetFindingsOKUncheckedItemAssetKindVpnGateway,
+		FindingsGetFindingsOKUncheckedItemAssetKindIdsSensor,
+		FindingsGetFindingsOKUncheckedItemAssetKindProxy,
+		FindingsGetFindingsOKUncheckedItemAssetKindAp,
+		FindingsGetFindingsOKUncheckedItemAssetKindWirelessController,
+		FindingsGetFindingsOKUncheckedItemAssetKindWifiExtender,
+		FindingsGetFindingsOKUncheckedItemAssetKindMeshNode,
+		FindingsGetFindingsOKUncheckedItemAssetKindServer,
+		FindingsGetFindingsOKUncheckedItemAssetKindVirtualMachine,
+		FindingsGetFindingsOKUncheckedItemAssetKindHypervisor,
+		FindingsGetFindingsOKUncheckedItemAssetKindBmc,
+		FindingsGetFindingsOKUncheckedItemAssetKindDomainController,
+		FindingsGetFindingsOKUncheckedItemAssetKindMailServer,
+		FindingsGetFindingsOKUncheckedItemAssetKindDatabaseServer,
+		FindingsGetFindingsOKUncheckedItemAssetKindBackupServer,
+		FindingsGetFindingsOKUncheckedItemAssetKindPc,
+		FindingsGetFindingsOKUncheckedItemAssetKindLaptop,
+		FindingsGetFindingsOKUncheckedItemAssetKindWorkstation,
+		FindingsGetFindingsOKUncheckedItemAssetKindThinClient,
+		FindingsGetFindingsOKUncheckedItemAssetKindPosTerminal,
+		FindingsGetFindingsOKUncheckedItemAssetKindKiosk,
+		FindingsGetFindingsOKUncheckedItemAssetKindSmartphone,
+		FindingsGetFindingsOKUncheckedItemAssetKindTablet,
+		FindingsGetFindingsOKUncheckedItemAssetKindSmartwatch,
+		FindingsGetFindingsOKUncheckedItemAssetKindPrinter,
+		FindingsGetFindingsOKUncheckedItemAssetKindMfp,
+		FindingsGetFindingsOKUncheckedItemAssetKindScanner,
+		FindingsGetFindingsOKUncheckedItemAssetKindLabelPrinter,
+		FindingsGetFindingsOKUncheckedItemAssetKindReceiptPrinter,
+		FindingsGetFindingsOKUncheckedItemAssetKindPlotter,
+		FindingsGetFindingsOKUncheckedItemAssetKind3dPrinter,
+		FindingsGetFindingsOKUncheckedItemAssetKindCamera,
+		FindingsGetFindingsOKUncheckedItemAssetKindNvr,
+		FindingsGetFindingsOKUncheckedItemAssetKindDvr,
+		FindingsGetFindingsOKUncheckedItemAssetKindVideoEncoder,
+		FindingsGetFindingsOKUncheckedItemAssetKindDoorbell,
+		FindingsGetFindingsOKUncheckedItemAssetKindVideoConferencing,
+		FindingsGetFindingsOKUncheckedItemAssetKindIPPhone,
+		FindingsGetFindingsOKUncheckedItemAssetKindPbx,
+		FindingsGetFindingsOKUncheckedItemAssetKindVoipAdapter,
+		FindingsGetFindingsOKUncheckedItemAssetKindVoipGateway,
+		FindingsGetFindingsOKUncheckedItemAssetKindConferencePhone,
+		FindingsGetFindingsOKUncheckedItemAssetKindIntercom,
+		FindingsGetFindingsOKUncheckedItemAssetKindNas,
+		FindingsGetFindingsOKUncheckedItemAssetKindSan,
+		FindingsGetFindingsOKUncheckedItemAssetKindBackupAppliance,
+		FindingsGetFindingsOKUncheckedItemAssetKindTapeLibrary,
+		FindingsGetFindingsOKUncheckedItemAssetKindIot,
+		FindingsGetFindingsOKUncheckedItemAssetKindSmartTv,
+		FindingsGetFindingsOKUncheckedItemAssetKindMediaPlayer,
+		FindingsGetFindingsOKUncheckedItemAssetKindSmartSpeaker,
+		FindingsGetFindingsOKUncheckedItemAssetKindGameConsole,
+		FindingsGetFindingsOKUncheckedItemAssetKindSmartPlug,
+		FindingsGetFindingsOKUncheckedItemAssetKindSmartLight,
+		FindingsGetFindingsOKUncheckedItemAssetKindSmartHub,
+		FindingsGetFindingsOKUncheckedItemAssetKindThermostat,
+		FindingsGetFindingsOKUncheckedItemAssetKindProjector,
+		FindingsGetFindingsOKUncheckedItemAssetKindDigitalSignage,
+		FindingsGetFindingsOKUncheckedItemAssetKindSingleBoardComputer,
+		FindingsGetFindingsOKUncheckedItemAssetKindSmartAppliance,
+		FindingsGetFindingsOKUncheckedItemAssetKindRobotVacuum,
+		FindingsGetFindingsOKUncheckedItemAssetKindWirelessBridge,
+		FindingsGetFindingsOKUncheckedItemAssetKindPlc,
+		FindingsGetFindingsOKUncheckedItemAssetKindHmi,
+		FindingsGetFindingsOKUncheckedItemAssetKindRtu,
+		FindingsGetFindingsOKUncheckedItemAssetKindScadaServer,
+		FindingsGetFindingsOKUncheckedItemAssetKindIndustrialSwitch,
+		FindingsGetFindingsOKUncheckedItemAssetKindUps,
+		FindingsGetFindingsOKUncheckedItemAssetKindPdu,
+		FindingsGetFindingsOKUncheckedItemAssetKindAccessControl,
+		FindingsGetFindingsOKUncheckedItemAssetKindTimeClock,
+		FindingsGetFindingsOKUncheckedItemAssetKindAlarmPanel,
+		FindingsGetFindingsOKUncheckedItemAssetKindHvacController,
+		FindingsGetFindingsOKUncheckedItemAssetKindBuildingController,
+		FindingsGetFindingsOKUncheckedItemAssetKindPowerMeter,
+		FindingsGetFindingsOKUncheckedItemAssetKindEnvironmentMonitor,
+		FindingsGetFindingsOKUncheckedItemAssetKindEvCharger,
+		FindingsGetFindingsOKUncheckedItemAssetKindSolarInverter,
+		FindingsGetFindingsOKUncheckedItemAssetKindMedicalDevice,
+		FindingsGetFindingsOKUncheckedItemAssetKindWeb,
+		FindingsGetFindingsOKUncheckedItemAssetKindCloudService,
+		FindingsGetFindingsOKUncheckedItemAssetKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKUncheckedItemAssetKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKUncheckedItemAssetKindRouter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindProxy:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindAp:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindMeshNode:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindBackupServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPc:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartwatch:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKind3dPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindCamera:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindNvr:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindIot:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindCloudService:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKUncheckedItemAssetKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKUncheckedItemAssetKind(data) {
+	case FindingsGetFindingsOKUncheckedItemAssetKindRouter:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindRouter
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSwitch:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSwitch
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindModem:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindModem
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSdWan:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSdWan
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindLoadBalancer:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindLoadBalancer
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindNetworkController:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindNetworkController
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindFirewall:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindFirewall
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVpnGateway:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindVpnGateway
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindIdsSensor:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindIdsSensor
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindProxy:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindProxy
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindAp:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindAp
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindWirelessController:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindWirelessController
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindWifiExtender:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindWifiExtender
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindMeshNode:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindMeshNode
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindServer:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindServer
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVirtualMachine:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindVirtualMachine
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindHypervisor:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindHypervisor
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindBmc:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindBmc
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindDomainController:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindDomainController
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindMailServer:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindMailServer
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindDatabaseServer:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindDatabaseServer
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindBackupServer:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindBackupServer
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPc:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindPc
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindLaptop:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindLaptop
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindWorkstation:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindWorkstation
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindThinClient:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindThinClient
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPosTerminal:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindPosTerminal
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindKiosk:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindKiosk
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartphone:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSmartphone
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindTablet:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindTablet
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartwatch:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSmartwatch
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPrinter:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindPrinter
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindMfp:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindMfp
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindScanner:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindScanner
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindLabelPrinter:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindLabelPrinter
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindReceiptPrinter:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPlotter:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindPlotter
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKind3dPrinter:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKind3dPrinter
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindCamera:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindCamera
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindNvr:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindNvr
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindDvr:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindDvr
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVideoEncoder:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindVideoEncoder
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindDoorbell:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindDoorbell
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVideoConferencing:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindVideoConferencing
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindIPPhone:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindIPPhone
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPbx:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindPbx
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVoipAdapter:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindVoipAdapter
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindVoipGateway:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindVoipGateway
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindConferencePhone:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindConferencePhone
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindIntercom:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindIntercom
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindNas:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindNas
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSan:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSan
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindBackupAppliance:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindBackupAppliance
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindTapeLibrary:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindTapeLibrary
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindIot:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindIot
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartTv:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSmartTv
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindMediaPlayer:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindMediaPlayer
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartSpeaker:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindGameConsole:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindGameConsole
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartPlug:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSmartPlug
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartLight:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSmartLight
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartHub:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSmartHub
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindThermostat:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindThermostat
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindProjector:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindProjector
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindDigitalSignage:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindDigitalSignage
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSingleBoardComputer:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSmartAppliance:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSmartAppliance
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindRobotVacuum:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindRobotVacuum
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindWirelessBridge:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindWirelessBridge
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPlc:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindPlc
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindHmi:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindHmi
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindRtu:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindRtu
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindScadaServer:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindScadaServer
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindIndustrialSwitch:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindUps:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindUps
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPdu:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindPdu
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindAccessControl:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindAccessControl
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindTimeClock:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindTimeClock
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindAlarmPanel:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindAlarmPanel
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindHvacController:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindHvacController
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindBuildingController:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindBuildingController
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindPowerMeter:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindPowerMeter
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindEnvironmentMonitor:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindEvCharger:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindEvCharger
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindSolarInverter:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindSolarInverter
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindMedicalDevice:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindMedicalDevice
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindWeb:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindWeb
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindCloudService:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindCloudService
+		return nil
+	case FindingsGetFindingsOKUncheckedItemAssetKindUnknown:
+		*s = FindingsGetFindingsOKUncheckedItemAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsOKUncheckedItemCvesItem struct {
+	Advisory   NilURI    `json:"advisory"`
+	Cve        string    `json:"cve"`
+	DateAdded  time.Time `json:"date_added"`
+	Name       string    `json:"name"`
+	Ransomware bool      `json:"ransomware"`
+}
+
+// GetAdvisory returns the value of Advisory.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetAdvisory() NilURI {
+	return s.Advisory
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDateAdded returns the value of DateAdded.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetDateAdded() time.Time {
+	return s.DateAdded
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetName() string {
+	return s.Name
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetRansomware() bool {
+	return s.Ransomware
+}
+
+// SetAdvisory sets the value of Advisory.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetAdvisory(val NilURI) {
+	s.Advisory = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDateAdded sets the value of DateAdded.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetDateAdded(val time.Time) {
+	s.DateAdded = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetRansomware(val bool) {
+	s.Ransomware = val
+}
+
+type FindingsGetFindingsOKUncheckedItemReason string
+
+const (
+	FindingsGetFindingsOKUncheckedItemReasonNoNvdData     FindingsGetFindingsOKUncheckedItemReason = "no_nvd_data"
+	FindingsGetFindingsOKUncheckedItemReasonNoNvdVersions FindingsGetFindingsOKUncheckedItemReason = "no_nvd_versions"
+	FindingsGetFindingsOKUncheckedItemReasonNotNamed      FindingsGetFindingsOKUncheckedItemReason = "not_named"
+	FindingsGetFindingsOKUncheckedItemReasonNotComparable FindingsGetFindingsOKUncheckedItemReason = "not_comparable"
+)
+
+// AllValues returns all FindingsGetFindingsOKUncheckedItemReason values.
+func (FindingsGetFindingsOKUncheckedItemReason) AllValues() []FindingsGetFindingsOKUncheckedItemReason {
+	return []FindingsGetFindingsOKUncheckedItemReason{
+		FindingsGetFindingsOKUncheckedItemReasonNoNvdData,
+		FindingsGetFindingsOKUncheckedItemReasonNoNvdVersions,
+		FindingsGetFindingsOKUncheckedItemReasonNotNamed,
+		FindingsGetFindingsOKUncheckedItemReasonNotComparable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKUncheckedItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKUncheckedItemReasonNoNvdData:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemReasonNoNvdVersions:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemReasonNotNamed:
+		return []byte(s), nil
+	case FindingsGetFindingsOKUncheckedItemReasonNotComparable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKUncheckedItemReason) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKUncheckedItemReason(data) {
+	case FindingsGetFindingsOKUncheckedItemReasonNoNvdData:
+		*s = FindingsGetFindingsOKUncheckedItemReasonNoNvdData
+		return nil
+	case FindingsGetFindingsOKUncheckedItemReasonNoNvdVersions:
+		*s = FindingsGetFindingsOKUncheckedItemReasonNoNvdVersions
+		return nil
+	case FindingsGetFindingsOKUncheckedItemReasonNotNamed:
+		*s = FindingsGetFindingsOKUncheckedItemReasonNotNamed
+		return nil
+	case FindingsGetFindingsOKUncheckedItemReasonNotComparable:
+		*s = FindingsGetFindingsOKUncheckedItemReasonNotComparable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // D-500: a software on the exploited list without a usable version is ONE item, not one finding per
 // CVE.
 type FindingsGetFindingsOKVersionNeededItem struct {
@@ -70920,6 +71905,8 @@ type FindingsGetFindingsSummaryOK struct {
 	Top []FindingsGetFindingsSummaryOKTopItem `json:"top"`
 	// Open findings at the end of each of the last 30 days (UTC), oldest first; the last is now.
 	Trend []int `json:"trend"`
+	// #910 phase 1.
+	Unchecked FindingsGetFindingsSummaryOKUnchecked `json:"unchecked"`
 }
 
 // GetAlerts returns the value of Alerts.
@@ -70957,6 +71944,11 @@ func (s *FindingsGetFindingsSummaryOK) GetTrend() []int {
 	return s.Trend
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *FindingsGetFindingsSummaryOK) GetUnchecked() FindingsGetFindingsSummaryOKUnchecked {
+	return s.Unchecked
+}
+
 // SetAlerts sets the value of Alerts.
 func (s *FindingsGetFindingsSummaryOK) SetAlerts(val NilFindingsGetFindingsSummaryOKAlerts) {
 	s.Alerts = val
@@ -70990,6 +71982,11 @@ func (s *FindingsGetFindingsSummaryOK) SetTop(val []FindingsGetFindingsSummaryOK
 // SetTrend sets the value of Trend.
 func (s *FindingsGetFindingsSummaryOK) SetTrend(val []int) {
 	s.Trend = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *FindingsGetFindingsSummaryOK) SetUnchecked(val FindingsGetFindingsSummaryOKUnchecked) {
+	s.Unchecked = val
 }
 
 type FindingsGetFindingsSummaryOKAlerts struct {
@@ -72289,6 +73286,33 @@ func (s *FindingsGetFindingsSummaryOKTopItemStatus) UnmarshalText(data []byte) e
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// #910 phase 1.
+type FindingsGetFindingsSummaryOKUnchecked struct {
+	// Distinct exploited CVEs in the Findings "could not be checked" list.
+	Cves    int `json:"cves"`
+	Devices int `json:"devices"`
+}
+
+// GetCves returns the value of Cves.
+func (s *FindingsGetFindingsSummaryOKUnchecked) GetCves() int {
+	return s.Cves
+}
+
+// GetDevices returns the value of Devices.
+func (s *FindingsGetFindingsSummaryOKUnchecked) GetDevices() int {
+	return s.Devices
+}
+
+// SetCves sets the value of Cves.
+func (s *FindingsGetFindingsSummaryOKUnchecked) SetCves(val int) {
+	s.Cves = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *FindingsGetFindingsSummaryOKUnchecked) SetDevices(val int) {
+	s.Devices = val
 }
 
 type FindingsPostFindingsIDAiOK struct {
@@ -123428,6 +124452,51 @@ func (o NilFindingsGetFindingsOKItemsItemKev) Or(d FindingsGetFindingsOKItemsIte
 	return d
 }
 
+// NewNilFindingsGetFindingsOKUncheckedItemAsset returns new NilFindingsGetFindingsOKUncheckedItemAsset with value set to v.
+func NewNilFindingsGetFindingsOKUncheckedItemAsset(v FindingsGetFindingsOKUncheckedItemAsset) NilFindingsGetFindingsOKUncheckedItemAsset {
+	return NilFindingsGetFindingsOKUncheckedItemAsset{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsOKUncheckedItemAsset is nullable FindingsGetFindingsOKUncheckedItemAsset.
+type NilFindingsGetFindingsOKUncheckedItemAsset struct {
+	Value FindingsGetFindingsOKUncheckedItemAsset
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsOKUncheckedItemAsset) SetTo(v FindingsGetFindingsOKUncheckedItemAsset) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsOKUncheckedItemAsset) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsOKUncheckedItemAsset) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsOKUncheckedItemAsset
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsOKUncheckedItemAsset) Get() (v FindingsGetFindingsOKUncheckedItemAsset, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsOKUncheckedItemAsset) Or(d FindingsGetFindingsOKUncheckedItemAsset) FindingsGetFindingsOKUncheckedItemAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsOKVersionNeededItemAsset returns new NilFindingsGetFindingsOKVersionNeededItemAsset with value set to v.
 func NewNilFindingsGetFindingsOKVersionNeededItemAsset(v FindingsGetFindingsOKVersionNeededItemAsset) NilFindingsGetFindingsOKVersionNeededItemAsset {
 	return NilFindingsGetFindingsOKVersionNeededItemAsset{
@@ -132548,6 +133617,51 @@ func (o NilString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o NilString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilURI returns new NilURI with value set to v.
+func NewNilURI(v url.URL) NilURI {
+	return NilURI{
+		Value: v,
+	}
+}
+
+// NilURI is nullable url.URL.
+type NilURI struct {
+	Value url.URL
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilURI) SetTo(v url.URL) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilURI) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilURI) SetToNull() {
+	o.Null = true
+	var v url.URL
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilURI) Get() (v url.URL, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilURI) Or(d url.URL) url.URL {
 	if v, ok := o.Get(); ok {
 		return v
 	}

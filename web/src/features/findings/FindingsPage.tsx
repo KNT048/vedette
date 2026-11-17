@@ -21,6 +21,7 @@ import { basisKey, deviceName, hasIp, isOpen, riskRank, unverified } from './bas
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
 import { RiskChip } from './Risk'
+import { UncheckedList } from './UncheckedList'
 import { CvssScore } from './Cvss'
 import { FixGroupList } from './FixGroups'
 import { fixGroups, useFixAction } from './fix'
@@ -226,6 +227,7 @@ function List() {
         ) : null}
       </div>
       {tab === 'open' && q.data?.version_needed.length ? <VersionNeededList items={q.data.version_needed} /> : null}
+      {tab === 'open' && q.data?.unchecked?.length ? <UncheckedList items={q.data.unchecked} /> : null}
       {tab === 'open' && grouping ? <div className="mb-3"><FixGroupList groups={grouping.groups} showDevice /></div> : null}
       <QueryState query={q}>
         {() => tab === 'open' && grouping && grouping.groups.length > 0 && rows.length === 0 ? (

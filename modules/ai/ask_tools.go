@@ -370,6 +370,9 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 			nPorts, nSw = 12, 8
 		}
 		r := map[string]any{"id": clip(a.ID, 96), "name": clip(a.Name, 80), "approved": a.Approved}
+		if a.Ignored { // D-630: an ignored device is not one waiting for review
+			r["ignored"] = true
+		}
 		put(r, "ip", clip(a.IP, 45))
 		put(r, "kind", clip(a.Kind, 32))
 		put(r, "vendor", clip(a.Vendor, 60))

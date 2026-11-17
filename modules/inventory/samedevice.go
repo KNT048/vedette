@@ -551,7 +551,8 @@ func (s *Service) Merge(ctx context.Context, actor, into, from string) error {
 			return fmt.Errorf("inventory: read device: %w", err)
 		}
 		gains := rows[from].approved && !rows[into].approved
-		if err := s.joinAs(ctx, tx, from, into, "a person merged them", joinMachine, actor); err != nil {
+		watch, err := s.joinAs(ctx, tx, from, into, "a person merged them", joinMachine, actor)
+		if err != nil {
 			return err
 		}
 		if notes := joinNotes(intoNotes.String, fromNotes.String); notes != intoNotes.String {
@@ -577,6 +578,9 @@ func (s *Service) Merge(ctx context.Context, actor, into, from string) error {
 		}
 		o.add(EventAssetMerged, MergeEvent{From: from, Into: into, Actor: actor})
 		o.add(EventAssetDeleted, AssetEvent{AssetID: from, Actor: actor})
+		if watch != "" { // D-630: the moved findings follow into's watch state
+			o.add(watch, AssetEvent{AssetID: into, Actor: actor})
+		}
 		o.add(EventAssetUpdated, AssetEvent{AssetID: into, Match: true})
 		if gains {
 			o.add(EventAssetApproved, AssetEvent{AssetID: into, Actor: actor})

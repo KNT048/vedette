@@ -61,15 +61,16 @@ const (
 	numOrNull  = `{"type":["number","null"]}`
 	pageOutput = `"total":{"type":"integer","description":"Items that match, over all pages."},"next_offset":{"type":["integer","null"],"description":"Offset of the next page; null on the last page."}`
 
-	assetRowSchema = `{"type":"object","additionalProperties":false,"required":["id","name","ip","hostname","kind","vendor","model","os","approved","first_seen","last_seen"],"properties":{` +
+	ignoredProp    = `"ignored":{"type":"boolean","description":"A person said this device needs no watching: it is not waiting for review, not scanned and has no open findings."},`
+	assetRowSchema = `{"type":"object","additionalProperties":false,"required":["id","name","ip","hostname","kind","vendor","model","os","approved","ignored","first_seen","last_seen"],"properties":{` +
 		`"id":{"type":"string"},"name":{"type":"string"},"ip":` + strOrNull + `,"hostname":` + strOrNull + `,"kind":{"type":"string"},` +
-		`"vendor":` + strOrNull + `,"model":` + strOrNull + `,"os":` + strOrNull + `,"approved":{"type":"boolean","description":"False while the device waits for a person to confirm it."},` +
+		`"vendor":` + strOrNull + `,"model":` + strOrNull + `,"os":` + strOrNull + `,"approved":{"type":"boolean","description":"False while the device waits for a person to confirm it."},` + ignoredProp +
 		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"}}}`
 	serviceSchema  = `{"type":"object","additionalProperties":false,"required":["port","proto","name","product","version"],"properties":{"port":{"type":"integer"},"proto":{"type":"string"},"name":{"type":"string"},"product":` + strOrNull + `,"version":` + strOrNull + `}}`
 	softwareSchema = `{"type":"object","additionalProperties":false,"required":["name","vendor","product","version"],"properties":{"name":{"type":"string"},"vendor":{"type":"string"},"product":{"type":"string"},"version":` + strOrNull + `}}`
-	assetSchema    = `{"type":"object","additionalProperties":false,"required":["id","name","ip","hostname","kind","vendor","model","os","approved","first_seen","last_seen","services","software"],"properties":{` +
+	assetSchema    = `{"type":"object","additionalProperties":false,"required":["id","name","ip","hostname","kind","vendor","model","os","approved","ignored","first_seen","last_seen","services","software"],"properties":{` +
 		`"id":{"type":"string"},"name":{"type":"string"},"ip":` + strOrNull + `,"hostname":` + strOrNull + `,"kind":{"type":"string"},` +
-		`"vendor":` + strOrNull + `,"model":` + strOrNull + `,"os":` + strOrNull + `,"approved":{"type":"boolean"},` +
+		`"vendor":` + strOrNull + `,"model":` + strOrNull + `,"os":` + strOrNull + `,"approved":{"type":"boolean"},` + ignoredProp +
 		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},` +
 		`"services":{"type":"array","maxItems":100,"items":` + serviceSchema + `},"software":{"type":"array","maxItems":200,"items":` + softwareSchema + `}}}`
 
@@ -282,6 +283,7 @@ type assetRow struct {
 	Model     *string `json:"model"`
 	OS        *string `json:"os"`
 	Approved  bool    `json:"approved"`
+	Ignored   bool    `json:"ignored"`
 	FirstSeen string  `json:"first_seen"`
 	LastSeen  string  `json:"last_seen"`
 }
@@ -316,7 +318,7 @@ func listAssets(ctx context.Context, src Source, a args) (any, int, error) {
 		if q != "" && !strings.Contains(strings.ToLower(d.Name), q) && !containsFold(d.IP, q) && !containsFold(d.Vendor, q) && !containsFold(d.Model, q) {
 			continue
 		}
-		rows = append(rows, assetRow{d.ID, clip(d.Name, 256), d.IP, clipPtr(d.Hostname, 256), d.Kind, clipPtr(d.Vendor, 256), clipPtr(d.Model, 256), clipPtr(d.OS, 256), d.Approved, d.FirstSeen, d.LastSeen})
+		rows = append(rows, assetRow{d.ID, clip(d.Name, 256), d.IP, clipPtr(d.Hostname, 256), d.Kind, clipPtr(d.Vendor, 256), clipPtr(d.Model, 256), clipPtr(d.OS, 256), d.Approved, d.Ignored, d.FirstSeen, d.LastSeen})
 	}
 	slices.SortStableFunc(rows, func(x, y assetRow) int { return strings.Compare(strings.ToLower(x.Name), strings.ToLower(y.Name)) })
 	p := paginate(rows, offset, limit)

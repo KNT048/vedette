@@ -82,3 +82,10 @@
 
 ## Modifying: `enrolHostname` (D-548, D-611, INV-21)
 - **inventory**: một quan sát `hostname` nguồn agent, một lần cho mỗi node (ở mọi tuổi, D-611) tới khi `system_info` được nhận; tên thiết bị (`DisplayName`) đổi từ hãng/IP sang tên máy ở mọi trang, tin và báo cáo.
+
+## Modifying: "ask the agent now" (`report.go`: `AskReport`, `ReportState`, `askOpen`, `answeredAsk`; INV-23; migration 0008)
+- **web/features/findings** (`Updated.tsx` `AgentAsk`, `ToFix.tsx` `DeviceUpdated`, hooks `useAgentReport`/`useAskReport` in `web/src/features/inventory/api.ts`): the button, its busy state and the "Asked at …" line read `agent`, `asked_at` and `wazuh_interval_minutes`; renaming a value or the 409 `cannot_ask` / 429 `rate_limited` codes changes what the person sees. The To fix card shows one control per device, so the answer must be per device, not per software row.
+- **Schedule** (`nodeSchedule`, `reportQueries`): adding a software query to the schedule (a new package table) must decide whether an ask speeds it up; `TestScheduleIsReadOnly` still pins every query, an ask only changes `interval`.
+- **inventory** (`observe.AgentDevices`, `inventory.Service.AgentDevice`): the device → node link is `inv_asset.agent_key` (D-598). A device whose binding the inventory released (re-enrolment, revoke) is answered `none`/`wazuh` until its node reports again.
+- **Wazuh marker** (`wazuhReads`): the same rows as `WazuhAgentAddresses` (current generation, IP or MAC); a change of how the pull records where it delivered changes which devices get the Wazuh line.
+- **Timing words in the GUI** ("within about 5 minutes"): depend on `--config_refresh=300` in the install scripts, `firstReportInterval` and `sourceWindow`; changing any of them changes the promise. An old install without `--config_refresh` never re-reads its config: the ask then ends after 15 minutes without effect.

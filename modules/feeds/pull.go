@@ -557,7 +557,6 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		baseline       bool // the CISA list filled an empty table: one baseline event, not one per CVE (D-78)
 		rangesChanged  []string
 		rangesFirst    bool
-		winRelChanged  bool
 	)
 	finish := func(tx *sql.Tx, out outcome) error { // the outcome row and the audit entry, in the pull's last transaction
 		if err := recordOutcome(ctx, tx, src.ID, out); err != nil {
@@ -573,7 +572,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		return s.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "feeds.fetch", Target: src.Name, Detail: detail})
 	}
 	write := func(p pullPlan) error {
-		fresh, changed, added, removed, stale, baseline, rangesChanged, rangesFirst, winRelChanged = nil, nil, 0, 0, false, false, nil, false, false
+		fresh, changed, added, removed, stale, baseline, rangesChanged, rangesFirst = nil, nil, 0, 0, false, false, nil, false
 		if p.hasIOCs { // a long list: chunks, not one transaction that holds the writer (applyIOCs)
 			var err error
 			added, removed, stale, err = applyIOCs(ctx, s.DB, p.out.Finished, src, p.iocs, s.afterChunk, func(tx *sql.Tx, _, _ int) error { return finish(tx, p.out) })
@@ -675,7 +674,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 					return fmt.Errorf("feeds: distro print: %w", err)
 				}
 			case p.hasWinRel: // D-603: findings matches the Windows entries again when the releases changed
-				if rangesChanged, winRelChanged, err = applyWinRel(ctx, tx, p.winRel); err != nil {
+				if rangesChanged, err = applyWinRel(ctx, tx, p.winRel); err != nil {
 					return err
 				}
 			}
@@ -697,14 +696,14 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 			return sourceRow{}, 0, nil, fmt.Errorf("feeds: recording the failure of a pull: %w", errors.Join(err, err2))
 		}
 	}
-	row, rerr := s.st.source(ctx, id)
-	if stale || rerr != nil {
-		return row, 0, nil, rerr
-	}
-	if winRelChanged { // before the event: findings reads the new releases when it matches again
+	if p.hasWinRel && p.out.OK && !stale { // every good pull, before the event: findings reads the new releases (review r1 L1 of #951)
 		if err := s.LearnWindowsReleases(ctx); err != nil {
 			s.Log.ErrorContext(ctx, "reading the Windows releases failed", "error", err)
 		}
+	}
+	row, rerr := s.st.source(ctx, id)
+	if stale || rerr != nil {
+		return row, 0, nil, rerr
 	}
 
 	var evs []events.Event

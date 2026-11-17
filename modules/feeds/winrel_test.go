@@ -29,12 +29,12 @@ func TestParseWinRelPages(t *testing.T) {
 		t.Fatalf("server histories: %+v", server)
 	}
 	got := map[string]winrel.Release{}
-	for _, r := range winRelReleases(append(client, server...)) {
+	for _, r := range winRelReleases(append(client, server...), day(t, "2026-11-17")) {
 		got[r.Product] = r
 	}
 	want := map[string]winrel.Release{
 		"windows_11_26h2":     {Build: 26300, Product: "windows_11_26h2", Display: "Windows 11 26H2", Line: 26100, GA: day(t, "2026-09-29"), GARev: 9457},
-		"windows_11_26h1":     {Build: 28000, Product: "windows_11_26h1", Display: "Windows 11 26H1", Line: 28000, GA: day(t, "2026-02-10"), GARev: 1},
+		"windows_11_26h1":     {Build: 28000, Product: "windows_11_26h1", Display: "Windows 11 26H1", Line: 28000, GA: day(t, "2026-02-10"), GARev: 1575}, // review r1 L4: not the media's 28000.1
 		"windows_11_25h2":     {Build: 26200, Product: "windows_11_25h2", Display: "Windows 11 25H2", Line: 26100, GA: day(t, "2025-09-30"), GARev: 6584},
 		"windows_server_2025": {Build: 26100, Product: "windows_server_2025", Display: "Windows Server 2025", Server: true, Line: 26100, GA: day(t, "2024-11-01"), GARev: 1742},
 	}
@@ -54,6 +54,31 @@ func TestParseWinRelPages(t *testing.T) {
 	}
 	if n := winrel.Learn(rels); n != 2 {
 		t.Errorf("learned %d", n)
+	}
+}
+
+// Review r1 M2 of #951: a release whose general availability is after the pull is not one; the address of the feed cannot be changed
+// (Microsoft has no mirror of these pages).
+func TestWinRel_FutureGAAndPinnedAddress(t *testing.T) {
+	row := func(upd, day, build, kb string) string {
+		return "<tr><td>x</td><td>" + upd + "</td><td>" + day + "</td><td>" + build + "</td><td>" + kb + "</td></tr>"
+	}
+	page := `<strong>Version 27H2 (OS build 26400)</strong><table id="historyTable_0"><tbody>` + row("2027-11 B", "2027-11-09", "26400.9999", "KB5000001") +
+		`</tbody></table><strong>Version 26H2 (OS build 26300)</strong><table id="historyTable_1"><tbody>` + row("2026-11 B", "2026-11-10", "26300.9974", "KB5132061") + `</tbody></table>`
+	hs, err := parseWinRelPage([]byte(page), false)
+	if err != nil || len(hs) != 2 {
+		t.Fatalf("%+v %v", hs, err)
+	}
+	rels := winRelReleases(hs, day(t, "2026-11-17"))
+	if len(rels) != 1 || rels[0].Build != 26300 {
+		t.Errorf("releases: %+v", rels)
+	}
+	e := newEnv(t)
+	if c, b := e.put(winRelFeedID, `{"url":"https://example.net/windows11-release-information"}`); c != 400 || code(b) != "invalid_url" {
+		t.Errorf("another address: %d %v", c, b)
+	}
+	if c, b := e.put(winRelFeedID, `{"url":""}`); c != 200 { // back to the default: allowed
+		t.Errorf("the default address: %d %v", c, b)
 	}
 }
 
@@ -82,17 +107,27 @@ func TestWinRelPull(t *testing.T) {
 	t.Cleanup(func() { winrel.Learn(nil) })
 	e, o := pullEnv(t)
 	e.only(winRelFeedID)
-	e.mirror(winRelFeedID, o.url("/rh/windows11-release-information"))
+	e.setURL(winRelFeedID, o.url("/rh/windows11-release-information")) // no mirror through the API (review r1 M2)
 	o.body("/rh/windows11-release-information", `"a"`, testFile(t, "winrel/windows11-release-information.html"))
-	o.body("/rh/"+winRelServerPage, `"b"`, testFile(t, "winrel/windows-server-release-info.html"))
+	o.body("/rh/"+winRelServerPage, `"b"`, "<html>moved</html>") // review r1 L5: the server page is optional
 	if err := e.svc.Fetch(t.Context(), winRelFeedID); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.feed(winRelFeedID); f.Status != "ok" || f.Records == nil || *f.Records < 6 {
+	if f := e.feed(winRelFeedID); f.Status != "ok" || f.Records == nil || *f.Records != 4 { // 26H2, 26H1, 25H2, 24H2: no server page
 		t.Fatalf("feed %+v", f)
 	}
 	if r, ok := winrel.ByBuild(26300, false); !ok || r.Product != "windows_11_26h2" || r.Line != 26100 {
 		t.Fatalf("26300 after the pull: %+v %v", r, ok)
+	}
+	// review r1 L1: every good pull learns, also one that changed nothing (memory lost, the table kept)
+	winrel.Learn(nil)
+	o.body("/rh/"+winRelServerPage, `"b2"`, "<html>moved</html>")
+	e.setNow(e.clock().Add(25 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), winRelFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := winrel.ByBuild(26300, false); !ok {
+		t.Fatal("a pull that changed nothing did not learn")
 	}
 	n := rowsOf(t, e.db, "feeds_winrel")
 	o.body("/rh/windows11-release-information", `"c"`, "<html>moved</html>")

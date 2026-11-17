@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -15,7 +16,7 @@ func learn26(t *testing.T) {
 	t.Cleanup(func() { winrel.Learn(nil) })
 	if n := winrel.Learn([]winrel.Release{
 		{Build: 26300, Product: "windows_11_26h2", Display: "Windows 11 26H2", Line: 26100, GA: winDay("2026-09-29"), GARev: 9457},
-		{Build: 28000, Product: "windows_11_26h1", Display: "Windows 11 26H1", Line: 28000, GA: winDay("2026-02-10"), GARev: 1},
+		{Build: 28000, Product: "windows_11_26h1", Display: "Windows 11 26H1", Line: 28000, GA: winDay("2026-02-10"), GARev: 1575},
 	}); n != 2 {
 		t.Fatalf("learned %d", n)
 	}
@@ -46,6 +47,44 @@ func TestMatchAsset_D603_LearnedRelease(t *testing.T) {
 	// a family row NVD writes with the version (windows_11:26h2) names the learned release
 	if l, ok := winListedOf(mustCPE(t, "cpe:2.3:o:microsoft:windows_11:26h2:*:*:*:*:*:*:*")); !ok || l.build != 26300 || l.family != "" {
 		t.Errorf("windows_11:26h2: %+v", l)
+	}
+}
+
+// Review r1 M1 of #951: a learned release never closes on "only older releases are listed": Vedette does not know when Microsoft stops
+// servicing it, and a list that leaves it out may mean it is no longer fixed. 26H1 (28000) is above the whole 26100 line by build.
+func TestMatchAsset_D603_LearnedReleaseNeverClosesOnOlderReleases(t *testing.T) {
+	learn26(t)
+	named := nvdWindows("CVE-2026-96951", "2026-10-20", nvdRow{"windows_11_26h1", "*", "x64", "10.0.28000.3231"}) // NVD names 26H1 somewhere
+	// CVE-2025-62215 lists only the 26100 line and older; CISA listed it a year before winNow (settled) and 90 days before 26H1's GA (shipped)
+	w, m := oneMatch(t, winPC(28000, false, "3501", "x64"), cve62215, true, named)
+	wantMatch(t, "26H1, only older releases listed", w, m, "nameonly", "", "", "Vedette learned Windows 11 26H1 from Microsoft's release list")
+}
+
+// Review r1 L4 of #951, D-602: a build below a learned release's first public build (a Dev Channel 26300 before 9457, a Canary 28000.1)
+// is an Insider build: not checked, neither by its own rows nor by its siblings'.
+func TestMatchAsset_D603_BelowFirstPublicBuildIsNotChecked(t *testing.T) {
+	learn26(t)
+	nov := nvdWindows("CVE-2026-96951", "2026-10-20",
+		nvdRow{"windows_11_24h2", "*", "x64", "10.0.26100.9711"}, nvdRow{"windows_11_26h2", "*", "x64", "10.0.26300.9711"},
+		nvdRow{"windows_11_26h1", "*", "x64", "10.0.28000.3231"})
+	for _, c := range []struct {
+		build int
+		rev   string
+		v     Vuln
+	}{{26300, "9000", nov}, {26300, "9000", cve62215}, {28000, "1", nov}} {
+		w, m := oneMatch(t, winPC(c.build, false, c.rev, "x64"), c.v, false)
+		wantMatch(t, fmt.Sprintf("%d.%s %s", c.build, c.rev, c.v.CVE), w, m, "nameonly", "", "", "an Insider or preview build")
+	}
+}
+
+// Review r1 L3 of #951: 26H1 is newer by build than 25H2 but on another line, not its successor: no "check that 25H2 is still
+// supported" note; still not checked.
+func TestMatchAsset_D603_OtherLineIsNoSuccessor(t *testing.T) {
+	learn26(t)
+	v := nvdWindows("CVE-2026-90001", "2026-10-20", nvdRow{"windows_11_23h2", "*", "x64", "10.0.22631.7652"}, nvdRow{"windows_11_26h1", "*", "x64", "10.0.28000.3231"})
+	w, m := oneMatch(t, winPC(26200, false, "9711", "x64"), v, false)
+	if w != "nameonly" || strings.Contains(m.Evidence.Summary, "still supported") {
+		t.Errorf("%s %q", w, m.Evidence.Summary)
 	}
 }
 

@@ -100,8 +100,12 @@ func winRelText(b []byte) string {
 }
 
 // winRelReleases derives the releases of the histories of both pages (D-603): the ones whose heading has a shape NVD names, with their
-// line. Releases the hand table has are derived too (their KBs tie a new release to their line); core/winrel.Learn drops them.
-func winRelReleases(hs []winRelHistory) []winrel.Release {
+// line. Releases the hand table has are derived too (their KBs tie a new release to their line); core/winrel.Learn drops them. A
+// shared update ties a release to the line of the other release as core/winrel knows it now: the table's, or one learned by an earlier
+// pull. So a release whose updates match only another new release of the same pull, and none of the table's, is on a line of its own
+// until the next pull, when that other release is known (review r1 L6 of #951; today 24H2, a table release, shares every 26100-line
+// update). A release whose general availability is after now is not one (review r1 M2: a date the page cannot have yet).
+func winRelReleases(hs []winRelHistory, now time.Time) []winrel.Release {
 	type key struct {
 		kb  string
 		rev int
@@ -127,10 +131,24 @@ func winRelReleases(hs []winRelHistory) []winrel.Release {
 		} else {
 			continue // a release NVD names some other way ("Windows Server, version 23H2"): the hand table's
 		}
-		first := slices.MinFunc(h.updates, func(a, b winRelUpdate) int { // 26H2's 26300.9457 and 26300.9550 both came on 2026-09-29
+		byDay := func(a, b winRelUpdate) int { // 26H2's 26300.9457 and 26300.9550 both came on 2026-09-29
 			return cmp.Or(a.date.Compare(b.date), cmp.Compare(a.rev, b.rev))
-		})
-		r.GA, r.GARev = first.date, first.rev // the first row of the history: the build at general availability (core/winrel's own rule)
+		}
+		r.GA = slices.MinFunc(h.updates, byDay).date
+		if r.GA.After(now) {
+			continue
+		}
+		// the first public build: the earliest row with a KB or a revision of 100 or more (core/winrel's own rule). 26H1's first row is
+		// the media's 28000.1, below every update Windows Update offers; a Canary build 28000.x is not 26H1 (review r1 L4 of #951)
+		var public []winRelUpdate
+		for _, u := range h.updates {
+			if u.kb != "" || u.rev >= 100 {
+				public = append(public, u)
+			}
+		}
+		if len(public) > 0 {
+			r.GARev = slices.MinFunc(public, byDay).rev
+		}
 		if !h.server {
 			for _, u := range h.updates {
 				for _, b := range byKB[key{u.kb, u.rev}] {
@@ -150,67 +168,73 @@ func winRelReleases(hs []winRelHistory) []winrel.Release {
 	return out
 }
 
-// buildWinRel fetches both pages from the feed's address (the Windows 11 page) and the server page next to it.
+// buildWinRel fetches the feed's address (the Windows 11 page, required) and the server page next to it. The server page is optional
+// (review r1 L5 of #951): every Windows Server release it lists today is in core/winrel's table, so a failure of it is logged and the
+// client releases are still learned.
 func (s *Service) buildWinRel(ctx context.Context, src sourceRow, p pullPlan) (pullPlan, error) {
 	serverURL := src.URL[:strings.LastIndex(src.URL, "/")+1] + winRelServerPage
 	var hs []winRelHistory
 	for i, u := range []string{src.URL, serverURL} {
 		resp, err := s.get(ctx, Request{URL: u, MaxBytes: winRelMaxBytes})
-		if err != nil {
+		var h []winRelHistory
+		if err == nil {
+			h, err = parseWinRelPage(resp.Body, i == 1)
+		}
+		if err != nil && i == 0 {
 			return p, err
 		}
-		h, err := parseWinRelPage(resp.Body, i == 1)
 		if err != nil {
-			return p, err
+			s.Log.WarnContext(ctx, "the Windows Server release page could not be read; the Windows 11 releases are still learned", "url", u, "error", err)
+			continue
 		}
 		p.out.Bytes += len(resp.Body)
 		hs = append(hs, h...)
 	}
-	rels := winRelReleases(hs)
-	if !slices.ContainsFunc(rels, func(r winrel.Release) bool { return !r.Server }) || !slices.ContainsFunc(rels, func(r winrel.Release) bool { return r.Server }) {
-		return p, fail(ErrBadSample, "Microsoft's release information pages list no Windows 11 or no Windows Server release Vedette can read (their layout may have changed); the list on the box was kept.")
+	rels := winRelReleases(hs, s.now())
+	if !slices.ContainsFunc(rels, func(r winrel.Release) bool { return !r.Server }) {
+		return p, fail(ErrBadSample, "Microsoft's release information page lists no Windows 11 release Vedette can read (its layout may have changed); the list on the box was kept.")
 	}
 	p.out.OK, p.out.Records, p.out.Accepted = true, len(rels), len(rels)
 	p.winRel, p.hasWinRel = rels, true
 	return p, nil
 }
 
-// applyWinRel replaces the stored releases (feeds_winrel) and says whether they changed; the CVEs NVD lists Windows rows for are
-// returned when they did, for findings to match again (EventRangesUpdated).
-func applyWinRel(ctx context.Context, tx *sql.Tx, rels []winrel.Release) (changedCVEs []string, changed bool, err error) {
+// applyWinRel replaces the stored releases (feeds_winrel); when they changed, it returns the CVEs NVD lists Windows rows for, for
+// findings to match again (EventRangesUpdated).
+func applyWinRel(ctx context.Context, tx *sql.Tx, rels []winrel.Release) (changedCVEs []string, err error) {
 	before, err := winRelRows(ctx, tx)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_winrel`); err != nil {
-		return nil, false, fmt.Errorf("feeds: clear windows releases: %w", err)
+		return nil, fmt.Errorf("feeds: clear windows releases: %w", err)
 	}
 	for _, r := range rels {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_winrel (build, server, product, display, line, ga, ga_rev) VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT DO NOTHING`, r.Build, boolInt(r.Server), r.Product, r.Display, r.Line, r.GA.Format(time.DateOnly), r.GARev); err != nil {
-			return nil, false, fmt.Errorf("feeds: store windows release: %w", err)
+			return nil, fmt.Errorf("feeds: store windows release: %w", err)
 		}
 	}
 	after, err := winRelRows(ctx, tx)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	if slices.Equal(before, after) {
-		return nil, false, nil
+		return nil, nil
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_affected WHERE cpe GLOB 'cpe:2.3:o:microsoft:windows*' ORDER BY cve`)
 	if err != nil {
-		return nil, false, fmt.Errorf("feeds: windows cves: %w", err)
+		return nil, fmt.Errorf("feeds: windows cves: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var c string
 		if err := rows.Scan(&c); err != nil {
-			return nil, false, fmt.Errorf("feeds: windows cves: %w", err)
+			return nil, fmt.Errorf("feeds: windows cves: %w", err)
 		}
 		changedCVEs = append(changedCVEs, c)
 	}
-	return changedCVEs, true, rows.Err()
+	return changedCVEs, rows.Err()
 }
 
 type winRelQuerier interface {

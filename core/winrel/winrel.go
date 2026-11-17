@@ -134,6 +134,15 @@ func learnable(r Release) bool {
 	return !r.Server && ok && first.Line == r.Line && r.Line < r.Build
 }
 
+// Learned says whether r is a release Learn kept, not one of the table (review r1 M1 of #951): its end of servicing is never known, so
+// findings never takes a proof from "only older releases are listed" for it, and a build below its first public revision is not checked.
+func Learned(r Release) bool {
+	if _, ok := tableByProduct(r.Product); ok {
+		return false
+	}
+	return slices.ContainsFunc(learnedReleases(), func(l Release) bool { return l == r })
+}
+
 func learnedReleases() []Release {
 	if p := learned.Load(); p != nil {
 		return *p

@@ -77,6 +77,9 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
 		d.IgnoredAt = ptr(ignoredAt)
 		d.ScanSource, d.SNMPSource = sourceState(d.ScanSource, d.Origin), snmpState(st, d.SNMPSource, d.Origin, ip.String)
+		if d.IgnoredAt != nil { // D-630: both are off while it is ignored, as the policies apply them; the stored choice stays
+			d.ScanSource, d.SNMPSource = SourceOff, SourceOff
+		}
 		d.Software, d.Services = []Software{}, []ServiceRow{}
 		out = append(out, d)
 	}
@@ -209,7 +212,7 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources bool)
 		return DeviceList{}, err
 	}
 	out := DeviceList{Items: items}
-	// An ignored device is in no count but its own (D-628): not in All, not in the To review badge.
+	// An ignored device is in no count but its own (D-630): not in All, not in the To review badge.
 	err = db.QueryRowContext(ctx, `SELECT ifnull(sum(ignored_at IS NULL), 0), ifnull(sum(approved = 0 AND ignored_at IS NULL), 0), ifnull(sum(fragile AND ignored_at IS NULL), 0),
 		ifnull(sum(origin = 'manual' AND ignored_at IS NULL), 0), ifnull(sum(ignored_at IS NOT NULL), 0) FROM inv_asset`).
 		Scan(&out.Counts.All, &out.Counts.Pending, &out.Counts.Fragile, &out.Counts.Manual, &out.Counts.Ignored)
@@ -224,7 +227,7 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources bool)
 }
 
 // DeviceCounts is the "All" and "To review" counts of the device list without the list (Home's device tile, findings
-// GET /findings/summary, #825): one aggregate over inv_asset. Ignored devices are in neither (D-628).
+// GET /findings/summary, #825): one aggregate over inv_asset. Ignored devices are in neither (D-630).
 func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err error) {
 	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(approved = 0), 0) FROM inv_asset WHERE ignored_at IS NULL`).Scan(&total, &pending)
 	if err != nil {

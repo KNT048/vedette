@@ -84,6 +84,11 @@ type Inventory interface {
 	// AssetIDs returns the id of every device, with no cap. Reconcile matches each of them and treats a finding whose
 	// device is not in the list as orphaned, so a short answer must never be returned: any read error is an error.
 	AssetIDs(ctx context.Context) ([]string, error)
+	// IgnoredIDs returns the devices a person ignored (inventory INV-38, D-630), with no cap; any read error is an error. They are
+	// not in AssetIDs: reconcile closes their open findings and never treats their findings as orphaned.
+	IgnoredIDs(ctx context.Context) ([]string, error)
+	// IsIgnored says whether a person ignored the device; false when it does not exist. Asked inside a write (D-630).
+	IsIgnored(ctx context.Context, assetID string) (bool, error)
 }
 
 // KevInfo is the KEV entry shown with a finding (FindingRow.kev, INV-8).

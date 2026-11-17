@@ -68,6 +68,10 @@ func TestService_IgnoreClosesOpenFindingsAndKeepsDecisions(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.pub.take()
+	if n, _ := e.svc.OnAssetIgnored(t.Context(), "a-1", "it@acme.example"); n != 0 {
+		t.Fatalf("an event for a device that is not ignored (any more) closed %d", n) // checked inside the write (review r1 L3)
+	}
+	e.ignoreA1(true)
 
 	n, err := e.svc.OnAssetIgnored(t.Context(), "a-1", "it@acme.example")
 	if err != nil || n != 1 {
@@ -89,6 +93,7 @@ func TestService_IgnoreClosesOpenFindingsAndKeepsDecisions(t *testing.T) {
 		t.Fatalf("ignoring again closed %d", n)
 	}
 
+	e.ignoreA1(false)
 	n, err = e.svc.OnAssetUnignored(t.Context(), "a-1", "it@acme.example")
 	if err != nil || n != 1 {
 		t.Fatalf("stop ignoring reopened %d, %v", n, err)
@@ -105,18 +110,85 @@ func TestService_IgnoreClosesOpenFindingsAndKeepsDecisions(t *testing.T) {
 	if _, _, err := e.svc.setStatusMany(t.Context(), []string{open}, ActionAcceptRisk, "March window", "it@acme.example", until); err != nil {
 		t.Fatal(err)
 	}
-	a1 := e.inv.match["a-1"]
-	e.inv.mu.Lock()
-	delete(e.inv.match, "a-1") // the inventory no longer matches it: ignored
-	e.inv.mu.Unlock()
+	e.ignoreA1(true)
 	e.advance(3 * 24 * time.Hour)
 	if r, err := e.svc.Reconcile(t.Context()); err != nil || r.Expired != 0 || r.Orphans != 0 {
 		t.Fatalf("reconcile while ignored = %+v %v", r, err)
 	}
-	e.inv.mu.Lock()
-	e.inv.match["a-1"] = a1
-	e.inv.mu.Unlock()
+	if r, _ := e.svc.Get(t.Context(), decided); r.Status != StatusFalsePositive {
+		t.Fatalf("the reconcile of an ignored device changed a person's decision: %+v", r.Finding)
+	}
+	e.ignoreA1(false)
 	if r, err := e.svc.Reconcile(t.Context()); err != nil || r.Expired != 1 {
 		t.Fatalf("reconcile once watched = %+v %v", r, err)
+	}
+}
+
+// ignoreA1 says the test device a-1 is ignored (or watched again) as the inventory does: in IgnoredIDs/IsIgnored and out of
+// MatchInput/AssetIDs.
+func (e *env) ignoreA1(on bool) {
+	const id = "a-1"
+	e.inv.mu.Lock()
+	defer e.inv.mu.Unlock()
+	if e.inv.ignored == nil {
+		e.inv.ignored = map[string]bool{}
+	}
+	if e.parked == nil {
+		e.parked = map[string]Asset{}
+	}
+	if on {
+		e.inv.ignored[id] = true
+		e.parked[id] = e.inv.match[id]
+		delete(e.inv.match, id)
+		return
+	}
+	delete(e.inv.ignored, id)
+	if a, ok := e.parked[id]; ok {
+		e.inv.match[id] = a
+	}
+}
+
+// D-630, review r1 M2 of #945: the hourly reconcile does the work of a lost inventory.asset.ignored (close the open findings of an
+// ignored device, no notice) and of a lost .unignored (reopen what Ignore closed on a watched device); a match that raced the Ignore
+// writes nothing (L3).
+func TestService_ReconcileHealsALostIgnoreEitherWay(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station"})
+	res, err := e.svc.OnMatchChanged(t.Context(), "a-1")
+	if err != nil || len(res.Created) != 2 {
+		t.Fatalf("seed: %+v %v", res, err)
+	}
+	asset := e.inv.match["a-1"]
+	e.pub.take()
+	e.ignoreA1(true) // the event is lost
+	if up, err := e.svc.UpsertFromMatch(t.Context(), asset, e.feeds.vulns); err != nil || len(up.Created) != 0 {
+		t.Fatalf("a match read before the Ignore wrote %+v %v", up, err)
+	}
+	r, err := e.svc.Reconcile(t.Context())
+	if err != nil || r.IgnoreHealed != 2 || r.Orphans != 0 {
+		t.Fatalf("reconcile of an ignored device = %+v %v", r, err)
+	}
+	for _, id := range res.Created {
+		if f, _ := e.svc.Get(t.Context(), id); !f.ClosedForIgnore() || f.ResolutionNote != IgnoredNote+"." {
+			t.Fatalf("not closed for the ignore: %+v", f.Finding)
+		}
+	}
+	for _, ev := range e.pub.take() {
+		if p, ok := ev.Payload.(StatusChangedEvent); !ok || p.Reason != ReasonDeviceIgnored {
+			t.Fatalf("event %+v", ev)
+		}
+	}
+	if r, err := e.svc.Reconcile(t.Context()); err != nil || r.IgnoreHealed != 0 {
+		t.Fatalf("a second pass = %+v %v", r, err)
+	}
+	e.ignoreA1(false) // the event is lost again
+	if r, err := e.svc.Reconcile(t.Context()); err != nil || r.IgnoreHealed != 2 {
+		t.Fatalf("reconcile of a watched device = %+v %v", r, err)
+	}
+	for _, id := range res.Created {
+		if f, _ := e.svc.Get(t.Context(), id); !f.Status.Open() {
+			t.Fatalf("not reopened: %+v", f.Finding)
+		}
 	}
 }

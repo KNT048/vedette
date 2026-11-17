@@ -635,9 +635,9 @@ func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason s
 		}
 		n := max(rows-1, count-1)
 		if n == 0 {
-			why := "Closed by Vedette: every device on it was approved or deleted in Devices."
+			why := "Closed by Vedette: every device on it was approved, ignored or deleted in Devices."
 			if strings.HasPrefix(reason, mergedInto) { // the last one was merged: say where it went (D-554)
-				why = "Closed by Vedette: every device on it was approved or deleted in Devices, the last one " + strings.TrimPrefix(reason, "Closed by Vedette: ")
+				why = "Closed by Vedette: every device on it was approved, ignored or deleted in Devices, the last one " + strings.TrimPrefix(reason, "Closed by Vedette: ")
 			}
 			if err := s.closeBySystem(ctx, tx, o.id, o.title, why); err != nil {
 				return err

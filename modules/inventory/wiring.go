@@ -535,6 +535,26 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 	return out, nil
 }
 
+// IgnoredIDs lists the devices a person ignored (D-630), ordered by id, no cap; a read error is an error, never a short list. findings'
+// reconcile closes their open findings and keeps their findings out of the orphan pass (review r1 M2, L10 of #945).
+func (s *Service) IgnoredIDs(ctx context.Context) ([]string, error) {
+	return s.assetIDs(ctx, `SELECT id FROM inv_asset WHERE ignored_at IS NOT NULL`)
+}
+
+// IsIgnored says whether a person ignored the device (D-630); false for a device that does not exist. findings asks it inside its
+// write, so a match or a scan result that raced an Ignore never opens a finding on the ignored device (review r1 L3 of #945).
+func (s *Service) IsIgnored(ctx context.Context, id string) (bool, error) {
+	var ignored bool
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT ignored_at IS NOT NULL FROM inv_asset WHERE id = ?`, id).Scan(&ignored)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("inventory: read device: %w", err)
+	}
+	return ignored, nil
+}
+
 // ignoredIDs is the set of devices a person ignored (D-630).
 func (s *Service) ignoredIDs(ctx context.Context) (map[string]bool, error) {
 	ids, err := s.assetIDs(ctx, `SELECT id FROM inv_asset WHERE ignored_at IS NOT NULL`)

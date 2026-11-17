@@ -205,7 +205,8 @@
     "needAddress": "Enter an IP address or a host name, so Vedette knows which device this is.",
     "ipBad": "That IP address is not valid. Enter something like 192.168.10.25.",
     "productRuns": "Product it runs",
-    "openExisting": "Open {{name}}"
+    "openExisting": "Open {{name}}",
+    "openIgnored": "Open {{name}} (ignored)"
   },
   "picker": {
     "placeholder": "Type a product, model or maker, for example FortiGate 60F",

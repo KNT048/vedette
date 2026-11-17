@@ -106,7 +106,7 @@ func observed(o *inventory.Observed) *string {
 
 func mcpAsset(d inventory.Device) mcpserver.Asset {
 	a := mcpserver.Asset{ID: d.ID, Kind: d.Kind, Vendor: observed(d.Vendor), Model: observed(d.Model), OS: observed(d.OS), Approved: d.Approved,
-		FirstSeen: d.FirstSeen, LastSeen: d.LastSeen, Services: []mcpserver.NetService{}, Software: []mcpserver.Software{}}
+		Ignored: d.IgnoredAt != nil, FirstSeen: d.FirstSeen, LastSeen: d.LastSeen, Services: []mcpserver.NetService{}, Software: []mcpserver.Software{}}
 	if d.IP != "" && d.IP != "—" {
 		ip := d.IP
 		a.IP = &ip

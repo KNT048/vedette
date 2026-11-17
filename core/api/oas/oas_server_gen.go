@@ -1495,9 +1495,9 @@ type Handler interface {
 	// Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its open
 	// findings close as not relevant ("Closed by Vedette: the device was ignored by .", no notice;
 	// findings a person settled keep their status); a trap hit or an intrusion-detection incident from it
-	// still alerts. Stopped: it goes back to To review (not approved), both sources back to their default,
-	// the findings Ignore closed reopen, matched again. Saying it again changes nothing. 404 not_found.
-	// 409 box_device: the Vedette box itself.
+	// still alerts. Stopped: it goes back to To review (not approved), its own scan and SNMP settings
+	// apply again (they are kept while it is ignored), the findings Ignore closed reopen, matched again.
+	// Saying it again changes nothing. 404 not_found. 409 box_device: the Vedette box itself.
 	//
 	// POST /inventory/devices/{id}/ignore
 	InventoryPostInventoryDevicesIDIgnore(ctx context.Context, req *InventoryPostInventoryDevicesIDIgnoreReq, params InventoryPostInventoryDevicesIDIgnoreParams) (*InventoryPostInventoryDevicesIDIgnoreOK, error)

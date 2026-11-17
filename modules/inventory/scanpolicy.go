@@ -230,7 +230,11 @@ type scanFacts struct {
 	fragile, isBox, firstScan bool
 }
 
-const scanCols = `ip, origin, kind, fragile, regular_scan, first_scan_at, is_box, coalesce(scan_source, ''), coalesce(snmp_source, '')`
+// effectiveSources is a device's scan and SNMP settings as the policies apply them: off for both while a person ignores the device
+// (D-630, review r1 M1 of #945: the stored choice of an admin is kept and comes back when the device is watched again).
+const effectiveSources = `CASE WHEN ignored_at IS NOT NULL THEN 'off' ELSE coalesce(scan_source, '') END, CASE WHEN ignored_at IS NOT NULL THEN 'off' ELSE coalesce(snmp_source, '') END`
+
+const scanCols = `ip, origin, kind, fragile, regular_scan, first_scan_at, is_box, ` + effectiveSources
 
 // scan reads scanCols, after any leading destinations (the id of a batch row).
 func (f *scanFacts) scan(r interface{ Scan(...any) error }, lead ...any) error {
@@ -331,7 +335,7 @@ func (s *Service) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := db.QueryContext(ctx, `SELECT ip, origin, kind, fragile, regular_scan, first_scan_at IS NOT NULL, is_box, coalesce(scan_source, '') FROM inv_asset WHERE ip IS NOT NULL`)
+	rows, err := db.QueryContext(ctx, `SELECT ip, origin, kind, fragile, regular_scan, first_scan_at IS NOT NULL, is_box, CASE WHEN ignored_at IS NOT NULL THEN 'off' ELSE coalesce(scan_source, '') END FROM inv_asset WHERE ip IS NOT NULL`)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read protected addresses: %w", err)
 	}
@@ -393,7 +397,7 @@ func (s *Service) MarkFirstScan(ctx context.Context, assetID string) error {
 // device's inventory.asset.discovered queues one otherwise. Read-only.
 func (s *Service) PendingGentleScans(ctx context.Context) ([]string, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM inv_asset WHERE (origin = 'discovered' OR scan_source = 'on') AND coalesce(scan_source, '') <> 'off' AND kind = 'unknown' AND fragile = 0
-		AND regular_scan <> 'never' AND is_box = 0 AND ip IS NOT NULL AND first_scan_at IS NULL ORDER BY id`)
+		AND regular_scan <> 'never' AND is_box = 0 AND ip IS NOT NULL AND first_scan_at IS NULL AND ignored_at IS NULL ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read devices waiting for their gentle scan: %w", err)
 	}

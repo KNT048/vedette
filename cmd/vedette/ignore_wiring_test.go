@@ -1,17 +1,23 @@
 package main
 
 import (
+	"context"
+	"database/sql"
+	"net/http"
 	"net/netip"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/logs"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
+	"github.com/knt048/vedette/modules/reports"
 )
 
 // D-630 (kien 2026-11-17, review: never throw away a person's decisions): Ignore through the API (operator) closes the device's open
@@ -157,5 +163,126 @@ func TestWiringIgnoredDeviceClosesItsIncidentButATrapHitStillAlerts(t *testing.T
 	}
 	if open := openFor(notify.IncidentTrap); len(open) != 1 || open[0].Severity != notify.Critical {
 		t.Fatalf("a trap hit from an ignored device must still alert: %+v", open)
+	}
+}
+
+// ignoreAt records a passive sighting of a phone at ip with a private MAC, ignores it and returns its id.
+func ignoreAt(t *testing.T, s *stack, ip, mac string) string {
+	t.Helper()
+	ctx := t.Context()
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{
+		{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr(ip)}, Field: observe.Hostname, Value: "staff-phone", Source: observe.Passive, Confidence: 0.7},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	l, err := s.d.Inventory.Devices(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range l.Items {
+		if d.MAC != nil && *d.MAC == mac {
+			if err := s.d.Inventory.SetIgnored(ctx, "it@acme.example", d.ID, true); err != nil {
+				t.Fatal(err)
+			}
+			return d.ID
+		}
+	}
+	t.Fatalf("no device with MAC %s", mac)
+	return ""
+}
+
+// D-630 security exception, review r1 L7 of #945: a URL token opened from an ignored device goes through the honeypot module's own
+// path (OpenURLToken: the hit, its source device, honeypot.hit.created) and still opens a Critical trap incident naming the device.
+func TestWiringATrapHitFromAnIgnoredDeviceStillAlerts(t *testing.T) {
+	t.Parallel()
+	s, path := urlTokenStack(t)
+	id := ignoreAt(t, s, "192.168.10.107", "c2:31:86:3f:8c:a0")
+	h := tokenRouter(s, honeyTokenPerMinute)
+	sameAnswer(t, "the token", open(t, h, http.MethodGet, path, "192.168.10.107:51234", "Mozilla/5.0"))
+	if n := s.count(`SELECT count(*) FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
+		WHERE i.kind = 'trap' AND i.severity = 'critical' AND i.status <> 'resolved' AND d.asset_id = ?`, id); n != 1 {
+		t.Fatalf("%d open trap incidents for the ignored device, want 1", n)
+	}
+}
+
+// D-630 security exception, review r1 L7 of #945: a log line of an ignored device that reaches a known-bad address still opens the
+// intrusion-detection incident (logs.bad_address.detected through the logs module's own ingest).
+func TestWiringAnIntrusionAlertFromAnIgnoredDeviceStillAlerts(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.enableNotify()
+	ctx := t.Context()
+	s.setModule("feeds", true)
+	s.setModule("logs", true)
+	id := ignoreAt(t, s, "192.168.30.7", "c2:31:86:3f:8c:a1")
+	var feedID string
+	if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT id FROM feeds_source ORDER BY id LIMIT 1`).Scan(&feedID); err != nil {
+		t.Fatal(err)
+	}
+	stamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_ioc (id, type, value, first_seen, last_seen) VALUES ('ioc-i1', 'ip', '185.220.101.47', ?1, ?1)`, stamp); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_ioc_source (ioc_id, source_id, last_seen, confidence) VALUES ('ioc-i1', ?1, ?2, 0.9)`, feedID, stamp)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var got []logs.BadAddressEvent
+	s.d.Bus.Subscribe(logs.EventBadAddress, func(_ context.Context, e events.Event) error {
+		got = append(got, e.Data.(logs.BadAddressEvent))
+		return nil
+	})
+	svc := logsService(*s.d)
+	src, err := svc.AddSource(ctx, "admin@acme.example", logs.Input{Kind: "fortigate", Name: "FW-HQ", SenderIP: "192.168.30.1", Proto: "udp", Port: 514})
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := `date=2026-11-09 time=10:20:00 devname="FW-HQ" logid="0000000013" type="traffic" subtype="forward" srcip=192.168.30.7 dstip=185.220.101.47 dstport=443 action="accept"`
+	if res, err := svc.Ingest(ctx, []logs.Line{{SourceID: src.ID, At: time.Now(), Text: line}}); err != nil || res.Stored != 1 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("bad-address events = %+v, want 1 for the ignored device", got)
+	}
+	if n := s.count(`SELECT count(*) FROM notify_incident WHERE kind = 'bad_address' AND status <> 'resolved'`); n != 1 {
+		t.Fatalf("%d open intrusion incidents, want 1", n)
+	}
+	if d, err := s.d.Inventory.Device(ctx, id); err != nil || d.IgnoredAt == nil {
+		t.Fatalf("the device is no longer ignored: %+v %v", d.AssetCore, err)
+	}
+}
+
+// Review r1 M4 of #945: the weekly report leaves an ignored device out with its findings: no row named by an id, no "resolved" for
+// Ignore's closes, no "new this week".
+func TestWiringReportsLeaveAnIgnoredDeviceAndItsFindingsOut(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	s.kev("CVE-2026-1001", "Fortinet", "FortiOS")
+	id := s.addFortiGate()
+	if n := s.nf(id, ""); n != 1 {
+		t.Fatalf("findings = %d", n)
+	}
+	in := reportsFindings{s.d.Findings, s.d}
+	all, err := in.All(ctx)
+	if err != nil || len(all) != 1 {
+		t.Fatalf("before: %+v %v", all, err)
+	}
+	if err := s.d.Inventory.SetIgnored(ctx, "it@acme.example", id, true); err != nil {
+		t.Fatal(err)
+	}
+	if all, err = in.All(ctx); err != nil || len(all) != 0 {
+		t.Fatalf("an ignored device's findings reach the reports: %+v %v", all, err)
+	}
+	if devs, err := (reportsInventory{s.d.Inventory}).Devices(ctx); err != nil || slices.ContainsFunc(devs, func(d reports.Device) bool { return d.ID == id }) {
+		t.Fatalf("an ignored device reaches the reports: %v", err)
+	}
+	if err := s.d.Inventory.SetIgnored(ctx, "it@acme.example", id, false); err != nil {
+		t.Fatal(err)
+	}
+	if all, err = in.All(ctx); err != nil || len(all) != 1 || all[0].Status != "suspected" || !all[0].ResolvedAt.IsZero() {
+		t.Fatalf("after stop ignoring: %+v %v", all, err)
 	}
 }

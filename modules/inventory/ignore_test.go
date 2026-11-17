@@ -200,3 +200,99 @@ func TestContract_D630_AnOsqueryEnrolmentDoesNotApproveAnIgnoredDevice(t *testin
 		t.Fatalf("an enrolment approved an ignored device: %+v", d.Asset.AssetCore)
 	}
 }
+
+// Review r1 M1, L4 of #945: Ignore keeps what people set on the device: an admin's scan and SNMP choice and the unknown mark. While it
+// is ignored the policies and the API read both sources as off; once watched again the admin's off holds (no scan queued).
+func TestContract_D630_IgnoreKeepsTheSourcesAndTheMark(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.confirmScope("192.168.18.0/24")
+	e.record(obs(netip.MustParseAddr("192.168.18.40"), macA, observe.Hostname, "plc-line-2", observe.Passive, 0.7))
+	id := e.idByMAC(macA)
+	off, on := inventory.SourceOff, inventory.SourceOn
+	if _, err := e.svc.SetSources(e.ctx(), "admin@acme.example", id, &off, nil); err != nil { // the admin: never scan this one
+		t.Fatal(err)
+	}
+	if err := e.svc.SetSuspicious(e.ctx(), "it@acme.example", id, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.SetIgnored(e.ctx(), "it@acme.example", id, true); err != nil {
+		t.Fatal(err)
+	}
+	if d := e.detail(id); d.Asset.ScanSource != off || d.Asset.SNMPSource != off || !d.Suspicious {
+		t.Fatalf("while ignored: scan %s snmp %s suspicious %v", d.Asset.ScanSource, d.Asset.SNMPSource, d.Suspicious)
+	}
+	if d, _ := e.svc.SNMPPolicy(e.ctx(), id); d.Allowed {
+		t.Fatalf("SNMP while ignored: %+v", d)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND scan_source = 'off' AND snmp_source IS NULL AND suspicious = 1`, id); n != 1 {
+		t.Fatal("Ignore changed the stored sources or the unknown mark")
+	}
+	e.ev.reset()
+	if err := e.svc.SetIgnored(e.ctx(), "it@acme.example", id, false); err != nil {
+		t.Fatal(err)
+	}
+	d := e.detail(id)
+	if d.Asset.ScanSource != off || d.Asset.SNMPSource != on || !d.Suspicious {
+		t.Fatalf("watched again: scan %s snmp %s suspicious %v (the admin's off and the mark must hold)", d.Asset.ScanSource, d.Asset.SNMPSource, d.Suspicious)
+	}
+	if up := e.ev.named(inventory.EventAssetUpdated); len(up) != 1 || up[0].Data.(inventory.AssetEvent).ScanOn {
+		t.Fatalf("watched again with its scan off queues no scan: %+v", up)
+	}
+	if sc, _ := e.svc.ScanPolicy(e.ctx(), id); sc.Allowed {
+		t.Fatalf("scan after un-ignore: %+v", sc)
+	}
+}
+
+// Review r1 M3 of #945: a join never changes whether the kept device is watched. Merging an ignored row into a watched device keeps
+// it watched, says so in the audit row and publishes unignored so the findings that move reopen; the other way round it stays ignored
+// and publishes ignored so they close.
+func TestContract_D630_AJoinKeepsTheWatchStateOfTheKeptDevice(t *testing.T) {
+	t.Parallel()
+	const admin = "admin@acme.example"
+	for _, c := range []struct {
+		name                    string
+		ignoreInto, ignoreFrom  bool
+		wantEvent, wantInDetail string
+	}{
+		{"an ignored row into a watched device", false, true, inventory.EventAssetUnignored, "was ignored and"},
+		{"a watched row into an ignored device", true, false, inventory.EventAssetIgnored, "is ignored, so it stays ignored"},
+		{"both watched", false, false, "", ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			e := newEnv(t)
+			e.record(obs(netip.MustParseAddr("192.168.18.50"), macA, observe.Hostname, "srv-a", observe.Passive, 0.7))
+			e.record(obs(netip.MustParseAddr("192.168.18.51"), macB, observe.Hostname, "srv-b", observe.Passive, 0.7))
+			into, from := e.idByMAC(macA), e.idByMAC(macB)
+			for id, ig := range map[string]bool{into: c.ignoreInto, from: c.ignoreFrom} {
+				if ig {
+					if err := e.svc.SetIgnored(e.ctx(), "it@acme.example", id, true); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			e.ev.reset()
+			if err := e.svc.Merge(e.ctx(), admin, into, from); err != nil {
+				t.Fatal(err)
+			}
+			if d := e.detail(into); (d.Asset.IgnoredAt != nil) != c.ignoreInto {
+				t.Fatalf("into ignored = %v, want %v", d.Asset.IgnoredAt != nil, c.ignoreInto)
+			}
+			var got []string
+			for _, name := range []string{inventory.EventAssetIgnored, inventory.EventAssetUnignored} {
+				for _, ev := range e.ev.named(name) {
+					if ev.Data.(inventory.AssetEvent).AssetID == into {
+						got = append(got, name)
+					}
+				}
+			}
+			if c.wantEvent == "" && len(got) != 0 || c.wantEvent != "" && (len(got) != 1 || got[0] != c.wantEvent) {
+				t.Fatalf("watch events = %v, want %q", got, c.wantEvent)
+			}
+			n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.merge' AND detail LIKE ?`, "%"+c.wantInDetail+"%")
+			if n != 1 {
+				t.Fatalf("merge audit rows naming the watch state = %d", n)
+			}
+		})
+	}
+}

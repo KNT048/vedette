@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -103,6 +104,19 @@ func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
 	if err != nil {
 		return nil, err
 	}
+	// D-630 (review r1 M4 of #945): a device a person ignored is in no report, its findings neither; and a finding Ignore closed is
+	// never "resolved" (nobody fixed anything). A device list that cannot be read fails the report, never a report with them in.
+	ignored := map[string]bool{}
+	if a.d != nil && a.d.Inventory != nil {
+		ids, err := a.d.Inventory.IgnoredIDs(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			ignored[id] = true
+		}
+	}
+	recs = slices.DeleteFunc(recs, func(r findings.Record) bool { return ignored[r.AssetID] || r.ClosedForIgnore() })
 	source := a.vulnCheckCVEs(ctx, recs)
 	out := make([]reports.Finding, len(recs))
 	for i, r := range recs {

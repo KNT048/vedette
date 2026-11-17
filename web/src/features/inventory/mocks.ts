@@ -34,6 +34,7 @@ const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.ve
 interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string; scan_source?: 'on' | 'off'; snmp_source?: 'on' | 'off'; ignored_at?: string }
 /** D-601: a device's network scan and SNMP reads, the default resolved (on for a device a sensor found, off for one added by hand). */
 const sourceOf = (a: Asset, which: 'scan_source' | 'snmp_source'): 'on' | 'off' => {
+  if (metaStore.get()[a.id]?.ignored_at) return 'off' // D-630: off while ignored; the stored choice stays for when it is watched again
   const stored = metaStore.get()[a.id]?.[which]
   if (stored) return stored
   if (a.origin === 'manual') return 'off'
@@ -831,7 +832,7 @@ export const handlers = [
     if (a.id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself: it cannot be ignored.')
     if (!!metaStore.get()[a.id]?.ignored_at === b.ignored) return HttpResponse.json({ ok: true })
     if (b.ignored) {
-      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], ignored_at: nowIso(), suspicious: false, scan_source: 'off', snmp_source: 'off' } }))
+      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], ignored_at: nowIso() } })) // sources and the unknown mark stay (review r1 M1, L4)
       // D-630: its open findings close with a readable reason; what a person settled keeps its status
       const note = `Closed by Vedette: the device was ignored by ${currentUser()?.email ?? 'admin@example.com'}.`
       const ts = nowIso()
@@ -839,7 +840,7 @@ export const handlers = [
         ? { ...f, status: 'not_relevant' as const, resolved_by: 'system', resolved_at: ts, resolution_note: note, history: [...f.history, { ts, user: 'system', action: 'not_relevant', note }] } : f)))
       audit('inventory.ignore', nameOf(a, a.kind), a.id)
     } else {
-      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], ignored_at: undefined, approved_at: undefined, scan_source: undefined, snmp_source: undefined } }))
+      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], ignored_at: undefined, approved_at: undefined } }))
       assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, approved: false } : x)))
       // only what Ignore closed reopens (a person's later decision has the person in resolved_by)
       const ts = nowIso()

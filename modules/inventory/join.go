@@ -168,16 +168,33 @@ const (
 // otherwise be approved by a MAC anyone can pick, so a person approves the joined device. One audit row inventory.merge. into keeps
 // its id; in a chassis join also its address and MAC; in a machine join it takes from's address when from was seen later and into is
 // a discovered device (a person's address and the box's stay). The fields are folded again by the usual rules (RecomputeAsset).
-func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode) error {
+// A join never changes whether into is watched (D-630, review r1 M3 of #945): into keeps its own ignored_at. When the two rows
+// differ the audit row says so and the caller publishes watchEvent for into, so the findings moved from from follow into's state
+// (inventory.asset.ignored closes them on an ignored into; inventory.asset.unignored reopens on a watched into the ones Ignore closed).
+func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode) (string, error) {
 	return s.joinAs(ctx, tx, from, into, why, mode, systemActor)
 }
 
-// joinAs is joinInto with the audit row written as actor: systemActor for the join rules, the person who merged two rows (D-599).
-func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode, actor string) error {
+// joinAs is joinInto with the audit row written as actor: systemActor for the join rules, the person who merged two rows (D-599). It
+// returns the event the caller publishes for into after the merge events when the two rows differed in being ignored (D-630): ""
+// when they did not.
+func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode, actor string) (watchEvent string, err error) {
 	fromName, intoName := deviceName(ctx, tx, from), deviceName(ctx, tx, into)
+	var fromIgnored, intoIgnored bool
+	if err := tx.QueryRowContext(ctx, `SELECT f.ignored_at IS NOT NULL, i.ignored_at IS NOT NULL FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`, from, into).
+		Scan(&fromIgnored, &intoIgnored); err != nil {
+		return "", fmt.Errorf("inventory: read devices: %w", err)
+	}
+	watch := ""
+	switch {
+	case intoIgnored && !fromIgnored:
+		watchEvent, watch = EventAssetIgnored, "; "+intoName+" is ignored, so it stays ignored and the findings of "+fromName+" close"
+	case fromIgnored && !intoIgnored:
+		watchEvent, watch = EventAssetUnignored, "; "+fromName+" was ignored and "+intoName+" is watched, so it stays watched"
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT field, value, source, confidence, seen_at, evidence FROM inv_observation WHERE asset_id = ?`, from)
 	if err != nil {
-		return fmt.Errorf("inventory: read observations: %w", err)
+		return "", fmt.Errorf("inventory: read observations: %w", err)
 	}
 	type moved struct {
 		obs
@@ -188,16 +205,16 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 		var m moved
 		if err := rows.Scan(&m.field, &m.value, &m.source, &m.confidence, &m.seenAt, &m.evidence); err != nil {
 			_ = rows.Close()
-			return fmt.Errorf("inventory: read observations: %w", err)
+			return "", fmt.Errorf("inventory: read observations: %w", err)
 		}
 		list = append(list, m)
 	}
 	if err := rows.Err(); err != nil {
 		_ = rows.Close()
-		return fmt.Errorf("inventory: read observations: %w", err)
+		return "", fmt.Errorf("inventory: read observations: %w", err)
 	}
 	if err := rows.Close(); err != nil {
-		return err
+		return "", err
 	}
 	for _, m := range list {
 		if m.field == "mac" && mode == joinChassis { // the chassis MAC becomes a mark; every other observation moves as it is, its evidence included
@@ -206,17 +223,17 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 		if _, err := tx.ExecContext(ctx, `INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at, evidence) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (asset_id, field, source, value) DO UPDATE SET seen_at = max(seen_at, excluded.seen_at), confidence = max(confidence, excluded.confidence)`,
 			store.NewID("o"), into, m.field, m.value, m.source, m.confidence, m.seenAt, m.evidence); err != nil {
-			return fmt.Errorf("inventory: move an observation: %w", err)
+			return "", fmt.Errorf("inventory: move an observation: %w", err)
 		}
 		if err := pruneObs(ctx, tx, into, m.field, m.source); err != nil {
-			return err
+			return "", err
 		}
 	}
 	var fromIP, fromSeen, fromAgent, fromAgentIP, fromConfirmed sql.NullString
 	var newer bool // from was seen after into (before the join folds their times)
 	if err := tx.QueryRowContext(ctx, `SELECT f.ip, f.last_seen, f.agent_key, f.agent_ip, f.ip_confirmed_at, f.last_seen >= i.last_seen FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`,
 		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &fromAgentIP, &fromConfirmed, &newer); err != nil {
-		return fmt.Errorf("inventory: read device: %w", err)
+		return "", fmt.Errorf("inventory: read device: %w", err)
 	}
 	for _, q := range []string{
 		`UPDATE inv_asset SET agent_key = NULL, agent_ip = NULL WHERE id = ?2`, // the key is unique: free it before into takes it
@@ -226,7 +243,6 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 			suspicious = max(suspicious, (SELECT suspicious FROM inv_asset WHERE id = ?2)),
 			notes = coalesce(notes, (SELECT notes FROM inv_asset WHERE id = ?2)),
 			user_name = coalesce(user_name, (SELECT user_name FROM inv_asset WHERE id = ?2)),
-			ignored_at = coalesce(ignored_at, (SELECT ignored_at FROM inv_asset WHERE id = ?2)),
 			regular_scan = CASE WHEN regular_scan = 'follow' THEN (SELECT regular_scan FROM inv_asset WHERE id = ?2) ELSE regular_scan END,
 			scan_source = CASE WHEN 'off' IN (coalesce(scan_source, ''), (SELECT coalesce(scan_source, '') FROM inv_asset WHERE id = ?2)) THEN 'off'
 				ELSE coalesce(scan_source, (SELECT scan_source FROM inv_asset WHERE id = ?2)) END,
@@ -240,12 +256,12 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 		`DELETE FROM inv_asset WHERE id = ?2`,
 	} {
 		if _, err := tx.ExecContext(ctx, q, into, from); err != nil {
-			return fmt.Errorf("inventory: join devices: %w", err)
+			return "", fmt.Errorf("inventory: join devices: %w", err)
 		}
 	}
 	if fromAgent.Valid {
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = ?, agent_ip = ? WHERE id = ? AND agent_key IS NULL`, fromAgent.String, fromAgentIP, into); err != nil {
-			return fmt.Errorf("inventory: move the agent: %w", err)
+			return "", fmt.Errorf("inventory: move the agent: %w", err)
 		}
 	}
 	// from is deleted: its address is free. A hand-added row bound to a MAC or an agent moves like a discovered one (#829).
@@ -253,10 +269,10 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ? AND is_box = 0
 			AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL) AND (ip IS NULL OR ?)`,
 			fromIP.String, fromConfirmed, into, newer); err != nil {
-			return fmt.Errorf("inventory: move the address: %w", err)
+			return "", fmt.Errorf("inventory: move the address: %w", err)
 		}
 	}
-	return s.auditTx(ctx, tx, actor, "inventory.merge", intoName, fromName+" is the same device: "+why)
+	return watchEvent, s.auditTx(ctx, tx, actor, "inventory.merge", intoName, fromName+" is the same device: "+why+watch)
 }
 
 // chassisOwner is the device a join left the chassis MAC mac on, when it still has an address: an observation that names only that
@@ -330,7 +346,8 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 				return nil, nil, err
 			}
 		}
-		if err := s.joinInto(ctx, tx, from, into, why, mode); err != nil {
+		watch, err := s.joinInto(ctx, tx, from, into, why, mode)
+		if err != nil {
 			return nil, nil, err
 		}
 		gone[from] = true
@@ -341,6 +358,9 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 		if created[from] == "" {
 			o.add(EventAssetMerged, MergeEvent{From: from, Into: into, Actor: systemActor})
 			o.add(EventAssetDeleted, AssetEvent{AssetID: from})
+			if watch != "" { // D-630: the moved findings follow into's watch state
+				o.add(watch, AssetEvent{AssetID: into})
+			}
 		}
 	}
 	return gone, joined, nil

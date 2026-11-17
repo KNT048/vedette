@@ -130,7 +130,7 @@ func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry,
 	if f.Status != StatusSuspected || f.Basis == BasisScan {
 		return f, HistoryEntry{}, false
 	}
-	note = clipRunes(note, MaxNote)
+	note = clipNote(note)
 	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = StatusNotRelevant, SystemUser, now, note, ReasonNotAffectedVersion, time.Time{}
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
 }
@@ -189,7 +189,7 @@ func (f Finding) IgnoreClose(by string, now time.Time) (Finding, HistoryEntry, b
 	}
 	note := IgnoredNote + "."
 	if by != "" {
-		note = clipRunes(IgnoredNote+" by "+by+".", MaxNote)
+		note = clipNote(IgnoredNote + " by " + by + ".")
 	}
 	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = StatusNotRelevant, SystemUser, now, note, "", time.Time{}
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
@@ -204,7 +204,7 @@ func (f Finding) UnignoreReopen(by string, now time.Time) (Finding, HistoryEntry
 	}
 	note := "The device is watched again, so Vedette reopened this finding it had closed when the device was ignored."
 	if by != "" {
-		note = clipRunes("The device is watched again ("+by+" stopped ignoring it), so Vedette reopened this finding it had closed when the device was ignored.", MaxNote)
+		note = clipNote("The device is watched again (" + by + " stopped ignoring it), so Vedette reopened this finding it had closed when the device was ignored.")
 	}
 	f.Status = StatusSuspected
 	if f.Basis == BasisScan {
@@ -214,8 +214,9 @@ func (f Finding) UnignoreReopen(by string, now time.Time) (Finding, HistoryEntry
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "reopened", Note: note}, true
 }
 
-// clipRunes cuts s to at most n UTF-16 units (jsLen), on a character boundary.
-func clipRunes(s string, n int) string {
+// clipNote cuts a note to at most MaxNote UTF-16 units (jsLen), on a character boundary.
+func clipNote(s string) string {
+	n := MaxNote
 	if jsLen(s) <= n {
 		return s
 	}

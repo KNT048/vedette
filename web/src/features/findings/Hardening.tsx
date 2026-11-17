@@ -1,70 +1,12 @@
-import { lazy, Suspense, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Notice } from '@/components/common/PageHeader'
-import { Button } from '@/components/ui/button'
-import { Field, Input } from '@/components/ui/input'
-import { Segmented } from '@/components/ui/segmented'
-import { useCan } from '@/lib/session'
-import { ADMIN_NET_PLACEHOLDER } from './contract'
-import { adminNetwork, inNetwork } from './adminNetwork'
-import type { CodeStep, FindingDetail, FirewallGuide, FirewallVendor } from './types'
+import type { FindingDetail } from './types'
 
-// Like HomeDashboard: the Devices dialog loads only when someone opens it.
-const AddDialog = lazy(() => import('@/features/inventory/AddDialog').then((m) => ({ default: m.AddDialog })))
-
-const STORE_KEY = 'vedette.adminNetwork'
-
-function remembered(): string | null {
-  try { return localStorage.getItem(STORE_KEY) } catch { return null }
-}
-function remember(v: string) {
-  try { localStorage.setItem(STORE_KEY, v) } catch { /* a private window: the field just starts from the example next time */ }
-}
-
-const fill = (s: CodeStep, net: string): CodeStep => ({ ...s, code: s.code.replaceAll(ADMIN_NET_PLACEHOLDER, net) })
-
-function Steps({ steps, net }: { steps: CodeStep[]; net: string }) {
-  const { t } = useTranslation('findings')
-  return (
-    <div className="grid gap-3">
-      {steps.map((raw) => {
-        const s = fill(raw, net)
-        return (
-          <div key={s.title} className="grid gap-1.5">
-            {/* INV-4: the side effect is read before the command is copied. */}
-            {s.side_effect ? <p className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-meta"><span className="font-medium">{t('rec.sideEffect')}</span> {s.side_effect}</p> : null}
-            <CodeBlock code={s.code} label={s.title} wrapOnPhone />
-            {s.note ? <p className="text-meta text-muted">{s.note}</p> : null}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function GuideView({ g, net }: { g: FirewallGuide; net: string }) {
-  const { t } = useTranslation('findings')
-  return (
-    <div className="grid gap-4">
-      <p className="max-w-3xl text-sm">{g.intro}</p>
-      <Steps steps={g.steps} net={net} />
-      {g.alternative ? (
-        <div className="grid gap-3 border-t border-rule pt-3">
-          <p className="text-sm font-medium">{g.alternative.title}</p>
-          <p className="text-meta text-muted">{g.alternative.intro}</p>
-          <Steps steps={g.alternative.steps} net={net} />
-        </div>
-      ) : null}
-      {g.verify.length ? <div className="grid gap-2 border-t border-rule pt-3"><p className="text-sm font-medium">{t('rec.verify')}</p><Steps steps={g.verify} net={net} /></div> : null}
-      {g.undo.length ? <div className="grid gap-2 border-t border-rule pt-3"><p className="text-sm font-medium">{t('rec.undo')}</p><Steps steps={g.undo} net={net} /></div> : null}
-    </div>
-  )
-}
+// Mitigation INV-8: general "Have I been hit?" checks for the software family, written by reviewed code. The generated firewall configs
+// and their admin network field (M2-1) are gone: D-629, kien 2026-11-17 ("remove the General hardening feature that tells the user to
+// allow traffic from the box to devices; it is useless").
 
 /** "General hardening" label: code-written, never a Vedette recommendation for the CVE (D-21, FORBID-2). */
 export function GeneralLabel() {
@@ -74,95 +16,6 @@ export function GeneralLabel() {
       <Chip tone="off">{t('hardening.chip')}</Chip>
       <InfoTip topic={t('hardening.title')}>{t('hardening.chipInfo')}</InfoTip>
     </span>
-  )
-}
-
-/**
- * M2-1, mitigation INV-8: a ready firewall config that lets only the admin network reach the device, for the firewall listed in
- * Devices (FortiGate, MikroTik, else Linux nftables), with the admin network typed once here. "+ New" adds the firewall in place;
- * once it is in Devices its tab is selected. Vedette never runs any of it (FORBID-1).
- */
-export function GeneralHardening({ finding }: { finding: FindingDetail }) {
-  const { t } = useTranslation('findings')
-  const h = finding.hardening
-  const qc = useQueryClient()
-  const canAdd = useCan('operator')
-  const fieldId = useId()
-  const v6 = h?.admin_example.includes(':') ?? false
-  const [raw, setRaw] = useState(() => {
-    const r = remembered()
-    return r && adminNetwork(r, v6) ? r : h?.admin_example ?? ''
-  })
-  const [chosen, setChosen] = useState<FirewallVendor | null>(null)
-  const [adding, setAdding] = useState(false)
-  const [anyway, setAnyway] = useState(false)
-  if (!h || h.firewall.length === 0) return null
-  const net = adminNetwork(raw, v6)
-  const example = raw.trim() === h.admin_example
-  const detected = h.firewall.find((g) => g.detected)
-  const vendor = chosen ?? detected?.vendor ?? 'generic'
-  const g = h.firewall.find((x) => x.vendor === vendor) ?? h.firewall[0]!
-  // r2 M4: the browser's own address outside the network typed means the admin pasting it locks themselves out. Not for the example
-  // network (W76-3): that one asks for their own network first, and a lock-out warning about a network nobody typed contradicts it.
-  const outside = !!net && !example && !!h.viewer && inNetwork(h.viewer, net) === false
-  // r2 M1: a config only for a valid network that is not the example; for the firewall itself, not over a lock-out unless confirmed.
-  const ready = !!net && !example && !(outside && h.self && !anyway)
-  return (
-    <section aria-labelledby="hardening-title" className="grid gap-4 border-t border-rule pt-4" data-testid="general-hardening">
-      <div className="grid gap-1">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h3 id="hardening-title" className="text-sm font-semibold">{t('hardening.title')}</h3>
-          <GeneralLabel />
-        </div>
-        <p className="max-w-3xl text-meta text-muted">{t('hardening.body', { device: finding.asset?.name || t('removedDevice') })}</p>
-      </div>
-      <div className="grid max-w-md gap-1.5">
-        <Field label={t('hardening.adminNet')} htmlFor={fieldId} hint={example ? undefined : t('hardening.adminNetHint')} info={t('hardening.adminNetInfo')}
-          error={net ? undefined : t(v6 ? 'hardening.adminNetBad6' : 'hardening.adminNetBad')}>
-          <Input id={fieldId} value={raw} inputMode="text" autoComplete="off" spellCheck={false} onChange={(e) => setRaw(e.target.value)}
-            onBlur={() => { if (net && !example) remember(raw.trim()) }} />
-        </Field>
-        {example && net ? <p className="flex flex-wrap items-center gap-2 text-meta"><Chip tone="warn">{t('hardening.example')}</Chip>{t('hardening.exampleBody', { net: h.admin_example })}</p> : null}
-      </div>
-      <div className="grid gap-3">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted">
-          <p>{detected ? t('hardening.fwListed', { name: detected.label }) : t('hardening.fwNone')}</p>
-          {detected ? null : (
-            <Button size="sm" disabled={!canAdd} title={canAdd ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => setAdding(true)}>
-              <Plus />{t('hardening.addFirewall')}
-            </Button>
-          )}
-        </div>
-        <Segmented<FirewallVendor> label={t('rec.fwVendor')} value={g.vendor} onChange={setChosen} className="flex-wrap"
-          options={h.firewall.map((x) => ({ value: x.vendor, label: x.detected ? t('hardening.fwInDevices', { name: x.label }) : x.label }))} />
-        {outside ? (
-          <Notice tone="warn" className="mb-0" title={t('hardening.outside', { addr: h.viewer, net })}
-            actions={h.self && !anyway ? <Button size="sm" onClick={() => setAnyway(true)}>{t('hardening.showAnyway')}</Button> : undefined}>
-            {t('hardening.outsideBody')}
-          </Notice>
-        ) : null}
-        {ready ? <GuideView key={g.vendor} g={g} net={net} /> : (
-          <div className="grid gap-3">
-            <p className="max-w-3xl text-sm">{g.intro}</p>
-            {/* r1 M2, r2 M1: no pasteable config with a bad or example admin network (MikroTik would drop the admins, FortiGate would
-                restrict nobody, the example locks out admins who are not on it). */}
-            {!net || example ? <Notice tone="warn" className="mb-0" title={t('hardening.needNet')}>{t(net ? 'hardening.needNetExample' : 'hardening.needNetBody')}</Notice> : null}
-          </div>
-        )}
-      </div>
-      {adding ? (
-        <Suspense fallback={null}>
-          {/* The firewall added here makes its guide "detected": the finding is read again and its tab is selected. */}
-          <AddDialog open onOpenChange={(o) => {
-            if (o) return
-            setAdding(false)
-            setChosen(null)
-            void qc.invalidateQueries({ queryKey: ['findings', 'detail', finding.id] })
-            void qc.invalidateQueries({ queryKey: ['inventory'] })
-          }} />
-        </Suspense>
-      ) : null}
-    </section>
   )
 }
 

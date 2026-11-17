@@ -238,12 +238,10 @@ function detail(f: Finding): FindingDetail {
   }
 }
 
-/** M2-1, mitigation INV-8: the general block fills what the confirmed pack leaves out (its firewall guides, its compromise signs). */
-function hardeningFor(f: Finding, r: FindingRow, pack: MitigationPack | undefined, check: unknown) {
-  if (pack?.firewall.length && check) return null
-  const has = (name: string) => assetsStore.get().some((a) => (a.kind === 'firewall' || a.kind === 'router') && (a.vendor?.value ?? '').toLowerCase() === name)
-  const h = mockHardening(f.cve, r.kev, r.asset, assetsStore.get().find((a) => a.id === f.asset_id), has)
-  return { ...h, firewall: pack?.firewall.length ? [] : h.firewall, checks: check ? null : h.checks }
+/** Mitigation INV-8: the general checks fill in when the confirmed pack has no compromise signs of its own (D-629: no firewall config). */
+function hardeningFor(f: Finding, r: FindingRow, _pack: MitigationPack | undefined, check: unknown) {
+  if (check) return null
+  return mockHardening(f.cve, r.kev, r.asset)
 }
 
 const who = () => currentUser()?.email ?? 'system'

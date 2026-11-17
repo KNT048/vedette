@@ -153,6 +153,20 @@ func (s sqlVersions) authoritative(name string, p pkgPair) bool {
 	return false
 }
 
+// sqlUmbrellaFirst is the programs rows with SQL Server's release rows first, the rest in their order: a release row that took its
+// components' build shares its product and build with the RsFx Driver, and the merged row then keeps the release's name.
+func sqlUmbrellaFirst(rows []row) []row {
+	out := make([]row, 0, len(rows))
+	for pass := range 2 {
+		for _, r := range rows {
+			if _, umbrella := sqlUmbrella(r["name"]); umbrella == (pass == 0) {
+				out = append(out, r)
+			}
+		}
+	}
+	return out
+}
+
 // compareBuild orders two builds that sqlBuildRE accepts, number by number.
 func compareBuild(a, b string) int {
 	as, bs := strings.Split(a, "."), strings.Split(b, ".")

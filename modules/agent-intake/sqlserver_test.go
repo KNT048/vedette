@@ -87,15 +87,20 @@ func TestSQLServer_D606_SetupRegistryGivesTheRelease(t *testing.T) {
 
 // D-606 fallback (Wazuh, an agent before D-606): every component agrees on the RTM build and the Database Engine is one of them, so
 // the umbrella row takes it below a stated version's confidence. It is the RsFx Driver's own row (same product and build), whose
-// stated version keeps its confidence. N100 before the fix had the umbrella row without a version: "Needs your input".
+// stated version keeps its confidence; the merged row keeps the release's name in whatever order osquery lists the two (review r1
+// L2 of #967). N100 before the fix had the umbrella row without a version: "Needs your input".
 func TestSQLServer_D606_ComponentsGiveTheRelease(t *testing.T) {
-	got := sqlRows(t, n100SQL())
-	if len(got) != 1 || got[0].Version != "16.0.1000.6" || got[0].Confidence != softwareConfidence {
-		t.Fatalf("SQL Server rows %+v", got)
+	rsfxFirst := n100SQL()
+	rsfxFirst[0], rsfxFirst[2] = rsfxFirst[2], rsfxFirst[0] // osquery lists the RsFx Driver before the release
+	for _, rows := range [][]row{n100SQL(), rsfxFirst} {
+		got := sqlRows(t, rows)
+		if len(got) != 1 || got[0].Display != "Microsoft SQL Server 2022 (64-bit)" || got[0].Version != "16.0.1000.6" || got[0].Confidence != softwareConfidence {
+			t.Fatalf("SQL Server rows %+v", got)
+		}
 	}
 	// without the RsFx Driver the row is the umbrella's alone, at the components' confidence
 	rows := slices.DeleteFunc(n100SQL(), func(r row) bool { return strings.Contains(r["name"], "RsFx") })
-	got = sqlRows(t, rows)
+	got := sqlRows(t, rows)
 	if len(got) != 1 || got[0].Display != "Microsoft SQL Server 2022 (64-bit)" || got[0].Version != "16.0.1000.6" || got[0].Confidence != componentConfidence {
 		t.Fatalf("SQL Server rows without RsFx %+v", got)
 	}

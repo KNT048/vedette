@@ -181,7 +181,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 	}
 	sql := sqlServerVersions(snaps["programs"])
-	for _, r := range snaps["programs"] {
+	for _, r := range sqlUmbrellaFirst(snaps["programs"]) {
 		if r["sql_setup"] != "" {
 			continue // a SQL Server instance's setup value the programs query reads with the list (D-606), not a program
 		}

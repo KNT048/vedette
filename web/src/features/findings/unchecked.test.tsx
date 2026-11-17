@@ -5,7 +5,7 @@ import { renderApp } from '@/test/render'
 
 describe('#910 phase 1: exploited CVEs that could not be checked', () => {
   it('Findings lists each reason in plain words, with advisory or NVD links, and says no finding is made', async () => {
-    renderApp('/findings')
+    renderApp('/findings?tab=input')
     const box = (await screen.findByText(/exploited CVEs could not be checked automatically/)).closest('section')!
     const b = within(box)
     expect(b.getByText(/created no finding/)).toBeInTheDocument()
@@ -23,7 +23,7 @@ describe('#910 phase 1: exploited CVEs that could not be checked', () => {
   })
 
   it('"Add the version" opens the version dialog in place, only where it can help', async () => {
-    renderApp('/findings')
+    renderApp('/findings?tab=input')
     const box = (await screen.findByText(/exploited CVEs could not be checked automatically/)).closest('section')!
     const add = within(box).getAllByRole('button', { name: 'Add the version' })
     expect(add).toHaveLength(1)

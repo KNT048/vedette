@@ -1,0 +1,224 @@
+// kien G8 (S-MIT-1): "when the user opens Findings, they know which devices need patching or an action, and what the action is".
+// To fix lists the devices, the most urgent first (GET /findings/to-fix orders them), each with its few actions as plain sentences;
+// every action opens to its CVEs, and each CVE to its finding (CVSS, basis, status: one click deeper). By fix turns it around for an
+// admin patching one app everywhere. As Defender's security recommendations ("Update Mozilla Firefox": exposed devices) and
+// Tenable's remediation view group by the fix, never one row per CVE.
+import { useMemo, type ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
+import { Chip } from '@/components/common/StatusChip'
+import { EmptyState, QueryState } from '@/components/common/States'
+import { Segmented } from '@/components/ui/segmented'
+import { useDevices } from '@/features/inventory/api'
+import { deviceName } from './basis'
+import type { ToFix, ToFixAction, ToFixDevice } from './types'
+
+const SEV = ['info', 'low', 'medium', 'high', 'critical']
+const rank = (s: string) => SEV.indexOf(s.toLowerCase())
+const tone = (s: string) => (rank(s) >= 3 ? 'danger' : rank(s) === 2 ? 'warn' : 'off') as 'danger' | 'warn' | 'off'
+
+/** An exploited action without a named update and without proof is the person's to check (Needs your input), not to fix. */
+export const proved = (a: ToFixAction) => a.confirmed + a.detected > 0
+/** What To fix lists of a device: its updates for exploited findings, and the proved findings no update is named for. */
+export const actionable = (d: ToFixDevice) => [...d.exploited, ...d.no_update.filter(proved)]
+/** Findings no update is named for and the box could not prove: Needs your input. */
+export const unproved = (d: ToFixDevice) => d.no_update.filter((a) => !proved(a))
+/** A device To fix lists: something to fix, or a recommended update. */
+export const listed = (d: ToFixDevice) => actionable(d).length + d.planned.length > 0
+
+/** One severity: the worst of the action's CVEs, in words (never a second CVSS label next to it). */
+function Worst({ worst }: { worst: string }) {
+  const { t } = useTranslation('findings')
+  if (!worst) return null
+  return <Chip tone={tone(worst)}>{t(`common:severity.${worst.toLowerCase()}`)}</Chip>
+}
+
+/** The box's own OS packages are installed from Settings › Updates: the action's button. */
+function ActionButton({ a, box }: { a: ToFixAction; box: boolean }) {
+  const { t } = useTranslation('findings')
+  if (!box || a.kind !== 'distro') return null
+  return <Link to="/settings/updates#os" className="w-fit text-meta font-medium text-accent underline underline-offset-4">{t('toFix.openOsUpdates')}</Link>
+}
+
+/** One action: the sentence and what it fixes; it opens to its CVEs, each linking to its finding. */
+function Action({ a, planned, box }: { a: ToFixAction; planned: boolean; box: boolean }) {
+  const { t } = useTranslation('findings')
+  const what = planned
+    ? t('toFix.plannedFixes', { count: a.cves.length })
+    : a.kind === 'none' ? t('toFix.noUpdateCount', { count: a.cves.length }) : t('toFix.fixes', { count: a.cves.length })
+  return (
+    <li className="grid gap-1 py-2">
+      <details className="group">
+        <summary className="cursor-pointer list-none text-sm marker:hidden [&::-webkit-details-marker]:hidden">
+          <span className="font-medium">{a.action}</span>
+          <span className="text-muted">{': '}{what}</span>
+          {a.ransomware ? <span className="text-danger">{', '}{t('toFix.ransomware', { count: a.ransomware })}</span> : null}
+          {planned && a.likely ? <span className="text-warn">{', '}{t('toFix.likely', { count: a.likely })}</span> : null}
+          {' '}<Worst worst={a.worst} />
+          <span className="ml-2 text-meta text-accent underline-offset-4 group-open:hidden">{t('toFix.showCves', { count: a.cves.length })}</span>
+          <span className="ml-2 hidden text-meta text-accent underline-offset-4 group-open:inline">{t('toFix.hideCves')}</span>
+        </summary>
+        <ul aria-label={t('toFix.cvesOf', { action: a.action })} className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-meta">
+          {a.cves.map((c, i) => (
+            <li key={c}>
+              {a.finding_ids[i] ? <Link to={`/findings/${encodeURIComponent(a.finding_ids[i]!)}`} className="text-accent underline-offset-4 hover:underline">{c}</Link>
+                : <Link to={`/cve/${encodeURIComponent(c)}`} className="text-accent underline-offset-4 hover:underline">{c}</Link>}
+            </li>
+          ))}
+        </ul>
+        {!planned && a.kind !== 'none' && a.finding_ids.length > 1 ? (
+          <Link to={`/findings?tab=open&fix=${encodeURIComponent(a.group)}`} className="mt-1 inline-block pl-4 text-meta text-accent underline underline-offset-4">{t('fix.select', { count: a.finding_ids.length })}</Link>
+        ) : null}
+      </details>
+      <ActionButton a={a} box={box} />
+    </li>
+  )
+}
+
+/** One device: its name, how bad it is, and its actions (to fix first, then recommended). */
+function DeviceCard({ d, box }: { d: ToFixDevice; box: boolean }) {
+  const { t } = useTranslation('findings')
+  const acts = actionable(d)
+  const worst = acts.reduce((w, a) => (rank(a.worst) > rank(w) ? a.worst : w), '')
+  const check = unproved(d).reduce((n, a) => n + a.cves.length, 0)
+  const name = deviceName(d.asset, t('removedDevice'))
+  return (
+    <li className="rounded-md border border-rule bg-surface px-4 py-3" aria-label={name}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="text-base font-semibold text-accent underline-offset-4 hover:underline">{name}</Link>
+        {d.asset.ip && d.asset.ip !== '—' ? <span className="text-meta text-muted">{d.asset.ip}</span> : null}
+        {acts.length ? <><Worst worst={worst} /><span className="text-meta text-muted">{t('toFix.deviceCount', { count: acts.reduce((n, a) => n + a.cves.length, 0) })}</span></> : null}
+      </div>
+      {acts.length ? <ul aria-label={t('toFix.actionsOf', { device: name })} className="divide-y divide-rule">{acts.map((a) => <Action key={a.group} a={a} planned={false} box={box} />)}</ul> : null}
+      {d.planned.length ? (
+        <>
+          <p className="mt-2 text-meta font-medium text-muted">{t('toFix.recommended')}</p>
+          <ul aria-label={t('toFix.recommendedOf', { device: name })} className="divide-y divide-rule">{d.planned.map((a) => <Action key={a.group} a={a} planned box={box} />)}</ul>
+        </>
+      ) : null}
+      {check ? <Link to={`/findings?tab=input&device=${encodeURIComponent(d.asset.id)}`} className="mt-1 inline-block text-meta text-accent underline underline-offset-4">{t('toFix.toCheck', { count: check })}</Link> : null}
+    </li>
+  )
+}
+
+type FixRow = { key: string; sample: ToFixAction; planned: boolean; devices: { d: ToFixDevice; a: ToFixAction }[] }
+
+/** By fix: one row per update (product + release), with the devices that need it; the worst row first. */
+function ByFix({ devices }: { devices: ToFixDevice[] }) {
+  const { t } = useTranslation('findings')
+  const rows = useMemo(() => {
+    const m = new Map<string, FixRow>()
+    for (const d of devices) {
+      for (const [a, planned] of [...actionable(d).map((x) => [x, false] as const), ...d.planned.map((x) => [x, true] as const)]) {
+        const key = `${a.kind}|${a.software}|${a.fixed}|${planned}`
+        const r = m.get(key) ?? { key, sample: a, planned, devices: [] }
+        r.devices.push({ d, a })
+        m.set(key, r)
+      }
+    }
+    const worst = (r: FixRow) => Math.max(...r.devices.map((x) => rank(x.a.worst)))
+    return [...m.values()].sort((x, y) => Number(x.planned) - Number(y.planned) || worst(y) - worst(x) || y.devices.length - x.devices.length || x.sample.software.localeCompare(y.sample.software))
+  }, [devices])
+  const label = (a: ToFixAction) => {
+    const v = { software: a.software || t('toFix.theSoftware'), fixed: a.windows ? a.fixed.replace(/^10\.0\./, '') : a.fixed }
+    if (a.kind === 'none') return t('toFix.byFix.none', v)
+    if (a.kind === 'distro') return a.fixed ? t('toFix.byFix.distroFixed', v) : t('toFix.byFix.distro', v)
+    if (a.kind === 'windows' || a.kind === 'esu' || a.windows) return t('toFix.byFix.windows', v)
+    if (a.kind === 'feature_update') return t('toFix.byFix.featureUpdate', v)
+    return t('toFix.byFix.fixed', v)
+  }
+  return (
+    <ul aria-label={t('toFix.byFix.label')} className="grid gap-2">
+      {rows.map((r) => {
+        const cves = r.devices.reduce((n, x) => n + x.a.cves.length, 0)
+        const worst = r.devices.reduce((w, x) => (rank(x.a.worst) > rank(w) ? x.a.worst : w), '')
+        return (
+          <li key={r.key} className="rounded-md border border-rule bg-surface px-4 py-3">
+            <details>
+              <summary className="cursor-pointer text-sm">
+                <span className="font-medium">{label(r.sample)}</span>
+                <span className="text-muted">{': '}{t(r.planned ? 'toFix.byFix.plannedOn' : 'toFix.byFix.on', { count: r.devices.length, cves })}</span>
+                {' '}<Worst worst={worst} />
+              </summary>
+              <ul className="mt-1 grid gap-1 pl-4 text-meta">
+                {r.devices.map(({ d, a }) => (
+                  <li key={d.asset.id}>
+                    <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{deviceName(d.asset, t('removedDevice'))}</Link>
+                    <span className="text-muted">{': '}{a.action}, {t('toFix.cveCount', { count: a.cves.length })}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/** The box's device id, read only when an action may need it (a distribution's update): its OS updates have their own page. */
+function WithBox({ children }: { children: (boxId: string | undefined) => ReactNode }) {
+  const boxId = useDevices().data?.items.find((x) => x.is_box)?.id
+  return <>{children(boxId)}</>
+}
+
+/** The To fix tab: by device (default) or by fix (`?by=fix`, shareable); `?device=` keeps one device. */
+export function ToFixTab({ q }: { q: { data: ToFix | undefined; error: unknown; isPending: boolean; refetch: () => unknown } }) {
+  const { t } = useTranslation('findings')
+  const [params, setParams] = useSearchParams()
+  const by = params.get('by') === 'fix' ? 'fix' : 'device'
+  const device = params.get('device') ?? ''
+  const hasDistro = !!q.data?.devices.some((d) => actionable(d).some((a) => a.kind === 'distro'))
+  const setBy = (v: 'device' | 'fix') => { const p = new URLSearchParams(params); if (v === 'fix') p.set('by', 'fix'); else p.delete('by'); setParams(p, { replace: true }) }
+  return (
+    <QueryState query={q}>
+      {(d) => {
+        const devices = d.devices.filter(listed).filter((x) => !device || x.asset.id === device)
+        return (
+          <div className="grid gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Segmented<'device' | 'fix'> label={t('toFix.view')} value={by} onChange={setBy} options={[{ value: 'device', label: t('toFix.byDevice') }, { value: 'fix', label: t('toFix.byFixLabel') }]} />
+              {d.truncated ? <span className="text-meta text-muted">{t('toFix.truncated')}</span> : null}
+            </div>
+            {devices.length === 0 ? (
+              <EmptyState art="no-findings" title={t('toFix.empty')}>{t('toFix.emptyBody')}</EmptyState>
+            ) : by === 'fix' ? <ByFix devices={devices} /> : (() => {
+              const list = (boxId: string | undefined) => <ul aria-label={t('toFix.label')} className="grid gap-3">{devices.map((x) => <DeviceCard key={x.asset.id} d={x} box={x.asset.id === boxId} />)}</ul>
+              return hasDistro ? <WithBox>{list}</WithBox> : list(undefined)
+            })()}
+          </div>
+        )
+      }}
+    </QueryState>
+  )
+}
+
+/** Needs your input: the findings no update is named for that the box could not prove, one item per software row of a device. */
+export function UnprovedList({ devices }: { devices: ToFixDevice[] }) {
+  const { t } = useTranslation('findings')
+  const items = devices.flatMap((d) => unproved(d).map((a) => ({ d, a })))
+  if (!items.length) return null
+  return (
+    <section aria-labelledby="unproved-title" className="grid gap-2">
+      <h2 id="unproved-title" className="text-base font-semibold">{t('toFix.unproved.title', { count: items.length })}</h2>
+      <p className="text-meta text-muted">{t('toFix.unproved.help')}</p>
+      <ul className="grid gap-2">
+        {items.map(({ d, a }) => (
+          <li key={a.group} className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">
+            <p>
+              <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{deviceName(d.asset, t('removedDevice'))}</Link>
+              {': '}<span className="font-medium">{[a.software || t('toFix.theSoftware'), a.version].filter(Boolean).join(' ')}</span>
+              <span className="text-muted">{', '}{t('toFix.unproved.count', { count: a.cves.length })}</span>{' '}<Worst worst={a.worst} />
+            </p>
+            <details>
+              <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('toFix.showCves', { count: a.cves.length })}</summary>
+              <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-meta">
+                {a.cves.map((c, i) => <li key={c}><Link to={`/findings/${encodeURIComponent(a.finding_ids[i] ?? '')}`} className="text-accent underline-offset-4 hover:underline">{c}</Link></li>)}
+              </ul>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

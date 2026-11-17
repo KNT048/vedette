@@ -148,3 +148,10 @@
 
 ## Modifying: `Matches.RuledOut` (D-547)
 - **cmd/vedette** `exposurematch.go` điền nó từ `findings.MatchResult.OtherPlatform`; **GUI** không đổi (dòng "checked" sẵn có hiện câu). Một dòng là văn bản không tin cậy (banner của dịch vụ đã qua `clean` của findings), cắt 400 ký tự.
+
+## Modifying: bằng chứng sở hữu domain (`proof.go`: `prove`, `Covers`, `proofChain`, `proofHint`, `coverOthers`, `IsPublicSuffix`; INV-32, D-628)
+- Là cổng của INV-1 (c): mọi đường quét domain (`gate`: `StartScan`, `CheckScannable`, `deepGate`, `runTemplates`, Greenbone, điều khoản) đi qua `prove`. Nới `Covers` (bỏ ranh giới hậu tố công cộng, nhận token không phải của hộp, cho phủ lên trên) là đổi ai được quét: cần quyết định mới và review bảo mật.
+- Ranh giới dùng danh sách PSL nhúng trong `golang.org/x/net/publicsuffix`: nâng phiên bản x/net có thể đổi tên miền đã đăng ký của một tên (hiếm; chạy `TestProof_D628_*`).
+- `TargetView.proof` là trường của `contract.ts` `Target` (`ProofHint`): đổi hình dạng thì sửa contract, mock (`proofOf`), `VerifyPanel` và `make generate`.
+- `core/domainfence` (executor: worker của container scan, vedette-host) nhận thêm `_vedette-verify.<domain>`: đổi nhãn ở một chỗ thì đổi cả hai (`verifyLabel`, `domainfence.VerifyLabel`). Fence chưa biết phủ theo tên cha: bước sâu tới địa chỉ không phải của hộp của tên con chỉ được cha phủ bị từ chối; mở rộng điều đó cần fence kiểm token của tên cha (đổi cả executor).
+- Số lần tra TXT của một lần kiểm tăng từ 1 lên 2 × số tên của chuỗi (song song): test đếm lượt tra (`TestContract_INV1_NoScanWithoutProof`) theo đó.

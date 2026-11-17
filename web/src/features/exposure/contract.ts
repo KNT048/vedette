@@ -46,6 +46,16 @@ export const Commitment = z.object({
   sentence: z.string().nullable().describe('The exact sentence, with the target in it, kept with who and when; null on a commitment recorded before D-473'),
 })
 
+// D-628 (J6, kien G10): where a domain's ownership record goes. A record on a name proves it and every name under it, down to its
+// registered domain (Public Suffix List, both sections: never across co.uk or ddns.net); a name that is a CNAME takes its record on
+// _vedette-verify.<name> instead.
+export const ProofHint = z.object({
+  zone: z.string().describe('The registered domain: the DNS zone the record is added in ("beyondnetglobal.com")'),
+  host: z.string().describe('The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com'),
+  alt_host: z.string().describe('The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or "_vedette-verify.git"'),
+  covered_by: z.string().nullable().describe('A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none'),
+})
+
 export const Target = z.object({
   id: z.string(),
   kind: TargetKind,
@@ -69,6 +79,7 @@ export const Target = z.object({
   last_scan_at: z.iso.datetime().nullable(),
   latest: Counts.nullable(),
   open_ports: z.array(PortRow).nullable().describe('The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned'),
+  proof: ProofHint.nullable().describe('Domains: where the TXT record goes and which verified domain covers this one already (D-628); null for an IP'),
 })
 
 // INV-27 (D-567, S-EXP-1): the surface of a verified domain. Every (name, address) has one kind; what serves a name (a CDN or not)

@@ -77,7 +77,7 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if e.dns.lookups() != before+1 || run.calls != 1 || snap.Counts.Subdomains != 3 {
+	if e.dns.lookups() != before+2 || run.calls != 1 || snap.Counts.Subdomains != 3 {
 		t.Fatalf("lookups %d->%d, runner calls %d, counts %+v", before, e.dns.lookups(), run.calls, snap.Counts)
 	}
 
@@ -676,7 +676,7 @@ func TestContract_POST2_NotFoundIsNotAnError(t *testing.T) {
 	e := newEnv(t)
 	d, _ := e.svc.AddDomain(e.ctx(), "admin@acme.example", "acme.example")
 	r, err := e.svc.Verify(e.ctx(), "operator@acme.example", d.ID)
-	if err != nil || r.Verified || !strings.HasPrefix(r.Message, "The TXT record vedette-verify="+d.Token+" was not found on acme.example. DNS usually updates") {
+	if err != nil || r.Verified || !strings.HasPrefix(r.Message, "No TXT record vedette-verify="+d.Token+" was found. Vedette asked acme.example, _vedette-verify.acme.example. acme.example: no TXT record.") || !strings.Contains(r.Message, "DNS usually updates") {
 		t.Fatalf("not found = %+v %v", r, err)
 	}
 	if r.Target.LastCheck == nil || r.Target.LastCheck.OK || r.Target.Status != "unverified" || r.Target.VerifiedAt != nil {
@@ -689,7 +689,7 @@ func TestContract_POST2_NotFoundIsNotAnError(t *testing.T) {
 	}
 	e.dns.err = errors.New("servfail")
 	r, err = e.svc.Verify(e.ctx(), "operator@acme.example", d.ID)
-	if err != nil || r.Verified || !strings.Contains(r.Message, "DNS lookup for acme.example failed") {
+	if err != nil || r.Verified || !strings.Contains(r.Message, "acme.example: the lookup failed") {
 		t.Fatalf("lookup failure = %+v %v", r, err)
 	}
 	e.dns.err = nil

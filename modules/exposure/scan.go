@@ -47,15 +47,16 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 			return t, BlockedNotCurrent, nil
 		}
 	case t.Kind == KindDomain:
-		found, failure := s.lookupTXT(ctx, t)
-		err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+		pr, err := s.proveDomain(ctx, t) // D-628: the name, _vedette-verify.<name>, or a parent down to its registered domain
+		if err != nil {
+			return Target{}, "", err
+		}
+		found := pr.found
+		err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 			now := s.clock()
-			msg, action := fmt.Sprintf("Found the TXT record %s on %s.", txtRecord(t.Token), t.Value), "exposure.verify_ok"
+			msg, action := proofMessage(t, pr), "exposure.verify_ok"
 			if !found {
-				msg, action = fmt.Sprintf("The TXT record %s was not found on %s.", txtRecord(t.Token), t.Value), "exposure.verify_fail"
-				if failure != "" {
-					msg = failure
-				}
+				msg, action = pr.failure, "exposure.verify_fail"
 			}
 			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg}, time.Time{}, ""); err != nil {
 				return err
@@ -182,7 +183,7 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 	case BlockedExpired:
 		return apiErr(409, "expired", "Verification of %s expired on %s, so it cannot be scanned. Verify it again first.", t.Value, s.dayText(t.expiresAt(now)))
 	case BlockedTxtMissing:
-		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer on %s, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value)
+		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer found on %s, on %s.%s or on a parent domain that covers it, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value, verifyLabel, t.Value)
 	case BlockedNoCommitment:
 		if t.Commitment != nil {
 			return errNeedAdminReconfirm(t.Value)

@@ -139,6 +139,8 @@ type TargetView struct {
 	// OpenPorts are the first MaxOpenPorts open ports of the newest snapshot, in its order (Latest.Ports is the total), so
 	// the list page can say what is open (S-EXP-1, D-485); nil when never scanned.
 	OpenPorts []PortRow `json:"open_ports"`
+	// Proof says where a domain's TXT record goes and which verified domain of the box covers it already (D-628); nil for an IP.
+	Proof *ProofHint `json:"proof"`
 }
 
 // MaxOpenPorts bounds TargetView.OpenPorts (a domain can have hundreds of names on 80 and 443).

@@ -31,6 +31,9 @@ func normalizeDomain(raw string) (string, error) {
 	if len(v) > 253 || !domainRE.MatchString(v) {
 		return "", ErrBadDomain
 	}
+	if _, ok := registered(v); !ok { // D-628: a public suffix (co.uk, ddns.net) is never a target
+		return "", ErrPublicSuffix
+	}
 	return v, nil
 }
 

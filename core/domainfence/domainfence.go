@@ -41,6 +41,9 @@ const (
 	LookupTimeout = 10 * time.Second
 	// Recheck is how often a long run (a deep nmap, an OpenVAS task) checks again while it runs: the own_ip re-check's period.
 	Recheck = 3 * time.Minute
+	// VerifyLabel is the label of a domain's dedicated proof name, _vedette-verify.<domain> (D-628): the record may sit there when
+	// the domain is a CNAME.
+	VerifyLabel = "_vedette-verify"
 	// tokenLabel is what the HMAC is taken over, before the domain (plan §5).
 	tokenLabel = "vedette-verify\x00" //nolint:gosec // the public label the HMAC is taken over, not a credential
 )
@@ -209,16 +212,25 @@ func (f *Fence) check(ctx context.Context, j Job) (Outcome, cacheEntry) {
 		defer cancel()
 		return fn(lctx)
 	}
-	var txt []string
-	err := lookup(func(c context.Context) (err error) { txt, err = f.r.LookupTXT(c, j.Domain); return })
-	if err != nil && !notFound(err) {
-		return Outcome{Reason: Unchecked, Detail: "the TXT lookup of " + j.Domain + " failed"}, cacheEntry{}
+	// The record is on the domain or, for a domain that is a CNAME (no other record may sit beside one), on _vedette-verify.<domain>
+	// (D-628): either proves it.
+	owned := false
+	for _, at := range []string{j.Domain, VerifyLabel + "." + j.Domain} {
+		var txt []string
+		err := lookup(func(c context.Context) (err error) { txt, err = f.r.LookupTXT(c, at); return })
+		if err != nil && !notFound(err) {
+			return Outcome{Reason: Unchecked, Detail: "the TXT lookup of " + at + " failed"}, cacheEntry{}
+		}
+		if slices.ContainsFunc(txt, func(v string) bool { return strings.TrimSpace(v) == "vedette-verify="+j.Token }) {
+			owned = true
+			break
+		}
 	}
-	if !slices.ContainsFunc(txt, func(v string) bool { return strings.TrimSpace(v) == "vedette-verify="+j.Token }) {
-		return Outcome{Reason: NotOwned, Detail: j.Domain + " has no TXT record vedette-verify=<this box's token>"}, cacheEntry{}
+	if !owned {
+		return Outcome{Reason: NotOwned, Detail: j.Domain + " and " + VerifyLabel + "." + j.Domain + " have no TXT record vedette-verify=<this box's token>"}, cacheEntry{}
 	}
 	var addrs []netip.Addr
-	err = lookup(func(c context.Context) (err error) { addrs, err = f.r.LookupNetIP(c, "ip4", j.Name); return })
+	err := lookup(func(c context.Context) (err error) { addrs, err = f.r.LookupNetIP(c, "ip4", j.Name); return })
 	if err != nil && !notFound(err) {
 		return Outcome{Reason: Unchecked, Detail: "the address lookup of " + j.Name + " failed"}, cacheEntry{}
 	}

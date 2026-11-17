@@ -42970,7 +42970,10 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
-	Scannable bool                                                  `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposureDeleteExposureTargetsIDTermsOKProof `json:"proof"`
+	Scannable bool                                           `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureDeleteExposureTargetsIDTermsOKStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -43056,6 +43059,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) GetMethod() NilExposureDeleteEx
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) GetOpenPorts() []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetProof() NilExposureDeleteExposureTargetsIDTermsOKProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -43166,6 +43174,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) SetMethod(val NilExposureDelete
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) SetOpenPorts(val []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetProof(val NilExposureDeleteExposureTargetsIDTermsOKProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -43714,6 +43727,59 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git".
+	AltHost string `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetAltHost() string {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetAltHost(val string) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -45254,7 +45320,10 @@ type ExposureGetExposureTargetsIDOK struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureGetExposureTargetsIDOKOpenPortsItem `json:"open_ports"`
-	Scannable bool                                          `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposureGetExposureTargetsIDOKProof `json:"proof"`
+	Scannable bool                                   `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -45340,6 +45409,11 @@ func (s *ExposureGetExposureTargetsIDOK) GetMethod() NilExposureGetExposureTarge
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposureGetExposureTargetsIDOK) GetOpenPorts() []ExposureGetExposureTargetsIDOKOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposureGetExposureTargetsIDOK) GetProof() NilExposureGetExposureTargetsIDOKProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -45450,6 +45524,11 @@ func (s *ExposureGetExposureTargetsIDOK) SetMethod(val NilExposureGetExposureTar
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposureGetExposureTargetsIDOK) SetOpenPorts(val []ExposureGetExposureTargetsIDOKOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposureGetExposureTargetsIDOK) SetProof(val NilExposureGetExposureTargetsIDOKProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -45998,6 +46077,59 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemIdent) UnmarshalText(data []
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureGetExposureTargetsIDOKProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git".
+	AltHost string `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposureGetExposureTargetsIDOKProof) GetAltHost() string {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposureGetExposureTargetsIDOKProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposureGetExposureTargetsIDOKProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposureGetExposureTargetsIDOKProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposureGetExposureTargetsIDOKProof) SetAltHost(val string) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposureGetExposureTargetsIDOKProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposureGetExposureTargetsIDOKProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposureGetExposureTargetsIDOKProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -49108,7 +49240,10 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposureGetExposureTargetsOKItemsItemOpenPortsItem `json:"open_ports"`
-	Scannable bool                                                 `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposureGetExposureTargetsOKItemsItemProof `json:"proof"`
+	Scannable bool                                          `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -49194,6 +49329,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetMethod() NilExposureGetExposu
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetOpenPorts() []ExposureGetExposureTargetsOKItemsItemOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetProof() NilExposureGetExposureTargetsOKItemsItemProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -49304,6 +49444,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetMethod(val NilExposureGetExpo
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetOpenPorts(val []ExposureGetExposureTargetsOKItemsItemOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetProof(val NilExposureGetExposureTargetsOKItemsItemProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -49854,6 +49999,59 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) UnmarshalText(
 	}
 }
 
+type ExposureGetExposureTargetsOKItemsItemProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git".
+	AltHost string `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) GetAltHost() string {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) SetAltHost(val string) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposureGetExposureTargetsOKItemsItemProof) SetZone(val string) {
+	s.Zone = val
+}
+
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposureGetExposureTargetsOKItemsItemStatus string
 
@@ -50104,7 +50302,10 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem `json:"open_ports"`
-	Scannable bool                                                      `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposurePostExposureBoxIPVerifyOKItemsItemProof `json:"proof"`
+	Scannable bool                                               `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -50190,6 +50391,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetMethod() NilExposurePost
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetOpenPorts() []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetProof() NilExposurePostExposureBoxIPVerifyOKItemsItemProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -50300,6 +50506,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetMethod(val NilExposurePo
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetOpenPorts(val []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetProof(val NilExposurePostExposureBoxIPVerifyOKItemsItemProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -50848,6 +51059,59 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Unmarshal
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureBoxIPVerifyOKItemsItemProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git".
+	AltHost string `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetAltHost() string {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetAltHost(val string) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -51640,7 +51904,10 @@ type ExposurePostExposureTargetsCreated struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureTargetsCreatedOpenPortsItem `json:"open_ports"`
-	Scannable bool                                              `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposurePostExposureTargetsCreatedProof `json:"proof"`
+	Scannable bool                                       `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -51726,6 +51993,11 @@ func (s *ExposurePostExposureTargetsCreated) GetMethod() NilExposurePostExposure
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePostExposureTargetsCreated) GetOpenPorts() []ExposurePostExposureTargetsCreatedOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePostExposureTargetsCreated) GetProof() NilExposurePostExposureTargetsCreatedProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -51836,6 +52108,11 @@ func (s *ExposurePostExposureTargetsCreated) SetMethod(val NilExposurePostExposu
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePostExposureTargetsCreated) SetOpenPorts(val []ExposurePostExposureTargetsCreatedOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePostExposureTargetsCreated) SetProof(val NilExposurePostExposureTargetsCreatedProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -52384,6 +52661,59 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemIdent) UnmarshalText(dat
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTargetsCreatedProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git".
+	AltHost string `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePostExposureTargetsCreatedProof) GetAltHost() string {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePostExposureTargetsCreatedProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePostExposureTargetsCreatedProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePostExposureTargetsCreatedProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePostExposureTargetsCreatedProof) SetAltHost(val string) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePostExposureTargetsCreatedProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePostExposureTargetsCreatedProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePostExposureTargetsCreatedProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -53362,7 +53692,10 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem `json:"open_ports"`
-	Scannable bool                                                       `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposurePostExposureTargetsIDVerifyOKTargetProof `json:"proof"`
+	Scannable bool                                                `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -53448,6 +53781,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetMethod() NilExposurePos
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetOpenPorts() []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetProof() NilExposurePostExposureTargetsIDVerifyOKTargetProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -53558,6 +53896,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetMethod(val NilExposureP
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetOpenPorts(val []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetProof(val NilExposurePostExposureTargetsIDVerifyOKTargetProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -54106,6 +54449,59 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Unmarsha
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTargetsIDVerifyOKTargetProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git".
+	AltHost string `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetAltHost() string {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetAltHost(val string) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -54795,7 +55191,10 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
 	// can say what is open; null when never scanned.
 	OpenPorts []ExposurePutExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
-	Scannable bool                                               `json:"scannable"`
+	// Domains: where the TXT record goes and which verified domain covers this one already (D-628); null
+	// for an IP.
+	Proof     NilExposurePutExposureTargetsIDTermsOKProof `json:"proof"`
+	Scannable bool                                        `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePutExposureTargetsIDTermsOKStatus `json:"status"`
 	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
@@ -54881,6 +55280,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) GetMethod() NilExposurePutExposure
 // GetOpenPorts returns the value of OpenPorts.
 func (s *ExposurePutExposureTargetsIDTermsOK) GetOpenPorts() []ExposurePutExposureTargetsIDTermsOKOpenPortsItem {
 	return s.OpenPorts
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetProof() NilExposurePutExposureTargetsIDTermsOKProof {
+	return s.Proof
 }
 
 // GetScannable returns the value of Scannable.
@@ -54991,6 +55395,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) SetMethod(val NilExposurePutExposu
 // SetOpenPorts sets the value of OpenPorts.
 func (s *ExposurePutExposureTargetsIDTermsOK) SetOpenPorts(val []ExposurePutExposureTargetsIDTermsOKOpenPortsItem) {
 	s.OpenPorts = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetProof(val NilExposurePutExposureTargetsIDTermsOKProof) {
+	s.Proof = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -55539,6 +55948,59 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText(da
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePutExposureTargetsIDTermsOKProof struct {
+	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
+	// "_vedette-verify.git".
+	AltHost string `json:"alt_host"`
+	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
+	// enough, no second record; null when none.
+	CoveredBy NilString `json:"covered_by"`
+	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	Host string `json:"host"`
+	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) GetAltHost() string {
+	return s.AltHost
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) GetCoveredBy() NilString {
+	return s.CoveredBy
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) GetHost() string {
+	return s.Host
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) SetAltHost(val string) {
+	s.AltHost = val
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) SetCoveredBy(val NilString) {
+	s.CoveredBy = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) SetHost(val string) {
+	s.Host = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePutExposureTargetsIDTermsOKProof) SetZone(val string) {
+	s.Zone = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -120370,6 +120832,51 @@ func (o NilExposureDeleteExposureTargetsIDTermsOKMethod) Or(d ExposureDeleteExpo
 	return d
 }
 
+// NewNilExposureDeleteExposureTargetsIDTermsOKProof returns new NilExposureDeleteExposureTargetsIDTermsOKProof with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKProof(v ExposureDeleteExposureTargetsIDTermsOKProof) NilExposureDeleteExposureTargetsIDTermsOKProof {
+	return NilExposureDeleteExposureTargetsIDTermsOKProof{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKProof is nullable ExposureDeleteExposureTargetsIDTermsOKProof.
+type NilExposureDeleteExposureTargetsIDTermsOKProof struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKProof) SetTo(v ExposureDeleteExposureTargetsIDTermsOKProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKProof) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKProof) Get() (v ExposureDeleteExposureTargetsIDTermsOKProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKProof) Or(d ExposureDeleteExposureTargetsIDTermsOKProof) ExposureDeleteExposureTargetsIDTermsOKProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureDeleteExposureTargetsIDTermsOKTerms returns new NilExposureDeleteExposureTargetsIDTermsOKTerms with value set to v.
 func NewNilExposureDeleteExposureTargetsIDTermsOKTerms(v ExposureDeleteExposureTargetsIDTermsOKTerms) NilExposureDeleteExposureTargetsIDTermsOKTerms {
 	return NilExposureDeleteExposureTargetsIDTermsOKTerms{
@@ -120955,6 +121462,51 @@ func (o NilExposureGetExposureTargetsIDOKMethod) Or(d ExposureGetExposureTargets
 	return d
 }
 
+// NewNilExposureGetExposureTargetsIDOKProof returns new NilExposureGetExposureTargetsIDOKProof with value set to v.
+func NewNilExposureGetExposureTargetsIDOKProof(v ExposureGetExposureTargetsIDOKProof) NilExposureGetExposureTargetsIDOKProof {
+	return NilExposureGetExposureTargetsIDOKProof{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsIDOKProof is nullable ExposureGetExposureTargetsIDOKProof.
+type NilExposureGetExposureTargetsIDOKProof struct {
+	Value ExposureGetExposureTargetsIDOKProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsIDOKProof) SetTo(v ExposureGetExposureTargetsIDOKProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsIDOKProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsIDOKProof) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsIDOKProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsIDOKProof) Get() (v ExposureGetExposureTargetsIDOKProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsIDOKProof) Or(d ExposureGetExposureTargetsIDOKProof) ExposureGetExposureTargetsIDOKProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTargetsIDOKTerms returns new NilExposureGetExposureTargetsIDOKTerms with value set to v.
 func NewNilExposureGetExposureTargetsIDOKTerms(v ExposureGetExposureTargetsIDOKTerms) NilExposureGetExposureTargetsIDOKTerms {
 	return NilExposureGetExposureTargetsIDOKTerms{
@@ -121450,6 +122002,51 @@ func (o NilExposureGetExposureTargetsOKItemsItemMethod) Or(d ExposureGetExposure
 	return d
 }
 
+// NewNilExposureGetExposureTargetsOKItemsItemProof returns new NilExposureGetExposureTargetsOKItemsItemProof with value set to v.
+func NewNilExposureGetExposureTargetsOKItemsItemProof(v ExposureGetExposureTargetsOKItemsItemProof) NilExposureGetExposureTargetsOKItemsItemProof {
+	return NilExposureGetExposureTargetsOKItemsItemProof{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsOKItemsItemProof is nullable ExposureGetExposureTargetsOKItemsItemProof.
+type NilExposureGetExposureTargetsOKItemsItemProof struct {
+	Value ExposureGetExposureTargetsOKItemsItemProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsOKItemsItemProof) SetTo(v ExposureGetExposureTargetsOKItemsItemProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsOKItemsItemProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsOKItemsItemProof) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsOKItemsItemProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsOKItemsItemProof) Get() (v ExposureGetExposureTargetsOKItemsItemProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsOKItemsItemProof) Or(d ExposureGetExposureTargetsOKItemsItemProof) ExposureGetExposureTargetsOKItemsItemProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTargetsOKItemsItemTerms returns new NilExposureGetExposureTargetsOKItemsItemTerms with value set to v.
 func NewNilExposureGetExposureTargetsOKItemsItemTerms(v ExposureGetExposureTargetsOKItemsItemTerms) NilExposureGetExposureTargetsOKItemsItemTerms {
 	return NilExposureGetExposureTargetsOKItemsItemTerms{
@@ -121804,6 +122401,51 @@ func (o NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) Get() (v ExposurePo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemMethod) ExposurePostExposureBoxIPVerifyOKItemsItemMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureBoxIPVerifyOKItemsItemProof returns new NilExposurePostExposureBoxIPVerifyOKItemsItemProof with value set to v.
+func NewNilExposurePostExposureBoxIPVerifyOKItemsItemProof(v ExposurePostExposureBoxIPVerifyOKItemsItemProof) NilExposurePostExposureBoxIPVerifyOKItemsItemProof {
+	return NilExposurePostExposureBoxIPVerifyOKItemsItemProof{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureBoxIPVerifyOKItemsItemProof is nullable ExposurePostExposureBoxIPVerifyOKItemsItemProof.
+type NilExposurePostExposureBoxIPVerifyOKItemsItemProof struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemProof) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemProof) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemProof) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemProof) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemProof) ExposurePostExposureBoxIPVerifyOKItemsItemProof {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -122305,6 +122947,51 @@ func (o NilExposurePostExposureTargetsCreatedMethod) Or(d ExposurePostExposureTa
 	return d
 }
 
+// NewNilExposurePostExposureTargetsCreatedProof returns new NilExposurePostExposureTargetsCreatedProof with value set to v.
+func NewNilExposurePostExposureTargetsCreatedProof(v ExposurePostExposureTargetsCreatedProof) NilExposurePostExposureTargetsCreatedProof {
+	return NilExposurePostExposureTargetsCreatedProof{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsCreatedProof is nullable ExposurePostExposureTargetsCreatedProof.
+type NilExposurePostExposureTargetsCreatedProof struct {
+	Value ExposurePostExposureTargetsCreatedProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsCreatedProof) SetTo(v ExposurePostExposureTargetsCreatedProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsCreatedProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsCreatedProof) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsCreatedProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsCreatedProof) Get() (v ExposurePostExposureTargetsCreatedProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsCreatedProof) Or(d ExposurePostExposureTargetsCreatedProof) ExposurePostExposureTargetsCreatedProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsCreatedTerms returns new NilExposurePostExposureTargetsCreatedTerms with value set to v.
 func NewNilExposurePostExposureTargetsCreatedTerms(v ExposurePostExposureTargetsCreatedTerms) NilExposurePostExposureTargetsCreatedTerms {
 	return NilExposurePostExposureTargetsCreatedTerms{
@@ -122800,6 +123487,51 @@ func (o NilExposurePostExposureTargetsIDVerifyOKTargetMethod) Or(d ExposurePostE
 	return d
 }
 
+// NewNilExposurePostExposureTargetsIDVerifyOKTargetProof returns new NilExposurePostExposureTargetsIDVerifyOKTargetProof with value set to v.
+func NewNilExposurePostExposureTargetsIDVerifyOKTargetProof(v ExposurePostExposureTargetsIDVerifyOKTargetProof) NilExposurePostExposureTargetsIDVerifyOKTargetProof {
+	return NilExposurePostExposureTargetsIDVerifyOKTargetProof{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsIDVerifyOKTargetProof is nullable ExposurePostExposureTargetsIDVerifyOKTargetProof.
+type NilExposurePostExposureTargetsIDVerifyOKTargetProof struct {
+	Value ExposurePostExposureTargetsIDVerifyOKTargetProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsIDVerifyOKTargetProof) SetTo(v ExposurePostExposureTargetsIDVerifyOKTargetProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsIDVerifyOKTargetProof) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsIDVerifyOKTargetProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetProof) Get() (v ExposurePostExposureTargetsIDVerifyOKTargetProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetProof) Or(d ExposurePostExposureTargetsIDVerifyOKTargetProof) ExposurePostExposureTargetsIDVerifyOKTargetProof {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsIDVerifyOKTargetTerms returns new NilExposurePostExposureTargetsIDVerifyOKTargetTerms with value set to v.
 func NewNilExposurePostExposureTargetsIDVerifyOKTargetTerms(v ExposurePostExposureTargetsIDVerifyOKTargetTerms) NilExposurePostExposureTargetsIDVerifyOKTargetTerms {
 	return NilExposurePostExposureTargetsIDVerifyOKTargetTerms{
@@ -123244,6 +123976,51 @@ func (o NilExposurePutExposureTargetsIDTermsOKMethod) Get() (v ExposurePutExposu
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePutExposureTargetsIDTermsOKMethod) Or(d ExposurePutExposureTargetsIDTermsOKMethod) ExposurePutExposureTargetsIDTermsOKMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKProof returns new NilExposurePutExposureTargetsIDTermsOKProof with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKProof(v ExposurePutExposureTargetsIDTermsOKProof) NilExposurePutExposureTargetsIDTermsOKProof {
+	return NilExposurePutExposureTargetsIDTermsOKProof{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKProof is nullable ExposurePutExposureTargetsIDTermsOKProof.
+type NilExposurePutExposureTargetsIDTermsOKProof struct {
+	Value ExposurePutExposureTargetsIDTermsOKProof
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKProof) SetTo(v ExposurePutExposureTargetsIDTermsOKProof) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKProof) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKProof) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKProof
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKProof) Get() (v ExposurePutExposureTargetsIDTermsOKProof, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKProof) Or(d ExposurePutExposureTargetsIDTermsOKProof) ExposurePutExposureTargetsIDTermsOKProof {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -24,13 +24,16 @@ func apiErr(status int, code, format string, a ...any) *APIError {
 
 // The API errors of the exposure endpoints. Texts are those of the mock, which is the behaviour spec.
 var (
-	ErrNotFound       = apiErr(404, "not_found", "No such target. It may have been deleted.")
-	ErrNoSnapshot     = apiErr(404, "not_found", "No snapshot for this day.")
-	ErrNoSnapshots    = apiErr(404, "not_found", "There is no snapshot for one of the two selected days.")
-	ErrSameDate       = apiErr(400, "same_date", "Pick two different days to compare.")
-	ErrEmpty          = apiErr(400, "empty", "Enter a domain, for example example.com.")
-	ErrBadValue       = apiErr(400, "bad_value", "Enter only a domain name, without http://, a path, a port or spaces. Example: example.com.")
-	ErrBadDomain      = apiErr(400, "bad_value", "Not a valid domain. Example: example.com.")
+	ErrNotFound    = apiErr(404, "not_found", "No such target. It may have been deleted.")
+	ErrNoSnapshot  = apiErr(404, "not_found", "No snapshot for this day.")
+	ErrNoSnapshots = apiErr(404, "not_found", "There is no snapshot for one of the two selected days.")
+	ErrSameDate    = apiErr(400, "same_date", "Pick two different days to compare.")
+	ErrEmpty       = apiErr(400, "empty", "Enter a domain, for example example.com.")
+	ErrBadValue    = apiErr(400, "bad_value", "Enter only a domain name, without http://, a path, a port or spaces. Example: example.com.")
+	ErrBadDomain   = apiErr(400, "bad_value", "Not a valid domain. Example: example.com.")
+	// ErrPublicSuffix: a public suffix (co.uk, ddns.net, github.io) is where many owners register their names; no record there can
+	// prove one of them (D-628).
+	ErrPublicSuffix   = apiErr(400, "bad_value", "That is a public suffix, under which many owners register their own names: add your own domain (for example yourcompany.co.uk or yourname.ddns.net).")
 	ErrIPNotAllowed   = apiErr(400, "ip_not_allowed", "Public IPs are not typed in. The box finds its own public IPs: turn on auto-detect or select \"Detect now\" under Public IPs of this box.")
 	ErrTooMany        = apiErr(400, "too_many", "At most %d targets. Delete ones you no longer use.", MaxTargets)
 	ErrBadInterval    = apiErr(400, "bad_interval", "Choose how often to check: every minute up to every 24 hours (%d minutes).", MaxIntervalMin)

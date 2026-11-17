@@ -139,6 +139,13 @@ func TestCheckRefusals(t *testing.T) {
 		{"name moved", func(_ *Job, d *fakeDNS) { d.a["www.acme.example"] = []netip.Addr{netip.MustParseAddr("34.117.59.80")} }, NameMoved},
 		{"name gone", func(_ *Job, d *fakeDNS) { delete(d.a, "www.acme.example") }, NameMoved},
 		{"TXT lookup fails", func(_ *Job, d *fakeDNS) { d.fail["acme.example"] = true }, Unchecked},
+		{"D-628: TXT on _vedette-verify.<domain> (the domain is a CNAME)", func(_ *Job, d *fakeDNS) {
+			d.txt["_vedette-verify.acme.example"], d.txt["acme.example"] = d.txt["acme.example"], nil
+		}, ""},
+		{"D-628: another box's token on _vedette-verify.<domain>", func(_ *Job, d *fakeDNS) {
+			d.txt["_vedette-verify.acme.example"], d.txt["acme.example"] = []string{"vedette-verify=" + Token(key2, "acme.example")}, nil
+		}, NotOwned},
+		{"D-628: the _vedette-verify lookup fails", func(_ *Job, d *fakeDNS) { delete(d.txt, "acme.example"); d.fail["_vedette-verify.acme.example"] = true }, Unchecked},
 		{"A lookup fails", func(_ *Job, d *fakeDNS) { d.fail["www.acme.example"] = true }, Unchecked},
 		{"CNAME lookup fails", func(_ *Job, d *fakeDNS) { d.fail["cname:www.acme.example"] = true }, Unchecked},
 		{"disruptive, CNAME outside", func(j *Job, _ *fakeDNS) { j.Name, j.Disruptive = "cdn.acme.example", true }, CNAMEOutside},

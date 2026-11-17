@@ -83,6 +83,7 @@ function Group({ id, entries, nav, current, drawer, onNavigate }: { id: ShellGro
   const total = urgent.reduce((n, e) => n + e.badge!.count, 0)
   const parts = urgent.map((e) => `${t(e.item.label)} ${e.badge!.count} ${t(e.badge!.key)}`).join(', ')
   const region = `nav-group-${id}${drawer ? '-drawer' : ''}`
+  const [moved, setMoved] = useState(false)
   return (
     <div className="grid grid-cols-[minmax(0,1fr)]">
       <button
@@ -91,7 +92,7 @@ function Group({ id, entries, nav, current, drawer, onNavigate }: { id: ShellGro
         aria-controls={region}
         // The group holding the current page stays open (closing it would hide where you are), so its header says so and does nothing.
         aria-disabled={current || undefined}
-        onClick={() => { if (!current) nav.toggle(id, !open) }}
+        onClick={() => { if (!current) { setMoved(true); nav.toggle(id, !open) } }}
         className={cn('flex h-8 items-center gap-1.5 rounded-md px-2.5 text-left text-caption text-muted hover:text-ink', current && 'cursor-default hover:text-muted')}
       >
         <span className="min-w-0 flex-1 truncate">{name}{current ? <span className="sr-only">, {t('layout.groupHere')}</span> : null}</span>
@@ -99,8 +100,15 @@ function Group({ id, entries, nav, current, drawer, onNavigate }: { id: ShellGro
         {!open && total ? <>{' '}<Counter count={total} tone="danger" label={t('layout.groupWaiting', { parts })} /></> : null}
         <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 transition-transform duration-150', open ? 'rotate-0' : '-rotate-90')} />
       </button>
-      {/* Closed: zero height and inert (out of the tab order and the accessibility tree); opening eases the height over 150 ms. */}
-      <div id={region} inert={!open} className={cn('grid transition-[grid-template-rows] duration-150 ease-out', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+      {/* Closed: `hidden` (display none), so its links leave the tab order, the accessibility tree and every role query; inert alone
+          left them listed as present but unclickable. Height eases over 150 ms both ways once the header was pressed: `starting:` gives
+          the opening its 0fr start, `transition-discrete` keeps display on until the closing ends. Before a press nothing animates,
+          so a group open on load or in a freshly opened drawer is simply there. */}
+      <div
+        id={region}
+        hidden={!open}
+        className={cn('grid ease-out', moved && 'transition-[grid-template-rows,display] transition-discrete duration-150', open ? cn('grid-rows-[1fr]', moved && 'starting:grid-rows-[0fr]') : 'grid-rows-[0fr]')}
+      >
         {/* div, not ul: many page tests query the one list or listitem of their page (getByRole('list')). */}
         <div role="group" aria-label={name} className="grid min-h-0 grid-cols-[minmax(0,1fr)] gap-0.5 overflow-hidden">
           {entries.map((e) => <EntryLink key={e.item.to} e={e} rail={false} drawer={drawer} onNavigate={onNavigate} />)}

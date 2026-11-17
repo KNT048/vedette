@@ -164,6 +164,9 @@ func (e *env) feed(id string) sourceRow {
 	return r
 }
 
+// shown is the feed as the API shows it (live): what it holds in front of its pull's note.
+func (e *env) shown(id string) sourceRow { return e.svc.live(e.t.Context(), e.feed(id)) }
+
 func TestContract_POST1_KEVPullStoresAndPublishesNewCVEsOnce(t *testing.T) {
 	t.Parallel()
 	e, o := pullEnv(t)

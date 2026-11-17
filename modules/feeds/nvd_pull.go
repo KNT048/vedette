@@ -89,12 +89,24 @@ func (s *Service) nvdResumeAt() (time.Time, bool) {
 // the pull got and why it waits, instead of the last error or "not fetched yet" alone. A feed that never
 // finished a pull stays "never": its versions are not loaded yet. A distribution feed no device needs says so.
 // nvd-recent between pulls of an unfinished fill (after a restart, or a migration that reset its cursor) says where the
-// next pull goes on, read from its cursor, as /findings/plan says it is loading.
+// next pull goes on, read from its cursor, as /findings/plan says it is loading. A feed of heldNotes whose last pull was good
+// starts with what it holds now (heldNow), then what the row says.
 func (s *Service) live(ctx context.Context, r sourceRow) sourceRow {
+	held := ""
+	if r.Status == "ok" {
+		held = s.heldNow(ctx, r.ID)
+	}
+	if held != "" {
+		note := withHeld(held, orEmpty(r.Error))
+		r.Error = &note
+	}
 	if distroFeeds[r.ID] && r.Enabled {
 		if note := s.distroNote(r.ID); note != "" { // The rows of an earlier pull stay; a real error keeps its text, then says why it waits
-			if r.Status == "error" && r.Error != nil {
+			switch {
+			case r.Status == "error" && r.Error != nil:
 				note = *r.Error + " " + note
+			case held != "": // what the rows of the earlier pull hold
+				note = held + " " + note
 			}
 			r.Error = &note
 		}
@@ -133,7 +145,7 @@ func (s *Service) live(ctx context.Context, r sourceRow) sourceRow {
 	if run == nil || run.url != r.URL {
 		return r
 	}
-	text := run.text(s.now())
+	text := withHeld(held, run.text(s.now())) // what the versions loaded before hold, then how far this pull got
 	r.Error = &text
 	if r.Records == nil {
 		r.Status = "never"

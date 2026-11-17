@@ -2,9 +2,18 @@ package feeds
 
 import (
 	"database/sql"
+	"fmt"
+	"io/fs"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
+	"testing/fstest"
+	"time"
+
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
+	"github.com/knt048/vedette/modules/core"
 )
 
 // countSaysItself are the built-in feeds whose count needs no words: the entries of a list, or the indicators or scores it gives.
@@ -49,7 +58,7 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 		t.Helper()
 		var got string
 		write(t, e.db, func(tx *sql.Tx) (err error) {
-			got, err = withHeld(t.Context(), tx, id, "")
+			got, err = heldNotes[id](t.Context(), tx)
 			return err
 		})
 		return got
@@ -99,13 +108,270 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 	if got, want := held(cveOrgFeedID), "Read only for exploited CVEs NVD gives no affected versions for, and NVD gives them for every one now."; got != want {
 		t.Errorf("NVD covers all: %q, want %q", got, want)
 	}
-	if got, err := func() (got string, err error) {
-		write(t, e.db, func(tx *sql.Tx) error {
-			got, err = withHeld(t.Context(), tx, "ipsum", "A note of the pull.")
-			return nil
+}
+
+// fillHeld puts data behind every feed of heldNotes: two exploited CVEs (NVD gives versions for one), the rows of each distribution
+// feed for one of them and for another CVE, and a Windows release.
+func fillHeld(t *testing.T, db *store.DB) {
+	t.Helper()
+	applyV(t, db, epoch0, "cisa-kev", []Vuln{vuln("CVE-2026-0001", "Acme", "Gateway", "2026-11-01"), vuln("CVE-2026-0002", "Acme", "Portal", "2026-11-02")}, false)
+	write(t, db, func(tx *sql.Tx) error {
+		if _, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0002": {{CPE: "cpe:2.3:a:acme:portal:*:*:*:*:*:*:*:*", EndExcl: "3.0"}}}, false, epoch0); err != nil {
+			return err
+		}
+		for _, id := range []string{ubuntuOSVFeedID, ubuntuVEXFeedID, debianTrackerFeedID, alpineOSVFeedID} {
+			if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES
+(?1, 'debian', '12', 'openssh', 'CVE-2026-0001', 'fixed', '1.1'), (?1, 'debian', '13', 'openssh', 'CVE-2026-0001', 'fixed', '1.2'), (?1, 'debian', '12', 'curl', 'CVE-2025-1111', 'fixed', '8.0')`, id); err != nil {
+				return err
+			}
+		}
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_winrel (build, server, product, display, line, ga, ga_rev) VALUES (26100, 1, 'windows_server_2025', 'Windows Server 2025', 26100, '2024-11-01', 2314)`)
+		return err
+	})
+}
+
+// heldShown checks every feed of heldNotes as GET /feeds/sources shows it: what a count of the stored data gives now, then the note
+// its last pull stored. It returns the feeds whose good row shows its count with no word of what it holds.
+func (e *env) heldShown(t *testing.T) (bare []string) {
+	t.Helper()
+	c, b := e.get("/feeds/sources")
+	if c != 200 {
+		t.Fatalf("list: %d", c)
+	}
+	for _, it := range b["items"].([]any) {
+		m := it.(map[string]any)
+		id := m["id"].(string)
+		count := heldNotes[id]
+		if count == nil {
+			continue
+		}
+		var held string
+		write(t, e.db, func(tx *sql.Tx) (err error) {
+			held, err = count(t.Context(), tx)
+			return err
 		})
-		return got, err
-	}(); err != nil || got != "A note of the pull." {
-		t.Errorf("a feed whose count says itself keeps its pull's note alone: %q %v", got, err)
+		line, _ := m["error"].(string)
+		if want := withHeld(held, orEmpty(e.feed(id).Error)); m["status"] != "ok" || line != want {
+			t.Errorf("%s: %v %q, want ok %q", id, m["status"], line, want)
+		}
+		if held == "" || !strings.HasPrefix(line, held) {
+			bare = append(bare, id)
+		}
+	}
+	return bare
+}
+
+// After an update, before any feed pulled again: the rows were stored by a version that wrote no sentence of what the feed holds
+// (no note, or only its pull's own). Every feed of heldNotes says what it holds the moment the page is read.
+func TestHeldNotes_ShownRightAfterAnUpdate(t *testing.T) {
+	t.Parallel()
+	e, _ := pullEnv(t)
+	fillHeld(t, e.db)
+	for _, stored := range []string{"", "2 of 10 rows were rejected. Most often: x. A few bad lines in a public list are normal; they are skipped."} {
+		var note any
+		if stored != "" {
+			note = stored
+		}
+		for id := range heldNotes {
+			execSQL(t, e.db, fmt.Sprintf(`UPDATE feeds_source SET status = 'ok', last_fetch = '2026-11-05T11:06:00.000Z', last_success = '2026-11-05T11:06:00.000Z', records = 0, error = %s WHERE id = '%s'`,
+				map[bool]string{true: "NULL", false: "'" + stored + "'"}[note == nil], id))
+		}
+		if bare := e.heldShown(t); len(bare) > 0 {
+			t.Errorf("stored note %q: %d of %d feeds show a bare count: %v", stored, len(bare), len(heldNotes), bare)
+		}
+		if _, line := e.fetchList(t, cveOrgFeedID); line != withHeld("1 exploited CVE has no affected versions from NVD; 1 not read from CVE.org yet.", stored) {
+			t.Errorf("CVE.org, stored %q: %q", stored, line)
+		}
+	}
+	// a feed that failed shows its error alone; one never pulled says so (the GUI's "first fetch")
+	execSQL(t, e.db, `UPDATE feeds_source SET status = 'error', error = 'NVD answered HTTP 503.' WHERE id = 'nvd-kev'`)
+	execSQL(t, e.db, `UPDATE feeds_source SET status = 'never', error = NULL WHERE id = 'windows-releases'`)
+	for id, want := range map[string][2]string{nvdFeedID: {"error", "NVD answered HTTP 503."}, winRelFeedID: {"never", ""}} {
+		if st, line := e.fetchList(t, id); st != want[0] || line != want[1] {
+			t.Errorf("%s: %s %q, want %v", id, st, line, want)
+		}
+	}
+}
+
+// The sentence follows the data whichever feed changed it: the CISA list (first-epss, cve-org, the distribution feeds), VulnCheck KEV,
+// NVD (nvd-kev, cve-org), and each feed's own pull. A pull is its data and its recorded outcome in one transaction, as pullOne writes.
+func TestHeldNotes_FollowTheData(t *testing.T) {
+	t.Parallel()
+	e, _ := pullEnv(t)
+	fillHeld(t, e.db)
+	pulled := func(id string, fn func(tx *sql.Tx) error) {
+		t.Helper()
+		e.setNow(e.clock().Add(time.Minute))
+		write(t, e.db, func(tx *sql.Tx) error {
+			if err := fn(tx); err != nil {
+				return err
+			}
+			return recordOutcome(t.Context(), tx, id, outcome{Started: e.clock(), Finished: e.clock(), OK: true, NotModified: true})
+		})
+	}
+	for id := range heldNotes {
+		pulled(id, func(*sql.Tx) error { return nil })
+	}
+	e.heldShown(t) // counted once: the next reads use what changed since
+	insert := func(q string, args ...any) func(tx *sql.Tx) error {
+		return func(tx *sql.Tx) error { _, err := tx.ExecContext(t.Context(), q, args...); return err }
+	}
+	steps := []struct {
+		name, feed string
+		data       func(tx *sql.Tx) error
+		shows      map[string]string // a few lines in full; heldShown checks every feed
+	}{
+		{"the CISA list adds the other CVE of the distribution rows", kevFeedID, func(tx *sql.Tx) error {
+			_, _, err := applyVulns(t.Context(), tx, epoch0, kevFeedID, []Vuln{vuln("CVE-2025-1111", "Haxx", "curl", "2026-11-03")}, false)
+			return err
+		}, map[string]string{
+			"first-epss":    "Scores of 0 of the 3 exploited CVEs on the CISA list, today's and a week ago's.",
+			cveOrgFeedID:    "2 exploited CVEs have no affected versions from NVD; 2 not read from CVE.org yet.",
+			ubuntuOSVFeedID: "Counts one record per package, release and CVE: 2 exploited CVEs.",
+		}},
+		{"VulnCheck KEV adds a CVE NVD has no versions for", vulnCheckFeedID, func(tx *sql.Tx) error {
+			_, _, err := applyVulns(t.Context(), tx, epoch0, vulnCheckFeedID, []Vuln{vuln("CVE-2026-0003", "Acme", "Router", "2026-11-04")}, false)
+			return err
+		}, map[string]string{cveOrgFeedID: "3 exploited CVEs have no affected versions from NVD; 3 not read from CVE.org yet."}},
+		{"NVD gives versions for another CVE", nvdFeedID, func(tx *sql.Tx) error {
+			_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0001": {{CPE: "cpe:2.3:a:acme:gateway:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}}, false, epoch0)
+			return err
+		}, map[string]string{
+			nvdFeedID:    "NVD records of 2 exploited CVEs; 2 of them name affected versions.",
+			cveOrgFeedID: "2 exploited CVEs have no affected versions from NVD; 2 not read from CVE.org yet.",
+		}},
+		{"CVE.org reads one", cveOrgFeedID, insert(`INSERT INTO feeds_cveorg_checked (cve, checked_at) VALUES ('CVE-2025-1111', '2026-11-05T12:00:00.000Z')`),
+			map[string]string{cveOrgFeedID: "2 exploited CVEs have no affected versions from NVD; CVE.org gives none Vedette can compare for 1, 1 not read from CVE.org yet."}},
+		{"EPSS scores the list", "first-epss", insert(`UPDATE feeds_vuln SET epss = 0.5 WHERE source_id = 'cisa-kev'`),
+			map[string]string{"first-epss": "Scores of 3 of the 3 exploited CVEs on the CISA list, today's and a week ago's."}},
+		{"Debian drops its rows of the other CVE", debianTrackerFeedID, insert(`DELETE FROM feeds_distro_fix WHERE source_id = 'debian-tracker' AND release = '13'`),
+			map[string]string{debianTrackerFeedID: "Counts one record per package, release and CVE: 2 exploited CVEs."}},
+		{"Ubuntu VEX, Alpine and Ubuntu OSV each keep one row", ubuntuVEXFeedID, insert(`DELETE FROM feeds_distro_fix WHERE source_id = 'ubuntu-vex' AND package = 'openssh'`),
+			map[string]string{ubuntuVEXFeedID: "Counts one record per package, release and CVE: 1 exploited CVE."}},
+		{"Alpine", alpineOSVFeedID, insert(`DELETE FROM feeds_distro_fix WHERE source_id = 'alpine-osv' AND package = 'curl'`), nil},
+		{"Ubuntu OSV", ubuntuOSVFeedID, insert(`DELETE FROM feeds_distro_fix WHERE source_id = 'ubuntu-osv' AND package = 'curl'`), nil},
+		{"Microsoft's pages add a monthly update", winRelFeedID, insert(`INSERT INTO feeds_winrel_update (build, server, rev, kb, day) VALUES (26100, 1, 4652, 'KB5060001', '2026-11-11')`),
+			map[string]string{winRelFeedID: "1 Windows release on Microsoft's release information pages, with 1 monthly update, the newest of 11 Nov 2026."}},
+	}
+	for _, s := range steps {
+		pulled(s.feed, s.data)
+		if bare := e.heldShown(t); len(bare) > 0 {
+			t.Errorf("%s: bare counts %v", s.name, bare)
+		}
+		for id, want := range s.shows {
+			if _, line := e.fetchList(t, id); line != want {
+				t.Errorf("%s, %s: %q, want %q", s.name, id, line, want)
+			}
+		}
+	}
+	// every feed of heldNotes names where its data comes from, and each names itself
+	for id := range heldNotes {
+		if !slices.Contains(heldFrom[id], id) {
+			t.Errorf("%s: heldFrom %v leaves the feed out", id, heldFrom[id])
+		}
+	}
+}
+
+// Migration 0023 on a box whose rows were written by the version that stored the sentence of what a feed holds in front of its
+// pull's note: the sentence goes (it is counted when read now), the pull's note stays; a note stored before held notes, an error,
+// and a feed whose count says itself are left as they are.
+func TestMigration0023TakesTheStoredHeldSentenceOff(t *testing.T) {
+	t.Parallel()
+	before := fstest.MapFS{}
+	entries, err := fs.ReadDir(Migrations, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() >= "0023" {
+			continue
+		}
+		b, err := fs.ReadFile(Migrations, e.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		before[e.Name()] = &fstest.MapFile{Data: b}
+	}
+	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "feeds", FS: before})
+	s := &Store{db: db}
+	if err := s.SeedBuiltins(t.Context(), epoch0); err != nil {
+		t.Fatal(err)
+	}
+	const pull = "2 of 10 rows were rejected. Most often: x. A few bad lines in a public list are normal; they are skipped."
+	set := func(id, status string, note *string) {
+		t.Helper()
+		write(t, db, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET status = ?, error = ? WHERE id = ?`, status, note, id)
+			return err
+		})
+	}
+	// every sentence the previous version could store, on an empty box and on a filled one, alone and before the pull's note
+	var cases []struct{ id, stored, want string }
+	sentences := func() {
+		for id, count := range heldNotes {
+			var held string
+			write(t, db, func(tx *sql.Tx) (err error) {
+				held, err = count(t.Context(), tx)
+				return err
+			})
+			if held != "" {
+				cases = append(cases, struct{ id, stored, want string }{id, held, ""}, struct{ id, stored, want string }{id, held + " " + pull, pull})
+			}
+		}
+	}
+	sentences()
+	fillHeld(t, db)
+	write(t, db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_winrel_update (build, server, rev, kb, day) VALUES (26100, 1, 4652, 'KB5060001', '2026-11-11')`)
+		return err
+	})
+	sentences()
+	write(t, db, func(tx *sql.Tx) error { // the cases of CVE.org: none read, all read with nothing comparable, NVD covers every one
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cveorg_checked (cve, checked_at) VALUES ('CVE-2026-0001', '2026-11-05T12:00:00.000Z')`)
+		return err
+	})
+	sentences()
+	write(t, db, func(tx *sql.Tx) error {
+		_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0001": {{CPE: "cpe:2.3:a:acme:gateway:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}}, false, epoch0)
+		return err
+	})
+	sentences()
+	kept := []struct{ id, status, stored string }{
+		{cveOrgFeedID, "ok", "Read 3 CVE.org records of exploited CVEs NVD has no versions for: 1 with affected versions from their CNA."},
+		{"first-epss", "ok", pull},
+		{nvdFeedID, "error", "NVD records of the box could not be read. Check the disk space and the box logs."},
+		{"ipsum", "ok", pull},
+	}
+	for _, c := range cases {
+		db2 := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "feeds", FS: before})
+		s2 := &Store{db: db2}
+		if err := s2.SeedBuiltins(t.Context(), epoch0); err != nil {
+			t.Fatal(err)
+		}
+		stored := c.stored
+		write(t, db2, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET status = 'ok', error = ? WHERE id = ?`, stored, c.id)
+			return err
+		})
+		if err := store.Migrate(t.Context(), db2, "feeds", Migrations); err != nil {
+			t.Fatal(err)
+		}
+		if r, err := s2.source(t.Context(), c.id); err != nil || orEmpty(r.Error) != c.want {
+			t.Errorf("%s %q: after 0023 %q, want %q (%v)", c.id, c.stored, orEmpty(r.Error), c.want, err)
+		}
+	}
+	if len(cases) < 2*len(heldNotes) {
+		t.Fatalf("only %d stored sentences tried", len(cases))
+	}
+	for _, k := range kept {
+		set(k.id, k.status, &k.stored)
+	}
+	if err := store.Migrate(t.Context(), db, "feeds", Migrations); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range kept {
+		if r, err := s.source(t.Context(), k.id); err != nil || orEmpty(r.Error) != k.stored {
+			t.Errorf("%s %s %q: after 0023 %q (%v)", k.id, k.status, k.stored, orEmpty(r.Error), err)
+		}
 	}
 }

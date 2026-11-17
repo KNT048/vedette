@@ -142,7 +142,7 @@ func TestNVDPull_PausesAndResumesFromTheLastGoodPage(t *testing.T) {
 	if n.count(0) != 1 || n.count(100) != 5 || n.count(200) != 1 {
 		t.Fatalf("requests per page: %v", n.asked)
 	}
-	if f := e.feed("nvd-kev"); f.Status != "ok" || *f.Records != 250 || f.Error == nil || *f.Error != "NVD records of 250 exploited CVEs; 250 of them name affected versions." {
+	if f := e.shown("nvd-kev"); f.Status != "ok" || *f.Records != 250 || f.Error == nil || *f.Error != "NVD records of 250 exploited CVEs; 250 of them name affected versions." {
 		t.Fatalf("feed = %+v %q", f, deref(f.Error))
 	}
 	if e.svc.nvdState() != nil {
@@ -166,7 +166,8 @@ func TestNVDPull_UnfinishedFullPullDeletesNothing(t *testing.T) {
 	if c, _ := e.svc.st.affectedCount(t.Context()); c != 250 {
 		t.Fatalf("entries after an unfinished full pull: %d", c)
 	}
-	if c, b := e.fetchList(t, "nvd-kev"); c != "ok" || !strings.HasPrefix(b, "Loading version ranges from NVD: 1 of 3 pages done.") {
+	// what the versions loaded before hold, then how far this pull got
+	if c, b := e.fetchList(t, "nvd-kev"); c != "ok" || !strings.HasPrefix(b, "NVD records of 250 exploited CVEs; 250 of them name affected versions. Loading version ranges from NVD: 1 of 3 pages done.") {
 		t.Fatalf("feeds page: %s %q", c, b)
 	}
 }

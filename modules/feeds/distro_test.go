@@ -277,8 +277,9 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID))
-	if o.count("/tracker.json") != 1 || inv.asked != 3 || f.Status != "ok" || f.Error == nil || *f.Error != note || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
+	f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)) // what the rows of the earlier pull hold, then why the feed waits
+	held := e.svc.heldNow(t.Context(), debianTrackerFeedID)
+	if o.count("/tracker.json") != 1 || inv.asked != 3 || f.Status != "ok" || held == "" || f.Error == nil || *f.Error != held+" "+note || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
 		t.Fatalf("no Debian device: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
 	}
 	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil || o.count("/tracker.json") != 1 {
@@ -288,7 +289,7 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 	if err := e.svc.RunPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 2 || f.Status != "ok" || f.Error != nil && *f.Error == note {
+	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 2 || f.Status != "ok" || f.Error != nil && strings.Contains(*f.Error, note) {
 		t.Fatalf("a Debian device appeared: %d requests, feed %+v", o.count("/tracker.json"), f)
 	}
 	// the inventory cannot be read: pull as before

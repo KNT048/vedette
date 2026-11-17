@@ -1590,6 +1590,10 @@ func (s *Service) Tick(ctx context.Context) error {
 	if err := s.queuePendingOnce(ctx); err != nil {
 		return err
 	}
+	// D-607: the SNMP credentials of before are moved to their devices once, at the first tick after the upgrade (window or not).
+	if err := s.moveCredentials(ctx); err != nil {
+		s.log.WarnContext(ctx, "sensoractive: moving the snmp credentials to their devices failed; tried again at the next tick", "error", err)
+	}
 	if s.runMu.TryLock() {
 		err := s.failInterrupted(ctx)
 		s.runMu.Unlock()

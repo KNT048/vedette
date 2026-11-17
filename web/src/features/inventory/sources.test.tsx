@@ -82,7 +82,7 @@ describe('Device page: Sources switches (D-601)', () => {
     expect(item(list, 'Agent (osquery or Wazuh)')).toHaveTextContent('installed or uninstalled on the machine itself')
     await user.click(sw(snmp))
     await vi.waitFor(() => expect(sw(item(list, 'SNMP'))).toBeChecked(), T)
-    expect(item(list, 'SNMP')).toHaveTextContent('outside the LAN ranges only because you turned it on here; never if excluded')
+    expect(item(list, 'SNMP')).toHaveTextContent('outside the LAN ranges only because it is on here; never if excluded')
     expect(sw(item(list, 'Network scan'))).not.toBeChecked() // that source only
     const d = (await (await api('GET', `/devices/${id}`)).json()) as { asset: { scan_source: string; snmp_source: string } }
     expect(d.asset).toMatchObject({ scan_source: 'off', snmp_source: 'on' })

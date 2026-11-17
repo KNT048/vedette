@@ -167,9 +167,7 @@
     "noDays": "The shared window has no day yet.",
     "noDaysLink": "Choose its days: Safety, Time window"
   },
-  "own": {
-    "snmpAdmin": "SNMP credentials need the Admin role."
-  },
+  "own": {},
   "alerts": {
     "sentTo": "Matches alert you through: {{list}}.",
     "none": "No alert channel is on: matches only show on the pages.",

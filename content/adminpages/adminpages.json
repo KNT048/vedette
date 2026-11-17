@@ -1,0 +1,798 @@
+{
+ "families": [
+  {
+   "id": "fortigate",
+   "name": "FortiGate",
+   "vendor": "Fortinet",
+   "shared_vpn": true,
+   "device": "\\bforti(gate|os|wifi)\\b",
+   "kev_keys": [
+    "fortinet|fortios",
+    "fortinet|fortios and fortiadc",
+    "fortinet|fortios and fortiproxy"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ],
+   "not_web_ports": [
+    541
+   ],
+   "not_web_source": "FortiGate to FortiManager (FGFM) runs on TCP 541 with the device certificate; it serves no web page"
+  },
+  {
+   "id": "paloalto",
+   "name": "Palo Alto firewall",
+   "vendor": "Palo Alto Networks",
+   "shared_vpn": true,
+   "device": "\\bpalo ?alto\\b|\\bpan-os\\b",
+   "kev_keys": [
+    "palo alto networks|pan-os"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "sonicwall",
+   "name": "SonicWall",
+   "vendor": "SonicWall",
+   "shared_vpn": true,
+   "device": "\\bsonicwall\\b|\\bsonicos\\b",
+   "kev_keys": [
+    "sonicwall|sonicos",
+    "sonicwall|sma100",
+    "sonicwall|sma100 appliances",
+    "sonicwall|sma 100 appliances",
+    "sonicwall|sma1000 appliances",
+    "sonicwall|sma1000 appliance",
+    "sonicwall|sslvpn sma100",
+    "sonicwall|secure remote access (sra)"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "cisco-asa",
+   "name": "Cisco ASA",
+   "vendor": "Cisco",
+   "shared_vpn": true,
+   "device": "\\bcisco asa\\b|\\badaptive security appliance\\b|\\basa ?55[0-9]{2}",
+   "kev_keys": [
+    "cisco|adaptive security appliance (asa)",
+    "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)",
+    "cisco|adaptive security appliance and firepower threat defense",
+    "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)",
+    "cisco|secure firewall adaptive security appliance and secure firewall threat defense",
+    "cisco|secure firewall asa software and cisco secure ftd software"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "ivanti",
+   "name": "Ivanti Connect Secure",
+   "vendor": "Ivanti",
+   "shared_vpn": true,
+   "device": "\\b(ivanti|pulse) (connect )?secure\\b|\\bconnect secure\\b",
+   "kev_keys": [
+    "ivanti|connect secure",
+    "ivanti|connect secure and policy secure",
+    "ivanti|connect secure, policy secure, and neurons",
+    "ivanti|connect secure, policy secure, and zta gateways",
+    "ivanti|pulse connect secure",
+    "ivanti|pulse connect secure and pulse policy secure",
+    "pulse secure|pulse connect secure"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    "",
+    "server"
+   ]
+  },
+  {
+   "id": "citrix",
+   "name": "Citrix NetScaler",
+   "vendor": "Citrix",
+   "shared_vpn": true,
+   "device": "\\bnetscaler\\b|\\bcitrix (adc|gateway)\\b",
+   "kev_keys": [
+    "citrix|netscaler",
+    "citrix|netscaler adc and gateway",
+    "citrix|netscaler adc and netscaler gateway",
+    "citrix|application delivery controller (adc) and gateway",
+    "citrix|application delivery controller (adc), gateway, and sd-wan wanop appliance"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "checkpoint",
+   "name": "Check Point gateway",
+   "vendor": "Check Point",
+   "shared_vpn": true,
+   "device": "\\bcheck ?point\\b|\\bgaia\\b",
+   "kev_keys": [
+    "check point|quantum security gateways",
+    "check point|security gateway"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "f5",
+   "name": "F5 BIG-IP",
+   "vendor": "F5",
+   "shared_vpn": false,
+   "device": "\\bbig-?ip\\b|\\bf5( networks)?\\b",
+   "kev_keys": [
+    "f5|big-ip",
+    "f5|big-ip configuration utility",
+    "f5|big-ip apm",
+    "f5|big-ip and big-iq centralized management",
+    "f5|big-ip traffic management microkernel"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "watchguard",
+   "name": "WatchGuard Firebox",
+   "vendor": "WatchGuard",
+   "shared_vpn": true,
+   "device": "\\bwatchguard\\b|\\bfirebox\\b|\\bfireware\\b",
+   "kev_keys": [
+    "watchguard|firebox",
+    "watchguard|firebox and xtm",
+    "watchguard|firebox and xtm appliances"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "sophos",
+   "name": "Sophos Firewall",
+   "vendor": "Sophos",
+   "shared_vpn": false,
+   "device": "\\bsophos (xgs?|sg|utm|firewall)\\b|\\bsfos\\b|\\bcyberoam\\b",
+   "kev_keys": [
+    "sophos|firewall",
+    "sophos|sfos",
+    "sophos|xg firewall",
+    "sophos|sg utm",
+    "sophos|cyberoamos"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "zyxel",
+   "name": "Zyxel firewall",
+   "vendor": "Zyxel",
+   "shared_vpn": false,
+   "device": "\\bzyxel\\b",
+   "kev_keys": [
+    "zyxel|multiple firewalls"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "draytek",
+   "name": "DrayTek Vigor",
+   "vendor": "DrayTek",
+   "shared_vpn": false,
+   "device": "\\bdraytek\\b|\\bvigor ?[0-9]",
+   "kev_keys": [
+    "draytek|vigor routers",
+    "draytek|multiple vigor routers"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "mikrotik",
+   "name": "MikroTik router",
+   "vendor": "MikroTik",
+   "shared_vpn": false,
+   "device": "\\b(mikrotik|routeros|routerboard)\\b",
+   "kev_keys": [
+    "mikrotik|routeros"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    ""
+   ]
+  },
+  {
+   "id": "juniper",
+   "name": "Juniper",
+   "vendor": "Juniper Networks",
+   "shared_vpn": false,
+   "device": "\\bjuniper\\b|\\bjunos\\b",
+   "kev_keys": [
+    "juniper|junos os"
+   ],
+   "kinds": [
+    "firewall",
+    "router",
+    "vpn_gateway",
+    "sd_wan",
+    "load_balancer",
+    "modem",
+    "proxy",
+    "unknown",
+    "",
+    "switch"
+   ]
+  }
+ ],
+ "fingerprints": [
+  {
+   "product": "Fortinet SSL VPN",
+   "family": "fortigate",
+   "admin": false,
+   "body": "/remote/login",
+   "location": "^(https?://[^/]+)?/remote/login",
+   "source": "nuclei-templates http/exposed-panels/fortinet/fortinet-fortigate-panel.yaml (top.location=\"/remote/login\")"
+  },
+  {
+   "product": "Palo Alto GlobalProtect",
+   "family": "paloalto",
+   "admin": false,
+   "brand": "\\bglobal-?protect\\b",
+   "body": "global-protect",
+   "location": "^(https?://[^/]+)?/global-protect/",
+   "source": "nuclei-templates http/exposed-panels/globalprotect-panel.yaml (/global-protect/login.esp, <title>GlobalProtect Portal)"
+  },
+  {
+   "product": "Cisco AnyConnect",
+   "family": "cisco-asa",
+   "admin": false,
+   "body": "/\\+cscoe\\+/",
+   "location": "^(https?://[^/]+)?/\\+cscoe\\+/",
+   "product_re": "\\banyconnect\\b",
+   "source": "scan module surface fingerprint (/+CSCOE+/ portal)"
+  },
+  {
+   "product": "Ivanti Connect Secure",
+   "family": "ivanti",
+   "admin": false,
+   "brand": "\\b(ivanti|pulse) connect secure\\b|\\bpulse secure\\b",
+   "body": "/dana-na/",
+   "location": "^(https?://[^/]+)?/dana-na/",
+   "source": "nuclei-templates http/cves/2019/CVE-2019-11510.yaml (http.title:\"ivanti connect secure\", /dana-na/)"
+  },
+  {
+   "product": "Citrix Gateway",
+   "family": "citrix",
+   "admin": false,
+   "brand": "\\b(citrix|netscaler) gateway\\b|\\bnetscaler aaa\\b",
+   "body": "/logon/logonpoint/|/vpn/index\\.html",
+   "location": "^(https?://[^/]+)?(/logon/logonpoint/|/vpn/index\\.html)",
+   "source": "nuclei-templates http/exposed-panels/netscaler-gateway.yaml (/vpn/index.html, <title>Netscaler Gateway), http/cves/2020/CVE-2020-8191.yaml (title citrix gateway, netscaler aaa)"
+  },
+  {
+   "product": "Check Point SSL VPN",
+   "family": "checkpoint",
+   "admin": false,
+   "brand": "\\b(check point )?ssl network extender\\b",
+   "body": "/sslvpn/login/",
+   "location": "^(https?://[^/]+)?/sslvpn/login/",
+   "source": "nuclei-templates http/exposed-panels/checkpoint/ssl-network-extender.yaml (title Check Point SSL Network Extender), http/exposed-panels/checkpoint-panel.yaml (/sslvpn/Login/Login, Check Point Software Technologies)"
+  },
+  {
+   "product": "WatchGuard SSL VPN",
+   "family": "watchguard",
+   "admin": false,
+   "title": "\\bfireware xtm user authentication\\b",
+   "location": "^(https?://[^/]+)?/sslvpn_logon\\.shtml",
+   "body": "/sslvpn_logon\\.shtml",
+   "source": "nuclei-templates http/exposed-panels/fireware-xtm-user-authentication.yaml, http/exposed-panels/watchguard-panel.yaml (/sslvpn_logon.shtml)"
+  },
+  {
+   "product": "SonicWall SSL VPN",
+   "family": "sonicwall",
+   "admin": false,
+   "server": "sonicwall ssl-?vpn web server",
+   "source": "nuclei-templates http/exposed-panels/sonicwall-sslvpn-panel.yaml (Server: SonicWALL SSL-VPN Web Server)"
+  },
+  {
+   "product": "FortiGate",
+   "family": "fortigate",
+   "admin": true,
+   "danger": true,
+   "brand": "\\bfortigate\\b",
+   "server": "^xxxxxxxx-xxxxx$",
+   "body": "ftnt-fortinet-grid|fgt_lang",
+   "cert": "^fortigate$|^(fgt|fgr|fwf|fgvm|fg[0-9])[0-9a-z]{10,13}$",
+   "product_re": "\\bfortios\\b|\\bfortigate\\b",
+   "source": "nuclei-templates http/exposed-panels/fortinet/fortios-panel.yaml (Server: xxxxxxxx-xxxxx); content/devicetypes fortigate-says (serial numbers FGT, FGR, FWF, FGVM, FG<digit>); FortiOS self-signed default certificate issued to FortiGate"
+  },
+  {
+   "product": "MikroTik RouterOS",
+   "family": "mikrotik",
+   "admin": true,
+   "danger": true,
+   "body": "webfig",
+   "location": "^(https?://[^/]+)?/webfig",
+   "product_re": "\\b(routeros|mikrotik)\\b",
+   "source": "scan module surface fingerprint; content/devicetypes mikrotik-says",
+   "title": "routeros|mikrotik"
+  },
+  {
+   "product": "pfSense",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "pfsense"
+  },
+  {
+   "product": "OPNsense",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "opnsense"
+  },
+  {
+   "product": "Sophos Firewall",
+   "family": "sophos",
+   "admin": true,
+   "danger": true,
+   "product_re": "\\bsophos (xgs?|sg|utm|firewall)\\b|\\bsfos\\b",
+   "source": "scan module surface fingerprint; content/devicetypes firewall-says",
+   "title": "sophos.*(firewall|utm|webadmin)|(firewall|utm|webadmin).*sophos",
+   "title_login": "sophos"
+  },
+  {
+   "product": "SonicWall",
+   "family": "sonicwall",
+   "admin": true,
+   "danger": true,
+   "server": "sonicwall",
+   "product_re": "\\bsonicwall\\b|\\bsonicos\\b",
+   "source": "nuclei-templates http/exposed-panels/sonicwall-management-panel.yaml (<title>SonicWall - Authentication)",
+   "title": "sonicwall"
+  },
+  {
+   "product": "Palo Alto Networks",
+   "family": "paloalto",
+   "admin": true,
+   "danger": true,
+   "brand": "\\bpalo ?alto networks\\b|\\bpan-os\\b",
+   "product_re": "\\bpan-os\\b|\\bpaloaltonetworks\\b|\\bpalo alto networks\\b",
+   "source": "scan module surface fingerprint; content/devicetypes firewall-says"
+  },
+  {
+   "product": "Cisco ASA",
+   "family": "cisco-asa",
+   "admin": true,
+   "danger": true,
+   "brand": "\\bcisco asdm\\b|\\bcisco asa\\b",
+   "product_re": "adaptive[ _]security[ _]appliance|\\bcisco asa\\b|\\basdm\\b",
+   "source": "scan module surface fingerprint (Cisco ASDM title)"
+  },
+  {
+   "product": "Cisco",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "cisco.*(asdm|systems)|(asdm|systems).*cisco",
+   "title_login": "cisco"
+  },
+  {
+   "product": "Juniper J-Web",
+   "family": "juniper",
+   "admin": true,
+   "danger": true,
+   "title": "\\bjuniper web device manager\\b",
+   "product_re": "\\bjunos\\b",
+   "source": "nuclei-templates http/cves/2023/CVE-2023-36845.yaml (title Juniper Web Device Manager)"
+  },
+  {
+   "product": "F5 BIG-IP",
+   "family": "f5",
+   "admin": true,
+   "danger": true,
+   "title": "^big-ip(&reg;|®)?\\s*-",
+   "body": "configuration utility[\\s\\S]*f5 networks|f5 networks[\\s\\S]*configuration utility",
+   "location": "^(https?://[^/]+)?/tmui/",
+   "product_re": "\\bbig-?ip\\b",
+   "source": "nuclei-templates http/exposed-panels/f5-admin-interface.yaml (/tmui/login.jsp, Configuration Utility, F5 Networks), http/cves/2022/CVE-2022-1388.yaml (title BIG-IP&reg;- Redirect)"
+  },
+  {
+   "product": "WatchGuard Firebox",
+   "family": "watchguard",
+   "admin": true,
+   "danger": true,
+   "brand": "\\bwatchguard\\b|\\bfireware\\b",
+   "product_re": "\\bwatchguard\\b|\\bfireware\\b",
+   "source": "nuclei-templates http/exposed-panels/watchguard-panel.yaml (WatchGuard Technologies)"
+  },
+  {
+   "product": "Check Point gateway",
+   "family": "checkpoint",
+   "admin": true,
+   "danger": true,
+   "brand": "\\bcheck point\\b",
+   "login": true,
+   "product_re": "\\bcheck point\\b",
+   "source": "nuclei-templates http/exposed-panels/checkpoint-panel.yaml"
+  },
+  {
+   "product": "Ubiquiti UniFi",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "unifi|ubiquiti|airos"
+  },
+  {
+   "product": "DrayTek Vigor",
+   "family": "draytek",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "draytek"
+  },
+  {
+   "product": "DrayTek Vigor",
+   "family": "draytek",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title_login": "vigor"
+  },
+  {
+   "product": "Zyxel firewall",
+   "family": "zyxel",
+   "admin": true,
+   "danger": true,
+   "title": "zywall|usg ?flex|\\batp ?[0-9]{3}|\\bvpn ?[0-9]{2,4}\\b.*zyxel|zyxel.*\\bvpn ?[0-9]{2,4}\\b",
+   "product_re": "\\bzywall\\b|\\busg ?flex\\b",
+   "source": "content/devicetypes firewall rules; Zyxel firewall product lines (ZyWALL, USG FLEX, ATP, VPN) on the KEV list as \"Zyxel Multiple Firewalls\""
+  },
+  {
+   "product": "Zyxel",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "zyxel"
+  },
+  {
+   "product": "TP-Link",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "tp-link|tplink"
+  },
+  {
+   "product": "ASUS router",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "asuswrt"
+  },
+  {
+   "product": "ASUS router",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title_login": "asus"
+  },
+  {
+   "product": "NETGEAR",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title_login": "netgear"
+  },
+  {
+   "product": "Huawei router",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title_login": "huawei"
+  },
+  {
+   "product": "ZTE router",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title_login": "zte"
+  },
+  {
+   "product": "GPON home gateway",
+   "admin": true,
+   "danger": true,
+   "title": "gpon",
+   "source": "scan module surface fingerprint"
+  },
+  {
+   "product": "Hikvision camera",
+   "admin": true,
+   "danger": true,
+   "body": "doc/page/login\\.asp",
+   "source": "scan module surface fingerprint",
+   "title": "hikvision"
+  },
+  {
+   "product": "Dahua camera",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "dahua"
+  },
+  {
+   "product": "Synology DSM",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "synology|diskstation"
+  },
+  {
+   "product": "QNAP",
+   "admin": true,
+   "danger": true,
+   "server": "qnap",
+   "source": "scan module surface fingerprint",
+   "title": "qnap"
+  },
+  {
+   "product": "TrueNAS",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "truenas"
+  },
+  {
+   "product": "Proxmox VE",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "proxmox"
+  },
+  {
+   "product": "VMware ESXi",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "esxi|vmware host client"
+  },
+  {
+   "product": "VMware vCenter",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "vsphere|vcenter"
+  },
+  {
+   "product": "HPE iLO",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "lights-out|(^|[^a-z])ilo([^a-z]|$)"
+  },
+  {
+   "product": "Dell iDRAC",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "idrac"
+  },
+  {
+   "product": "Supermicro IPMI",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "supermicro"
+  },
+  {
+   "product": "Jenkins",
+   "admin": true,
+   "danger": true,
+   "title": "\\[jenkins\\]",
+   "header": [
+    "x-jenkins"
+   ],
+   "source": "scan module surface fingerprint"
+  },
+  {
+   "product": "phpMyAdmin",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "phpmyadmin"
+  },
+  {
+   "product": "Adminer",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "adminer"
+  },
+  {
+   "product": "Webmin",
+   "admin": true,
+   "danger": true,
+   "server": "miniserv",
+   "source": "scan module surface fingerprint",
+   "title": "webmin"
+  },
+  {
+   "product": "Portainer",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title": "portainer"
+  },
+  {
+   "product": "Kibana",
+   "admin": true,
+   "danger": true,
+   "header": [
+    "kbn-name"
+   ],
+   "source": "scan module surface fingerprint",
+   "title": "kibana"
+  },
+  {
+   "product": "Elasticsearch",
+   "admin": true,
+   "danger": true,
+   "body": "you know, for search",
+   "source": "scan module surface fingerprint"
+  },
+  {
+   "product": "Apache CouchDB",
+   "admin": true,
+   "danger": true,
+   "body": "\"couchdb\":\"welcome\"",
+   "source": "scan module surface fingerprint"
+  },
+  {
+   "product": "Grafana",
+   "admin": true,
+   "danger": false,
+   "source": "scan module surface fingerprint",
+   "title": "grafana"
+  },
+  {
+   "product": "cPanel",
+   "admin": true,
+   "danger": false,
+   "source": "scan module surface fingerprint",
+   "title": "cpanel|webhost manager"
+  },
+  {
+   "product": "Plesk",
+   "admin": true,
+   "danger": false,
+   "source": "scan module surface fingerprint",
+   "title": "plesk"
+  },
+  {
+   "product": "Home Assistant",
+   "admin": true,
+   "danger": false,
+   "source": "scan module surface fingerprint",
+   "title": "home assistant"
+  },
+  {
+   "product": "Router login page",
+   "admin": true,
+   "danger": true,
+   "source": "scan module surface fingerprint",
+   "title_login": "router|modem"
+  }
+ ]
+}

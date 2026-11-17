@@ -3,7 +3,7 @@ import { KeyValue, Notice, Panel, Section } from '@/components/common/PageHeader
 import { EmptyState, ErrorState, Loading, QueryState } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { dateText, dateTimeText } from './dates'
+import { dateTimeText } from './dates'
 import { useSnapshot, useSnapshots } from './api'
 import { InfoLine } from './InfoLine'
 import type { HostClass, HostIp, HostRow, Snapshot, Target } from './types'
@@ -51,7 +51,7 @@ function SurfaceView({ s }: { s: Snapshot }) {
   return (
     <div className="grid gap-6">
       <Panel className="p-4">
-        <p className="mb-3 text-meta text-muted">{t('surface.from', { date: dateText(s.started_at ?? s.scanned_at) })}</p>
+        <p className="mb-3 text-meta text-muted">{t('surface.from', { time: dateTimeText(s.started_at ?? s.scanned_at) })}</p>
         <KeyValue items={[
           { label: t('surface.count.names'), value: s.hosts.length },
           { label: t('count.ips'), value: s.counts.ips },

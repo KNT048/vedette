@@ -40,7 +40,8 @@ function serve(snap: ReturnType<typeof snapshotOf>) {
   )
   return posted
 }
-const section = () => screen.findByRole('region', { name: 'OpenVAS results (unauthenticated, QoD ≥ 70)' })
+// the first page of a file loads its route code first: give it the time a cold start takes on a busy runner
+const section = () => screen.findByRole('region', { name: 'OpenVAS results (unauthenticated, QoD ≥ 70)' }, { timeout: 5000 })
 
 describe('exposure: an OpenVAS step that was stopped says why and when, and runs again on its own', () => {
   it.each([

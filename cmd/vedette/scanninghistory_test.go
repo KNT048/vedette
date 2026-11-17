@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/modules/exposure"
@@ -45,7 +46,7 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 		{"snmp test, read failed", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.18.30", "failed: the read did not finish")), "test", "SNMP test", "failed", "Failed: the read did not finish."},
 		{"snmp, one batch failed", job("snmp", "done", "window", "", 4, 0, p("a", "ok: 2 of 2 answered"), p("b", "failed: the read did not finish")), "automatic", "SNMP read", "partial", "2 of 2 devices answered over SNMP; 1 part failed"},
 	} {
-		r, ok := jobHistory(c.j)
+		r, ok := jobHistory(c.j, nil)
 		if !ok || r.Trigger != c.trigger || r.Label != c.label || r.Outcome != c.outcome || r.Text != c.text || r.EndedAt == nil {
 			t.Errorf("%s: %+v", c.name, r)
 		}
@@ -53,7 +54,7 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 	// a check made since checks name their device whose result could not be recorded says so, never that it is an old check
 	rec := job("device", "done", "check_now", "", 1, 0, p("192.168.10.20", "ok: 1 hosts up"))
 	rec.AssetID = "a-1"
-	if r, _ := jobHistory(rec); r.Text != "Scanned 192.168.10.20: it answered, but what it found could not be recorded" {
+	if r, _ := jobHistory(rec, nil); r.Text != "Scanned 192.168.10.20: it answered, but what it found could not be recorded" {
 		t.Errorf("unrecorded check: %q", r.Text)
 	}
 	// only a finished check says that; one still running says when its result comes, a stopped or failed one gives its reason
@@ -67,7 +68,7 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 		if c.status == "running" {
 			j.FinishedAt = nil
 		}
-		if r, _ := jobHistory(j); r.Outcome != c.outcome || r.Text != c.text {
+		if r, _ := jobHistory(j, nil); r.Outcome != c.outcome || r.Text != c.text {
 			t.Errorf("%s check: %s %q", c.status, r.Outcome, r.Text)
 		}
 	}
@@ -80,11 +81,11 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 	} {
 		j := job("snmp", "done", "window", "", 2, 0, p("192.168.10.1,192.168.10.9", "ok: 1 of 2 answered"))
 		j.Own = c.own
-		if r, _ := jobHistory(j); r.Outcome != c.outcome || r.Text != c.text {
+		if r, _ := jobHistory(j, nil); r.Outcome != c.outcome || r.Text != c.text {
 			t.Errorf("own %s: %s %q", c.own, r.Outcome, r.Text)
 		}
 	}
-	if _, ok := jobHistory(job("external", "done", "exposure", "", 1, 0)); ok {
+	if _, ok := jobHistory(job("external", "done", "exposure", "", 1, 0), nil); ok {
 		t.Errorf("an external sa_job is exposure's to list")
 	}
 }
@@ -127,7 +128,7 @@ func TestJobHistory_DeviceCheckSaysWhatItFound(t *testing.T) {
 		{"nothing changed", sensoractive.DeviceFound{Reach: "top1000", Open: 3, Ports: ports, OS: "Cisco Catalyst switch (IOS 15)", Compared: true}, "ok: 1 hosts up", "ok",
 			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); OS guess Cisco Catalyst switch (IOS 15); nothing changed since the previous check"},
 		{"OS changed", sensoractive.DeviceFound{Reach: "top1000", Open: 3, Ports: ports, OS: "Cisco Catalyst switch (IOS 15)", OSWas: "Cisco ISR router", Compared: true}, "ok: 1 hosts up", "ok",
-			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); OS guess now Cisco Catalyst switch (IOS 15) (was Cisco ISR router)"},
+			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); OS guess now Cisco Catalyst switch (IOS 15) (changed since the previous check)"},
 		{"ports changed", sensoractive.DeviceFound{Reach: "top1000", Open: 3, Ports: ports, Compared: true, New: []int{80}, Gone: []int{23, 443}}, "ok: 1 hosts up", "ok",
 			"Scanned 192.168.10.47: 3 open ports (22 ssh, 80 http, 161/udp snmp); since the previous check: port 80 newly open, ports 23, 443 no longer open"},
 		{"no open port", sensoractive.DeviceFound{Reach: "top1000"}, "ok: 1 hosts up", "ok", "Scanned 192.168.10.47: no open port"},
@@ -143,9 +144,52 @@ func TestJobHistory_DeviceCheckSaysWhatItFound(t *testing.T) {
 		{"timed out", sensoractive.DeviceFound{Reach: "top1000", TimedOut: true, Compared: true}, "ok: 1 hosts up", "ok",
 			"Scanned 192.168.10.47: it answered, but nmap reached its time limit before it listed the ports; the ports known before are kept"},
 	} {
-		r, ok := jobHistory(job(c.f, c.result))
+		r, ok := jobHistory(job(c.f, c.result), nil)
 		if !ok || r.Outcome != c.outcome || r.Text != c.text || r.Label != "192.168.10.47" {
 			t.Errorf("%s:\n got %q (%s)\nwant %q", c.name, r.Text, r.Outcome, c.text)
 		}
+	}
+}
+
+// A device check names the OS it recorded only when it is the OS the device page shows now (the inventory's ranking): a better
+// source (a person, an agent, SNMP, LLDP) or a newer scan's guess makes it "scan guess not used now", never a second OS value; a
+// change is said without the old value; the device's own NTLM answer is not called a guess; an unread page drops the OS words.
+func TestJobHistory_TheScanGuessOnlyWhenThePageShowsIt(t *testing.T) {
+	end := "2026-11-17T03:19:00.000Z"
+	j := sensoractive.JobRow{JobHead: sensoractive.JobHead{ID: "j", Kind: "device", Status: "done", Reason: "check_now", StartedAt: "2026-11-17T03:18:00.000Z", FinishedAt: &end, Targets: 1},
+		AssetID: "a-sw", Probes: []sensoractive.JobProbe{{Targets: "192.168.10.47", Result: "ok: 1 hosts up"}},
+		Found: &sensoractive.DeviceFound{Reach: "top1000", Open: 1, Ports: []sensoractive.FoundPort{{Port: 22, Proto: "tcp", Name: "ssh"}},
+			OS: "Network switch OS (8.5 - 11.2)", OSWas: "Network switch OS (12)", Compared: true}}
+	const ports = "Scanned 192.168.10.47: 1 open port (22 ssh)"
+	const notUsed = ports + "; OS: scan guess not used now; nothing changed since the previous check"
+	for _, c := range []struct {
+		name  string
+		shown map[string]shownOS
+		text  string
+	}{
+		{"stated over LLDP", map[string]shownOS{"a-sw": {Value: "NetOS 15.1R7.9", Basis: "stated"}}, notUsed},
+		{"SNMP", map[string]shownOS{"a-sw": {Value: "NetOS 15.1R7.9"}}, notUsed},
+		{"a newer scan's guess", map[string]shownOS{"a-sw": {Value: "Network switch OS (12)", Basis: "guess"}}, notUsed},
+		{"no OS on the page", map[string]shownOS{"a-sw": {}}, notUsed},
+		{"the page shows this guess", map[string]shownOS{"a-sw": {Value: "Network switch OS (8.5 - 11.2)", Basis: "guess"}},
+			ports + "; OS guess now Network switch OS (8.5 - 11.2) (changed since the previous check)"},
+		{"the page's OS could not be read", map[string]shownOS{"a-sw": {Unread: true}}, ports + "; nothing changed since the previous check"},
+		{"no page to compare with", nil, ports + "; OS guess now Network switch OS (8.5 - 11.2) (changed since the previous check)"},
+	} {
+		r, ok := jobHistory(j, c.shown)
+		if !ok || r.Text != c.text {
+			t.Errorf("%s:\n got %q\nwant %q", c.name, r.Text, c.text)
+		}
+		if strings.Contains(r.Text, "Network switch OS (12)") || strings.Contains(r.Text, "NetOS") {
+			t.Errorf("%s: a second OS value in %q", c.name, r.Text)
+		}
+	}
+	// the device's own NTLM answer, shown on the page (basis not a guess), is named without "guess"
+	ntlm := j
+	f := *j.Found
+	f.OS, f.OSWas = "Windows 11 (build 26100)", ""
+	ntlm.Found = &f
+	if r, _ := jobHistory(ntlm, map[string]shownOS{"a-sw": {Value: "Windows 11 (build 26100)"}}); r.Text != ports+"; OS Windows 11 (build 26100); nothing changed since the previous check" {
+		t.Errorf("NTLM answer: %q", r.Text)
 	}
 }

@@ -1383,7 +1383,7 @@ func TestContract_INV25_StopKeepsTheEarlierResults(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.acceptTerms(ips[0].ID, false)
-	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", "", 0, false, "", nil, "", ""}}}})
+	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{IP: ipA, Port: 443, Service: "https"}}}})
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err == nil {
 		t.Fatal("a stopped run reads as done")
 	}

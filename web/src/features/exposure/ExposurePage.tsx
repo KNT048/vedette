@@ -24,6 +24,7 @@ import { OutsideList } from './OutsidePanel'
 import { PortMark, PortMarkNote } from './PortMark'
 import { identOf, portLabel, serviceName } from './services'
 import { PortHints, RiskChip } from './PortIdent'
+import { ApplianceNote } from './ApplianceNote'
 import type { Gateway, PortRow, Target } from './types'
 import { blockedKey } from './types'
 
@@ -99,7 +100,8 @@ function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Targ
   const { t } = useTranslation('exposure')
   return (
     <Section id="open" title={t('open.title', { count: total })} description={t('open.description')} info={t('open.descriptionInfo')}>
-      {gateway ? <GatewayNote g={gateway} /> : null}
+      {/* The gateway answers the ports no appliance claims; a port that names one (a FortiGate certificate) is tied to it instead */}
+      {gateway && (total > ports.length || ports.some((p) => !p.appliance)) ? <GatewayNote g={gateway} rest={ports.some((p) => p.appliance)} /> : null}
       <Panel className="divide-y divide-rule">
         {ports.map((p) => {
           const ident = identOf(p)
@@ -116,6 +118,7 @@ function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Targ
                 <PortMark p={p} />
                 <Link className="text-meta text-accent underline-offset-4 hover:underline" to={`/exposure/${p.target.id}`}>{t('open.details')}</Link>
               </div>
+              {p.appliance ? <ApplianceNote a={p.appliance} /> : null}
               {p.last_seen ? <PortMarkNote p={p} at={p.target.last_scan_at} /> : null}
               <p className="text-meta text-muted">{t('open.purposePlain')}</p>
             </div>
@@ -130,15 +133,16 @@ function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Targ
 /** The gateway as the note names it: "name (ip)", or the IP alone when the device is named by its IP or has no name (M2-8). */
 const gatewayLabel = (name: string, ip: string) => (name && name !== ip ? `${name} (${ip})` : ip)
 
-/** Which device probably answers the open ports, and what is exploited on it. Never says for sure (a router can forward a port to another device). */
-function GatewayNote({ g }: { g: Gateway }) {
+/** Which device probably answers the open ports, and what is exploited on it. Never says for sure (a router can forward a port to another device).
+ * rest: some ports name an appliance of their own (ApplianceNote), so the note is about the other ports. */
+function GatewayNote({ g, rest = false }: { g: Gateway; rest?: boolean }) {
   const { t } = useTranslation('exposure')
   const name = g.name ?? ''
   const ip = g.ip ?? ''
   const known = g.device_id !== null
   const label = gatewayLabel(name, ip) // M2-8: "192.168.18.1", not "192.168.18.1 (192.168.18.1)"
-  const text = !g.ip ? t('gateway.unknown') : !known ? t('gateway.notListed', { ip })
-    : g.open_exploited > 0 ? t('gateway.known', { label, count: g.open_exploited }) : t('gateway.none', { label })
+  const text = !g.ip ? t('gateway.unknown') : !known ? t(rest ? 'gateway.notListedRest' : 'gateway.notListed', { ip })
+    : g.open_exploited > 0 ? t(rest ? 'gateway.knownRest' : 'gateway.known', { label, count: g.open_exploited }) : t(rest ? 'gateway.noneRest' : 'gateway.none', { label })
   const info = !g.ip ? t('gateway.unknownInfo') : !known ? t('gateway.notListedInfo') : g.open_exploited > 0 ? t('gateway.knownInfo') : t('gateway.noneInfo', { name })
   return (
     <Notice tone="accent" data-testid="gateway-note" title={text} info={info}

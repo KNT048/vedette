@@ -82,7 +82,37 @@
     "notListed": "Your gateway ({{ip}}) answers these ports, but it is not in your device list yet.",
     "notListedInfo": "These ports are answered by your gateway, or a device it forwards them to. Until it is in your device list Vedette cannot say what is exploited on it. Scan your network to add it.",
     "unknown": "Vedette cannot see which gateway your network uses from here.",
-    "unknownInfo": "So it cannot say which device answers these ports."
+    "unknownInfo": "So it cannot say which device answers these ports.",
+    "knownRest_one": "Your gateway {{label}}, which answers the other ports, has {{count}} open exploited vulnerability: fix these first.",
+    "knownRest_other": "Your gateway {{label}}, which answers the other ports, has {{count}} open exploited vulnerabilities: fix these first.",
+    "noneRest": "Your gateway {{label}} answers the other ports; no open exploited vulnerability is known on it.",
+    "notListedRest": "Your gateway ({{ip}}) answers the other ports, but it is not in your device list yet."
+  },
+  "appliance": {
+    "kind": {
+      "admin": "Likely the {{name}} admin page",
+      "vpn": "Likely the {{name}} VPN portal",
+      "admin_or_vpn": "Likely the {{name}} admin or SSL-VPN page"
+    },
+    "from": {
+      "certificate": "its certificate names it",
+      "title": "its page title names it",
+      "server": "its Server header names it",
+      "product": "the service the scan identified names it",
+      "redirect": "its first page redirects to its sign-in page"
+    },
+    "says": "{{what}}: {{from}}.",
+    "adminInfo": "Admin pages of network devices, servers and tools are among the first things attackers try, and the admin and VPN pages of firewalls and VPN gateways are on the CISA list of exploited vulnerabilities again and again. Allow only your own addresses to reach this page (or close it on the Internet), and keep the firmware or software up to date.",
+    "vpnInfo": "A VPN portal faces the Internet by design, but the VPN portals of {{name}} devices are attacked first when a flaw is published. Keep the firmware up to date and the admin page off the Internet.",
+    "notListed": "No device in your list is recognised as {{name}}, so Vedette cannot say which exploited vulnerabilities it has. If you have one, add it under Devices.",
+    "device": {
+      "known_one": "Your device {{device}} ({{name}}) has {{count}} open exploited vulnerability: fix it first.",
+      "known_other": "Your device {{device}} ({{name}}) has {{count}} open exploited vulnerabilities: fix these first.",
+      "none": "Your device {{device}} ({{name}}): no open exploited vulnerability is known on it.",
+      "link": "Open {{device}}",
+      "more_one": "and {{count}} more {{name}} device in your list.",
+      "more_other": "and {{count}} more {{name}} devices in your list."
+    }
   },
   "risky": {
     "voip": "Phone systems (SIP) are scanned all day for toll fraud: attackers guess extension passwords and make paid calls on your bill.",
@@ -302,7 +332,7 @@
     "descriptionInfo": "For each name: where it was found, its CNAME and the addresses it points at.",
     "emptyBody": "Select Scan now to map the names under this domain.",
     "emptyBodyInfo": "It reads certificate-transparency logs, the domain's MX and NS records and a short list of common names, looked up through this box's DNS resolver.",
-    "from": "From the scan of {{date}}.",
+    "from": "From the scan of {{time}}.",
     "caption": "Names under this domain and their addresses",
     "filter": "Filter names",
     "older": "This scan ran before the surface map.",

@@ -636,6 +636,8 @@ func (s *Service) SnapshotOf(ctx context.Context, id, date string) (Snapshot, er
 		return Snapshot{}, fmt.Errorf("exposure: reading snapshot: %w", ErrNoSnapshot)
 	}
 	s.withVulns(ctx, &snap)
+	nameAppliances(snap.Ports, snap.AdminPanels, snap.Services)
+	s.tieAppliances(ctx, snap.Ports, snap.AdminPanels)
 	if snap.GreenboneRun.State == GBRunRunning && snap.ID != live {
 		cutOff(&snap, nil) // when is not known: CutOffAtStart stores it at the next start
 	}

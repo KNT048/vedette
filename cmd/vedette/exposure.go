@@ -53,7 +53,7 @@ func exposureService(d deps) *exposure.Service {
 		if d.HostSocket != "" {
 			g.state = hostclient.New(d.HostSocket)
 		}
-		cfg.Gateway = g
+		cfg.Gateway, cfg.Appliances = g, g
 	}
 	if d.HostSocket != "" { // The domain fence's token comes from vedette-host, which holds the key; no host, no fence (nil)
 		cfg.DomainFence = hostDomainFence{host: hostclient.New(d.HostSocket)}

@@ -29,6 +29,10 @@ type DeviceRef struct {
 	Kind     string
 	Display  string // the first software's display name, else the kind (DisplayName's product of a declared device, notify)
 	OS       string // the current operating system value ("Microsoft Windows Server 2025 10.0.26100.1742"), "" when unknown (#905)
+	// OSSource is the source of the OS observation the ranking chose for OS (INV-44: manual, agent, snmp, passive, nmap, scan); ""
+	// when there is none. "nmap" means the page shows the scan's OS guess; any other source means a better one won over it.
+	OSSource string
+	OSBasis  string // how Vedette knows that OS, as the device page says it (osBasis): "stated" (its LLDP statement), "guess" (nmap's fingerprint), ""
 	Approved bool   // a person approved it, or osquery enrolment did (sensor-active sends SNMP credentials only to approved devices)
 	Model    string // the current model value, "" when none (notify names a device without inv.Device)
 	Origin   string // "discovered" or "manual"
@@ -47,6 +51,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 			args[i] = id
 		}
 		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.user_name, a.is_box, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at, a.os,
+			(SELECT o.source FROM inv_observation o WHERE o.id = a.os_obs_id),
 			`+firstSoftware+`
 			FROM inv_asset a WHERE a.id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
 		if err != nil {
@@ -54,12 +59,15 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		}
 		for rows.Next() {
 			var d DeviceRef
-			var host, userName, ip, mac, vendor, model, approvedAt, osName, display sql.NullString
-			if err := rows.Scan(&d.ID, &host, &userName, &d.IsBox, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &display); err != nil {
+			var host, userName, ip, mac, vendor, model, approvedAt, osName, osSource, display sql.NullString
+			if err := rows.Scan(&d.ID, &host, &userName, &d.IsBox, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &osSource, &display); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("inventory: read devices: %w", err)
 			}
-			d.Hostname, d.UserName, d.IP, d.MAC, d.Vendor, d.Display, d.Model, d.OS = ptr(host), ptr(userName), noIP, mac.String, vendor.String, d.Kind, model.String, osName.String
+			d.Hostname, d.UserName, d.IP, d.MAC, d.Vendor, d.Display, d.Model, d.OS, d.OSSource = ptr(host), ptr(userName), noIP, mac.String, vendor.String, d.Kind, model.String, osName.String, osSource.String
+			if osName.Valid {
+				d.OSBasis = osBasis(osName.String, osSource.String, mac.String)
+			}
 			if approvedAt.Valid {
 				t, err := time.Parse(time.RFC3339Nano, approvedAt.String)
 				if err != nil {

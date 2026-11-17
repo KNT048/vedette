@@ -199,7 +199,7 @@ function lines(c: Content, at: string, ip: boolean, m: ReturnType<typeof matchSe
   return {
     checks: [
       { kind: 'ports', at, text: `TCP connect to the fixed list of commonly exposed ports, then one GET / on each open web port and a TLS handshake on each TLS port: ${plural(c.ports.length, 'port')} open.` },
-      { kind: 'services', at, text: `Service identification (nmap -sV) on 98 TCP ports: ${servicesRead(services)}.` },
+      { kind: 'services', at, text: `Service identification (nmap -sV) on 99 TCP ports: ${servicesRead(services)}.` },
       ...(services.length > 0 ? [{ kind: 'cve', at, text: cve }] : []),
     ],
     not_checked,

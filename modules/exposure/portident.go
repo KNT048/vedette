@@ -23,6 +23,7 @@ const (
 	maxCertNames = 5
 	maxCertName  = 100
 	maxHint      = 120
+	maxLocation  = 200
 )
 
 // serviceMethod keeps nmap's two method words; anything else is "" (not known).
@@ -86,7 +87,7 @@ func identifyPorts(ports []PortRow, services []ServiceRow, scripts []ScriptRow, 
 			continue
 		}
 		if h, ok := hints[p.Port]; ok {
-			ports[i].CertNames, ports[i].Title, ports[i].Server = h.CertNames, h.Title, h.Server
+			ports[i].CertNames, ports[i].Title, ports[i].Server, ports[i].Location = h.CertNames, h.Title, h.Server, h.Location
 		}
 		r, ok := svc[p.Port]
 		if !ok {
@@ -117,6 +118,7 @@ type portHints struct {
 	CertNames []string
 	Title     string
 	Server    string
+	Location  string // the redirect http-title did not follow
 }
 
 var (
@@ -125,7 +127,7 @@ var (
 )
 
 // scriptHints reads ssl-cert (the subject's common name and the DNS names of the alternative names), http-title (the first line,
-// unless nmap says the page has none or it did not follow a redirect) and http-server-header (the first line) on the ports of ip.
+// unless nmap says the page has none; where it redirects when nmap did not follow it) and http-server-header (the first line) on the ports of ip.
 func scriptHints(scripts []ScriptRow, ip string) map[int]portHints {
 	out := map[int]portHints{}
 	for _, s := range scripts {
@@ -138,7 +140,10 @@ func scriptHints(scripts []ScriptRow, ip string) map[int]portHints {
 		case "ssl-cert":
 			h.CertNames = certNames(o)
 		case "http-title":
-			if t := firstLine(o); !strings.HasPrefix(t, "Site doesn't have a title") && !strings.HasPrefix(t, "Did not follow redirect") {
+			t := firstLine(o)
+			if to, ok := strings.CutPrefix(t, "Did not follow redirect to "); ok {
+				h.Location = field(to, maxLocation)
+			} else if !strings.HasPrefix(t, "Site doesn't have a title") {
 				h.Title = field(t, maxHint)
 			}
 		case "http-server-header":
@@ -216,7 +221,7 @@ func sanitizePortIdent(row, p PortRow) PortRow {
 			row.CertNames = append(row.CertNames, n)
 		}
 	}
-	row.Title, row.Server = field(p.Title, maxHint), field(p.Server, maxHint)
+	row.Title, row.Server, row.Location = field(p.Title, maxHint), field(p.Server, maxHint), field(p.Location, maxLocation)
 	return row
 }
 

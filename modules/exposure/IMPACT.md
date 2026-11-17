@@ -1,7 +1,7 @@
 # Exposure — Change Impact Map
 
 
-## Modifying: `exp_snapshot.started_at`/`finished_at`, `exp_target.last_scan_at`, `Config.Zone`, `GreenboneRun.ended_at|stop|again`, `StartOpenVAS`, `openVASPart`, `stoppedBy` (INV-33)
+## Modifying: `exp_snapshot.started_at`/`finished_at`, `exp_target.last_scan_at`, `Config.Zone`, `GreenboneRun.ended_at|stop|again`, `StartOpenVAS`, `openVASPart`, `stoppedBy` (INV-34)
 - **web/features/exposure**: `TargetPage` (header "Last scanned <start>, finished <end>"), `ResultsPanel` (pickers, compare labels, the result line), `SurfacePanel`, `GreenbonePanel` (stop reason with its time, "Run OpenVAS again"), `ScanProgress` (`openvas_only`), mocks and `data.ts`. A new stop reason = `GreenboneStop` in `contract.ts`, `greenbone.results.stop.*` in `locales/en/exposure.json`, `stopWhy`.
 - **cmd/vedette** `scanninghistory.go` (`exposureHistory`) names a scan by `StartedAt` and ends it at `FinishedAt`; `exposure.go` wires `Config.Zone` to the organization's time zone (`orgLocation`). `modules/core/export_policy.go` exports the two new columns (`TestExport`).
 - **response** bridge (`exposureports.go`) relies on one snapshot per target and day: still true, the day is now the organization's.
@@ -69,6 +69,10 @@
 
 ## Modifying: `Gateway` (port), `GatewayDevice`, `GatewayNote`, `GatewayView`, `gateway` of `GET /exposure/targets`
 - **cmd/vedette** `exposuregateway.go` implements the port from `netStateReader` (default route), `inventory.Service.AllDevices`/`Names` and `findings.Service.List`: changing the meaning of "open" findings (`Status.Open`), the device name rule or the host's `NetState.DefaultRoute` changes what the page says. **web/features/exposure** `GatewayNote` (ExposurePage.tsx) words the four cases (known with findings, known without, not in the device list, unknown) and links to `/findings?device=<id>`; `contract.ts` is the OpenAPI source for `gateway`. Exposure never reads `inv_*` or `fnd_*`.
+
+## Modifying: `Appliances` (port), `ApplianceQuery`, `ApplianceMatch`, `ApplianceDevice`, `Appliance`, `applianceAdmins`, `recountAdmin`, `nameAppliances`, `tieAppliances`, `applianceCache`, `PortRow.location` (INV-33)
+- **content/adminpages** is shared with **scan** (`modules/scan/surface/admin.go` `identify`): a fingerprint added, removed or reordered changes both the surface scan's admin rows and the deep scan's, and `counts.admin_panels` of stored snapshots when they are read (and the diff's `admin` items). Keep `content/adminpages` `TestIdentify`, exposure `TestApplianceOf_Class` and surface `TestIdentify` green.
+- **cmd/vedette** `exposuregateway.go` (`ApplianceDevices`) reads `inventory.Service.AllDevices`/`Names` and `findings.Service.List`: a change to the device's vendor/model/OS observations, its kind values, the software KEV keys or `Status.Open` changes which device a port is tied to. **web** `contract.ts` `Appliance`, `ApplianceNote.tsx`, the Open exposures tab and the target page's ports and admin tables read `appliance`.
 
 ## Modifying: `InternetDB`, `NewInternetDB`, `InternetDBURL`, `Config.Outside`, `CheckOutside`, `Outside`, `OutsideView`, `parseOutside`, `OutsideEvery`, bảng `exp_outside` (INV-21)
 - **PRIVACY.md luồng 15** và Settings → Privacy (`web/src/locales/en/core.json` `privacy.flow.15`, `PrivacySection.tsx`, `privacyFlows.test.ts`; danh sách luồng ở `modules/core/handlers_privacy.go` và mock `features/core/mocks.ts`): đổi cái gửi đi (host, đường dẫn, thêm tham số), khi gửi (thêm lịch, nhớ đồng ý) hay ai được gửi là đổi luồng dữ liệu ra, phải sửa PRIVACY + UI cùng commit (legal.md); **THIRD_PARTY_NOTICES** dòng Shodan InternetDB (điều khoản: miễn phí cho dùng không thương mại; Vedette thu tiền → cần giấy phép enterprise của Shodan hoặc BYOK).

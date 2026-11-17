@@ -3,6 +3,7 @@ package exposure
 import (
 	"context"
 	"net/netip"
+	"regexp"
 
 	"github.com/knt048/vedette/core/events"
 )
@@ -106,6 +107,28 @@ type Runner interface {
 // implements it from the host's default route, the inventory and the findings; exposure reads no other module's tables.
 type Gateway interface {
 	Gateway(ctx context.Context) (GatewayDevice, error)
+}
+
+// Appliances finds the inventory devices of the appliance families (content/adminpages) that ports on the Internet name (INV-33),
+// all families in one read. cmd/vedette implements it from the inventory and the findings; exposure reads no other module's tables.
+type Appliances interface {
+	ApplianceDevices(ctx context.Context, qs []ApplianceQuery) (map[string]ApplianceMatch, error)
+}
+
+// ApplianceQuery says what makes a device one of a family: a device type of Kinds ("" and "unknown" included when listed), and its own
+// vendor, model or OS that Device matches, or a software row with one of KevKeys (KEV vendor|product of the family's own OS, lower
+// case). A PC, a switch, an access point or a NAS of the same vendor is not the family's appliance.
+type ApplianceQuery struct {
+	Family  string
+	KevKeys []string
+	Device  *regexp.Regexp
+	Kinds   []string
+}
+
+// ApplianceMatch is the devices of one family: at most MaxApplianceDevices, More the others.
+type ApplianceMatch struct {
+	Devices []ApplianceDevice
+	More    int
 }
 
 // GatewayDevice is the LAN default gateway and what Vedette knows of it. IP is the zero value when the box cannot tell its gateway;

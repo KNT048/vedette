@@ -21731,6 +21731,92 @@
                                     "server": {
                                       "description": "The HTTP Server header on the port (deep scan, http-server-header)",
                                       "type": "string"
+                                    },
+                                    "location": {
+                                      "description": "Where the port's first page redirects, when the deep scan did not follow it (http-title)",
+                                      "type": "string"
+                                    },
+                                    "appliance": {
+                                      "description": "The network appliance the port names, with the inventory devices of that family; absent when none",
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "type": "string",
+                                          "description": "The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)"
+                                        },
+                                        "vendor": {
+                                          "type": "string",
+                                          "description": "The family's vendor; \"\" for a product of no family"
+                                        },
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "admin",
+                                            "vpn",
+                                            "admin_or_vpn"
+                                          ],
+                                          "description": "admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both"
+                                        },
+                                        "evidence": {
+                                          "type": "string",
+                                          "enum": [
+                                            "certificate",
+                                            "title",
+                                            "server",
+                                            "redirect",
+                                            "product"
+                                          ],
+                                          "description": "Which statement of the port named it"
+                                        },
+                                        "devices": {
+                                          "anyOf": [
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "device_id": {
+                                                    "type": "string"
+                                                  },
+                                                  "name": {
+                                                    "type": "string"
+                                                  },
+                                                  "open_exploited": {
+                                                    "type": "integer",
+                                                    "minimum": -9007199254740991,
+                                                    "maximum": 9007199254740991,
+                                                    "description": "Open exploited (KEV) findings of the device"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "device_id",
+                                                  "name",
+                                                  "open_exploited"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family"
+                                        },
+                                        "more": {
+                                          "description": "Devices of the family beyond the 5 listed",
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "name",
+                                        "vendor",
+                                        "kind",
+                                        "evidence",
+                                        "devices"
+                                      ],
+                                      "additionalProperties": false
                                     }
                                   },
                                   "required": [
@@ -23359,6 +23445,92 @@
                                     "server": {
                                       "description": "The HTTP Server header on the port (deep scan, http-server-header)",
                                       "type": "string"
+                                    },
+                                    "location": {
+                                      "description": "Where the port's first page redirects, when the deep scan did not follow it (http-title)",
+                                      "type": "string"
+                                    },
+                                    "appliance": {
+                                      "description": "The network appliance the port names, with the inventory devices of that family; absent when none",
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "type": "string",
+                                          "description": "The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)"
+                                        },
+                                        "vendor": {
+                                          "type": "string",
+                                          "description": "The family's vendor; \"\" for a product of no family"
+                                        },
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "admin",
+                                            "vpn",
+                                            "admin_or_vpn"
+                                          ],
+                                          "description": "admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both"
+                                        },
+                                        "evidence": {
+                                          "type": "string",
+                                          "enum": [
+                                            "certificate",
+                                            "title",
+                                            "server",
+                                            "redirect",
+                                            "product"
+                                          ],
+                                          "description": "Which statement of the port named it"
+                                        },
+                                        "devices": {
+                                          "anyOf": [
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "device_id": {
+                                                    "type": "string"
+                                                  },
+                                                  "name": {
+                                                    "type": "string"
+                                                  },
+                                                  "open_exploited": {
+                                                    "type": "integer",
+                                                    "minimum": -9007199254740991,
+                                                    "maximum": 9007199254740991,
+                                                    "description": "Open exploited (KEV) findings of the device"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "device_id",
+                                                  "name",
+                                                  "open_exploited"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family"
+                                        },
+                                        "more": {
+                                          "description": "Devices of the family beyond the 5 listed",
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "name",
+                                        "vendor",
+                                        "kind",
+                                        "evidence",
+                                        "devices"
+                                      ],
+                                      "additionalProperties": false
                                     }
                                   },
                                   "required": [
@@ -24053,6 +24225,92 @@
                               "server": {
                                 "description": "The HTTP Server header on the port (deep scan, http-server-header)",
                                 "type": "string"
+                              },
+                              "location": {
+                                "description": "Where the port's first page redirects, when the deep scan did not follow it (http-title)",
+                                "type": "string"
+                              },
+                              "appliance": {
+                                "description": "The network appliance the port names, with the inventory devices of that family; absent when none",
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "description": "The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)"
+                                  },
+                                  "vendor": {
+                                    "type": "string",
+                                    "description": "The family's vendor; \"\" for a product of no family"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "admin",
+                                      "vpn",
+                                      "admin_or_vpn"
+                                    ],
+                                    "description": "admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both"
+                                  },
+                                  "evidence": {
+                                    "type": "string",
+                                    "enum": [
+                                      "certificate",
+                                      "title",
+                                      "server",
+                                      "redirect",
+                                      "product"
+                                    ],
+                                    "description": "Which statement of the port named it"
+                                  },
+                                  "devices": {
+                                    "anyOf": [
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "device_id": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "open_exploited": {
+                                              "type": "integer",
+                                              "minimum": -9007199254740991,
+                                              "maximum": 9007199254740991,
+                                              "description": "Open exploited (KEV) findings of the device"
+                                            }
+                                          },
+                                          "required": [
+                                            "device_id",
+                                            "name",
+                                            "open_exploited"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family"
+                                  },
+                                  "more": {
+                                    "description": "Devices of the family beyond the 5 listed",
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "vendor",
+                                  "kind",
+                                  "evidence",
+                                  "devices"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -24638,6 +24896,92 @@
                               "server": {
                                 "description": "The HTTP Server header on the port (deep scan, http-server-header)",
                                 "type": "string"
+                              },
+                              "location": {
+                                "description": "Where the port's first page redirects, when the deep scan did not follow it (http-title)",
+                                "type": "string"
+                              },
+                              "appliance": {
+                                "description": "The network appliance the port names, with the inventory devices of that family; absent when none",
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "description": "The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)"
+                                  },
+                                  "vendor": {
+                                    "type": "string",
+                                    "description": "The family's vendor; \"\" for a product of no family"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "admin",
+                                      "vpn",
+                                      "admin_or_vpn"
+                                    ],
+                                    "description": "admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both"
+                                  },
+                                  "evidence": {
+                                    "type": "string",
+                                    "enum": [
+                                      "certificate",
+                                      "title",
+                                      "server",
+                                      "redirect",
+                                      "product"
+                                    ],
+                                    "description": "Which statement of the port named it"
+                                  },
+                                  "devices": {
+                                    "anyOf": [
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "device_id": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "open_exploited": {
+                                              "type": "integer",
+                                              "minimum": -9007199254740991,
+                                              "maximum": 9007199254740991,
+                                              "description": "Open exploited (KEV) findings of the device"
+                                            }
+                                          },
+                                          "required": [
+                                            "device_id",
+                                            "name",
+                                            "open_exploited"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family"
+                                  },
+                                  "more": {
+                                    "description": "Devices of the family beyond the 5 listed",
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "vendor",
+                                  "kind",
+                                  "evidence",
+                                  "devices"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -26223,6 +26567,92 @@
                           "server": {
                             "description": "The HTTP Server header on the port (deep scan, http-server-header)",
                             "type": "string"
+                          },
+                          "location": {
+                            "description": "Where the port's first page redirects, when the deep scan did not follow it (http-title)",
+                            "type": "string"
+                          },
+                          "appliance": {
+                            "description": "The network appliance the port names, with the inventory devices of that family; absent when none",
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "description": "The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)"
+                              },
+                              "vendor": {
+                                "type": "string",
+                                "description": "The family's vendor; \"\" for a product of no family"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "admin",
+                                  "vpn",
+                                  "admin_or_vpn"
+                                ],
+                                "description": "admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both"
+                              },
+                              "evidence": {
+                                "type": "string",
+                                "enum": [
+                                  "certificate",
+                                  "title",
+                                  "server",
+                                  "redirect",
+                                  "product"
+                                ],
+                                "description": "Which statement of the port named it"
+                              },
+                              "devices": {
+                                "anyOf": [
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "device_id": {
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "type": "string"
+                                        },
+                                        "open_exploited": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991,
+                                          "description": "Open exploited (KEV) findings of the device"
+                                        }
+                                      },
+                                      "required": [
+                                        "device_id",
+                                        "name",
+                                        "open_exploited"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family"
+                              },
+                              "more": {
+                                "description": "Devices of the family beyond the 5 listed",
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "vendor",
+                              "kind",
+                              "evidence",
+                              "devices"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -26258,6 +26688,88 @@
                               "danger",
                               "warn"
                             ]
+                          },
+                          "appliance": {
+                            "description": "The network appliance the page belongs to, with the inventory devices of that family; absent when none",
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "description": "The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)"
+                              },
+                              "vendor": {
+                                "type": "string",
+                                "description": "The family's vendor; \"\" for a product of no family"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "admin",
+                                  "vpn",
+                                  "admin_or_vpn"
+                                ],
+                                "description": "admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both"
+                              },
+                              "evidence": {
+                                "type": "string",
+                                "enum": [
+                                  "certificate",
+                                  "title",
+                                  "server",
+                                  "redirect",
+                                  "product"
+                                ],
+                                "description": "Which statement of the port named it"
+                              },
+                              "devices": {
+                                "anyOf": [
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "device_id": {
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "type": "string"
+                                        },
+                                        "open_exploited": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991,
+                                          "description": "Open exploited (KEV) findings of the device"
+                                        }
+                                      },
+                                      "required": [
+                                        "device_id",
+                                        "name",
+                                        "open_exploited"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family"
+                              },
+                              "more": {
+                                "description": "Devices of the family beyond the 5 listed",
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "vendor",
+                              "kind",
+                              "evidence",
+                              "devices"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -27388,6 +27900,92 @@
                               "server": {
                                 "description": "The HTTP Server header on the port (deep scan, http-server-header)",
                                 "type": "string"
+                              },
+                              "location": {
+                                "description": "Where the port's first page redirects, when the deep scan did not follow it (http-title)",
+                                "type": "string"
+                              },
+                              "appliance": {
+                                "description": "The network appliance the port names, with the inventory devices of that family; absent when none",
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "description": "The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)"
+                                  },
+                                  "vendor": {
+                                    "type": "string",
+                                    "description": "The family's vendor; \"\" for a product of no family"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "admin",
+                                      "vpn",
+                                      "admin_or_vpn"
+                                    ],
+                                    "description": "admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both"
+                                  },
+                                  "evidence": {
+                                    "type": "string",
+                                    "enum": [
+                                      "certificate",
+                                      "title",
+                                      "server",
+                                      "redirect",
+                                      "product"
+                                    ],
+                                    "description": "Which statement of the port named it"
+                                  },
+                                  "devices": {
+                                    "anyOf": [
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "device_id": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "open_exploited": {
+                                              "type": "integer",
+                                              "minimum": -9007199254740991,
+                                              "maximum": 9007199254740991,
+                                              "description": "Open exploited (KEV) findings of the device"
+                                            }
+                                          },
+                                          "required": [
+                                            "device_id",
+                                            "name",
+                                            "open_exploited"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family"
+                                  },
+                                  "more": {
+                                    "description": "Devices of the family beyond the 5 listed",
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "vendor",
+                                  "kind",
+                                  "evidence",
+                                  "devices"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -27947,6 +28545,92 @@
                               "server": {
                                 "description": "The HTTP Server header on the port (deep scan, http-server-header)",
                                 "type": "string"
+                              },
+                              "location": {
+                                "description": "Where the port's first page redirects, when the deep scan did not follow it (http-title)",
+                                "type": "string"
+                              },
+                              "appliance": {
+                                "description": "The network appliance the port names, with the inventory devices of that family; absent when none",
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "description": "The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)"
+                                  },
+                                  "vendor": {
+                                    "type": "string",
+                                    "description": "The family's vendor; \"\" for a product of no family"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "admin",
+                                      "vpn",
+                                      "admin_or_vpn"
+                                    ],
+                                    "description": "admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both"
+                                  },
+                                  "evidence": {
+                                    "type": "string",
+                                    "enum": [
+                                      "certificate",
+                                      "title",
+                                      "server",
+                                      "redirect",
+                                      "product"
+                                    ],
+                                    "description": "Which statement of the port named it"
+                                  },
+                                  "devices": {
+                                    "anyOf": [
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "device_id": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "open_exploited": {
+                                              "type": "integer",
+                                              "minimum": -9007199254740991,
+                                              "maximum": 9007199254740991,
+                                              "description": "Open exploited (KEV) findings of the device"
+                                            }
+                                          },
+                                          "required": [
+                                            "device_id",
+                                            "name",
+                                            "open_exploited"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family"
+                                  },
+                                  "more": {
+                                    "description": "Devices of the family beyond the 5 listed",
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "vendor",
+                                  "kind",
+                                  "evidence",
+                                  "devices"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -28493,6 +29177,92 @@
                                   "server": {
                                     "description": "The HTTP Server header on the port (deep scan, http-server-header)",
                                     "type": "string"
+                                  },
+                                  "location": {
+                                    "description": "Where the port's first page redirects, when the deep scan did not follow it (http-title)",
+                                    "type": "string"
+                                  },
+                                  "appliance": {
+                                    "description": "The network appliance the port names, with the inventory devices of that family; absent when none",
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "type": "string",
+                                        "description": "The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)"
+                                      },
+                                      "vendor": {
+                                        "type": "string",
+                                        "description": "The family's vendor; \"\" for a product of no family"
+                                      },
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "admin",
+                                          "vpn",
+                                          "admin_or_vpn"
+                                        ],
+                                        "description": "admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both"
+                                      },
+                                      "evidence": {
+                                        "type": "string",
+                                        "enum": [
+                                          "certificate",
+                                          "title",
+                                          "server",
+                                          "redirect",
+                                          "product"
+                                        ],
+                                        "description": "Which statement of the port named it"
+                                      },
+                                      "devices": {
+                                        "anyOf": [
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "device_id": {
+                                                  "type": "string"
+                                                },
+                                                "name": {
+                                                  "type": "string"
+                                                },
+                                                "open_exploited": {
+                                                  "type": "integer",
+                                                  "minimum": -9007199254740991,
+                                                  "maximum": 9007199254740991,
+                                                  "description": "Open exploited (KEV) findings of the device"
+                                                }
+                                              },
+                                              "required": [
+                                                "device_id",
+                                                "name",
+                                                "open_exploited"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ],
+                                        "description": "The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family"
+                                      },
+                                      "more": {
+                                        "description": "Devices of the family beyond the 5 listed",
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "name",
+                                      "vendor",
+                                      "kind",
+                                      "evidence",
+                                      "devices"
+                                    ],
+                                    "additionalProperties": false
                                   }
                                 },
                                 "required": [
@@ -78013,7 +78783,7 @@
                           },
                           "text": {
                             "type": "string",
-                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 192.168.18.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports, its OS guess, \"OS guess now <x> (was <y>)\", \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
+                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 192.168.18.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, \"OS guess <x>\" for nmap's fingerprint, \"OS <x>\" for the device's own answer, \"OS guess now <x> (changed since the previous check)\"; otherwise \"OS: scan guess not used now\", never a second OS value; \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
                           }
                         },
                         "required": [
@@ -80558,7 +81328,7 @@
                                   "items": {
                                     "type": "string"
                                   },
-                                  "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\""
+                                  "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\". The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads \"Operating system: scan guess not used now\""
                                 },
                                 "reason": {
                                   "anyOf": [
@@ -81013,7 +81783,7 @@
                             "items": {
                               "type": "string"
                             },
-                            "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\""
+                            "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\". The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads \"Operating system: scan guess not used now\""
                           },
                           "reason": {
                             "anyOf": [
@@ -81444,7 +82214,7 @@
                             "items": {
                               "type": "string"
                             },
-                            "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\""
+                            "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\". The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads \"Operating system: scan guess not used now\""
                           },
                           "reason": {
                             "anyOf": [

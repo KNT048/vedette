@@ -52,6 +52,14 @@
 - **D-570 (INV-22)**: `DistroLister` (tuỳ chọn trên `Inventory`) do `cmd/vedette` `feedsInventory.Distros` hiện thực bằng `inventory.AssetIDs` + `MatchInput` và `findings.DeviceDistro`; đổi luật "dòng gói deb của agent" của findings là đổi cả lúc feeds kéo. Câu "Not updated: no … device now…" có trong `distroNote`, mock `features/feeds/sourcesMock.ts` (Debian tracker) và test `feeds.test.tsx`. PRIVACY luồng 1 + `privacy.flow.1` nói Canonical/Debian biết họ bản phân phối.
 - Thêm tên mã Ubuntu/Debian mới: `ubuntuCodenames`, `debianReleases` trong `distro.go` (ponytail; thiếu ⇒ lý do "release … is not known" ở Settings → Feeds).
 
+## Modifying: feed `alpine-osv`, `ParseAlpineOSV`/`eachZipEntry`, `DistroLister.Distros` key `alpine` (INV-31)
+
+- **findings** (qua `cmd/vedette` `findingsFeeds.readVulns` → `Vuln.Distro` hàng `Distro: "alpine"`): bản vá theo nhánh của CVE trong danh sách nền tảng (`content/catalog/platform-limits.json`) đọc từ đây; đổi `release` (nhánh "3.23", không phải "v3.23"), `package` (gói **nguồn** "openssh", không phải "openssh-server") hay luật giữ bản cao hơn ⇒ finding của thiết bị Alpine đổi. `distroVerdict` của Ubuntu/Debian bỏ qua hàng `alpine` (lọc theo `distroOf`).
+- **cmd/vedette** `feedsInventory.Distros` thêm khoá `alpine` (không gói) theo `findings.StatesAlpine`; đổi luật đó ở findings ⇒ đổi lúc feeds liên lạc OSV.dev (PRIVACY luồng 1).
+- **feeds** `PlatformChecker.NotAffected(ctx, cve, vendor, product, distro, ids)` nhận hàng của CVE từ `Store.DistroFixesOf` (trang CVE agree với finding khi bản phát hành gói quyết); `cmd/vedette` `feedsInventory.NotAffected` hiện thực.
+- **core/apkver**: thứ tự apk dùng chung với findings (`apkver.go`); đổi nó ⇒ đổi bản vá được giữ và phép so ở findings.
+- **PRIVACY.md** luồng 1 + `privacy.flow.1` (host Google Cloud Storage của OSV.dev, chỉ khi có thiết bị Alpine), `THIRD_PARTY_NOTICES.md` (secdb CC BY-SA 4.0 qua OSV.dev; bốn hồ sơ thật trong `testdata/alpine`), `sourcesMock.ts`, `conformance.test.ts` (18 feed có sẵn), migration 0018 (CHECK `distro` thêm `alpine`), export policy (`feeds_distro_fix` không đổi cột).
+
 ## Modifying: `DistroWant`, `tierCVEs`, `distro_packages`/`distroBehind` (tên mới, sàn 6 giờ), `DistroLister.Distros` (gói theo bản phân phối), `Store.TierDistroRecords`, `TierStamp` (D-622, INV-27)
 
 - **findings** (qua `cmd/vedette` `findingsFeeds.TierDistro` → `Feeds.TierDistro`, `distroTierItems`): mục kế hoạch kind `distro` đọc đúng các hàng tầng này; đổi tập gói giữ hay bỏ hàng `fixed` ⇒ mục kế hoạch đổi (`modules/findings` `TestPlan_DistroPackages`, `TestPlan_DistroThroughTheEndpoint`). `TierStamp` thêm `ubuntu-osv`, `debian-tracker`: lượt kéo hay công tắc của chúng làm job `plan` so lại toàn bộ.

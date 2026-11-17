@@ -499,7 +499,7 @@ func TestUnchecked_D602_WaitingForNVD(t *testing.T) {
 	if err != nil || len(rows) != 1 || !rows[0].NVDPending {
 		t.Fatalf("stored: %+v %v", rows, err)
 	}
-	items := UncheckedItems(rows, map[string]KevInfo{pending.CVE: {Name: "x", DateAdded: "2022-09-01"}}, nil)
+	items := UncheckedItems(rows, map[string]KevInfo{pending.CVE: {Name: "x", DateAdded: "2022-09-01"}}, nil, nil)
 	if len(items) != 1 || !items[0].CVEs[0].NVDPending {
 		t.Fatalf("items: %+v", items)
 	}

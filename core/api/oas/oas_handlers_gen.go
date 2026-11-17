@@ -19021,16 +19021,18 @@ func (s *Server) handleExposurePostExposureTargetsRequest(args [0]string, argsEs
 
 // handleExposurePostExposureTargetsIDOpenvasRequest handles exposure_post_exposure_targets_id_openvas operation.
 //
-// Run OpenVAS again, on its own, for the newest scan of a public IP of this box whose OpenVAS step
-// started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS). It checks the
-// open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other
-// results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page
-// polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409
+// Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24
+// hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or
+// ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It
+// checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot;
+// the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone);
+// the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409
 // not_verified, expired, ip_not_current; 400 commitment_required when the target has no current
-// commitment; 400 out_of_scope; 409 busy; 429 rate_limited), then 400 bad_value for a domain (run its
-// deep scan again), 409 nothing_to_rerun when the newest scan has no such step, 503
-// scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not
-// accepted). Every attempt is audited as exposure.scan.
+// commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400
+// bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no
+// such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now
+// (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as
+// exposure.scan.
 //
 // POST /exposure/targets/{id}/openvas
 func (s *Server) handleExposurePostExposureTargetsIDOpenvasRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19109,7 +19111,7 @@ func (s *Server) handleExposurePostExposureTargetsIDOpenvasRequest(args [1]strin
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDOpenvasOperation,
-			OperationSummary: "Run OpenVAS again, on its own, for the newest scan of a public IP of this box whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS). It checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409 not_verified, expired, ip_not_current; 400 commitment_required when the target has no current commitment; 400 out_of_scope; 409 busy; 429 rate_limited), then 400 bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as exposure.scan",
+			OperationSummary: "Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24 hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409 not_verified, expired, ip_not_current; 400 commitment_required when the target has no current commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400 bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as exposure.scan",
 			OperationID:      "exposure_post_exposure_targets_id_openvas",
 			Body:             nil,
 			RawBody:          rawBody,

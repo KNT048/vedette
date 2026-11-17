@@ -79,7 +79,7 @@ func winDevice(in swInfo) (winDev, bool) {
 }
 
 // winUnknownBuild is the build of a Windows row whose build core/winrel does not know (D-602): a Microsoft row with a full Windows 10.0
-// version ("10.0.26300.9974", an Insider or other build newer than the table) and no CPE of a known release, as agent-intake's
+// version (an Insider Preview build, or a release newer than the table and the releases learned from Microsoft's list, D-603) and no CPE of a known release, as agent-intake's
 // windowsRow writes it ("Windows (build 26300)"). Vedette cannot place such a build among the releases NVD lists.
 func winUnknownBuild(s Software, in swInfo) (int, bool) {
 	if _, ok := winDevice(in); ok || norm(s.Vendor) != "microsoft" {
@@ -208,6 +208,10 @@ func winListedOf(c CPE) (winListed, bool) {
 			l.build, l.server = b, p == "windows_server"
 			return l, true
 		}
+		if r, ok := winrel.ByProduct(p + "_" + strings.ToLower(v)); lit && ok && r.Server == (p == "windows_server") && p != "windows" { // D-603: windows_11:26h2, a release learned from Microsoft's list
+			l.build, l.server = r.Build, r.Server
+			return l, true
+		}
 		l.family = p
 	}
 	return l, true // a Windows release this table does not know, or a family row of every release
@@ -263,6 +267,13 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	if !ok || len(v.Affected) == 0 || isMultiProduct(v.Product) || v.RangesFrom != "" {
 		return winVerdict{}, false
 	}
+	// review r1 L4 of #951, D-602: a build below the first public build of a release learned from Microsoft's list is an Insider or
+	// preview build of that code base (Dev Channel 26300 builds before 26H2's 26300.9457, Canary 28000.x before 26H1's 28000.1575):
+	// Microsoft publishes no fixes for it, so neither its own rows nor its siblings' decide
+	if winrel.Learned(d.rel) && d.rel.GARev > 0 && d.rev < d.rel.GARev {
+		return winVerdict{t: Unknown, note: fmt.Sprintf("This machine runs build 10.0.%d.%s, below the first public build of %s (10.0.%d.%d): an Insider or preview build, for which Microsoft publishes no fixes, so Vedette does not check %s on it.",
+			d.rel.Build, d.ubr, d.rel.Display, d.rel.Build, d.rel.GARev, v.CVE)}, true
+	}
 	var own, sib []fixedEntry
 	var sibNames []string
 	undecidable, allWindows := false, true
@@ -270,6 +281,7 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	var others []string
 	var below, above []string // review r2 H2 of #939: other releases of the device's kind (client or server), by build
 	unknownWin := false       // a Windows row of a release the table does not know, or a family row
+	successor := false        // a listed release newer by build that may follow the device's (review r1 L3 of #951)
 	var pinned []string       // rows of another product at one stated version, no range ("interix 2.2"): D-610 only
 	looseOther := false       // rows of another product at any version or in a range
 	listedYear := 0           // the latest year one of the listed other releases came out (winOldYear for the ones before Windows 10)
@@ -311,6 +323,11 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		default:
 			newest = max(newest, l.build)
 			others = appendOnce(others, l.product)
+			// a release learned from Microsoft's list on another client line (26H1, 28000, for new devices only) does not follow the
+			// device's release: it says nothing about whether Microsoft still services the device's (review r1 L3 of #951)
+			if r, ok := winrel.ByBuild(l.build, l.server); l.build > d.rel.Build && (!ok || !winrel.Learned(r) || r.Server || r.Line == d.rel.Line) {
+				successor = true
+			}
 			if l.server == d.rel.Server && l.build < d.rel.Build {
 				below = appendOnce(below, l.product) // review r2 H2 of #939: a release of the same kind before the device's
 			} else if l.server == d.rel.Server {
@@ -380,6 +397,8 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 			d.rel.Display, v.CVE, winNames(append(slices.Clone(below), above...)), d.rel.Display)}, true
 	case !allWindows || undecidable || newest == d.rel.Build:
 		return winVerdict{t: Unknown}, true // as before D-546: not checked
+	case newest > d.rel.Build && !successor:
+		return winVerdict{t: Unknown}, true // only releases of other lines are newer by build: not checked, no "still supported?" note
 	case newest > d.rel.Build:
 		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s for other Windows releases (%s), newer ones among them, but not for %s. Microsoft lists only the releases it still services, so an older release it no longer updates may be affected and get no fix: check that %s is still supported.",
 			v.CVE, winNames(others), d.rel.Display, d.rel.Display)}, true
@@ -397,6 +416,10 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	if d.rev < d.rel.GARev {
 		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s), but this machine runs a build from before %s's first public one (10.0.%d.%d), a preview or early build that may lack the fix: install the current updates.",
 			v.CVE, d.rel.Display, winNames(others), d.rel.Display, d.rel.Build, d.rel.GARev)}, true
+	}
+	if winrel.Learned(d.rel) { // review r1 M1 of #951: Vedette does not know when Microsoft stops servicing a release learned from its list
+		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s). Vedette learned %s from Microsoft's release list and cannot tell whether Microsoft still services it, so a list that leaves it out proves nothing: compare with Microsoft's advisory.",
+			v.CVE, d.rel.Display, winNames(others), d.rel.Display)}, true
 	}
 	shipped := v.Source != SourceVulnCheck && !v.DateAdded.IsZero() && !v.DateAdded.Add(winShipMargin).After(d.rel.GA)
 	// D-610: NVD's list has also stood a year when the CVE itself is two calendar years old or more: Microsoft, its own CNA, gives a

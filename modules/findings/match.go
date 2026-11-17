@@ -346,9 +346,11 @@ func nameOnlyWhy(s Software, in swInfo, v Vuln, r UncheckedReason, listed bool) 
 		return fmt.Sprintf("NVD has not published which products %s affects yet", v.CVE)
 	}
 	if b, ok := winUnknownBuild(s, in); ok && r == UncheckedNotComparable {
-		where := "is not in Vedette's table of Windows releases (an Insider or preview build)"
+		// D-603: Vedette knows its own table and the releases Microsoft's release information lists (feed Windows releases), so a
+		// build neither has is an Insider Preview build, for which Microsoft publishes no fixed builds, or newer than the list on the box
+		where := "is not a Windows release Vedette knows (an Insider or other pre-release build)"
 		if b > winrelNewest() {
-			where = "is newer than Vedette's table of Windows releases (an Insider or preview build)"
+			where = "is newer than every Windows release Vedette knows (an Insider build, or a release not yet in its list)"
 		}
 		return fmt.Sprintf("Windows build %d %s, so Vedette cannot compare %s with the builds NVD lists for %s", b, where, clean(in.ver), v.CVE)
 	}

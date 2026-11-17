@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -24,7 +25,8 @@ func runInstallShFns(t *testing.T, bin string, env []string, fns []string, call 
 		script += installShFunc(t, f)
 	}
 	cmd := exec.CommandContext(t.Context(), "sh", "-c", script+call) //nolint:gosec // the sh functions of install.sh under test
-	cmd.Env = append(append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH")), env...)
+	// PROC: an empty /proc by default, so the box that runs the test never shows its own containers to running_conmons (D-600)
+	cmd.Env = append(append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"), "PROC="+t.TempDir(), "CONMON_WAIT=0", "RUNNING="), env...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
@@ -281,7 +283,7 @@ esac
 			out, err := runInstallShFns(t, dir,
 				[]string{"FAKE=" + dir, "STATE=" + state, "HOST_STATE=" + t.TempDir(), "TMP=" + tmp, "KEEP_DATA=" + tc.keepData,
 					"KEEP_PODMAN=", "PODMAN_IN_USE=", "PODMAN_OURS=", "OTHERS=", "PS_EXIT=" + tc.psExit, "LC_ALL=C"},
-				[]string{"podman_stays", "podman_others", "others_text", "by_us_packages", "pm"},
+				[]string{"podman_stays", "podman_others", "others_text", "by_us_packages", "pm", "still_running", "running_conmons", "running_text"},
 				installShLine(t, "installed_pkg")+have+`podman_stays
 printf 'keep=%s\nuse=%s\nours=%s\n' "$KEEP_PODMAN" "$PODMAN_IN_USE" "$PODMAN_OURS"
 `)
@@ -501,7 +503,7 @@ exit 0
 		[]string{"FAKE=" + dir, "TMP=" + tmp, "STATE=" + state, "HOST_STATE=" + t.TempDir(), "KEEP_DATA=", "KEEP_PODMAN=", "PODMAN_IN_USE=",
 			"PODMAN_OURS=", "OTHERS=", "CONTAINER_HOST=tcp://198.51.100.7:8888", "CONTAINER_CONNECTION=elsewhere",
 			"CONTAINERS_STORAGE_CONF=/x/storage.conf", "CONTAINERS_CONF=/x/containers.conf", "LC_ALL=C"},
-		[]string{"pm", "remove_ours", "others_use", "remove_images", "rmi_ours", "podman_stays", "podman_others", "others_text", "by_us_packages"},
+		[]string{"pm", "remove_ours", "others_use", "remove_images", "rmi_ours", "podman_stays", "podman_others", "others_text", "by_us_packages", "still_running", "running_conmons", "running_text"},
 		installShLine(t, "installed_pkg")+`for c in vedette-core vedette-sensor; do pm rm -f -t 5 "$c" >/dev/null || true; done
 remove_ours network vedette-int
 remove_images
@@ -757,4 +759,90 @@ echo "stuck=[$ZAP_STUCK]"`)
 	if calls, _ := os.ReadFile(filepath.Join(dir, "calls")); len(calls) != 0 { //nolint:gosec // G304: a file of the test's own temp dir
 		t.Fatalf("the network was removed under a container that still runs: %q", calls)
 	}
+}
+
+// D-600: podman, the packages it runs with and its storage stay while any container still runs, read from the kernel (a conmon in
+// /proc), not from podman's database: on kien's N100 an uninstall wiped /var/lib/containers under fourteen running Greenbone containers
+// that podman no longer listed. A running container podman does not list keeps podman (also with no podman installed, and without
+// --keep-data), the summary names it; the wipe itself looks again; with no conmon left the decision is podman_others' as before.
+func TestInstallSh_UninstallKeepsPodmanUnderARunningContainer(t *testing.T) {
+	id := strings.Repeat("ab", 32)
+	conmon := "/usr/bin/conmon\x00--api-version\x001\x00-c\x00" + id + "\x00-u\x00" + id + "\x00-r\x00/usr/bin/crun\x00-n\x00greenbone-community-edition-gvmd-1\x00" +
+		"--exit-command-arg\x00-n\x00--exit-command-arg\x00container\x00"
+	for name, tc := range map[string]struct {
+		procs    map[string]string // pid: cmdline
+		absent   bool              // podman is not installed
+		wantKeep string
+	}{
+		"an orphan podman does not list": {procs: map[string]string{"4242": conmon, "1": "/sbin/init\x00"},
+			wantKeep: "1 container still runs on this box (greenbone-community-edition-gvmd-1), and podman and its storage are never removed under a running container"},
+		"podman already gone":     {procs: map[string]string{"4242": conmon}, absent: true, wantKeep: "1 container still runs on this box"},
+		"a hostile name":          {procs: map[string]string{"9": "conmon\x00-c\x00" + id + "\x00-n\x00x\x1b[31my\x00"}, wantKeep: "(x??31my)"},
+		"no container runs":       {procs: map[string]string{"1": "/sbin/init\x00", "7": "/usr/bin/conmonx\x00-c\x00" + id + "\x00"}},
+		"conmon without an id":    {procs: map[string]string{"9": "/usr/bin/conmon\x00--version\x00"}},
+		"six of them, five named": {procs: sixConmons(id), wantKeep: "6 containers still run on this box (c1, c2, c3, c4, c5, and 1 more)"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir, proc, state := t.TempDir(), t.TempDir(), t.TempDir()
+			for pid, cmd := range tc.procs {
+				if err := os.MkdirAll(filepath.Join(proc, pid), 0o755); err != nil { //nolint:gosec // the fake /proc of a test
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(proc, pid, "cmdline"), []byte(cmd), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.WriteFile(filepath.Join(state, "asked-packages"), []byte("podman\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			installed, have := "podman\n", ""
+			if tc.absent {
+				installed, have = "", "have() { [ \"$1\" != podman ] && command -v \"$1\" >/dev/null 2>&1; }\n"
+			}
+			if err := os.WriteFile(filepath.Join(dir, "installed"), []byte(installed), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			fakeProgram(t, dir, "dpkg-query", fakeDpkgQuery)
+			// podman lists nothing but Vedette's own: only the kernel shows the orphan
+			fakeProgram(t, dir, "podman", `case "$1 $2" in
+"ps -a") echo vedette-core ;;
+"network ls") echo podman ;;
+*) ;;
+esac
+`)
+			out, err := runInstallShFns(t, dir,
+				[]string{"FAKE=" + dir, "STATE=" + state, "HOST_STATE=" + t.TempDir(), "TMP=" + t.TempDir(), "KEEP_DATA=", "KEEP_PODMAN=",
+					"PODMAN_IN_USE=", "PODMAN_OURS=", "OTHERS=", "PROC=" + proc, "LC_ALL=C"},
+				[]string{"podman_stays", "podman_others", "others_text", "by_us_packages", "pm", "still_running", "running_conmons", "running_text"},
+				installShLine(t, "installed_pkg")+have+`podman_stays
+printf 'keep=%s\nuse=%s\n' "$KEEP_PODMAN" "$PODMAN_IN_USE"
+`)
+			if err != nil {
+				t.Fatalf("podman_stays: %v\n%s", err, out)
+			}
+			_, rest, _ := strings.Cut(out, "keep=")
+			keep, _, _ := strings.Cut(rest, "\n")
+			if (tc.wantKeep == "") != (keep == "") || !strings.Contains(keep, tc.wantKeep) {
+				t.Errorf("KEEP_PODMAN %q, want %q\n%s", keep, tc.wantKeep, out)
+			}
+			if inUse := strings.Contains(out, "\nuse=1\n"); inUse != (tc.wantKeep != "") {
+				t.Errorf("PODMAN_IN_USE %v\n%s", inUse, out)
+			}
+		})
+	}
+	// the wipe's own gate looks at the kernel again, with no wait, before it removes anything
+	body := installShFunc(t, "do_uninstall")
+	i := strings.Index(body, `if [ -n "$(running_conmons)" ]; then`)
+	j := strings.Index(body, "find /var/lib/containers -mindepth 1 -delete")
+	if i < 0 || j < i {
+		t.Fatalf("the wipe of /var/lib/containers is not behind a look at running_conmons:\n%s", body)
+	}
+}
+
+func sixConmons(id string) map[string]string {
+	m := map[string]string{}
+	for i := 1; i <= 6; i++ {
+		m[strconv.Itoa(100+i)] = "conmon\x00-c\x00" + id + "\x00-n\x00c" + strconv.Itoa(i) + "\x00"
+	}
+	return m
 }

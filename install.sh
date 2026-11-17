@@ -68,6 +68,10 @@ KEPT_MANUAL=
 PODMAN_OURS=
 PODMAN_IN_USE=
 OTHERS=
+RUNNING=
+# where running_conmons reads the processes, and how long still_running waits for a conmon that is ending (D-600)
+PROC=/proc
+CONMON_WAIT=10
 HOST_STOPPED=
 HP_STOPPED=
 RELEASE=
@@ -1220,6 +1224,54 @@ others_text() {
 		}'
 }
 
+# running_conmons: the containers that still run on this box as the kernel shows them, whatever podman's database says (D-600): one
+# "<id> <name>" line per conmon process ($PROC/<pid>/cmdline whose argv[0] is conmon: its -c and -n), rootful and rootless alike, the
+# name cut to printable characters and 64 bytes. podman ps lists only what its database holds: a container it lost (its storage wiped
+# or reset under it, kien's N100 on 2026-11-13) still runs and shows only here.
+running_conmons() {
+	for c in "$PROC"/[0-9]*/cmdline; do
+		[ -r "$c" ] || continue
+		tr '\0' '\n' <"$c" 2>/dev/null | awk '
+			NR == 1 { if ($0 !~ /(^|\/)conmon$/) { bad = 1; exit } next }
+			skip { skip = 0; p = ""; next }
+			$0 == "--exit-command-arg" || $0 == "--runtime-arg" { skip = 1; next }
+			(p == "-c" || p == "--cid") && id == "" { id = $0 }
+			(p == "-n" || p == "--name") && n == "" { n = $0 }
+			{ p = $0 }
+			END {
+				if (bad || id == "") exit
+				gsub(/[^0-9a-f]/, "?", id)
+				gsub(/[^A-Za-z0-9_.:@\/-]/, "?", n)
+				if (length(n) > 64) n = substr(n, 1, 64) "..."
+				print substr(id, 1, 64), (n == "" ? "?" : n)
+			}'
+	done
+}
+
+# still_running: running_conmons, given up to $CONMON_WAIT seconds to empty (the conmon of a container podman rm -f just removed ends
+# a moment after it)
+still_running() {
+	sr_w=0
+	while :; do
+		sr=$(running_conmons)
+		if [ -z "$sr" ] || [ "$sr_w" -ge "$CONMON_WAIT" ]; then break; fi
+		sleep 1
+		sr_w=$((sr_w + 1))
+	done
+	printf '%s' "$sr"
+}
+
+# running_text: RUNNING in words, at most five names
+running_text() {
+	printf '%s\n' "$RUNNING" | awk '
+		NF < 2 { next }
+		{ n++; if (n <= 5) names = names (n > 1 ? ", " : "") $2 }
+		END {
+			more = (n > 5) ? ", and " (n - 5) " more" : ""
+			printf "%d container%s still run%s on this box (%s%s), and podman and its storage are never removed under a running container", n, (n == 1 ? "" : "s"), (n == 1 ? "s" : ""), names, more
+		}'
+}
+
 # podman_stays (W4-1, D-508): podman stays, with the packages it runs with and /var/lib/containers, when it holds anything that is not
 # Vedette's, when that cannot be read (fail closed), and always with --keep-data (Vedette comes back on it; the storage stays even when
 # podman is not installed, buildah or CRI-O may share it: review M3); KEEP_PODMAN says why. Only a podman this script added and that
@@ -1228,6 +1280,14 @@ others_text() {
 podman_stays() {
 	if grep -qx podman "$STATE/asked-packages" 2>/dev/null || by_us_packages | grep -qx podman; then PODMAN_OURS=1; fi
 	[ -z "$KEEP_DATA" ] || KEEP_PODMAN="--keep-data was given, and the next install runs Vedette on it again"
+	# D-600: a container that still runs keeps podman, the packages it runs with and its storage, whatever podman lists (one it lost is
+	# not in podman ps) and also when podman is not installed any more; read from the kernel, before anything asks podman
+	RUNNING=$(still_running)
+	if [ -n "$RUNNING" ]; then
+		PODMAN_IN_USE=1
+		KEEP_PODMAN=$(running_text)
+		return 0
+	fi
 	installed_pkg podman || have podman || return 0
 	if ! podman_others; then
 		PODMAN_IN_USE=1
@@ -1355,7 +1415,7 @@ do_uninstall() {
 		say "vedette-host ($STATE/installed-by-us, $HOST_STATE/selfupdate/installed-by-us), each when nothing else needs it${KEEP_DATA:+ (the data and the users are KEPT)}"
 		[ -n "$KEEP_DATA" ] || say "and DELETE the database and the master key in /var/lib/vedette (no way back), /etc/vedette and the users vedette and vedette-sensor"
 		say "podman, the packages it runs with and /var/lib/containers stay when podman holds anything that is not Vedette's (containers, pods,"
-		say "networks, volumes, images)${KEEP_DATA:+ and always with --keep-data}; only Vedette's own containers, images, volumes and network are removed from it"
+		say "networks, volumes, images), while any container still runs${KEEP_DATA:+, and always with --keep-data}; only Vedette's own containers, images, volumes and network are removed from it"
 		say "OpenVAS, if it was ever enabled, stays as it is: Greenbone's own containers, images and feed volumes are not Vedette's (D-529)"
 		die "run again with --yes to do it"
 	fi
@@ -1423,9 +1483,15 @@ do_uninstall() {
 	# and the folders the package (/etc/containers, its systemd/) and podman for vedette-int (networks/, /var/lib/cni) made. A podman
 	# that apt kept (another package needs it, or it is marked manual) is the administrator's: nothing of it is touched (D-463).
 	if [ -z "$KEEP_PODMAN" ] && grep -qx podman "$STATE/asked-packages" 2>/dev/null && ! installed_pkg podman; then
-		find /var/lib/containers -mindepth 1 -delete 2>/dev/null || true
-		rmdir /var/lib/containers 2>/dev/null || true
-		rm -rf /run/containers /root/.config/cni
+		# D-600: looked at again right before the wipe, with no wait: a container that started meanwhile keeps the storage
+		if [ -n "$(running_conmons)" ]; then
+			warn "a container runs on this box: /var/lib/containers and /run/containers are left in place"
+		else
+			find /var/lib/containers -mindepth 1 -delete 2>/dev/null || true
+			rmdir /var/lib/containers 2>/dev/null || true
+			rm -rf /run/containers
+		fi
+		rm -rf /root/.config/cni
 		# rmdir only, deepest first, and never a folder an installed package owns (buildah's containers-common): a folder with anything
 		# left in it is somebody else's and stays (N100)
 		for d in /etc/containers/networks /etc/containers/systemd/users /etc/containers/systemd /etc/containers/registries.conf.d /etc/containers /var/lib/cni/networks /var/lib/cni /root/.config; do
@@ -1483,9 +1549,11 @@ do_uninstall() {
 	for p in 8443 8444 8765; do
 		if port_listening "$p"; then warn "port $p still listens (another program?)"; fi
 	done
-	if [ -n "$KEEP_PODMAN" ] && [ -n "$PODMAN_OURS" ] && { installed_pkg podman || have podman; }; then
+	if [ -n "$KEEP_PODMAN" ] && [ -n "$PODMAN_OURS" ] && { installed_pkg podman || have podman || [ -n "$RUNNING" ]; }; then
 		say "kept podman, the packages it runs with and /var/lib/containers: $KEEP_PODMAN"
 		[ -z "$KEPT_MANUAL" ] || say "  marked$KEPT_MANUAL as installed by hand (apt-mark manual), so apt autoremove keeps them"
+		# a container podman lost (D-600) is stopped by vedette-host at its start when it is Vedette's or OpenVAS's, by a reboot in any case
+		[ -z "$RUNNING" ] || say "  a running container that podman ps does not list is one podman lost: install.sh again (vedette-host stops Vedette's and OpenVAS's at its start) or a reboot ends it; then --uninstall again"
 		# never suggest wiping podman's storage: it may hold OpenVAS's feed and database volumes, which stay (D-529, review r1 L5)
 		[ -n "$KEEP_DATA" ] || say "  to remove podman too, first remove what still uses it yourself (podman ps -a, podman volume ls, podman images; OpenVAS's feed and database are volumes), then apt-get purge podman, then apt-get autoremove"
 	fi

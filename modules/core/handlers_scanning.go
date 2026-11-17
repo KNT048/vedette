@@ -223,10 +223,10 @@ type ScanningConfig struct {
 	Log       *slog.Logger
 	Safety    SafetyStore
 	Engines   []ScanEngine
-	Discovery DiscoveryRunner                                 // nil: the run answers 501
+	Discovery DiscoveryRunner                                               // nil: the run answers 501
 	History   func(ctx context.Context, asset string) ([]HistoryRun, error) // the runs of GET /scanning/history (asset "": every run; a device id: the runs that reached it, kien G7b/c), newest first; nil: none
-	TimeZone  func(ctx context.Context) string                // the organization's zone; nil or "": UTC
-	MemoryMB  func() (int, bool)                              // MemTotal of the box; nil or false: unknown
+	TimeZone  func(ctx context.Context) string                              // the organization's zone; nil or "": UTC
+	MemoryMB  func() (int, bool)                                            // MemTotal of the box; nil or false: unknown
 }
 
 // ScanningHandlers implements GET /scanning, PUT /scanning/safety, POST /scanning/safety/ranges and /exclusions, PATCH /scanning/engines/{id} and POST

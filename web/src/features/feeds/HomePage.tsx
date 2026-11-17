@@ -65,8 +65,18 @@ function KevFreshness({ latest }: { latest: { date_added: string; display: strin
     )
   }
   if (!kev.checked_at) return <p className="mb-3 text-meta text-muted">{t('fresh.never', { every })} {link}</p>
-  return <p className="mb-3 text-meta text-muted">{t('fresh.ok', { every, time: fmtWhen(kev.checked_at, now) })}{added}</p>
+  // kien G13 (D-91 as amended): both copies are asked every check; the line says which one the newest list came from, and a copy that
+  // failed alone is a quiet note (cisa.gov answers 403 to some countries), never an alarm
+  const time = fmtWhen(kev.checked_at, now)
+  const copies = kev.copies ?? [] // an older box (or a test fixture) without the field
+  const both = copies.length > 0 && kev.answered_by
+  const ok = both ? t('fresh.okBoth', { every, time, from: t(kev.answered_by === MIRROR ? 'fresh.fromMirror' : 'fresh.fromCisa') }) : t('fresh.ok', { every, time })
+  const notes = copies.filter((c) => c.error).map((c) => ` ${t('fresh.copyFailed', { why: c.error })}`).join('')
+  return <p className="mb-3 text-meta text-muted">{ok}{notes}{added}</p>
 }
+
+/** What modules/feeds records when the newest list came from CISA's GitHub copy (feeds.AnsweredMirror). */
+const MIRROR = 'CISA GitHub mirror'
 
 /** The time, a minute at a time: "10:54" becomes "17 Nov 2026, 10:54" after midnight without waiting for a refetch. */
 function useMinute() {

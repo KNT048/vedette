@@ -58,10 +58,21 @@ const ScanInfo = z.object({
 /** #849: what feeds a device, in the words of the Devices search (source:…). scan = nmap or a vulnerability scan; osquery and Wazuh are
  * told apart (both are source agent in observations): osquery by the device's agent binding (D-598), Wazuh by its sync. */
 export const DeviceSource = z.enum(['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh'])
+/** G4 (kien): which devices carry risk, at a glance in every list (like Defender's exposure level), read from what Findings › To fix
+ * shows for the device (findings DeviceUpdates, one rule): exploited = open exploited findings To fix lists (an update is named for
+ * them, or the box proved them); update = none, but a Recommended update fixes a CVE likely to be exploited (EPSS ≥ 10%) or of High
+ * or Critical severity. null on a clean device. */
+export const RiskLevel = z.enum(['exploited', 'update'])
+export const DeviceRisk = z.object({
+  level: RiskLevel,
+  exploited: z.number().int().describe('Open exploited findings of the device that Findings › To fix lists: an update is named for them, or the box proved them (a product-only guess is in Needs your input, not here)'),
+  updates: z.number().int().describe('Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity'),
+}).describe('The device\'s risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off')
 export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
   sources: z.array(DeviceSource).describe('Every source that told Vedette something about the device and is still kept (its details, software or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source: filter, #829 sources of the device page)'),
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
+  risk: DeviceRisk.nullable(),
   summary: z.object({ source: ObsSource, confidence }).nullable().describe('Source of the most trusted value; confidence is that of the weakest value'),
 })
 /** #849: the filters of the Devices search; all optional, ANDed; each list ORs its values. counts stay over the whole inventory. */
@@ -72,6 +83,7 @@ export const DevicesQuery = z.object({
   source: z.string().max(200).optional().describe(`Comma-separated: ${DeviceSource.options.join(', ')}. Unknown value: 400 bad_filter`),
   fragile: z.enum(['true', 'false']).optional(),
   has_findings: z.enum(['true', 'false']).optional().describe('true: findings_count > 0'),
+  risk: z.string().max(60).optional().describe('Comma-separated: exploited, update, none (no risk marker). Unknown value: 400 bad_filter (G4)'),
   q: z.string().max(80).optional().describe('Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model'),
 })
 export const DevicesResponse = z.object({
@@ -79,6 +91,7 @@ export const DevicesResponse = z.object({
   counts: z.object({ all: z.number().int(), pending: z.number().int(), fragile: z.number().int(), manual: z.number().int(), ignored: z.number().int().describe('Ignored devices (D-630); no other count includes them') }),
   notify_new: z.boolean(),
   notify_available: z.boolean().describe('false when the notify module is off'),
+  risk_unavailable: z.boolean().describe('G4: the risk markers could not be read (the findings module failed): no row has one and a risk filter was not applied'),
 })
 /** INV-39 (BN340): a person's correction of a row a sensor or agent reported. */
 export const SoftwareCorrection = z.object({
@@ -117,6 +130,8 @@ export const DeviceDetail = z.object({
   }),
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
+  risk: DeviceRisk.nullable(),
+  risk_unavailable: z.boolean().describe('G4: the risk marker could not be read (the findings module failed)'),
   observations: z.array(Observation),
   kinds: z.array(AssetKind),
   possible_same: z.array(PossibleSame).describe('Devices that may be this same machine (D-599), the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was'),

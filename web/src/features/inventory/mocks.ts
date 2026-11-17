@@ -20,6 +20,7 @@ import type {
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
 import { badUserName, nameOf } from './nameOf'
+import { deviceRisk } from '@/features/findings/mocks'
 import { actsAs, lookupType, TYPE_IDS } from '@/lib/deviceTypes'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
@@ -284,6 +285,8 @@ function sourcesOf(a: Asset): DeviceSource[] {
   }
   return DEVICE_SOURCES.filter((x) => has.has(x))
 }
+/** G4: the CSV's risk column, in the marker's words (inventory riskWords). */
+const csvRisk = (r: DeviceRow['risk']) => (!r ? '' : r.level === 'exploited' ? `${r.exploited} exploited` : 'Update recommended')
 /** The asks of "I updated it: ask the agent now" by device (agent-intake INV-23), and how the backend times them. */
 const reportAsks = new Map<string, number>()
 const REPORT_WINDOW_MS = 15 * 60_000
@@ -304,7 +307,7 @@ function agentReport(id: string): AgentReport | null {
   if (src.includes('wazuh') && w) return { ...none, agent: 'wazuh', wazuh_interval_minutes: w.interval_minutes }
   return { ...none, agent: 'none' }
 }
-const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), summary: summaryOf(a) })
+const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), summary: summaryOf(a) })
 
 /** #849: the Devices search, as the backend reads it (ParseDeviceFilter): ANDed filters, each list ORed, unknown words 400 bad_filter,
  * a boolean that is not true or false 400 invalid (the schema's enum). Returns the filter, or the error response. */
@@ -319,6 +322,9 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   if (badType) return fail(400, 'bad_filter', `"${badType}" is not a device type. Use a type id such as server, switch, firewall or printer.`)
   const badSource = sources.find((x) => !DEVICE_SOURCES.includes(x as DeviceSource))
   if (badSource) return fail(400, 'bad_filter', `"${badSource}" is not a source. Use one of: ${DEVICE_SOURCES.join(', ')}.`)
+  const risks = list('risk') // G4: exploited, update, none (ParseDeviceSearch)
+  const badRisk = risks.find((x) => !['exploited', 'update', 'none'].includes(x))
+  if (badRisk) return fail(400, 'bad_filter', `"${badRisk}" is not a risk. Use one of: exploited, update, none.`)
   const q = (p.get('q') ?? '').trim().toLowerCase()
   if (q.length > 80) return fail(400, 'invalid', 'The parameter "q" is not valid.')
   // Whole bytes of a MAC, in the stored aa:bb:cc form, so a piece never matches across a byte boundary (as the backend's macFragment).
@@ -331,6 +337,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
     && (hasFindings === null || (r.findings_count > 0) === hasFindings)
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
     && (!sources.length || r.sources.some((x) => sources.includes(x)))
+    && (!risks.length || risks.includes(r.risk?.level ?? 'none'))
     && (!q || [r.name, r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
       || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
 }
@@ -686,6 +693,7 @@ export const handlers = [
       counts: { all: all.length, pending: all.filter((a) => !a.approved).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
       notify_new: notifyStore.get().enabled,
       notify_available: isOn('notify'),
+      risk_unavailable: false,
     } satisfies DevicesResponse)
   }),
 
@@ -715,7 +723,7 @@ export const handlers = [
     if (!a) return notFound(request)
     const software: SoftwareView[] = a.software.map((s) => ({ id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: cvesFor(s.kev) }))
     const observations = markCurrent(obsOf(a)).sort((x, y) => FIELD_ORDER.indexOf(x.field) - FIELD_ORDER.indexOf(y.field) || new Date(y.seen_at).getTime() - new Date(x.seen_at).getTime())
-    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), observations, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
+    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
   }),
 
   http.get(`${API}/inventory/possible-same`, () => {
@@ -945,10 +953,10 @@ export const handlers = [
     const keep = deviceFilter(request.url)
     if (keep instanceof Response) return keep
     // name is the host name; name_in_vedette the name a person gave the device (G2, review r1 of #929): import reads both back
-    const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen', 'name_in_vedette']
+    const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen', 'name_in_vedette', 'risk']
     const lines = allAssets().filter((a) => keep(toRow(a))).map((a) => {
       const s = summaryOf(a)
-      return [a.hostname ?? '', hasIp(a) ? a.ip : '', a.mac ?? '', a.kind, a.vendor?.value, a.model?.value, a.os?.value, a.software.map((x) => `${x.display}${x.version ? ` ${x.version}` : ''}`).join('; '), a.approved ? 'yes' : 'no', a.fragile ? 'yes' : 'no', a.origin, s?.source, s ? s.confidence.toFixed(2) : '', a.last_seen, a.name ?? ''].map(csvCell).join(',')
+      return [a.hostname ?? '', hasIp(a) ? a.ip : '', a.mac ?? '', a.kind, a.vendor?.value, a.model?.value, a.os?.value, a.software.map((x) => `${x.display}${x.version ? ` ${x.version}` : ''}`).join('; '), a.approved ? 'yes' : 'no', a.fragile ? 'yes' : 'no', a.origin, s?.source, s ? s.confidence.toFixed(2) : '', a.last_seen, a.name ?? '', csvRisk(toRow(a).risk)].map(csvCell).join(',')
     })
     audit('inventory.export', 'devices.csv', `${lines.length} rows`)
     return new HttpResponse(`﻿${[head.join(','), ...lines].join('\r\n')}\r\n`, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=vedette-devices.csv' } })

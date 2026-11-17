@@ -30,7 +30,10 @@ type Config struct {
 	KEV      KEV
 	Box      BoxPackages
 	Findings FindingCounter
-	Modules  ModuleGate // to tell whether notify is on (notify_available)
+	// Risk says which devices carry risk (G4): their open exploited findings and their Recommended updates, owned by findings; nil
+	// means none (no marker, every device "clean").
+	Risk    RiskSource
+	Modules ModuleGate // to tell whether notify is on (notify_available)
 	// BoxOwnedIPs lists the addresses the box itself answers on besides its own device (the decoy addresses of the
 	// honeypot, WP-14). Nothing observed at one of them is a device: Record and ReplaceSoftware ignore such an
 	// observation (counted, BoxOwnedSkipped) and ProtectedIPs lists the address. nil means none.
@@ -69,6 +72,7 @@ type Service struct {
 	box      BoxPackages
 	boxPorts func(ctx context.Context) ([]observe.Service, error)
 	findings FindingCounter
+	risk     RiskSource
 	modules  ModuleGate
 	boxOwned func(ctx context.Context) []netip.Addr
 	boxMACs  func(ctx context.Context, fresh bool) ([]string, error)
@@ -95,7 +99,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil {
 		return nil, errors.New("inventory: New needs DB and Audit")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, boxPorts: cfg.BoxPorts, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, clock: cfg.Clock, log: cfg.Log}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, boxPorts: cfg.BoxPorts, findings: cfg.Findings, risk: cfg.Risk, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, clock: cfg.Clock, log: cfg.Log}
 	if s.clock == nil {
 		s.clock = time.Now
 	}

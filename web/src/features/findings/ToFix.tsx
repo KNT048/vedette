@@ -16,6 +16,7 @@ import { deviceName } from './basis'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 import type { SoftwareView } from '@/features/inventory/types'
 import { isOsSoftware, IUpdated } from './Updated'
+import { RiskMarker } from '@/features/inventory/RiskMarker'
 
 /** An action that updates the operating system itself (its new build shows only after a restart): Windows' cumulative update, or a
  *  row that is the OS or the kernel (its "vendor|product"). */
@@ -115,7 +116,7 @@ export function DeviceCard({ d, box, showName = true }: { d: ToFixDevice; box: b
   return (
     <li className="rounded-md border border-rule bg-surface px-4 py-3" aria-label={name}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {showName ? <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="text-base font-semibold text-accent underline-offset-4 hover:underline">{name}</Link> : null}
+        {showName ? <><Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="text-base font-semibold text-accent underline-offset-4 hover:underline">{name}</Link><RiskMarker id={d.asset.id} risk={d.risk} /></> : null}
         {d.asset.ip && d.asset.ip !== '—' ? <span className="text-meta text-muted">{d.asset.ip}</span> : null}
         {acts.length ? <><Worst worst={worst} /><span className="text-meta text-muted">{t('toFix.deviceCount', { count: acts.reduce((n, a) => n + a.cves.length, 0) })}</span></> : null}
       </div>
@@ -184,6 +185,7 @@ function ByFix({ devices }: { devices: ToFixDevice[] }) {
                 {r.devices.map(({ d, a }) => (
                   <li key={d.asset.id}>
                     <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{deviceName(d.asset, t('removedDevice'))}</Link>
+                    {' '}<RiskMarker id={d.asset.id} risk={d.risk} className="align-middle" />
                     <span className="text-muted">{': '}{a.action}, {t('toFix.cveCount', { count: a.cves.length })}</span>
                   </li>
                 ))}

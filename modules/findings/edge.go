@@ -34,6 +34,23 @@ const chromiumEdgeFirst = 79
 
 var chromiumVersion = regexp.MustCompile(`^(\d{2,4})\.\d+\.\d+\.\d+$`)
 
+// edgeChromium is NVD's Chromium-based Edge (microsoft:edge_chromium).
+var edgeChromium = identity{vendor: "microsoft", product: "edgechromium"}
+
+// edgeIDs is the NVD product a Microsoft Edge row also is (#910): microsoft:edge_chromium when its version is a Chromium Edge build
+// (four numbers, the first 79 or more), so NVD's Chromium Edge ranges are read for it. An EdgeHTML version (20 to 44) or none is
+// only microsoft:edge: Chromium Edge's ranges would put every Edge Legacy version inside.
+func edgeIDs(vendor, product, ver string) []identity {
+	m := chromiumVersion.FindStringSubmatch(strings.TrimSpace(ver))
+	if m == nil || norm(vendor) != "microsoft" || norm(product) != "edge" {
+		return nil
+	}
+	if major, _ := strconv.Atoi(m[1]); major < chromiumEdgeFirst {
+		return nil
+	}
+	return []identity{edgeChromium}
+}
+
 // edgeMajor is the first number of a version ("157.0.4341.46" → 157, "44" → 44); false when it does not start with one.
 func edgeMajor(v string) (int, bool) {
 	head, _, _ := strings.Cut(strings.TrimSpace(v), ".")

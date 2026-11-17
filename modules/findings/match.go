@@ -199,6 +199,9 @@ type Match struct {
 	// others: a product match whose NVD list names only other products than the row (#904, nvdOthersOnly): those products ("app
 	// installer"), "" otherwise. The agent's version is then compared with nothing, so an agent row is no evidence (confirmedMatch).
 	others string
+	// bounded: a version match on a bound, NVD's range or exact version or the distribution's fixed package, not a list of every
+	// version (#910: the only match a row NVD alone ties to the entry may give, viaNVD).
+	bounded bool
 }
 
 // MatchResult separates what is new from what the asset already has, so the
@@ -333,7 +336,10 @@ func ValidCVE(s string) bool {
 // strongest one (version before product, then input order).
 //
 // Per software: the KEV key must match (or, for "Multiple products", the vendor; then
-// only an NVD entry naming the software itself can give a finding, D-505).
+// only an NVD entry naming the software itself can give a finding, D-505), or NVD's
+// CPE list for the entry names the software (#910, viaNVD: CISA names a component such
+// as "Chromium V8" or "Win32k", or another product); that path gives only a version
+// match or a proof, never a product match nor an "add the version" item.
 // Then the NVD configurations decide (D-500): the version inside a range gives
 // basis version, outside every applicable range gives no finding, a given
 // version that cannot be compared (no NVD data, a scheme Vedette cannot read,
@@ -364,7 +370,8 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 	for i := range infos {
 		infos[i].edgeHost = host
 	}
-	for _, v := range vulns {
+	named := nvdCandidates(sws, vulns) // #910: per row, the entries whose NVD list may name it
+	for vi, v := range vulns {
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
 			continue
 		}
@@ -374,7 +381,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		othersOnly := true   // every software keyed to the entry is one NVD's list leaves out (D-506)
 		var unnamed []string // their names, for the D-506 sentence
 		for i, s := range sws {
-			m, out := matchOne(a, s, infos[i], v, now)
+			m, out := matchOne(a, s, infos[i], v, named[i][vi], now)
 			if out != outNone && (out != outRuledOut || m.Evidence.Summary == "") {
 				othersOnly = false
 			}
@@ -532,10 +539,161 @@ func keyedTo(s Software, v Vuln) bool {
 	return false
 }
 
-func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outcome) {
-	if !keyedTo(s, v) {
+// matchOne reads entry v for one software row: through CISA's key (keyedTo), else through NVD's CPE list when named says it may
+// name the row (viaNVD, #910).
+func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time) (Match, outcome) {
+	switch {
+	case keyedTo(s, v):
+		return judge(a, s, in, v, keyIDs(v), now)
+	case named:
+		return viaNVD(a, s, in, v, now)
+	}
+	return Match{}, outNone
+}
+
+// viaNVD is matchOne for a row CISA's key does not reach but NVD's CPE list for the entry names (#910, nvdNames): CISA wrote a
+// component ("Chromium V8" for Chrome, "Win32k" for a Windows release) or another product ("IGEL OS" for CVE-2025-47827, which
+// NVD lists for Windows Server 2025 with a fixed build). Whether the device is affected is NVD's answer only: a version inside a
+// range or at an exact version NVD lists is a finding (basis version), a proof that it is outside closes one, and anything else
+// (no comparable version, a list of every version) says nothing: no product finding and no "add the version" item, because CISA
+// never named this software. A row its distribution may have built (a package database row, the Linux kernel) goes only by the
+// distribution's own word (D-516): NVD's upstream ranges do not see the fixes it backports (an Android entry that also lists
+// linux_kernel on Ubuntu's kernel).
+func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outcome) {
+	if !nvdNames(in, v) {
 		return Match{}, outNone
 	}
+	if _, ok := distroVerdict(in, v); !ok && distroBuilt(in) {
+		return Match{}, outNone
+	}
+	m, out := judge(a, s, in, v, nil, now)
+	if out == outNotAffected || out == outMatch && m.bounded {
+		return m, out
+	}
+	return Match{}, outNone
+}
+
+// nvdNames says whether an entry of NVD's list for v names the row's software (its CPE, name or alias, appliesTo) with a version
+// bound (a range or an exact version), or, for a Windows release row, any Windows release or a component Windows' monthly update
+// services (winOSComponents): windowsDecide reads its release and the siblings that take the same update.
+func nvdNames(in swInfo, v Vuln) bool {
+	_, win := winDevice(in)
+	for _, af := range v.Affected {
+		c, err := af.cpe()
+		if err != nil || c.Part.Kind == NA || af.Range.IsZero() && c.Version.Kind != Value {
+			continue
+		}
+		if own, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids); own {
+			return true
+		}
+		if win && winNamesWindows(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// winNamesWindows says whether c is a Windows row or a Microsoft component Windows' monthly update services.
+func winNamesWindows(c CPE) bool {
+	if _, ok := winListedOf(c); ok {
+		return true
+	}
+	vn, okV := c.Vendor.Literal()
+	p, okP := c.Product.Literal()
+	return okV && okP && norm(vn) == "microsoft" && winOSComponents[p]
+}
+
+// linuxKernel is NVD's Linux kernel.
+var linuxKernel = identity{vendor: "linux", product: "linuxkernel"}
+
+// distroBuilt says the row may be a distribution's build, whose fixes NVD's upstream ranges do not see: an agent read it from the
+// package database (Software.Packaged), or it is the Linux kernel (a distribution's kernel keeps its upstream version while it
+// takes the fixes).
+func distroBuilt(in swInfo) bool {
+	if in.packaged || slices.Contains(in.ids, linuxKernel) {
+		return true
+	}
+	vn, okV := in.cpe.Vendor.Literal()
+	p, okP := in.cpe.Product.Literal()
+	return in.hasCPE && okV && okP && linuxKernel.matches(norm(vn), norm(p))
+}
+
+// nvdCandidates is, per row of sws, the entries of vulns whose NVD list names a vendor the row is known by (rowVendors): the only
+// ones viaNVD can read for it. One pass over the list, so the matcher does not read every entry for every row.
+func nvdCandidates(sws []Software, vulns []Vuln) []map[int]bool {
+	byVendor := map[string][]int{}
+	for i, v := range vulns {
+		for _, af := range v.Affected {
+			if vn := cpeVendor(af); vn != "" {
+				if l := byVendor[vn]; len(l) == 0 || l[len(l)-1] != i {
+					byVendor[vn] = append(l, i)
+				}
+			}
+		}
+	}
+	out := make([]map[int]bool, len(sws))
+	for i, s := range sws {
+		for _, vn := range rowVendors(s) {
+			for _, vi := range byVendor[vn] {
+				if out[i] == nil {
+					out[i] = map[int]bool{}
+				}
+				out[i][vi] = true
+			}
+		}
+	}
+	return out
+}
+
+// rowVendors are the normalised vendors of the names newSWInfo gives the row: its own, its aliases' (nvd-cpe.json) and its CPE's
+// (Microsoft for a Windows release row; edgeIDs keeps Microsoft).
+func rowVendors(s Software) []string {
+	n := identity{vendor: norm(s.Vendor), product: norm(s.Product)}
+	out := []string{n.vendor}
+	for _, a := range cpeAliases[n] {
+		out = append(out, a.vendor)
+	}
+	if s.CPE != "" {
+		if c, err := ParseCPE(s.CPE); err == nil {
+			if vn, ok := c.Vendor.Literal(); ok {
+				out = append(out, norm(vn))
+			}
+		}
+	}
+	return out
+}
+
+// cpeVendor is the normalised vendor of an entry's CPE, read without parsing the whole name when it has no escape; "" when it has
+// none.
+func cpeVendor(af Affected) string {
+	if af.parsed == nil && !strings.Contains(af.CPE, `\`) {
+		if rest, ok := strings.CutPrefix(af.CPE, "cpe:2.3:"); ok {
+			if _, rest, ok = strings.Cut(rest, ":"); ok {
+				vn, _, _ := strings.Cut(rest, ":")
+				return norm(vn)
+			}
+		}
+	}
+	c, err := af.cpe()
+	if err != nil {
+		return ""
+	}
+	vn, _ := c.Vendor.Literal()
+	return norm(vn)
+}
+
+// keyIDs is the KEV entry's own vendor and product as an NVD identity (decide's key: it finds the entry, but a No on it alone
+// proves nothing); nil for "Multiple Products".
+func keyIDs(v Vuln) []identity {
+	if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !isMultiProduct(v.Product) && n.ok() {
+		return []identity{n}
+	}
+	return nil
+}
+
+// judge is matchOne once the row is a candidate for v; key is keyIDs(v) for a row CISA's key reaches, nil for one only NVD's list
+// names (viaNVD: CISA's name is not this software's, so an NVD row of it says nothing about the row).
+func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time) (Match, outcome) {
 	if named, out := otherSeries(a.Model, v); out { // D-510: CISA names other Juniper series than the device's model; no proof about the version
 		note := fmt.Sprintf("%s lists %s for Juniper %s only; this device's model is %s. Check the vendor advisory and close it if it does not apply.", v.listName(), v.CVE, orList(named), clean(a.Model))
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
@@ -555,7 +713,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 	w, isWin := windowsDecide(in, v, in.winNamed, now) // D-546: a Windows release row by its monthly update
 	tri, within, every, proof := w.t, w.within, false, w.proof
 	if !isWin {
-		tri, within, every, proof = decide(in, v, multi)
+		tri, within, every, proof = decide(in, v, key)
 	}
 	if tri == No && v.RangesFrom == RangesCVEOrgPartial { // the CNA's list may skip branches: outside it proves nothing (D-556)
 		tri, proof = Unknown, proofNone
@@ -593,7 +751,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 	}
 	switch {
 	case tri == Yes:
-		m.Basis, m.Confidence, m.Severity = BasisVersion, ConfVersion, SeverityHigh
+		m.Basis, m.Confidence, m.Severity, m.bounded = BasisVersion, ConfVersion, SeverityHigh, !within.IsZero()
 		if v.Ransomware || v.EPSS >= 0.5 {
 			m.Severity = SeverityCritical
 		}
@@ -716,7 +874,7 @@ func newSWInfo(s Software, osName string) swInfo {
 		in.pkgVer, in.pkgSrc = s.PkgVersion, s.PkgSource
 	}
 	if n := (identity{vendor: norm(s.Vendor), product: norm(s.Product)}); n.ok() {
-		in.ids = append(append(in.ids, n), cpeAliases[n]...)
+		in.ids = append(append(append(in.ids, n), cpeAliases[n]...), edgeIDs(s.Vendor, s.Product, in.ver)...)
 	}
 	return in
 }
@@ -800,7 +958,7 @@ func listsOthersOnly(in swInfo, v Vuln) bool {
 // does not depend on the version, so a software without one is not sent to "add the version" (D-500).
 //
 // An entry applies when it names the software's own identity (its CPE, name or alias) or the KEV entry's own vendor
-// and product. Only the first can prove: a No on an entry found by the KEV key alone is Unknown, and so is any
+// and product (key: keyIDs, nil for a row only NVD's list ties to the entry, #910). Only the first can prove: a No on an entry found by the KEV key alone is Unknown, and so is any
 // answer from an entry that lists releases of a distribution the software itself is (a catalog "Ubuntu Linux 22.04"
 // row keyed to the kernel), because a release is not the version of the package the CVE is about (review N1).
 //
@@ -808,11 +966,8 @@ func listsOthersOnly(in swInfo, v Vuln) bool {
 // proofOS when the entry lists only releases of the device's own distribution and not its release, proofNone for a
 // "Multiple Products" entry without NVD data or whose NVD list names only other products (D-505): no finding, and nothing
 // closes, because NVD's list for such an entry can lag the vendor's advisory.
-func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bool, proof proofKind) {
-	var key []identity // the KEV entry's own vendor and product: it finds the entry, but a No on it alone proves nothing
-	if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !multi && n.ok() {
-		key = []identity{n}
-	}
+func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, every bool, proof proofKind) {
+	multi := isMultiProduct(v.Product)
 	result := No
 	applicable, undecidable := false, false
 	var yes *VersionRange // the widest range the version is inside: the one that explains the finding and names its fix (D-488)

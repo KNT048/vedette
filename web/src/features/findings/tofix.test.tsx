@@ -245,6 +245,35 @@ describe('Findings › To fix', () => {
     expect(within(screen.getByRole('dialog', { name: 'I updated FortiGate' })).getByRole('status')).toHaveTextContent(/^Version 7\.4\.8 saved\./)
   })
 
+  it('To fix: the button\'s dialog says what the re-match closed after the update took the device off the list', async () => {
+    const rows = fortiRows('a-srvad')
+    const exploited = [{ ...rows.exploited[0]!, cves: ['CVE-2026-96951'], finding_ids: ['f-3'] }]
+    let tf: ToFix = { ...sample, devices: [dev('a-srvad', 'SRV-AD', { open: 1, exploited, planned: rows.planned })] }
+    let sent: unknown = null
+    server.use(
+      http.get('*/api/v1/findings/to-fix', () => HttpResponse.json(tf)),
+      http.patch('*/api/v1/inventory/devices/:id/software/:sid', async ({ params, request }) => {
+        sent = { device: params.id, sid: params.sid, ...(await request.json() as object) }
+        findingsStore.update((l) => l.map((f) => (f.id === 'f-3' ? { ...f, status: 'not_relevant' as const, resolved_by: 'system' } : f)))
+        tf = { ...sample, devices: [] }
+        return HttpResponse.json({ ok: true })
+      }),
+    )
+    renderApp('/findings')
+    const card = await screen.findByRole('listitem', { name: 'SRV-AD' }, T)
+    await userEvent.click(within(card).getByRole('button', { name: 'I updated FortiGate' }))
+    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiGate' })
+    await userEvent.type(within(dlg).getByLabelText('New version'), '7.4.8')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and check' }))
+    expect(await within(dlg).findByRole('status', undefined, T)).toHaveTextContent(/^Version 7\.4\.8 saved\. 1 finding on SRV-AD no longer applies/)
+    expect(sent).toEqual({ device: 'a-srvad', sid: 's-fgt', version: '7.4.8' })
+    expect(await screen.findByText('Nothing to fix', undefined, T)).toBeInTheDocument() // the device left the list
+    expect(within(screen.getByRole('dialog', { name: 'I updated FortiGate' })).getByRole('status')).toHaveTextContent(/^Version 7\.4\.8 saved\./)
+    // the person closes it
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'I updated FortiGate' })).getAllByRole('button', { name: 'Close' }).at(-1)!)
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
   it('S-MIT-1: on a device its osquery agent reports, one "ask the agent now" for the device, busy, then the ask on the card', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
     let release!: () => void

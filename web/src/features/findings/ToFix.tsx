@@ -3,7 +3,7 @@
 // every action opens to its CVEs, and each CVE to its finding (CVSS, basis, status: one click deeper). By fix turns it around for an
 // admin patching one app everywhere. As Defender's security recommendations ("Update Mozilla Firefox": exposed devices) and
 // Tenable's remediation view group by the fix, never one row per CVE.
-import { useMemo, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
@@ -16,7 +16,7 @@ import { deviceName } from './basis'
 import { kbNote, noCvesKey } from './fix'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 import type { SoftwareView } from '@/features/inventory/types'
-import { isOsSoftware, IUpdated, type UpdatedSoftware } from './Updated'
+import { isOsSoftware, IUpdated, TypedVersionDialog, type UpdatedSoftware } from './Updated'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
 
 /** An action that updates the operating system itself (its new build shows only after a restart): Windows' cumulative update, or a
@@ -50,6 +50,17 @@ function ActionButton({ a, box }: { a: ToFixAction; box: boolean }) {
   return <Link to="/settings/updates#os" className="w-fit text-meta font-medium text-accent underline underline-offset-4">{t('toFix.openOsUpdates')}</Link>
 }
 
+/** The typed version being entered on To fix: the tab holds its dialog (TypedVersionDialog), so the dialog, and what the re-match
+ *  closed, stay when the update closes the row, or the whole device, that opened it. */
+type Typed = { asset: ToFixDevice['asset']; software: UpdatedSoftware }
+const TypedHost = createContext<((x: Typed) => void) | undefined>(undefined)
+
+/** "I updated <software>" of a typed software under a To fix row: the tab's dialog when there is one, else its own. */
+function TypedUpdated({ asset, software }: Typed) {
+  const host = useContext(TypedHost)
+  return <IUpdated asset={asset} software={software} size="sm" progress={false} onTyped={host ? () => host({ asset, software }) : undefined} />
+}
+
 /** One action: the sentence and what it fixes; it opens to its CVEs, each linking to its finding. */
 function Action({ a, planned, box, asset, typed }: { a: ToFixAction; planned: boolean; box: boolean; asset: ToFixDevice['asset']; typed?: UpdatedSoftware }) {
   const { t } = useTranslation('findings')
@@ -60,7 +71,7 @@ function Action({ a, planned, box, asset, typed }: { a: ToFixAction; planned: bo
     return (
       <li className="grid gap-1 py-2">
         <p className="text-sm"><span className="font-medium">{a.action}</span><span className="text-muted">{': '}{t(noCvesKey(a.nvd_lag))}</span></p>
-        {typed ? <IUpdated asset={asset} software={typed} size="sm" progress={false} /> : null}
+        {typed ? <TypedUpdated asset={asset} software={typed} /> : null}
       </li>
     )
   }
@@ -94,7 +105,7 @@ function Action({ a, planned, box, asset, typed }: { a: ToFixAction; planned: bo
       <ActionButton a={a} box={box} />
       {/* The same "I updated it" as the finding page: a typed version once per software, under its last row (typedSoftware); an
           agent or a check reads the whole device (DeviceUpdated, once per device) */}
-      {typed ? <IUpdated asset={asset} software={typed} size="sm" progress={false} /> : null}
+      {typed ? <TypedUpdated asset={asset} software={typed} /> : null}
     </li>
   )
 }
@@ -245,8 +256,16 @@ export function ToFixTab({ q }: { q: { data: ToFix | undefined; error: unknown; 
   const device = params.get('device') ?? ''
   // review r2 of #943: a device with nothing in to-fix is still named (its device read, only then)
   const inList = !device || !q.data || q.data.devices.some((x) => x.asset.id === device)
-  if (!inList) return <WithDeviceName id={device}>{(name) => <ToFixBody q={q} otherName={name} />}</WithDeviceName>
-  return <ToFixBody q={q} otherName={undefined} />
+  // The typed version's dialog lives here, beside the list: the update it saves closes rows and devices of the list
+  const [typed, setTyped] = useState<(Typed & { open: boolean }) | null>(null)
+  const openTyped = useCallback((x: Typed) => setTyped({ ...x, open: true }), [])
+  return (
+    <TypedHost.Provider value={openTyped}>
+      {!inList ? <WithDeviceName id={device}>{(name) => <ToFixBody q={q} otherName={name} />}</WithDeviceName> : <ToFixBody q={q} otherName={undefined} />}
+      {typed ? <TypedVersionDialog key={`${typed.asset.id}/${typed.software.id}`} asset={typed.asset} software={typed.software} open={typed.open}
+        onOpenChange={(open) => setTyped((x) => x && { ...x, open })} /> : null}
+    </TypedHost.Provider>
+  )
 }
 
 function ToFixBody({ q, otherName }: { q: { data: ToFix | undefined; error: unknown; isPending: boolean; refetch: () => unknown }; otherName: string | undefined }) {

@@ -38,11 +38,14 @@ export type UpdatedSoftware = Pick<SoftwareView, 'id' | 'display' | 'version' | 
  * - Typed (manual) software: the version dialog. `fixed` prefills it, if known.
  * `active`: an open finding is behind it (nothing on what is already closed); the manual button stays while its own dialog is
  * open, so the dialog can say what the re-match closed. `progress`: show the check's progress under the button (the finding page).
+ * `onTyped`: the page holds the typed version's dialog itself (TypedVersionDialog, where it outlives the row the update closes);
+ * the button only opens it.
  */
-export function IUpdated({ asset, software, fixed, size, active = true, progress = true, os = false, box = false }: { asset: FindingAsset; software: UpdatedSoftware; fixed?: string; size?: 'sm'; active?: boolean; progress?: boolean; os?: boolean; box?: boolean }) {
+export function IUpdated({ asset, software, fixed, size, active = true, progress = true, os = false, box = false, onTyped }: { asset: FindingAsset; software: UpdatedSoftware; fixed?: string; size?: 'sm'; active?: boolean; progress?: boolean; os?: boolean; box?: boolean; onTyped?: () => void }) {
   if (software.source === 'agent') return active ? <AgentAsk asset={asset} size={size} os={os} box={box} /> : null
   if (SCAN_READ.has(software.source)) return active ? <CheckNow asset={asset} size={size} progress={progress} /> : null
   if (software.source !== 'manual') return null // #944: an unknown source is not scan-read: no control with nothing behind it
+  if (onTyped) return active ? <TypedButton software={software} size={size} onClick={onTyped} /> : null
   return <TypedVersion asset={asset} software={software} fixed={fixed} size={size} active={active} />
 }
 
@@ -125,21 +128,43 @@ export function CheckNow({ asset, size, progress }: { asset: FindingAsset; size?
 
 /** Typed (manual) software: "I updated <software>" and its dialog: the new version, then what the re-match closed. */
 function TypedVersion({ asset, software, fixed, size, active }: { asset: FindingAsset; software: UpdatedSoftware; fixed?: string; size?: 'sm'; active: boolean }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      {active || open ? <TypedButton software={software} size={size} onClick={() => setOpen(true)} /> : null}
+      <TypedVersionDialog asset={asset} software={software} fixed={fixed} open={open} onOpenChange={setOpen} />
+    </>
+  )
+}
+
+/** The "I updated <software>" button of typed software (operator). */
+function TypedButton({ software, size, onClick }: { software: UpdatedSoftware; size?: 'sm'; onClick: () => void }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
+  return (
+    <Button size={size} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={onClick}>
+      {t('updated.button', { software: software.display })}
+    </Button>
+  )
+}
+
+/** The typed version's dialog: the new version, then what the re-match closed. Each opening starts empty (`fixed` prefills it). */
+export function TypedVersionDialog({ asset, software, fixed, open, onOpenChange }: { asset: FindingAsset; software: UpdatedSoftware; fixed?: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { t } = useTranslation('findings')
   const set = useSetVersion(asset.id)
-  const [open, setOpen] = useState(false)
-  const [version, setVersion] = useState('')
+  const prefill = () => (fixed && fixed !== software.version ? fixed : '')
+  const [version, setVersion] = useState(() => (open ? prefill() : ''))
   const [error, setError] = useState<string | undefined>()
   const [done, setDone] = useState<{ version: string; out: Outcome } | null>(null)
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) { // a new opening starts from the prefill, with no error and no earlier result
+    setWasOpen(open)
+    if (open) { setVersion(prefill()); setError(undefined); setDone(null) }
+  }
   const device = deviceName(asset, t('removedDevice'))
   const sw = software.display
   const id = `upd-${software.id}`
 
-  function show(v: boolean) {
-    if (v) { setVersion(fixed && fixed !== software.version ? fixed : ''); setError(undefined); setDone(null) }
-    setOpen(v)
-  }
   function submit() {
     const v = version.trim()
     if (!v) { setError(t('updated.required')); return }
@@ -162,34 +187,27 @@ function TypedVersion({ asset, software, fixed, size, active }: { asset: Finding
   }
 
   return (
-    <>
-      {active || open ? (
-        <Button size={size} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => show(true)}>
-          {t('updated.button', { software: sw })}
-        </Button>
-      ) : null}
-      <Dialog open={open} onOpenChange={show}>
-        <DialogContent title={t('updated.title', { software: sw })} description={t('updated.description', { device })} info={t('updated.descriptionInfo', { software: sw })}>
-          {done ? (
-            <p role="status" className="text-sm">{result}</p>
-          ) : (
-            <Field htmlFor={id} label={t('updated.version')} error={error}
-              hint={software.version ? t('updated.current', { version: software.version }) : t('updated.noCurrent')}>
-              <Input id={id} value={version} maxLength={40} className="w-48" onChange={(e) => { setVersion(e.target.value); setError(undefined) }}
-                onKeyDown={(e) => { if (e.key === 'Enter') submit() }} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : `${id}-hint`} />
-            </Field>
-          )}
-          <DialogFooter>
-            {!done ? (
-              <>
-                <Button onClick={() => show(false)}>{t('common:cancel')}</Button>
-                <Button variant="primary" busy={set.isPending} busyLabel={t('updated.checking')} onClick={submit}>{t('updated.submit')}</Button>
-              </>
-            ) : <Button onClick={() => show(false)}>{t('common:close')}</Button>}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent title={t('updated.title', { software: sw })} description={t('updated.description', { device })} info={t('updated.descriptionInfo', { software: sw })}>
+        {done ? (
+          <p role="status" className="text-sm">{result}</p>
+        ) : (
+          <Field htmlFor={id} label={t('updated.version')} error={error}
+            hint={software.version ? t('updated.current', { version: software.version }) : t('updated.noCurrent')}>
+            <Input id={id} value={version} maxLength={40} className="w-48" onChange={(e) => { setVersion(e.target.value); setError(undefined) }}
+              onKeyDown={(e) => { if (e.key === 'Enter') submit() }} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : `${id}-hint`} />
+          </Field>
+        )}
+        <DialogFooter>
+          {!done ? (
+            <>
+              <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
+              <Button variant="primary" busy={set.isPending} busyLabel={t('updated.checking')} onClick={submit}>{t('updated.submit')}</Button>
+            </>
+          ) : <Button onClick={() => onOpenChange(false)}>{t('common:close')}</Button>}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

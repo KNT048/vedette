@@ -9,6 +9,9 @@
 ## Modifying: các interface `Verifier`, `AI`, `Vendors` (mitigation/ports.go)
 - **`cmd/vedette` `packVerifier`** (cài `Verifier` trên `internal/release.VerifyContent` và khoá phát hành nhúng; thiếu = từ chối mọi gói): đổi `Statement` phải đổi cùng lúc công cụ ký `release packs` (`scripts/release`) và mọi chữ ký đã phát hành không còn khớp, **ai** (cài `AI`: `Available`, `Run` qua RunJob), **inventory** (cài `Vendors.HasFirewallVendor`: `cmd/vedette/wiring.go` hỏi `inventory.HasDevice` với loại `firewall` hoặc `router`, so hãng không phân biệt hoa thường, kể cả hãng của phần mềm trên thiết bị). Đổi chữ ký = đổi chỗ nối trong `cmd/vedette`. `AI` là cửa của module `ai` (`aiMitigation`); `Loader` được dựng trong `buildServices` với `packVerifier` và chạy qua job `load-packs`.
 
+## Modifying: `Provider.SetAgents` (kiểm "agent còn báo thiết bị", INV-7)
+- **cmd/vedette** `agentReports` (wiring.go) là kiểm duy nhất, dùng chung với `findings.FindingHandlers.SetAgents` (Updates to plan) và cùng luật với `web/src/features/findings/agentNow.ts` (tiêu đề, bước, dòng "I updated it"). Đổi luật ở một chỗ phải đổi cả ba, nếu không trang finding và "How to check" lại nói khác nhau.
+
 ## Modifying: gia cố chung (`hardening.go`, INV-8)
 - SPA `web/src/features/findings/Hardening.tsx` (`GeneralChecks`) và mock `hardeningMock.ts`; đổi `findings.Hardening` (`{software, family, checks}`) phải sửa `findings/contract.ts` (`GeneralHardening`). Không còn cấu hình firewall nào do code viết: đừng thêm lại khi chưa có quyết định sản phẩm mới.
 

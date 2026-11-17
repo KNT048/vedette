@@ -45,6 +45,7 @@ var rules = []rule{
 	{"web/src/locales/en/core.json", Result{true, true}},                   // modules/core/auditlabels_test.go: every audit action has a label
 	{"web/src/locales/en/common.json", Result{true, true}},                 // modules/manifests_test.go: every module has a display name
 	{"web/src/features/honeypot/presets.ts", Result{true, true}},           // modules/honeypot/presets_test.go: presets.go equals the GUI's presets and vendors
+	{"web/src/features/findings/Recommendation.tsx", Result{true, true}},   // cmd/vedette/aipath_test.go: every fix kind the page words has an AI fact case
 	{"THIRD_PARTY_NOTICES.md", Result{Go: true}},                           // make notices-check (verify-go-static) holds it to go list and web/package.json
 	{"web/package.json", Result{true, true}},                               // the same check reads the web production dependencies
 

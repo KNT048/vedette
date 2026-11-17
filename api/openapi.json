@@ -39836,6 +39836,23 @@
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991
+                          },
+                          "agent_gone": {
+                            "type": "boolean",
+                            "description": "A CVE of the item rests on an agent's row and no agent of this box reports the device now (agent-intake off, no agent bound, the agent silent past its stale limit; the same answer as the finding page's \"No agent reports\" line): `version` is the last one an agent reported"
+                          },
+                          "agent_reported": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "With agent_gone: the day the agent last reported the row (YYYY-MM-DD); null otherwise or when not known"
                           }
                         },
                         "required": [
@@ -39849,7 +39866,9 @@
                           "pro",
                           "cves",
                           "likely",
-                          "recent"
+                          "recent",
+                          "agent_gone",
+                          "agent_reported"
                         ],
                         "additionalProperties": false
                       }
@@ -46420,6 +46439,14 @@
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "basis": {
+                                    "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                    "type": "string",
+                                    "enum": [
+                                      "stated",
+                                      "guess"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -46463,6 +46490,14 @@
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "basis": {
+                                    "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                    "type": "string",
+                                    "enum": [
+                                      "stated",
+                                      "guess"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -46506,6 +46541,14 @@
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "basis": {
+                                    "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                    "type": "string",
+                                    "enum": [
+                                      "stated",
+                                      "guess"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -46567,6 +46610,14 @@
                                   "type": "number",
                                   "minimum": 0,
                                   "maximum": 1
+                                },
+                                "basis": {
+                                  "description": "guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise",
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "guess"
+                                  ]
                                 }
                               },
                               "required": [
@@ -47500,6 +47551,14 @@
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "basis": {
+                                  "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "guess"
+                                  ]
                                 }
                               },
                               "required": [
@@ -47543,6 +47602,14 @@
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "basis": {
+                                  "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "guess"
+                                  ]
                                 }
                               },
                               "required": [
@@ -47586,6 +47653,14 @@
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "basis": {
+                                  "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "guess"
+                                  ]
                                 }
                               },
                               "required": [
@@ -47792,6 +47867,14 @@
                                 "minimum": 0,
                                 "maximum": 1
                               },
+                              "basis": {
+                                "description": "guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise",
+                                "type": "string",
+                                "enum": [
+                                  "stated",
+                                  "guess"
+                                ]
+                              },
                               "kev_cves": {
                                 "type": "array",
                                 "items": {
@@ -47952,6 +48035,14 @@
                                       "type": "string",
                                       "format": "date-time",
                                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                    },
+                                    "basis": {
+                                      "description": "stated: the device announced it about itself (the OS in its LLDP description on its own vendor's network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and never as a confidence level; absent: the source and confidence say it all",
+                                      "type": "string",
+                                      "enum": [
+                                        "stated",
+                                        "guess"
+                                      ]
                                     }
                                   },
                                   "required": [
@@ -48112,6 +48203,14 @@
                           "contradicts_type": {
                             "description": "An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS; absent otherwise",
                             "type": "boolean"
+                          },
+                          "basis": {
+                            "description": "On an OS or model observation, as Observed.basis",
+                            "type": "string",
+                            "enum": [
+                              "stated",
+                              "guess"
+                            ]
                           }
                         },
                         "required": [
@@ -78075,7 +78174,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "A device id (the device page's Last checks): only the runs that reached its address now, the identifications of that address (kind device) and the SNMP reads that asked it, at most 200 of each kind: the identifications from the year of runs the box keeps, the SNMP reads among its newest 1000 reads; no sweep, no public scan. The jobs record addresses, so a run of the device under an earlier address is not listed. An unknown device, or one without an address, gives an empty list",
+              "description": "A device id (the device page's Last checks): only that device's runs, at most 200 of each kind: its identifications (kind device: the checks that name it, and checks stored before checks named their device that reached its address now), from the year of runs the box keeps; and, only while SNMP is set up on it, the SNMP reads of its SNMP read address, among the newest 1000 reads (a read of its address with a shared credential, before SNMP moved to each device, is not its own when it has no SNMP set up). No sweep, no public scan. An unknown device gives an empty list",
               "type": "string",
               "maxLength": 96
             }
@@ -78171,11 +78270,11 @@
                               "stopped",
                               "running"
                             ],
-                            "description": "partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that failed)"
+                            "description": "partial: it ended, but part of it found nothing usable (an SNMP device of several that did not answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that failed)"
                           },
                           "text": {
                             "type": "string",
-                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
+                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 192.168.18.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports, its OS guess, \"OS guess now <x> (was <y>)\", \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
                           }
                         },
                         "required": [

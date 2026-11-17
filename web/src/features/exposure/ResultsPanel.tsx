@@ -7,7 +7,7 @@ import { SourceBadge } from '@/components/common/SourceBadge'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Field, Select } from '@/components/ui/input'
 import { InfoTip } from '@/components/common/InfoTip'
-import { dateText } from './dates'
+import { dateText, dateTimeText } from './dates'
 import { identOf, riskOf, serviceText } from './services'
 import { PortHints, RiskChip, ServiceCell } from './PortIdent'
 import { useDiff, useSnapshot, useSnapshots } from './api'
@@ -43,7 +43,7 @@ export function ResultsPanel({ target, blockedText }: { target: Target; blockedT
             <div className="grid gap-4">
               <Field label={t('results.pick')} htmlFor="ex-snap" className="max-w-xs">
                 <Select id="ex-snap" value={date ?? ''} onChange={(e) => setDate(e.target.value)}>
-                  {l.items.map((s) => <option key={s.id} value={s.date}>{dateText(s.scanned_at)}</option>)}
+                  {l.items.map((s) => <option key={s.id} value={s.date}>{dateTimeText(s.scanned_at)}</option>)}
                 </Select>
               </Field>
               {snap.isPending ? <Loading /> : snap.error ? <ErrorState error={snap.error} onRetry={() => void snap.refetch()} /> : snap.data ? <SnapshotView target={target} s={snap.data} /> : null}
@@ -51,7 +51,8 @@ export function ResultsPanel({ target, blockedText }: { target: Target; blockedT
           )}
         </QueryState>
       </Section>
-      {list.data && list.data.items.length > 0 ? <Compare target={target} dates={dates} label={Object.fromEntries(list.data.items.map((s) => [s.date, dateText(s.scanned_at)]))} /> : null}
+      {/* A scan's time, not only its day: the box keeps a snapshot per day of its own time zone, so two can read as the same day here */}
+      {list.data && list.data.items.length > 0 ? <Compare target={target} dates={dates} label={Object.fromEntries(list.data.items.map((s) => [s.date, dateTimeText(s.scanned_at)]))} /> : null}
     </>
   )
 }

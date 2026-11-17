@@ -84,15 +84,17 @@ func correctionDay(at string) string {
 
 // detectedOS is the OS the device's sources read, the person's left out: the value that would win without the correction.
 func detectedOS(ctx context.Context, q querier, id string) (*Observed, error) {
-	rows, err := q.QueryContext(ctx, `SELECT id, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source <> 'manual'`, id)
+	// The MACs too: an LLDP statement counts only on its vendor's card (INV-44, markStated).
+	rows, err := q.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?
+		AND ((field = 'os' AND source <> 'manual') OR field = 'mac')`, id)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read the detected OS: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	var list []obs
 	for rows.Next() {
-		o := obs{field: "os"}
-		if err := rows.Scan(&o.id, &o.value, &o.source, &o.confidence, &o.seenAt); err != nil {
+		var o obs
+		if err := rows.Scan(&o.id, &o.field, &o.value, &o.source, &o.confidence, &o.seenAt); err != nil {
 			return nil, fmt.Errorf("inventory: read the detected OS: %w", err)
 		}
 		list = append(list, o)
@@ -104,7 +106,11 @@ func detectedOS(ctx context.Context, q querier, id string) (*Observed, error) {
 	if !ok {
 		return nil, nil
 	}
-	return &Observed{Value: w.value, Source: w.source, Confidence: w.confidence, SeenAt: w.seenAt}, nil
+	basis := osBasis(w.value, w.source, "") // a guess; the statement was decided against the MAC by winners
+	if w.stated {
+		basis = basisStated
+	}
+	return &Observed{Value: w.value, Source: w.source, Confidence: w.confidence, SeenAt: w.seenAt, Basis: basis}, nil
 }
 
 // setOSTx sets (os != "") or clears (os == "") the person's OS of a device, in PatchDevice's transaction. changed is false when

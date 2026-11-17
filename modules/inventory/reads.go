@@ -18,7 +18,9 @@ const noIP = "—" // what the API says for a device whose IP is unknown (contra
 
 const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.user_name, a.kind, k.source, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen, coalesce(a.scan_source, ''), coalesce(a.snmp_source, ''), a.ignored_at,
 	v.value, v.source, v.confidence, v.seen_at, m.value, m.source, m.confidence, m.seen_at, o.value, o.source, o.confidence, o.seen_at,
-	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at`
+	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at,
+	(SELECT f.value FROM inv_observation f WHERE f.asset_id = a.id AND f.field = 'os' AND f.source = 'passive' AND m.source = 'passive'
+		AND f.seen_at = m.seen_at ORDER BY f.id LIMIT 1)`
 
 const assetFrom = ` FROM inv_asset a
 	LEFT JOIN inv_observation v ON v.id = a.vendor_obs_id
@@ -61,10 +63,11 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		var d Device
 		var ip, mac, host, userName, scan, approvedAt, notes, kindSrc, ignoredAt sql.NullString
 		var v, m, o, h, x obsCols
+		var frameOS sql.NullString // the passive OS seen with a passive model: the same LLDP frame (modelBasis)
 		var approved, fragile, suspicious, box bool
 		if err := rows.Scan(&d.ID, &ip, &mac, &host, &userName, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen, &d.ScanSource, &d.SNMPSource, &ignoredAt,
 			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen,
-			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen); err != nil {
+			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen, &frameOS); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
 		}
 		d.Site = "hq" // one site
@@ -74,6 +77,12 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		}
 		d.MAC, d.Hostname, d.UserName, d.FirstScanAt, d.ApprovedAt, d.Notes, d.KindSource = ptr(mac), ptr(host), ptr(userName), ptr(scan), ptr(approvedAt), ptr(notes), ptr(kindSrc)
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
+		if d.OS != nil {
+			d.OS.Basis = osBasis(d.OS.Value, d.OS.Source, mac.String)
+		}
+		if d.Model != nil {
+			d.Model.Basis = modelBasis(d.Model.Source, frameOS.String, mac.String)
+		}
 		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
 		d.IgnoredAt = ptr(ignoredAt)
@@ -109,7 +118,8 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 }
 
 func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
-	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key, `+notInstalledSW+`
+	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key, `+notInstalledSW+`,
+		`+fingerprintRow+`
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id
 		WHERE s.asset_id IN `+sub+` AND NOT `+hiddenGuess+` ORDER BY s.asset_id, s.display, s.id, k.kev_key`, args...)
 	if err != nil {
@@ -120,7 +130,8 @@ func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx m
 		var asset, key sql.NullString
 		var sw Software
 		var ver sql.NullString
-		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key, &sw.NotInstalled); err != nil {
+		var guess bool
+		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key, &sw.NotInstalled, &guess); err != nil {
 			return fmt.Errorf("inventory: read software: %w", err)
 		}
 		d := &out[idx[asset.String]]
@@ -129,6 +140,9 @@ func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx m
 			continue
 		}
 		sw.Version = ptr(ver)
+		if guess {
+			sw.Basis = basisGuess
+		}
 		sw.Kev = []string{}
 		if key.Valid {
 			sw.Kev = append(sw.Kev, key.String)
@@ -353,6 +367,10 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		Scan(&cur[0], &cur[1], &cur[2], &cur[3], &cur[4], &cur[5], &kind, &kindSrc); err != nil {
 		return Detail{}, fmt.Errorf("inventory: read device: %w", err)
 	}
+	mac := ""
+	if d.MAC != nil {
+		mac = *d.MAC
+	}
 	current := map[string]bool{}
 	for _, c := range cur {
 		if c.Valid {
@@ -372,10 +390,24 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		}
 		o.Current = current[o.ID]
 		o.ContradictsType = o.Field == "os" && o.Source == "nmap" && guessContradicts(kind, kindSrc.String, o.Value)
+		if o.Field == "os" {
+			o.Basis = osBasis(o.Value, o.Source, mac)
+		}
 		list = append(list, o)
 	}
 	if err := rows.Err(); err != nil {
 		return Detail{}, fmt.Errorf("inventory: read observations: %w", err)
+	}
+	for i, o := range list { // a passive model reads as stated with the OS statement of its frame (same moment, modelBasis)
+		if o.Field != "model" {
+			continue
+		}
+		for _, f := range list {
+			if f.Field == "os" && f.Source == "passive" && f.SeenAt == o.SeenAt && modelBasis(o.Source, f.Value, mac) != "" {
+				list[i].Basis = basisStated
+				break
+			}
+		}
 	}
 	slices.SortFunc(list, func(a, b ObservationRow) int {
 		if c := slices.Index(fieldOrder, a.Field) - slices.Index(fieldOrder, b.Field); c != 0 {
@@ -390,7 +422,7 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		if err != nil {
 			return Detail{}, err
 		}
-		views = append(views, SoftwareView{ID: sw.ID, Display: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version, KevCVEs: cves, Source: sw.Source, Confidence: sw.Confidence})
+		views = append(views, SoftwareView{ID: sw.ID, Display: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version, KevCVEs: cves, Source: sw.Source, Confidence: sw.Confidence, Basis: sw.Basis})
 	}
 	if err := addCorrections(ctx, db, id, views); err != nil {
 		return Detail{}, err

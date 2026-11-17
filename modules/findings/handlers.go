@@ -31,6 +31,7 @@ type FindingHandlers struct {
 
 	mu           sync.RWMutex
 	guide        Guidance
+	agents       AgentReports
 	summaryState // GET /findings/summary (summary.go); sum and home under mu
 }
 
@@ -427,6 +428,19 @@ type Guidance interface {
 	Guidance(ctx context.Context, r Row) (Guide, error)
 }
 
+// AgentReports says whether an agent of this box reads a device's software now: its osquery node calls (not silent past
+// agent-intake's stale limit), the Wazuh pull delivers to it, or it is the box itself. False when none does, agent-intake is off or the
+// device's state cannot be read: the same answer as the "No agent reports the software of <device> to Vedette now" line of the
+// finding page (agent-intake ReportState). cmd/vedette sets it; nil means unknown, and nothing is said.
+type AgentReports func(ctx context.Context, assetID string) bool
+
+// SetAgents registers the agent check of GET /findings/plan (the binary, at start-up).
+func (h *FindingHandlers) SetAgents(f AgentReports) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.agents = f
+}
+
 // FindingsGetFindingsPlan implements findings_get_findings_plan (S-TIER-1, S-TIER-2): "Updates to
 // plan", the last comparison of the plan job (Service.Plan), filtered by tier and device. compared is false until the job's first run
 // since the start; the counts of devices are of every device, whatever the filter. The feeds module off: no item and no feed data is
@@ -499,6 +513,18 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 		risks = h.risks(ctx, feedsOn)
 	}
 	counts := map[string]int{"likely": 0, "recent": 0, "all": 0} // M2-9: every tab's number from one answer
+	h.mu.RLock()
+	agents := h.agents
+	h.mu.RUnlock()
+	gone := map[string]bool{} // device -> no agent reports it now; asked once per device whose items rest on an agent's row
+	agentGone := func(id string) bool {
+		g, ok := gone[id]
+		if !ok {
+			g = agents != nil && !agents(ctx, id)
+			gone[id] = g
+		}
+		return g
+	}
 	for _, k := range keep {
 		a, ok := names[k.it.AssetID]
 		if !ok {
@@ -523,8 +549,15 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 				old++
 			}
 		}
+		// The version of an agent's row is the last list an agent sent once none reports the device: the item says so, with that day
+		var reported *string
+		lastOnly := slices.ContainsFunc(k.cves, func(c PlanCVE) bool { return c.Basis == planAgent }) && agentGone(a.ID)
+		if lastOnly && !k.it.Reported.IsZero() {
+			reported = day(k.it.Reported)
+		}
 		items = append(items, map[string]any{"group": k.it.Group, "asset": map[string]any{"id": a.ID, "name": a.Name}, "risk": riskOfView(risks, a), "software": k.it.Software,
-			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "pro": k.it.Pro, "cves": k.cves, "likely": likely, "recent": len(k.cves) - likely})
+			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "pro": k.it.Pro, "cves": k.cves, "likely": likely, "recent": len(k.cves) - likely,
+			"agent_gone": lastOnly, "agent_reported": reported})
 	}
 	return Into[oas.FindingsGetFindingsPlanOK](map[string]any{
 		"items": items, "counts": counts, "compared": view.Ran, "compared_devices": view.Compared, "unchecked_devices": view.Unchecked, "old_evidence": old,

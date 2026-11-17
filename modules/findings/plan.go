@@ -54,6 +54,9 @@ type PlanItem struct {
 	Kind       string    `json:"kind"` // fixed, windows, esu, distro
 	Pro        bool      `json:"pro"`  // distro: the fixed version is in Ubuntu Pro (ESM) only
 	CVEs       []PlanCVE `json:"cves"`
+	// Reported is, for an agent's row, when the agent last reported it (Software.SeenAt): the day of the list the version comes from,
+	// which GET /findings/plan names once no agent reports the device (agent_reported). Zero otherwise. Not in the pass's JSON.
+	Reported time.Time `json:"-"`
 }
 
 // Basis values of a plan CVE.
@@ -445,6 +448,9 @@ func distroTierItems(a Asset, x *tierIndex, kev map[string]bool, cut time.Time) 
 			if c, err := debver.Compare(fix.Fixed, it.Fixed); err == nil && c > 0 {
 				it.Fixed = fix.Fixed
 			}
+			if s.SeenAt.After(it.Reported) {
+				it.Reported = s.SeenAt
+			}
 			if !seen[k][t.CVE] {
 				seen[k][t.CVE] = true
 				it.CVEs = append(it.CVEs, planCVE(t, planDistro))
@@ -507,7 +513,7 @@ func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []V
 		it := PlanItem{Group: base + suffix, AssetID: a.ID, SoftwareID: s.ID, Software: clean(s.Display), Version: clean(in.ver), Fixed: g.Fixed, Kind: kind}
 		basis := planVersion
 		if s.Source == "agent" {
-			basis = planAgent
+			basis, it.Reported = planAgent, s.SeenAt
 		}
 		for _, v := range vulns {
 			if g.Ranged[v.CVE] {

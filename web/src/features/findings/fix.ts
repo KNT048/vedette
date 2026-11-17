@@ -5,17 +5,19 @@ import type { PlanItem, RowFix } from './types'
 
 const build = (v: string) => v.replace(/^10\.0\./, '')
 
-/** What to install, in one sentence ("Install the latest cumulative update for Windows Server 2025 (build 26100.7092 or later)"). */
+/** What to install, in one sentence ("Install the latest cumulative update for Windows Server 2025 (from build 26100.1742 to 26100.7092 or
+ *  later)"): a Windows build names the device's build, as every other upgrade names its version. */
 export function useFixAction() {
   const { t } = useTranslation('findings')
   return (f: RowFix) => {
-    const v = { software: f.software, version: f.version, fixed: f.windows ? build(f.fixed) : f.fixed, distro: f.distro }
+    const v = { software: f.software, version: f.windows ? build(f.version) : f.version, fixed: f.windows ? build(f.fixed) : f.fixed, distro: f.distro }
     switch (f.kind) {
       case 'distro': return t(f.pro && f.distro ? 'fix.distroPro' : f.distro ? 'fix.distro' : 'fix.distroAny', v)
       case 'feature_update': return t('fix.featureUpdate', v)
-      case 'esu': return t('fix.windowsEsu', v)
+      case 'esu': return t(v.version ? 'fix.windowsEsu' : 'fix.windowsEsuBuild', v)
     }
-    return t(f.windows ? 'fix.windowsFixed' : 'fix.fixed', v)
+    if (f.windows) return t(v.version ? 'fix.windowsFixed' : 'fix.windowsFixedBuild', v) // as findings updateSentence: no build, no "from"
+    return t('fix.fixed', v)
   }
 }
 
@@ -23,10 +25,11 @@ export function useFixAction() {
 export function usePlanAction() {
   const { t } = useTranslation('findings')
   return (i: PlanItem) => {
-    const v = { software: i.software, version: i.version, fixed: i.kind === 'windows' || i.kind === 'esu' ? build(i.fixed) : i.fixed }
+    const win = i.kind === 'windows' || i.kind === 'esu'
+    const v = { software: i.software, version: win ? build(i.version) : i.version, fixed: win ? build(i.fixed) : i.fixed }
     if (i.kind === 'distro') return t(!i.fixed ? 'plan.action.distro' : i.pro ? 'plan.action.distroPro' : 'plan.action.distroFixed', v)
-    if (i.kind === 'windows') return t('plan.action.windows', v)
-    if (i.kind === 'esu') return t('fix.windowsEsu', v) // #804: never a plain "install the latest cumulative update"
+    if (i.kind === 'windows') return t(v.version ? 'plan.action.windows' : 'plan.action.windowsBuild', v)
+    if (i.kind === 'esu') return t(v.version ? 'fix.windowsEsu' : 'fix.windowsEsuBuild', v) // #804: never a plain "install the latest cumulative update"
     return t('plan.action.fixed', v)
   }
 }

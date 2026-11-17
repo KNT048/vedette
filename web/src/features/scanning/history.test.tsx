@@ -47,7 +47,9 @@ describe('History says what each run found', () => {
     renderApp('/settings/scanning')
     await userEvent.click(await screen.findByRole('tab', { name: 'History' }, T))
     const table = await screen.findByRole('table', { name: 'History of discovery runs and public scans' }, T)
-    expect(within(table).getByText(`Scanned ${device.ip}: it answered; what it runs is on its device page`)).toBeInTheDocument()
+    // what it found, never "see the device page"
+    const found = device.services.length === 0 ? 'no open port' : `${device.services.length} open port`
+    expect(within(table).getByText((t) => t.startsWith(`Scanned ${device.ip}: ${found}`))).toBeInTheDocument()
     expect(within(table).getAllByText('Device check, started by a person').length).toBeGreaterThan(0)
   })
 })

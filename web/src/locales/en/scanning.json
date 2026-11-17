@@ -364,7 +364,7 @@
     },
     "opened": "The run you opened",
     "openedGone": "That run is no longer kept: the box keeps a year of runs.",
-    "oneDevice": "Only the runs that reached this device: its device checks and the SNMP reads that asked it.",
+    "oneDevice": "Only this device’s runs: its device checks and, while SNMP is set up on it, the SNMP reads of its read address.",
     "seeDevice": "See the device",
     "showAll": "Show every run",
     "emptyDevice": "No device check or SNMP read has reached this device yet."

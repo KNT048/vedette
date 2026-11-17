@@ -525,8 +525,8 @@ func groupFixOf(in swInfo, vulns []Vuln, nvd map[string]bool) *GroupFix {
 }
 
 // RowFix is FindingRow.fix: the one update that fixes a finding together with the other open findings of the same software on
-// the same device, so the list can show one item ("Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or
-// later): fixes 44 exploited vulnerabilities") instead of one row per CVE. Only an update a person can install: GroupFix kinds fixed,
+// the same device, so the list can show one item ("Install the latest cumulative update for Windows Server 2025 (from build 26100.1742
+// to 26100.2314 or later): fixes 44 exploited vulnerabilities") instead of one row per CVE. Only an update a person can install: GroupFix kinds fixed,
 // esu, feature_update and distro (none and up_to name no release).
 type RowFix struct {
 	Group    string `json:"group"`    // "<device id>/<software id>": the findings with the same group take the same update

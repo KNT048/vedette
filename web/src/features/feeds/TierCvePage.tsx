@@ -74,7 +74,7 @@ function TierDevices({ cve }: { cve: string }) {
                 <li key={i.group} className="grid gap-1 px-4 py-2.5 text-sm">
                   <span className="flex flex-wrap items-center gap-2"><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link><RiskMarker id={i.asset.id} risk={i.risk} /></span>
                   <span className="text-meta">{action(i)}</span>
-                  <EvidenceChip basis={c.basis} />
+                  <EvidenceChip basis={c.basis} gone={i.agent_gone} />
                 </li>
               ))}
             </ul></Card>

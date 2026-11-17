@@ -324,9 +324,14 @@ func (s *Service) blocked(ctx context.Context, assetID, reason string) {
 // ---- jobs ----
 
 func (s *Service) startJob(ctx context.Context, kind, reason string, targets int) (string, error) {
+	return s.startJobOf(ctx, kind, reason, targets, "")
+}
+
+// startJobOf is startJob naming the device the job is for (sa_job.asset_id; "" for none).
+func (s *Service) startJobOf(ctx context.Context, kind, reason string, targets int, assetID string) (string, error) {
 	id := store.NewID("saj")
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO sa_job (id, kind, reason, started_at, status, targets) VALUES (?, ?, ?, ?, 'running', ?)`, id, kind, nullable(reason), s.now(), targets)
+		_, err := tx.ExecContext(ctx, `INSERT INTO sa_job (id, kind, reason, started_at, status, targets, asset_id) VALUES (?, ?, ?, ?, 'running', ?, ?)`, id, kind, nullable(reason), s.now(), targets, nullable(assetID))
 		return err
 	})
 	if err != nil {
@@ -1118,16 +1123,16 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	}
 	s.setKind(kind)
 
-	id, err := s.startJob(ctx, KindDevice, reason, 1)
+	id, err := s.startDeviceJob(ctx, reason, assetID)
 	if err != nil {
 		return err
 	}
 	var hosts []host
-	recKind := kind
+	recKind, extraFailed := kind, false
 	if all {
 		hosts, err = s.probeAllPorts(jctx, id, assetID, asset.IP, rate, normalRate)
 	} else {
-		hosts, recKind, err = s.probeDevice(jctx, id, kind, rate, asset.IP)
+		hosts, recKind, extraFailed, err = s.probeDevice(jctx, id, kind, rate, asset.IP)
 	}
 	if err != nil {
 		err = stopped(err) // a cancel (a person's scan, a change of the device or the settings) is a stop, never a failure
@@ -1139,7 +1144,7 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 		if dec.FirstGentle {
 			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
 		}
-		err = errors.Join(markErr, s.recordDevice(ctx, assetID, asset.IP, hosts, recKind))
+		err = errors.Join(markErr, s.recordDevice(ctx, id, assetID, asset.IP, hosts, recKind, extraFailed))
 	}
 	switch {
 	case err == nil:
@@ -1158,7 +1163,7 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 // run only adds the ports it saw and leaves the software alone, so it never wipes what a normal scan found: a
 // gentle one (top 100, no -sV), an Extra run that alone saw the device, and the weekly scan of every port with its
 // -sV follow-up (no -O, so replacing the software would drop the OS guess).
-func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Addr, hosts []host, kind nmapargv.Kind) error {
+func (s *Service) recordDevice(ctx context.Context, jobID, assetID string, ip netip.Addr, hosts []host, kind nmapargv.Kind, extraFailed bool) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
 	i := slices.IndexFunc(hosts, func(h host) bool { return h.addr == ip })
@@ -1166,6 +1171,17 @@ func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Add
 		return nil
 	}
 	h := hosts[i]
+	// what this check found, in words for History and the device page, compared with what was known before it records
+	prev := s.beforeRecord(ctx, assetID, jobID, ip)
+	if err := s.recordHost(ctx, assetID, ip, h, kind); err != nil {
+		return err
+	}
+	s.saveFound(ctx, jobID, foundOf(h, kind, extraFailed, prev))
+	return nil
+}
+
+// recordHost stores the result of h on the device (recordDevice).
+func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr, h host, kind nmapargv.Kind) error {
 	if obs := deviceObservations(h, kind); len(obs) > 0 {
 		if err := s.obs.Record(ctx, obs); err != nil {
 			return fmt.Errorf("sensoractive: recording observations: %w", err)
@@ -1228,23 +1244,30 @@ func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Add
 // result is kept (it finished; POST-3) and the reason logged. When only the Extra run saw the device up, the
 // result is recorded as an Extra one (its ports added; services and software of the normal scan untouched): kind is
 // what recordDevice should record.
-func (s *Service) probeDevice(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, ip netip.Addr) ([]host, nmapargv.Kind, error) {
-	hosts, err := s.probe(ctx, jobID, kind, rate, []netip.Addr{ip})
+func (s *Service) probeDevice(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, ip netip.Addr) (hosts []host, rec nmapargv.Kind, extraFailed bool, err error) {
+	hosts, err = s.probe(ctx, jobID, kind, rate, []netip.Addr{ip})
 	if err != nil || (kind != nmapargv.Normal && kind != nmapargv.Versions) {
-		return hosts, kind, err
+		return hosts, kind, false, err
 	}
 	extra, err := s.probe(ctx, jobID, nmapargv.Extra, rate, []netip.Addr{ip})
 	if errors.Is(err, errLeftAddress) { // the first run is recorded by address: another device, or none, is there now
-		return nil, kind, ErrStopped
+		return nil, kind, false, ErrStopped
 	}
 	if err != nil {
 		s.log.WarnContext(ctx, "sensoractive: the scan of the extra ports did not finish; the device keeps the top 1000 ports' result", "ip", ip.String(), "error", err)
-		return hosts, kind, nil
+		return hosts, kind, true, nil
 	}
 	if !slices.ContainsFunc(hosts, func(h host) bool { return h.addr == ip }) {
-		return extra, nmapargv.Extra, nil
+		return extra, nmapargv.Extra, false, nil
 	}
-	return mergeExtra(hosts, extra, ip), kind, nil
+	// The Extra run ended without an error but did not cover the device: its host discovery missed it, or nmap gave up on it at
+	// the host timeout (no port table). The check then covered the top 1000 only, as when the run failed.
+	j := slices.IndexFunc(extra, func(h host) bool { return h.addr == ip })
+	if j < 0 || extra[j].timedOut {
+		s.log.WarnContext(ctx, "sensoractive: the scan of the extra ports did not cover the device; the device keeps the top 1000 ports' result", "ip", ip.String())
+		return mergeExtra(hosts, extra, ip), kind, true, nil
+	}
+	return mergeExtra(hosts, extra, ip), kind, false, nil
 }
 
 // mergeExtra adds to the device's host of the first run what the Extra run found: its open ports the first run did not list (with
@@ -1464,18 +1487,18 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 		return refuse(reasonBox)
 	}
 	s.setKind(kind)
-	id, err := s.startJob(ctx, KindDevice, "scan_now", 1)
+	id, err := s.startDeviceJob(ctx, "scan_now", assetID)
 	if err != nil {
 		return Identification{}, err
 	}
-	hosts, recKind, err := s.probeDevice(jctx, id, kind, rate, asset.IP)
+	hosts, recKind, extraFailed, err := s.probeDevice(jctx, id, kind, rate, asset.IP)
 	s.setAsset("")
 	if err == nil {
 		var markErr error
 		if dec.FirstGentle && kind.IsGentle() {
 			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
 		}
-		err = errors.Join(markErr, s.recordDevice(ctx, assetID, asset.IP, hosts, recKind))
+		err = errors.Join(markErr, s.recordDevice(ctx, id, assetID, asset.IP, hosts, recKind, extraFailed))
 	}
 	switch {
 	case err == nil:

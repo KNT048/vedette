@@ -2,6 +2,7 @@ package feeds
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -82,25 +83,92 @@ func clip(s string, runes int) string {
 
 // kevLinks splits the KEV "notes" field (URLs separated by ";") into valid https links. A plain http link is dropped:
 // the finding page offers these as the vendor advisory to act on, and a link anyone on the path can rewrite is no
-// advisory.
+// advisory. Each part is cleaned first (cleanLink): the notes are prose, and "see (https://…) for", "https://a,
+// https://b" or a link that ends a sentence otherwise keep a character that sends the reader to the wrong page.
 func kevLinks(notes string) []string {
 	links := []string{}
-	for _, part := range strings.FieldsFunc(notes, func(r rune) bool { return r == ';' || jsIsSpace(r) }) {
-		if len(links) == maxLinks {
-			break
-		}
-		if !validIndicatorURL(part) || hasControl(part) || !strings.HasPrefix(strings.ToLower(part), "https://") {
-			continue
-		}
-		dup := false
-		for _, l := range links {
-			dup = dup || l == part
-		}
-		if !dup {
-			links = append(links, part)
+	for _, field := range strings.FieldsFunc(notes, func(r rune) bool { return r == ';' || jsIsSpace(r) }) {
+		for _, part := range splitJoined(field) {
+			if len(links) == maxLinks {
+				return links
+			}
+			part = cleanLink(part)
+			if !validIndicatorURL(part) || hasControl(part) || !strings.HasPrefix(strings.ToLower(part), "https://") {
+				continue
+			}
+			if !slices.Contains(links, part) {
+				links = append(links, part)
+			}
 		}
 	}
 	return links
+}
+
+// splitJoined splits links written one after the other with only a comma ("https://a/1,https://a/2") at each "," that
+// is directly followed by "http://" or "https://". A comma elsewhere stays: URLs hold commas ("#:~:text=a,-b"), and an
+// archived page's own URL follows a "/" ("https://web.archive.org/web/2015/https://…"), never a ",".
+func splitJoined(s string) []string {
+	var out []string
+	for {
+		lower, cut := strings.ToLower(s), -1
+		for i := strings.IndexByte(lower, ','); i >= 0; {
+			if rest := lower[i+1:]; strings.HasPrefix(rest, "http://") || strings.HasPrefix(rest, "https://") {
+				cut = i
+				break
+			}
+			next := strings.IndexByte(lower[i+1:], ',')
+			if next < 0 {
+				break
+			}
+			i += 1 + next
+		}
+		if cut < 0 {
+			return append(out, s)
+		}
+		out, s = append(out, s[:cut]), s[cut+1:]
+	}
+}
+
+// cleanLink drops what prose puts around a link and is not part of it: an opening "(", "<", "[" or quote before it;
+// sentence punctuation (". , ; : ! ?"), a quote or ">" after it; a ")" or "]" after it only when the link has no
+// matching opening one, written or percent-encoded (a vendor path such as ".../advisory-(cve-2020-14472)" keeps its own). "https:/host" (one
+// slash, a typo in the list) becomes "https://host".
+func cleanLink(s string) string {
+	s = strings.TrimLeft(s, "(<[\"'")
+	for s != "" {
+		switch last := s[len(s)-1]; {
+		case strings.IndexByte(".,;:!?\"'>", last) >= 0:
+		case last == ')' && opened(s, "(", "%28") < strings.Count(s, ")"):
+		case last == ']' && opened(s, "[", "%5b") < strings.Count(s, "]"):
+		default:
+			if len(s) > 7 && strings.EqualFold(s[:7], "https:/") && s[7] != '/' {
+				s = s[:7] + "/" + s[7:]
+			}
+			return s
+		}
+		s = s[:len(s)-1]
+	}
+	return s
+}
+
+// opened counts the opening brackets of a link, written or percent-encoded ("/a%28b)" keeps its ")").
+func opened(s, plain, encoded string) int {
+	return strings.Count(s, plain) + strings.Count(strings.ToLower(s), encoded)
+}
+
+// cleanLinks is splitJoined and cleanLink over stored or parsed links, each once and at most maxLinks, dropping one
+// that is no link once cleaned. The store applies it to every feed's links on write and on read, so a row stored
+// before the rule reads clean too and a pull of an unchanged list does not see a difference to write.
+func cleanLinks(links []string) []string {
+	out := make([]string, 0, len(links))
+	for _, joined := range links {
+		for _, l := range splitJoined(joined) {
+			if l = cleanLink(l); len(out) < maxLinks && validLink(l) && !slices.Contains(out, l) {
+				out = append(out, l)
+			}
+		}
+	}
+	return out
 }
 
 // freeText strips invisible characters and clips; ok is false when a C0 control remains.

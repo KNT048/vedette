@@ -1,10 +1,10 @@
 // Updates to plan (S-TIER-1, S-TIER-2) and the CVE page of a CVE on no exploited list.
 import { describe, expect, it } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { tierState } from '@/mocks/tiers'
-import { modulesStore } from '@/mocks/stores'
+import { assetsStore, modulesStore } from '@/mocks/stores'
 
 describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
   it('one item per update on one device, the CVEs with tier, published day and evidence; the filter narrows; no a11y violation', async () => {
@@ -19,7 +19,7 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'All (4)' }))
     expect(await screen.findByRole('heading', { level: 1, name: '4 recommended updates' })).toBeInTheDocument()
     const list = screen.getByRole('list', { name: 'Recommended updates' })
-    expect(within(list).getByText(/Install the latest cumulative update for Windows Server 2022 \(build 20348\.4405 or later\)/)).toBeInTheDocument()
+    expect(within(list).getByText(/Install the latest cumulative update for Windows Server 2022 \(from build 20348\.2700 to 20348\.4405 or later\)/)).toBeInTheDocument()
     expect(within(list).getByText('(2 likely to be exploited)')).toBeInTheDocument()
     expect(screen.getByText('1 CVE published more than 12 months ago is listed because a scan found it on the device.')).toBeInTheDocument()
     const nas = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('NAS-BACKUP'))!
@@ -168,6 +168,34 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
   it('the Recent tab heading names its tier', async () => {
     renderApp('/plan?tier=recent')
     expect(await screen.findByRole('heading', { level: 1, name: /^\d+ recommended updates? for recent CVEs$/ })).toBeInTheDocument()
+  })
+
+  // The evidence follows how the version is known now: a build an agent reported reads "Last reported by an agent" once no agent of
+  // the box reports the device (the box's agent_gone, one answer for the whole list: agent-intake off, or no agent bound), with the
+  // day of that report on the row; an agent that reports the device keeps "Reported by the agent".
+  it('an agent row\'s evidence and count say when no agent reports the device now', async () => {
+    renderApp('/plan?tier=all') // agent-intake is off in the sample: nothing reads SRV-ACCOUNTS now
+    const list = await screen.findByRole('list', { name: 'Recommended updates' })
+    const win = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('Windows Server 2022'))!
+    expect(within(win).getByText(/^Based on the version an agent last reported on \d{1,2} \w{3} \d{4}: no agent reports this device now\.$/)).toBeInTheDocument()
+    await userEvent.click(within(win).getByText('Show the 65 CVEs'))
+    const table = within(win).getByRole('table')
+    expect(within(table).getAllByText('Last reported by an agent')).toHaveLength(50)
+    expect(within(table).queryByText('Reported by the agent')).toBeNull()
+    expect(within(win).getAllByText(/No agent reports this device now: the build or package is from the last list an agent sent/).find((el) => el.closest('dl'))).toBeVisible()
+    await expectNoA11yViolations()
+    cleanup()
+
+    // agent-intake on and an osquery agent bound to the device: the agent reports it now
+    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-srvacc' ? { ...a, software: a.software.map((x) => (x.id === 's-srvacc' ? { ...x, source: 'agent' as const } : x)) } : a)))
+    renderApp('/plan?tier=all')
+    const again = await screen.findByRole('list', { name: 'Recommended updates' })
+    const item = within(again).getAllByRole('listitem').find((li) => li.textContent?.includes('Windows Server 2022'))!
+    expect(within(item).queryByText(/^Based on the version an agent last reported/)).toBeNull()
+    await userEvent.click(within(item).getByText('Show the 65 CVEs'))
+    expect(within(within(item).getByRole('table')).getAllByText('Reported by the agent')).toHaveLength(50)
+    expect(within(item).queryByText('Last reported by an agent')).toBeNull()
   })
 
   it('the CVE page answers for a CVE on no exploited list, with its devices from Updates to plan', async () => {

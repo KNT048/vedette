@@ -721,7 +721,15 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     const a = find(String(params.id))
     if (!a) return notFound(request)
-    const software: SoftwareView[] = a.software.map((s) => ({ id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: cvesFor(s.kev) }))
+    // INV-41: a reported row a person corrected says which correction replaces it; the correction says when and what the source reads
+    const software: SoftwareView[] = a.software.map((s) => {
+      const by = a.software.find((c) => c.corrects === s.id)
+      const orig = s.corrects ? a.software.find((x) => x.id === s.corrects) : undefined
+      return { id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: cvesFor(s.kev),
+        ...(s.pkg_version ? { pkg_version: s.pkg_version } : {}), ...(by ? { corrected_by: by.id } : {}),
+        ...(s.corrects ? { correction: { set_at: s.corrected_at ?? nowIso(), set_by: currentUser()?.email ?? '', active: !!orig, disagrees: !!orig && (orig.version !== s.version || (orig.pkg_version ?? null) !== (s.pkg_version ?? null)),
+          detected: orig ? { id: orig.id, display: orig.display, version: orig.version, pkg_version: orig.pkg_version ?? null, source: orig.source, seen_at: nowIso() } : null } } : {}) }
+    })
     const observations = markCurrent(obsOf(a)).sort((x, y) => FIELD_ORDER.indexOf(x.field) - FIELD_ORDER.indexOf(y.field) || new Date(y.seen_at).getTime() - new Date(x.seen_at).getTime())
     return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
   }),
@@ -787,8 +795,16 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
     if (!a) return notFound(request)
-    const b = await body<{ name: string; kind: AssetKind; fragile: boolean; regular_scan: RegularScan; notes: string }>(request)
+    const b = await body<{ name: string; kind: AssetKind; fragile: boolean; regular_scan: RegularScan; notes: string; os: string }>(request)
     const patch: Partial<Asset> = {}
+    if (b.os !== undefined) { // INV-41: a person's OS wins over every source and drives matching; empty clears it
+      const os = typeof b.os === 'string' ? b.os.trim() : null
+      if (os === null || os.length > 200 || /[<>]/.test(os)) return fail(400, 'bad_os', 'The operating system is at most 200 characters and cannot contain < or >.')
+      if (os) addObs(a, 'os', os, 'manual', 1)
+      else obsStore.update((m) => ({ ...m, [a.id]: obsOf(a).filter((o) => !(o.field === 'os' && o.source === 'manual')) }))
+      patch.os = os ? { value: os, source: 'manual', confidence: 1, seen_at: nowIso() } : obsOf({ ...a }).filter((o) => o.field === 'os' && o.source !== 'manual').map((o) => ({ value: o.value, source: o.source, confidence: o.confidence, seen_at: o.seen_at }))[0] ?? null
+      audit(os ? 'inventory.correct_os' : 'inventory.clear_os', nameOf(a, a.kind), os)
+    }
     if (b.name !== undefined) { // G2: the name in Vedette, as the backend checks it (trimmed, at most 64 characters, no < or >; empty clears it)
       const n = typeof b.name === 'string' ? b.name.trim() : null
       if (n === null || badUserName(n)) return fail(400, 'bad_name', 'The name is at most 64 characters and cannot contain < or >, control characters or invisible characters.')
@@ -824,6 +840,7 @@ export const handlers = [
       audit('inventory.set_notes', nameOf(a, a.kind))
     }
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, ...patch } : x)))
+    if (b.os !== undefined) matchAssetToKev(a.id)
     return HttpResponse.json({ ok: true })
   }),
 
@@ -908,21 +925,31 @@ export const handlers = [
     return HttpResponse.json({ kev_cves: v.entry!.kev_count }, { status: 201 })
   }),
 
-  // D-471 edit version: only what a person declared; empty removes it; the device is matched again.
+  // D-471, INV-41: a row a person declared changes in place; a row a sensor or agent reported is corrected (a manual row that replaces
+  // it for matching, created once, then edited). version and/or pkg_version (the bare release or the line `apk info -e -v` prints).
   http.patch(`${API}/inventory/devices/:id/software/:sid`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
     if (!a) return notFound(request)
-    const b = await body<{ version: string }>(request)
-    const version = typeof b.version === 'string' ? b.version.trim() : null
-    if (version === null || (version !== '' && !/^[A-Za-z0-9_.\-+() ]{1,40}$/.test(version))) return fail(400, 'bad_version', 'The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5.')
+    const b = await body<{ version?: string; pkg_version?: string }>(request)
+    if (b.version === undefined && b.pkg_version === undefined) return fail(400, 'bad_edit', 'Nothing to change: give a version or a package release.')
+    const version = typeof b.version === 'string' ? b.version.trim() : b.version === undefined ? undefined : null
+    if (version === null || (version && !/^[A-Za-z0-9_.\-+() ]{1,40}$/.test(version))) return fail(400, 'bad_version', 'The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5.')
+    const pkg = typeof b.pkg_version === 'string' ? b.pkg_version.trim() : b.pkg_version === undefined ? undefined : null
+    if (pkg === null || (pkg && !/^[A-Za-z0-9.:+~_-]{1,100}$/.test(pkg))) return fail(400, 'bad_pkg_version', 'The package release may only contain letters, digits and . : + ~ _ -, up to 100 characters, as the package manager prints it. Example 10.2_p1-r1.')
     const sw = a.software.find((s) => s.id === params.sid)
     if (!sw) return fail(404, 'not_found', 'No such software on this device.')
-    if (sw.source !== 'manual') return fail(400, 'not_manual', 'Only the version of manually declared software can be changed. Software seen by a sensor or agent updates on its next report.')
-    if ((sw.version ?? '') === version) return HttpResponse.json({ ok: true })
-    assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.map((s) => (s.id === sw.id ? { ...s, version: version || null } : s)) } : x)))
+    const next = (s: Software): Software => ({ ...s, ...(version !== undefined ? { version: version || null } : {}), ...(pkg !== undefined ? { pkg_version: pkg || null } : {}) })
+    if (sw.source === 'manual') {
+      assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.map((s) => (s.id === sw.id ? { ...next(s), ...(s.corrects ? { corrected_at: nowIso() } : {}) } : s)) } : x)))
+    } else {
+      const have = a.software.find((c) => c.corrects === sw.id)
+      const corr: Software = have ? { ...next(have), corrected_at: nowIso() } : { ...next(sw), id: newId('s'), source: 'manual', confidence: 1, corrects: sw.id, corrected_at: nowIso() }
+      assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: have ? x.software.map((s) => (s.id === have.id ? corr : s)) : [...x.software, corr] } : x)))
+    }
     matchAssetToKev(a.id)
-    audit('inventory.set_software_version', `${nameOf(a, a.kind)}: ${sw.display}`, `${sw.version || 'no version'} → ${version || 'no version'}`)
+    audit(sw.source === 'manual' && !sw.corrects ? 'inventory.set_software_version' : 'inventory.correct_software', `${nameOf(a, a.kind)}: ${sw.display}`,
+      [version !== undefined ? `version ${version || 'none'}` : '', pkg !== undefined ? `package ${pkg || 'none'}` : ''].filter(Boolean).join(', '))
     return HttpResponse.json({ ok: true })
   }),
 

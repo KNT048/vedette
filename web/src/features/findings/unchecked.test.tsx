@@ -36,7 +36,7 @@ describe('#910 phase 1: exploited CVEs that could not be checked, in their devic
 
   it('Home links the count to the Findings block', async () => {
     renderApp('/')
-    const link = await screen.findByRole('link', { name: /You have 8 exploited CVEs Vedette could not check on 4 devices/ })
+    const link = await screen.findByRole('link', { name: /You have 9 exploited CVEs Vedette could not check on 5 devices/ })
     expect(link).toHaveAttribute('href', '/findings?tab=input#unchecked')
     // review r1 of #943: the link lands on the list (Needs your input), not on a tab without it
     await userEvent.click(link)

@@ -16,6 +16,12 @@ export interface Software {
   kev: string[] // khoá khớp KEV: "vendorproject|product" viết thường
   source: ObsSource
   confidence: number
+  /** The package release (D-516; a person's correction, INV-41) */
+  pkg_version?: string | null
+  /** Mock only (INV-41): on a person's correction, the id of the reported row it replaces for matching. */
+  corrects?: string
+  /** Mock only: when the correction was set. */
+  corrected_at?: string
 }
 
 export interface Service { port: number; proto: 'tcp' | 'udp'; name: string; product?: string; version?: string; detail?: string; source: ObsSource; confidence: number }

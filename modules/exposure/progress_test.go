@@ -2,8 +2,8 @@ package exposure
 
 import (
 	"context"
-	"time"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/progress"
 )

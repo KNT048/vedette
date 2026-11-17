@@ -29,7 +29,7 @@ func TestStatesAlpine(t *testing.T) {
 // gw-alpine's package release is read against the feed's rows, and only them. With Alpine's rows (alpine-osv) 10.2_p1-r1 on 3.23 is
 // not affected; with the feed on but not loaded the question stays; with the feed off NVD's range decides (a finding), never a made-up
 // list; a branch the feed has no row for (edge: OSV.dev lists none) is never closed either.
-func TestPlatform_D605_FeedRowsDecide(t *testing.T) {
+func TestPlatform_AlpineFeedRowsDecide(t *testing.T) {
 	t.Parallel()
 	bn340 := func(os, rel string) Asset {
 		row := sshRow("10.2", "", "manual")

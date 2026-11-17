@@ -224,10 +224,13 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 			return string(b)
 		}
 		for _, p := range gbDisruptive.prefs {
-			if !strings.Contains(body, p.oid+":") || !strings.Contains(body, ":checkbox:"+p.name+"<") || f.keepNo || (f.keepWeb && p.oid == gmpGlobalOID) {
+			if !strings.Contains(body, p.oid+":") || !strings.Contains(body, ":checkbox:"+p.name+"<") || f.keepNo {
 				continue
 			}
 			c.prefs[p.name] = value()
+			if f.keepWeb && p.oid == gmpGlobalOID { // gvmd stores the opposite of what was asked
+				c.prefs[p.name] = map[string]string{"yes": "no", "no": "yes"}[value()]
+			}
 		}
 		if strings.Contains(body, "<name>safe_checks</name>") && !f.keepSafe {
 			c.prefs["safe_checks"] = value()
@@ -778,7 +781,7 @@ func TestContract_INV25_SeamNilWording(t *testing.T) {
 // ---- when it runs ----
 
 // INV-25, D-566: an enabled, ready Greenbone scans the verified, committed IP with accepted testing terms after the other steps: the
-// deep config (every family but brute force, default accounts and DoS; generic web scanning on; brute-force options off; safe checks
+// deep config (every family but brute force, default accounts and DoS; generic web scanning off; brute-force options off; safe checks
 // on), the probe log row before the task starts, results stored, the task and target cleaned up.
 func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	t.Parallel()
@@ -791,7 +794,7 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	}
 	gvm := h.gvm
 	c, used := gvm.cfg(gbDeep.name)
-	if v := c.prefs; used != gbDeep.name || v["Disable brute force checks"] != "yes" || v["Disable default account checks"] != "yes" || v["Enable generic web application scanning"] != "yes" || v["safe_checks"] != "yes" {
+	if v := c.prefs; used != gbDeep.name || v["Disable brute force checks"] != "yes" || v["Disable default account checks"] != "yes" || v["Enable generic web application scanning"] != "no" || v["safe_checks"] != "yes" {
 		t.Fatalf("config %q used, prefs %v", used, v)
 	}
 	if !slices.Equal(c.families, []string{"General", "Web application abuses"}) {
@@ -1224,7 +1227,7 @@ func TestContract_INV25_SafeConfigFailsClosed(t *testing.T) {
 		{"config in use", func(g *fakeGVM) { g.inUse = true }, "is used by a task Vedette did not start"},
 		// D-564 G2, D-566: generic web application scanning, safe_checks and the families are read back too
 		{"web scanning option missing", func(g *fakeGVM) { g.noWebPref = true }, `the OpenVAS feed has no "Enable generic web application scanning" option`},
-		{"web scanning not kept on", func(g *fakeGVM) { g.keepWeb = true }, `OpenVAS did not keep "Enable generic web application scanning" on`},
+		{"web scanning not kept off", func(g *fakeGVM) { g.keepWeb = true }, `OpenVAS did not keep "Enable generic web application scanning" off`},
 		{"families not kept", func(g *fakeGVM) { g.keepFamily = true }, `OpenVAS did not keep the family "Brute force attacks" off`},
 	}
 	for _, tc := range cases {

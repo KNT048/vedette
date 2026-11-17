@@ -61,6 +61,7 @@
     "descriptionInfo": "Click \"I have this\" to get alerts for that product: this flaw and every new one from now on. Add the product with its version to the right device for an exact check.",
     "have": "I have this",
     "notRelevant": "Not relevant",
+    "none": "Nothing new to answer this week.",
     "added": "Alerts on for this product",
     "addedToast": "Done. This flaw is now a finding, and you will get alerts for new exploited flaws in this product. Add the product with its version to the right device for an exact check.",
     "hiddenToast": "Item hidden."
@@ -115,7 +116,8 @@
     "matched": "Your devices",
     "matchedNone": "No matching devices found",
     "matchedNoneBody": "Have it but not listed? Add it on the Devices page.",
-    "toFindings": "See findings and what to do",
+    "toFindings_one": "See the open finding and what to do",
+    "toFindings_other": "See the {{count}} open findings and what to do",
     "tryLookup": "Look up this ID",
     "notAnId": "“{{id}}” is not a CVE ID",
     "notAnIdBody": "CVE IDs look like CVE-2021-44228: the letters CVE, a year, and a number.",

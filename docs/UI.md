@@ -23,7 +23,15 @@ before the first one can go on.
    created inline links straight to the exact tab and field (`DependencyLink`: one short reason + a link to
    `/settings/<section>?tab=<tab>#<field-id>`, the field gets focus on arrival), never "see Settings". As GOV.UK's error
    summary links each problem to its field ([Error summary](https://design-system.service.gov.uk/components/error-summary/)).
-3. **Review check for every page** (§13): list each dependency the page needs; each one is created inline or deep-linked.
+3. **No action with nothing behind it** (kien G5, 2026-11-17: the box offered "Fix by updating the operating system" with no
+   update to install). A link, button, banner, dialog or count is shown only when there is something to act on: "Install N
+   updates" only at N > 0, "Fix by updating" only when an update fixes an open finding, no "Select all 0", no link a role cannot
+   open, no action on a closed item. When work remains but nothing fixes it yet, one honest line says so ("No update fixes these
+   yet: see each finding") instead of a dead link. A KPI of 0 is plain text (`KpiStrip`). Findings closed as not relevant are
+   hidden wherever findings are listed, with one toggle "Show not relevant (N)" (`NotRelevantToggle`, `?notrelevant=show` on the
+   Findings list); counts next to them leave them out. Guard: `web/src/test/emptyActionGuard.test.ts` fails on a `<Link>` or
+   `<Button>` whose label states a count that nothing near it checks (named exceptions: `empty-guard:` and `ALLOWED`).
+4. **Review check for every page** (§13): list each dependency the page needs; each one is created inline or deep-linked.
 
 ## 1. Tokens (`web/src/index.css`)
 

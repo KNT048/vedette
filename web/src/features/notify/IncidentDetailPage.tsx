@@ -82,7 +82,7 @@ function Content() {
         return (
           <>
             <PageHeader breadcrumbs={crumbs} title={a.title} meta={t('detail.meta', { time: fmtDateTime(a.first_seen) })} stories={['S-ALERT-3']}
-              actions={respond ? <Button asChild><Link to={`/response?incident=${encodeURIComponent(a.id)}`}>{t('detail.respond')}</Link></Button> : undefined} />
+              actions={respond && a.status !== 'resolved' ? <Button asChild><Link to={`/response?incident=${encodeURIComponent(a.id)}`}>{t('detail.respond')}</Link></Button> : undefined} />
             <Section id="summary" title={t('detail.summary')}>
               <Card>
               <KeyValue items={[

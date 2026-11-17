@@ -242,14 +242,15 @@ function Body({ s }: { s: CheckedOs }) {
           <WindowForm key={JSON.stringify(s.window)} s={s} disabled={admin.disabled} title={admin.title} />
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="primary" disabled={admin.disabled || m.install.isPending} busy={m.install.isPending && m.install.variables === 'security'} busyLabel={t('common:busy.starting')} title={admin.title} onClick={() => install('security')}><ShieldCheck />{t('updates.os.installSecurity')}{sec ? ` (${sec})` : ''}</Button>
-            <Button disabled={admin.disabled || m.install.isPending} busy={m.install.isPending && m.install.variables === 'all'} busyLabel={t('common:busy.starting')} title={admin.title} onClick={() => setInstallAll(true)}>{t('updates.os.installAll')}</Button>
+            {/* kien G5: an install is offered only when there is something to install */}
+            {sec > 0 ? <Button variant="primary" disabled={admin.disabled || m.install.isPending} busy={m.install.isPending && m.install.variables === 'security'} busyLabel={t('common:busy.starting')} title={admin.title} onClick={() => install('security')}><ShieldCheck />{t('updates.os.installSecurity')} ({sec})</Button> : null}
+            {s.pending.length > 0 ? <Button disabled={admin.disabled || m.install.isPending} busy={m.install.isPending && m.install.variables === 'all'} busyLabel={t('common:busy.starting')} title={admin.title} onClick={() => setInstallAll(true)}>{t('updates.os.installAll')}</Button> : null}
             <Button disabled={admin.disabled} title={admin.title} onClick={() => setRebooting(true)}><Power />{t('updates.os.reboot.now')}</Button>
             <Button disabled={admin.disabled} title={admin.title} onClick={() => setScheduling(true)}><CalendarClock />{t('updates.os.reboot.schedule')}</Button>
           </div>
 
           <div>
-            <h3 className="mb-2 text-sm font-semibold">{t('updates.os.pending', { count: s.pending.length, security: sec })}</h3>
+            <h3 className="mb-2 text-sm font-semibold">{s.pending.length > 0 ? t('updates.os.pending', { count: s.pending.length, security: sec }) : t('updates.os.pendingNone')}</h3>
             <DataTable data={s.pending} columns={cols} caption={t('updates.os.pendingCaption')} pageSize={20} empty={t('updates.os.pendingEmpty')}
               mobileRow={(p) => (
                 <div className="grid gap-1">

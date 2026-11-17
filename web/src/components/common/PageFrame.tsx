@@ -11,6 +11,8 @@ const COLS = ['', 'sm:grid-cols-1', 'sm:grid-cols-2', 'sm:grid-cols-3', 'sm:grid
 
 /** Tối đa 4 con số trả lời câu hỏi của trang (FRONTEND §3: số to chỉ khi là câu trả lời), mỗi số dẫn tới chỗ xem chi tiết.
  *  Một khung chia ô bằng đường kẻ (như một hàng bảng), không phải 4 card rời; điện thoại 2 × 2. */
+const isZero = (v: ReactNode) => v === 0 || v === '0'
+
 export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string }) {
   // Lỗi lập trình: báo khi phát triển, không làm vỡ trang của người dùng.
   if (all.length > 4 && import.meta.env.DEV) console.error(`KpiStrip "${label}": at most 4 items (D-464), got ${all.length}; the rest are dropped`)
@@ -19,11 +21,19 @@ export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string })
     <ul aria-label={label} className={`mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-rule bg-rule ${COLS[items.length]}`}>
       {items.map((k) => (
         <li key={k.label} className="bg-surface [&:last-child:nth-child(odd)]:col-span-2 sm:[&:last-child:nth-child(odd)]:col-span-1">
-          {/* Cả ô là liên kết (không phải chữ trong đoạn văn): không gạch chân cả số lẫn nhãn; di chuột → nền và gạch chân nhãn. */}
-          <Link to={k.to} className="group grid h-full gap-0.5 px-3 py-2 no-underline hover:bg-sunken focus-visible:-outline-offset-2">
-            <span className="text-lg font-semibold leading-tight tabular-nums">{k.value}</span>{' '}
-            <span className="text-meta text-muted underline-offset-4 group-hover:underline">{k.label}</span>
-          </Link>
+          {/* Cả ô là liên kết (không phải chữ trong đoạn văn): không gạch chân cả số lẫn nhãn; di chuột → nền và gạch chân nhãn.
+              kien G5: a 0 opens nothing (a link to an empty list is an action with nothing behind it), so it is plain text. */}
+          {isZero(k.value) ? (
+            <div className="grid h-full gap-0.5 px-3 py-2">
+              <span className="text-lg font-semibold leading-tight tabular-nums">{k.value}</span>{' '}
+              <span className="text-meta text-muted">{k.label}</span>
+            </div>
+          ) : (
+            <Link to={k.to} className="group grid h-full gap-0.5 px-3 py-2 no-underline hover:bg-sunken focus-visible:-outline-offset-2">
+              <span className="text-lg font-semibold leading-tight tabular-nums">{k.value}</span>{' '}
+              <span className="text-meta text-muted underline-offset-4 group-hover:underline">{k.label}</span>
+            </Link>
+          )}
         </li>
       ))}
     </ul>

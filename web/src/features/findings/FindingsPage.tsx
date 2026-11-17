@@ -26,6 +26,7 @@ import { CvssScore } from './Cvss'
 import { FixGroupList } from './FixGroups'
 import { fixGroups, useFixAction } from './fix'
 import type { BulkAction, FindingRow, VersionNeeded } from './types'
+import { NotRelevantToggle, isNotRelevant } from './notRelevant'
 
 /** The three lists (D-543): Open = confirmed + suspected, Accepted risk, Handled = patched / mitigated / false positive / not relevant. */
 type Tab = 'open' | 'accepted' | 'handled'
@@ -82,6 +83,7 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
         </Field>
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
+          {/* empty-guard: the bulk dialog opens only from the selection bar, which shows only with a selection */}
           <Button variant="primary" busy={bulk.isPending} busyLabel={t('common:busy.saving')} onClick={submit}>{t('bulk.submit', { count: ids.length })}</Button>
         </DialogFooter>
       </DialogContent>
@@ -111,6 +113,8 @@ function List() {
   const severity = params.get('severity') ?? ''
   const fixKey = params.get('fix') ?? '' // D-545: the findings one update fixes, as rows (to select and handle them)
   const status: OpenStatus = params.get('status') === 'confirmed' ? 'confirmed' : params.get('status') === 'suspected' ? 'suspected' : 'all'
+  // kien G5: Handled hides what was closed as not relevant until `?notrelevant=show` (a shareable link, like the other filters)
+  const showNotRelevant = params.get('notrelevant') === 'show'
   const setParam = (k: string, v: string) => { if (v) params.set(k, v); else params.delete(k); setParams(params, { replace: true }) }
   const [certainty, setCertainty] = useState<Certainty>('all')
   const [search, setSearch] = useState('')
@@ -125,7 +129,7 @@ function List() {
   const devices = [...new Map((items ?? []).map((f) => [f.asset_id, name(f)])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
   const products = [...new Set((items ?? []).map((f) => f.kev?.display ?? '').filter(Boolean))].sort()
   const s = search.trim().toLowerCase()
-  const rowsFor = (tab: Tab) => (items ?? []).filter(inTab[tab]).filter(certain[certainty])
+  const rowsFor = (tab: Tab, notRelevant = showNotRelevant) => (items ?? []).filter(inTab[tab]).filter((f) => notRelevant || !isNotRelevant(f)).filter(certain[certainty])
     .filter((f) => tab !== 'open' || status === 'all' || f.status === status)
     .filter((f) => (!cve || f.cve === cve) && (!device || f.asset_id === device) && (!product || f.kev?.display === product) && (!severity || f.severity === severity) && (!fixKey || f.fix?.group === fixKey))
     .filter((f) => !s || [f.cve, name(f), f.asset?.ip ?? '', f.kev?.display ?? ''].some((v) => v.toLowerCase().includes(s)))
@@ -165,7 +169,8 @@ function List() {
     </span>
   )
   const columns: ColumnDef<FindingRow>[] = [
-    ...(can ? [{ id: 'select', enableSorting: false, header: () => <Checkbox checked={allShown ? true : shown.length > 0 ? 'indeterminate' : false} onCheckedChange={(v) => toggleAll(v === true)} aria-label={t('bulk.selectAll', { count: rows.length })} />, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<FindingRow>] : []),
+    // kien G5: no "Select all 0 findings" on an empty list
+    ...(can && rows.length > 0 ? [{ id: 'select', enableSorting: false, header: () => <Checkbox checked={allShown ? true : shown.length > 0 ? 'indeterminate' : false} onCheckedChange={(v) => toggleAll(v === true)} aria-label={t('bulk.selectAll', { count: rows.length })} />, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<FindingRow>] : []),
     { id: 'device', header: t('col.device'), accessorFn: (r) => name(r), cell: ({ row: { original: r } }) => (
       <div className="grid">
         {r.asset ? <Link to={`/devices/${r.asset.id}`} title={name(r)} className="line-clamp-2 max-w-64 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name(r)}</Link> : <span className="font-medium">{name(r)}</span>}
@@ -226,6 +231,7 @@ function List() {
           </div>
         ) : null}
       </div>
+      {tab === 'handled' ? <div className="mb-3"><NotRelevantToggle count={rowsFor('handled', true).filter(isNotRelevant).length} shown={showNotRelevant} onChange={(v) => setParam('notrelevant', v ? 'show' : '')} /></div> : null}
       {tab === 'open' && q.data?.version_needed.length ? <VersionNeededList items={q.data.version_needed} /> : null}
       {tab === 'open' && q.data?.unchecked?.length ? <UncheckedList items={q.data.unchecked} /> : null}
       {tab === 'open' && grouping ? <div className="mb-3"><FixGroupList groups={grouping.groups} showDevice /></div> : null}
@@ -317,10 +323,12 @@ function PlanLine() {
   const all = n.items.length
   const likely = n.items.filter((i) => i.likely > 0).length
   const link = 'text-accent underline underline-offset-4'
+  // empty-guard: PlanLine returns null when the plan has no item, so all is at least 1
   if (likely === 0) return <p className="mb-4 text-sm"><Link to="/plan?tier=all" className={link}>{t('plan.line', { count: all })}</Link></p>
   return (
     <p className="mb-4 text-sm">
       <Link to="/plan?tier=likely" className={link}>{t('plan.lineLikely', { count: likely })}</Link>
+      {/* empty-guard: PlanLine returns null when the plan has no item, so all is at least 1 */}
       {likely < all ? <>{' ('}<Link to="/plan?tier=all" className={link}>{t('plan.lineAll', { count: all })}</Link>{')'}</> : null}
     </p>
   )

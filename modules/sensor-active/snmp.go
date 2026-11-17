@@ -1038,7 +1038,7 @@ func (s *Service) insertSNMPProbe(ctx context.Context, jobID string, rate int, c
 	for i, c := range creds {
 		names[i] = c.Name + " (" + c.Version + ")"
 	}
-	flags := clip("GET sysDescr sysObjectID sysName entPhysical.1 class model softwareRev serialNum; timeout 2s retries 1; credentials: "+strings.Join(names, ", "), 300)
+	flags := clip("GET sysDescr sysObjectID sysName entPhysical.1 class model softwareRev serialNum mtxrLicVersion.0; timeout 2s retries 1; credentials: "+strings.Join(names, ", "), 300)
 	var id int64
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, 'snmp', ?, ?, ?, ?, 'started')`,

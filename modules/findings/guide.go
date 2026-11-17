@@ -300,7 +300,7 @@ func knownVersion(a Asset, s Software) *KnownVersion {
 	switch {
 	case s.ID == osSoftwareID(a.ID): // the network OS the device states itself (INV-4c): SNMP when its own SNMP answer says it
 		src = VersionByStated
-		if a.SNMPOS != "" && a.SNMPOS == a.StatedOS {
+		if s.Source == "snmp" || a.SNMPOS != "" && a.SNMPOS == a.StatedOS { // deviceOS: its own SNMP answer
 			src = VersionBySNMP
 		}
 	case s.Source == "agent", s.Source == "snmp", s.Source == "manual":

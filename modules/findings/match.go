@@ -338,6 +338,9 @@ func nameOnlyWhy(s Software, in swInfo, v Vuln, r UncheckedReason, listed bool) 
 	case UncheckedNotNamed: // review r2 L6 of #939: the products may be this one under a name Vedette does not tie to it
 		return fmt.Sprintf("NVD lists %s for %s, names Vedette does not tie to %s", v.CVE, nvdProducts(v.Vendor, v.Affected), sw)
 	}
+	if _, _, _, lone := pinnedInside(in, v, keyIDs(v)); lone != "" { // the check of r2 H1: one edition listed, the device's not known
+		return fmt.Sprintf("NVD lists %s for the %s edition of %s only, and Vedette cannot tell which edition this is", v.CVE, lone, sw)
+	}
 	return fmt.Sprintf("Vedette cannot compare version %s of %s with the versions NVD lists for %s", clean(in.ver), sw, v.CVE)
 }
 
@@ -906,7 +909,7 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	if !isWin {
 		tri, within, every, proof = decide(in, v, key)
 		if tri == Unknown && in.given && v.RangesFrom == "" {
-			if r, attrs, ok := pinnedInside(in, v, key); ok {
+			if r, attrs, ok, _ := pinnedInside(in, v, key); ok {
 				tri, within, pinned = Yes, r, attrs
 			}
 		}
@@ -1155,16 +1158,19 @@ func listsOthersOnly(in swInfo, v Vuln) bool {
 	return len(v.Affected) > 0
 }
 
-// pinnedInside is review r2 H1 of #939: decide says Unknown only because NVD pins an edition, track or target (sw_edition "continuous",
-// "community", target_hw "x64") the row does not state, yet for some product of the row's own names each pinned value NVD lists has a
-// range the version is inside: whatever that attribute is on the device, the version is affected, which is version evidence. It
-// returns the widest range that matched and the pinned values ("community or enterprise"). Never when an entry of that product pins NA
-// ("-", the plain edition: Firefox not ESR, Jenkins not LTS, #906: the editions have ranges of their own and inventory cannot tell
-// them apart), when one pinned value has no range the version is inside (the attribute would decide), or when an entry cannot be read.
-func pinnedInside(in swInfo, v Vuln, key []identity) (VersionRange, string, bool) {
+// pinnedInside is review r2 H1 of #939 as narrowed by the lead (check of r2): decide says Unknown only because NVD pins an edition
+// (edition or sw_edition: "community", "enterprise") the row does not state, and for some product of the row's own names NVD lists at
+// least two distinct editions and the version is inside a range of every one of them: whatever the edition on the device, the version
+// is affected, which is version evidence. It returns the widest range that matched and the editions ("community or enterprise"). A
+// lone edition ("continuous", "enterprise", "data_center") proves nothing about the others NVD leaves out because they are not
+// affected: lone names it, for the could-not-check sentence. Never for a platform pin (language, target_sw, target_hw, other: an
+// AnyConnect for Windows only says nothing on macOS; the platform rules of D-547 read those), never when an entry pins NA ("-", the
+// plain edition, #906: Firefox not ESR, Jenkins not LTS), never when an edition's ranges leave the version out, and never when an
+// entry cannot be read.
+func pinnedInside(in swInfo, v Vuln, key []identity) (r VersionRange, editions string, ok bool, lone string) {
 	type state struct {
 		bad  bool
-		sets map[string]bool // pinned values -> the version is inside one of their ranges
+		sets map[string]bool // edition -> the version is inside one of its ranges
 		keys []string
 		r    VersionRange
 	}
@@ -1173,11 +1179,11 @@ func pinnedInside(in swInfo, v Vuln, key []identity) (VersionRange, string, bool
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
-			return VersionRange{}, "", false
+			return VersionRange{}, "", false, ""
 		}
 		own, _, known := entryFor(c, in, key)
 		if !known {
-			return VersionRange{}, "", false
+			return VersionRange{}, "", false, ""
 		}
 		if !own {
 			continue
@@ -1185,18 +1191,18 @@ func pinnedInside(in swInfo, v Vuln, key []identity) (VersionRange, string, bool
 		vn, _ := c.Vendor.Literal()
 		p, _ := c.Product.Literal()
 		k := norm(vn) + ":" + norm(p)
-		st, ok := byProduct[k]
-		if !ok {
+		st, seen := byProduct[k]
+		if !seen {
 			st = &state{sets: map[string]bool{}}
 			byProduct[k] = st
 			order = append(order, k)
 		}
-		vals, ok := pinnedValues(c, in)
-		if !ok {
+		vals, liftable := pinnedValues(c, in)
+		if !liftable {
 			st.bad = true
 			continue
 		}
-		t, r := evalAffected(stripPins(c), af.Range, in.ver, in.cpe, in.hasCPE)
+		t, rr := evalAffected(stripPins(c), af.Range, in.ver, in.cpe, in.hasCPE)
 		if t == Unknown {
 			st.bad = true
 			continue
@@ -1205,14 +1211,14 @@ func pinnedInside(in swInfo, v Vuln, key []identity) (VersionRange, string, bool
 			continue // a row of every edition: it would have said Yes itself; its No is another branch
 		}
 		set := strings.Join(vals, " ")
-		if _, seen := st.sets[set]; !seen {
+		if _, had := st.sets[set]; !had {
 			st.sets[set] = false
 			st.keys = append(st.keys, set)
 		}
 		if t == Yes {
 			st.sets[set] = true
-			if st.r == (VersionRange{}) || widerEnd(r, st.r) {
-				st.r = r
+			if st.r == (VersionRange{}) || widerEnd(rr, st.r) {
+				st.r = rr
 			}
 		}
 	}
@@ -1225,28 +1231,30 @@ func pinnedInside(in swInfo, v Vuln, key []identity) (VersionRange, string, bool
 		for _, set := range st.keys {
 			all = all && st.sets[set]
 		}
-		if all {
-			return st.r, orList(st.keys), true
+		switch {
+		case all && len(st.keys) >= 2:
+			return st.r, orList(st.keys), true, ""
+		case all && lone == "":
+			lone = st.keys[0]
 		}
 	}
-	return VersionRange{}, "", false
+	return VersionRange{}, "", false, lone
 }
 
-// pinnedValues are the attributes after the version (edition, language, sw_edition, target, other) that c pins to a value the row
-// does not state; ok is false when one of them is NA ("-").
-func pinnedValues(c CPE, in swInfo) (vals []string, ok bool) {
+// pinnedValues are the editions (edition, sw_edition) c pins to a value the row does not state; liftable is false when c pins NA
+// ("-") there, or pins a platform the row does not state (language, target_sw, target_hw, other).
+func pinnedValues(c CPE, in swInfo) (vals []string, liftable bool) {
 	cfa := c.fields()
-	cf := cfa[5:]
-	var sf []*Attr
+	var sfa [11]*Attr
 	if in.hasCPE {
-		sfa := in.cpe.fields()
-		sf = sfa[5:]
+		sfa = in.cpe.fields()
 	}
-	for i, a := range cf {
-		if a.Kind == Any || in.hasCPE && attrMatch(*a, *sf[i]) {
+	for i := 5; i < len(cfa); i++ {
+		a := cfa[i]
+		if a.Kind == Any || in.hasCPE && attrMatch(*a, *sfa[i]) {
 			continue
 		}
-		if a.Kind != Value {
+		if a.Kind != Value || i != 5 && i != 7 { // 5 edition, 7 sw_edition
 			return nil, false
 		}
 		lit, _ := a.Literal()

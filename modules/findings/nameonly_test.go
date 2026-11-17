@@ -333,9 +333,11 @@ func TestContract_D602_NewUncheckedIsAnnouncedOnce(t *testing.T) {
 	}
 }
 
-// Review r2 H1 of #939: a version inside the range of every edition or track NVD pins for one of the row's products is version
-// evidence, though the row does not say which edition it is: a version finding whose sentence names the pinned values. NVD's real rows
-// (N100 copy, 2026-11-16). Firefox ESR against "-" stays as #906 decided (TestNA_ApplicationEditionAsMain).
+// Review r2 H1 of #939 and its check (lead decision): a version inside the range of every edition NVD pins for one of the row's products
+// is version evidence when NVD lists at least two editions (GitLab community and enterprise): a version finding naming them. A lone
+// edition (Acrobat "continuous", Splunk "enterprise", Jira "data_center") or a platform pin (AnyConnect for Windows only, on a Mac) is
+// not: "could not be checked", with a sentence naming the edition. NVD's real rows (N100 copy, 2026-11-16). Firefox ESR against "-"
+// stays as #906 decided (TestNA_ApplicationEditionAsMain).
 func TestMatchAsset_D602_PinnedEditionStillDecides(t *testing.T) {
 	t.Parallel()
 	rows := func(cve, vendor, product string, aff ...[3]string) Vuln {
@@ -357,33 +359,50 @@ func TestMatchAsset_D602_PinnedEditionStillDecides(t *testing.T) {
 		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:enterprise:*:*:*", "14.4.0", "14.4.4"},
 		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:community:*:*:*", "14.5.0", "14.5.2"},
 		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:enterprise:*:*:*", "14.5.0", "14.5.2"})
+	anyconnect := rows("CVE-2020-3153", "Cisco", "AnyConnect Secure Mobility Client",
+		[3]string{"cpe:2.3:a:cisco:anyconnect_secure_mobility_client:*:*:*:*:*:windows:*:*", "", "4.8.02042"})
+	splunk := rows("CVE-2026-20253", "Splunk", "Splunk Enterprise",
+		[3]string{"cpe:2.3:a:splunk:splunk:*:*:*:*:enterprise:*:*:*", "9.0.0", "9.0.10"})
+	jira := rows("CVE-2099-0103", "Atlassian", "Jira Service Management",
+		[3]string{"cpe:2.3:a:atlassian:jira_service_management:*:*:*:*:data_center:*:*:*", "5.0.0", "5.4.17"})
 	row := func(display, vendor, product, ver, source string, v Vuln) Asset {
 		return Asset{ID: "a", Name: "pc", Software: []Software{{ID: "s", Display: display, Vendor: vendor, Product: product, Version: ver, Source: source,
 			KevKeys: []string{KevKey(v.Vendor, v.Product)}}}}
 	}
+	mac := row("Cisco AnyConnect Secure Mobility Client", "Cisco", "AnyConnect Secure Mobility Client", "4.8.01090", "agent", anyconnect)
+	mac.OS, mac.AgentOS = "macOS 14.6", "macOS 14.6"
 	for _, tc := range []struct {
 		name string
 		a    Asset
 		v    Vuln
-		says string // "" = no finding
+		says string // a finding saying this; "lone:<sentence>" no finding, could not be checked (not_comparable) with it; "" none at all
 	}{
-		{"Acrobat Reader DC 24.002.20759 (agent)", row("Adobe Acrobat Reader DC", "Adobe", "Acrobat and Reader", "24.002.20759", "agent", acrobat), acrobat, "for continuous only"},
-		{"Acrobat Reader DC 26.001.21411 (fixed)", row("Adobe Acrobat Reader DC", "Adobe", "Acrobat and Reader", "26.001.21411", "agent", acrobat), acrobat, ""},
 		{"GitLab 14.3.0 (nmap)", row("GitLab", "GitLab", "GitLab", "14.3.0", "nmap", gitlab), gitlab, "for community or enterprise only"},
 		{"GitLab 14.3.6 (fixed)", row("GitLab", "GitLab", "GitLab", "14.3.6", "nmap", gitlab), gitlab, ""},
+		{"Acrobat Reader DC 24.002.20759 (agent)", row("Adobe Acrobat Reader DC", "Adobe", "Acrobat and Reader", "24.002.20759", "agent", acrobat), acrobat,
+			"lone:NVD lists CVE-2026-34621 for the continuous edition of Adobe Acrobat Reader DC only"},
+		{"AnyConnect 4.8.01090 on macOS", mac, anyconnect, "lone:"},
+		{"Splunk Enterprise 9.0.5", row("Splunk", "Splunk", "Splunk", "9.0.5", "agent", splunk), splunk, "lone:for the enterprise edition of Splunk only"},
+		{"Jira Service Management 5.4.0", row("Jira Service Management", "Atlassian", "Jira Service Management", "5.4.0", "manual", jira), jira, "lone:for the data_center edition"},
 	} {
 		r := MatchAsset(tc.a, []Vuln{tc.v}, nil, t0)
-		if tc.says == "" {
+		switch {
+		case tc.says == "":
 			if len(r.New)+len(r.NameOnly) != 0 {
 				t.Errorf("%s: %+v", tc.name, r)
 			}
-			continue
-		}
-		if len(r.New) != 1 || r.New[0].Basis != BasisVersion || !strings.Contains(r.New[0].Evidence.Summary, tc.says) || r.New[0].Evidence.Agent {
-			t.Errorf("%s: %+v", tc.name, r)
+		case strings.HasPrefix(tc.says, "lone:"):
+			if len(r.New) != 0 || len(r.NameOnly) != 1 || !strings.Contains(r.NameOnly[0].Evidence.Summary, strings.TrimPrefix(tc.says, "lone:")) ||
+				len(r.Unchecked) != 1 || r.Unchecked[0].Reason != UncheckedNotComparable && tc.v.CVE != anyconnect.CVE {
+				t.Errorf("%s: %+v", tc.name, r)
+			}
+		default:
+			if len(r.New) != 1 || r.New[0].Basis != BasisVersion || !strings.Contains(r.New[0].Evidence.Summary, tc.says) || r.New[0].Evidence.Agent {
+				t.Errorf("%s: %+v", tc.name, r)
+			}
 		}
 	}
-	// one pinned edition whose ranges leave the version out (the attribute would decide): not evidence
+	// one edition whose ranges leave the version out (the edition would decide): not evidence
 	mixed := rows("CVE-2099-0101", "GitLab", "Community and Enterprise Editions",
 		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:community:*:*:*", "10.5.0", "14.3.6"},
 		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:enterprise:*:*:*", "10.5.0", "14.2.0"})
@@ -413,6 +432,31 @@ func TestMatchAsset_D602_EndedWindowsBracketedIsAFinding(t *testing.T) {
 	// a serviced release (23H2) is read by its own rows, as before
 	if w, _ := oneMatch(t, winPC(22631, false, "5189", "x64"), clfs, false, cve62215); w != "none" {
 		t.Errorf("23H2 at the fix: %s", w)
+	}
+	// the guards (check of r2 H2): never a release still serviced (Server 2022), one an LTSC edition (Windows 10 21H2, even on a Pro) or
+	// paid ESU (Windows 10 22H2) still services, and only releases of the device's kind bracket it (Server 1909 between two clients)
+	bracket := func(cve string, rows ...nvdRow) Vuln {
+		v := nvdWindows(cve, "2025-04-08", rows...)
+		v.Published = winDay("2025-04-08")
+		return v
+	}
+	for _, tc := range []struct {
+		name string
+		a    Asset
+		v    Vuln
+	}{
+		{"Server 2022 (serviced)", winPC(20348, true, "3453", "x64"), bracket("CVE-2099-0104", nvdRow{"windows_server_2019", "*", "*", "10.0.17763.7136"}, nvdRow{"windows_server_2025", "*", "*", "10.0.26100.3775"})},
+		{"Windows 10 21H2 (LTSC 2021 serviced)", winPC(19044, false, "5000", "x64"), bracket("CVE-2099-0105", nvdRow{"windows_10_1809", "*", "*", "10.0.17763.7136"}, nvdRow{"windows_11_22h2", "*", "*", "10.0.22621.5189"})},
+		{"Windows 10 22H2 (ESU)", winPC(19045, false, "6000", "x64"), bracket("CVE-2099-0106", nvdRow{"windows_10_1809", "*", "*", "10.0.17763.7136"}, nvdRow{"windows_11_22h2", "*", "*", "10.0.22621.5189"})},
+		{"Server 1909 between clients", winPC(18363, true, "1000", "x64"), bracket("CVE-2099-0107", nvdRow{"windows_10_1809", "*", "*", "10.0.17763.7136"}, nvdRow{"windows_11_22h2", "*", "*", "10.0.22621.5189"})},
+	} {
+		if w, m := oneMatch(t, tc.a, tc.v, false, cve62215); w == "new" || strings.Contains(m.Evidence.Summary, "Microsoft no longer updates") {
+			t.Errorf("%s: %s %q", tc.name, w, m.Evidence.Summary)
+		}
+	}
+	srv := bracket("CVE-2099-0108", nvdRow{"windows_server_1803", "*", "*", "10.0.17134.2208"}, nvdRow{"windows_server_2022", "*", "*", "10.0.20348.3453"})
+	if w, m := oneMatch(t, winPC(18363, true, "1000", "x64"), srv, false, cve62215); w != "new" || !strings.Contains(m.Evidence.Summary, "no longer updates Windows Server 1909") {
+		t.Errorf("Server 1909 between servers: %s %q", w, m.Evidence.Summary)
 	}
 }
 

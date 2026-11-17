@@ -373,7 +373,7 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		return winVerdict{t: Unknown, note: note, later: true}, true
 	}
 	switch {
-	case d.ended() && len(below) > 0 && len(above) > 0: // whatever else the list names (another product, a release the table lacks)
+	case d.rel.Ended && !d.rel.LTSC && d.rel.LastFreeRev == 0 && len(below) > 0 && len(above) > 0: // whatever else the list names (another product, a release the table lacks); never one an LTSC edition or paid ESU still services (check of r2 H2)
 		// review r2 H2 of #939: NVD's list brackets the device's release with releases of its kind before and after it, all fixed by
 		// monthly updates, and Microsoft no longer services the device's release: no update brings the fix to it, so it has the flaw
 		return winVerdict{t: Unknown, later: true, note: fmt.Sprintf("Microsoft no longer updates %s. NVD lists %s for the Windows releases before and after it (%s), which Microsoft fixed with updates %s never gets, so this device has the flaw: move to a serviced release.",

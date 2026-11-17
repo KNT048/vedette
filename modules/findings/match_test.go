@@ -438,10 +438,9 @@ func TestMatchAsset_PlaceholderVersionIsNotEvidence(t *testing.T) {
 	}
 }
 
-// Review risk 6 asked that a configuration pinning attributes the software does not carry give no version match.
-// Review r2 H1 of #939 (D-602): a pinned value the software does not state no longer lowers a version inside the range to a product
-// match when no row of the product leaves the version out: whatever that attribute is, the version decides (a version finding, with the
-// pinned value in its sentence). A value the software contradicts still rules it out.
+// Regression: a configuration that pins attributes the software does not carry must not give basis=version (review risk 6): a single
+// pinned value says nothing about the values NVD leaves out (the check of review r2 H1 of #939); "product" here is the product-name
+// match D-602 lists under "could not be checked".
 func TestMatchAsset_PinnedAttributesNeedSoftwareSupport(t *testing.T) {
 	t.Parallel()
 	r := VersionRange{EndExcl: "10"}
@@ -449,15 +448,15 @@ func TestMatchAsset_PinnedAttributesNeedSoftwareSupport(t *testing.T) {
 		name, cfg, swCPE string
 		want             Basis
 	}{
-		{"target_sw pinned, software silent", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:wordpress:*:*`, "", BasisVersion},
-		{"edition pinned, software silent", `cpe:2.3:a:qnap:photo_station:*:*:pro:*:*:*:*:*`, "", BasisVersion},
-		{"language pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:fr:*:*:*:*`, "", BasisVersion},
-		{"sw_edition pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:enterprise:*:*:*`, "", BasisVersion},
-		{"target_hw pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:x64:*`, "", BasisVersion},
-		{"other pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:special`, "", BasisVersion},
+		{"target_sw pinned, software silent", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:wordpress:*:*`, "", BasisProduct},
+		{"edition pinned, software silent", `cpe:2.3:a:qnap:photo_station:*:*:pro:*:*:*:*:*`, "", BasisProduct},
+		{"language pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:fr:*:*:*:*`, "", BasisProduct},
+		{"sw_edition pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:enterprise:*:*:*`, "", BasisProduct},
+		{"target_hw pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:x64:*`, "", BasisProduct},
+		{"other pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:special`, "", BasisProduct},
 		{"target_sw pinned and software agrees", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:wordpress:*:*`, `cpe:2.3:a:qnap:photo_station:1.0:*:*:*:*:wordpress:*:*`, BasisVersion},
 		{"target_sw pinned and software disagrees", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:wordpress:*:*`, `cpe:2.3:a:qnap:photo_station:1.0:*:*:*:*:drupal:*:*`, ""},
-		{"target_sw pinned and software ANY", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:wordpress:*:*`, `cpe:2.3:a:qnap:photo_station:1.0:*:*:*:*:*:*:*`, BasisVersion},
+		{"target_sw pinned and software ANY", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:wordpress:*:*`, `cpe:2.3:a:qnap:photo_station:1.0:*:*:*:*:*:*:*`, BasisProduct},
 		{"nothing pinned", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "", BasisVersion},
 	}
 	for _, tt := range tests {

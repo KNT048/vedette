@@ -5,9 +5,9 @@ import { Download } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { QueryState } from '@/components/common/States'
+import { DownloadButton } from '@/components/common/DownloadButton'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
-import { download } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { auditExportPath, useAudit } from './api'
 import { errMsg } from './parts'
@@ -34,9 +34,6 @@ export default function AuditSection() {
   const filtered = Object.values(f).some(Boolean)
   const clear = () => setF({ q: '', user: '', group: '', from: '', to: '', actor: '' })
 
-  async function exportCsv() {
-    try { await download(auditExportPath(f), 'vedette-audit.csv') } catch (e) { toast.error(errMsg(e, t)) }
-  }
 
   const names = q.data?.names ?? {}
   const named = (s: string) => s.replace(ID_RE, (id) => names[id] ?? id)
@@ -52,7 +49,7 @@ export default function AuditSection() {
 
   return (
     <>
-      <PageHeader title={q.data ? t('audit.title', { count: q.data.total }) : t('settings.audit')} meta={t('audit.meta')} info={t('audit.metaInfo')} stories={['S-CORE-3']} actions={<Button onClick={() => void exportCsv()}><Download />{t('audit.export')}</Button>} />
+      <PageHeader title={q.data ? t('audit.title', { count: q.data.total }) : t('settings.audit')} meta={t('audit.meta')} info={t('audit.metaInfo')} stories={['S-CORE-3']} actions={<DownloadButton path={auditExportPath(f)} filename="vedette-audit.csv" onError={(e) => toast.error(errMsg(e, t))}><Download />{t('audit.export')}</DownloadButton>} />
       <div role="search" aria-label={t('audit.filter.label')} className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label={t('audit.filter.text')} htmlFor="au-q"><Input id="au-q" value={f.q} onChange={(e) => set({ q: e.target.value })} /></Field>
         <Field label={t('audit.filter.user')} htmlFor="au-user">

@@ -37,6 +37,18 @@ describe('Button busy state (docs/UI.md §8, kien G1)', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
+  it('a row button named by aria-label starts its name with the busy label while busy (WCAG 2.5.3)', () => {
+    const { rerender } = render(<Button busy={false} busyLabel="Testing…" aria-label="Test connection File server">Test</Button>)
+    expect(screen.getByRole('button', { name: 'Test connection File server' })).toBeEnabled()
+    rerender(<Button busy busyLabel="Testing…" aria-label="Test connection File server">Test</Button>)
+    expect(screen.getByRole('button', { name: 'Testing… Test connection File server' })).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('asChild keeps disabled on its child', () => {
+    render(<Button asChild disabled><button type="button">Go</button></Button>)
+    expect(screen.getByRole('button', { name: 'Go' })).toBeDisabled()
+  })
+
   it('a button without busy renders its children as they are (no wrapper)', () => {
     render(<Button>Open</Button>)
     expect(screen.getByRole('button', { name: 'Open' }).firstChild).toBeInstanceOf(Text)
@@ -51,6 +63,7 @@ describe('BusyNote', () => {
     const { rerender } = render(<BusyNote busy={false}>Asking your AI… this can take up to a minute.</BusyNote>)
     const note = screen.getByRole('status')
     expect(note).toBeEmptyDOMElement()
+    expect(note).toHaveClass('sr-only') // in the accessibility tree while idle (never display:none), so the text is announced
 
     rerender(<BusyNote busy>Asking your AI… this can take up to a minute.</BusyNote>)
     expect(note).toHaveTextContent('Asking your AI… this can take up to a minute.')

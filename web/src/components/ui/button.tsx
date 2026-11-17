@@ -36,12 +36,16 @@ export type ButtonProps = ComponentProps<'button'> & VariantProps<typeof buttonV
 }
 
 export function Button({ className, variant, size, asChild = false, type, busy, busyLabel, disabled, children, ...props }: ButtonProps) {
-  if (asChild) return <Slot.Root className={cn(buttonVariants({ variant, size }), className)} {...props}>{children}</Slot.Root>
+  // a link or a child element styled as a button: it does not wait, but it keeps `disabled` (#930 review r1 L1)
+  if (asChild) return <Slot.Root className={cn(buttonVariants({ variant, size }), className)} {...{ ...props, disabled }}>{children}</Slot.Root>
   // A button that never waits on the server renders its children as they are
   if (busy === undefined) return <button className={cn(buttonVariants({ variant, size }), className)} type={type ?? 'button'} disabled={disabled} {...props}>{children}</button>
   return (
+    // busy-guard: the Button itself: its native button is the one that draws the busy state
     <button className={cn(buttonVariants({ variant, size }), className)} type={type ?? 'button'} disabled={disabled || busy}
-      aria-busy={busy || undefined} {...props}>
+      aria-busy={busy || undefined} {...props}
+      // WCAG 2.5.3 (#930 review r1 L2): while busy, a name given by aria-label starts with the visible busy label
+      aria-label={busy && busyLabel && props['aria-label'] ? `${busyLabel} ${props['aria-label']}` : props['aria-label']}>
       {/* One grid cell holds the label, the busy content and (as ::after) the busy label's width, so the button never jumps */}
       <span data-busy-label={busyLabel}
         className={cn('grid items-center justify-items-center', busyLabel && 'after:invisible after:col-start-1 after:row-start-1 after:pl-6 after:content-[attr(data-busy-label)]')}>

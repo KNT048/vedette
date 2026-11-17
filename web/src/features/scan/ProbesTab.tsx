@@ -5,8 +5,7 @@ import { Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
-import { Button } from '@/components/ui/button'
-import { download } from '@/lib/api'
+import { DownloadButton } from '@/components/common/DownloadButton'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 import { useProbes } from './api'
 import { errMsg } from './errors'
@@ -26,7 +25,7 @@ export function ProbesTab() {
   ]
   return (
     <Section id="probes" title={t('probes.title')} description={t('probes.description')} info={t('probes.descriptionInfo')} stories={['S-SCAN-4']}
-      actions={<Button size="sm" onClick={() => void download('/scans/probes.csv', 'vedette-probe-log.csv').catch((e: unknown) => toast.error(errMsg(e)))}><Download />{t('probes.download')}</Button>}>
+      actions={<DownloadButton size="sm" path="/scans/probes.csv" filename="vedette-probe-log.csv" onError={(e) => toast.error(errMsg(e))}><Download />{t('probes.download')}</DownloadButton>}>
       <QueryState query={q}>
         {(d) => (
           <div className="grid gap-3">

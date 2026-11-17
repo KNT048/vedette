@@ -128,7 +128,7 @@ function List({ items }: { items: CredTarget[] }) {
     ) : <span className="text-muted">{t('cred.notTested')}</span>) },
     { id: 'actions', header: () => <span className="sr-only">{t('hist.actions')}</span>, enableSorting: false, cell: ({ row: { original: r } }) => (
       <div className="flex gap-2">
-        <Button size="sm" disabled={!operator || test.isPending} busy={test.isPending && test.variables === r.id} aria-label={t('cred.testAria', { name: r.label })} onClick={() => test.mutate(r.id, { onError: (e) => toast.error(errMsg(e)) })}>{t('cred.test')}</Button>
+        <Button size="sm" disabled={!operator || test.isPending} busy={test.isPending && test.variables === r.id} busyLabel={t('common:busy.testing')} aria-label={t('cred.testAria', { name: r.label })} onClick={() => test.mutate(r.id, { onError: (e) => toast.error(errMsg(e)) })}>{t('cred.test')}</Button>
         <Button size="sm" disabled={!admin} aria-label={t('cred.removeAria', { name: r.label })} onClick={(e) => askRemove(e, r)}>{t('cred.remove')}</Button>
       </div>
     ) },

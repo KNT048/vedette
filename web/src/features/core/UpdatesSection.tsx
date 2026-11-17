@@ -10,11 +10,12 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
 import { BusyNote } from '@/components/common/BusyNote'
+import { DownloadButton } from '@/components/common/DownloadButton'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Segmented } from '@/components/ui/segmented'
-import { ApiError, download } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { fmtDate, fmtDateTime, fmtRelative, isNever } from '@/lib/format'
 import { useOsState, useUpdateMutations, useUpdates } from './api'
 import { OsBlock } from './OsUpdates'
@@ -259,7 +260,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       {BUNDLE_IN_UI ? (
       <Section title={t('updates.bundle.title')} description={t('updates.bundle.desc')} info={t('updates.bundle.info')}>
         <div className="flex flex-wrap items-center gap-2">
-          <Button disabled={operator.disabled} title={operator.title} onClick={() => void download('/core/updates/bundle', 'vedette-bundle.json').catch((e) => toast.error(errMsg(e, t)))}><Download />{t('updates.bundle.export')}</Button>
+          <DownloadButton disabled={operator.disabled} title={operator.title} path="/core/updates/bundle" filename="vedette-bundle.json" onError={(e) => toast.error(errMsg(e, t))}><Download />{t('updates.bundle.export')}</DownloadButton>
           <input ref={file} type="file" hidden tabIndex={-1} aria-label={t('updates.bundle.file')} accept=".json,application/json" onChange={(e) => void importBundle(e.target.files?.[0])} />
           <Button disabled={admin.disabled || running} busy={m.importBundle.isPending} busyLabel={t('common:busy.importing')} title={admin.title} onClick={() => file.current?.click()}><Upload />{t('updates.bundle.import')}</Button>
         </div>

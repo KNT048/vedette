@@ -765,8 +765,9 @@ describe('feeds: Fetch now shows the shared busy state while the pull runs (kien
     await waitFor(() => expect(btn).toBeEnabled())
     await userEvent.click(btn)
     // the table renders its cells again: ask for the button each time
-    const fetchBtn = () => screen.getByRole('button', { name: /^Fetch now: CISA KEV$/ })
-    await waitFor(() => expect(fetchBtn()).toHaveAttribute('aria-busy', 'true'))
+    const fetchBtn = () => screen.getByRole('button', { name: /^(?:Fetching… )?Fetch now: CISA KEV$/ })
+    // WCAG 2.5.3: while busy the name starts with the visible busy label
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Fetching… Fetch now: CISA KEV$/ })).toHaveAttribute('aria-busy', 'true'))
     expect(screen.getByText(/Fetching CISA KEV from its source… a large feed can take several minutes\./)).toBeInTheDocument()
     release()
     await waitFor(() => expect(fetchBtn()).not.toHaveAttribute('aria-busy'))

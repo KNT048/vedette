@@ -14,9 +14,9 @@ import { EmptyState, ModuleOff, QueryState, RequireModule, SampleDataNote } from
 import { Chip } from '@/components/common/StatusChip'
 import { Tooltip } from '@/components/ui/tooltip'
 import { hasToken, TokenSearch, type TokenChip } from '@/components/common/TokenSearch'
+import { DownloadButton } from '@/components/common/DownloadButton'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { download } from '@/lib/api'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -341,7 +341,7 @@ function Body() {
         meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('list.meta')}</span>} info={t('list.metaInfo')}
         actions={
           <>
-            <Button onClick={() => void download('/inventory/export.csv', 'vedette-devices.csv').catch((e: unknown) => toast.error(errMsg(e)))}><Download />{t('export')}</Button>
+            <DownloadButton path="/inventory/export.csv" filename="vedette-devices.csv" onError={(e) => toast.error(errMsg(e))}><Download />{t('export')}</DownloadButton>
             {canAdmin ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}><Settings2 />{t('setup.link')}</Link> : null}
             <Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdd('manual')}><Plus />{t('add.open')}</Button>
           </>

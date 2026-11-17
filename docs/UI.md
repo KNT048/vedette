@@ -240,8 +240,12 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
   `JobProgress` (§10). As Atlassian's loading button and Polaris's `loading` keep the button's size and show a spinner
   ([Atlassian button](https://atlassian.design/components/button/examples#loading-button),
   [Polaris button](https://polaris-react.shopify.com/components/actions/button)). Guard: `web/src/test/busyGuard.test.ts`
-  fails on a `<Button>` whose `disabled` reads a pending state without `busy`, a label or spinner swapped by hand, or `busy`
-  without `busyLabel` (or `aria-label`); a named exception needs a `busy-guard:` comment and an `ALLOWED` entry.
+  fails on a `<Button>` without `busy` whose `disabled` reads a pending state or whose `onClick`/`onSelect` calls a mutation or a
+  download (itself or through a function of the file), a form's submit button whose `onSubmit` does, a label or spinner swapped
+  by hand, `busy` without a `busyLabel` (only an icon-only button may rely on its `aria-label`), and a raw `<button>` or a menu
+  item that waits; a named exception needs a `busy-guard:` comment and an `ALLOWED` entry. Downloads use `DownloadButton`
+  ("Downloading…"). With an `aria-label`, the busy name starts with the busy label (WCAG 2.5.3). A wait the person did not start
+  (a timer's poll, a background refetch) shows no busy state.
 - **Dialog** (`DialogContent`, `DialogFooter`: exist): 512 px, `wide` 768 px, full width minus 32 px on phones; title
   `text-base` 600, one-line description, ⓘ; footer right-aligned, primary last; Esc and the 40/32 px close; focus returns to
   the opener. A form of more than about 6 fields, or one the user may leave half done, is a page, not a dialog

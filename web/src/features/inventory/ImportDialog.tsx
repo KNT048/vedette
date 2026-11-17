@@ -4,9 +4,9 @@ import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Notice } from '@/components/common/PageHeader'
 import { BusyNote } from '@/components/common/BusyNote'
+import { DownloadButton } from '@/components/common/DownloadButton'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/input'
-import { download } from '@/lib/api'
 import { useImportDevices } from './api'
 import { errMsg, readText, sha256Hex } from './kinds'
 import type { ImportResult } from './types'
@@ -38,7 +38,7 @@ export function ImportForm({ onClose }: { onClose: () => void }) {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => void download('/inventory/import-template.csv', 'vedette-devices-template.csv').catch((e: unknown) => toast.error(errMsg(e)))}>{t('import.template')}</Button>
+        <DownloadButton path="/inventory/import-template.csv" filename="vedette-devices-template.csv" onError={(e) => toast.error(errMsg(e))}>{t('import.template')}</DownloadButton>
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="import-file">{t('import.file')}</Label>

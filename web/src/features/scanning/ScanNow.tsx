@@ -52,7 +52,7 @@ function JobButton({ label, runningLabel, variant = 'primary', size, className, 
   const { t } = useTranslation('scanning')
   return (
     <div className={cn('grid min-w-0 gap-2', className)}>
-      <Button variant={variant} size={size} className="w-fit" onClick={onStart} disabled={!!blocked} busy={running || !!pending} busyLabel={runningLabel ?? t('scanNow.running')} title={blocked ?? undefined} aria-describedby={describedBy}>
+      <Button variant={variant} size={size} className="w-fit" onClick={onStart} disabled={!!blocked || running} busy={!!pending} busyLabel={runningLabel ?? t('scanNow.running')} title={blocked ?? undefined} aria-describedby={describedBy}>
         <Play />{label ?? t('scanNow.deep')}
       </Button>
       {blocked && !describedBy ? <span className="text-meta text-muted">{blocked}</span> : null}

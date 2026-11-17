@@ -714,7 +714,7 @@ describe('Connections: the dialog', () => {
     renderApp('/settings/connections')
     await loaded()
     await u.click(within(card('File server')).getByRole('button', { name: 'Test connection File server (read-only SSH)' }))
-    await waitFor(() => expect(within(card('File server')).getByRole('button', { name: 'Test connection File server (read-only SSH)' })).toHaveAttribute('aria-busy', 'true'))
+    await waitFor(() => expect(within(card('File server')).getByRole('button', { name: 'Testing… Test connection File server (read-only SSH)' })).toHaveAttribute('aria-busy', 'true'))
     expect(within(card('File server')).getByText('Testing the connection… this can take up to 30 seconds.')).toBeInTheDocument()
     release()
     await waitFor(() => expect(within(card('File server')).queryByText('Testing the connection… this can take up to 30 seconds.')).toBeNull())

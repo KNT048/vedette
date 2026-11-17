@@ -295,6 +295,7 @@ export default function SetupPage() {
             : <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                 {/* D-544: Continue waits for the tick, and says so next to it. */}
                 {step === 'terms' && !s.terms ? <p id="s-terms-why" className="text-meta text-muted">{t('setup.terms.needTick')}</p> : null}
+                {/* busy-guard: Continue only moves to the next step; Finish (busy) is the step that calls the server */}
                 <Button key="next" type="submit" variant="primary" onClick={noRepeat} disabled={step === 'terms' && !s.terms} aria-describedby={step === 'terms' && !s.terms ? 's-terms-why' : undefined}>{t('setup.next')}</Button>
               </div>}
         </div>

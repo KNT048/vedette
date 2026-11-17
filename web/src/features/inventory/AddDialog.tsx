@@ -130,9 +130,10 @@ function SnmpMethod() {
         {isRange && covered && !outsideLan ? <Notice tone="accent" role="status" className="mb-0" title={t('addDialog.snmp.rangeCovered', { range: v, name: chosen?.name ?? '' })}>{t('addDialog.snmp.rangeWhen')}</Notice> : null}
         {chosen ? (
           <div className="flex flex-wrap items-center gap-2">
+            {/* busy-guard: for a range the form only opens a dialog (add to scope, or widen the credential), each with its own busy Save */}
             {isRange ? (
               outsideLan ? <Button type="submit" variant="primary">{t('snmpNext.addToScope', { ip: v })}</Button>
-                : covered ? null : <Button type="submit" variant="primary">{t('addDialog.snmp.addRange', { name: chosen.name })}</Button>
+                : covered ? null : /* busy-guard: opens the credential dialog */ <Button type="submit" variant="primary">{t('addDialog.snmp.addRange', { name: chosen.name })}</Button>
             ) : (
               <Button type="submit" variant="primary" busy={test.isPending} busyLabel={t('snmp.run.running')}>{t('addDialog.snmp.test')}</Button>
             )}

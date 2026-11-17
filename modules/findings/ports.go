@@ -32,6 +32,7 @@ type UncheckedAddedCVE struct {
 	Software   string          `json:"software"`
 	Version    string          `json:"version"`
 	Reason     UncheckedReason `json:"reason"`
+	NVDPending bool            `json:"nvd_pending,omitempty"` // no_nvd_data while NVD has not answered yet: say "waiting for NVD's data"
 }
 
 // CreatedEvent is the payload of findings.finding.created.

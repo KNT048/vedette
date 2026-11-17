@@ -12,3 +12,5 @@ CREATE TABLE fnd_unchecked_seen (
 ) WITHOUT ROWID;
 INSERT OR IGNORE INTO fnd_unchecked_seen (asset_id, cve, first_seen) SELECT asset_id, cve, updated_at FROM fnd_unchecked;
 INSERT OR IGNORE INTO fnd_unchecked_seen (asset_id, cve, first_seen) SELECT asset_id, cve, first_seen FROM fnd_finding;
+-- review r2 M1: no_nvd_data while NVD has not answered for the CVE yet ("waiting for NVD's data"), not "NVD has no data"
+ALTER TABLE fnd_unchecked ADD COLUMN nvd_pending INTEGER NOT NULL DEFAULT 0 CHECK (nvd_pending IN (0, 1));

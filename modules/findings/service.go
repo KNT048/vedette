@@ -490,7 +490,7 @@ func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, age
 		// ranges gone in one pull, a version that became unreadable) stays for the next match, never flip-flops; a person's reopen stands.
 		// A product finding on a row the agent reported (AgentRow) is no exception any more (D-602 replaces D-617's): the agent gave a
 		// version Vedette could not compare, which is no version evidence.
-		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" }) {
+		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent || personKept(r.History) {
 			continue
 		}
 		was := r.Status
@@ -535,7 +535,7 @@ func (s *Service) closeNameOnly(ctx context.Context, tx *sql.Tx, assetID string,
 			return closed, err
 		}
 		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent ||
-			slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" }) {
+			personKept(r.History) {
 			continue
 		}
 		was := r.Status
@@ -561,6 +561,14 @@ func (s *Service) closeNameOnly(ctx context.Context, tx *sql.Tx, assetID string,
 		closed++
 	}
 	return closed, nil
+}
+
+// personKept says a person kept the finding open: reopened it, or accepted its risk (review r2 L3 of #939: an expired acceptance reopens
+// as the system, and closing it an hour after "open again" was told would contradict the notice). The age rule and D-602 never close it.
+func personKept(hist []HistoryEntry) bool {
+	return slices.ContainsFunc(hist, func(h HistoryEntry) bool {
+		return h.User != SystemUser && (h.Action == "reopened" || h.Action == string(StatusRiskAccepted))
+	})
 }
 
 // noteNoLongerMatching records, once, that a suspected finding (basis version or product) is no longer produced by the

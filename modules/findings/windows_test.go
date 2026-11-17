@@ -143,7 +143,11 @@ func TestMatchAsset_D546_OutOfServiceRelease(t *testing.T) {
 		t.Errorf("weekly line of a sibling: %+v", g)
 	}
 	w, m = oneMatch(t, winPC(22000, false, "3260", "x64"), cve62215, true)
-	wantMatch(t, "11 21H2", w, m, "nameonly", BasisProduct, SeverityMedium, "newer ones among them", "check that Windows 11 21H2 is still supported")
+	// review r2 H2 of #939: 21H2 is out of service and NVD lists the releases before (Windows 10) and after (22H2 on): it has the flaw
+	wantMatch(t, "11 21H2", w, m, "existing", BasisProduct, SeverityMedium, "Microsoft no longer updates Windows 11 21H2", "move to a serviced release")
+	if !m.backed {
+		t.Error("11 21H2: no version evidence")
+	}
 }
 
 // Review H2: siblings on one build line are read with the device's revision; NVD names 25H2 and Server 2022 23H2 as the table does.

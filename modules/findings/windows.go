@@ -249,8 +249,9 @@ type winVerdict struct {
 	via    string // the sibling releases whose rows decided ("Windows 11 24H2"); "" when the device's own did
 	build  int    // Yes: the build of the range that matched (a sibling's when via is set)
 	note   string // the evidence of an Unknown that says more than "not checked", or of a proofRelease close
-	// later: the Unknown's note is winLaterNote's: NVD gives the fix build of the release of the other kind on the same build, and the
-	// device's revision is below it. That is version evidence (D-602: the finding stands though its basis stays product).
+	// later: version evidence behind an Unknown (D-602: the finding stands though its basis stays product): winLaterNote's (NVD gives
+	// the fix build of the release of the other kind on the same build, and the device's revision is below it), or an ended release NVD's
+	// list brackets with releases of its kind before and after it (review r2 H2 of #939: no update brings it the fix).
 	later bool
 }
 
@@ -267,10 +268,11 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	undecidable, allWindows := false, true
 	newest := 0 // the highest build of the other releases the entry lists
 	var others []string
-	unknownWin := false // a Windows row of a release the table does not know, or a family row
-	var pinned []string // rows of another product at one stated version, no range ("interix 2.2"): D-610 only
-	looseOther := false // rows of another product at any version or in a range
-	listedYear := 0     // the latest year one of the listed other releases came out (winOldYear for the ones before Windows 10)
+	var below, above []string // review r2 H2 of #939: other releases of the device's kind (client or server), by build
+	unknownWin := false       // a Windows row of a release the table does not know, or a family row
+	var pinned []string       // rows of another product at one stated version, no range ("interix 2.2"): D-610 only
+	looseOther := false       // rows of another product at any version or in a range
+	listedYear := 0           // the latest year one of the listed other releases came out (winOldYear for the ones before Windows 10)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
@@ -292,6 +294,9 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 			}
 		case l.build == 0 && !l.old:
 			allWindows, unknownWin = false, true
+			if !l.server && !d.rel.Server && l.family == "" && strings.HasPrefix(l.product, "windows_11_") {
+				above = appendOnce(above, l.product) // a release newer than the table (windows_11_26h1)
+			}
 			undecidable = undecidable || l.mayBe(d)
 		case l.old:
 			others = appendOnce(others, l.product)
@@ -306,6 +311,11 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		default:
 			newest = max(newest, l.build)
 			others = appendOnce(others, l.product)
+			if l.server == d.rel.Server && l.build < d.rel.Build {
+				below = appendOnce(below, l.product) // review r2 H2 of #939: a release of the same kind before the device's
+			} else if l.server == d.rel.Server {
+				above = appendOnce(above, l.product)
+			}
 			if r, ok := winrel.ByBuild(l.build, l.server); ok {
 				listedYear = max(listedYear, r.GA.Year())
 			} else {
@@ -363,6 +373,11 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		return winVerdict{t: Unknown, note: note, later: true}, true
 	}
 	switch {
+	case d.ended() && len(below) > 0 && len(above) > 0: // whatever else the list names (another product, a release the table lacks)
+		// review r2 H2 of #939: NVD's list brackets the device's release with releases of its kind before and after it, all fixed by
+		// monthly updates, and Microsoft no longer services the device's release: no update brings the fix to it, so it has the flaw
+		return winVerdict{t: Unknown, later: true, note: fmt.Sprintf("Microsoft no longer updates %s. NVD lists %s for the Windows releases before and after it (%s), which Microsoft fixed with updates %s never gets, so this device has the flaw: move to a serviced release.",
+			d.rel.Display, v.CVE, winNames(append(slices.Clone(below), above...)), d.rel.Display)}, true
 	case !allWindows || undecidable || newest == d.rel.Build:
 		return winVerdict{t: Unknown}, true // as before D-546: not checked
 	case newest > d.rel.Build:

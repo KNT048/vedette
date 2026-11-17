@@ -85,7 +85,7 @@ func TestMatchAsset_N52_AgentRowProductMatch(t *testing.T) {
 	sw := func(source string) Asset {
 		return Asset{ID: "a", Name: "byn", Software: []Software{{ID: "s", Display: "Acme Server", Vendor: "acme", Product: "server", Version: "2016", Source: source, KevKeys: []string{"acme|server"}}}}
 	}
-	v := Vuln{CVE: "CVE-2026-11111", Vendor: "Acme", Product: "Server", DateAdded: winDay("2026-10-01")} // no NVD data: product match
+	v := Vuln{CVE: "CVE-2026-11111", Vendor: "Acme", Product: "Server", DateAdded: winDay("2026-10-01"), NVDAnswered: true} // NVD has no data: product match
 	for _, tc := range []struct {
 		source string
 		want   bool

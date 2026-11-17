@@ -164,7 +164,10 @@ export const UncheckedReason = z.enum([
   'not_named',       // NVD's data for the CVE names other products, not this row (#920 rule 2)
   'not_comparable',  // the device's version exists but cannot be compared with NVD's ranges (version scheme)
 ])
-export const UncheckedCve = z.object({ cve: z.string(), name: z.string(), date_added: z.iso.date(), ransomware: z.boolean(), advisory: z.string().url().nullable() })
+export const UncheckedCve = z.object({
+  cve: z.string(), name: z.string(), date_added: z.iso.date(), ransomware: z.boolean(), advisory: z.string().url().nullable(),
+  nvd_pending: z.boolean().optional().describe('D-602: reason no_nvd_data while Vedette has not read NVD\'s answer for this CVE yet (new box, NVD feed off or failing): say "waiting for NVD\'s data", not "NVD has not published"'),
+})
 export const UncheckedItem = z.object({
   asset: FindingAsset.nullable(), asset_id: z.string(),
   software_id: z.string().nullable(), software: z.string().describe('Display name, as on the device page'),

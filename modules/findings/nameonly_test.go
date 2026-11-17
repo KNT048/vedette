@@ -332,3 +332,121 @@ func TestContract_D602_NewUncheckedIsAnnouncedOnce(t *testing.T) {
 		t.Fatalf("seen rows left after the delete: %d", n)
 	}
 }
+
+// Review r2 H1 of #939: a version inside the range of every edition or track NVD pins for one of the row's products is version
+// evidence, though the row does not say which edition it is: a version finding whose sentence names the pinned values. NVD's real rows
+// (N100 copy, 2026-11-16). Firefox ESR against "-" stays as #906 decided (TestNA_ApplicationEditionAsMain).
+func TestMatchAsset_D602_PinnedEditionStillDecides(t *testing.T) {
+	t.Parallel()
+	rows := func(cve, vendor, product string, aff ...[3]string) Vuln {
+		v := Vuln{CVE: cve, Vendor: vendor, Product: product, NVDAnswered: true}
+		for _, a := range aff {
+			v.Affected = append(v.Affected, Affected{CPE: a[0], Range: VersionRange{StartIncl: a[1], EndExcl: a[2]}})
+		}
+		return v
+	}
+	acrobat := rows("CVE-2026-34621", "Adobe", "Acrobat and Reader",
+		[3]string{"cpe:2.3:a:adobe:acrobat_dc:*:*:*:*:continuous:*:*:*", "", "26.001.21411"},
+		[3]string{"cpe:2.3:a:adobe:acrobat_reader_dc:*:*:*:*:continuous:*:*:*", "", "26.001.21411"},
+		[3]string{"cpe:2.3:a:adobe:acrobat:*:*:*:*:classic:*:*:*", "24.0.0", "24.001.30362"},
+		[3]string{"cpe:2.3:a:adobe:acrobat:*:*:*:*:classic:*:*:*", "24.0.0", "24.001.30360"})
+	gitlab := rows("CVE-2021-39935", "GitLab", "Community and Enterprise Editions",
+		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:community:*:*:*", "10.5.0", "14.3.6"},
+		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:enterprise:*:*:*", "10.5.0", "14.3.6"},
+		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:community:*:*:*", "14.4.0", "14.4.4"},
+		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:enterprise:*:*:*", "14.4.0", "14.4.4"},
+		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:community:*:*:*", "14.5.0", "14.5.2"},
+		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:enterprise:*:*:*", "14.5.0", "14.5.2"})
+	row := func(display, vendor, product, ver, source string, v Vuln) Asset {
+		return Asset{ID: "a", Name: "pc", Software: []Software{{ID: "s", Display: display, Vendor: vendor, Product: product, Version: ver, Source: source,
+			KevKeys: []string{KevKey(v.Vendor, v.Product)}}}}
+	}
+	for _, tc := range []struct {
+		name string
+		a    Asset
+		v    Vuln
+		says string // "" = no finding
+	}{
+		{"Acrobat Reader DC 24.002.20759 (agent)", row("Adobe Acrobat Reader DC", "Adobe", "Acrobat and Reader", "24.002.20759", "agent", acrobat), acrobat, "for continuous only"},
+		{"Acrobat Reader DC 26.001.21411 (fixed)", row("Adobe Acrobat Reader DC", "Adobe", "Acrobat and Reader", "26.001.21411", "agent", acrobat), acrobat, ""},
+		{"GitLab 14.3.0 (nmap)", row("GitLab", "GitLab", "GitLab", "14.3.0", "nmap", gitlab), gitlab, "for community or enterprise only"},
+		{"GitLab 14.3.6 (fixed)", row("GitLab", "GitLab", "GitLab", "14.3.6", "nmap", gitlab), gitlab, ""},
+	} {
+		r := MatchAsset(tc.a, []Vuln{tc.v}, nil, t0)
+		if tc.says == "" {
+			if len(r.New)+len(r.NameOnly) != 0 {
+				t.Errorf("%s: %+v", tc.name, r)
+			}
+			continue
+		}
+		if len(r.New) != 1 || r.New[0].Basis != BasisVersion || !strings.Contains(r.New[0].Evidence.Summary, tc.says) || r.New[0].Evidence.Agent {
+			t.Errorf("%s: %+v", tc.name, r)
+		}
+	}
+	// one pinned edition whose ranges leave the version out (the attribute would decide): not evidence
+	mixed := rows("CVE-2099-0101", "GitLab", "Community and Enterprise Editions",
+		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:community:*:*:*", "10.5.0", "14.3.6"},
+		[3]string{"cpe:2.3:a:gitlab:gitlab:*:*:*:*:enterprise:*:*:*", "10.5.0", "14.2.0"})
+	if r := MatchAsset(row("GitLab", "GitLab", "GitLab", "14.3.0", "nmap", mixed), []Vuln{mixed}, nil, t0); len(r.New) != 0 || len(r.NameOnly) != 1 {
+		t.Errorf("mixed editions: %+v", r)
+	}
+}
+
+// Review r2 H2 of #939: an out-of-service Windows release (Windows 11 21H2) that NVD's list brackets with releases of its kind before
+// and after it has the flaw (no update brings it the fix): a finding with that sentence, kept by the age rule. Listed only for newer
+// releases (a feature it may not have), it stays "could not be checked".
+func TestMatchAsset_D602_EndedWindowsBracketedIsAFinding(t *testing.T) {
+	t.Parallel()
+	pc := winPC(22000, false, "2538", "x64")
+	clfs := nvdWindows("CVE-2025-29824", "2025-04-08", nvdRow{"windows_10_21h2", "*", "x64", "10.0.19044.5737"}, nvdRow{"windows_11_22h2", "*", "x64", "10.0.22621.5189"},
+		nvdRow{"windows_11_24h2", "*", "x64", "10.0.26100.3775"}, nvdRow{"windows_server_2025", "*", "x64", "10.0.26100.3775"})
+	clfs.Published = winDay("2025-04-08")
+	w, m := oneMatch(t, pc, clfs, false, cve62215)
+	wantMatch(t, "21H2 bracketed", w, m, "new", BasisProduct, SeverityMedium, "Microsoft no longer updates Windows 11 21H2", "Windows 10 21H2", "move to a serviced release")
+	if !versionBacked(m) {
+		t.Error("bracketed: no version evidence")
+	}
+	newer := nvdWindows("CVE-2099-0102", "2026-10-01", nvdRow{"windows_11_22h2", "*", "x64", "10.0.22621.5189"}, nvdRow{"windows_11_24h2", "*", "x64", "10.0.26100.3775"})
+	if w, _ := oneMatch(t, pc, newer, false, cve62215); w != "nameonly" {
+		t.Errorf("newer releases only: %s", w)
+	}
+	// a serviced release (23H2) is read by its own rows, as before
+	if w, _ := oneMatch(t, winPC(22631, false, "5189", "x64"), clfs, false, cve62215); w != "none" {
+		t.Errorf("23H2 at the fix: %s", w)
+	}
+}
+
+// Review r2 M1 of #939: before NVD has answered for a CVE, its could-not-check row says Vedette is waiting for NVD's data (nvd_pending),
+// not that NVD has none; once NVD answered with nothing, it says that.
+func TestUnchecked_D602_WaitingForNVD(t *testing.T) {
+	t.Parallel()
+	pending := qnapVuln()
+	answered := qnapVuln()
+	answered.CVE, answered.NVDAnswered = "CVE-2023-0006", true
+	r := MatchAsset(nas("6.1.1"), []Vuln{pending, answered}, nil, t0)
+	got := uncByCVE(r.Unchecked)
+	if u := got["s-1 "+pending.CVE]; u.Reason != UncheckedNoNVDData || !u.NVDPending {
+		t.Errorf("pending: %+v", u)
+	}
+	if u := got["s-1 "+answered.CVE]; u.Reason != UncheckedNoNVDData || u.NVDPending {
+		t.Errorf("answered: %+v", u)
+	}
+	for _, m := range r.NameOnly {
+		want := map[string]string{pending.CVE: "Vedette is waiting for NVD's data for " + pending.CVE, answered.CVE: "NVD has not published which products " + answered.CVE}[m.CVE]
+		if !strings.Contains(m.Evidence.Summary, want) {
+			t.Errorf("%s: %q", m.CVE, m.Evidence.Summary)
+		}
+	}
+	e := newEnv(t)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{pending}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := e.svc.ListUnchecked(t.Context(), "a-1")
+	if err != nil || len(rows) != 1 || !rows[0].NVDPending {
+		t.Fatalf("stored: %+v %v", rows, err)
+	}
+	items := UncheckedItems(rows, map[string]KevInfo{pending.CVE: {Name: "x", DateAdded: "2022-09-01"}}, nil)
+	if len(items) != 1 || !items[0].CVEs[0].NVDPending {
+		t.Fatalf("items: %+v", items)
+	}
+}

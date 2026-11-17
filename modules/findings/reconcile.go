@@ -348,7 +348,7 @@ func (s *Service) deleteWithin(ctx context.Context, id string) (int, error) {
 
 // orphanAssets lists the devices that have findings, "add the version" items or unchecked rows but are not in live, in id order.
 func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]string, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT asset_id FROM fnd_finding UNION SELECT asset_id FROM fnd_version_needed UNION SELECT asset_id FROM fnd_unchecked ORDER BY asset_id`)
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT asset_id FROM fnd_finding UNION SELECT asset_id FROM fnd_version_needed UNION SELECT asset_id FROM fnd_unchecked UNION SELECT asset_id FROM fnd_unchecked_seen ORDER BY asset_id`)
 	if err != nil {
 		return nil, fmt.Errorf("findings: reconcile: reading the devices with findings: %w", err)
 	}

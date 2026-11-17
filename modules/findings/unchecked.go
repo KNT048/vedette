@@ -35,6 +35,9 @@ type Unchecked struct {
 	Version    string // the row's version as stored, "" when none
 	Source     string // Software.Source: "manual" lets a person retype the version (action add_version)
 	Reason     UncheckedReason
+	// NVDPending: no_nvd_data while NVD has not answered for the CVE (Vuln.NVDAnswered false: a new box, the NVD feed off or failing):
+	// Vedette is waiting for NVD's data, NVD has not said it has none (review r2 M1 of #939).
+	NVDPending bool
 }
 
 // uncheckedRow says whether row s, read against v with outcome out (matchOne), is one the device has but Vedette could not check,
@@ -145,7 +148,8 @@ func rowEntries(s Software, in swInfo, v Vuln) []Affected {
 }
 
 func uncheckedOf(s Software, v Vuln, r UncheckedReason) Unchecked {
-	return Unchecked{CVE: v.CVE, SoftwareID: s.ID, Software: clean(s.Display), Version: clean(s.Version), Source: s.Source, Reason: r}
+	return Unchecked{CVE: v.CVE, SoftwareID: s.ID, Software: clean(s.Display), Version: clean(s.Version), Source: s.Source, Reason: r,
+		NVDPending: r == UncheckedNoNVDData && !v.NVDAnswered}
 }
 
 // replaceUnchecked rewrites the unchecked rows of one device from a match run, in the run's transaction (like version-needed).
@@ -160,8 +164,8 @@ func replaceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []U
 			continue
 		}
 		seen[k] = true
-		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_unchecked (asset_id, software_id, software, version, source, reason, cve, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			assetID, u.SoftwareID, u.Software, u.Version, u.Source, string(u.Reason), u.CVE, store.FormatTS(now)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_unchecked (asset_id, software_id, software, version, source, reason, cve, updated_at, nvd_pending) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			assetID, u.SoftwareID, u.Software, u.Version, u.Source, string(u.Reason), u.CVE, store.FormatTS(now), u.NVDPending); err != nil {
 			return fmt.Errorf("findings: storing an unchecked row: %w", err)
 		}
 	}
@@ -203,7 +207,7 @@ func announceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []
 			return nil, fmt.Errorf("findings: recording an unchecked CVE: %w", err)
 		}
 		if !has {
-			out = append(out, UncheckedAddedCVE{CVE: u.CVE, SoftwareID: u.SoftwareID, Software: u.Software, Version: u.Version, Reason: u.Reason})
+			out = append(out, UncheckedAddedCVE{CVE: u.CVE, SoftwareID: u.SoftwareID, Software: u.Software, Version: u.Version, Reason: u.Reason, NVDPending: u.NVDPending})
 		}
 	}
 	return out, nil
@@ -225,7 +229,7 @@ type UncheckedRow struct {
 // ListUnchecked returns the unchecked rows of one device, or of every device when assetID is empty, without those the device
 // has a finding for.
 func (s *Service) ListUnchecked(ctx context.Context, assetID string) ([]UncheckedRow, error) {
-	q := `SELECT u.asset_id, u.software_id, u.software, u.version, u.source, u.reason, u.cve` + uncheckedLive
+	q := `SELECT u.asset_id, u.software_id, u.software, u.version, u.source, u.reason, u.cve, u.nvd_pending` + uncheckedLive
 	var args []any
 	if assetID != "" {
 		q += ` AND u.asset_id = ?`
@@ -240,7 +244,7 @@ func (s *Service) ListUnchecked(ctx context.Context, assetID string) ([]Unchecke
 	for rows.Next() {
 		var r UncheckedRow
 		var reason string
-		if err := rows.Scan(&r.AssetID, &r.SoftwareID, &r.Software, &r.Version, &r.Source, &reason, &r.CVE); err != nil {
+		if err := rows.Scan(&r.AssetID, &r.SoftwareID, &r.Software, &r.Version, &r.Source, &reason, &r.CVE, &r.NVDPending); err != nil {
 			return nil, fmt.Errorf("findings: reading unchecked rows: %w", err)
 		}
 		r.Reason = UncheckedReason(reason)
@@ -299,6 +303,7 @@ type UncheckedCVE struct {
 	DateAdded  string  `json:"date_added"`
 	Ransomware bool    `json:"ransomware"`
 	Advisory   *string `json:"advisory"`
+	NVDPending bool    `json:"nvd_pending,omitempty"` // review r2 M1 of #939: no_nvd_data because NVD has not answered yet
 }
 
 // UncheckedItem is contract.ts UncheckedItem: one device × software × reason.
@@ -328,7 +333,7 @@ func UncheckedItems(rows []UncheckedRow, kev map[string]KevInfo, assets map[stri
 		if _, err := time.Parse(time.DateOnly, k.DateAdded); !ok || err != nil {
 			continue // the exploited list no longer has it (or no date to show)
 		}
-		c := UncheckedCVE{CVE: r.CVE, Name: k.Name, DateAdded: k.DateAdded, Ransomware: k.Ransomware}
+		c := UncheckedCVE{CVE: r.CVE, Name: k.Name, DateAdded: k.DateAdded, Ransomware: k.Ransomware, NVDPending: r.NVDPending}
 		if len(k.Links) > 0 {
 			if u, err := url.Parse(strings.TrimSpace(k.Links[0])); err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != "" {
 				l := u.String()

@@ -99,7 +99,7 @@ func TestMatchAsset_904_WindowsEntryNVDListsOthersOnly(t *testing.T) {
 	m := res.NameOnly[0]
 	want := "CISA lists this flaw for Microsoft Windows, but NVD lists CVE-2026-43890 for app installer only, not Windows Server 2025; check the vendor advisory and close it if it does not apply."
 	if m.Basis != BasisProduct || !m.Evidence.AgentRow || confirmedMatch(m) || !strings.Contains(m.said, want) ||
-		!strings.Contains(m.Evidence.Summary, "NVD's data for CVE-2026-43890 names other products, not Windows Server 2025") {
+		!strings.Contains(m.Evidence.Summary, "NVD lists CVE-2026-43890 for app installer, names Vedette does not tie to Windows Server 2025") {
 		t.Errorf("recent: basis %s agent_row %v confirmed %v %q %q", m.Basis, m.Evidence.AgentRow, confirmedMatch(m), m.said, m.Evidence.Summary)
 	}
 	if len(res.Unchecked) != 1 || res.Unchecked[0].Reason != UncheckedNotNamed {

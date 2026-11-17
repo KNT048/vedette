@@ -344,7 +344,7 @@ func TestExposureMatcher_D616_OldKEVOnlyProductOnlyIsRuledOut(t *testing.T) {
 	m.vulns = func(context.Context) ([]findings.Vuln, error) { return productOnly(now.AddDate(0, -2, 0)), nil }
 	// D-602: a recent one is no finding on the product name alone either, with its own reason
 	if got, err = m.Match(t.Context(), exposureFixtureServices[2:]); err != nil || len(got.Vulns) != 0 || len(got.RuledOut) != 1 ||
-		!strings.Contains(got.RuledOut[0].Reason, "NVD has not published which products CVE-2021-41773 affects yet") {
+		!strings.Contains(got.RuledOut[0].Reason, "Vedette is waiting for NVD's data for CVE-2021-41773") {
 		t.Fatalf("recent CVE, product only: %+v %v", got, err)
 	}
 }

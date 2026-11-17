@@ -317,6 +317,8 @@ const NameOnlyNote = "Closed: no version evidence"
 func nameOnlyWhy(s Software, in swInfo, v Vuln, r UncheckedReason, listed bool) string {
 	sw := clean(s.Display)
 	switch {
+	case len(v.Affected) == 0 && !v.NVDAnswered: // review r2 M1 of #939: Vedette has not read NVD's answer, NVD may have one
+		return fmt.Sprintf("Vedette is waiting for NVD's data for %s", v.CVE)
 	case !listed && len(v.Affected) == 0 || r == UncheckedNoNVDData:
 		return fmt.Sprintf("NVD has not published which products %s affects yet", v.CVE)
 	}
@@ -333,8 +335,8 @@ func nameOnlyWhy(s Software, in swInfo, v Vuln, r UncheckedReason, listed bool) 
 			return fmt.Sprintf("NVD lists %s for %s without versions Vedette can compare with %s", sw, v.CVE, clean(in.ver))
 		}
 		return fmt.Sprintf("NVD lists %s for %s without versions", sw, v.CVE)
-	case UncheckedNotNamed:
-		return fmt.Sprintf("NVD's data for %s names other products, not %s", v.CVE, sw)
+	case UncheckedNotNamed: // review r2 L6 of #939: the products may be this one under a name Vedette does not tie to it
+		return fmt.Sprintf("NVD lists %s for %s, names Vedette does not tie to %s", v.CVE, nvdProducts(v.Vendor, v.Affected), sw)
 	}
 	return fmt.Sprintf("Vedette cannot compare version %s of %s with the versions NVD lists for %s", clean(in.ver), sw, v.CVE)
 }
@@ -900,8 +902,14 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	multi := isMultiProduct(v.Product)
 	w, isWin := windowsDecide(in, v, in.winNamed, now) // D-546: a Windows release row by its monthly update
 	tri, within, every, proof := w.t, w.within, false, w.proof
+	pinned := "" // review r2 H1 of #939: the version is inside whatever the edition or target the row does not state
 	if !isWin {
 		tri, within, every, proof = decide(in, v, key)
+		if tri == Unknown && in.given && v.RangesFrom == "" {
+			if r, attrs, ok := pinnedInside(in, v, key); ok {
+				tri, within, pinned = Yes, r, attrs
+			}
+		}
 	}
 	if tri == No && v.RangesFrom == RangesCVEOrgPartial { // the CNA's list may skip branches: outside it proves nothing (D-556)
 		tri, proof = Unknown, proofNone
@@ -946,13 +954,16 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 			m.Severity = SeverityCritical
 		}
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()))
+		if pinned != "" {
+			m.Evidence.Summary = fmt.Sprintf("%s runs %s. NVD lists %s for %s only; Vedette cannot tell which one this is, but the version is inside the affected range of each (%s); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, pinned, clean(within.String()))
+		}
 		if w.via != "" {
 			m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s, read with the range NVD gives %s, which takes the same monthly update); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()), w.via)
 		}
 		// D-548: the device's own agent reports what is installed; a detection, not a guess. Not when NVD gives no end to the range
 		// (every version: no fix to name, review r1 #7), nor while a platform condition is open (a platform-limited CVE whose
 		// platform the agent does not name as one it affects: the person still has to check it, review r1 #5).
-		if s.Source == "agent" && (within.EndExcl != "" || within.EndIncl != "") && platformSettled(in, v.CVE) {
+		if s.Source == "agent" && pinned == "" && (within.EndExcl != "" || within.EndIncl != "") && platformSettled(in, v.CVE) {
 			m.Evidence.Agent = true
 			m.Evidence.Summary = agentSummary(name, s, in, v, within, w, isWin)
 		}
@@ -1142,6 +1153,115 @@ func listsOthersOnly(in swInfo, v Vuln) bool {
 		}
 	}
 	return len(v.Affected) > 0
+}
+
+// pinnedInside is review r2 H1 of #939: decide says Unknown only because NVD pins an edition, track or target (sw_edition "continuous",
+// "community", target_hw "x64") the row does not state, yet for some product of the row's own names each pinned value NVD lists has a
+// range the version is inside: whatever that attribute is on the device, the version is affected, which is version evidence. It
+// returns the widest range that matched and the pinned values ("community or enterprise"). Never when an entry of that product pins NA
+// ("-", the plain edition: Firefox not ESR, Jenkins not LTS, #906: the editions have ranges of their own and inventory cannot tell
+// them apart), when one pinned value has no range the version is inside (the attribute would decide), or when an entry cannot be read.
+func pinnedInside(in swInfo, v Vuln, key []identity) (VersionRange, string, bool) {
+	type state struct {
+		bad  bool
+		sets map[string]bool // pinned values -> the version is inside one of their ranges
+		keys []string
+		r    VersionRange
+	}
+	byProduct := map[string]*state{}
+	var order []string
+	for _, af := range v.Affected {
+		c, err := af.cpe()
+		if err != nil || c.Part.Kind == NA {
+			return VersionRange{}, "", false
+		}
+		own, _, known := entryFor(c, in, key)
+		if !known {
+			return VersionRange{}, "", false
+		}
+		if !own {
+			continue
+		}
+		vn, _ := c.Vendor.Literal()
+		p, _ := c.Product.Literal()
+		k := norm(vn) + ":" + norm(p)
+		st, ok := byProduct[k]
+		if !ok {
+			st = &state{sets: map[string]bool{}}
+			byProduct[k] = st
+			order = append(order, k)
+		}
+		vals, ok := pinnedValues(c, in)
+		if !ok {
+			st.bad = true
+			continue
+		}
+		t, r := evalAffected(stripPins(c), af.Range, in.ver, in.cpe, in.hasCPE)
+		if t == Unknown {
+			st.bad = true
+			continue
+		}
+		if len(vals) == 0 {
+			continue // a row of every edition: it would have said Yes itself; its No is another branch
+		}
+		set := strings.Join(vals, " ")
+		if _, seen := st.sets[set]; !seen {
+			st.sets[set] = false
+			st.keys = append(st.keys, set)
+		}
+		if t == Yes {
+			st.sets[set] = true
+			if st.r == (VersionRange{}) || widerEnd(r, st.r) {
+				st.r = r
+			}
+		}
+	}
+	for _, k := range order {
+		st := byProduct[k]
+		if st.bad || len(st.sets) == 0 || !endBound(st.r) {
+			continue
+		}
+		all := true
+		for _, set := range st.keys {
+			all = all && st.sets[set]
+		}
+		if all {
+			return st.r, orList(st.keys), true
+		}
+	}
+	return VersionRange{}, "", false
+}
+
+// pinnedValues are the attributes after the version (edition, language, sw_edition, target, other) that c pins to a value the row
+// does not state; ok is false when one of them is NA ("-").
+func pinnedValues(c CPE, in swInfo) (vals []string, ok bool) {
+	cfa := c.fields()
+	cf := cfa[5:]
+	var sf []*Attr
+	if in.hasCPE {
+		sfa := in.cpe.fields()
+		sf = sfa[5:]
+	}
+	for i, a := range cf {
+		if a.Kind == Any || in.hasCPE && attrMatch(*a, *sf[i]) {
+			continue
+		}
+		if a.Kind != Value {
+			return nil, false
+		}
+		lit, _ := a.Literal()
+		vals = append(vals, clean(lit))
+	}
+	return vals, true
+}
+
+// stripPins is c with every attribute after the version set to ANY.
+func stripPins(c CPE) CPE {
+	f := c.fields()
+	for _, a := range f[5:] {
+		*a = Attr{Kind: Any}
+	}
+	return c
 }
 
 // versionDecides says whether a version of the row could decide v (review r1 M3 of #939): an entry decide reads for it (its own, or

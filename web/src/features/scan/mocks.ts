@@ -431,7 +431,14 @@ export const handlers = [
 
   http.get(`${API}/scans/targets`, () => { const d = guard('viewer'); return d ?? HttpResponse.json({ items: targets() }) }),
 
-  http.get(`${API}/scans/runs`, () => { const d = guard('viewer'); return d ?? HttpResponse.json({ items: allRuns().map(strip), engine_busy: engineBusy() }) }),
+  http.get(`${API}/scans/runs`, ({ request }) => {
+    const d = guard('viewer')
+    if (d) return d
+    // kien G7b/c: ?asset= keeps the runs that had the device among their targets (the box's RunsOf)
+    const asset = new URL(request.url).searchParams.get('asset')
+    const list = asset === null ? allRuns() : allRuns().filter((r) => r.target_ids.includes(asset))
+    return HttpResponse.json({ items: list.slice(0, 100).map(strip), engine_busy: engineBusy() })
+  }),
 
   http.post(`${API}/scans/runs`, async ({ request }) => {
     const d = guard('operator'); if (d) return d

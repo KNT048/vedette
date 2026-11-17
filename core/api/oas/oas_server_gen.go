@@ -2260,10 +2260,10 @@ type Handler interface {
 	ScanGetScansProbesCsv(ctx context.Context) (ScanGetScansProbesCsvOK, error)
 	// ScanGetScansRuns implements scan_get_scans_runs operation.
 	//
-	// Scan history and the running scan, with per-device results.
+	// Scan history and the running scan, with per-device results: the newest 100 runs.
 	//
 	// GET /scans/runs
-	ScanGetScansRuns(ctx context.Context) (*ScanGetScansRunsOK, error)
+	ScanGetScansRuns(ctx context.Context, params ScanGetScansRunsParams) (*ScanGetScansRunsOK, error)
 	// ScanGetScansTargets implements scan_get_scans_targets operation.
 	//
 	// Scannable targets and why others are not (unapproved device, out of scope, external IP the box has

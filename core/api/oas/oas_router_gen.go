@@ -19486,7 +19486,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = ScanGetScansRunsOperation
-									r.summary = "Scan history and the running scan, with per-device results"
+									r.summary = "Scan history and the running scan, with per-device results: the newest 100 runs"
 									r.operationID = "scan_get_scans_runs"
 									r.operationGroup = ""
 									r.pathPattern = "/scans/runs"

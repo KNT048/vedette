@@ -79017,7 +79017,7 @@
     "/scans/runs": {
       "get": {
         "operationId": "scan_get_scans_runs",
-        "summary": "Scan history and the running scan, with per-device results",
+        "summary": "Scan history and the running scan, with per-device results: the newest 100 runs",
         "tags": [
           "scan"
         ],
@@ -79027,6 +79027,18 @@
           "S-SCAN-4"
         ],
         "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "A device id (kien G7b/c, the device page's Last checks): only the runs that had this device among their targets, the newest 100 of them, however many runs of other devices came after",
+              "type": "string",
+              "maxLength": 96
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",

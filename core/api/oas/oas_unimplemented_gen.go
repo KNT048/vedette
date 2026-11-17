@@ -3261,10 +3261,10 @@ func (UnimplementedHandler) ScanGetScansProbesCsv(ctx context.Context) (r ScanGe
 
 // ScanGetScansRuns implements scan_get_scans_runs operation.
 //
-// Scan history and the running scan, with per-device results.
+// Scan history and the running scan, with per-device results: the newest 100 runs.
 //
 // GET /scans/runs
-func (UnimplementedHandler) ScanGetScansRuns(ctx context.Context) (r *ScanGetScansRunsOK, _ error) {
+func (UnimplementedHandler) ScanGetScansRuns(ctx context.Context, params ScanGetScansRunsParams) (r *ScanGetScansRunsOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

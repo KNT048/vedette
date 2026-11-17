@@ -515,7 +515,7 @@ func (s *Service) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
 	limit = clamp(limit, 1, 500)
 	out := []JobRow{}
 	for _, kind := range []string{KindSweep, KindDevice, KindSNMP} {
-		rows, err := s.jobHeads(ctx, `WHERE kind = ? ORDER BY started_at DESC LIMIT ?`, kind, limit)
+		rows, err := s.jobHeads(ctx, `WHERE kind = ? ORDER BY started_at DESC, rowid DESC LIMIT ?`, kind, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -529,24 +529,25 @@ func (s *Service) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
 }
 
 // snmpReadsScanned is how many of the newest SNMP reads JobsAt looks through: a read keeps its addresses as a compact list with
-// ranges, which SQL cannot match, so they are matched here. A window's round a day and the reads a person asks for fit a year.
+// ranges, which SQL cannot match, so they are matched here. An older read of the address is not found (the contract says so).
 const snmpReadsScanned = 1000
 
 // JobsAt lists the LAN jobs that reached addr (kien G7b/c, the device page's Last checks), newest first, at most limit (1..500) of
 // each kind: the identifications of that address (kind device: Check this device now, the window's queue, the first step of a
-// vulnerability check) and the SNMP reads that asked it (rounds, Read now, a credential Test). No sweep: it reaches every address
-// of the scope and identifies nothing. Read only; the probes, and so the jobs, are kept ProbeRetention.
+// vulnerability check) and the SNMP reads that asked it (rounds, Read now, a credential Test) among the newest snmpReadsScanned
+// reads. No sweep: it reaches every address of the scope and identifies nothing. Read only; the probes, and so the jobs, are kept
+// ProbeRetention. Two jobs started in the same millisecond come newest row first.
 func (s *Service) JobsAt(ctx context.Context, addr netip.Addr, limit int) ([]JobRow, error) {
 	limit = clamp(limit, 1, 500)
 	out, err := s.jobHeads(ctx, `j WHERE kind = ? AND EXISTS (SELECT 1 FROM sa_probe p WHERE p.job_id = j.id AND p.targets = ?)
-ORDER BY started_at DESC LIMIT ?`, KindDevice, addr.String(), limit)
+ORDER BY j.started_at DESC, j.rowid DESC LIMIT ?`, KindDevice, addr.String(), limit)
 	if err != nil {
 		return nil, err
 	}
 	if err := s.jobProbes(ctx, out); err != nil {
 		return nil, err
 	}
-	reads, err := s.jobHeads(ctx, `WHERE kind = ? ORDER BY started_at DESC LIMIT ?`, KindSNMP, snmpReadsScanned)
+	reads, err := s.jobHeads(ctx, `WHERE kind = ? ORDER BY started_at DESC, rowid DESC LIMIT ?`, KindSNMP, snmpReadsScanned)
 	if err != nil {
 		return nil, err
 	}

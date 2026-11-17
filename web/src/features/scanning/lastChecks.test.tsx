@@ -6,7 +6,7 @@ import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
 import { modulesStore, sessionStore } from '@/mocks/stores'
 import type { ScanRun } from '@/features/scan/types'
-import { historyStore } from './mocks'
+import { historyStore, markReached } from './mocks'
 
 // kien G7b/c (BN340 walk): he could not tell what the device page's two check buttons do, nor whether a check had run.
 const T = { timeout: 5000 }
@@ -30,7 +30,10 @@ describe('the device page says what each check does and when each last ran (kien
   })
 
   it('Last checks: each kind with when, the History sentence and a link; the vulnerability check counts only this device', async () => {
-    server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ engine_busy: false, items: [run({ total: 2, results: [result('a-nas02', 'CVE-2026-1001'), result('a-other', 'CVE-2026-1002'), result('a-other', 'CVE-2026-1003')] })] })))
+    // review r1 of #965 M2: the device's runs come by ?asset=, so a run older than the newest 100 of the LAN is still found
+    server.use(http.get('*/api/v1/scans/runs', ({ request }) => new URL(request.url).searchParams.get('asset') === 'a-nas02'
+      ? HttpResponse.json({ engine_busy: false, items: [run({ total: 2, results: [result('a-nas02', 'CVE-2026-1001'), result('a-other', 'CVE-2026-1002'), result('a-other', 'CVE-2026-1003')] })] })
+      : HttpResponse.json({ engine_busy: false, items: Array.from({ length: 100 }, (_, i) => run({ id: `run-other-${i}`, results: [result('a-other', 'CVE-2026-1002')] })) })))
     renderApp('/devices/a-nas02')
     const ident = await screen.findByRole('group', { name: IDENT }, T)
     expect(within(ident).getByText('Scanned 192.168.10.21: it answered; what it runs is on its device page')).toBeInTheDocument()
@@ -67,6 +70,7 @@ describe('the device page says what each check does and when each last ran (kien
 
   it('a failed device check says Failed and why, and its link opens that run on top of the device\'s History', async () => {
     historyStore.set([{ id: 'saj-fail', kind: 'device', engine: 'nmap-versions', trigger: 'person', label: '192.168.10.21', target_id: null, started_at: new Date().toISOString(), ended_at: new Date().toISOString(), outcome: 'failed', text: 'Failed: nmap gave up.' }, ...historyStore.get()])
+    markReached('saj-fail', ['192.168.10.21'])
     renderApp('/devices/a-nas02')
     const ident = await screen.findByRole('group', { name: IDENT }, T)
     expect(within(ident).getByText('Failed')).toBeInTheDocument()
@@ -82,4 +86,23 @@ describe('the device page says what each check does and when each last ran (kien
     expect(within(table).queryByText(/Swept 254 addresses/)).toBeNull()
     expect(within(table).getByText('2 of 3 devices answered over SNMP')).toBeInTheDocument()
   })
+
+  // review r1 of #965 M1, M3: a read that failed or has not answered is never shown as "Never"
+  it('History failing shows the error with Try again, never "Never"', async () => {
+    server.use(http.get('*/api/v1/scanning/history', () => HttpResponse.json({ error: { code: 'internal', message: 'The box could not read its runs.' } }, { status: 500 })))
+    renderApp('/devices/a-nas02')
+    const section = await screen.findByRole('region', { name: 'Last checks' }, T)
+    expect(await within(section).findByRole('alert', {}, T)).toHaveTextContent('The box could not read its runs.')
+    expect(within(section).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(within(section).queryByText('Never')).toBeNull()
+  })
+
+  it('only the vulnerability checks failing: that row shows the error, the others still answer', async () => {
+    server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ error: { code: 'internal', message: 'The scan list did not answer.' } }, { status: 500 })))
+    renderApp('/devices/a-nas01')
+    const vuln = await screen.findByRole('group', { name: VULN }, T)
+    expect(await within(vuln).findByRole('alert', {}, T)).toHaveTextContent('The scan list did not answer.')
+    expect(within(vuln).queryByText('Never')).toBeNull()
+  })
+
 })

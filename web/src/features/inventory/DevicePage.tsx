@@ -41,7 +41,7 @@ import { IgnoreDialog, IgnoredNotice } from './IgnoreDevice'
 import type { DeviceDetail, Observation, RegularScan, SoftwareView } from './types'
 import { RiskMarker } from './RiskMarker'
 
-/** The fragile line promises a scan only when Vedette may scan the device now, by the one rule
+/** kien G12 (n82 walk, review r1 of #944): the fragile line promises a scan only when Vedette may scan the device now, by the one rule
  *  "Check this device now" uses (scanning/canScan.ts: the device, the ranges and exclusions, the ranges confirmed, discovery on);
  *  otherwise it says why. */
 function scanHint(a: DeviceDetail['asset'], scanning: Scanning | undefined, t: (k: string) => string): string {
@@ -124,7 +124,7 @@ function Overview({ d }: { d: DeviceDetail }) {
   )
 }
 
-/** The host name the network reports (or typed when the device was added), with its source: read-only, apart from the name in
+/** G2: the host name the network reports (or typed when the device was added), with its source: read-only, apart from the name in
  *  Vedette that the title shows and Rename changes. */
 function HostName({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
@@ -139,7 +139,7 @@ function HostName({ d }: { d: DeviceDetail }) {
   )
 }
 
-/** Rename the device in Vedette where its name is, next to the page title. The name wins on every page (nameOf,
+/** G2 (kien): rename the device in Vedette where its name is, next to the page title. The name wins on every page (nameOf,
  *  inventory.DisplayName); empty goes back to the default name. Enter saves, Escape cancels. The host name the network reports is not
  *  changed. `editing` false: the Rename button; true: the field that takes the title's place. */
 function RenameDevice({ d, editing, setEditing, button }: { d: DeviceDetail; editing: boolean; setEditing: (v: boolean) => void; button: RefObject<HTMLButtonElement | null> }) {
@@ -150,8 +150,8 @@ function RenameDevice({ d, editing, setEditing, button }: { d: DeviceDetail; edi
   const [text, setText] = useState(saved) // the field mounts on Rename, so it starts from the saved name
   const fallback = nameOf({ ...d.asset, name: null }, kindLabel(d.asset.kind)) // the default name: what an empty name shows
   const next = text.trim()
-  const bad = badUserName(next) // the characters the backend refuses (#929)
-  const [refused, setRefused] = useState('') // why the server refused the last save, next to the field (#929)
+  const bad = badUserName(next) // the characters the backend refuses (review r1 of #929)
+  const [refused, setRefused] = useState('') // why the server refused the last save, next to the field (review r1 of #929)
   const field = useRef<HTMLInputElement>(null)
   const close = () => { setEditing(false); requestAnimationFrame(() => button.current?.focus()) } // focus back on Rename, which comes back
   const save = () => {
@@ -214,13 +214,13 @@ function Observations({ list }: { list: Observation[] }) {
   )
 }
 
-/** Who lists a device's open ports, for the empty state: the box lists its own, an agent lists its machine's, the active
+/** Who lists a device's open ports, for the empty state (kien 2026-11-17): the box lists its own, an agent lists its machine's, the active
  *  sensor scans the rest. */
 type PortsBy = 'box' | 'boxContainer' | 'agent' | 'fragile' | 'scan'
 
 function Services({ list, by }: { list: Service[]; by: PortsBy }) {
   const { t } = useTranslation('inventory')
-  // On the box its own ports (source agent, host INV-9b) are read by the box itself, as its software is: "This box", not "Agent".
+  // n82: on the box its own ports (source agent, host INV-9b) are read by the box itself, as its software is: "This box", not "Agent".
   const source = (sv: Service) => (by === 'box' && sv.source === 'agent' ? <span className="text-caption text-muted">{t('box.source')}</span> : <SourceBadge source={sv.source} confidence={sv.confidence} />)
   if (!list.length) {
     const [body, info] = {
@@ -255,7 +255,7 @@ function Services({ list, by }: { list: Service[]; by: PortsBy }) {
 const VERSION_RE = /^[A-Za-z0-9_.\-+() ]{1,40}$/ // the backend's versionRE: what "edit version" accepts
 const sameProduct = (a: SoftwareView, b: SoftwareView) => a.vendor.toLowerCase() === b.vendor.toLowerCase() && a.product.toLowerCase() === b.product.toLowerCase()
 
-/** A version a person typed (or left empty) that an agent or scan sees differently on the same device. */
+/** D-471: a version a person typed (or left empty) that an agent or scan sees differently on the same device. */
 function seenVersion(sw: SoftwareView, list: SoftwareView[]) {
   if (sw.source !== 'manual') return null
   const typed = (sw.version ?? '').trim().toLowerCase()
@@ -268,7 +268,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const act = useDeviceAction(d.asset.id)
   const [editing, setEditing] = useState<SoftwareView | null>(null)
   const [gone, setGone] = useState<SoftwareView | null>(null)
-  // What each software row needs, from the same answer as Findings › To fix
+  // kien G8: what each software row needs, from the same answer as Findings › To fix
   const needs = useSoftwareNeeds(d.asset.id)
   // INV-41 (6): a reported row a person said is not installed is shown once, as that "not installed" row (with Clear)
   const notInstalledIn = (sw: SoftwareView) => !!sw.correction?.not_installed
@@ -418,7 +418,7 @@ function Body() {
   const a = d.asset
   const name = nameOf(a, kindLabel(a.kind))
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
-  // Khung trang: tiêu đề → thông báo (máy là hộp, chưa duyệt) → dải số → tab ở ?tab=. Các khối module khác cắm vào (slot device.panels) nằm ở tab Overview.
+  // Khung D-464 / D-543: tiêu đề → thông báo (máy là hộp, chưa duyệt) → dải số → tab ở ?tab=. Các khối module khác cắm vào (slot device.panels) nằm ở tab Overview.
   return (
     <>
       <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2', 'S-INV-3']}
@@ -429,14 +429,14 @@ function Body() {
         editing={renaming ? <RenameDevice key="edit" d={d} editing setEditing={setRenaming} button={renameButton} /> : undefined}
         actions={<>
           {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId, asset }: the facts that say whether
-              it can be checked, from this page's own read, #877). */}
+              it can be checked, from this page's own read, #877 r1 L6). */}
           <Slot name="device.actions" props={{ assetId: a.id, asset: a }} />
-          {/* An approved device can be ignored here; a waiting one in its notice below, an ignored one is stopped there */}
+          {/* D-630: an approved device can be ignored here; a waiting one in its notice below, an ignored one is stopped there */}
           {a.approved && !a.ignored_at && !a.is_box ? <Button disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={needRole} onClick={() => setIgn(true)}><EyeOff />{t('pending.ignore')}</Button> : null}
           <Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>
         </>} />
       {a.is_box ? <BoxNotice assetId={a.id} /> : null}
-      {/* Before the approval, since merging a new row into the known device answers its approval too */}
+      {/* D-599 (#829): before the approval, since merging a new row into the known device answers its approval too */}
       <PossibleSameNotice me={{ id: a.id, name, approved: a.approved, ignored: a.ignored_at != null }} list={d.possible_same ?? []} />
       {a.ignored_at ? <IgnoredNotice d={d} /> : !a.approved ? <Approval d={d} /> : null}
       {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}
@@ -478,7 +478,7 @@ function Body() {
 function DeviceKpis({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
   const findingsOn = useModuleEnabled('findings')
-  const counts = useDeviceFindingCounts(d.asset.id) // The open findings the link opens, as the findings list counts them
+  const counts = useDeviceFindingCounts(d.asset.id) // kien G5: the open findings the link opens, as the findings list counts them
   const id = encodeURIComponent(d.asset.id)
   return (
     <KpiStrip label={t('detail.kpi.label')} items={[

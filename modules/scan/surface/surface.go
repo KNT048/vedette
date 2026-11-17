@@ -46,7 +46,7 @@ import (
 // Bounds of one scan. Nothing is cut: a domain has at most maxNames names (more is ErrTooManyNames), so at most
 // 2 × maxNames HTTP checks, and the port scan covers only verified IP targets (exposure holds at most 20). The time cap is the
 // sum of the phases at their worst, so it stops a scan only when something hangs: crt.sh twice at ctTimeout (90 s), the DNS phase
-// (dnsBudget, 60 s, which cuts itself short and says so), the port scan (20 addresses × 98 ports at dialRate, about 8 s), the
+// (dnsBudget, 60 s, which cuts itself short and says so), the port scan (20 addresses × 99 ports at dialRate, about 8 s), the
 // pages (2 × maxNames at pageTimeout, pageParallel at a time, about 113 s): about 271 s, under scanTimeout.
 const (
 	maxPageBody     = 64 << 10 // bytes read of a page
@@ -86,7 +86,7 @@ type Probe struct {
 	Addr     netip.Addr // where it went
 	Label    string     // the name asked for, or the IP
 	Kind     string     // "tcp", "http", "https", "tls", or "dns" (one row a domain scan for its lookups; Addr is then not set)
-	Request  string     // what was sent: "TCP connect to 98 ports", "GET https://www.acme.example/"; after, the open ports too
+	Request  string     // what was sent: "TCP connect to 99 ports", "GET https://www.acme.example/"; after, the open ports too
 	Answered bool       // false until something answered
 }
 
@@ -345,13 +345,13 @@ func assemble(res Result, ips []netip.Addr, open map[netip.Addr][]int, jobs []fe
 		fp := identify(a.page)
 		switch {
 		case fp != nil:
-			product[k] = fp.product
+			product[k] = fp.Product
 		case a.page.server != "" && product[k] == "":
 			product[k] = a.serverRaw
 		}
-		if fp != nil && fp.admin && !admins[j.url()] {
+		if fp != nil && fp.Admin && !admins[j.url()] {
 			admins[j.url()] = true
-			res.Admin = append(res.Admin, Admin{URL: j.url(), Product: fp.product, IP: j.ip, Port: j.port.port, Danger: fp.danger})
+			res.Admin = append(res.Admin, Admin{URL: j.url(), Product: fp.Product, IP: j.ip, Port: j.port.port, Danger: fp.Danger})
 		}
 	}
 	for _, ip := range ips {
@@ -568,6 +568,7 @@ func (s *Scanner) fetch(ctx context.Context, j fetchJob) answer {
 	}
 	if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
 		a.cert = resp.TLS.PeerCertificates[0]
+		a.page.certNames = append([]string{a.cert.Subject.CommonName}, a.cert.DNSNames...)
 	}
 	s.log.InfoContext(ctx, "exposure_scan_page", "url", start, "ip", j.ip.String(), "status", resp.StatusCode)
 	return a

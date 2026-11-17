@@ -181,7 +181,7 @@ const (
 	// The lines of ErrServicesTimedOut and ErrAnswersEverywhere. "3 minutes" is nmapargv's --host-timeout of the
 	// external shape (externalHostTimeout); "40" is commonports.MaxBelievableOpen: change them together.
 	notServicesGaveUp    = "Service identification (nmap -sV) did not finish within 3 minutes, nmap's limit for one address, so no service versions were read. Services may still be open there; scan again later."
-	notAnswersEverywhere = "More than 40 of the 98 ports checked answered, more than a normal box exposes: a router or firewall that answers for every port looks like this, so service identification and the template checks were skipped. If real services run here, forward only the ports you use."
+	notAnswersEverywhere = "More than 40 of the 99 ports checked answered, more than a normal box exposes: a router or firewall that answers for every port looks like this, so service identification and the template checks were skipped. If real services run here, forward only the ports you use."
 	notMatcher           = "Comparison with exploited vulnerabilities is not set up on this box yet."
 	notMatchFail         = "The list of exploited vulnerabilities could not be read, so the identified services were not compared. Try again later."
 )

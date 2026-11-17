@@ -15,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/sensorlink/linktest"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/scan/commonports"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
@@ -122,7 +123,7 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Ports != 98 || len(got.Services) != 4 || got.Services[2] != (exposure.ServiceRow{IP: "8.8.8.8", Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)", Method: "probed", Conf: 10}) { // tunnel="ssl"
+	if got.Ports != len(commonports.List) || len(got.Services) != 4 || got.Services[2] != (exposure.ServiceRow{IP: "8.8.8.8", Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)", Method: "probed", Conf: 10}) { // tunnel="ssl"
 		t.Fatalf("got %+v", got)
 	}
 	jobs := w.received()

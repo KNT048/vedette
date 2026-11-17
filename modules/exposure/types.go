@@ -248,6 +248,11 @@ type (
 		CertNames []string `json:"cert_names,omitempty"`
 		Title     string   `json:"title,omitempty"`
 		Server    string   `json:"server,omitempty"`
+		// Location is where the port's first page redirects, as the deep scan's http-title read it (a FortiGate SSL-VPN sends
+		// the browser to /remote/login). Untrusted, sanitized.
+		Location string `json:"location,omitempty"`
+		// Appliance is the appliance family the port names (appliance.go), set when the port is read, never stored; nil when none.
+		Appliance *Appliance `json:"appliance,omitempty"`
 	}
 	// AdminRow is an admin page that is open to the Internet. Risk is "danger" or "warn".
 	AdminRow struct {
@@ -256,6 +261,8 @@ type (
 		IP      string `json:"ip"`
 		Port    int    `json:"port"`
 		Risk    string `json:"risk"`
+		// Appliance is the appliance family the page belongs to (appliance.go), set when the row is read, never stored; nil when none.
+		Appliance *Appliance `json:"appliance,omitempty"`
 	}
 	// CertRow is a certificate and when it expires (RFC 3339, UTC, milliseconds).
 	CertRow struct {

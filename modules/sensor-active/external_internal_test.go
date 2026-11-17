@@ -203,13 +203,13 @@ func TestExternalServicesFromTheXML(t *testing.T) {
 		{Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)", Method: "probed", Conf: 10},
 		{Port: 10443, Name: "tcpwrapped", Method: "probed", Conf: 8},
 	}
-	if got.Ports != 98 || !slices.Equal(got.Services, want) {
+	if got.Ports != 99 || !slices.Equal(got.Services, want) {
 		t.Fatalf("got %d ports %+v", got.Ports, got.Services)
 	}
 }
 
 // An HTTPS page on 4443 (name="http" tunnel="ssl") reaches exposure as "ssl/http", so its templates speak TLS; an
-// address with 60 of the 98 ports open (a router or SYN proxy answering for all of them) is ErrAnswersEverywhere, never 60 services.
+// address with 60 of the 99 ports open (a router or SYN proxy answering for all of them) is ErrAnswersEverywhere, never 60 services.
 func TestExternalTLSTunnelAndAnswersEverywhere(t *testing.T) {
 	t.Parallel()
 	base := string(fixture(t, "external.xml"))

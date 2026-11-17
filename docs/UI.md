@@ -230,6 +230,22 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
   required. Primary action at the end of the form, left-aligned with the fields ([Primer forms](https://primer.style/product/ui-patterns/forms/)).
 - **Button** (exists): one `primary` per region; `secondary` default; `ghost` in toolbars; `danger` for destructive verbs;
   icon-only buttons have `aria-label` and a `Tooltip`. Labels are verbs ("Remove device"), no trailing arrows.
+- **Busy state** (kien G1, 2026-11-17: "Ask my AI" went grey for 20 s with no sign of work): a button whose action waits on the
+  server takes `busy={x.isPending}` and `busyLabel` ("Saving…", "Asking…": `common:busy.*` or the feature's). The Button then
+  disables itself, sets `aria-busy="true"`, keeps its full colour, and shows a spinner with the busy label in place of its icon
+  and label; its width never changes (label, busy content and busy label share one grid cell). Only the button whose own action
+  runs is busy; Cancel and its siblings are only disabled. A wait that is usually longer than about 3 s (AI calls, scans or checks
+  started from a button, report generation, connection tests, test messages) also says what is happening next to or under the
+  button with `BusyNote` ("Asking your AI… this can take up to a minute · 12 s"), a polite status line; jobs with progress use
+  `JobProgress` (§10). As Atlassian's loading button and Polaris's `loading` keep the button's size and show a spinner
+  ([Atlassian button](https://atlassian.design/components/button/examples#loading-button),
+  [Polaris button](https://polaris-react.shopify.com/components/actions/button)). Guard: `web/src/test/busyGuard.test.ts`
+  fails on a `<Button>` without `busy` whose `disabled` reads a pending state or whose `onClick`/`onSelect` calls a mutation or a
+  download (itself or through a function of the file), a form's submit button whose `onSubmit` does, a label or spinner swapped
+  by hand, `busy` without a `busyLabel` (only an icon-only button may rely on its `aria-label`), and a raw `<button>` or a menu
+  item that waits; a named exception needs a `busy-guard:` comment and an `ALLOWED` entry. Downloads use `DownloadButton`
+  ("Downloading…"). With an `aria-label`, the busy name starts with the busy label (WCAG 2.5.3). A wait the person did not start
+  (a timer's poll, a background refetch) shows no busy state.
 - **Dialog** (`DialogContent`, `DialogFooter`: exist): 512 px, `wide` 768 px, full width minus 32 px on phones; title
   `text-base` 600, one-line description, ⓘ; footer right-aligned, primary last; Esc and the 40/32 px close; focus returns to
   the opener. A form of more than about 6 fields, or one the user may leave half done, is a page, not a dialog

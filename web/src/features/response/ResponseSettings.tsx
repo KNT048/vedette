@@ -46,7 +46,7 @@ export function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         </Field>
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
-          <Button variant="danger" disabled={!ok || set.isPending}
+          <Button variant="danger" disabled={!ok} busy={set.isPending} busyLabel={t('common:busy.turningOn')}
             onClick={() => set.mutate({ enabled: true, phrase }, { onSuccess: () => { toast.success(t('enable.done')); onOpenChange(false); setPhrase('') }, onError: (e) => setError(errText(e)) })}>{t('enable.confirm')}</Button>
         </DialogFooter>
       </DialogContent>
@@ -137,7 +137,7 @@ function Form({ s }: { s: SettingsView }) {
         </div>
       </fieldset>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      <div><Button type="submit" variant="primary" disabled={save.isPending}>{t('common:save')}</Button></div>
+      <div><Button type="submit" variant="primary" busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('common:save')}</Button></div>
     </form>
   )
 }
@@ -173,7 +173,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
           </Card>
           {s.breaker_tripped_at || s.stopped_at ? (
             <Notice tone="danger" role="alert" className="mb-0" title={t('safety.tripped')}
-              actions={leaving ? undefined : <Button disabled={reset.isPending} onClick={() => reset.mutate(undefined, { onSuccess: () => toast.success(t('safety.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('safety.resume')}</Button>}>
+              actions={leaving ? undefined : <Button busy={reset.isPending} busyLabel={t('resuming')} onClick={() => reset.mutate(undefined, { onSuccess: () => toast.success(t('safety.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('safety.resume')}</Button>}>
               {s.stopped_at ? t('safety.stoppedBody', { time: fmtDateTime(s.stopped_at) }) : t('safety.trippedBody', { max: s.breaker_max_per_hour, time: fmtDateTime(s.breaker_tripped_at), who: s.breaker_notified.join(', ') })}
             </Notice>
           ) : null}
@@ -185,7 +185,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
       </section>
       </FrozenCtx.Provider>
       <EnableDialog open={open} onOpenChange={setOpen} />
-      {leaving ? <ConfirmExecutionOff open={askOff} onOpenChange={setAskOff} title={t('leaving.execOffTitle')} confirmLabel={t('leaving.execOffConfirm')} busy={set.isPending} onConfirm={off} /> : null}
+      {leaving ? <ConfirmExecutionOff open={askOff} onOpenChange={setAskOff} title={t('leaving.execOffTitle')} confirmLabel={t('leaving.execOffConfirm')} busy={set.isPending} busyLabel={t('common:busy.turningOff')} onConfirm={off} /> : null}
     </>
   )
 }

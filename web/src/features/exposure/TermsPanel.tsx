@@ -47,12 +47,12 @@ export function TermsPanel({ target }: { target: Target }) {
         <Label htmlFor={`terms-disruptive-${target.id}`} className="font-normal">{n.disruptive}</Label>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="primary" disabled={!!locked || !changed || accept.isPending} title={locked}
+        <Button variant="primary" disabled={!!locked || !changed || revoke.isPending} busy={accept.isPending} busyLabel={t('common:busy.saving')} title={locked}
           onClick={() => accept.mutate({ version: n.version, disruptive }, { onSuccess: () => toast.success(t('terms.toastAccepted')), onError })}>
           {t(target.full_scan ? 'terms.acceptChange' : 'terms.accept')}
         </Button>
         {a ? (
-          <Button disabled={!can || revoke.isPending} title={!can ? locked : undefined}
+          <Button disabled={!can || accept.isPending} busy={revoke.isPending} busyLabel={t('terms.withdrawing')} title={!can ? locked : undefined}
             onClick={() => revoke.mutate(undefined, { onSuccess: () => { setDisruptive(false); toast.success(t('terms.toastWithdrawn')) }, onError })}>
             {t('terms.withdraw')}
           </Button>

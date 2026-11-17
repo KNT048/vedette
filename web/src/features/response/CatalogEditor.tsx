@@ -167,7 +167,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <DialogFooter>
             <Button type="button" onClick={onClose}>{t('common:cancel')}</Button>
-            <Button type="submit" variant="primary" disabled={save.isPending || !conn}>{t('common:save')}</Button>
+            <Button type="submit" variant="primary" disabled={!conn} busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('common:save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -211,7 +211,7 @@ export function CatalogEditor() {
                   {!a.builtin ? (
                     <div className="flex gap-1">
                       <Button size="sm" variant="ghost" aria-label={t('catalog.edit', { name: a.name })} onClick={() => setEdit(a)}><Pencil className="size-4" aria-hidden />{t('common:edit')}</Button>
-                      <Button size="sm" variant="ghost" aria-label={t('catalog.delete', { name: a.name })} disabled={del.isPending} onClick={() => del.mutate(a.id, { onSuccess: () => toast.success(t('catalog.deleted')), onError: fail })}><Trash2 className="size-4" aria-hidden />{t('common:delete')}</Button>
+                      <Button size="sm" variant="ghost" aria-label={t('catalog.delete', { name: a.name })} disabled={del.isPending} busy={del.isPending && del.variables === a.id} busyLabel={t('common:busy.deleting')} onClick={() => del.mutate(a.id, { onSuccess: () => toast.success(t('catalog.deleted')), onError: fail })}><Trash2 className="size-4" aria-hidden />{t('common:delete')}</Button>
                     </div>
                   ) : null}
                 </div>

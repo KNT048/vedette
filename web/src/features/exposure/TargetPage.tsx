@@ -157,7 +157,7 @@ function DeleteTarget({ target }: { target: Target }) {
         <DialogContent title={t('delete.title', { value: target.value })} description={t('delete.body')} info={t('delete.bodyInfo')}>
           <DialogFooter>
             <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync({ id: target.id }).then(() => { toast.success(t('delete.toast', { value: target.value })); void nav('/exposure') }, (e: unknown) => toast.error(errMsg(e))) }}>{t('delete.confirm')}</Button>
+            <Button variant="danger" busy={del.isPending} busyLabel={t('common:busy.deleting')} onClick={() => { del.mutateAsync({ id: target.id }).then(() => { toast.success(t('delete.toast', { value: target.value })); void nav('/exposure') }, (e: unknown) => toast.error(errMsg(e))) }}>{t('delete.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

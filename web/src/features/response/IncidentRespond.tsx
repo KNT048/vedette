@@ -76,7 +76,7 @@ function OptionRow({ id, o, onSent }: { id: string; o: IncidentOption; onSent: (
           </p>
         </div>
         {o.requested ? <Link className={`text-meta ${link}`} to="/response?tab=requests">{t('incident.requested')}</Link>
-          : <Button size="sm" disabled={!can || !o.ready || ask.isPending} title={!can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
+          : <Button size="sm" disabled={!can || !o.ready} busy={ask.isPending} busyLabel={t('common:busy.sending')} title={!can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
               onClick={() => ask.mutate({ id, action_id: o.action_id }, { onSuccess: (a) => { onSent(a.title); toast.success(t('incident.sentToast')) }, onError: (e) => toast.error(errText(e)) })}>{t('incident.ask')}</Button>}
       </div>
       {o.why && !o.requested ? <p className="text-meta text-muted">{o.why}</p> : null}

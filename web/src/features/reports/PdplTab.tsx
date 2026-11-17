@@ -7,6 +7,7 @@ import { Notice, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label, Select } from '@/components/ui/input'
@@ -118,7 +119,7 @@ function OrgSection({ s }: { s: PdplState }) {
           {flag('processors', t('pdpl.processors'), t('pdpl.processorsHint'))}
         </div>
         {save.error && !serverKey ? <ActionError error={save.error} /> : null}
-        <div><Button type="submit" variant="primary" disabled={!operator || save.isPending} title={reason}>{save.isPending ? t('pdpl.org.saving') : t('pdpl.org.save')}</Button></div>
+        <div><Button type="submit" variant="primary" disabled={!operator} busy={save.isPending} busyLabel={t('common:busy.saving')} title={reason}>{t('pdpl.org.save')}</Button></div>
       </form>
     </Section>
   )
@@ -136,16 +137,19 @@ function ReportSection({ s }: { s: PdplState }) {
     <Section title={t('pdpl.report.title')} description={t('pdpl.report.description')} info={t('pdpl.report.descriptionInfo')} stories={['S-REP-2']}
       actions={
         <>
-          <Button variant={r ? 'secondary' : 'primary'} onClick={() => gen.mutate(undefined, { onSuccess: () => toast.success(t('pdpl.report.generated')) })} disabled={!operator || needOrg || gen.isPending} title={reason}><FileText aria-hidden />{gen.isPending ? t('pdpl.report.generating') : r ? t('pdpl.report.regenerate') : t('pdpl.report.generate')}</Button>
+          <Button variant={r ? 'secondary' : 'primary'} onClick={() => gen.mutate(undefined, { onSuccess: () => toast.success(t('pdpl.report.generated')) })} disabled={!operator || needOrg} busy={gen.isPending} busyLabel={t('common:busy.generating')} title={reason} aria-describedby="pdpl-gen-wait"><FileText aria-hidden />{r ? t('pdpl.report.regenerate') : t('pdpl.report.generate')}</Button>
           {r ? (
             <>
-              <Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !s.ai_available || ai.isPending} title={!operator ? reason : s.ai_available ? undefined : t('weekly.ai.unavailable')}><Sparkles aria-hidden />{ai.isPending ? t('weekly.ai.working') : t('weekly.ai.button')}</Button>
+              <Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !s.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={!operator ? reason : s.ai_available ? undefined : t('weekly.ai.unavailable')} aria-describedby="pdpl-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button>
               <Link to="/reports/print/pdpl" className={buttonVariants({ variant: 'primary' })}><Printer aria-hidden />{t('print.button')}</Link>
             </>
           ) : null}
         </>
       }>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+        {/* kien G1: say what a long wait is doing */}
+        <BusyNote id="pdpl-gen-wait" busy={gen.isPending}>{t('pdpl.report.waiting')}</BusyNote>
+        <BusyNote id="pdpl-ai-wait" busy={ai.isPending}>{t('weekly.ai.waiting')}</BusyNote>
         <ActionError error={gen.error} />
         <ActionError error={ai.error} />
         {r ? (

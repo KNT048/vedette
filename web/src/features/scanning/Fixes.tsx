@@ -82,7 +82,7 @@ export function ScopeDialog({ open, onOpenChange, onSaved }: { open: boolean; on
           {error ? <Notice tone={error.code === 'scope_changed' ? 'warn' : 'danger'} role="alert" className="mb-0" title={error.code === 'scope_changed' ? t('scope.changed') : error.message} /> : null}
           <DialogFooter>
             <Button onClick={() => close(false)}>{t('common:cancel')}</Button>
-            <Button type="submit" variant="primary" disabled={!frozen || add.isPending || !confirmed || !sent}>{range.trim() ? t('scope.save') : t('scope.confirmOnly')}</Button>
+            <Button type="submit" variant="primary" disabled={!frozen || !confirmed || !sent} busy={add.isPending} busyLabel={t('common:busy.saving')}>{range.trim() ? t('scope.save') : t('scope.confirmOnly')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -120,12 +120,12 @@ export function TurnOnModule({ module, name }: { module: ModuleId; name: string 
   })
   return (
     <>
-      <Button size="sm" disabled={toggle.isPending} onClick={() => go(false)}>{t('module.turnOn', { name })}</Button>
+      <Button size="sm" disabled={toggle.isPending} busy={toggle.isPending && !toggle.variables?.withDependencies} busyLabel={t('common:busy.turningOn')} onClick={() => go(false)}>{t('module.turnOn', { name })}</Button>
       <Dialog open={!!missing} onOpenChange={(v) => { if (!v) setMissing(null) }}>
         <DialogContent title={t('module.depsTitle', { name })} description={t('module.depsBody', { list: (missing ?? []).map((m) => t(`common:modules.${m}.name`)).join(', ') })}>
           <DialogFooter>
             <Button onClick={() => setMissing(null)}>{t('common:cancel')}</Button>
-            <Button variant="primary" disabled={toggle.isPending} onClick={() => go(true)}>{t('module.depsConfirm')}</Button>
+            <Button variant="primary" busy={toggle.isPending} busyLabel={t('common:busy.turningOn')} onClick={() => go(true)}>{t('module.depsConfirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

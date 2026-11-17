@@ -6,6 +6,7 @@ import { Printer, Send, Sparkles, X } from 'lucide-react'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { DependencyLink } from '@/components/common/DependencyLink'
+import { BusyNote } from '@/components/common/BusyNote'
 import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -59,7 +60,7 @@ function Preview() {
     <Section id="rep-preview" title={t('weekly.preview.title')} description={t('weekly.preview.description')} info={t('weekly.preview.descriptionInfo')} stories={['S-REP-1']}
       actions={weekly.data && !noData ? (
         <>
-          <Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !weekly.data.ai_available || ai.isPending} title={needRole ?? (weekly.data.ai_available ? undefined : t('weekly.ai.unavailable'))}><Sparkles aria-hidden />{ai.isPending ? t('weekly.ai.working') : t('weekly.ai.button')}</Button>
+          <Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !weekly.data.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={needRole ?? (weekly.data.ai_available ? undefined : t('weekly.ai.unavailable'))} aria-describedby="weekly-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button>
           <Link to="/reports/print/weekly" className={buttonVariants({ variant: 'secondary' })}><Printer aria-hidden />{t('print.button')}</Link>
           <Button variant="primary" onClick={() => setConfirm(true)} disabled={!operator} title={needRole}><Send aria-hidden />{t('weekly.send.button')}</Button>
         </>
@@ -69,6 +70,8 @@ function Preview() {
       {operator && weekly.data && !noData && !weekly.data.ai_available ? (aiOn && !admin
         ? <p className="mb-3 text-meta text-muted">{t('weekly.ai.why')} {t('weekly.ai.askAdmin')}</p>
         : <DependencyLink className="mb-3" reason={t('weekly.ai.why')} to={aiOn ? '/settings/ai#ai-profiles' : '/settings/modules'} label={t(aiOn ? 'weekly.ai.openAi' : 'weekly.ai.openModules')} />) : null}
+      {/* kien G1: an AI answer takes a while; say so while it runs */}
+      <BusyNote id="weekly-ai-wait" className="mb-3" busy={ai.isPending}>{t('weekly.ai.waiting')}</BusyNote>
       <ActionError error={ai.error} />
       <QueryState query={weekly}>
         {(w) => noData
@@ -81,10 +84,11 @@ function Preview() {
         <DialogContent title={t('weekly.send.title')} description={recipients.length ? t('weekly.send.body', { count: recipients.length }) : t('weekly.send.noRecipients')}>
           {recipients.length ? <ul className="ml-5 list-disc text-sm">{recipients.map((e) => <li key={e}>{e}</li>)}</ul> : null}
           <p className="text-meta text-muted">{t('weekly.send.flow')}</p>
+          <BusyNote id="weekly-send-wait" busy={send.isPending}>{t('weekly.send.waiting')}</BusyNote>
           <ActionError error={send.error} />
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-            <Button variant="primary" disabled={send.isPending || recipients.length === 0} onClick={() => send.mutate(undefined, { onSuccess: () => { setConfirm(false); toast.success(t('weekly.send.sent')) } })}>{send.isPending ? t('weekly.send.sending') : t('weekly.send.confirm')}</Button>
+            <Button variant="primary" disabled={recipients.length === 0} busy={send.isPending} busyLabel={t('common:busy.sending')} aria-describedby="weekly-send-wait" onClick={() => send.mutate(undefined, { onSuccess: () => { setConfirm(false); toast.success(t('weekly.send.sent')) } })}>{t('weekly.send.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -180,7 +184,7 @@ function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
       ) : null}
       <p className="text-meta text-muted">{s.next_run && s.enabled && !noChannel ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {/* docs/UI.md §13 (3): the place it names links to the exact channel, for the administrator who can open it */}{admin ? <Trans t={t} i18nKey="weekly.schedule.channel" components={{ a: <Link to="/settings/channels#channel-email" className="text-accent underline-offset-4 hover:underline" /> }} /> : t('weekly.schedule.channelByAdmin')}</p>
       <ActionError error={savedErr ? null : save.error} />
-      <div><Button type="submit" variant="primary" disabled={!admin || save.isPending} title={reason}>{save.isPending ? t('weekly.schedule.saving') : t('common:save')}</Button></div>
+      <div><Button type="submit" variant="primary" disabled={!admin} busy={save.isPending} busyLabel={t('common:busy.saving')} title={reason}>{t('common:save')}</Button></div>
     </form>
     {/* outside the form: the channel form's submit must not bubble (through the portal) into this one; kept mounted after the save */}
     {newChannel.dialogs}

@@ -84,7 +84,7 @@ export function IUpdated({ asset, software, fixed, size }: { asset: FindingAsset
             {manual && !done ? (
               <>
                 <Button onClick={() => show(false)}>{t('common:cancel')}</Button>
-                <Button variant="primary" disabled={set.isPending} onClick={submit}>{set.isPending ? t('updated.checking') : t('updated.submit')}</Button>
+                <Button variant="primary" busy={set.isPending} busyLabel={t('updated.checking')} onClick={submit}>{t('updated.submit')}</Button>
               </>
             ) : <Button onClick={() => show(false)}>{t('common:close')}</Button>}
           </DialogFooter>

@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Upload } from 'lucide-react'
 import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Notice } from '@/components/common/PageHeader'
+import { BusyNote } from '@/components/common/BusyNote'
+import { DownloadButton } from '@/components/common/DownloadButton'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/input'
-import { download } from '@/lib/api'
 import { useImportDevices } from './api'
 import { errMsg, readText, sha256Hex } from './kinds'
 import type { ImportResult } from './types'
@@ -38,14 +38,14 @@ export function ImportForm({ onClose }: { onClose: () => void }) {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => void download('/inventory/import-template.csv', 'vedette-devices-template.csv').catch((e: unknown) => toast.error(errMsg(e)))}>{t('import.template')}</Button>
+        <DownloadButton path="/inventory/import-template.csv" filename="vedette-devices-template.csv" onError={(e) => toast.error(errMsg(e))}>{t('import.template')}</DownloadButton>
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="import-file">{t('import.file')}</Label>
         <input id="import-file" ref={input} type="file" accept=".csv,text/csv" className="text-sm file:mr-3 file:h-9 file:cursor-pointer file:rounded-md file:border file:border-rule file:bg-surface file:px-3 file:text-sm" onChange={(e) => void onFile(e.target.files?.[0])} />
         <p className="text-meta text-muted">{t('import.fileHint', { kb: MAX_BYTES / 1000 })}</p>
       </div>
-      {imp.isPending ? <p role="status" className="text-sm"><Upload className="mr-1 inline size-4" aria-hidden />{t('import.working')}</p> : null}
+      <BusyNote busy={imp.isPending}>{t('import.working')}</BusyNote>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result ? (
         <div role="status" className="grid gap-2 rounded-md border border-rule bg-sunken p-3 text-sm">

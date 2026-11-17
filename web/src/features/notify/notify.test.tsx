@@ -680,9 +680,12 @@ describe('notify: alert channels (S-NOT-1)', () => {
     }))
     renderChannels()
     await press('Send test Telegram')
-    expect(await within(screen.getByRole('table', { name: 'Alert channels' })).findByText('Sending test…')).toBeInTheDocument()
+    const table = screen.getByRole('table', { name: 'Alert channels' })
+    expect(await within(table).findByText(/Sending a test message… this can take up to 45 seconds/)).toBeInTheDocument()
+    // kien G1: the pressed button shows the shared busy state
+    expect(within(table).getByRole('button', { name: 'Sending…' })).toHaveAttribute('aria-busy', 'true')
     answer()
-    await waitFor(() => expect(screen.queryByText('Sending test…')).toBeNull())
+    await waitFor(() => expect(screen.queryByText(/Sending a test message/)).toBeNull())
   })
 
   it('Send test (walk 3 G13): a failed last test is shown as text with the reason and an "on but failed" hint', async () => {

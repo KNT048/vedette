@@ -177,7 +177,7 @@ function TurnOnFeeds({ feeds }: { feeds: TierFeed[] }) {
     }
     void qc.invalidateQueries({ queryKey: ['findings', 'plan'] })
   }
-  return <Button size="sm" variant="primary" disabled={patch.isPending} onClick={() => void turnOn()}>{patch.isPending ? t('plan.state.turningOn') : t('plan.state.turnOn', { count: feeds.length })}</Button>
+  return <Button size="sm" variant="primary" busy={patch.isPending} busyLabel={t('plan.state.turningOn')} onClick={() => void turnOn()}>{t('plan.state.turnOn', { count: feeds.length })}</Button>
 }
 
 /** The feeds module is off: an administrator turns it on here (with what it needs), anyone else gets the exact page. */
@@ -193,7 +193,7 @@ function TurnOnModule() {
   if (!admin) return link
   return (
     <span className="flex flex-wrap items-center gap-3">
-      <Button size="sm" variant="primary" disabled={toggle.isPending}
+      <Button size="sm" variant="primary" busy={toggle.isPending} busyLabel={t('common:busy.turningOn')}
         onClick={() => toggle.mutate({ id: 'feeds', enabled: true, withDependencies: true }, {
           onSuccess: (r) => {
             // the cached plan still says module_off: ask again, so the Notice and this button go away (as TurnOnFeeds does)

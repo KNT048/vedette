@@ -200,7 +200,7 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
       </Section>
 
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      <div><Button type="submit" variant="primary" disabled={dis || save.isPending}>{t('safety.save')}</Button></div>
+      <div><Button type="submit" variant="primary" disabled={dis} busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('safety.save')}</Button></div>
     </form>
   )
 }

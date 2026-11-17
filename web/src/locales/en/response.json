@@ -115,7 +115,10 @@
     "approve": "Approve",
     "reject": "Reject",
     "rollback": "Roll back",
+    "rollingBack": "Rolling back…",
+    "rollbackWaiting": "Undoing the change on the device… each change can take up to 90 seconds.",
     "approved": "Approved. The action was carried out.",
+    "approveWaiting": "Approving and making the change on the device… each change can take up to 90 seconds.",
     "rejectedToast": "Request rejected",
     "rolledBackToast": "Rolled back",
     "viaBox": "Block list on this box (no connection needed)",
@@ -671,6 +674,7 @@
     "description": "Ready-made rules, switched off and in dry run.",
     "descriptionInfo": "Clone one, then edit it to fit your network.",
     "clone": "Clone",
+    "cloning": "Cloning…",
     "cloneFor": "Clone {{name}}",
     "cloned": "Cloned: switched off, in dry run",
     "notHere": "Not available on this install: it needs internal traps, which this install cannot run."
@@ -788,6 +792,7 @@
     "howSendInfo": "Your administrator listed this {{channel}} account as yours. Vedette sends it a confirm link when they save it. Link expired or lost? Press Send again.",
     "sent": "Code sent to {{to}}. It expires in 10 minutes.",
     "send": "Send code",
+    "sendCodeWaiting": "Sending the code by email… this can take up to 30 seconds.",
     "resend": "Send a new code",
     "resendIn": "New code in {{s}} s",
     "code": "Code",
@@ -799,6 +804,7 @@
     "waiting": "Waiting",
     "waitingNote": "Confirm link sent: open it there while signed in to Vedette.",
     "sendAgain": "Send again",
+    "sendLinkWaiting": "Sending the link to your {{channel}} account… this can take up to 30 seconds.",
     "sentLink": "A new confirm link was sent to {{to}}. The old one no longer works.",
     "sendAgainIn": "Send again in {{s}} s"
   },
@@ -1004,5 +1010,7 @@
     "execOffConfirm": "Turn off execution",
     "stopTitle": "Emergency stop?",
     "linkFrozen": "This build does not offer AI response, so no new approver link is confirmed here."
-  }
+  },
+  "resuming": "Resuming…",
+  "simulating": "Simulating…"
 }

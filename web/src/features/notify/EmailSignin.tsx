@@ -3,8 +3,8 @@
 // box: the dialog only keeps the sign-in id, which the save sends.
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LoaderCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import { useCheckEmailSignin, useStartEmailSignin } from './api'
@@ -32,7 +32,10 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
   const [err, setErr] = useState<string | null>(null)
   const google = prov.auth === 'google_user'
   const who = t(google ? 'signin.google' : 'signin.microsoft')
-  const busy = start.isPending || check.isPending
+  // #930 review r1 M5: the timer's own checks of a device sign-in run quietly; only a check the person asked for shows the busy state
+  const [manual, setManual] = useState(false)
+  const checking = check.isPending && manual
+  const busy = start.isPending || checking
 
   const fail = (e: unknown) => {
     const field = e instanceof ApiError ? SIGNIN_FIELD[e.code] : undefined
@@ -49,11 +52,19 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
     onSignedIn(null, '')
     start.mutate({ provider: prov.id as Signin['provider'], client_id: (fields.client_id ?? '').trim(), ...(google ? { client_secret: clientSecret.trim() } : { tenant_id: (fields.tenant_id ?? '').trim() }) }, { onSuccess: got, onError: fail })
   }
-  const poll = (url?: string) => { if (s) { setErr(null); check.mutate({ id: s.id, url }, { onSuccess: got, onError: fail }) } }
+  const poll = (url?: string, byHand = true) => {
+    if (!s) return
+    // #930 review r2: a check is already running (the timer's): a press joins it (shows its busy state) instead of starting a
+    // second one on the same mutation; the timer never starts one over a press. A pasted address always goes (it is new input).
+    if (check.isPending && !url) { if (byHand) setManual(true); return }
+    setErr(null)
+    setManual(byHand)
+    check.mutate({ id: s.id, url }, { onSuccess: got, onError: fail })
+  }
 
   // A device sign-in is checked at Microsoft's interval while it waits (the box never asks Microsoft sooner).
-  const pollRef = useRef(poll)
-  useEffect(() => { pollRef.current = poll })
+  const pollRef = useRef(() => poll(undefined, false))
+  useEffect(() => { pollRef.current = () => poll(undefined, false) })
   useEffect(() => {
     if (s?.flow !== 'device' || s.status !== 'waiting') return
     const h = setTimeout(() => pollRef.current(), Math.max(s.interval ?? 5, 5) * 1000)
@@ -74,7 +85,7 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
         <div className="grid gap-1.5 text-meta">
           <p>{t('signin.deviceOpen')} <a className="text-accent underline underline-offset-4" href={s.verification_uri} target="_blank" rel="noopener noreferrer">{s.verification_uri}</a></p>
           <p>{t('signin.deviceCode')} <code aria-label={t('signin.codeLabel')} className="rounded-sm bg-sunken px-2 py-1 font-mono text-base tracking-widest">{s.user_code}</code></p>
-          <div><Button size="sm" disabled={busy} onClick={() => poll()}>{check.isPending ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> : null}{t('signin.checkNow')}</Button></div>
+          <div><Button size="sm" disabled={start.isPending} busy={checking} busyLabel={t('common:busy.checking')} onClick={() => poll()}>{t('signin.checkNow')}</Button></div>
         </div>
       ) : null}
       {s?.flow === 'paste' && s.status === 'waiting' ? (
@@ -87,16 +98,17 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
           <Field label={t('signin.pasteLabel')} htmlFor="ch-email-pasted">
             <Input id="ch-email-pasted" value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="http://127.0.0.1:…/?state=…&code=…" autoComplete="off" />
           </Field>
-          <div><Button size="sm" disabled={busy || !pasted.trim()} onClick={() => poll(pasted)}>{t('signin.finish')}</Button></div>
+          <div><Button size="sm" disabled={start.isPending || !pasted.trim()} busy={checking} busyLabel={t('common:busy.signingIn')} onClick={() => poll(pasted)}>{t('signin.finish')}</Button></div>
         </div>
       ) : null}
       {err || error ? <p role="alert" className="text-meta text-danger [overflow-wrap:anywhere]">{err ?? error}</p> : null}
       <div>
-        <Button id="ch-email-secret" disabled={busy} onClick={begin}>
-          {start.isPending ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
+        <Button id="ch-email-secret" disabled={checking} busy={start.isPending} busyLabel={t('common:busy.starting')} onClick={begin}>
           {s || saved ? t('signin.again', { who }) : t('signin.start', { who })}
         </Button>
       </div>
+      {/* kien G1: each step asks Microsoft or Google (15 s per request at most) */}
+      <BusyNote busy={busy}>{t('signin.waiting', { who })}</BusyNote>
     </div>
   )
 }

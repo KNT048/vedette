@@ -193,7 +193,7 @@ export default function SetupPage() {
             </div>
             <p className="text-meta text-muted">{t('setup.sample.desc')}</p>
           </div>
-          <Button onClick={() => void startWithSample()} disabled={submit.isPending}>{t('setup.sample.button')}</Button>
+          <Button onClick={() => void startWithSample()} busy={submit.isPending} busyLabel={t('common:busy.starting')}>{t('setup.sample.button')}</Button>
         </Card>
       ) : null}
       {step === 'account' ? (
@@ -291,10 +291,11 @@ export default function SetupPage() {
               (detail > 1, counted by the browser whichever button is under the pointer) never submits, so a double-click on
               Continue cannot skip a step or finish setup with the default bundle. Keyboard submits have detail 0. */}
           {step === 'modules'
-            ? <Button key="finish" type="submit" variant="primary" disabled={finished} onClick={noRepeat}>{t('setup.finish')}</Button>
+            ? <Button key="finish" type="submit" variant="primary" busy={finished} busyLabel={t('setup.finishing')} onClick={noRepeat}>{t('setup.finish')}</Button>
             : <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                 {/* D-544: Continue waits for the tick, and says so next to it. */}
                 {step === 'terms' && !s.terms ? <p id="s-terms-why" className="text-meta text-muted">{t('setup.terms.needTick')}</p> : null}
+                {/* busy-guard: Continue only moves to the next step; Finish (busy) is the step that calls the server */}
                 <Button key="next" type="submit" variant="primary" onClick={noRepeat} disabled={step === 'terms' && !s.terms} aria-describedby={step === 'terms' && !s.terms ? 's-terms-why' : undefined}>{t('setup.next')}</Button>
               </div>}
         </div>

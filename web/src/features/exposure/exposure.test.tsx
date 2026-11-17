@@ -656,6 +656,19 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     expect(screen.getByRole('button', { name: 'Remove 203.0.113.11' })).toBeDisabled()
     expect(screen.getAllByText('Requires Admin role').length).toBeGreaterThan(0)
   })
+
+  it('kien G1: while Detect now runs the button is busy and a note says what the box is doing and how long it may take', async () => {
+    let answer!: () => void
+    const held = new Promise<void>((r) => { answer = r })
+    server.use(http.post('*/api/v1/exposure/box-ip/verify', async () => { await held; return HttpResponse.json({ message: 'Done.' }) }))
+    renderApp('/exposure')
+    await userEvent.click(await screen.findByRole('button', { name: 'Detect now' }))
+    expect(await screen.findByRole('button', { name: 'Detecting…' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByText(/this can take up to 30 seconds/)).toBeInTheDocument()
+    answer()
+    expect(await screen.findByRole('button', { name: 'Detect now' })).not.toHaveAttribute('aria-busy')
+    expect(screen.queryByText(/this can take up to 30 seconds/)).toBeNull()
+  })
 })
 
 describe('exposure: the Ignored list (D-79 (3))', () => {

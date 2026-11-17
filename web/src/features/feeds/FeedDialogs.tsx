@@ -75,7 +75,7 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
                 <div role="alert" className="grid gap-2 rounded-md border border-warn/50 bg-warn-soft p-3 text-sm">
                   <div className="flex items-center gap-1"><p>{t('dialog.vulncheckRemoveBody', { count: onlyVulnCheck, n: onlyVulnCheck })}</p><InfoTip topic={t('dialog.vulncheckKeyRemove')}>{t('dialog.vulncheckRemoveInfo', { count: onlyVulnCheck, n: onlyVulnCheck })}</InfoTip></div>
                   <span className="flex gap-2">
-                    <Button type="button" size="sm" variant="primary" disabled={patch.isPending} onClick={() => patch.mutate({ id: feed.id, api_key: '' }, { onSuccess: () => { toast.success(t('dialog.vulncheckKeyRemoved', { name: feed.name })); onClose() } })}>{t('dialog.vulncheckRemoveConfirm')}</Button>
+                    <Button type="button" size="sm" variant="primary" busy={patch.isPending && patch.variables?.api_key === ''} busyLabel={t('common:busy.removing')} disabled={patch.isPending} onClick={() => patch.mutate({ id: feed.id, api_key: '' }, { onSuccess: () => { toast.success(t('dialog.vulncheckKeyRemoved', { name: feed.name })); onClose() } })}>{t('dialog.vulncheckRemoveConfirm')}</Button>
                     <Button type="button" size="sm" onClick={() => setConfirmRemove(false)}>{t('common:cancel')}</Button>
                   </span>
                 </div>
@@ -85,7 +85,7 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
           {patch.error && !serverField(patch.error) ? <p role="alert" className="text-sm text-danger">{(patch.error as Error).message}</p> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" disabled={patch.isPending}>{t('common:save')}</Button>
+            <Button type="submit" variant="primary" busy={patch.isPending && patch.variables?.api_key !== ''} busyLabel={t('common:busy.saving')} disabled={patch.isPending}>{t('common:save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -185,7 +185,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
           {save.error && !serverField(save.error) ? <p role="alert" id="cf-error" tabIndex={-1} className="text-sm text-danger outline-none">{(save.error as Error).message}</p> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" disabled={save.isPending}>{save.isPending ? t('dialog.saving') : feed ? t('common:save') : t('dialog.addConfirm')}</Button>
+            <Button type="submit" variant="primary" busy={save.isPending} busyLabel={t(feed ? 'common:busy.saving' : 'common:busy.adding')}>{feed ? t('common:save') : t('dialog.addConfirm')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -202,7 +202,7 @@ export function DeleteDialog({ feed, onClose }: { feed: Feed; onClose: () => voi
         {del.error ? <p role="alert" className="text-sm text-danger">{(del.error as Error).message}</p> : null}
         <DialogFooter>
           <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-          <Button type="button" variant="danger" disabled={del.isPending} onClick={() => del.mutate(feed.id, { onSuccess: () => { toast.success(t('dialog.deleted', { name: feed.name })); onClose() } })}>{t('common:delete')}</Button>
+          <Button type="button" variant="danger" busy={del.isPending} busyLabel={t('common:busy.deleting')} onClick={() => del.mutate(feed.id, { onSuccess: () => { toast.success(t('dialog.deleted', { name: feed.name })); onClose() } })}>{t('common:delete')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

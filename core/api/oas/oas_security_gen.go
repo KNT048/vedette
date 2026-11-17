@@ -346,6 +346,7 @@ var operationRolesSession = map[string][]string{
 	ScanPostScansRunsIDStopOperation:                        []string{},
 	ScanPutScansConfigOperation:                             []string{},
 	ScanningGetScanningOperation:                            []string{},
+	ScanningGetScanningHistoryOperation:                     []string{},
 	ScanningPatchScanningEnginesIDOperation:                 []string{},
 	ScanningPostScanningEnginesNmapDiscoveryRunOperation:    []string{},
 	ScanningPostScanningSafetyExclusionsOperation:           []string{},

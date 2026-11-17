@@ -494,3 +494,35 @@ func (st Settings) nextOpening(t time.Time) *time.Time {
 	}
 	return nil
 }
+
+// JobRow is an sa_job row for a list of past runs: the row, and the targets and result of its first probe (the address or range
+// it scanned, nmap's one-line result); both "" when it sent none (kien G7a, read only).
+type JobRow struct {
+	JobHead
+	Address string // the first probe's targets: the device's address, or the ranges of a sweep
+	Result  string // the first probe's result, as recorded ("ok: 1 hosts up")
+}
+
+// Jobs lists the newest sa_job rows of the LAN (sweep, device, snmp; external runs are listed by exposure), newest first, at most
+// limit (1..500). Read only: what Settings › Scanning › History shows of active discovery (kien G7a).
+func (s *Service) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT j.id, j.kind, j.status, j.reason, j.started_at, j.finished_at, j.targets, j.new_devices, j.error,
+  coalesce((SELECT p.targets FROM sa_probe p WHERE p.job_id = j.id ORDER BY p.id LIMIT 1), ''),
+  coalesce((SELECT p.result FROM sa_probe p WHERE p.job_id = j.id ORDER BY p.id LIMIT 1), '')
+FROM sa_job j WHERE j.kind IN ('sweep', 'device', 'snmp') ORDER BY j.started_at DESC, j.rowid DESC LIMIT ?`, clamp(limit, 1, 500))
+	if err != nil {
+		return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := []JobRow{}
+	for rows.Next() {
+		var r JobRow
+		var reason, errText sql.NullString
+		if err := rows.Scan(&r.ID, &r.Kind, &r.Status, &reason, &r.StartedAt, &r.FinishedAt, &r.Targets, &r.NewDevices, &errText, &r.Address, &r.Result); err != nil {
+			return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+		}
+		r.Reason, r.Error = reason.String, errText.String
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}

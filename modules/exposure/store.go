@@ -596,3 +596,33 @@ func nullIf(s string) any {
 	}
 	return s
 }
+
+// ScanRecord is one stored scan of a public target (one per target and day: a rescan the same day replaces it), for Settings ›
+// Scanning › History (kien G7a).
+type ScanRecord struct {
+	TargetID, Target, ScannedAt string
+	Counts                      Counts
+}
+
+// RecentScans lists the newest stored scans of every target, newest first, at most limit (1..500). Read only.
+func (s *Service) RecentScans(ctx context.Context, limit int) ([]ScanRecord, error) {
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.target_id, t.value, s.scanned_at, s.counts FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id
+ORDER BY s.scanned_at DESC LIMIT ?`, max(1, min(500, limit)))
+	if err != nil {
+		return nil, fmt.Errorf("exposure: recent scans: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := []ScanRecord{}
+	for rows.Next() {
+		var r ScanRecord
+		var doc string
+		if err := rows.Scan(&r.TargetID, &r.Target, &r.ScannedAt, &doc); err != nil {
+			return nil, fmt.Errorf("exposure: recent scans: %w", err)
+		}
+		if err := json.Unmarshal([]byte(doc), &r.Counts); err != nil {
+			return nil, fmt.Errorf("exposure: recent scan of %s: %w", r.TargetID, err)
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}

@@ -12,7 +12,7 @@ import { BOX_ID, inventorySettingsStore, SAFETY_CHANGED, safetyVersion } from '@
 import { cidrRange, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from '@/features/inventory/validate'
 import { exposureMockRun, greenboneMock } from '@/features/exposure/mocks'
 import { lastScanRun, liveScanRuns } from '@/features/scan/mocks'
-import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, ExclusionAdd, RangeAdd, RunningJob, Scanning, SafetyInput } from './contract'
+import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, ExclusionAdd, HistoryRun, RangeAdd, RunningJob, Scanning, SafetyInput } from './contract'
 
 type EngineT = z.infer<typeof Engine>
 type Id = z.infer<typeof EngineId>
@@ -21,6 +21,14 @@ type Run = z.infer<typeof RunningJob>
 const checkRate = collection<{ requests_per_s: number }>('scanning_check_rate', () => ({ requests_per_s: 5 }))
 const runs = collection<Array<Run & { ends_ms: number }>>('scanning_runs', () => [], () => [])
 const RUN_MS = 20_000
+type HistoryRow = z.infer<typeof HistoryRun>
+const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
+/** GET /scanning/history (kien G7a), as cmd/vedette scanninghistory.go builds it: the LAN jobs and the public scans, newest first. */
+export const historyStore = collection<HistoryRow[]>('scanning_history', () => [
+  { id: 'saj-h1', kind: 'device', engine: 'nmap-versions', trigger: 'person', label: '192.168.10.21', target_id: null, started_at: ago(3), ended_at: ago(2.98), outcome: 'ok', text: 'Scanned 192.168.10.21: it answered; what it runs is on its device page' },
+  { id: 'saj-h2', kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: 'LAN 192.168.10.0/24', target_id: null, started_at: ago(20), ended_at: ago(19.9), outcome: 'ok', text: 'Swept 254 addresses, 2 new devices' },
+  { id: 'saj-h3', kind: 'snmp', engine: 'snmp', trigger: 'automatic', label: 'SNMP read of 3 devices', target_id: null, started_at: ago(21), ended_at: ago(20.95), outcome: 'failed', text: 'Failed: no answer from 192.168.10.1 on UDP 161' },
+], () => [])
 
 interface Def { id: Id; group: EngineT['group']; module: ModuleId & EngineT['module']; follows?: Id; affects?: Id[]; preview?: boolean; cost: EngineT['cost'] }
 const DEFS: Def[] = [
@@ -136,6 +144,7 @@ const SCOPE_NOT_CONFIRMED = 'Tick the confirmation that these network ranges bel
 
 export const handlers = [
   http.get(`${API}/scanning`, () => guard('viewer') ?? HttpResponse.json(scanningView())),
+  http.get(`${API}/scanning/history`, () => guard('viewer') ?? HttpResponse.json({ items: [...historyStore.get()].sort((a, b) => b.started_at.localeCompare(a.started_at)) })),
 
   http.put(`${API}/scanning/safety`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
@@ -275,6 +284,11 @@ export const handlers = [
       target_id: picked.length === 1 ? picked[0]!.id : null, ends_ms: Date.parse(started) + RUN_MS * Math.max(1, picked.length),
     }
     runs.set([...runs.get(), run])
+    // its jobs as History lists them: one per device checked, or the sweep (the mock ends them at once)
+    const rows: HistoryRow[] = picked.length
+      ? picked.map((a) => ({ id: newId('saj'), kind: 'device' as const, engine: 'nmap-versions' as const, trigger: 'person' as const, label: a.ip, target_id: null, started_at: started, ended_at: started, outcome: 'ok' as const, text: `Scanned ${a.ip}: it answered; what it runs is on its device page` }))
+      : [{ id: newId('saj'), kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: `LAN ${st.lan_ranges.join(', ')}`, target_id: null, started_at: started, ended_at: started, outcome: 'ok', text: `Swept ${st.lan_ranges.length * 254} addresses, 0 new devices` }]
+    historyStore.set([...rows, ...historyStore.get()])
     const { ends_ms: _, ...out } = run
     return HttpResponse.json(out, { status: 202 })
   }),

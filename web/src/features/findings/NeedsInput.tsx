@@ -4,7 +4,8 @@
 // (the same "Check this device now" as the device page), or open the software on the device. When nothing a person does would help,
 // it says so and when Vedette checks again (the next version scan or SNMP read from GET /scanning, the next NVD refresh from the
 // feed's last fetch and interval). As Defender's "Software inventory" and Tenable's asset view group a device's open questions under
-// the device, never one flat list per kind.
+// the device, never one flat list per kind. D-604 (BN340, kien G16): a CVE only the platform or the package release can settle asks its
+// question here, with every answer the box offers (one click for an OS, fields for what the person types), each an inventory correction.
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
@@ -28,6 +29,10 @@ import { Worst, unproved } from './ToFix'
 import { UNCHECKED_ANCHOR, UncheckedLine } from './UncheckedList'
 import { CheckNow } from './Updated'
 import type { FindingAsset, ToFixAction, ToFixDevice, UncheckedItem, VersionNeeded } from './types'
+import type { z } from 'zod'
+import type { UncheckedAnswer } from './contract'
+
+type Answer = z.infer<typeof UncheckedAnswer>
 
 const SEV = ['info', 'low', 'medium', 'high', 'critical']
 const rank = (s: string) => SEV.indexOf(s.toLowerCase())
@@ -120,8 +125,10 @@ function DeviceBlock({ g, open, onToggle, risk }: { g: InputGroup; open: boolean
                 {g.unchecked.map((u) => (
                   <li key={`${u.software_id ?? u.software}/${u.reason}`} className="grid gap-2 py-3">
                     <UncheckedLine item={u} />
-                    <NextStep assetId={u.asset_id} asset={u.asset} softwareId={u.software_id ?? ''} software={u.software} need={u.action === 'add_version' ? 'version' : 'nvd'}
-                      waiting={u.cves.some((c) => c.nvd_pending)} />
+                    {u.action === 'answer_platform' && u.question ? <PlatformQuestion u={u} question={u.question} /> : (
+                      <NextStep assetId={u.asset_id} asset={u.asset} softwareId={u.software_id ?? ''} software={u.software} need={u.action === 'add_version' ? 'version' : 'nvd'}
+                        waiting={u.cves.some((c) => c.nvd_pending)} />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -174,10 +181,10 @@ type Need = 'version' | 'nvd' | 'proof'
 const SCAN_READ = new Set(['nmap', 'scan', 'passive'])
 
 /**
- * The item's next step, from who reported its software row (the device's own read: a row a person added is theirs to type or
- * remove; a row a scan, SNMP or an agent reads is read again by it, and only that read changes it; #950's corrections will let a person
- * type over a read row). Every branch names something to do here, or says that nothing a person does helps and when Vedette checks
- * again. Never a control that can only be refused.
+ * The item's next step, from who reported its software row (the device's own read): a row a person added is theirs to type or
+ * remove; on a row a scan, SNMP or an agent reads, the version typed here is a person's correction (INV-41, PATCH on that row) that
+ * matching uses until it is cleared on the device page, or the next read changes it. Every branch names something to do here, or says
+ * that nothing a person does helps and when Vedette checks again. Never a control that can only be refused.
  */
 function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '', findingIds = [], waiting = false }: {
   assetId: string; asset: FindingAsset | null; softwareId: string; software: string; need: Need; sourceHint?: string; findingIds?: string[]; waiting?: boolean
@@ -212,7 +219,8 @@ function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '',
   const proof = need === 'proof' ? ` ${t('needsInput.next.proof')}` : ''
   if (SCAN_READ.has(source) || source === 'snmp') {
     return (
-      <Step text={<>{t(`needsInput.next.${source === 'snmp' ? 'snmp' : source === 'passive' ? 'passive' : 'scan'}`)} <ScanWhen engine={source === 'snmp' ? 'snmp' : 'nmap-versions'} />{proof}</>}>
+      <Step text={<>{t(`needsInput.next.${source === 'snmp' ? 'snmp' : source === 'passive' ? 'passive' : 'scan'}`)}{row ? ` ${t('needsInput.next.correct')}` : ''} <ScanWhen engine={source === 'snmp' ? 'snmp' : 'nmap-versions'} />{proof}</>}>
+        {row ? <VersionForm assetId={assetId} sw={row} /> : null}
         <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
           {asset ? <CheckNow asset={asset} size="sm" progress={false} /> : null}
           {notAffected}
@@ -222,7 +230,8 @@ function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '',
     )
   }
   return (
-    <Step text={`${t(source === 'agent' ? 'needsInput.next.agent' : 'needsInput.next.device')}${proof}`}>
+    <Step text={`${t(source === 'agent' ? 'needsInput.next.agent' : 'needsInput.next.device')}${row ? ` ${t('needsInput.next.correct')}` : ''}${proof}`}>
+      {row ? <VersionForm assetId={assetId} sw={row} /> : null}
       {notAffected}
       {open}
     </Step>
@@ -261,8 +270,9 @@ function NvdWhen({ waiting }: { waiting: boolean }) {
   return <>{pre}{t('needsInput.when.nvdNext')}</>
 }
 
-/** The version of software a person added, typed here (PATCH …/software/{sid}); the device is matched again at once, so the item
- *  leaves the list or changes (useDeviceAction refreshes findings, inventory and feeds). */
+/** The version typed here (PATCH …/software/{sid}): in place on a row a person added, a correction of a row a sensor or agent reported
+ *  (INV-41); the device is matched again at once, so the item leaves the list or changes (useDeviceAction refreshes findings, inventory
+ *  and feeds). */
 function VersionForm({ assetId, sw }: { assetId: string; sw: { id: string; display: string; version: string | null } }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
@@ -353,6 +363,98 @@ function NotAffected({ ids }: { ids: string[] }) {
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" variant="primary" busy={bulk.isPending} busyLabel={t('common:busy.saving')}>{t('needsInput.notAffectedSubmit', { count: ids.length })}</Button>
         <Button size="sm" disabled={bulk.isPending} onClick={() => setAsking(false)}>{t('common:cancel')}</Button>
+      </div>
+    </form>
+  )
+}
+
+/**
+ * D-604 (BN340): the one question left for a CVE that affects only some platforms or package builds. Its text, the command that prints
+ * the answer on the device, and every answer the box offers: an OS is one click (PATCH /inventory/devices/{id} {os}); an answer that
+ * asks shows its fields (os → the device's OS, pkg_version → the row's package release, PATCH …/software/{sid} {pkg_version}; the bare
+ * release or the line the command prints). Each is an inventory correction (INV-41); the device is matched again, so the item leaves
+ * (or comes back with the next question, or with `question.error` when the release could not be read).
+ */
+function PlatformQuestion({ u, question: q }: { u: UncheckedItem; question: NonNullable<UncheckedItem['question']> }) {
+  const { t } = useTranslation('findings')
+  const can = useCan('operator')
+  const act = useDeviceAction(u.asset_id)
+  const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
+  const asks = q.answers.filter((a) => a.ask?.length && (u.software_id || !a.ask.includes('pkg_version')))
+  // one answer to type (the package release), or the last release could not be read: its fields are open at once
+  const first = asks.length === 1 && q.answers.length === 1 ? asks[0]! : q.error ? asks.find((a) => a.ask?.includes('pkg_version')) ?? null : null
+  const [asking, setAsking] = useState<Answer | null>(first)
+  const setOs = (os: string) => act.patch.mutateAsync({ os })
+    .then(() => toast.success(t('needsInput.question.osSaved', { os })), (e: unknown) => toast.error(errMsg(e)))
+  return (
+    <div className="grid gap-2 pl-4">
+      <p className="text-meta">{q.text}</p>
+      {q.command ? <p className="text-meta text-muted">{t('needsInput.question.command')} <code className="font-mono text-meta">{q.command}</code></p> : null}
+      <div className="flex flex-wrap items-center gap-2">
+        {q.answers.map((a) => a.os ? (
+          <Button key={a.label} size="sm" disabled={!can || act.patch.isPending} title={needRole} busy={act.patch.isPending && act.patch.variables?.os === a.os}
+            busyLabel={t('common:busy.saving')} onClick={() => setOs(a.os!)}>{a.label}</Button>
+        ) : asks.includes(a) && !(asking === a && a === first) ? (
+          <Button key={a.label} size="sm" variant={asking === a ? 'secondary' : 'ghost'} aria-pressed={asking === a} disabled={!can} title={needRole} onClick={() => setAsking(asking === a ? null : a)}>{a.label}</Button>
+        ) : null)}
+      </div>
+      {asking ? <AnswerForm key={asking.label} u={u} q={q} answer={asking} /> : null}
+    </div>
+  )
+}
+
+/** The fields of one answer: the device's OS and/or the row's package release; errors at their field (`question.error`, 400 bad_os,
+ *  bad_pkg_version). */
+function AnswerForm({ u, q, answer }: { u: UncheckedItem; q: NonNullable<UncheckedItem['question']>; answer: Answer }) {
+  const { t } = useTranslation('findings')
+  const can = useCan('operator')
+  const act = useDeviceAction(u.asset_id)
+  const id = useId()
+  const wantOs = !!answer.ask?.includes('os')
+  const wantPkg = !!answer.ask?.includes('pkg_version') && !!u.software_id
+  const [os, setOs] = useState('')
+  const [pkg, setPkg] = useState('')
+  const [osError, setOsError] = useState<string | undefined>()
+  const [pkgError, setPkgError] = useState<string | undefined>(q.error)
+  const busy = act.patch.isPending || act.correct.isPending
+  async function send() {
+    try {
+      if (wantOs) await act.patch.mutateAsync({ os: os.trim() })
+    } catch (e) { setOsError(errMsg(e)); return }
+    try {
+      if (wantPkg) await act.correct.mutateAsync({ sid: u.software_id!, pkg_version: pkg.trim() })
+    } catch (e) { setPkgError(errMsg(e)); return }
+    toast.success(t('needsInput.question.saved', { software: u.software }))
+  }
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    const noOs = wantOs && !os.trim()
+    const noPkg = wantPkg && !pkg.trim()
+    setOsError(noOs ? t('needsInput.question.osRequired') : undefined)
+    setPkgError(noPkg ? t('needsInput.question.pkgRequired') : undefined)
+    if (noOs || noPkg) return
+    void send()
+  }
+  const field = (k: 'os' | 'pkg', label: string, value: string, set: (v: string) => void, error: string | undefined, hint?: string, placeholder?: string) => (
+    <div className="grid gap-1">
+      <Label htmlFor={`${id}-${k}`} className="text-meta">{label}</Label>
+      <Input id={`${id}-${k}`} value={value} maxLength={k === 'os' ? 200 : 100} className="h-9 w-full sm:w-72" placeholder={placeholder} disabled={!can}
+        aria-invalid={!!error} aria-describedby={error ? `${id}-${k}-error` : hint ? `${id}-${k}-hint` : undefined}
+        onChange={(e) => { set(e.target.value); if (k === 'os') setOsError(undefined); else setPkgError(undefined) }} />
+      {error ? <p id={`${id}-${k}-error`} role="alert" className="text-meta text-danger [overflow-wrap:anywhere]">{error}</p>
+        : hint ? <p id={`${id}-${k}-hint`} className="text-meta text-muted [overflow-wrap:anywhere]">{hint}</p> : null}
+    </div>
+  )
+  return (
+    <form onSubmit={submit} noValidate aria-label={answer.label} className="grid gap-2 rounded-md border border-rule bg-sunken px-3 py-2">
+      {wantOs ? field('os', t('needsInput.question.osLabel'), os, setOs, osError, undefined, t('needsInput.question.osPlaceholder')) : null}
+      {wantPkg ? field('pkg', t('needsInput.question.pkgLabel', { software: u.software }), pkg, setPkg, pkgError,
+        // the question's command prints the package release only when the release is the question (package_unknown); for the platform
+        // question it prints the distribution's release, which is not what this field takes
+        u.reason === 'package_unknown' && q.command ? t('needsInput.question.pkgHint', { command: q.command }) : t('needsInput.question.pkgHintNone'), t('needsInput.question.pkgPlaceholder')) : null}
+      <div>
+        <Button type="submit" size="sm" variant="primary" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+          busy={busy} busyLabel={t('common:busy.saving')}>{t('needsInput.saveVersion')}</Button>
       </div>
     </form>
   )

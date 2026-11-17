@@ -4,7 +4,7 @@ import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
 import { aiAvailable, aiCandidates, assetsStore, findingsStore, isOn, recordAiRun, type AiJob } from '@/mocks/stores'
-import { usableVersion, versionNeeded } from '@/mocks/match'
+import { liveSoftware, usableVersion, versionNeeded } from '@/mocks/match'
 import { epssDate, kevPublished as published, planSeed, recentSince, tierFact, tierOf, tierState, withinYear } from '@/mocks/tiers'
 import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
@@ -373,24 +373,58 @@ const VERSION_SEED: { asset: string; software: string; cves: number }[] = [
 function versionSeed(asset?: string | null) {
   return VERSION_SEED.flatMap((v) => {
     const a = assetsStore.get().find((x) => x.id === v.asset)
-    const sw = a?.software.find((x) => x.display === v.software)
+    const sw = a ? liveSoftware(a).find((x) => x.display === v.software) : undefined
     return a && sw && (!asset || a.id === asset) && !usableVersion(sw.version) ? [{ asset: a, software: sw, cves: v.cves }] : []
   })
 }
 const seedVersions = new Map<string, string | null>()
-/** #910 phase 1 mock: the unchecked list; an item leaves it once its software's version changes (the real box re-checks). */
+/** #910 phase 1 mock: the unchecked list; an item leaves it once its software's version changes (the real box re-checks), a person's
+ *  correction included (INV-41: the rows matching reads). */
 export function unchecked(asset?: string | null): UncheckedItem[] {
   const out: UncheckedItem[] = []
   for (const u of UNCHECKED_SEED) {
     const a = assetsStore.get().find((x) => x.id === u.asset)
-    const sw = a?.software.find((x) => x.display === u.software)
+    const sw = a ? liveSoftware(a).find((x) => x.display === u.software) : undefined
     if (!a || !sw || (asset && a.id !== asset)) continue
-    const key = `${a.id}/${sw.id}`
+    const key = `${a.id}/${u.software}`
     if (!seedVersions.has(key)) seedVersions.set(key, sw.version || null)
     if (seedVersions.get(key) !== (sw.version || null)) continue
     out.push({ asset: assetView(a), asset_id: a.id, software_id: sw.id, software: sw.display, version: sw.version || null, reason: u.reason, cves: u.cves, action: u.action })
   }
+  const q = platformItem()
+  if (q && (!asset || q.asset_id === asset)) out.push(q)
   return out
+}
+
+/** D-604 mock, BN340 (the N100's router): CVE-2026-123158 affects only OpenSSH built with musl and without PAM (Alpine's openssh-server).
+ *  The scan reads OpenSSH 10.2 and an OS guess, so the platform is the question; once a person sets Alpine Linux, the package release
+ *  is; a release Vedette reads settles it (the item leaves; the real box closes the CVE with Alpine's reason), one it cannot read comes
+ *  back as question.error. As findings.platformQuestion words it. */
+const BN340 = { asset: 'a-bn340', software: 'OpenSSH', cve: cveOf('CVE-2026-123158', 'OpenSSH Remote Code Execution', '2026-11-12', false, 'https://security.alpinelinux.org/vuln/CVE-2026-123158') }
+const APK = 'apk info -e -v openssh-server'
+/** The release of what a person typed: the bare release, or the line apk prints ("openssh-server-10.2_p1-r1"); null when unreadable. */
+const releaseOf = (v: string) => { const m = /^(?:[a-z][a-z0-9+._-]*?-(?=\d))?(\d[\w.:~+-]*)$/.exec(v.trim()); return m ? m[1]! : null }
+function platformItem(): UncheckedItem | null {
+  const a = assetsStore.get().find((x) => x.id === BN340.asset)
+  const sw = a ? liveSoftware(a).find((x) => x.display === BN340.software) : undefined
+  if (!a || !sw) return null
+  const pkg = sw.pkg_version ?? ''
+  if (pkg && releaseOf(pkg)) return null // settled
+  const device = assetView(a)?.name ?? 'this device'
+  const base = { asset: assetView(a), asset_id: a.id, software_id: sw.id, software: sw.display, version: sw.version || null, cves: [BN340.cve], action: 'answer_platform' as const }
+  const alpine = a.os?.source === 'manual' && /alpine/i.test(a.os.value)
+  if (alpine || pkg) {
+    return { ...base, reason: 'package_unknown', question: {
+      text: `Which openssh-server package release does ${device} have? Alpine Linux fixed CVE-2026-123158 in 10.2_p1-r1 (3.23) and 10.0_p1-r10 (3.22).`, command: APK,
+      answers: [{ label: 'Enter the package release', ask: ['pkg_version'] }],
+      ...(pkg ? { error: `Vedette could not read the release you entered ("${pkg}"): enter it as ${APK} prints it, for example openssh-server-10.2_p1-r1 or 10.2_p1-r1.` } : {}),
+    } }
+  }
+  return { ...base, reason: 'platform_unknown', question: {
+    text: `Is the OpenSSH on ${device} Alpine Linux's openssh-server package, or another build? CVE-2026-123158 affects only OpenSSH built with musl libc and without PAM, such as Alpine Linux's openssh-server package. Choose the Alpine Linux release it runs (cat /etc/alpine-release prints it), or Another system to give its OS and the OpenSSH package release (that settles it).`,
+    command: 'cat /etc/alpine-release',
+    answers: [{ label: 'Alpine Linux 3.22', os: 'Alpine Linux 3.22' }, { label: 'Alpine Linux 3.23', os: 'Alpine Linux 3.23' }, { label: 'Another system', ask: ['os', 'pkg_version'] }],
+  } }
 }
 const uncheckedCounts = () => {
   const l = unchecked()

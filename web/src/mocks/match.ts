@@ -13,6 +13,8 @@ interface Kev { cve: string; vendor: string; product: string; ransomware: boolea
 const vulns = (kev as { vulns: Kev[] }).vulns
 
 type Sw = Asset['software'][number]
+/** INV-41: the rows matching reads: a reported row a person corrected is replaced by the correction. */
+export const liveSoftware = (a: Asset): Sw[] => a.software.filter((s) => !a.software.some((c) => c.corrects === s.id))
 /** Mirrors the Go matcher's versionKnown: empty, an all-zero placeholder ("0.0") or text without a number is no version. */
 export const usableVersion = (v: string | null) => !!v && /\d/.test(v) && !/^[0.\s]+$/.test(v)
 
@@ -34,7 +36,7 @@ export function matchAssetToKev(assetId: string): number {
     if (have.has(v.cve)) continue
     if (kevAged(v.cve, v.date_added) && !v.has_template) continue // D-615, D-616: an older KEV CVE is not a finding on a product-only match (the mock has no ranges)
     const multi = /^multiple products$/i.test(v.product)
-    const s = a.software.find((x) => usableVersion(x.version) && keyed(x, v))
+    const s = liveSoftware(a).find((x) => usableVersion(x.version) && keyed(x, v))
     if (!s) continue
     have.add(v.cve)
     const sw = `${s.display} ${s.version}`
@@ -60,7 +62,7 @@ export function versionNeeded(assetId?: string | null) {
   const out: { asset: Asset; software: Sw; cves: number }[] = []
   for (const a of assetsStore.get()) {
     if (assetId && a.id !== assetId) continue
-    for (const s of a.software) {
+    for (const s of liveSoftware(a)) {
       if (usableVersion(s.version)) continue
       const cves = vulns.filter((v) => keyed(s, v)).length
       if (cves > 0) out.push({ asset: a, software: s, cves })

@@ -101,11 +101,11 @@ describe('Findings › Needs your input by device (kien G15)', () => {
     expect(await screen.findByText('Removed FortiGate from Fortinet.', undefined, T)).toBeInTheDocument()
     expect(assetsStore.get().find((a) => a.id === 'a-unk02')!.software).toEqual([])
     await waitFor(() => expect(screen.queryByRole('listitem', { name: 'Fortinet' })).toBeNull(), T)
-    // a camera Vedette saw in traffic: nothing to type or remove here
+    // a camera Vedette saw in traffic: its version can be typed (a correction, INV-41), but Not installed is not offered
     const cam = await expand('CAM-GATE')
     expect(await within(cam).findByText(/Vedette saw it in network traffic, which carries no version/, undefined, T)).toBeInTheDocument()
     expect(within(cam).queryByRole('button', { name: 'Not installed' })).toBeNull()
-    expect(within(cam).queryByRole('button', { name: 'Save and check' })).toBeNull()
+    expect(within(cam).getByRole('button', { name: 'Save and check' })).toBeInTheDocument()
   })
 
   it('a product added as its own device: Not installed removes the device', async () => {

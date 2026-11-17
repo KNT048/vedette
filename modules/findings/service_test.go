@@ -25,7 +25,8 @@ type fakeInv struct {
 	match  map[string]Asset
 	idsErr error
 	// ignored are the devices a person ignored (D-630); the test also removes them from match, as the inventory does.
-	ignored map[string]bool
+	ignored    map[string]bool
+	ignoredErr error // IgnoredIDs fails with it (review r2 N1 of #945)
 	// onMatch runs (without the lock) when MatchInput reads a device: a test can change the world while a pass reads it.
 	onMatch func(id string)
 }
@@ -57,6 +58,9 @@ func (f *fakeInv) MatchInput(_ context.Context, id string) (Asset, bool, error) 
 func (f *fakeInv) IgnoredIDs(context.Context) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.ignoredErr != nil {
+		return nil, f.ignoredErr
+	}
 	return slices.Sorted(maps.Keys(f.ignored)), nil
 }
 

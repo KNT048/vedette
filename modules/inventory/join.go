@@ -180,13 +180,21 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 // when they did not.
 func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode, actor string) (watchEvent string, err error) {
 	fromName, intoName := deviceName(ctx, tx, from), deviceName(ctx, tx, into)
-	var fromIgnored, intoIgnored bool
-	if err := tx.QueryRowContext(ctx, `SELECT f.ignored_at IS NOT NULL, i.ignored_at IS NOT NULL FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`, from, into).
-		Scan(&fromIgnored, &intoIgnored); err != nil {
+	var fromIgnored, intoIgnored, fromApproved bool
+	if err := tx.QueryRowContext(ctx, `SELECT f.ignored_at IS NOT NULL, i.ignored_at IS NOT NULL, f.approved FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`, from, into).
+		Scan(&fromIgnored, &intoIgnored, &fromApproved); err != nil {
 		return "", fmt.Errorf("inventory: read devices: %w", err)
 	}
 	watch := ""
 	switch {
+	case intoIgnored && !fromIgnored && fromApproved:
+		// review r2 N2 of #945: an approved device a person watches is never hidden by a join with an ignored row (a join whose
+		// direction is fixed, a chassis or hand-added one, or a person's Merge): the kept row is watched again and its findings
+		// that Ignore closed reopen
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ignored_at = NULL WHERE id = ?`, into); err != nil {
+			return "", fmt.Errorf("inventory: watch the joined device: %w", err)
+		}
+		watchEvent, watch = EventAssetUnignored, "; "+fromName+" is an approved device that is watched, so "+intoName+" is watched again"
 	case intoIgnored && !fromIgnored:
 		watchEvent, watch = EventAssetIgnored, "; "+intoName+" is ignored, so it stays ignored and the findings of "+fromName+" close"
 	case fromIgnored && !intoIgnored:
@@ -662,17 +670,19 @@ func sameMAC(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, i
 	return from, into, "a sensor saw both last with the MAC " + shared, nil
 }
 
-// keptOrder orders two rows of one machine (D-598): the row that stays is one a person declared, else an approved one, else the older
-// one (first_seen, then the smaller id); so a person's approval, an enrolment's and a declared address stay where they are. "" when
-// both were declared (a person keeps them apart).
+// keptOrder orders two rows of one machine (D-598): the row that stays is one a person declared, else an approved row a person
+// watches when the other is ignored (D-630, review r2 N2 of #945: a join never hides a watched server's findings behind an ignored
+// duplicate; a declared row that is ignored stays and joinAs watches it again, review r1 L1 of #948), else an approved one, else the
+// older one (first_seen, then the smaller id); so a person's approval, an enrolment's and a declared address stay where they are. ""
+// when both were declared (a person keeps them apart).
 func keptOrder(ctx context.Context, tx *sql.Tx, x, y string) (from, into string, err error) {
 	type row struct {
 		id, origin, first string
-		approved          bool
+		approved, ignored bool
 	}
 	read := func(id string) (row, error) {
 		r := row{id: id}
-		err := tx.QueryRowContext(ctx, `SELECT origin, approved, first_seen FROM inv_asset WHERE id = ?`, id).Scan(&r.origin, &r.approved, &r.first)
+		err := tx.QueryRowContext(ctx, `SELECT origin, approved, first_seen, ignored_at IS NOT NULL FROM inv_asset WHERE id = ?`, id).Scan(&r.origin, &r.approved, &r.first, &r.ignored)
 		if err != nil {
 			err = fmt.Errorf("inventory: read device: %w", err)
 		}
@@ -691,8 +701,10 @@ func keptOrder(ctx context.Context, tx *sql.Tx, x, y string) (from, into string,
 	}
 	stays := func(p, q row) bool { // p is kept over q
 		switch {
-		case (p.origin == "manual") != (q.origin == "manual"):
-			return p.origin == "manual"
+		case (p.origin == "manual") != (q.origin == "manual"): // a declared row first: it keeps its origin and typed address; joinAs
+			return p.origin == "manual" // watches it again when the other row is approved and watched
+		case p.ignored != q.ignored && (!p.ignored && p.approved || !q.ignored && q.approved): // a watched, approved row over an ignored one
+			return !p.ignored
 		case p.approved != q.approved:
 			return p.approved
 		case p.first != q.first:

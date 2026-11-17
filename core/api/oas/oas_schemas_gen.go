@@ -57797,8 +57797,9 @@ func (s *FeedsGetFeedsSourcesOK) SetItems(val []FeedsGetFeedsSourcesOKItemsItem)
 }
 
 type FeedsGetFeedsSourcesOKItemsItem struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                           `json:"answered_by"`
 	Auth       FeedsGetFeedsSourcesOKItemsItemAuth `json:"auth"`
 	Builtin    bool                                `json:"builtin"`
@@ -58554,9 +58555,16 @@ func (s *FeedsGetFeedsStatusOK) SetSources(val []FeedsGetFeedsStatusOKSourcesIte
 }
 
 type FeedsGetFeedsStatusOKKev struct {
+	// Newest from: the copy the catalog on the box came from, "CISA" (cisa.gov) or "CISA GitHub mirror"
+	// (D-91 as amended, kien G13: both are asked every check and the newer catalog is kept); null before
+	// the first good pull.
+	AnsweredBy NilString `json:"answered_by"`
 	// When the box last asked for the CISA list, whether the pull worked or not; null before the first
 	// pull.
 	CheckedAt NilDateTime `json:"checked_at"`
+	// What each copy of the CISA list said at its last check (D-91 as amended); empty for a list at an
+	// admin's own address or before the first check.
+	Copies []FeedsGetFeedsStatusOKKevCopiesItem `json:"copies"`
 	// One line, cleaned: why the last pull failed (also when an earlier pull had loaded the list); null
 	// when the last pull worked, has not been tried, or the list is off.
 	Error NilString `json:"error"`
@@ -58569,9 +58577,19 @@ type FeedsGetFeedsStatusOKKev struct {
 	State FeedsGetFeedsStatusOKKevState `json:"state"`
 }
 
+// GetAnsweredBy returns the value of AnsweredBy.
+func (s *FeedsGetFeedsStatusOKKev) GetAnsweredBy() NilString {
+	return s.AnsweredBy
+}
+
 // GetCheckedAt returns the value of CheckedAt.
 func (s *FeedsGetFeedsStatusOKKev) GetCheckedAt() NilDateTime {
 	return s.CheckedAt
+}
+
+// GetCopies returns the value of Copies.
+func (s *FeedsGetFeedsStatusOKKev) GetCopies() []FeedsGetFeedsStatusOKKevCopiesItem {
+	return s.Copies
 }
 
 // GetError returns the value of Error.
@@ -58594,9 +58612,19 @@ func (s *FeedsGetFeedsStatusOKKev) GetState() FeedsGetFeedsStatusOKKevState {
 	return s.State
 }
 
+// SetAnsweredBy sets the value of AnsweredBy.
+func (s *FeedsGetFeedsStatusOKKev) SetAnsweredBy(val NilString) {
+	s.AnsweredBy = val
+}
+
 // SetCheckedAt sets the value of CheckedAt.
 func (s *FeedsGetFeedsStatusOKKev) SetCheckedAt(val NilDateTime) {
 	s.CheckedAt = val
+}
+
+// SetCopies sets the value of Copies.
+func (s *FeedsGetFeedsStatusOKKev) SetCopies(val []FeedsGetFeedsStatusOKKevCopiesItem) {
+	s.Copies = val
 }
 
 // SetError sets the value of Error.
@@ -58617,6 +58645,109 @@ func (s *FeedsGetFeedsStatusOKKev) SetLastSuccess(val NilDateTime) {
 // SetState sets the value of State.
 func (s *FeedsGetFeedsStatusOKKev) SetState(val FeedsGetFeedsStatusOKKevState) {
 	s.State = val
+}
+
+type FeedsGetFeedsStatusOKKevCopiesItem struct {
+	// The catalogVersion this copy last gave; null when not known yet.
+	CatalogVersion NilString `json:"catalog_version"`
+	// When the box last asked this copy.
+	CheckedAt time.Time `json:"checked_at"`
+	// Why the last ask failed, one clause naming the copy ("cisa.gov refused this box (HTTP 403)"); null
+	// when it answered.
+	Error NilString                              `json:"error"`
+	Name  FeedsGetFeedsStatusOKKevCopiesItemName `json:"name"`
+	URL   url.URL                                `json:"url"`
+}
+
+// GetCatalogVersion returns the value of CatalogVersion.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetCatalogVersion() NilString {
+	return s.CatalogVersion
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetError returns the value of Error.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetError() NilString {
+	return s.Error
+}
+
+// GetName returns the value of Name.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetName() FeedsGetFeedsStatusOKKevCopiesItemName {
+	return s.Name
+}
+
+// GetURL returns the value of URL.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) GetURL() url.URL {
+	return s.URL
+}
+
+// SetCatalogVersion sets the value of CatalogVersion.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetCatalogVersion(val NilString) {
+	s.CatalogVersion = val
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetName sets the value of Name.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetName(val FeedsGetFeedsStatusOKKevCopiesItemName) {
+	s.Name = val
+}
+
+// SetURL sets the value of URL.
+func (s *FeedsGetFeedsStatusOKKevCopiesItem) SetURL(val url.URL) {
+	s.URL = val
+}
+
+type FeedsGetFeedsStatusOKKevCopiesItemName string
+
+const (
+	FeedsGetFeedsStatusOKKevCopiesItemNameCISA             FeedsGetFeedsStatusOKKevCopiesItemName = "CISA"
+	FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror FeedsGetFeedsStatusOKKevCopiesItemName = "CISA GitHub mirror"
+)
+
+// AllValues returns all FeedsGetFeedsStatusOKKevCopiesItemName values.
+func (FeedsGetFeedsStatusOKKevCopiesItemName) AllValues() []FeedsGetFeedsStatusOKKevCopiesItemName {
+	return []FeedsGetFeedsStatusOKKevCopiesItemName{
+		FeedsGetFeedsStatusOKKevCopiesItemNameCISA,
+		FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsStatusOKKevCopiesItemName) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISA:
+		return []byte(s), nil
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsStatusOKKevCopiesItemName) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsStatusOKKevCopiesItemName(data) {
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISA:
+		*s = FeedsGetFeedsStatusOKKevCopiesItemNameCISA
+		return nil
+	case FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror:
+		*s = FeedsGetFeedsStatusOKKevCopiesItemNameCISAGitHubMirror
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded"
@@ -58673,7 +58804,8 @@ type FeedsGetFeedsStatusOKSourcesItem struct {
 	FetchedAt time.Time `json:"fetched_at"`
 	License   string    `json:"license"`
 	Name      string    `json:"name"`
-	URL       url.URL   `json:"url"`
+	// The address the data came from: for the CISA list, the copy the newest catalog came from (kien G13).
+	URL url.URL `json:"url"`
 }
 
 // GetFetchedAt returns the value of FetchedAt.
@@ -58841,8 +58973,9 @@ func (s *FeedsGetFeedsWeeklyOKItemsItemAnswer) UnmarshalText(data []byte) error 
 }
 
 type FeedsPostFeedsCustomCreated struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                       `json:"answered_by"`
 	Auth       FeedsPostFeedsCustomCreatedAuth `json:"auth"`
 	Builtin    bool                            `json:"builtin"`
@@ -60608,8 +60741,9 @@ func (s *FeedsPostFeedsParseTestReqParserFormat) UnmarshalText(data []byte) erro
 }
 
 type FeedsPostFeedsSourcesIDFetchOK struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                          `json:"answered_by"`
 	Auth       FeedsPostFeedsSourcesIDFetchOKAuth `json:"auth"`
 	Builtin    bool                               `json:"builtin"`
@@ -61486,8 +61620,9 @@ func (s *FeedsPostFeedsWeeklyIDReqAnswer) UnmarshalText(data []byte) error {
 }
 
 type FeedsPutFeedsCustomIDOK struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                   `json:"answered_by"`
 	Auth       FeedsPutFeedsCustomIDOKAuth `json:"auth"`
 	Builtin    bool                        `json:"builtin"`
@@ -62660,8 +62795,9 @@ func (s *FeedsPutFeedsCustomIDReqParserFormat) UnmarshalText(data []byte) error 
 }
 
 type FeedsPutFeedsSourcesIDOK struct {
-	// The CISA list only: which address answered the last good pull, "CISA" or "CISA GitHub mirror"
-	// (D-91); null for every other feed and before the first good pull.
+	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
+	// mirror"; both copies are asked every check (D-91 as amended, kien G13); null for every other feed
+	// and before the first good pull.
 	AnsweredBy NilString                    `json:"answered_by"`
 	Auth       FeedsPutFeedsSourcesIDOKAuth `json:"auth"`
 	Builtin    bool                         `json:"builtin"`
@@ -101239,8 +101375,12 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemSource) UnmarshalText(d
 }
 
 type InventoryGetInventoryDevicesIDOKPossibleSameItem struct {
-	Approved bool      `json:"approved"`
-	ID       string    `json:"id"`
+	Approved bool   `json:"approved"`
+	ID       string `json:"id"`
+	// D-630: a person ignored the other device. A merge keeps the kept device watched or ignored, except
+	// that an approved device a person watches is never hidden: merged with it, an ignored device is
+	// watched again.
+	Ignored  bool      `json:"ignored"`
 	LastSeen time.Time `json:"last_seen"`
 	// The other device, named as every page names it (D-471).
 	Name string `json:"name"`
@@ -101257,6 +101397,11 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetApproved() bool {
 // GetID returns the value of ID.
 func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetID() string {
 	return s.ID
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetIgnored() bool {
+	return s.Ignored
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -101282,6 +101427,11 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetApproved(val bool)
 // SetID sets the value of ID.
 func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 // SetLastSeen sets the value of LastSeen.

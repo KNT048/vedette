@@ -13,7 +13,7 @@ import { linuxInstallScript, NO_BOX_ADDRESS, OSQUERY_VERSION, windowsInstallScri
 import { sha256Hex } from './kinds'
 import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
 import type {
-  AddDeviceInput, AddDeviceResult, AgentToken, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
+  AddDeviceInput, AddDeviceResult, AgentReport, AgentToken, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
   InventorySettings, KeepSeparateInput, MergeInput, ObsField, Observation, OsqueryPackage, PossibleSame, RegularScan, SamePairs, Sensor, SettingsInput, SnmpCredential, SnmpCredentialInput, SnmpRead, SnmpTestReason, SnmpTestResult,
   SoftwareView, WazuhConnection, WazuhInput,
 } from './types'
@@ -281,6 +281,20 @@ function sourcesOf(a: Asset): DeviceSource[] {
     }
   }
   return DEVICE_SOURCES.filter((x) => has.has(x))
+}
+/** The asks of "I updated it: ask the agent now" by device (agent-intake INV-23), and how the backend times them. */
+const reportAsks = new Map<string, number>()
+const REPORT_WINDOW_MS = 15 * 60_000
+const REPORT_COOLDOWN_MS = 10 * 60_000
+function agentReport(id: string): AgentReport | null {
+  const a = allAssets().find((x) => x.id === id)
+  if (!a) return null
+  const src = sourcesOf(a)
+  const asked = reportAsks.get(id)
+  if (src.includes('osquery')) return { agent: 'osquery', asked_at: asked !== undefined && Date.now() - asked < REPORT_WINDOW_MS ? new Date(asked).toISOString() : null, wazuh_interval_minutes: null }
+  const w = wazuhStore.get()
+  if (src.includes('wazuh') && w) return { agent: 'wazuh', asked_at: null, wazuh_interval_minutes: w.interval_minutes }
+  return { agent: 'none', asked_at: null, wazuh_interval_minutes: null }
 }
 const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), summary: summaryOf(a) })
 
@@ -1115,6 +1129,31 @@ export const handlers = [
     agentsStore.update((l) => l.filter((x) => x.id !== t.id))
     audit('inventory.agent_token_revoke', t.name)
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  // "I updated it: ask the agent now" (S-MIT-1, agent-intake INV-23): which agent reads the device, and the open ask (15 min, or until
+  // the list comes; the mock has no agent, so the window alone ends it). A new ask within 10 minutes of the last one: 429.
+  http.get(`${API}/inventory/agents/devices/:id/report`, ({ params }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    const r = agentReport(String(params.id))
+    return r ? HttpResponse.json(r) : fail(404, 'not_found', 'No such device.')
+  }),
+  http.post(`${API}/inventory/agents/devices/:id/report`, ({ params }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const id = String(params.id)
+    const r = agentReport(id)
+    if (!r) return fail(404, 'not_found', 'No such device.')
+    if (r.agent !== 'osquery') return fail(409, 'cannot_ask', 'Vedette cannot ask this device\'s agent to report now: only an osquery agent enrolled with this box can be asked.')
+    if (r.asked_at) return HttpResponse.json(r)
+    const last = reportAsks.get(id)
+    if (last !== undefined && Date.now() - last < REPORT_COOLDOWN_MS) {
+      const wait = Math.ceil((REPORT_COOLDOWN_MS - (Date.now() - last)) / 1000)
+      const mins = Math.ceil(wait / 60)
+      return HttpResponse.json({ error: { code: 'rate_limited', message: `Vedette asked this agent less than 10 minutes ago and its list came. Ask again in ${mins} ${mins === 1 ? 'minute' : 'minutes'}.`, retry_after: wait } }, { status: 429, headers: { 'Retry-After': String(wait) } })
+    }
+    reportAsks.set(id, Date.now())
+    audit('inventory.agent_report_now', id, 'osquery node')
+    return HttpResponse.json(agentReport(id))
   }),
 
   // CHỈ BẢN XEM THỬ: bản thật có agent báo về. Ở đây giả lập một lần báo về để người dùng thấy tác dụng.

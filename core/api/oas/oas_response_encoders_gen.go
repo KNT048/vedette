@@ -2433,6 +2433,19 @@ func encodeInventoryGetInventoryAgentsResponse(response *InventoryGetInventoryAg
 	return nil
 }
 
+func encodeInventoryGetInventoryAgentsDevicesIDReportResponse(response *InventoryGetInventoryAgentsDevicesIDReportOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeInventoryGetInventoryCatalogResponse(response *InventoryGetInventoryCatalogOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2646,6 +2659,19 @@ func encodeInventoryPostIntakeOsqueryLogResponse(response *InventoryPostIntakeOs
 }
 
 func encodeInventoryPostIntakeOsqueryStatusResponse(response *InventoryPostIntakeOsqueryStatusOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryPostInventoryAgentsDevicesIDReportResponse(response *InventoryPostInventoryAgentsDevicesIDReportOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

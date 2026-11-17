@@ -374,6 +374,7 @@ func aboutBox(ctx context.Context, tx *sql.Tx, c cleanObs) (bool, error) {
 var (
 	_ observe.Approver      = (*Service)(nil)
 	_ observe.AgentReleaser = (*Service)(nil)
+	_ observe.AgentDevices  = (*Service)(nil)
 )
 
 // ApproveEnrolled implements observe.Approver (D-503, S-INV-4): the device an osquery agent reports on is approved by the enrolment,
@@ -979,6 +980,24 @@ func (s *Service) ReleaseAgents(ctx context.Context, agents []string) error {
 		}
 		return nil
 	})
+}
+
+// AgentDevice implements observe.AgentDevices: the agent bound to the device id (D-598), its address and its MAC; found is false when
+// no device has that id. Read only.
+func (s *Service) AgentDevice(ctx context.Context, id string) (observe.AgentDevice, bool, error) {
+	var agent, ip, mac string
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT coalesce(agent_key, ''), coalesce(ip, ''), coalesce(mac, '') FROM inv_asset WHERE id = ?`, id).Scan(&agent, &ip, &mac)
+	if errors.Is(err, sql.ErrNoRows) {
+		return observe.AgentDevice{}, false, nil
+	}
+	if err != nil {
+		return observe.AgentDevice{}, false, fmt.Errorf("inventory: read device agent: %w", err)
+	}
+	d := observe.AgentDevice{Agent: agent, MAC: mac}
+	if a, perr := netip.ParseAddr(ip); perr == nil {
+		d.IP = a
+	}
+	return d, true, nil
 }
 
 // claimIP gives ip to the device and records the sighting that confirmed it (ip_confirmed_at, ipTrust). The address is taken from

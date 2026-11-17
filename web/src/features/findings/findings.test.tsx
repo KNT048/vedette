@@ -758,11 +758,86 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(screen.queryByRole('button', { name: /^I updated|^Check this device now$/ })).toBeNull()
   })
 
-  it('kien G12: software an agent reads (the Windows row of osquery, D-546): no button, a line says the agent reports it', async () => {
+  // S-MIT-1 (kien G12 follow-up, agent-intake INV-23): "I updated it" on software an agent reads.
+  const agentOn = () => modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
+  const report = (r: { agent: 'osquery' | 'wazuh' | 'none'; asked_at?: string | null; wazuh_interval_minutes?: number | null }) =>
+    http.get('*/api/v1/inventory/agents/devices/:id/report', () => HttpResponse.json({ asked_at: null, wazuh_interval_minutes: null, ...r }))
+  const windows = http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { id: 'a-srvad', software: [
+    { id: 's-srvad', display: 'Windows Server 2025', vendor: 'microsoft', product: 'Windows Server 2025', version: '10.0.26100.1742', source: 'agent', confidence: 1, kev_cves: ['CVE-2026-96951'] },
+  ] } }))
+
+  it('S-MIT-1: an osquery app row: "ask the agent now", its busy state, then the ask in words (no restart for an app)', async () => {
+    agentOn()
+    let asked = 0
+    let release!: () => void
+    const held = new Promise<void>((r) => { release = r })
+    server.use(device('agent'), report({ agent: 'osquery' }), http.post('*/api/v1/inventory/agents/devices/:id/report', async ({ params }) => {
+      asked++
+      expect(params.id).toBe('a-srvad')
+      await held
+      return HttpResponse.json({ agent: 'osquery', asked_at: '2026-11-17T09:05:00Z', wazuh_interval_minutes: null })
+    }))
+    renderApp('/findings/f-3')
+    const btn = await screen.findByRole('button', { name: 'I updated it: ask the agent now' })
+    expect(screen.queryByText(/restart/i)).toBeNull()
+    await userEvent.click(btn)
+    expect(await screen.findByRole('button', { name: 'Asking…' })).toHaveAttribute('aria-busy', 'true')
+    release()
+    const status = await screen.findByText(/^Asked at \d\d:\d\d\. SRV-AD sends its software list within about 5 minutes; the findings this update fixes then close by themselves\.$/)
+    expect(status).toHaveAttribute('role', 'status')
+    expect(asked).toBe(1)
+    expect(screen.queryByRole('button', { name: 'I updated it: ask the agent now' })).toBeNull()
+  })
+
+  it('S-MIT-1: an osquery OS row (Windows cumulative update) says the build changes only after the restart, before and after the ask', async () => {
+    agentOn()
+    server.use(windows, report({ agent: 'osquery' }), http.post('*/api/v1/inventory/agents/devices/:id/report', () =>
+      HttpResponse.json({ agent: 'osquery', asked_at: '2026-11-17T09:05:00Z', wazuh_interval_minutes: null })))
+    renderApp('/findings/f-3')
+    expect(await screen.findByText('Restart SRV-AD first if the update asks for it: the new build shows only after the restart.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'I updated it: ask the agent now' }))
+    expect(await screen.findByText(/^Asked at \d\d:\d\d\. SRV-AD sends its software list within about 5 minutes\. The new build shows only after the restart the update needs: if SRV-AD has not restarted yet, restart it and ask again\.$/)).toBeInTheDocument()
+  })
+
+  it('S-MIT-1: an ask already open shows as such after a reload; a refused ask reads as the box\'s sentence', async () => {
+    agentOn()
+    server.use(device('agent'), report({ agent: 'osquery', asked_at: '2026-11-17T09:05:00Z' }))
+    renderApp('/findings/f-3')
+    expect(await screen.findByText(/^Asked at \d\d:\d\d\. SRV-AD sends its software list/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'I updated it: ask the agent now' })).toBeNull()
+    cleanup()
+    server.use(report({ agent: 'osquery' }), http.post('*/api/v1/inventory/agents/devices/:id/report', () =>
+      HttpResponse.json({ error: { code: 'rate_limited', message: 'Vedette asked this agent less than 10 minutes ago and its list came. Ask again in 4 minutes.', retry_after: 240 } }, { status: 429 })))
+    renderApp('/findings/f-3')
+    await userEvent.click(await screen.findByRole('button', { name: 'I updated it: ask the agent now' }))
+    expect(await screen.findByText('Vedette asked this agent less than 10 minutes ago and its list came. Ask again in 4 minutes.')).toHaveAttribute('role', 'alert')
+  })
+
+  it('S-MIT-1: a viewer sees the ask refused with the role it needs', async () => {
+    agentOn()
+    server.use(device('agent'), report({ agent: 'osquery' }))
+    renderApp('/findings/f-3', { role: 'viewer' })
+    expect(await screen.findByRole('button', { name: 'I updated it: ask the agent now' })).toBeDisabled()
+    expect(screen.getAllByText('Requires Operator role').length).toBeGreaterThan(0)
+  })
+
+  it('S-MIT-1: a device only Wazuh reads: no button, a line with Vedette\'s pull interval', async () => {
+    agentOn()
+    server.use(device('agent'), report({ agent: 'wazuh', wazuh_interval_minutes: 60 }))
+    renderApp('/findings/f-3')
+    expect(await screen.findByText('Vedette cannot ask Wazuh to read SRV-AD now. Wazuh reads its software on its own schedule (hourly by default) and Vedette pulls from Wazuh every hour; the findings this update fixes then close by themselves.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^I updated/ })).toBeNull()
+  })
+
+  it('kien G12: agent-intake off: no button, a line says the agent reports it (an app needs no restart, the OS does)', async () => {
     server.use(device('agent'))
     renderApp('/findings/f-3')
-    expect(await screen.findByText(/^The agent on SRV-AD reports the new version by itself after the update and a restart; these findings then close on their own\.$/)).toBeInTheDocument()
+    expect(await screen.findByText(/^The agent on SRV-AD reports the new version by itself within the hour; these findings then close on their own\.$/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^I updated/ })).toBeNull()
+    cleanup()
+    server.use(windows)
+    renderApp('/findings/f-3')
+    expect(await screen.findByText(/^Restart SRV-AD if the update asks for it: the new build shows only after the restart\. Its agent then reports it/)).toBeInTheDocument()
   })
 })
 

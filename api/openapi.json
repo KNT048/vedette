@@ -44956,6 +44956,182 @@
         }
       }
     },
+    "/inventory/agents/devices/{id}/report": {
+      "get": {
+        "operationId": "inventory_get_inventory_agents_devices_id_report",
+        "summary": "Which agent of this box reads the device and whether an ask to send its software now is open (\"I updated it\", S-MIT-1). 404 not_found: no such device; 404 too while agent-intake is off",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-MIT-1",
+          "S-INV-4"
+        ],
+        "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent": {
+                      "type": "string",
+                      "enum": [
+                        "osquery",
+                        "wazuh",
+                        "none"
+                      ],
+                      "description": "osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the list; none = no agent of this box reads it now"
+                    },
+                    "asked_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The open ask: when a person asked the osquery agent to send its software now, until its list arrives or 15 minutes pass; null when none is open"
+                    },
+                    "wazuh_interval_minutes": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise"
+                    }
+                  },
+                  "required": [
+                    "agent",
+                    "asked_at",
+                    "wazuh_interval_minutes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "inventory_post_inventory_agents_devices_id_report",
+        "summary": "I updated it: ask the device's osquery agent to send its software now. For 15 minutes, or until its list arrives, the box's config gives the agent's software queries (the same read-only queries, nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-MIT-1",
+          "S-INV-4"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent": {
+                      "type": "string",
+                      "enum": [
+                        "osquery",
+                        "wazuh",
+                        "none"
+                      ],
+                      "description": "osquery = an osquery agent enrolled with this box reports on the device: Vedette can ask it to send its software now; wazuh = only the Wazuh pull reads it: Vedette cannot ask, the next pull brings the list; none = no agent of this box reads it now"
+                    },
+                    "asked_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The open ask: when a person asked the osquery agent to send its software now, until its list arrives or 15 minutes pass; null when none is open"
+                    },
+                    "wazuh_interval_minutes": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise"
+                    }
+                  },
+                  "required": [
+                    "agent",
+                    "asked_at",
+                    "wazuh_interval_minutes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/inventory/agents/tokens": {
       "post": {
         "operationId": "inventory_post_inventory_agents_tokens",

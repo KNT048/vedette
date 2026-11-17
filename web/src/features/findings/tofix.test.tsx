@@ -114,33 +114,59 @@ describe('Findings › To fix (kien G8)', () => {
     expect(screen.getByText(/Windows 11 Pro 10.0.26300.9974/)).toBeInTheDocument()
   })
 
-  it('kien G12: each action row has the same "I updated it" as the finding page, by who reports the version', async () => {
+  it('kien G12: a typed version per row; the agent and the check read the whole device, so each shows once per device (n83)', async () => {
     serve({ ...sample, devices: [dev('a-pc', 'PC-A', { open: 5, exploited: [
       { ...winUpdate, source: 'agent' },
       { ...winrar('a-pc'), source: 'manual' },
       act({ group: 'a-pc/s-git', software_id: 's-git', software: 'Git', version: '2.40', fixed: '2.47.3', source: 'nmap', action: 'Upgrade Git from 2.40 to 2.47.3 or later', cves: ['CVE-2025-48384'], finding_ids: ['f-g'] }),
+      act({ group: 'a-pc/s-7z', software_id: 's-7z', software: '7-Zip', version: '24.0', fixed: '25.01', source: 'agent', action: 'Upgrade 7-Zip from 24.0 to 25.01 or later', cves: ['CVE-2025-0411'], finding_ids: ['f-z'] }),
     ] })] })
     renderApp('/findings')
     const acts = await screen.findByRole('list', { name: 'What to do on PC-A' }, T)
+    const card = screen.getByRole('listitem', { name: 'PC-A' })
     const row = (text: string) => within(acts).getByText(text).closest('li')!
-    expect(within(row('Install the latest cumulative update for Windows 11 Pro (build 26100.33650 or later)')).getByText(/^The agent on PC-A reports the new version by itself/)).toBeInTheDocument()
-    expect(within(row('Install the latest cumulative update for Windows 11 Pro (build 26100.33650 or later)')).queryByRole('button', { name: /^I updated/ })).toBeNull()
     expect(within(row('Upgrade RARLAB WinRAR from 7.01 to 7.13 or later')).getByRole('button', { name: 'I updated RARLAB WinRAR' })).toBeInTheDocument()
-    expect(within(row('Upgrade Git from 2.40 to 2.47.3 or later')).getByRole('button', { name: 'Check this device now' })).toBeInTheDocument()
+    expect(within(acts).queryByText(/agent/)).toBeNull() // never under every row
+    expect(within(acts).queryByRole('button', { name: 'Check this device now' })).toBeNull()
+    // agent-intake off: one line for the device; one of its rows is the OS, so it words the restart
+    expect(within(card).getAllByText(/^Restart PC-A if the update asks for it: the new build shows only after the restart\. Its agent then reports it/)).toHaveLength(1)
+    expect(within(card).getAllByRole('button', { name: 'Check this device now' })).toHaveLength(1)
   })
 
-  it('review r1 of #944: one check per device: starting it on one row shows it running on every row of that device', async () => {
+  it('S-MIT-1: on a device its osquery agent reports, one "ask the agent now" for the device, busy, then the ask on the card', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
+    let release!: () => void
+    const held = new Promise<void>((r) => { release = r })
+    server.use(
+      http.get('*/api/v1/inventory/agents/devices/:id/report', () => HttpResponse.json({ agent: 'osquery', asked_at: null, wazuh_interval_minutes: null })),
+      http.post('*/api/v1/inventory/agents/devices/:id/report', async () => { await held; return HttpResponse.json({ agent: 'osquery', asked_at: '2026-11-17T09:05:00Z', wazuh_interval_minutes: null }) }),
+    )
+    serve({ ...sample, devices: [dev('a-pc', 'PC-A', { open: 3, exploited: [{ ...winrar('a-pc'), source: 'agent' }], planned: [{ ...firefox, group: 'a-pc/s-ff', source: 'agent' }] })] })
+    renderApp('/findings')
+    await screen.findByRole('list', { name: 'What to do on PC-A' }, T)
+    const card = screen.getByRole('listitem', { name: 'PC-A' })
+    const btns = await within(card).findAllByRole('button', { name: 'I updated it: ask the agent now' }, T)
+    expect(btns).toHaveLength(1)
+    expect(within(card).queryByText(/restart/i)).toBeNull() // two app rows: no restart
+    await userEvent.click(btns[0]!)
+    expect(await within(card).findByRole('button', { name: 'Asking…' }, T)).toHaveAttribute('aria-busy', 'true')
+    release()
+    expect(await within(card).findByText(/^Asked at \d\d:\d\d\. PC-A sends its software list within about 5 minutes; the findings this update fixes then close by themselves\.$/, {}, T)).toBeInTheDocument()
+  })
+
+  it('review r1 of #944, n83: one check per device: one button for all its scan-read rows', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'sensor-active' ? { ...m, enabled: true } : m)))
     inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))
     const scanRow = (g: string, sw: string) => act({ group: `a-srvad/${g}`, software_id: g, software: sw, version: '1.0', fixed: '2.0', source: 'nmap', action: `Upgrade ${sw} from 1.0 to 2.0 or later`, cves: [`CVE-2026-${g.length}0`], finding_ids: [`f-${g}`] })
     serve({ ...sample, devices: [{ ...dev('a-srvad', 'SRV-AD', { open: 2, exploited: [scanRow('s-a', 'Apache'), scanRow('s-bb', 'OpenSSH')] }), asset: { id: 'a-srvad', name: 'SRV-AD', hostname: 'SRV-AD', ip: '192.168.10.10', kind: 'server', display: 'Windows Server 2016' } }] })
     renderApp('/findings')
-    const acts = await screen.findByRole('list', { name: 'What to do on SRV-AD' }, T)
-    const buttons = await within(acts).findAllByRole('button', { name: 'Check this device now' }, T)
-    expect(buttons).toHaveLength(2)
+    await screen.findByRole('list', { name: 'What to do on SRV-AD' }, T)
+    const card = screen.getByRole('listitem', { name: 'SRV-AD' })
+    const buttons = await within(card).findAllByRole('button', { name: 'Check this device now' }, T)
+    expect(buttons).toHaveLength(1)
     await waitFor(() => expect(buttons[0]).toBeEnabled(), T)
     await userEvent.click(buttons[0]!)
-    await waitFor(() => expect(within(acts).getAllByRole('button', { name: 'Scanning…' })).toHaveLength(2), T)
+    await waitFor(() => expect(within(card).getAllByRole('button', { name: 'Scanning…' })).toHaveLength(1), T)
   })
 
   it('a device with recommended updates only shows them on its page (review r2 of #943)', async () => {

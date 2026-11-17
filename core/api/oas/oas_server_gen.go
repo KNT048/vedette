@@ -1338,6 +1338,13 @@ type Handler interface {
 	//
 	// GET /inventory/agents
 	InventoryGetInventoryAgents(ctx context.Context) (*InventoryGetInventoryAgentsOK, error)
+	// InventoryGetInventoryAgentsDevicesIDReport implements inventory_get_inventory_agents_devices_id_report operation.
+	//
+	// Which agent of this box reads the device and whether an ask to send its software now is open ("I
+	// updated it", S-MIT-1). 404 not_found: no such device; 404 too while agent-intake is off.
+	//
+	// GET /inventory/agents/devices/{id}/report
+	InventoryGetInventoryAgentsDevicesIDReport(ctx context.Context, params InventoryGetInventoryAgentsDevicesIDReportParams) (*InventoryGetInventoryAgentsDevicesIDReportOK, error)
 	// InventoryGetInventoryCatalog implements inventory_get_inventory_catalog operation.
 	//
 	// Suggest products by vendor or commercial name.
@@ -1452,6 +1459,16 @@ type Handler interface {
 	//
 	// POST /intake/osquery/status
 	InventoryPostIntakeOsqueryStatus(ctx context.Context, req OptInventoryPostIntakeOsqueryStatusReq) (*InventoryPostIntakeOsqueryStatusOK, error)
+	// InventoryPostInventoryAgentsDevicesIDReport implements inventory_post_inventory_agents_devices_id_report operation.
+	//
+	// I updated it: ask the device's osquery agent to send its software now. For 15 minutes, or until its
+	// list arrives, the box's config gives the agent's software queries (the same read-only queries,
+	// nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as
+	// it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no
+	// osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited.
+	//
+	// POST /inventory/agents/devices/{id}/report
+	InventoryPostInventoryAgentsDevicesIDReport(ctx context.Context, params InventoryPostInventoryAgentsDevicesIDReportParams) (*InventoryPostInventoryAgentsDevicesIDReportOK, error)
 	// InventoryPostInventoryAgentsTokens implements inventory_post_inventory_agents_tokens operation.
 	//
 	// Issue an osquery token, returning the full token once.

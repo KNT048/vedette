@@ -123,3 +123,53 @@ func (h *AdminHandlers) InventoryDeleteInventoryAgentsTokensID(ctx context.Conte
 	}
 	return h.s.RevokeToken(ctx, who, params.ID)
 }
+
+// reportNull is the wire form of a ReportState's optional fields: a zero time and a zero interval are null.
+func reportNull(st ReportState) (oas.NilDateTime, oas.NilInt) {
+	minutes := oas.NilInt{Null: true}
+	if st.WazuhMinutes > 0 {
+		minutes = oas.NewNilInt(st.WazuhMinutes)
+	}
+	return nilTime(st.AskedAt), minutes
+}
+
+// validDeviceID is the shape of an inventory id at the boundary (inv_asset.id is 1..96 characters); anything else is no device.
+func validDeviceID(id string) bool { return id != "" && len(id) <= 96 }
+
+// InventoryGetInventoryAgentsDevicesIDReport implements GET /inventory/agents/devices/{id}/report (viewer): which agent of this box
+// reads the device and the open ask of "I updated it" (report.go).
+func (h *AdminHandlers) InventoryGetInventoryAgentsDevicesIDReport(ctx context.Context, params oas.InventoryGetInventoryAgentsDevicesIDReportParams) (*oas.InventoryGetInventoryAgentsDevicesIDReportOK, error) {
+	if h.s == nil {
+		return nil, apierr.NotImplemented()
+	}
+	if !validDeviceID(params.ID) {
+		return nil, apierr.NotFound()
+	}
+	st, err := h.s.ReportState(ctx, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	asked, minutes := reportNull(st)
+	return &oas.InventoryGetInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryGetInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: asked, WazuhIntervalMinutes: minutes}, nil
+}
+
+// InventoryPostInventoryAgentsDevicesIDReport implements POST /inventory/agents/devices/{id}/report (operator, audited): "I updated it:
+// ask the agent now" (report.go AskReport).
+func (h *AdminHandlers) InventoryPostInventoryAgentsDevicesIDReport(ctx context.Context, params oas.InventoryPostInventoryAgentsDevicesIDReportParams) (*oas.InventoryPostInventoryAgentsDevicesIDReportOK, error) {
+	if h.s == nil {
+		return nil, apierr.NotImplemented()
+	}
+	who, err := adminActor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !validDeviceID(params.ID) {
+		return nil, apierr.NotFound()
+	}
+	st, err := h.s.AskReport(ctx, who, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	asked, minutes := reportNull(st)
+	return &oas.InventoryPostInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryPostInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: asked, WazuhIntervalMinutes: minutes}, nil
+}

@@ -345,13 +345,20 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		}
 		views = append(views, SoftwareView{ID: sw.ID, Display: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version, KevCVEs: cves, Source: sw.Source, Confidence: sw.Confidence})
 	}
+	if err := addCorrections(ctx, db, id, views); err != nil {
+		return Detail{}, err
+	}
+	osc, err := osCorrection(ctx, db, id)
+	if err != nil {
+		return Detail{}, err
+	}
 	same, err := s.PossibleSameAs(ctx, id)
 	if err != nil {
 		return Detail{}, err
 	}
 	return Detail{
 		PossibleSame:  same,
-		Asset:         DetailAsset{AssetCore: d.AssetCore, Software: views},
+		Asset:         DetailAsset{AssetCore: d.AssetCore, Software: views, OSCorrection: osc},
 		Suspicious:    d.Suspicious,
 		FindingsCount: d.FindingsCount,
 		Observations:  list,

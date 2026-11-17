@@ -113,9 +113,9 @@ func swKey(vendor, product, version string) string {
 	return strings.ToLower(vendor) + "\x00" + strings.ToLower(product) + "\x00" + version
 }
 
-// softwareKeys lists the distinct KEV keys of all software of a device.
+// softwareKeys lists the distinct KEV keys of the software of a device that counts for matching (a corrected row does not, INV-39).
 func softwareKeys(ctx context.Context, q querier, assetID string) ([]string, error) {
-	rows, err := q.QueryContext(ctx, `SELECT DISTINCT k.kev_key FROM inv_software s JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? ORDER BY 1`, assetID)
+	rows, err := q.QueryContext(ctx, `SELECT DISTINCT k.kev_key FROM inv_software s JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? AND `+liveSW+` ORDER BY 1`, assetID)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read match keys: %w", err)
 	}

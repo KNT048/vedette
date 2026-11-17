@@ -25585,7 +25585,8 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDRequest(args [1]string, 
 
 // handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest handles inventory_delete_inventory_devices_id_software_sid operation.
 //
-// Remove manually declared software from a device.
+// Remove manually declared software from a device; on a correction (INV-39) this clears it and the
+// reported row matches again (audit inventory.clear_software_correction).
 //
 // DELETE /inventory/devices/{id}/software/{sid}
 func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25664,7 +25665,7 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryDeleteInventoryDevicesIDSoftwareSidOperation,
-			OperationSummary: "Remove manually declared software from a device",
+			OperationSummary: "Remove manually declared software from a device; on a correction (INV-39) this clears it and the reported row matches again (audit inventory.clear_software_correction)",
 			OperationID:      "inventory_delete_inventory_devices_id_software_sid",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -27869,8 +27870,12 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDRequest(args [1]string, a
 
 // handleInventoryPatchInventoryDevicesIDSoftwareSidRequest handles inventory_patch_inventory_devices_id_software_sid operation.
 //
-// Change the version of manually declared software (400 not_manual for software a sensor or agent
-// saw); an empty version removes it; the device is matched again (D-471).
+// Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or
+// agent reported is corrected: the values go in a manual correction row (source manual, correction
+// set) that replaces the reported row for matching until it is deleted; later scans keep reporting
+// their own row (corrected_by), shown next to it. Fields left out keep their value. The device is
+// matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product,
+// incomplete_product, bad_product. 409 duplicate_software.
 //
 // PATCH /inventory/devices/{id}/software/{sid}
 func (s *Server) handleInventoryPatchInventoryDevicesIDSoftwareSidRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27964,7 +27969,7 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDSoftwareSidRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPatchInventoryDevicesIDSoftwareSidOperation,
-			OperationSummary: "Change the version of manually declared software (400 not_manual for software a sensor or agent saw); an empty version removes it; the device is matched again (D-471)",
+			OperationSummary: "Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces the reported row for matching until it is deleted; later scans keep reporting their own row (corrected_by), shown next to it. Fields left out keep their value. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
 			OperationID:      "inventory_patch_inventory_devices_id_software_sid",
 			Body:             request,
 			RawBody:          rawBody,

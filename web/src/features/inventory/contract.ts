@@ -80,7 +80,26 @@ export const DevicesResponse = z.object({
   notify_new: z.boolean(),
   notify_available: z.boolean().describe('false when the notify module is off'),
 })
-export const SoftwareView = Software.omit({ kev: true }).extend({ kev_cves: z.array(z.string()) })
+/** INV-39 (BN340): a person's correction of a row a sensor or agent reported. */
+export const SoftwareCorrection = z.object({
+  set_at: dt.describe('When the person set it (or last changed it)'),
+  detected: z.object({
+    id: z.string(), display: z.string(), version: z.string().nullable(), pkg_version: z.string().nullable(), source: ObsSource, seen_at: dt,
+  }).nullable().describe('The newest row the sensors or agents report for the corrected product (it no longer matches); null when none reports it now'),
+  disagrees: z.boolean().describe('The sources read another product, version or package release than the person: show "You set X on <date>; the last scan reads Y"'),
+})
+export const SoftwareView = Software.omit({ kev: true }).extend({
+  kev_cves: z.array(z.string()),
+  pkg_version: z.string().optional().describe('The full package release: an agent\'s packaged row ("1:9.6p1-3ubuntu13.14", D-516) or a person\'s correction ("10.2_p1-r1"); absent when none'),
+  corrected_by: z.string().optional().describe('On a row a sensor or agent reported: the id of the person\'s correction that replaces it for matching (INV-39). Show it as replaced; Clear on the correction brings it back'),
+  correction: SoftwareCorrection.optional().describe('On a person\'s correction of a reported row (INV-39): when it was set and what the sources read now. Clear = DELETE the row'),
+})
+/** INV-39: the OS a person set on the device; it wins over every source and drives matching while it stands. */
+export const OsCorrection = z.object({
+  value: z.string(), set_at: dt,
+  detected: Observed.nullable().describe('The OS the sources read without the correction (the value that would win); null when none reads one'),
+  disagrees: z.boolean().describe('The sources read another OS: show "You set X on <date>; the last scan reads Y"'),
+})
 /** D-599 (#829, J2): when the inventory cannot be sure two rows are one machine (a phone or laptop with a new private Wi-Fi address and a
  * generic name, an older MAC two rows share), a person decides: "Possibly the same device as X" with Merge and Keep separate. */
 export const PossibleSame = z.object({
@@ -90,7 +109,10 @@ export const PossibleSame = z.object({
 })
 export const SameRef = PossibleSame.omit({ why: true })
 export const DeviceDetail = z.object({
-  asset: Asset.omit({ software: true }).extend(ScanInfo.shape).extend({ software: z.array(SoftwareView) }),
+  asset: Asset.omit({ software: true }).extend(ScanInfo.shape).extend({
+    software: z.array(SoftwareView),
+    os_correction: OsCorrection.optional().describe('The OS a person set (PATCH os, INV-39); absent when none: os is then what the sources read'),
+  }),
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
   observations: z.array(Observation),
@@ -280,6 +302,7 @@ export const endpoints = defineEndpoints([
     body: z.object({
       name: z.string().max(200).optional().describe('The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the default name). The host name the network reports is not changed'),
       kind: AssetKind.optional(), fragile: z.boolean().optional(), regular_scan: RegularScan.optional(), notes: z.string().max(2000).optional(),
+      os: z.string().max(400).optional().describe('Correct the operating system (INV-39): trimmed, at most 200 characters, no < or >; it wins over every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources read). 400 bad_os'),
     }), response: ok },
   { method: 'put', path: '/inventory/devices/{id}/sources', summary: 'Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person\'s consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device (D-630)', stories: ['S-INV-1', 'S-INV-4'], role: 'admin', params: id, body: SourcesInput, response: SourcesState },
   { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
@@ -291,9 +314,14 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/devices/{id}/suspicious', summary: 'Mark or unmark a device as suspicious', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ suspicious: z.boolean() }), response: ok },
   { method: 'post', path: '/inventory/devices/{id}/software', status: 201, summary: 'Declare additional software running on a device', stories: ['S-INV-2'], role: 'operator', params: id,
     body: AddDeviceInput.omit({ name: true, ip: true }), response: z.object({ kev_cves: z.number().int() }) },
-  { method: 'patch', path: '/inventory/devices/{id}/software/{sid}', summary: 'Change the version of manually declared software (400 not_manual for software a sensor or agent saw); an empty version removes it; the device is matched again (D-471)', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }),
-    body: z.object({ version: z.string().max(40).describe('Letters, digits, . - + ( ) and spaces; empty removes the version') }), response: ok },
-  { method: 'delete', path: '/inventory/devices/{id}/software/{sid}', summary: 'Remove manually declared software from a device', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }), response: null },
+  { method: 'patch', path: '/inventory/devices/{id}/software/{sid}', summary: 'Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces the reported row for matching until it is deleted; later scans keep reporting their own row (corrected_by), shown next to it. Fields left out keep their value. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }),
+    body: z.object({
+      version: z.string().max(40).optional().describe('Letters, digits, . - + ( ) and spaces; empty removes the version'),
+      pkg_version: z.string().max(100).optional().describe('The package release the device\'s package manager shows ("10.2_p1-r1", "1:9.6p1-3ubuntu13.14"); empty removes it'),
+      catalog_id: z.string().max(64).optional().describe('Another product, from GET /inventory/catalog'),
+      vendor: z.string().max(64).optional(), product: z.string().max(64).optional().describe('Another product typed by hand (both vendor and product)'),
+    }), response: ok },
+  { method: 'delete', path: '/inventory/devices/{id}/software/{sid}', summary: 'Remove manually declared software from a device; on a correction (INV-39) this clears it and the reported row matches again (audit inventory.clear_software_correction)', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }), response: null },
   { method: 'get', path: '/inventory/catalog', summary: 'Suggest products by vendor or commercial name', stories: ['S-INV-2'], role: 'viewer', query: z.object({ q: z.string().max(80) }), response: CatalogResponse, example: { query: { q: 'forti' } } },
   { method: 'put', path: '/inventory/notify-new', summary: 'Turn alerts for new devices on or off', stories: ['S-INV-3'], role: 'operator', body: z.object({ enabled: z.boolean() }), response: z.object({ enabled: z.boolean() }) },
   { method: 'get', path: '/inventory/export.csv', summary: 'Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET /inventory/devices export what the page shows', stories: ['S-INV-2'], role: 'viewer', query: DevicesQuery, response: 'file' },

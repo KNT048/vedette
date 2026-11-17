@@ -180,6 +180,12 @@ type SoftwareView struct {
 	KevCVEs    []string `json:"kev_cves"`
 	Source     string   `json:"source"`
 	Confidence float64  `json:"confidence"`
+	// PkgVersion is the full package release (an agent's packaged row, D-516, or a person's correction, INV-39); absent when none.
+	PkgVersion *string `json:"pkg_version,omitempty"`
+	// CorrectedBy, on a row a sensor or agent reported, is the id of the person's correction that replaces it for matching (INV-39).
+	CorrectedBy *string `json:"corrected_by,omitempty"`
+	// Correction, on a person's correction, says when it was set and what the sources read now (INV-39).
+	Correction *SoftwareCorrection `json:"correction,omitempty"`
 }
 
 // ServiceRow is a service seen listening on a device (contract.ts Service).
@@ -251,6 +257,8 @@ type Device struct {
 type DetailAsset struct {
 	AssetCore
 	Software []SoftwareView `json:"software"`
+	// OSCorrection is the OS a person set (INV-39), with what the sources read now; absent when none.
+	OSCorrection *OSCorrection `json:"os_correction,omitempty"`
 }
 
 // ObservationRow is one observation of a device detail (contract.ts Observation).

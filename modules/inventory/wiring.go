@@ -140,8 +140,19 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 	if d.SNMPOS, err = osFrom(ctx, q, id, "snmp"); err != nil {
 		return MatchDevice{}, false, err
 	}
+	// A person's OS (INV-39) is what the device runs for every reading the matcher takes: the agent's, SNMP's and LLDP's statements it
+	// corrects say the person's value while it stands. A reading the device never gave stays "" (an agent row needs an agent).
+	if v, _, ok, err := manualOS(ctx, q, id); err != nil {
+		return MatchDevice{}, false, err
+	} else if ok {
+		for _, r := range []*string{&d.StatedOS, &d.AgentOS, &d.SNMPOS} {
+			if *r != "" {
+				*r = v
+			}
+		}
+	}
 	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, ifnull(s.pkg_version, ''), ifnull(s.pkg_source, ''), k.kev_key
-		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? ORDER BY s.display, s.id, k.kev_key`, id)
+		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? AND `+liveSW+` ORDER BY s.display, s.id, k.kev_key`, id)
 	if err != nil {
 		return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
 	}
@@ -484,12 +495,12 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 		vendor, product := strings.ToLower(p.Vendor), strings.ToLower(p.Product)
 		multi := strings.TrimSpace(product) == multiProducts
 		exact, err := s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?)`, key, boolInt(multi), product)
+			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?) AND `+liveSW, key, boolInt(multi), product)
 		if err != nil {
 			return nil, err
 		}
 		shown, err := s.softwareNames(ctx, `SELECT s.asset_id, min(s.display) FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?) GROUP BY s.asset_id`, nil, key, boolInt(multi), product)
+			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?) AND `+liveSW+` GROUP BY s.asset_id`, nil, key, boolInt(multi), product)
 		if err != nil {
 			return nil, err
 		}

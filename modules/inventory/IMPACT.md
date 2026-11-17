@@ -1,5 +1,10 @@
 # Inventory — Change Impact Map
 
+## Modifying: corrections (`inv_software.corrects`, `liveSW`, `Patch.OS`, `EditSoftware`, `OSCorrection`, `SoftwareView.correction`/`corrected_by`/`pkg_version`; INV-39)
+- **findings** reads them only through `MatchInput`: a corrected reported row is not in `Software`, the correction is (source `manual`, `PkgVersion` set when the person gave a package release; findings reads a package release only on packaged agent rows today: PR B makes it close a CVE), and a corrected OS is `OS` and every non-empty stated/agent/SNMP OS. A new reader of `inv_software` for matching or "Do you have it?" must add `liveSW`, or the wrong scanned row keeps matching.
+- **Web**: the device page (Mlee, after G8/G12) shows `os_correction` and the software `correction`/`corrected_by` ("You set X on <date>; the last scan reads Y", Clear); the PATCH bodies are in `contract.ts`. Mocks still answer `not_manual` for a reported row until that screen lands. Audit labels in `web/src/locales/en/core.json`.
+- **Joins** move a correction with its device (`UPDATE OR IGNORE inv_software`), so it still names the product it corrects.
+
 ## Modifying: Ignore (`inv_asset.ignored_at`, `SetIgnored`, `DeviceFilter.Ignored`, `Counts.Ignored`, `inventory.asset.ignored`; D-630, INV-38)
 - **The vulnerability readers** (`MatchInput` ok=false, `AssetIDs`, `DevicesRunning`) leave an ignored device out: findings (match, reconcile, plan, Home summary), feeds (`Distros`, the CVE page's devices, "Do you have it?"), `cmd/vedette` reports' fixes. A new reader of vulnerabilities must go through them or check `IgnoredAt`, or an ignored staff phone raises findings again. `AssetIDs` no longer means "every device": a caller that needs every row (to drop data of deleted devices only) must not use it for that.
 - **Joins** (`joinAs`) keep the kept row's `ignored_at` and return the watch event the caller publishes after the merge events; a new caller of `joinAs` must publish it, or the moved findings keep the other row's state.

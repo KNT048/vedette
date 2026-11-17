@@ -28,11 +28,14 @@ const SCOPE_MAX = 16
 const NAME_RE = /^[^<>\u0000-\u001f\u007f]{1,64}$/
 const PRINTABLE_RE = /^[\x20-\x7e]{1,64}$/
 const USER_RE = /^[A-Za-z0-9._@-]{1,64}$/
+/** The SNMP port (RFC 3417): a credential without a port of its own is sent there. */
+const SNMP_PORT = 161
+const PORT_RE = /^[0-9]{1,5}$/
 
 /** Scope text: one entry per line or separated by commas (or spaces); duplicates dropped. */
 const parseScope = (text: string) => [...new Set(text.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean))]
 
-type Errors = Partial<Record<'name' | 'community' | 'username' | 'auth_password' | 'priv_password' | 'scope', string>>
+type Errors = Partial<Record<'name' | 'community' | 'username' | 'auth_password' | 'priv_password' | 'port' | 'scope', string>>
 
 function SecretMask({ last4 }: { last4: string }) {
   const { t } = useTranslation('inventory')
@@ -65,6 +68,7 @@ export function CredentialForm({ current, scope, widen = false, onCancel, onSave
   const [authPassword, setAuthPassword] = useState('')
   const [priv, setPriv] = useState<Priv>(current?.priv ?? 'aes128')
   const [privPassword, setPrivPassword] = useState('')
+  const [port, setPort] = useState(current && current.port !== SNMP_PORT ? String(current.port) : '')
   const [scopeText, setScopeText] = useState(scope ?? current?.scope.join('\n') ?? '')
   const [errors, setErrors] = useState<Errors>({})
   const [error, setError] = useState<string | null>(null)
@@ -88,6 +92,8 @@ export function CredentialForm({ current, scope, widen = false, onCancel, onSave
       e.auth_password = pw(authPassword, keepAuth)
       if (priv === 'aes128') e.priv_password = pw(privPassword, keepPriv)
     }
+    const p = port.trim()
+    if (p && (!PORT_RE.test(p) || Number(p) < 1 || Number(p) > 65535)) e.port = t('snmp.error.port')
     const scope = parseScope(scopeText)
     if (scope.length === 0) e.scope = t('snmp.error.scopeRequired') // D-512 (review M3): a credential names its devices
     else if (scope.length > SCOPE_MAX) e.scope = t('snmp.error.scopeTooMany')
@@ -106,9 +112,10 @@ export function CredentialForm({ current, scope, widen = false, onCancel, onSave
     const e = check()
     setErrors(e)
     if (Object.keys(e).length) return
+    const common = { name: name.trim(), version, port: port.trim() ? Number(port.trim()) : undefined, scope: parseScope(scopeText) }
     const input: SnmpCredentialInput = version === 'v2c'
-      ? { name: name.trim(), version, community: community || undefined, scope: parseScope(scopeText) }
-      : { name: name.trim(), version, username: username.trim(), auth, auth_password: authPassword || undefined, priv, priv_password: priv === 'aes128' ? privPassword || undefined : undefined, scope: parseScope(scopeText) }
+      ? { ...common, community: community || undefined }
+      : { ...common, username: username.trim(), auth, auth_password: authPassword || undefined, priv, priv_password: priv === 'aes128' ? privPassword || undefined : undefined }
     const done = (c: SnmpCredential) => { toast.success(t(current ? 'snmp.form.saved' : 'snmp.form.added', { name: c.name })); onSaved(c) }
     const fail = (er: unknown) => setError(errMsg(er))
     if (current) update.mutate({ id: current.id, ...input }, { onSuccess: done, onError: fail })
@@ -160,6 +167,9 @@ export function CredentialForm({ current, scope, widen = false, onCancel, onSave
               </div>
             </>
           )}
+          <Field label={t('snmp.form.port')} htmlFor={`${idPrefix}-port`} hint={t('snmp.form.portHint')} error={errors.port}>
+            <Input id={`${idPrefix}-port`} value={port} maxLength={5} inputMode="numeric" autoComplete="off" placeholder={String(SNMP_PORT)} onChange={(e) => setPort(e.target.value)} aria-invalid={!!errors.port} aria-describedby={described(`${idPrefix}-port`, errors.port)} className="max-w-40 tabular-nums" />
+          </Field>
           <Field label={t('snmp.form.scope')} htmlFor={`${idPrefix}-scope`} hint={t('snmp.form.scopeHint')} info={t('snmp.form.scopeHintInfo')} error={errors.scope}>
             <Textarea id={`${idPrefix}-scope`} rows={3} value={scopeText} placeholder={'192.168.10.0/24\n192.168.20.5'} spellCheck={false} onChange={(e) => setScopeText(e.target.value)} aria-invalid={!!errors.scope} aria-describedby={described(`${idPrefix}-scope`, errors.scope)} className="font-mono text-meta" />
           </Field>
@@ -173,8 +183,9 @@ export function CredentialForm({ current, scope, widen = false, onCancel, onSave
   )
 }
 
-/** What one SNMP read answered, or why not; also on the device page (DeviceSources). */
-export function SnmpAnswer({ r, ip }: { r: SnmpTestResult; ip: string }) {
+/** What one SNMP read answered, or why not; also on the device page (DeviceSources). port: the UDP port the read went to, when the
+ *  caller knows it (a Test names it; the failure text from the server always does). */
+export function SnmpAnswer({ r, ip, port }: { r: SnmpTestResult; ip: string; port?: number }) {
   const { t } = useTranslation('inventory')
   const a = r.answer
   const device = r.device_id ? <Link to={`/devices/${encodeURIComponent(r.device_id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{t('snmp.run.openDevice')}</Link> : null
@@ -189,7 +200,7 @@ export function SnmpAnswer({ r, ip }: { r: SnmpTestResult; ip: string }) {
   ] as [string, string][]).filter(([, v]) => v)
   return (
     <div role="status" className="grid min-w-0 gap-2 rounded-md border border-ok/40 bg-ok-soft px-3 py-2 text-sm">
-      <p className="font-medium">{t('snmp.run.answered', { ip })}</p>
+      <p className="font-medium">{port ? t('snmp.run.answeredOn', { ip, port }) : t('snmp.run.answered', { ip })}</p>
       <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-[max-content_1fr]">
         {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-meta text-muted">{t(`snmp.run.${k}`)}</dt><dd className="[overflow-wrap:anywhere]">{v}</dd></div>)}
       </dl>
@@ -233,7 +244,7 @@ function TestPanel({ cred, onClose }: { cred: SnmpCredential; onClose: () => voi
       </form>
       {test.isPending ? <p role="status" aria-live="polite" className="text-meta text-muted">{t('snmp.run.pending', { ip: ip.trim() })}</p> : null}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      {result && !test.isPending ? <SnmpAnswer r={result.r} ip={result.ip} /> : null}
+      {result && !test.isPending ? <SnmpAnswer r={result.r} ip={result.ip} port={cred.port} /> : null}
     </div>
   )
 }
@@ -271,6 +282,7 @@ function CredentialRow({ c, index, onEdit, onDelete }: { c: SnmpCredential; inde
             <dd>{c.priv === 'aes128' ? <>{t('snmp.privName.aes128')}, <SecretMask last4={c.priv_last4} /></> : t('snmp.privName.none')}</dd>
           </>
         )}
+        {c.port !== SNMP_PORT ? <><dt className="text-meta text-muted">{t('snmp.portLabel')}</dt><dd className="tabular-nums">{t('snmp.portValue', { port: c.port })}</dd></> : null}
         <dt className="text-meta text-muted">{t('snmp.scopeLabel')}</dt>
         <dd className="[overflow-wrap:anywhere]">{c.scope.join(', ')}</dd>
         <dt className="text-meta text-muted">{t('snmp.answersLabel')}</dt>

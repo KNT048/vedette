@@ -169,11 +169,11 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int) 
 		// (no numbered parameters: the clause is also used inside the subqueries of loadDevices).
 		const like = "instr(lower(%s), lower(?)) > 0"
 		parts := []string{
-			fmt.Sprintf(like, "coalesce(a.hostname, '')"), "instr(coalesce(a.ip, ''), ?) > 0",
+			fmt.Sprintf(like, "coalesce(a.user_name, '')"), fmt.Sprintf(like, "coalesce(a.hostname, '')"), "instr(coalesce(a.ip, ''), ?) > 0",
 			fmt.Sprintf(like, "coalesce(a.vendor, '')"), fmt.Sprintf(like, "coalesce(a.model, '')"),
 			"(a.origin = 'manual' AND EXISTS (SELECT 1 FROM inv_software sq WHERE sq.asset_id = a.id AND " + fmt.Sprintf(like, "sq.display") + "))",
 		}
-		qa := []any{f.Q, f.Q, f.Q, f.Q, f.Q}
+		qa := []any{f.Q, f.Q, f.Q, f.Q, f.Q, f.Q}
 		if hex, ok := macFragment(f.Q); ok {
 			parts, qa = append(parts, "instr(coalesce(a.mac, ''), ?) > 0"), append(qa, hex) // a.mac is stored lower case aa:bb:…
 		}

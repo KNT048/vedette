@@ -190,11 +190,13 @@ type ServiceRow struct {
 
 // AssetCore is what a device row and a device detail share. The JSON names are the wire names.
 type AssetCore struct {
-	ID         string  `json:"id"`
-	Site       string  `json:"site"`
-	IP         string  `json:"ip"` // "—" when unknown
-	MAC        *string `json:"mac"`
-	Hostname   *string `json:"hostname"`
+	ID       string  `json:"id"`
+	Site     string  `json:"site"`
+	IP       string  `json:"ip"` // "—" when unknown
+	MAC      *string `json:"mac"`
+	Hostname *string `json:"hostname"` // the host name the network reports (observations), never a person's name for the device
+	// UserName is the name a person gave the device in Vedette (G2); nil = none, the naming rule names it (DisplayName, D-471).
+	UserName   *string `json:"name"`
 	Kind       string  `json:"kind"`
 	KindSource *string `json:"kind_source"` // the source of the kind's observation; nil for the default unknown (D-511)
 	// Guess is what the identification rules say the device most likely is, only while Kind is unknown (D-511). It is never the kind:

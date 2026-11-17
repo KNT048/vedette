@@ -29,7 +29,8 @@ export function sampleContainment(f: Finding, asset: Asset, name: string): { rea
     : vip ? `${name} is reachable from the Internet through FortiGate virtual IP ${vip.name} (${vip.extip}:${vip.extport} to ${vip.mappedip}:${vip.mappedport}).`
     : `No virtual IP on ${conn.name} points to ${name}, so it is not forwarded from the Internet. It is reachable from the internal network only.`
   if (vip && conn && write) {
-    const fw = assetsStore.get().find((a) => a.id === conn.asset_id)?.hostname ?? conn.name
+    const dev = assetsStore.get().find((a) => a.id === conn.asset_id)
+    const fw = dev?.name ?? dev?.hostname ?? conn.name
     const url = `${conn.target}/api/v2/cmdb/firewall/vip/${encodeURIComponent(vip.name)}`
     const change: Change = {
       before: `Virtual IP ${vip.name}: ${vip.extip}:${vip.extport} to ${vip.mappedip}:${vip.mappedport}, status enable`,

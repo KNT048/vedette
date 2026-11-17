@@ -23,6 +23,14 @@ var versionRE = regexp.MustCompile(`^[A-Za-z0-9_.\-+() ]{1,40}$`)
 
 // label checks the text a person typed for a name, vendor or product: 1..64 characters, no < > and no
 // control characters (INV-4).
+// userName checks a name in Vedette (G2, INV-36), already trimmed: "" (none) or a label with no invisible character (C1 controls, bidi
+// marks and overrides, zero-width characters, U+FEFF): such a name would read reversed or blank on every page, alert and report.
+func userName(s string) bool {
+	return s == "" || label(s) && !strings.ContainsFunc(s, invisible)
+}
+
+const badUserName = "The name is at most 64 characters and cannot contain < or >, control characters or invisible characters."
+
 func label(s string) bool {
 	n := utf8.RuneCountInString(s)
 	if n < 1 || n > maxLabel || !utf8.ValidString(s) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"slices"
 	"strings"
@@ -349,7 +350,7 @@ func TestSNMPTestReadsAndRecords(t *testing.T) {
 	if got[observe.OS] != "JUNOS 15.1R7.9" || got[observe.Vendor] != "Juniper Networks" || got[observe.Model] != "EX4200-48T" || got[observe.Hostname] != "SW-CORE-01" || got[observe.Kind] != "switch" {
 		t.Errorf("recorded %v", got)
 	}
-	if w.count(`SELECT count(*) FROM sa_probe WHERE shape = 'snmp' AND hosts = 1 AND targets = '192.168.10.20' AND result = 'ok: 1 of 1 answered' AND flags LIKE '%Core switches (v2c)%' AND flags NOT LIKE '%s3cret%'`) != 1 ||
+	if w.count(`SELECT count(*) FROM sa_probe WHERE shape = 'snmp' AND hosts = 1 AND targets = '192.168.10.20' AND result = 'ok: 1 of 1 answered' AND flags LIKE '%Core switches (v2c, UDP 161)%' AND flags NOT LIKE '%s3cret%'`) != 1 ||
 		w.count(`SELECT count(*) FROM sa_job WHERE kind = 'snmp' AND reason = 'snmp_test' AND status = 'done'`) != 1 ||
 		w.count(`SELECT count(*) FROM sa_snmp WHERE last_answer_at IS NOT NULL AND answered = 1`) != 1 {
 		t.Fatal("probe row, job or the credential's last answer is missing")
@@ -435,7 +436,7 @@ func TestSNMPThroughTheWorker(t *testing.T) {
 	d := sa.NewDispatcher(sa.DispatcherOptions{Tick: 20 * time.Millisecond})
 	link := linktest.New(t, activeBackend{d})
 	wk, err := worker.New(worker.Config{Link: link.Client(t, sensorlink.Active), NmapPath: "/nonexistent/nmap", Version: "1.0.0", Wait: time.Second,
-		SNMPTimeout: 50 * time.Millisecond, SNMPDial: func(netip.Addr) (string, uint16) { return "127.0.0.1", port }})
+		SNMPTimeout: 50 * time.Millisecond, SNMPDial: func(netip.Addr, uint16) (string, uint16) { return "127.0.0.1", port }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,6 +459,99 @@ func TestSNMPThroughTheWorker(t *testing.T) {
 	res, err := w.svc.TestSNMP(t.Context(), "admin@example.com", wrong.ID, "192.168.10.20")
 	if err != nil || res.Reason != "no_answer" || !strings.Contains(res.Message, "community") {
 		t.Fatalf("wrong community: %v %+v", err, res)
+	}
+}
+
+// kien 2026-11-17: a credential may name the UDP port its devices answer SNMP on (1..65535); none is 161, stored as NULL and left
+// off the wire, so a credential saved before the port behaves as before. The job carries the port, the probe row names it, a Test's
+// "no answer" says which port was tried, and an edit back to 161 clears it.
+func TestSNMPCredentialPort(t *testing.T) {
+	t.Parallel()
+	r := &fakeReader{answer: func(_ context.Context, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
+		return []sensorlink.SNMPAnswer{{Target: j.Targets[0].IP, Status: sensorlink.SNMPStatusNoAnswer, Credential: j.Targets[0].Credentials[0]}}, nil
+	}}
+	w := newSNMPWorld(t, r)
+	ctx := t.Context()
+	plain := w.add(v2cInput("Plain", "community-1"))
+	in := v2cInput("Odd port", "community-2")
+	in.Port = 1161
+	odd := w.add(in)
+	if plain.Port != 161 || odd.Port != 1161 {
+		t.Fatalf("ports %d %d", plain.Port, odd.Port)
+	}
+	if n := w.count(`SELECT count(*) FROM sa_snmp WHERE (name = 'Plain' AND port IS NULL) OR (name = 'Odd port' AND port = 1161)`); n != 2 {
+		t.Fatalf("%d rows store the port as asked", n)
+	}
+	for _, c := range []struct {
+		id   string
+		port int
+		text string
+	}{{plain.ID, 0, "on UDP port 161 within"}, {odd.ID, 1161, "on UDP port 1161 within"}} {
+		res, err := w.svc.TestSNMP(ctx, "admin@example.com", c.id, "192.168.10.20")
+		if err != nil || res.Reason != "no_answer" || !strings.Contains(res.Message, c.text) {
+			t.Fatalf("%s: %v %+v", c.id, err, res)
+		}
+		jobs := r.sent()
+		if got := jobs[len(jobs)-1].Credentials[0].Port; got != c.port {
+			t.Errorf("%s: the job's port is %d, want %d", c.id, got, c.port)
+		}
+	}
+	if w.count(`SELECT count(*) FROM sa_probe WHERE shape = 'snmp' AND flags LIKE '%Odd port (v2c, UDP 1161)%'`) != 1 ||
+		w.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.snmp_add' AND detail LIKE 'v2c, port 1161,%'`) != 1 {
+		t.Error("the probe row or the audit row does not name the port")
+	}
+	in.Port = 161
+	if e, err := w.svc.EditSNMP(ctx, "admin@example.com", odd.ID, in); err != nil || e.Port != 161 || w.count(`SELECT count(*) FROM sa_snmp WHERE port IS NOT NULL`) != 0 {
+		t.Fatalf("edit back to 161: %v %+v", err, e)
+	}
+	for _, p := range []int{-1, 65536, 100000} {
+		in.Port = p
+		if _, err := w.svc.AddSNMP(ctx, "a", in); apiCode(err) != "bad_port" {
+			t.Errorf("port %d: %v", p, err)
+		}
+	}
+}
+
+// kien 2026-11-17 end to end: a device that serves SNMP on another UDP port (a fake agent on a loopback port that is not 161) is read
+// through the Dispatcher, the link and the real worker with the credential that names that port; the credential without a port is
+// sent to 161, where nothing answers here, and its "no answer" says so.
+func TestSNMPOnACustomPortThroughTheWorker(t *testing.T) {
+	t.Parallel()
+	agent := &snmptest.Agent{Community: "s3cret-community",
+		Values: map[string]any{snmptest.SysDescr: junos, snmptest.SysObjectID: snmptest.Object(".1.3.6.1.4.1.2636.1.1.1.2.31"), snmptest.SysName: "SW-CORE-01"}}
+	port := agent.Start(t)
+	closed := (&snmptest.Agent{}).Start(t)
+	d := sa.NewDispatcher(sa.DispatcherOptions{Tick: 20 * time.Millisecond})
+	link := linktest.New(t, activeBackend{d})
+	// The dialer keeps the port the worker chose and only points the address at loopback: the port of the read is the credential's.
+	wk, err := worker.New(worker.Config{Link: link.Client(t, sensorlink.Active), NmapPath: "/nonexistent/nmap", Version: "1.0.0", Wait: time.Second,
+		SNMPTimeout: 50 * time.Millisecond, SNMPDial: func(_ netip.Addr, p uint16) (string, uint16) {
+			if p == port {
+				return "127.0.0.1", p
+			}
+			return "127.0.0.1", closed
+		}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { defer close(done); _ = wk.Run(ctx) }()
+	t.Cleanup(func() { cancel(); <-done })
+	waitFor(t, "the worker's heartbeat", func() bool { return d.SNMPHealth() == "" })
+
+	w := newSNMPWorld(t, d)
+	in := v2cInput("custom port", "s3cret-community")
+	in.Port = int(port)
+	custom := w.add(in)
+	plain := w.add(v2cInput("default port", "s3cret-community"))
+	res, err := w.svc.TestSNMP(t.Context(), "admin@example.com", custom.ID, "192.168.10.20")
+	if err != nil || !res.OK || res.Answer == nil || res.Answer.OS != "JUNOS 15.1R7.9" || !strings.Contains(res.Message, fmt.Sprintf("on UDP port %d.", port)) {
+		t.Fatalf("custom port: %v %+v", err, res)
+	}
+	res, err = w.svc.TestSNMP(t.Context(), "admin@example.com", plain.ID, "192.168.10.20")
+	if err != nil || res.Reason != "no_answer" || !strings.Contains(res.Message, "No answer from 192.168.10.20 on UDP port 161 within") {
+		t.Fatalf("default port: %v %+v", err, res)
 	}
 }
 

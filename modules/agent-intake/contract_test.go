@@ -918,7 +918,8 @@ func TestContract_INV22_TheAgentReportsItsOpenPorts(t *testing.T) {
 		snap("listening_ports",
 			port("22", "6", "0.0.0.0", "sshd"), port("22", "6", "::", "sshd"), port("443", "6", peerA, "nginx"),
 			port("5432", "6", "127.0.0.1", "postgres"), port("631", "6", "::1", "cupsd"), port("53", "17", "0.0.0.0", "dnsmasq"),
-			port("0", "6", "0.0.0.0", "x"), port("70000", "6", "0.0.0.0", "x"), port("132", "132", "0.0.0.0", "sctp"), port("8080", "6", "0.0.0.0", "")),
+			port("0", "6", "0.0.0.0", "x"), port("70000", "6", "0.0.0.0", "x"), port("132", "132", "0.0.0.0", "sctp"), port("8080", "6", "0.0.0.0", ""),
+			port("8081", "6", "0.0.0.0", "evil\u0007name")), // a name with a control character is blanked, the port stays (review L3)
 	))
 	if lr.code != 200 || lr.invalid() {
 		t.Fatalf("log: %d %s", lr.code, lr.raw)
@@ -934,14 +935,22 @@ func TestContract_INV22_TheAgentReportsItsOpenPorts(t *testing.T) {
 		}
 		return out
 	}
-	want := []string{"22/tcp sshd agent", "53/udp dnsmasq agent", "443/tcp nginx agent", "8080/tcp  agent"}
+	want := []string{"22/tcp sshd agent", "53/udp dnsmasq agent", "443/tcp nginx agent", "8080/tcp  agent", "8081/tcp  agent"}
 	if got := services(); !slices.Equal(got, want) {
 		t.Fatalf("services %q, want %q", got, want)
 	}
 	if cfg := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key}); cfg.body["schedule"].(map[string]any)["listening_ports"].(map[string]any)["interval"] != float64(3600) {
 		t.Fatalf("the ports are still asked every minute: %s", cfg.raw)
 	}
+	// One source replaces its list of open ports at most once per 5 minutes (review L8), like a software list.
 	w.clock.Advance(time.Minute)
+	if lr := w.post("/intake/osquery/log", peerA, logBody(key, snap("listening_ports"))); lr.code != 200 {
+		t.Fatalf("log: %d %s", lr.code, lr.raw)
+	}
+	if got := services(); !slices.Equal(got, want) {
+		t.Fatalf("a second list within the window changed the services: %q", got)
+	}
+	w.clock.Advance(5 * time.Minute)
 	if lr := w.post("/intake/osquery/log", peerA, logBody(key, snap("listening_ports"))); lr.code != 200 {
 		t.Fatalf("log: %d %s", lr.code, lr.raw)
 	}

@@ -205,8 +205,9 @@ func (in *logIn) readEvent(item oas.InventoryPostIntakeOsqueryLogReqDataItem) {
 		limit = maxIfaceRows
 	}
 	rows := make([]row, 0, min(len(ev.Snapshot), limit))
+	blank := blankable[ev.Name]
 	for _, raw := range ev.Snapshot {
-		r, ok := readRow(raw, cols)
+		r, ok := readRow(raw, cols, blank)
 		if !ok {
 			in.dropped++
 			continue
@@ -244,8 +245,13 @@ func readEvent(item oas.InventoryPostIntakeOsqueryLogReqDataItem, ev *event) boo
 	return true
 }
 
-// readRow keeps the allow-listed columns of one row; false when one of them is not a string or not clean.
-func readRow(raw map[string]json.RawMessage, cols []string) (row, bool) {
+// blankable is, per query, the column whose bad value is blanked instead of dropping the row (INV-22, #933 review L3): a program
+// name is chosen by whoever starts the process, and a name with a control character must not hide the port it listens on.
+var blankable = map[string]string{"listening_ports": "name", "listening_ports_windows": "name"}
+
+// readRow keeps the allow-listed columns of one row; false when one of them is not a string or not clean, except the blank
+// column, which is then "".
+func readRow(raw map[string]json.RawMessage, cols []string, blank string) (row, bool) {
 	r := make(row, len(cols))
 	for _, c := range cols {
 		v, ok := raw[c]
@@ -254,10 +260,18 @@ func readRow(raw map[string]json.RawMessage, cols []string) (row, bool) {
 		}
 		var s string
 		if json.Unmarshal(v, &s) != nil {
+			if c == blank {
+				r[c] = ""
+				continue
+			}
 			return nil, false
 		}
 		s, ok = cleanValue(s, maxValue)
 		if !ok {
+			if c == blank {
+				r[c] = ""
+				continue
+			}
 			return nil, false
 		}
 		r[c] = s

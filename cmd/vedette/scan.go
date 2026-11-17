@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/content/nucleipack"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
@@ -106,6 +107,23 @@ func deviceLabel(d inventory.Device) string {
 	return d.IP
 }
 
+// scanPorts are the TCP ports a scan found open on a device, once each, for nuclei's targets (scan INV-14). Ports an agent or the box
+// listed (source agent, named by their program: "nginx", "sshd") are not targets: their name says nothing of how to speak to the port
+// (nuclei runs with -nh, so 443 named "nginx" would get plain HTTP), and a device known only by its agent keeps the "no known port:
+// 80 http, 443 https" fallback instead of using its 16 target slots on every listener.
+func scanPorts(rows []inventory.ServiceRow) []scan.OpenPort {
+	var out []scan.OpenPort
+	seen := map[int]bool{}
+	for _, sv := range rows {
+		if sv.Source == string(observe.Agent) || (sv.Proto != "" && sv.Proto != "tcp") || seen[sv.Port] {
+			continue
+		}
+		seen[sv.Port] = true
+		out = append(out, scan.OpenPort{Port: sv.Port, Name: sv.Name})
+	}
+	return out
+}
+
 func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	if s.inv == nil {
 		return nil, fmt.Errorf("vedette: scan: the inventory is not wired")
@@ -123,22 +141,7 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 		if d.Vendor != nil {
 			sd.Vendor = d.Vendor.Value
 		}
-		// One port per row of the scan, though the inventory keeps one row per source (INV-23): a port both the scan and an agent
-		// listed takes the scan's service name ("https"), which says how to speak to it; an agent's names the program ("nginx").
-		at := map[int]int{}
-		for _, sv := range d.Services {
-			if sv.Proto != "" && sv.Proto != "tcp" {
-				continue
-			}
-			if i, ok := at[sv.Port]; ok {
-				if sv.Source != "agent" && sv.Name != "" {
-					sd.Services[i].Name = sv.Name
-				}
-				continue
-			}
-			at[sv.Port] = len(sd.Services)
-			sd.Services = append(sd.Services, scan.OpenPort{Port: sv.Port, Name: sv.Name})
-		}
+		sd.Services = scanPorts(d.Services)
 		out = append(out, sd)
 	}
 	return out, nil

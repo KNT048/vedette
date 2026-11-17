@@ -898,6 +898,18 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(screen.queryByText(/active sensor has not scanned/)).not.toBeInTheDocument()
   })
 
+  it('an empty Services tab of a container-only box says it lists none, of an agent device that its agent has not reported yet', async () => {
+    asAdmin()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-box' ? { ...a, services: [], model: a.model && { ...a.model, value: 'Security box (container-only)' } } : a)))
+    const { unmount } = renderApp('/devices/a-box?tab=services')
+    expect(await screen.findByText("A container-only install does not list the box's own ports.", undefined, T)).toBeInTheDocument()
+    unmount()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-pc01' ? { ...a, fragile: false, services: [], software: [{ id: 's-agent', display: 'OpenSSH', vendor: 'OpenBSD', product: 'OpenSSH', version: '9.6p1', kev: [], source: 'agent', confidence: 0.95 }] } : a)))
+    renderApp('/devices/a-pc01?tab=services')
+    expect(await screen.findByText('Its agent lists the ports this machine listens on; none has come yet.', undefined, T)).toBeInTheDocument()
+    expect(screen.queryByText(/active sensor has not scanned/)).not.toBeInTheDocument()
+  })
+
   it('a detail load error shows the error state', async () => {
     server.use(http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ error: { code: 'x', message: 'Could not read the device data.' } }, { status: 500 })))
     renderApp('/devices/a-pc01')

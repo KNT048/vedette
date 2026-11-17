@@ -371,22 +371,27 @@ type wzPort struct {
 	Process  string `json:"process"`
 }
 
-// ports reads an agent's open ports (INV-22), at most maxServices rows past the listeners read.
-func (c *wazuhClient) ports(ctx context.Context, id string) ([]wzPort, error) {
-	var out []wzPort
-	for offset := 0; len(out) < maxServices*2; {
+// ports reads an agent's open ports (INV-22). complete is false when the server holds more rows than maxPortRows (a busy server whose
+// syscollector reads every socket, <ports all="yes">): a cut list would drop real listeners, so the caller keeps what it has.
+func (c *wazuhClient) ports(ctx context.Context, id string) (rows []wzPort, complete bool, err error) {
+	for offset := 0; ; {
 		items, total, err := syscollPage[wzPort](ctx, c, id, "ports", "local.ip,local.port,remote.port,protocol,state,process", offset)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		out = append(out, items...)
+		rows = append(rows, items...)
 		offset += len(items)
 		if len(items) == 0 || offset >= total {
-			break
+			return rows, true, nil
+		}
+		if len(rows) >= maxPortRows {
+			return rows, false, nil
 		}
 	}
-	return out, nil
 }
+
+// maxPortRows bounds the rows of one agent's ports read: eight pages, every listener of a server and its connections.
+const maxPortRows = 8 * wazuhPage
 
 // packages reads an agent's packages, at most maxRows (the inventory's limit per device).
 func (c *wazuhClient) packages(ctx context.Context, id string) ([]wzPackage, error) {

@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
@@ -19,7 +20,8 @@ func TestReadPortsListsWhatTheBoxServes(t *testing.T) {
 		procRow("0100007F:2234", "0A", "11")+ // 127.0.0.1:8756 LISTEN: loopback, not listed
 		procRow("00000000:0016", "0A", "12")+ // 0.0.0.0:22 LISTEN
 		procRow("0A12A8C0:0016", "01", "13")+ // 192.168.18.10:22 ESTABLISHED: a connection, not a listener
-		procRow("0A12A8C0:1F90", "0A", "14")) // 192.168.18.10:8080 LISTEN, no process found
+		procRow("0A12A8C0:1F90", "0A", "14")+ // 192.168.18.10:8080 LISTEN on the card, no process found
+		procRow("0100590A:0035", "0A", "17")) // 10.89.0.1:53 LISTEN: aardvark-dns on Podman's bridge, not on a card
 	p.table("tcp6", "   0: 00000000000000000000000000000000:0016 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 15 1 0 100 0 0 10 0\n"+ // [::]:22, the same port again
 		"   1: 00000000000000000000000001000000:0050 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 16 1 0 100 0 0 10 0\n") // [::1]:80
 	p.table("udp", procRow("00000000:0202", "07", "20")+ // 0.0.0.0:514: core's syslog
@@ -27,7 +29,19 @@ func TestReadPortsListsWhatTheBoxServes(t *testing.T) {
 	p.process("900", "conmon", cgCore, "10", "20")
 	p.process("700", "sshd", "0::/system.slice/ssh.service\n", "12", "15")
 	p.process("800", "python3", cgUser, "11")
-	got, err := p.ops(t).readPorts(t.Context())
+	p.process("850", "aardvark-dns", cgUser, "17")
+	o := p.ops(t)
+	if err := os.MkdirAll(filepath.Join(p.root, "sys", "class", "net", "eth0", "device"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	o.d.Interfaces = func() ([]HostIface, error) {
+		return []HostIface{
+			{Name: "lo", Loopback: true, Addrs: []netip.Prefix{netip.MustParsePrefix("127.0.0.1/8")}},
+			{Name: "eth0", Addrs: []netip.Prefix{netip.MustParsePrefix("192.168.18.10/24")}},
+			{Name: "podman1", Addrs: []netip.Prefix{netip.MustParsePrefix("10.89.0.1/24")}},
+		}, nil
+	}
+	got, err := o.readPorts(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

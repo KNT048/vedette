@@ -175,8 +175,9 @@ export function ensureBox() {
     id: BOX_ID, site: 'hq', ip, mac: null, hostname: info.hostname, kind: 'server',
     vendor: seen('Vedette'), model: seen('Security box (appliance)'), os: seen('Ubuntu 24.04.3 LTS'),
     software: BOX_SOFTWARE, services: [
-      { port: 22, proto: 'tcp', name: 'ssh', product: 'OpenSSH', version: '9.6p1', source: 'agent', confidence: 1 },
-      { port: 8443, proto: 'tcp', name: 'https', product: 'Caddy', version: '2.6.2', source: 'agent', confidence: 1 },
+      // the box lists its own listening ports, named by their program (vedette-host GET /v1/state/ports, inventory INV-3)
+      { port: 22, proto: 'tcp', name: 'sshd', source: 'agent', confidence: 1 },
+      { port: 8443, proto: 'tcp', name: 'vedette-core', source: 'agent', confidence: 1 },
     ],
     first_seen: dataMode() === 'sample' ? daysAgo(40) : now, last_seen: now, approved: true, fragile: false, origin: 'discovered',
   }

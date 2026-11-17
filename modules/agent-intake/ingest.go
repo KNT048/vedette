@@ -370,10 +370,17 @@ type replaceState struct {
 	warned bool
 }
 
-// allowReplace says whether the source may replace a software list now; the first drop of a window is logged once.
-func (s *Service) allowReplace(ctx context.Context, src netip.Addr, node string) bool {
+// The lists one source address may replace once per sourceWindow, each with its own window: a software list and a list of open
+// ports (INV-22, #933 review L8) never hold each other back.
+const (
+	listSoftware = "software list"
+	listServices = "list of open ports"
+)
+
+// allowReplace says whether the source may replace a list of that kind now; the first drop of a window is logged once.
+func (s *Service) allowReplace(ctx context.Context, src netip.Addr, node, kind string) bool {
 	now := s.now()
-	key := srcKey(src)
+	key := kind + "|" + srcKey(src)
 	s.warnMu.Lock()
 	if len(s.replaced) > limiterKeys {
 		clear(s.replaced)
@@ -388,7 +395,7 @@ func (s *Service) allowReplace(ctx context.Context, src netip.Addr, node string)
 	st.warned = true
 	s.warnMu.Unlock()
 	if warn {
-		s.cfg.Log.WarnContext(ctx, "agent-intake: a second software list from one source address within 5 minutes was dropped", "src", key, "node", node)
+		s.cfg.Log.WarnContext(ctx, "agent-intake: a second "+kind+" from one source address within 5 minutes was dropped", "src", srcKey(src), "node", node)
 	}
 	return false
 }
@@ -472,7 +479,7 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 			}
 		}
 	}
-	took, err := s.deliverServices(ctx, hint, node, in)
+	took, err := s.deliverServices(ctx, src, hint, node, in)
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +496,7 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 		}
 		return taken, nil
 	}
-	if !s.allowReplace(ctx, src, node) {
+	if !s.allowReplace(ctx, src, node, listSoftware) {
 		return taken, nil
 	}
 	// A Windows list without the operating system's row (its revision not reported yet) is not the first report's package answer:
@@ -509,8 +516,9 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 
 // deliverServices hands the open ports of a listening_ports answer to the inventory (INV-22): the list replaces the agent's earlier one
 // on the device, an empty one too (the machine listens on nothing reachable: osquery sends no snapshot when the query failed). took says
-// the inventory stored it (the first report's "services" answer). A list the inventory refused is dropped and logged, like a software list.
-func (s *Service) deliverServices(ctx context.Context, hint observe.AssetHint, node string, in logIn) (took bool, err error) {
+// the inventory stored it (the first report's "services" answer). A list the inventory refused is dropped and logged, like a software list;
+// one source address replaces it at most once per sourceWindow, like a software list (a list the window dropped is not taken).
+func (s *Service) deliverServices(ctx context.Context, src netip.Addr, hint observe.AssetHint, node string, in logIn) (took bool, err error) {
 	var rows []row
 	answered := false
 	for _, q := range []string{"listening_ports", "listening_ports_windows"} {
@@ -518,7 +526,7 @@ func (s *Service) deliverServices(ctx context.Context, hint observe.AssetHint, n
 			rows, answered = append(rows, r...), true
 		}
 	}
-	if !answered || s.cfg.Services == nil {
+	if !answered || s.cfg.Services == nil || !s.allowReplace(ctx, src, node, listServices) {
 		return false, nil
 	}
 	if err := s.cfg.Services.ReplaceServices(ctx, hint, observe.Agent, mapServices(osqueryListening(rows))); err != nil {

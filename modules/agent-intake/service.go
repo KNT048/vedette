@@ -71,7 +71,7 @@ type Service struct {
 
 	warnMu   sync.Mutex // guards lastWarn and replaced
 	lastWarn map[string]time.Time
-	replaced map[string]*replaceState // by source address: the last software replace (ingest.go allowReplace)
+	replaced map[string]*replaceState // by list kind and source address: the last replace (ingest.go allowReplace)
 
 	wazuhRoots  *x509.CertPool // nil: the system's (tests replace it)
 	wazuhSleep  func(ctx context.Context, d time.Duration) error

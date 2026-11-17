@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,7 +18,10 @@ import (
 // for its own device's Open services. The box is never scanned by its own sensor, and an agent-style list is what it can give of
 // itself (Defender, runZero and Lansweeper list an agent's listening ports the same way). It reads the kernel's socket tables and,
 // for the sockets it keeps, which processes hold them (the reading of D-455's port check): no program runs, no socket is opened.
-// A TCP socket in LISTEN or a UDP socket with no peer counts; one bound to 127.0.0.0/8 or ::1 does not (only this box reaches it).
+// A TCP socket in LISTEN or a UDP socket with no peer counts when another machine of the network can reach it: bound to every
+// address (0.0.0.0, ::) or to an address of one of the box's network cards (a device with a hardware parent, or the management
+// interface). One bound to loopback, to a container bridge (Podman's aardvark-dns on 10.89.0.1:53, docker0) or to any other virtual
+// link is not listed: only the box itself reaches it.
 // The IPv4 table that cannot be read fails the read (core keeps what it has); the others say nothing when absent.
 func (o *Ops) readPorts(ctx context.Context) (any, error) {
 	if _, err := os.Stat(o.path("proc/net/tcp")); err != nil {
@@ -29,8 +33,9 @@ func (o *Ops) readPorts(ctx context.Context) (any, error) {
 	}
 	inodes := map[key][]uint64{}
 	want := map[uint64]bool{}
+	lan := o.cardAddrs()
 	for _, s := range o.sockets(ctx) {
-		if s.addr.IsLoopback() || (s.udp && s.peer) {
+		if (!s.addr.IsUnspecified() && !lan[s.addr]) || (s.udp && s.peer) {
 			continue
 		}
 		k := key{s.port, s.udp}
@@ -55,6 +60,39 @@ func (o *Ops) readPorts(ctx context.Context) (any, error) {
 		out.Ports = out.Ports[:api.MaxPorts]
 	}
 	return out, ctx.Err()
+}
+
+// cardAddrs are the addresses of the box's network cards: interfaces with a hardware parent (sysfs device link) and the management
+// interface (netplan's, or the default route's before the host configured it); never loopback, bridges, veth or macvlan links. None
+// when the interfaces cannot be listed: then only sockets bound to every address are listed.
+func (o *Ops) cardAddrs() map[netip.Addr]bool {
+	out := map[netip.Addr]bool{}
+	if o.d.Interfaces == nil {
+		return out
+	}
+	ifaces, err := o.d.Interfaces()
+	if err != nil {
+		return out
+	}
+	mgmt := ""
+	if cfg, managed := o.readNetplanConfig(); managed {
+		mgmt = cfg.Mgmt.Iface
+	} else if r := o.defaultRoute(); r != nil {
+		mgmt = r.Iface
+	}
+	sys := openSysfs(o.d.Root)
+	defer sys.close()
+	for _, h := range ifaces {
+		if h.Loopback || !validIfaceName(h.Name) || (h.Name != mgmt && !sys.physical(h.Name)) {
+			continue
+		}
+		for _, p := range h.Addrs {
+			if a := p.Addr().Unmap().WithZone(""); !a.IsLoopback() {
+				out[a] = true
+			}
+		}
+	}
+	return out
 }
 
 // portOwner names what holds a port: the first named owner of its sockets in the order of the inodes (lowest pid first among the

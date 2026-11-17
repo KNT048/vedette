@@ -307,7 +307,9 @@
     "emptyFragile": "Fragile device: scanned gently once, then only listened to.",
     "emptyFragileInfo": "Allow regular scans in the settings above if you want it checked again.",
     "emptyBox": "The box lists the ports it listens on itself, every hour; none has come yet.",
-    "emptyBoxInfo": "vedette-host reads them from the box's own socket tables (no scan). A container-only install has no vedette-host, so its box lists none.",
+    "emptyBoxInfo": "vedette-host reads them from the box's own socket tables (no scan): a port on every address or on one of the box's network cards. A port only the box itself reaches (loopback, a container bridge) is not listed.",
+    "emptyBoxContainer": "A container-only install does not list the box's own ports.",
+    "emptyBoxContainerInfo": "The box reads its open ports through vedette-host, which a container-only install does not have. Scan the machine from another box, or install an agent on it, to see them.",
     "emptyAgent": "Its agent lists the ports this machine listens on; none has come yet.",
     "emptyAgentInfo": "osquery reports them within minutes of enrolling, then every hour; Wazuh at each pull, from its syscollector ports scan. A port only this machine can reach (loopback) is not listed.",
     "detail": "What it says"

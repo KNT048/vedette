@@ -43,6 +43,7 @@ type fakeWazuh struct {
 	netiface  map[string][]map[string]any
 	packages  map[string][]map[string]any
 	ports     map[string][]map[string]any
+	portsCode int  // answer the ports reads with this status (a 429 the retries do not outlast, a server error)
 	forbid    bool // the role lacks syscollector:read
 	tooMany   int  // answer this many 429 before the next GET
 	expire    bool // answer 401 to the next GET (the token expired)
@@ -155,6 +156,10 @@ func (f *fakeWazuh) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "netiface":
 			js(200, page(f.netiface[parts[1]], q))
 		case "ports":
+			if f.portsCode != 0 {
+				js(f.portsCode, map[string]any{"title": "Wazuh Error", "detail": "ports", "error": 1})
+				return
+			}
 			js(200, page(f.ports[parts[1]], q))
 		case "packages":
 			if f.onPackage != nil {
@@ -856,5 +861,41 @@ func TestWazuh_ANewConnectionNeverTakesAnOldGeneration(t *testing.T) {
 	r.pull()
 	if ips, _, _ := r.svc.WazuhAgentAddresses(t.Context()); len(ips) != 2 {
 		t.Fatalf("the current connection's agents: %v", ips)
+	}
+}
+
+// INV-22, #933 review L4/L5: a ports read that fails never costs the agent its packages nor its known open ports, and a read cut at
+// its row cap (a busy server whose syscollector reads every socket) is no whole list: the stored ports stay.
+func TestWazuh_APortsReadThatFailsOrIsCutKeepsWhatIsKnown(t *testing.T) {
+	r := newWzRig(t)
+	r.fake.portsCode = http.StatusInternalServerError
+	r.save()
+	r.pull()
+	d, ok := r.device(ipLinux)
+	if !ok || len(d.Services) != 0 {
+		t.Fatalf("services %+v", d.Services)
+	}
+	if _, ok := swByProduct(d, "OpenSSH"); !ok {
+		t.Fatal("a failed ports read cost the agent its packages")
+	}
+	r.fake.mu.Lock()
+	r.fake.portsCode = 0
+	r.fake.mu.Unlock()
+	r.clock.Advance(2 * time.Hour)
+	r.pull()
+	if d, _ := r.device(ipLinux); len(d.Services) != 2 {
+		t.Fatalf("services after a good read %+v", d.Services)
+	}
+	many := make([]map[string]any, 2001)
+	for i := range many {
+		many[i] = map[string]any{"local": map[string]any{"ip": ipLinux, "port": 40000 + i}, "remote": map[string]any{"ip": "198.51.100.7", "port": 443}, "protocol": "tcp", "state": "established", "process": "curl"}
+	}
+	r.fake.mu.Lock()
+	r.fake.ports["001"] = many
+	r.fake.mu.Unlock()
+	r.clock.Advance(2 * time.Hour)
+	r.pull()
+	if d, _ := r.device(ipLinux); len(d.Services) != 2 {
+		t.Fatalf("a cut read replaced the services: %+v", d.Services)
 	}
 }

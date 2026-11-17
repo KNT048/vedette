@@ -17,6 +17,7 @@ import (
 
 	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
@@ -430,13 +431,27 @@ func aiDeviceFacts(d inventory.Device) string {
 	return strings.Join(f, "; ")
 }
 
+// aiScanned are the device's open ports a scan read: the rows an agent or the box listed (source agent, named by their program) are
+// left out, so the AI request carries what PRIVACY.md says (open ports with the service, product and version a scan read) and the
+// port limit is spent on them.
+func aiScanned(rows []inventory.ServiceRow) []inventory.ServiceRow {
+	var out []inventory.ServiceRow
+	for _, sv := range rows {
+		if sv.Source != string(observe.Agent) {
+			out = append(out, sv)
+		}
+	}
+	return out
+}
+
 // aiPorts lists the device's open ports with the service and product a scan read ("80/tcp http (Apache httpd 2.4.58)").
 func aiPorts(d inventory.Device) string {
-	if len(d.Services) == 0 {
+	svcs := aiScanned(d.Services)
+	if len(svcs) == 0 {
 		return "none known"
 	}
 	var ps []string
-	for _, sv := range d.Services[:min(len(d.Services), aiMaxPorts)] {
+	for _, sv := range svcs[:min(len(svcs), aiMaxPorts)] {
 		p := fmt.Sprintf("%d/%s %s", sv.Port, aiVal(sv.Proto, 8), aiVal(sv.Name, 40))
 		if prod := strings.TrimSpace(aiVal(aiStr(sv.Product), 60) + " " + aiVal(aiStr(sv.Version), 40)); prod != "" { // a banner the device chose
 			p += " (" + prod + ")"
@@ -564,7 +579,7 @@ func (a aiAsk) Assets(ctx context.Context) ([]ai.AssetRow, error) {
 		if d.Summary != nil {
 			r.SeenBy = d.Summary.Source
 		}
-		for _, sv := range d.Services {
+		for _, sv := range aiScanned(d.Services) {
 			r.Ports = append(r.Ports, fmt.Sprintf("%d/%s %s", sv.Port, sv.Proto, sv.Name))
 		}
 		for _, sw := range d.Software {

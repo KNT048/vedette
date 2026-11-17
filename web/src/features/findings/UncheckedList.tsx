@@ -11,6 +11,13 @@ import type { UncheckedItem } from './types'
 export const UNCHECKED_ANCHOR = 'unchecked'
 const SHOWN = 3
 
+/** A software name with its version, once: a scanner's name often already ends with the version ("OpenSSH 10.2"). */
+export function nameWithVersion(name: string, version?: string | null): string {
+  const v = version?.trim()
+  if (!v) return name
+  return name.split(/\s+/).includes(v) ? name : `${name} ${v}`
+}
+
 const nvdUrl = (cve: string) => `https://nvd.nist.gov/vuln/detail/${encodeURIComponent(cve)}`
 
 /** One software of a device that could not be checked: why, in plain words, and its CVEs with their advisory (three, then "Show N more"). */
@@ -21,7 +28,7 @@ export function UncheckedLine({ item }: { item: UncheckedItem }) {
   return (
     <div className="grid gap-1">
       <p className="text-sm">
-        <span className="font-medium">{item.software}{item.version ? ` ${item.version}` : ''}</span>
+        <span className="font-medium">{nameWithVersion(item.software, item.version)}</span>
         {' - '}{t(`unchecked.reason.${item.reason === 'not_comparable' && !item.version ? 'not_comparable_none' : item.reason}`, { software: item.software, version: item.version ?? '' })}
       </p>
       <ul className="grid gap-0.5 pl-4 text-meta">

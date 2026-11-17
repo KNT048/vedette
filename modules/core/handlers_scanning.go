@@ -653,7 +653,7 @@ func refusalText(reason string) string {
 	case "regular_scan_never":
 		return "it is set to never be scanned."
 	case "declared_by_hand":
-		return "it was added by hand, and devices added by hand are never scanned."
+		return "it was added by hand: turn its network scan on, on its page (Sources), first."
 	case "no_ip":
 		return "it has no IP address."
 	case "too_many":

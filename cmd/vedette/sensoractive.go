@@ -133,6 +133,12 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 			if !ok {
 				return fmt.Errorf("unexpected payload %T", data)
 			}
+			// A person turned the device's network scan on (D-601): it waits in the queue for the next window, as a new device does.
+			if ev.ScanOn {
+				if err := svc.Enqueue(ctx, ev.AssetID, "scan_on"); err != nil {
+					return err
+				}
+			}
 			return svc.AssetChanged(ctx, ev.AssetID)
 		}))
 	}
@@ -225,6 +231,19 @@ func (a sensorInventory) InScope(ctx context.Context, ip netip.Addr) (bool, erro
 
 func (a sensorInventory) ScanPolicy(ctx context.Context, assetID string) (sensoractive.Decision, error) {
 	dec, err := a.inv.ScanPolicy(ctx, assetID)
+	if errors.Is(err, inventory.ErrNotFound) {
+		return sensoractive.Decision{}, sensoractive.ErrNotFound
+	}
+	if err != nil {
+		return sensoractive.Decision{}, err
+	}
+	return sensoractive.Decision{Allowed: dec.Allowed, Rate: dec.Rate, Reason: dec.Reason, FirstGentle: dec.Reason == inventory.ReasonFirstGentleScan,
+		Fragile: dec.Fragile, Unclassified: dec.Unclassified, Never: dec.Never}, nil
+}
+
+// SNMPPolicy implements sensoractive.Inventory (D-601).
+func (a sensorInventory) SNMPPolicy(ctx context.Context, assetID string) (sensoractive.Decision, error) {
+	dec, err := a.inv.SNMPPolicy(ctx, assetID)
 	if errors.Is(err, inventory.ErrNotFound) {
 		return sensoractive.Decision{}, sensoractive.ErrNotFound
 	}

@@ -72,6 +72,9 @@ type AssetEvent struct {
 	// Learning is set on discovered events when the source that found the device (passive sensor, active scan, SNMP, agent, vulnerability
 	// scan) first reported to this box less than LearningWindow ago (D-474, MK-1): notify folds such devices into one summary.
 	Learning bool `json:"learning,omitempty"`
+	// ScanOn is set on inventory.asset.updated when a person turned the device's network scan on (D-601): sensor-active queues it for
+	// the next window, as a newly discovered device.
+	ScanOn bool `json:"scan_on,omitempty"`
 	// Actor is the person who approved (inventory.asset.approved) or deleted (inventory.asset.deleted) the device; "" for the system.
 	Actor string `json:"actor,omitempty"`
 }
@@ -214,6 +217,10 @@ type AssetCore struct {
 	FirstScanAt *string            `json:"first_scan_at"`
 	ApprovedAt  *string            `json:"approved_at"` // when a person (or osquery enrolment) approved it; nil when not approved, added by hand, or approved before D-471
 	RegularScan string             `json:"regular_scan"`
+	// ScanSource and SNMPSource say whether the box's network scan and its SNMP reads are on for this device ("on" or "off", the
+	// default resolved: on for a device a sensor found, off for one added by hand; D-601).
+	ScanSource string `json:"scan_source"`
+	SNMPSource string `json:"snmp_source"`
 }
 
 // Summary is the source of the most trusted value and the confidence of the weakest (DATA_MODEL 5.1 (5)).

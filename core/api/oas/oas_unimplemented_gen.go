@@ -2233,6 +2233,20 @@ func (UnimplementedHandler) InventoryPutInventoryAgentsWazuh(ctx context.Context
 	return r, ht.ErrNotImplemented
 }
 
+// InventoryPutInventoryDevicesIDSources implements inventory_put_inventory_devices_id_sources operation.
+//
+// Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person's consent
+// to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope,
+// exclusions, window, fragile, never scan); turning the network scan on queues the device for the next
+// window. Off stops it for any device (the run on it stops); what the source found stays and manual
+// values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404
+// not_found. 409 box_device: the Vedette box itself.
+//
+// PUT /inventory/devices/{id}/sources
+func (UnimplementedHandler) InventoryPutInventoryDevicesIDSources(ctx context.Context, req *InventoryPutInventoryDevicesIDSourcesReq, params InventoryPutInventoryDevicesIDSourcesParams) (r *InventoryPutInventoryDevicesIDSourcesOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // InventoryPutInventoryNotifyNew implements inventory_put_inventory_notify_new operation.
 //
 // Turn alerts for new devices on or off.

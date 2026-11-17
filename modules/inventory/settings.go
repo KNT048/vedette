@@ -117,18 +117,22 @@ func (st Settings) InScope(ip netip.Addr) bool {
 			break
 		}
 	}
-	if !inRange {
-		return false
-	}
+	return inRange && !st.Excluded(ip)
+}
+
+// Excluded reports whether ip is on the exclusion list ("never touch"): nothing active goes there, not discovery, not a scan, not an
+// SNMP read (D-601: SNMP is bound by the exclusions and a credential's own scope, not by lan_ranges).
+func (st Settings) Excluded(ip netip.Addr) bool {
+	ip = ip.Unmap()
 	for _, x := range st.Active.Exclusions {
 		if a, err := netip.ParseAddr(x); err == nil && a == ip {
-			return false
+			return true
 		}
 		if p, err := netip.ParsePrefix(x); err == nil && p.Contains(ip) {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func loadSetting[T any](ctx context.Context, q querier, key string, into *T) error {

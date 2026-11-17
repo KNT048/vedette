@@ -44,12 +44,12 @@
     "agent": {
       "off": "Turn on the Agents module in Settings to use osquery or Wazuh.",
       "add": "Install osquery",
-      "manage": "Agents and tokens"
+      "manage": "Agents and tokens",
+      "how": "An agent is installed or uninstalled on the machine itself, not switched here."
     },
     "snmp": {
       "movedOut": "This device moved to {{ip}}, outside the scope of SNMP credential {{name}}, so it is not read there. If it is still this device (check on the device itself: a copied network card looks the same), add the address to that credential's scope (Devices, Scope and sensors, SNMP, Edit) to keep reading it.",
       "off": "Turn on active discovery in Settings to read devices with SNMP.",
-      "declared": "Added manually: Vedette sends nothing to it.",
       "approveHere": "Approve, then add SNMP",
       "approveFirst": "Approve the device first: SNMP reads only approved devices.",
       "add": "Add SNMP",
@@ -62,7 +62,33 @@
       "addToScopeHint": "Vedette asks for the credential's community or passwords again before it sends them to one more address.",
       "credential": "Credential",
       "read": "Read this device now",
-      "scopeHint": "In the scan window Vedette reads the device again with every credential whose scope holds its address. A credential whose scope does not hold it says so here."
+      "scopeHint": "In the scan window Vedette reads the device again with every credential whose scope holds its address. A credential whose scope does not hold it says so here.",
+      "addTurnsOn": "Add SNMP"
+    },
+    "declared": "Added by hand: Vedette sends nothing to it until you turn a source on here.",
+    "toggle": {
+      "scan": "Network scan of this device",
+      "snmp": "SNMP reads of this device"
+    },
+    "meaning": {
+      "scan": {
+        "on": "On: scanned in the scan window, inside the scan scope, with every safety rule. Turning it off stops all scan traffic to it.",
+        "off": "Off: no scan packet goes to this device. What scans found stays; values you entered still win."
+      },
+      "snmp": {
+        "on": "On: read with the SNMP credentials that list its address, inside or outside the scan scope, never if excluded. Turning it off stops all SNMP to it.",
+        "off": "Off: no SNMP read goes to this device. What it read stays; values you entered still win."
+      }
+    },
+    "saved": {
+      "scan": {
+        "on": "Network scan on for {{name}}: it is scanned in the next scan window.",
+        "off": "Network scan off for {{name}}: nothing more is sent to it."
+      },
+      "snmp": {
+        "on": "SNMP on for {{name}}.",
+        "off": "SNMP off for {{name}}: nothing more is sent to it."
+      }
     }
   },
   "list": {
@@ -1066,11 +1092,12 @@
     "never": "Change it on the device page",
     "notListedWhy": "Vedette has not found this address yet. The next scan or the sensor finds it; approve it under To review, then read it here.",
     "notListed": "Open To review",
-    "manualWhy": "This device was added manually, so Vedette never probes it.",
-    "manual": "Open the device",
     "publicWhy": "{{ip}} is a public address: Vedette only reads devices inside your own network.",
     "excludedWhy": "{{ip}} is inside the scan scope but excluded from it.",
-    "excluded": "Change the exclusions in Scope"
+    "excluded": "Change the exclusions in Scope",
+    "turnSnmpOn": "Turn SNMP on for {{ip}} and read it",
+    "snmpOn": "SNMP is on for {{ip}}. Reading it now.",
+    "excludedSnmpWhy": "{{ip}} is on the exclusion list, which Vedette never touches, not even with SNMP. The LAN ranges only govern discovery and network scans."
   },
   "toScope": {
     "title": "Add {{range}} to the scan scope",

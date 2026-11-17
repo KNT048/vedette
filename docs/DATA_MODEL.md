@@ -174,6 +174,8 @@ UQ `(type, value)`. IX `(type, value)` phục vụ khớp log, `(expires_at)`. G
 | `agent_ip` | text | có | the address the bound agent last reported from (D-598, migration 0008); a sensor seeing the device's burned-in MAC elsewhere after that report drops the binding |
 | `ip_confirmed_at` | text | có | when a sighting last tied the device to `ip` (its MAC seen there, its bound agent reporting from it, a person declaring it, or anything seen there for a device with no MAC; #829, inventory migration 0012); a hint with only an address goes to the device only within 3 days of it |
 | `regular_scan` | enum(follow\|allow\|never) | không | `follow` (D-45) |
+| `scan_source` | enum(on\|off) | có | the network scan of this device (discovery's nmap, vulnerability scans), set by a person on its Sources card (D-601, migration 0014); NULL = default: on for a device a sensor found, off for one added by hand |
+| `snmp_source` | enum(on\|off) | có | the SNMP reads of this device, as `scan_source` (D-601, migration 0014) |
 | `first_scan_at` | ts | có | thời điểm quét nhẹ lần đầu (D-45); NULL = chưa quét hoặc khai tay |
 | `suspicious` | bool | không | 0 (`POST …/suspicious`) |
 | `is_box` | bool | không | 0; đúng một dòng = 1: chính hộp (D-53), không xoá được (mã `box_device`); UQ một phần `WHERE is_box=1` |

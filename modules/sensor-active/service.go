@@ -548,6 +548,8 @@ const (
 	reasonUnclassifiedPassive = "unclassified_passive_only"
 	reasonNever               = "regular_scan_never"
 	reasonBox                 = "box"
+	reasonSNMPOff             = "snmp_off" // a person turned SNMP off for the device (D-601; SNMPPolicy only)
+	reasonExcluded            = "excluded" // the address is on the exclusion list (SNMPPolicy only: SNMP is not bound by lan_ranges, D-601)
 )
 
 const stoppedText = "stopped: the window closed, the scope changed or the module was turned off"

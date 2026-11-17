@@ -603,10 +603,10 @@ func (r snmpRow) covers(ip netip.Addr) bool {
 }
 
 // snmpPolicy decides whether a device may be read with SNMP at all: "" when it may, else the reason. It is the inventory's
-// ScanPolicy without the fragile rule (a fragile or unclassified device is read), plus the device's approval and the box's own
+// SNMPPolicy (D-601: the device's own SNMP setting, so a network scan turned off does not stop SNMP, and SNMP turned off stops it) without the fragile rule (a fragile or unclassified device is read), plus the device's approval and the box's own
 // addresses and decoys (box, from Inventory.BoxIPs: always refused, fragile or not; review L1).
 func (s *Service) snmpPolicy(ctx context.Context, assetID string, box []netip.Addr) (Asset, string, error) {
-	dec, err := s.inv.ScanPolicy(ctx, assetID)
+	dec, err := s.inv.SNMPPolicy(ctx, assetID)
 	if err != nil {
 		return Asset{}, "", err
 	}
@@ -633,7 +633,7 @@ func (s *Service) snmpPolicy(ctx context.Context, assetID string, box []netip.Ad
 }
 
 // snmpRefusals are the refusals of snmpPolicy a Test answers with as they are (SnmpTestReason in contract.ts).
-var snmpRefusals = []string{SNMPNotApproved, "out_of_scope", reasonScanningOff, reasonScopeNotConfirmed, "declared_by_hand", reasonBox, reasonNever}
+var snmpRefusals = []string{SNMPNotApproved, "out_of_scope", reasonScanningOff, reasonScopeNotConfirmed, "declared_by_hand", reasonBox, reasonNever, reasonSNMPOff, reasonExcluded}
 
 // snmpTarget is one device of a batch and the credentials to try on it, in order (indexes into the batch's credentials).
 type snmpTarget struct {
@@ -871,10 +871,16 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	s.mu.Lock()
 	run.credIDs, run.targets, run.assets = ids, ips, assets
 	s.mu.Unlock()
+	// SNMP is bound by the exclusions and each credential's own scope, not by lan_ranges (D-601): a target the exclusions took since the
+	// targets were chosen stops the batch. A target inside lan_ranges is asked again of the inventory, which reads the settings fresh:
+	// one it no longer holds (excluded since, or the ranges changed under the batch) stops it too, fail closed.
 	sc := newScope(st)
 	for _, t := range targets {
-		if !sc.contains(t.ip) {
+		if sc.excluded(t.ip) {
 			return nil, ErrStopped
+		}
+		if !sc.contains(t.ip) {
+			continue
 		}
 		if in, err := s.inv.InScope(rctx, t.ip); err != nil || !in {
 			return nil, ErrStopped
@@ -1333,7 +1339,7 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 		return
 	}
 	sc := newScope(st)
-	if slices.ContainsFunc(targets, func(t netip.Addr) bool { return !sc.contains(t) }) {
+	if slices.ContainsFunc(targets, sc.excluded) { // SNMP: the exclusions, not lan_ranges (D-601)
 		run.cancel()
 	}
 }
@@ -1380,7 +1386,11 @@ func snmpMessage(reason string, ip netip.Addr, version string, port int, extra s
 	case reasonScopeNotConfirmed:
 		return "The scan scope commitment is not ticked under Scope and sensors, so nothing is sent."
 	case "declared_by_hand":
-		return "This device was added by hand: Vedette never probes it."
+		return "This device was added by hand: Vedette reads it with SNMP only once you turn SNMP on on its page (Sources)."
+	case reasonSNMPOff:
+		return "SNMP is turned off for this device on its page (Sources), so nothing is sent."
+	case reasonExcluded:
+		return fmt.Sprintf("%s is on the exclusion list under Scope and sensors: Vedette never touches it, not even with SNMP.", ip)
 	case reasonBox:
 		return "This is the Vedette box itself (or one of its trap addresses): it is never probed."
 	case reasonNever:

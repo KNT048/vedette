@@ -566,6 +566,7 @@
       "inventory.set_kind": "Change device kind",
       "inventory.set_notes": "Change device notes",
       "inventory.set_regular_scan": "Change regular scanning of a device",
+      "inventory.set_source": "Turn a source of a device on or off (network scan, SNMP)",
       "inventory.settings": "Change device discovery settings",
       "inventory.software_expired": "Agent software no longer reported was removed",
       "inventory.software_sync": "Software list synced",

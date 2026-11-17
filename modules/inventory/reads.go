@@ -15,7 +15,7 @@ import (
 
 const noIP = "—" // what the API says for a device whose IP is unknown (contract.ts Asset.ip)
 
-const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.kind, k.source, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen,
+const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.kind, k.source, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen, coalesce(a.scan_source, ''), coalesce(a.snmp_source, ''),
 	v.value, v.source, v.confidence, v.seen_at, m.value, m.source, m.confidence, m.seen_at, o.value, o.source, o.confidence, o.seen_at,
 	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at`
 
@@ -57,7 +57,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		var ip, mac, host, scan, approvedAt, notes, kindSrc sql.NullString
 		var v, m, o, h, x obsCols
 		var approved, fragile, suspicious, box bool
-		if err := rows.Scan(&d.ID, &ip, &mac, &host, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen,
+		if err := rows.Scan(&d.ID, &ip, &mac, &host, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen, &d.ScanSource, &d.SNMPSource,
 			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen,
 			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
@@ -71,6 +71,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
 		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
+		d.ScanSource, d.SNMPSource = sourceState(d.ScanSource, d.Origin), sourceState(d.SNMPSource, d.Origin)
 		d.Software, d.Services = []Software{}, []ServiceRow{}
 		out = append(out, d)
 	}
@@ -514,4 +515,16 @@ func (s *Service) addGuesses(ctx context.Context, items []*AssetCore) {
 			d.Guess = &g
 		}
 	}
+}
+
+// sourceState resolves a device's stored setting of one active source (D-601): "" is the default, off for a device added by hand and on
+// for one a sensor found.
+func sourceState(stored, origin string) string {
+	switch {
+	case stored != "":
+		return stored
+	case origin == "manual":
+		return SourceOff
+	}
+	return SourceOn
 }

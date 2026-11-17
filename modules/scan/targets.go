@@ -74,7 +74,7 @@ var skipNote = map[string]string{ //nolint:gosec // G101: notes shown to the use
 	"scope_not_confirmed":       "The scan scope commitment is not ticked any more; not scanned.",
 	"box":                       "The Vedette box itself: scanned only when you pick it in Scan now.",
 	"regular_scan_never":        "Set to never be scanned in the inventory; not scanned.",
-	"declared_by_hand":          "Added by hand: scanned only when you pick it in Scan now.",
+	"declared_by_hand":          "Added by hand: scanned only when you pick it in Scan now, or once its network scan is on (its page, Sources).",
 	"fragile_passive_only":      "Fragile device: scanned only when you pick it in Scan now.",
 	"unclassified_passive_only": "Device type unknown: scanned only when you pick it in Scan now.",
 	"gone":                      "No longer in the inventory; not scanned.",

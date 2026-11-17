@@ -414,6 +414,72 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 	})
 }
 
+// Sources is the state of a device's active sources (PUT /inventory/devices/{id}/sources; D-601): SourceOn or SourceOff each, the
+// default resolved (on for a device a sensor found, off for one added by hand).
+type Sources struct {
+	Scan string `json:"scan_source"`
+	SNMP string `json:"snmp_source"`
+}
+
+// SetSources turns the network scan and the SNMP reads of one device on or off (D-601); a nil value is left alone, and at least one is
+// needed. Turning one on is a person's consent to that traffic to this device: a device added by hand gets it from then on, inside every
+// other safety rule (scope, exclusions, window, fragile, never, the box). Turning one off stops it for any device: the run in progress on
+// the device stops (inventory.asset.updated), and what that source found stays. One audit row per source changed says who, which device,
+// which source and on or off. The box itself is 409 box_device: nothing automatic ever probes it.
+func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *string) (Sources, error) {
+	for _, v := range []*string{scan, snmp} {
+		if v != nil && *v != SourceOn && *v != SourceOff {
+			return Sources{}, badRequest("bad_source", "Each source is on or off.")
+		}
+	}
+	if scan == nil && snmp == nil {
+		return Sources{}, badRequest("bad_source", "Say which source to turn on or off: scan, snmp or both.")
+	}
+	var out Sources
+	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		var origin, curScan, curSNMP string
+		var box bool
+		err := tx.QueryRowContext(ctx, `SELECT origin, is_box, coalesce(scan_source, ''), coalesce(snmp_source, '') FROM inv_asset WHERE id = ?`, id).
+			Scan(&origin, &box, &curScan, &curSNMP)
+		if errors.Is(err, sql.ErrNoRows) {
+			return notFoundDevice()
+		} else if err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
+		}
+		if box {
+			return conflict("box_device", "This is the Vedette box itself: Vedette never scans or reads it on its own.")
+		}
+		name := deviceName(ctx, tx, id)
+		scanOn := false
+		for _, c := range []struct {
+			col, label string
+			cur        *string
+			next       *string
+		}{{"scan_source", "network scan", &curScan, scan}, {"snmp_source", "SNMP", &curSNMP, snmp}} {
+			if c.next == nil {
+				continue
+			}
+			before := sourceState(*c.cur, origin)
+			// only the two column names above are concatenated; the value is bound
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET `+c.col+` = ? WHERE id = ?`, *c.next, id); err != nil { //nolint:gosec // G202: see above
+				return fmt.Errorf("inventory: set %s: %w", c.label, err)
+			}
+			*c.cur = *c.next
+			if before == *c.next {
+				continue // saying it again changes nothing and writes no audit row
+			}
+			if err := s.auditTx(ctx, tx, actor, "inventory.set_source", name, c.label+": "+*c.next); err != nil {
+				return err
+			}
+			scanOn = scanOn || (c.col == "scan_source" && *c.next == SourceOn)
+		}
+		out = Sources{Scan: sourceState(curScan, origin), SNMP: sourceState(curSNMP, origin)}
+		o.add(EventAssetUpdated, AssetEvent{AssetID: id, ScanOn: scanOn})
+		return nil
+	})
+	return out, err
+}
+
 // Approve accepts a device a sensor found (S-INV-3); it also clears the suspicious flag.
 // A device that was waiting also gets inventory.asset.approved {asset_id, actor} after the commit (D-474, B9b): notify closes its
 // new-device incident naming the person. Approving again (to clear a mark) is no approval; osquery enrolment (ApproveEnrolled) is

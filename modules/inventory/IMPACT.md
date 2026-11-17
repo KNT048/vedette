@@ -1,5 +1,10 @@
 # Inventory — Change Impact Map
 
+## Modifying: the per-device sources (`scan_source`, `snmp_source`, `SetSources`, `SNMPPolicy`, `decideActive`, `Settings.Excluded`; D-601, INV-36)
+- **sensor-active** reads `SNMPPolicy` for every SNMP read (Test, Read now, the window's round) through `cmd/vedette` `sensorInventory.SNMPPolicy`, and `ScanPolicy`/`ProtectedIPs` for nmap: a change of what on/off/default means changes which packets leave the box. `AssetEvent.ScanOn` makes `cmd/vedette/sensoractive.go` queue the device.
+- **scan** reads `VulnScanPolicy`: scan off is absolute there (like `regular_scan=never`), scan on lifts `declared_by_hand` for schedules.
+- **Web**: `DeviceSources.tsx` (switches, Add SNMP turns SNMP on), `SnmpNext.tsx` (Turn SNMP on, `excluded`), `scanning/DeviceActions.tsx` (`nmapRefusal` reads `scan_source`), `mocks.ts` (`sourceOf`). `modules/core/export_policy.go` exports both columns.
+
 ## Modifying: the shared safety block (`active.check_rate`, `SaveSafety`, `SetDiscovery`, `SaveChecks`, `MergeLegacyChecks`, `FragileCount`; #850, INV-32)
 - **scan** reads the window, the check rate and the exclusions through `cmd/vedette` `scanInventory` (`scan.SharedChecks`) and writes them back with `SaveChecks` in its own transaction: a change of their meaning or limits changes when and how fast nuclei runs, and what it skips.
 - **sensor-active** reads the same `active` (window, exclusions, rate) through `sensorInventory.Settings`: the exclusions merged from the scan module now bind discovery too.

@@ -101807,18 +101807,26 @@ func (s *InventoryGetInventoryDevicesIDOKKindsItem) UnmarshalText(data []byte) e
 }
 
 type InventoryGetInventoryDevicesIDOKObservationsItem struct {
-	Confidence float64                                                `json:"confidence"`
-	Current    bool                                                   `json:"current"`
-	Field      InventoryGetInventoryDevicesIDOKObservationsItemField  `json:"field"`
-	ID         string                                                 `json:"id"`
-	SeenAt     time.Time                                              `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKObservationsItemSource `json:"source"`
-	Value      string                                                 `json:"value"`
+	Confidence float64 `json:"confidence"`
+	// An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS;
+	// absent otherwise.
+	ContradictsType OptBool                                                `json:"contradicts_type"`
+	Current         bool                                                   `json:"current"`
+	Field           InventoryGetInventoryDevicesIDOKObservationsItemField  `json:"field"`
+	ID              string                                                 `json:"id"`
+	SeenAt          time.Time                                              `json:"seen_at"`
+	Source          InventoryGetInventoryDevicesIDOKObservationsItemSource `json:"source"`
+	Value           string                                                 `json:"value"`
 }
 
 // GetConfidence returns the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKObservationsItem) GetConfidence() float64 {
 	return s.Confidence
+}
+
+// GetContradictsType returns the value of ContradictsType.
+func (s *InventoryGetInventoryDevicesIDOKObservationsItem) GetContradictsType() OptBool {
+	return s.ContradictsType
 }
 
 // GetCurrent returns the value of Current.
@@ -101854,6 +101862,11 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) GetValue() string {
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKObservationsItem) SetConfidence(val float64) {
 	s.Confidence = val
+}
+
+// SetContradictsType sets the value of ContradictsType.
+func (s *InventoryGetInventoryDevicesIDOKObservationsItem) SetContradictsType(val OptBool) {
+	s.ContradictsType = val
 }
 
 // SetCurrent sets the value of Current.

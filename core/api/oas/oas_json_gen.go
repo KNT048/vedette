@@ -182487,6 +182487,12 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) encodeFields(e *jx.En
 		e.Float64(s.Confidence)
 	}
 	{
+		if s.ContradictsType.Set {
+			e.FieldStart("contradicts_type")
+			s.ContradictsType.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("current")
 		e.Bool(s.Current)
 	}
@@ -182512,14 +182518,15 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) encodeFields(e *jx.En
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKObservationsItem = [7]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKObservationsItem = [8]string{
 	0: "confidence",
-	1: "current",
-	2: "field",
-	3: "id",
-	4: "seen_at",
-	5: "source",
-	6: "value",
+	1: "contradicts_type",
+	2: "current",
+	3: "field",
+	4: "id",
+	5: "seen_at",
+	6: "source",
+	7: "value",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDOKObservationsItem from json.
@@ -182543,8 +182550,18 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Decode(d *jx.Decoder)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
+		case "contradicts_type":
+			if err := func() error {
+				s.ContradictsType.Reset()
+				if err := s.ContradictsType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"contradicts_type\"")
+			}
 		case "current":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Current = bool(v)
@@ -182556,7 +182573,7 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"current\"")
 			}
 		case "field":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Field.Decode(d); err != nil {
 					return err
@@ -182566,7 +182583,7 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"field\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -182578,7 +182595,7 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "seen_at":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.SeenAt = v
@@ -182590,7 +182607,7 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"seen_at\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Source.Decode(d); err != nil {
 					return err
@@ -182600,7 +182617,7 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "value":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -182621,7 +182638,7 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItem) Decode(d *jx.Decoder)
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

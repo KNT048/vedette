@@ -124,6 +124,9 @@ func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, erro
 		if d.Hostname != nil {
 			x.Hostname, x.Name = *d.Hostname, *d.Hostname
 		}
+		if n := d.NameOrHost(); n != nil { // the name in Vedette wins on the pages (G2); Hostname stays the observed one
+			x.Name = *n
+		}
 		if d.OS != nil {
 			x.OS = d.OS.Value
 		}

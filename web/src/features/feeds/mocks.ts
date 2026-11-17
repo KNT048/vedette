@@ -54,7 +54,7 @@ function matchAssets(vendor: string, product: string): MatchedAsset[] {
       if (!multi && s.kev.includes(key)) { how = 'yes'; break }
       if (multi && s.kev.some((k) => k.startsWith(`${vendor.toLowerCase()}|`))) how = 'maybe'
     }
-    if (how !== 'no') out.push({ id: a.id, hostname: a.hostname, ip: a.ip, display: a.software[0]?.display ?? a.kind, how })
+    if (how !== 'no') out.push({ id: a.id, hostname: a.name ?? a.hostname, ip: a.ip, display: a.software[0]?.display ?? a.kind, how })
   }
   return out
 }

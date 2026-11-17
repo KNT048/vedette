@@ -6,6 +6,7 @@ import { Notice, KeyValue, Section } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { Card } from '@/components/common/Card'
 import { InfoTip } from '@/components/common/InfoTip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -74,7 +75,7 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
         <p className="-mt-3 text-meta text-muted">{t('network.span.statusNote')}</p>
         {readOnly ? (
           <Notice tone="off" role="note" className="mb-0" title={t('network.span.kept')} info={t('network.span.keptInfo')}
-            actions={<Button disabled={gate.disabled || span.isPending} title={gate.title} onClick={() => {
+            actions={<Button disabled={gate.disabled} busy={span.isPending} busyLabel={t('common:busy.turningOff')} title={gate.title} onClick={() => {
               setError(null)
               span.mutate({ ...d.span, enabled: false, interface: null }, { onSuccess: () => toast.success(t('network.span.turnedOff')), onError: (er) => setError(errMsg(er, t)) })
             }}>{t('network.span.turnOff')}</Button>} />
@@ -146,9 +147,10 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
 
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           {readOnly ? null : <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" variant="primary" disabled={gate.disabled || !dirty || span.isPending} title={gate.title}>{t('network.span.save')}</Button>
+            <Button type="submit" variant="primary" disabled={gate.disabled || !dirty} busy={span.isPending} busyLabel={t('common:busy.saving')} title={gate.title}>{t('network.span.save')}</Button>
             {dirty ? <span className="text-meta text-muted">{t('network.span.unsaved')}</span> : null}
           </div>}
+          <BusyNote busy={span.isPending}>{t('network.applyWaiting')}</BusyNote>
         </form>
         </Card>
       </div>

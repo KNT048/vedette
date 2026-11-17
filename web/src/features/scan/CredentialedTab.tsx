@@ -9,6 +9,7 @@ import { CodeBlock } from '@/components/common/CodeBlock'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
@@ -99,7 +100,7 @@ function AddForm({ options }: { options: ScanTarget[] }) {
       </div>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" variant="primary" disabled={!can || add.isPending}>{t('cred.save')}</Button>
+        <Button type="submit" variant="primary" disabled={!can} busy={add.isPending} busyLabel={t('common:busy.saving')}>{t('cred.save')}</Button>
         {!can ? <span className="text-meta text-muted">{t('common:needRole', { role: t('common:role.admin') })}</span> : null}
       </div>
     </form>
@@ -127,20 +128,23 @@ function List({ items }: { items: CredTarget[] }) {
     ) : <span className="text-muted">{t('cred.notTested')}</span>) },
     { id: 'actions', header: () => <span className="sr-only">{t('hist.actions')}</span>, enableSorting: false, cell: ({ row: { original: r } }) => (
       <div className="flex gap-2">
-        <Button size="sm" disabled={!operator || test.isPending} aria-label={t('cred.testAria', { name: r.label })} onClick={() => test.mutate(r.id, { onError: (e) => toast.error(errMsg(e)) })}>{t('cred.test')}</Button>
+        <Button size="sm" disabled={!operator || test.isPending} busy={test.isPending && test.variables === r.id} busyLabel={t('common:busy.testing')} aria-label={t('cred.testAria', { name: r.label })} onClick={() => test.mutate(r.id, { onError: (e) => toast.error(errMsg(e)) })}>{t('cred.test')}</Button>
         <Button size="sm" disabled={!admin} aria-label={t('cred.removeAria', { name: r.label })} onClick={(e) => askRemove(e, r)}>{t('cred.remove')}</Button>
       </div>
     ) },
-  ], [t, admin, operator, test.isPending, test.mutate, askRemove])
+  ], [t, admin, operator, test.isPending, test.variables, test.mutate, askRemove])
+  const testing = test.isPending ? items.find((x) => x.id === test.variables) : undefined
   return (
     <>
       <DataTable caption={t('cred.caption')} data={items} columns={columns} empty={<EmptyState title={t('cred.empty')}>{t('cred.emptyHelp')}</EmptyState>} />
+      {/* kien G1: an SSH login check waits on the server; say so while it runs */}
+      <BusyNote busy={test.isPending} className="mt-2">{t('cred.testWaiting', { name: testing?.label ?? '' })}</BusyNote>
       <Dialog open={!!rm} onOpenChange={(o) => { if (!o) setRm(null) }}>
         {shownRm ? (
           <DialogContent title={t('cred.removeTitle', { name: shownRm.label })} description={t('cred.removeBody')} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
             <DialogFooter>
               <Button onClick={() => setRm(null)}>{t('common:cancel')}</Button>
-              <Button variant="danger" disabled={del.isPending} onClick={() => del.mutate(shownRm.id, { onSuccess: () => { toast.success(t('cred.removed')); setRm(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('cred.remove')}</Button>
+              <Button variant="danger" busy={del.isPending} busyLabel={t('common:busy.removing')} onClick={() => del.mutate(shownRm.id, { onSuccess: () => { toast.success(t('cred.removed')); setRm(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('cred.remove')}</Button>
             </DialogFooter>
           </DialogContent>
         ) : null}

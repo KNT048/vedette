@@ -7,6 +7,7 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, KeyValue } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -41,7 +42,7 @@ function RejectDialog({ a, onClose }: { a: ActionRequest; onClose: () => void })
         {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
         <DialogFooter>
           <Button onClick={onClose}>{t('common:cancel')}</Button>
-          <Button variant="danger" disabled={reject.isPending} onClick={() => reject.mutate({ id: a.id, reason, remember }, { onSuccess: () => { toast.success(t('action.rejectedToast')); onClose() }, onError: (e) => setError(errText(e)) })}>{t('action.reject')}</Button>
+          <Button variant="danger" busy={reject.isPending} busyLabel={t('common:busy.rejecting')} onClick={() => reject.mutate({ id: a.id, reason, remember }, { onSuccess: () => { toast.success(t('action.rejectedToast')); onClose() }, onError: (e) => setError(errText(e)) })}>{t('action.reject')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -160,18 +161,22 @@ export function RequestCard({ a }: { a: ActionRequest }) {
             </Field>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" disabled={!can || frozen || approve.isPending || !sel.length} title={frozen ? t('leaving.frozen') : role}
-              onClick={() => go(a.items.length > 1 && sel.length < a.items.length ? sel : undefined)}>
+            <Button variant="primary" disabled={!can || frozen || !sel.length} busy={approve.isPending} busyLabel={t('common:busy.approving')} title={frozen ? t('leaving.frozen') : role}
+              aria-describedby={`approve-wait-${a.id}`} onClick={() => go(a.items.length > 1 && sel.length < a.items.length ? sel : undefined)}>
               {a.items.length > 1 ? (sel.length === a.items.length ? t('request.approveAll') : t('request.approveSelected', { count: sel.length })) : t('action.approve')}
             </Button>
             <Button disabled={!can} title={role} onClick={() => setRejecting(true)}>{t('action.reject')}</Button>
           </div>
+          {/* kien G1: the last approval makes the change on the device before it answers (up to 90 s for each change) */}
+          <BusyNote id={`approve-wait-${a.id}`} busy={approve.isPending}>{t('action.approveWaiting')}</BusyNote>
         </div>
       ) : a.items.some(undoable) ? (
         <div className="flex flex-wrap items-center gap-3">
-          <Button disabled={!can || onDevice || rollback.isPending} title={onDevice ? t('leaving.undoOnDevice') : role} aria-describedby={onDevice ? `undo-${a.id}` : undefined} onClick={() => rollback.mutate(a.id, { onSuccess: () => toast.success(t('action.rolledBackToast')), onError: (e) => toast.error(errText(e)) })}>{t('action.rollback')}</Button>
+          <Button disabled={!can || onDevice} busy={rollback.isPending} busyLabel={t('action.rollingBack')} title={onDevice ? t('leaving.undoOnDevice') : role} aria-describedby={onDevice ? `undo-${a.id}` : `undo-wait-${a.id}`} onClick={() => rollback.mutate(a.id, { onSuccess: () => toast.success(t('action.rolledBackToast')), onError: (e) => toast.error(errText(e)) })}>{t('action.rollback')}</Button>
           {/* what to undo and where: the device above, each change under "Exact change and rollback" */}
           {onDevice ? <p id={`undo-${a.id}`} className="text-meta text-warn">{t('leaving.undoOnDevice')}</p> : null}
+          {/* kien G1: the rollback runs on the device before it answers (up to 90 s for each change) */}
+          <BusyNote id={`undo-wait-${a.id}`} busy={rollback.isPending}>{t('action.rollbackWaiting')}</BusyNote>
         </div>
       ) : null}
       {rejecting ? <RejectDialog a={a} onClose={() => setRejecting(false)} /> : null}

@@ -31,7 +31,7 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
     case 'not_approved':
       return r.device_id ? (
         <div>
-          <Button size="sm" variant="primary" disabled={approve.isPending}
+          <Button size="sm" variant="primary" busy={approve.isPending} busyLabel={t('common:busy.approving')}
             onClick={() => approve.mutate(undefined, { onSuccess: () => { toast.success(t('snmpNext.approved', { ip })); onRetry() }, onError: (e) => toast.error(errMsg(e)) })}>
             {t('snmpNext.approve', { ip })}
           </Button>

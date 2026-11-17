@@ -55977,7 +55977,8 @@ func (s *FeedsGetFeedsCveIDOK) SetVendor(val string) {
 }
 
 type FeedsGetFeedsCveIDOKMatchedItem struct {
-	Display  string                             `json:"display"`
+	Display string `json:"display"`
+	// The device's name: the name a person gave it in Vedette (G2), else its host name; null when neither.
 	Hostname NilString                          `json:"hostname"`
 	How      FeedsGetFeedsCveIDOKMatchedItemHow `json:"how"`
 	ID       string                             `json:"id"`
@@ -96983,8 +96984,10 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	FirstSeen   time.Time                                     `json:"first_seen"`
 	Fragile     bool                                          `json:"fragile"`
 	Guess       NilInventoryGetInventoryDevicesIDOKAssetGuess `json:"guess"`
-	Hostname    NilString                                     `json:"hostname"`
-	ID          string                                        `json:"id"`
+	// The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device
+	// was added manually; read-only.
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
 	// "—" when declared manually and the IP is unknown.
 	IP string `json:"ip"`
 	// True for the Vedette box itself: the first device, always present, cannot be deleted (409).
@@ -96996,9 +96999,12 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	LastSeen   time.Time                                          `json:"last_seen"`
 	MAC        NilString                                          `json:"mac"`
 	Model      NilInventoryGetInventoryDevicesIDOKAssetModel      `json:"model"`
-	Notes      OptString                                          `json:"notes"`
-	Origin     InventoryGetInventoryDevicesIDOKAssetOrigin        `json:"origin"`
-	Os         NilInventoryGetInventoryDevicesIDOKAssetOs         `json:"os"`
+	// The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on
+	// every page; null = the default name (the naming rule, D-471).
+	Name   NilString                                   `json:"name"`
+	Notes  OptString                                   `json:"notes"`
+	Origin InventoryGetInventoryDevicesIDOKAssetOrigin `json:"origin"`
+	Os     NilInventoryGetInventoryDevicesIDOKAssetOs  `json:"os"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan    `json:"regular_scan"`
@@ -97081,6 +97087,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetMAC() NilString {
 // GetModel returns the value of Model.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetModel() NilInventoryGetInventoryDevicesIDOKAssetModel {
 	return s.Model
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetName() NilString {
+	return s.Name
 }
 
 // GetNotes returns the value of Notes.
@@ -97196,6 +97207,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetMAC(val NilString) {
 // SetModel sets the value of Model.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetModel(val NilInventoryGetInventoryDevicesIDOKAssetModel) {
 	s.Model = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetName(val NilString) {
+	s.Name = val
 }
 
 // SetNotes sets the value of Notes.
@@ -101166,8 +101182,10 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	FirstSeen   time.Time                                       `json:"first_seen"`
 	Fragile     bool                                            `json:"fragile"`
 	Guess       NilInventoryGetInventoryDevicesOKItemsItemGuess `json:"guess"`
-	Hostname    NilString                                       `json:"hostname"`
-	ID          string                                          `json:"id"`
+	// The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device
+	// was added manually; read-only.
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
 	// "—" when declared manually and the IP is unknown.
 	IP string `json:"ip"`
 	// True for the Vedette box itself: the first device, always present, cannot be deleted (409).
@@ -101179,9 +101197,12 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	LastSeen   time.Time                                            `json:"last_seen"`
 	MAC        NilString                                            `json:"mac"`
 	Model      NilInventoryGetInventoryDevicesOKItemsItemModel      `json:"model"`
-	Notes      OptString                                            `json:"notes"`
-	Origin     InventoryGetInventoryDevicesOKItemsItemOrigin        `json:"origin"`
-	Os         NilInventoryGetInventoryDevicesOKItemsItemOs         `json:"os"`
+	// The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on
+	// every page; null = the default name (the naming rule, D-471).
+	Name   NilString                                     `json:"name"`
+	Notes  OptString                                     `json:"notes"`
+	Origin InventoryGetInventoryDevicesOKItemsItemOrigin `json:"origin"`
+	Os     NilInventoryGetInventoryDevicesOKItemsItemOs  `json:"os"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan    `json:"regular_scan"`
@@ -101276,6 +101297,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetMAC() NilString {
 // GetModel returns the value of Model.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetModel() NilInventoryGetInventoryDevicesOKItemsItemModel {
 	return s.Model
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetName() NilString {
+	return s.Name
 }
 
 // GetNotes returns the value of Notes.
@@ -101411,6 +101437,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetMAC(val NilString) {
 // SetModel sets the value of Model.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetModel(val NilInventoryGetInventoryDevicesOKItemsItemModel) {
 	s.Model = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetName(val NilString) {
+	s.Name = val
 }
 
 // SetNotes sets the value of Notes.
@@ -106548,8 +106579,11 @@ func (s *InventoryPatchInventoryDevicesIDOK) SetOk(val bool) {
 type InventoryPatchInventoryDevicesIDReq struct {
 	Fragile OptBool `json:"fragile"`
 	// Device type (content/devicetypes/types.json, D-511).
-	Kind  OptInventoryPatchInventoryDevicesIDReqKind `json:"kind"`
-	Notes OptString                                  `json:"notes"`
+	Kind OptInventoryPatchInventoryDevicesIDReqKind `json:"kind"`
+	// The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the
+	// default name). The host name the network reports is not changed.
+	Name  OptString `json:"name"`
+	Notes OptString `json:"notes"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan OptInventoryPatchInventoryDevicesIDReqRegularScan `json:"regular_scan"`
@@ -106563,6 +106597,11 @@ func (s *InventoryPatchInventoryDevicesIDReq) GetFragile() OptBool {
 // GetKind returns the value of Kind.
 func (s *InventoryPatchInventoryDevicesIDReq) GetKind() OptInventoryPatchInventoryDevicesIDReqKind {
 	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPatchInventoryDevicesIDReq) GetName() OptString {
+	return s.Name
 }
 
 // GetNotes returns the value of Notes.
@@ -106583,6 +106622,11 @@ func (s *InventoryPatchInventoryDevicesIDReq) SetFragile(val OptBool) {
 // SetKind sets the value of Kind.
 func (s *InventoryPatchInventoryDevicesIDReq) SetKind(val OptInventoryPatchInventoryDevicesIDReqKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPatchInventoryDevicesIDReq) SetName(val OptString) {
+	s.Name = val
 }
 
 // SetNotes sets the value of Notes.

@@ -4,6 +4,7 @@ import { Section } from '@/components/common/PageHeader'
 import { AiBlock } from '@/components/common/AiBlock'
 import { EmptyState, ErrorState, Loading, ModuleOff } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
@@ -24,7 +25,9 @@ export default function LogsPanel() {
   const d = refresh.data?.digest ?? digest.data?.digest ?? undefined // null = nothing generated yet (INV-6)
   return (
     <Section title={t('logs.title')} description={t('logs.description')} info={t('logs.descriptionInfo')} stories={['S-AI-4']}
-      actions={<Button onClick={() => refresh.mutate()} disabled={!gate.canRun || refresh.isPending || d?.empty === true} title={gate.reason ?? (d?.empty ? d.summary : undefined)}>{refresh.isPending ? t('logs.working') : t('logs.refresh')}</Button>}>
+      actions={<Button onClick={() => refresh.mutate()} disabled={!gate.canRun || d?.empty === true} busy={refresh.isPending} busyLabel={t('logs.working')} title={gate.reason ?? (d?.empty ? d.summary : undefined)}>{t('logs.refresh')}</Button>}>
+      {/* kien G1: the digest reads the logs and asks the AI (up to a minute or two); say so while it runs */}
+      <BusyNote busy={refresh.isPending}>{t('logs.waiting')}</BusyNote>
       {gate.state === 'unconfigured' || gate.state === 'unassigned' ? <EmptyState title={t(`gate.${gate.text}`)} info={t(`gate.${gate.text}Info`)}>{t(`gate.${gate.text}Body`)} <ToSettings state={gate.text} job="log-digest" /></EmptyState> : null}
       <ActionError error={refresh.error} />
       {gate.state === 'ready' && digest.isPending ? <Loading /> : null}

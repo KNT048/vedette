@@ -82,7 +82,7 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
         </Field>
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
-          <Button variant="primary" disabled={bulk.isPending} onClick={submit}>{t('bulk.submit', { count: ids.length })}</Button>
+          <Button variant="primary" busy={bulk.isPending} busyLabel={t('common:busy.saving')} onClick={submit}>{t('bulk.submit', { count: ids.length })}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

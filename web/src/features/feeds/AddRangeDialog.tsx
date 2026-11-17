@@ -92,7 +92,7 @@ export function AddRangeDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             </div>
             <DialogFooter>
               <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
-              <Button type="submit" variant="primary" disabled={add.isPending}>{t('range.submit')}</Button>
+              <Button type="submit" variant="primary" busy={add.isPending} busyLabel={t('common:busy.adding')}>{t('range.submit')}</Button>
             </DialogFooter>
           </form>
         )}

@@ -4,6 +4,7 @@ import { Section } from '@/components/common/PageHeader'
 import { AiBlock } from '@/components/common/AiBlock'
 import { EmptyState, ModuleOff } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { fmtDateTime } from '@/lib/format'
 import { useCveCached, useExplain, useNews } from './api'
@@ -31,13 +32,16 @@ function Panels({ id }: { id: string }) {
   return (
     <>
       <Section title={t('cve.explainTitle')} description={t('cve.explainDesc')} info={t('cve.explainDescInfo')} stories={['S-AI-3']}
-        actions={<Button onClick={() => explain.mutate()} disabled={!gateExplain.canRun || explain.isPending} title={gateExplain.reason}>{explain.isPending ? t('cve.working') : ex ? t('cve.explainAgain') : t('cve.explain')}</Button>}>
+        actions={<Button onClick={() => explain.mutate()} disabled={!gateExplain.canRun} busy={explain.isPending} busyLabel={t('common:busy.asking')} title={gateExplain.reason}>{ex ? t('cve.explainAgain') : t('cve.explain')}</Button>}>
+        {/* kien G1: an AI answer takes 10–90 s; say so while it runs */}
+        <BusyNote busy={explain.isPending}>{t('cve.explainWaiting')}</BusyNote>
         {blocked(gateExplain.state) ? <EmptyState title={t(`gate.${gateExplain.text}`)} info={t(`gate.${gateExplain.text}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gateExplain.text}Body`)} <ToSettings state={gateExplain.text} job="explain-finding" /></EmptyState> : null}
         <ActionError error={explain.error} />
         {ex ? <Explain r={ex} /> : !blocked(gateExplain.state) && !explain.error ? <p className="text-sm text-muted">{t('cve.explainEmpty')}</p> : null}
       </Section>
       <Section title={t('cve.newsTitle')} description={t('cve.newsDesc')} info={t('cve.newsDescInfo')} stories={['S-AI-3']}
-        actions={<Button onClick={() => news.mutate()} disabled={!gateNews.canRun || news.isPending} title={gateNews.reason}>{news.isPending ? t('cve.working') : nw ? t('cve.newsAgain') : t('cve.news')}</Button>}>
+        actions={<Button onClick={() => news.mutate()} disabled={!gateNews.canRun} busy={news.isPending} busyLabel={t('common:busy.asking')} title={gateNews.reason}>{nw ? t('cve.newsAgain') : t('cve.news')}</Button>}>
+        <BusyNote busy={news.isPending}>{t('cve.newsWaiting')}</BusyNote>
         {blocked(gateNews.state) ? <EmptyState title={t(`gate.${gateNews.text}`)} info={t(`gate.${gateNews.text}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gateNews.text}Body`)} <ToSettings state={gateNews.text} job="cve-news" /></EmptyState> : null}
         <ActionError error={news.error} />
         {nw ? <News r={nw} /> : !blocked(gateNews.state) && !news.error ? <p className="text-sm text-muted">{t('cve.newsEmpty')}</p> : null}

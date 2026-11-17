@@ -24,6 +24,7 @@ type fakeData struct {
 	assets   []ai.AssetRow
 	findings []ai.FindingRow
 	iocs     map[string]ai.IOCFact
+	updates  map[string]ai.DeviceUpdates // by asset id (device_updates)
 	reads    int
 }
 
@@ -74,6 +75,17 @@ func (d *fakeData) IOC(_ context.Context, kind, value string) (ai.IOCFact, bool,
 	defer d.mu.Unlock()
 	f, ok := d.iocs[kind+"|"+value]
 	return f, ok, nil
+}
+
+func (d *fakeData) DeviceUpdates(_ context.Context, id string) (ai.DeviceUpdates, bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, a := range d.assets {
+		if a.ID == id {
+			return d.updates[id], true, nil
+		}
+	}
+	return ai.DeviceUpdates{}, false, nil
 }
 
 func (d *fakeData) setAssets(a ...ai.AssetRow) {
@@ -292,7 +304,7 @@ func TestAskToolLoopAnswerTableAndLabels(t *testing.T) {
 	if len(reqs) != 2 {
 		t.Fatalf("provider calls = %d", len(reqs))
 	}
-	if fmt.Sprint(names(reqs[0].Tools)) != "[get_finding list_findings lookup_cve lookup_ioc search_assets]" {
+	if fmt.Sprint(names(reqs[0].Tools)) != "[device_updates get_finding list_findings lookup_cve lookup_ioc search_assets]" {
 		t.Fatalf("tools offered = %v", names(reqs[0].Tools))
 	}
 	res := toolResults(reqs[1])

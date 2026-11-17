@@ -18,8 +18,8 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// The read tools of "Ask your data" (S-AI-5, INV-14, D-211): five of the box (search_assets, list_findings, get_finding, lookup_cve,
-// lookup_ioc) and the read tools of the connections. All of them only read. Arguments are checked at the edge against a closed
+// The read tools of "Ask your data" (S-AI-5, INV-14, D-211): six of the box (search_assets, list_findings, get_finding,
+// device_updates, lookup_cve, lookup_ioc) and the read tools of the connections. All of them only read. Arguments are checked at the edge against a closed
 // schema (unknown fields, wrong types, out-of-range numbers and malformed ids are refused before anything is read), the answer is
 // capped in rows and bytes, and every text field is cleaned: the loop fences it and runs the hooks on it (ask_loop.go).
 
@@ -223,8 +223,8 @@ func clip(s string, n int) string { return cleanLine(s, n) }
 // ---------- the tools of the box
 
 const (
-	searchAssetsDesc = "Search the devices in the inventory. All arguments are optional filters that are combined: free text (words must all appear in the name, IP, vendor, model, operating system, services or software), the device kind, an open TCP/UDP port, whether the device is approved, a word of the operating system. Returns how many devices match and the first limit of them (default 10) with vendor, model, operating system, open ports and software; detail=true adds when each was first and last seen, how it was added (found on the network or added manually) and which source saw it."
-	listFindingsDesc = "List findings: devices matched to an exploited vulnerability. Filters: status (open = confirmed or suspected, the default; any; or one status), severity, CVE id, asset_id of one device. Returns how many findings match, counts by severity, status and basis and per device (the devices with the most first), then the riskiest first limit findings (default 10). Use get_finding for the evidence of one."
+	searchAssetsDesc = "Search the inventory's devices. Optional filters, combined: text (every word in the name, IP, vendor, model, OS, services or software), kind, an open port, approved, os_contains. Returns how many match and the first limit (default 10) with vendor, model, OS, open ports and software; detail=true adds first and last seen, how it was added and which source saw it."
+	listFindingsDesc = "List findings: devices matched to an exploited vulnerability. Filters: status (open = confirmed or suspected, the default; any; or one status), severity, CVE id, asset_id of one device. Returns how many findings match, counts by severity, status and basis and per device (the devices with the most first), then the riskiest first limit findings (default 10). Use get_finding for the evidence of one. For what to upgrade on a device, use device_updates."
 	getFindingDesc   = "Get one finding by its id, with the scan evidence if a scan confirmed it."
 	lookupCVEDesc    = "Look a CVE up on the exploited-vulnerabilities list this box holds, and list the devices of this network that it matches."
 	lookupIOCDesc    = "Check whether an IP address or a domain name is listed by the threat feeds this box pulls."
@@ -262,6 +262,11 @@ func (s *Service) productTools() []toolImpl {
 			productTool("get_finding", getFindingDesc, getFindingSchema, map[string]argSpec{"id": {kind: "string", re: idArgRE, max: 96}}, []string{"id"}, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolGetFinding(ctx, d, a) }),
 			productTool("lookup_ioc", lookupIOCDesc, lookupIOCSchema, map[string]argSpec{"kind": {kind: "string", enum: []string{"ip", "domain"}}, "value": {kind: "string", max: 253}}, []string{"kind", "value"}, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolLookupIOC(ctx, d, a) }, JobLogInvestigate),
 		)
+	}
+	if d, up := s.cfg.Data, s.cfg.Updates; d != nil && up != nil {
+		out = append(out, productTool("device_updates", deviceUpdatesDesc, deviceUpdatesSchema, deviceUpdatesArgs, []string{"device"}, func(ctx context.Context, a map[string]any) (toolOut, error) {
+			return s.toolDeviceUpdates(ctx, d, up, a)
+		}))
 	}
 	if f := s.cfg.Facts; f != nil {
 		out = append(out, productTool("lookup_cve", lookupCVEDesc, lookupCVESchema, map[string]argSpec{"cve": {kind: "string", re: cveArgRE, max: 24}}, []string{"cve"}, func(ctx context.Context, a map[string]any) (toolOut, error) { return toolLookupCVE(ctx, f, a) }, JobLogInvestigate))

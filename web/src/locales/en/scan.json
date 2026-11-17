@@ -12,7 +12,6 @@
     "bar": "Scan progress",
     "current": "Scanning {{label}} ({{ip}})",
     "stop": "Stop now",
-    "stoppingButton": "Stopping",
     "note": "Stop now halts within seconds; unscanned devices are not touched."
   },
   "last": {
@@ -281,6 +280,7 @@
     "notTested": "Not checked yet",
     "test": "Check connection",
     "testAria": "Check connection to {{name}}",
+    "testWaiting": "Checking the SSH login to {{name}}… this can take up to a minute.",
     "remove": "Remove",
     "removeAria": "Remove the scan account of {{name}}",
     "removeTitle": "Remove the scan account of {{name}}?",

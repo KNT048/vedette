@@ -41,7 +41,7 @@ function Profile({ a }: { a: Account }) {
       <Card className="max-w-xl"><form onSubmit={(e) => void save(e)} className="grid gap-4" noValidate>
         <Field label={t('account.profile.name')} htmlFor="acc-name" error={error ?? undefined}><Input id="acc-name" value={name} maxLength={80} aria-invalid={!!error} onChange={(e) => setName(e.target.value)} /></Field>
         <KeyValue items={[{ label: t('account.profile.email'), value: a.user.email }, { label: t('account.profile.role'), value: t(`common:role.${a.user.role}`) }, { label: t('account.profile.lastLogin'), value: fmtDateTime(a.user.last_login) }]} />
-        <div><Button type="submit" variant="primary" disabled={m.rename.isPending || name.trim() === a.user.name}>{t('common:save')}</Button></div>
+        <div><Button type="submit" variant="primary" disabled={name.trim() === a.user.name} busy={m.rename.isPending} busyLabel={t('common:busy.saving')}>{t('common:save')}</Button></div>
       </form></Card>
     </Section>
   )
@@ -76,7 +76,7 @@ function Password() {
         <Field label={t('account.password.current')} htmlFor="pw-current" error={err.current}><Input id="pw-current" type="password" autoComplete="current-password" value={v.current} aria-invalid={!!err.current} onChange={(e) => setV({ ...v, current: e.target.value })} /></Field>
         <Field label={t('account.password.next')} htmlFor="pw-next" error={err.next}><Input id="pw-next" type="password" autoComplete="new-password" value={v.next} aria-invalid={!!err.next} onChange={(e) => setV({ ...v, next: e.target.value })} /></Field>
         <Field label={t('account.password.again')} htmlFor="pw-again" error={err.again}><Input id="pw-again" type="password" autoComplete="new-password" value={v.again} aria-invalid={!!err.again} onChange={(e) => setV({ ...v, again: e.target.value })} /></Field>
-        <div><Button type="submit" variant="primary" disabled={m.password.isPending}>{t('account.password.submit')}</Button></div>
+        <div><Button type="submit" variant="primary" busy={m.password.isPending} busyLabel={t('common:busy.saving')}>{t('account.password.submit')}</Button></div>
       </form></Card>
     </Section>
   )
@@ -172,8 +172,8 @@ function TwoFactor({ a }: { a: Account }) {
             <Input id="totp-code" inputMode="numeric" autoComplete="one-time-code" maxLength={7} value={code} aria-invalid={!!codeErr} onChange={(e) => setCode(e.target.value)} className="max-w-40" />
           </Field>
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" variant="primary" disabled={busy}>{t('account.twofa.confirm')}</Button>
-            {setup.kind === 'email' ? <Button disabled={cooldown.left > 0 || m.startEmail2fa.isPending} onClick={() => void sendEmail()}>{cooldown.left > 0 ? t('account.twofa.email.resendIn', { s: cooldown.left }) : t('account.twofa.email.resend')}</Button> : null}
+            <Button type="submit" variant="primary" busy={busy} busyLabel={t('common:busy.verifying')}>{t('account.twofa.confirm')}</Button>
+            {setup.kind === 'email' ? <Button disabled={cooldown.left > 0} busy={m.startEmail2fa.isPending} busyLabel={t('common:busy.sending')} onClick={() => void sendEmail()}>{cooldown.left > 0 ? t('account.twofa.email.resendIn', { s: cooldown.left }) : t('account.twofa.email.resend')}</Button> : null}
             <Button onClick={() => setSetup(null)}>{t('common:cancel')}</Button>
           </div>
         </form></Card>
@@ -185,7 +185,7 @@ function TwoFactor({ a }: { a: Account }) {
           <div className="grid gap-4 md:grid-cols-2">
           <Card level={3} title={t('account.twofa.method.app')} className="grid content-start gap-3">
             <p className="text-meta text-muted">{t('account.twofa.app.desc')}</p>
-            <div><Button variant="primary" onClick={() => void startApp()} disabled={!startPw || m.start2fa.isPending}>{t('account.twofa.app.setup')}</Button></div>
+            <div><Button variant="primary" onClick={() => void startApp()} disabled={!startPw} busy={m.start2fa.isPending} busyLabel={t('common:busy.starting')}>{t('account.twofa.app.setup')}</Button></div>
           </Card>
           <Card level={3} title={t('account.twofa.method.email')} className="grid content-start gap-3">
             <p className="text-meta text-muted">{t('account.twofa.email.desc', { to: email.sent_to })}</p>
@@ -197,7 +197,7 @@ function TwoFactor({ a }: { a: Account }) {
                   : t('account.twofa.email.askAdmin')}
               </p>
             )}
-            <div><Button variant="primary" disabled={!startPw || !email.available || m.startEmail2fa.isPending} aria-describedby={email.available ? undefined : 'twofa-email-why'} onClick={() => void sendEmail()}>{t('account.twofa.email.setup')}</Button></div>
+            <div><Button variant="primary" disabled={!startPw || !email.available} busy={m.startEmail2fa.isPending} busyLabel={t('common:busy.sending')} aria-describedby={email.available ? undefined : 'twofa-email-why'} onClick={() => void sendEmail()}>{t('account.twofa.email.setup')}</Button></div>
           </Card>
           </div>
         </div>
@@ -205,7 +205,7 @@ function TwoFactor({ a }: { a: Account }) {
       <Dialog open={askOff} onOpenChange={setAskOff}>
         <DialogContent title={t('account.twofa.offAsk.title')} description={t('account.twofa.offAsk.body')}>
           <Field label={t('account.twofa.offAsk.password')} htmlFor="twofa-off-pw" error={pwErr ?? undefined}><Input id="twofa-off-pw" type="password" autoComplete="current-password" value={pw} aria-invalid={!!pwErr} onChange={(e) => setPw(e.target.value)} /></Field>
-          <DialogFooter><Button onClick={() => setAskOff(false)}>{t('common:cancel')}</Button><Button variant="danger" disabled={!pw || m.disable2fa.isPending} onClick={() => void off()}>{t('account.twofa.offAsk.confirm')}</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => setAskOff(false)}>{t('common:cancel')}</Button><Button variant="danger" disabled={!pw} busy={m.disable2fa.isPending} busyLabel={t('common:busy.turningOff')} onClick={() => void off()}>{t('account.twofa.offAsk.confirm')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </Section>
@@ -256,12 +256,12 @@ function Sessions({ a }: { a: Account }) {
     { id: 'started', header: t('account.sessions.started'), accessorFn: (s) => s.started_at, cell: ({ row }) => fmtDateTime(row.original.started_at) },
     { id: 'last', header: t('account.sessions.last'), accessorFn: (s) => s.last_seen, cell: ({ row }) => fmtRelative(row.original.last_seen) },
     { id: 'end', header: t('account.sessions.end'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => (row.original.current ? <span className="text-muted">–</span> : (
-      <Button size="sm" aria-label={t('account.sessions.endOf', { device: deviceLabel(row.original.device), ip: row.original.ip })} disabled={m.revoke.isPending} onClick={() => void m.revoke.mutateAsync(row.original.id).then(() => toast.success(t('account.sessions.ended'))).catch((e) => toast.error(errMsg(e, t)))}>{t('account.sessions.endBtn')}</Button>
+      <Button size="sm" aria-label={t('account.sessions.endOf', { device: deviceLabel(row.original.device), ip: row.original.ip })} disabled={m.revoke.isPending} busy={m.revoke.isPending && m.revoke.variables === row.original.id} busyLabel={t('account.sessions.ending')} onClick={() => void m.revoke.mutateAsync(row.original.id).then(() => toast.success(t('account.sessions.ended'))).catch((e) => toast.error(errMsg(e, t)))}>{t('account.sessions.endBtn')}</Button>
     )) },
   ]
   const others = a.sessions.filter((s) => !s.current).length
   return (
-    <Section title={t('account.sessions.title')} description={t('account.sessions.desc')} actions={others ? <Button onClick={() => void m.revokeOthers.mutateAsync().then(() => toast.success(t('account.sessions.endedAll'))).catch((e) => toast.error(errMsg(e, t)))}>{t('account.sessions.endOthers')}</Button> : undefined}>
+    <Section title={t('account.sessions.title')} description={t('account.sessions.desc')} actions={others ? <Button busy={m.revokeOthers.isPending} busyLabel={t('account.sessions.ending')} onClick={() => void m.revokeOthers.mutateAsync().then(() => toast.success(t('account.sessions.endedAll'))).catch((e) => toast.error(errMsg(e, t)))}>{t('account.sessions.endOthers')}</Button> : undefined}>
       <DataTable data={a.sessions} columns={columns} caption={t('account.sessions.title')} />
     </Section>
   )

@@ -1,5 +1,12 @@
 # Inventory — Change Impact Map
 
+## Modifying: the name in Vedette (`inv_asset.user_name`, `Patch.Name`, `DisplayName`'s first argument, `NameOrHost`, `UserName` on `AssetCore`/`DeviceRef`/`KindDevice`; G2, INV-36)
+- **Every module that names a device** reads it: through `Names`/`deviceName` (findings' list and evidence, notify, reports, exposure, the possible-same names, audit rows), `DeviceRefs` (`cmd/vedette` notify `refName`, `auditnames.go`, `sensoractive.go`, the CVE page's `MatchedAsset.hostname` in `wiring.go`), `Device`/`KindDevice` `NameOrHost()` (`response.go`, `mcpserver.go`, `ai.go` `aiName`/`aiDeviceName`, `honeypot.go` `Name`; the honeypot's `Hostname` stays the observed one, it matches trap names). A new reader that names a device by `Hostname` alone shows the old name after a rename: use `Names`, `DisplayName` or `NameOrHost`. `cmd/vedette` `TestTheNameInVedetteReachesEveryReader` lists the readers.
+- **Web** (`features/inventory/nameOf.ts` `displayName`/`nameOf` = the same rule; `DevicePage.tsx` Rename next to the title and the read-only host name row; `components/common/PageHeader.tsx` `titleAction`/`editing`; mocks of inventory, feeds, response, reports, ai read `name` first). Changing the limits (64 characters, no < >) changes `contract.ts`, the mock's `LABEL_RE` check and the page's field.
+- **Never an observation**: the same-device and join rules (D-598, D-599) compare `hostname`; feeding the person's name into them would join or offer devices by a label a person typed. `joinAs` keeps the kept row's name, else the other's.
+- **findings** matches the device again on a rename (`inventory.asset.updated` with `match: true`) so the evidence sentences carry the new name.
+- **`modules/core/export_policy.go`** lists `user_name`; audit label `inventory.rename` in `web/src/locales/en/core.json`.
+
 ## Modifying: the shared safety block (`active.check_rate`, `SaveSafety`, `SetDiscovery`, `SaveChecks`, `MergeLegacyChecks`, `FragileCount`; #850, INV-32)
 - **scan** reads the window, the check rate and the exclusions through `cmd/vedette` `scanInventory` (`scan.SharedChecks`) and writes them back with `SaveChecks` in its own transaction: a change of their meaning or limits changes when and how fast nuclei runs, and what it skips.
 - **sensor-active** reads the same `active` (window, exclusions, rate) through `sensorInventory.Settings`: the exclusions merged from the scan module now bind discovery too.

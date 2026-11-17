@@ -114,9 +114,15 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     await enabled(box)
     await userEvent.type(box, 'ab')
     expect(screen.getByRole('button', { name: 'Ask' })).toBeDisabled()
-    server.use(http.post('*/api/v1/ai/ask', () => HttpResponse.json({ error: { code: 'x', message: 'The provider did not answer.' } }, { status: 502 })))
+    let answer = () => {}
+    const held = new Promise<void>((r) => { answer = r })
+    server.use(http.post('*/api/v1/ai/ask', async () => { await held; return HttpResponse.json({ error: { code: 'x', message: 'The provider did not answer.' } }, { status: 502 }) }))
     await userEvent.type(box, 'c device')
     await userEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    // kien G1: while the AI works the button is busy and a note says how long it may take
+    expect(await screen.findByRole('button', { name: 'Asking…' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByText(/this can take up to two minutes/)).toBeInTheDocument()
+    answer()
     expect(await screen.findByRole('alert')).toHaveTextContent('The provider did not answer.')
     // walk 3 G13: the failure stands where the answer would be, with the question; no "No questions yet" under it
     const region = screen.getByRole('region', { name: 'Answer to: abc device' })

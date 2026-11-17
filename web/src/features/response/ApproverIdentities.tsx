@@ -13,6 +13,7 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Section } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState } from '@/components/common/States'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { PreviewCode } from '@/features/core/parts'
@@ -66,6 +67,8 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
     } catch (e) { setErr(errText(e)) }
   }
   const askCode = sent || r.code_waiting
+  // m is shared by every row: only the row acted on shows the busy state
+  const sending = m.send.isPending && m.send.variables === r.channel
   // D-624 (M2): while AI response is on but not offered, a link can be removed and none added: an unlinked row shows its state only
   if (frozen && !r.linked) {
     return (
@@ -89,7 +92,8 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
         {r.code_waiting ? <p className="text-meta">{t('identity.waitingNote', { channel: r.label })}</p>
           : <div className="flex items-center gap-1 text-meta"><p>{t('identity.howSend', { channel: r.label })}</p><InfoTip topic={r.label}>{t('identity.howSendInfo', { channel: r.label })}</InfoTip></div>}
         {err ? <p className="text-meta text-danger" role="alert">{err}</p> : null}
-        <div><Button disabled={cooldown.left > 0 || m.send.isPending} onClick={() => void sendLink()}>{cooldown.left > 0 ? t('identity.sendAgainIn', { s: cooldown.left }) : t('identity.sendAgain')}</Button></div>
+        <div><Button disabled={cooldown.left > 0 || m.send.isPending} busy={sending} busyLabel={t('common:busy.sending')} aria-describedby={`${id}-wait`} onClick={() => void sendLink()}>{cooldown.left > 0 ? t('identity.sendAgainIn', { s: cooldown.left }) : t('identity.sendAgain')}</Button></div>
+        <BusyNote id={`${id}-wait`} busy={sending}>{t('identity.sendLinkWaiting', { channel: r.label })}</BusyNote>
       </li>
     )
   }
@@ -113,7 +117,7 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
       {r.linked ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-meta text-muted">{t('identity.linkedAt', { at: fmtDateTime(r.linked_at) })}</p>
-          <Button onClick={() => void unlink()} disabled={m.unlink.isPending}>{t('identity.unlink')}</Button>
+          <Button onClick={() => void unlink()} disabled={m.unlink.isPending} busy={m.unlink.isPending && m.unlink.variables === r.channel} busyLabel={t('common:busy.unlinking')}>{t('identity.unlink')}</Button>
         </div>
       ) : (
         <form onSubmit={(e) => void confirm(e)} className="grid gap-3" noValidate>
@@ -126,11 +130,13 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
           ) : err ? <p className="text-meta text-danger" role="alert">{err}</p> : null}
           <div className="flex flex-wrap gap-2">
             {/* no red error before anything is typed (D-414): Link waits for the 6 digits */}
-            {askCode ? <Button type="submit" variant="primary" disabled={m.confirm.isPending || !/^\d{6}$/.test(code.trim())}>{t('identity.confirm')}</Button> : null}
+            {askCode ? <Button type="submit" variant="primary" disabled={m.confirm.isPending || !/^\d{6}$/.test(code.trim())} busy={m.confirm.isPending && m.confirm.variables?.ch === r.channel} busyLabel={t('common:busy.linking')}>{t('identity.confirm')}</Button> : null}
             {r.method === 'email_code'
-              ? <Button variant={askCode ? undefined : 'primary'} disabled={cooldown.left > 0 || m.send.isPending} onClick={() => void send()}>{cooldown.left > 0 ? t('identity.resendIn', { s: cooldown.left }) : sent || r.code_waiting ? t('identity.resend') : t('identity.send')}</Button>
+              ? <Button variant={askCode ? undefined : 'primary'} disabled={cooldown.left > 0 || m.send.isPending} busy={sending} busyLabel={t('common:busy.sending')} aria-describedby={`${id}-wait`} onClick={() => void send()}>{cooldown.left > 0 ? t('identity.resendIn', { s: cooldown.left }) : sent || r.code_waiting ? t('identity.resend') : t('identity.send')}</Button>
               : null}
           </div>
+          {/* kien G1: the code goes out by email, which can take up to 30 s */}
+          <BusyNote id={`${id}-wait`} busy={sending}>{t('identity.sendCodeWaiting')}</BusyNote>
         </form>
       )}
     </li>

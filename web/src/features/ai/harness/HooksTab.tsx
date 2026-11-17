@@ -93,7 +93,7 @@ function TestBox({ idPrefix, hook }: { idPrefix: string; hook?: HookInput }) {
         <Field label={t('harness.hooks.sample')} htmlFor={`${idPrefix}-text`} hint={t('harness.hooks.sampleHint')}><Textarea id={`${idPrefix}-text`} className="min-h-16" value={text} maxLength={1000} onChange={(e) => { setText(e.target.value); setRan(null) }} /></Field>
         {!hook ? <Field label={t('harness.hooks.stage')} htmlFor={`${idPrefix}-when`}><Select id={`${idPrefix}-when`} value={when} onChange={(e) => { setWhen(e.target.value as HookWhen); setRan(null) }}>{WHENS.map((w) => <option key={w} value={w}>{t(`harness.hooks.when.${w}`)}</option>)}</Select></Field> : null}
       </div>
-      <div><Button onClick={run} disabled={!text.trim() || test.isPending || (!!hook && !hook.match.pattern)} title={hook && !hook.match.pattern ? t('harness.hooks.errPattern') : undefined}>{test.isPending ? t('harness.hooks.testing') : t('harness.hooks.test')}</Button></div>
+      <div><Button onClick={run} disabled={!text.trim() || (!!hook && !hook.match.pattern)} busy={test.isPending} busyLabel={t('harness.hooks.testing')} title={hook && !hook.match.pattern ? t('harness.hooks.errPattern') : undefined}>{t('harness.hooks.test')}</Button></div>
       <ActionError error={test.error} />
       {res ? (
         <div role="status" className="grid gap-2 text-sm">
@@ -150,7 +150,7 @@ function HookDialog({ hook, onClose }: { hook: CustomHook | null; onClose: () =>
           {save.error && !serverFor('name') && !serverFor('pattern') && !serverFor('message') ? <ActionError error={save.error} /> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" disabled={save.isPending}>{save.isPending ? t('harness.saving') : t('common:save')}</Button>
+            <Button type="submit" variant="primary" busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('common:save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

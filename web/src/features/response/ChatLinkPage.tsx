@@ -57,7 +57,7 @@ export default function ChatLinkPage() {
               ) : null}
               <div className="flex items-center gap-1 text-meta text-muted"><p>{t(`chatLink.explain.${kind}`)}</p><InfoTip topic={t('chatLink.title', { name })}>{t(`chatLink.explain.${kind}Info`)}</InfoTip></div>
               {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
-              <div><Button variant="primary" disabled={confirm.isPending} onClick={() => confirm.mutate(undefined, { onSuccess: setDone })}>{t('chatLink.confirm')}</Button></div>
+              <div><Button variant="primary" busy={confirm.isPending} busyLabel={t('common:busy.linking')} onClick={() => confirm.mutate(undefined, { onSuccess: setDone })}>{t('chatLink.confirm')}</Button></div>
             </>
           )}
         <p className="text-meta"><Link className="text-accent underline underline-offset-4" to="/settings/account?tab=approvers">{t('chatLink.toAccount')}</Link></p>

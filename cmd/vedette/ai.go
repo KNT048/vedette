@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
@@ -29,11 +30,11 @@ import (
 // newAI builds the ai service once, in buildServices (deps.AI): the handlers and the mitigation door share one router and one
 // meter. It reads the box time zone from core's general settings once, at start (the meter's day boundary); a change of zone
 // applies after a restart. The data it explains from comes through aiFacts, the ports of feeds, findings and the inventory.
-func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data) (*ai.Service, error) {
+func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data, updates ai.Updates) (*ai.Service, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	cfg := ai.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Zone: orgZone(d), Facts: facts, ChainPruner: aiChainPruner{}, Data: data,
-		BoxAddrs: machineAddrs(d), SelfAddrs: vedetteSelf(d)} // D-446: no profile on Vedette itself
+		Updates: updates, BoxAddrs: machineAddrs(d), SelfAddrs: vedetteSelf(d)} // D-446: no profile on Vedette itself
 	if d.ConnReader != nil { // the read tools of the connections (core/conn/read, D-127); a nil *read.Reader in the interface would not compare equal to nil
 		cfg.Conns = d.ConnReader
 		cfg.ConnTargets = func(ctx context.Context) (map[string]string, error) {
@@ -131,8 +132,8 @@ func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact
 			continue
 		}
 		name := a.IP
-		if a.Hostname != nil && *a.Hostname != "" {
-			name = *a.Hostname
+		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first, G2), as the AI gets text
+			name = n
 		}
 		out = append(out, ai.AssetFact{Name: name, IP: a.IP, Kind: a.Kind, Basis: string(r.Basis), Status: string(r.Status), IsBox: a.ID == box && box != ""})
 	}
@@ -310,8 +311,14 @@ func aiIP(s string) string {
 	return "no IP address"
 }
 
-// aiName is a device's name for the AI: its host name when it is a plain one, else its model, else its address.
+// aiName is a device's name for the AI: the name a person gave it in Vedette (G2; an operator typed it, no < or >), its host name when
+// it is a plain one, else its model, else its address.
 func aiName(d inventory.Device) string {
+	if d.UserName != nil {
+		if n := aiVal(*d.UserName, 64); n != "" {
+			return n
+		}
+	}
 	if d.Hostname != nil && aiHostRE.MatchString(*d.Hostname) {
 		return *d.Hostname
 	}
@@ -541,6 +548,7 @@ type aiAsk struct {
 	feeds    *feeds.Store
 	findings *findings.Service
 	inv      *inventory.Service
+	gate     server.ModuleGate // the feeds switch for device_updates' recommended updates (as GET /findings/plan); nil = on
 }
 
 func aiStr(p *string) string {
@@ -558,9 +566,9 @@ func aiObserved(o *inventory.Observed) string {
 }
 
 func aiDeviceName(d inventory.Device) string {
-	switch {
-	case d.Hostname != nil && *d.Hostname != "":
-		return *d.Hostname
+	switch n := d.NameOrHost(); {
+	case n != nil && aiVal(*n, 64) != "": // the name in Vedette, else the host name (G2), as the AI gets text
+		return aiVal(*n, 64)
 	case d.Model != nil && d.Model.Value != "":
 		return d.Model.Value
 	}
@@ -646,6 +654,24 @@ func (a aiAsk) Finding(ctx context.Context, id string) (ai.FindingRow, bool, err
 		devs[r.AssetID] = d
 	}
 	return aiFindingRow(r, devs), true, nil
+}
+
+// DeviceUpdates is findings.DeviceUpdates for device_updates (G9): the same updates the Findings page and "Recommended updates" show.
+func (a aiAsk) DeviceUpdates(ctx context.Context, assetID string) (ai.DeviceUpdates, bool, error) {
+	u, ok, err := a.findings.DeviceUpdates(ctx, assetID, a.gate == nil || a.gate.Enabled(findings.FeedsModule))
+	if err != nil || !ok {
+		return ai.DeviceUpdates{}, ok, err
+	}
+	rows := func(us []findings.UpdateAction) []ai.UpdateRow {
+		out := make([]ai.UpdateRow, len(us))
+		for i, x := range us {
+			out[i] = ai.UpdateRow{Action: x.Action, Software: x.Software, Version: x.Version, Fixed: x.Fixed, CVEs: x.CVEs, Worst: x.Worst, Ransomware: x.Ransomware,
+				Likely: x.Likely, Confirmed: x.Confirmed, Detected: x.Detected, Reported: x.Reported, Suspected: x.Suspected}
+		}
+		return out
+	}
+	return ai.DeviceUpdates{Open: u.Open, Exploited: rows(u.Exploited), NoUpdate: rows(u.NoUpdate), Planned: rows(u.Planned), PlanRan: u.PlanRan,
+		PlanCompared: u.PlanCompared, PlanOff: u.PlanOff}, true, nil
 }
 
 func (a aiAsk) IOC(ctx context.Context, kind, value string) (ai.IOCFact, bool, error) {

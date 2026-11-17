@@ -10,15 +10,18 @@ import { Breadcrumbs, type Crumb } from './Breadcrumbs'
  *  Khung trang D-464: tiêu đề ~20 px và mô tả ngắn chung một dòng (mô tả xuống dòng khi không đủ chỗ); sau đó KpiStrip, PageTabs (`PageFrame.tsx`). */
 /*  `meta` là một dòng ngắn (≈ 12 từ); giải thích dài hơn vào `info` (ⓘ cạnh tiêu đề, #824). */
 /*  `breadcrumbs`: the parents of a detail page (docs/UI.md §3), drawn above the title. */
-export function PageHeader({ title, meta, info, actions, stories, breadcrumbs }: { title: ReactNode; meta?: ReactNode; info?: ReactNode; actions?: ReactNode; stories?: string[]; breadcrumbs?: Crumb[] }) {
+/** `titleAction` sits right after the title, outside the heading (a Rename button, G2); `editing` replaces the visible title with an
+ *  edit-in-place field while the heading stays for screen readers. */
+export function PageHeader({ title, meta, info, actions, stories, breadcrumbs, titleAction, editing }: { title: ReactNode; meta?: ReactNode; info?: ReactNode; actions?: ReactNode; stories?: string[]; breadcrumbs?: Crumb[]; titleAction?: ReactNode; editing?: ReactNode }) {
   const mod = useContext(PageModule) // D-624: a preview or leaving module's page says so under its title (#818, #819)
   return (
     <header className="mb-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div className="grid min-w-0 max-w-4xl gap-1">
         {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <div className="flex items-center gap-1">
-            <h1 className="page-title">{title}</h1>
+          <div className="flex flex-wrap items-center gap-1">
+            <h1 className={editing ? 'sr-only' : 'page-title'}>{title}</h1>
+            {editing ?? titleAction}
             {info ? <InfoTip topic={typeof title === 'string' ? title : undefined}>{info}</InfoTip> : null}
             {mod ? <ModuleBadge id={mod} className="ml-1.5 self-center" /> : null}
           </div>

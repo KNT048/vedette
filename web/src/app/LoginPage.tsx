@@ -27,12 +27,13 @@ export default function LoginPage() {
   // Bước hai: ứng dụng xác thực hay mã gửi qua email (D-35); với email thì biết mã đã gửi tới đâu.
   const [second, setSecond] = useState<{ method: 'app' | 'email'; sentTo?: string; preview?: string; resent?: boolean }>({ method: 'app' })
   const cooldown = useCountdown()
-  const [busy, setBusy] = useState(false)
+  // Which request is waiting on the box: signing in, sending a new code, or starting single sign-on (one at a time).
+  const [wait, setWait] = useState<'signIn' | 'resend' | 'sso' | null>(null)
+  const busy = wait !== null
   const [ssoError, setSsoError] = useState<string | null>(null)
-  const [ssoBusy, setSsoBusy] = useState(false)
   // Back from the identity provider through the browser cache: the page comes back as it was left, still "busy".
   useEffect(() => {
-    const back = (e: PageTransitionEvent) => { if (e.persisted) { setBusy(false); setSsoBusy(false) } }
+    const back = (e: PageTransitionEvent) => { if (e.persisted) setWait(null) }
     window.addEventListener('pageshow', back)
     return () => window.removeEventListener('pageshow', back)
   }, [])
@@ -43,7 +44,7 @@ export default function LoginPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    setBusy(true)
+    setWait('signIn')
     setError(null)
     try {
       await api.post('/auth/login', needCode ? { email, password, code } : { email, password })
@@ -58,12 +59,12 @@ export default function LoginPage() {
         if (d.method === 'email') cooldown.start(Number(d.resend_after ?? 60))
       } else setError(err instanceof ApiError ? err.message : t('error.unknown'))
     } finally {
-      setBusy(false)
+      setWait(null)
     }
   }
 
   async function resend() {
-    setBusy(true)
+    setWait('resend')
     setError(null)
     try {
       const r = await api.post<{ sent_to: string; resend_after: number; preview_code?: string }>('/auth/login/resend-code', { email, password })
@@ -74,15 +75,14 @@ export default function LoginPage() {
       if (err instanceof ApiError && err.code === 'resend_too_soon') cooldown.start(Number(err.details.retry_after ?? 60))
       setError(err instanceof ApiError ? err.message : t('error.unknown'))
     } finally {
-      setBusy(false)
+      setWait(null)
     }
   }
 
   // D-194: the box returns the identity provider's address and a binding; the binding stays in this tab's session storage until
   // /sso/callback posts it back, so a sign-in can only finish in the tab that started it. No cookie is added.
   async function signInSso() {
-    setBusy(true)
-    setSsoBusy(true)
+    setWait('sso')
     setSsoError(null)
     try {
       const r = await api.post<OidcStart>('/auth/oidc/start')
@@ -90,8 +90,7 @@ export default function LoginPage() {
       window.location.assign(r.authorize_url)
     } catch (err) {
       setSsoError(err instanceof ApiError ? err.message : t('error.unknown'))
-      setBusy(false)
-      setSsoBusy(false)
+      setWait(null)
     }
   }
 
@@ -114,13 +113,13 @@ export default function LoginPage() {
                   <>
                     <PreviewCode code={second.preview} />
                     {second.resent ? <p role="status" className="text-meta">{t('core:login.resent', { to: second.sentTo })}</p> : null}
-                    <Button disabled={busy || cooldown.left > 0} onClick={() => void resend()}>{cooldown.left > 0 ? t('core:login.resendIn', { s: cooldown.left }) : t('core:login.resend')}</Button>
+                    <Button disabled={busy || cooldown.left > 0} busy={wait === 'resend'} busyLabel={t('busy.sending')} onClick={() => void resend()}>{cooldown.left > 0 ? t('core:login.resendIn', { s: cooldown.left }) : t('core:login.resend')}</Button>
                   </>
                 ) : null}
               </>
             ) : null}
-            <Button type="submit" variant="primary" disabled={busy || !email || !password || (needCode && !code)}>{busy && !ssoBusy ? t('login.signingIn') : t('login.signIn')}</Button>
-            {sso ? <Button onClick={() => void signInSso()} disabled={busy}>{ssoBusy ? t('core:login.ssoStarting') : t('core:login.sso')}</Button> : null}
+            <Button type="submit" variant="primary" disabled={busy || !email || !password || (needCode && !code)} busy={wait === 'signIn'} busyLabel={t('busy.signingIn')}>{t('login.signIn')}</Button>
+            {sso ? <Button onClick={() => void signInSso()} disabled={busy} busy={wait === 'sso'} busyLabel={t('core:login.ssoStarting')}>{t('core:login.sso')}</Button> : null}
             {ssoError ? <p role="alert" className="text-meta text-danger">{ssoError}</p> : null}
           </form>
       </Card>

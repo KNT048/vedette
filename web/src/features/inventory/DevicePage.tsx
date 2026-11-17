@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type RefObject } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -14,7 +14,7 @@ import { SourceBadge } from '@/components/common/SourceBadge'
 import { Slot } from '@/components/common/Slot'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
-import { Select, Textarea, Label } from '@/components/ui/input'
+import { Input, Select, Textarea, Label } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
@@ -29,7 +29,7 @@ import { isOpen } from '@/features/findings/basis'
 import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
 import { errMsg } from './kinds'
-import { declaredSoftwareOnly, nameOf } from './nameOf'
+import { badUserName, declaredSoftwareOnly, nameOf } from './nameOf'
 import { DeviceSources } from './DeviceSources'
 import { PossibleSameNotice } from './SameDevice'
 import type { DeviceDetail, Observation, RegularScan, SoftwareView } from './types'
@@ -73,8 +73,8 @@ function Overview({ d }: { d: DeviceDetail }) {
             <p className="text-meta text-muted [overflow-wrap:anywhere]">{guess.evidence}</p>
             {guess.alternatives?.length ? <p className="text-caption text-muted">{t('guess.alternatives', { list: guess.alternatives.map(kindLabel).join(', ') })}</p> : null}
             <span className="flex flex-wrap gap-2">
-              <Button size="sm" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(guess.kind)}>{t('guess.confirm', { kind: kindLabel(guess.kind) })}</Button>
-              {(guess.alternatives ?? []).map((k) => <Button key={k} size="sm" variant="ghost" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(k)}>{t('guess.instead', { kind: kindLabel(k) })}</Button>)}
+              <Button size="sm" disabled={!can || act.patch.isPending} busy={act.patch.isPending && act.patch.variables?.kind === guess.kind} busyLabel={t('common:busy.saving')} title={needRole} onClick={() => setKind(guess.kind)}>{t('guess.confirm', { kind: kindLabel(guess.kind) })}</Button>
+              {(guess.alternatives ?? []).map((k) => <Button key={k} size="sm" variant="ghost" disabled={!can || act.patch.isPending} busy={act.patch.isPending && act.patch.variables?.kind === k} busyLabel={t('common:busy.saving')} title={needRole} onClick={() => setKind(k)}>{t('guess.instead', { kind: kindLabel(k) })}</Button>)}
             </span>
           </div>
         ) : null}
@@ -97,12 +97,76 @@ function Overview({ d }: { d: DeviceDetail }) {
           {row(t('detail.firstScan'), a.first_scan_at ? fmtDateTime(a.first_scan_at) : <span className="text-muted">{t('detail.firstScanNone')}</span>)}
         </>
       ) : null}
+      {row(t('detail.hostname'), <HostName d={d} />)}
       {row(t('detail.ip'), a.ip)}
       {row(t('detail.mac'), a.mac ?? <span className="text-muted">{t('common:unknown')}</span>)}
       {row(t('detail.firstSeen'), fmtDateTime(a.first_seen))}
       {row(t('detail.lastSeen'), `${fmtDateTime(a.last_seen)} (${fmtRelative(a.last_seen)})`)}
       {row(t('detail.origin'), a.is_box ? t('box.origin') : a.origin === 'manual' ? t('detail.originManual') : t('detail.originDiscovered'))}
     </dl>
+  )
+}
+
+/** G2: the host name the network reports (or typed when the device was added), with its source: read-only, apart from the name in
+ *  Vedette that the title shows and Rename changes. */
+function HostName({ d }: { d: DeviceDetail }) {
+  const { t } = useTranslation('inventory')
+  const host = d.asset.hostname
+  if (!host) return <span className="text-muted">{t('detail.hostnameNone')}</span>
+  const obs = d.observations.find((o) => o.field === 'hostname' && o.current)
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span className="[overflow-wrap:anywhere]" data-testid="device-hostname">{host}</span>
+      {obs ? <SourceBadge source={obs.source} confidence={obs.confidence} /> : null}
+    </span>
+  )
+}
+
+/** G2 (kien): rename the device in Vedette where its name is, next to the page title. The name wins on every page (nameOf,
+ *  inventory.DisplayName); empty goes back to the default name. Enter saves, Escape cancels. The host name the network reports is not
+ *  changed. `editing` false: the Rename button; true: the field that takes the title's place. */
+function RenameDevice({ d, editing, setEditing, button }: { d: DeviceDetail; editing: boolean; setEditing: (v: boolean) => void; button: RefObject<HTMLButtonElement | null> }) {
+  const { t } = useTranslation('inventory')
+  const can = useCan('operator')
+  const act = useDeviceAction(d.asset.id)
+  const saved = d.asset.name ?? ''
+  const [text, setText] = useState(saved) // the field mounts on Rename, so it starts from the saved name
+  const fallback = nameOf({ ...d.asset, name: null }, kindLabel(d.asset.kind)) // the default name: what an empty name shows
+  const next = text.trim()
+  const bad = badUserName(next) // the characters the backend refuses (review r1 of #929)
+  const [refused, setRefused] = useState('') // why the server refused the last save, next to the field (review r1 of #929)
+  const field = useRef<HTMLInputElement>(null)
+  const close = () => { setEditing(false); requestAnimationFrame(() => button.current?.focus()) } // focus back on Rename, which comes back
+  const save = () => {
+    if (bad || act.patch.isPending) return
+    if (next === saved) { close(); return }
+    act.patch.mutate({ name: next }, {
+      onSuccess: () => { toast.success(next ? t('detail.renamed', { name: next }) : t('detail.renameReset', { name: fallback })); close() },
+      // the field stays focused and says why next to it, for keyboard and screen-reader users
+      onError: (e) => { setRefused(errMsg(e)); requestAnimationFrame(() => field.current?.focus()) },
+    })
+  }
+  if (!editing) {
+    return (
+      <Button ref={button} size="sm" variant="ghost" className="ml-1" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+        onClick={() => setEditing(true)}><Pencil />{t('detail.rename')}</Button>
+    )
+  }
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      {/* readOnly, not disabled, while saving: a disabled field would drop the keyboard focus to the page */}
+      <Input ref={field} id="device-name" autoFocus className="w-80 max-w-full" value={text} maxLength={64} aria-label={t('detail.renameLabel')}
+        aria-invalid={bad || !!refused || undefined} aria-describedby={refused || bad ? 'device-name-error device-name-hint' : 'device-name-hint'} placeholder={fallback}
+        readOnly={act.patch.isPending} aria-busy={act.patch.isPending || undefined}
+        onChange={(e) => { setText(e.target.value); setRefused('') }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); save() }
+          if (e.key === 'Escape') { e.preventDefault(); close() }
+        }} />
+      <Button size="sm" variant="primary" disabled={bad} busy={act.patch.isPending} busyLabel={t('common:busy.saving')} onClick={save}>{t('detail.renameSave')}</Button>
+      <Button size="sm" variant="ghost" disabled={act.patch.isPending} onClick={close}>{t('common:cancel')}</Button>
+      {bad || refused ? <span id="device-name-error" role="alert" className="w-full text-caption text-danger">{bad ? t('detail.renameBad') : refused}</span> : null}
+    </span>
   )
 }
 
@@ -224,7 +288,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-warn">
             {t('software.seen', { version: v, source: t(`common:source.${seen.source}`) })}
             {VERSION_RE.test(v) ? (
-              <Button size="sm" variant="secondary" disabled={!can || act.setVersion.isPending} title={needRole} aria-label={t('software.acceptLabel', { version: v, name: sw.display })}
+              <Button size="sm" variant="secondary" disabled={!can || act.setVersion.isPending} busy={act.setVersion.isPending && act.setVersion.variables?.sid === sw.id} busyLabel={t('common:busy.saving')} title={needRole} aria-label={t('software.acceptLabel', { version: v, name: sw.display })}
                 onClick={() => act.setVersion.mutate({ sid: sw.id, version: v }, { onSuccess: () => toast.success(t('software.edited', { name: sw.display, version: v })), onError: (e) => toast.error(errMsg(e)) })}>
                 {t('software.accept', { version: v })}
               </Button>
@@ -237,7 +301,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const actions = (sw: SoftwareView) => (sw.source === 'manual' ? (
     <div className="flex">
       <Button size="sm" variant="ghost" disabled={!can} aria-label={t('software.edit', { name: sw.display })} title={needRole ?? t('software.edit', { name: sw.display })} onClick={() => setEditing(sw)}><Pencil /></Button>
-      <Button size="sm" variant="ghost" disabled={!can || act.removeSoftware.isPending} aria-label={t('software.remove', { name: sw.display })} title={t('software.remove', { name: sw.display })}
+      <Button size="sm" variant="ghost" disabled={!can || act.removeSoftware.isPending} busy={act.removeSoftware.isPending && act.removeSoftware.variables === sw.id} aria-label={t('software.remove', { name: sw.display })} title={t('software.remove', { name: sw.display })}
         onClick={() => act.removeSoftware.mutate(sw.id, { onSuccess: () => toast.success(t('software.removed', { name: sw.display })), onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
     </div>
   ) : null)
@@ -281,7 +345,7 @@ function Notes({ d }: { d: DeviceDetail }) {
     <div className="grid max-w-2xl gap-2">
       <Label htmlFor="device-notes" className="sr-only">{t('notes.label')}</Label>
       <Textarea id="device-notes" value={text} maxLength={2000} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} placeholder={t('notes.placeholder')} onChange={(e) => setText(e.target.value)} />
-      <div><Button disabled={!can || text === saved || act.patch.isPending} onClick={() => act.patch.mutate({ notes: text }, { onSuccess: () => toast.success(t('notes.saved')), onError: (e) => toast.error(errMsg(e)) })}>{t('notes.save')}</Button></div>
+      <div><Button disabled={!can || text === saved || act.patch.isPending} busy={act.patch.isPending && act.patch.variables?.notes !== undefined} busyLabel={t('common:busy.saving')} onClick={() => act.patch.mutate({ notes: text }, { onSuccess: () => toast.success(t('notes.saved')), onError: (e) => toast.error(errMsg(e)) })}>{t('notes.save')}</Button></div>
     </div>
   )
 }
@@ -296,8 +360,8 @@ function Approval({ d }: { d: DeviceDetail }) {
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
     <Notice tone="warn" title={d.suspicious ? t('approval.suspicious') : t('approval.pending')} info={t('approval.bodyInfo')} actions={<>
-        <Button variant="primary" disabled={!can || act.approve.isPending} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
-        <Button disabled={!can || act.suspicious.isPending} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>{d.suspicious ? t('pending.unmark') : t('pending.mark')}</Button>
+        <Button variant="primary" disabled={!can} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
+        <Button disabled={!can} busy={act.suspicious.isPending} busyLabel={t('common:busy.saving')} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>{d.suspicious ? t('pending.unmark') : t('pending.mark')}</Button>
         <Button disabled={!can} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </>}>
       {t('approval.body')}
@@ -333,6 +397,8 @@ function Body() {
   const act = useDeviceAction(id)
   const [adding, setAdding] = useState(false)
   const [del, setDel] = useState(false)
+  const [renaming, setRenaming] = useState(false)
+  const renameButton = useRef<HTMLButtonElement>(null)
   // UI.md §3: breadcrumbs (parents only) above the title; also while the device loads or is missing, so the way back is always there.
   const crumbs = [{ label: t('nav.devices'), to: '/devices' }]
   const back = <Breadcrumbs items={crumbs} />
@@ -350,7 +416,11 @@ function Body() {
   return (
     <>
       <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2', 'S-INV-3']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+        meta={renaming
+          ? <span id="device-name-hint" className="max-w-xl">{t('detail.renameHint', { name: nameOf({ ...a, name: null }, kindLabel(a.kind)) })}</span>
+          : <span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+        titleAction={<RenameDevice key="rename" d={d} editing={false} setEditing={setRenaming} button={renameButton} />}
+        editing={renaming ? <RenameDevice key="edit" d={d} editing setEditing={setRenaming} button={renameButton} /> : undefined}
         actions={<>
           {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId, asset }: the facts that say whether
               it can be checked, from this page's own read, #877 r1 L6). */}

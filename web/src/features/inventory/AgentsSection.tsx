@@ -9,6 +9,7 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { EmptyState, ModuleOff, QueryState, RequireModule } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
@@ -229,7 +230,7 @@ export function OsqueryEnrol({ data, onCreated }: { data: AgentsResponse; onCrea
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <DialogFooter>
         <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-        <Button type="submit" variant="primary" disabled={!name.trim() || create.isPending}>{t('agents.createSubmit')}</Button>
+        <Button type="submit" variant="primary" disabled={!name.trim()} busy={create.isPending} busyLabel={t('common:busy.creating')}>{t('agents.createSubmit')}</Button>
       </DialogFooter>
     </form>
   )
@@ -301,9 +302,11 @@ export function WazuhForm({ current, onSaved }: { current: WazuhConnection | nul
             {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-              <Button disabled={test.isPending || save.isPending} onClick={doTest}>{t('agents.wazuh.test')}</Button>
-              <Button type="submit" variant="primary" disabled={save.isPending || test.isPending}>{t('agents.wazuh.save')}</Button>
+              <Button disabled={save.isPending} busy={test.isPending} busyLabel={t('common:busy.testing')} aria-describedby="wazuh-wait" onClick={doTest}>{t('agents.wazuh.test')}</Button>
+              <Button type="submit" variant="primary" disabled={test.isPending} busy={save.isPending} busyLabel={t('common:busy.saving')} aria-describedby="wazuh-wait">{t('agents.wazuh.save')}</Button>
             </DialogFooter>
+            {/* kien G1: Test and Save both reach the Wazuh manager, up to 30 s (wazuhTestBudget) */}
+            <BusyNote id="wazuh-wait" busy={test.isPending || save.isPending}>{t('agents.wazuh.waiting')}</BusyNote>
           </form>
         </div>
   )
@@ -333,7 +336,7 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
           {w.status === 'error' && w.error ? <p role="status" className="max-w-3xl text-sm text-danger">{w.error}</p> : null}
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => setEditing(true)}>{t('agents.wazuh.edit')}</Button>
-            {MOCK_BUILD ? <Button size="sm" disabled={act.sample.isPending} title={t('agents.sampleHint')}
+            {MOCK_BUILD ? <Button size="sm" busy={act.sample.isPending} busyLabel={t('common:busy.sending')} title={t('agents.sampleHint')}
               onClick={() => act.sample.mutate(undefined, { onSuccess: (r) => toast.success(t('agents.sampled', { devices: r.devices, software: r.software })), onError: (e) => toast.error(errMsg(e)) })}>{t('agents.sample')}</Button> : null}
             <Button size="sm" onClick={() => setLeaving(true)}>{t('agents.wazuh.disconnect')}</Button>
           </div>
@@ -342,7 +345,7 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
             <DialogContent title={t('agents.wazuh.disconnectTitle')} description={t('agents.wazuh.disconnectBody')}>
               <DialogFooter>
                 <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-                <Button variant="danger" disabled={act.disconnect.isPending} onClick={() => act.disconnect.mutate(undefined, { onSuccess: () => { toast.success(t('agents.wazuh.disconnected')); setLeaving(false) }, onError: (e) => toast.error(errMsg(e)) })}>{t('agents.wazuh.disconnect')}</Button>
+                <Button variant="danger" busy={act.disconnect.isPending} busyLabel={t('agents.wazuh.disconnecting')} onClick={() => act.disconnect.mutate(undefined, { onSuccess: () => { toast.success(t('agents.wazuh.disconnected')); setLeaving(false) }, onError: (e) => toast.error(errMsg(e)) })}>{t('agents.wazuh.disconnect')}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -378,7 +381,7 @@ export function AgentsSection() {
     { id: 'actions', header: () => <span className="sr-only">{t('agents.col.actions')}</span>, enableSorting: false, cell: ({ row }) => (
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => setShowing(row.original)} aria-label={t('agents.showConfig', { name: row.original.name })}>{t('agents.config')}</Button>
-        {MOCK_BUILD ? <Button size="sm" disabled={sampleToken.isPending} title={t('agents.sampleHint')} aria-label={t('agents.sampleFor', { name: row.original.name })}
+        {MOCK_BUILD ? <Button size="sm" disabled={sampleToken.isPending} busy={sampleToken.isPending && sampleToken.variables === row.original.id} busyLabel={t('common:busy.sending')} title={t('agents.sampleHint')} aria-label={t('agents.sampleFor', { name: row.original.name })}
           onClick={() => sampleToken.mutate(row.original.id, { onSuccess: (r) => toast.success(t('agents.sampled', { devices: r.devices, software: r.software })), onError: (e) => toast.error(errMsg(e)) })}>{t('agents.sample')}</Button> : null}
         <Button size="sm" onClick={() => setRevoking(row.original)} aria-label={t('agents.revoke', { name: row.original.name })}>{t('agents.revokeBtn')}</Button>
       </div>
@@ -436,7 +439,7 @@ export function AgentsSection() {
         <DialogContent title={t('agents.revokeTitle', { name: revoking?.name ?? '' })} description={t('agents.revokeBody')}>
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-            <Button variant="danger" disabled={revoke.isPending} onClick={() => revoking && revoke.mutate(revoking.id, { onSuccess: () => { toast.success(t('agents.revoked', { name: revoking.name })); setRevoking(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('agents.revokeConfirm')}</Button>
+            <Button variant="danger" busy={revoke.isPending} busyLabel={t('agents.revoking')} onClick={() => revoking && revoke.mutate(revoking.id, { onSuccess: () => { toast.success(t('agents.revoked', { name: revoking.name })); setRevoking(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('agents.revokeConfirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

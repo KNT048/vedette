@@ -48,7 +48,7 @@ function Form({ initial }: { initial: GeneralSettings }) {
         <datalist id="org-tz-list">{TIMEZONES.map((z) => <option key={z} value={z} />)}</datalist>
         {here && here !== v.timezone && !gate.disabled ? <button type="button" className="mt-1 w-fit text-meta text-accent underline-offset-4 hover:underline" onClick={() => setV({ ...v, timezone: here })}>{t('general.useBrowserZone', { zone: here })}</button> : null}
       </Field>
-      <div><Button type="submit" variant="primary" disabled={gate.disabled || !dirty || save.isPending} title={gate.title}>{t('common:save')}</Button></div>
+      <div><Button type="submit" variant="primary" disabled={gate.disabled || !dirty} busy={save.isPending} busyLabel={t('common:busy.saving')} title={gate.title}>{t('common:save')}</Button></div>
     </form>
     </Card>
   )

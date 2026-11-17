@@ -34,7 +34,7 @@ export function VersionDialog({ sw, assetId, onClose }: { sw: Pick<SoftwareView,
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" disabled={act.setVersion.isPending}>{t('software.editSave')}</Button>
+            <Button type="submit" variant="primary" busy={act.setVersion.isPending} busyLabel={t('common:busy.saving')}>{t('software.editSave')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

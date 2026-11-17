@@ -62,7 +62,7 @@ export function ConfirmDelete({ title, body, onConfirm, onClose, pending, error 
         <ActionError error={error} />
         <DialogFooter>
           <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-          <Button variant="danger" disabled={pending} onClick={onConfirm}>{t('harness.delete')}</Button>
+          <Button variant="danger" busy={pending} busyLabel={t('common:busy.deleting')} onClick={onConfirm}>{t('harness.delete')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

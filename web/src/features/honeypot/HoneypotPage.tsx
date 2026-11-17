@@ -131,7 +131,7 @@ function ServicesTab({ data }: { data: HpOverview }) {
   const where = (tr: Trap) => (tr.trap_ips.length ? tr.trap_ips.join(', ') : <span className="text-muted">{t('traps.noTrapIp')}</span>)
   const testBtn = (tr: Trap) => {
     const reason = !operator ? t('common:needRole', { role: t('common:role.operator') }) : !tr.enabled ? t('traps.testOffReason') : tr.state === 'conflict' ? t('traps.testConflictReason') : undefined
-    return <Button size="sm" disabled={!!reason || test.isPending} title={reason} aria-label={t('traps.testLabel', { service: svc(tr.service) })} onClick={() => doTest(tr)}><FlaskConical />{t('traps.test')}</Button>
+    return <Button size="sm" disabled={!!reason || test.isPending} busy={test.isPending && test.variables === tr.service} busyLabel={t('common:busy.testing')} title={reason} aria-label={t('traps.testLabel', { service: svc(tr.service) })} onClick={() => doTest(tr)}><FlaskConical />{t('traps.test')}</Button>
   }
   const columns: ColumnDef<Trap>[] = [
     { id: 'service', header: t('traps.col.service'), cell: ({ row }) => (

@@ -7,6 +7,7 @@ import { server } from '@/test/server'
 import { assetsStore, sessionStore } from '@/mocks/stores'
 import type { Asset } from '@/lib/types'
 import { ensureBox } from './mocks'
+import { watchAfterMerge } from './SameDevice'
 
 // D-599, #829 gap 3 (J2): "Possibly the same device as X" with Merge / Keep separate on the device page, a hint in To review.
 vi.setConfig({ testTimeout: 30_000 })
@@ -150,5 +151,16 @@ describe('Devices › To review: the possibly-same hint (D-599)', () => {
     await user.click(screen.getByRole('button', { name: /^Possibly the same 1/ }))
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('possible:same'), T)
     await waitFor(() => expect(within(screen.getByRole('list', { name: /new devices? not approved/ })).getAllByRole('listitem')).toHaveLength(1), T)
+  })
+})
+
+// D-630, review r2 N2 of #945: the Merge dialog says which watch state the kept device ends with, the rule the box applies (joinAs).
+describe('watchAfterMerge', () => {
+  it('names the state that survives', () => {
+    expect(watchAfterMerge({ ignored: false }, { ignored: false, approved: true })).toBe('')
+    expect(watchAfterMerge({ ignored: true }, { ignored: true, approved: true })).toBe('')
+    expect(watchAfterMerge({ ignored: false }, { ignored: true, approved: true })).toBe('staysWatched')
+    expect(watchAfterMerge({ ignored: true }, { ignored: false, approved: false })).toBe('staysIgnored')
+    expect(watchAfterMerge({ ignored: true }, { ignored: false, approved: true })).toBe('watchedAgain') // a watched, approved device is never hidden
   })
 })

@@ -1753,7 +1753,11 @@ func (s *Service) waitSync(done <-chan struct{}) {
 	}
 }
 
-// reportOpenVAS is the progress of the OpenVAS step (#830): the percent gvmd gives its task, which the wait loop polls anyway.
+// reportOpenVAS is the progress of the OpenVAS step (#830): the percent gvmd gives its task, which the wait loop polls anyway, and the latest end of the step (the cap's deadline plus gbStopBudget).
 func reportOpenVAS(ctx context.Context, pct int) {
-	vprogress.Report(ctx, vprogress.Update{Phase: vprogress.PhaseOpenVAS, Percent: float64(pct)})
+	u := vprogress.Update{Phase: vprogress.PhaseOpenVAS, Percent: float64(pct)}
+	if d, ok := ctx.Deadline(); ok { // the cap context of runGreenbone starts per address: its end plus the stop and report read (#915)
+		u.EndsBy = d.Add(gbStopBudget)
+	}
+	vprogress.Report(ctx, u)
 }

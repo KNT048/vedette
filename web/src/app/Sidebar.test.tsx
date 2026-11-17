@@ -22,7 +22,7 @@ describe('sidebar groups (docs/UI.md §2)', () => {
   it('Home, Findings, Updates to plan and Incidents are always there; other groups start closed and inert, the current page opens its own', async () => {
     renderApp('/devices')
     const nav = within(await mainNav())
-    for (const name of ['Home', 'Findings', 'Updates to plan', 'Incidents']) expect(await nav.findByRole('link', { name: named(name) })).toBeInTheDocument()
+    for (const name of ['Home', 'Findings', 'Recommended updates', 'Incidents']) expect(await nav.findByRole('link', { name: named(name) })).toBeInTheDocument()
     expect(nav.getByRole('link', { name: named('Incidents') }).closest('[role=group]')).toBeNull() // pinned, in no group
     const assets = await nav.findByRole('button', { name: 'Assets, holds this page' })
     expect(assets).toHaveAttribute('aria-expanded', 'true') // holds /devices: open, and its header does nothing

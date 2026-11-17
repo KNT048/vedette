@@ -394,7 +394,7 @@ function createManual(entry: CatalogEntry | null, o: { version?: string; name?: 
     id: newId('a'), site: 'hq', ip: o.ip || '—', mac: null, hostname: o.name || null, name: o.userName || null, kind,
     vendor: entry ? { value: entry.vendor, source: 'manual', confidence: 1, seen_at: now } : null,
     model: null, os: null, services: [], first_seen: now, last_seen: now, approved: true, fragile: policyFragile(kind), origin: 'manual',
-    software: entry ? [softwareOf(entry, o.version)] : [],
+    software: entry ? [{ ...softwareOf(entry, o.version), set_at: now }] : [],
   }
   assetsStore.update((l) => [a, ...l])
   matchAssetToKev(a.id)
@@ -737,7 +737,7 @@ function notInstalled(a: Asset, sid: string, b: { version?: string; pkg_version?
   const have = sw.corrects ? sw : a.software.find((c) => c.corrects === sw.id)
   if (have?.not_installed && (!orig || have.corrects === orig.id)) return HttpResponse.json({ ok: true }) // marked already: nothing changes, no audit row
   const base = orig ?? have!
-  const corr: Software = { ...base, id: have?.id ?? newId('s'), source: 'manual', confidence: 1, corrects: orig?.id ?? have!.corrects, corrected_at: nowIso(), not_installed: true }
+  const corr: Software = { ...base, id: have?.id ?? newId('s'), source: 'manual', confidence: 1, corrects: orig?.id ?? have!.corrects, set_at: nowIso(), not_installed: true }
   assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: have ? x.software.map((s) => (s.id === have.id ? corr : s)) : [...x.software, corr] } : x)))
   closeNotInstalled(a.id, base, currentUser()?.email ?? '')
   audit('inventory.mark_not_installed', `${nameOf(a, a.kind)}: ${base.display}`, `${[base.display, base.version].filter(Boolean).join(' ')} (${base.source}) → not installed`)
@@ -793,11 +793,14 @@ export const handlers = [
       const disagrees = !!orig && !s.not_installed && (orig.version !== s.version || (orig.pkg_version ?? null) !== (s.pkg_version ?? null))
       return { id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: s.not_installed ? [] : cvesFor(s.kev),
         ...(s.pkg_version ? { pkg_version: s.pkg_version } : {}), ...(by ? { corrected_by: by.id } : {}),
-        ...(s.corrects ? { correction: { set_at: s.corrected_at ?? nowIso(), set_by: currentUser()?.email ?? '', active: !!orig, disagrees: disagrees || !orig, ...(s.not_installed ? { not_installed: true } : {}),
+        ...(s.corrects ? { correction: { set_at: s.set_at ?? nowIso(), set_by: currentUser()?.email ?? '', active: !!orig, disagrees: disagrees || !orig, ...(s.not_installed ? { not_installed: true } : {}),
           detected: orig ? { id: orig.id, display: orig.display, version: orig.version, pkg_version: orig.pkg_version ?? null, source: orig.source, seen_at: nowIso() } : null } } : {}) }
     })
     const observations = markCurrent(obsOf(a)).sort((x, y) => FIELD_ORDER.indexOf(x.field) - FIELD_ORDER.indexOf(y.field) || new Date(y.seen_at).getTime() - new Date(x.seen_at).getTime())
-    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
+    // INV-46: the newest manual observation or manual software row; a device added by hand with neither: when it was added
+    const manualAt = [...observations.filter((o) => o.source === 'manual').map((o) => o.seen_at), ...a.software.filter((s) => s.source === 'manual' && s.set_at).map((s) => s.set_at!)]
+      .reduce<string | null>((m, t) => (!m || t > m ? t : m), null) ?? (a.origin === 'manual' ? a.first_seen : null)
+    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, manual_at: manualAt, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
   }),
 
   http.get(`${API}/inventory/possible-same`, () => {
@@ -984,7 +987,7 @@ export const handlers = [
     const v = validateAdd(request, { ...(await body<AddDeviceInput>(request)), ip: '' }, true)
     if (v.err) return fail(v.err.status, v.err.code, v.err.message)
     if (a.software.some((s) => s.product === v.entry!.product && s.vendor === v.entry!.vendor && s.display === v.entry!.display)) return fail(409, 'duplicate_software', `${v.entry!.display} is already on this device. To change the version, remove it and add it again.`)
-    const sw = softwareOf(v.entry!, v.version)
+    const sw: Software = { ...softwareOf(v.entry!, v.version), set_at: nowIso() }
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: [...x.software, sw] } : x)))
     matchAssetToKev(a.id)
     audit('inventory.add_software', `${nameOf(a, a.kind)}: ${sw.display}`)
@@ -1008,10 +1011,10 @@ export const handlers = [
     if (!sw) return fail(404, 'not_found', 'No such software on this device.')
     const next = (s: Software): Software => ({ ...s, not_installed: false, ...(version !== undefined ? { version: version || null } : {}), ...(pkg !== undefined ? { pkg_version: pkg || null } : {}) })
     if (sw.source === 'manual') {
-      assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.map((s) => (s.id === sw.id ? { ...next(s), ...(s.corrects ? { corrected_at: nowIso() } : {}) } : s)) } : x)))
+      assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.map((s) => (s.id === sw.id ? { ...next(s), set_at: nowIso() } : s)) } : x)))
     } else {
       const have = a.software.find((c) => c.corrects === sw.id)
-      const corr: Software = have ? { ...next(have), corrected_at: nowIso() } : { ...next(sw), id: newId('s'), source: 'manual', confidence: 1, corrects: sw.id, corrected_at: nowIso() }
+      const corr: Software = have ? { ...next(have), set_at: nowIso() } : { ...next(sw), id: newId('s'), source: 'manual', confidence: 1, corrects: sw.id, set_at: nowIso() }
       assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: have ? x.software.map((s) => (s.id === have.id ? corr : s)) : [...x.software, corr] } : x)))
     }
     matchAssetToKev(a.id)

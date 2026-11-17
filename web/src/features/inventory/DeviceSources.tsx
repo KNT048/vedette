@@ -62,6 +62,16 @@ function ScanTimes({ id, seen }: { id: string; seen: string | null }) {
   )
 }
 
+/** The manual source's time (INV-46): when a person last entered or changed something on the device, not a report. A device added
+ *  by hand that nobody changed since reads "added"; after any change, "last changed". */
+function ManualTime({ d }: { d: DeviceDetail }) {
+  const { t } = useTranslation('inventory')
+  const at = d.manual_at
+  if (!at) return null
+  const added = d.asset.origin === 'manual' && Date.parse(at) <= Date.parse(d.asset.first_seen)
+  return <When at={at} text={t(added ? 'sources.added' : 'sources.lastChanged', { when: fmtRelative(at) })} />
+}
+
 function When({ at, text }: { at: string; text: string }) {
   return <time className="text-caption text-muted" dateTime={at} title={fmtDateTime(at)}>{text}</time>
 }
@@ -148,6 +158,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
                   <span className="text-sm font-medium">{t(`sources.name.${f}`)}</span>
                   {on ? <Chip tone="ok">{t('sources.feeds')}</Chip> : <Chip tone="off">{t('sources.notYet')}</Chip>}
                   {f === 'scan' ? <ScanTimes id={a.id} seen={at} />
+                    : f === 'manual' ? <ManualTime d={d} />
                     : at ? <When at={at} text={t('sources.lastSeen', { when: fmtRelative(at) })} /> : null}
                 </div>
                 {action(f)}

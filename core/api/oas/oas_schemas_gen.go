@@ -100662,9 +100662,14 @@ func (s *InventoryGetInventoryDevicesHasFindings) UnmarshalText(data []byte) err
 type InventoryGetInventoryDevicesIDOK struct {
 	Asset InventoryGetInventoryDevicesIDOKAsset `json:"asset"`
 	// Number of findings attached to the device; deleting the device also deletes these findings.
-	FindingsCount int                                                `json:"findings_count"`
-	Kinds         []InventoryGetInventoryDevicesIDOKKindsItem        `json:"kinds"`
-	Observations  []InventoryGetInventoryDevicesIDOKObservationsItem `json:"observations"`
+	FindingsCount int                                         `json:"findings_count"`
+	Kinds         []InventoryGetInventoryDevicesIDOKKindsItem `json:"kinds"`
+	// INV-46: when a person last entered or changed something on the device: a value typed when it was
+	// added or set later (type, OS), a software row added or edited, a correction or "not installed"; the
+	// time it was added for a device added by hand with nothing newer; null when no person entered
+	// anything. The Manual source shows it ("last changed 2 hours ago").
+	ManualAt     NilDateTime                                        `json:"manual_at"`
+	Observations []InventoryGetInventoryDevicesIDOKObservationsItem `json:"observations"`
 	// Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box
 	// and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one
 	// uses a private Wi-Fi address; never when a person kept them separate, two agents or two different
@@ -100690,6 +100695,11 @@ func (s *InventoryGetInventoryDevicesIDOK) GetFindingsCount() int {
 // GetKinds returns the value of Kinds.
 func (s *InventoryGetInventoryDevicesIDOK) GetKinds() []InventoryGetInventoryDevicesIDOKKindsItem {
 	return s.Kinds
+}
+
+// GetManualAt returns the value of ManualAt.
+func (s *InventoryGetInventoryDevicesIDOK) GetManualAt() NilDateTime {
+	return s.ManualAt
 }
 
 // GetObservations returns the value of Observations.
@@ -100730,6 +100740,11 @@ func (s *InventoryGetInventoryDevicesIDOK) SetFindingsCount(val int) {
 // SetKinds sets the value of Kinds.
 func (s *InventoryGetInventoryDevicesIDOK) SetKinds(val []InventoryGetInventoryDevicesIDOKKindsItem) {
 	s.Kinds = val
+}
+
+// SetManualAt sets the value of ManualAt.
+func (s *InventoryGetInventoryDevicesIDOK) SetManualAt(val NilDateTime) {
+	s.ManualAt = val
 }
 
 // SetObservations sets the value of Observations.

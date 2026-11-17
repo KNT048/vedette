@@ -143,6 +143,7 @@ export const DeviceDetail = z.object({
   risk: DeviceRisk.nullable(),
   risk_unavailable: z.boolean().describe('The risk marker could not be read (the findings module failed)'),
   observations: z.array(Observation),
+  manual_at: dt.nullable().describe('INV-46: when a person last entered or changed something on the device: a value typed when it was added or set later (type, OS), a software row added or edited, a correction or "not installed"; the time it was added for a device added by hand with nothing newer; null when no person entered anything. The Manual source shows it ("last changed 2 hours ago")'),
   kinds: z.array(AssetKind),
   possible_same: z.array(PossibleSame).describe('Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was'),
 })

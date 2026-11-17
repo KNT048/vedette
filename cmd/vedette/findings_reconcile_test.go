@@ -44,12 +44,13 @@ func TestFindingsReconcileJobAndDeviceList(t *testing.T) {
 }
 
 // kevAdded stores a CISA entry with the date CISA added it.
+// It has a scan template: a product match on a device a person added stays a finding, the scan's target (D-602).
 func (s *stack) kevAdded(cve, vendor, product string, added time.Time) {
 	s.t.Helper()
 	now := time.Now().UTC()
 	err := s.d.DB.Write(s.t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(s.t.Context(), `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, source_id, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, 0, 'cisa-kev', ?)`, cve, vendor, product, feeds.ProductKey(vendor, product), vendor+" "+product+" flaw", added.Format("2006-01-02"), store.FormatTS(now))
+		_, err := tx.ExecContext(s.t.Context(), `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, has_template, source_id, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, 0, 1, 'cisa-kev', ?)`, cve, vendor, product, feeds.ProductKey(vendor, product), vendor+" "+product+" flaw", added.Format("2006-01-02"), store.FormatTS(now))
 		return err
 	})
 	if err != nil {

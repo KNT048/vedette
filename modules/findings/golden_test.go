@@ -81,9 +81,11 @@ func keysFor(vulns []Vuln, fragments ...string) []string {
 	return keys
 }
 
+// goldenOut: version findings; product, the CVEs matched by the product name only, which D-602 makes no finding (NameOnly; before
+// D-602 they were product findings); productFindings, any product finding left (none in these sets); need, the "add the version" CVEs.
 type goldenOut struct {
-	version, product, need []string
-	severity               map[string]Severity
+	version, product, productFindings, need []string
+	severity                                map[string]Severity
 }
 
 func runGolden(t *testing.T, vulns []Vuln, sw Software) goldenOut {
@@ -95,8 +97,12 @@ func runGolden(t *testing.T, vulns []Vuln, sw Software) goldenOut {
 		if m.Basis == BasisVersion {
 			o.version = append(o.version, m.CVE)
 		} else {
-			o.product = append(o.product, m.CVE)
+			o.productFindings = append(o.productFindings, m.CVE)
 		}
+	}
+	for _, m := range res.NameOnly {
+		o.severity[m.CVE] = m.Severity
+		o.product = append(o.product, m.CVE)
 	}
 	for _, n := range res.NeedVersion {
 		o.need = append(o.need, n.CVEs...)
@@ -252,7 +258,8 @@ func TestGolden_KEVWithNVDRanges(t *testing.T) {
 		// FortiOS entries plus the "Multiple Products" entries whose NVD data names FortiOS; the others (FortiMail,
 		// FortiVoice…) list other products in NVD, so they give FortiOS no finding (D-505).
 		{name: "FortiOS without a version", sw: fortiGate(vulns, ""), need: 21},
-		{name: "Office without a version", sw: office(vulns, ""), need: 32},
+		// review r1 M3 of #939: three entries no version of Office decides (NVD names editions without versions, or only Visio)
+		{name: "Office without a version", sw: office(vulns, ""), need: 29, product: "CVE-2016-3235 CVE-2023-21715 CVE-2026-124194"},
 		{name: "Office 16.0 build", sw: office(vulns, "16.0.17928.20114"), product: office16},
 		{name: "Office typed as 2016", sw: office(vulns, "2016"),
 			version: "CVE-2016-7193 CVE-2017-0261 CVE-2017-0262 CVE-2017-11774 CVE-2017-11826 CVE-2017-11882 CVE-2018-0798 CVE-2018-0802 CVE-2023-23397",
@@ -276,7 +283,10 @@ func TestGolden_KEVWithNVDRanges(t *testing.T) {
 			want = cves(tt.product)
 			slices.Sort(want)
 			if !slices.Equal(o.product, want) {
-				t.Errorf("product findings\n got %v\nwant %v", o.product, want)
+				t.Errorf("matched by the product name only (D-602: no finding)\n got %v\nwant %v", o.product, want)
+			}
+			if len(o.productFindings) != 0 {
+				t.Errorf("product findings (D-602: none): %v", o.productFindings)
 			}
 			if len(o.need) != tt.need {
 				t.Errorf("add-the-version item: %d CVEs, want %d", len(o.need), tt.need)
@@ -299,7 +309,7 @@ func TestGolden_NoVersionIsOneItemPerSoftware(t *testing.T) {
 	if len(res.New) != 0 || len(res.NeedVersion) != 2 {
 		t.Fatalf("findings %d, items %d; want 0 and 2", len(res.New), len(res.NeedVersion))
 	}
-	if n := res.NeedVersion[0]; n.SoftwareID != "s-office" || len(n.CVEs) != 32 || n.Version != "" {
+	if n := res.NeedVersion[0]; n.SoftwareID != "s-office" || len(n.CVEs) != 29 || n.Version != "" { // 32 less three no version decides (M3 of #939)
 		t.Fatalf("office item = %+v", n)
 	}
 	if n := res.NeedVersion[1]; n.SoftwareID != "s-ios" || n.Version != "0.0.0" {
@@ -332,8 +342,8 @@ func TestGolden_DistroRowNeverClosesKernelCVEs(t *testing.T) {
 		}
 		for name, have := range map[string]map[string]bool{"new": nil, "existing": flood} {
 			res := MatchAsset(a, vulns, have, t0)
-			got := append(slices.Clone(res.New), res.Existing...)
-			if len(res.NotAffected) != 0 || len(res.NeedVersion) != 0 || len(got) != len(flood) {
+			got := res.NameOnly // D-602: kept (none closed), but by the product name only: no finding
+			if len(res.New)+len(res.Existing) != 0 || len(res.NotAffected) != 0 || len(res.NeedVersion) != 0 || len(got) != len(flood) {
 				t.Fatalf("%s %s (%s): %d findings, %d closed, %d items; want %d findings, none closed", tc.display, tc.ver, name, len(got), len(res.NotAffected), len(res.NeedVersion), len(flood))
 			}
 			for _, m := range got {
@@ -355,15 +365,24 @@ func TestGolden_OfficeN22WithoutAVersionCountsAllThirty(t *testing.T) {
 	a := Asset{ID: "a", Name: "Microsoft Office", Software: []Software{sw}}
 	in := newSWInfo(sw, "")
 	names := map[outcome]string{outNone: "no", outMatch: "finding", outNeedVersion: "need-version", outRuledOut: "ruled out", outNotAffected: "not affected"}
+	// review r1 M3 of #939: where no NVD entry for Office gives a version ("365_apps:-", "office_2021:-"), adding one decides nothing:
+	// those go to "could not be checked" (no_nvd_versions), and so does CVE-2016-3235, whose NVD list names only Visio (not_named); the
+	// rest stay in the item
+	noVersions := []string{"CVE-2016-3235", "CVE-2023-21715", "CVE-2026-124194"}
 	for _, v := range vulns {
 		_, out := matchOne(a, sw, in, v, false, t0)
 		t.Logf("%s added %s: %s (NVD: %s)", v.CVE, v.DateAdded.Format(time.DateOnly), names[out], nvdProducts(v.Vendor, v.Affected))
-		if out != outNeedVersion {
-			t.Errorf("%s: %s, want need-version", v.CVE, names[out])
+		if want := map[bool]outcome{true: outMatch, false: outNeedVersion}[slices.Contains(noVersions, v.CVE)]; out != want {
+			t.Errorf("%s: %s, want %s", v.CVE, names[out], names[want])
 		}
 	}
 	res := MatchAsset(a, vulns, nil, t0)
-	if len(res.New) != 0 || len(res.NeedVersion) != 1 || len(res.NeedVersion[0].CVEs) != 30 {
-		t.Fatalf("new %d, need %+v; want one item of 30 CVEs", len(res.New), res.NeedVersion)
+	if len(res.New) != 0 || len(res.NeedVersion) != 1 || len(res.NeedVersion[0].CVEs) != 27 || len(res.NameOnly) != 3 {
+		t.Fatalf("new %d, name-only %v, need %+v; want one item of 27 CVEs", len(res.New), res.NameOnly, res.NeedVersion)
+	}
+	for _, u := range res.Unchecked {
+		if want := map[bool]UncheckedReason{true: UncheckedNotNamed, false: UncheckedNoNVDVersions}[u.CVE == "CVE-2016-3235"]; !slices.Contains(noVersions, u.CVE) || u.Reason != want {
+			t.Errorf("unchecked %+v", u)
+		}
 	}
 }

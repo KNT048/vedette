@@ -135842,17 +135842,24 @@ func (s *FindingsGetFindingsOKUncheckedItemCvesItem) encodeFields(e *jx.Encoder)
 		e.Str(s.Name)
 	}
 	{
+		if s.NvdPending.Set {
+			e.FieldStart("nvd_pending")
+			s.NvdPending.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("ransomware")
 		e.Bool(s.Ransomware)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKUncheckedItemCvesItem = [5]string{
+var jsonFieldsNameOfFindingsGetFindingsOKUncheckedItemCvesItem = [6]string{
 	0: "advisory",
 	1: "cve",
 	2: "date_added",
 	3: "name",
-	4: "ransomware",
+	4: "nvd_pending",
+	5: "ransomware",
 }
 
 // Decode decodes FindingsGetFindingsOKUncheckedItemCvesItem from json.
@@ -135910,8 +135917,18 @@ func (s *FindingsGetFindingsOKUncheckedItemCvesItem) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
+		case "nvd_pending":
+			if err := func() error {
+				s.NvdPending.Reset()
+				if err := s.NvdPending.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"nvd_pending\"")
+			}
 		case "ransomware":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Ransomware = bool(v)
@@ -135932,7 +135949,7 @@ func (s *FindingsGetFindingsOKUncheckedItemCvesItem) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00101111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -239,7 +239,7 @@ func (e *env) reconciler(pub Publisher, inv Inventory) *Service {
 }
 
 func kevVuln(cve string, added time.Time) Vuln {
-	v := qnapVuln()
+	v := qnapScanned()
 	v.CVE, v.DateAdded = cve, added
 	return v
 }
@@ -346,8 +346,8 @@ func TestReconcileVersionNeededCountsBacklogAndRecentTogether(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(items) != 1 || items[0].SoftwareID != "s-office" || items[0].CVEs != 30 {
-			t.Fatalf("items = %+v, want one item of 30 CVEs", items)
+		if len(items) != 1 || items[0].SoftwareID != "s-office" || items[0].CVEs != 27 { // 30 less the 3 no version decides (M3 of #939)
+			t.Fatalf("items = %+v, want one item of 27 CVEs", items)
 		}
 	}
 	if n := e.count(`SELECT count(*) FROM fnd_finding`); n != 0 {

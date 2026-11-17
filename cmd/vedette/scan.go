@@ -48,6 +48,9 @@ func scanService(d deps) *scan.Service {
 	if d.Findings != nil {
 		cfg.Findings = scanFindings{svc: d.Findings}
 	}
+	if d.Inventory != nil { // the identification rows name an OS only when it is the one the device page shows
+		cfg.OSPages = scanOSPages{inv: d.Inventory}
+	}
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		cfg.Publisher = d.Bus
 	}
@@ -72,6 +75,21 @@ func scanService(d deps) *scan.Service {
 type scanInventory struct{ inv scanInv }
 
 // scanInv is the part of *inventory.Service the adapter reads (a test counts the reads).
+// scanOSPages is scan.OSPages: the OS the inventory's ranking chose for each device (its device page), from DeviceRefs.
+type scanOSPages struct{ inv *inventory.Service }
+
+func (p scanOSPages) OSShown(ctx context.Context, ids []string) (map[string]string, error) {
+	refs, err := p.inv.DeviceRefs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(refs))
+	for id, r := range refs {
+		out[id] = r.OS
+	}
+	return out, nil
+}
+
 type scanInv interface {
 	Settings(ctx context.Context) (inventory.Settings, error)
 	Devices(ctx context.Context) (inventory.DeviceList, error)

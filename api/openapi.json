@@ -78274,7 +78274,7 @@
                           },
                           "text": {
                             "type": "string",
-                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 192.168.18.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports, its OS guess, \"OS guess now <x> (was <y>)\", \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
+                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 192.168.18.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, \"OS guess <x>\" for nmap's fingerprint, \"OS <x>\" for the device's own answer, \"OS guess now <x> (changed since the previous check)\"; otherwise \"OS: scan guess not used now\", never a second OS value; \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
                           }
                         },
                         "required": [
@@ -80819,7 +80819,7 @@
                                   "items": {
                                     "type": "string"
                                   },
-                                  "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\""
+                                  "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\". The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads \"Operating system: scan guess not used now\""
                                 },
                                 "reason": {
                                   "anyOf": [
@@ -81274,7 +81274,7 @@
                             "items": {
                               "type": "string"
                             },
-                            "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\""
+                            "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\". The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads \"Operating system: scan guess not used now\""
                           },
                           "reason": {
                             "anyOf": [
@@ -81705,7 +81705,7 @@
                             "items": {
                               "type": "string"
                             },
-                            "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\""
+                            "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\". The OS line keeps the OS only when it is the one the device page shows now; otherwise it reads \"Operating system: scan guess not used now\""
                           },
                           "reason": {
                             "anyOf": [

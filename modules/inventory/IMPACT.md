@@ -1,5 +1,11 @@
 # Inventory — Change Impact Map
 
+## Modifying: nmap's OS guesses (`osguess.go`: `guessFamilies`, `guessContradicts`, `dropContradictedOS`, `hiddenGuess`; `ObservationRow.ContradictsType`; INV-42)
+- **Every reader of a device's software** must add `NOT hiddenGuess` (alias `s`) or go through `liveSW`/`loadSoftware`; a new reader without it shows a guess the device does not use.
+- **findings** sees the change only through `MatchInput`: guess rows have no match key, so no finding comes or goes with them; a device whose OS changes (the guess no longer wins) is matched again through `inventory.asset.updated` `match: true` and findings' normal re-evaluate path (platform rules read `MatchDevice.OS`).
+- **The table**: add a type only when no real device of that type runs the family (Android desk phones, Android point of sale, Windows NVRs and print servers exist). `TestOSGuessContradictionTable` holds both the ruled-out and the kept pairs.
+- **Web**: the Observations table shows "Not used: nmap's guess does not fit the device type" for `contradicts_type` (`DevicePage.tsx`, `obs.notUsedType`).
+
 ## Modifying: corrections (`inv_software.corrects`/`set_by`, `rowKey`, `liveSW`, `MatchSoftware.ReportedSource`/`Correction`, `MatchDevice.OSCorrection`, `Patch.OS`, `EditSoftware`, `OSCorrection`, `SoftwareView.correction`/`corrected_by`/`pkg_version`; INV-41)
 - **findings** reads them only through `MatchInput`: a corrected reported row is not in `Software`; the correction is (source `manual`, `ReportedSource` = the corrected row's source, which findings' `builtBy` reads for the packaged/distribution and platform rules; `PkgVersion` as kept or given); a corrected OS is `OS` and every non-empty stated/agent/SNMP OS; `Correction`/`OSCorrection` go into the history notes (findings INV-16a). `cmd/vedette/wiring.go` (`findingsInventory.MatchInput`, the Distros adapter) copies them. A new reader of `inv_software` for matching or "Do you have it?" must add `liveSW`, or the wrong scanned row keeps matching.
 - **Web**: the device page (Mlee, after G8/G12) shows `os_correction` and the software `correction`/`corrected_by` ("You set X on <date>; the last scan reads Y", Clear); the PATCH bodies are in `contract.ts`. Mocks still answer `not_manual` for a reported row until that screen lands. Audit labels in `web/src/locales/en/core.json`.

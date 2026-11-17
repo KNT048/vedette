@@ -4,7 +4,7 @@ import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
 import { aiAvailable, aiCandidates, assetsStore, findingsStore, isOn, recordAiRun, type AiJob } from '@/mocks/stores'
-import { versionNeeded } from '@/mocks/match'
+import { usableVersion, versionNeeded } from '@/mocks/match'
 import { epssDate, kevPublished as published, planSeed, recentSince, tierFact, tierOf, tierState, withinYear } from '@/mocks/tiers'
 import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
@@ -356,7 +356,7 @@ const UNCHECKED_SEED: { asset: string; software: string; reason: UncheckedItem['
     cveOf('CVE-2026-20002', 'Windows SMB Remote Code Execution', '2026-11-10', false, null)] },
   { asset: 'a-web01', software: 'WordPress website', reason: 'no_nvd_versions', action: 'none', cves: [
     cveOf('CVE-2026-20003', 'WordPress Core Authentication Bypass', '2026-11-05', false, 'https://wordpress.org/news/category/security/')] },
-  { asset: 'a-nas01', software: 'Synology NAS (DSM)', reason: 'not_comparable', action: 'add_version', cves: [
+  { asset: 'a-nas01', software: 'Synology NAS (DSM)', reason: 'not_comparable', action: 'none', cves: [
     cveOf('CVE-2026-20004', 'Synology DSM Command Injection', '2026-10-28', true, 'https://www.synology.com/en-global/security/advisory/Synology_SA_26_10'),
     cveOf('CVE-2026-20005', 'Synology DSM Path Traversal', '2026-10-20', false, null),
     cveOf('CVE-2026-20006', 'Synology DSM Authentication Bypass', '2026-10-02', false, null),
@@ -364,6 +364,19 @@ const UNCHECKED_SEED: { asset: string; software: string; reason: UncheckedItem['
   { asset: 'a-rt02', software: 'MikroTik router', reason: 'not_named', action: 'none', cves: [
     cveOf('CVE-2026-20008', 'MikroTik RouterOS Memory Corruption', '2026-09-01', false, 'https://mikrotik.com/supportsec')] },
 ]
+/** kien G15 mock: SQL Server added by hand without a version on SRV-FILE (the N100's case), and a camera seen only in traffic. Their
+ *  exploited CVEs are not in the KEV fixture, so the items are seeded here; it leaves once the row has a usable version, as the real box re-matches. */
+const VERSION_SEED: { asset: string; software: string; cves: number }[] = [
+  { asset: 'a-srvfile', software: 'Microsoft SQL Server', cves: 6 },
+  { asset: 'a-cam01', software: 'Hikvision camera', cves: 4 }, // seen in traffic, no version: a scan reads it
+]
+function versionSeed(asset?: string | null) {
+  return VERSION_SEED.flatMap((v) => {
+    const a = assetsStore.get().find((x) => x.id === v.asset)
+    const sw = a?.software.find((x) => x.display === v.software)
+    return a && sw && (!asset || a.id === asset) && !usableVersion(sw.version) ? [{ asset: a, software: sw, cves: v.cves }] : []
+  })
+}
 const seedVersions = new Map<string, string | null>()
 /** #910 phase 1 mock: the unchecked list; an item leaves it once its software's version changes (the real box re-checks). */
 export function unchecked(asset?: string | null): UncheckedItem[] {
@@ -465,7 +478,7 @@ export const handlers = [
     expireAccepted()
     const asset = new URL(request.url).searchParams.get('asset')
     const list = findingsStore.get().filter((f) => !asset || f.asset_id === asset)
-    const version_needed = versionNeeded(asset).map(({ asset: a, software: s, cves }) => ({
+    const version_needed = [...versionNeeded(asset), ...versionSeed(asset)].map(({ asset: a, software: s, cves }) => ({
       asset: assetView(a), asset_id: a.id, software_id: s.id, software: s.display, version: s.version || null, cves,
     }))
     return HttpResponse.json({ items: list.map(row), version_needed, unchecked: unchecked(asset) })

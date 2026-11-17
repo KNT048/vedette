@@ -36,7 +36,7 @@ export const unproved = (d: ToFixDevice) => d.no_update.filter((a) => !proved(a)
 export const listed = (d: ToFixDevice) => actionable(d).length + d.planned.length > 0
 
 /** One severity: the worst of the action's CVEs, in words (never a second CVSS label next to it). */
-function Worst({ worst }: { worst: string }) {
+export function Worst({ worst }: { worst: string }) {
   const { t } = useTranslation('findings')
   if (!worst) return null
   return <Chip tone={tone(worst)}>{t(`common:severity.${worst.toLowerCase()}`)}</Chip>
@@ -257,35 +257,5 @@ function ToFixBody({ q, otherName }: { q: { data: ToFix | undefined; error: unkn
         )
       }}
     </QueryState>
-  )
-}
-
-/** Needs your input: the findings no update is named for that the box could not prove, one item per software row of a device. */
-export function UnprovedList({ devices }: { devices: ToFixDevice[] }) {
-  const { t } = useTranslation('findings')
-  const items = devices.flatMap((d) => unproved(d).map((a) => ({ d, a })))
-  if (!items.length) return null
-  return (
-    <section aria-labelledby="unproved-title" className="grid gap-2">
-      <h2 id="unproved-title" className="text-base font-semibold">{t('toFix.unproved.title', { count: items.length })}</h2>
-      <p className="text-meta text-muted">{t('toFix.unproved.help')}</p>
-      <ul className="grid gap-2">
-        {items.map(({ d, a }) => (
-          <li key={`${d.asset.id}:${a.group}`} className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">
-            <p>
-              <Link to={`/devices/${encodeURIComponent(d.asset.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{deviceName(d.asset, t('removedDevice'))}</Link>
-              {': '}<span className="font-medium">{[a.software || t('toFix.theSoftware'), a.version].filter(Boolean).join(' ')}</span>
-              <span className="text-muted">{', '}{t('toFix.unproved.count', { count: a.cves.length })}</span>{' '}<Worst worst={a.worst} />
-            </p>
-            <details>
-              <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('toFix.showCves', { count: a.cves.length })}</summary>
-              <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-meta">
-                {a.cves.map((c, i) => <li key={c}><Link to={`/findings/${encodeURIComponent(a.finding_ids[i] ?? '')}`} className="text-accent underline-offset-4 hover:underline">{c}</Link></li>)}
-              </ul>
-            </details>
-          </li>
-        ))}
-      </ul>
-    </section>
   )
 }

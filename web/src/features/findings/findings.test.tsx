@@ -78,16 +78,20 @@ describe('findings: danh sách (S-MIT-1)', () => {
       { asset: { id: 'a-pc', name: 'PC-KE-TOAN', hostname: 'PC-KE-TOAN', ip: '192.168.10.40', kind: 'pc', display: 'Microsoft Office' }, asset_id: 'a-pc', software_id: 's-1', software: 'Microsoft Office', version: null, cves: 32 },
       { asset: { id: 'a-man', name: 'Microsoft Office (no device)', hostname: null, ip: '—', kind: 'unknown', display: 'Microsoft Office' }, asset_id: 'a-man', software_id: 's-3', software: 'Microsoft Office', version: null, cves: 30 },
       { asset: null, asset_id: 'a-fw', software_id: 's-2', software: 'FortiGate', version: 'latest', cves: 21 },
-    ] })))
+    ] })), http.get('*/api/v1/findings/to-fix', () => HttpResponse.json({ devices: [], truncated: false, plan_ran: true, plan_off: false, risks: {} })))
     renderApp('/findings?tab=input')
-    const box = await screen.findByRole('region', { name: 'Add the version of 3 software to check them' })
-    const lines = within(box).getAllByRole('listitem')
-    expect(lines[0]).toHaveTextContent(/^PC-KE-TOAN: Microsoft Office has no version: adding it checks 32 exploited CVEs\.$/)
-    expect(lines[1]).toHaveTextContent(/^Microsoft Office \(no device\) has no version: adding it checks 30 exploited CVEs\.$/)
-    expect(lines[2]).toHaveTextContent(/^A removed device: FortiGate version "latest" cannot be compared/)
-    expect(within(box).getByRole('link', { name: 'PC-KE-TOAN' })).toHaveAttribute('href', '/devices/a-pc')
-    expect(within(box).getByRole('link', { name: 'Microsoft Office (no device)' })).toHaveAttribute('href', '/devices/a-man')
-    expect(box).not.toHaveTextContent('—')
+    // kien G15: one block per device (none is in To fix here: the name orders them), each item without the device's name again
+    const blocks = await screen.findByRole('list', { name: 'Devices that need your input, the most urgent first' })
+    const cards = within(blocks).getAllByRole('listitem').filter((li) => li.parentElement === blocks)
+    expect(cards.map((c) => c.getAttribute('aria-label'))).toEqual(['A removed device', 'Microsoft Office (no device)', 'PC-KE-TOAN'])
+    for (const name of ['A removed device', 'Microsoft Office \\(no device\\)', 'PC-KE-TOAN']) await userEvent.click(within(blocks).getByRole('button', { name: new RegExp(`^${name}`) }))
+    const settle = (device: string) => screen.getByRole('list', { name: `What only you can settle on ${device}` })
+    const first = async (device: string) => within(settle(device)).getAllByRole('listitem')[0]!.querySelector('p')
+    expect(await first('PC-KE-TOAN')).toHaveTextContent(/^Microsoft Office has no version: adding it checks 32 exploited CVEs\.$/)
+    expect(await first('Microsoft Office (no device)')).toHaveTextContent(/^Microsoft Office has no version: adding it checks 30 exploited CVEs\.$/)
+    expect(await first('A removed device')).toHaveTextContent(/^FortiGate version "latest" cannot be compared/)
+    expect(await within(settle('PC-KE-TOAN')).findByRole('link', { name: 'Open Microsoft Office on PC-KE-TOAN' })).toHaveAttribute('href', '/devices/a-pc?tab=software')
+    expect(blocks).not.toHaveTextContent('—')
     await expectNoA11yViolations()
   })
 

@@ -19,7 +19,7 @@ const region = (button: HTMLElement) => document.getElementById(button.getAttrib
 beforeEach(() => localStorage.clear())
 
 describe('sidebar groups (docs/UI.md §2)', () => {
-  it('Home, Findings, Updates to plan and Incidents are always there; other groups start closed and inert, the current page opens its own', async () => {
+  it('Home, Findings, Recommended updates and Incidents are always there; other groups start closed and inert, the current page opens its own', async () => {
     renderApp('/devices')
     const nav = within(await mainNav())
     for (const name of ['Home', 'Findings', 'Recommended updates', 'Incidents']) expect(await nav.findByRole('link', { name: named(name) })).toBeInTheDocument()

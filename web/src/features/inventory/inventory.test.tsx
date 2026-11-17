@@ -322,34 +322,19 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(dlg).queryByText(/Enter one IP address/)).toBeNull()
   })
 
-  it('#849, #860: a range outside the scan scope is added from the SNMP method, append-only with what the dialog showed', async () => {
+  it('D-601 (review r1 M3): a range outside the LAN ranges goes into the credential only; the scan scope is never widened for SNMP', async () => {
     const user = userEvent.setup()
-    const bodies: unknown[] = []
-    server.events.on('request:start', async ({ request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/scanning/safety/ranges')) bodies.push(await request.clone().json()) })
+    const widened: string[] = []
+    server.events.on('request:start', ({ request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/scanning/safety/ranges')) widened.push(request.url) })
     renderApp('/devices?add=snmp')
     const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
     await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '10.50.0.0/24')
-    await user.click(await within(dlg).findByRole('button', { name: 'Add 10.50.0.0/24 to the scan scope' }, T))
-    const scope = await screen.findByRole('dialog', { name: 'Add 10.50.0.0/24 to the scan scope' }, T)
-    const shown = inventorySettingsStore.get().lan_ranges
-    await user.click(within(scope).getByRole('checkbox'))
-    await user.click(within(scope).getByRole('button', { name: 'Add to scope' }))
-    await waitFor(() => expect(inventorySettingsStore.get().lan_ranges).toContain('10.50.0.0/24'), T)
-    expect(bodies).toEqual([expect.objectContaining({ range: '10.50.0.0/24', confirm: true, shown_ranges: shown })])
-  })
-
-  it('#860: when the scope changed meanwhile (409 scope_changed) the dialog says so and asks for the tick again; nothing is overwritten', async () => {
-    const user = userEvent.setup()
-    server.use(http.post('*/api/v1/scanning/safety/ranges', () => HttpResponse.json({ error: { code: 'scope_changed', message: 'The scope changed.' } }, { status: 409 })))
-    renderApp('/devices?add=snmp')
-    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
-    await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '10.50.0.0/24')
-    await user.click(await within(dlg).findByRole('button', { name: 'Add 10.50.0.0/24 to the scan scope' }, T))
-    const scope = await screen.findByRole('dialog', { name: 'Add 10.50.0.0/24 to the scan scope' }, T)
-    await user.click(within(scope).getByRole('checkbox'))
-    await user.click(within(scope).getByRole('button', { name: 'Add to scope' }))
-    expect(await within(scope).findByText(/Someone changed the scan scope meanwhile/, undefined, T)).toBeInTheDocument()
-    expect(within(scope).getByRole('checkbox')).not.toBeChecked()
+    expect(await within(dlg).findByText('10.50.0.0/24 is outside the LAN ranges', undefined, T)).toBeInTheDocument()
+    expect(within(dlg).getByText(/the LAN ranges are not widened/)).toBeInTheDocument()
+    expect(within(dlg).queryByRole('button', { name: /to the scan scope/ })).toBeNull()
+    await user.click(within(dlg).getByRole('button', { name: /^Add range to / }))
+    expect(((await screen.findByLabelText('Send only to', undefined, T)) as HTMLTextAreaElement).value).toContain('10.50.0.0/24')
+    expect(widened).toEqual([])
     expect(inventorySettingsStore.get().lan_ranges).not.toContain('10.50.0.0/24')
   })
 
@@ -888,6 +873,26 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect((await call('PATCH', '/devices/a-pc01', { kind: 'laptop-bay' })).json?.error.code).toBe('bad_kind')
     expect((await call('PATCH', '/devices/a-pc01', { notes: 'x'.repeat(2001) })).json?.error.code).toBe('bad_notes')
     expect((await call('PATCH', '/devices/a-none', { notes: 'x' })).status).toBe(404)
+  })
+
+  it('an empty Services tab says who lists the ports: the box itself, an agent, or the scan (kien 2026-11-17)', async () => {
+    asAdmin()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-box' ? { ...a, services: [] } : a)))
+    renderApp('/devices/a-box?tab=services')
+    expect(await screen.findByText('The box lists the ports it listens on itself, every hour; none has come yet.', undefined, T)).toBeInTheDocument()
+    expect(screen.queryByText(/active sensor has not scanned/)).not.toBeInTheDocument()
+  })
+
+  it('an empty Services tab of a container-only box says it lists none, of an agent device that its agent has not reported yet', async () => {
+    asAdmin()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-box' ? { ...a, services: [], model: a.model && { ...a.model, value: 'Security box (container-only)' } } : a)))
+    const { unmount } = renderApp('/devices/a-box?tab=services')
+    expect(await screen.findByText("A container-only install does not list the box's own ports.", undefined, T)).toBeInTheDocument()
+    unmount()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-pc01' ? { ...a, fragile: false, services: [], software: [{ id: 's-agent', display: 'OpenSSH', vendor: 'OpenBSD', product: 'OpenSSH', version: '9.6p1', kev: [], source: 'agent', confidence: 0.95 }] } : a)))
+    renderApp('/devices/a-pc01?tab=services')
+    expect(await screen.findByText('Its agent lists the ports this machine listens on; none has come yet.', undefined, T)).toBeInTheDocument()
+    expect(screen.queryByText(/active sensor has not scanned/)).not.toBeInTheDocument()
   })
 
   it('a detail load error shows the error state', async () => {
@@ -2025,7 +2030,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(osquerySteps('windows', BOX, 't', []).map((s) => s.key)).toEqual(['secret', 'flags', 'service'])
 
     const sched = JSON.parse(OSQUERY_SCHEDULE).schedule as Record<string, { query: string; platform?: string }>
-    expect(Object.keys(sched).sort()).toEqual(['deb_packages', 'interfaces', 'kernel_info', 'os_revision', 'os_version', 'programs', 'rpm_packages', 'system_info']) // D-169 (7): identity query in, unused columns and patches out
+    expect(Object.keys(sched).sort()).toEqual(['deb_packages', 'interfaces', 'kernel_info', 'listening_ports', 'listening_ports_windows', 'os_revision', 'os_version', 'programs', 'rpm_packages', 'system_info']) // D-169 (7): identity query in, unused columns and patches out; INV-22: open ports
     expect(JSON.stringify(sched)).not.toMatch(/cpu_brand|physical_memory|patches/)
     expect(sched.interfaces!.query).toContain('interface_details')
     for (const q of Object.values(sched)) expect(q.query).toMatch(/^SELECT /) // read-only queries

@@ -6,6 +6,11 @@
 - **Never an observation**: the same-device and join rules (D-598, D-599) compare `hostname`; feeding the person's name into them would join or offer devices by a label a person typed. `joinAs` keeps the kept row's name, else the other's.
 - **findings** matches the device again on a rename (`inventory.asset.updated` with `match: true`) so the evidence sentences carry the new name.
 - **`modules/core/export_policy.go`** lists `user_name`; audit label `inventory.rename` in `web/src/locales/en/core.json`.
+## Modifying: the per-device sources (`scan_source`, `snmp_source`, `SetSources`, `SNMPPolicy`, `decideActive`, `Settings.Excluded`; D-601, INV-37)
+- **sensor-active** reads `SNMPPolicy` for every SNMP read (Test, Read now, the window's round) through `cmd/vedette` `sensorInventory.SNMPPolicy`, and `ScanPolicy`/`ProtectedIPs` for nmap: a change of what on/off/default means changes which packets leave the box. `AssetEvent.ScanOn` makes `cmd/vedette/sensoractive.go` queue the device.
+- **scan** reads `VulnScanPolicy`: scan off is absolute there (like `regular_scan=never`), scan on lifts `declared_by_hand` for schedules.
+- **scan** also listens to `inventory.asset.updated` (`DeviceChanged`, review r1 M2 of #932): a device whose `VulnScanPolicy` now refuses stops being checked; sensor-active stops its run and the sweep batch on its address (`checkSweep`).
+- **Web**: `DeviceSources.tsx` (switches, Turn SNMP on and add), `SnmpNext.tsx` (Turn SNMP on for `declared_by_hand`/`snmp_off`/`out_of_scope`, `excluded`), `AddDialog.tsx` (an outside range goes into the credential only), `scanning/DeviceActions.tsx` (`nmapRefusal` reads `scan_source`), `mocks.ts` (`sourceOf`). `modules/core/export_policy.go` exports both columns.
 
 ## Modifying: the shared safety block (`active.check_rate`, `SaveSafety`, `SetDiscovery`, `SaveChecks`, `MergeLegacyChecks`, `FragileCount`; #850, INV-32)
 - **scan** reads the window, the check rate and the exclusions through `cmd/vedette` `scanInventory` (`scan.SharedChecks`) and writes them back with `SaveChecks` in its own transaction: a change of their meaning or limits changes when and how fast nuclei runs, and what it skips.
@@ -145,6 +150,9 @@
 
 ## Modifying: `DevicesRunning` → `DeviceMatch.Display` (KF-3)
 - **feeds** (`MatchedAsset.display`, trang CVE "Devices that run it" khi thiết bị không có tên máy, `cmd/vedette` `feedsInventory.MatchProducts`): tên phần mềm đã khớp. `DeviceRefs` giữ nghĩa cũ (dòng đầu theo tên, hoặc loại) cho người gọi khác.
+
+## Modifying: `Config.BoxPorts`, `RefreshBoxServices` (INV-3, kien 2026-11-17)
+- **cmd/vedette** (`boxPorts`, job `box`): cổng hộp nghe, từ vedette-host `GET /v1/state/ports` (host INV-9b). Dịch vụ nguồn `agent` giờ có trên hộp và trên máy có agent (agent-intake INV-22): người đọc `asset.services` (`scan` danh sách cổng, `mitigation` cổng mở, `ai` mô tả, `devicetypes.Identify` đoán loại theo cổng TCP) thấy cả các dòng đó; tên của dòng agent là tên chương trình (`sshd`), không có sản phẩm hay phiên bản.
 
 ## Modifying: `AddServices` (D-592 review r2 M2)
 - A partial look that names a product updates that port's name, product, version and confidence: **sensor-active** sends the -sV follow-up of the weekly scan of every port through it. A gentle look names no product and changes only `seen_at` and `detail`. Making AddServices overwrite on an empty product would wipe what a normal scan read.

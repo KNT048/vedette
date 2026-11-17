@@ -58,6 +58,9 @@ type Service struct {
 
 	mu   sync.Mutex
 	live *live // the run this process executes; one at a time (INV-3)
+	// dev is the device whose vulnerability check is running now (nil between devices): DeviceChanged stops that part alone when
+	// the device may no longer be scanned (D-601: its network scan turned off).
+	dev *devRun
 
 	// busy counts Engine.Run calls that have not returned. After Stop now the run may show stopped before the worker
 	// confirms (stopGrace), but no run starts while nuclei may still be running (POST-2, FORBID-3; review M2).

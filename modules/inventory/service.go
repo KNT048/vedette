@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -52,8 +53,11 @@ type Config struct {
 	// WazuhAgents lists the addresses and MACs of the agents the saved Wazuh connection delivered (agent-intake): a device at one of
 	// them with data of source agent is reported by Wazuh (#849 DeviceRow.sources). nil means none; an error is logged and means none.
 	WazuhAgents func(ctx context.Context) (ips, macs []string, err error)
-	Clock       func() time.Time
-	Log         *slog.Logger
+	// BoxPorts lists the ports the box itself listens on from outside (vedette-host GET /v1/state/ports): its device's open services,
+	// source agent (INV-3, INV-23). A nil list (a host older than the read) keeps what is stored. nil: none (a container-only install).
+	BoxPorts func(ctx context.Context) ([]observe.Service, error)
+	Clock    func() time.Time
+	Log      *slog.Logger
 }
 
 // Service is the only writer of the inv_* tables (INV-2). Create it with New.
@@ -63,6 +67,7 @@ type Service struct {
 	events   Publisher
 	kev      KEV
 	box      BoxPackages
+	boxPorts func(ctx context.Context) ([]observe.Service, error)
 	findings FindingCounter
 	modules  ModuleGate
 	boxOwned func(ctx context.Context) []netip.Addr
@@ -90,7 +95,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil {
 		return nil, errors.New("inventory: New needs DB and Audit")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, clock: cfg.Clock, log: cfg.Log}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, boxPorts: cfg.BoxPorts, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, clock: cfg.Clock, log: cfg.Log}
 	if s.clock == nil {
 		s.clock = time.Now
 	}

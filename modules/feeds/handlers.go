@@ -49,8 +49,11 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 		FetchedAt time.Time `json:"fetched_at"`
 	}
 	type kev struct {
-		State string  `json:"state"`
-		Error *string `json:"error"`
+		State         string     `json:"state"`
+		Error         *string    `json:"error"`
+		IntervalHours int        `json:"interval_hours"`
+		CheckedAt     *time.Time `json:"checked_at"`
+		LastSuccess   *time.Time `json:"last_success"`
 	}
 	out := struct {
 		GeneratedAt       time.Time `json:"generated_at"`
@@ -63,12 +66,16 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 	for _, r := range rows {
 		if r.ID == "cisa-kev" {
 			kevAt = r.LastSuccess
+			// kien G11: Home says how often the list is checked, when it last was, and when it last loaded
+			out.Kev.IntervalHours, out.Kev.CheckedAt, out.Kev.LastSuccess = r.IntervalHours, r.LastFetch, r.LastSuccess
 			switch {
 			case !r.Enabled: // D-92: Home must not count from a list the admin turned off
 				out.Kev.State = "off"
 			case r.LastSuccess != nil:
 				out.Kev.State = "loaded"
-			case r.Status == "error" && r.Error != nil:
+			}
+			// the last pull failed: why, also when an earlier pull had loaded the list (Home then says since when it is stale)
+			if r.Enabled && r.Status == "error" && r.Error != nil {
 				out.Kev.Error = oneLine(*r.Error, 200)
 			}
 			if r.CatalogVersion != nil {

@@ -27,6 +27,19 @@
     "placeholder": "CVE, product, IP or domain",
     "submit": "Look up"
   },
+  "fresh": {
+    "every_one": "Checked every hour",
+    "every_other": "Checked every {{count}} hours",
+    "ok": "{{every}}, last at {{time}}.",
+    "latest": "CISA's last addition: {{date}}, {{product}}.",
+    "failed": "{{every}}; the last check, at {{time}}, failed: {{reason}}. Vedette keeps trying.",
+    "lastTried_one": "Last tried at {{time}}; it is checked every hour.",
+    "lastTried_other": "Last tried at {{time}}; it is checked every {{count}} hours.",
+    "lastGood": "The list shown is from the last good pull, at {{time}}.",
+    "neverGood": "No pull has worked yet, so nothing is shown.",
+    "never": "{{every}}; the first check has not run yet.",
+    "openFeeds": "Open Settings, Feeds"
+  },
   "hot": {
     "title": "Newly exploited",
     "description": "Newly exploited vulnerabilities (CISA KEV), grouped by product.",

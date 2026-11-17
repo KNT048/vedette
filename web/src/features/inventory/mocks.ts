@@ -31,7 +31,16 @@ const kevVulns = (kev as { vulns: { cve: string; vendor: string; product: string
 const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.vendor}|${v.product}`.toLowerCase())).map((v) => v.cve)
 
 // ---- bảng riêng ----
-interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string }
+interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string; scan_source?: 'on' | 'off'; snmp_source?: 'on' | 'off' }
+/** D-601: a device's network scan and SNMP reads, the default resolved (on for a device a sensor found, off for one added by hand). */
+const sourceOf = (a: Asset, which: 'scan_source' | 'snmp_source'): 'on' | 'off' => {
+  const stored = metaStore.get()[a.id]?.[which]
+  if (stored) return stored
+  if (a.origin === 'manual') return 'off'
+  // review r2 M1: outside the LAN ranges a discovered device's default SNMP does not reach it; it shows off until a person turns it on
+  if (which === 'snmp_source' && IPV4_RE.test(a.ip) && !inList(a.ip, loadSettings().lan_ranges)) return 'off'
+  return 'on'
+}
 export type StoredObs = Omit<Observation, 'current'>
 const metaStore = collection<Record<string, Meta>>('inv_meta', () => ({}))
 const obsStore = collection<Record<string, StoredObs[]>>('inv_obs', () => ({}))
@@ -175,8 +184,9 @@ export function ensureBox() {
     id: BOX_ID, site: 'hq', ip, mac: null, hostname: info.hostname, kind: 'server',
     vendor: seen('Vedette'), model: seen('Security box (appliance)'), os: seen('Ubuntu 24.04.3 LTS'),
     software: BOX_SOFTWARE, services: [
-      { port: 22, proto: 'tcp', name: 'ssh', product: 'OpenSSH', version: '9.6p1', source: 'agent', confidence: 1 },
-      { port: 8443, proto: 'tcp', name: 'https', product: 'Caddy', version: '2.6.2', source: 'agent', confidence: 1 },
+      // the box lists its own listening ports, named by their program (vedette-host GET /v1/state/ports, inventory INV-3)
+      { port: 22, proto: 'tcp', name: 'sshd', source: 'agent', confidence: 1 },
+      { port: 8443, proto: 'tcp', name: 'vedette-core', source: 'agent', confidence: 1 },
     ],
     first_seen: dataMode() === 'sample' ? daysAgo(40) : now, last_seen: now, approved: true, fragile: false, origin: 'discovered',
   }
@@ -249,6 +259,8 @@ const scanInfo = (a: Asset) => ({
   first_scan_at: a.origin === 'discovered' && a.id !== BOX_ID && (a.fragile || a.kind === 'unknown' || metaStore.get()[a.id]?.regular_scan === 'never') ? new Date(new Date(a.first_seen).getTime() + 4 * 60_000).toISOString() : null,
   regular_scan: metaStore.get()[a.id]?.regular_scan ?? ('follow' as RegularScan),
   approved_at: metaStore.get()[a.id]?.approved_at ?? null, // D-471: a person's first approval
+  scan_source: sourceOf(a, 'scan_source'),
+  snmp_source: sourceOf(a, 'snmp_source'),
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
@@ -582,11 +594,13 @@ const SNMP_MSG: Record<Exclude<SnmpTestReason, 'ok' | 'unavailable'>, (ip: strin
   error: () => 'The device answered with an error, or with a message Vedette could not read.',
   not_in_inventory: (ip) => `${ip} is not a device in the inventory. Only devices in the list can be tested.`,
   not_approved: (ip) => `${ip} is not approved yet. SNMP credentials are sent only to devices a person approved: approve it under Devices, To review, then test again.`,
-  out_of_scope: (ip) => `${ip} is outside the scan scope (the LAN ranges and exclusions under Scope and sensors).`,
+  out_of_scope: (ip) => `${ip} is outside the LAN ranges: SNMP reads a device there only once you turn SNMP on for it on its page (Sources). The LAN ranges are not widened for it.`,
   not_for_this_credential: (ip) => `${ip} is outside the scope of this credential, so it is never sent there.`,
   scanning_off: () => 'Active scanning is off under Scope and sensors, so nothing is sent.',
   scope_not_confirmed: () => 'The scan scope commitment is not ticked under Scope and sensors, so nothing is sent.',
-  declared_by_hand: () => 'This device was added manually: Vedette never probes it.',
+  declared_by_hand: () => 'This device was added by hand: Vedette reads it with SNMP only once you turn SNMP on on its page (Sources).',
+  snmp_off: () => 'SNMP is turned off for this device on its page (Sources), so nothing is sent.',
+  excluded: (ip) => `${ip} is on the exclusion list under Scope and sensors: Vedette never touches it, not even with SNMP.`,
   box: () => 'This is the Vedette box itself (or one of its trap addresses): it is never probed.',
   regular_scan_never: () => 'This device is set to never be scanned.',
   busy: () => 'SNMP reads are running for the scan window right now. Try again in a minute.',
@@ -712,6 +726,25 @@ export const handlers = [
       audit('inventory.keep_separate', nameOf(x!, x!.kind), `${nameOf(y!, y!.kind)} is another device`)
     }
     return HttpResponse.json({ ok: true })
+  }),
+
+  // D-601: turn the network scan or the SNMP reads of one device on or off.
+  http.put(`${API}/inventory/devices/:id/sources`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const b = await body<{ scan?: string; snmp?: string }>(request)
+    const ok = (v: unknown) => v === undefined || v === 'on' || v === 'off'
+    if (!ok(b.scan) || !ok(b.snmp)) return fail(400, 'invalid', 'Each source is on or off.')
+    if (b.scan === undefined && b.snmp === undefined) return fail(400, 'bad_source', 'Say which source to turn on or off: scan, snmp or both.')
+    if (a.id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself: Vedette never scans or reads it on its own.')
+    for (const [key, label, v] of [['scan_source', 'network scan', b.scan], ['snmp_source', 'SNMP', b.snmp]] as const) {
+      if (v === undefined) continue
+      const before = sourceOf(a, key)
+      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], [key]: v as 'on' | 'off' } }))
+      if (before !== v) audit('inventory.set_source', a.hostname ?? a.id, `${label}: ${v}`)
+    }
+    return HttpResponse.json({ scan_source: sourceOf(a, 'scan_source'), snmp_source: sourceOf(a, 'snmp_source') })
   }),
 
   http.patch(`${API}/inventory/devices/:id`, async ({ params, request }) => {
@@ -1198,9 +1231,12 @@ export const handlers = [
       : !st.scope_confirmed_at ? 'scope_not_confirmed'
       : !a ? 'not_in_inventory'
       : a.id === BOX_ID ? 'box'
-      : a.origin === 'manual' ? 'declared_by_hand'
+      : sourceOf(a, 'snmp_source') === 'off' ? (a.origin === 'manual' && !metaStore.get()[a.id]?.snmp_source ? 'declared_by_hand' : 'snmp_off')
       : !a.approved ? 'not_approved'
-      : !inList(ip, st.lan_ranges) || inList(ip, st.active.exclusions) ? 'out_of_scope'
+      // D-601: SNMP keeps to the exclusions and the credential's own scope, not to the LAN ranges
+      : inList(ip, st.active.exclusions) ? 'excluded'
+      // review r1 M4: outside the LAN ranges only a device whose SNMP a person turned on (stored on, not the default)
+      : !inList(ip, st.lan_ranges) && metaStore.get()[a.id]?.snmp_source !== 'on' ? 'out_of_scope'
       : metaStore.get()[a.id]?.regular_scan === 'never' ? 'regular_scan_never'
       : !inList(ip, c.scope) ? 'not_for_this_credential'
       : c.version === 'v3' || c.community === 'public' ? 'ok' : 'no_answer'
@@ -1228,7 +1264,7 @@ export const handlers = [
     if (!st.scope_confirmed_at) return fail(409, 'scope_not_confirmed', 'The scan scope is not set up and confirmed under Scope and sensors, so nothing is sent.')
     if (Object.values(snmpReads).some((r) => r.status === 'running')) return fail(409, 'busy', 'Another SNMP read is running (a Test, a Read now or the scan window\'s round). Try again in a minute.')
     const inScope = allAssets().filter((a) => hasIp(a) && inList(a.ip, c.scope))
-    const readable = (a: Asset) => a.id !== BOX_ID && a.origin !== 'manual' && a.approved && inList(a.ip, st.lan_ranges) && !inList(a.ip, st.active.exclusions) && metaStore.get()[a.id]?.regular_scan !== 'never'
+    const readable = (a: Asset) => a.id !== BOX_ID && sourceOf(a, 'snmp_source') === 'on' && a.approved && !inList(a.ip, st.active.exclusions) && (inList(a.ip, st.lan_ranges) || metaStore.get()[a.id]?.snmp_source === 'on') && metaStore.get()[a.id]?.regular_scan !== 'never'
     const targets = inScope.filter(readable)
     // #829 C4: a device that answered this credential and moved out of its scope is a skipped row that says so; nothing is sent there.
     const moved: SnmpRead['results'] = c.moved_out.map((m) => ({ ip: m.ip, ok: false, reason: 'not_for_this_credential', message: m.message, device_id: m.device_id, answer: null }))

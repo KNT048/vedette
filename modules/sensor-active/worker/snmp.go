@@ -43,6 +43,7 @@ var snmpObjects = []string{
 	".1.3.6.1.2.1.47.1.1.1.1.13.1", // entPhysicalModelName.1
 	".1.3.6.1.2.1.47.1.1.1.1.10.1", // entPhysicalSoftwareRev.1
 	".1.3.6.1.2.1.47.1.1.1.1.11.1", // entPhysicalSerialNum.1
+	".1.3.6.1.4.1.14988.1.1.4.4.0", // MIKROTIK-MIB mtxrLicVersion.0: the RouterOS version (#910); other agents answer noSuchObject
 }
 
 // systemObjects is the first three: what an agent that refuses the whole request (an error status, as SNMPv1-style agents do for
@@ -207,7 +208,7 @@ func valuesOf(vars []gosnmp.SnmpPDU) sensorlink.SNMPValues {
 	var v sensorlink.SNMPValues
 	dst := map[string]*string{
 		snmpObjects[0]: &v.SysDescr, snmpObjects[1]: &v.SysObjectID, snmpObjects[2]: &v.SysName, snmpObjects[3]: &v.EntClass,
-		snmpObjects[4]: &v.EntModel, snmpObjects[5]: &v.EntSoftware, snmpObjects[6]: &v.EntSerial,
+		snmpObjects[4]: &v.EntModel, snmpObjects[5]: &v.EntSoftware, snmpObjects[6]: &v.EntSerial, snmpObjects[7]: &v.OSVersion,
 	}
 	for _, p := range vars {
 		d, ok := dst["."+strings.TrimPrefix(p.Name, ".")]

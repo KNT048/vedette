@@ -3,11 +3,13 @@ package findings
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"regexp"
 	"slices"
 	"strings"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/content/oui"
 )
 
 // The operating system a network device states about itself is software the matcher compares (W1-32, D-510, #910 phase 1):
@@ -23,11 +25,10 @@ const (
 	schemeNone   = "none"   // not orderable (classic Cisco IOS "15.2(4)M3"): never compared (#910 phase 2)
 )
 
-// Which statement of the device counts for a row of network-os.json.
-const (
-	fromSNMP   = "snmp"   // only the device's answer to Vedette's own SNMP read of its address (Asset.SNMPOS, D-549)
-	fromStated = "stated" // SNMP or LLDP (Asset.StatedOS): Junos only (D-510, D-620)
-)
+// Which statement counts (review r1 H1, L1 of #919): the device's answer to Vedette's own SNMP read of its address (Asset.SNMPOS,
+// D-549) always, and it always wins: an LLDP frame can carry another device's MAC as its chassis id. Only a row with lldp_oui also
+// reads an LLDP statement (Asset.StatedOS), and only when the device gave no SNMP answer and its network card is that vendor's
+// (lldpCard, D-620).
 
 // osRow is one row of network-os.json.
 type osRow struct {
@@ -36,7 +37,7 @@ type osRow struct {
 	Product   string   `json:"product"`
 	CPE       string   `json:"cpe"` // part:vendor:product, "o:fortinet:fortios"
 	Statement string   `json:"statement"`
-	From      string   `json:"from"`
+	LLDPOUI   string   `json:"lldp_oui"` // the IEEE vendor of the card an LLDP statement must come with; "" = SNMP only
 	Scheme    string   `json:"scheme"`
 	KevKeys   []string `json:"kev_keys"`
 	re        *regexp.Regexp
@@ -60,9 +61,6 @@ func loadNetworkOS(data []byte) ([]osRow, error) {
 		}
 		if re.NumSubexp() < 1 {
 			return out, fmt.Errorf("network-os.json %q: the statement's group 1 is the version", r.Display)
-		}
-		if r.From != fromSNMP && r.From != fromStated {
-			return out, fmt.Errorf("network-os.json %q: from %q", r.Display, r.From)
 		}
 		if r.Scheme != schemeJunos && r.Scheme != schemeDotted && r.Scheme != schemeNone {
 			return out, fmt.Errorf("network-os.json %q: scheme %q", r.Display, r.Scheme)
@@ -125,9 +123,9 @@ func osSoftwareID(assetID string) string { return "os:" + assetID }
 // it (it gives what it gives today).
 func deviceOS(a Asset) (os Software, orderable, ok bool) {
 	for _, d := range osRows {
-		text := a.StatedOS
-		if d.From == fromSNMP {
-			text = a.SNMPOS
+		text := a.SNMPOS
+		if text == "" && d.LLDPOUI != "" && lldpCard(a.MAC, d.LLDPOUI) {
+			text = a.StatedOS
 		}
 		m := d.re.FindStringSubmatch(text)
 		if m == nil {
@@ -138,7 +136,7 @@ func deviceOS(a Asset) (os Software, orderable, ok bool) {
 		}
 		orderable = d.reads(m[1])
 		for _, s := range a.Software {
-			if slices.ContainsFunc(s.KevKeys, d.own) && (!orderable || d.reads(s.Version)) {
+			if slices.ContainsFunc(s.KevKeys, d.own) && versionGiven(s.Version) && (!orderable || d.reads(s.Version)) {
 				return Software{}, false, false // "15.1" or "JUNOS 15.1R7.9" typed by a person is not a Junos version: the stated one decides (review L2)
 			}
 		}
@@ -162,7 +160,7 @@ func deviceSoftware(a Asset) []Software {
 
 func deviceOSSoftware(a Asset) []Software {
 	os, orderable, ok := deviceOS(a)
-	if !ok || !orderable {
+	if !ok {
 		return a.Software
 	}
 	out := make([]Software, 0, len(a.Software)+1)
@@ -177,7 +175,26 @@ func deviceOSSoftware(a Asset) []Software {
 		}
 		out = append(out, s)
 	}
+	if !orderable { // listed only (MatchResult.NotComparable); the covered row without a version gave way all the same (review r1 M2)
+		return out
+	}
 	return append(out, os)
+}
+
+// lldpCard says whether an LLDP statement counts for the device (D-620): its MAC at its address (Asset.MAC) has an IEEE OUI of vendor,
+// or it has none: a device known only through LLDP frames (no address, so no MAC at one) is the frame's own record, where a forged
+// frame makes a device that is not there but silences nothing; a frame forged with another device's MAC as its chassis id lands on
+// that device, whose card the vendor did not make.
+func lldpCard(mac, vendor string) bool {
+	if mac == "" {
+		return true
+	}
+	hw, err := net.ParseMAC(mac)
+	if err != nil || len(hw) != 6 {
+		return false
+	}
+	v, ok := oui.Lookup([6]byte(hw))
+	return ok && v == vendor
 }
 
 // NotComparable is an exploited CVE of the network OS a device states whose version Vedette cannot order against NVD's (#910
@@ -188,7 +205,16 @@ type NotComparable struct {
 	SoftwareID string // the OS row's id (osSoftwareID)
 	Software   string // its display, "Cisco IOS"
 	Version    string // the version as the device states it, "15.2(4)M3"
+	Reason     string // NotComparableScheme or NotComparableOtherProduct
 }
+
+// The reasons of a NotComparable item.
+const (
+	// NotComparableScheme: the OS's version has no order Vedette compares (scheme none, or a version the scheme does not read).
+	NotComparableScheme = "scheme"
+	// NotComparableOtherProduct: CISA's key names the OS but NVD's list names only another product (CVE-2018-0171 for IOS XE).
+	NotComparableOtherProduct = "nvd_other_product"
+)
 
 // notComparable lists the entries of vulns the device's not-orderable OS row would be compared with: those whose key names it
 // (keyedTo) and, for the vendor's "Multiple Products", only those whose NVD list names its product (D-505).
@@ -201,7 +227,7 @@ func notComparable(os Software, vulns []Vuln) []NotComparable {
 			continue
 		}
 		seen[v.CVE] = true
-		out = append(out, NotComparable{CVE: v.CVE, SoftwareID: os.ID, Software: clean(os.Display), Version: clean(os.Version)})
+		out = append(out, NotComparable{CVE: v.CVE, SoftwareID: os.ID, Software: clean(os.Display), Version: clean(os.Version), Reason: NotComparableScheme})
 	}
 	return out
 }

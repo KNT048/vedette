@@ -254,3 +254,20 @@ func TestUnchecked_910_StoredListAndHome(t *testing.T) {
 		t.Fatalf("rows left after delete = %d", n)
 	}
 }
+
+// #919 r1: CISA keys CVE-2018-0171 "IOS and IOS XE" but NVD lists only classic cisco:ios; on an IOS XE device that states its
+// (orderable) version it is not a finding but could not be checked: NVD names another product, so not_named, action none.
+func TestUnchecked_910_NetworkOSNVDOtherProductIsNotNamed(t *testing.T) {
+	t.Parallel()
+	vulns := loadGolden(t, "testdata/kev-nvd-snmp-os.json")
+	res := MatchAsset(snmpDevice("xe", "Cisco IOS XE 17.3.1"), vulns, nil, uncNow)
+	u, ok := uncByCVE(res.Unchecked)[osSoftwareID("xe")+" CVE-2018-0171"]
+	if !ok || u.Reason != UncheckedNotNamed || u.Version != "17.3.1" || u.Source != "snmp" {
+		t.Fatalf("unchecked = %+v", res.Unchecked)
+	}
+	for _, m := range res.New {
+		if m.CVE == "CVE-2018-0171" {
+			t.Fatalf("a finding as well: %+v", m)
+		}
+	}
+}

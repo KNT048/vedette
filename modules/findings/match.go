@@ -240,7 +240,8 @@ type MatchResult struct {
 	Aged []Match
 	// NotComparable lists the exploited CVEs of the network OS the device states (network-os.json) when its version has no order
 	// Vedette can compare (scheme none, classic Cisco IOS "15.2(4)M3"; #910 phase 1): no finding and no "add the version" item,
-	// for the "could not be checked" list (reason not_comparable).
+	// for the "could not be checked" list (reason not_comparable); and, on the OS row whose version it orders, the entries CISA's key
+	// names but whose NVD list names only another product (Reason NotComparableOtherProduct, review r1 M1 of #919).
 	NotComparable []NotComparable
 	// Unchecked lists, per software row, the exploited CVEs of software the device has that gave no finding, no NeedVersion
 	// item and no proof (#910 phase 1, uncheckedRow): a row CISA's key or NVD's list names that Vedette could not compare, a
@@ -387,7 +388,8 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			continue
 		}
 		seen[v.CVE] = true
-		var best, proved, unlisted, platform *Match
+		var best, proved, unlisted, platform, other *Match
+		otherVer := ""            // other's version
 		unproved := false         // a software of this product with a No that proves nothing, or one that needs a version
 		othersOnly := true        // every software keyed to the entry is one NVD's list leaves out (D-506)
 		var unnamed []string      // their names, for the D-506 sentence
@@ -395,6 +397,14 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		needs, bestRow := false, -1
 		for i, s := range sws {
 			m, out := matchOne(a, s, infos[i], v, named[i][vi], now)
+			if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
+				// review r1 M1 of #919: the device's own OS, with a version its scheme orders, that CISA's key names but NVD's list does
+				// not (CVE-2018-0171, "IOS and IOS XE", NVD only classic cisco:ios): could not be checked, not a product finding;
+				// #910 rule 2 reads it as NVD naming another product (not_named, unless NVD gives no version at all)
+				other, otherVer, unproved = &m, s.Version, true
+				unchecked = append(unchecked, uncheckedOf(s, v, uncheckedReason(s, infos[i], v)))
+				continue
+			}
 			if out == outRuledOut || out == outNone && named[i][vi] {
 				if r, ok := uncheckedRow(a, s, infos[i], v, named[i][vi], m, out); ok {
 					unchecked = append(unchecked, uncheckedOf(s, v, r))
@@ -443,6 +453,10 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				}
 			}
 		}
+		if best == nil && other != nil {
+			res.NotComparable = append(res.NotComparable, NotComparable{CVE: v.CVE, SoftwareID: other.SoftwareID, Software: other.SoftwareDisplay,
+				Version: clean(otherVer), Reason: NotComparableOtherProduct})
+		}
 		if best == nil && platform != nil && !unproved {
 			r := *platform
 			r.Evidence.Summary, r.why = r.why, ""
@@ -489,15 +503,16 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		}
 	}
 	if os, orderable, ok := deviceOS(a); ok && !orderable {
-		res.NotComparable = notComparable(os, vulns)
+		scheme := notComparable(os, vulns)
+		res.NotComparable = append(res.NotComparable, scheme...)
 		in := newSWInfo(os, "")
-		byCVE := make(map[string]Vuln, len(res.NotComparable))
+		byCVE := make(map[string]Vuln, len(scheme))
 		for _, v := range vulns {
 			if _, ok := byCVE[v.CVE]; !ok { // the first, as the loop above reads it
 				byCVE[v.CVE] = v
 			}
 		}
-		for _, n := range res.NotComparable {
+		for _, n := range scheme { // the OS row is not in sws here: its entries are listed only from this
 			if !decided[n.CVE] { // a finding or an "add the version" item of another row decides it (#910 rule 1)
 				res.Unchecked = append(res.Unchecked, uncheckedOf(os, byCVE[n.CVE], uncheckedReason(os, in, byCVE[n.CVE])))
 			}

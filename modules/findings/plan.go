@@ -367,7 +367,7 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 				if !ok || w.t != Yes || w.within.EndExcl == "" {
 					continue
 				}
-			} else if t, within, _, _ := decide(in, v, false); t != Yes || within.EndExcl == "" && within.EndIncl == "" {
+			} else if t, within, _, _ := decide(in, v, keyIDs(v)); t != Yes || within.EndExcl == "" && within.EndIncl == "" {
 				continue
 			}
 			mine = append(mine, v)
@@ -490,7 +490,7 @@ func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []V
 		if win {
 			return windowsGroupFix(in, vs)
 		}
-		return groupFixOf(in, vs)
+		return groupFixOf(in, vs, nil)
 	}
 	base := a.ID + "/" + s.ID
 	item := func(g *GroupFix, suffix string) PlanItem {

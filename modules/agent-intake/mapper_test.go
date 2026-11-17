@@ -292,3 +292,27 @@ func TestMapPackagesSourceOfAnotherRelease(t *testing.T) {
 		}
 	}
 }
+
+// #910, review r1 (4) of #913: a vendor's own package (Google's, Microsoft's repository) carries the product's own release, so its
+// row is not Packaged and findings compares it with NVD's ranges; the distribution's own browser package stays Packaged.
+func TestMapPackagesVendorBuildIsNotTheDistributions(t *testing.T) {
+	t.Parallel()
+	items, _ := mapPackages(map[string][]row{
+		"deb_packages": {
+			{"name": "google-chrome-stable", "version": "120.0.6099.109-1"},
+			{"name": "microsoft-edge-stable", "version": "120.0.2210.61-1"},
+			{"name": "firefox-esr", "version": "115.6.0esr-1~deb12u1", "source": "firefox-esr"},
+		},
+		"rpm_packages": {{"name": "google-chrome-stable", "version": "121.0.6167.85"}},
+	}, 10)
+	want := map[string]bool{"Chrome 120.0.6099.109": false, "Edge 120.0.2210.61": false, "Firefox 115.6.0esr": true, "Chrome 121.0.6167.85": false}
+	if len(items) != len(want) {
+		t.Fatalf("%d items: %+v", len(items), items)
+	}
+	for _, it := range items {
+		k := it.Product + " " + it.Version
+		if p, ok := want[k]; !ok || it.Packaged != p || !p && (it.PkgVersion != "" || it.PkgSource != "") || len(it.KevKeys) != 1 {
+			t.Errorf("%s: packaged %v pkg %q/%q keys %v", k, it.Packaged, it.PkgVersion, it.PkgSource, it.KevKeys)
+		}
+	}
+}

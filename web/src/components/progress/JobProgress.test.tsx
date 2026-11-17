@@ -11,7 +11,7 @@ const ago = (ms: number) => new Date(NOW - ms).toISOString()
 const ahead = (ms: number) => new Date(NOW + ms).toISOString()
 const job = (p: Partial<Progress> = {}): Progress => ({
   phase: 'ports', percent: 42.4, done: null, total: null, unit: null,
-  started_at: ago(130_000), phase_started_at: ago(60_000), updated_at: ago(2_000), eta: null, message: null, ...p,
+  started_at: ago(130_000), phase_started_at: ago(60_000), updated_at: ago(2_000), eta: null, ends_by: null, message: null, ...p,
 })
 const freeze = () => { vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] }); vi.setSystemTime(NOW) }
 const live = () => document.querySelector('[aria-live="polite"]')!
@@ -115,5 +115,25 @@ describe('JobProgress (#830)', () => {
     expect(sayDuration(s, 130_000)).toBe('2 min 10 s')
     expect(sayDuration(s, 12 * 60_000 + 5_000)).toBe('12 min')
     expect(sayDuration(s, 65 * 60_000)).toBe('1 h 5 min')
+  })
+
+  it('OpenVAS at 95% or more (or past its ETA): no minutes-left, the box\'s latest end; below: the normal estimate (#915)', () => {
+    freeze()
+    const endsBy = ahead(10 * 60_000)
+    const stop = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(endsBy))
+    const { rerender } = render(<JobProgress progress={job({ phase: 'openvas', percent: 98, ends_by: endsBy, eta: ahead(2 * 60_000) })} />)
+    expect(screen.getByText(`OpenVAS is finishing its last checks (its slowest part). It stops by ${stop} at the latest and keeps what it found.`)).toBeInTheDocument()
+    expect(screen.queryByText(/left in this step/)).toBeNull()
+    rerender(<JobProgress progress={job({ phase: 'openvas', percent: 60, ends_by: endsBy, eta: ahead(10 * 60_000) })} />)
+    expect(screen.getByText(/about 10 min left in this step/)).toBeInTheDocument()
+    expect(screen.queryByText(/finishing its last checks/)).toBeNull()
+    rerender(<JobProgress progress={job({ phase: 'openvas', percent: 60, ends_by: endsBy, eta: ago(1_000) })} />)
+    expect(screen.getByText(/finishing its last checks/)).toBeInTheDocument()
+    rerender(<JobProgress progress={job({ phase: 'vulns', percent: 97, ends_by: null, eta: ahead(3 * 60_000) })} />)
+    expect(screen.getByText(/about 3 min left in this step/)).toBeInTheDocument()
+    expect(screen.queryByText(/finishing its last checks/)).toBeNull()
+    rerender(<JobProgress progress={job({ phase: 'openvas', percent: 99, ends_by: ago(1_000), eta: ago(5_000) })} />)
+    expect(screen.getByText('OpenVAS reached its time limit and is collecting what it found.')).toBeInTheDocument()
+    expect(screen.queryByText(/stops by/)).toBeNull()
   })
 })

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/store"
@@ -15,13 +16,25 @@ import (
 
 // Corrections (BN340, INV-39): a person says what a device really runs where Vedette shows it. The device's OS is a manual
 // observation, which wins the field over every sensor and agent (INV-1); a software row a sensor or agent reported is corrected by a
-// manual row linked to it (inv_software.corrects), which replaces it for matching while it stands. Neither is ever touched by a later
+// manual row linked to exactly that row (inv_software.corrects: its source, product and version), which replaces it for matching
+// while it stands; another install of the product (another version, another source) keeps matching (review r1 H1 of #950). Neither is ever touched by a later
 // scan or report: what the sources read keeps being recorded, and the device page shows it next to the correction when they disagree.
 // Clearing a correction deletes the person's value, and the device is back to what its sources read. Every change is audited.
 
+// rowKey is the SQL identity of a reported row (alias s) a correction stores in corrects: source, lower(vendor), lower(product) and
+// version, joined by char(31) (no stored name holds a control character, review r1 L5). inv_software_uq allows one row per key.
+func rowKey(s string) string {
+	return s + `.source || char(31) || lower(` + s + `.vendor) || char(31) || lower(` + s + `.product) || char(31) || ifnull(` + s + `.version, '')`
+}
+
+// productKey is the start of rowKey without the version: the rows one source reports for one product.
+func productKey(s string) string {
+	return s + `.source || char(31) || lower(` + s + `.vendor) || char(31) || lower(` + s + `.product) || char(31)`
+}
+
 // liveSW is the SQL condition on a software row (alias s) that counts for matching and the "Do you have it?" lists: every row but a
-// row a sensor or agent reported that a person's correction replaces (INV-39).
-const liveSW = `(s.source = 'manual' OR NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = lower(s.vendor) || '|' || lower(s.product)))`
+// reported row a person's correction replaces (INV-39).
+var liveSW = `(s.source = 'manual' OR NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `))`
 
 // pkgVersionRE is a distribution's full package version as a person copies it from the device: Debian's "1:9.6p1-3ubuntu13.14",
 // Alpine's "10.2_p1-r1", RPM's "8.7p1-38.el9_4.4".
@@ -36,16 +49,25 @@ func osText(s string) bool {
 
 const badOS = "The operating system is at most 200 characters and cannot contain < or >, control characters or invisible characters. Example: Alpine Linux 3.23."
 
-// manualOS is the OS a person set on the device and when, ok false when none.
-func manualOS(ctx context.Context, q querier, id string) (value, setAt string, ok bool, err error) {
-	err = q.QueryRowContext(ctx, `SELECT value, seen_at FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual' ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&value, &setAt)
+// manualOS is the OS a person set on the device, when and who (the observation's evidence), ok false when none.
+func manualOS(ctx context.Context, q querier, id string) (value, setAt, setBy string, ok bool, err error) {
+	err = q.QueryRowContext(ctx, `SELECT value, seen_at, ifnull(evidence, '') FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual' ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&value, &setAt, &setBy)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", "", false, nil
+		return "", "", "", false, nil
 	}
 	if err != nil {
-		return "", "", false, fmt.Errorf("inventory: read the corrected OS: %w", err)
+		return "", "", "", false, fmt.Errorf("inventory: read the corrected OS: %w", err)
 	}
-	return value, setAt, true, nil
+	return value, setAt, setBy, true, nil
+}
+
+// correctionDay is the day of a stored time in the findings history's words ("17 Nov 2026"); the stored text when it does not parse.
+func correctionDay(at string) string {
+	t, err := time.Parse(time.RFC3339Nano, at)
+	if err != nil {
+		return at
+	}
+	return t.UTC().Format("2 Jan 2006")
 }
 
 // detectedOS is the OS the device's sources read, the person's left out: the value that would win without the correction.
@@ -76,7 +98,7 @@ func detectedOS(ctx context.Context, q querier, id string) (*Observed, error) {
 // setOSTx sets (os != "") or clears (os == "") the person's OS of a device, in PatchDevice's transaction. changed is false when
 // nothing changes (the same value again, or clearing a device with no correction): no audit row then.
 func (s *Service) setOSTx(ctx context.Context, tx *sql.Tx, actor, id, name, os string) (changed bool, err error) {
-	old, _, had, err := manualOS(ctx, tx, id)
+	old, _, _, had, err := manualOS(ctx, tx, id)
 	if err != nil {
 		return false, err
 	}
@@ -92,8 +114,9 @@ func (s *Service) setOSTx(ctx context.Context, tx *sql.Tx, actor, id, name, os s
 		return false, fmt.Errorf("inventory: clear the corrected OS: %w", err)
 	}
 	if os != "" {
-		if err := insertObs(ctx, tx, id, "os", os, "manual", 1, s.now()); err != nil {
-			return false, err
+		if _, err := tx.ExecContext(ctx, `INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at, evidence) VALUES (?, ?, 'os', ?, 'manual', 1, ?, ?)`,
+			store.NewID("o"), id, os, s.now(), nullStr(actor)); err != nil { // evidence: who set it, for the findings history
+			return false, fmt.Errorf("inventory: record the corrected OS: %w", err)
 		}
 	}
 	if _, err := s.RecomputeAsset(ctx, tx, id); err != nil {
@@ -120,7 +143,7 @@ type OSCorrection struct {
 }
 
 func osCorrection(ctx context.Context, q querier, id string) (*OSCorrection, error) {
-	v, at, ok, err := manualOS(ctx, q, id)
+	v, at, _, ok, err := manualOS(ctx, q, id)
 	if err != nil || !ok {
 		return nil, err
 	}
@@ -149,11 +172,12 @@ type SoftwareEdit struct {
 
 func (e SoftwareEdit) product() bool { return e.CatalogID != "" || e.Vendor != "" || e.Product != "" }
 
-// EditSoftware changes a software row of a device (INV-39). A row a person declared changes in place; changing only its version is
-// SetSoftwareVersion (D-471). A row a sensor or agent reported is corrected: the person's values go in a manual row linked to it
-// (the existing correction of that product when there is one), and that row replaces it for matching while it stands; the next scan
-// or report keeps writing its own row, shown next to the correction. Fields not given keep the corrected row's values (a new
-// correction starts from the detected row, its package release excepted). The device's findings are matched again after the commit.
+// EditSoftware changes a software row of a device (INV-39). A row a person declared changes in place (D-471). A row a sensor or agent
+// reported is corrected: the person's values go in a manual row linked to exactly that row (its source, product and version), the
+// existing correction of that row when there is one, and that row replaces it for matching while it stands; another install of the
+// product keeps matching. What the person does not change is kept (review r1 M1): the CPE, the packaged flag and the source package,
+// and the package release while the version stays; another product starts clean. The device's findings are matched again after the
+// commit.
 func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID string, e SoftwareEdit) error {
 	if err := s.requireDevice(ctx, assetID); err != nil {
 		return err
@@ -187,14 +211,15 @@ func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID s
 		}
 	}
 	var source string
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT source FROM inv_software WHERE id = ? AND asset_id = ?`, softwareID, assetID).Scan(&source)
+	var corrects sql.NullString
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT source, corrects FROM inv_software WHERE id = ? AND asset_id = ?`, softwareID, assetID).Scan(&source, &corrects)
 	if errors.Is(err, sql.ErrNoRows) {
 		return apierr.New(404, apierr.CodeNotFound, "No such software on this device.")
 	} else if err != nil {
 		return fmt.Errorf("inventory: read software: %w", err)
 	}
-	if source == "manual" && e.PkgVersion == nil && entry == nil {
-		return s.SetSoftwareVersion(ctx, actor, assetID, softwareID, *e.Version)
+	if source == "manual" && !corrects.Valid && e.PkgVersion == nil && entry == nil {
+		return s.SetSoftwareVersion(ctx, actor, assetID, softwareID, *e.Version) // a declared row's version (D-471)
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		return s.editSoftwareTx(ctx, tx, o, actor, assetID, softwareID, e, entry)
@@ -203,13 +228,15 @@ func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID s
 
 // swRow is a software row as EditSoftware reads it.
 type swRow struct {
-	id, display, vendor, product, version, source, pkgVersion, pkgSource, corrects string
+	id, display, vendor, product, version, cpe, source, pkgVersion, pkgSource, corrects, key string
+	packaged                                                                                 bool
 }
 
 func readSW(ctx context.Context, q querier, where string, args ...any) (swRow, error) {
 	var r swRow
-	err := q.QueryRowContext(ctx, `SELECT id, display, vendor, product, ifnull(version, ''), source, ifnull(pkg_version, ''), ifnull(pkg_source, ''), ifnull(corrects, '')
-		FROM inv_software WHERE `+where, args...).Scan(&r.id, &r.display, &r.vendor, &r.product, &r.version, &r.source, &r.pkgVersion, &r.pkgSource, &r.corrects)
+	err := q.QueryRowContext(ctx, `SELECT id, display, vendor, product, ifnull(version, ''), ifnull(cpe, ''), source, packaged, ifnull(pkg_version, ''), ifnull(pkg_source, ''),
+		ifnull(corrects, ''), `+rowKey("inv_software")+` FROM inv_software WHERE `+where, args...).
+		Scan(&r.id, &r.display, &r.vendor, &r.product, &r.version, &r.cpe, &r.source, &r.packaged, &r.pkgVersion, &r.pkgSource, &r.corrects, &r.key)
 	return r, err
 }
 
@@ -236,32 +263,39 @@ func (s *Service) editSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, act
 	} else if err != nil {
 		return fmt.Errorf("inventory: read software: %w", err)
 	}
-	detected := row
-	target := row // the manual row that takes the person's values; id "" = a new correction
+	detected := row // what the person corrects, for the audit row
+	target := row   // the manual row that takes the person's values; id "" = a new correction
 	if row.source != "manual" {
-		target, err = readSW(ctx, tx, `asset_id = ? AND corrects = lower(?) || '|' || lower(?)`, assetID, row.vendor, row.product)
+		target, err = readSW(ctx, tx, `asset_id = ? AND corrects = ?`, assetID, row.key)
 		switch {
-		case errors.Is(err, sql.ErrNoRows): // a new correction starts from what the source read, its package release excepted
-			target = swRow{display: row.display, vendor: row.vendor, product: row.product, version: row.version, source: "manual", pkgSource: row.pkgSource}
+		case errors.Is(err, sql.ErrNoRows): // a new correction starts from what the source read (review r1 M1)
+			target = row
+			target.id, target.source, target.corrects = "", "manual", row.key
 		case err != nil:
 			return fmt.Errorf("inventory: read the correction: %w", err)
 		}
-	} else if row.corrects != "" { // editing a correction: the audit names what it corrects
-		if d, err := readSW(ctx, tx, `asset_id = ? AND source <> 'manual' AND lower(vendor) || '|' || lower(product) = ? ORDER BY seen_at DESC, id LIMIT 1`, assetID, row.corrects); err == nil {
+	} else if row.corrects != "" {
+		if d, err := readSW(ctx, tx, `asset_id = ? AND `+rowKey("inv_software")+` = ?`, assetID, row.corrects); err == nil {
 			detected = d
+		} else { // the source reports it no more: what the correction says it corrected
+			src, _, _, ver := correctedFrom(row.corrects)
+			detected = swRow{display: row.display, version: ver, source: src}
 		}
 	}
 	next := target
-	keys := []string(nil) // nil: the target's keys stay (a new correction copies the detected row's)
-	if entry != nil {
+	keys := []string(nil) // nil: the target's keys stay (a new correction copies the reported row's)
+	if entry != nil && (!strings.EqualFold(entry.vendor, target.vendor) || !strings.EqualFold(entry.product, target.product)) {
 		next.display, next.vendor, next.product, keys = entry.display, entry.vendor, entry.product, entry.kev
 		if keys == nil {
 			keys = []string{}
 		}
-		next.pkgSource = "" // the package of another product is not known
+		next.cpe, next.packaged, next.pkgSource, next.pkgVersion = "", false, "", "" // nothing of another product is known
 	}
-	if e.Version != nil {
+	if e.Version != nil && *e.Version != next.version {
 		next.version = *e.Version
+		if e.PkgVersion == nil {
+			next.pkgVersion = "" // the release of another version is not known (review r1 L3)
+		}
 	}
 	if e.PkgVersion != nil {
 		next.pkgVersion = *e.PkgVersion
@@ -275,20 +309,20 @@ func (s *Service) editSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, act
 	}
 	now := s.now()
 	pkgSrc := nullStr(next.pkgSource)
-	if next.pkgVersion == "" {
+	if !next.packaged && next.pkgVersion == "" {
 		pkgSrc = nil
 	}
 	if target.id == "" {
 		next.id = store.NewID("s")
-		_, err = tx.ExecContext(ctx, `INSERT INTO inv_software (id, asset_id, display, vendor, product, version, source, confidence, seen_at, packaged, pkg_version, pkg_source, corrects)
-			VALUES (?, ?, ?, ?, ?, ?, 'manual', 1, ?, 0, ?, ?, (SELECT lower(vendor) || '|' || lower(product) FROM inv_software WHERE id = ?))`,
-			next.id, assetID, next.display, next.vendor, next.product, nullStr(next.version), now, nullStr(next.pkgVersion), pkgSrc, row.id)
+		_, err = tx.ExecContext(ctx, `INSERT INTO inv_software (id, asset_id, display, vendor, product, version, cpe, source, confidence, seen_at, packaged, pkg_version, pkg_source, corrects, set_by)
+			VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', 1, ?, ?, ?, ?, ?, ?)`,
+			next.id, assetID, next.display, next.vendor, next.product, nullStr(next.version), nullStr(next.cpe), now, next.packaged, nullStr(next.pkgVersion), pkgSrc, next.corrects, nullStr(actor))
 		if err == nil && keys == nil {
 			_, err = tx.ExecContext(ctx, `INSERT INTO inv_software_kev (software_id, kev_key) SELECT ?, kev_key FROM inv_software_kev WHERE software_id = ?`, next.id, row.id)
 		}
 	} else {
-		_, err = tx.ExecContext(ctx, `UPDATE inv_software SET display = ?, vendor = ?, product = ?, version = ?, pkg_version = ?, pkg_source = ?, seen_at = ? WHERE id = ?`,
-			next.display, next.vendor, next.product, nullStr(next.version), nullStr(next.pkgVersion), pkgSrc, now, next.id)
+		_, err = tx.ExecContext(ctx, `UPDATE inv_software SET display = ?, vendor = ?, product = ?, version = ?, cpe = ?, packaged = ?, pkg_version = ?, pkg_source = ?, seen_at = ?, set_by = ? WHERE id = ?`,
+			next.display, next.vendor, next.product, nullStr(next.version), nullStr(next.cpe), next.packaged, nullStr(next.pkgVersion), pkgSrc, now, nullStr(actor), next.id)
 	}
 	if err != nil {
 		if store.IsUniqueViolation(err) {
@@ -317,6 +351,15 @@ func (s *Service) editSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, act
 	return s.auditTx(ctx, tx, actor, "inventory.correct_software", deviceName(ctx, tx, assetID)+": "+detected.display, from+" → "+swText(next.display, next.version, next.pkgVersion))
 }
 
+// correctedFrom splits a corrects value into the reported row's source and version (the vendor and product are lower case).
+func correctedFrom(corrects string) (source, vendor, product, version string) {
+	p := strings.SplitN(corrects, "\x1f", 4)
+	for len(p) < 4 {
+		p = append(p, "")
+	}
+	return p[0], p[1], p[2], p[3]
+}
+
 // SoftwareDetected is the row a sensor or agent reports for the product a person corrected (contract.ts SoftwareCorrection).
 type SoftwareDetected struct {
 	ID         string  `json:"id"`
@@ -327,26 +370,30 @@ type SoftwareDetected struct {
 	SeenAt     string  `json:"seen_at"`
 }
 
-// SoftwareCorrection is on a person's correction of a reported row: when it was set and what the sources read now.
+// SoftwareCorrection is on a person's correction of a reported row: when it was set, by whom, and what that source reads now.
 type SoftwareCorrection struct {
-	SetAt     string            `json:"set_at"`
-	Detected  *SoftwareDetected `json:"detected"`  // the newest row the sources report for the corrected product; nil when none does now
-	Disagrees bool              `json:"disagrees"` // the sources read another product, version or package release than the person's
+	SetAt string `json:"set_at"`
+	SetBy string `json:"set_by"`
+	// Detected is the corrected row when its source still reports it, else that source's newest row of the product (another version,
+	// which matches on its own); nil when the source reports the product no more: say so (review r1 L2).
+	Detected  *SoftwareDetected `json:"detected"`
+	Disagrees bool              `json:"disagrees"` // the source reads another product, version or package release than the person's
 }
 
-// addCorrections fills the correction fields of a device's software views: on a correction, what it corrects; on a reported row a
+// addCorrections fills the correction fields of a device's software views: on a correction, what it corrects; on the reported row a
 // correction replaces, the id of that correction.
 func addCorrections(ctx context.Context, q querier, assetID string, views []SoftwareView) error {
-	rows, err := q.QueryContext(ctx, `SELECT s.id, ifnull(s.pkg_version, ''), ifnull(s.corrects, ''), s.seen_at, lower(s.vendor) || '|' || lower(s.product) FROM inv_software s WHERE s.asset_id = ?`, assetID)
+	rows, err := q.QueryContext(ctx, `SELECT s.id, ifnull(s.pkg_version, ''), ifnull(s.corrects, ''), ifnull(s.set_by, ''), s.seen_at, `+rowKey("s")+`, `+productKey("s")+`
+		FROM inv_software s WHERE s.asset_id = ?`, assetID)
 	if err != nil {
 		return fmt.Errorf("inventory: read corrections: %w", err)
 	}
-	type info struct{ pkg, corrects, seenAt, key string }
+	type info struct{ pkg, corrects, setBy, seenAt, key, product string }
 	byID := map[string]info{}
 	for rows.Next() {
 		var id string
 		var i info
-		if err := rows.Scan(&id, &i.pkg, &i.corrects, &i.seenAt, &i.key); err != nil {
+		if err := rows.Scan(&id, &i.pkg, &i.corrects, &i.setBy, &i.seenAt, &i.key, &i.product); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("inventory: read corrections: %w", err)
 		}
@@ -355,7 +402,7 @@ func addCorrections(ctx context.Context, q querier, assetID string, views []Soft
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return fmt.Errorf("inventory: read corrections: %w", err)
 	}
-	correctionOf := map[string]string{} // product key -> correction id
+	correctionOf := map[string]string{} // reported row key -> correction id
 	for i := range views {
 		if c := byID[views[i].ID].corrects; c != "" && views[i].Source == "manual" {
 			correctionOf[c] = views[i].ID
@@ -379,15 +426,24 @@ func addCorrections(ctx context.Context, q querier, assetID string, views []Soft
 		if v.Source != "manual" || in.corrects == "" {
 			continue
 		}
-		c := &SoftwareCorrection{SetAt: in.seenAt}
-		for j := range views { // the newest reported row of the corrected product
-			d := views[j]
-			if d.Source == "manual" || byID[d.ID].key != in.corrects {
+		c := &SoftwareCorrection{SetAt: in.seenAt, SetBy: in.setBy}
+		var best *SoftwareView // the corrected row itself, else that source's newest row of the product
+		for j := range views {
+			d := &views[j]
+			dk := byID[d.ID]
+			if d.Source == "manual" || !strings.HasPrefix(in.corrects, dk.product) {
 				continue
 			}
-			if c.Detected == nil || byID[d.ID].seenAt > c.Detected.SeenAt {
-				c.Detected = &SoftwareDetected{ID: d.ID, Display: d.Display, Version: d.Version, PkgVersion: d.PkgVersion, Source: d.Source, SeenAt: byID[d.ID].seenAt}
+			if dk.key == in.corrects {
+				best = d
+				break
 			}
+			if best == nil || dk.seenAt > byID[best.ID].seenAt {
+				best = d
+			}
+		}
+		if best != nil {
+			c.Detected = &SoftwareDetected{ID: best.ID, Display: best.Display, Version: best.Version, PkgVersion: best.PkgVersion, Source: best.Source, SeenAt: byID[best.ID].seenAt}
 		}
 		if d := c.Detected; d != nil {
 			c.Disagrees = !strings.EqualFold(d.Display, v.Display) || deref(d.Version) != deref(v.Version) ||
@@ -396,4 +452,15 @@ func addCorrections(ctx context.Context, q querier, assetID string, views []Soft
 		v.Correction = c
 	}
 	return nil
+}
+
+// correctionNote names a person's software correction for the findings history (review r1 M3): "it@acme.example corrected OpenSSH
+// 10.2 (nmap) to OpenSSH 10.2p1 (package 10.2_p1-r1) on 17 Nov 2026".
+func correctionNote(display, version, pkg, corrects, setBy, setAt string) string {
+	src, _, product, from := correctedFrom(corrects)
+	was := display
+	if !strings.EqualFold(strings.ToLower(display), product) && !strings.Contains(strings.ToLower(display), product) {
+		was = product
+	}
+	return cmp.Or(setBy, "a person") + " corrected " + swText(was, from, "") + " (" + src + ") to " + swText(display, version, pkg) + " on " + correctionDay(setAt)
 }

@@ -405,8 +405,9 @@ func TestParseSysDesc(t *testing.T) {
 		{"Linux rocky 5.14.0-362.8.1.el9_3.x86_64 #1 SMP PREEMPT_DYNAMIC Wed Nov 8 17:36:32 UTC 2023 x86_64", "", "Enterprise Linux 9 (RHEL or a rebuild)"},
 		{"Linux ws 6.5.6-300.fc39.x86_64 #1 SMP PREEMPT_DYNAMIC Fri Oct  6 19:57:21 UTC 2023 x86_64", "", "Fedora Linux 39"},
 		{"Linux arch 6.6.1-arch1-1 #1 SMP PREEMPT_DYNAMIC Wed, 08 Nov 2023 16:05:38 +0000 x86_64", "", "Arch Linux"},
-		{"Linux pi 6.1.21-v8+ #1642 SMP PREEMPT Mon Apr  3 17:24:16 BST 2023 aarch64", "", ""}, // no distribution mark
-		{"Linux box 6.6.0 #1 SMP Mon Jan 1 00:00:00 UTC 2024 x86_64", "", ""},                  // a vanilla kernel says none
+		{"Linux arch 6.6.63-1-lts #1 SMP PREEMPT_DYNAMIC Fri, 22 Nov 2024 16:04:27 +0000 x86_64", "", ""}, // Arch's linux-lts: not Alpine (review r1 M2)
+		{"Linux pi 6.1.21-v8+ #1642 SMP PREEMPT Mon Apr  3 17:24:16 BST 2023 aarch64", "", ""},            // no distribution mark
+		{"Linux box 6.6.0 #1 SMP Mon Jan 1 00:00:00 UTC 2024 x86_64", "", ""},                             // a vanilla kernel says none
 		{"Linux host 5.4.0 #1-Alpine-ish", "", ""}, // not the mark
 		{"GS308T", "GS308T", ""},
 		{"Call IT 555 0100 now", "", ""},                                            // a phrase is not a model

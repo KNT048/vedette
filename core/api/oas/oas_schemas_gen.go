@@ -100286,14 +100286,18 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetVersion(val NilSt
 // On a person's correction of a reported row (INV-39): when it was set and what the sources read now.
 // Clear = DELETE the row.
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection struct {
-	// The newest row the sensors or agents report for the corrected product (it no longer matches); null
-	// when none reports it now.
+	// The corrected row when its source still reports it (it does not match while the correction stands),
+	// else that source's newest row of the product at another version (that one matches on its own: a
+	// second install or an update); null when the source reports the product no more: say "no scan or
+	// agent reports it now".
 	Detected NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected `json:"detected"`
 	// The sources read another product, version or package release than the person: show "You set X on ;
 	// the last scan reads Y".
 	Disagrees bool `json:"disagrees"`
 	// When the person set it (or last changed it).
 	SetAt time.Time `json:"set_at"`
+	// Who set it (email); "" for a correction stored without one.
+	SetBy string `json:"set_by"`
 }
 
 // GetDetected returns the value of Detected.
@@ -100311,6 +100315,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetSetAt()
 	return s.SetAt
 }
 
+// GetSetBy returns the value of SetBy.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetSetBy() string {
+	return s.SetBy
+}
+
 // SetDetected sets the value of Detected.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetDetected(val NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) {
 	s.Detected = val
@@ -100324,6 +100333,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetDisagre
 // SetSetAt sets the value of SetAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetSetAt(val time.Time) {
 	s.SetAt = val
+}
+
+// SetSetBy sets the value of SetBy.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetSetBy(val string) {
+	s.SetBy = val
 }
 
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected struct {

@@ -129,7 +129,7 @@ func TestPlatform_D604_PackageReleaseDecides(t *testing.T) {
 	t.Parallel()
 	mine := func(pkg string) Software { // inventory's correction of the scanned row (INV-39): manual, the scan's version, the release
 		s := sshRow("10.2", "", "manual")
-		s.ID, s.PkgVersion = "s-mine", pkg
+		s.ID, s.PkgVersion, s.ReportedSource = "s-mine", pkg, "nmap"
 		return s
 	}
 	agentAPK := func(v string) Software { return sshRow(v, "", "agent") }
@@ -359,7 +359,8 @@ func TestContract_D604_BN340PackageReleaseCloses(t *testing.T) {
 	}
 
 	fixedRow := sshRow("10.2", "", "manual") // inventory's correction (INV-39) replaces the scanned row for matching
-	fixedRow.ID, fixedRow.PkgVersion = "s-mine", "10.2_p1-r1"
+	fixedRow.ID, fixedRow.PkgVersion, fixedRow.ReportedSource = "s-mine", "10.2_p1-r1", "nmap"
+	fixedRow.Correction = "op@example.com corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2 (package 10.2_p1-r1) on 17 Nov 2026"
 	bn340.Software = []Software{fixedRow}
 	r = upsert(bn340)
 	if r.Status != StatusNotRelevant || !strings.HasPrefix(r.ResolutionNote, "Not affected: CVE-2026-123158 affects only") ||

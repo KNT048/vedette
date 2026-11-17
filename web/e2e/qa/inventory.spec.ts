@@ -462,7 +462,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expectAccessible(page, 'setup page with the osquery downloads')
     await page.getByRole('button', { name: 'Create agent token' }).click()
     const dlg = page.getByRole('dialog')
-    await expect(dlg).toContainText('Linux and Windows Server')
+    await expect(dlg).toContainText('Linux and Windows, on PCs and servers')
     await dlg.getByLabel('Token name', { exact: true }).fill('osquery warehouse')
     await expect(dlg.getByLabel('Token lifetime', { exact: true })).toHaveValue('7')
     await dlg.getByLabel('Token name', { exact: true }).press('Enter')
@@ -487,7 +487,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expectAccessible(page, 'agent dialog')
     // uninstall one-liner, Windows tab, manual steps
     await expect(dlg.getByText('Remove osquery from the server again')).toBeVisible()
-    await dlg.getByRole('button', { name: 'Windows Server' }).click()
+    await dlg.getByRole('button', { name: 'Windows', exact: true }).click()
     const winLine = await dlg.getByLabel('PowerShell (Administrator)', { exact: true }).first().innerText()
     expect(winLine).toContain('Get-FileHash')
     expect(winLine).toContain(`-Token '${token}'`)

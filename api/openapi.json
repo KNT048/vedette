@@ -46631,6 +46631,10 @@
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                     "description": "When the person set it (or last changed it)"
                                   },
+                                  "set_by": {
+                                    "type": "string",
+                                    "description": "Who set it (email); \"\" for a correction stored without one"
+                                  },
                                   "detected": {
                                     "anyOf": [
                                       {
@@ -46685,7 +46689,7 @@
                                         "type": "null"
                                       }
                                     ],
-                                    "description": "The newest row the sensors or agents report for the corrected product (it no longer matches); null when none reports it now"
+                                    "description": "The corrected row when its source still reports it (it does not match while the correction stands), else that source's newest row of the product at another version (that one matches on its own: a second install or an update); null when the source reports the product no more: say \"no scan or agent reports it now\""
                                   },
                                   "disagrees": {
                                     "type": "boolean",
@@ -46694,6 +46698,7 @@
                                 },
                                 "required": [
                                   "set_at",
+                                  "set_by",
                                   "detected",
                                   "disagrees"
                                 ],
@@ -47650,7 +47655,7 @@
       },
       "patch": {
         "operationId": "inventory_patch_inventory_devices_id_software_sid",
-        "summary": "Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces the reported row for matching until it is deleted; later scans keep reporting their own row (corrected_by), shown next to it. Fields left out keep their value. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
+        "summary": "Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
         "tags": [
           "inventory"
         ],

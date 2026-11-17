@@ -209,14 +209,14 @@ func platformsIn(text string) []string {
 // package release a person gave (a manual row with Software.PkgVersion, inventory's correction) takes the OS the device states (its
 // agent, its SNMP answer): the person read the release from the device's own package manager, so that package is the device's.
 func platformOS(s Software, a Asset) string {
-	switch {
+	switch b := s.builtBy(); { // a person's correction of an agent or SNMP row keeps that row's evidence (review r1 M1 of #950)
 	case a.ManualOS != "":
 		return a.ManualOS
-	case s.Source == "agent":
+	case b == "agent":
 		return a.AgentOS
-	case s.Source == "snmp":
+	case b == "snmp":
 		return a.SNMPOS // the SNMP answer at the device's own address, never an LLDP frame (review r2)
-	case s.Source == "manual" && s.PkgVersion != "":
+	case s.Source == "manual" && s.PkgVersion != "": // a person's release on a row a scan saw (or typed by hand): the device's own OS
 		return cmp.Or(a.AgentOS, a.SNMPOS, networkStated(a))
 	}
 	return networkStated(a)

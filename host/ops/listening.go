@@ -3,7 +3,9 @@ package ops
 import (
 	"cmp"
 	"context"
+	"maps"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -11,6 +13,174 @@ import (
 
 	"github.com/knt048/vedette/host/api"
 )
+
+// heldByInit is whether pid 1 is the only process that holds the sockets of a port: a socket unit whose service has not started yet
+// (or starts one process per connection, Accept=yes).
+func (o *Ops) heldByInit(inodes []uint64, owners map[uint64][]sockOwner) bool {
+	held := false
+	for _, ino := range inodes {
+		for _, x := range owners[ino] {
+			if x.pid != 1 {
+				return false
+			}
+			held = true
+		}
+	}
+	return held
+}
+
+// socketKey is a port and its protocol (UDP for ListenDatagram=, TCP for ListenStream=).
+type socketKey struct {
+	port uint16
+	udp  bool
+}
+
+// unitDirs are where systemd reads unit files and drop-ins, highest precedence first (systemd.unit(5)): a unit file of the same name
+// in an earlier directory hides the later ones; so does a drop-in of the same name in the same <unit>.d.
+var unitDirs = []string{"etc/systemd/system", "run/systemd/system", "run/systemd/generator", "usr/local/lib/systemd/system", "usr/lib/systemd/system", "lib/systemd/system"}
+
+const (
+	maxUnitFiles = 4096
+	maxUnitBytes = 64 << 10
+)
+
+// socketUnits names, for each port a systemd socket unit listens on, the service it activates ("ssh" for ssh.socket, Service= when
+// set; "foo" for a foo@.service of Accept=yes), read from the unit files and their drop-ins (Ubuntu's sshd-socket-generator writes
+// ssh.socket.d/addresses.conf under /run/systemd/generator): no program runs. A port two socket units claim for different services
+// names neither (never a guess). Unit names keep [A-Za-z0-9@._-] only (cgroupUnit's rule).
+func (o *Ops) socketUnits() map[socketKey]string {
+	files := map[string]string{}              // unit name -> its file, highest precedence
+	dropins := map[string]map[string]string{} // unit name -> drop-in name -> file
+	seen := 0
+	for _, d := range unitDirs {
+		dir := o.path(d)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if seen++; seen > maxUnitFiles {
+				break
+			}
+			name := e.Name()
+			if unit, ok := strings.CutSuffix(name, ".socket.d"); ok && e.IsDir() && validUnitName(unit) {
+				confs, err := os.ReadDir(filepath.Join(dir, name))
+				if err != nil {
+					continue
+				}
+				for _, c := range confs {
+					if !strings.HasSuffix(c.Name(), ".conf") || c.IsDir() {
+						continue
+					}
+					if dropins[unit] == nil {
+						dropins[unit] = map[string]string{}
+					}
+					if _, hidden := dropins[unit][c.Name()]; !hidden {
+						dropins[unit][c.Name()] = filepath.Join(dir, name, c.Name())
+					}
+				}
+				continue
+			}
+			if unit, ok := strings.CutSuffix(name, ".socket"); ok && !e.IsDir() && validUnitName(unit) {
+				if _, hidden := files[unit]; !hidden {
+					files[unit] = filepath.Join(dir, name)
+				}
+			}
+		}
+	}
+	out := map[socketKey]string{}
+	claimed := map[socketKey]bool{}
+	for unit, file := range files {
+		paths := []string{file}
+		names := slices.Sorted(maps.Keys(dropins[unit])) // drop-ins apply in the order of their names, whatever their directory
+		for _, n := range names {
+			paths = append(paths, dropins[unit][n])
+		}
+		keys, service := parseSocketUnit(paths)
+		if service == "" {
+			service = unit
+		}
+		for _, k := range keys {
+			switch {
+			case !claimed[k]:
+				claimed[k], out[k] = true, service
+			case out[k] != service:
+				out[k] = ""
+			}
+		}
+	}
+	return out
+}
+
+// parseSocketUnit reads a socket unit and its drop-ins in order: the ports of its ListenStream= and ListenDatagram= (an empty value
+// resets the list, as systemd does) and the service of Service=, without ".service" or a trailing "@".
+func parseSocketUnit(paths []string) ([]socketKey, string) {
+	var stream, dgram []uint16
+	service := ""
+	for _, p := range paths {
+		b, err := readBounded(p, maxUnitBytes)
+		if err != nil {
+			continue
+		}
+		section := ""
+		for line := range strings.SplitSeq(string(b), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "[") {
+				section = line
+				continue
+			}
+			if section != "[Socket]" {
+				continue
+			}
+			k, v, ok := strings.Cut(line, "=")
+			if !ok {
+				continue
+			}
+			k, v = strings.TrimSpace(k), strings.TrimSpace(v)
+			switch k {
+			case "ListenStream", "ListenDatagram":
+				list := &stream
+				if k == "ListenDatagram" {
+					list = &dgram
+				}
+				if v == "" {
+					*list = nil
+				} else if port, ok := listenPort(v); ok {
+					*list = append(*list, port)
+				}
+			case "Service":
+				if name, ok := strings.CutSuffix(v, ".service"); ok && validUnitName(name) {
+					service = name
+				}
+			}
+		}
+	}
+	var keys []socketKey
+	for _, p := range stream {
+		keys = append(keys, socketKey{p, false})
+	}
+	for _, p := range dgram {
+		keys = append(keys, socketKey{p, true})
+	}
+	return keys, strings.TrimSuffix(service, "@")
+}
+
+// listenPort is the port of a ListenStream=/ListenDatagram= value that names one: "22", "0.0.0.0:22", "[::]:22". A path, a vsock or
+// netlink address, or a value with a specifier holds no port.
+func listenPort(v string) (uint16, bool) {
+	if ap, err := netip.ParseAddrPort(v); err == nil {
+		return ap.Port(), ap.Port() != 0
+	}
+	n, err := strconv.ParseUint(v, 10, 16)
+	return uint16(n), err == nil && n != 0
+}
+
+// validUnitName keeps a unit name of [A-Za-z0-9@._-], 1 to 64 characters (cgroupUnit's rule).
+func validUnitName(name string) bool {
+	return name != "" && len(name) <= 64 && !strings.ContainsFunc(name, func(r rune) bool {
+		return (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '@' && r != '.' && r != '_' && r != '-'
+	})
+}
 
 // readPorts is GET /v1/state/ports (inventory INV-3, host INV-9b): the ports the box listens on at an address other than loopback,
 // for its own device's Open services. The box is never scanned by its own sensor, and an agent-style list is what it can give of
@@ -27,22 +197,19 @@ func (o *Ops) readPorts(ctx context.Context) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	type key struct {
-		port uint16
-		udp  bool
-	}
-	inodes := map[key][]uint64{}
+	inodes := map[socketKey][]uint64{}
 	want := map[uint64]bool{}
 	lan := o.cardAddrs()
 	for _, s := range socks {
 		if (!s.addr.IsUnspecified() && !lan[s.addr]) || (s.udp && s.peer) {
 			continue
 		}
-		k := key{s.port, s.udp}
+		k := socketKey{s.port, s.udp}
 		inodes[k] = append(inodes[k], s.inode)
 		want[s.inode] = true
 	}
 	owners := o.socketOwners(want, "")
+	var units map[socketKey]string // read once, only when systemd alone holds a port
 	out := api.PortsState{Ports: make([]api.ListenPort, 0, len(inodes))}
 	for k, list := range inodes {
 		p := api.ListenPort{Port: int(k.port), Proto: api.ProtoTCP}
@@ -50,6 +217,14 @@ func (o *Ops) readPorts(ctx context.Context) (any, error) {
 			p.Proto = api.ProtoUDP
 		}
 		p.Process = o.portOwner(list, owners)
+		if p.Process == "systemd" && o.heldByInit(list, owners) {
+			if units == nil {
+				units = o.socketUnits()
+			}
+			if u := units[k]; u != "" {
+				p.Process = u
+			}
+		}
 		out.Ports = append(out.Ports, p)
 	}
 	slices.SortFunc(out.Ports, func(a, b api.ListenPort) int {
@@ -96,11 +271,17 @@ func (o *Ops) cardAddrs() map[netip.Addr]bool {
 }
 
 // portOwner names what holds a port: the first named owner of its sockets in the order of the inodes (lowest pid first among the
-// owners of one socket), "" when none was found.
+// owners of one socket, systemd (pid 1) last: a socket-activated service such as Ubuntu's ssh.socket → sshd holds the socket systemd
+// passed it, and is what serves the port), "" when none was found.
 func (o *Ops) portOwner(inodes []uint64, owners map[uint64][]sockOwner) string {
 	for _, ino := range inodes {
 		ow := slices.Clone(owners[ino])
-		slices.SortFunc(ow, func(a, b sockOwner) int { return cmp.Compare(a.pid, b.pid) })
+		slices.SortFunc(ow, func(a, b sockOwner) int {
+			if (a.pid == 1) != (b.pid == 1) {
+				return cmp.Compare(b.pid, a.pid) // pid 1 is the lower of the two: it goes after
+			}
+			return cmp.Compare(a.pid, b.pid)
+		})
 		for _, x := range ow {
 			if n := o.processName(x); n != "" {
 				return n

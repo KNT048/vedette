@@ -129,6 +129,10 @@ func TestSNMPMovedOutFollowsTheNewestAnswerAndGoesWithTheCredential(t *testing.T
 	if w.count(`SELECT count(*) FROM sa_snmp_answer WHERE asset_id = 'a-sw' AND ip = '192.168.10.20'`) != 1 {
 		t.Fatal("the round did not record which device answered")
 	}
+	// n82: what the device said stays with the answer, cleaned, so a layout no rule reads yet can be read on the box.
+	if w.count(`SELECT count(*) FROM sa_snmp_answer WHERE asset_id = 'a-sw' AND sys_descr LIKE 'Juniper Networks, Inc. ex4200-48t %' AND sys_object_id = '.1.3.6.1.4.1.2636.1.1.1.2.31'`) != 1 {
+		t.Fatal("the answer's sysDescr and sysObjectID were not kept")
+	}
 	w.moveSwitch("192.168.10.30")
 	if got := w.movedOf("old"); len(got) != 1 {
 		t.Fatalf("moved out %+v", got)

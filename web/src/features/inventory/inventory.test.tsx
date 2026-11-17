@@ -2142,6 +2142,14 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     await expectNoA11yViolations()
   })
 
+  it('n82: the box\'s own open services are read by the box itself: "This box", not "Agent"', async () => {
+    renderApp(`/devices/${BOX_ID}?tab=services`)
+    const table = await screen.findByRole('table', { name: 'Services open on the device' }, T)
+    const ssh = within(table).getByText('sshd').closest('tr')!
+    expect(within(ssh).getByText('This box')).toBeInTheDocument()
+    expect(within(table).queryByText('Agent')).toBeNull()
+  })
+
   it('S-CORE-9 G3: on the appliance the box page says its packages are read with dpkg', async () => {
     renderApp(`/devices/${BOX_ID}`)
     expect(await screen.findByText(/Its packages are read from the box \(dpkg\)/, undefined, T)).toBeInTheDocument()

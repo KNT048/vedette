@@ -11,8 +11,8 @@ import (
 // vendor's layout gives a model and an OS, each a short token; any other description gives nothing, except a
 // description that is one short token with a digit (a bare model name like "GS308T"), which is the model.
 //
-// ponytail: five layouts (Juniper, Cisco IOS/IOS XE, HP/Aruba ProCurve, MikroTik RouterOS, lldpd on Linux); a new
-// vendor is one more row here with a test.
+// ponytail: six layouts (Juniper, Cisco IOS/IOS XE, HP/Aruba ProCurve, MikroTik RouterOS, lldpd on Linux, and net-snmp's
+// uname layout on Linux); a new vendor is one more row here with a test.
 
 // maxBareDesc is the longest description taken as the model itself (one token, at least one digit).
 const maxBareDesc = 40
@@ -29,6 +29,9 @@ var (
 	descMikroTik = regexp.MustCompile(`^MikroTik RouterOS ([0-9][0-9.]{0,15}(?:beta[0-9]{1,3}|rc[0-9]{1,3})?) \([a-z -]{1,20}\) ([A-Za-z0-9][A-Za-z0-9+-]{1,39})$`)
 	// lldpd: "Ubuntu 22.04.3 LTS Linux 5.15.0-91-generic #101-Ubuntu SMP …"
 	descLinux = regexp.MustCompile(`^((?:Ubuntu|Debian GNU/Linux|Debian|Fedora Linux|Fedora|Rocky Linux|AlmaLinux|Red Hat Enterprise Linux|CentOS Stream|CentOS Linux|Alpine Linux|openSUSE Leap|Arch Linux|Raspbian GNU/Linux|OpenWrt) [0-9][A-Za-z0-9 .()-]{0,30}?) Linux [0-9][A-Za-z0-9._+-]{0,60} #`)
+	// net-snmp on Linux answers sysDescr with uname -a: "Linux BN340 6.18.63-0-lts #1-Alpine SMP PREEMPT_DYNAMIC 2026-11-11 01:31:28
+	// x86_64" (BN340, n82). Only the kernel's own build marks name a distribution (unameDistros); the host name is skipped.
+	descUname = regexp.MustCompile(`^Linux [A-Za-z0-9][A-Za-z0-9._-]{0,62} ([0-9][A-Za-z0-9._+~-]{0,80}) (#.*)$`)
 	// what a bare model looks like: one token of letters, digits and a few separators, with at least one digit
 	descBare  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9+._/-]*$`)
 	descDigit = regexp.MustCompile(`[0-9]`)
@@ -60,8 +63,53 @@ func parseSysDesc(desc string) (model, os string) {
 	if m := descLinux.FindStringSubmatch(desc); m != nil {
 		return "", strings.TrimSpace(m[1])
 	}
+	if m := descUname.FindStringSubmatch(desc); m != nil {
+		return "", unameOS(m[1], m[2])
+	}
 	if len(desc) <= maxBareDesc && descBare.MatchString(desc) && descDigit.MatchString(desc) {
 		return desc, ""
 	}
 	return "", ""
+}
+
+// unameDistros are the marks a distribution's kernel build leaves in uname's release and version, in order: the first that matches
+// names the OS, with the release number only when the mark carries it (Fedora's fc39, Enterprise Linux's el9, a Debian backport's
+// deb11). A kernel with no such mark (a vanilla or vendor build, Raspberry Pi's "6.1.21-v8+") says no distribution: "".
+var unameDistros = []struct {
+	re   *regexp.Regexp // matched against release + " " + version
+	name string         // "%s" is the first group
+}{
+	// Alpine: "6.18.63-0-lts #1-Alpine SMP …"; the release's "-<pkgrel>-<flavour>" is Alpine's own naming (lts, virt, rpi, edge).
+	{regexp.MustCompile(`#[0-9]{1,6}-Alpine(?: |$)|^[0-9]+\.[0-9]+\.[0-9]+-[0-9]{1,4}-(?:lts|virt|rpi|edge) `), "Alpine Linux"},
+	// Ubuntu: "5.15.0-91-generic #101-Ubuntu SMP …"; the kernel's ABI does not say which Ubuntu release, so no number.
+	{regexp.MustCompile(`#[0-9]{1,6}(?:~[0-9.]{1,10})?-Ubuntu(?: |$)`), "Ubuntu"},
+	// A Debian backport kernel names the release it was built for: "6.1.0-0.deb11.17-amd64".
+	{regexp.MustCompile(`[.+]deb([0-9]{1,2})(?:u[0-9]{1,3})?\b`), "Debian %s"},
+	// Debian: "6.1.0-18-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.76-1 (2024-02-01)".
+	{regexp.MustCompile(`\bDebian [0-9]`), "Debian"},
+	// Fedora: "6.5.6-300.fc39.x86_64".
+	{regexp.MustCompile(`\.fc([0-9]{2})\b`), "Fedora Linux %s"},
+	// Red Hat Enterprise Linux and its rebuilds (Rocky, AlmaLinux, CentOS, Oracle): "4.18.0-513.5.1.el8_9.x86_64", "5.14.0-362.8.1.el9_3".
+	// The kernel does not say which of them.
+	{regexp.MustCompile(`\.el([0-9]{1,2})(?:_[0-9]{1,2})?\b`), "Enterprise Linux %s (RHEL or a rebuild)"},
+	// Arch Linux: "6.6.1-arch1-1".
+	{regexp.MustCompile(`^[0-9.]+-arch[0-9]{1,3}-[0-9]{1,3} `), "Arch Linux"},
+	// SUSE names itself only in a build string that says so.
+	{regexp.MustCompile(`\b(?:open)?SUSE\b`), "SUSE Linux"},
+}
+
+// unameOS is the distribution a uname release and version prove ("" when none).
+func unameOS(release, version string) string {
+	text := release + " " + version
+	for _, d := range unameDistros {
+		m := d.re.FindStringSubmatch(text)
+		if m == nil {
+			continue
+		}
+		if strings.Contains(d.name, "%s") {
+			return strings.Replace(d.name, "%s", m[1], 1)
+		}
+		return d.name
+	}
+	return ""
 }

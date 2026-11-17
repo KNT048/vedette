@@ -61,6 +61,8 @@
       "addToScope": "Add {{ip}} to {{name}}",
       "addToScopeHint": "Vedette asks for the credential's community or passwords again before it sends them to one more address.",
       "credential": "Credential",
+      "choose": "Choose a credential",
+      "noneCovers": "None of your SNMP credentials covers {{ip}}, so a read with one of them is refused. Choose one and add {{ip}} to its scope, or choose \"+ New credential\" to add one for {{ip}}.",
       "read": "Read this device now",
       "scopeHint": "In the scan window Vedette reads the device again with every credential whose scope holds its address. A credential whose scope does not hold it says so here.",
       "addTurnsOn": "Add SNMP",

@@ -394,6 +394,20 @@ func TestParseSysDesc(t *testing.T) {
 		{"Aruba JL261A 2930F-24G-PoE+-4SFP Switch, revision WC.16.10.0011, ROM WC.16.01.0008 (/ws/swbuildm/rel_x/code/build/lld(swbuildm_rel))", "2930F-24G-PoE+-4SFP", "ArubaOS-Switch WC.16.10.0011"},
 		{"MikroTik RouterOS 6.49.10 (long-term) CRS326-24G-2S+", "CRS326-24G-2S+", "RouterOS 6.49.10"},
 		{"Ubuntu 22.04.3 LTS Linux 5.15.0-91-generic #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023 x86_64", "", "Ubuntu 22.04.3 LTS"},
+		// net-snmp's uname layout (n82): the kernel build's marks only; a release number only when the mark carries one.
+		{"Linux BN340 6.18.63-0-lts #1-Alpine SMP PREEMPT_DYNAMIC 2026-11-11 01:31:28 x86_64", "", "Alpine Linux"},
+		{"Linux fw 6.6.58-0-virt #1-Alpine SMP PREEMPT_DYNAMIC Tue, 22 Oct 2024 x86_64", "", "Alpine Linux"},
+		{"Linux web1 5.15.0-91-generic #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023 x86_64", "", "Ubuntu"},
+		{"Linux web2 6.5.0-14-generic #14~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Mon Nov 20 18:15:30 UTC 2 x86_64", "", "Ubuntu"},
+		{"Linux db 6.1.0-18-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.76-1 (2024-02-01) x86_64", "", "Debian"},
+		{"Linux old 6.1.0-0.deb11.17-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.69-1~bpo11+1 (2024-01-05) x86_64", "", "Debian 11"},
+		{"Linux rh 4.18.0-513.5.1.el8_9.x86_64 #1 SMP Fri Nov 17 03:31:10 EST 2023 x86_64", "", "Enterprise Linux 8 (RHEL or a rebuild)"},
+		{"Linux rocky 5.14.0-362.8.1.el9_3.x86_64 #1 SMP PREEMPT_DYNAMIC Wed Nov 8 17:36:32 UTC 2023 x86_64", "", "Enterprise Linux 9 (RHEL or a rebuild)"},
+		{"Linux ws 6.5.6-300.fc39.x86_64 #1 SMP PREEMPT_DYNAMIC Fri Oct  6 19:57:21 UTC 2023 x86_64", "", "Fedora Linux 39"},
+		{"Linux arch 6.6.1-arch1-1 #1 SMP PREEMPT_DYNAMIC Wed, 08 Nov 2023 16:05:38 +0000 x86_64", "", "Arch Linux"},
+		{"Linux pi 6.1.21-v8+ #1642 SMP PREEMPT Mon Apr  3 17:24:16 BST 2023 aarch64", "", ""}, // no distribution mark
+		{"Linux box 6.6.0 #1 SMP Mon Jan 1 00:00:00 UTC 2024 x86_64", "", ""},                  // a vanilla kernel says none
+		{"Linux host 5.4.0 #1-Alpine-ish", "", ""},                                              // not the mark
 		{"GS308T", "GS308T", ""},
 		{"Call IT 555 0100 now", "", ""},                                            // a phrase is not a model
 		{"Pwned 1 Linux 5.15.0-91-generic #101", "", ""},                            // not a known distribution

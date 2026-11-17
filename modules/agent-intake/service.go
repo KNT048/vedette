@@ -47,6 +47,7 @@ type Config struct {
 	Sink     observe.Sink         // the inventory: device observations (core/observe)
 	Software observe.SoftwareSink // the inventory: the software list of a device
 	Approver observe.Approver     // the inventory: the enrolment approves the device a node reports on (D-503)
+	Services observe.ServiceSink  // the inventory: the open ports a machine's agent reports (INV-22); nil: they are not recorded
 	Secrets  *secrets.Store       // the Wazuh password (purpose intake_wazuh.password)
 	Conn     *conn.Service        // the HTTPS client and address policy of D-94 for the Wazuh server (D-305)
 	Clock    func() time.Time

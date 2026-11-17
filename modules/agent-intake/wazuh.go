@@ -730,6 +730,9 @@ func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent, gene
 	if dropped > 0 {
 		s.cfg.Log.InfoContext(ctx, "agent-intake: wazuh rows dropped", "agent", a.ID, "rows_not_fitting", dropped)
 	}
+	if err := s.wazuhServices(ctx, c, a.ID, hint); err != nil {
+		return 0, err
+	}
 	if len(items) == 0 { // an agent whose syscollector is off or empty never wipes what is known (D-169 (13))
 		return 0, nil
 	}
@@ -741,6 +744,47 @@ func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent, gene
 		return 0, nil
 	}
 	return len(items), nil
+}
+
+// wazuhServices delivers an agent's open ports (INV-22): its syscollector ports that listen (TCP in state listening, UDP with no peer),
+// through the same mapper as osquery's. An agent whose ports scan is off or not done yet gives no row: what is known stays (as for
+// packages); an answer the account may not read or that is not understood skips the ports of that agent only.
+func (s *Service) wazuhServices(ctx context.Context, c *wazuhClient, id string, hint observe.AssetHint) error {
+	if s.cfg.Services == nil {
+		return nil
+	}
+	rows, err := c.ports(ctx, id)
+	var we *wazuhErr
+	if errors.As(err, &we) && !we.fatal() {
+		s.cfg.Log.InfoContext(ctx, "agent-intake: the ports of a wazuh agent were not read", "agent", id, "error", err.Error())
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	if err := s.cfg.Services.ReplaceServices(ctx, hint, observe.Agent, mapServices(wazuhListening(rows))); err != nil {
+		if transient(err) {
+			return fmt.Errorf("agentintake: services: %w", err)
+		}
+		s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused a wazuh list of open ports", "agent", id, "error", err.Error())
+	}
+	return nil
+}
+
+// wazuhListening keeps the listening rows of an agent's syscollector ports.
+func wazuhListening(rows []wzPort) []listening {
+	out := make([]listening, 0, len(rows))
+	for _, r := range rows {
+		proto := strings.TrimSuffix(r.Protocol, "6")
+		switch {
+		case proto == "tcp" && r.State == "listening", proto == "udp" && r.Remote.Port == 0:
+			out = append(out, listening{port: r.Local.Port, proto: proto, addr: r.Local.IP, program: r.Process})
+		}
+	}
+	return out
 }
 
 // wazuhFacts turns the agent row into the os_version and system_info rows the osquery mapper reads (one mapper, plan 3.1).

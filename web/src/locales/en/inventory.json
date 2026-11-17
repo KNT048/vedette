@@ -293,9 +293,9 @@
   },
   "services": {
     "title": "Open services",
-    "description": "Open ports found by scans of this device.",
+    "description": "Open ports found by scans of this device, or listed by its agent or by the box itself.",
     "descriptionInfo": "A normal scan replaces this list with the ports it found open: nmap's 1000 most common ports and the usual alternate admin ports (SSH on 22222, HTTPS on 10443 and the like). Once a week a device that is not fragile gets a scan of every port, in the scan window.",
-    "descriptionInfo2": "A gentle scan only adds ports, and a scan that timed out changes nothing. A port not seen for 90 days is removed.",
+    "descriptionInfo2": "A gentle scan only adds ports, and a scan that timed out changes nothing. An agent (osquery, Wazuh) and the box itself list the ports they listen on, each as its own row. A port not seen for 90 days is removed.",
     "caption": "Services open on the device",
     "port": "Port",
     "name": "Service",
@@ -306,6 +306,10 @@
     "emptyBodyInfo": "Check the scan window in Scope and sensors, or press Check this device now on its page to identify it at once.",
     "emptyFragile": "Fragile device: scanned gently once, then only listened to.",
     "emptyFragileInfo": "Allow regular scans in the settings above if you want it checked again.",
+    "emptyBox": "The box lists the ports it listens on itself, every hour; none has come yet.",
+    "emptyBoxInfo": "vedette-host reads them from the box's own socket tables (no scan). A container-only install has no vedette-host, so its box lists none.",
+    "emptyAgent": "Its agent lists the ports this machine listens on; none has come yet.",
+    "emptyAgentInfo": "osquery reports them within minutes of enrolling, then every hour; Wazuh at each pull, from its syscollector ports scan. A port only this machine can reach (loopback) is not listed.",
     "detail": "What it says"
   },
   "software": {

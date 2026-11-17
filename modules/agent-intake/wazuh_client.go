@@ -34,7 +34,7 @@ var (
 	agentIDRE     = regexp.MustCompile(`^[0-9]{3,10}$`) // the AgentID format of the spec ("numbers", 3 or more)
 	jwtRE         = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$`)
 	apiVersionRE  = regexp.MustCompile(`^v?[0-9]+(\.[0-9]+){0,3}([-+][0-9A-Za-z.]{1,16})?$`)
-	syscollPathRE = regexp.MustCompile(`^/syscollector/[0-9]{3,10}/(netaddr|netiface|packages)$`)
+	syscollPathRE = regexp.MustCompile(`^/syscollector/[0-9]{3,10}/(netaddr|netiface|packages|ports)$`)
 )
 
 // allowedCall is the allow-list of FORBID-4: the login (POST) and the documented read-only GETs, and nothing else.
@@ -353,6 +353,39 @@ func syscollPage[T any](ctx context.Context, c *wazuhClient, id, table, fields s
 		return nil, 0, errBadReply("no " + table + " list")
 	}
 	return page.Data.Items, *page.Data.Total, nil
+}
+
+// wzPort is one row of an agent's syscollector ports: protocol is "tcp", "tcp6", "udp" or "udp6"; state "listening" for a TCP
+// listener (Wazuh's default syscollector reads only listening ports, <ports all="no">); a UDP socket has no state, and one with a
+// remote port is a client.
+type wzPort struct {
+	Local struct {
+		IP   string `json:"ip"`
+		Port int    `json:"port"`
+	} `json:"local"`
+	Remote struct {
+		Port int `json:"port"`
+	} `json:"remote"`
+	Protocol string `json:"protocol"`
+	State    string `json:"state"`
+	Process  string `json:"process"`
+}
+
+// ports reads an agent's open ports (INV-22), at most maxServices rows past the listeners read.
+func (c *wazuhClient) ports(ctx context.Context, id string) ([]wzPort, error) {
+	var out []wzPort
+	for offset := 0; len(out) < maxServices*2; {
+		items, total, err := syscollPage[wzPort](ctx, c, id, "ports", "local.ip,local.port,remote.port,protocol,state,process", offset)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, items...)
+		offset += len(items)
+		if len(items) == 0 || offset >= total {
+			break
+		}
+	}
+	return out, nil
 }
 
 // packages reads an agent's packages, at most maxRows (the inventory's limit per device).

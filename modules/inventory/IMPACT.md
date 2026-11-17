@@ -139,6 +139,9 @@
 ## Modifying: `DevicesRunning` → `DeviceMatch.Display` (KF-3)
 - **feeds** (`MatchedAsset.display`, trang CVE "Devices that run it" khi thiết bị không có tên máy, `cmd/vedette` `feedsInventory.MatchProducts`): tên phần mềm đã khớp. `DeviceRefs` giữ nghĩa cũ (dòng đầu theo tên, hoặc loại) cho người gọi khác.
 
+## Modifying: `Config.BoxPorts`, `RefreshBoxServices` (INV-3, kien 2026-11-17)
+- **cmd/vedette** (`boxPorts`, job `box`): cổng hộp nghe, từ vedette-host `GET /v1/state/ports` (host INV-9b). Dịch vụ nguồn `agent` giờ có trên hộp và trên máy có agent (agent-intake INV-22): người đọc `asset.services` (`scan` danh sách cổng, `mitigation` cổng mở, `ai` mô tả, `devicetypes.Identify` đoán loại theo cổng TCP) thấy cả các dòng đó; tên của dòng agent là tên chương trình (`sshd`), không có sản phẩm hay phiên bản.
+
 ## Modifying: `AddServices` (D-592 review r2 M2)
 - A partial look that names a product updates that port's name, product, version and confidence: **sensor-active** sends the -sV follow-up of the weekly scan of every port through it. A gentle look names no product and changes only `seen_at` and `detail`. Making AddServices overwrite on an empty product would wipe what a normal scan read.
 

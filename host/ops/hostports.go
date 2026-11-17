@@ -120,6 +120,7 @@ type sockEntry struct {
 	port  uint16
 	udp   bool
 	inode uint64
+	peer  bool // a UDP socket connected to one peer (its remote port is set): a client, not a listener (GET /v1/state/ports)
 }
 
 // parseProcNet reads /proc/net/tcp, tcp6, udp or udp6 text: TCP sockets in LISTEN (0A), every UDP socket (a bound one holds its port
@@ -144,7 +145,8 @@ func parseProcNet(r io.Reader, udp bool) ([]sockEntry, error) {
 		if err != nil || perr != nil || ierr != nil || port == 0 {
 			continue
 		}
-		out = append(out, sockEntry{addr: addr, port: uint16(port), udp: udp, inode: inode})
+		_, rp, _ := strings.Cut(f[2], ":")
+		out = append(out, sockEntry{addr: addr, port: uint16(port), udp: udp, inode: inode, peer: rp != "" && strings.Trim(rp, "0") != ""})
 	}
 	return out, sc.Err()
 }

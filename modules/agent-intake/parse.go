@@ -45,6 +45,9 @@ var columns = map[string][]string{
 	"rpm_packages": {"name", "version", "release", "arch", "epoch"},
 	"programs":     {"name", "version", "publisher", "install_date"},
 	"os_revision":  {"name", "version", "revision", "arch"}, // Windows's update revision (D-524)
+	// the listening sockets and their program (INV-22)
+	"listening_ports":         {"port", "protocol", "address", "name"},
+	"listening_ports_windows": {"port", "protocol", "address", "name"},
 }
 
 // cleanValue trims a text from a node and reports whether it can be kept: valid UTF-8, at most max runes, no control or invisible

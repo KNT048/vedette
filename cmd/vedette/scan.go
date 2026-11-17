@@ -123,10 +123,21 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 		if d.Vendor != nil {
 			sd.Vendor = d.Vendor.Value
 		}
+		// One port per row of the scan, though the inventory keeps one row per source (INV-23): a port both the scan and an agent
+		// listed takes the scan's service name ("https"), which says how to speak to it; an agent's names the program ("nginx").
+		at := map[int]int{}
 		for _, sv := range d.Services {
-			if sv.Proto == "" || sv.Proto == "tcp" {
-				sd.Services = append(sd.Services, scan.OpenPort{Port: sv.Port, Name: sv.Name})
+			if sv.Proto != "" && sv.Proto != "tcp" {
+				continue
 			}
+			if i, ok := at[sv.Port]; ok {
+				if sv.Source != "agent" && sv.Name != "" {
+					sd.Services[i].Name = sv.Name
+				}
+				continue
+			}
+			at[sv.Port] = len(sd.Services)
+			sd.Services = append(sd.Services, scan.OpenPort{Port: sv.Port, Name: sv.Name})
 		}
 		out = append(out, sd)
 	}

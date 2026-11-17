@@ -42,6 +42,7 @@ type fakeWazuh struct {
 	netaddr   map[string][]map[string]any
 	netiface  map[string][]map[string]any
 	packages  map[string][]map[string]any
+	ports     map[string][]map[string]any
 	forbid    bool // the role lacks syscollector:read
 	tooMany   int  // answer this many 429 before the next GET
 	expire    bool // answer 401 to the next GET (the token expired)
@@ -76,6 +77,16 @@ func newFakeWazuh() *fakeWazuh {
 			},
 			"002": {{"name": "7-Zip 23.01 (x64)", "version": "23.01", "vendor": "Igor Pavlov", "format": "win"}},
 			"003": {{"name": "openssl", "version": "1:3.0.7-27.el9", "vendor": "Rocky", "format": "rpm"}},
+		},
+		ports: map[string][]map[string]any{
+			"001": {
+				{"local": map[string]any{"ip": "0.0.0.0", "port": 22}, "remote": map[string]any{"ip": "0.0.0.0", "port": 0}, "protocol": "tcp", "state": "listening", "process": "sshd"},
+				{"local": map[string]any{"ip": "::", "port": 22}, "remote": map[string]any{"ip": "::", "port": 0}, "protocol": "tcp6", "state": "listening", "process": "sshd"},
+				{"local": map[string]any{"ip": "127.0.0.1", "port": 5432}, "remote": map[string]any{"ip": "0.0.0.0", "port": 0}, "protocol": "tcp", "state": "listening", "process": "postgres"},
+				{"local": map[string]any{"ip": ipLinux, "port": 51000}, "remote": map[string]any{"ip": "198.51.100.7", "port": 443}, "protocol": "tcp", "state": "established", "process": "curl"},
+				{"local": map[string]any{"ip": "0.0.0.0", "port": 123}, "remote": map[string]any{"ip": "0.0.0.0", "port": 0}, "protocol": "udp", "process": "chronyd"},
+				{"local": map[string]any{"ip": ipLinux, "port": 40000}, "remote": map[string]any{"ip": "192.0.2.53", "port": 53}, "protocol": "udp", "process": "systemd-resolve"},
+			},
 		},
 	}
 }
@@ -143,6 +154,8 @@ func (f *fakeWazuh) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			js(200, page(f.netaddr[parts[1]], q))
 		case "netiface":
 			js(200, page(f.netiface[parts[1]], q))
+		case "ports":
+			js(200, page(f.ports[parts[1]], q))
 		case "packages":
 			if f.onPackage != nil {
 				f.onPackage(r.Context())
@@ -370,6 +383,14 @@ func TestWazuh_PullFillsTheInventory(t *testing.T) {
 	if _, ok := swByProduct(d, "core20"); ok {
 		t.Fatal("a snap package (outside the supported servers) was written")
 	}
+	// INV-22: its syscollector ports that listen beyond loopback are its open services, source agent; a connection is not one.
+	var svcs []string
+	for _, s := range d.Services {
+		svcs = append(svcs, fmt.Sprintf("%d/%s %s %s", s.Port, s.Proto, s.Name, s.Source))
+	}
+	if want := []string{"22/tcp sshd agent", "123/udp chronyd agent"}; !slices.Equal(svcs, want) {
+		t.Fatalf("linux services %q, want %q", svcs, want)
+	}
 	win, ok := r.device(ipWindows)
 	if !ok {
 		t.Fatal("no Windows device")
@@ -473,7 +494,7 @@ func TestWazuh_FORBID4_ReadOnlyCalls(t *testing.T) {
 		ok   bool
 	}{
 		{"POST", "/security/user/authenticate", true}, {"GET", "/", true}, {"GET", "/agents", true},
-		{"GET", "/syscollector/001/packages", true}, {"GET", "/syscollector/001/netaddr", true}, {"GET", "/syscollector/001/netiface", true},
+		{"GET", "/syscollector/001/packages", true}, {"GET", "/syscollector/001/netaddr", true}, {"GET", "/syscollector/001/netiface", true}, {"GET", "/syscollector/001/ports", true},
 		{"GET", "/syscollector/001/os", false}, {"GET", "/syscollector/../agents", false}, {"GET", "/syscollector/1/packages", false},
 		{"PUT", "/agents", false}, {"DELETE", "/agents", false}, {"POST", "/agents", false}, {"PUT", "/active-response", false},
 		{"GET", "/security/users", false}, {"GET", "/manager/configuration", false}, {"POST", "/", false},

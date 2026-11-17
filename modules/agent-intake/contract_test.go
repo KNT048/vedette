@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -165,7 +166,7 @@ func TestContract_POST1_EnrolAndLogShowTheDeviceWithItsSoftware(t *testing.T) {
 	key := w.enroll(secret, "srv-1", peerA)
 	cfg := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key})
 	sch, _ := cfg.body["schedule"].(map[string]any)
-	if cfg.code != 200 || cfg.invalid() || len(sch) != 8 || sch["interfaces"] == nil {
+	if cfg.code != 200 || cfg.invalid() || len(sch) != 10 || sch["interfaces"] == nil || sch["listening_ports"] == nil {
 		t.Fatalf("config: %d %s", cfg.code, cfg.raw)
 	}
 	lr := w.post("/intake/osquery/log", peerA, fullLog(key))
@@ -894,5 +895,57 @@ func TestContract_SYS4_NoSecretInLogsOrAudit(t *testing.T) {
 	w.assertNowhere(bogus)
 	if !strings.Contains(w.logs.String(), "credential refused") {
 		t.Fatal("a refused credential leaves no log line")
+	}
+}
+
+// INV-22 (kien 2026-11-17): a machine's agent reports the ports it listens on, so a machine the scan never reaches has Open services. Only
+// ports another machine can reach count (loopback is left out even when the node sends it), one row per port and protocol named by its
+// program, source agent; a protocol other than TCP or UDP or a port out of range is dropped; the next answer replaces the list, an
+// empty one empties it; the first report asks for it every minute until the inventory took it.
+func TestContract_INV22_TheAgentReportsItsOpenPorts(t *testing.T) {
+	w := newWorld(t)
+	_, secret := w.token("srv", 7)
+	key := w.enroll(secret, "srv-1", peerA)
+	cfg := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key})
+	if lp, _ := cfg.body["schedule"].(map[string]any)["listening_ports"].(map[string]any); lp["interval"] != float64(60) {
+		t.Fatalf("a new node is not asked for its ports every minute: %s", cfg.raw)
+	}
+	port := func(p, proto, addr, name string) map[string]string {
+		return map[string]string{"port": p, "protocol": proto, "address": addr, "name": name}
+	}
+	lr := w.post("/intake/osquery/log", peerA, logBody(key,
+		snap("interfaces", ifaceRow(macA, peerA)),
+		snap("listening_ports",
+			port("22", "6", "0.0.0.0", "sshd"), port("22", "6", "::", "sshd"), port("443", "6", peerA, "nginx"),
+			port("5432", "6", "127.0.0.1", "postgres"), port("631", "6", "::1", "cupsd"), port("53", "17", "0.0.0.0", "dnsmasq"),
+			port("0", "6", "0.0.0.0", "x"), port("70000", "6", "0.0.0.0", "x"), port("132", "132", "0.0.0.0", "sctp"), port("8080", "6", "0.0.0.0", "")),
+	))
+	if lr.code != 200 || lr.invalid() {
+		t.Fatalf("log: %d %s", lr.code, lr.raw)
+	}
+	services := func() []string {
+		d, ok := w.device(peerA)
+		if !ok {
+			t.Fatal("no device")
+		}
+		var out []string
+		for _, s := range d.Services {
+			out = append(out, fmt.Sprintf("%d/%s %s %s", s.Port, s.Proto, s.Name, s.Source))
+		}
+		return out
+	}
+	want := []string{"22/tcp sshd agent", "53/udp dnsmasq agent", "443/tcp nginx agent", "8080/tcp  agent"}
+	if got := services(); !slices.Equal(got, want) {
+		t.Fatalf("services %q, want %q", got, want)
+	}
+	if cfg := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key}); cfg.body["schedule"].(map[string]any)["listening_ports"].(map[string]any)["interval"] != float64(3600) {
+		t.Fatalf("the ports are still asked every minute: %s", cfg.raw)
+	}
+	w.clock.Advance(time.Minute)
+	if lr := w.post("/intake/osquery/log", peerA, logBody(key, snap("listening_ports"))); lr.code != 200 {
+		t.Fatalf("log: %d %s", lr.code, lr.raw)
+	}
+	if got := services(); len(got) != 0 {
+		t.Fatalf("an empty answer kept %q", got)
 	}
 }

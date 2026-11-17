@@ -218,7 +218,7 @@ func withKernel(snaps map[string][]row, kernel string) map[string][]row {
 
 // answers is the fixed order of the first report's answers (schedule.go firstReport), so the stored list is canonical.
 // "hostname" is not a query's: it records that the enrolment's host name was given to the device once (enrolHostname).
-var answers = []string{"os_version", "system_info", "interfaces", "packages", "os_revision", "hostname"}
+var answers = []string{"os_version", "system_info", "interfaces", "packages", "os_revision", "services", "hostname"}
 
 // firstReport records which answers of the first report the inventory took from this node (the config stops asking for them every
 // minute), and approves the device in the name of the token's maker once per node, as soon as the inventory has it (D-503). mac is the
@@ -472,6 +472,13 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 			}
 		}
 	}
+	took, err := s.deliverServices(ctx, hint, node, in)
+	if err != nil {
+		return nil, err
+	}
+	if took {
+		taken = append(taken, "services")
+	}
 	items, dropped := mapPackages(in.snaps, maxRows)
 	if dropped > 0 || len(in.truncated) > 0 || in.dropped > 0 {
 		s.cfg.Log.InfoContext(ctx, "agent-intake: rows dropped", "node", node, "rows_not_fitting", dropped, "events_or_rows_refused", in.dropped, "truncated", len(in.truncated))
@@ -498,6 +505,30 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 		s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused a software list", "node", node, "error", err.Error())
 	}
 	return taken, nil
+}
+
+// deliverServices hands the open ports of a listening_ports answer to the inventory (INV-22): the list replaces the agent's earlier one
+// on the device, an empty one too (the machine listens on nothing reachable: osquery sends no snapshot when the query failed). took says
+// the inventory stored it (the first report's "services" answer). A list the inventory refused is dropped and logged, like a software list.
+func (s *Service) deliverServices(ctx context.Context, hint observe.AssetHint, node string, in logIn) (took bool, err error) {
+	var rows []row
+	answered := false
+	for _, q := range []string{"listening_ports", "listening_ports_windows"} {
+		if r, ok := in.snaps[q]; ok {
+			rows, answered = append(rows, r...), true
+		}
+	}
+	if !answered || s.cfg.Services == nil {
+		return false, nil
+	}
+	if err := s.cfg.Services.ReplaceServices(ctx, hint, observe.Agent, mapServices(osqueryListening(rows))); err != nil {
+		if transient(err) {
+			return false, fmt.Errorf("agentintake: services: %w", err)
+		}
+		s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused a list of open ports", "node", node, "error", err.Error())
+		return false, nil
+	}
+	return true, nil
 }
 
 func hasPackageQuery(in logIn) bool {

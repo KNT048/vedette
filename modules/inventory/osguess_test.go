@@ -211,6 +211,14 @@ func TestOSGuessContradictionTable(t *testing.T) {
 		{"firewall", "Linux 4.15 - 5.19", false},
 		{"printer", "Microsoft Windows 11 24H2 (build 26100)", false}, // the device's own NTLM answer, not a fingerprint
 		{"unknown", "Android 9", false},
+		// nmap's joint Apple names may be either family: neither an iPhone nor a Mac rules them out.
+		{"smartphone", "Apple macOS 10.13 (High Sierra) - 10.15 (Catalina) or iOS 11.0 - 13.4 (Darwin 17.0.0 - 19.6.0)", false},
+		{"pc", "Apple iOS 12.0 - 13.4 or macOS 10.14 (Darwin 18.0.0 - 19.4.0)", false},
+		{"smartphone", "Apple macOS 12 (Monterey)", true},
+		{"laptop", "Apple iOS 15.0 - 16.1", true},
+		// Print controllers and video encoders run Windows 10 IoT or Embedded, which nmap names plain Windows.
+		{"mfp", "Microsoft Windows 10 1607", false},
+		{"video_encoder", "Microsoft Windows 7", false},
 	}
 	for _, c := range cases {
 		t.Run(c.kind+"/"+c.os, func(t *testing.T) {
@@ -242,5 +250,40 @@ func TestOSGuessNmapsOwnTypeNeverRulesOutItsOS(t *testing.T) {
 	}
 	if list, _ := shown(e, id); len(list) != 3 {
 		t.Errorf("software %v, want the guesses listed", list)
+	}
+}
+
+// Only a type a person, the agent or SNMP gave rules a guess out: a Mac that shares a printer announces an mDNS printer service, and
+// that passive type ranks below nmap's own reading of the OS.
+func TestOSGuessAPassiveTypeNeverRulesOutTheGuess(t *testing.T) {
+	e := newEnv(t)
+	mac := "Apple macOS 12 (Monterey) (Darwin 21.1.0 - 21.6.0)"
+	id := guessEnv(e, "192.168.18.70", mac, observe.Software{Display: mac, Vendor: "apple", Product: "macos", CPE: "cpe:/o:apple:macos", Confidence: 0.86, Guess: true})
+	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.70")}, Field: observe.Kind, Value: "printer",
+		Source: observe.Passive, Confidence: 0.6})
+	if d, err := e.svc.Device(e.ctx(), id); err != nil || d.Kind != "printer" {
+		t.Fatalf("kind %q %v, want the passive printer", d.Kind, err)
+	}
+	if got := osOf(e, id); got != mac {
+		t.Errorf("OS %q, want nmap's macOS: a passive type does not overrule it", got)
+	}
+	if list, _ := shown(e, id); len(list) != 2 {
+		t.Errorf("software %v, want the macOS guess listed", list)
+	}
+}
+
+// When the latest guess is ruled out, an older nmap guess the type allows does not come back: the OS is another source's, else none.
+func TestOSGuessRuledOutNeverFallsBackToAnOlderGuess(t *testing.T) {
+	e := newEnv(t)
+	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.18.80"), MAC: "00:0c:29:aa:bb:50"}
+	e.record(observe.Observation{AssetHint: hint, Field: observe.OS, Value: "Linux 3.2 - 4.9", Source: observe.Nmap, Confidence: 0.5})
+	e.tick(time.Hour)
+	e.record(observe.Observation{AssetHint: hint, Field: observe.OS, Value: "Android 9 - 10 (Linux 4.9 - 4.14)", Source: observe.Nmap, Confidence: 0.86})
+	id := e.idOf("192.168.18.80")
+	if err := e.svc.PatchDevice(e.ctx(), "op@example.com", id, inventory.Patch{Kind: ptr("firewall")}); err != nil {
+		t.Fatal(err)
+	}
+	if got := osOf(e, id); got != "" {
+		t.Errorf("OS %q, want none: the older guess is not the device's OS either", got)
 	}
 }

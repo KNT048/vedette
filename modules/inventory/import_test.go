@@ -91,7 +91,7 @@ func TestContract_INV13_CSVImportAndExport(t *testing.T) {
 		}
 		b, _ := io.ReadAll(rd)
 		s := string(b)
-		if !strings.HasPrefix(s, "\xef\xbb\xbfname,ip,mac,kind,vendor,model,os,software,approved,fragile,origin,source,confidence,last_seen\r\n") {
+		if !strings.HasPrefix(s, "\xef\xbb\xbfname,ip,mac,kind,vendor,model,os,software,approved,fragile,origin,source,confidence,last_seen,name_in_vedette\r\n") {
 			t.Fatalf("header = %q", s[:80])
 		}
 		if !strings.Contains(s, `'=HYPERLINK("http://evil")`) && !strings.Contains(s, `"'=HYPERLINK(""http://evil"")"`) {
@@ -452,8 +452,8 @@ func TestEveryMutationIsAudited(t *testing.T) {
 			must(e.svc.RemoveSoftware(e.ctx(), "it@acme.example", id, s.ID))
 		}
 	}
-	kind, rs, notes, fragile := "router", "never", "rack 2", true
-	must(e.svc.PatchDevice(e.ctx(), "it@acme.example", id, inventory.Patch{Kind: &kind, RegularScan: &rs, Notes: &notes, Fragile: &fragile}))
+	kind, rs, notes, fragile, name := "router", "never", "rack 2", true, "Branch firewall"
+	must(e.svc.PatchDevice(e.ctx(), "it@acme.example", id, inventory.Patch{Kind: &kind, RegularScan: &rs, Notes: &notes, Fragile: &fragile, Name: &name}))
 	must(e.svc.SetSuspicious(e.ctx(), "it@acme.example", id, true))
 	must(e.svc.SetSuspicious(e.ctx(), "it@acme.example", id, false))
 	must(e.svc.Approve(e.ctx(), "it@acme.example", id))
@@ -467,7 +467,7 @@ func TestEveryMutationIsAudited(t *testing.T) {
 	got := e.auditActions()
 	for _, want := range []string{
 		"inventory.add_manual", "inventory.add_software", "inventory.remove_software", "inventory.set_kind", "inventory.set_regular_scan", "inventory.set_fragile",
-		"inventory.set_notes", "inventory.mark_suspicious", "inventory.unmark_suspicious", "inventory.approve", "inventory.notify_new", "inventory.import",
+		"inventory.rename", "inventory.set_notes", "inventory.mark_suspicious", "inventory.unmark_suspicious", "inventory.approve", "inventory.notify_new", "inventory.import",
 		"inventory.export", "inventory.settings", "inventory.delete",
 	} {
 		if !has(got, want) {

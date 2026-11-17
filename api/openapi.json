@@ -28875,6 +28875,7 @@
                                 "type": "string"
                               },
                               "hostname": {
+                                "description": "The device's name: the name a person gave it in Vedette (G2), else its host name; null when neither",
                                 "type": [
                                   "string",
                                   "null"
@@ -44815,7 +44816,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Free text, case-insensitive, matched in the name (host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
+              "description": "Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
               "type": "string",
               "maxLength": 80
             }
@@ -44851,6 +44852,14 @@
                             ]
                           },
                           "hostname": {
+                            "description": "The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device was added manually; read-only",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "name": {
+                            "description": "The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on every page; null = the default name (the naming rule, D-471)",
                             "type": [
                               "string",
                               "null"
@@ -45573,6 +45582,7 @@
                           "ip",
                           "mac",
                           "hostname",
+                          "name",
                           "kind",
                           "kind_source",
                           "guess",
@@ -45839,6 +45849,14 @@
                           ]
                         },
                         "hostname": {
+                          "description": "The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device was added manually; read-only",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "name": {
+                          "description": "The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on every page; null = the default name (the naming rule, D-471)",
                           "type": [
                             "string",
                             "null"
@@ -46502,6 +46520,7 @@
                         "ip",
                         "mac",
                         "hostname",
+                        "name",
                         "kind",
                         "kind_source",
                         "guess",
@@ -46752,7 +46771,7 @@
       },
       "patch": {
         "operationId": "inventory_patch_inventory_devices_id",
-        "summary": "Change the type, mark as fragile, override regular scans or edit the notes of a device",
+        "summary": "Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the notes of a device. 400 bad_name: a name over 64 characters or with < or >",
         "tags": [
           "inventory"
         ],
@@ -46777,6 +46796,11 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "name": {
+                    "description": "The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the default name). The host name the network reports is not changed",
+                    "type": "string",
+                    "maxLength": 200
+                  },
                   "kind": {
                     "type": "string",
                     "enum": [
@@ -47500,7 +47524,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Free text, case-insensitive, matched in the name (host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
+              "description": "Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
               "type": "string",
               "maxLength": 80
             }
@@ -48845,6 +48869,12 @@
                             "type": "string",
                             "description": "Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters"
                           },
+                          "port": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that answers SNMP elsewhere"
+                          },
                           "scope": {
                             "type": "array",
                             "items": {
@@ -48921,6 +48951,7 @@
                           "priv",
                           "secret_last4",
                           "priv_last4",
+                          "port",
                           "scope",
                           "created_at",
                           "last_answer_at",
@@ -49032,6 +49063,12 @@
                     "type": "string",
                     "maxLength": 64
                   },
+                  "port": {
+                    "description": "The UDP port the devices answer SNMP on; left out = 161. A device on another port gets a credential of its own whose scope holds it",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                  },
                   "scope": {
                     "maxItems": 16,
                     "type": "array",
@@ -49120,6 +49157,12 @@
                       "type": "string",
                       "description": "Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters"
                     },
+                    "port": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that answers SNMP elsewhere"
+                    },
                     "scope": {
                       "type": "array",
                       "items": {
@@ -49196,6 +49239,7 @@
                     "priv",
                     "secret_last4",
                     "priv_last4",
+                    "port",
                     "scope",
                     "created_at",
                     "last_answer_at",
@@ -49334,6 +49378,12 @@
                     "type": "string",
                     "maxLength": 64
                   },
+                  "port": {
+                    "description": "The UDP port the devices answer SNMP on; left out = 161. A device on another port gets a credential of its own whose scope holds it",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                  },
                   "scope": {
                     "maxItems": 16,
                     "type": "array",
@@ -49422,6 +49472,12 @@
                       "type": "string",
                       "description": "Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters"
                     },
+                    "port": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that answers SNMP elsewhere"
+                    },
                     "scope": {
                       "type": "array",
                       "items": {
@@ -49498,6 +49554,7 @@
                     "priv",
                     "secret_last4",
                     "priv_last4",
+                    "port",
                     "scope",
                     "created_at",
                     "last_answer_at",

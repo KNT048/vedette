@@ -57,8 +57,8 @@ func (n auditNamer) AuditNames(ctx context.Context, ids []string) (map[string]st
 
 func deviceName(r inventory.DeviceRef) string {
 	switch {
-	case r.Hostname != nil && *r.Hostname != "":
-		return *r.Hostname
+	case r.NameOrHost() != nil: // the name in Vedette, else the host name (G2)
+		return *r.NameOrHost()
 	case r.IP != "" && r.IP != "—":
 		return r.IP
 	}

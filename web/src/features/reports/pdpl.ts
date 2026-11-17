@@ -21,7 +21,7 @@ export function regimeOf(o: Pick<PdplOrg, 'size' | 'processing_service' | 'sensi
 export function buildPdpl(org: PdplOrg): PdplReport {
   const assets = assetsStore.get()
   const open = findingsStore.get().filter((f) => f.status === 'confirmed' || f.status === 'suspected')
-  const label = (a: (typeof assets)[number]) => a.hostname ?? a.ip
+  const label = (a: (typeof assets)[number]) => a.name ?? a.hostname ?? a.ip
   const by = new Map<string, number>()
   const src = new Map<string, number>()
   for (const a of assets) {

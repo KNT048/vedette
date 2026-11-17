@@ -55977,7 +55977,8 @@ func (s *FeedsGetFeedsCveIDOK) SetVendor(val string) {
 }
 
 type FeedsGetFeedsCveIDOKMatchedItem struct {
-	Display  string                             `json:"display"`
+	Display string `json:"display"`
+	// The device's name: the name a person gave it in Vedette (G2), else its host name; null when neither.
 	Hostname NilString                          `json:"hostname"`
 	How      FeedsGetFeedsCveIDOKMatchedItemHow `json:"how"`
 	ID       string                             `json:"id"`
@@ -96983,8 +96984,10 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	FirstSeen   time.Time                                     `json:"first_seen"`
 	Fragile     bool                                          `json:"fragile"`
 	Guess       NilInventoryGetInventoryDevicesIDOKAssetGuess `json:"guess"`
-	Hostname    NilString                                     `json:"hostname"`
-	ID          string                                        `json:"id"`
+	// The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device
+	// was added manually; read-only.
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
 	// "—" when declared manually and the IP is unknown.
 	IP string `json:"ip"`
 	// True for the Vedette box itself: the first device, always present, cannot be deleted (409).
@@ -96996,9 +96999,12 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	LastSeen   time.Time                                          `json:"last_seen"`
 	MAC        NilString                                          `json:"mac"`
 	Model      NilInventoryGetInventoryDevicesIDOKAssetModel      `json:"model"`
-	Notes      OptString                                          `json:"notes"`
-	Origin     InventoryGetInventoryDevicesIDOKAssetOrigin        `json:"origin"`
-	Os         NilInventoryGetInventoryDevicesIDOKAssetOs         `json:"os"`
+	// The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on
+	// every page; null = the default name (the naming rule, D-471).
+	Name   NilString                                   `json:"name"`
+	Notes  OptString                                   `json:"notes"`
+	Origin InventoryGetInventoryDevicesIDOKAssetOrigin `json:"origin"`
+	Os     NilInventoryGetInventoryDevicesIDOKAssetOs  `json:"os"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan    `json:"regular_scan"`
@@ -97081,6 +97087,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetMAC() NilString {
 // GetModel returns the value of Model.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetModel() NilInventoryGetInventoryDevicesIDOKAssetModel {
 	return s.Model
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetName() NilString {
+	return s.Name
 }
 
 // GetNotes returns the value of Notes.
@@ -97196,6 +97207,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetMAC(val NilString) {
 // SetModel sets the value of Model.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetModel(val NilInventoryGetInventoryDevicesIDOKAssetModel) {
 	s.Model = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetName(val NilString) {
+	s.Name = val
 }
 
 // SetNotes sets the value of Notes.
@@ -101166,8 +101182,10 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	FirstSeen   time.Time                                       `json:"first_seen"`
 	Fragile     bool                                            `json:"fragile"`
 	Guess       NilInventoryGetInventoryDevicesOKItemsItemGuess `json:"guess"`
-	Hostname    NilString                                       `json:"hostname"`
-	ID          string                                          `json:"id"`
+	// The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device
+	// was added manually; read-only.
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
 	// "—" when declared manually and the IP is unknown.
 	IP string `json:"ip"`
 	// True for the Vedette box itself: the first device, always present, cannot be deleted (409).
@@ -101179,9 +101197,12 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	LastSeen   time.Time                                            `json:"last_seen"`
 	MAC        NilString                                            `json:"mac"`
 	Model      NilInventoryGetInventoryDevicesOKItemsItemModel      `json:"model"`
-	Notes      OptString                                            `json:"notes"`
-	Origin     InventoryGetInventoryDevicesOKItemsItemOrigin        `json:"origin"`
-	Os         NilInventoryGetInventoryDevicesOKItemsItemOs         `json:"os"`
+	// The name a person gave the device in Vedette (G2, PATCH name): it wins over every other name on
+	// every page; null = the default name (the naming rule, D-471).
+	Name   NilString                                     `json:"name"`
+	Notes  OptString                                     `json:"notes"`
+	Origin InventoryGetInventoryDevicesOKItemsItemOrigin `json:"origin"`
+	Os     NilInventoryGetInventoryDevicesOKItemsItemOs  `json:"os"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan    `json:"regular_scan"`
@@ -101276,6 +101297,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetMAC() NilString {
 // GetModel returns the value of Model.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetModel() NilInventoryGetInventoryDevicesOKItemsItemModel {
 	return s.Model
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetName() NilString {
+	return s.Name
 }
 
 // GetNotes returns the value of Notes.
@@ -101411,6 +101437,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetMAC(val NilString) {
 // SetModel sets the value of Model.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetModel(val NilInventoryGetInventoryDevicesOKItemsItemModel) {
 	s.Model = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetName(val NilString) {
+	s.Name = val
 }
 
 // SetNotes sets the value of Notes.
@@ -106180,6 +106211,9 @@ type InventoryGetInventorySnmpOKCredentialsItem struct {
 	// Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses.
 	MovedOut []InventoryGetInventorySnmpOKCredentialsItemMovedOutItem `json:"moved_out"`
 	Name     string                                                   `json:"name"`
+	// The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that
+	// answers SNMP elsewhere.
+	Port int `json:"port"`
 	// Null for v2c.
 	Priv NilInventoryGetInventorySnmpOKCredentialsItemPriv `json:"priv"`
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
@@ -106234,6 +106268,11 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) GetMovedOut() []InventoryGe
 // GetName returns the value of Name.
 func (s *InventoryGetInventorySnmpOKCredentialsItem) GetName() string {
 	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetPort() int {
+	return s.Port
 }
 
 // GetPriv returns the value of Priv.
@@ -106304,6 +106343,11 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) SetMovedOut(val []Inventory
 // SetName sets the value of Name.
 func (s *InventoryGetInventorySnmpOKCredentialsItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetPort(val int) {
+	s.Port = val
 }
 
 // SetPriv sets the value of Priv.
@@ -106535,8 +106579,11 @@ func (s *InventoryPatchInventoryDevicesIDOK) SetOk(val bool) {
 type InventoryPatchInventoryDevicesIDReq struct {
 	Fragile OptBool `json:"fragile"`
 	// Device type (content/devicetypes/types.json, D-511).
-	Kind  OptInventoryPatchInventoryDevicesIDReqKind `json:"kind"`
-	Notes OptString                                  `json:"notes"`
+	Kind OptInventoryPatchInventoryDevicesIDReqKind `json:"kind"`
+	// The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the
+	// default name). The host name the network reports is not changed.
+	Name  OptString `json:"name"`
+	Notes OptString `json:"notes"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan OptInventoryPatchInventoryDevicesIDReqRegularScan `json:"regular_scan"`
@@ -106550,6 +106597,11 @@ func (s *InventoryPatchInventoryDevicesIDReq) GetFragile() OptBool {
 // GetKind returns the value of Kind.
 func (s *InventoryPatchInventoryDevicesIDReq) GetKind() OptInventoryPatchInventoryDevicesIDReqKind {
 	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPatchInventoryDevicesIDReq) GetName() OptString {
+	return s.Name
 }
 
 // GetNotes returns the value of Notes.
@@ -106570,6 +106622,11 @@ func (s *InventoryPatchInventoryDevicesIDReq) SetFragile(val OptBool) {
 // SetKind sets the value of Kind.
 func (s *InventoryPatchInventoryDevicesIDReq) SetKind(val OptInventoryPatchInventoryDevicesIDReqKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPatchInventoryDevicesIDReq) SetName(val OptString) {
+	s.Name = val
 }
 
 // SetNotes sets the value of Notes.
@@ -108895,6 +108952,9 @@ type InventoryPostInventorySnmpCreated struct {
 	// Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses.
 	MovedOut []InventoryPostInventorySnmpCreatedMovedOutItem `json:"moved_out"`
 	Name     string                                          `json:"name"`
+	// The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that
+	// answers SNMP elsewhere.
+	Port int `json:"port"`
 	// Null for v2c.
 	Priv NilInventoryPostInventorySnmpCreatedPriv `json:"priv"`
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
@@ -108949,6 +109009,11 @@ func (s *InventoryPostInventorySnmpCreated) GetMovedOut() []InventoryPostInvento
 // GetName returns the value of Name.
 func (s *InventoryPostInventorySnmpCreated) GetName() string {
 	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *InventoryPostInventorySnmpCreated) GetPort() int {
+	return s.Port
 }
 
 // GetPriv returns the value of Priv.
@@ -109019,6 +109084,11 @@ func (s *InventoryPostInventorySnmpCreated) SetMovedOut(val []InventoryPostInven
 // SetName sets the value of Name.
 func (s *InventoryPostInventorySnmpCreated) SetName(val string) {
 	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *InventoryPostInventorySnmpCreated) SetPort(val int) {
+	s.Port = val
 }
 
 // SetPriv sets the value of Priv.
@@ -110101,6 +110171,9 @@ type InventoryPostInventorySnmpReq struct {
 	Community OptString `json:"community"`
 	// 1 to 64 characters, not < >; unique (case does not matter).
 	Name string `json:"name"`
+	// The UDP port the devices answer SNMP on; left out = 161. A device on another port gets a credential
+	// of its own whose scope holds it.
+	Port OptInt `json:"port"`
 	// V3; default aes128.
 	Priv OptInventoryPostInventorySnmpReqPriv `json:"priv"`
 	// V3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
@@ -110133,6 +110206,11 @@ func (s *InventoryPostInventorySnmpReq) GetCommunity() OptString {
 // GetName returns the value of Name.
 func (s *InventoryPostInventorySnmpReq) GetName() string {
 	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *InventoryPostInventorySnmpReq) GetPort() OptInt {
+	return s.Port
 }
 
 // GetPriv returns the value of Priv.
@@ -110178,6 +110256,11 @@ func (s *InventoryPostInventorySnmpReq) SetCommunity(val OptString) {
 // SetName sets the value of Name.
 func (s *InventoryPostInventorySnmpReq) SetName(val string) {
 	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *InventoryPostInventorySnmpReq) SetPort(val OptInt) {
+	s.Port = val
 }
 
 // SetPriv sets the value of Priv.
@@ -111414,6 +111497,9 @@ type InventoryPutInventorySnmpIDOK struct {
 	// Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses.
 	MovedOut []InventoryPutInventorySnmpIDOKMovedOutItem `json:"moved_out"`
 	Name     string                                      `json:"name"`
+	// The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that
+	// answers SNMP elsewhere.
+	Port int `json:"port"`
 	// Null for v2c.
 	Priv NilInventoryPutInventorySnmpIDOKPriv `json:"priv"`
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
@@ -111468,6 +111554,11 @@ func (s *InventoryPutInventorySnmpIDOK) GetMovedOut() []InventoryPutInventorySnm
 // GetName returns the value of Name.
 func (s *InventoryPutInventorySnmpIDOK) GetName() string {
 	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *InventoryPutInventorySnmpIDOK) GetPort() int {
+	return s.Port
 }
 
 // GetPriv returns the value of Priv.
@@ -111538,6 +111629,11 @@ func (s *InventoryPutInventorySnmpIDOK) SetMovedOut(val []InventoryPutInventoryS
 // SetName sets the value of Name.
 func (s *InventoryPutInventorySnmpIDOK) SetName(val string) {
 	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *InventoryPutInventorySnmpIDOK) SetPort(val int) {
+	s.Port = val
 }
 
 // SetPriv sets the value of Priv.
@@ -111761,6 +111857,9 @@ type InventoryPutInventorySnmpIDReq struct {
 	Community OptString `json:"community"`
 	// 1 to 64 characters, not < >; unique (case does not matter).
 	Name string `json:"name"`
+	// The UDP port the devices answer SNMP on; left out = 161. A device on another port gets a credential
+	// of its own whose scope holds it.
+	Port OptInt `json:"port"`
 	// V3; default aes128.
 	Priv OptInventoryPutInventorySnmpIDReqPriv `json:"priv"`
 	// V3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
@@ -111793,6 +111892,11 @@ func (s *InventoryPutInventorySnmpIDReq) GetCommunity() OptString {
 // GetName returns the value of Name.
 func (s *InventoryPutInventorySnmpIDReq) GetName() string {
 	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *InventoryPutInventorySnmpIDReq) GetPort() OptInt {
+	return s.Port
 }
 
 // GetPriv returns the value of Priv.
@@ -111838,6 +111942,11 @@ func (s *InventoryPutInventorySnmpIDReq) SetCommunity(val OptString) {
 // SetName sets the value of Name.
 func (s *InventoryPutInventorySnmpIDReq) SetName(val string) {
 	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *InventoryPutInventorySnmpIDReq) SetPort(val OptInt) {
+	s.Port = val
 }
 
 // SetPriv sets the value of Priv.

@@ -1,6 +1,7 @@
 package sensoractive
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -69,10 +71,12 @@ const (
 )
 
 // SNMPCredential is a saved credential without its secrets (SnmpCredential in contract.ts). Priv is "aes128" or "none" for v3, ""
-// for v2c; Auth is "" for v2c. SecretLost is set by SNMPCredentials only: a saved secret this box cannot open (#868).
+// for v2c; Auth is "" for v2c. Port is the UDP port it is sent to (161 unless the person named another). SecretLost is set by
+// SNMPCredentials only: a saved secret this box cannot open (#868).
 type SNMPCredential struct {
 	ID, Name, Version, Username, Auth, Priv string
 	SecretLast4, PrivLast4                  string
+	Port                                    int
 	Scope                                   []string
 	CreatedAt, LastAnswerAt                 time.Time // LastAnswerAt zero: never
 	Answered                                int
@@ -80,10 +84,12 @@ type SNMPCredential struct {
 	MovedOut                                []SNMPMoved // set by SNMPCredentials only (#829 C4)
 }
 
-// SNMPCredentialInput is the form (SnmpCredentialInput in contract.ts). A blank secret on an edit keeps the saved one.
+// SNMPCredentialInput is the form (SnmpCredentialInput in contract.ts). A blank secret on an edit keeps the saved one. Port 0 is
+// none given: 161.
 type SNMPCredentialInput struct {
 	Name, Version, Username, Auth, Priv   string
 	Community, AuthPassword, PrivPassword secrets.Value
+	Port                                  int
 	Scope                                 []string
 }
 
@@ -229,7 +235,7 @@ func snmpKeptLost() *apierr.Error {
 	return apierr.New(409, codeSecretLost, "The saved SNMP community or password of this credential was not restored (the backup was restored without its decryption key, or the box key changed). Enter it again, then save.")
 }
 
-const snmpCols = `id, name, version, username, auth, priv, secret_id, secret_last4, priv_secret_id, priv_last4, scope, created_at, last_answer_at, answered, updated_at`
+const snmpCols = `id, name, version, username, auth, priv, secret_id, secret_last4, priv_secret_id, priv_last4, scope, created_at, last_answer_at, answered, updated_at, coalesce(port, 161)`
 
 func (s *Service) snmpRows(ctx context.Context, q interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
@@ -254,7 +260,7 @@ func scanSNMPRow(r interface{ Scan(...any) error }) (snmpRow, error) {
 	var row snmpRow
 	var user, auth, priv, privID, last sql.NullString
 	var scope, created string
-	if err := r.Scan(&row.ID, &row.Name, &row.Version, &user, &auth, &priv, &row.secretID, &row.SecretLast4, &privID, &row.PrivLast4, &scope, &created, &last, &row.Answered, &row.updatedAt); err != nil {
+	if err := r.Scan(&row.ID, &row.Name, &row.Version, &user, &auth, &priv, &row.secretID, &row.SecretLast4, &privID, &row.PrivLast4, &scope, &created, &last, &row.Answered, &row.updatedAt, &row.Port); err != nil {
 		return snmpRow{}, fmt.Errorf("sensoractive: read snmp credential: %w", err)
 	}
 	row.Username, row.Auth, row.privID, row.scopeRaw = user.String, auth.String, privID.String, scope
@@ -296,15 +302,19 @@ func (s *Service) snmpRow(ctx context.Context, q interface {
 type snmpForm struct {
 	name, version, user, auth, priv string // priv "" for v2c and for v3 without privacy
 	secret, privSecret              string // "" = keep the saved one
+	port                            int    // 1..65535; 161 when the form gave none
 	scope                           []netip.Prefix
 	scopeText                       []string
 }
 
 // checkSNMP checks the form against the rules of the contract; prev is the saved credential of an edit, nil for a new one.
 func checkSNMP(in SNMPCredentialInput, prev *snmpRow) (snmpForm, *apierr.Error) {
-	f := snmpForm{name: strings.TrimSpace(in.Name), version: in.Version}
+	f := snmpForm{name: strings.TrimSpace(in.Name), version: in.Version, port: cmp.Or(in.Port, sensorlink.SNMPPort)}
 	if n := utf8.RuneCountInString(f.name); n < 1 || n > 64 || strings.ContainsAny(f.name, "<>") || cleanSNMP(f.name) != f.name {
 		return f, bad("bad_name", "Give the credential a name of 1 to 64 characters, without < or >.")
+	}
+	if f.port < 1 || f.port > 65535 {
+		return f, bad("bad_port", "The port is a number from 1 to 65535. Leave it empty for 161, the SNMP port.")
 	}
 	secret := func(v secrets.Value, lo int, what string) (string, *apierr.Error) {
 		t := v.Reveal()
@@ -420,11 +430,19 @@ func (s *Service) auditTx(ctx context.Context, tx *sql.Tx, actor, action, target
 }
 
 func (f snmpForm) words() string {
-	w := f.version
+	w := f.version + ", port " + strconv.Itoa(f.port)
 	if f.version == sensorlink.SNMPv3 {
 		w += " user " + f.user + ", " + f.auth + ", " + cmpOr(f.priv, "no privacy")
 	}
 	return w + ", scope " + strings.Join(f.scopeText, " ")
+}
+
+// portColumn is the port as stored: NULL for 161, so a credential saved without one and one saved with 161 are the same row.
+func (f snmpForm) portColumn() any {
+	if f.port == sensorlink.SNMPPort {
+		return nil
+	}
+	return f.port
 }
 
 func nameTaken(err error) error {
@@ -466,8 +484,8 @@ func (s *Service) AddSNMP(ctx context.Context, actor string, in SNMPCredentialIn
 			privID, privLast4 = pid, pl4
 		}
 		now := s.now()
-		if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp (id, name, version, username, auth, priv, secret_id, secret_last4, priv_secret_id, priv_last4, scope, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, f.name, f.version, nullable(f.user), nullable(f.auth), nullable(f.priv), secretID, last4, privID, privLast4, string(scope), now, now); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp (id, name, version, username, auth, priv, secret_id, secret_last4, priv_secret_id, priv_last4, scope, created_at, updated_at, port)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, f.name, f.version, nullable(f.user), nullable(f.auth), nullable(f.priv), secretID, last4, privID, privLast4, string(scope), now, now, f.portColumn()); err != nil {
 			return nameTaken(err)
 		}
 		return s.auditTx(ctx, tx, actor, "inventory.snmp_add", f.name, f.words())
@@ -529,8 +547,8 @@ func (s *Service) EditSNMP(ctx context.Context, actor, id string, in SNMPCredent
 			}
 		}
 		scope, _ := json.Marshal(f.scopeText)
-		if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp SET name = ?, version = ?, username = ?, auth = ?, priv = ?, secret_last4 = ?, priv_secret_id = ?, priv_last4 = ?, scope = ?, updated_at = ? WHERE id = ?`,
-			f.name, f.version, nullable(f.user), nullable(f.auth), nullable(f.priv), last4, privID, privLast4, string(scope), s.now(), id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp SET name = ?, version = ?, username = ?, auth = ?, priv = ?, secret_last4 = ?, priv_secret_id = ?, priv_last4 = ?, scope = ?, port = ?, updated_at = ? WHERE id = ?`,
+			f.name, f.version, nullable(f.user), nullable(f.auth), nullable(f.priv), last4, privID, privLast4, string(scope), f.portColumn(), s.now(), id); err != nil {
 			return nameTaken(err)
 		}
 		if err := forgetOutside(ctx, tx, id, f.scopeText); err != nil {
@@ -647,7 +665,7 @@ func (s *Service) TestSNMP(ctx context.Context, actor, id, ipText string) (SNMPT
 	if err != nil {
 		return SNMPTestResult{}, err
 	}
-	res.Message = snmpMessage(res.Reason, ip, cred.Version, res.Message)
+	res.Message = snmpMessage(res.Reason, ip, cred.Version, cred.Port, res.Message)
 	res.OK = res.Reason == SNMPOK
 	wctx := context.WithoutCancel(ctx) // the test happened: its audit row is written even when the caller has gone
 	werr := s.db.Write(wctx, func(tx *sql.Tx) error {
@@ -1002,6 +1020,9 @@ func (s *Service) snmpJob(ctx context.Context, rate int, creds []snmpRow, target
 			return job, fmt.Errorf("sensoractive: open snmp secret: %w", err)
 		}
 		w := sensorlink.SNMPCredential{Version: c.Version}
+		if c.Port != sensorlink.SNMPPort {
+			w.Port = c.Port // 161 stays off the wire: a worker built before the port gets the job it knows (sensor-protocol.md section 10)
+		}
 		switch c.Version {
 		case sensorlink.SNMPv2c:
 			w.Community = string(secret)
@@ -1036,7 +1057,7 @@ func (s *Service) insertSNMPProbe(ctx context.Context, jobID string, rate int, c
 	slices.SortFunc(addrs, func(a, b netip.Addr) int { return a.Compare(b) })
 	names := make([]string, len(creds))
 	for i, c := range creds {
-		names[i] = c.Name + " (" + c.Version + ")"
+		names[i] = fmt.Sprintf("%s (%s, UDP %d)", c.Name, c.Version, c.Port)
 	}
 	flags := clip("GET sysDescr sysObjectID sysName entPhysical.1 class model softwareRev serialNum mtxrLicVersion.0; timeout 2s retries 1; credentials: "+strings.Join(names, ", "), 300)
 	var id int64
@@ -1329,16 +1350,17 @@ func (s *Service) snmpCredentialChanged(id string) {
 	}
 }
 
-// snmpMessage is the plain text of a Test's reason (the GUI shows it as it is). extra is a message already set (unavailable).
-func snmpMessage(reason string, ip netip.Addr, version, extra string) string {
+// snmpMessage is the plain text of a Test's reason (the GUI shows it as it is): port is the UDP port the read went to. extra is a
+// message already set (unavailable).
+func snmpMessage(reason string, ip netip.Addr, version string, port int, extra string) string {
 	switch reason {
 	case SNMPOK:
-		return fmt.Sprintf("%s answered. What it said is now in the inventory, with source SNMP.", ip)
+		return fmt.Sprintf("%s answered on UDP port %d. What it said is now in the inventory, with source SNMP.", ip, port)
 	case sensorlink.SNMPStatusNoAnswer:
 		if version == sensorlink.SNMPv3 {
-			return fmt.Sprintf("No answer from %s on UDP 161 within 2 s (sent twice). The device may not run SNMP, a firewall may drop UDP 161, or SNMPv3 is not enabled on it.", ip)
+			return fmt.Sprintf("No answer from %s on UDP port %d within 2 s (sent twice). The device may not run SNMP or may answer on another port (set it in the credential), a firewall may drop UDP port %d, or SNMPv3 is not enabled on it.", ip, port, port)
 		}
-		return fmt.Sprintf("No answer from %s on UDP 161 within 2 s (sent twice). The device may not run SNMP, a firewall may drop UDP 161, or the community is wrong: a device ignores a wrong community instead of saying so.", ip)
+		return fmt.Sprintf("No answer from %s on UDP port %d within 2 s (sent twice). The device may not run SNMP or may answer on another port (set it in the credential), a firewall may drop UDP port %d, or the community is wrong: a device ignores a wrong community instead of saying so.", ip, port, port)
 	case sensorlink.SNMPStatusAuthFailed:
 		return "The device did not accept the v3 user name or password (or the authentication or privacy algorithm differs)."
 	case sensorlink.SNMPStatusUnknownUser:

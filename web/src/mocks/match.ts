@@ -28,7 +28,7 @@ export function matchAssetToKev(assetId: string): number {
   if (!a) return 0
   const have = new Set(findingsStore.get().filter((f) => f.asset_id === a.id).map((f) => f.cve))
   const now = nowIso()
-  const name = a.hostname ?? a.ip
+  const name = a.name ?? a.hostname ?? a.ip // the name in Vedette first (G2)
   const fresh: Finding[] = []
   for (const v of vulns) {
     if (have.has(v.cve)) continue

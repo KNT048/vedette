@@ -267,8 +267,8 @@ func (r responseDirectory) DevicesOfKind(ctx context.Context, kinds ...string) (
 		if d.IP == "—" { // unknown address
 			i.IP = ""
 		}
-		if i.Name = i.IP; d.Hostname != nil && *d.Hostname != "" {
-			i.Name = *d.Hostname
+		if i.Name = i.IP; d.NameOrHost() != nil { // the name in Vedette, else the host name (G2)
+			i.Name = *d.NameOrHost()
 		}
 		if d.MAC != nil {
 			i.MAC = *d.MAC
@@ -284,8 +284,8 @@ func deviceInfo(d inventory.Device) response.DeviceInfo {
 		out.IP = ""
 	}
 	out.Name = out.IP
-	if d.Hostname != nil && *d.Hostname != "" {
-		out.Name = *d.Hostname
+	if n := d.NameOrHost(); n != nil { // the name in Vedette, else the host name (G2)
+		out.Name = *n
 	}
 	if d.MAC != nil {
 		out.MAC = *d.MAC

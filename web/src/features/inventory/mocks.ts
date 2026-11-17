@@ -19,7 +19,7 @@ import type {
 } from './types'
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
-import { nameOf } from './nameOf'
+import { badUserName, nameOf } from './nameOf'
 import { actsAs, lookupType, TYPE_IDS } from '@/lib/deviceTypes'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
@@ -252,7 +252,7 @@ const scanInfo = (a: Asset) => ({
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
-const live = (a: Asset) => ({ ...a, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
+const live = (a: Asset) => ({ ...a, name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
 /** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's when osquery reports the device (its node is
  * bound to it) and Wazuh's when the saved Wazuh connection delivered it (both when both do); not Wazuh's once that connection is gone. */
 const DEVICE_SOURCES: readonly DeviceSource[] = ['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh']
@@ -296,7 +296,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
     && (hasFindings === null || (r.findings_count > 0) === hasFindings)
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
     && (!sources.length || r.sources.some((x) => sources.includes(x)))
-    && (!q || [r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
+    && (!q || [r.name, r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
       || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
 }
 const find = (id: string) => allAssets().find((x) => x.id === id)
@@ -337,13 +337,13 @@ function twoMachines(x: Asset, y: Asset) {
 }
 const notFound = (_request?: Request) => fail(404, 'not_found', 'No such device. It may have been removed; go back to the list to see the remaining devices.')
 
-function createManual(entry: CatalogEntry | null, o: { version?: string; name?: string; ip?: string; kind?: AssetKind }): Asset {
+function createManual(entry: CatalogEntry | null, o: { version?: string; name?: string; ip?: string; kind?: AssetKind; userName?: string }): Asset {
   const now = nowIso()
   const suggested = o.kind ?? entry?.kind ?? 'unknown'
   // A product with neither an IP nor a name is only a product ("(no device)"): no computer type for it (W9-1, D-515); an appliance keeps its type.
   const kind: AssetKind = !o.ip && !o.name && ['pc', 'server', 'web'].includes(actsAs(suggested)) ? 'unknown' : suggested
   const a: Asset = {
-    id: newId('a'), site: 'hq', ip: o.ip || '—', mac: null, hostname: o.name || null, kind,
+    id: newId('a'), site: 'hq', ip: o.ip || '—', mac: null, hostname: o.name || null, name: o.userName || null, kind,
     vendor: entry ? { value: entry.vendor, source: 'manual', confidence: 1, seen_at: now } : null,
     model: null, os: null, services: [], first_seen: now, last_seen: now, approved: true, fragile: policyFragile(kind), origin: 'manual',
     software: entry ? [softwareOf(entry, o.version)] : [],
@@ -376,7 +376,7 @@ function validateAdd(_request: Request, b: Partial<AddDeviceInput>, requireProdu
   if (name && !LABEL_RE.test(name)) return { err: bad(400, 'bad_name', 'The name is at most 64 characters and cannot contain < or >.') }
   const ip = typeof b.ip === 'string' ? b.ip.trim() : ''
   if (ip && !IPV4_RE.test(ip)) return { err: bad(400, 'bad_ip', 'That IP address is not valid. Enter something like 192.168.10.25, or leave it empty if unknown.') }
-  if (ip) { const dup = allAssets().find((x) => x.ip === ip); if (dup) return { err: bad(409, 'duplicate_ip', `IP ${ip} is already in the list (${dup.hostname ?? dup.id}). Open that device instead of adding a new one.`) } }
+  if (ip) { const dup = allAssets().find((x) => x.ip === ip); if (dup) return { err: bad(409, 'duplicate_ip', `IP ${ip} is already in the list (${nameOf(dup, dup.kind)}). Open that device instead of adding a new one.`) } }
   return { entry, version, name, ip }
 }
 
@@ -499,7 +499,7 @@ function injectSample(feed: 'osquery' | 'wazuh'): { devices: number; software: n
 type StoredSnmp = SnmpCredential & { community?: string; auth_password?: string; priv_password?: string }
 export const snmpStore = collection<StoredSnmp[]>('sa_snmp', () => [{
   id: 'snmp-1', name: 'Core switches (v3)', version: 'v3', username: 'vedette-ro', auth: 'sha256', priv: 'aes128',
-  auth_password: 'ro-auth-2fe8', priv_password: 'ro-priv-91c4', secret_last4: '2fe8', priv_last4: '91c4',
+  auth_password: 'ro-auth-2fe8', priv_password: 'ro-priv-91c4', secret_last4: '2fe8', priv_last4: '91c4', port: 161,
   scope: ['192.168.10.0/24'], created_at: daysAgo(30), last_answer_at: daysAgo(1), answered: 3, secret_lost: false, moved_out: [],
 }], () => [])
 const SNMP_MAX = 8
@@ -521,6 +521,9 @@ function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { 
   if (!LABEL_RE.test(name)) return { err: bad(400, 'bad_name', 'Name the credential, up to 64 characters, without < or >. Example "Core switches".') }
   if (snmpStore.get().some((x) => x.id !== prev?.id && x.name.toLowerCase() === name.toLowerCase())) return { err: bad(409, 'name_taken', `A credential named "${name}" already exists. Choose another name.`) }
   if (b.version !== 'v2c' && b.version !== 'v3') return { err: bad(400, 'bad_version', 'The SNMP version is v2c or v3. SNMPv1 is not offered: it is not secure.') }
+  // The UDP port (kien 2026-11-17): left out = 161; the contract takes an integer of 1..65535 (the API answers 400 otherwise).
+  const port = b.port ?? 161
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return { err: bad(400, 'bad_port', 'The port is a number from 1 to 65535. Leave it empty for 161, the SNMP port.') }
   const scope = Array.isArray(b.scope) ? [...new Set(b.scope.map((x) => String(x).trim()).filter(Boolean))] : []
   if (scope.length > 16) return { err: bad(400, 'bad_scope', 'At most 16 addresses or ranges.') }
   for (const x of scope) {
@@ -554,7 +557,7 @@ function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { 
     if (c.err) return { err: c.err }
     const w = widened()
     if (w) return w
-    return { value: { name, version: 'v2c', username: null, auth: null, priv: null, community: c.v, secret_last4: last4(c.v), priv_last4: '', scope } }
+    return { value: { name, version: 'v2c', username: null, auth: null, priv: null, community: c.v, secret_last4: last4(c.v), priv_last4: '', port, scope } }
   }
   const username = typeof b.username === 'string' ? b.username.trim() : ''
   if (!SNMP_USER_RE.test(username)) return { err: bad(400, 'bad_user', 'The v3 user name is 1 to 64 letters, digits and . _ @ -.') }
@@ -568,12 +571,12 @@ function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { 
   if (p.err) return { err: p.err }
   const w = widened()
   if (w) return w
-  return { value: { name, version: 'v3', username, auth: b.auth, priv, auth_password: a.v, priv_password: p.v, secret_last4: last4(a.v), priv_last4: last4(p.v), scope } }
+  return { value: { name, version: 'v3', username, auth: b.auth, priv, auth_password: a.v, priv_password: p.v, secret_last4: last4(a.v), priv_last4: last4(p.v), port, scope } }
 }
 
 /** The plain words the backend uses for each Test result (D-512). `unavailable` carries the readiness message instead. */
-const SNMP_MSG: Record<Exclude<SnmpTestReason, 'ok' | 'unavailable'>, (ip: string) => string> = {
-  no_answer: (ip) => `No answer from ${ip} on UDP 161 within 2 s (sent twice). The device may not run SNMP, a firewall may drop UDP 161, or the community is wrong: a device ignores a wrong community instead of saying so.`,
+const SNMP_MSG: Record<Exclude<SnmpTestReason, 'ok' | 'unavailable'>, (ip: string, port?: number) => string> = {
+  no_answer: (ip, port = 161) => `No answer from ${ip} on UDP port ${port} within 2 s (sent twice). The device may not run SNMP or may answer on another port (set it in the credential), a firewall may drop UDP port ${port}, or the community is wrong: a device ignores a wrong community instead of saying so.`,
   auth_failed: () => 'The device did not accept the v3 user name or password (or the authentication or privacy algorithm differs).',
   unknown_user: () => 'The device does not know this v3 user name.',
   error: () => 'The device answered with an error, or with a message Vedette could not read.',
@@ -715,12 +718,21 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
     if (!a) return notFound(request)
-    const b = await body<{ kind: AssetKind; fragile: boolean; regular_scan: RegularScan; notes: string }>(request)
+    const b = await body<{ name: string; kind: AssetKind; fragile: boolean; regular_scan: RegularScan; notes: string }>(request)
     const patch: Partial<Asset> = {}
+    if (b.name !== undefined) { // G2: the name in Vedette, as the backend checks it (trimmed, at most 64 characters, no < or >; empty clears it)
+      const n = typeof b.name === 'string' ? b.name.trim() : null
+      if (n === null || badUserName(n)) return fail(400, 'bad_name', 'The name is at most 64 characters and cannot contain < or >, control characters or invisible characters.')
+      if (n !== (a.name ?? '')) {
+        const before = nameOf(a, a.kind)
+        patch.name = n || null
+        audit('inventory.rename', nameOf({ ...a, name: patch.name }, a.kind), `${before} → ${nameOf({ ...a, name: patch.name }, a.kind)}`)
+      }
+    }
     if (b.regular_scan !== undefined) {
       if (!['follow', 'allow', 'never'].includes(b.regular_scan)) return fail(400, 'bad_regular_scan', 'Regular scans must be: follow type setting, allow or never.')
       metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], regular_scan: b.regular_scan } }))
-      audit('inventory.set_regular_scan', a.hostname ?? a.id, b.regular_scan)
+      audit('inventory.set_regular_scan', nameOf(a, a.kind), b.regular_scan)
     }
     if (b.kind !== undefined) {
       if (!KINDS.includes(b.kind)) return fail(400, 'bad_kind', `Device type must be one of: ${KINDS.join(', ')}.`)
@@ -728,19 +740,19 @@ export const handlers = [
         addObs(a, 'kind', b.kind, 'manual', 1)
         patch.kind = b.kind
         if (!metaStore.get()[a.id]?.fragile_manual) patch.fragile = policyFragile(b.kind)
-        audit('inventory.set_kind', a.hostname ?? a.id, `${a.kind} → ${b.kind}`)
+        audit('inventory.set_kind', nameOf(a, a.kind), `${a.kind} → ${b.kind}`)
       }
     }
     if (b.fragile !== undefined) {
       if (typeof b.fragile !== 'boolean') return fail(400, 'bad_fragile', 'fragile must be true or false.')
       patch.fragile = b.fragile
       metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], fragile_manual: true } }))
-      audit('inventory.set_fragile', a.hostname ?? a.id, String(b.fragile))
+      audit('inventory.set_fragile', nameOf(a, a.kind), String(b.fragile))
     }
     if (b.notes !== undefined) {
       if (typeof b.notes !== 'string' || b.notes.length > 2000) return fail(400, 'bad_notes', 'Notes are at most 2000 characters.')
       patch.notes = b.notes
-      audit('inventory.set_notes', a.hostname ?? a.id)
+      audit('inventory.set_notes', nameOf(a, a.kind))
     }
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, ...patch } : x)))
     return HttpResponse.json({ ok: true })
@@ -757,7 +769,7 @@ export const handlers = [
     // Phát hiện gắn thiết bị đã xoá không còn nghĩa: gỡ cùng lúc để không còn phát hiện mồ côi (supervisor).
     const orphaned = findingsStore.get().filter((f) => f.asset_id === a.id).length
     if (orphaned) findingsStore.update((l) => l.filter((f) => f.asset_id !== a.id))
-    audit('inventory.delete', a.hostname ?? a.ip, orphaned ? `${a.id}; removed ${orphaned} findings of the device` : a.id)
+    audit('inventory.delete', nameOf(a, a.kind), orphaned ? `${a.id}; removed ${orphaned} findings of the device` : a.id)
     return new HttpResponse(null, { status: 204 })
   }),
 
@@ -768,7 +780,7 @@ export const handlers = [
     if (!a) return notFound(request)
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, approved: true } : x)))
     metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: false, approved_at: m[a.id]?.approved_at ?? (a.approved ? undefined : nowIso()) } }))
-    audit('inventory.approve', a.hostname ?? a.ip, a.id)
+    audit('inventory.approve', nameOf(a, a.kind), a.id)
     return HttpResponse.json({ ok: true })
   }),
 
@@ -779,7 +791,7 @@ export const handlers = [
     const b = await body<{ suspicious: boolean }>(request)
     if (typeof b.suspicious !== 'boolean') return fail(400, 'bad_flag', 'suspicious must be true or false.')
     metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: b.suspicious } }))
-    audit(b.suspicious ? 'inventory.mark_suspicious' : 'inventory.unmark_suspicious', a.hostname ?? a.ip, a.id)
+    audit(b.suspicious ? 'inventory.mark_suspicious' : 'inventory.unmark_suspicious', nameOf(a, a.kind), a.id)
     return HttpResponse.json({ ok: true })
   }),
 
@@ -793,7 +805,7 @@ export const handlers = [
     const sw = softwareOf(v.entry!, v.version)
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: [...x.software, sw] } : x)))
     matchAssetToKev(a.id)
-    audit('inventory.add_software', `${a.hostname ?? a.id}: ${sw.display}`)
+    audit('inventory.add_software', `${nameOf(a, a.kind)}: ${sw.display}`)
     return HttpResponse.json({ kev_cves: v.entry!.kev_count }, { status: 201 })
   }),
 
@@ -823,7 +835,7 @@ export const handlers = [
     if (!sw) return fail(404, 'not_found', 'No such software on this device.')
     if (sw.source !== 'manual') return fail(400, 'not_manual', 'Only manually declared software can be removed. Software seen by a sensor or agent updates on the next scan.')
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.filter((s) => s.id !== sw.id) } : x)))
-    audit('inventory.remove_software', `${a.hostname ?? a.id}: ${sw.display}`)
+    audit('inventory.remove_software', `${nameOf(a, a.kind)}: ${sw.display}`)
     return new HttpResponse(null, { status: 204 })
   }),
 
@@ -841,10 +853,11 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     const keep = deviceFilter(request.url)
     if (keep instanceof Response) return keep
-    const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen']
+    // name is the host name; name_in_vedette the name a person gave the device (G2, review r1 of #929): import reads both back
+    const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen', 'name_in_vedette']
     const lines = allAssets().filter((a) => keep(toRow(a))).map((a) => {
       const s = summaryOf(a)
-      return [a.hostname ?? '', hasIp(a) ? a.ip : '', a.mac ?? '', a.kind, a.vendor?.value, a.model?.value, a.os?.value, a.software.map((x) => `${x.display}${x.version ? ` ${x.version}` : ''}`).join('; '), a.approved ? 'yes' : 'no', a.fragile ? 'yes' : 'no', a.origin, s?.source, s ? s.confidence.toFixed(2) : '', a.last_seen].map(csvCell).join(',')
+      return [a.hostname ?? '', hasIp(a) ? a.ip : '', a.mac ?? '', a.kind, a.vendor?.value, a.model?.value, a.os?.value, a.software.map((x) => `${x.display}${x.version ? ` ${x.version}` : ''}`).join('; '), a.approved ? 'yes' : 'no', a.fragile ? 'yes' : 'no', a.origin, s?.source, s ? s.confidence.toFixed(2) : '', a.last_seen, a.name ?? ''].map(csvCell).join(',')
     })
     audit('inventory.export', 'devices.csv', `${lines.length} rows`)
     return new HttpResponse(`﻿${[head.join(','), ...lines].join('\r\n')}\r\n`, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=vedette-devices.csv' } })
@@ -867,7 +880,7 @@ export const handlers = [
     const hi = table.findIndex((r) => r.some((c) => c.trim())) // bỏ dòng trống đầu file
     if (problems.has(hi)) return fail(400, 'bad_header', problems.get(hi)!)
     const header = (table[hi] ?? []).map((h) => { const k = fold(h); return HEADER_ALIAS[k] ?? k })
-    if (!header.includes('name') && !header.includes('product')) return fail(400, 'bad_header', 'The first row must be column headers with at least a name or product column. Download the template to see the format.')
+    if (!header.includes('name') && !header.includes('name_in_vedette') && !header.includes('product')) return fail(400, 'bad_header', 'The first row must be column headers with at least a name or product column. Download the template to see the format.')
     const data = table.slice(hi + 1)
     if (!problems.size && !data.some((r) => r.some((c) => c.trim()))) return fail(400, 'no_rows', 'No device rows were found below the column headers. Add at least one row and choose the file again.')
     if (data.length > MAX_IMPORT_ROWS) return fail(400, 'too_many_rows', `At most ${MAX_IMPORT_ROWS} rows per import. This file has ${data.length} rows.`)
@@ -888,7 +901,9 @@ export const handlers = [
       const productText = get('product')
       const entry = productText ? findCatalog(productText) : undefined
       if (productText && !entry) return err(`Product "${productText.slice(0, 40)}" not recognised. Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`)
-      if (!productText && !get('name')) return err('This row has neither name nor product. At least one is needed.')
+      const userName = get('name_in_vedette')
+      if (badUserName(userName)) return err('The name is at most 64 characters and cannot contain < or >, control characters or invisible characters.')
+      if (!productText && !get('name') && !userName) return err('This row has neither name nor product. At least one is needed.')
       const kindText = get('kind')
       const kind = kindText ? parseKind(kindText) : undefined
       if (kindText && !kind) return err(`Type "${kindText.slice(0, 20)}" is not a device type. Use a type the device page lists, for example router, switch, server, laptop, printer, camera, ip_phone or unknown.`)
@@ -901,7 +916,7 @@ export const handlers = [
         if (noIpNames.has(key) || seenNames.has(key)) return err(`A device named "${v.name.slice(0, 40)}" (no IP yet) is already in the list. Add an IP to this row if it is a different device.`)
         seenNames.add(key)
       }
-      createManual(entry ?? null, { version: v.version, name: v.name, ip: v.ip, kind })
+      createManual(entry ?? null, { version: v.version, name: v.name, ip: v.ip, kind, userName })
       res.created++
       const note = v.ip ? ipNote(v.ip, ranges) : ''
       if (note) res.notes.push({ line, message: note })
@@ -1194,8 +1209,8 @@ export const handlers = [
       const ans = snmpAnswer(a)
       recordSnmp(a, ans)
       snmpStore.update((l) => l.map((x) => (x.id === c.id ? { ...x, last_answer_at: nowIso(), answered: Math.max(x.answered, 1) } : x)))
-      Object.assign(res, { ok: true, message: `${ip} answered. What it said is recorded in the inventory.`, answer: ans })
-    } else res.message = SNMP_MSG[reason as keyof typeof SNMP_MSG](ip)
+      Object.assign(res, { ok: true, message: `${ip} answered on UDP port ${c.port}. What it said is now in the inventory, with source SNMP.`, answer: ans })
+    } else res.message = SNMP_MSG[reason as keyof typeof SNMP_MSG](ip, c.port)
     audit('inventory.snmp_test', c.name, `${ip}: ${reason}`)
     return HttpResponse.json(res)
   }),
@@ -1221,7 +1236,7 @@ export const handlers = [
       const ok = c.version === 'v3' || c.community === 'public'
       const answer = ok ? snmpAnswer(a) : null
       if (answer) recordSnmp(a, answer)
-      return { ip: a.ip, ok, reason: ok ? 'ok' : 'no_answer', message: ok ? `${a.ip} answered. What it said is now in the inventory, with source SNMP.` : SNMP_MSG.no_answer(a.ip), device_id: a.id, answer }
+      return { ip: a.ip, ok, reason: ok ? 'ok' : 'no_answer', message: ok ? `${a.ip} answered on UDP port ${c.port}. What it said is now in the inventory, with source SNMP.` : SNMP_MSG.no_answer(a.ip, c.port), device_id: a.id, answer }
     })
     const answered = results.filter((r) => r.ok).length
     if (answered) snmpStore.update((l) => l.map((x) => (x.id === c.id ? { ...x, last_answer_at: nowIso(), answered: Math.max(x.answered, answered) } : x)))

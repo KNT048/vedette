@@ -2350,3 +2350,106 @@ describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
     expect((await call('PATCH', `/devices/${agent.id}/software/${asid}`, { version: '1' })).json!.error.code).toBe('not_manual')
   })
 })
+
+describe('inventory: G2 rename a device (S-INV-1)', () => {
+  const nas = () => find('a-nas02')
+
+  it('Rename next to the title: Enter saves the name in Vedette, the host name stays apart, empty gives the default name back', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02', { role: 'operator' })
+    expect(await screen.findByRole('heading', { level: 1, name: 'NAS-PHOTOS' }, T)).toBeInTheDocument()
+    expect(screen.getByTestId('device-hostname')).toHaveTextContent('NAS-PHOTOS')
+    await user.click(screen.getByRole('button', { name: 'Rename' }))
+    const field = screen.getByRole('textbox', { name: 'Name in Vedette' })
+    expect(field).toHaveFocus()
+    expect(field).toHaveValue('')
+    expect(field).toHaveAttribute('placeholder', 'NAS-PHOTOS') // what an empty name shows
+    expect(screen.getByText(/Leave it empty for the default name, NAS-PHOTOS/)).toBeInTheDocument()
+    await expectNoA11yViolations()
+    await user.type(field, '  Photo NAS  {Enter}')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Photo NAS' }, T)).toBeInTheDocument()
+    expect(nas().name).toBe('Photo NAS')
+    expect(nas().hostname).toBe('NAS-PHOTOS') // the observed host name is not changed
+    expect(screen.getByTestId('device-hostname')).toHaveTextContent('NAS-PHOTOS')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename' })).toHaveFocus(), T)
+    expect(auditStore.get().find((e) => e.action === 'inventory.rename')).toMatchObject({ target: 'Photo NAS' })
+
+    // Escape cancels without saving
+    await user.click(screen.getByRole('button', { name: 'Rename' }))
+    expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveValue('Photo NAS')
+    await user.type(screen.getByRole('textbox', { name: 'Name in Vedette' }), 'xyz{Escape}')
+    expect(screen.queryByRole('textbox', { name: 'Name in Vedette' })).toBeNull()
+    expect(nas().name).toBe('Photo NAS')
+
+    // empty + Save: the default name again
+    await user.click(screen.getByRole('button', { name: 'Rename' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Name in Vedette' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'NAS-PHOTOS' }, T)).toBeInTheDocument()
+    expect(nas().name ?? null).toBeNull()
+  })
+
+  it('a name with < or > is refused before it is sent', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02', { role: 'operator' })
+    await user.click(await screen.findByRole('button', { name: 'Rename' }, T))
+    await user.type(screen.getByRole('textbox', { name: 'Name in Vedette' }), 'a<b')
+    expect(screen.getByRole('alert')).toHaveTextContent('A name cannot contain < or >, control characters or invisible characters.')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
+  it('review r1 of #929: invisible and bidi characters are refused like < >; a refused save keeps the focus and says why next to the field', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02', { role: 'operator' })
+    await user.click(await screen.findByRole('button', { name: 'Rename' }, T))
+    const field = screen.getByRole('textbox', { name: 'Name in Vedette' })
+    fireEvent.change(field, { target: { value: '\u202eresu-lawerif' } })
+    expect(screen.getByRole('alert')).toHaveTextContent('invisible characters')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    fireEvent.change(field, { target: { value: 'fw\u200bcore' } })
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    server.use(http.patch(`${location.origin}/api/v1/inventory/devices/:id`, () => HttpResponse.json({ error: { code: 'forbidden', message: 'You need the operator role.' } }, { status: 403 })))
+    await user.clear(field)
+    await user.type(field, 'Photo NAS{Enter}')
+    expect(await screen.findByRole('alert', undefined, T)).toHaveTextContent('You need the operator role.')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveFocus(), T)
+    expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveAttribute('aria-invalid', 'true')
+    expect(nas().name ?? null).toBeNull()
+  })
+
+  it('review r1 of #929: the CSV export keeps the host name and the name in Vedette apart, and import reads both back', async () => {
+    asAdmin()
+    expect((await call('PATCH', '/devices/a-nas02', { name: 'Photo NAS' })).status).toBe(200)
+    const csv = (await call('GET', '/export.csv')).text
+    expect(csv).toContain('last_seen,name_in_vedette')
+    expect(csv).toMatch(/\r\nNAS-PHOTOS,[^\r]*,Photo NAS\r\n/)
+    const r = await call('POST', '/import', { filename: 'x.csv', size: 1, sha256: 'x', text: 'name,ip,name_in_vedette\nfw-core,192.168.77.1,Office firewall\n' })
+    expect(r.json!.created).toBe(1)
+    const a = assetsStore.get().find((x) => x.ip === '192.168.77.1')!
+    expect([a.hostname, a.name]).toEqual(['fw-core', 'Office firewall'])
+  })
+
+  it('a viewer cannot rename', async () => {
+    renderApp('/devices/a-nas02', { role: 'viewer' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename' })).toBeDisabled(), T)
+  })
+
+  it('the Devices list shows the name in Vedette and the search finds it', async () => {
+    const user = userEvent.setup()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-nas02' ? { ...a, name: 'Photo NAS' } : a)))
+    renderApp('/devices')
+    const table = await deviceTable()
+    await user.type(screen.getByRole('combobox', { name: 'Search devices' }), 'photo nas')
+    expect(await within(table).findByRole('link', { name: 'Photo NAS' }, T)).toHaveAttribute('href', '/devices/a-nas02')
+  })
+
+  it('PATCH name: trimmed, at most 64 characters, no < or >, empty clears it', async () => {
+    asAdmin()
+    expect((await call('PATCH', '/devices/a-nas02', { name: 'a>b' })).json!.error.code).toBe('bad_name')
+    expect((await call('PATCH', '/devices/a-nas02', { name: 'x'.repeat(65) })).json!.error.code).toBe('bad_name')
+    expect((await call('PATCH', '/devices/a-nas02', { name: ' Photo NAS ' })).status).toBe(200)
+    expect((await call('GET', '/devices/a-nas02')).json!.asset.name).toBe('Photo NAS')
+    expect((await call('PATCH', '/devices/a-nas02', { name: '' })).status).toBe(200)
+    expect((await call('GET', '/devices/a-nas02')).json!.asset.name).toBeNull()
+  })
+})

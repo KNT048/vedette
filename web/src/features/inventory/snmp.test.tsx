@@ -108,7 +108,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     renderSnmp()
     await row('Core switches (v3)')
     const li = await runTest(user, 'Core switches (v3)', '192.168.10.3')
-    const answer = await within(li).findByText('192.168.10.3 answered.', undefined, T)
+    const answer = await within(li).findByText('192.168.10.3 answered on UDP port 161.', undefined, T)
     const box = answer.closest('[role="status"]') as HTMLElement
     // the preview answers as the device the list shows at that address (Cisco CBS350 SW-CORE), so recording it changes nothing shown
     expect(box).toHaveTextContent('SW-CORE')
@@ -141,6 +141,76 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     expect(within(li).getByRole('button', { name: 'Run test' })).not.toHaveAttribute('aria-busy')
   })
 
+  // kien 2026-11-17: a device that answers SNMP on another UDP port. Form matrix of the Port field (docs/QA.md 2), under v2c and v3:
+  // empty and 161 send the default (no port shown on the row), 1161 is saved and shown, 0, 65536 and letters are refused in the browser.
+  it('the Port field: empty or 161 is the default, 1161 is saved and shown on the row, 0, 65536 and letters are refused', async () => {
+    const sent: Record<string, unknown>[] = []
+    server.events.on('request:start', async ({ request }) => {
+      if (request.method === 'POST' && request.url.endsWith('/inventory/snmp')) sent.push(await request.clone().json())
+    })
+    const user = userEvent.setup()
+    renderSnmp()
+    await row('Core switches (v3)')
+    const open = async () => {
+      await clickUntil(user, () => screen.getByRole('button', { name: 'Add SNMP credential' }), () => screen.getByRole('dialog'))
+      return screen.findByRole('dialog', { name: 'Add SNMP credential' }, T)
+    }
+    const cases: { name: string; version: 'v2c' | 'v3'; port: string; want?: number; err?: boolean }[] = [
+      { name: 'Empty', version: 'v2c', port: '' }, { name: 'Default', version: 'v3', port: '161', want: 161 },
+      { name: 'Odd v2c', version: 'v2c', port: '1161', want: 1161 }, { name: 'Odd v3', version: 'v3', port: '1161', want: 1161 },
+      { name: 'Zero', version: 'v2c', port: '0', err: true }, { name: 'Too big', version: 'v3', port: '65536', err: true }, { name: 'Letters', version: 'v2c', port: 'snmp', err: true },
+    ]
+    for (const c of cases) {
+      const dialog = await open()
+      if (c.version === 'v3') await user.click(within(dialog).getByRole('button', { name: 'v3' }))
+      const port = within(dialog).getByLabelText('Port')
+      expect(port).toHaveAttribute('placeholder', '161')
+      expect(within(dialog).getByText('Only if the device answers SNMP on another port. Leave empty for 161.')).toBeInTheDocument()
+      await user.type(within(dialog).getByLabelText('Name'), c.name)
+      if (c.version === 'v2c') await user.type(within(dialog).getByLabelText('Community'), 'ro-community-2024')
+      else {
+        await user.type(within(dialog).getByLabelText('User name'), 'vedette-ro')
+        await user.type(within(dialog).getByLabelText('Authentication password'), 'auth-pass-1')
+        await user.type(within(dialog).getByLabelText('Privacy password'), 'priv-pass-1')
+      }
+      if (c.port) await user.type(port, c.port)
+      await user.type(within(dialog).getByLabelText('Send only to'), '192.168.10.40')
+      const before = sent.length
+      await user.click(within(dialog).getByRole('button', { name: 'Add credential' }))
+      if (c.err) {
+        expect(within(dialog).getByText('Enter a port from 1 to 65535, or leave it empty for 161.')).toBeInTheDocument()
+        expect(port).toHaveAttribute('aria-invalid', 'true')
+        expect(sent.length).toBe(before)
+        await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument(), T)
+        continue
+      }
+      const li = await row(c.name)
+      expect(sent.at(-1)?.port).toBe(c.want)
+      if (c.want === 1161) expect(li).toHaveTextContent('PortUDP 1161')
+      else expect(li).not.toHaveTextContent(/Port/)
+    }
+    // Edit keeps the port; emptying it goes back to 161.
+    await user.click(screen.getByRole('button', { name: 'Edit Odd v2c' }))
+    const edit = await screen.findByRole('dialog', { name: 'Edit Odd v2c' }, T)
+    expect(within(edit).getByLabelText('Port')).toHaveValue('1161')
+    await user.clear(within(edit).getByLabelText('Port'))
+    await user.click(within(edit).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(snmpStore.get().find((x) => x.name === 'Odd v2c')?.port).toBe(161), T)
+  })
+
+  it('Test on a credential with its own port names that port in the answer and in the no-answer reason', async () => {
+    expect((await call('POST', '/snmp', { name: 'Odd port', version: 'v2c', community: 'other-community', port: 1161, scope: ['192.168.10.0/24'] })).status).toBe(201)
+    expect((await call('POST', '/snmp', { name: 'Bad port', version: 'v2c', community: 'public', port: 70000, scope: ['192.168.10.0/24'] })).status).toBe(400)
+    const user = userEvent.setup()
+    renderSnmp()
+    await row('Odd port')
+    const li = await runTest(user, 'Odd port', '192.168.10.3')
+    const alert = await within(li).findByRole('alert', undefined, T)
+    expect(alert).toHaveTextContent('No answer from 192.168.10.3 on UDP port 1161 within 2 s (sent twice).')
+    expect(alert).toHaveTextContent('a firewall may drop UDP port 1161')
+  })
+
   it('Test with a wrong community shows the plain no-answer reason; a bad IP is refused in the browser', async () => {
     expect((await call('POST', '/snmp', { name: 'Old community', version: 'v2c', community: 'wrong-community', scope: ['192.168.10.0/24'] })).status).toBe(201)
     const user = userEvent.setup()
@@ -153,7 +223,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     await user.click(within(li).getByRole('button', { name: 'Run test' }))
     const alert = await within(li).findByRole('alert', undefined, T)
     expect(alert).toHaveTextContent('192.168.10.3 was not read.')
-    expect(alert).toHaveTextContent('No answer from 192.168.10.3 on UDP 161 within 2 s (sent twice).')
+    expect(alert).toHaveTextContent('No answer from 192.168.10.3 on UDP port 161 within 2 s (sent twice).')
     expect(alert).toHaveTextContent('a device ignores a wrong community instead of saying so')
   })
 
